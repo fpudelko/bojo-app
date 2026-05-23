@@ -1,199 +1,209 @@
-# [Material Kit React Native](https://creativetimofficial.github.io/material-kit-react-native/docs/#) [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&logo=twitter)](https://twitter.com/home?status=Material%20Kit%20React%20Native,%20a%20cool%20Material%20Kit%20React%20Native%20App%20Template%20%E2%9D%A4%EF%B8%8F%20https%3A//bit.ly/2HObENt%20%23reactnative%20%23material%20%23design%20%23developers%20via%20%40CreativeTim)
+# ⚽ Boiska Poznań
 
+> Agregator boisk sportowych w Poznaniu — znajdź boisko, zarezerwuj termin i szukaj graczy do gry.
 
- ![version](https://img.shields.io/badge/version-1.9.0-blue.svg)  [![GitHub issues open](https://img.shields.io/github/issues/creativetimofficial/material-kit-react-native.svg?style=flat)](https://github.com/creativetimofficial/material-kit-react-native/issues?q=is%3Aopen+is%3Aissue) [![GitHub issues closed](https://img.shields.io/github/issues-closed-raw/creativetimofficial/material-kit-react-native.svg?maxAge=2592000)](https://github.com/creativetimofficial/material-kit-react-native/issues?q=is%3Aissue+is%3Aclosed)
+## Opis projektu
 
+**Boiska Poznań** to aplikacja webowa umożliwiająca mieszkańcom Poznania:
 
-![Product Gif](https://raw.githubusercontent.com/creativetimofficial/public-assets/master/material-kit-react-native/opt_mkrn_thumbnail.jpg)
+- **Przeglądanie mapy boisk** — boiska piłkarskie, korty tenisowe, boiska do koszykówki, siatkówki i futsalu na interaktywnej mapie Mapbox
+- **Filtrowanie** po rodzaju sportu, dostępności i odległości
+- **Szukam graczy** — tablica ogłoszeń do organizowania gier (ogłoszenia z liczbą potrzebnych graczy)
+- **Scrapowanie danych** z Google Places API i OpenStreetMap
 
-Material Kit React Native is a fully coded app template built over [Galio.io](https://galio.io/?ref=creativetim), [React Native](https://facebook.github.io/react-native/?ref=creativetim) and [Expo](https://expo.io/?ref=creativetim) to allow you to create powerful and beautiful e-commerce mobile applications. We have redesigned all the usual components in Galio to make it look like Google's material design, minimalistic and easy to use.
+---
 
-Start your development with a badass material UI Kit for React Native inspired by Material Design. If you like Google's Material Design, you will love this react native kit! It features a huge number of components and screens built to fit together and look amazing. 
-
-### FULLY CODED COMPONENTS
-
-Material Kit React Native features over 200 variations of components like buttons, inputs, cards, navigations etc, giving you the freedom of choosing and combining. All components can take variations in colour, that you can easily modify inside our theme file.
-
-You will save a lot of time going from prototyping to full-functional code, because all elements are implemented. We wanted the design process to be seamless, so switching from image to the real page is very easy to do.
-
-### Components & Cards
-Material Kit React Native comes packed with a large number of components and cards. Putting together a mobile app has never been easier than matching together different components. From the profile screen to a settings screen, you can easily customise and build your screens. We have created multiple options for you to put together and customise into pixel perfect screens. 
-
-View [ all components/cards here](https://demos.creative-tim.com/material-kit-react-native/index.html#cards).
-
-### Example Screens
-If you want to get inspiration or just show something directly to your clients, you can jump start your development with our pre-built example screens. From onboarding screens to profile or discover screens, you will be able to quickly set up the basic structure for your React Native mobile project. 
-
-View [all screens here](https://demos.creative-tim.com/material-kit-react-native/index.html#screens).
-
-
-Let us know your thoughts below. And good luck with development!
-
-
-## Table of Contents
-
-* [Versions](#versions) 
-* [Demo](#demo)
-* [Quick Start](#quick-start)
-* [Documentation](#documentation)
-* [File Structure](#file-structure)
-* [OS Support](#os-support)
-* [Resources](#resources)
-* [Reporting Issues](#reporting-issues)
-* [Technical Support or Questions](#technical-support-or-questions)
-* [Licensing](#licensing)
-* [Useful Links](#useful-links)
-
-## Versions
-
-[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/html-logo.jpg?raw=true" width="60" height="60" />](https://www.creative-tim.com/product/material-kit)[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/vue-logo.jpg?raw=true" width="60" height="60" />](https://www.creative-tim.com/product/vue-material-kit)[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/react-logo.jpg?raw=true" width="60" height="60" />](https://www.creative-tim.com/product/material-kit-react)[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/react-native-logo.jpg?raw=true" width="60" height="60" />](https://www.creative-tim.com/product/material-kit-react-native)[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/figma-logo.jpg?raw=true" width="60" height="60" />](https://demos.creative-tim.com/material-kit-figma/presentation.html)[<img src="https://github.com/creativetimofficial/public-assets/blob/master/logos/wordpress-logo.jpg?raw=true" width="60" height="60" />](https://themeisle.com/themes/hestia/?ref=creativetim)[<img src="https://raw.githubusercontent.com/creativetimofficial/public-assets/master/logos/photoshop-logo.jpg" width="60" height="60" />](https://github.com/creativetimofficial/material-kit/tree/photoshop)[<img src="https://raw.githubusercontent.com/creativetimofficial/public-assets/master/logos/sketch-logo.jpg" width="60" height="60" />](https://github.com/creativetimofficial/material-kit/tree/sketch)
-
-
-
-
-
-| HTML | React | Vue  |
-| --- | --- | ---  |
-| [![Material Kit  HTML](https://github.com/creativetimofficial/public-assets/blob/master/material-kit/material-kit.jpeg?raw=true)](https://www.creative-tim.com/product/material-kit)  | [![Material Kit  React](https://github.com/creativetimofficial/public-assets/blob/master/material-kit-react/material-kit-react.jpeg?raw=true)](https://www.creative-tim.com/product/material-kit-react)  | [![Vue Material Kit](https://github.com/creativetimofficial/public-assets/blob/master/vue-material-kit/vue-material-kit.jpeg?raw=true)](https://www.creative-tim.com/product/vue-material-kit)
-
-| React Native | Figma | WordPress |
-| ---  | --- | --- |
-| [![Material Kit React Native](https://github.com/creativetimofficial/public-assets/blob/master/material-kit-react-native/opt_mkrn_thumbnail.jpg?raw=true)](https://www.creative-tim.com/product/material-kit-react-native) | [![Material Kit Figma](https://github.com/creativetimofficial/public-assets/blob/master/material-kit-figma/material-kit-figma.jpg?raw=true)](https://demos.creative-tim.com/material-kit-figma/presentation.html) | [![Material Kit WordPress](https://github.com/creativetimofficial/public-assets/blob/master/material-kit-wordpress/opt_smd_thumbnail.jpg?raw=true)](https://themeisle.com/themes/hestia/?ref=creativetim)
-
-## Demo
-
-| Home Screen | Profile Screen | Chat Screen | Product Screen |
-| --- | --- | --- | --- |
-| [![Home Screen](https://raw.githubusercontent.com/creativetimofficial/public-assets/master/material-kit-react-native/home-screen.png)](https://demos.creative-tim.com/material-kit-react-native/) | [![Profile Screen](https://raw.githubusercontent.com/creativetimofficial/public-assets/master/material-kit-react-native/profile-screen.png)](https://demos.creative-tim.com/material-kit-react-native/) | [![Chat Screen](https://raw.githubusercontent.com/creativetimofficial/public-assets/master/material-kit-react-native/chat-screen.png)](https://demos.creative-tim.com/material-kit-react-native/) | [![Product Screen](https://raw.githubusercontent.com/creativetimofficial/public-assets/master/material-kit-react-native/product-screen.png)](https://demos.creative-tim.com/material-kit-react-native/) |
-
-- [Start page](https://demos.creative-tim.com/material-kit-react-native)
-- [How to install our free demo](https://demos.creative-tim.com/material-kit-react-native/docs/#/install)
-
-[View more](https://demos.creative-tim.com/material-kit-react-native)
-
-## Quick start
-- Try it out on Expo (Simulator for iOS or even your physical device if you have an Android)
-- Buy from [Creative Tim](https://www.creative-tim.com/product/material-kit-pro-react-native)
-
-
-## Documentation
-The documentation for the Material Kit React Native is hosted at our [website](https://demos.creative-tim.com/material-kit-react-native/docs/).
-
-
-## File Structure
-Within the download you'll find the following directories and files:
+## Architektura
 
 ```
-material-kit-react-native/
-├── App.js
-├── README.md
-├── app.json
-├── assets
-├── babel.config.js
-├── components
-│   ├── Button.js
-│   ├── Drawer.js
-│   ├── Header.js
-│   ├── Icon.js
-│   ├── Product.js
-│   ├── Select.js
-│   ├── Switch.js
-│   ├── Tabs.js
-│   └── index.js
-├── constants
-│   ├── Images.js
-│   ├── Theme.js
-│   ├── index.js
-│   ├── products.js
-│   └── utils.js
-├── navigation
-│   ├── Menu.js
-│   └── Screens.js
-├── package-lock.json
-├── package.json
-├── screens
-│   ├── Components.js
-│   ├── Home.js
-│   ├── Onboarding.js
-│   ├── Pro.js
-│   ├── Profile.js
-│   └── Settings.js
-
+┌─────────────────────────────────────────────────────────────────────┐
+│                        BOISKA POZNAŃ                                │
+├──────────────────────┬──────────────────────┬───────────────────────┤
+│     FRONTEND         │      BACKEND         │      DANE             │
+│   (Next.js 14)       │    (FastAPI)         │   (Supabase)          │
+│                      │                      │                       │
+│  ┌───────────────┐   │  ┌────────────────┐  │  ┌─────────────────┐  │
+│  │  App Router   │   │  │  /health       │  │  │  fields (table) │  │
+│  │  /            │──▶│  │  /fields       │◀─┤  │  games  (table) │  │
+│  │  /mapa        │   │  │  /games        │  │  │  RLS policies   │  │
+│  │  /gracze      │   │  │                │  │  └─────────────────┘  │
+│  └───────────────┘   │  └────────────────┘  │                       │
+│                      │         │            │  ┌─────────────────┐  │
+│  ┌───────────────┐   │  ┌──────▼───────┐   │  │  Redis (cache)  │  │
+│  │  Mapbox GL JS │   │  │  Supabase    │   │  │  port 6379      │  │
+│  │  MapView      │   │  │  client      │   │  └─────────────────┘  │
+│  └───────────────┘   │  └──────────────┘   │                       │
+│                      │                      │                       │
+│  port: 3000          │  port: 8000          │                       │
+└──────────────────────┴──────────────────────┴───────────────────────┘
+                                  │
+                        ┌─────────▼─────────┐
+                        │   SCRAPER (cron)  │
+                        │  Google Places +  │
+                        │  OpenStreetMap    │
+                        └───────────────────┘
 ```
 
+---
 
-## OS Support
+## Wymagania
 
-At present, we officially aim to support the last two versions of the following operating systems:
+| Narzędzie | Minimalna wersja |
+|-----------|-----------------|
+| Node.js   | 18+             |
+| Python    | 3.11+           |
+| Docker    | 24+             |
+| Docker Compose | 2.x      |
+| Konto Supabase | —         |
+| Token Mapbox   | —         |
 
-[<img src="https://raw.githubusercontent.com/creativetimofficial/ct-material-kit-pro-react-native/master/assets/android-logo.png" width="60" height="60" />](https://www.creative-tim.com/product/material-kit-pro-react-native)[<img src="https://raw.githubusercontent.com/creativetimofficial/ct-material-kit-pro-react-native/master/assets/apple-logo.png" width="60" height="60" />](https://www.creative-tim.com/product/material-kit-pro-react-native)
+---
 
+## Instalacja i uruchomienie
 
+### 1. Klonowanie i konfiguracja zmiennych środowiskowych
 
-## Resources
-- Demo: <https://demos.creative-tim.com/material-kit-pro-react-native>
-- Download Page: <https://www.creative-tim.com/product/material-kit-react-native>
-- Documentation: <https://demos.creative-tim.com/material-kit-react-native/docs>
-- License Agreement: <https://www.creative-tim.com/license>
-- Support: <https://www.creative-tim.com/contact-us>
-- Issues: [Github Issues Page](https://github.com/creativetimofficial/ct-material-kit-react-native/issues)
-- [Material Kit](https://www.creative-tim.com/product/material-kit?ref=mkprn-readme) - For Front End Development
-- [Buy our PRO version](https://www.creative-tim.com/product/material-kit-pro-react-native)
-- **Dashboards:**
+```bash
+git clone <repo-url>
+cd bojo-app
+cp .env.example .env
+# Uzupełnij wartości w .env
+```
 
-| HTML | React | Vue  | Angular |
-| --- | --- | ---  | ---  |
-| [![Material Dashboard  HTML](https://github.com/creativetimofficial/public-assets/blob/master/material-dashboard-html/material-dashboard.jpeg?raw=true)](https://www.creative-tim.com/product/material-dashboard) | [![Material Dashboard  React](https://github.com/creativetimofficial/public-assets/blob/master/material-dashboard-react/material-dashboard-react.jpeg?raw=true)](https://www.creative-tim.com/product/material-dashboard-react) | [![Vue Material Dashboard](https://github.com/creativetimofficial/public-assets/blob/master/vue-material-dashboard/vue-material-dashboard.jpeg?raw=true)](https://www.creative-tim.com/product/vue-material-dashboard)  | [![ Material Dashboard Angular](https://github.com/creativetimofficial/public-assets/blob/master/material-dashboard-angular/material-dashboard-angular.jpg?raw=true)](https://www.creative-tim.com/product/material-dashboard-angular2)
+### 2. Frontend (Next.js)
 
-| HTML Dark | Vuetify  |
-| --- | --- |
-| [![Material Dashboard Dark](https://github.com/creativetimofficial/public-assets/blob/master/material-dashboard-dark/material-dashboard-dark.jpg?raw=true)](https://www.creative-tim.com/product/material-dashboard-dark) | [![Material Dashboard Vuetify](https://github.com/creativetimofficial/public-assets/blob/master/material-dashboard-vuetify/material-dashboard-vuetify.jpg?raw=true)](https://www.creative-tim.com/product/vuetify-material-dashboard)
+```bash
+cd frontend
+npm install
+npm run dev
+# Aplikacja dostępna na http://localhost:3000
+```
 
+### 3. Backend (FastAPI)
 
-## Reporting Issues
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate        # Linux/macOS
+# .venv\Scripts\activate         # Windows
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+# API dostępne na http://localhost:8000
+# Dokumentacja: http://localhost:8000/docs
+```
 
-We use GitHub Issues as the official bug tracker for the Material Kit React Native. Here are some advices for our users that want to report an issue:
+### 4. Uruchomienie przez Docker Compose (zalecane)
 
-1. Make sure that you are using the latest version of the Material Kit React Native.
-2. Providing us reproducible steps for the issue will shorten the time it takes for it to be fixed.
-3. Some issues may be browser specific, so specifying in what browser you encountered the issue might help.
+```bash
+# Skopiuj .env.example do .env i uzupełnij wartości
+cp .env.example .env
 
+# Uruchom wszystkie usługi
+docker-compose up --build
 
-### Technical Support or Questions
+# Usługi:
+#  Frontend:  http://localhost:3000
+#  Backend:   http://localhost:8000
+#  Redis:     localhost:6379
+```
 
-If you have questions or need help integrating the product please [contact us](https://www.creative-tim.com/contact-us) instead of opening an issue.
+### 5. Migracja bazy danych (Supabase)
 
+W panelu Supabase przejdź do SQL Editor i wykonaj:
 
-## Licensing
+```bash
+# Migracja schematu
+cat supabase/migrations/001_initial_schema.sql
 
-- Copyright 2019 Creative Tim (https://www.creative-tim.com/)
+# Dane testowe
+cat supabase/seed.sql
+```
 
-- Licensed under MIT (https://github.com/creativetimofficial/material-kit-react-native/blob/master/LICENSE)
+### 6. Scraper danych
 
+```bash
+cd scraper
+pip install -r requirements.txt
+cp ../.env.example .env
+# Uzupełnij GOOGLE_PLACES_API_KEY i dane Supabase
+python scraper.py
+```
 
+---
 
-## Useful Links
+## Zmienne środowiskowe
 
-- [Tutorials](https://www.youtube.com/channel/UCVyTG4sCw-rOvB9oHkzZD1w)
-- [Affiliate Program](https://www.creative-tim.com/affiliates/new) (earn money)
-- [Blog Creative Tim](http://blog.creative-tim.com/)
-- [Free Products](https://www.creative-tim.com/bootstrap-themes/free) from Creative Tim
-- [Premium Products](https://www.creative-tim.com/bootstrap-themes/premium) from Creative Tim
-- [React Products](https://www.creative-tim.com/bootstrap-themes/react-themes) from Creative Tim
-- [Angular Products](https://www.creative-tim.com/bootstrap-themes/angular-themes) from Creative Tim
-- [VueJS Products](https://www.creative-tim.com/bootstrap-themes/vuejs-themes) from Creative Tim
-- [More products](https://www.creative-tim.com/bootstrap-themes) from Creative Tim
-- Check our Bundles [here](https://www.creative-tim.com/bundles?ref="mk-github-readme")
-- [Buy our PRO version](https://www.creative-tim.com/product/material-kit-pro-react-native)
+| Zmienna | Opis | Wymagana |
+|---------|------|----------|
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Token publiczny Mapbox GL JS | Tak |
+| `NEXT_PUBLIC_API_URL` | URL backendu FastAPI | Tak |
+| `SUPABASE_URL` | URL projektu Supabase | Tak |
+| `SUPABASE_ANON_KEY` | Klucz publiczny (anon) Supabase | Tak |
+| `SUPABASE_SERVICE_ROLE_KEY` | Klucz serwisowy Supabase (backend/scraper) | Tak |
+| `GOOGLE_PLACES_API_KEY` | Klucz Google Places API (scraper) | Opcjonalna |
+| `REDIS_URL` | URL Redis do cache'owania danych | Tak |
 
+---
 
-### Social Media
+## Endpointy API
 
-Twitter: <https://twitter.com/CreativeTim>
+| Metoda | Endpoint | Opis |
+|--------|----------|------|
+| `GET` | `/health` | Status serwisu |
+| `GET` | `/fields` | Lista boisk z filtrami |
+| `GET` | `/fields/{id}` | Szczegóły boiska |
+| `GET` | `/games` | Lista ogłoszeń graczy |
+| `POST` | `/games` | Utwórz nowe ogłoszenie |
 
-Facebook: <https://www.facebook.com/CreativeTim>
+### Parametry GET /fields
 
-Dribbble: <https://dribbble.com/creativetim>
+| Parametr | Typ | Opis |
+|----------|-----|------|
+| `sport` | string | Filtr po sporcie (np. `piłka nożna`) |
+| `available` | bool | Tylko dostępne boiska |
+| `lat` | float | Szerokość geograficzna centrum wyszukiwania |
+| `lng` | float | Długość geograficzna centrum wyszukiwania |
+| `radius_km` | float | Promień wyszukiwania w km (domyślnie 10) |
+| `limit` | int | Liczba wyników (domyślnie 50) |
+| `offset` | int | Offset stronicowania |
 
-Instagram: <https://www.instagram.com/CreativeTimOfficial>
+### Parametry GET /games
 
+| Parametr | Typ | Opis |
+|----------|-----|------|
+| `field_id` | string | Filtr po boisku |
+| `sport` | string | Filtr po sporcie |
+| `limit` | int | Liczba wyników (domyślnie 20) |
+
+---
+
+## Struktura projektu
+
+```
+bojo-app/
+├── frontend/           # Next.js 14 + Tailwind CSS + Mapbox
+│   └── src/
+│       ├── app/        # App Router (strony)
+│       ├── components/ # Komponenty React
+│       ├── lib/        # Supabase client, API helpers
+│       └── types/      # TypeScript interfaces
+├── backend/            # FastAPI + Python 3.11
+│   └── app/
+│       ├── routers/    # Endpointy API
+│       ├── models.py   # Pydantic models
+│       ├── config.py   # Konfiguracja (Settings)
+│       └── database.py # Klient Supabase
+├── supabase/
+│   ├── migrations/     # Migracje SQL
+│   └── seed.sql        # Dane testowe
+├── scraper/            # Scraper Google Places + OSM
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+---
+
+## Licencja
+
+MIT © 2024 Boiska Poznań

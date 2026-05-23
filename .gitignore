@@ -1,9 +1,101 @@
-node_modules/**/*
-.expo/*
+# ============================================================
+# Boiska Poznań — combined .gitignore
+# ============================================================
+
+# ---- Next.js ----
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/node_modules/
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnp
+frontend/.pnp.js
+
+# ---- Node (root & generic) ----
+node_modules/
 npm-debug.*
-package-lock.json
-yarn.lock
+yarn-debug.*
+yarn-error.*
+.pnpm-debug.log*
+
+# ---- Python / FastAPI ----
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+backend/.env
+scraper/.env
+.env
+*.egg-info/
+dist/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
+
+# ---- Docker ----
+**/docker-data/
+**/volumes/
+.docker/
+
+# ---- Supabase local ----
+.supabase/
+supabase/.temp/
+
+# ---- OS ----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ---- IDE ----
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ---- Env files (keep .env.example) ----
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!**/.env.example
+
+# ---- Expo / React Native (legacy files in repo root) ----
+.expo/*
 *.jks
 *.p12
 *.key
 *.mobileprovision
+
+# ---- Misc ----
+*.log
+*.tmp
+*.temp
+.cache/
