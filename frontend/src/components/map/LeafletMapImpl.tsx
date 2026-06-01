@@ -8,6 +8,7 @@ import type { Field, SportType } from '@/types';
 import { getFields } from '@/lib/api';
 
 const POZNAN: [number, number] = [52.4064, 16.9252];
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 function fieldIcon(available: boolean) {
   const color = available ? '#16a34a' : '#9ca3af';
@@ -46,10 +47,19 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable }: Prop
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {MAPBOX_TOKEN ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+            tileSize={512}
+            zoomOffset={-1}
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        )}
         <ZoomControl position="topright" />
 
         {fields.map((field) => (
