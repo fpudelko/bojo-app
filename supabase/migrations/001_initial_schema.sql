@@ -59,9 +59,7 @@ CREATE TABLE IF NOT EXISTS games (
     description     TEXT,
     is_active       BOOLEAN         DEFAULT true,
     created_at      TIMESTAMPTZ     DEFAULT now(),
-    expires_at      TIMESTAMPTZ     GENERATED ALWAYS AS (
-                        (game_date + game_time)::TIMESTAMPTZ + INTERVAL '2 hours'
-                    ) STORED
+    expires_at      TIMESTAMPTZ
 );
 
 COMMENT ON TABLE games IS 'Game announcements — players looking for other players.';
@@ -105,6 +103,24 @@ DROP TRIGGER IF EXISTS set_fields_updated_at ON fields;
 CREATE TRIGGER set_fields_updated_at
     BEFORE UPDATE ON fields
     FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- expires_at trigger
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION trigger_set_expires_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.expires_at = (NEW.game_date::TEXT || ' ' || NEW.game_time::TEXT)::TIMESTAMP
+                     AT TIME ZONE 'UTC' + INTERVAL '2 hours';
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_games_expires_at ON games;
+CREATE TRIGGER set_games_expires_at
+    BEFORE INSERT OR UPDATE ON games
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_expires_at();
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security

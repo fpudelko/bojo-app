@@ -1,3 +1,5 @@
+'use client';
+
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Calendar, Clock, Users, MapPin, User } from 'lucide-react';
