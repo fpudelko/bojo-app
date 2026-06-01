@@ -71,3 +71,46 @@ export interface FieldFilters {
   limit?: number;
   offset?: number;
 }
+
+export type Visibility = 'private' | 'public';
+
+export interface EventItem {
+  id: string;
+  organizerId: string;
+  organizerName: string;
+  sport: string;
+  fieldId?: string;
+  fieldName: string;
+  lat?: number;
+  lng?: number;
+  title?: string;
+  description?: string;
+  date: string;
+  time: string;
+  maxPlayers: number;
+  visibility: Visibility;
+  createdAt: string;
+}
+
+export interface EventParticipant {
+  id: string;
+  eventId: string;
+  userId?: string;
+  name: string;
+  isGuest: boolean;
+  createdAt: string;
+}
+
+export interface EventCreate {
+  sport: string;
+  fieldId?: string;
+  fieldName: string;
+  lat?: number;
+  lng?: number;
+  title?: string;
+  description?: string;
+  date: string;
+  time: string;
+  maxPlayers: number;
+  visibility: Visibility;
+}

@@ -15,10 +15,10 @@ const features = [
   },
   {
     icon: Users,
-    title: 'Szukam graczy',
+    title: 'Wydarzenia',
     description:
-      'Tablica ogłoszeń: dołącz do meczu lub stwórz własne ogłoszenie i znajdź brakujących graczy.',
-    href: '/gracze',
+      'Twórz mecze, zapraszaj znajomych linkiem, dodawaj graczy bez konta i zarządzaj składem.',
+    href: '/wydarzenia',
   },
   {
     icon: SlidersHorizontal,
@@ -38,21 +38,21 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6">
-            Znajdź boisko w Poznaniu
+            Organizuj gry w Poznaniu
           </h1>
           <p className="text-lg sm:text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-            Ponad 200 boisk sportowych na mapie — piłka nożna, koszykówka, tenis, siatkówka i
-            futsal. Szukaj graczy i umawiaj mecze jednym kliknięciem.
+            Zamiast wydarzeń na Facebooku — stwórz mecz, wybierz boisko na mapie i zaproś
+            znajomych linkiem. Brakuje ludzi? Upublicznij i znajdź graczy.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/mapa">
+            <Link href="/wydarzenia/nowe">
               <Button variant="secondary" size="lg">
-                Przeglądaj mapę
+                Stwórz wydarzenie
               </Button>
             </Link>
-            <Link href="/gracze">
+            <Link href="/wydarzenia">
               <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10">
-                Szukam graczy
+                Przeglądaj wydarzenia
               </Button>
             </Link>
           </div>
@@ -115,8 +115,8 @@ export default function HomePage() {
             <Link href="/mapa" className="hover:text-white transition-colors">
               Mapa
             </Link>
-            <Link href="/gracze" className="hover:text-white transition-colors">
-              Gracze
+            <Link href="/wydarzenia" className="hover:text-white transition-colors">
+              Wydarzenia
             </Link>
           </div>
         </div>
