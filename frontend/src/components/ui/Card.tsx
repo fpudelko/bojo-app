@@ -7,6 +7,7 @@ interface CardProps {
   footer?: React.ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  onClick?: () => void;
 }
 
 const paddingClasses = {
@@ -22,9 +23,11 @@ export default function Card({
   footer,
   className,
   padding = 'md',
+  onClick,
 }: CardProps) {
   return (
     <div
+      onClick={onClick}
       className={clsx(
         'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden',
         className,

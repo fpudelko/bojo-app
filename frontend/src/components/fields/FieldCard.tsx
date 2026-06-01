@@ -1,3 +1,5 @@
+'use client';
+
 import { MapPin, Phone, Globe, CheckCircle, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '@/components/ui/Card';

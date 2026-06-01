@@ -99,3 +99,6 @@ desktop.ini
 *.tmp
 *.temp
 .cache/
+
+# ---- TypeScript (auto-generated) ----
+frontend/next-env.d.ts
