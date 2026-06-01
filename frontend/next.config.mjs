@@ -1,13 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Allow Mapbox GL JS worker to be bundled correctly
   webpack: (config) => {
-    // mapbox-gl uses worker-loader internally; mark it as external to avoid
-    // bundling issues with Next.js SSR compilation
     config.resolve.alias = {
       ...config.resolve.alias,
-      'mapbox-gl': 'mapbox-gl',
+      'maplibre-gl': 'maplibre-gl/dist/maplibre-gl.js',
     };
     return config;
   },
