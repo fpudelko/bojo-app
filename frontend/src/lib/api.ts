@@ -1,80 +1,119 @@
-import type { FieldFilters, FieldsResponse, GamesResponse, Game, GameCreate } from '@/types';
+import { supabase } from './supabase';
+import type { Field, FieldFilters, FieldsResponse, Game, GameCreate, GamesResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+// ---------------------------------------------------------------------------
+// Row mappers  (DB snake_case → TS camelCase)
+// ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toField(row: any): Field {
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    sport: row.sport ?? [],
+    available: row.available,
+    surface: row.surface ?? '',
+    isIndoor: row.is_indoor,
+    phone: row.phone ?? undefined,
+    website: row.website ?? undefined,
+  };
+}
 
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => 'Unknown error');
-    throw new Error(`API error ${res.status}: ${errorText}`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toGame(row: any): Game {
+  return {
+    id: row.id,
+    fieldId: row.field_id,
+    fieldName: row.fields?.name ?? '',
+    sport: row.sport,
+    date: row.game_date,
+    time: row.game_time,
+    playersNeeded: row.players_needed,
+    playersJoined: row.players_joined,
+    author: row.author_name,
+    description: row.description ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fields
+// ---------------------------------------------------------------------------
+
+export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {
+  let query = supabase.from('fields').select('*', { count: 'exact' });
+
+  if (filters?.sport) {
+    query = query.contains('sport', [filters.sport]);
+  }
+  if (filters?.available !== undefined) {
+    query = query.eq('available', filters.available);
+  }
+  if (filters?.limit !== undefined) {
+    const from = filters.offset ?? 0;
+    query = query.range(from, from + filters.limit - 1);
   }
 
-  return res.json() as Promise<T>;
+  const { data, error, count } = await query;
+  if (error) throw new Error(error.message);
+
+  return { fields: (data ?? []).map(toField), total: count ?? 0 };
 }
 
-/**
- * Fetch a list of fields, optionally filtered.
- */
-export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {
-  const params = new URLSearchParams();
-  if (filters?.sport) params.set('sport', filters.sport);
-  if (filters?.available !== undefined) params.set('available', String(filters.available));
-  if (filters?.lat !== undefined) params.set('lat', String(filters.lat));
-  if (filters?.lng !== undefined) params.set('lng', String(filters.lng));
-  if (filters?.radius_km !== undefined) params.set('radius_km', String(filters.radius_km));
-  if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
-  if (filters?.offset !== undefined) params.set('offset', String(filters.offset));
+export async function getField(fieldId: string): Promise<Field> {
+  const { data, error } = await supabase
+    .from('fields')
+    .select('*')
+    .eq('id', fieldId)
+    .single();
 
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiFetch<FieldsResponse>(`/fields${query}`);
+  if (error) throw new Error(error.message);
+  return toField(data);
 }
 
-/**
- * Fetch a single field by ID.
- */
-export async function getField(fieldId: string): Promise<FieldsResponse['fields'][0]> {
-  return apiFetch(`/fields/${fieldId}`);
-}
+// ---------------------------------------------------------------------------
+// Games
+// ---------------------------------------------------------------------------
 
-/**
- * Fetch game announcements, optionally filtered by field or sport.
- */
 export async function getGames(params?: {
   fieldId?: string;
   sport?: string;
   limit?: number;
 }): Promise<GamesResponse> {
-  const searchParams = new URLSearchParams();
-  if (params?.fieldId) searchParams.set('field_id', params.fieldId);
-  if (params?.sport) searchParams.set('sport', params.sport);
-  if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
+  let query = supabase
+    .from('games')
+    .select('*, fields(name)', { count: 'exact' })
+    .eq('is_active', true)
+    .order('game_date', { ascending: true });
 
-  const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-  return apiFetch<GamesResponse>(`/games${query}`);
+  if (params?.fieldId) query = query.eq('field_id', params.fieldId);
+  if (params?.sport)   query = query.eq('sport', params.sport);
+  if (params?.limit)   query = query.limit(params.limit);
+
+  const { data, error, count } = await query;
+  if (error) throw new Error(error.message);
+
+  return { games: (data ?? []).map(toGame), total: count ?? 0 };
 }
 
-/**
- * Create a new game announcement.
- */
 export async function createGame(data: GameCreate): Promise<Game> {
-  return apiFetch<Game>('/games', {
-    method: 'POST',
-    body: JSON.stringify({
+  const { data: row, error } = await supabase
+    .from('games')
+    .insert({
       field_id: data.fieldId,
-      field_name: data.fieldName,
       sport: data.sport,
-      date: data.date,
-      time: data.time,
+      game_date: data.date,
+      game_time: data.time,
       players_needed: data.playersNeeded,
-      author: data.author,
+      author_name: data.author,
       description: data.description,
-    }),
-  });
+    })
+    .select('*, fields(name)')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return toGame(row);
 }
