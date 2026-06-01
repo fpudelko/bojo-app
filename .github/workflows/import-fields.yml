@@ -1,0 +1,34 @@
+name: Import boisk (OSM + Google)
+
+# Uruchamiany ręcznie z zakładki Actions w GitHubie (działa też z telefonu).
+# Pobiera boiska z OpenStreetMap (i opcjonalnie Google Places) i wgrywa je
+# do Supabase. Wymaga sekretów repozytorium:
+#   SUPABASE_URL                 (np. https://xxxx.supabase.co)
+#   SUPABASE_SERVICE_ROLE_KEY    (Supabase → Settings → API → service_role)
+#   GOOGLE_PLACES_API_KEY        (opcjonalnie — dla nazwanych obiektów)
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: scraper
+        run: pip install -r requirements.txt
+
+      - name: Run importer
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: python scraper.py

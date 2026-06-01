@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-POZNAN_BBOX = (52.32, 16.73, 52.52, 17.07)  # south, west, north, east
+POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)  # south, west, north, east (Poznań + okolice)
 POZNAN_CENTER = "52.4064,16.9252"
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -88,11 +88,14 @@ async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, 
     """
     south, west, north, east = bbox
     query = f"""
-    [out:json][timeout:30];
+    [out:json][timeout:60];
     (
       node["leisure"="pitch"]({south},{west},{north},{east});
       way["leisure"="pitch"]({south},{west},{north},{east});
       relation["leisure"="pitch"]({south},{west},{north},{east});
+      node["leisure"="sports_centre"]({south},{west},{north},{east});
+      way["leisure"="sports_centre"]({south},{west},{north},{east});
+      relation["leisure"="sports_centre"]({south},{west},{north},{east});
     );
     out center;
     """
@@ -292,9 +295,23 @@ async def upsert_fields(
         "apikey": service_key,
         "Authorization": f"Bearer {service_key}",
         "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates",
     }
     endpoint = f"{supabase_url}/rest/v1/fields"
+
+    # Idempotency: delete previously imported rows for the sources we're about
+    # to (re)insert, so re-running the import never creates duplicates. We only
+    # ever touch scraped sources — manually-seeded rows (source='manual') stay.
+    sources = sorted({f.get("source") for f in fields if f.get("source")})
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for source in sources:
+            del_resp = await client.delete(
+                f"{endpoint}?source=eq.{source}",
+                headers={**headers, "Prefer": "return=minimal"},
+            )
+            if del_resp.status_code not in (200, 204):
+                log.warning("Delete of source=%s returned %s", source, del_resp.status_code)
+            else:
+                log.info("Cleared existing rows for source=%s", source)
 
     # Batch in groups of 100 to avoid payload limits
     BATCH_SIZE = 100
@@ -306,7 +323,7 @@ async def upsert_fields(
             response = await client.post(
                 endpoint,
                 json=batch,
-                headers={**headers, "Prefer": "resolution=merge-duplicates,return=minimal"},
+                headers={**headers, "Prefer": "return=minimal"},
             )
             if response.status_code not in (200, 201):
                 log.error(
