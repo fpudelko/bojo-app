@@ -15,13 +15,12 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)  # south, west, north, east
+POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)
 POZNAN_CENTER = "52.4064,16.9252"
 
 OVERPASS_URLS = [
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass-api.de/api/interpreter",
     "https://overpass.openstreetmap.ru/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
 ]
 
 GOOGLE_PLACES_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -42,6 +41,7 @@ OSM_SPORT_MAP = {
     "tennis": "tenis",
     "futsal": "futsal",
     "multi": "wielofunkcyjne",
+    "athletics": "lekkoatletyka",
 }
 
 SURFACE_MAP = {
@@ -61,8 +61,8 @@ SURFACE_MAP = {
 
 def split_bbox(
     bbox: tuple[float, float, float, float],
-    rows: int = 2,
-    cols: int = 2,
+    rows: int = 4,
+    cols: int = 4,
 ) -> list[tuple[float, float, float, float]]:
     south, west, north, east = bbox
     lat_step = (north - south) / rows
@@ -71,11 +71,14 @@ def split_bbox(
     boxes = []
     for r in range(rows):
         for c in range(cols):
-            s = south + r * lat_step
-            n = south + (r + 1) * lat_step
-            w = west + c * lng_step
-            e = west + (c + 1) * lng_step
-            boxes.append((s, w, n, e))
+            boxes.append(
+                (
+                    south + r * lat_step,
+                    west + c * lng_step,
+                    south + (r + 1) * lat_step,
+                    west + (c + 1) * lng_step,
+                )
+            )
 
     return boxes
 
@@ -84,26 +87,24 @@ def build_overpass_query(bbox: tuple[float, float, float, float]) -> str:
     south, west, north, east = bbox
 
     return f"""
-[out:json][timeout:25];
+[out:json][timeout:15];
 (
-  node["leisure"="pitch"]({south},{west},{north},{east});
   way["leisure"="pitch"]({south},{west},{north},{east});
-  node["sport"]({south},{west},{north},{east});
-  way["sport"]({south},{west},{north},{east});
+  node["leisure"="pitch"]({south},{west},{north},{east});
 );
 out center tags;
 """
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4))
 async def fetch_overpass(
     client: httpx.AsyncClient,
     url: str,
     query: str,
 ) -> dict[str, Any]:
-    response = await client.post(
+    response = await client.get(
         url,
-        data={"data": query},
+        params={"data": query},
         headers={
             "User-Agent": "sport-events-mvp/0.1 contact:your-email@example.com",
             "Accept": "application/json",
@@ -123,17 +124,23 @@ async def fetch_overpass(
 
 
 async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
-    boxes = split_bbox(bbox, rows=2, cols=2)
+    boxes = split_bbox(bbox, rows=4, cols=4)
     all_fields: list[dict[str, Any]] = []
 
-    async with httpx.AsyncClient(timeout=45.0) as client:
-        for small_bbox in boxes:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for index, small_bbox in enumerate(boxes, start=1):
             query = build_overpass_query(small_bbox)
 
             data = None
             for url in OVERPASS_URLS:
                 try:
-                    log.info("Trying Overpass: %s bbox=%s", url, small_bbox)
+                    log.info(
+                        "Trying Overpass %d/%d: %s bbox=%s",
+                        index,
+                        len(boxes),
+                        url,
+                        small_bbox,
+                    )
                     data = await fetch_overpass(client, url, query)
                     break
                 except Exception as exc:
@@ -150,6 +157,8 @@ async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, 
                 normalized = normalize_osm_element(el)
                 if normalized:
                     all_fields.append(normalized)
+
+            await asyncio.sleep(0.5)
 
     return deduplicate_fields(all_fields)
 
@@ -169,10 +178,7 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
     sport_raw = tags.get("sport", "").lower()
-
-    # Odrzucamy rzeczy ewidentnie niesportowe lub zbyt ogólne.
-    if not sport_raw and tags.get("leisure") != "pitch":
-        return None
+    sport_pl = OSM_SPORT_MAP.get(sport_raw, "inne")
 
     name = (
         tags.get("name")
@@ -181,8 +187,6 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         or tags.get("ref")
         or f"Boisko OSM #{element.get('id', '')}"
     )
-
-    sport_pl = OSM_SPORT_MAP.get(sport_raw, "inne")
 
     surface_raw = tags.get("surface", "").lower()
     surface = SURFACE_MAP.get(surface_raw, "")
@@ -220,16 +224,15 @@ def deduplicate_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     for field in fields:
         key = field.get("external_id")
-        if key in seen:
+        if not key or key in seen:
             continue
-
         seen.add(key)
         result.append(field)
 
     return result
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4))
 async def scrape_google_places(
     query: str,
     location: str,
@@ -280,6 +283,9 @@ def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
     name = place.get("name", "")
     address = place.get("formatted_address", place.get("vicinity", "Poznań"))
     place_id = place.get("place_id", "")
+
+    if not place_id:
+        return None
 
     name_lower = name.lower()
     types = place.get("types", [])
@@ -383,6 +389,8 @@ async def upsert_fields(
 
 async def main() -> None:
     load_dotenv()
+
+    log.info("RUNNING SCRAPER VERSION: overpass-light-v3")
 
     api_key = os.getenv("GOOGLE_PLACES_API_KEY", "")
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
