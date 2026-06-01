@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth, displayName } from '@/lib/auth';
 import { createEvent } from '@/lib/events';
+import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import type { Field, Visibility } from '@/types';
 
 const SPORTS = ['piłka nożna', 'koszykówka', 'siatkówka', 'tenis', 'futsal', 'inne'];
@@ -108,9 +109,25 @@ export default function NewEventPage() {
               <VenuePicker selectedId={field?.id} onSelect={setField} />
             </div>
             {field && (
-              <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> {field.address}
-              </p>
+              <div className="mt-2 flex gap-3 items-center bg-gray-50 rounded-lg p-2">
+                {venueThumbnail(field.lat, field.lng, 160, 100) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={venueThumbnail(field.lat, field.lng, 160, 100)!}
+                    alt={field.name}
+                    className="w-20 h-14 object-cover rounded-md shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{field.name}</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                    <MapPin className="w-3 h-3 shrink-0" /> {field.address}
+                  </p>
+                  {field.surface && (
+                    <p className="text-xs text-gray-400">{surfaceLabel(field.surface)}</p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

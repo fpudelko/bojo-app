@@ -10,6 +10,7 @@ import {
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
+import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
 } from '@/lib/events';
@@ -141,7 +142,16 @@ export default function EventDetailPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
         {/* Header card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {venueThumbnail(event.lat, event.lng, 600, 200) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={venueThumbnail(event.lat, event.lng, 600, 200)!}
+              alt={event.fieldName}
+              className="w-full h-40 object-cover"
+            />
+          )}
+          <div className="p-6">
           <div className="flex items-start gap-3">
             <span className="text-4xl" role="img">{SPORT_EMOJI[event.sport] ?? '🏅'}</span>
             <div className="flex-1 min-w-0">
@@ -175,6 +185,7 @@ export default function EventDetailPage() {
           )}
 
           <p className="mt-4 text-xs text-gray-400">Organizator: {event.organizerName}</p>
+          </div>
         </div>
 
         {/* Participants */}

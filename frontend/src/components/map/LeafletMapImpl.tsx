@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Field, SportType } from '@/types';
 import { getFields } from '@/lib/api';
+import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -69,7 +70,15 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable }: Prop
             icon={fieldIcon(field.available)}
           >
             <Popup>
-              <div className="min-w-[200px]">
+              <div className="min-w-[220px]">
+                {venueThumbnail(field.lat, field.lng, 240, 120) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={venueThumbnail(field.lat, field.lng, 240, 120)!}
+                    alt={field.name}
+                    className="w-full h-24 object-cover rounded-md mb-2"
+                  />
+                )}
                 <p className="font-semibold text-gray-900 text-sm">{field.name}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{field.address}</p>
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -83,7 +92,7 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable }: Prop
                   <span className={field.available ? 'text-green-600' : 'text-gray-400'}>
                     {field.available ? '● Dostępne' : '● Niedostępne'}
                   </span>
-                  {field.surface && <span className="text-gray-400"> · {field.surface}</span>}
+                  {field.surface && <span className="text-gray-400"> · {surfaceLabel(field.surface)}</span>}
                 </p>
                 {field.website && (
                   <a
