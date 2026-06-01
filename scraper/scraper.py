@@ -1,19 +1,3 @@
-"""
-Boiska Poznań — Field Scraper
-==============================
-Scrapes sports fields from:
-  1. OpenStreetMap via Overpass API (free, no key required)
-  2. Google Places API Text Search (requires GOOGLE_PLACES_API_KEY)
-
-Results are normalized to the same schema and upserted to Supabase.
-Existing records are matched by (source, external_id) — safe to re-run.
-
-Usage:
-    pip install -r requirements.txt
-    cp ../.env.example .env  # fill in credentials
-    python scraper.py
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -31,14 +15,15 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)  # south, west, north, east (Poznań + okolice)
+POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)  # south, west, north, east
 POZNAN_CENTER = "52.4064,16.9252"
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_URLS = [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter",
+]
+
 GOOGLE_PLACES_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 
 SPORT_QUERIES = [
@@ -49,7 +34,7 @@ SPORT_QUERIES = [
     "boisko siatkówka Poznań",
 ]
 
-OSM_SPORT_MAP: dict[str, str] = {
+OSM_SPORT_MAP = {
     "soccer": "piłka nożna",
     "football": "piłka nożna",
     "basketball": "koszykówka",
@@ -59,10 +44,11 @@ OSM_SPORT_MAP: dict[str, str] = {
     "multi": "wielofunkcyjne",
 }
 
-SURFACE_MAP: dict[str, str] = {
+SURFACE_MAP = {
     "grass": "grass",
     "natural_grass": "grass",
     "artificial": "artificial",
+    "artificial_turf": "artificial",
     "artifical_turf": "artificial",
     "astroturf": "artificial",
     "tartan": "hardcourt",
@@ -73,53 +59,104 @@ SURFACE_MAP: dict[str, str] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# OpenStreetMap (Overpass API)
-# ---------------------------------------------------------------------------
-
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
-    """
-    Fetch sports pitches from OpenStreetMap via Overpass API.
-
-    Uses Overpass QL to find all nodes, ways and relations tagged with
-    leisure=pitch in the given bounding box.
-    """
+def split_bbox(
+    bbox: tuple[float, float, float, float],
+    rows: int = 2,
+    cols: int = 2,
+) -> list[tuple[float, float, float, float]]:
     south, west, north, east = bbox
-    query = f"""
-    [out:json][timeout:60];
-    (
-      node["leisure"="pitch"]({south},{west},{north},{east});
-      way["leisure"="pitch"]({south},{west},{north},{east});
-      relation["leisure"="pitch"]({south},{west},{north},{east});
-      node["leisure"="sports_centre"]({south},{west},{north},{east});
-      way["leisure"="sports_centre"]({south},{west},{north},{east});
-      relation["leisure"="sports_centre"]({south},{west},{north},{east});
-    );
-    out center;
-    """
+    lat_step = (north - south) / rows
+    lng_step = (east - west) / cols
 
-    async with httpx.AsyncClient(timeout=40.0) as client:
-        response = await client.post(OVERPASS_URL, data={"data": query})
-        response.raise_for_status()
-        data = response.json()
+    boxes = []
+    for r in range(rows):
+        for c in range(cols):
+            s = south + r * lat_step
+            n = south + (r + 1) * lat_step
+            w = west + c * lng_step
+            e = west + (c + 1) * lng_step
+            boxes.append((s, w, n, e))
 
-    elements: list[dict] = data.get("elements", [])
-    fields = []
-    for el in elements:
-        normalized = normalize_osm_element(el)
-        if normalized:
-            fields.append(normalized)
+    return boxes
 
-    return fields
+
+def build_overpass_query(bbox: tuple[float, float, float, float]) -> str:
+    south, west, north, east = bbox
+
+    return f"""
+[out:json][timeout:25];
+(
+  node["leisure"="pitch"]({south},{west},{north},{east});
+  way["leisure"="pitch"]({south},{west},{north},{east});
+  node["sport"]({south},{west},{north},{east});
+  way["sport"]({south},{west},{north},{east});
+);
+out center tags;
+"""
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
+async def fetch_overpass(
+    client: httpx.AsyncClient,
+    url: str,
+    query: str,
+) -> dict[str, Any]:
+    response = await client.post(
+        url,
+        data={"data": query},
+        headers={
+            "User-Agent": "sport-events-mvp/0.1 contact:your-email@example.com",
+            "Accept": "application/json",
+        },
+    )
+
+    if response.status_code != 200:
+        log.error(
+            "Overpass error %s from %s: %s",
+            response.status_code,
+            url,
+            response.text[:1000],
+        )
+
+    response.raise_for_status()
+    return response.json()
+
+
+async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
+    boxes = split_bbox(bbox, rows=2, cols=2)
+    all_fields: list[dict[str, Any]] = []
+
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        for small_bbox in boxes:
+            query = build_overpass_query(small_bbox)
+
+            data = None
+            for url in OVERPASS_URLS:
+                try:
+                    log.info("Trying Overpass: %s bbox=%s", url, small_bbox)
+                    data = await fetch_overpass(client, url, query)
+                    break
+                except Exception as exc:
+                    log.warning("Overpass failed on %s: %s", url, exc)
+
+            if data is None:
+                log.error("All Overpass endpoints failed for bbox=%s", small_bbox)
+                continue
+
+            elements = data.get("elements", [])
+            log.info("Found %d raw OSM elements in bbox=%s", len(elements), small_bbox)
+
+            for el in elements:
+                normalized = normalize_osm_element(el)
+                if normalized:
+                    all_fields.append(normalized)
+
+    return deduplicate_fields(all_fields)
 
 
 def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
-    """Convert an OSM element (node/way/relation) to our Field schema."""
     tags: dict[str, str] = element.get("tags", {})
 
-    # Determine lat/lng — nodes have them directly; ways/relations have 'center'
     if element.get("type") == "node":
         lat = element.get("lat")
         lng = element.get("lon")
@@ -128,18 +165,24 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         lat = center.get("lat")
         lng = center.get("lon")
 
-    if not lat or not lng:
+    if lat is None or lng is None:
+        return None
+
+    sport_raw = tags.get("sport", "").lower()
+
+    # Odrzucamy rzeczy ewidentnie niesportowe lub zbyt ogólne.
+    if not sport_raw and tags.get("leisure") != "pitch":
         return None
 
     name = (
         tags.get("name")
         or tags.get("name:pl")
+        or tags.get("operator")
         or tags.get("ref")
         or f"Boisko OSM #{element.get('id', '')}"
     )
 
-    osm_sport = tags.get("sport", "").lower()
-    sport_pl = OSM_SPORT_MAP.get(osm_sport, "inne")
+    sport_pl = OSM_SPORT_MAP.get(sport_raw, "inne")
 
     surface_raw = tags.get("surface", "").lower()
     surface = SURFACE_MAP.get(surface_raw, "")
@@ -171,23 +214,28 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-# ---------------------------------------------------------------------------
-# Google Places API
-# ---------------------------------------------------------------------------
+def deduplicate_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen = set()
+    result = []
+
+    for field in fields:
+        key = field.get("external_id")
+        if key in seen:
+            continue
+
+        seen.add(key)
+        result.append(field)
+
+    return result
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=8))
 async def scrape_google_places(
     query: str,
     location: str,
     api_key: str,
     radius: int = 15000,
 ) -> list[dict[str, Any]]:
-    """
-    Fetch sports fields from Google Places API (Text Search endpoint).
-
-    Handles pagination via next_page_token (up to 3 pages = 60 results per query).
-    """
     params = {
         "query": query,
         "location": location,
@@ -196,7 +244,7 @@ async def scrape_google_places(
         "language": "pl",
     }
 
-    all_results: list[dict] = []
+    all_results: list[dict[str, Any]] = []
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         while True:
@@ -206,38 +254,33 @@ async def scrape_google_places(
 
             status = data.get("status")
             if status not in ("OK", "ZERO_RESULTS"):
-                log.warning("Google Places returned status=%s for query=%r", status, query)
+                log.warning("Google Places status=%s for query=%r", status, query)
                 break
 
-            results = data.get("results", [])
-            all_results.extend(results)
+            all_results.extend(data.get("results", []))
 
             next_token = data.get("next_page_token")
             if not next_token or len(all_results) >= 60:
                 break
 
-            # Google requires a short delay before using next_page_token
             await asyncio.sleep(2)
             params = {"pagetoken": next_token, "key": api_key}
 
-    fields = [normalize_google_place(r) for r in all_results]
-    return [f for f in fields if f is not None]
+    return [f for f in (normalize_google_place(r) for r in all_results) if f]
 
 
 def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
-    """Convert a Google Places result to our Field schema."""
     geometry = place.get("geometry", {}).get("location", {})
     lat = geometry.get("lat")
     lng = geometry.get("lng")
 
-    if not lat or not lng:
+    if lat is None or lng is None:
         return None
 
     name = place.get("name", "")
     address = place.get("formatted_address", place.get("vicinity", "Poznań"))
     place_id = place.get("place_id", "")
 
-    # Heuristic sport detection from name/types
     name_lower = name.lower()
     types = place.get("types", [])
     sport: list[str] = []
@@ -255,7 +298,10 @@ def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
     if not sport:
         sport = ["inne"]
 
-    is_indoor = any(kw in name_lower for kw in ("hala", "sala", "indoor", "kryty", "kryta"))
+    is_indoor = any(
+        kw in name_lower
+        for kw in ("hala", "sala", "indoor", "kryty", "kryta")
+    )
 
     return {
         "name": name,
@@ -273,20 +319,11 @@ def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-# ---------------------------------------------------------------------------
-# Supabase upsert
-# ---------------------------------------------------------------------------
-
-
 async def upsert_fields(
     fields: list[dict[str, Any]],
     supabase_url: str,
     service_key: str,
 ) -> None:
-    """
-    Upsert a list of fields into Supabase.
-    Deduplicates by (source, external_id) — existing records are updated in place.
-    """
     if not fields:
         log.info("No fields to upsert.")
         return
@@ -298,55 +335,50 @@ async def upsert_fields(
     }
     endpoint = f"{supabase_url}/rest/v1/fields"
 
-    # Idempotency: delete previously imported rows for the sources we're about
-    # to (re)insert, so re-running the import never creates duplicates. We only
-    # ever touch scraped sources — manually-seeded rows (source='manual') stay.
     sources = sorted({f.get("source") for f in fields if f.get("source")})
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         for source in sources:
             del_resp = await client.delete(
                 f"{endpoint}?source=eq.{source}",
                 headers={**headers, "Prefer": "return=minimal"},
             )
+
             if del_resp.status_code not in (200, 204):
-                log.warning("Delete of source=%s returned %s", source, del_resp.status_code)
+                log.warning(
+                    "Delete source=%s returned %s: %s",
+                    source,
+                    del_resp.status_code,
+                    del_resp.text[:300],
+                )
             else:
                 log.info("Cleared existing rows for source=%s", source)
 
-    # Batch in groups of 100 to avoid payload limits
-    BATCH_SIZE = 100
+    batch_size = 100
     total_upserted = 0
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for i in range(0, len(fields), BATCH_SIZE):
-            batch = fields[i : i + BATCH_SIZE]
+        for i in range(0, len(fields), batch_size):
+            batch = fields[i : i + batch_size]
+
             response = await client.post(
                 endpoint,
                 json=batch,
                 headers={**headers, "Prefer": "return=minimal"},
             )
+
             if response.status_code not in (200, 201):
                 log.error(
-                    "Supabase upsert error (batch %d): %s — %s",
-                    i // BATCH_SIZE + 1,
+                    "Supabase insert error batch %d: %s — %s",
+                    i // batch_size + 1,
                     response.status_code,
-                    response.text[:200],
+                    response.text[:500],
                 )
             else:
                 total_upserted += len(batch)
-                log.info(
-                    "Upserted batch %d/%d (%d fields)",
-                    i // BATCH_SIZE + 1,
-                    -(-len(fields) // BATCH_SIZE),
-                    len(batch),
-                )
+                log.info("Inserted batch %d (%d fields)", i // batch_size + 1, len(batch))
 
-    log.info("Total upserted: %d fields", total_upserted)
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+    log.info("Total inserted: %d fields", total_upserted)
 
 
 async def main() -> None:
@@ -356,32 +388,35 @@ async def main() -> None:
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-    # --- OSM scrape ---
-    log.info("Scraping OpenStreetMap (bbox=%s)...", POZNAN_BBOX)
+    log.info("Scraping OpenStreetMap bbox=%s...", POZNAN_BBOX)
+
     try:
         osm_fields = await scrape_osm(POZNAN_BBOX)
-        log.info("  Found %d fields from OSM", len(osm_fields))
+        log.info("Found %d normalized fields from OSM", len(osm_fields))
     except Exception as exc:
-        log.error("OSM scrape failed: %s", exc)
+        log.error("OSM scrape failed completely: %s", exc)
         osm_fields = []
 
-    # --- Google Places scrape ---
+    google_fields: list[dict[str, Any]] = []
+
     if api_key:
-        log.info("Scraping Google Places (%d queries)...", len(SPORT_QUERIES))
-        google_fields: list[dict] = []
+        log.info("Scraping Google Places...")
         for sport_query in SPORT_QUERIES:
             try:
-                results = await scrape_google_places(sport_query, POZNAN_CENTER, api_key)
-                log.info("  Query %r → %d results", sport_query, len(results))
+                results = await scrape_google_places(
+                    sport_query,
+                    POZNAN_CENTER,
+                    api_key,
+                )
+                log.info("Google query %r -> %d results", sport_query, len(results))
                 google_fields.extend(results)
             except Exception as exc:
-                log.error("Google Places query %r failed: %s", sport_query, exc)
-        log.info("  Total from Google Places: %d fields", len(google_fields))
+                log.error("Google Places query failed %r: %s", sport_query, exc)
     else:
-        log.warning("GOOGLE_PLACES_API_KEY not set — skipping Google Places scrape.")
-        google_fields = []
+        log.warning("GOOGLE_PLACES_API_KEY not set — skipping Google Places.")
 
-    all_fields = osm_fields + google_fields
+    all_fields = deduplicate_fields(osm_fields + google_fields)
+
     log.info("Grand total: %d fields to upsert", len(all_fields))
 
     if not all_fields:
@@ -390,19 +425,19 @@ async def main() -> None:
 
     if supabase_url and service_key:
         await upsert_fields(all_fields, supabase_url, service_key)
-        log.info("Done!")
+        log.info("Done.")
     else:
-        log.warning(
-            "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set — printing first 10 results:"
-        )
-        for field in all_fields[:10]:
+        log.warning("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set.")
+        log.info("Printing first 20 results:")
+
+        for field in all_fields[:20]:
             log.info(
-                "  - [%s] %s @ (%.4f, %.4f) sport=%s",
-                field.get("source"),
-                field.get("name"),
-                field.get("lat", 0),
-                field.get("lng", 0),
-                field.get("sport"),
+                "- [%s] %s @ %.5f, %.5f sport=%s",
+                field["source"],
+                field["name"],
+                field["lat"],
+                field["lng"],
+                field["sport"],
             )
 
 
