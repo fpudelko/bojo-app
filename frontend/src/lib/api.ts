@@ -99,6 +99,24 @@ export async function getGames(params?: {
   return { games: (data ?? []).map(toGame), total: count ?? 0 };
 }
 
+export async function joinGame(gameId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('games')
+    .select('players_joined, players_needed')
+    .eq('id', gameId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  if (data.players_joined >= data.players_needed) throw new Error('Brak wolnych miejsc');
+
+  const { error: updateError } = await supabase
+    .from('games')
+    .update({ players_joined: data.players_joined + 1 })
+    .eq('id', gameId);
+
+  if (updateError) throw new Error(updateError.message);
+}
+
 export async function createGame(data: GameCreate): Promise<Game> {
   const { data: row, error } = await supabase
     .from('games')

@@ -3,19 +3,7 @@ import { MapPin, Users, SlidersHorizontal } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-
-// TODO: Replace with real <MapView /> component once Mapbox token is configured
-function MapPlaceholder() {
-  return (
-    <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 text-sm border-2 border-dashed border-gray-300">
-      <div className="text-center">
-        <MapPin className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-        <p className="font-medium">Podgląd mapy</p>
-        <p className="text-xs mt-1">Skonfiguruj NEXT_PUBLIC_MAPBOX_TOKEN</p>
-      </div>
-    </div>
-  );
-}
+import MapView from '@/components/map/MapView';
 
 const features = [
   {
@@ -74,7 +62,7 @@ export default function HomePage() {
       {/* Map preview */}
       <section className="max-w-5xl mx-auto w-full px-4 -mt-8">
         <div className="bg-white rounded-2xl shadow-xl p-4">
-          <MapPlaceholder />
+          <MapView className="h-64 rounded-xl overflow-hidden" />
         </div>
       </section>
 
