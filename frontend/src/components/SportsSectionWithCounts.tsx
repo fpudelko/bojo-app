@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Target, Circle, Trophy, Sun, Zap, Dumbbell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const SPORTS = [
-  ['⚽', 'Piłka nożna', 'piłka nożna'],
-  ['🏀', 'Koszykówka', 'koszykówka'],
-  ['🏐', 'Siatkówka', 'siatkówka'],
-  ['🏖️', 'Siatkówka plażowa', 'siatkówka plażowa'],
-  ['⚡', 'Futsal', 'futsal'],
-  ['🤾', 'Piłka ręczna', 'piłka ręczna'],
-] as const;
+type SportRow = [React.ComponentType<{ className?: string }>, string, string];
+
+const SPORTS: SportRow[] = [
+  [Target,   'Piłka nożna',       'piłka nożna'],
+  [Circle,   'Koszykówka',         'koszykówka'],
+  [Trophy,   'Siatkówka',          'siatkówka'],
+  [Sun,      'Siatkówka plażowa',  'siatkówka plażowa'],
+  [Zap,      'Futsal',             'futsal'],
+  [Dumbbell, 'Piłka ręczna',       'piłka ręczna'],
+];
 
 const MIN_COUNT_TO_SHOW = 3;
 
@@ -35,8 +38,8 @@ export default function SportsSectionWithCounts() {
     supabase
       .from('events')
       .select('sport')
-      .gte('date', from)
-      .lte('date', to)
+      .gte('event_date', from)
+      .lte('event_date', to)
       .eq('visibility', 'public')
       .then(({ data }) => {
         const c: Record<string, number> = {};
@@ -51,10 +54,9 @@ export default function SportsSectionWithCounts() {
   return (
     <section className="bg-gray-50 py-16 px-4">
       <div className="max-w-5xl mx-auto text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Wybierz swój sport</h2>
-        <p className="text-sm text-gray-500 mb-8">Dołącz do gry albo stwórz własną</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-8">Wybierz swój sport</h2>
         <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-gray-700">
-          {SPORTS.map(([emoji, display, key]) => {
+          {SPORTS.map(([Icon, display, key]) => {
             const count = counts[key] ?? 0;
             return (
               <Link
@@ -62,7 +64,7 @@ export default function SportsSectionWithCounts() {
                 href={`/wydarzenia?sport=${encodeURIComponent(key)}`}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 transition-colors"
               >
-                <span>{emoji}</span>
+                <Icon className="w-4 h-4 text-primary-600" />
                 <span>{display}</span>
                 <span className="text-gray-400 font-normal">
                   {count >= MIN_COUNT_TO_SHOW

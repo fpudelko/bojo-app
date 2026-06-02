@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Field, FieldFilters, FieldsResponse, BookingType } from '@/types';
+import { slugify } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Row mappers  (DB snake_case → TS camelCase)
@@ -117,6 +118,17 @@ export async function getField(fieldId: string): Promise<Field> {
 
   if (error) throw new Error(error.message);
   return toField(data);
+}
+
+export async function getFieldBySlug(slug: string): Promise<Field | null> {
+  const { data } = await supabase.from('fields').select('*');
+  const match = (data ?? []).find((row) => slugify(row.name) === slug);
+  return match ? toField(match) : null;
+}
+
+export async function getAllFieldSlugs(): Promise<{ slug: string; id: string }[]> {
+  const { data } = await supabase.from('fields').select('id, name');
+  return (data ?? []).map((row) => ({ slug: slugify(row.name), id: row.id }));
 }
 
 export async function updateField(
