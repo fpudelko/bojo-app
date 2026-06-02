@@ -159,6 +159,8 @@ function toMatchResult(row: any): MatchResult {
     eventId: row.event_id,
     scoreA: row.score_a,
     scoreB: row.score_b,
+    winner: row.winner ?? undefined,
+    resultData: row.result_data ?? undefined,
     recordedBy: row.recorded_by ?? undefined,
     recordedAt: row.recorded_at,
   };
@@ -179,12 +181,16 @@ export async function saveMatchResult(
   scoreA: number,
   scoreB: number,
   recordedBy: string,
+  resultData?: import('@/types').MatchResultData,
+  winner?: 'A' | 'B' | 'remis',
 ): Promise<void> {
   const { error } = await supabase.from('match_results').upsert(
     {
       event_id: eventId,
       score_a: scoreA,
       score_b: scoreB,
+      winner: winner ?? null,
+      result_data: resultData ?? null,
       recorded_by: recordedBy,
       recorded_at: new Date().toISOString(),
     },

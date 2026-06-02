@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import MatchResultForm from '@/components/events/MatchResultForm';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { venueThumbnail } from '@/lib/labels';
@@ -668,82 +669,17 @@ export default function EventDetailPage() {
 
         {/* Match results (trackResults) */}
         {event.trackResults && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <Trophy className="w-4 h-4" /> Wynik meczu
-            </h2>
-
-            {matchResult && (
-              <div className="text-center py-2 mb-4">
-                <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {matchResult.scoreA} — {matchResult.scoreB}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Drużyna A · Drużyna B</p>
-              </div>
-            )}
-
-            {isOrganizer && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">{matchResult ? 'Zaktualizuj wynik:' : 'Wpisz wynik:'}</p>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number" min={0} max={99} value={scoreA}
-                    onChange={(e) => setScoreA(e.target.value)}
-                    className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="A"
-                  />
-                  <span className="text-gray-400 font-bold text-xl">—</span>
-                  <input
-                    type="number" min={0} max={99} value={scoreB}
-                    onChange={(e) => setScoreB(e.target.value)}
-                    className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="B"
-                  />
-                  <Button variant="outline" onClick={handleSaveResult} isLoading={savingResult} disabled={!scoreA || !scoreB}>
-                    Zapisz
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!matchResult && !isOrganizer && (
-              <p className="text-sm text-gray-400 text-center py-2">Wynik nie został jeszcze wpisany.</p>
-            )}
-
-            {/* Player goals */}
-            {regulars.length > 0 && (matchResult || isOrganizer) && (
-              <div className="pt-4 border-t border-gray-100">
-                <p className="text-sm font-medium text-gray-700 mb-3">Bramki:</p>
-                <ul className="space-y-2">
-                  {regulars.map((p) => {
-                    const g = goalsMap[p.id] ?? 0;
-                    return (
-                      <li key={p.id} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">{p.name}</span>
-                        {isOrganizer ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleSetGoals(p.id, g - 1)} disabled={g === 0}
-                              className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 text-base"
-                            >−</button>
-                            <span className="text-sm font-semibold w-4 text-center">{g}</span>
-                            <button
-                              onClick={() => handleSetGoals(p.id, g + 1)}
-                              className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-base"
-                            >+</button>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-medium text-gray-800">
-                            {g > 0 ? `${g} ${g === 1 ? 'gol' : g < 5 ? 'gole' : 'goli'}` : '—'}
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
+          <MatchResultForm
+            sport={event.sport}
+            eventId={event.id}
+            organizerId={event.organizerId}
+            currentUserId={user?.id ?? ''}
+            isOrganizer={isOrganizer}
+            participants={participants}
+            initialResult={matchResult}
+            initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
+            onSaved={(result) => setMatchResult(result)}
+          />
         )}
 
         {/* Actions */}
