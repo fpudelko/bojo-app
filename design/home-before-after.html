@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bojo — strona główna: PRZED / PO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: { 50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534',900:'#14532d',950:'#052e16' },
+          accent:  { 50:'#f7fee7',100:'#ecfccb',200:'#d9f99d',300:'#bef264',400:'#a3e635',500:'#84cc16',600:'#65a30d',700:'#4d7c0f',800:'#3f6212',900:'#365314' },
+          ink: '#0f172a', canvas: '#f8faf9',
+        },
+        fontFamily: {
+          sans: ['Inter','system-ui','sans-serif'],
+          display: ['"Bricolage Grotesque"','Inter','sans-serif'],
+        },
+        boxShadow: {
+          card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
+          'card-hover': '0 10px 30px -12px rgb(15 23 42 / 0.18), 0 4px 12px -6px rgb(15 23 42 / 0.10)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { font-family: Inter, system-ui, sans-serif; }
+  .hero-surface {
+    background-color: #14532d;
+    background-image:
+      radial-gradient(60rem 40rem at 78% -10%, rgba(132,204,22,0.32), transparent 60%),
+      radial-gradient(50rem 40rem at 0% 110%, rgba(22,163,74,0.55), transparent 55%),
+      linear-gradient(160deg, #166534 0%, #15803d 45%, #14532d 100%);
+  }
+  .hero-dots {
+    background-image: radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1px);
+    background-size: 22px 22px;
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent 85%);
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+  }
+  .panel-label {
+    position: sticky; top: 0; z-index: 50;
+    font-weight: 700; letter-spacing: .02em;
+  }
+</style>
+</head>
+<body class="bg-slate-100">
+
+  <div class="mx-auto max-w-[1400px] px-4 py-6">
+    <h1 class="font-display text-2xl font-bold text-ink mb-1">Bojo — strona główna</h1>
+    <p class="text-sm text-slate-500 mb-6">Porównanie warstwy wizualnej. Mapa zastąpiona placeholderem. Paleta robocza: zielony #15803d, limonka #84cc16, tekst #0f172a, tło #f8faf9.</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+      <!-- ============================== PRZED ============================== -->
+      <div class="rounded-2xl overflow-hidden border border-slate-300 bg-white shadow">
+        <div class="panel-label bg-slate-800 text-white text-sm px-4 py-2">PRZED</div>
+
+        <!-- hero (old) -->
+        <section class="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
+          <div class="max-w-3xl mx-auto text-center">
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mb-5">Następny mecz zaczyna się tutaj.</h1>
+            <p class="text-xl font-medium text-primary-100 mb-10">Boiska, mecze i gracze w Poznaniu i okolicach — w jednym miejscu.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+              <button class="px-6 py-3 rounded-lg font-medium bg-white text-primary-700">Znajdź grę</button>
+              <button class="px-6 py-3 rounded-lg font-medium border border-white/60 text-white">Pokaż boiska</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- map (old) -->
+        <section class="max-w-5xl mx-auto w-full px-4 py-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Setki boisk. Poznań i okolice.</h2>
+          <p class="text-center text-sm text-gray-500 mb-6">Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.</p>
+          <div class="bg-white rounded-2xl shadow-xl p-4">
+            <div class="h-72 rounded-xl bg-slate-200 grid place-items-center text-slate-400 text-sm">[ Mapa ]</div>
+          </div>
+        </section>
+
+        <!-- how it works (old) -->
+        <section class="py-16 px-4 bg-gray-50">
+          <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-2">Jak to działa?</h2>
+            <p class="text-center text-gray-500 text-sm mb-10">Mniej organizowania, więcej grania.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- card -->
+              <div class="h-full p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex items-start gap-3 mb-3">
+                  <div class="p-2 bg-primary-50 rounded-lg relative shrink-0 mt-0.5">
+                    <div class="w-5 h-5 text-primary-600">📍</div>
+                    <span class="absolute -top-2 -right-2 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">1</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-gray-900 leading-snug">Wybierz boisko i termin.</h3>
+                </div>
+                <p class="text-gray-500 text-sm leading-relaxed pl-11">Setki boisk w Poznaniu — filtruj po sporcie.</p>
+              </div>
+              <div class="h-full p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex items-start gap-3 mb-3">
+                  <div class="p-2 bg-primary-50 rounded-lg relative shrink-0 mt-0.5">
+                    <div class="w-5 h-5 text-primary-600">👥</div>
+                    <span class="absolute -top-2 -right-2 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">2</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-gray-900 leading-snug">Udostępnij link. Gracze potwierdzają jednym kliknięciem.</h3>
+                </div>
+                <p class="text-gray-500 text-sm leading-relaxed pl-11">Zero rejestracji dla zaproszonych. Widzisz kto idzie.</p>
+              </div>
+              <div class="h-full p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex items-start gap-3 mb-3">
+                  <div class="p-2 bg-primary-50 rounded-lg relative shrink-0 mt-0.5">
+                    <div class="w-5 h-5 text-primary-600">⚡</div>
+                    <span class="absolute -top-2 -right-2 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">3</span>
+                  </div>
+                  <h3 class="text-base font-semibold text-gray-900 leading-snug">Ogłoś mecz publicznie — dograją się gracze z okolicy.</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================== PO ============================== -->
+      <div class="rounded-2xl overflow-hidden border border-primary-300 bg-canvas shadow">
+        <div class="panel-label bg-primary-700 text-white text-sm px-4 py-2">PO</div>
+
+        <!-- hero (new) -->
+        <section class="hero-surface relative overflow-hidden text-white">
+          <div class="hero-dots absolute inset-0"></div>
+          <div class="relative max-w-3xl mx-auto text-center px-4 py-24">
+            <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-accent-200 backdrop-blur-sm">
+              <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-accent-400"></span></span>
+              Poznań i okolice
+            </span>
+            <h1 class="mt-6 font-display text-4xl sm:text-6xl font-extrabold leading-[1.05] tracking-tight">Następny mecz<br>zaczyna się tutaj.</h1>
+            <p class="mx-auto mt-6 max-w-xl text-lg font-medium text-primary-50/90">Boiska, mecze i gracze w jednym miejscu. Zbierz skład bez przekopywania się przez grupy na Facebooku.</p>
+            <div class="mt-10 flex flex-col sm:flex-row justify-center gap-3">
+              <button class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold bg-accent-500 text-primary-950 shadow-sm hover:bg-accent-400 transition">Znajdź grę →</button>
+              <button class="px-6 py-3 rounded-xl font-medium border border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 transition">Pokaż boiska</button>
+            </div>
+          </div>
+          <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas"></div>
+        </section>
+
+        <!-- map (new) -->
+        <section class="max-w-5xl mx-auto w-full px-4 py-14">
+          <div class="mb-6 text-center">
+            <h2 class="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">Setki boisk. Poznań i okolice.</h2>
+            <p class="mt-2 text-sm text-slate-500">Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.</p>
+          </div>
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card-hover">
+            <div class="h-72 rounded-xl bg-slate-200 grid place-items-center text-slate-400 text-sm">[ Mapa ]</div>
+          </div>
+          <p class="mt-4 text-center text-sm"><a class="inline-flex items-center gap-1 font-medium text-primary-700 hover:text-primary-800">Otwórz pełną mapę →</a></p>
+        </section>
+
+        <!-- how it works (new) -->
+        <section class="border-y border-slate-200/70 bg-white px-4 py-20">
+          <div class="mx-auto max-w-5xl">
+            <div class="mb-12 text-center">
+              <h2 class="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">Jak to działa?</h2>
+              <p class="mt-2 text-sm text-slate-500">Mniej organizowania, więcej grania.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div class="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-canvas p-6 transition-all hover:-translate-y-1 hover:border-primary-200 hover:bg-white hover:shadow-card-hover">
+                <span class="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary-600 to-accent-500 transition-transform duration-300 group-hover:scale-x-100"></span>
+                <div class="mb-4 flex items-center gap-3"><div class="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700">📍<span class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white">1</span></div></div>
+                <h3 class="text-base font-semibold leading-snug text-ink">Wybierz boisko i termin.</h3>
+                <p class="mt-2 text-sm leading-relaxed text-slate-500">Setki boisk w Poznaniu — filtruj po sporcie.</p>
+              </div>
+              <div class="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-canvas p-6 transition-all hover:-translate-y-1 hover:border-primary-200 hover:bg-white hover:shadow-card-hover">
+                <span class="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary-600 to-accent-500 transition-transform duration-300 group-hover:scale-x-100"></span>
+                <div class="mb-4 flex items-center gap-3"><div class="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700">👥<span class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white">2</span></div></div>
+                <h3 class="text-base font-semibold leading-snug text-ink">Udostępnij link. Gracze potwierdzają jednym kliknięciem.</h3>
+                <p class="mt-2 text-sm leading-relaxed text-slate-500">Zero rejestracji dla zaproszonych. Widzisz kto idzie.</p>
+              </div>
+              <div class="group relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-canvas p-6 transition-all hover:-translate-y-1 hover:border-primary-200 hover:bg-white hover:shadow-card-hover">
+                <span class="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary-600 to-accent-500 transition-transform duration-300 group-hover:scale-x-100"></span>
+                <div class="mb-4 flex items-center gap-3"><div class="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700">⚡<span class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white">3</span></div></div>
+                <h3 class="text-base font-semibold leading-snug text-ink">Ogłoś mecz publicznie — dograją się gracze z okolicy.</h3>
+                <p class="mt-2 text-sm leading-relaxed text-slate-500">Brakuje wam dwóch do składu? Ktoś z okolicy dołączy.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
