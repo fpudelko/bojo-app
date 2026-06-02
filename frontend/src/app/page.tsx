@@ -34,12 +34,15 @@ export default function HomePage() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
+          <span className="inline-block text-xs sm:text-sm font-semibold uppercase tracking-wider text-primary-100 bg-white/10 rounded-full px-4 py-1.5 mb-6">
+            Sport amatorski w Poznaniu
+          </span>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6">
-            Znajdź grę.<br />Zbierz skład.
+            Zbierz ekipę<br />na mecz
           </h1>
           <p className="text-lg sm:text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-            Stwórz mecz, wybierz boisko na mapie i zaproś znajomych linkiem.
-            Brakuje ludzi? Upublicznij i dograj skład.
+            Wybierz boisko na mapie, ustal termin i zaproś znajomych jednym linkiem.
+            Brakuje graczy? Upublicznij grę — dołączą inni z Poznania.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/wydarzenia/nowe">
@@ -47,7 +50,7 @@ export default function HomePage() {
             </Link>
             <Link href="/wydarzenia">
               <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10">
-                Przeglądaj wydarzenia
+                Znajdź grę do dołączenia
               </Button>
             </Link>
           </div>
