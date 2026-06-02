@@ -12,38 +12,8 @@ export interface Field {
   website?: string;
 }
 
-export interface Game {
-  id: string;
-  fieldId: string;
-  fieldName: string;
-  sport: string;
-  date: string;
-  time: string;
-  playersNeeded: number;
-  playersJoined: number;
-  author: string;
-  description?: string;
-  createdAt: string;
-}
-
-export interface GameCreate {
-  fieldId: string;
-  fieldName: string;
-  sport: string;
-  date: string;
-  time: string;
-  playersNeeded: number;
-  author: string;
-  description?: string;
-}
-
 export interface FieldsResponse {
   fields: Field[];
-  total: number;
-}
-
-export interface GamesResponse {
-  games: Game[];
   total: number;
 }
 
@@ -55,13 +25,6 @@ export type SportType =
   | 'futsal'
   | 'piłka ręczna'
   | 'inne';
-
-export type SurfaceType =
-  | 'grass'
-  | 'artificial'
-  | 'concrete'
-  | 'clay'
-  | 'hardcourt';
 
 export interface FieldFilters {
   sport?: SportType;

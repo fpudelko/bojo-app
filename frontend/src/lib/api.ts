@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Field, FieldFilters, FieldsResponse, Game, GameCreate, GamesResponse } from '@/types';
+import type { Field, FieldFilters, FieldsResponse } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Row mappers  (DB snake_case → TS camelCase)
@@ -19,23 +19,6 @@ function toField(row: any): Field {
     isIndoor: row.is_indoor,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toGame(row: any): Game {
-  return {
-    id: row.id,
-    fieldId: row.field_id,
-    fieldName: row.fields?.name ?? '',
-    sport: row.sport,
-    date: row.game_date,
-    time: row.game_time,
-    playersNeeded: row.players_needed,
-    playersJoined: row.players_joined,
-    author: row.author_name,
-    description: row.description ?? undefined,
-    createdAt: row.created_at,
   };
 }
 
@@ -72,66 +55,4 @@ export async function getField(fieldId: string): Promise<Field> {
 
   if (error) throw new Error(error.message);
   return toField(data);
-}
-
-// ---------------------------------------------------------------------------
-// Games
-// ---------------------------------------------------------------------------
-
-export async function getGames(params?: {
-  fieldId?: string;
-  sport?: string;
-  limit?: number;
-}): Promise<GamesResponse> {
-  let query = supabase
-    .from('games')
-    .select('*, fields(name)', { count: 'exact' })
-    .eq('is_active', true)
-    .order('game_date', { ascending: true });
-
-  if (params?.fieldId) query = query.eq('field_id', params.fieldId);
-  if (params?.sport)   query = query.eq('sport', params.sport);
-  if (params?.limit)   query = query.limit(params.limit);
-
-  const { data, error, count } = await query;
-  if (error) throw new Error(error.message);
-
-  return { games: (data ?? []).map(toGame), total: count ?? 0 };
-}
-
-export async function joinGame(gameId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('games')
-    .select('players_joined, players_needed')
-    .eq('id', gameId)
-    .single();
-
-  if (error) throw new Error(error.message);
-  if (data.players_joined >= data.players_needed) throw new Error('Brak wolnych miejsc');
-
-  const { error: updateError } = await supabase
-    .from('games')
-    .update({ players_joined: data.players_joined + 1 })
-    .eq('id', gameId);
-
-  if (updateError) throw new Error(updateError.message);
-}
-
-export async function createGame(data: GameCreate): Promise<Game> {
-  const { data: row, error } = await supabase
-    .from('games')
-    .insert({
-      field_id: data.fieldId,
-      sport: data.sport,
-      game_date: data.date,
-      game_time: data.time,
-      players_needed: data.playersNeeded,
-      author_name: data.author,
-      description: data.description,
-    })
-    .select('*, fields(name)')
-    .single();
-
-  if (error) throw new Error(error.message);
-  return toGame(row);
 }
