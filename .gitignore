@@ -102,3 +102,7 @@ desktop.ini
 
 # ---- TypeScript (auto-generated) ----
 frontend/next-env.d.ts
+
+# TypeScript build cache
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
