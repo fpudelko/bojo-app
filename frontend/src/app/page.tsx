@@ -36,17 +36,17 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-5">
-            Zbierz skład.<br className="hidden sm:block" /> Zagraj dziś.
+            Następny mecz zaczyna się tutaj.
           </h1>
           <p className="text-xl sm:text-2xl font-medium text-primary-100 mb-10">
-            Boiska, mecze i gracze w Poznaniu — w jednym miejscu.
+            Boiska, mecze i gracze w Poznaniu i okolicach — w jednym miejscu.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/wydarzenia">
               <Button variant="secondary" size="lg">Znajdź grę</Button>
             </Link>
             <Link href="/mapa">
-              <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10">
+              <Button variant="outline" size="lg" className="border-white/60 text-white hover:bg-white/10">
                 Pokaż boiska
               </Button>
             </Link>
@@ -56,7 +56,7 @@ export default function HomePage() {
 
       {/* Map — right after hero */}
       <section className="max-w-5xl mx-auto w-full px-4 py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Setki boisk. Jedno miasto.</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Setki boisk. Poznań i okolice.</h2>
         <p className="text-center text-sm text-gray-500 mb-6">
           Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.
         </p>
@@ -136,7 +136,7 @@ export default function HomePage() {
       {/* Closing CTA */}
       <section className="bg-primary-600 py-20 px-4 text-white text-center">
         <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">
-          Następny mecz zaczyna się tutaj.
+          Zbierz skład. Zagraj dziś.
         </h2>
         <Link href="/wydarzenia">
           <Button variant="secondary" size="lg">Znajdź grę</Button>
@@ -150,7 +150,7 @@ export default function HomePage() {
           <div className="flex gap-6 text-sm">
             <Link href="/mapa" className="hover:text-white transition-colors">Mapa boisk</Link>
             <Link href="/wydarzenia" className="hover:text-white transition-colors">Znajdź grę</Link>
-            <Link href="/cykliczne" className="hover:text-white transition-colors">Cykliczne</Link>
+            <Link href="/cykliczne" className="hover:text-white transition-colors">Stałe ekipy</Link>
           </div>
         </div>
       </footer>

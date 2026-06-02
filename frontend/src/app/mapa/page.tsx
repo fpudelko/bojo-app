@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Target, Sun, Trophy, Circle, Zap, Dumbbell, Gauge, MoreHorizontal } from 'lucide-react';
+import { Search, Target, Sun, Disc, Circle, Zap, Dumbbell, Gauge, LayoutGrid } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MapView from '@/components/map/MapView';
@@ -14,16 +14,17 @@ interface SportChip {
   color: string;
 }
 
-// Ordered per spec: piłka nożna, siatkówka plażowa, siatkówka, koszykówka, futsal, piłka ręczna, gokarty, inne
+// Single place to define sport icons — swap LucideIcon for custom SVG here when ready.
+// Ordered: piłka nożna, siatkówka plażowa, siatkówka, koszykówka, futsal, piłka ręczna, gokarty, inne
 const SPORT_CHIPS: SportChip[] = [
-  { value: 'piłka nożna',      label: 'Piłka nożna',  Icon: Target,          color: '#15803d' },
-  { value: 'siatkówka plażowa', label: 'Plaża',       Icon: Sun,             color: '#d97706' },
-  { value: 'siatkówka',        label: 'Siatkówka',    Icon: Trophy,          color: '#2563eb' },
-  { value: 'koszykówka',       label: 'Koszykówka',   Icon: Circle,          color: '#ea580c' },
-  { value: 'futsal',           label: 'Futsal',       Icon: Zap,             color: '#7c3aed' },
-  { value: 'piłka ręczna',     label: 'Piłka ręczna', Icon: Dumbbell,        color: '#dc2626' },
-  { value: 'gokarty',          label: 'Gokarty',      Icon: Gauge,           color: '#0d9488' },
-  { value: 'inne',             label: 'Inne',         Icon: MoreHorizontal,  color: '#6b7280' },
+  { value: 'piłka nożna',       label: 'Piłka nożna',  Icon: Target,     color: '#15803d' },
+  { value: 'siatkówka plażowa',  label: 'Plaża',        Icon: Sun,        color: '#d4a574' },
+  { value: 'siatkówka',         label: 'Siatkówka',    Icon: Disc,       color: '#2563eb' },
+  { value: 'koszykówka',        label: 'Koszykówka',   Icon: Circle,     color: '#ea580c' },
+  { value: 'futsal',            label: 'Futsal',       Icon: Zap,        color: '#7c3aed' },
+  { value: 'piłka ręczna',      label: 'Piłka ręczna', Icon: Dumbbell,   color: '#dc2626' },
+  { value: 'gokarty',           label: 'Gokarty',      Icon: Gauge,      color: '#0d9488' },
+  { value: 'inne',              label: 'Inne',         Icon: LayoutGrid, color: '#6b7280' },
 ];
 
 export default function MapaPage() {

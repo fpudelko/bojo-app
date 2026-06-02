@@ -14,7 +14,7 @@ import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
 import type { MapViewProps } from './MapView';
 
-const POZNAN: [number, number] = [52.4064, 16.9252];
+const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 // ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ export default function LeafletMapImpl({
     <div className={['w-full h-full min-h-[400px] relative', className ?? ''].join(' ')}>
       <MapContainer
         center={POZNAN}
-        zoom={12}
+        zoom={11}
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={false}
       >
