@@ -73,6 +73,7 @@ export default function EditEventPage() {
               available: true,
               surface: '',
               isIndoor: false,
+              isBookable: false,
             });
           }
         }

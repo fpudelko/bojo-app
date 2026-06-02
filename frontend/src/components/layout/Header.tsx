@@ -82,6 +82,28 @@ export default function Header() {
             {!loading && user && (
               <>
                 <Link
+                  href="/obiekt"
+                  className={clsx(
+                    'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    pathname === '/obiekt' || pathname.startsWith('/obiekt/')
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                  )}
+                >
+                  Mój obiekt
+                </Link>
+                <Link
+                  href="/rezerwacje"
+                  className={clsx(
+                    'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    pathname === '/rezerwacje'
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                  )}
+                >
+                  Rezerwacje
+                </Link>
+                <Link
                   href="/wydarzenia/nowe"
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                 >
@@ -156,6 +178,20 @@ export default function Header() {
                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-primary-700 bg-primary-50"
                   >
                     <Plus className="w-4 h-4" /> Stwórz wydarzenie
+                  </Link>
+                  <Link
+                    href="/obiekt"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Mój obiekt
+                  </Link>
+                  <Link
+                    href="/rezerwacje"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Moje rezerwacje
                   </Link>
                   <Link
                     href="/profil"

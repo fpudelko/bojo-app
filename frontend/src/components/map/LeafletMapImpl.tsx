@@ -12,13 +12,18 @@ import { useAdmin } from '@/lib/admin';
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-function fieldIcon(available: boolean) {
-  const color = available ? '#16a34a' : '#9ca3af';
+function fieldIcon(available: boolean, isBookable: boolean) {
+  const color = !available ? '#9ca3af' : isBookable ? '#2563eb' : '#16a34a';
+  const size = isBookable ? 16 : 14;
+  const half = size / 2;
+  const bookablePulse = isBookable
+    ? `<div style="position:absolute;top:-3px;left:-3px;width:${size + 6}px;height:${size + 6}px;border-radius:50%;background:rgba(37,99,235,0.2);animation:none"></div>`
+    : '';
   return L.divIcon({
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,
+    html: `<div style="position:relative;width:${size}px;height:${size}px">${bookablePulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
     className: '',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
     popupAnchor: [0, -10],
   });
 }
@@ -27,21 +32,22 @@ interface Props {
   className?: string;
   sport?: SportType;
   onlyAvailable?: boolean;
+  onlyBookable?: boolean;
   search?: string;
 }
 
-export default function LeafletMapImpl({ className, sport, onlyAvailable, search }: Props) {
+export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBookable, search }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = useAdmin();
 
   useEffect(() => {
     let cancelled = false;
-    getFields({ sport, available: onlyAvailable || undefined })
+    getFields({ sport, available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
       .then((res) => { if (!cancelled) setFields(res.fields); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd pobierania boisk'); });
     return () => { cancelled = true; };
-  }, [sport, onlyAvailable]);
+  }, [sport, onlyAvailable, onlyBookable]);
 
   const q = search?.trim().toLowerCase() ?? '';
   const displayed = q
@@ -79,7 +85,7 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, search
           <Marker
             key={field.id}
             position={[field.lat, field.lng]}
-            icon={fieldIcon(field.available)}
+            icon={fieldIcon(field.available, field.isBookable)}
           >
             <Popup>
               <div style={{ minWidth: 230 }}>
@@ -102,13 +108,33 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, search
                   ))}
                 </div>
 
-                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? '#16a34a' : '#9ca3af' }}>
+                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? (field.isBookable ? '#2563eb' : '#16a34a') : '#9ca3af' }}>
                   {field.available ? '● Dostępne' : '● Niedostępne'}
+                  {field.isBookable && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacje</span>}
                   {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
                 </p>
 
                 {/* Action links */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  {field.isBookable && (
+                    <a
+                      href={`/boisko/${field.id}`}
+                      style={{
+                        flex: '0 0 auto',
+                        textAlign: 'center',
+                        background: '#2563eb',
+                        color: '#fff',
+                        borderRadius: 6,
+                        padding: '5px 10px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      📅 Zarezerwuj →
+                    </a>
+                  )}
                   <a
                     href={`/wydarzenia/nowe?fieldId=${field.id}`}
                     style={{
