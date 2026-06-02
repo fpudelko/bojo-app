@@ -1,3 +1,22 @@
+"""
+Boiska Poznań — Field Scraper
+==============================
+Scrapes sports fields from:
+  1. OpenStreetMap via Overpass API (free, no key required)
+  2. Google Places API Text Search (requires GOOGLE_PLACES_API_KEY)
+
+Only team/group sports are imported (soccer, basketball, volleyball, futsal,
+handball, beach volleyball, hockey, rugby, multi-sport). Individual sports
+(tennis, athletics, cycling, golf, etc.) are filtered out.
+
+Results are upserted to Supabase. Re-runs are safe: all OSM/Google rows
+are deleted per source before re-inserting. Manual rows (source=manual) untouched.
+
+Usage:
+    pip install -r requirements.txt
+    python scraper.py
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -9,37 +28,35 @@ import httpx
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
 
-POZNAN_BBOX = (52.20, 16.40, 52.65, 17.35)  # south, west, north, east — Poznań + szeroko okolice
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+POZNAN_BBOX = (52.20, 16.40, 52.65, 17.35)  # south, west, north, east (Poznań + okolice)
 POZNAN_CENTER = "52.4064,16.9252"
 
-OVERPASS_URLS = [
-    "https://overpass.openstreetmap.ru/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-]
-
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 GOOGLE_PLACES_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 
 SPORT_QUERIES = [
     "boisko piłka nożna Poznań",
     "boisko koszykówka Poznań",
     "boisko siatkówka Poznań",
+    "boisko siatkówka plażowa Poznań",
     "boisko futsal Poznań",
     "hala sportowa Poznań",
 ]
 
-# Team/group sports only — individual sports (tennis, athletics, golf, cycling…)
-# are filtered out in normalize_osm_element.
+# Team/group sports only — individual sports (tennis, athletics, golf…) are excluded.
 TEAM_SPORTS = {
     "soccer",
     "football",
     "basketball",
     "volleyball",
+    "beach_volleyball",
     "futsal",
     "handball",
     "team_handball",
@@ -53,11 +70,12 @@ TEAM_SPORTS = {
     "multi",
 }
 
-OSM_SPORT_MAP = {
+OSM_SPORT_MAP: dict[str, str] = {
     "soccer": "piłka nożna",
     "football": "piłka nożna",
     "basketball": "koszykówka",
     "volleyball": "siatkówka",
+    "beach_volleyball": "siatkówka plażowa",
     "futsal": "futsal",
     "handball": "piłka ręczna",
     "team_handball": "piłka ręczna",
@@ -71,7 +89,8 @@ OSM_SPORT_MAP = {
     "multi": "wielofunkcyjne",
 }
 
-SURFACE_MAP = {
+# Normalized surface codes (stored in DB)
+SURFACE_MAP: dict[str, str] = {
     "grass": "grass",
     "natural_grass": "grass",
     "artificial": "artificial",
@@ -87,26 +106,61 @@ SURFACE_MAP = {
     "rubber": "hardcourt",
     "synthetic": "artificial",
     "wood": "hardcourt",
+    "sand": "sand",
 }
 
-# Polish display labels for descriptive names of unnamed OSM pitches
-SURFACE_DISPLAY = {
+# Polish display labels used when building descriptive names for unnamed pitches
+SURFACE_DISPLAY: dict[str, str] = {
     "grass": "trawa naturalna",
     "artificial": "sztuczna trawa",
     "hardcourt": "tartan / asfalt",
     "clay": "mączka ceglana",
     "concrete": "beton",
+    "sand": "piasek",
 }
 
 
-def build_osm_name(
-    tags: dict[str, str],
-    sport_pl: str,
-    surface_normalized: str,
-) -> str:
+# ---------------------------------------------------------------------------
+# OpenStreetMap (Overpass API)
+# ---------------------------------------------------------------------------
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
+async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
+    """Fetch team-sport pitches and sport centres from OSM via a single POST query."""
+    south, west, north, east = bbox
+    query = f"""
+    [out:json][timeout:60];
+    (
+      node["leisure"="pitch"]({south},{west},{north},{east});
+      way["leisure"="pitch"]({south},{west},{north},{east});
+      relation["leisure"="pitch"]({south},{west},{north},{east});
+      node["leisure"="sports_centre"]({south},{west},{north},{east});
+      way["leisure"="sports_centre"]({south},{west},{north},{east});
+      relation["leisure"="sports_centre"]({south},{west},{north},{east});
+    );
+    out center;
     """
-    Human-readable name for an OSM element. Falls back to a descriptive name
-    built from sport + surface when there is no explicit name tag.
+
+    async with httpx.AsyncClient(timeout=75.0) as client:
+        response = await client.post(
+            OVERPASS_URL,
+            data={"data": query},
+            headers={"User-Agent": "bojo-app-scraper/1.0 (https://github.com/fpudelko/bojo-app)"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    elements: list[dict] = data.get("elements", [])
+    fields = [n for el in elements if (n := normalize_osm_element(el))]
+    log.info("OSM: %d elements → %d team-sport fields after filtering", len(elements), len(fields))
+    return fields
+
+
+def build_osm_name(tags: dict[str, str], sport_pl: str, surface_normalized: str) -> str:
+    """
+    Human-readable name for an OSM pitch.
+    Uses explicit name tags first; falls back to descriptive name from sport + surface.
     """
     explicit = (
         tags.get("name")
@@ -129,111 +183,8 @@ def build_osm_name(
     return " · ".join(parts)
 
 
-def split_bbox(
-    bbox: tuple[float, float, float, float],
-    rows: int = 4,
-    cols: int = 4,
-) -> list[tuple[float, float, float, float]]:
-    south, west, north, east = bbox
-    lat_step = (north - south) / rows
-    lng_step = (east - west) / cols
-
-    boxes = []
-    for r in range(rows):
-        for c in range(cols):
-            boxes.append(
-                (
-                    south + r * lat_step,
-                    west + c * lng_step,
-                    south + (r + 1) * lat_step,
-                    west + (c + 1) * lng_step,
-                )
-            )
-
-    return boxes
-
-
-def build_overpass_query(bbox: tuple[float, float, float, float]) -> str:
-    south, west, north, east = bbox
-
-    return f"""
-[out:json][timeout:15];
-(
-  way["leisure"="pitch"]({south},{west},{north},{east});
-  node["leisure"="pitch"]({south},{west},{north},{east});
-);
-out center tags;
-"""
-
-
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4))
-async def fetch_overpass(
-    client: httpx.AsyncClient,
-    url: str,
-    query: str,
-) -> dict[str, Any]:
-    response = await client.get(
-        url,
-        params={"data": query},
-        headers={
-            "User-Agent": "sport-events-mvp/0.1 contact:your-email@example.com",
-            "Accept": "application/json",
-        },
-    )
-
-    if response.status_code != 200:
-        log.error(
-            "Overpass error %s from %s: %s",
-            response.status_code,
-            url,
-            response.text[:1000],
-        )
-
-    response.raise_for_status()
-    return response.json()
-
-
-async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
-    boxes = split_bbox(bbox, rows=4, cols=4)
-    all_fields: list[dict[str, Any]] = []
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        for index, small_bbox in enumerate(boxes, start=1):
-            query = build_overpass_query(small_bbox)
-
-            data = None
-            for url in OVERPASS_URLS:
-                try:
-                    log.info(
-                        "Trying Overpass %d/%d: %s bbox=%s",
-                        index,
-                        len(boxes),
-                        url,
-                        small_bbox,
-                    )
-                    data = await fetch_overpass(client, url, query)
-                    break
-                except Exception as exc:
-                    log.warning("Overpass failed on %s: %s", url, exc)
-
-            if data is None:
-                log.error("All Overpass endpoints failed for bbox=%s", small_bbox)
-                continue
-
-            elements = data.get("elements", [])
-            log.info("Found %d raw OSM elements in bbox=%s", len(elements), small_bbox)
-
-            for el in elements:
-                normalized = normalize_osm_element(el)
-                if normalized:
-                    all_fields.append(normalized)
-
-            await asyncio.sleep(0.5)
-
-    return deduplicate_fields(all_fields)
-
-
 def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
+    """Convert an OSM element to our Field schema. Returns None for non-team sports."""
     tags: dict[str, str] = element.get("tags", {})
 
     if element.get("type") == "node":
@@ -247,8 +198,8 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     if lat is None or lng is None:
         return None
 
-    # Filter: keep only team/group sports. Untagged pitches are kept as
-    # multi-sport (they're usually orliki / boiska wielofunkcyjne).
+    # Skip individual sports (tennis, athletics, golf, etc.)
+    # Pitches with no sport tag are kept — they're usually multi-purpose orliki.
     sport_raw = tags.get("sport", "").lower()
     if sport_raw and sport_raw not in TEAM_SPORTS:
         return None
@@ -258,11 +209,7 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     surface_raw = tags.get("surface", "").lower()
     surface = SURFACE_MAP.get(surface_raw, "")
 
-    name = build_osm_name(tags, sport_pl, surface)
-
-    is_indoor = tags.get("indoor", "no").lower() in ("yes", "true", "1")
-    if tags.get("building"):
-        is_indoor = True
+    is_indoor = tags.get("indoor", "no").lower() in ("yes", "true", "1") or bool(tags.get("building"))
 
     address_parts = [
         tags.get("addr:street", ""),
@@ -272,7 +219,7 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     address = " ".join(p for p in address_parts if p).strip() or "Poznań"
 
     return {
-        "name": name,
+        "name": build_osm_name(tags, sport_pl, surface),
         "address": address,
         "lat": float(lat),
         "lng": float(lng),
@@ -287,36 +234,21 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def deduplicate_fields(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    seen = set()
-    result = []
-
-    for field in fields:
-        key = field.get("external_id")
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        result.append(field)
-
-    return result
+# ---------------------------------------------------------------------------
+# Google Places API
+# ---------------------------------------------------------------------------
 
 
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4))
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 async def scrape_google_places(
     query: str,
     location: str,
     api_key: str,
     radius: int = 15000,
 ) -> list[dict[str, Any]]:
-    params = {
-        "query": query,
-        "location": location,
-        "radius": radius,
-        "key": api_key,
-        "language": "pl",
-    }
-
-    all_results: list[dict[str, Any]] = []
+    """Fetch sports fields from Google Places Text Search (up to 60 results per query)."""
+    params = {"query": query, "location": location, "radius": radius, "key": api_key, "language": "pl"}
+    all_results: list[dict] = []
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         while True:
@@ -330,7 +262,6 @@ async def scrape_google_places(
                 break
 
             all_results.extend(data.get("results", []))
-
             next_token = data.get("next_page_token")
             if not next_token or len(all_results) >= 60:
                 break
@@ -343,40 +274,33 @@ async def scrape_google_places(
 
 def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
     geometry = place.get("geometry", {}).get("location", {})
-    lat = geometry.get("lat")
-    lng = geometry.get("lng")
-
+    lat, lng = geometry.get("lat"), geometry.get("lng")
     if lat is None or lng is None:
+        return None
+
+    place_id = place.get("place_id", "")
+    if not place_id:
         return None
 
     name = place.get("name", "")
     address = place.get("formatted_address", place.get("vicinity", "Poznań"))
-    place_id = place.get("place_id", "")
-
-    if not place_id:
-        return None
-
     name_lower = name.lower()
-    types = place.get("types", [])
-    sport: list[str] = []
 
-    if any(kw in name_lower for kw in ("piłk", "futsal", "soccer", "football")):
+    sport: list[str] = []
+    if any(kw in name_lower for kw in ("piłk", "futsal", "soccer", "football", "orlik")):
         sport.append("piłka nożna")
-    if any(kw in name_lower for kw in ("tenis", "tennis", "kort")):
-        sport.append("tenis")
     if any(kw in name_lower for kw in ("koszykówka", "basketball", "basket")):
         sport.append("koszykówka")
-    if any(kw in name_lower for kw in ("siatkówka", "volleyball")):
+    if any(kw in name_lower for kw in ("siatkówka plażowa", "beach volley")):
+        sport.append("siatkówka plażowa")
+    elif any(kw in name_lower for kw in ("siatkówka", "volleyball")):
         sport.append("siatkówka")
-    if "gym" in types or "stadium" in types:
-        sport.append("inne")
+    if any(kw in name_lower for kw in ("piłka ręczna", "handball")):
+        sport.append("piłka ręczna")
     if not sport:
-        sport = ["inne"]
+        sport = ["wielofunkcyjne"]
 
-    is_indoor = any(
-        kw in name_lower
-        for kw in ("hala", "sala", "indoor", "kryty", "kryta")
-    )
+    is_indoor = any(kw in name_lower for kw in ("hala", "sala", "indoor", "kryty", "kryta"))
 
     return {
         "name": name,
@@ -394,11 +318,23 @@ def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-async def upsert_fields(
-    fields: list[dict[str, Any]],
-    supabase_url: str,
-    service_key: str,
-) -> None:
+# ---------------------------------------------------------------------------
+# Supabase upsert
+# ---------------------------------------------------------------------------
+
+
+def deduplicate(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for f in fields:
+        key = f.get("external_id", "")
+        if key and key not in seen:
+            seen.add(key)
+            out.append(f)
+    return out
+
+
+async def upsert_fields(fields: list[dict[str, Any]], supabase_url: str, service_key: str) -> None:
     if not fields:
         log.info("No fields to upsert.")
         return
@@ -410,90 +346,69 @@ async def upsert_fields(
     }
     endpoint = f"{supabase_url}/rest/v1/fields"
 
+    # Delete old scraped rows first (idempotent re-runs, manual rows untouched)
     sources = sorted({f.get("source") for f in fields if f.get("source")})
-
     async with httpx.AsyncClient(timeout=30.0) as client:
         for source in sources:
-            del_resp = await client.delete(
+            r = await client.delete(
                 f"{endpoint}?source=eq.{source}",
                 headers={**headers, "Prefer": "return=minimal"},
             )
-
-            if del_resp.status_code not in (200, 204):
-                log.warning(
-                    "Delete source=%s returned %s: %s",
-                    source,
-                    del_resp.status_code,
-                    del_resp.text[:300],
-                )
-            else:
+            if r.status_code in (200, 204):
                 log.info("Cleared existing rows for source=%s", source)
-
-    batch_size = 100
-    total_upserted = 0
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        for i in range(0, len(fields), batch_size):
-            batch = fields[i : i + batch_size]
-
-            response = await client.post(
-                endpoint,
-                json=batch,
-                headers={**headers, "Prefer": "return=minimal"},
-            )
-
-            if response.status_code not in (200, 201):
-                log.error(
-                    "Supabase insert error batch %d: %s — %s",
-                    i // batch_size + 1,
-                    response.status_code,
-                    response.text[:500],
-                )
             else:
-                total_upserted += len(batch)
-                log.info("Inserted batch %d (%d fields)", i // batch_size + 1, len(batch))
+                log.warning("Delete source=%s returned %s", source, r.status_code)
 
-    log.info("Total inserted: %d fields", total_upserted)
+    # Batch insert
+    BATCH = 100
+    total = 0
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for i in range(0, len(fields), BATCH):
+            batch = fields[i : i + BATCH]
+            r = await client.post(endpoint, json=batch, headers={**headers, "Prefer": "return=minimal"})
+            if r.status_code in (200, 201):
+                total += len(batch)
+                log.info("Inserted batch %d (%d fields)", i // BATCH + 1, len(batch))
+            else:
+                log.error("Insert error batch %d: %s — %s", i // BATCH + 1, r.status_code, r.text[:300])
+
+    log.info("Total upserted: %d fields", total)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 
 async def main() -> None:
     load_dotenv()
 
-    log.info("RUNNING SCRAPER VERSION: overpass-light-v3")
-
     api_key = os.getenv("GOOGLE_PLACES_API_KEY", "")
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-    log.info("Scraping OpenStreetMap bbox=%s...", POZNAN_BBOX)
-
+    log.info("Scraping OSM bbox=%s …", POZNAN_BBOX)
     try:
         osm_fields = await scrape_osm(POZNAN_BBOX)
-        log.info("Found %d normalized fields from OSM", len(osm_fields))
+        log.info("OSM: %d team-sport fields", len(osm_fields))
     except Exception as exc:
-        log.error("OSM scrape failed completely: %s", exc)
+        log.error("OSM scrape failed: %s", exc)
         osm_fields = []
 
     google_fields: list[dict[str, Any]] = []
-
     if api_key:
-        log.info("Scraping Google Places...")
-        for sport_query in SPORT_QUERIES:
+        log.info("Scraping Google Places (%d queries)…", len(SPORT_QUERIES))
+        for q in SPORT_QUERIES:
             try:
-                results = await scrape_google_places(
-                    sport_query,
-                    POZNAN_CENTER,
-                    api_key,
-                )
-                log.info("Google query %r -> %d results", sport_query, len(results))
+                results = await scrape_google_places(q, POZNAN_CENTER, api_key)
+                log.info("  %r → %d results", q, len(results))
                 google_fields.extend(results)
             except Exception as exc:
-                log.error("Google Places query failed %r: %s", sport_query, exc)
+                log.error("Google Places %r failed: %s", q, exc)
     else:
         log.warning("GOOGLE_PLACES_API_KEY not set — skipping Google Places.")
 
-    all_fields = deduplicate_fields(osm_fields + google_fields)
-
+    all_fields = deduplicate(osm_fields + google_fields)
     log.info("Grand total: %d fields to upsert", len(all_fields))
 
     if not all_fields:
@@ -504,18 +419,9 @@ async def main() -> None:
         await upsert_fields(all_fields, supabase_url, service_key)
         log.info("Done.")
     else:
-        log.warning("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set.")
-        log.info("Printing first 20 results:")
-
-        for field in all_fields[:20]:
-            log.info(
-                "- [%s] %s @ %.5f, %.5f sport=%s",
-                field["source"],
-                field["name"],
-                field["lat"],
-                field["lng"],
-                field["sport"],
-            )
+        log.warning("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — dry run.")
+        for f in all_fields[:20]:
+            log.info("  [%s] %s @ %.5f, %.5f sport=%s", f["source"], f["name"], f["lat"], f["lng"], f["sport"])
 
 
 if __name__ == "__main__":

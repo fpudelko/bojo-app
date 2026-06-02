@@ -171,7 +171,9 @@ export default function EventDetailPage() {
               <Calendar className="w-4 h-4 text-gray-400" /> <span className="capitalize">{dateStr}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-700">
-              <Clock className="w-4 h-4 text-gray-400" /> {event.time?.slice(0, 5)}
+              <Clock className="w-4 h-4 text-gray-400" />
+              {event.time?.slice(0, 5)}
+              {event.endTime && <span className="text-gray-400">– {event.endTime.slice(0, 5)}</span>}
             </div>
             <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
               <MapPin className="w-4 h-4 text-gray-400 shrink-0" /> {event.fieldName}

@@ -51,8 +51,9 @@ export type SportType =
   | 'piłka nożna'
   | 'koszykówka'
   | 'siatkówka'
-  | 'tenis'
+  | 'siatkówka plażowa'
   | 'futsal'
+  | 'piłka ręczna'
   | 'inne';
 
 export type SurfaceType =
@@ -65,6 +66,7 @@ export type SurfaceType =
 export interface FieldFilters {
   sport?: SportType;
   available?: boolean;
+  search?: string;
   lat?: number;
   lng?: number;
   radius_km?: number;
@@ -87,6 +89,7 @@ export interface EventItem {
   description?: string;
   date: string;
   time: string;
+  endTime?: string;
   maxPlayers: number;
   visibility: Visibility;
   createdAt: string;
@@ -111,6 +114,7 @@ export interface EventCreate {
   description?: string;
   date: string;
   time: string;
+  endTime?: string;
   maxPlayers: number;
   visibility: Visibility;
 }

@@ -1,32 +1,53 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin, Lock, Globe } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth, displayName } from '@/lib/auth';
 import { createEvent } from '@/lib/events';
+import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import type { Field, Visibility } from '@/types';
 
-const SPORTS = ['piłka nożna', 'koszykówka', 'siatkówka', 'tenis', 'futsal', 'inne'];
+const SPORTS = [
+  'piłka nożna',
+  'futsal',
+  'koszykówka',
+  'siatkówka',
+  'siatkówka plażowa',
+  'piłka ręczna',
+  'inne',
+];
 
-export default function NewEventPage() {
+function NewEventForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading, signInWithGoogle } = useAuth();
 
   const [sport, setSport] = useState('piłka nożna');
   const [field, setField] = useState<Field | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('18:00');
+  const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-select field from URL param (coming from map popup → "+ Wydarzenie")
+  const preFieldId = searchParams.get('fieldId');
+  useEffect(() => {
+    if (!preFieldId || field) return;
+    getField(preFieldId)
+      .then(setField)
+      .catch(() => {/* user can pick manually */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preFieldId]);
 
   if (!loading && !user) {
     return (
@@ -51,6 +72,10 @@ export default function NewEventPage() {
     if (!user) return;
     if (!field) { setError('Wybierz boisko na mapie.'); return; }
     if (!date) { setError('Podaj datę.'); return; }
+    if (endTime && endTime <= time) {
+      setError('Godzina zakończenia musi być późniejsza niż rozpoczęcia.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -66,6 +91,7 @@ export default function NewEventPage() {
           description: description || undefined,
           date,
           time,
+          endTime: endTime || undefined,
           maxPlayers,
           visibility,
         },
@@ -131,15 +157,25 @@ export default function NewEventPage() {
             )}
           </div>
 
-          {/* Date / time */}
+          {/* Date / start time / end time */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Godzina</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+              </label>
+              <input
+                type="time" value={endTime} min={time}
+                onChange={(e) => setEndTime(e.target.value)}
+                className={inputCls}
+              />
             </div>
           </div>
 
@@ -157,7 +193,9 @@ export default function NewEventPage() {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tytuł (opcjonalnie)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tytuł <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            </label>
             <input
               type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="np. Czwartkowa ligówka" className={inputCls} maxLength={80}
@@ -166,7 +204,9 @@ export default function NewEventPage() {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Opis (opcjonalnie)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Opis <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            </label>
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
@@ -218,5 +258,13 @@ export default function NewEventPage() {
         </form>
       </main>
     </div>
+  );
+}
+
+export default function NewEventPage() {
+  return (
+    <Suspense>
+      <NewEventForm />
+    </Suspense>
   );
 }
