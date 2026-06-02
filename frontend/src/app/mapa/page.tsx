@@ -1,135 +1,70 @@
-import type { Metadata } from 'next';
+'use client';
+
+import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import MapView from '@/components/map/MapView';
-import { SportType } from '@/types';
-
-export const metadata: Metadata = {
-  title: 'Mapa boisk',
-  description: 'Interaktywna mapa boisk sportowych w Poznaniu.',
-};
+import type { SportType } from '@/types';
 
 const SPORT_OPTIONS: { value: SportType | ''; label: string }[] = [
-  { value: '', label: 'Wszystkie sporty' },
+  { value: '', label: 'Wszystkie' },
   { value: 'piłka nożna', label: 'Piłka nożna' },
+  { value: 'futsal', label: 'Futsal' },
   { value: 'koszykówka', label: 'Koszykówka' },
   { value: 'siatkówka', label: 'Siatkówka' },
-  { value: 'tenis', label: 'Tenis' },
-  { value: 'futsal', label: 'Futsal' },
 ];
 
 export default function MapaPage() {
+  const [sport, setSport] = useState<SportType | ''>('');
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <Header />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900 text-lg">Filtry</h2>
-            <p className="text-xs text-gray-500 mt-1">Zawęź wyniki wyszukiwania</p>
-          </div>
+      {/* Filter bar — horizontal pills, scrollable on mobile, never covers the map */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center gap-2 overflow-x-auto shrink-0 z-10 shadow-sm">
+        {SPORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setSport(opt.value)}
+            className={[
+              'shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap',
+              sport === opt.value
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400',
+            ].join(' ')}
+          >
+            {opt.label}
+          </button>
+        ))}
 
-          <div className="p-4 space-y-5">
-            {/* Sport filter */}
-            <div>
-              <label
-                htmlFor="sport-select"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Rodzaj sportu
-              </label>
-              <select
-                id="sport-select"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                defaultValue=""
-              >
-                {SPORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Availability */}
-            <div className="flex items-center justify-between">
-              <label htmlFor="availability-toggle" className="text-sm font-medium text-gray-700">
-                Tylko dostępne
-              </label>
-              <button
-                id="availability-toggle"
-                role="switch"
-                aria-checked="false"
-                className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 aria-checked:bg-primary-600"
-              >
-                <span className="inline-block h-4 w-4 transform rounded-full bg-white shadow translate-x-1 transition-transform aria-checked:translate-x-6" />
-              </button>
-            </div>
-
-            {/* Surface type */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Nawierzchnia</p>
-              <div className="space-y-2">
-                {[
-                  { id: 'surface-all', label: 'Wszystkie', value: '' },
-                  { id: 'surface-grass', label: 'Trawa naturalna', value: 'grass' },
-                  { id: 'surface-artificial', label: 'Sztuczna trawa', value: 'artificial' },
-                  { id: 'surface-hardcourt', label: 'Tartan / asfalt', value: 'hardcourt' },
-                  { id: 'surface-clay', label: 'Korty ziemne', value: 'clay' },
-                ].map((surface) => (
-                  <label
-                    key={surface.id}
-                    htmlFor={surface.id}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      id={surface.id}
-                      name="surface"
-                      value={surface.value}
-                      defaultChecked={surface.value === ''}
-                      className="text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700">{surface.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Indoor / outdoor */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Lokalizacja</p>
-              <div className="flex gap-2">
-                {['Wszystkie', 'Zewnętrzne', 'Kryte'].map((label, idx) => (
-                  <button
-                    key={label}
-                    className={[
-                      'flex-1 py-1.5 px-2 text-xs rounded-lg border font-medium transition-colors',
-                      idx === 0
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400',
-                    ].join(' ')}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Results count */}
-          <div className="mt-auto p-4 border-t border-gray-100 text-xs text-gray-400">
-            {/* TODO: show count from API */}
-            Łącznie: — boisk
-          </div>
-        </aside>
-
-        {/* Map area */}
-        <main className="flex-1 relative">
-          <MapView />
-        </main>
+        <div className="shrink-0 flex items-center gap-2 ml-2 pl-3 border-l border-gray-200">
+          <span className="text-sm text-gray-600 whitespace-nowrap">Dostępne</span>
+          <button
+            onClick={() => setOnlyAvailable(!onlyAvailable)}
+            aria-pressed={onlyAvailable}
+            className={[
+              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1',
+              onlyAvailable ? 'bg-primary-600' : 'bg-gray-200',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
+                onlyAvailable ? 'translate-x-4' : 'translate-x-0.5',
+              ].join(' ')}
+            />
+          </button>
+        </div>
       </div>
+
+      {/* Map — fills remaining height, never obscured by filters */}
+      <main className="flex-1 relative min-h-0">
+        <MapView
+          sport={sport || undefined}
+          onlyAvailable={onlyAvailable || undefined}
+        />
+      </main>
     </div>
   );
 }
