@@ -270,8 +270,8 @@ export default function VenueDetailPage() {
           </div>
         </div>
 
-        {/* Booking section */}
-        {field.isBookable && (
+        {/* Booking section — internal */}
+        {field.bookingType === 'internal' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             <h2 className="text-base font-semibold text-gray-900">Zarezerwuj termin</h2>
 
@@ -380,6 +380,33 @@ export default function VenueDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Liczba osób
+                      </label>
+                      <input
+                        type="number"
+                        value={playersCount}
+                        min={1}
+                        max={20}
+                        onChange={(e) => setPlayersCount(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
+                        className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Twój telefon <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+48 500 000 000"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Uwagi <span className="text-gray-400 font-normal">(opcjonalnie)</span>
                       </label>
                       <textarea
@@ -406,6 +433,36 @@ export default function VenueDetailPage() {
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {/* Booking section — external */}
+        {field.bookingType === 'external' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
+            {field.bookingUrl ? (
+              <a
+                href={field.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
+              >
+                Przejdź do rezerwacji →
+              </a>
+            ) : (
+              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                📞 Kontakt telefoniczny
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Booking section — none */}
+        {field.bookingType === 'none' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+              Brak rezerwacji online dla tego obiektu.
+            </p>
           </div>
         )}
       </main>

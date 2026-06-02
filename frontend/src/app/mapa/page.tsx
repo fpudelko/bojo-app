@@ -77,7 +77,7 @@ export default function MapaPage() {
         </div>
 
         <div className="shrink-0 flex items-center gap-2 pl-3 border-l border-gray-200">
-          <span className="text-sm text-gray-600 whitespace-nowrap">📅 Z rezerwacją</span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">📅 Rezerwacja online</span>
           <button
             onClick={() => setOnlyBookable(!onlyBookable)}
             aria-pressed={onlyBookable}
