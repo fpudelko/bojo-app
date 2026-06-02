@@ -16,6 +16,7 @@ function toEvent(row: any): EventItem {
     description: row.description ?? undefined,
     date: row.event_date,
     time: row.event_time,
+    endTime: row.end_time ?? undefined,
     maxPlayers: row.max_players,
     visibility: row.visibility,
     createdAt: row.created_at,
@@ -53,6 +54,7 @@ export async function createEvent(
       description: data.description ?? null,
       event_date: data.date,
       event_time: data.time,
+      end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
       visibility: data.visibility,
     })

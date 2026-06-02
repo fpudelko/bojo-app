@@ -26,19 +26,29 @@ interface Props {
   className?: string;
   sport?: SportType;
   onlyAvailable?: boolean;
+  search?: string;
 }
 
-export default function LeafletMapImpl({ className, sport, onlyAvailable }: Props) {
+export default function LeafletMapImpl({ className, sport, onlyAvailable, search }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getFields({ sport, available: onlyAvailable })
+    getFields({ sport, available: onlyAvailable || undefined })
       .then((res) => { if (!cancelled) setFields(res.fields); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd pobierania boisk'); });
     return () => { cancelled = true; };
   }, [sport, onlyAvailable]);
+
+  const q = search?.trim().toLowerCase() ?? '';
+  const displayed = q
+    ? fields.filter(
+        (f) =>
+          f.name.toLowerCase().includes(q) ||
+          f.address.toLowerCase().includes(q),
+      )
+    : fields;
 
   return (
     <div className={['w-full h-full min-h-[400px] relative', className ?? ''].join(' ')}>
@@ -63,43 +73,84 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable }: Prop
         )}
         <ZoomControl position="topright" />
 
-        {fields.map((field) => (
+        {displayed.map((field) => (
           <Marker
             key={field.id}
             position={[field.lat, field.lng]}
             icon={fieldIcon(field.available)}
           >
             <Popup>
-              <div className="min-w-[220px]">
+              <div style={{ minWidth: 230 }}>
                 {venueThumbnail(field.lat, field.lng, 240, 120) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={venueThumbnail(field.lat, field.lng, 240, 120)!}
                     alt={field.name}
-                    className="w-full h-24 object-cover rounded-md mb-2"
+                    style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }}
                   />
                 )}
-                <p className="font-semibold text-gray-900 text-sm">{field.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{field.address}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
+                <p style={{ fontWeight: 600, fontSize: 13, color: '#111', margin: '0 0 2px' }}>{field.name}</p>
+                <p style={{ fontSize: 11, color: '#6b7280', margin: '0 0 6px' }}>{field.address}</p>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                   {field.sport.map((s) => (
-                    <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-[11px]">
+                    <span key={s} style={{ background: '#f0fdf4', color: '#15803d', borderRadius: 4, padding: '1px 7px', fontSize: 11 }}>
                       {s}
                     </span>
                   ))}
                 </div>
-                <p className="text-xs mt-2">
-                  <span className={field.available ? 'text-green-600' : 'text-gray-400'}>
-                    {field.available ? '● Dostępne' : '● Niedostępne'}
-                  </span>
-                  {field.surface && <span className="text-gray-400"> · {surfaceLabel(field.surface)}</span>}
+
+                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? '#16a34a' : '#9ca3af' }}>
+                  {field.available ? '● Dostępne' : '● Niedostępne'}
+                  {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
                 </p>
+
+                {/* Action links */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  <a
+                    href={`/wydarzenia/nowe?fieldId=${field.id}`}
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      background: '#16a34a',
+                      color: '#fff',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    + Wydarzenie
+                  </a>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      background: '#f3f4f6',
+                      color: '#374151',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Prowadź →
+                  </a>
+                </div>
+
                 {field.website && (
                   <a
                     href={field.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-xs text-green-600 underline"
+                    style={{ display: 'block', marginTop: 6, fontSize: 11, color: '#16a34a' }}
                   >
                     Strona boiska →
                   </a>
@@ -109,6 +160,13 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable }: Prop
           </Marker>
         ))}
       </MapContainer>
+
+      {/* Search result count */}
+      {q && (
+        <div className="absolute top-2 left-2 z-[1000] bg-white/90 text-xs text-gray-600 px-2 py-1 rounded shadow">
+          {displayed.length} / {fields.length} boisk
+        </div>
+      )}
 
       {error && (
         <div className="absolute bottom-4 left-4 right-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-3 py-2 shadow z-[1000]">
