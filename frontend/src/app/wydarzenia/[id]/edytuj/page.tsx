@@ -75,6 +75,7 @@ export default function EditEventPage() {
               isIndoor: false,
               isBookable: false,
               bookingType: 'none' as const,
+              bookingEnabled: false,
             });
           }
         }

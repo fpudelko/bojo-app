@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MapView from '@/components/map/MapView';
 import type { SportType } from '@/types';
+import { FEATURE_RESERVATIONS } from '@/config/features';
 
 const SPORT_OPTIONS: { value: SportType | ''; label: string }[] = [
   { value: '', label: 'Wszystkie' },
@@ -76,24 +77,26 @@ export default function MapaPage() {
           </button>
         </div>
 
-        <div className="shrink-0 flex items-center gap-2 pl-3 border-l border-gray-200">
-          <span className="text-sm text-gray-600 whitespace-nowrap">📅 Rezerwacja online</span>
-          <button
-            onClick={() => setOnlyBookable(!onlyBookable)}
-            aria-pressed={onlyBookable}
-            className={[
-              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1',
-              onlyBookable ? 'bg-blue-600' : 'bg-gray-200',
-            ].join(' ')}
-          >
-            <span
+        {FEATURE_RESERVATIONS && (
+          <div className="shrink-0 flex items-center gap-2 pl-3 border-l border-gray-200">
+            <span className="text-sm text-gray-600 whitespace-nowrap">📅 Rezerwacja online</span>
+            <button
+              onClick={() => setOnlyBookable(!onlyBookable)}
+              aria-pressed={onlyBookable}
               className={[
-                'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
-                onlyBookable ? 'translate-x-4' : 'translate-x-0.5',
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1',
+                onlyBookable ? 'bg-blue-600' : 'bg-gray-200',
               ].join(' ')}
-            />
-          </button>
-        </div>
+            >
+              <span
+                className={[
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
+                  onlyBookable ? 'translate-x-4' : 'translate-x-0.5',
+                ].join(' ')}
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Map — fills remaining height */}

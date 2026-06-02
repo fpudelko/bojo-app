@@ -17,18 +17,23 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'Zagrajmy — znajdź grę, zbierz skład',
-    template: '%s | Zagrajmy',
+    default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Poznaniu',
+    template: '%s | Bojo',
   },
   description:
-    'Organizuj mecze i zbieraj skład w Poznaniu. Znajdź boisko, stwórz wydarzenie, zaproś znajomych linkiem. Piłka nożna, koszykówka, siatkówka, futsal i więcej.',
+    'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Piłka nożna, koszykówka, siatkówka i więcej — bez szukania po grupach na Facebooku.',
   keywords: ['organizuj mecz Poznań', 'szukam graczy Poznań', 'boiska sportowe Poznań', 'piłka nożna', 'koszykówka'],
-  authors: [{ name: 'Zagrajmy' }],
+  authors: [{ name: 'Bojo' }],
   openGraph: {
-    title: 'Zagrajmy',
-    description: 'Znajdź grę. Zbierz skład. Organizuj mecze w Poznaniu.',
+    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
   },
 };
 

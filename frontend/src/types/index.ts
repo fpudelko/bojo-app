@@ -13,6 +13,7 @@ export interface Field {
   isBookable: boolean;
   bookingType: BookingType;
   bookingUrl?: string;
+  bookingEnabled: boolean;
   managerId?: string;
   phone?: string;
   website?: string;

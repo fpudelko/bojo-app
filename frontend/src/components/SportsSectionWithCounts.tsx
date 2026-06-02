@@ -13,9 +13,11 @@ const SPORTS = [
   ['🤾', 'Piłka ręczna', 'piłka ręczna'],
 ] as const;
 
+const MIN_COUNT_TO_SHOW = 3;
+
 function getWeekendRange(): { from: string; to: string } {
   const today = new Date();
-  const day = today.getDay(); // 0=Sun, 6=Sat
+  const day = today.getDay();
   const daysUntilSat = day === 6 ? 0 : (6 - day);
   const sat = new Date(today);
   sat.setDate(today.getDate() + daysUntilSat);
@@ -49,8 +51,8 @@ export default function SportsSectionWithCounts() {
   return (
     <section className="bg-gray-50 py-16 px-4">
       <div className="max-w-5xl mx-auto text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Znajdź graczy w swoim sporcie</h2>
-        <p className="text-sm text-gray-500 mb-8">Dołącz do gier albo stwórz własną — w kilka sekund</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Wybierz swój sport</h2>
+        <p className="text-sm text-gray-500 mb-8">Dołącz do gry albo stwórz własną</p>
         <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-gray-700">
           {SPORTS.map(([emoji, display, key]) => {
             const count = counts[key] ?? 0;
@@ -62,11 +64,11 @@ export default function SportsSectionWithCounts() {
               >
                 <span>{emoji}</span>
                 <span>{display}</span>
-                {count > 0 && (
-                  <span className="text-gray-400 font-normal">
-                    · {count} {count === 1 ? 'gra' : 'gier'} w ten weekend
-                  </span>
-                )}
+                <span className="text-gray-400 font-normal">
+                  {count >= MIN_COUNT_TO_SHOW
+                    ? `· ${count} gier w ten weekend`
+                    : '· znajdź mecz'}
+                </span>
               </Link>
             );
           })}
