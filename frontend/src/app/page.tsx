@@ -21,7 +21,7 @@ const HOW_IT_WORKS = [
   },
   {
     icon: Zap,
-    title: 'Brakuje paru osób? Ogłoś mecz — dograją się gracze z okolicy.',
+    title: 'Ogłoś mecz publicznie — dograją się gracze z okolicy.',
     description: '',
     href: '/wydarzenia',
   },
@@ -101,7 +101,8 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-8">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 text-primary-600 font-semibold text-sm mb-3">
-              <RefreshCw className="w-4 h-4" /> Dla stałych ekip
+              <RefreshCw className="w-4 h-4" />
+              <span>Dla stałych ekip</span>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
               Gracie co tydzień? Ogarnijcie to raz.

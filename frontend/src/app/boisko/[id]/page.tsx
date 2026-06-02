@@ -1,472 +1,201 @@
-'use client';
-
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft } from 'lucide-react';
+import { Calendar, MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import { useAuth, displayName } from '@/lib/auth';
-import { venueThumbnail, surfaceLabel } from '@/lib/labels';
-import { getAvailableSlots, createBooking } from '@/lib/bookings';
-import { getField } from '@/lib/api';
-import { showBookingForField } from '@/config/features';
-import type { Field, TimeSlot } from '@/types';
+import { slugify, isUuid } from '@/lib/utils';
+import type { Field } from '@/types';
+import VenueDetailClient from './VenueDetailClient';
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽',
-  koszykówka: '🏀',
-  siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️',
-  futsal: '⚡',
-  'piłka ręczna': '🤾',
-  inne: '🏅',
+// ---------------------------------------------------------------------------
+// Sport icons (lucide-react, no emoji)
+// ---------------------------------------------------------------------------
+const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'piłka nożna': Target,
+  koszykówka: Circle,
+  siatkówka: Trophy,
+  'siatkówka plażowa': Sun,
+  futsal: Zap,
+  'piłka ręczna': Dumbbell,
+  inne: Activity,
 };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+// ---------------------------------------------------------------------------
+// Supabase (server-side, uses public anon key + RLS — no secret needed here)
+// ---------------------------------------------------------------------------
+function serverClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+  );
 }
 
-function tomorrowIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toField(row: any): Field {
+  const bookingType = row.booking_type ?? 'none';
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    sport: row.sport ?? [],
+    available: row.available,
+    surface: row.surface ?? '',
+    isIndoor: row.is_indoor,
+    isBookable: bookingType === 'internal',
+    bookingType,
+    bookingUrl: row.booking_url ?? undefined,
+    bookingEnabled: row.booking_enabled ?? false,
+    managerId: row.manager_id ?? undefined,
+    phone: row.phone ?? undefined,
+    website: row.website ?? undefined,
+  };
 }
 
-function formatDatePl(iso: string): string {
+async function resolveField(idOrSlug: string): Promise<Field | null> {
+  const supabase = serverClient();
+  if (isUuid(idOrSlug)) {
+    const { data } = await supabase.from('fields').select('*').eq('id', idOrSlug).maybeSingle();
+    return data ? toField(data) : null;
+  }
+  const { data } = await supabase.from('fields').select('*');
+  const match = (data ?? []).find((row) => slugify(row.name) === idOrSlug);
+  return match ? toField(match) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Static params (pre-render all slug-based URLs)
+// ---------------------------------------------------------------------------
+export async function generateStaticParams() {
   try {
-    return new Date(iso).toLocaleDateString('pl-PL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    const supabase = serverClient();
+    const { data } = await supabase.from('fields').select('id, name');
+    return (data ?? []).map((f) => ({ id: slugify(f.name) }));
   } catch {
-    return iso;
+    return [];
   }
 }
 
-export default function VenueDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+// ---------------------------------------------------------------------------
+// Metadata
+// ---------------------------------------------------------------------------
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const field = await resolveField(params.id);
+  if (!field) return { title: 'Boisko nie znalezione | Bojo' };
 
-  const [field, setField] = useState<Field | null>(null);
-  const [fieldLoading, setFieldLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-
-  const [date, setDate] = useState(tomorrowIso());
-  const [slots, setSlots] = useState<TimeSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotsLoaded, setSlotsLoaded] = useState(false);
-
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [notes, setNotes] = useState('');
-  const [phone, setPhone] = useState('');
-  const [playersCount, setPlayersCount] = useState(1);
-  const [booking, setBooking] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getField(id)
-      .then(setField)
-      .catch(() => setNotFound(true))
-      .finally(() => setFieldLoading(false));
-  }, [id]);
-
-  const loadSlots = useCallback(async (targetDate: string) => {
-    setSlotsLoaded(false);
-    setSlotsLoading(true);
-    setSelectedSlot(null);
-    setBookingSuccess(false);
-    setBookingError(null);
-    try {
-      const result = await getAvailableSlots(id, targetDate);
-      setSlots(result);
-    } catch {
-      setSlots([]);
-    } finally {
-      setSlotsLoading(false);
-      setSlotsLoaded(true);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (field && showBookingForField(field) && field.bookingType === 'internal' && user) {
-      loadSlots(date);
-    }
-  }, [field, user, date, loadSlots]);
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDate(e.target.value);
+  const sportsStr = field.sport.join(', ');
+  return {
+    title: `${field.name} — ${sportsStr} w Poznaniu | Bojo`,
+    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Znajdź nadchodzące mecze i zarezerwuj termin na Bojo.`,
+    openGraph: {
+      title: `${field.name} | Bojo`,
+      description: `Boisko w Poznaniu: ${field.address}. ${sportsStr}.`,
+      type: 'website',
+    },
   };
+}
 
-  const handleBooking = async () => {
-    if (!selectedSlot || !user || !field) return;
-    setBooking(true);
-    setBookingError(null);
-    try {
-      await createBooking(
-        field.id,
-        user.id,
-        displayName(user),
-        date,
-        selectedSlot.startTime,
-        selectedSlot.endTime,
-        selectedSlot.priceGrosze,
-        {
-          notes: notes.trim() || undefined,
-          phone: phone.trim() || undefined,
-          playersCount: playersCount > 0 ? playersCount : 1,
-        },
-      );
-      setBookingSuccess(true);
-      setSelectedSlot(null);
-      setNotes('');
-      setPhone('');
-      setPlayersCount(1);
-      await loadSlots(date);
-    } catch (err) {
-      setBookingError(err instanceof Error ? err.message : 'Nie udało się złożyć rezerwacji.');
-    } finally {
-      setBooking(false);
-    }
-  };
+// ---------------------------------------------------------------------------
+// Upcoming events for this field (server-fetched)
+// ---------------------------------------------------------------------------
+interface UpcomingEvent {
+  id: string;
+  sport: string;
+  date: string;
+  time: string;
+  maxPlayers: number;
+  currentCount: number;
+}
 
-  if (fieldLoading || authLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-          <div className="h-60 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
-        </main>
-      </div>
-    );
+async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
+  const supabase = serverClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('events')
+    .select('id, sport, event_date, event_time, max_players')
+    .eq('field_id', fieldId)
+    .eq('visibility', 'public')
+    .gte('event_date', today)
+    .order('event_date', { ascending: true })
+    .limit(5);
+
+  if (!data) return [];
+
+  const eventIds = data.map((e) => e.id);
+  const { data: counts } = await supabase
+    .from('event_participants')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .eq('is_reserve', false);
+
+  const countMap: Record<string, number> = {};
+  for (const c of counts ?? []) {
+    countMap[c.event_id] = (countMap[c.event_id] ?? 0) + 1;
   }
 
-  if (notFound || !field) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
-          <div>
-            <MapPin className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Nie znaleziono boiska</p>
-            <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
-              Wróć do mapy
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  return data.map((e) => ({
+    id: e.id,
+    sport: e.sport,
+    date: e.event_date,
+    time: e.event_time?.slice(0, 5) ?? '',
+    maxPlayers: e.max_players,
+    currentCount: countMap[e.id] ?? 0,
+  }));
+}
 
-  const thumbnail = venueThumbnail(field.lat, field.lng, 600, 240);
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+export default async function VenuePage({ params }: { params: { id: string } }) {
+  const field = await resolveField(params.id);
+  if (!field) notFound();
+
+  const upcomingEvents = await getUpcomingEvents(field.id);
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.app';
+  const slug = slugify(field.name);
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsActivityLocation',
+    name: field.name,
+    description: `Boisko sportowe w Poznaniu. Sporty: ${field.sport.join(', ')}.`,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: field.address,
+      addressLocality: 'Poznań',
+      addressCountry: 'PL',
+    },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: field.lat,
+      longitude: field.lng,
+    },
+    url: `${base}/boisko/${slug}`,
+  };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
-        <div className="flex items-center gap-3">
-          <Link href="/mapa" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <h1 className="text-xl font-bold text-gray-900 truncate">{field.name}</h1>
+      {/* Upcoming events section — server-rendered for SEO */}
+      {upcomingEvents.length > 0 && (
+        <div className="hidden">
+          {/* Structured data hint for crawlers */}
+          <span itemProp="name">{field.name}</span>
+          <span itemProp="address">{field.address}</span>
+          {field.sport.map((s) => <span key={s} itemProp="sport">{s}</span>)}
         </div>
+      )}
 
-        {/* Field info card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {thumbnail && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumbnail}
-              alt={field.name}
-              className="w-full h-48 object-cover"
-            />
-          )}
-
-          <div className="p-6 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold text-gray-900">{field.name}</h2>
-                <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  {field.address}
-                </p>
-                {showBookingForField(field) && field.bookingType === 'internal' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-                    📅 Rezerwacja online
-                  </span>
-                )}
-                {showBookingForField(field) && field.bookingType === 'external' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
-                    🔗 Rezerwuj zewnętrznie
-                  </span>
-                )}
-              </div>
-              {field.isIndoor && (
-                <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
-                  Hala
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {field.sport.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 font-medium"
-                >
-                  <span role="img" aria-label={s}>{SPORT_EMOJI[s] ?? '🏅'}</span>
-                  {s}
-                </span>
-              ))}
-              {field.surface && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                  {surfaceLabel(field.surface)}
-                </span>
-              )}
-            </div>
-
-            {showBookingForField(field) && field.bookingType === 'none' && (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-                Ten obiekt nie przyjmuje rezerwacji online.
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              {field.phone && (
-                <a
-                  href={`tel:${field.phone}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
-                >
-                  <Phone className="w-4 h-4" />
-                  {field.phone}
-                </a>
-              )}
-              {field.website && (
-                <a
-                  href={field.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
-                >
-                  <Globe className="w-4 h-4" />
-                  Strona www
-                </a>
-              )}
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors ml-auto"
-              >
-                <MapPin className="w-4 h-4" />
-                Prowadź →
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Booking section — internal */}
-        {showBookingForField(field) && field.bookingType === 'internal' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-            <h2 className="text-base font-semibold text-gray-900">Zarezerwuj termin</h2>
-
-            {!user && !authLoading && (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-4">Zaloguj się, aby zarezerwować slot.</p>
-                <Button variant="outline" onClick={() => signInWithGoogle()}>
-                  Zaloguj się, aby zarezerwować
-                </Button>
-              </div>
-            )}
-
-            {user && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Wybierz datę
-                  </label>
-                  <input
-                    type="date"
-                    value={date}
-                    min={todayIso()}
-                    onChange={handleDateChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Dostępne sloty</p>
-
-                  {slotsLoading && (
-                    <div className="flex flex-wrap gap-2">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-9 w-36 rounded-full bg-gray-100 animate-pulse" />
-                      ))}
-                    </div>
-                  )}
-
-                  {!slotsLoading && slotsLoaded && slots.length === 0 && (
-                    <p className="text-sm text-gray-500 py-2">
-                      Brak slotów dla wybranego dnia — obiekt może być nieczynny.
-                    </p>
-                  )}
-
-                  {!slotsLoading && slots.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {slots.map((slot) => {
-                        const isSelected =
-                          selectedSlot?.startTime === slot.startTime &&
-                          selectedSlot?.endTime === slot.endTime;
-
-                        if (!slot.available) {
-                          return (
-                            <button
-                              key={slot.startTime}
-                              disabled
-                              className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
-                            >
-                              {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}&nbsp;&nbsp;ZAJĘTE
-                            </button>
-                          );
-                        }
-
-                        return (
-                          <button
-                            key={slot.startTime}
-                            onClick={() => setSelectedSlot(isSelected ? null : slot)}
-                            className={[
-                              'px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
-                              isSelected
-                                ? 'bg-primary-700 text-white ring-2 ring-primary-700 ring-offset-1'
-                                : 'bg-primary-600 text-white hover:bg-primary-700',
-                            ].join(' ')}
-                          >
-                            {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}&nbsp;&nbsp;{(slot.priceGrosze / 100).toFixed(0)} zł
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {bookingSuccess && (
-                  <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl px-4 py-3 font-medium">
-                    ✓ Rezerwacja złożona! Zarządca potwierdzi wkrótce.
-                  </div>
-                )}
-
-                {selectedSlot && (
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">Potwierdzenie rezerwacji</p>
-                    <div className="text-sm text-gray-700 space-y-1">
-                      <p>
-                        <span className="text-gray-500">Data:</span>{' '}
-                        <span className="capitalize">{formatDatePl(date)}</span>
-                      </p>
-                      <p>
-                        <span className="text-gray-500">Godzina:</span>{' '}
-                        {selectedSlot.startTime.slice(0, 5)}–{selectedSlot.endTime.slice(0, 5)}
-                      </p>
-                      <p>
-                        <span className="text-gray-500">Cena:</span>{' '}
-                        {(selectedSlot.priceGrosze / 100).toFixed(0)} zł
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Liczba osób
-                      </label>
-                      <input
-                        type="number"
-                        value={playersCount}
-                        min={1}
-                        max={20}
-                        onChange={(e) => setPlayersCount(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
-                        className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Twój telefon <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+48 500 000 000"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Uwagi <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-                      </label>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Uwagi dla zarządcy…"
-                        rows={2}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                      />
-                    </div>
-
-                    {bookingError && (
-                      <p className="text-sm text-red-600">{bookingError}</p>
-                    )}
-
-                    <Button
-                      onClick={handleBooking}
-                      isLoading={booking}
-                      className="w-full"
-                    >
-                      Zarezerwuj
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Booking section — external */}
-        {showBookingForField(field) && field.bookingType === 'external' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
-            {field.bookingUrl ? (
-              <a
-                href={field.bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
-              >
-                Przejdź do rezerwacji →
-              </a>
-            ) : (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-                📞 Kontakt telefoniczny
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Booking section — none */}
-        {showBookingForField(field) && field.bookingType === 'none' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-              Brak rezerwacji online dla tego obiektu.
-            </p>
-          </div>
-        )}
-      </main>
-    </div>
+      <VenueDetailClient fieldId={field.id} upcomingEvents={upcomingEvents} />
+    </>
   );
 }
