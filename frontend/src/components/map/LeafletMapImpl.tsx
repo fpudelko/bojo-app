@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Field, SportType } from '@/types';
 import { getFields } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
+import { useAdmin } from '@/lib/admin';
 
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -32,6 +33,7 @@ interface Props {
 export default function LeafletMapImpl({ className, sport, onlyAvailable, search }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const isAdmin = useAdmin();
 
   useEffect(() => {
     let cancelled = false;
@@ -153,6 +155,21 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, search
                     style={{ display: 'block', marginTop: 6, fontSize: 11, color: '#16a34a' }}
                   >
                     Strona boiska →
+                  </a>
+                )}
+
+                {isAdmin && (
+                  <a
+                    href={`/admin/boisko/${field.id}`}
+                    style={{
+                      display: 'block',
+                      marginTop: 6,
+                      fontSize: 11,
+                      color: '#6b7280',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    ✏️ Edytuj boisko (admin)
                   </a>
                 )}
               </div>

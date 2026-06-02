@@ -56,3 +56,23 @@ export async function getField(fieldId: string): Promise<Field> {
   if (error) throw new Error(error.message);
   return toField(data);
 }
+
+export async function updateField(
+  fieldId: string,
+  data: Pick<Field, 'name' | 'address' | 'sport' | 'available' | 'surface' | 'isIndoor' | 'phone' | 'website'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('fields')
+    .update({
+      name: data.name,
+      address: data.address,
+      sport: data.sport,
+      available: data.available,
+      surface: data.surface,
+      is_indoor: data.isIndoor,
+      phone: data.phone ?? null,
+      website: data.website ?? null,
+    })
+    .eq('id', fieldId);
+  if (error) throw new Error(error.message);
+}

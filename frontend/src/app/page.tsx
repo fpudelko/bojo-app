@@ -112,8 +112,8 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm">© 2025 Zagrajmy. Poznań.</p>
           <div className="flex gap-6 text-sm">
-            <Link href="/mapa" className="hover:text-white transition-colors">Mapa</Link>
-            <Link href="/wydarzenia" className="hover:text-white transition-colors">Wydarzenia</Link>
+            <Link href="/mapa" className="hover:text-white transition-colors">Mapa boisk</Link>
+            <Link href="/wydarzenia" className="hover:text-white transition-colors">Znajdź grę</Link>
           </div>
         </div>
       </footer>

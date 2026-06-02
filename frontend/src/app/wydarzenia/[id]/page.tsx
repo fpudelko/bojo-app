@@ -12,6 +12,7 @@ import {
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
+import { useAdmin } from '@/lib/admin';
 import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent, togglePayment,
@@ -70,6 +71,7 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const isAdmin = useAdmin();
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -119,7 +121,7 @@ export default function EventDetailPage() {
     );
   }
 
-  const isOrganizer = !!user && user.id === event.organizerId;
+  const isOrganizer = !!user && (user.id === event.organizerId || isAdmin);
   const regulars = participants.filter((p) => !p.isReserve);
   const reserves = participants.filter((p) => p.isReserve);
   const myParticipation = participants.find((p) => p.userId && p.userId === user?.id);
@@ -284,9 +286,10 @@ export default function EventDetailPage() {
             {regulars.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2.5">
                 <span className="flex items-center gap-2 text-sm text-gray-800">
-                  <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
-                    {p.name.charAt(0).toUpperCase()}
-                  </span>
+                  {p.avatarUrl
+                    ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                  }
                   <span className="truncate max-w-[160px]">{p.name}</span>
                   {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
                   {p.userId === event.organizerId && (
