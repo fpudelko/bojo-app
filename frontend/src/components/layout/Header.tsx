@@ -10,6 +10,7 @@ import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 const NAV_LINKS = [
   { href: '/mapa', label: 'Mapa boisk' },
   { href: '/wydarzenia', label: 'Znajdź grę' },
+  { href: '/cykliczne', label: 'Cykliczne' },
 ];
 
 /** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
