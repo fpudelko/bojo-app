@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin, Users, Zap, RefreshCw, Search } from 'lucide-react';
+import { MapPin, Users, Zap, RefreshCw } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -8,20 +8,20 @@ import MapView from '@/components/map/MapView';
 const HOW_IT_WORKS = [
   {
     icon: MapPin,
-    title: 'Wybierz boisko',
-    description: 'Setki boisk w Poznaniu na interaktywnej mapie. Filtruj po sporcie, szukaj po nazwie.',
+    title: 'Znajdź miejsce do gry',
+    description: 'Wybierz boisko i termin — bez przeszukiwania Facebooka i grup na Messengerze.',
     href: '/mapa',
   },
   {
     icon: Users,
-    title: 'Zbierz skład',
-    description: 'Stwórz wydarzenie, zaproś znajomych jednym linkiem. Śledź kto zapłacił, losuj składy.',
+    title: 'Zaproś ludzi w 10 sekund',
+    description: 'Udostępnij jeden link i zobacz kto już potwierdził udział.',
     href: '/wydarzenia/nowe',
   },
   {
     icon: Zap,
     title: 'Dograj brakujących',
-    description: 'Brakuje ludzi? Upublicznij grę — dołączą inni gracze z Poznania.',
+    description: 'Brakuje Ci 2–3 osób? Opublikuj mecz, a inni gracze z okolicy będą mogli dołączyć.',
     href: '/wydarzenia',
   },
 ];
@@ -44,34 +44,26 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <span className="inline-block text-xs sm:text-sm font-semibold uppercase tracking-wider text-primary-100 bg-white/10 rounded-full px-4 py-1.5 mb-6">
-            Sport amatorski w Poznaniu
+            Pierwsza platforma do amatorskich meczów w Poznaniu
           </span>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-4">
-            Zbierz ekipę na mecz
+            Graj częściej.<br className="hidden sm:block" /> Organizuj mniej.
           </h1>
-          <p className="text-xl sm:text-2xl font-medium text-primary-100 mb-8">
-            albo znajdź grę i dołącz do składu
+          <p className="text-xl sm:text-2xl font-medium text-primary-100 mb-4">
+            Wszystko czego potrzebujesz, żeby zebrać ekipę na mecz.
           </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center text-sm text-primary-100 mb-10 max-w-2xl mx-auto">
-            <span className="flex items-center gap-2">
-              <Users className="w-4 h-4 shrink-0" />
-              Wybierz boisko, zaproś linkiem, dograj skład
-            </span>
-            <span className="hidden sm:block text-primary-300">·</span>
-            <span className="flex items-center gap-2">
-              <Search className="w-4 h-4 shrink-0" />
-              Przeglądaj otwarte mecze i uratuj rozgrywkę
-            </span>
-          </div>
+          <p className="text-base text-primary-200 mb-10 max-w-xl mx-auto">
+            Koniec z pisaniem do 20 osób, żeby znaleźć jednego zawodnika.<br />
+            Stwórz mecz, udostępnij link i znajdź brakujących graczy w okolicy.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/wydarzenia/nowe">
-              <Button variant="secondary" size="lg">Stwórz wydarzenie</Button>
+              <Button variant="secondary" size="lg">Stwórz mecz</Button>
             </Link>
             <Link href="/wydarzenia">
               <Button variant="outline" size="lg" className="border-white text-white hover:bg-white/10">
-                Znajdź grę do dołączenia
+                Znajdź mecz na dziś
               </Button>
             </Link>
           </div>
@@ -81,7 +73,8 @@ export default function HomePage() {
       {/* How it works */}
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Jak to działa?</h2>
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-3">Jak to działa?</h2>
+          <p className="text-center text-gray-500 text-sm mb-12">Nie odwołasz meczu. Szybciej zbierzesz skład. Zagrasz częściej.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {HOW_IT_WORKS.map((step, i) => (
               <Link key={step.title} href={step.href} className="group">
@@ -105,7 +98,8 @@ export default function HomePage() {
 
       {/* Map preview */}
       <section className="max-w-5xl mx-auto w-full px-4 pb-16">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Boiska w Poznaniu</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Boiska w Poznaniu</h2>
+        <p className="text-center text-sm text-gray-500 mb-6">Setki obiektów — piłka nożna, koszykówka, siatkówka i więcej.</p>
         <div className="bg-white rounded-2xl shadow-xl p-4">
           <MapView className="h-72 rounded-xl overflow-hidden" />
         </div>
@@ -120,15 +114,14 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-8">
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 text-primary-600 font-semibold text-sm mb-3">
-              <RefreshCw className="w-4 h-4" /> Nowe
+              <RefreshCw className="w-4 h-4" /> Dla stałych ekip
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">
-              Regularnie gracie?<br />Stwórz cykliczne wydarzenie.
+              Grywacie co tydzień?<br />Przestańcie za każdym razem zaczynać od zera.
             </h2>
             <p className="text-gray-600 text-sm leading-relaxed mb-6">
-              Ustal stały termin i dodaj listę zawodników z ich e-mailem lub numerem telefonu.
-              Kiedy otworzysz zapisy na nową edycję, każdy dostanie powiadomienie SMS lub e-mail
-              z linkiem — bez szukania ludzi na Facebooku.
+              Ustal stały termin, dodaj listę zawodników. Kiedy otworzysz zapisy na nową edycję,
+              każdy dostanie SMS lub e-mail z linkiem — bez pisania do wszystkich z osobna.
             </p>
             <Link href="/cykliczne/nowe">
               <Button>Stwórz cykliczne wydarzenie</Button>
@@ -153,8 +146,8 @@ export default function HomePage() {
       {/* Sports */}
       <section className="bg-gray-50 py-16 px-4">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dostępne sporty</h2>
-          <p className="text-sm text-gray-500 mb-8">Organizuj i dołączaj do gier w swoim sporcie</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Znajdź graczy w swoim sporcie</h2>
+          <p className="text-sm text-gray-500 mb-8">Dołącz do gier albo stwórz własną — w kilka sekund</p>
           <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-gray-700">
             {SPORTS.map(([emoji, name]) => (
               <Link
@@ -172,7 +165,10 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-auto bg-gray-900 text-gray-400 py-8 px-4">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm">© 2025 Zagrajmy. Poznań.</p>
+          <div>
+            <p className="text-sm text-white font-medium">Zagrajmy</p>
+            <p className="text-xs mt-0.5">Łączymy ludzi, którzy chcą grać, ale nie mają pełnego składu.</p>
+          </div>
           <div className="flex gap-6 text-sm">
             <Link href="/mapa" className="hover:text-white transition-colors">Mapa boisk</Link>
             <Link href="/wydarzenia" className="hover:text-white transition-colors">Znajdź grę</Link>
