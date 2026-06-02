@@ -31,6 +31,7 @@ export type SportType =
   | 'siatkówka plażowa'
   | 'futsal'
   | 'piłka ręczna'
+  | 'gokarty'
   | 'inne';
 
 export interface FieldFilters {
@@ -127,6 +128,8 @@ export interface EventItem {
   maxPlayers: number;
   visibility: Visibility;
   createdAt: string;
+  customLocationName?: string;
+  customAddress?: string;
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
   trackAttendance: boolean;
@@ -170,6 +173,8 @@ export interface EventCreate {
   endTime?: string;
   maxPlayers: number;
   visibility: Visibility;
+  customLocationName?: string;
+  customAddress?: string;
   // advanced (optional, default false)
   requireSmsConfirmation?: boolean;
   trackAttendance?: boolean;
@@ -181,11 +186,53 @@ export interface EventCreate {
   costGrosze?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Reminders
+// ---------------------------------------------------------------------------
+
+export type ReminderChannel = 'sms' | 'email' | 'both';
+
+export interface EventReminder {
+  id: string;
+  eventId: string;
+  offsetMinutes: number;
+  message?: string;
+  channel: ReminderChannel;
+  sent: boolean;
+  sentAt?: string;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Match results — flexible per sport
+// ---------------------------------------------------------------------------
+
+export type MatchResultType =
+  | 'goals'       // football, futsal, handball
+  | 'volleyball'  // volleyball, beach volleyball
+  | 'basketball'
+  | 'racing'      // karting / other racing
+  | 'generic';
+
+export interface GoalsScorerStat { participantId: string; goals: number; assists?: number }
+export interface VolleyballSet { a: number; b: number }
+export interface BasketballPlayerStat { participantId: string; points: number; rebounds?: number; assists?: number }
+export interface RacingRank { participantId: string; position: number; lapTime?: string }
+
+export type MatchResultData =
+  | { type: 'goals';      scoreA: number; scoreB: number; scorers?: GoalsScorerStat[] }
+  | { type: 'volleyball'; setsA: number; setsB: number; sets: VolleyballSet[] }
+  | { type: 'basketball'; scoreA: number; scoreB: number; players?: BasketballPlayerStat[] }
+  | { type: 'racing';     rankings: RacingRank[] }
+  | { type: 'generic';    text: string; winner?: 'A' | 'B' | 'remis' };
+
 export interface MatchResult {
   id: string;
   eventId: string;
   scoreA: number;
   scoreB: number;
+  winner?: 'A' | 'B' | 'remis';
+  resultData?: MatchResultData;
   recordedBy?: string;
   recordedAt: string;
 }
@@ -196,6 +243,13 @@ export interface PlayerGoal {
   participantId: string;
   participantName: string;
   goals: number;
+}
+
+export interface PlayerMatchStat {
+  id: string;
+  eventId: string;
+  participantId: string;
+  statData: Record<string, unknown>;
 }
 
 export interface PlayerStats {

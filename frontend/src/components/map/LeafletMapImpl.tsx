@@ -1,74 +1,215 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Field, SportType } from '@/types';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import type { Field } from '@/types';
 import { getFields } from '@/lib/api';
-import { surfaceLabel, venueThumbnail } from '@/lib/labels';
+import { surfaceLabel } from '@/lib/labels';
 import { useAdmin } from '@/lib/admin';
 import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
+import { slugify } from '@/lib/utils';
+import type { MapViewProps } from './MapView';
 
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-function fieldIcon(field: Field) {
-  const bookingVisible = showBookingForField(field);
-  const { available, bookingType } = field;
-  let color: string;
-  let size: number;
-  if (!available) {
-    color = '#9ca3af'; size = 14;
-  } else if (bookingVisible && bookingType === 'internal') {
-    color = '#2563eb'; size = 16;
-  } else if (bookingVisible && bookingType === 'external') {
-    color = '#ea580c'; size = 14;
-  } else {
-    color = '#16a34a'; size = 14;
+// ---------------------------------------------------------------------------
+// Sport metadata: ordered by importance for cluster icon display
+// ---------------------------------------------------------------------------
+const SPORT_ORDER = [
+  'piłka nożna', 'siatkówka plażowa', 'siatkówka', 'koszykówka',
+  'futsal', 'piłka ręczna', 'gokarty', 'inne',
+];
+
+const SPORT_META: Record<string, { color: string; emoji: string }> = {
+  'piłka nożna':       { color: '#15803d', emoji: '⚽' },
+  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' },
+  'siatkówka':         { color: '#2563eb', emoji: '🏐' },
+  'koszykówka':        { color: '#ea580c', emoji: '🏀' },
+  'futsal':            { color: '#7c3aed', emoji: '⚡' },
+  'piłka ręczna':      { color: '#dc2626', emoji: '🤾' },
+  'gokarty':           { color: '#0d9488', emoji: '🏎️' },
+  'inne':              { color: '#6b7280', emoji: '🏅' },
+};
+
+function metaFor(sport: string) {
+  return SPORT_META[sport] ?? { color: '#6b7280', emoji: '🏅' };
+}
+
+function primaryMeta(sports: string[]) {
+  for (const s of SPORT_ORDER) {
+    if (sports.includes(s)) return metaFor(s);
   }
-  const half = size / 2;
-  const pulse = bookingVisible && bookingType === 'internal' && available
-    ? `<div style="position:absolute;top:-3px;left:-3px;width:${size + 6}px;height:${size + 6}px;border-radius:50%;background:rgba(37,99,235,0.2)"></div>`
-    : '';
+  return metaFor(sports[0] ?? 'inne');
+}
+
+// ---------------------------------------------------------------------------
+// Individual pin icon
+// ---------------------------------------------------------------------------
+function fieldIcon(field: Field): L.DivIcon {
+  const { color, emoji } = primaryMeta(field.sport);
+  const c = field.available ? color : '#9ca3af';
   return L.divIcon({
-    html: `<div style="position:relative;width:${size}px;height:${size}px">${pulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${c};border:2.5px solid white;box-shadow:0 1px 6px rgba(0,0,0,.45);font-size:13px;line-height:1;cursor:pointer">${field.available ? emoji : '×'}</div>`,
     className: '',
-    iconSize: [size, size],
-    iconAnchor: [half, half],
-    popupAnchor: [0, -10],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
   });
 }
 
-interface Props {
-  className?: string;
-  sport?: SportType;
-  onlyAvailable?: boolean;
-  onlyBookable?: boolean;
-  search?: string;
+// ---------------------------------------------------------------------------
+// Cluster icon — shows sport emoji mix + count
+// ---------------------------------------------------------------------------
+function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
+  const count = cluster.getChildCount();
+  const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _bojo_sports?: string[] }>;
+
+  // Collect unique sports in SPORT_ORDER priority
+  const seen = new Set<string>();
+  const emojis: string[] = [];
+  for (const s of SPORT_ORDER) {
+    if (emojis.length >= 3) break;
+    for (const m of markers) {
+      if (m._bojo_sports?.includes(s) && !seen.has(s)) {
+        seen.add(s);
+        emojis.push(metaFor(s).emoji);
+        break;
+      }
+    }
+  }
+
+  const size = count >= 100 ? 54 : count >= 20 ? 46 : 40;
+  const emojiSpans = emojis
+    .map((e) => `<span style="font-size:11px;line-height:1">${e}</span>`)
+    .join('');
+
+  return L.divIcon({
+    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:white;box-shadow:0 2px 10px rgba(0,0,0,.3);border:3px solid #15803d;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:1px">${emojiSpans}</div>
+      <span style="font-size:11px;font-weight:700;color:#15803d;line-height:1.3">${count}</span>
+    </div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
 }
 
-export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBookable, search }: Props) {
-  const [fields, setFields] = useState<Field[]>([]);
+// ---------------------------------------------------------------------------
+// Popup HTML (plain string — runs outside React)
+// ---------------------------------------------------------------------------
+function popupHtml(field: Field, isAdmin: boolean): string {
+  const { color } = primaryMeta(field.sport);
+  const slug = slugify(field.name);
+
+  const sportsHtml = field.sport
+    .map((s) => {
+      const m = metaFor(s);
+      return `<span style="background:${m.color}18;color:${m.color};border-radius:4px;padding:1px 7px;font-size:11px;font-weight:500">${m.emoji} ${s}</span>`;
+    })
+    .join(' ');
+
+  const availHtml = field.available
+    ? `<span style="color:#15803d;font-size:11px;font-weight:500">● Dostępne</span>`
+    : `<span style="color:#9ca3af;font-size:11px">● Niedostępne</span>`;
+
+  const surfaceTxt = field.surface ? ` · <span style="color:#9ca3af;font-size:11px">${surfaceLabel(field.surface)}</span>` : '';
+
+  const bookingBtn =
+    FEATURE_RESERVATIONS && showBookingForField(field) && field.bookingType === 'internal'
+      ? `<a href="/boisko/${slug}" style="flex:0 0 auto;background:#2563eb;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;text-decoration:none">📅 Zarezerwuj</a>`
+      : '';
+
+  const adminLink = isAdmin
+    ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:5px;font-size:11px;color:#6b7280;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
+    : '';
+
+  // Suppress unused color var warning — it's used dynamically above
+  void color;
+
+  return `<div style="min-width:230px;max-width:280px;font-family:system-ui,sans-serif">
+    <p style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 2px">${field.name}</p>
+    <p style="font-size:11px;color:#6b7280;margin:0 0 6px">${field.address}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${sportsHtml}</div>
+    <p style="margin:0 0 10px">${availHtml}${surfaceTxt}</p>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${bookingBtn}
+      <a href="/boisko/${slug}" style="flex:1;min-width:70px;text-align:center;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">Szczegóły →</a>
+      <a href="/wydarzenia/nowe?fieldId=${field.id}" style="flex:1;min-width:70px;text-align:center;background:#15803d;color:#fff;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">+ Mecz</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:55px;text-align:center;background:#f3f4f6;color:#374151;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">Nawiguj</a>
+    </div>
+    ${adminLink}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Sub-component: lives inside MapContainer, adds/removes cluster layer
+// ---------------------------------------------------------------------------
+function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boolean }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const clusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 60,
+      iconCreateFunction: clusterIcon,
+      spiderfyOnMaxZoom: true,
+      disableClusteringAtZoom: 17,
+      animate: true,
+    });
+
+    for (const field of fields) {
+      const marker = L.marker([field.lat, field.lng], { icon: fieldIcon(field) }) as L.Marker & {
+        _bojo_sports?: string[];
+      };
+      marker._bojo_sports = field.sport;
+      marker.bindPopup(popupHtml(field, isAdmin), { maxWidth: 290, closeButton: true });
+      clusterGroup.addLayer(marker);
+    }
+
+    map.addLayer(clusterGroup);
+    return () => {
+      map.removeLayer(clusterGroup);
+    };
+  }, [map, fields, isAdmin]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+export default function LeafletMapImpl({
+  className,
+  sports,
+  onlyAvailable,
+  onlyBookable,
+  search,
+}: MapViewProps) {
+  const [allFields, setAllFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = useAdmin();
 
+  // Fetch all fields once; filters applied client-side
   useEffect(() => {
     let cancelled = false;
-    getFields({ sport, available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
-      .then((res) => { if (!cancelled) setFields(res.fields); })
-      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd pobierania boisk'); });
+    getFields({ available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
+      .then((res) => { if (!cancelled) setAllFields(res.fields); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd'); });
     return () => { cancelled = true; };
-  }, [sport, onlyAvailable, onlyBookable]);
+  }, [onlyAvailable, onlyBookable]);
 
+  // Client-side filtering
   const q = search?.trim().toLowerCase() ?? '';
-  const displayed = q
-    ? fields.filter(
-        (f) =>
-          f.name.toLowerCase().includes(q) ||
-          f.address.toLowerCase().includes(q),
-      )
-    : fields;
+  const displayed = allFields.filter((f) => {
+    if (sports && sports.length > 0 && !f.sport.some((s) => sports.includes(s))) return false;
+    if (q && !f.name.toLowerCase().includes(q) && !f.address.toLowerCase().includes(q)) return false;
+    return true;
+  });
 
   return (
     <div className={['w-full h-full min-h-[400px] relative', className ?? ''].join(' ')}>
@@ -92,162 +233,13 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
           />
         )}
         <ZoomControl position="topright" />
-
-        {displayed.map((field) => (
-          <Marker
-            key={field.id}
-            position={[field.lat, field.lng]}
-            icon={fieldIcon(field)}
-          >
-            <Popup>
-              <div style={{ minWidth: 230 }}>
-                {venueThumbnail(field.lat, field.lng, 240, 120) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={venueThumbnail(field.lat, field.lng, 240, 120)!}
-                    alt={field.name}
-                    style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }}
-                  />
-                )}
-                <p style={{ fontWeight: 600, fontSize: 13, color: '#111', margin: '0 0 2px' }}>{field.name}</p>
-                <p style={{ fontSize: 11, color: '#6b7280', margin: '0 0 6px' }}>{field.address}</p>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                  {field.sport.map((s) => (
-                    <span key={s} style={{ background: '#f0fdf4', color: '#15803d', borderRadius: 4, padding: '1px 7px', fontSize: 11 }}>
-                      {s}
-                    </span>
-                  ))}
-                </div>
-
-                {(() => {
-                  const bookingVisible = showBookingForField(field);
-                  const availColor = bookingVisible && field.bookingType === 'internal' ? '#2563eb' : '#16a34a';
-                  return (
-                    <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? availColor : '#9ca3af' }}>
-                      {field.available ? '● Dostępne' : '● Niedostępne'}
-                      {bookingVisible && field.bookingType === 'internal' && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacja online</span>}
-                      {bookingVisible && field.bookingType === 'external' && <span style={{ color: '#ea580c', fontWeight: 600 }}> · 🔗 Rezerwacja zewnętrzna</span>}
-                      {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
-                    </p>
-                  );
-                })()}
-
-                {/* Action links */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                  {showBookingForField(field) && field.bookingType === 'internal' && (
-                    <a
-                      href={`/boisko/${field.id}`}
-                      style={{
-                        flex: '0 0 auto',
-                        textAlign: 'center',
-                        background: '#2563eb',
-                        color: '#fff',
-                        borderRadius: 6,
-                        padding: '5px 10px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      📅 Zarezerwuj →
-                    </a>
-                  )}
-                  {showBookingForField(field) && field.bookingType === 'external' && field.bookingUrl && (
-                    <a
-                      href={field.bookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        flex: '0 0 auto',
-                        textAlign: 'center',
-                        background: '#ea580c',
-                        color: '#fff',
-                        borderRadius: 6,
-                        padding: '5px 10px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Rezerwuj →
-                    </a>
-                  )}
-                  <a
-                    href={`/wydarzenia/nowe?fieldId=${field.id}`}
-                    style={{
-                      flex: 1,
-                      textAlign: 'center',
-                      background: '#16a34a',
-                      color: '#fff',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    + Wydarzenie
-                  </a>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      textAlign: 'center',
-                      background: '#f3f4f6',
-                      color: '#374151',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Prowadź →
-                  </a>
-                </div>
-
-                {field.website && (
-                  <a
-                    href={field.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'block', marginTop: 6, fontSize: 11, color: '#16a34a' }}
-                  >
-                    Strona boiska →
-                  </a>
-                )}
-
-                {isAdmin && (
-                  <a
-                    href={`/admin/boisko/${field.id}`}
-                    style={{
-                      display: 'block',
-                      marginTop: 6,
-                      fontSize: 11,
-                      color: '#6b7280',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    ✏️ Edytuj boisko (admin)
-                  </a>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        <ClusteredMarkers fields={displayed} isAdmin={isAdmin} />
       </MapContainer>
 
-      {/* Search result count */}
-      {q && (
-        <div className="absolute top-2 left-2 z-[1000] bg-white/90 text-xs text-gray-600 px-2 py-1 rounded shadow">
-          {displayed.length} / {fields.length} boisk
+      {/* Result count badge */}
+      {(q || (sports && sports.length > 0)) && (
+        <div className="absolute top-2 left-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-gray-600 px-2.5 py-1 rounded-full shadow-sm border border-gray-100">
+          {displayed.length} z {allFields.length} boisk
         </div>
       )}
 

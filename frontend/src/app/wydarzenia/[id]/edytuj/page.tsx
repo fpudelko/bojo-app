@@ -6,6 +6,7 @@ import { Lock, Globe, ArrowLeft, MapPin, ChevronDown, ChevronUp } from 'lucide-r
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
+import RemindersSection from '@/components/events/RemindersSection';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
@@ -411,6 +412,9 @@ export default function EditEventPage() {
             </Button>
           </div>
         </form>
+
+        {/* Reminders — standalone section, saves independently from the main form */}
+        <RemindersSection eventId={id} />
       </main>
     </div>
   );

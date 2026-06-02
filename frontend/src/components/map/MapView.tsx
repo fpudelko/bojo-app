@@ -2,11 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
-import type { SportType } from '@/types';
-
 export interface MapViewProps {
   className?: string;
-  sport?: SportType;
+  sports?: string[];       // undefined = all; array = multi-select filter
   onlyAvailable?: boolean;
   onlyBookable?: boolean;
   search?: string;

@@ -1,34 +1,49 @@
 'use client';
 
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Target, Sun, Trophy, Circle, Zap, Dumbbell, Gauge, MoreHorizontal } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MapView from '@/components/map/MapView';
-import type { SportType } from '@/types';
 import { FEATURE_RESERVATIONS } from '@/config/features';
 
-const SPORT_OPTIONS: { value: SportType | ''; label: string }[] = [
-  { value: '', label: 'Wszystkie' },
-  { value: 'piłka nożna', label: 'Piłka nożna' },
-  { value: 'futsal', label: 'Futsal' },
-  { value: 'koszykówka', label: 'Koszykówka' },
-  { value: 'siatkówka', label: 'Siatkówka' },
-  { value: 'siatkówka plażowa', label: 'Plaża' },
-  { value: 'piłka ręczna', label: 'Piłka ręczna' },
+interface SportChip {
+  value: string;
+  label: string;
+  Icon: LucideIcon;
+  color: string;
+}
+
+// Ordered per spec: piłka nożna, siatkówka plażowa, siatkówka, koszykówka, futsal, piłka ręczna, gokarty, inne
+const SPORT_CHIPS: SportChip[] = [
+  { value: 'piłka nożna',      label: 'Piłka nożna',  Icon: Target,          color: '#15803d' },
+  { value: 'siatkówka plażowa', label: 'Plaża',       Icon: Sun,             color: '#d97706' },
+  { value: 'siatkówka',        label: 'Siatkówka',    Icon: Trophy,          color: '#2563eb' },
+  { value: 'koszykówka',       label: 'Koszykówka',   Icon: Circle,          color: '#ea580c' },
+  { value: 'futsal',           label: 'Futsal',       Icon: Zap,             color: '#7c3aed' },
+  { value: 'piłka ręczna',     label: 'Piłka ręczna', Icon: Dumbbell,        color: '#dc2626' },
+  { value: 'gokarty',          label: 'Gokarty',      Icon: Gauge,           color: '#0d9488' },
+  { value: 'inne',             label: 'Inne',         Icon: MoreHorizontal,  color: '#6b7280' },
 ];
 
 export default function MapaPage() {
-  const [sport, setSport] = useState<SportType | ''>('');
+  const [activeSports, setActiveSports] = useState<string[]>([]);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [onlyBookable, setOnlyBookable] = useState(false);
   const [search, setSearch] = useState('');
 
+  function toggleSport(value: string) {
+    setActiveSports((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value],
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#f8faf9' }}>
       <Header />
 
       {/* Search row */}
-      <div className="bg-white border-b border-gray-100 px-3 pt-2 pb-0">
+      <div className="bg-white border-b border-gray-100 px-3 pt-2 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
@@ -36,27 +51,35 @@ export default function MapaPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Szukaj boiska po nazwie lub adresie…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
           />
         </div>
       </div>
 
-      {/* Filter pills row */}
+      {/* Sport filter chips — multi-select */}
       <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center gap-2 overflow-x-auto shrink-0 shadow-sm">
-        {SPORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setSport(opt.value)}
-            className={[
-              'shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap',
-              sport === opt.value
-                ? 'bg-primary-600 text-white border-primary-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400',
-            ].join(' ')}
-          >
-            {opt.label}
-          </button>
-        ))}
+        {SPORT_CHIPS.map(({ value, label, Icon, color }) => {
+          const active = activeSports.includes(value);
+          return (
+            <button
+              key={value}
+              onClick={() => toggleSport(value)}
+              className={[
+                'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap',
+                active
+                  ? 'text-white border-transparent shadow-sm'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+              ].join(' ')}
+              style={active ? { background: color, borderColor: color } : {}}
+            >
+              <Icon
+                className="w-3.5 h-3.5 shrink-0"
+                style={active ? { color: 'white' } : { color }}
+              />
+              {label}
+            </button>
+          );
+        })}
 
         <div className="shrink-0 flex items-center gap-2 ml-2 pl-3 border-l border-gray-200">
           <span className="text-sm text-gray-600 whitespace-nowrap">Dostępne</span>
@@ -64,8 +87,8 @@ export default function MapaPage() {
             onClick={() => setOnlyAvailable(!onlyAvailable)}
             aria-pressed={onlyAvailable}
             className={[
-              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1',
-              onlyAvailable ? 'bg-primary-600' : 'bg-gray-200',
+              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-700 focus:ring-offset-1',
+              onlyAvailable ? 'bg-green-700' : 'bg-gray-200',
             ].join(' ')}
           >
             <span
@@ -79,7 +102,7 @@ export default function MapaPage() {
 
         {FEATURE_RESERVATIONS && (
           <div className="shrink-0 flex items-center gap-2 pl-3 border-l border-gray-200">
-            <span className="text-sm text-gray-600 whitespace-nowrap">📅 Rezerwacja online</span>
+            <span className="text-sm text-gray-600 whitespace-nowrap">Rezerwacja</span>
             <button
               onClick={() => setOnlyBookable(!onlyBookable)}
               aria-pressed={onlyBookable}
@@ -97,12 +120,21 @@ export default function MapaPage() {
             </button>
           </div>
         )}
+
+        {activeSports.length > 0 && (
+          <button
+            onClick={() => setActiveSports([])}
+            className="shrink-0 ml-1 text-xs text-gray-400 hover:text-gray-600 underline whitespace-nowrap"
+          >
+            Wyczyść
+          </button>
+        )}
       </div>
 
-      {/* Map — fills remaining height */}
+      {/* Map fills remaining height */}
       <main className="flex-1 relative min-h-0">
         <MapView
-          sport={sport || undefined}
+          sports={activeSports.length > 0 ? activeSports : undefined}
           onlyAvailable={onlyAvailable || undefined}
           onlyBookable={onlyBookable || undefined}
           search={search || undefined}
