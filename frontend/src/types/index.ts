@@ -8,6 +8,8 @@ export interface Field {
   available: boolean;
   surface: string;
   isIndoor: boolean;
+  isBookable: boolean;
+  managerId?: string;
   phone?: string;
   website?: string;
 }
@@ -29,12 +31,57 @@ export type SportType =
 export interface FieldFilters {
   sport?: SportType;
   available?: boolean;
+  bookable?: boolean;
+  managerId?: string;
   search?: string;
   lat?: number;
   lng?: number;
   radius_km?: number;
   limit?: number;
   offset?: number;
+}
+
+export interface VenueSchedule {
+  id: string;
+  fieldId: string;
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  slotMinutes: number;
+  createdAt?: string;
+}
+
+export interface VenuePricing {
+  id: string;
+  fieldId: string;
+  name: string;
+  priceGrosze: number;
+  dayOfWeek?: number[];
+  timeFrom?: string;
+  timeTo?: string;
+  priority: number;
+  createdAt?: string;
+}
+
+export interface Booking {
+  id: string;
+  fieldId: string;
+  userId: string;
+  userName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  priceGrosze: number;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+}
+
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  priceGrosze: number;
+  available: boolean;
 }
 
 export type Visibility = 'private' | 'public';

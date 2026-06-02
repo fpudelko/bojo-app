@@ -8,6 +8,7 @@ export interface MapViewProps {
   className?: string;
   sport?: SportType;
   onlyAvailable?: boolean;
+  onlyBookable?: boolean;
   search?: string;
 }
 
