@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth } from '@/lib/auth';
+import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
@@ -22,6 +23,7 @@ export default function EditEventPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useAdmin();
 
   const [pageLoading, setPageLoading] = useState(true);
   const [notAllowed, setNotAllowed] = useState(false);
@@ -44,7 +46,7 @@ export default function EditEventPage() {
 
     getEvent(id)
       .then(async ({ event: ev }) => {
-        if (ev.organizerId !== user.id) { setNotAllowed(true); return; }
+        if (ev.organizerId !== user.id && !isAdmin) { setNotAllowed(true); return; }
 
         setSport(ev.sport);
         setDate(ev.date);

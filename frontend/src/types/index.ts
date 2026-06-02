@@ -67,6 +67,7 @@ export interface EventParticipant {
   hasPaid: boolean;
   isReserve: boolean;
   createdAt: string;
+  avatarUrl?: string;
 }
 
 export interface EventCreate {

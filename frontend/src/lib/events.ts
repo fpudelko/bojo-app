@@ -124,9 +124,27 @@ export async function getEvent(
     .order('created_at', { ascending: true });
   if (pErr) throw new Error(pErr.message);
 
+  // Batch-fetch avatar URLs for logged-in participants
+  const userIds = (partRows ?? []).filter((p) => p.user_id).map((p) => p.user_id as string);
+  let avatarMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profileRows } = await supabase
+      .from('profiles')
+      .select('id, avatar_url')
+      .in('id', userIds);
+    avatarMap = Object.fromEntries(
+      (profileRows ?? [])
+        .filter((p) => p.avatar_url)
+        .map((p) => [p.id, p.avatar_url as string]),
+    );
+  }
+
   return {
     event: toEvent(eventRow),
-    participants: (partRows ?? []).map(toParticipant),
+    participants: (partRows ?? []).map((row) => ({
+      ...toParticipant(row),
+      avatarUrl: row.user_id ? avatarMap[row.user_id] : undefined,
+    })),
   };
 }
 

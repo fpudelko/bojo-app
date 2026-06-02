@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { User, Check, LogOut } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 
 export default function ProfilePage() {
-  const { user, loading, signOut, updateDisplayName, signInWithGoogle } = useAuth();
+  const { user, loading, signOut, updateDisplayName, signInWithGoogle, uploadAvatar } = useAuth();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (loading) {
     return (
@@ -42,6 +46,29 @@ export default function ProfilePage() {
   }
 
   const currentName = displayName(user);
+  const currentAvatarUrl = avatarUrl(user);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Plik jest za duży. Maksymalny rozmiar to 5 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      await uploadAvatar(file);
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Nie udało się przesłać zdjęcia.');
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleStartEdit = () => {
     setName(currentName);
@@ -84,11 +111,39 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold text-gray-900">Profil</h1>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+          {/* Avatar upload */}
+          <div className="flex flex-col items-center gap-2">
+            {currentAvatarUrl ? (
+              <img
+                src={currentAvatarUrl}
+                alt="Awatar"
+                className="w-14 h-14 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold shrink-0">
+                {currentName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
+            >
+              {avatarUploading ? 'Przesyłanie…' : 'Zmień zdjęcie'}
+            </button>
+            {avatarError && <p className="text-xs text-red-600 text-center">{avatarError}</p>}
+          </div>
+
           {/* Avatar + name */}
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold shrink-0">
-              {currentName.charAt(0).toUpperCase()}
-            </div>
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-lg truncate">{currentName}</p>
               <p className="text-sm text-gray-400 truncate">{user.email}</p>

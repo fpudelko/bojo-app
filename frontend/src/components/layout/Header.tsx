@@ -5,11 +5,11 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Menu, X, Plus, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 
 const NAV_LINKS = [
-  { href: '/mapa', label: 'Mapa' },
-  { href: '/wydarzenia', label: 'Wydarzenia' },
+  { href: '/mapa', label: 'Mapa boisk' },
+  { href: '/wydarzenia', label: 'Znajdź grę' },
 ];
 
 /** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
@@ -45,6 +45,7 @@ export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const userAvatar = avatarUrl(user);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-[60]">
@@ -90,7 +91,9 @@ export default function Header() {
                   className="text-sm text-gray-600 hover:text-gray-900 max-w-[140px] truncate flex items-center gap-1.5"
                   title="Edytuj profil"
                 >
-                  <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                  {userAvatar
+                    ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                    : <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
                   {displayName(user)}
                 </Link>
                 <button
@@ -158,7 +161,10 @@ export default function Header() {
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
                   >
-                    <User className="w-4 h-4" /> {displayName(user)}
+                    {userAvatar
+                      ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                      : <User className="w-4 h-4" />}
+                    {displayName(user)}
                   </Link>
                   <button
                     onClick={() => { setMobileOpen(false); signOut(); }}
