@@ -12,15 +12,28 @@ import { useAdmin } from '@/lib/admin';
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-function fieldIcon(available: boolean, isBookable: boolean) {
-  const color = !available ? '#9ca3af' : isBookable ? '#2563eb' : '#16a34a';
-  const size = isBookable ? 16 : 14;
+function fieldIcon(available: boolean, bookingType: 'internal' | 'external' | 'none') {
+  let color: string;
+  let size: number;
+  if (!available) {
+    color = '#9ca3af';
+    size = 14;
+  } else if (bookingType === 'internal') {
+    color = '#2563eb';
+    size = 16;
+  } else if (bookingType === 'external') {
+    color = '#ea580c';
+    size = 14;
+  } else {
+    color = '#16a34a';
+    size = 14;
+  }
   const half = size / 2;
-  const bookablePulse = isBookable
+  const internalPulse = bookingType === 'internal' && available
     ? `<div style="position:absolute;top:-3px;left:-3px;width:${size + 6}px;height:${size + 6}px;border-radius:50%;background:rgba(37,99,235,0.2);animation:none"></div>`
     : '';
   return L.divIcon({
-    html: `<div style="position:relative;width:${size}px;height:${size}px">${bookablePulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
+    html: `<div style="position:relative;width:${size}px;height:${size}px">${internalPulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
     className: '',
     iconSize: [size, size],
     iconAnchor: [half, half],
@@ -85,7 +98,7 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
           <Marker
             key={field.id}
             position={[field.lat, field.lng]}
-            icon={fieldIcon(field.available, field.isBookable)}
+            icon={fieldIcon(field.available, field.bookingType)}
           >
             <Popup>
               <div style={{ minWidth: 230 }}>
@@ -108,15 +121,16 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
                   ))}
                 </div>
 
-                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? (field.isBookable ? '#2563eb' : '#16a34a') : '#9ca3af' }}>
+                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? (field.bookingType === 'internal' ? '#2563eb' : '#16a34a') : '#9ca3af' }}>
                   {field.available ? '● Dostępne' : '● Niedostępne'}
-                  {field.isBookable && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacje</span>}
+                  {field.bookingType === 'internal' && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacja online</span>}
+                  {field.bookingType === 'external' && <span style={{ color: '#ea580c', fontWeight: 600 }}> · 🔗 Rezerwacja zewnętrzna</span>}
                   {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
                 </p>
 
                 {/* Action links */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                  {field.isBookable && (
+                  {field.bookingType === 'internal' && (
                     <a
                       href={`/boisko/${field.id}`}
                       style={{
@@ -133,6 +147,27 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
                       }}
                     >
                       📅 Zarezerwuj →
+                    </a>
+                  )}
+                  {field.bookingType === 'external' && field.bookingUrl && (
+                    <a
+                      href={field.bookingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: '0 0 auto',
+                        textAlign: 'center',
+                        background: '#ea580c',
+                        color: '#fff',
+                        borderRadius: 6,
+                        padding: '5px 10px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Rezerwuj →
                     </a>
                   )}
                   <a

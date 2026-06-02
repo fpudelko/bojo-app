@@ -60,6 +60,8 @@ export default function VenueDetailPage() {
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [notes, setNotes] = useState('');
+  const [phone, setPhone] = useState('');
+  const [playersCount, setPlayersCount] = useState(1);
   const [booking, setBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export default function VenueDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (field?.isBookable && user) {
+    if (field?.bookingType === 'internal' && user) {
       loadSlots(date);
     }
   }, [field, user, date, loadSlots]);
@@ -111,11 +113,17 @@ export default function VenueDetailPage() {
         selectedSlot.startTime,
         selectedSlot.endTime,
         selectedSlot.priceGrosze,
-        notes.trim() || undefined,
+        {
+          notes: notes.trim() || undefined,
+          phone: phone.trim() || undefined,
+          playersCount: playersCount > 0 ? playersCount : 1,
+        },
       );
       setBookingSuccess(true);
       setSelectedSlot(null);
       setNotes('');
+      setPhone('');
+      setPlayersCount(1);
       await loadSlots(date);
     } catch (err) {
       setBookingError(err instanceof Error ? err.message : 'Nie udało się złożyć rezerwacji.');
@@ -187,6 +195,16 @@ export default function VenueDetailPage() {
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {field.address}
                 </p>
+                {field.bookingType === 'internal' && (
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                    📅 Rezerwacja online
+                  </span>
+                )}
+                {field.bookingType === 'external' && (
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
+                    🔗 Rezerwuj zewnętrznie
+                  </span>
+                )}
               </div>
               {field.isIndoor && (
                 <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
@@ -212,7 +230,7 @@ export default function VenueDetailPage() {
               )}
             </div>
 
-            {!field.isBookable && (
+            {field.bookingType === 'none' && (
               <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                 Ten obiekt nie przyjmuje rezerwacji online.
               </p>
@@ -252,8 +270,8 @@ export default function VenueDetailPage() {
           </div>
         </div>
 
-        {/* Booking section */}
-        {field.isBookable && (
+        {/* Booking section — internal */}
+        {field.bookingType === 'internal' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             <h2 className="text-base font-semibold text-gray-900">Zarezerwuj termin</h2>
 
@@ -362,6 +380,33 @@ export default function VenueDetailPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Liczba osób
+                      </label>
+                      <input
+                        type="number"
+                        value={playersCount}
+                        min={1}
+                        max={20}
+                        onChange={(e) => setPlayersCount(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
+                        className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Twój telefon <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+48 500 000 000"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Uwagi <span className="text-gray-400 font-normal">(opcjonalnie)</span>
                       </label>
                       <textarea
@@ -388,6 +433,36 @@ export default function VenueDetailPage() {
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {/* Booking section — external */}
+        {field.bookingType === 'external' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
+            {field.bookingUrl ? (
+              <a
+                href={field.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
+              >
+                Przejdź do rezerwacji →
+              </a>
+            ) : (
+              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                📞 Kontakt telefoniczny
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Booking section — none */}
+        {field.bookingType === 'none' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+              Brak rezerwacji online dla tego obiektu.
+            </p>
           </div>
         )}
       </main>

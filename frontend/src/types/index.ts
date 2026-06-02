@@ -1,3 +1,5 @@
+export type BookingType = 'internal' | 'external' | 'none';
+
 export interface Field {
   id: string;
   name: string;
@@ -9,6 +11,8 @@ export interface Field {
   surface: string;
   isIndoor: boolean;
   isBookable: boolean;
+  bookingType: BookingType;
+  bookingUrl?: string;
   managerId?: string;
   phone?: string;
   website?: string;
@@ -32,6 +36,7 @@ export interface FieldFilters {
   sport?: SportType;
   available?: boolean;
   bookable?: boolean;
+  bookingType?: BookingType;
   managerId?: string;
   search?: string;
   lat?: number;
@@ -73,6 +78,9 @@ export interface Booking {
   endTime: string;
   priceGrosze: number;
   status: 'pending' | 'confirmed' | 'cancelled';
+  sport?: string;
+  playersCount: number;
+  phone?: string;
   notes?: string;
   createdAt: string;
 }

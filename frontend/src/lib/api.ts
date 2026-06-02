@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Field, FieldFilters, FieldsResponse } from '@/types';
+import type { Field, FieldFilters, FieldsResponse, BookingType } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Row mappers  (DB snake_case → TS camelCase)
@@ -7,6 +7,7 @@ import type { Field, FieldFilters, FieldsResponse } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toField(row: any): Field {
+  const bookingType: BookingType = row.booking_type ?? 'none';
   return {
     id: row.id,
     name: row.name,
@@ -17,7 +18,9 @@ function toField(row: any): Field {
     available: row.available,
     surface: row.surface ?? '',
     isIndoor: row.is_indoor,
-    isBookable: row.is_bookable ?? false,
+    isBookable: bookingType === 'internal',
+    bookingType,
+    bookingUrl: row.booking_url ?? undefined,
     managerId: row.manager_id ?? undefined,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
@@ -43,6 +46,9 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
   if (filters?.bookable !== undefined) {
     query = query.eq('is_bookable', filters.bookable);
   }
+  if (filters?.bookingType !== undefined) {
+    query = query.eq('booking_type', filters.bookingType);
+  }
   if (filters?.limit !== undefined) {
     const from = filters.offset ?? 0;
     query = query.range(from, from + filters.limit - 1);
@@ -55,9 +61,10 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
 }
 
 export async function createManagedField(
-  data: Pick<Field, 'name' | 'address' | 'lat' | 'lng' | 'sport' | 'surface' | 'isIndoor' | 'isBookable' | 'available' | 'phone' | 'website'>,
+  data: Pick<Field, 'name' | 'address' | 'lat' | 'lng' | 'sport' | 'surface' | 'isIndoor' | 'bookingType' | 'bookingUrl' | 'available' | 'phone' | 'website'>,
   managerId: string,
 ): Promise<string> {
+  const bookingType = data.bookingType ?? 'internal';
   const { data: row, error } = await supabase
     .from('fields')
     .insert({
@@ -68,7 +75,9 @@ export async function createManagedField(
       sport: data.sport,
       surface: data.surface,
       is_indoor: data.isIndoor,
-      is_bookable: data.isBookable ?? true,
+      is_bookable: bookingType === 'internal',
+      booking_type: bookingType,
+      booking_url: data.bookingUrl ?? null,
       available: data.available ?? true,
       manager_id: managerId,
       phone: data.phone ?? null,
@@ -78,6 +87,22 @@ export async function createManagedField(
     .single();
   if (error) throw new Error(error.message);
   return row.id as string;
+}
+
+export async function updateFieldBookingSettings(
+  fieldId: string,
+  bookingType: BookingType,
+  bookingUrl?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('fields')
+    .update({
+      booking_type: bookingType,
+      booking_url: bookingUrl ?? null,
+      is_bookable: bookingType === 'internal',
+    })
+    .eq('id', fieldId);
+  if (error) throw new Error(error.message);
 }
 
 export async function getField(fieldId: string): Promise<Field> {

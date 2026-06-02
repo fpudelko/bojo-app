@@ -74,6 +74,7 @@ export default function EditEventPage() {
               surface: '',
               isIndoor: false,
               isBookable: false,
+              bookingType: 'none' as const,
             });
           }
         }
