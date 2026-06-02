@@ -84,3 +84,33 @@ export interface EventCreate {
   maxPlayers: number;
   visibility: Visibility;
 }
+
+export interface RecurringEvent {
+  id: string;
+  organizerId: string;
+  organizerName: string;
+  sport: string;
+  fieldId?: string;
+  fieldName: string;
+  lat?: number;
+  lng?: number;
+  title?: string;
+  description?: string;
+  dayOfWeek: number; // 1=Mon … 7=Sun
+  eventTime: string;
+  endTime?: string;
+  maxPlayers: number;
+  visibility: Visibility;
+  notifyDaysBefore: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface RecurringEventInvite {
+  id: string;
+  recurringEventId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  createdAt: string;
+}
