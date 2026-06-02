@@ -33,16 +33,20 @@ function EventCard({ event, isOrganizer }: { event: EventItem; isOrganizer: bool
   return (
     <Link href={`/wydarzenia/${event.id}`} className="block group">
       <div className={[
-        'bg-white rounded-xl border p-4 flex items-center gap-4 hover:shadow-md transition-shadow',
-        cancelled ? 'border-red-100 opacity-60' : 'border-gray-100',
+        'bg-white rounded-2xl border p-4 flex items-center gap-4 transition-all duration-200',
+        cancelled
+          ? 'border-red-100 opacity-60'
+          : 'border-slate-200/80 shadow-card hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover',
       ].join(' ')}>
-        <span className="text-2xl shrink-0" role="img">{SPORT_EMOJI[event.sport] ?? '🏅'}</span>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl" role="img">
+          {SPORT_EMOJI[event.sport] ?? '🏅'}
+        </span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">
+          <p className="text-sm font-semibold text-ink truncate">
             {event.title || event.sport}
             {cancelled && <span className="ml-2 text-xs text-red-500 font-normal">Odwołane</span>}
           </p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />{dateStr} {event.time?.slice(0, 5)}
             </span>
@@ -51,13 +55,13 @@ function EventCard({ event, isOrganizer }: { event: EventItem; isOrganizer: bool
             </span>
           </div>
         </div>
-        <div className="shrink-0 flex flex-col items-end gap-1">
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
           {isOrganizer && (
             <span className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">
               Org.
             </span>
           )}
-          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+          <ChevronRight className="w-4 h-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-600" />
         </div>
       </div>
     </Link>
@@ -74,9 +78,9 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{title}</h2>
+      <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">{title}</h2>
       {events.length === 0
-        ? <p className="text-sm text-gray-400 py-4 text-center">{emptyText}</p>
+        ? <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-6 text-center text-sm text-slate-400">{emptyText}</p>
         : (
           <div className="space-y-2">
             {events.map(({ event, isOrganizer: org }) => (
@@ -115,9 +119,11 @@ export default function MojeGryPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Users className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Moje gry</h1>
-            <p className="text-gray-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje gry.</p>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
+              <Users className="w-7 h-7 text-primary-700" />
+            </div>
+            <h1 className="font-display text-2xl font-bold text-ink mb-2">Moje gry</h1>
+            <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje gry.</p>
             <Button onClick={() => signInWithGoogle()} className="inline-flex items-center gap-2">
               <LogIn className="w-4 h-4" /> Zaloguj się
             </Button>
@@ -128,11 +134,11 @@ export default function MojeGryPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Moje gry</h1>
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Moje gry</h1>
           <Link href="/wydarzenia/nowe">
             <Button size="sm">+ Nowa gra</Button>
           </Link>
@@ -141,7 +147,7 @@ export default function MojeGryPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-white rounded-xl border border-gray-100 animate-pulse" />
+              <div key={i} className="h-[76px] bg-white rounded-2xl border border-slate-200/80 animate-pulse" />
             ))}
           </div>
         ) : (

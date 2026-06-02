@@ -52,7 +52,7 @@ export default function MapaPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Szukaj boiska po nazwie lub adresie…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-shadow"
           />
         </div>
       </div>

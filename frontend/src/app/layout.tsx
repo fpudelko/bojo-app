@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import CookieBanner from '@/components/CookieBanner';
@@ -8,6 +8,15 @@ const inter = Inter({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-inter',
   display: 'swap',
+});
+
+// Distinctive editorial display face for headings — characterful but clean,
+// full Polish diacritic support (latin-ext). Body stays on Inter for legibility.
+const bricolage = Bricolage_Grotesque({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-display',
+  display: 'swap',
+  weight: ['600', '700', '800'],
 });
 
 export const viewport: Viewport = {
@@ -44,8 +53,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={inter.variable}>
-      <body className="min-h-screen bg-white font-sans antialiased">
+    <html lang="pl" className={`${inter.variable} ${bricolage.variable}`}>
+      <body className="min-h-screen bg-canvas font-sans antialiased text-ink">
         <AuthProvider>
           {children}
           <CookieBanner />
