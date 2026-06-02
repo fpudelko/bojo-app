@@ -12,7 +12,7 @@ export function useAdmin(): boolean {
       .from('profiles')
       .select('is_admin')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => { setIsAdmin(data?.is_admin ?? false); }, () => { setIsAdmin(false); });
   }, [user?.id]);
 
