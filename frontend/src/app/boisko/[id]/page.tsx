@@ -10,6 +10,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { venueThumbnail, surfaceLabel } from '@/lib/labels';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
+import { showBookingForField } from '@/config/features';
 import type { Field, TimeSlot } from '@/types';
 
 const SPORT_EMOJI: Record<string, string> = {
@@ -91,7 +92,7 @@ export default function VenueDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (field?.bookingType === 'internal' && user) {
+    if (field && showBookingForField(field) && field.bookingType === 'internal' && user) {
       loadSlots(date);
     }
   }, [field, user, date, loadSlots]);
@@ -195,12 +196,12 @@ export default function VenueDetailPage() {
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {field.address}
                 </p>
-                {field.bookingType === 'internal' && (
+                {showBookingForField(field) && field.bookingType === 'internal' && (
                   <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
                     📅 Rezerwacja online
                   </span>
                 )}
-                {field.bookingType === 'external' && (
+                {showBookingForField(field) && field.bookingType === 'external' && (
                   <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
                     🔗 Rezerwuj zewnętrznie
                   </span>
@@ -230,7 +231,7 @@ export default function VenueDetailPage() {
               )}
             </div>
 
-            {field.bookingType === 'none' && (
+            {showBookingForField(field) && field.bookingType === 'none' && (
               <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                 Ten obiekt nie przyjmuje rezerwacji online.
               </p>
@@ -271,7 +272,7 @@ export default function VenueDetailPage() {
         </div>
 
         {/* Booking section — internal */}
-        {field.bookingType === 'internal' && (
+        {showBookingForField(field) && field.bookingType === 'internal' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
             <h2 className="text-base font-semibold text-gray-900">Zarezerwuj termin</h2>
 
@@ -437,7 +438,7 @@ export default function VenueDetailPage() {
         )}
 
         {/* Booking section — external */}
-        {field.bookingType === 'external' && (
+        {showBookingForField(field) && field.bookingType === 'external' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
             {field.bookingUrl ? (
@@ -458,7 +459,7 @@ export default function VenueDetailPage() {
         )}
 
         {/* Booking section — none */}
-        {field.bookingType === 'none' && (
+        {showBookingForField(field) && field.bookingType === 'none' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
               Brak rezerwacji online dla tego obiektu.

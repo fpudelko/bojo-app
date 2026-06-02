@@ -8,32 +8,31 @@ import type { Field, SportType } from '@/types';
 import { getFields } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { useAdmin } from '@/lib/admin';
+import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 
 const POZNAN: [number, number] = [52.4064, 16.9252];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-function fieldIcon(available: boolean, bookingType: 'internal' | 'external' | 'none') {
+function fieldIcon(field: Field) {
+  const bookingVisible = showBookingForField(field);
+  const { available, bookingType } = field;
   let color: string;
   let size: number;
   if (!available) {
-    color = '#9ca3af';
-    size = 14;
-  } else if (bookingType === 'internal') {
-    color = '#2563eb';
-    size = 16;
-  } else if (bookingType === 'external') {
-    color = '#ea580c';
-    size = 14;
+    color = '#9ca3af'; size = 14;
+  } else if (bookingVisible && bookingType === 'internal') {
+    color = '#2563eb'; size = 16;
+  } else if (bookingVisible && bookingType === 'external') {
+    color = '#ea580c'; size = 14;
   } else {
-    color = '#16a34a';
-    size = 14;
+    color = '#16a34a'; size = 14;
   }
   const half = size / 2;
-  const internalPulse = bookingType === 'internal' && available
-    ? `<div style="position:absolute;top:-3px;left:-3px;width:${size + 6}px;height:${size + 6}px;border-radius:50%;background:rgba(37,99,235,0.2);animation:none"></div>`
+  const pulse = bookingVisible && bookingType === 'internal' && available
+    ? `<div style="position:absolute;top:-3px;left:-3px;width:${size + 6}px;height:${size + 6}px;border-radius:50%;background:rgba(37,99,235,0.2)"></div>`
     : '';
   return L.divIcon({
-    html: `<div style="position:relative;width:${size}px;height:${size}px">${internalPulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
+    html: `<div style="position:relative;width:${size}px;height:${size}px">${pulse}<div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div></div>`,
     className: '',
     iconSize: [size, size],
     iconAnchor: [half, half],
@@ -98,7 +97,7 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
           <Marker
             key={field.id}
             position={[field.lat, field.lng]}
-            icon={fieldIcon(field.available, field.bookingType)}
+            icon={fieldIcon(field)}
           >
             <Popup>
               <div style={{ minWidth: 230 }}>
@@ -121,16 +120,22 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
                   ))}
                 </div>
 
-                <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? (field.bookingType === 'internal' ? '#2563eb' : '#16a34a') : '#9ca3af' }}>
-                  {field.available ? '● Dostępne' : '● Niedostępne'}
-                  {field.bookingType === 'internal' && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacja online</span>}
-                  {field.bookingType === 'external' && <span style={{ color: '#ea580c', fontWeight: 600 }}> · 🔗 Rezerwacja zewnętrzna</span>}
-                  {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
-                </p>
+                {(() => {
+                  const bookingVisible = showBookingForField(field);
+                  const availColor = bookingVisible && field.bookingType === 'internal' ? '#2563eb' : '#16a34a';
+                  return (
+                    <p style={{ fontSize: 11, margin: '0 0 8px', color: field.available ? availColor : '#9ca3af' }}>
+                      {field.available ? '● Dostępne' : '● Niedostępne'}
+                      {bookingVisible && field.bookingType === 'internal' && <span style={{ color: '#2563eb', fontWeight: 600 }}> · 📅 Rezerwacja online</span>}
+                      {bookingVisible && field.bookingType === 'external' && <span style={{ color: '#ea580c', fontWeight: 600 }}> · 🔗 Rezerwacja zewnętrzna</span>}
+                      {field.surface && <span style={{ color: '#9ca3af' }}> · {surfaceLabel(field.surface)}</span>}
+                    </p>
+                  );
+                })()}
 
                 {/* Action links */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                  {field.bookingType === 'internal' && (
+                  {showBookingForField(field) && field.bookingType === 'internal' && (
                     <a
                       href={`/boisko/${field.id}`}
                       style={{
@@ -149,7 +154,7 @@ export default function LeafletMapImpl({ className, sport, onlyAvailable, onlyBo
                       📅 Zarezerwuj →
                     </a>
                   )}
-                  {field.bookingType === 'external' && field.bookingUrl && (
+                  {showBookingForField(field) && field.bookingType === 'external' && field.bookingUrl && (
                     <a
                       href={field.bookingUrl}
                       target="_blank"

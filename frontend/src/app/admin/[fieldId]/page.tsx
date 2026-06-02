@@ -56,6 +56,7 @@ export default function AdminFieldPage() {
   // --- Ustawienia tab ---
   const [bookingType, setBookingType] = useState<BookingType>('none');
   const [bookingUrl, setBookingUrl] = useState('');
+  const [bookingEnabled, setBookingEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function AdminFieldPage() {
         setField(f);
         setBookingType(f.bookingType);
         setBookingUrl(f.bookingUrl ?? '');
+        setBookingEnabled(f.bookingEnabled);
       })
       .catch(() => setNotAllowed(true))
       .finally(() => setPageLoading(false));
@@ -126,6 +128,7 @@ export default function AdminFieldPage() {
         fieldId,
         bookingType,
         bookingType === 'external' ? bookingUrl.trim() || undefined : undefined,
+        bookingEnabled,
       );
       setSaveSuccess(true);
     } catch (err) {
@@ -407,6 +410,25 @@ export default function AdminFieldPage() {
                   />
                 </div>
               )}
+            </div>
+
+            {/* booking_enabled override */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Widoczność rezerwacji</h2>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bookingEnabled}
+                  onChange={(e) => setBookingEnabled(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Pokaż rezerwację dla tego boiska</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Gdy włączone, opcja rezerwacji jest widoczna dla graczy nawet gdy globalna flaga <code className="bg-gray-100 px-1 rounded">FEATURE_RESERVATIONS</code> jest wyłączona.
+                  </p>
+                </div>
+              </label>
             </div>
 
             {/* Feedback */}

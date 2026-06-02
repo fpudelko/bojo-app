@@ -58,7 +58,7 @@ export default function Header() {
             className="flex items-center gap-2 font-bold text-gray-900 text-lg hover:text-primary-700 transition-colors"
           >
             <TeamIcon className="w-7 h-7 text-primary-600" />
-            <span>Zagrajmy</span>
+            <span>Bojo</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">

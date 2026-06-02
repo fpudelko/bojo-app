@@ -21,6 +21,7 @@ function toField(row: any): Field {
     isBookable: bookingType === 'internal',
     bookingType,
     bookingUrl: row.booking_url ?? undefined,
+    bookingEnabled: row.booking_enabled ?? false,
     managerId: row.manager_id ?? undefined,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
@@ -93,6 +94,7 @@ export async function updateFieldBookingSettings(
   fieldId: string,
   bookingType: BookingType,
   bookingUrl?: string,
+  bookingEnabled?: boolean,
 ): Promise<void> {
   const { error } = await supabase
     .from('fields')
@@ -100,6 +102,7 @@ export async function updateFieldBookingSettings(
       booking_type: bookingType,
       booking_url: bookingUrl ?? null,
       is_bookable: bookingType === 'internal',
+      ...(bookingEnabled !== undefined ? { booking_enabled: bookingEnabled } : {}),
     })
     .eq('id', fieldId);
   if (error) throw new Error(error.message);
