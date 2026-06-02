@@ -95,6 +95,21 @@ export interface TimeSlot {
 
 export type Visibility = 'private' | 'public';
 
+export type ParticipantStatus = 'zaproszony' | 'potwierdzony' | 'odrzucony' | 'brak_odpowiedzi';
+export type TeamMode = 'brak' | 'reczne' | 'kapitanowie' | 'losowe';
+export type ReportType = 'niesportowe_zachowanie' | 'nie_przyszedl' | 'inne';
+
+export interface EventAdvancedSettings {
+  requireSmsConfirmation: boolean;
+  trackAttendance: boolean;
+  teamMode: TeamMode;
+  trackPayments: boolean;
+  showPaymentStatus: boolean;
+  trackResults: boolean;
+  confirmationDeadlineH: number;
+  costGrosze: number;
+}
+
 export interface EventItem {
   id: string;
   organizerId: string;
@@ -112,6 +127,15 @@ export interface EventItem {
   maxPlayers: number;
   visibility: Visibility;
   createdAt: string;
+  // advanced features (always present, default false/0/'brak')
+  requireSmsConfirmation: boolean;
+  trackAttendance: boolean;
+  teamMode: TeamMode;
+  trackPayments: boolean;
+  showPaymentStatus: boolean;
+  trackResults: boolean;
+  confirmationDeadlineH: number;
+  costGrosze: number;
 }
 
 export interface EventParticipant {
@@ -124,6 +148,13 @@ export interface EventParticipant {
   isReserve: boolean;
   createdAt: string;
   avatarUrl?: string;
+  // advanced fields
+  status: ParticipantStatus;
+  confirmedAt?: string;
+  team?: 'A' | 'B';
+  paidAmount: number;
+  phone?: string;
+  isCaptain: boolean;
 }
 
 export interface EventCreate {
@@ -139,6 +170,55 @@ export interface EventCreate {
   endTime?: string;
   maxPlayers: number;
   visibility: Visibility;
+  // advanced (optional, default false)
+  requireSmsConfirmation?: boolean;
+  trackAttendance?: boolean;
+  teamMode?: TeamMode;
+  trackPayments?: boolean;
+  showPaymentStatus?: boolean;
+  trackResults?: boolean;
+  confirmationDeadlineH?: number;
+  costGrosze?: number;
+}
+
+export interface MatchResult {
+  id: string;
+  eventId: string;
+  scoreA: number;
+  scoreB: number;
+  recordedBy?: string;
+  recordedAt: string;
+}
+
+export interface PlayerGoal {
+  id: string;
+  eventId: string;
+  participantId: string;
+  participantName: string;
+  goals: number;
+}
+
+export interface PlayerStats {
+  id: string;
+  userId: string;
+  recurringEventId?: string;
+  invitedCount: number;
+  confirmedCount: number;
+  noShowCount: number;
+  goalsTotal: number;
+  matchesPlayed: number;
+  updatedAt: string;
+}
+
+export interface PlayerReport {
+  id: string;
+  eventId: string;
+  reportedParticipantId: string;
+  reportedName?: string;
+  reporterId?: string;
+  reportType: ReportType;
+  comment?: string;
+  createdAt: string;
 }
 
 export interface RecurringEvent {

@@ -24,6 +24,14 @@ function toEvent(row: any): EventItem {
     maxPlayers: row.max_players,
     visibility: row.visibility,
     createdAt: row.created_at,
+    requireSmsConfirmation: row.require_sms_confirmation ?? false,
+    trackAttendance: row.track_attendance ?? false,
+    teamMode: row.team_mode ?? 'brak',
+    trackPayments: row.track_payments ?? false,
+    showPaymentStatus: row.show_payment_status ?? false,
+    trackResults: row.track_results ?? false,
+    confirmationDeadlineH: row.confirmation_deadline_h ?? 24,
+    costGrosze: row.cost_grosz ?? 0,
   };
 }
 
@@ -38,6 +46,13 @@ function toParticipant(row: any): EventParticipant {
     hasPaid: row.has_paid ?? false,
     isReserve: row.is_reserve ?? false,
     createdAt: row.created_at,
+    avatarUrl: row.avatarUrl ?? undefined,
+    status: row.status ?? 'zaproszony',
+    confirmedAt: row.confirmed_at ?? undefined,
+    team: row.team ?? undefined,
+    paidAmount: row.paid_amount ?? 0,
+    phone: row.phone ?? undefined,
+    isCaptain: row.is_captain ?? false,
   };
 }
 
@@ -67,6 +82,14 @@ export async function createEvent(
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
       visibility: data.visibility,
+      require_sms_confirmation: data.requireSmsConfirmation ?? false,
+      track_attendance: data.trackAttendance ?? false,
+      team_mode: data.teamMode ?? 'brak',
+      track_payments: data.trackPayments ?? false,
+      show_payment_status: data.showPaymentStatus ?? false,
+      track_results: data.trackResults ?? false,
+      confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
+      cost_grosz: data.costGrosze ?? 0,
     })
     .select('id')
     .single();
@@ -100,6 +123,14 @@ export async function updateEvent(id: string, data: EventCreate): Promise<void> 
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
       visibility: data.visibility,
+      require_sms_confirmation: data.requireSmsConfirmation ?? false,
+      track_attendance: data.trackAttendance ?? false,
+      team_mode: data.teamMode ?? 'brak',
+      track_payments: data.trackPayments ?? false,
+      show_payment_status: data.showPaymentStatus ?? false,
+      track_results: data.trackResults ?? false,
+      confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
+      cost_grosz: data.costGrosze ?? 0,
     })
     .eq('id', id);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Lock, Globe, ArrowLeft, MapPin } from 'lucide-react';
+import { Lock, Globe, ArrowLeft, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
@@ -11,7 +11,29 @@ import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import type { Field, Visibility } from '@/types';
+import type { Field, Visibility, TeamMode } from '@/types';
+
+function ToggleRow({ label, desc, checked, onChange }: {
+  label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-3">
+      <div>
+        <p className="text-sm font-medium text-gray-900">{label}</p>
+        {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', checked ? 'bg-primary-600' : 'bg-gray-200'].join(' ')}
+        role="switch"
+        aria-checked={checked}
+      >
+        <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', checked ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+      </button>
+    </div>
+  );
+}
 import Link from 'next/link';
 
 const SPORTS = [
@@ -40,6 +62,17 @@ export default function EditEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Advanced settings
+  const [advOpen, setAdvOpen] = useState(false);
+  const [requireSmsConfirmation, setRequireSmsConfirmation] = useState(false);
+  const [trackAttendance, setTrackAttendance] = useState(false);
+  const [teamMode, setTeamMode] = useState<TeamMode>('brak');
+  const [trackPayments, setTrackPayments] = useState(false);
+  const [showPaymentStatus, setShowPaymentStatus] = useState(false);
+  const [trackResults, setTrackResults] = useState(false);
+  const [confirmationDeadlineH, setConfirmationDeadlineH] = useState(24);
+  const [costPln, setCostPln] = useState('');
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setNotAllowed(true); setPageLoading(false); return; }
@@ -56,6 +89,17 @@ export default function EditEventPage() {
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
+        setRequireSmsConfirmation(ev.requireSmsConfirmation);
+        setTrackAttendance(ev.trackAttendance);
+        setTeamMode(ev.teamMode);
+        setTrackPayments(ev.trackPayments);
+        setShowPaymentStatus(ev.showPaymentStatus);
+        setTrackResults(ev.trackResults);
+        setConfirmationDeadlineH(ev.confirmationDeadlineH);
+        if (ev.costGrosze > 0) setCostPln(String(ev.costGrosze / 100));
+        if (ev.requireSmsConfirmation || ev.trackAttendance || ev.teamMode !== 'brak' || ev.trackPayments || ev.trackResults) {
+          setAdvOpen(true);
+        }
 
         if (ev.fieldId) {
           try {
@@ -110,6 +154,14 @@ export default function EditEventPage() {
         endTime: endTime || undefined,
         maxPlayers,
         visibility,
+        requireSmsConfirmation,
+        trackAttendance,
+        teamMode,
+        trackPayments,
+        showPaymentStatus: trackPayments ? showPaymentStatus : false,
+        trackResults,
+        confirmationDeadlineH,
+        costGrosze: Math.round(parseFloat(costPln || '0') * 100),
       });
       router.push(`/wydarzenia/${id}`);
     } catch (err) {
@@ -289,6 +341,59 @@ export default function EditEventPage() {
                 </span>
               </button>
             </div>
+          </div>
+
+          {/* Advanced settings accordion */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAdvOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Ustawienia zaawansowane
+              {advOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </button>
+            {advOpen && (
+              <div className="px-4 pb-2 border-t border-gray-100 divide-y divide-gray-100">
+                <ToggleRow label="Potwierdzenie SMS" desc="Zaproszeni gracze potwierdzają przez SMS" checked={requireSmsConfirmation} onChange={setRequireSmsConfirmation} />
+                {requireSmsConfirmation && (
+                  <div className="py-3">
+                    <label className="block text-xs text-gray-600 mb-1">Termin potwierdzenia (h przed meczem)</label>
+                    <input type="number" min={1} max={168} value={confirmationDeadlineH}
+                      onChange={(e) => setConfirmationDeadlineH(Number(e.target.value))}
+                      className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                )}
+                <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
+                <div className="flex items-start justify-between gap-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Tryb drużyn</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Jak są tworzone składy</p>
+                  </div>
+                  <select value={teamMode} onChange={(e) => setTeamMode(e.target.value as TeamMode)}
+                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="brak">Brak</option>
+                    <option value="reczne">Ręczne</option>
+                    <option value="kapitanowie">Kapitanowie</option>
+                    <option value="losowe">Losowe</option>
+                  </select>
+                </div>
+                <ToggleRow label="Śledzenie płatności" desc="Rejestruj wpłaty uczestników" checked={trackPayments} onChange={setTrackPayments} />
+                {trackPayments && (
+                  <div className="py-3 space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Koszt uczestnictwa (PLN)</label>
+                      <input type="number" min={0} step={0.5} value={costPln}
+                        onChange={(e) => setCostPln(e.target.value)}
+                        placeholder="0.00"
+                        className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    </div>
+                    <ToggleRow label="Pokaż status płatności uczestnikom" checked={showPaymentStatus} onChange={setShowPaymentStatus} />
+                  </div>
+                )}
+                <ToggleRow label="Wyniki i statystyki" desc="Wpisuj wyniki meczu i bramki graczy" checked={trackResults} onChange={setTrackResults} />
+              </div>
+            )}
           </div>
 
           {error && (
