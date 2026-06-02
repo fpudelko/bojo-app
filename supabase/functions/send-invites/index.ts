@@ -12,12 +12,42 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Verify caller is authenticated
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const anonKey    = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  const callerClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+  if (authErr || !caller) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Rate limit: max 20 invite batches per hour
+  const { data: allowed } = await callerClient.rpc('check_rate_limit', {
+    p_action: 'send_invites',
+    p_max_per_hour: 20,
+  });
+  if (allowed === false) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const { recurringEventId, eventId, eventDate, eventUrl } = await req.json();
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  const supabase = createClient(supabaseUrl, serviceKey);
 
   const { data: eventRow, error: eventErr } = await supabase
     .from('recurring_events')

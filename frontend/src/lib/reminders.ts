@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sanitizeDescription } from './validation';
 import type { EventReminder, ReminderChannel } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,12 +33,13 @@ export interface AddReminderOptions {
 }
 
 export async function addReminder(eventId: string, opts: AddReminderOptions): Promise<EventReminder> {
+  const safeMessage = opts.message ? sanitizeDescription(opts.message) : null;
   const { data, error } = await supabase
     .from('event_reminders')
     .insert({
       event_id: eventId,
-      offset_minutes: opts.offsetMinutes,
-      message: opts.message || null,
+      offset_minutes: Math.max(1, Math.round(opts.offsetMinutes)),
+      message: safeMessage,
       channel: opts.channel,
     })
     .select()

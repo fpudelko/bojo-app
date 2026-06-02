@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Field } from '@/types';
 import { getFields } from '@/lib/api';
 
-const POZNAN: [number, number] = [52.4064, 16.9252];
+const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 function pin(selected: boolean) {
@@ -40,7 +40,7 @@ export default function VenuePickerImpl({ selectedId, onSelect }: Props) {
   return (
     <MapContainer
       center={POZNAN}
-      zoom={12}
+      zoom={11}
       style={{ height: '100%', width: '100%', minHeight: '320px' }}
       zoomControl={false}
     >

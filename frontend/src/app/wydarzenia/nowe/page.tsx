@@ -74,6 +74,7 @@ function NewEventForm() {
   const [customLng, setCustomLng] = useState<number | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [locationConsent, setLocationConsent] = useState(false);
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('18:00');
@@ -153,6 +154,10 @@ function NewEventForm() {
     }
     if (locationMode !== 'venue' && customLat === null) {
       setError('Wskaż lokalizację na mapie lub wyszukaj adres.');
+      return;
+    }
+    if (locationMode !== 'venue' && customLat !== null && !locationConsent) {
+      setError('Zaznacz zgodę na zapisanie współrzędnych lokalizacji.');
       return;
     }
     if (!date) { setError('Podaj datę.'); return; }
@@ -354,6 +359,19 @@ function NewEventForm() {
                     </p>
                   )}
                 </div>
+                {/* Location consent — unchecked by default */}
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={locationConsent}
+                    onChange={(e) => setLocationConsent(e.target.checked)}
+                    className="mt-0.5 shrink-0 accent-primary-600"
+                  />
+                  <span className="text-xs text-gray-600 leading-relaxed">
+                    Wyrażam zgodę na zapisanie współrzędnych tej lokalizacji.
+                    Adres będzie widoczny dla uczestników wydarzenia.
+                  </span>
+                </label>
               </div>
             )}
 
@@ -387,6 +405,19 @@ function NewEventForm() {
                     <MapPin className="w-3 h-3" /> {customAddressInput || `${customLat.toFixed(5)}, ${customLng?.toFixed(5)}`}
                   </p>
                 )}
+                {/* Location consent — unchecked by default */}
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={locationConsent}
+                    onChange={(e) => setLocationConsent(e.target.checked)}
+                    className="mt-0.5 shrink-0 accent-primary-600"
+                  />
+                  <span className="text-xs text-gray-600 leading-relaxed">
+                    Wyrażam zgodę na zapisanie dokładnych współrzędnych wybranego miejsca.
+                    Będą widoczne dla uczestników wydarzenia.
+                  </span>
+                </label>
               </div>
             )}
           </div>

@@ -147,10 +147,13 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-gray-400 py-8 px-4">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-white font-medium">Bojo · Poznań i okolice</p>
-          <div className="flex gap-6 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm justify-center">
             <Link href="/mapa" className="hover:text-white transition-colors">Mapa boisk</Link>
             <Link href="/wydarzenia" className="hover:text-white transition-colors">Znajdź grę</Link>
             <Link href="/cykliczne" className="hover:text-white transition-colors">Stałe ekipy</Link>
+            <span className="text-gray-600 hidden md:inline">·</span>
+            <Link href="/prywatnosc" className="hover:text-white transition-colors text-gray-500">Prywatność</Link>
+            <Link href="/regulamin" className="hover:text-white transition-colors text-gray-500">Regulamin</Link>
           </div>
         </div>
       </footer>

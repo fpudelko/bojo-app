@@ -47,10 +47,53 @@ serve(async (req) => {
   try {
     const { type, eventId, participantId } = await req.json();
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // Verify caller is authenticated
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const anonKey    = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Verify JWT and get caller's user ID
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: caller }, error: authErr } = await callerClient.auth.getUser();
+    if (authErr || !caller) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Rate limit: max 30 SMS per hour per organizer
+    const { data: allowed } = await callerClient.rpc('check_rate_limit', {
+      p_action: 'send_sms',
+      p_max_per_hour: 30,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Verify caller is the organizer of this event
+    const { data: eventCheck } = await supabase
+      .from('events')
+      .select('organizer_id')
+      .eq('id', eventId)
+      .single();
+    if (!eventCheck || eventCheck.organizer_id !== caller.id) {
+      return new Response(JSON.stringify({ error: 'Forbidden: not the organizer' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const [{ data: participant }, { data: event }] = await Promise.all([
       supabase.from('event_participants').select('name, phone').eq('id', participantId).single(),
