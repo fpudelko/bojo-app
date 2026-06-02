@@ -1,6 +1,10 @@
 import { supabase } from './supabase';
 import type { EventCreate, EventItem, EventParticipant, Visibility } from '@/types';
 
+// ---------------------------------------------------------------------------
+// Row mappers
+// ---------------------------------------------------------------------------
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toEvent(row: any): EventItem {
   return {
@@ -31,9 +35,15 @@ function toParticipant(row: any): EventParticipant {
     userId: row.user_id ?? undefined,
     name: row.name,
     isGuest: row.is_guest,
+    hasPaid: row.has_paid ?? false,
+    isReserve: row.is_reserve ?? false,
     createdAt: row.created_at,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Events — CRUD
+// ---------------------------------------------------------------------------
 
 export async function createEvent(
   data: EventCreate,
@@ -63,15 +73,37 @@ export async function createEvent(
 
   if (error) throw new Error(error.message);
 
-  // Organiser automatically joins their own event.
   await supabase.from('event_participants').insert({
     event_id: row.id,
     user_id: organizerId,
     name: organizerName,
     is_guest: false,
+    is_reserve: false,
   });
 
   return row.id as string;
+}
+
+export async function updateEvent(id: string, data: EventCreate): Promise<void> {
+  const { error } = await supabase
+    .from('events')
+    .update({
+      sport: data.sport,
+      field_id: data.fieldId ?? null,
+      field_name: data.fieldName,
+      lat: data.lat ?? null,
+      lng: data.lng ?? null,
+      title: data.title ?? null,
+      description: data.description ?? null,
+      event_date: data.date,
+      event_time: data.time,
+      end_time: data.endTime ?? null,
+      max_players: data.maxPlayers,
+      visibility: data.visibility,
+    })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function getEvent(
@@ -88,6 +120,7 @@ export async function getEvent(
     .from('event_participants')
     .select('*')
     .eq('event_id', id)
+    .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });
   if (pErr) throw new Error(pErr.message);
 
@@ -118,28 +151,77 @@ export async function getPublicEvents(): Promise<EventItem[]> {
   return (data ?? []).map(toEvent);
 }
 
+// ---------------------------------------------------------------------------
+// Participants
+// ---------------------------------------------------------------------------
+
 export async function joinEvent(eventId: string, userId: string, name: string): Promise<void> {
+  // Check if event is full (non-reserve count vs max_players)
+  const [{ data: ev }, { count }] = await Promise.all([
+    supabase.from('events').select('max_players').eq('id', eventId).single(),
+    supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('is_reserve', false),
+  ]);
+
+  const isReserve = (count ?? 0) >= (ev?.max_players ?? 999);
+
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: userId,
     name,
     is_guest: false,
+    is_reserve: isReserve,
   });
   if (error) throw new Error(error.message);
 }
 
-export async function addGuest(eventId: string, name: string): Promise<void> {
+export async function addGuest(eventId: string, name: string, isReserve = false): Promise<void> {
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: null,
     name,
     is_guest: true,
+    is_reserve: isReserve,
   });
   if (error) throw new Error(error.message);
 }
 
 export async function removeParticipant(participantId: string): Promise<void> {
+  // Fetch before delete to know if we should promote a reserve
+  const { data: p } = await supabase
+    .from('event_participants')
+    .select('event_id, is_reserve')
+    .eq('id', participantId)
+    .single();
+
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
+  if (error) throw new Error(error.message);
+
+  // Promote first reserve when a non-reserve slot opens up
+  if (p && !p.is_reserve) {
+    const { data: first } = await supabase
+      .from('event_participants')
+      .select('id')
+      .eq('event_id', p.event_id)
+      .eq('is_reserve', true)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (first) {
+      await supabase.from('event_participants').update({ is_reserve: false }).eq('id', first.id);
+    }
+  }
+}
+
+export async function togglePayment(participantId: string, hasPaid: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ has_paid: hasPaid })
+    .eq('id', participantId);
   if (error) throw new Error(error.message);
 }
 

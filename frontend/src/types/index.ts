@@ -64,6 +64,8 @@ export interface EventParticipant {
   userId?: string;
   name: string;
   isGuest: boolean;
+  hasPaid: boolean;
+  isReserve: boolean;
   createdAt: string;
 }
 

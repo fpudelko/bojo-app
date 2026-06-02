@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 interface AuthContextValue {
@@ -9,6 +9,7 @@ interface AuthContextValue {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -16,15 +17,17 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  updateDisplayName: async () => {},
 });
 
-/** Human-readable name for a Supabase user (Google full name, else email). */
+/** Preferred display name: custom → Google full name → email → fallback. */
 export function displayName(user: User | null): string {
   if (!user) return '';
   return (
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
-    user.email ??
+    (user.user_metadata?.display_name as string | undefined) ||
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
+    user.email ||
     'Gracz'
   );
 }
@@ -57,8 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const updateDisplayName = async (name: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { display_name: name.trim() },
+    });
+    if (error) throw new Error(error.message);
+    setUser(data.user);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut, updateDisplayName }}>
       {children}
     </AuthContext.Provider>
   );

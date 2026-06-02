@@ -17,16 +17,16 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'Boiska Poznań | Znajdź boisko w Poznaniu',
-    template: '%s | Boiska Poznań',
+    default: 'Zagrajmy — znajdź grę, zbierz skład',
+    template: '%s | Zagrajmy',
   },
   description:
-    'Agregator boisk sportowych w Poznaniu. Znajdź boisko piłkarskie, kort tenisowy, boisko do koszykówki i siatkówki. Szukaj graczy do wspólnej gry.',
-  keywords: ['boiska Poznań', 'sporty Poznań', 'piłka nożna', 'koszykówka', 'tenis', 'siatkówka'],
-  authors: [{ name: 'Boiska Poznań' }],
+    'Organizuj mecze i zbieraj skład w Poznaniu. Znajdź boisko, stwórz wydarzenie, zaproś znajomych linkiem. Piłka nożna, koszykówka, siatkówka, futsal i więcej.',
+  keywords: ['organizuj mecz Poznań', 'szukam graczy Poznań', 'boiska sportowe Poznań', 'piłka nożna', 'koszykówka'],
+  authors: [{ name: 'Zagrajmy' }],
   openGraph: {
-    title: 'Boiska Poznań',
-    description: 'Znajdź boisko sportowe w Poznaniu i szukaj graczy do gry.',
+    title: 'Zagrajmy',
+    description: 'Znajdź grę. Zbierz skład. Organizuj mecze w Poznaniu.',
     locale: 'pl_PL',
     type: 'website',
   },
