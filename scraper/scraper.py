@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-POZNAN_BBOX = (52.25, 16.60, 52.60, 17.20)
+POZNAN_BBOX = (52.20, 16.40, 52.65, 17.35)  # south, west, north, east — Poznań + szeroko okolice
 POZNAN_CENTER = "52.4064,16.9252"
 
 OVERPASS_URLS = [
@@ -27,21 +27,48 @@ GOOGLE_PLACES_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 
 SPORT_QUERIES = [
     "boisko piłka nożna Poznań",
-    "kort tenisowy Poznań",
     "boisko koszykówka Poznań",
-    "siłownia zewnętrzna Poznań",
     "boisko siatkówka Poznań",
+    "boisko futsal Poznań",
+    "hala sportowa Poznań",
 ]
+
+# Team/group sports only — individual sports (tennis, athletics, golf, cycling…)
+# are filtered out in normalize_osm_element.
+TEAM_SPORTS = {
+    "soccer",
+    "football",
+    "basketball",
+    "volleyball",
+    "futsal",
+    "handball",
+    "team_handball",
+    "rugby",
+    "hockey",
+    "field_hockey",
+    "ice_hockey",
+    "american_football",
+    "baseball",
+    "cricket",
+    "multi",
+}
 
 OSM_SPORT_MAP = {
     "soccer": "piłka nożna",
     "football": "piłka nożna",
     "basketball": "koszykówka",
     "volleyball": "siatkówka",
-    "tennis": "tenis",
     "futsal": "futsal",
+    "handball": "piłka ręczna",
+    "team_handball": "piłka ręczna",
+    "rugby": "rugby",
+    "hockey": "hokej",
+    "field_hockey": "hokej na trawie",
+    "ice_hockey": "hokej",
+    "american_football": "futbol amerykański",
+    "baseball": "baseball",
+    "cricket": "krykiet",
     "multi": "wielofunkcyjne",
-    "athletics": "lekkoatletyka",
 }
 
 SURFACE_MAP = {
@@ -56,7 +83,50 @@ SURFACE_MAP = {
     "concrete": "concrete",
     "clay": "clay",
     "compacted": "concrete",
+    "paving_stones": "concrete",
+    "rubber": "hardcourt",
+    "synthetic": "artificial",
+    "wood": "hardcourt",
 }
+
+# Polish display labels for descriptive names of unnamed OSM pitches
+SURFACE_DISPLAY = {
+    "grass": "trawa naturalna",
+    "artificial": "sztuczna trawa",
+    "hardcourt": "tartan / asfalt",
+    "clay": "mączka ceglana",
+    "concrete": "beton",
+}
+
+
+def build_osm_name(
+    tags: dict[str, str],
+    sport_pl: str,
+    surface_normalized: str,
+) -> str:
+    """
+    Human-readable name for an OSM element. Falls back to a descriptive name
+    built from sport + surface when there is no explicit name tag.
+    """
+    explicit = (
+        tags.get("name")
+        or tags.get("name:pl")
+        or tags.get("official_name")
+        or tags.get("operator")
+    )
+    if explicit:
+        return explicit
+
+    if sport_pl and sport_pl not in ("inne", "wielofunkcyjne"):
+        parts = [f"Boisko — {sport_pl}"]
+    else:
+        parts = ["Boisko sportowe"]
+
+    surface_label = SURFACE_DISPLAY.get(surface_normalized, "")
+    if surface_label:
+        parts.append(surface_label)
+
+    return " · ".join(parts)
 
 
 def split_bbox(
@@ -177,19 +247,18 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     if lat is None or lng is None:
         return None
 
+    # Filter: keep only team/group sports. Untagged pitches are kept as
+    # multi-sport (they're usually orliki / boiska wielofunkcyjne).
     sport_raw = tags.get("sport", "").lower()
-    sport_pl = OSM_SPORT_MAP.get(sport_raw, "inne")
+    if sport_raw and sport_raw not in TEAM_SPORTS:
+        return None
 
-    name = (
-        tags.get("name")
-        or tags.get("name:pl")
-        or tags.get("operator")
-        or tags.get("ref")
-        or f"Boisko OSM #{element.get('id', '')}"
-    )
+    sport_pl = OSM_SPORT_MAP.get(sport_raw, "wielofunkcyjne" if not sport_raw else "inne")
 
     surface_raw = tags.get("surface", "").lower()
     surface = SURFACE_MAP.get(surface_raw, "")
+
+    name = build_osm_name(tags, sport_pl, surface)
 
     is_indoor = tags.get("indoor", "no").lower() in ("yes", "true", "1")
     if tags.get("building"):

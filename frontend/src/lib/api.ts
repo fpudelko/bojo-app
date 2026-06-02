@@ -49,8 +49,8 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
   if (filters?.sport) {
     query = query.contains('sport', [filters.sport]);
   }
-  if (filters?.available !== undefined) {
-    query = query.eq('available', filters.available);
+  if (filters?.available) {
+    query = query.eq('available', true);
   }
   if (filters?.limit !== undefined) {
     const from = filters.offset ?? 0;

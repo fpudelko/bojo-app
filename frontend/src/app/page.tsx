@@ -38,11 +38,11 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6">
-            Organizuj gry w Poznaniu
+            Znajdź grę. Zbierz skład.
           </h1>
           <p className="text-lg sm:text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-            Zamiast wydarzeń na Facebooku — stwórz mecz, wybierz boisko na mapie i zaproś
-            znajomych linkiem. Brakuje ludzi? Upublicznij i znajdź graczy.
+            Stwórz mecz, wybierz boisko na mapie i zaproś znajomych linkiem.
+            Brakuje ludzi? Upublicznij i dograj skład.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/wydarzenia/nowe">
