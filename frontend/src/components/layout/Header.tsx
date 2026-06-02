@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, Plus, LogOut } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName } from '@/lib/auth';
 
@@ -11,6 +11,24 @@ const NAV_LINKS = [
   { href: '/mapa', label: 'Mapa' },
   { href: '/wydarzenia', label: 'Wydarzenia' },
 ];
+
+/** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
+function TeamIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 30" fill="none" className={className} aria-hidden="true">
+      {/* Players */}
+      <circle cx="16" cy="3.5" r="3.5" fill="currentColor" />
+      <circle cx="4"  cy="25"  r="3.5" fill="currentColor" />
+      <circle cx="28" cy="25"  r="3.5" fill="currentColor" />
+      {/* Pass lines */}
+      <line x1="13.5" y1="6.5"  x2="6.5"  y2="22"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
+      <line x1="18.5" y1="6.5"  x2="25.5" y2="22"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
+      <line x1="7.5"  y1="25"   x2="24.5" y2="25"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
+      {/* Ball */}
+      <circle cx="16" cy="15" r="2.5" fill="currentColor" opacity="0.45" />
+    </svg>
+  );
+}
 
 function GoogleIcon() {
   return (
@@ -32,12 +50,13 @@ export default function Header() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-[60]">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
+
           <Link
             href="/"
             className="flex items-center gap-2 font-bold text-gray-900 text-lg hover:text-primary-700 transition-colors"
           >
-            <span className="text-2xl" role="img" aria-label="piłka nożna">⚽</span>
-            <span>Boiska Poznań</span>
+            <TeamIcon className="w-7 h-7 text-primary-600" />
+            <span>Zagrajmy</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
@@ -57,7 +76,6 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Auth area (desktop) */}
           <div className="hidden md:flex items-center gap-3">
             {!loading && user && (
               <>
@@ -67,9 +85,14 @@ export default function Header() {
                 >
                   <Plus className="w-4 h-4" /> Wydarzenie
                 </Link>
-                <span className="text-sm text-gray-600 max-w-[140px] truncate">
+                <Link
+                  href="/profil"
+                  className="text-sm text-gray-600 hover:text-gray-900 max-w-[140px] truncate flex items-center gap-1.5"
+                  title="Edytuj profil"
+                >
+                  <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />
                   {displayName(user)}
-                </span>
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
@@ -130,7 +153,13 @@ export default function Header() {
                   >
                     <Plus className="w-4 h-4" /> Stwórz wydarzenie
                   </Link>
-                  <div className="px-4 py-2 text-xs text-gray-500">{displayName(user)}</div>
+                  <Link
+                    href="/profil"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    <User className="w-4 h-4" /> {displayName(user)}
+                  </Link>
                   <button
                     onClick={() => { setMobileOpen(false); signOut(); }}
                     className="flex w-full items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
