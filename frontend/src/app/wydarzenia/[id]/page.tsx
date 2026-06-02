@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
-  Check, X, Pencil, Banknote, Shuffle,
+  Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -15,9 +15,17 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { venueThumbnail } from '@/lib/labels';
 import {
-  getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent, togglePayment,
+  getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
 } from '@/lib/events';
-import type { EventItem, EventParticipant } from '@/types';
+import {
+  updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
+  sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
+  getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
+  TEAM_MODE_LABELS,
+} from '@/lib/eventFeatures';
+import type {
+  EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
+} from '@/types';
 
 const SPORT_EMOJI: Record<string, string> = {
   'piłka nożna': '⚽', koszykówka: '🏀', siatkówka: '🏐',
@@ -29,6 +37,30 @@ const TEAM_COLORS = [
   { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
 ];
 
+const STATUS_LABELS: Record<ParticipantStatus, string> = {
+  zaproszony: 'Zaproszony',
+  potwierdzony: 'Potwierdzony',
+  odrzucony: 'Odrzucił',
+  brak_odpowiedzi: 'Brak odp.',
+};
+const STATUS_CLS: Record<ParticipantStatus, string> = {
+  zaproszony: 'bg-yellow-100 text-yellow-700',
+  potwierdzony: 'bg-green-100 text-green-700',
+  odrzucony: 'bg-red-100 text-red-700',
+  brak_odpowiedzi: 'bg-gray-100 text-gray-500',
+};
+const NEXT_STATUS: Record<ParticipantStatus, ParticipantStatus> = {
+  zaproszony: 'potwierdzony',
+  potwierdzony: 'brak_odpowiedzi',
+  brak_odpowiedzi: 'odrzucony',
+  odrzucony: 'zaproszony',
+};
+const REPORT_TYPES: { value: ReportType; label: string }[] = [
+  { value: 'nie_przyszedl', label: 'Nie przyszedł' },
+  { value: 'niesportowe_zachowanie', label: 'Niesportowe zachowanie' },
+  { value: 'inne', label: 'Inne' },
+];
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -37,34 +69,17 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
-
 function splitTeams(players: EventParticipant[]): [EventParticipant[], EventParticipant[]] {
-  const shuffled = shuffle(players);
-  const mid = Math.ceil(shuffled.length / 2);
-  return [shuffled.slice(0, mid), shuffled.slice(mid)];
+  const s = shuffle(players);
+  const mid = Math.ceil(s.length / 2);
+  return [s.slice(0, mid), s.slice(mid)];
 }
 
-function StatusBadge({ regulars, max }: { regulars: number; max: number }) {
+function SpotsBadge({ regulars, max }: { regulars: number; max: number }) {
   const left = max - regulars;
-  if (left <= 0) {
-    return (
-      <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-red-100 text-red-700">
-        Pełne
-      </span>
-    );
-  }
-  if (left <= 3) {
-    return (
-      <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">
-        Brakuje {left}
-      </span>
-    );
-  }
-  return (
-    <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-green-100 text-green-700">
-      Wolne
-    </span>
-  );
+  if (left <= 0) return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-red-100 text-red-700">Pełne</span>;
+  if (left <= 3) return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">Brakuje {left}</span>;
+  return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-green-100 text-green-700">Wolne</span>;
 }
 
 export default function EventDetailPage() {
@@ -78,21 +93,43 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [smsBusy, setSmsBusy] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [copied, setCopied] = useState(false);
-  const [teams, setTeams] = useState<[EventParticipant[], EventParticipant[]] | null>(null);
+  // Legacy client-side teams (teamMode === 'brak' only)
+  const [localTeams, setLocalTeams] = useState<[EventParticipant[], EventParticipant[]] | null>(null);
+  // Match data
+  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
+  const [playerGoals, setPlayerGoals] = useState<PlayerGoal[]>([]);
+  const [scoreA, setScoreA] = useState('');
+  const [scoreB, setScoreB] = useState('');
+  const [savingResult, setSavingResult] = useState(false);
+  // Report
+  const [reportTarget, setReportTarget] = useState<EventParticipant | null>(null);
+  const [reportType, setReportType] = useState<ReportType>('nie_przyszedl');
+  const [reportComment, setReportComment] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+
+  const loadMatchData = useCallback(async (ev: EventItem) => {
+    if (!ev.trackResults) return;
+    const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
+    setMatchResult(result);
+    if (result) { setScoreA(String(result.scoreA)); setScoreB(String(result.scoreB)); }
+    setPlayerGoals(goals);
+  }, []);
 
   const load = useCallback(async () => {
     try {
       const { event: ev, participants: parts } = await getEvent(id);
       setEvent(ev);
       setParticipants(parts);
+      await loadMatchData(ev);
     } catch {
       setNotFound(true);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, loadMatchData]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -106,7 +143,6 @@ export default function EventDetailPage() {
       </div>
     );
   }
-
   if (notFound || !event) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -126,64 +162,108 @@ export default function EventDetailPage() {
   const reserves = participants.filter((p) => p.isReserve);
   const myParticipation = participants.find((p) => p.userId && p.userId === user?.id);
   const isFull = regulars.length >= event.maxPlayers;
+  const showStatus = event.trackAttendance || event.requireSmsConfirmation;
+  const showTeams = event.teamMode !== 'brak';
+  const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
+  const goalsMap: Record<string, number> = {};
+  for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
+  const teamA = regulars.filter((p) => p.team === 'A');
+  const teamB = regulars.filter((p) => p.team === 'B');
+  const unassigned = regulars.filter((p) => !p.team);
 
   let dateStr = event.date;
   try { dateStr = format(parseISO(event.date), 'EEEE, d MMMM yyyy', { locale: pl }); } catch {}
 
+  // Handlers
   const handleJoin = async () => {
     if (!user) return;
     setBusy(true);
-    try {
-      await joinEvent(event.id, user.id, displayName(user));
-      await load();
-    } catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    try { await joinEvent(event.id, user.id, displayName(user)); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
 
   const handleAddGuest = async () => {
     if (!guestName.trim()) return;
     setBusy(true);
-    try {
-      await addGuest(event.id, guestName.trim());
-      setGuestName('');
-      await load();
-    } catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    try { await addGuest(event.id, guestName.trim()); setGuestName(''); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
 
   const handleRemove = async (participantId: string) => {
     setBusy(true);
-    try { await removeParticipant(participantId); await load(); setTeams(null); }
+    try { await removeParticipant(participantId); await load(); setLocalTeams(null); }
     catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
 
   const handleTogglePayment = async (p: EventParticipant) => {
+    if (!isOrganizer) return;
     setBusy(true);
-    try { await togglePayment(p.id, !p.hasPaid); await load(); }
+    try {
+      await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? event.costGrosze : 0);
+      await load();
+    }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleStatusCycle = async (p: EventParticipant) => {
+    if (!isOrganizer) return;
+    setBusy(true);
+    try { await updateParticipantStatus(p.id, NEXT_STATUS[p.status]); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleSendSms = async (p: EventParticipant) => {
+    setSmsBusy(p.id);
+    try { await sendConfirmationSms(event.id, p.id); alert(`SMS wysłany do ${p.name}`); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd SMS'); }
+    finally { setSmsBusy(null); }
+  };
+
+  const handleAssignTeam = async (participantId: string, team: 'A' | 'B' | null) => {
+    setBusy(true);
+    try { await updateParticipantTeam(participantId, team); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleAssignRandom = async () => {
+    setBusy(true);
+    try { await assignTeamsRandomly(event.id, regulars.map((p) => p.id)); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleClearTeams = async () => {
+    setBusy(true);
+    try { await clearTeamsDb(event.id); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleToggleCaptain = async (p: EventParticipant) => {
+    setBusy(true);
+    try { await setCaptain(p.id, !p.isCaptain); await load(); }
     catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
 
   const handleToggleVisibility = async () => {
     setBusy(true);
-    try {
-      await setVisibility(event.id, event.visibility === 'public' ? 'private' : 'public');
-      await load();
-    } catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    try { await setVisibility(event.id, event.visibility === 'public' ? 'private' : 'public'); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
 
   const handleShare = async () => {
     const url = window.location.href;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: event.title || event.sport, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
+      if (navigator.share) { await navigator.share({ title: event.title || event.sport, url }); }
+      else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
     } catch { /* user cancelled */ }
   };
 
@@ -194,9 +274,45 @@ export default function EventDetailPage() {
     catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); setBusy(false); }
   };
 
-  const handleDrawTeams = () => {
-    setTeams(splitTeams(regulars));
+  const handleSaveResult = async () => {
+    if (!user) return;
+    const a = parseInt(scoreA, 10);
+    const b = parseInt(scoreB, 10);
+    if (isNaN(a) || isNaN(b) || a < 0 || b < 0) return;
+    setSavingResult(true);
+    try { await saveMatchResult(event.id, a, b, user.id); await loadMatchData(event); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setSavingResult(false); }
   };
+
+  const handleSetGoals = async (participantId: string, goals: number) => {
+    const g = Math.max(0, goals);
+    try {
+      await savePlayerGoals(event.id, participantId, g);
+      setPlayerGoals((prev) => {
+        if (g <= 0) return prev.filter((x) => x.participantId !== participantId);
+        const existing = prev.find((x) => x.participantId === participantId);
+        if (existing) return prev.map((x) => x.participantId === participantId ? { ...x, goals: g } : x);
+        return [...prev, { id: '', eventId: event.id, participantId, participantName: '', goals: g }];
+      });
+    }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportTarget) return;
+    setReportBusy(true);
+    try {
+      await submitReport(event.id, reportTarget.id, reportType, user?.id, reportComment || undefined);
+      setReportTarget(null);
+      setReportComment('');
+      alert('Zgłoszenie wysłane.');
+    }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setReportBusy(false); }
+  };
+
+  const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -207,11 +323,7 @@ export default function EventDetailPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {venueThumbnail(event.lat, event.lng, 600, 200) && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={venueThumbnail(event.lat, event.lng, 600, 200)!}
-              alt={event.fieldName}
-              className="w-full h-40 object-cover"
-            />
+            <img src={venueThumbnail(event.lat, event.lng, 600, 200)!} alt={event.fieldName} className="w-full h-40 object-cover" />
           )}
           <div className="p-6">
             <div className="flex items-start gap-3">
@@ -229,7 +341,7 @@ export default function EventDetailPage() {
                     ? <><Globe className="w-3 h-3" /> Publiczne</>
                     : <><Lock className="w-3 h-3" /> Prywatne</>}
                 </span>
-                <StatusBadge regulars={regulars.length} max={event.maxPlayers} />
+                <SpotsBadge regulars={regulars.length} max={event.maxPlayers} />
               </div>
             </div>
 
@@ -246,6 +358,12 @@ export default function EventDetailPage() {
               <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
                 <MapPin className="w-4 h-4 text-gray-400 shrink-0" /> {event.fieldName}
               </div>
+              {costPln && (
+                <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
+                  <Banknote className="w-4 h-4 text-gray-400" />
+                  Koszt: {costPln} PLN / os.
+                </div>
+              )}
             </div>
 
             {event.description && (
@@ -257,10 +375,7 @@ export default function EventDetailPage() {
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-gray-400">Organizator: {event.organizerName}</p>
               {isOrganizer && (
-                <Link
-                  href={`/wydarzenia/${event.id}/edytuj`}
-                  className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                >
+                <Link href={`/wydarzenia/${event.id}/edytuj`} className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium">
                   <Pencil className="w-3.5 h-3.5" /> Edytuj
                 </Link>
               )}
@@ -284,41 +399,91 @@ export default function EventDetailPage() {
 
           <ul className="divide-y divide-gray-100">
             {regulars.map((p) => (
-              <li key={p.id} className="flex items-center justify-between py-2.5">
-                <span className="flex items-center gap-2 text-sm text-gray-800">
+              <li key={p.id} className="py-2.5">
+                <div className="flex items-center gap-2">
+                  {/* Avatar */}
                   {p.avatarUrl
                     ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
                     : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                   }
-                  <span className="truncate max-w-[160px]">{p.name}</span>
-                  {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
-                  {p.userId === event.organizerId && (
-                    <span className="text-xs text-primary-600 shrink-0">• organizator</span>
-                  )}
-                </span>
-                <div className="flex items-center gap-1 shrink-0">
-                  {isOrganizer && (
-                    <button
-                      onClick={() => handleTogglePayment(p)} disabled={busy}
-                      title={p.hasPaid ? 'Oznacz jako nieopłacone' : 'Oznacz jako opłacone'}
-                      className={[
-                        'p-1.5 rounded transition-colors',
-                        p.hasPaid ? 'text-green-600 hover:text-green-700' : 'text-gray-300 hover:text-gray-500',
-                      ].join(' ')}
-                      aria-label={p.hasPaid ? 'Opłacone' : 'Nieopłacone'}
-                    >
-                      <Banknote className="w-4 h-4" />
-                    </button>
-                  )}
-                  {(isOrganizer || p.userId === user?.id) && p.userId !== event.organizerId && (
-                    <button
-                      onClick={() => handleRemove(p.id)} disabled={busy}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                      aria-label="Usuń uczestnika"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+
+                  {/* Name + badges */}
+                  <span className="flex-1 flex items-center gap-1.5 text-sm text-gray-800 min-w-0">
+                    <span className="truncate max-w-[120px]">{p.name}</span>
+                    {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
+                    {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
+                    {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                    {showTeams && p.team && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {p.team}
+                      </span>
+                    )}
+                  </span>
+
+                  {/* Controls */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Status badge (organizer clicks to cycle) */}
+                    {showStatus && (
+                      <button
+                        onClick={() => handleStatusCycle(p)}
+                        disabled={busy || !isOrganizer}
+                        className={`text-xs px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${STATUS_CLS[p.status]} ${isOrganizer ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                        title={isOrganizer ? 'Kliknij aby zmienić status' : STATUS_LABELS[p.status]}
+                      >
+                        {STATUS_LABELS[p.status]}
+                      </button>
+                    )}
+
+                    {/* SMS button */}
+                    {event.requireSmsConfirmation && isOrganizer && p.phone && (
+                      <button
+                        onClick={() => handleSendSms(p)}
+                        disabled={smsBusy === p.id}
+                        className="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                        title="Wyślij SMS z potwierdzeniem"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Payment (trackPayments on) */}
+                    {event.trackPayments && (isOrganizer || event.showPaymentStatus) && (
+                      <button
+                        onClick={() => handleTogglePayment(p)}
+                        disabled={busy || !isOrganizer}
+                        title={p.hasPaid ? 'Opłacone' : 'Nieopłacone'}
+                        className={[
+                          'p-1.5 rounded transition-colors',
+                          p.hasPaid ? 'text-green-600 hover:text-green-700' : 'text-gray-300 hover:text-gray-500',
+                          !isOrganizer ? 'cursor-default' : '',
+                        ].join(' ')}
+                      >
+                        <Banknote className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Report button (for other logged-in participants) */}
+                    {user && !isOrganizer && p.userId !== user.id && (
+                      <button
+                        onClick={() => setReportTarget(p)}
+                        className="p-1.5 text-gray-200 hover:text-red-400 rounded"
+                        title="Zgłoś uczestnika"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Remove */}
+                    {(isOrganizer || p.userId === user?.id) && p.userId !== event.organizerId && (
+                      <button
+                        onClick={() => handleRemove(p.id)} disabled={busy}
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                        aria-label="Usuń uczestnika"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
@@ -327,7 +492,7 @@ export default function EventDetailPage() {
             )}
           </ul>
 
-          {/* Organizer: add guest */}
+          {/* Add guest */}
           {isOrganizer && (
             <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
               <input
@@ -355,18 +520,12 @@ export default function EventDetailPage() {
               {reserves.map((p, i) => (
                 <li key={p.id} className="flex items-center justify-between py-2.5">
                   <span className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-medium shrink-0">
-                      {i + 1}
-                    </span>
+                    <span className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
                     <span className="truncate max-w-[160px]">{p.name}</span>
                     {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
                   </span>
                   {(isOrganizer || p.userId === user?.id) && (
-                    <button
-                      onClick={() => handleRemove(p.id)} disabled={busy}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                      aria-label="Usuń z rezerwy"
-                    >
+                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-gray-400 hover:text-red-500 rounded">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -376,27 +535,117 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Team draw */}
-        {regulars.length >= 2 && (
+        {/* DB-persisted teams (when teamMode !== 'brak') */}
+        {showTeams && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Shuffle className="w-4 h-4" />
+                Składy
+                <span className="text-xs font-normal text-gray-500">({TEAM_MODE_LABELS[event.teamMode]})</span>
+              </h2>
+              {isOrganizer && (
+                <div className="flex gap-2">
+                  {event.teamMode === 'losowe' && (
+                    <Button variant="outline" size="sm" onClick={handleAssignRandom} disabled={busy}>
+                      Losuj
+                    </Button>
+                  )}
+                  {(teamA.length > 0 || teamB.length > 0) && (
+                    <Button variant="outline" size="sm" onClick={handleClearTeams} disabled={busy}>
+                      Wyczyść
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {([teamA, teamB] as [EventParticipant[], EventParticipant[]]).map((team, ti) => {
+                const c = TEAM_COLORS[ti];
+                const label = ti === 0 ? 'A' : 'B';
+                const other = ti === 0 ? 'B' : 'A';
+                return (
+                  <div key={ti} className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
+                    <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>Drużyna {label}</p>
+                    <ul className="space-y-1.5">
+                      {team.map((p) => (
+                        <li key={p.id} className="flex items-center justify-between gap-1">
+                          <span className="flex items-center gap-1 text-sm text-gray-800 min-w-0">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
+                            <span className="truncate">{p.name}</span>
+                            {p.isCaptain && <Star className="w-3 h-3 text-amber-500 shrink-0" />}
+                          </span>
+                          {isOrganizer && (
+                            <div className="flex gap-1 shrink-0">
+                              {canManualAssign && (
+                                <button
+                                  onClick={() => handleAssignTeam(p.id, other as 'A' | 'B')}
+                                  disabled={busy}
+                                  className="text-xs text-gray-400 hover:text-gray-700 font-medium"
+                                  title={`Przenieś do drużyny ${other}`}
+                                >→{other}</button>
+                              )}
+                              {event.teamMode === 'kapitanowie' && (
+                                <button
+                                  onClick={() => handleToggleCaptain(p)}
+                                  disabled={busy}
+                                  className={`${p.isCaptain ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}
+                                  title={p.isCaptain ? 'Usuń kapitana' : 'Ustaw kapitana'}
+                                >
+                                  <Star className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                      {team.length === 0 && <li className="text-xs text-gray-400 italic">Brak graczy</li>}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+
+            {unassigned.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-2">Nieprzypisani ({unassigned.length}):</p>
+                <div className="flex flex-wrap gap-2">
+                  {unassigned.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1 text-sm text-gray-700 border border-gray-200">
+                      <span>{p.name}</span>
+                      {isOrganizer && canManualAssign && (
+                        <>
+                          <button onClick={() => handleAssignTeam(p.id, 'A')} disabled={busy} className="text-xs text-blue-600 hover:text-blue-800 font-bold">A</button>
+                          <button onClick={() => handleAssignTeam(p.id, 'B')} disabled={busy} className="text-xs text-orange-600 hover:text-orange-800 font-bold">B</button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Legacy client-side shuffle (teamMode === 'brak') */}
+        {!showTeams && regulars.length >= 2 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Shuffle className="w-4 h-4" /> Składy
               </h2>
-              <Button variant="outline" onClick={handleDrawTeams} disabled={busy}>
-                {teams ? 'Losuj ponownie' : 'Losuj składy'}
+              <Button variant="outline" onClick={() => setLocalTeams(splitTeams(regulars))} disabled={busy}>
+                {localTeams ? 'Losuj ponownie' : 'Losuj składy'}
               </Button>
             </div>
-
-            {teams && (
+            {localTeams ? (
               <div className="grid grid-cols-2 gap-3">
-                {teams.map((team, ti) => {
+                {localTeams.map((team, ti) => {
                   const c = TEAM_COLORS[ti];
                   return (
                     <div key={ti} className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
-                      <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>
-                        Drużyna {ti + 1}
-                      </p>
+                      <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>Drużyna {ti + 1}</p>
                       <ul className="space-y-1">
                         {team.map((p) => (
                           <li key={p.id} className="flex items-center gap-1.5 text-sm text-gray-800">
@@ -409,9 +658,7 @@ export default function EventDetailPage() {
                   );
                 })}
               </div>
-            )}
-
-            {!teams && (
+            ) : (
               <p className="text-sm text-gray-400 text-center py-2">
                 Kliknij przycisk, aby podzielić {regulars.length} graczy losowo.
               </p>
@@ -419,18 +666,93 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        {/* Match results (trackResults) */}
+        {event.trackResults && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <Trophy className="w-4 h-4" /> Wynik meczu
+            </h2>
+
+            {matchResult && (
+              <div className="text-center py-2 mb-4">
+                <p className="text-3xl font-bold text-gray-900 tracking-tight">
+                  {matchResult.scoreA} — {matchResult.scoreB}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Drużyna A · Drużyna B</p>
+              </div>
+            )}
+
+            {isOrganizer && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">{matchResult ? 'Zaktualizuj wynik:' : 'Wpisz wynik:'}</p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number" min={0} max={99} value={scoreA}
+                    onChange={(e) => setScoreA(e.target.value)}
+                    className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="A"
+                  />
+                  <span className="text-gray-400 font-bold text-xl">—</span>
+                  <input
+                    type="number" min={0} max={99} value={scoreB}
+                    onChange={(e) => setScoreB(e.target.value)}
+                    className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="B"
+                  />
+                  <Button variant="outline" onClick={handleSaveResult} isLoading={savingResult} disabled={!scoreA || !scoreB}>
+                    Zapisz
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!matchResult && !isOrganizer && (
+              <p className="text-sm text-gray-400 text-center py-2">Wynik nie został jeszcze wpisany.</p>
+            )}
+
+            {/* Player goals */}
+            {regulars.length > 0 && (matchResult || isOrganizer) && (
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-sm font-medium text-gray-700 mb-3">Bramki:</p>
+                <ul className="space-y-2">
+                  {regulars.map((p) => {
+                    const g = goalsMap[p.id] ?? 0;
+                    return (
+                      <li key={p.id} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">{p.name}</span>
+                        {isOrganizer ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleSetGoals(p.id, g - 1)} disabled={g === 0}
+                              className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 text-base"
+                            >−</button>
+                            <span className="text-sm font-semibold w-4 text-center">{g}</span>
+                            <button
+                              onClick={() => handleSetGoals(p.id, g + 1)}
+                              className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 text-base"
+                            >+</button>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium text-gray-800">
+                            {g > 0 ? `${g} ${g === 1 ? 'gol' : g < 5 ? 'gole' : 'goli'}` : '—'}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
-          {/* Join / reserve / status for logged-in non-organizer */}
           {user && !myParticipation && !isFull && (
-            <Button onClick={handleJoin} isLoading={busy} className="w-full" size="lg">
-              Dołącz do gry
-            </Button>
+            <Button onClick={handleJoin} isLoading={busy} className="w-full" size="lg">Dołącz do gry</Button>
           )}
           {user && !myParticipation && isFull && (
-            <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full" size="lg">
-              Zapisz się na listę rezerwową
-            </Button>
+            <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full" size="lg">Zapisz się na listę rezerwową</Button>
           )}
           {user && myParticipation && !myParticipation.isReserve && !isOrganizer && (
             <div className="flex items-center justify-center gap-2 text-green-700 text-sm font-medium py-2">
@@ -443,19 +765,13 @@ export default function EventDetailPage() {
             </div>
           )}
           {!authLoading && !user && (
-            <Button onClick={() => signInWithGoogle()} variant="outline" className="w-full">
-              Zaloguj się, aby dołączyć
-            </Button>
+            <Button onClick={() => signInWithGoogle()} variant="outline" className="w-full">Zaloguj się, aby dołączyć</Button>
           )}
 
-          {/* Share */}
           <Button onClick={handleShare} variant="outline" className="w-full">
-            {copied
-              ? <><Check className="w-4 h-4" /> Skopiowano link</>
-              : <><Share2 className="w-4 h-4" /> Udostępnij</>}
+            {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Udostępnij</>}
           </Button>
 
-          {/* Organizer controls */}
           {isOrganizer && (
             <div className="pt-3 border-t border-gray-100 space-y-3">
               <button
@@ -476,6 +792,46 @@ export default function EventDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Report modal */}
+      {reportTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          onClick={() => setReportTarget(null)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900 mb-1">Zgłoś uczestnika</h3>
+            <p className="text-sm text-gray-500 mb-4">{reportTarget.name}</p>
+            <div className="space-y-2 mb-4">
+              {REPORT_TYPES.map((rt) => (
+                <button
+                  key={rt.value}
+                  onClick={() => setReportType(rt.value)}
+                  className={[
+                    'w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors',
+                    reportType === rt.value
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-700 hover:border-gray-300',
+                  ].join(' ')}
+                >
+                  {rt.label}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reportComment}
+              onChange={(e) => setReportComment(e.target.value)}
+              placeholder="Opcjonalny komentarz…"
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setReportTarget(null)} className="flex-1">Anuluj</Button>
+              <Button onClick={handleSubmitReport} isLoading={reportBusy} className="flex-1">Wyślij zgłoszenie</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
