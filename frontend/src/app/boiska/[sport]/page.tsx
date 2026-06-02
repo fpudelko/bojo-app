@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import type { Field } from '@/types';
 
@@ -24,13 +24,6 @@ const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   'piłka nożna': Target, koszykówka: Circle, siatkówka: Trophy,
   'siatkówka plażowa': Sun, futsal: Zap, 'piłka ręczna': Dumbbell, inne: Activity,
 };
-
-function serverClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-  );
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toField(row: any): Field {
@@ -67,7 +60,6 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
   const entry = SPORT_MAP[params.sport];
   if (!entry) notFound();
 
-  const supabase = serverClient();
   const { data } = await supabase
     .from('fields')
     .select('*')

@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { Calendar, MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import { supabase } from '@/lib/supabase';
 import { slugify, isUuid } from '@/lib/utils';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
@@ -23,16 +23,6 @@ const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   'piłka ręczna': Dumbbell,
   inne: Activity,
 };
-
-// ---------------------------------------------------------------------------
-// Supabase (server-side, uses public anon key + RLS — no secret needed here)
-// ---------------------------------------------------------------------------
-function serverClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-  );
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toField(row: any): Field {
@@ -58,7 +48,6 @@ function toField(row: any): Field {
 }
 
 async function resolveField(idOrSlug: string): Promise<Field | null> {
-  const supabase = serverClient();
   if (isUuid(idOrSlug)) {
     const { data } = await supabase.from('fields').select('*').eq('id', idOrSlug).maybeSingle();
     return data ? toField(data) : null;
@@ -73,8 +62,7 @@ async function resolveField(idOrSlug: string): Promise<Field | null> {
 // ---------------------------------------------------------------------------
 export async function generateStaticParams() {
   try {
-    const supabase = serverClient();
-    const { data } = await supabase.from('fields').select('id, name');
+      const { data } = await supabase.from('fields').select('id, name');
     return (data ?? []).map((f) => ({ id: slugify(f.name) }));
   } catch {
     return [];
@@ -113,7 +101,6 @@ interface UpcomingEvent {
 }
 
 async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
-  const supabase = serverClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from('events')

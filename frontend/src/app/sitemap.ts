@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 
 const SPORT_SLUGS = [
@@ -30,10 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let fieldPages: MetadataRoute.Sitemap = [];
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-    );
     const { data } = await supabase.from('fields').select('name, id');
     fieldPages = (data ?? []).map((field) => ({
       url: `${base}/boisko/${slugify(field.name)}`,
