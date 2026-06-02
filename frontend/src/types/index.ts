@@ -95,6 +95,7 @@ export interface TimeSlot {
 }
 
 export type Visibility = 'private' | 'public';
+export type EventStatus = 'active' | 'cancelled';
 
 export type ParticipantStatus = 'zaproszony' | 'potwierdzony' | 'odrzucony' | 'brak_odpowiedzi';
 export type TeamMode = 'brak' | 'reczne' | 'kapitanowie' | 'losowe';
@@ -128,6 +129,7 @@ export interface EventItem {
   maxPlayers: number;
   visibility: Visibility;
   createdAt: string;
+  status: EventStatus;
   customLocationName?: string;
   customAddress?: string;
   // advanced features (always present, default false/0/'brak')
@@ -158,6 +160,7 @@ export interface EventParticipant {
   paidAmount: number;
   phone?: string;
   isCaptain: boolean;
+  addedBy?: string;
 }
 
 export interface EventCreate {

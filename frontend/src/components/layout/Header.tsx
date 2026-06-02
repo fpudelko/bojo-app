@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X, Plus, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 const NAV_LINKS = [
   { href: '/mapa', label: 'Mapa boisk' },
   { href: '/wydarzenia', label: 'Znajdź grę' },
-  { href: '/cykliczne', label: 'Cykliczne' },
+  { href: '/cykliczne', label: 'Stałe ekipy' },
 ];
 
 /** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
@@ -47,6 +48,16 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const userAvatar = avatarUrl(user);
+  const [hasVenue, setHasVenue] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setHasVenue(false); return; }
+    supabase
+      .from('fields')
+      .select('id', { count: 'exact', head: true })
+      .eq('manager_id', user.id)
+      .then(({ count }) => setHasVenue((count ?? 0) > 0));
+  }, [user]);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-[60]">
@@ -82,27 +93,29 @@ export default function Header() {
             {!loading && user && (
               <>
                 <Link
-                  href="/obiekt"
+                  href="/moje-gry"
                   className={clsx(
                     'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    pathname === '/obiekt' || pathname.startsWith('/obiekt/')
+                    pathname === '/moje-gry'
                       ? 'bg-primary-50 text-primary-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
                   )}
                 >
-                  Mój obiekt
+                  Moje gry
                 </Link>
-                <Link
-                  href="/rezerwacje"
-                  className={clsx(
-                    'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    pathname === '/rezerwacje'
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
-                  )}
-                >
-                  Rezerwacje
-                </Link>
+                {hasVenue && (
+                  <Link
+                    href="/obiekt"
+                    className={clsx(
+                      'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      pathname === '/obiekt' || pathname.startsWith('/obiekt/')
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                    )}
+                  >
+                    Moje obiekty
+                  </Link>
+                )}
                 <Link
                   href="/wydarzenia/nowe"
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
@@ -180,19 +193,21 @@ export default function Header() {
                     <Plus className="w-4 h-4" /> Stwórz wydarzenie
                   </Link>
                   <Link
-                    href="/obiekt"
+                    href="/moje-gry"
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
                   >
-                    Mój obiekt
+                    Moje gry
                   </Link>
-                  <Link
-                    href="/rezerwacje"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Moje rezerwacje
-                  </Link>
+                  {hasVenue && (
+                    <Link
+                      href="/obiekt"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    >
+                      Moje obiekty
+                    </Link>
+                  )}
                   <Link
                     href="/profil"
                     onClick={() => setMobileOpen(false)}

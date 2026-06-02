@@ -8,6 +8,7 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
+  BanIcon, RotateCcw, AlertTriangle,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -17,6 +18,7 @@ import { useAdmin } from '@/lib/admin';
 import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
+  cancelEvent, restoreEvent,
 } from '@/lib/events';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
@@ -187,7 +189,11 @@ export default function EventDetailPage() {
   const handleAddGuest = async () => {
     if (!guestName.trim()) return;
     setBusy(true);
-    try { await addGuest(event.id, guestName.trim()); setGuestName(''); await load(); }
+    try {
+      await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined);
+      setGuestName('');
+      await load();
+    }
     catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
     finally { setBusy(false); }
   };
@@ -269,10 +275,25 @@ export default function EventDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Na pewno usunąć to wydarzenie?')) return;
+    if (!confirm('Na pewno usunąć to wydarzenie? Tej operacji nie można cofnąć.')) return;
     setBusy(true);
     try { await deleteEvent(event.id); router.push('/wydarzenia'); }
     catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); setBusy(false); }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('Odwołać mecz? Uczestnicy zobaczą że mecz jest odwołany.')) return;
+    setBusy(true);
+    try { await cancelEvent(event.id); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
+  };
+
+  const handleRestore = async () => {
+    setBusy(true);
+    try { await restoreEvent(event.id); await load(); }
+    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    finally { setBusy(false); }
   };
 
   const handleSaveResult = async () => {
@@ -315,10 +336,41 @@ export default function EventDetailPage() {
 
   const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
 
+  const isCancelled = event.status === 'cancelled';
+  const eventStarted = (() => {
+    try {
+      const [y, m, d] = event.date.split('-').map(Number);
+      const [h, min] = (event.time ?? '00:00').split(':').map(Number);
+      return Date.now() >= new Date(y, m - 1, d, h, min).getTime();
+    } catch { return true; }
+  })();
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
+
+        {/* Cancelled banner */}
+        {isCancelled && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
+              <p className="text-xs text-red-500">Ten mecz został odwołany przez organizatora.</p>
+            </div>
+            {isOrganizer && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestore}
+                disabled={busy}
+                className="shrink-0 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Przywróć
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Header card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -411,7 +463,15 @@ export default function EventDetailPage() {
                   {/* Name + badges */}
                   <span className="flex-1 flex items-center gap-1.5 text-sm text-gray-800 min-w-0">
                     <span className="truncate max-w-[120px]">{p.name}</span>
-                    {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
+                    {p.isGuest && (
+                      <span className="text-xs text-gray-400 shrink-0">
+                        (gość{isOrganizer && p.addedBy && p.addedBy !== user?.id
+                          ? ` · dodany przez: ${
+                              participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'
+                            }`
+                          : ''})
+                      </span>
+                    )}
                     {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
                     {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                     {showTeams && p.team && (
@@ -667,8 +727,14 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Match results (trackResults) */}
-        {event.trackResults && (
+        {/* Match results (trackResults) — only after event starts */}
+        {event.trackResults && !eventStarted && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-3 text-sm text-gray-400">
+            <Trophy className="w-4 h-4 shrink-0" />
+            Wyniki dostępne po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
+          </div>
+        )}
+        {event.trackResults && eventStarted && (
           <MatchResultForm
             sport={event.sport}
             eventId={event.id}
@@ -718,11 +784,26 @@ export default function EventDetailPage() {
                   ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
                   : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
               </button>
+              {!isCancelled ? (
+                <button
+                  onClick={handleCancel} disabled={busy}
+                  className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
+                >
+                  <BanIcon className="w-4 h-4" /> Odwołaj mecz
+                </button>
+              ) : (
+                <button
+                  onClick={handleRestore} disabled={busy}
+                  className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
+                >
+                  <RotateCcw className="w-4 h-4" /> Przywróć mecz
+                </button>
+              )}
               <button
                 onClick={handleDelete} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
+                className="w-full flex items-center gap-2 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 text-xs"
               >
-                <Trash2 className="w-4 h-4" /> Usuń wydarzenie
+                <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
               </button>
             </div>
           )}

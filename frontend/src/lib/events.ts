@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { EventCreate, EventItem, EventParticipant, Visibility } from '@/types';
+import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Row mappers
@@ -32,6 +32,7 @@ function toEvent(row: any): EventItem {
     trackResults: row.track_results ?? false,
     confirmationDeadlineH: row.confirmation_deadline_h ?? 24,
     costGrosze: row.cost_grosz ?? 0,
+    status: (row.status ?? 'active') as EventStatus,
   };
 }
 
@@ -53,6 +54,7 @@ function toParticipant(row: any): EventParticipant {
     paidAmount: row.paid_amount ?? 0,
     phone: row.phone ?? undefined,
     isCaptain: row.is_captain ?? false,
+    addedBy: row.added_by ?? undefined,
   };
 }
 
@@ -64,6 +66,7 @@ export async function createEvent(
   data: EventCreate,
   organizerId: string,
   organizerName: string,
+  organizerParticipates = true,
 ): Promise<string> {
   const { data: row, error } = await supabase
     .from('events')
@@ -96,13 +99,15 @@ export async function createEvent(
 
   if (error) throw new Error(error.message);
 
-  await supabase.from('event_participants').insert({
-    event_id: row.id,
-    user_id: organizerId,
-    name: organizerName,
-    is_guest: false,
-    is_reserve: false,
-  });
+  if (organizerParticipates) {
+    await supabase.from('event_participants').insert({
+      event_id: row.id,
+      user_id: organizerId,
+      name: organizerName,
+      is_guest: false,
+      is_reserve: false,
+    });
+  }
 
   return row.id as string;
 }
@@ -227,13 +232,19 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
   if (error) throw new Error(error.message);
 }
 
-export async function addGuest(eventId: string, name: string, isReserve = false): Promise<void> {
+export async function addGuest(
+  eventId: string,
+  name: string,
+  isReserve = false,
+  addedByUserId?: string,
+): Promise<void> {
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: null,
     name,
     is_guest: true,
     is_reserve: isReserve,
+    added_by: addedByUserId ?? null,
   });
   if (error) throw new Error(error.message);
 }
@@ -282,4 +293,39 @@ export async function setVisibility(eventId: string, visibility: Visibility): Pr
 export async function deleteEvent(eventId: string): Promise<void> {
   const { error } = await supabase.from('events').delete().eq('id', eventId);
   if (error) throw new Error(error.message);
+}
+
+export async function cancelEvent(eventId: string): Promise<void> {
+  const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
+export async function restoreEvent(eventId: string): Promise<void> {
+  const { error } = await supabase.from('events').update({ status: 'active' }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
+export async function getMyParticipatedEvents(
+  userId: string,
+): Promise<{ event: EventItem; isOrganizer: boolean }[]> {
+  const { data: partRows, error: pErr } = await supabase
+    .from('event_participants')
+    .select('event_id')
+    .eq('user_id', userId);
+  if (pErr) throw new Error(pErr.message);
+
+  const eventIds = (partRows ?? []).map((r) => r.event_id as string);
+  if (eventIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .in('id', eventIds)
+    .order('event_date', { ascending: false });
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    event: toEvent(row),
+    isOrganizer: row.organizer_id === userId,
+  }));
 }
