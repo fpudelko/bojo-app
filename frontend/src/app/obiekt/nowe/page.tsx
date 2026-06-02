@@ -113,7 +113,7 @@ export default function NewVenuePage() {
           sport,
           surface,
           isIndoor,
-          isBookable: true,
+          bookingType: 'internal' as const,
           available: true,
           phone: phone.trim() || undefined,
           website: website.trim() || undefined,

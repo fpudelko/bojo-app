@@ -41,6 +41,9 @@ function toBooking(row: any): Booking {
     endTime: row.end_time,
     priceGrosze: row.price_grosz,
     status: row.status,
+    sport: row.sport ?? undefined,
+    playersCount: row.players_count ?? 1,
+    phone: row.phone ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
   };
@@ -201,7 +204,12 @@ export async function createBooking(
   startTime: string,
   endTime: string,
   priceGrosze: number,
-  notes?: string,
+  opts?: {
+    notes?: string;
+    sport?: string;
+    playersCount?: number;
+    phone?: string;
+  },
 ): Promise<string> {
   const { data, error } = await supabase
     .from('bookings')
@@ -214,7 +222,10 @@ export async function createBooking(
       end_time: endTime,
       price_grosz: priceGrosze,
       status: 'pending',
-      notes: notes ?? null,
+      notes: opts?.notes ?? null,
+      sport: opts?.sport ?? null,
+      players_count: opts?.playersCount ?? 1,
+      phone: opts?.phone ?? null,
     })
     .select('id')
     .single();

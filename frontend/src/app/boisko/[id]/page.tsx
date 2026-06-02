@@ -60,6 +60,8 @@ export default function VenueDetailPage() {
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [notes, setNotes] = useState('');
+  const [phone, setPhone] = useState('');
+  const [playersCount, setPlayersCount] = useState(1);
   const [booking, setBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export default function VenueDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (field?.isBookable && user) {
+    if (field?.bookingType === 'internal' && user) {
       loadSlots(date);
     }
   }, [field, user, date, loadSlots]);
@@ -111,11 +113,17 @@ export default function VenueDetailPage() {
         selectedSlot.startTime,
         selectedSlot.endTime,
         selectedSlot.priceGrosze,
-        notes.trim() || undefined,
+        {
+          notes: notes.trim() || undefined,
+          phone: phone.trim() || undefined,
+          playersCount: playersCount > 0 ? playersCount : 1,
+        },
       );
       setBookingSuccess(true);
       setSelectedSlot(null);
       setNotes('');
+      setPhone('');
+      setPlayersCount(1);
       await loadSlots(date);
     } catch (err) {
       setBookingError(err instanceof Error ? err.message : 'Nie udało się złożyć rezerwacji.');
@@ -187,6 +195,16 @@ export default function VenueDetailPage() {
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {field.address}
                 </p>
+                {field.bookingType === 'internal' && (
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                    📅 Rezerwacja online
+                  </span>
+                )}
+                {field.bookingType === 'external' && (
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
+                    🔗 Rezerwuj zewnętrznie
+                  </span>
+                )}
               </div>
               {field.isIndoor && (
                 <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
@@ -212,7 +230,7 @@ export default function VenueDetailPage() {
               )}
             </div>
 
-            {!field.isBookable && (
+            {field.bookingType === 'none' && (
               <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                 Ten obiekt nie przyjmuje rezerwacji online.
               </p>
