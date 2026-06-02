@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -68,18 +69,33 @@ export async function createEvent(
   organizerName: string,
   organizerParticipates = true,
 ): Promise<string> {
+  // Rate limit: max 10 events per hour per user
+  const { data: allowed } = await supabase.rpc('check_rate_limit', {
+    p_action: 'create_event',
+    p_max_per_hour: 10,
+  });
+  if (allowed === false) throw new Error('Tworzysz zbyt wiele wydarzeń. Spróbuj za chwilę.');
+
+  // Validate & sanitize inputs
+  const safeOrganizerName = validateName(organizerName, 'Nazwa organizatora', 80);
+  const safeFieldName = validateName(data.fieldName, 'Nazwa miejsca', 100);
+  const safeTitle = data.title ? sanitizeDescription(data.title).slice(0, 80) : undefined;
+  const safeDesc = data.description ? sanitizeDescription(data.description) : undefined;
+  const safeCustomName = data.customLocationName ? sanitizeAddress(data.customLocationName) : undefined;
+  const safeCustomAddress = data.customAddress ? sanitizeAddress(data.customAddress) : undefined;
+
   const { data: row, error } = await supabase
     .from('events')
     .insert({
       organizer_id: organizerId,
-      organizer_name: organizerName,
+      organizer_name: safeOrganizerName,
       sport: data.sport,
       field_id: data.fieldId ?? null,
-      field_name: data.fieldName,
+      field_name: safeFieldName,
       lat: data.lat ?? null,
       lng: data.lng ?? null,
-      title: data.title ?? null,
-      description: data.description ?? null,
+      title: safeTitle ?? null,
+      description: safeDesc ?? null,
       event_date: data.date,
       event_time: data.time,
       end_time: data.endTime ?? null,
@@ -93,6 +109,8 @@ export async function createEvent(
       track_results: data.trackResults ?? false,
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
+      custom_location_name: safeCustomName ?? null,
+      custom_address: safeCustomAddress ?? null,
     })
     .select('id')
     .single();
@@ -103,7 +121,7 @@ export async function createEvent(
     await supabase.from('event_participants').insert({
       event_id: row.id,
       user_id: organizerId,
-      name: organizerName,
+      name: safeOrganizerName,
       is_guest: false,
       is_reserve: false,
     });
@@ -210,6 +228,15 @@ export async function getPublicEvents(): Promise<EventItem[]> {
 // ---------------------------------------------------------------------------
 
 export async function joinEvent(eventId: string, userId: string, name: string): Promise<void> {
+  // Rate limit: max 20 joins per hour
+  const { data: allowed } = await supabase.rpc('check_rate_limit', {
+    p_action: 'join_event',
+    p_max_per_hour: 20,
+  });
+  if (allowed === false) throw new Error('Zbyt wiele prób dołączenia. Spróbuj za chwilę.');
+
+  const safeName = validateName(name, 'Imię', 80);
+
   // Check if event is full (non-reserve count vs max_players)
   const [{ data: ev }, { count }] = await Promise.all([
     supabase.from('events').select('max_players').eq('id', eventId).single(),
@@ -225,7 +252,7 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: userId,
-    name,
+    name: safeName,
     is_guest: false,
     is_reserve: isReserve,
   });
@@ -238,10 +265,11 @@ export async function addGuest(
   isReserve = false,
   addedByUserId?: string,
 ): Promise<void> {
+  const safeName = validateName(name, 'Imię gościa', 80);
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: null,
-    name,
+    name: safeName,
     is_guest: true,
     is_reserve: isReserve,
     added_by: addedByUserId ?? null,
