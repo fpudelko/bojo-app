@@ -205,6 +205,7 @@ export default function LeafletMapImpl({
 }: MapViewProps) {
   const [allFields, setAllFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [satellite, setSatellite] = useState(false);
   const isAdmin = useAdmin();
 
   // Fetch all fields once; filters applied client-side
@@ -224,6 +225,38 @@ export default function LeafletMapImpl({
     return true;
   });
 
+  const streetLayer = MAPBOX_TOKEN ? (
+    <TileLayer
+      key="street"
+      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+      tileSize={512}
+      zoomOffset={-1}
+    />
+  ) : (
+    <TileLayer
+      key="street"
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    />
+  );
+
+  const satelliteLayer = MAPBOX_TOKEN ? (
+    <TileLayer
+      key="satellite"
+      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      url={`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+      tileSize={512}
+      zoomOffset={-1}
+    />
+  ) : (
+    <TileLayer
+      key="satellite"
+      attribution='&copy; <a href="https://www.esri.com">Esri</a> &copy; Maxar, Earthstar Geographics'
+      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    />
+  );
+
   return (
     <div className={['w-full h-full min-h-[400px] relative', className ?? ''].join(' ')}>
       <MapContainer
@@ -232,22 +265,19 @@ export default function LeafletMapImpl({
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={false}
       >
-        {MAPBOX_TOKEN ? (
-          <TileLayer
-            attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-            tileSize={512}
-            zoomOffset={-1}
-          />
-        ) : (
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-        )}
+        {satellite ? satelliteLayer : streetLayer}
         <ZoomControl position="topright" />
         <ClusteredMarkers fields={displayed} isAdmin={isAdmin} />
       </MapContainer>
+
+      {/* Satellite toggle */}
+      <button
+        onClick={() => setSatellite((s) => !s)}
+        className="absolute bottom-8 right-2 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+        title={satellite ? 'Przełącz na mapę' : 'Przełącz na satelitę'}
+      >
+        {satellite ? '🗺️ Mapa' : '🛰️ Satelita'}
+      </button>
 
       {/* Result count badge */}
       {(q || (sports && sports.length > 0)) && (
