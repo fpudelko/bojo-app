@@ -10,42 +10,39 @@ import { getFields } from '@/lib/api';
 const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', futsal: '⚡', koszykówka: '🏀',
-  siatkówka: '🏐', 'siatkówka plażowa': '🏖️', 'piłka ręczna': '🤾', inne: '🏅',
-};
+function sportColor(sport: string): string {
+  if (sport === 'piłka nożna') return '#15663E';
+  if (sport === 'siatkówka plażowa') return '#d97706';
+  if (sport === 'koszykówka') return '#ea580c';
+  return '#2563eb';
+}
 
-function primaryEmoji(sports: string[]): string {
-  for (const s of ['piłka nożna', 'futsal', 'koszykówka', 'siatkówka', 'siatkówka plażowa', 'piłka ręczna']) {
-    if (sports.includes(s)) return SPORT_EMOJI[s];
+function primaryColor(sports: string[]): string {
+  const order = ['piłka nożna', 'siatkówka plażowa', 'koszykówka'];
+  for (const s of order) {
+    if (sports.includes(s)) return sportColor(s);
   }
-  return SPORT_EMOJI[sports[0]] ?? '🏅';
+  return sportColor(sports[0] ?? 'inne');
 }
 
 function pin(field: Field, selected: boolean): L.DivIcon {
-  const emoji = primaryEmoji(field.sport ?? []);
-  const bg = selected ? '#1e40af' : '#15663E';
-  const size = selected ? 38 : 32;
-  return L.DivIcon
-    ? L.divIcon({
-        html: `<div style="
-          display:flex;align-items:center;justify-content:center;
-          width:${size}px;height:${size}px;
-          border-radius:50% 50% 50% 0;
-          transform:rotate(-45deg);
-          background:${bg};
-          border:${selected ? '2.5px' : '1.5px'} solid rgba(255,255,255,0.9);
-          box-shadow:0 2px ${selected ? '12px' : '6px'} rgba(0,0,0,${selected ? '.45' : '.3'});
-          cursor:pointer
-        ">
-          <span style="transform:rotate(45deg);font-size:${selected ? 16 : 13}px;line-height:1">${emoji}</span>
-        </div>`,
-        className: '',
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size - 2],
-        popupAnchor: [0, -size],
-      })
-    : L.divIcon({ html: '', className: '' });
+  const color = selected ? '#1e40af' : primaryColor(field.sport ?? []);
+  const size = selected ? 36 : 28;
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      background:${color};
+      border:${selected ? '2.5px' : '1.5px'} solid rgba(255,255,255,0.9);
+      box-shadow:0 2px ${selected ? '10px' : '5px'} rgba(0,0,0,${selected ? '.4' : '.25'});
+      cursor:pointer
+    "></div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size - 2],
+    popupAnchor: [0, -size],
+  });
 }
 
 function FlyToSelected({ field }: { field: Field | null }) {
