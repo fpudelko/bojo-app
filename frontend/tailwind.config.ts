@@ -9,18 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Working brand palette — finalną zatwierdzi grafik.
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
+          50:  '#f0fdf5',
+          100: '#d8f5e4',
+          200: '#b2ebca',
+          300: '#7dd8a8',
+          400: '#44be80',
+          500: '#22a361',
+          600: '#15803d',   // legacy compat
+          700: '#15663E',   // brand green — main
+          800: '#104d2e',
+          900: '#0b3420',
+          950: '#061d12',
         },
         secondary: {
           50: '#eff6ff',
@@ -35,21 +36,21 @@ const config: Config = {
           900: '#1e3a8a',
           950: '#172554',
         },
-        // Lime accent — working palette (#84cc16). Use sparingly for energy/highlights.
+        // Amber accent #F5A623 — CTA główny, highlights
         accent: {
-          50: '#f7fee7',
-          100: '#ecfccb',
-          200: '#d9f99d',
-          300: '#bef264',
-          400: '#a3e635',
-          500: '#84cc16',
-          600: '#65a30d',
-          700: '#4d7c0f',
-          800: '#3f6212',
-          900: '#365314',
+          50:  '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          300: '#fcd34d',
+          400: '#fbbf24',
+          500: '#F5A623',   // brand amber
+          600: '#d97706',
+          700: '#b45309',
+          800: '#92400e',
+          900: '#78350f',
         },
-        ink: '#0f172a',
-        canvas: '#f8faf9',
+        ink:    '#1A1D21',
+        canvas: '#FAF9F6',
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

@@ -142,6 +142,40 @@ export async function getMyRecurringEvents(userId: string): Promise<RecurringEve
   return (data ?? []).map(toRecurringEvent);
 }
 
+/** Fetch the next upcoming event linked to each recurring template, keyed by recurringEventId. */
+export async function getNextEventsForRecurring(
+  recurringIds: string[],
+): Promise<Record<string, { id: string; date: string; maxPlayers: number; status: string; confirmedCount?: number } | null>> {
+  if (recurringIds.length === 0) return {};
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, recurring_event_id, event_date, max_players, status')
+    .in('recurring_event_id', recurringIds)
+    .gte('event_date', today)
+    .order('event_date', { ascending: true });
+
+  if (error) return {};
+
+  const result: Record<string, { id: string; date: string; maxPlayers: number; status: string } | null> = {};
+  for (const id of recurringIds) result[id] = null;
+  for (const row of (data ?? [])) {
+    const rid = row.recurring_event_id;
+    if (rid && !result[rid]) {
+      result[rid] = {
+        id: row.id,
+        date: row.event_date,
+        maxPlayers: row.max_players,
+        status: row.status ?? 'active',
+      };
+    }
+  }
+
+  return result;
+}
+
 export async function addInvite(
   recurringEventId: string,
   name: string,

@@ -1,17 +1,16 @@
 import Link from 'next/link';
-import { MapPin, Users, Zap, RefreshCw, ArrowRight } from 'lucide-react';
+import { MapPin, Users, Zap, RefreshCw, ArrowRight, Search } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import MapView from '@/components/map/MapView';
 import SportsSectionWithCounts from '@/components/SportsSectionWithCounts';
 
 const HOW_IT_WORKS = [
   {
-    icon: MapPin,
-    title: 'Wybierz boisko i termin.',
-    description: 'Setki boisk w Poznaniu i okolicach — filtruj po sporcie i lokalizacji.',
-    href: '/mapa',
+    icon: Search,
+    title: 'Znajdź otwarty mecz.',
+    description: 'Przeglądaj publiczne gry w Poznaniu i okolicach — filtruj po sporcie i lokalizacji.',
+    href: '/wydarzenia',
   },
   {
     icon: Users,
@@ -36,10 +35,10 @@ export default function HomePage() {
       <section className="hero-surface relative overflow-hidden text-white">
         <div className="hero-dots absolute inset-0" aria-hidden="true" />
         <div className="relative max-w-3xl mx-auto text-center px-4 py-24 sm:py-28">
-          <span className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-accent-200 backdrop-blur-sm">
+          <span className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-amber-200 backdrop-blur-sm">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-400" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
             </span>
             Poznań i okolice
           </span>
@@ -54,7 +53,7 @@ export default function HomePage() {
           </h1>
 
           <p
-            className="mx-auto mt-6 max-w-xl animate-fade-up text-lg font-medium text-primary-50/90 sm:text-xl"
+            className="mx-auto mt-6 max-w-xl animate-fade-up text-lg font-medium text-white/80 sm:text-xl"
             style={{ animationDelay: '160ms' }}
           >
             Boiska, mecze i gracze w Poznaniu i okolicach.
@@ -64,47 +63,63 @@ export default function HomePage() {
             className="mt-10 flex animate-fade-up flex-col justify-center gap-3 sm:flex-row"
             style={{ animationDelay: '240ms' }}
           >
+            {/* Primary CTA — amber, high contrast, main action */}
             <Link href="/wydarzenia">
-              <Button variant="accent" size="lg" className="w-full sm:w-auto">
-                Znajdź grę <ArrowRight className="h-4 w-4" />
+              <Button
+                size="lg"
+                className="w-full sm:w-auto bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg active:scale-[0.97]"
+              >
+                Dołącz do gry <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/mapa">
+            {/* Secondary CTA — outline white */}
+            <Link href="/wydarzenia/nowe">
               <Button
                 variant="outline"
                 size="lg"
                 className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
               >
-                Pokaż boiska
+                Szukam ludzi do gry
               </Button>
             </Link>
           </div>
+
+          {/* Tertiary — quiet link to map */}
+          <p className="mt-6 animate-fade-up text-sm text-white/50" style={{ animationDelay: '320ms' }}>
+            <Link href="/mapa" className="hover:text-white/80 transition-colors underline underline-offset-2">
+              Przeglądaj boiska →
+            </Link>
+          </p>
         </div>
 
         {/* Soft transition into the canvas below */}
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
       </section>
 
-      {/* Map — right after hero */}
-      <section className="mx-auto w-full max-w-5xl px-4 py-14">
-        <div className="mb-6 text-center">
-          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            Setki boisk. Poznań i okolice.
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card-hover">
-          <MapView className="h-80 overflow-hidden rounded-xl sm:h-96" />
-        </div>
-        <p className="mt-4 text-center text-sm">
+      {/* Map preview — after hero, degraded to helper section */}
+      <section className="mx-auto w-full max-w-5xl px-4 py-12">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
+              Setki boisk. Poznań i okolice.
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.
+            </p>
+          </div>
           <Link
             href="/mapa"
-            className="inline-flex items-center gap-1 font-medium text-primary-700 transition-colors hover:text-primary-800"
+            className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors"
           >
-            Otwórz pełną mapę
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            Pełna mapa <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card-hover">
+          <MapView className="h-72 overflow-hidden rounded-xl sm:h-80" />
+        </div>
+        <p className="mt-3 text-center text-sm sm:hidden">
+          <Link href="/mapa" className="inline-flex items-center gap-1 font-medium text-primary-700 hover:text-primary-800">
+            Otwórz pełną mapę <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </p>
       </section>
@@ -122,8 +137,7 @@ export default function HomePage() {
             {HOW_IT_WORKS.map((step, i) => (
               <Link key={i} href={step.href} className="group">
                 <div className="relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-canvas p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary-200 hover:bg-white hover:shadow-card-hover">
-                  {/* accent top edge on hover */}
-                  <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary-600 to-accent-500 transition-transform duration-300 group-hover:scale-x-100" />
+                  <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-primary-700 to-accent-500 transition-transform duration-300 group-hover:scale-x-100" />
                   <div className="mb-4 flex items-center gap-3">
                     <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 transition-colors group-hover:bg-primary-100">
                       <step.icon className="h-5 w-5" />
@@ -145,7 +159,7 @@ export default function HomePage() {
 
       {/* Recurring events promo */}
       <section className="px-4 py-20">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/60 p-8 md:flex-row md:p-12">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-12">
           <div className="flex-1">
             <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
               <RefreshCw className="h-4 w-4" />
@@ -158,7 +172,7 @@ export default function HomePage() {
               Stały termin, lista graczy, jeden SMS do wszystkich. Koniec z pisaniem do każdego osobno.
             </p>
             <Link href="/cykliczne/nowe">
-              <Button>Stwórz stały termin</Button>
+              <Button>Stwórz stałe gierki</Button>
             </Link>
           </div>
           <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 text-sm text-slate-700 md:w-auto md:max-w-xs">
@@ -190,13 +204,16 @@ export default function HomePage() {
           <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
             Zbierz skład. Zagraj dziś.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-primary-50/85">
+          <p className="mx-auto mt-4 max-w-md text-white/75">
             Boiska, mecze i gracze w Poznaniu i okolicach.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/wydarzenia">
-              <Button variant="accent" size="lg" className="w-full sm:w-auto">
-                Znajdź grę <ArrowRight className="h-4 w-4" />
+              <Button
+                size="lg"
+                className="w-full sm:w-auto bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg"
+              >
+                Dołącz do gry <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/wydarzenia/nowe">
@@ -205,7 +222,7 @@ export default function HomePage() {
                 size="lg"
                 className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
               >
-                Stwórz wydarzenie
+                Szukam ludzi do gry
               </Button>
             </Link>
           </div>
@@ -217,9 +234,10 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 md:flex-row">
           <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
-            <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
             <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź grę</Link>
-            <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe ekipy</Link>
+            <Link href="/wydarzenie/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
+            <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
+            <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
             <span className="hidden text-slate-600 md:inline">·</span>
             <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
             <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
