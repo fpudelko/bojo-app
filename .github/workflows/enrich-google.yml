@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Maks. grup adresowych (0 = wszystkie)'
+        description: 'Maks. grup lokalizacyjnych (0 = wszystkie)'
         default: '0'
         required: false
         type: string
@@ -29,6 +29,11 @@ on:
         default: false
         required: false
         type: boolean
+      radius:
+        description: 'Promień wyszukiwania Google (metry, domyślnie 200)'
+        default: '200'
+        required: false
+        type: string
 
 jobs:
   enrich-google:
@@ -54,7 +59,7 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --concurrency 5"
+          ARGS="--limit ${{ inputs.limit }} --concurrency 5 --radius ${{ inputs.radius }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

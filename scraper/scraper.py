@@ -58,6 +58,13 @@ SPORT_QUERIES = [
     "boisko siatkówka plażowa Poznań",
     "boisko futsal Poznań",
     "hala sportowa Poznań",
+    # Booking-focused: venues that advertise online/phone reservations
+    "rezerwacja boiska Poznań",
+    "wynajem boiska Poznań",
+    "boisko do wynajęcia Poznań",
+    "centrum sportowe rezerwacja Poznań",
+    "kompleks sportowy Poznań",
+    "orlik Poznań",
 ]
 
 # Team/group sports only — individual sports (tennis, athletics, golf…) are excluded.
