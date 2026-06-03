@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft, Users, Calendar, Clock, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
+import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -178,7 +178,7 @@ export default function VenueDetailClient({
     );
   }
 
-  const thumbnail = venueThumbnail(field.lat, field.lng, 600, 240);
+  const thumbnail = field.imageUrl || venueThumbnail(field.lat, field.lng, 600, 240);
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
 
   return (
@@ -256,6 +256,30 @@ export default function VenueDetailClient({
               </p>
             )}
 
+            {/* Operator / manager info */}
+            {(field.operator || field.operatorType || field.description || field.openingHours) && (
+              <div className="border-t border-gray-100 pt-4 space-y-2">
+                {field.operator && (
+                  <p className="flex items-center gap-2 text-sm text-gray-700">
+                    <Building2 className="w-4 h-4 shrink-0 text-gray-400" />
+                    <span className="font-medium">{field.operator}</span>
+                    {field.operatorType && (
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{field.operatorType}</span>
+                    )}
+                  </p>
+                )}
+                {field.openingHours && (
+                  <p className="flex items-center gap-2 text-sm text-gray-600">
+                    <ClockIcon className="w-4 h-4 shrink-0 text-gray-400" />
+                    {field.openingHours}
+                  </p>
+                )}
+                {field.description && (
+                  <p className="text-sm text-gray-500 leading-relaxed">{field.description}</p>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 pt-1">
               {field.phone && (
                 <a
@@ -264,6 +288,15 @@ export default function VenueDetailClient({
                 >
                   <Phone className="w-4 h-4" />
                   {field.phone}
+                </a>
+              )}
+              {field.email && (
+                <a
+                  href={`mailto:${field.email}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                >
+                  <Mail className="w-4 h-4" />
+                  {field.email}
                 </a>
               )}
               {field.website && (

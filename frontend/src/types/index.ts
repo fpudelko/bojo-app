@@ -17,6 +17,12 @@ export interface Field {
   managerId?: string;
   phone?: string;
   website?: string;
+  email?: string;
+  operator?: string;
+  operatorType?: string;
+  description?: string;
+  imageUrl?: string;
+  openingHours?: string;
 }
 
 export interface FieldsResponse {
