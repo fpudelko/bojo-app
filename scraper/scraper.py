@@ -393,38 +393,29 @@ async def upsert_fields(fields: list[dict[str, Any]], supabase_url: str, service
         log.info("No fields to upsert.")
         return
 
+    # Use UPSERT on (source, external_id) — safer than DELETE+INSERT:
+    # • preserves manager_id, is_bookable, booking_type set by venue owners
+    # • preserves linked events / games / bookings (no FK cascade)
+    # • idempotent: re-runs just update scraped columns in-place
     headers = {
         "apikey": service_key,
         "Authorization": f"Bearer {service_key}",
         "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
     }
-    endpoint = f"{supabase_url}/rest/v1/fields"
+    endpoint = f"{supabase_url}/rest/v1/fields?on_conflict=source,external_id"
 
-    # Delete old scraped rows first (idempotent re-runs, manual rows untouched)
-    sources = sorted({f.get("source") for f in fields if f.get("source")})
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        for source in sources:
-            r = await client.delete(
-                f"{endpoint}?source=eq.{source}",
-                headers={**headers, "Prefer": "return=minimal"},
-            )
-            if r.status_code in (200, 204):
-                log.info("Cleared existing rows for source=%s", source)
-            else:
-                log.warning("Delete source=%s returned %s", source, r.status_code)
-
-    # Batch insert
     BATCH = 100
     total = 0
     async with httpx.AsyncClient(timeout=30.0) as client:
         for i in range(0, len(fields), BATCH):
             batch = fields[i : i + BATCH]
-            r = await client.post(endpoint, json=batch, headers={**headers, "Prefer": "return=minimal"})
+            r = await client.post(endpoint, json=batch, headers=headers)
             if r.status_code in (200, 201):
                 total += len(batch)
-                log.info("Inserted batch %d (%d fields)", i // BATCH + 1, len(batch))
+                log.info("Upserted batch %d (%d fields)", i // BATCH + 1, len(batch))
             else:
-                log.error("Insert error batch %d: %s — %s", i // BATCH + 1, r.status_code, r.text[:300])
+                log.error("Upsert error batch %d: %s — %s", i // BATCH + 1, r.status_code, r.text[:300])
 
     log.info("Total upserted: %d fields", total)
 
