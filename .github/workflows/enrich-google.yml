@@ -1,0 +1,72 @@
+name: Google Venue Enrichment (free)
+
+# Uruchamiany ręcznie z zakładki Actions. Dla istniejących obiektów pobiera z
+# Google Places telefon, stronę WWW i godziny otwarcia (Find Place + Details).
+# DARMOWE w ramach kredytu Google $200/mc (~11k zapytań). Uruchom to PRZED
+# wzbogacaniem przez Claude — Google da telefon/www/godziny za darmo, a Claude
+# dobierze tylko e-mail i sposób rezerwacji (taniej).
+#
+# Wymagane sekrety repozytorium:
+#   GOOGLE_PLACES_API_KEY       (Google Cloud → APIs & Services → Credentials)
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maks. grup adresowych (0 = wszystkie)'
+        default: '0'
+        required: false
+        type: string
+      dry_run:
+        description: 'Tryb podglądu — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      require_all:
+        description: 'Tylko obiekty bez telefonu I strony (mniej obiektów)'
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  enrich-google:
+    name: Google (${{ inputs.dry_run == true && 'DRY RUN' || 'ZAPIS' }}, limit=${{ inputs.limit }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        working-directory: scraper
+        run: pip install httpx python-dotenv
+
+      - name: Build arguments
+        id: args
+        run: |
+          ARGS="--limit ${{ inputs.limit }} --concurrency 5"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.require_all }}" = "true" ]; then
+            ARGS="$ARGS --require-all"
+          fi
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run Google enrichment
+        working-directory: scraper
+        env:
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python enrich_google.py ${{ steps.args.outputs.args }}

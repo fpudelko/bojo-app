@@ -45,6 +45,28 @@ Aby scraper uruchamiał się automatycznie co noc:
 0 2 * * * cd /path/to/bojo-app/scraper && python scraper.py >> /var/log/boiska-scraper.log 2>&1
 ```
 
+## Wzbogacanie z Google Places (`enrich_google.py`) — darmowe
+
+Dla istniejących obiektów pobiera z Google **telefon, stronę WWW i godziny
+otwarcia** (Find Place + Place Details). **Darmowe** w ramach kredytu Google
+$200/mc (~11 tys. zapytań). Google **nie udostępnia** e-maila ani sposobu
+rezerwacji — to dorobi `enrich.py` (Claude).
+
+Kolejność: **najpierw `enrich_google.py` (free), potem `enrich.py` (Claude)** —
+Claude dobierze tylko to, czego Google nie dał, więc płatny krok jest tańszy.
+
+```bash
+export GOOGLE_PLACES_API_KEY=AIza...
+export SUPABASE_URL=https://xxxx.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+python enrich_google.py --limit 5 --dry-run   # podgląd, bez zapisu
+python enrich_google.py                        # wszystkie bez telefonu/www
+```
+
+Obiekty pod tym samym adresem łączone są w jedno zapytanie. Skrypt jest
+idempotentny (uzupełnia tylko puste pola), więc można uruchamiać wielokrotnie.
+
 ## Wzbogacanie danych przez AI (`enrich.py`)
 
 Dla obiektów bez danych kontaktowych skrypt `enrich.py` przeszukuje internet
