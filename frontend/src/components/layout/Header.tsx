@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, Plus, LogOut, User, ChevronRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
+import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
 
@@ -50,6 +51,7 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const isAdmin = useAdmin();
   const userAvatar = avatarUrl(user);
   const [hasVenue, setHasVenue] = useState(false);
 
@@ -123,6 +125,19 @@ export default function Header() {
                       )}
                     >
                       Moje obiekty
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link
+                      href="/admin/outreach"
+                      className={clsx(
+                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname.startsWith('/admin/outreach')
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                      )}
+                    >
+                      Kontakt z obiektami
                     </Link>
                   )}
                   <Link
@@ -217,6 +232,19 @@ export default function Header() {
                     )}
                   >
                     Moje obiekty
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin/outreach"
+                    onClick={() => setMobileOpen(false)}
+                    className={clsx(
+                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                      pathname.startsWith('/admin/outreach') ? 'text-primary-700' : 'text-ink',
+                    )}
+                  >
+                    Kontakt z obiektami
                     <ChevronRight className="w-4 h-4 text-slate-300" />
                   </Link>
                 )}
