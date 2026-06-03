@@ -10,19 +10,19 @@ const HOW_IT_WORKS = [
   {
     icon: MapPin,
     title: 'Wybierz boisko i termin.',
-    description: 'Setki boisk w Poznaniu — filtruj po sporcie.',
+    description: 'Setki boisk w Poznaniu i okolicach — filtruj po sporcie i lokalizacji.',
     href: '/mapa',
   },
   {
     icon: Users,
-    title: 'Udostępnij link. Gracze potwierdzają jednym kliknięciem.',
-    description: 'Zero rejestracji dla zaproszonych. Widzisz kto idzie.',
+    title: 'Zaproś ekipę jednym linkiem.',
+    description: 'Gracze potwierdzają bez rejestracji. Widzisz kto idzie.',
     href: '/wydarzenia/nowe',
   },
   {
     icon: Zap,
-    title: 'Ogłoś mecz publicznie — dograją się gracze z okolicy.',
-    description: 'Brakuje wam dwóch do składu? Ktoś z okolicy dołączy.',
+    title: 'Brakuje ludzi? Ogłoś mecz publicznie.',
+    description: 'Otwórz zapisy — dołączy ktoś szukający gry.',
     href: '/wydarzenia',
   },
 ];
@@ -57,8 +57,7 @@ export default function HomePage() {
             className="mx-auto mt-6 max-w-xl animate-fade-up text-lg font-medium text-primary-50/90 sm:text-xl"
             style={{ animationDelay: '160ms' }}
           >
-            Boiska, mecze i gracze w jednym miejscu. Zbierz skład bez przekopywania
-            się przez grupy na Facebooku.
+            Boiska, mecze i gracze w Poznaniu i okolicach.
           </p>
 
           <div
@@ -117,7 +116,7 @@ export default function HomePage() {
             <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
               Jak to działa?
             </h2>
-            <p className="mt-2 text-sm text-slate-500">Mniej organizowania, więcej grania.</p>
+            <p className="mt-2 text-sm text-slate-500">Trzy kroki do meczu.</p>
           </div>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {HOW_IT_WORKS.map((step, i) => (
@@ -192,7 +191,7 @@ export default function HomePage() {
             Zbierz skład. Zagraj dziś.
           </h2>
           <p className="mx-auto mt-4 max-w-md text-primary-50/85">
-            Stwórz wydarzenie w minutę i wyślij link ekipie.
+            Boiska, mecze i gracze w Poznaniu i okolicach.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/wydarzenia">

@@ -25,15 +25,16 @@ const SPORT_ORDER = [
   'futsal', 'piłka ręczna', 'gokarty', 'inne',
 ];
 
+// TODO: podmienić emoji na własne SVG od grafika gdy będą gotowe
 const SPORT_META: Record<string, { color: string; emoji: string }> = {
   'piłka nożna':       { color: '#15803d', emoji: '⚽' },
-  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' },
-  'siatkówka':         { color: '#2563eb', emoji: '🏐' },
+  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' }, // piaskowy — różny od niebieskiej siatkówki
+  'siatkówka':         { color: '#2563eb', emoji: '🏐' }, // niebieski
   'koszykówka':        { color: '#ea580c', emoji: '🏀' },
   'futsal':            { color: '#7c3aed', emoji: '⚡' },
   'piłka ręczna':      { color: '#dc2626', emoji: '🤾' },
   'gokarty':           { color: '#0d9488', emoji: '🏎️' },
-  'inne':              { color: '#6b7280', emoji: '🏅' },
+  'inne':              { color: '#6b7280', emoji: '⭐' }, // Star — neutralne, nie sugeruje zawodów
 };
 
 function metaFor(sport: string) {
@@ -48,17 +49,28 @@ function primaryMeta(sports: string[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Individual pin icon
+// Individual pin icon — teardrop shape, thin (1px) white ring, emoji inside
 // ---------------------------------------------------------------------------
 function fieldIcon(field: Field): L.DivIcon {
   const { color, emoji } = primaryMeta(field.sport);
   const c = field.available ? color : '#9ca3af';
+  // Teardrop: circle body + triangle tip at bottom. Thin white ring keeps it readable on any map tile.
   return L.divIcon({
-    html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${c};border:2.5px solid white;box-shadow:0 1px 6px rgba(0,0,0,.45);font-size:13px;line-height:1;cursor:pointer">${field.available ? emoji : '×'}</div>`,
+    html: `<div style="
+        display:flex;align-items:center;justify-content:center;
+        width:32px;height:32px;border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        background:${c};
+        border:1.5px solid rgba(255,255,255,0.85);
+        box-shadow:0 2px 8px rgba(0,0,0,.35);
+        cursor:pointer
+      ">
+        <span style="transform:rotate(45deg);font-size:14px;line-height:1">${field.available ? emoji : '×'}</span>
+      </div>`,
     className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+    iconSize: [32, 32],
+    iconAnchor: [16, 30],
+    popupAnchor: [0, -32],
   });
 }
 
@@ -89,7 +101,7 @@ function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
     .join('');
 
   return L.divIcon({
-    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:white;box-shadow:0 2px 10px rgba(0,0,0,.3);border:3px solid #15803d;cursor:pointer">
+    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:white;box-shadow:0 2px 10px rgba(0,0,0,.3);border:1.5px solid #15803d;cursor:pointer">
       <div style="display:flex;align-items:center;gap:1px">${emojiSpans}</div>
       <span style="font-size:11px;font-weight:700;color:#15803d;line-height:1.3">${count}</span>
     </div>`,

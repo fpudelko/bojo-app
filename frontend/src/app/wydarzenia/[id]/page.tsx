@@ -13,6 +13,8 @@ import {
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MatchResultForm from '@/components/events/MatchResultForm';
+import TeamsPanel from '@/components/events/TeamsPanel';
+import RemindersSection from '@/components/events/RemindersSection';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { venueThumbnail } from '@/lib/labels';
@@ -337,11 +339,20 @@ export default function EventDetailPage() {
   const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
 
   const isCancelled = event.status === 'cancelled';
+  // eventStarted: event time has passed
   const eventStarted = (() => {
     try {
       const [y, m, d] = event.date.split('-').map(Number);
       const [h, min] = (event.time ?? '00:00').split(':').map(Number);
       return Date.now() >= new Date(y, m - 1, d, h, min).getTime();
+    } catch { return true; }
+  })();
+  // resultsAvailable: event started + 30 min buffer before result form is shown
+  const resultsAvailable = (() => {
+    try {
+      const [y, m, d] = event.date.split('-').map(Number);
+      const [h, min] = (event.time ?? '00:00').split(':').map(Number);
+      return Date.now() >= new Date(y, m - 1, d, h, min).getTime() + 30 * 60 * 1000;
     } catch { return true; }
   })();
 
@@ -408,8 +419,16 @@ export default function EventDetailPage() {
                 {event.time?.slice(0, 5)}
                 {event.endTime && <span className="text-gray-400">– {event.endTime.slice(0, 5)}</span>}
               </div>
-              <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
-                <MapPin className="w-4 h-4 text-gray-400 shrink-0" /> {event.fieldName}
+              <div className="flex items-start gap-2 text-gray-700 sm:col-span-2">
+                <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-medium">{event.fieldName}</span>
+                  {(event.customAddress || event.customLocationName) && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {event.customAddress || event.customLocationName}
+                    </p>
+                  )}
+                </div>
               </div>
               {costPln && (
                 <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
@@ -596,105 +615,29 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* DB-persisted teams (when teamMode !== 'brak') */}
+        {/* DB-persisted teams (when teamMode !== 'brak') — uses drag & drop */}
         {showTeams && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Shuffle className="w-4 h-4" />
-                Składy
-                <span className="text-xs font-normal text-gray-500">({TEAM_MODE_LABELS[event.teamMode]})</span>
-              </h2>
-              {isOrganizer && (
-                <div className="flex gap-2">
-                  {event.teamMode === 'losowe' && (
-                    <Button variant="outline" size="sm" onClick={handleAssignRandom} disabled={busy}>
-                      Losuj
-                    </Button>
-                  )}
-                  {(teamA.length > 0 || teamB.length > 0) && (
-                    <Button variant="outline" size="sm" onClick={handleClearTeams} disabled={busy}>
-                      Wyczyść
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {([teamA, teamB] as [EventParticipant[], EventParticipant[]]).map((team, ti) => {
-                const c = TEAM_COLORS[ti];
-                const label = ti === 0 ? 'A' : 'B';
-                const other = ti === 0 ? 'B' : 'A';
-                return (
-                  <div key={ti} className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
-                    <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>Drużyna {label}</p>
-                    <ul className="space-y-1.5">
-                      {team.map((p) => (
-                        <li key={p.id} className="flex items-center justify-between gap-1">
-                          <span className="flex items-center gap-1 text-sm text-gray-800 min-w-0">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
-                            <span className="truncate">{p.name}</span>
-                            {p.isCaptain && <Star className="w-3 h-3 text-amber-500 shrink-0" />}
-                          </span>
-                          {isOrganizer && (
-                            <div className="flex gap-1 shrink-0">
-                              {canManualAssign && (
-                                <button
-                                  onClick={() => handleAssignTeam(p.id, other as 'A' | 'B')}
-                                  disabled={busy}
-                                  className="text-xs text-gray-400 hover:text-gray-700 font-medium"
-                                  title={`Przenieś do drużyny ${other}`}
-                                >→{other}</button>
-                              )}
-                              {event.teamMode === 'kapitanowie' && (
-                                <button
-                                  onClick={() => handleToggleCaptain(p)}
-                                  disabled={busy}
-                                  className={`${p.isCaptain ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}
-                                  title={p.isCaptain ? 'Usuń kapitana' : 'Ustaw kapitana'}
-                                >
-                                  <Star className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                      {team.length === 0 && <li className="text-xs text-gray-400 italic">Brak graczy</li>}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-
-            {unassigned.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Nieprzypisani ({unassigned.length}):</p>
-                <div className="flex flex-wrap gap-2">
-                  {unassigned.map((p) => (
-                    <div key={p.id} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1 text-sm text-gray-700 border border-gray-200">
-                      <span>{p.name}</span>
-                      {isOrganizer && canManualAssign && (
-                        <>
-                          <button onClick={() => handleAssignTeam(p.id, 'A')} disabled={busy} className="text-xs text-blue-600 hover:text-blue-800 font-bold">A</button>
-                          <button onClick={() => handleAssignTeam(p.id, 'B')} disabled={busy} className="text-xs text-orange-600 hover:text-orange-800 font-bold">B</button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <TeamsPanel
+            teamMode={event.teamMode}
+            teamA={teamA}
+            teamB={teamB}
+            unassigned={unassigned}
+            isOrganizer={isOrganizer}
+            busy={busy}
+            onAssignTeam={handleAssignTeam}
+            onAssignRandom={handleAssignRandom}
+            onClearTeams={handleClearTeams}
+            onToggleCaptain={handleToggleCaptain}
+          />
         )}
 
-        {/* Legacy client-side shuffle (teamMode === 'brak') */}
+        {/* Quick shuffle (teamMode === 'brak') — available to all, results shown client-side only */}
         {!showTeams && regulars.length >= 2 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Shuffle className="w-4 h-4" /> Składy
+                <Shuffle className="w-4 h-4" /> Losuj składy
+                <span className="text-xs font-normal text-gray-400">(tylko lokalnie, nie zapisuje)</span>
               </h2>
               <Button variant="outline" onClick={() => setLocalTeams(splitTeams(regulars))} disabled={busy}>
                 {localTeams ? 'Losuj ponownie' : 'Losuj składy'}
@@ -727,14 +670,14 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Match results (trackResults) — only after event starts */}
-        {event.trackResults && !eventStarted && (
+        {/* Match results (trackResults) — locked until 30 min after event start */}
+        {event.trackResults && !resultsAvailable && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-3 text-sm text-gray-400">
             <Trophy className="w-4 h-4 shrink-0" />
-            Wyniki dostępne po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
+            Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
           </div>
         )}
-        {event.trackResults && eventStarted && (
+        {event.trackResults && resultsAvailable && (
           <MatchResultForm
             sport={event.sport}
             eventId={event.id}
@@ -748,7 +691,7 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* Actions */}
+        {/* Join / status */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
           {user && !myParticipation && !isFull && (
             <Button onClick={handleJoin} isLoading={busy} className="w-full" size="lg">Dołącz do gry</Button>
@@ -769,45 +712,60 @@ export default function EventDetailPage() {
           {!authLoading && !user && (
             <Button onClick={() => signInWithGoogle()} variant="outline" className="w-full">Zaloguj się, aby dołączyć</Button>
           )}
-
-          <Button onClick={handleShare} variant="outline" className="w-full">
-            {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Udostępnij</>}
-          </Button>
-
-          {isOrganizer && (
-            <div className="pt-3 border-t border-gray-100 space-y-3">
-              <button
-                onClick={handleToggleVisibility} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
-              >
-                {event.visibility === 'public'
-                  ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
-                  : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
-              </button>
-              {!isCancelled ? (
-                <button
-                  onClick={handleCancel} disabled={busy}
-                  className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
-                >
-                  <BanIcon className="w-4 h-4" /> Odwołaj mecz
-                </button>
-              ) : (
-                <button
-                  onClick={handleRestore} disabled={busy}
-                  className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
-                >
-                  <RotateCcw className="w-4 h-4" /> Przywróć mecz
-                </button>
-              )}
-              <button
-                onClick={handleDelete} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 text-xs"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
-              </button>
-            </div>
-          )}
         </div>
+
+        {/* ZAPROSZENIE — skopiuj link i wklej gdzie chcesz (WhatsApp, Messenger, SMS…) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1">
+            <Share2 className="w-4 h-4" /> Zaproś
+          </h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Skopiuj link i wklej go na grupie WhatsApp, Messengerze, SMS-ie — gdziekolwiek chcesz.
+            Zaproszeni NIE muszą zakładać konta, żeby potwierdzić udział.
+          </p>
+          <Button onClick={handleShare} variant="outline" className="w-full">
+            {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Skopiuj link zaproszenia</>}
+          </Button>
+        </div>
+
+        {/* POWIADOMIENIA — automatyczne przypomnienia dla zapisanych uczestników */}
+        {isOrganizer && <RemindersSection eventId={event.id} />}
+
+        {/* Organizer controls */}
+        {isOrganizer && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+            <h2 className="font-semibold text-gray-900 text-sm mb-2">Zarządzaj wydarzeniem</h2>
+            <button
+              onClick={handleToggleVisibility} disabled={busy}
+              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
+            >
+              {event.visibility === 'public'
+                ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
+                : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+            </button>
+            {!isCancelled ? (
+              <button
+                onClick={handleCancel} disabled={busy}
+                className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
+              >
+                <BanIcon className="w-4 h-4" /> Odwołaj mecz
+              </button>
+            ) : (
+              <button
+                onClick={handleRestore} disabled={busy}
+                className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
+              >
+                <RotateCcw className="w-4 h-4" /> Przywróć mecz
+              </button>
+            )}
+            <button
+              onClick={handleDelete} disabled={busy}
+              className="w-full flex items-center gap-2 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 text-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
+            </button>
+          </div>
+        )}
       </main>
 
       {/* Report modal */}
