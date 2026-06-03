@@ -59,15 +59,16 @@ function metaFor(sport: string) {
 // ---------------------------------------------------------------------------
 function fieldIcon(field: Field): L.DivIcon {
   const c = field.available ? primaryColor(field.sport) : '#9ca3af';
+  let primary = 'inne';
+  for (const s of SPORT_ORDER) {
+    if (field.sport.includes(s)) { primary = s; break; }
+  }
+  const em = metaFor(primary).emoji;
   return L.divIcon({
-    html: `<div style="
-        width:28px;height:28px;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        background:${c};
-        border:1.5px solid rgba(255,255,255,0.9);
-        box-shadow:0 2px 6px rgba(0,0,0,.3);
-        cursor:pointer
-      "></div>`,
+    html: `<div style="position:relative;width:28px;height:28px;cursor:pointer">
+      <div style="width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${c};border:1.5px solid rgba(255,255,255,0.9);box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>
+      <span style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:11px;line-height:1;pointer-events:none;user-select:none">${em}</span>
+    </div>`,
     className: '',
     iconSize: [28, 28],
     iconAnchor: [14, 26],
@@ -76,28 +77,26 @@ function fieldIcon(field: Field): L.DivIcon {
 }
 
 // ---------------------------------------------------------------------------
-// Cluster icon — colored bubble with count
+// Cluster icon — colored bubble with emoji + count
 // ---------------------------------------------------------------------------
 function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const count = cluster.getChildCount();
   const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _bojo_sports?: string[] }>;
 
-  // dominant sport color
   const allSports = markers.flatMap((m) => m._bojo_sports ?? []);
   const color = primaryColor(allSports.length ? allSports : ['inne']);
 
+  const uniqueSports = Array.from(new Set(allSports));
+  const em = uniqueSports.length === 1 ? metaFor(uniqueSports[0]).emoji : '🏟️';
+
   const size = count >= 100 ? 50 : count >= 20 ? 42 : 36;
+  const emSize = size >= 42 ? 14 : 12;
+  const numSize = size >= 42 ? 11 : 10;
 
   return L.divIcon({
-    html: `<div style="
-      display:flex;align-items:center;justify-content:center;
-      width:${size}px;height:${size}px;border-radius:50%;
-      background:${color};
-      border:2px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,.25);
-      cursor:pointer
-    ">
-      <span style="font-size:12px;font-weight:700;color:white;line-height:1">${count}</span>
+    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer">
+      <span style="font-size:${emSize}px;line-height:1">${em}</span>
+      <span style="font-size:${numSize}px;font-weight:700;color:white;line-height:1">${count}</span>
     </div>`,
     className: '',
     iconSize: [size, size],
