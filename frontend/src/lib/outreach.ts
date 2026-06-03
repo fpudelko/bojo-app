@@ -37,6 +37,8 @@ export interface Outreach {
   nextFollowupAt?: string;
   aiSummary?: string;
   aiEnrichedAt?: string;
+  bookingUrl?: string;
+  bookingProvider?: string;
   updatedBy?: string;
   updatedByName?: string;
   updatedAt?: string;
@@ -125,6 +127,8 @@ function toOutreach(row: any): Outreach {
     nextFollowupAt: row.next_followup_at ?? undefined,
     aiSummary: row.ai_summary ?? undefined,
     aiEnrichedAt: row.ai_enriched_at ?? undefined,
+    bookingUrl: row.booking_url ?? undefined,
+    bookingProvider: row.booking_provider ?? undefined,
     updatedBy: row.updated_by ?? undefined,
     updatedByName: row.updated_by_name ?? undefined,
     updatedAt: row.updated_at ?? undefined,

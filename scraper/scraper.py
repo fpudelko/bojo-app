@@ -24,7 +24,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
+import re as _re
+from difflib import SequenceMatcher
 from typing import Any
 
 import httpx
@@ -432,6 +435,37 @@ def normalize_google_place(place: dict[str, Any]) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Geo + address similarity (used to merge Google results into OSM records)
+# ---------------------------------------------------------------------------
+
+def _geo_dist_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Equirectangular distance in metres — accurate enough for < 1 km."""
+    R = 6_371_000
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1) * math.cos(math.radians((lat1 + lat2) / 2))
+    return R * math.sqrt(dlat ** 2 + dlng ** 2)
+
+
+def _match_score(incoming: dict[str, Any], existing: dict[str, Any],
+                 max_dist_m: float = 150.0) -> float:
+    """Combined geo + address similarity in [0, 1]. Returns 0 if > max_dist_m apart."""
+    lat1, lng1 = incoming.get("lat"), incoming.get("lng")
+    lat2, lng2 = existing.get("lat"), existing.get("lng")
+    if None in (lat1, lng1, lat2, lng2):
+        return 0.0
+    dist = _geo_dist_m(lat1, lng1, lat2, lng2)
+    if dist > max_dist_m:
+        return 0.0
+    geo = 1.0 - dist / max_dist_m
+    def _norm(s: str) -> str:
+        return _re.sub(r"[^\w ]", " ", (s or "").lower()).strip()
+    addr = SequenceMatcher(
+        None, _norm(incoming.get("address", "")), _norm(existing.get("address", ""))
+    ).ratio()
+    return 0.65 * geo + 0.35 * addr
+
+
+# ---------------------------------------------------------------------------
 # Supabase upsert
 # ---------------------------------------------------------------------------
 
@@ -452,31 +486,74 @@ async def upsert_fields(fields: list[dict[str, Any]], supabase_url: str, service
         log.info("No fields to upsert.")
         return
 
-    # Use UPSERT on (source, external_id) — safer than DELETE+INSERT:
-    # • preserves manager_id, is_bookable, booking_type set by venue owners
-    # • preserves linked events / games / bookings (no FK cascade)
-    # • idempotent: re-runs just update scraped columns in-place
-    headers = {
+    base_headers = {
         "apikey": service_key,
         "Authorization": f"Bearer {service_key}",
         "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates,return=minimal",
     }
+    upsert_headers = {**base_headers, "Prefer": "resolution=merge-duplicates,return=minimal"}
+    patch_headers = {**base_headers, "Prefer": "return=minimal"}
     endpoint = f"{supabase_url}/rest/v1/fields?on_conflict=source,external_id"
 
-    BATCH = 100
-    total = 0
+    google_fields = [f for f in fields if f.get("source") == "google_places"]
+    to_upsert = [f for f in fields if f.get("source") != "google_places"]
+    merged_count = 0
+
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for i in range(0, len(fields), BATCH):
-            batch = fields[i : i + BATCH]
-            r = await client.post(endpoint, json=batch, headers=headers)
+        # For Google Places results: try to merge into an existing nearby record
+        # instead of creating a duplicate. Matching: geo distance + address similarity.
+        if google_fields:
+            r = await client.get(
+                f"{supabase_url}/rest/v1/fields",
+                headers=base_headers,
+                params={"select": "id,name,address,lat,lng,phone,website", "limit": "10000"},
+            )
+            existing: list[dict[str, Any]] = r.json() if r.status_code == 200 else []
+            log.info("Loaded %d existing records for dedup", len(existing))
+
+            for gf in google_fields:
+                best_score, best_match = 0.0, None
+                for ex in existing:
+                    sc = _match_score(gf, ex)
+                    if sc > best_score:
+                        best_score, best_match = sc, ex
+
+                if best_match and best_score >= 0.65:
+                    patch = {k: gf[k] for k in ("phone", "website")
+                             if gf.get(k) and not best_match.get(k)}
+                    if patch:
+                        rp = await client.patch(
+                            f"{supabase_url}/rest/v1/fields",
+                            headers=patch_headers,
+                            params={"id": f"eq.{best_match['id']}"},
+                            json=patch,
+                        )
+                        ok = rp.status_code in (200, 204)
+                        log.info("  ↔ merged [%.2f] '%s' ← '%s' patch=%s %s",
+                                 best_score, best_match.get("name"), gf.get("name"),
+                                 list(patch.keys()), "ok" if ok else f"err {rp.status_code}")
+                    else:
+                        log.info("  ↔ matched [%.2f] '%s' (nothing new to fill)",
+                                 best_score, best_match.get("name"))
+                    merged_count += 1
+                else:
+                    to_upsert.append(gf)
+
+            log.info("Google: %d merged into existing · %d new records",
+                     merged_count, len(google_fields) - merged_count)
+
+        BATCH = 100
+        total = 0
+        for i in range(0, len(to_upsert), BATCH):
+            batch = to_upsert[i: i + BATCH]
+            r = await client.post(endpoint, json=batch, headers=upsert_headers)
             if r.status_code in (200, 201):
                 total += len(batch)
                 log.info("Upserted batch %d (%d fields)", i // BATCH + 1, len(batch))
             else:
                 log.error("Upsert error batch %d: %s — %s", i // BATCH + 1, r.status_code, r.text[:300])
 
-    log.info("Total upserted: %d fields", total)
+    log.info("Total upserted: %d new/updated · %d merged into existing", total, merged_count)
 
 
 # ---------------------------------------------------------------------------
