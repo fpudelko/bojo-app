@@ -70,7 +70,7 @@ export default function Header() {
 
   return (
     <header className={clsx(
-      'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[60] transition-shadow duration-200',
+      'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[1010] transition-shadow duration-200',
       scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
     )}>
       <div className="max-w-6xl mx-auto px-4">
