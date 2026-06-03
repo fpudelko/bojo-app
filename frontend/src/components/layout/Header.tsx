@@ -69,111 +69,113 @@ export default function Header() {
   }, []);
 
   return (
-    <header className={clsx(
-      'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[1010] transition-shadow duration-200',
-      scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
-    )}>
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <>
+      {/* ── Sticky header bar ── */}
+      <header className={clsx(
+        'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[1010] transition-shadow duration-200',
+        scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
+      )}>
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="hover:opacity-90 transition-opacity">
+              <LogoPill />
+            </Link>
 
-          <Link href="/" className="hover:opacity-90 transition-opacity">
-            <LogoPill />
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={clsx(
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  pathname === link.href || pathname.startsWith(link.href + '/')
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="hidden md:flex items-center gap-3">
-            {!loading && user && (
-              <>
+            <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
+              {NAV_LINKS.map((link) => (
                 <Link
-                  href="/moje-gry"
+                  key={link.href}
+                  href={link.href}
                   className={clsx(
-                    'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    pathname === '/moje-gry'
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    pathname === link.href || pathname.startsWith(link.href + '/')
                       ? 'bg-primary-50 text-primary-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
                   )}
                 >
-                  Moje gry
+                  {link.label}
                 </Link>
-                {hasVenue && (
+              ))}
+            </nav>
+
+            <div className="hidden md:flex items-center gap-3">
+              {!loading && user && (
+                <>
                   <Link
-                    href="/obiekt"
+                    href="/moje-gry"
                     className={clsx(
                       'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                      pathname === '/obiekt' || pathname.startsWith('/obiekt/')
+                      pathname === '/moje-gry'
                         ? 'bg-primary-50 text-primary-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
                     )}
                   >
-                    Moje obiekty
+                    Moje gry
                   </Link>
-                )}
-                <Link
-                  href="/wydarzenia/nowe"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-primary-700 text-white shadow-sm hover:bg-primary-800 active:scale-[0.97] transition-all"
-                >
-                  <Plus className="w-4 h-4" /> Wydarzenie
-                </Link>
-                <Link
-                  href="/profil"
-                  className="text-sm text-gray-600 hover:text-gray-900 max-w-[140px] truncate flex items-center gap-1.5"
-                  title="Edytuj profil"
-                >
-                  {userAvatar
-                    ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
-                    : <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
-                  {displayName(user)}
-                </Link>
+                  {hasVenue && (
+                    <Link
+                      href="/obiekt"
+                      className={clsx(
+                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname === '/obiekt' || pathname.startsWith('/obiekt/')
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                      )}
+                    >
+                      Moje obiekty
+                    </Link>
+                  )}
+                  <Link
+                    href="/wydarzenia/nowe"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-primary-700 text-white shadow-sm hover:bg-primary-800 active:scale-[0.97] transition-all"
+                  >
+                    <Plus className="w-4 h-4" /> Wydarzenie
+                  </Link>
+                  <Link
+                    href="/profil"
+                    className="text-sm text-gray-600 hover:text-gray-900 max-w-[140px] truncate flex items-center gap-1.5"
+                    title="Edytuj profil"
+                  >
+                    {userAvatar
+                      ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                      : <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
+                    {displayName(user)}
+                  </Link>
+                  <button
+                    onClick={() => signOut()}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                    aria-label="Wyloguj"
+                    title="Wyloguj"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              {!loading && !user && (
                 <button
-                  onClick={() => signOut()}
-                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
-                  aria-label="Wyloguj"
-                  title="Wyloguj"
+                  onClick={() => signInWithGoogle()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <GoogleIcon /> Zaloguj się
                 </button>
-              </>
-            )}
-            {!loading && !user && (
-              <button
-                onClick={() => signInWithGoogle()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <GoogleIcon /> Zaloguj się
-              </button>
-            )}
+              )}
+            </div>
+
+            <button
+              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
+              aria-expanded={mobileOpen}
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
-
-          <button
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
-            aria-expanded={mobileOpen}
-          >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
         </div>
-      </div>
+      </header>
 
+      {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
-          {/* Nav links */}
           <nav className="flex-1 overflow-y-auto px-5 pt-4" aria-label="Nawigacja mobilna">
             {NAV_LINKS.map((link) => (
               <Link
@@ -231,7 +233,6 @@ export default function Header() {
             )}
           </nav>
 
-          {/* User / login at bottom */}
           <div className="border-t border-slate-200/70 px-5 py-5">
             {!loading && user && (
               <div className="flex items-center justify-between">
@@ -243,7 +244,7 @@ export default function Header() {
                   {userAvatar
                     ? <img src={userAvatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
                     : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                        <User className="w-4.5 h-4.5 text-primary-700" />
+                        <User className="w-4 h-4 text-primary-700" />
                       </div>
                   }
                   <div className="min-w-0">
@@ -271,6 +272,6 @@ export default function Header() {
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }
