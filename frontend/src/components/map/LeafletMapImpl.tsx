@@ -87,15 +87,23 @@ function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const color = primaryColor(allSports.length ? allSports : ['inne']);
 
   const uniqueSports = Array.from(new Set(allSports));
-  const em = uniqueSports.length === 1 ? metaFor(uniqueSports[0]).emoji : '🏟️';
+  const isMixed = uniqueSports.length > 1;
+  const clusterColor = isMixed ? '#64748b' : color;
+
+  // Up to 3 sport emojis sorted by priority
+  const sortedSports = [
+    ...SPORT_ORDER.filter((s) => uniqueSports.includes(s)),
+    ...uniqueSports.filter((s) => !SPORT_ORDER.includes(s)),
+  ].slice(0, 3);
+  const emojis = sortedSports.map((s) => metaFor(s).emoji).join('');
 
   const size = count >= 100 ? 50 : count >= 20 ? 42 : 36;
-  const emSize = size >= 42 ? 14 : 12;
-  const numSize = size >= 42 ? 11 : 10;
+  const emSize = sortedSports.length >= 3 ? 9 : sortedSports.length === 2 ? (size >= 42 ? 12 : 10) : (size >= 42 ? 14 : 12);
+  const numSize = size >= 42 ? 10 : 9;
 
   return L.divIcon({
-    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer">
-      <span style="font-size:${emSize}px;line-height:1">${em}</span>
+    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:${size}px;height:${size}px;border-radius:50%;background:${clusterColor};border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer">
+      <span style="font-size:${emSize}px;line-height:1;white-space:nowrap">${emojis}</span>
       <span style="font-size:${numSize}px;font-weight:700;color:white;line-height:1">${count}</span>
     </div>`,
     className: '',
