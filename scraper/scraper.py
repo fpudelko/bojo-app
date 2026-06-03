@@ -136,30 +136,32 @@ SURFACE_DISPLAY: dict[str, str] = {
 
 
 def _build_area_query(areas: list[tuple[str, str]]) -> str:
-    """Build an Overpass QL query that unions all given admin areas."""
-    # Declare each area
+    """Build an Overpass QL query that unions all given admin areas.
+
+    Area declarations must be top-level statements (outside any union block).
+    Each (area, leisure_type, element_type) combination is a separate entry
+    inside the union block.
+    """
+    # Top-level area declarations
     area_decls = "\n".join(
-        f'  area["name"="{name}"]["admin_level"="{level}"]->.a{i};'
+        f'area["name"="{name}"]["admin_level"="{level}"]->.a{i};'
         for i, (name, level) in enumerate(areas)
     )
-    # Build union of all areas for each leisure type
-    area_refs = " ".join(f"(area.a{i})" for i in range(len(areas)))
+    # Union: every combination of area × element_type × leisure_type
     leisure_types = ["pitch", "sports_centre"]
     element_types = ["node", "way", "relation"]
     union_parts = "\n".join(
-        f'      {el}["leisure"="{lt}"]{area_refs};'
+        f'  {el}["leisure"="{lt}"](area.a{i});'
+        for i in range(len(areas))
         for lt in leisure_types
         for el in element_types
     )
-    return f"""
-[out:json][timeout:90];
-(
+    return f"""[out:json][timeout:90];
 {area_decls}
-);
 (
 {union_parts}
 );
-out center tags;
+out center;
 """
 
 
