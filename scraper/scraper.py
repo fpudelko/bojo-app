@@ -481,6 +481,14 @@ def deduplicate(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _normalize_batch(batch: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ensure all records share the same keys (PostgREST requires uniform objects)."""
+    all_keys: set[str] = set()
+    for r in batch:
+        all_keys.update(r.keys())
+    return [{k: r.get(k) for k in all_keys} for r in batch]
+
+
 async def upsert_fields(fields: list[dict[str, Any]], supabase_url: str, service_key: str) -> None:
     if not fields:
         log.info("No fields to upsert.")
@@ -545,7 +553,7 @@ async def upsert_fields(fields: list[dict[str, Any]], supabase_url: str, service
         BATCH = 100
         total = 0
         for i in range(0, len(to_upsert), BATCH):
-            batch = to_upsert[i: i + BATCH]
+            batch = _normalize_batch(to_upsert[i: i + BATCH])
             r = await client.post(endpoint, json=batch, headers=upsert_headers)
             if r.status_code in (200, 201):
                 total += len(batch)
