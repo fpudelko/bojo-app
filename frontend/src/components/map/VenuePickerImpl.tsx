@@ -6,44 +6,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Field } from '@/types';
 import { getFields } from '@/lib/api';
+import { POZNAN, fieldPin } from './mapIcons';
 
-const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-
-function sportColor(sport: string): string {
-  if (sport === 'piłka nożna') return '#15663E';
-  if (sport === 'siatkówka plażowa') return '#d97706';
-  if (sport === 'koszykówka') return '#ea580c';
-  return '#2563eb';
-}
-
-function primaryColor(sports: string[]): string {
-  const order = ['piłka nożna', 'siatkówka plażowa', 'koszykówka'];
-  for (const s of order) {
-    if (sports.includes(s)) return sportColor(s);
-  }
-  return sportColor(sports[0] ?? 'inne');
-}
-
-function pin(field: Field, selected: boolean): L.DivIcon {
-  const color = selected ? '#1e40af' : primaryColor(field.sport ?? []);
-  const size = selected ? 36 : 28;
-  return L.divIcon({
-    html: `<div style="
-      width:${size}px;height:${size}px;
-      border-radius:50% 50% 50% 0;
-      transform:rotate(-45deg);
-      background:${color};
-      border:${selected ? '2.5px' : '1.5px'} solid rgba(255,255,255,0.9);
-      box-shadow:0 2px ${selected ? '10px' : '5px'} rgba(0,0,0,${selected ? '.4' : '.25'});
-      cursor:pointer
-    "></div>`,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size - 2],
-    popupAnchor: [0, -size],
-  });
-}
 
 function FlyToSelected({ field }: { field: Field | null }) {
   const map = useMapEvents({});
@@ -57,9 +22,10 @@ function FlyToSelected({ field }: { field: Field | null }) {
 interface Props {
   selectedId?: string;
   onSelect: (field: Field) => void;
+  sport?: string;
 }
 
-export default function VenuePickerImpl({ selectedId, onSelect }: Props) {
+export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
 
   useEffect(() => {
@@ -70,7 +36,8 @@ export default function VenuePickerImpl({ selectedId, onSelect }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  const selectedField = fields.find((f) => f.id === selectedId) ?? null;
+  const visible = sport ? fields.filter((f) => f.sport.includes(sport)) : fields;
+  const selectedField = visible.find((f) => f.id === selectedId) ?? null;
 
   return (
     <MapContainer
@@ -81,25 +48,25 @@ export default function VenuePickerImpl({ selectedId, onSelect }: Props) {
     >
       {MAPBOX_TOKEN ? (
         <TileLayer
-          attribution='&copy; Mapbox &copy; OpenStreetMap'
+          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
           tileSize={512}
           zoomOffset={-1}
         />
       ) : (
         <TileLayer
-          attribution='&copy; OpenStreetMap'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
       )}
       <ZoomControl position="bottomright" />
       <FlyToSelected field={selectedField} />
 
-      {fields.map((field) => (
+      {visible.map((field) => (
         <Marker
           key={field.id}
           position={[field.lat, field.lng]}
-          icon={pin(field, field.id === selectedId)}
+          icon={fieldPin(field, field.id === selectedId)}
           eventHandlers={{ click: () => onSelect(field) }}
         />
       ))}

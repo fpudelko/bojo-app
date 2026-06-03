@@ -13,112 +13,14 @@ import { useAdmin } from '@/lib/admin';
 import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
 import type { MapViewProps } from './MapView';
+import { POZNAN, metaFor, fieldPin, clusterDivIcon } from './mapIcons';
 
-const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-
-// ---------------------------------------------------------------------------
-// Sport color palette — solid colors, no emoji
-// ---------------------------------------------------------------------------
-const SPORT_ORDER = [
-  'piłka nożna', 'siatkówka plażowa', 'koszykówka',
-  'futsal', 'siatkówka', 'piłka ręczna', 'gokarty', 'inne',
-];
-
-function sportColor(sport: string): string {
-  if (sport === 'piłka nożna') return '#15663E';
-  if (sport === 'siatkówka plażowa') return '#d97706';
-  if (sport === 'koszykówka') return '#ea580c';
-  return '#2563eb';
-}
-
-function primaryColor(sports: string[]): string {
-  for (const s of SPORT_ORDER) {
-    if (sports.includes(s)) return sportColor(s);
-  }
-  return sportColor(sports[0] ?? 'inne');
-}
-
-// metaFor — używane przez popup (sport badges z emoji)
-const SPORT_META: Record<string, { color: string; emoji: string }> = {
-  'piłka nożna':       { color: '#15663E', emoji: '⚽' },
-  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' },
-  'siatkówka':         { color: '#2563eb', emoji: '🏐' },
-  'koszykówka':        { color: '#ea580c', emoji: '🏀' },
-  'futsal':            { color: '#2563eb', emoji: '⚡' },
-  'piłka ręczna':      { color: '#2563eb', emoji: '🤾' },
-  'gokarty':           { color: '#0d9488', emoji: '🏎️' },
-  'inne':              { color: '#2563eb', emoji: '🏅' },
-};
-function metaFor(sport: string) {
-  return SPORT_META[sport] ?? { color: '#2563eb', emoji: '🏅' };
-}
-
-// ---------------------------------------------------------------------------
-// Individual pin — teardrop, sport color, no emoji
-// ---------------------------------------------------------------------------
-function fieldIcon(field: Field): L.DivIcon {
-  const c = field.available ? primaryColor(field.sport) : '#9ca3af';
-  let primary = 'inne';
-  for (const s of SPORT_ORDER) {
-    if (field.sport.includes(s)) { primary = s; break; }
-  }
-  const em = metaFor(primary).emoji;
-  return L.divIcon({
-    html: `<div style="position:relative;width:28px;height:28px;cursor:pointer">
-      <div style="width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${c};border:1.5px solid rgba(255,255,255,0.9);box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>
-      <span style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);font-size:11px;line-height:1;pointer-events:none;user-select:none">${em}</span>
-    </div>`,
-    className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 26],
-    popupAnchor: [0, -28],
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Cluster icon — colored bubble with emoji + count
-// ---------------------------------------------------------------------------
-function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
-  const count = cluster.getChildCount();
-  const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _bojo_sports?: string[] }>;
-
-  const allSports = markers.flatMap((m) => m._bojo_sports ?? []);
-  const color = primaryColor(allSports.length ? allSports : ['inne']);
-
-  const uniqueSports = Array.from(new Set(allSports));
-  const isMixed = uniqueSports.length > 1;
-  const clusterColor = isMixed ? '#64748b' : color;
-
-  // Up to 3 sport emojis sorted by priority
-  const sortedSports = [
-    ...SPORT_ORDER.filter((s) => uniqueSports.includes(s)),
-    ...uniqueSports.filter((s) => !SPORT_ORDER.includes(s)),
-  ].slice(0, 3);
-  const emojis = sortedSports.map((s) => metaFor(s).emoji).join('');
-
-  const size = count >= 100 ? 50 : count >= 20 ? 42 : 36;
-  const emSize = sortedSports.length >= 3 ? 9 : sortedSports.length === 2 ? (size >= 42 ? 12 : 10) : (size >= 42 ? 14 : 12);
-  const numSize = size >= 42 ? 10 : 9;
-
-  return L.divIcon({
-    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:${size}px;height:${size}px;border-radius:50%;background:${clusterColor};border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer">
-      <span style="font-size:${emSize}px;line-height:1;white-space:nowrap">${emojis}</span>
-      <span style="font-size:${numSize}px;font-weight:700;color:white;line-height:1">${count}</span>
-    </div>`,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Popup HTML (plain string — runs outside React)
 // ---------------------------------------------------------------------------
 function popupHtml(field: Field, isAdmin: boolean): string {
-  const color = primaryColor(field.sport);
-  const slug = slugify(field.name);
-
   const sportsHtml = field.sport
     .map((s) => {
       const m = metaFor(s);
@@ -131,6 +33,7 @@ function popupHtml(field: Field, isAdmin: boolean): string {
     : `<span style="color:#9ca3af;font-size:11px">● Niedostępne</span>`;
 
   const surfaceTxt = field.surface ? ` · <span style="color:#9ca3af;font-size:11px">${surfaceLabel(field.surface)}</span>` : '';
+  const slug = slugify(field.name);
 
   const bookingBtn =
     FEATURE_RESERVATIONS && showBookingForField(field) && field.bookingType === 'internal'
@@ -140,9 +43,6 @@ function popupHtml(field: Field, isAdmin: boolean): string {
   const adminLink = isAdmin
     ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:5px;font-size:11px;color:#6b7280;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
     : '';
-
-  // Suppress unused color var warning — it's used dynamically above
-  void color;
 
   return `<div style="min-width:230px;max-width:280px;font-family:system-ui,sans-serif">
     <p style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 2px">${field.name}</p>
@@ -160,7 +60,7 @@ function popupHtml(field: Field, isAdmin: boolean): string {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-component: lives inside MapContainer, adds/removes cluster layer
+// Cluster marker group
 // ---------------------------------------------------------------------------
 function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boolean }) {
   const map = useMap();
@@ -169,14 +69,18 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
     const clusterGroup = L.markerClusterGroup({
       showCoverageOnHover: false,
       maxClusterRadius: 28,
-      iconCreateFunction: clusterIcon,
+      iconCreateFunction: (cluster) => {
+        const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _bojo_sports?: string[] }>;
+        const allSports = markers.flatMap((m) => m._bojo_sports ?? []);
+        return clusterDivIcon(cluster.getChildCount(), allSports);
+      },
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 17,
       animate: true,
     });
 
     for (const field of fields) {
-      const marker = L.marker([field.lat, field.lng], { icon: fieldIcon(field) }) as L.Marker & {
+      const marker = L.marker([field.lat, field.lng], { icon: fieldPin(field) }) as L.Marker & {
         _bojo_sports?: string[];
       };
       marker._bojo_sports = field.sport;
@@ -185,9 +89,7 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
     }
 
     map.addLayer(clusterGroup);
-    return () => {
-      map.removeLayer(clusterGroup);
-    };
+    return () => { map.removeLayer(clusterGroup); };
   }, [map, fields, isAdmin]);
 
   return null;
@@ -208,7 +110,6 @@ export default function LeafletMapImpl({
   const [satellite, setSatellite] = useState(false);
   const isAdmin = useAdmin();
 
-  // Fetch all fields once; filters applied client-side
   useEffect(() => {
     let cancelled = false;
     getFields({ available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
@@ -217,7 +118,6 @@ export default function LeafletMapImpl({
     return () => { cancelled = true; };
   }, [onlyAvailable, onlyBookable]);
 
-  // Client-side filtering
   const q = search?.trim().toLowerCase() ?? '';
   const displayed = allFields.filter((f) => {
     if (sports && sports.length > 0 && !f.sport.some((s) => sports.includes(s))) return false;
@@ -226,32 +126,26 @@ export default function LeafletMapImpl({
   });
 
   const streetLayer = MAPBOX_TOKEN ? (
-    <TileLayer
-      key="street"
+    <TileLayer key="street"
       attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-      tileSize={512}
-      zoomOffset={-1}
+      tileSize={512} zoomOffset={-1}
     />
   ) : (
-    <TileLayer
-      key="street"
+    <TileLayer key="street"
       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
     />
   );
 
   const satelliteLayer = MAPBOX_TOKEN ? (
-    <TileLayer
-      key="satellite"
+    <TileLayer key="satellite"
       attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       url={`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-      tileSize={512}
-      zoomOffset={-1}
+      tileSize={512} zoomOffset={-1}
     />
   ) : (
-    <TileLayer
-      key="satellite"
+    <TileLayer key="satellite"
       attribution='&copy; <a href="https://www.esri.com">Esri</a> &copy; Maxar, Earthstar Geographics'
       url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     />
@@ -294,3 +188,4 @@ export default function LeafletMapImpl({
     </div>
   );
 }
+
