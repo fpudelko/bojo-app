@@ -39,7 +39,7 @@ interface LogoWordmarkProps {
   iconSize?: number;
 }
 
-/** Icon + "bojo" text — used in header */
+/** Icon + "bojo" text — used in footers / dark surfaces */
 export function LogoWordmark({ theme = 'light', className, iconSize = 28 }: LogoWordmarkProps) {
   const textColor = theme === 'dark' ? '#ffffff' : '#1A1D21';
   return (
@@ -51,6 +51,18 @@ export function LogoWordmark({ theme = 'light', className, iconSize = 28 }: Logo
       >
         bojo
       </span>
+    </span>
+  );
+}
+
+/** Green pill wordmark — used in header (no separate B icon, avoiding visual double-B) */
+export function LogoPill({ className }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-xl px-3 py-1.5 font-display text-lg font-bold tracking-tight text-white ${className ?? ''}`}
+      style={{ background: '#15663E', letterSpacing: '-0.03em', lineHeight: 1 }}
+    >
+      bojo
     </span>
   );
 }

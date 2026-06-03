@@ -7,7 +7,7 @@ import { Menu, X, Plus, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { LogoWordmark } from '@/components/Logo';
+import { LogoPill } from '@/components/Logo';
 
 // Ordered by user-journey priority: discover → organize → recurring → map
 const NAV_LINKS = [
@@ -48,6 +48,7 @@ function GoogleIcon() {
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const userAvatar = avatarUrl(user);
   const [hasVenue, setHasVenue] = useState(false);
@@ -61,13 +62,22 @@ export default function Header() {
       .then(({ count }) => setHasVenue((count ?? 0) > 0));
   }, [user]);
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <header className="bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 border-b border-slate-200/70 sticky top-0 z-[60]">
+    <header className={clsx(
+      'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[60] transition-shadow duration-200',
+      scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
+    )}>
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <LogoWordmark iconSize={28} theme="light" />
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <LogoPill />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
