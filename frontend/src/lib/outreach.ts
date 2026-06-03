@@ -35,6 +35,8 @@ export interface Outreach {
   notes?: string;
   lastContactedAt?: string;
   nextFollowupAt?: string;
+  aiSummary?: string;
+  aiEnrichedAt?: string;
   updatedBy?: string;
   updatedByName?: string;
   updatedAt?: string;
@@ -121,6 +123,8 @@ function toOutreach(row: any): Outreach {
     notes: row.notes ?? undefined,
     lastContactedAt: row.last_contacted_at ?? undefined,
     nextFollowupAt: row.next_followup_at ?? undefined,
+    aiSummary: row.ai_summary ?? undefined,
+    aiEnrichedAt: row.ai_enriched_at ?? undefined,
     updatedBy: row.updated_by ?? undefined,
     updatedByName: row.updated_by_name ?? undefined,
     updatedAt: row.updated_at ?? undefined,

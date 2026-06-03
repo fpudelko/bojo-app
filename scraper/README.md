@@ -44,3 +44,44 @@ Aby scraper uruchamiał się automatycznie co noc:
 # crontab -e
 0 2 * * * cd /path/to/bojo-app/scraper && python scraper.py >> /var/log/boiska-scraper.log 2>&1
 ```
+
+## Wzbogacanie danych przez AI (`enrich.py`)
+
+Dla obiektów bez danych kontaktowych skrypt `enrich.py` przeszukuje internet
+(narzędzie web search Claude) po nazwie + adresie i uzupełnia: telefon, e-mail,
+WWW, operatora, godziny otwarcia oraz **sposób rezerwacji**.
+
+⚠️ **Płatne** (Claude API + web search). Najpierw przetestuj na kilku obiektach
+z `--limit` i `--dry-run`.
+
+Wyniki zapisywane są do:
+- `fields` → telefon, email, www, operator, godziny (tylko jeśli puste — nie nadpisuje)
+- `field_outreach` → `booking_system`, `ai_summary`, `ai_enriched_at` (widoczne w panelu `/admin/outreach`)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export SUPABASE_URL=https://xxxx.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+python enrich.py --limit 5 --dry-run   # podgląd na 5 obiektach, bez zapisu
+python enrich.py --limit 20            # realnie wzbogać 20 obiektów
+python enrich.py                       # wszystkie jeszcze nieprzetworzone
+```
+
+| Zmienna | Opis | Wymagana |
+|---------|------|----------|
+| `ANTHROPIC_API_KEY` | Klucz API Claude | Tak |
+| `ANTHROPIC_MODEL` | Model (domyślnie `claude-haiku-4-5-20251001`) | Opcjonalna |
+
+| Flaga | Opis |
+|-------|------|
+| `--limit N` | przetwórz maks. N obiektów |
+| `--dry-run` | wypisz wyniki, nic nie zapisuj |
+| `--all` | przetwórz ponownie też już wzbogacone |
+| `--require-empty` | tylko obiekty bez telefonu **i** e-maila |
+| `--concurrency N` | równoległe zapytania (domyślnie 4) |
+| `--model ID` | model Claude |
+
+Domyślnie pomija obiekty już wzbogacone (`ai_enriched_at` ustawione), więc można
+uruchamiać przyrostowo. Web search ≈ $10/1000 wyszukań — skrypt na końcu pokazuje
+zużycie tokenów i szacunkowy koszt.

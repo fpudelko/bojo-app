@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
-  UserCheck, RotateCcw, Check,
+  UserCheck, RotateCcw, Check, Sparkles,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -54,7 +54,7 @@ function exportCsv(rows: { field: Field; o: Outreach }[]) {
   const headers = [
     'Nazwa', 'Adres', 'Kod', 'Sporty', 'Telefon', 'E-mail', 'WWW', 'Operator',
     'Status', 'System rezerwacji', 'Przypisany', 'Osoba kontaktowa',
-    'Ostatni kontakt', 'Followup', 'Notatki', 'Ostatnia zmiana',
+    'Ostatni kontakt', 'Followup', 'Notatki', 'AI', 'Ostatnia zmiana',
   ];
   const lines = rows.map(({ field: f, o }) => [
     f.name, f.address, f.postcode, f.sport.join(' / '),
@@ -63,7 +63,7 @@ function exportCsv(rows: { field: Field; o: Outreach }[]) {
     o.assignedName, o.contactPerson,
     o.lastContactedAt ? formatPl(o.lastContactedAt) : '',
     o.nextFollowupAt ? formatPl(o.nextFollowupAt) : '',
-    o.notes, o.updatedByName,
+    o.notes, o.aiSummary, o.updatedByName,
   ].map(csvCell).join(','));
 
   const csv = '﻿' + [headers.join(','), ...lines].join('\n');
@@ -498,6 +498,17 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
       {isExpanded && (
         <tr className="bg-gray-50/80">
           <td colSpan={6} className="px-4 py-4">
+            {o.aiSummary && (
+              <div className="mb-4 flex gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
+                <Sparkles className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-violet-700 mb-0.5">
+                    AI znalazł{o.aiEnrichedAt ? ` · ${formatPl(o.aiEnrichedAt)}` : ''}
+                  </p>
+                  <p className="text-sm text-violet-900 whitespace-pre-wrap">{o.aiSummary}</p>
+                </div>
+              </div>
+            )}
             <div className="grid md:grid-cols-3 gap-4">
               {/* Notes */}
               <div className="md:col-span-2">
