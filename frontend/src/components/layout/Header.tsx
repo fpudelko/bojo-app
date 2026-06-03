@@ -7,11 +7,13 @@ import { Menu, X, Plus, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { LogoWordmark } from '@/components/Logo';
 
+// Ordered by user-journey priority: discover → organize → recurring → map
 const NAV_LINKS = [
-  { href: '/mapa', label: 'Mapa boisk' },
   { href: '/wydarzenia', label: 'Znajdź grę' },
-  { href: '/cykliczne', label: 'Stałe ekipy' },
+  { href: '/cykliczne', label: 'Stałe gierki' },
+  { href: '/mapa', label: 'Mapa boisk' },
 ];
 
 /** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
@@ -64,12 +66,8 @@ export default function Header() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-display font-bold text-ink text-xl hover:text-primary-700 transition-colors"
-          >
-            <TeamIcon className="w-7 h-7 text-primary-700" />
-            <span>Bojo</span>
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <LogoWordmark iconSize={28} theme="light" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
@@ -190,7 +188,7 @@ export default function Header() {
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-primary-700 bg-primary-50"
                   >
-                    <Plus className="w-4 h-4" /> Stwórz wydarzenie
+                    <Plus className="w-4 h-4" /> Szukam ludzi do gry
                   </Link>
                   <Link
                     href="/moje-gry"

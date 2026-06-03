@@ -4,14 +4,14 @@
 
 :root {
   --font-inter: 'Inter', system-ui, sans-serif;
-  --color-primary: #15803d;
+  --color-primary: #15663E;
   --color-secondary: #2563eb;
-  --color-accent: #84cc16;
-  --color-bg: #ffffff;
-  --color-bg-muted: #f8faf9;
-  --color-text: #0f172a;
+  --color-accent: #F5A623;
+  --color-bg: #FAF9F6;
+  --color-bg-muted: #F0EEE9;
+  --color-text: #1A1D21;
   --color-text-muted: #64748b;
-  --color-border: #e5e7eb;
+  --color-border: #E4E2DD;
 }
 
 * {
@@ -42,14 +42,14 @@ a {
   color: #0f172a;
 }
 
-/* Hero atmosphere — layered green base with a soft lime glow and a faint dot grid.
-   Pure CSS (no images); subtle by design, cleanliness over effect. */
+/* Hero atmosphere — brand green with amber glow + dot grid.
+   Pure CSS (no images). Paleta robocza: #15663E + #F5A623. */
 .hero-surface {
-  background-color: #14532d;
+  background-color: #0b3420;
   background-image:
-    radial-gradient(60rem 40rem at 78% -10%, rgba(132, 204, 22, 0.32), transparent 60%),
-    radial-gradient(50rem 40rem at 0% 110%, rgba(22, 163, 74, 0.55), transparent 55%),
-    linear-gradient(160deg, #166534 0%, #15803d 45%, #14532d 100%);
+    radial-gradient(60rem 40rem at 78% -10%, rgba(245, 166, 35, 0.28), transparent 60%),
+    radial-gradient(50rem 40rem at 0% 110%, rgba(21, 102, 62, 0.7), transparent 55%),
+    linear-gradient(160deg, #104d2e 0%, #15663E 45%, #0b3420 100%);
 }
 .hero-dots {
   background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1px);
