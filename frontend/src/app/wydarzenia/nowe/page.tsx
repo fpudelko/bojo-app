@@ -232,9 +232,9 @@ function NewEventForm() {
     'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
   const locationModes: { value: LocationMode; label: string; desc: string }[] = [
-    { value: 'venue', label: 'Boisko z bazy', desc: 'Wybierz z mapy boisk' },
-    { value: 'address', label: 'Wpisz adres', desc: 'Geokoduj przez OpenStreetMap' },
-    { value: 'map', label: 'Kliknij na mapie', desc: 'Wskaż punkt na mapie' },
+    { value: 'venue',   label: 'Znane boisko',    desc: 'Wybierz z bazy boisk'      },
+    { value: 'address', label: 'Wpisz adres',     desc: 'Szukaj po adresie'         },
+    { value: 'map',     label: 'Wskaż na mapie',  desc: 'Kliknij dowolne miejsce'   },
   ];
 
   return (
@@ -279,7 +279,7 @@ function NewEventForm() {
             {/* Mode: venue picker */}
             {locationMode === 'venue' && (
               <>
-                <p className="text-xs text-gray-500 mb-2">Kliknij pinezkę na mapie, aby wybrać boisko.</p>
+                <p className="text-xs text-gray-500 mb-2">Kliknij boisko na mapie, żeby je wybrać.</p>
                 <div className="h-72 rounded-xl overflow-hidden border border-gray-200">
                   <VenuePicker selectedId={field?.id} onSelect={setField} />
                 </div>
