@@ -3,14 +3,17 @@ Boiska Poznań — Field Scraper
 ==============================
 Scrapes sports fields from:
   1. OpenStreetMap via Overpass API (free, no key required)
+     Uses OSM administrative boundary areas instead of a raw BBOX so the
+     coverage follows the actual city / county borders.
+     Default areas: miasto Poznań + powiat poznański.
   2. Google Places API Text Search (requires GOOGLE_PLACES_API_KEY)
 
 Only team/group sports are imported (soccer, basketball, volleyball, futsal,
 handball, beach volleyball, hockey, rugby, multi-sport). Individual sports
 (tennis, athletics, cycling, golf, etc.) are filtered out.
 
-Results are upserted to Supabase. Re-runs are safe: all OSM/Google rows
-are deleted per source before re-inserting. Manual rows (source=manual) untouched.
+Results are upserted to Supabase on (source, external_id).
+Manual rows (source=manual) are never touched.
 
 Usage:
     pip install -r requirements.txt
@@ -35,7 +38,14 @@ log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-POZNAN_BBOX = (52.20, 16.40, 52.65, 17.35)  # south, west, north, east (Poznań + okolice)
+# OSM administrative areas to scrape.
+# Each tuple: (area name as in OSM, admin_level).
+# miasto Poznań is admin_level=6; powiat poznański (ring county) is also 6.
+OSM_AREAS: list[tuple[str, str]] = [
+    ("Poznań", "6"),
+    ("powiat poznański", "6"),
+]
+
 POZNAN_CENTER = "52.4064,16.9252"
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -125,24 +135,41 @@ SURFACE_DISPLAY: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
-async def scrape_osm(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
-    """Fetch team-sport pitches and sport centres from OSM via a single POST query."""
-    south, west, north, east = bbox
-    query = f"""
-    [out:json][timeout:60];
-    (
-      node["leisure"="pitch"]({south},{west},{north},{east});
-      way["leisure"="pitch"]({south},{west},{north},{east});
-      relation["leisure"="pitch"]({south},{west},{north},{east});
-      node["leisure"="sports_centre"]({south},{west},{north},{east});
-      way["leisure"="sports_centre"]({south},{west},{north},{east});
-      relation["leisure"="sports_centre"]({south},{west},{north},{east});
-    );
-    out center;
-    """
+def _build_area_query(areas: list[tuple[str, str]]) -> str:
+    """Build an Overpass QL query that unions all given admin areas."""
+    # Declare each area
+    area_decls = "\n".join(
+        f'  area["name"="{name}"]["admin_level"="{level}"]->.a{i};'
+        for i, (name, level) in enumerate(areas)
+    )
+    # Build union of all areas for each leisure type
+    area_refs = " ".join(f"(area.a{i})" for i in range(len(areas)))
+    leisure_types = ["pitch", "sports_centre"]
+    element_types = ["node", "way", "relation"]
+    union_parts = "\n".join(
+        f'      {el}["leisure"="{lt}"]{area_refs};'
+        for lt in leisure_types
+        for el in element_types
+    )
+    return f"""
+[out:json][timeout:90];
+(
+{area_decls}
+);
+(
+{union_parts}
+);
+out center tags;
+"""
 
-    async with httpx.AsyncClient(timeout=75.0) as client:
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
+async def scrape_osm(areas: list[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Fetch team-sport pitches and sport centres from OSM for given admin areas."""
+    query = _build_area_query(areas)
+    log.debug("Overpass query:\n%s", query)
+
+    async with httpx.AsyncClient(timeout=100.0) as client:
         response = await client.post(
             OVERPASS_URL,
             data={"data": query},
@@ -238,12 +265,15 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
 
     is_indoor = tags.get("indoor", "no").lower() in ("yes", "true", "1") or bool(tags.get("building"))
 
+    suburb = tags.get("addr:suburb") or tags.get("addr:quarter") or tags.get("addr:neighbourhood") or ""
     address_parts = [
         tags.get("addr:street", ""),
         tags.get("addr:housenumber", ""),
-        tags.get("addr:city", "Poznań"),
+        suburb,
+        tags.get("addr:city", ""),
     ]
-    address = " ".join(p for p in address_parts if p).strip() or "Poznań"
+    address = ", ".join(p for p in address_parts if p).strip() or "Poznań"
+    postcode = tags.get("addr:postcode")
 
     # Operator / manager info
     operator = (
@@ -266,6 +296,18 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         if wmc:
             image_url = wikimedia_to_url(wmc)
 
+    def yes_no(tag: str) -> bool | None:
+        v = tags.get(tag, "").lower()
+        if v in ("yes", "true", "1"): return True
+        if v in ("no", "false", "0"): return False
+        return None
+
+    capacity_raw = tags.get("capacity")
+    try:
+        capacity = int(capacity_raw) if capacity_raw else None
+    except ValueError:
+        capacity = None
+
     return {
         "name": build_osm_name(tags, sport_pl, surface),
         "address": address,
@@ -283,6 +325,14 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         "description": tags.get("description") or tags.get("description:pl"),
         "image_url": image_url,
         "opening_hours": tags.get("opening_hours"),
+        "postcode": postcode,
+        "lit": yes_no("lit"),
+        "access": tags.get("access") or None,
+        "fee": yes_no("fee"),
+        "has_changing_rooms": yes_no("changing_rooms"),
+        "has_shower": yes_no("shower"),
+        "has_toilets": yes_no("toilets"),
+        "capacity": capacity,
         "source": "osm",
         "external_id": f"osm:{element['type']}/{element['id']}",
     }
@@ -432,9 +482,9 @@ async def main() -> None:
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-    log.info("Scraping OSM bbox=%s …", POZNAN_BBOX)
+    log.info("Scraping OSM areas=%s …", OSM_AREAS)
     try:
-        osm_fields = await scrape_osm(POZNAN_BBOX)
+        osm_fields = await scrape_osm(OSM_AREAS)
         log.info("OSM: %d team-sport fields", len(osm_fields))
     except Exception as exc:
         log.error("OSM scrape failed: %s", exc)

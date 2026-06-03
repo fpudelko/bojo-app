@@ -32,6 +32,14 @@ function toField(row: any): Field {
     description: row.description ?? undefined,
     imageUrl: row.image_url ?? undefined,
     openingHours: row.opening_hours ?? undefined,
+    postcode: row.postcode ?? undefined,
+    lit: row.lit ?? undefined,
+    access: row.access ?? undefined,
+    fee: row.fee ?? undefined,
+    hasChangingRooms: row.has_changing_rooms ?? undefined,
+    hasShower: row.has_shower ?? undefined,
+    hasToilets: row.has_toilets ?? undefined,
+    capacity: row.capacity ?? undefined,
   };
 }
 

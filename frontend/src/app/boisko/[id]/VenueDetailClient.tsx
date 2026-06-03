@@ -280,6 +280,19 @@ export default function VenueDetailClient({
               </div>
             )}
 
+            {/* Facilities chips */}
+            {(field.lit !== undefined || field.fee !== undefined || field.hasChangingRooms || field.hasShower || field.hasToilets || field.capacity) && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {field.lit === true && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">💡 Oświetlenie</span>}
+                {field.fee === false && <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✓ Bezpłatne</span>}
+                {field.fee === true && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">💳 Płatne</span>}
+                {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">👕 Szatnia</span>}
+                {field.hasShower && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">🚿 Prysznic</span>}
+                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-200">🚻 Toaleta</span>}
+                {field.capacity && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-200">👥 maks. {field.capacity} os.</span>}
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 pt-1">
               {field.phone && (
                 <a
