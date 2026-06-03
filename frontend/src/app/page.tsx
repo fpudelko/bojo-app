@@ -1,65 +1,83 @@
 import Link from 'next/link';
 import {
   CalendarPlus, UserPlus, Compass, RefreshCw, Building2, ArrowRight,
-  Link2, ListChecks, Bell, UserCheck, Zap, Share2, Users, MapPin,
-  Navigation, Calendar, CalendarDays, Mail, MessageSquare,
+  Link2, ListChecks, Bell, UserCheck, Zap, Users, MapPin,
+  Navigation, Calendar, CalendarDays, Mail,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MapView from '@/components/map/MapView';
 import SportsSectionWithCounts from '@/components/SportsSectionWithCounts';
 
+type Chip = { icon: React.ElementType; label: string };
+
 type UseCase = {
   icon: React.ElementType;
-  iconColor: 'green' | 'amber';
-  title: string;
+  tone: 'green' | 'amber';
+  eyebrow: string;
+  headline: string;
   description: string;
+  chips: Chip[];
   cta: string;
   href: string;
-  soon?: boolean;
 };
 
 const USE_CASES: UseCase[] = [
   {
     icon: CalendarPlus,
-    iconColor: 'green',
-    title: 'Organizuję mecz',
-    description: 'Zaproś ekipę, zbierz potwierdzenia, pilnuj składu. Bez excelów i grupowych wiadomości.',
-    cta: 'Stwórz wydarzenie',
+    tone: 'green',
+    eyebrow: 'Organizuję mecz',
+    headline: 'Zbierz ekipę w jednym miejscu.',
+    description: 'Stwórz mecz, rozdaj link i miej zapisy, potwierdzenia i przypomnienia pod ręką.',
+    chips: [
+      { icon: Link2, label: 'Zaproszenia linkiem' },
+      { icon: ListChecks, label: 'Lista zapisów' },
+      { icon: Bell, label: 'Przypomnienia' },
+    ],
+    cta: 'Stwórz mecz',
     href: '/wydarzenia/nowe',
   },
   {
     icon: UserPlus,
-    iconColor: 'amber',
-    title: 'Szukam ludzi do gry',
-    description: 'Masz mecz, brakuje 2-3 osób? Jedno ogłoszenie i ktoś z okolicy się dopisze.',
-    cta: 'Ogłoś brakujące miejsca',
+    tone: 'amber',
+    eyebrow: 'Szukam ludzi do gry',
+    headline: 'Brakuje paru osób? Ogłoś mecz.',
+    description: 'Otwórz wolne miejsca, a dograją się gracze z okolicy. Szybko i bez rejestracji.',
+    chips: [
+      { icon: Zap, label: 'Szybkie ogłoszenie' },
+      { icon: Users, label: 'Wolne miejsca' },
+      { icon: MapPin, label: 'Gracze z okolicy' },
+    ],
+    cta: 'Ogłoś mecz',
     href: '/wydarzenia/nowe',
   },
   {
     icon: Compass,
-    iconColor: 'amber',
-    title: 'Szukam gry dla siebie',
-    description: 'Masz wolny wieczór i chcesz zagrać? Znajdź otwarty mecz blisko, kliknij i już jesteś.',
+    tone: 'amber',
+    eyebrow: 'Szukam gry dla siebie',
+    headline: 'Masz wolny wieczór? Znajdź mecz.',
+    description: 'Przeglądaj otwarte mecze blisko ciebie i dołącz do gry jednym kliknięciem.',
+    chips: [
+      { icon: Calendar, label: 'Otwarte mecze' },
+      { icon: Navigation, label: 'Blisko ciebie' },
+      { icon: UserCheck, label: 'Bez rejestracji' },
+    ],
     cta: 'Znajdź grę',
     href: '/wydarzenia',
   },
   {
     icon: RefreshCw,
-    iconColor: 'green',
-    title: 'Gramy co tydzień',
-    description: 'Stała ekipa, stały termin — otwierasz zapisy raz na tydzień i gotowe. Koniec z chaosem.',
-    cta: 'Moje stałe gierki',
+    tone: 'green',
+    eyebrow: 'Gramy co tydzień',
+    headline: 'Stała ekipa? Ogarnijcie to raz.',
+    description: 'Ustaw stały termin i otwieraj zapisy jednym kliknięciem — bez ganiania ludzi co tydzień.',
+    chips: [
+      { icon: CalendarDays, label: 'Stały termin' },
+      { icon: Mail, label: 'Powiadomienia' },
+      { icon: Zap, label: 'Jeden klik' },
+    ],
+    cta: 'Stałe gierki',
     href: '/cykliczne',
-  },
-  {
-    icon: Building2,
-    iconColor: 'green',
-    title: 'Rezerwacja boiska',
-    description: 'Sprawdź dostępność i zarezerwuj online — bez dzwonienia. Właściciel potwierdza od ręki.',
-    cta: 'Wkrótce',
-    href: '#',
-    soon: true,
   },
 ];
 
@@ -161,198 +179,75 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Use cases */}
+      {/* How it works — unified intent cards */}
       <section className="border-y border-slate-200/70 bg-white px-4 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
               Jak chcesz zagrać?
             </h2>
-            <p className="mt-2 text-sm text-slate-500">Wejdź z dowolnym pomysłem na grę — resztę ogarniemy.</p>
+            <p className="mt-2 text-sm text-slate-500">Każdy znajdzie tu swój sposób na grę.</p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {USE_CASES.map((uc) => {
-              const iconBg  = uc.iconColor === 'green' ? 'bg-primary-50 text-primary-700' : 'bg-amber-50 text-amber-600';
-              const iconHover = uc.iconColor === 'green' ? 'group-hover:bg-primary-100' : 'group-hover:bg-amber-100';
-              const accentBar = uc.iconColor === 'green'
-                ? 'bg-gradient-to-r from-primary-700 to-primary-500'
-                : 'bg-gradient-to-r from-accent-500 to-amber-400';
 
-              if (uc.soon) {
-                return (
-                  <div
-                    key={uc.title}
-                    className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-6 opacity-60"
-                  >
-                    <span className="absolute right-4 top-4 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
-                      Wkrótce
-                    </span>
-                    <div className={`mb-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-                      <uc.icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-base font-semibold leading-snug text-ink">{uc.title}</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{uc.description}</p>
-                    <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-slate-400">
-                      {uc.cta}
-                    </span>
-                  </div>
-                );
-              }
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {USE_CASES.map((uc) => {
+              const tone = uc.tone === 'green'
+                ? { badge: 'bg-primary-50 text-primary-700', icon: 'text-primary-700', eyebrow: 'text-primary-700', cta: 'text-primary-700', border: 'hover:border-primary-200' }
+                : { badge: 'bg-amber-50 text-amber-600',     icon: 'text-amber-600',   eyebrow: 'text-amber-600',   cta: 'text-amber-700',   border: 'hover:border-amber-200' };
 
               return (
-                <Link key={uc.title} href={uc.href} className="group">
-                  <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-canvas p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary-200 hover:bg-white hover:shadow-card-hover">
-                    <span className={`absolute inset-x-0 top-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 ${accentBar}`} />
-                    <div className={`mb-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${iconBg} ${iconHover}`}>
-                      <uc.icon className="h-5 w-5" />
+                <Link key={uc.eyebrow} href={uc.href} className="group">
+                  <div className={`flex h-full flex-col rounded-2xl border border-slate-200 bg-canvas p-6 transition-all duration-200 hover:-translate-y-1 hover:bg-white hover:shadow-card-hover sm:p-7 ${tone.border}`}>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone.badge}`}>
+                        <uc.icon className="h-5 w-5" />
+                      </div>
+                      <span className={`text-xs font-semibold uppercase tracking-wide ${tone.eyebrow}`}>
+                        {uc.eyebrow}
+                      </span>
                     </div>
-                    <h3 className="text-base font-semibold leading-snug text-ink">{uc.title}</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{uc.description}</p>
-                    <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 group-hover:gap-2 transition-all">
-                      {uc.cta} <ArrowRight className="h-3.5 w-3.5" />
+
+                    <h3 className="font-display text-xl font-bold leading-snug text-ink">{uc.headline}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-500">{uc.description}</p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {uc.chips.map((chip) => (
+                        <span
+                          key={chip.label}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600"
+                        >
+                          <chip.icon className={`h-3.5 w-3.5 ${tone.icon}`} />
+                          {chip.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span className={`mt-6 inline-flex items-center gap-1 text-sm font-semibold transition-all group-hover:gap-2 ${tone.cta}`}>
+                      {uc.cta} <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
                 </Link>
               );
             })}
           </div>
-        </div>
-      </section>
 
-      {/* Feature deep-dives */}
-      <section className="border-y border-slate-200/60 bg-slate-50/50 px-4 py-16">
-        <div className="mx-auto max-w-5xl space-y-6">
-
-          {/* Organizuję mecz */}
-          <div className="flex flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-10">
-            <div className="flex-1">
-              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
-                <CalendarPlus className="h-4 w-4" />
-                <span>Organizuję mecz</span>
-              </div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                Zbierz ekipę. Wszystko masz w jednym miejscu.
-              </h2>
-              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
-                Link do meczu, lista zapisanych, potwierdzenia obecności, przypomnienia — bez excelów i grupowych wiadomości.
-              </p>
-              <Link href="/wydarzenia/nowe">
-                <Button>Stwórz wydarzenie</Button>
-              </Link>
+          {/* Rezerwacja boiska — wkrótce */}
+          <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center sm:flex-row sm:text-left">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400">
+              <Building2 className="h-5 w-5" />
             </div>
-            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
-              {[
-                { icon: Link2,       label: 'Zaproszenia linkiem'   },
-                { icon: ListChecks,  label: 'Lista zapisów'          },
-                { icon: Bell,        label: 'Przypomnienia'          },
-                { icon: UserCheck,   label: 'Potwierdzenia obecności'},
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 rounded-xl border border-primary-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
-                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-              ))}
+            <div className="flex-1">
+              <div className="flex items-center justify-center gap-2 sm:justify-start">
+                <h3 className="font-display text-base font-bold text-slate-600">Rezerwacja boiska</h3>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                  Wkrótce
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Sprawdź dostępność i zaklep termin online — bez dzwonienia do obiektu.
+              </p>
             </div>
           </div>
-
-          {/* Szukam ludzi do gry */}
-          <div className="flex flex-col items-center gap-10 rounded-3xl border border-amber-100 bg-amber-50/30 p-8 md:flex-row md:p-10">
-            <div className="flex-1">
-              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-700">
-                <UserPlus className="h-4 w-4" />
-                <span>Szukam ludzi do gry</span>
-              </div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                Brakuje 2 osób? Ogłoś — ktoś z okolicy się dograje.
-              </h2>
-              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
-                Otwórz wolne miejsca w swoim meczu. Dołączą gracze szukający gry — szybko, bez rejestracji.
-              </p>
-              <Link href="/wydarzenia/nowe">
-                <Button className="border-transparent bg-amber-500 text-white hover:bg-amber-600">
-                  Ogłoś brakujące miejsca
-                </Button>
-              </Link>
-            </div>
-            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
-              {[
-                { icon: Zap,      label: 'Szybkie ogłoszenie' },
-                { icon: Share2,   label: 'Udostępnij mecz'    },
-                { icon: Users,    label: 'Dograj 2-3 osoby'   },
-                { icon: MapPin,   label: 'Gracze z okolicy'   },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
-                  <Icon className="h-4 w-4 shrink-0 text-amber-600" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Szukam gry dla siebie */}
-          <div className="flex flex-col items-center gap-10 rounded-3xl border border-slate-200 bg-white p-8 md:flex-row md:p-10">
-            <div className="flex-1">
-              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
-                <Compass className="h-4 w-4" />
-                <span>Szukam gry dla siebie</span>
-              </div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                Wolny wieczór? Znajdź mecz i po prostu zagraj.
-              </h2>
-              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
-                Przeglądaj otwarte mecze blisko ciebie. Dołącz jednym kliknięciem — bez rejestracji, bez gadania.
-              </p>
-              <Link href="/wydarzenia">
-                <Button>Znajdź grę</Button>
-              </Link>
-            </div>
-            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
-              {[
-                { icon: Calendar,    label: 'Otwarte mecze'          },
-                { icon: Navigation,  label: 'Blisko ciebie'          },
-                { icon: Zap,         label: 'Dołącz jednym kliknięciem' },
-                { icon: Users,       label: 'Poznaj nowe ekipy'      },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 transition-shadow hover:shadow-card">
-                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Gramy co tydzień */}
-          <div className="flex flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-10">
-            <div className="flex-1">
-              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
-                <RefreshCw className="h-4 w-4" />
-                <span>Dla stałych ekip</span>
-              </div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                Gracie co tydzień? Ogarnijcie to raz.
-              </h2>
-              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
-                Stały termin, lista graczy, powiadomienia do wszystkich. Koniec z pisaniem do każdego osobno.
-              </p>
-              <Link href="/cykliczne/nowe">
-                <Button>Stwórz stałe gierki</Button>
-              </Link>
-            </div>
-            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
-              {[
-                { icon: CalendarDays,   label: 'Stały termin'          },
-                { icon: Mail,           label: 'Powiadomienia e-mail'  },
-                { icon: MessageSquare,  label: 'Powiadomienia SMS'      },
-                { icon: Zap,            label: 'Jeden klik — nowa edycja' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2 rounded-xl border border-primary-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
-                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
-                  <span className="text-xs font-medium">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
       </section>
 
