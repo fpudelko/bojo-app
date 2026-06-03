@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, Plus, LogOut, User } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -172,78 +172,103 @@ export default function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4">
-          <nav className="flex flex-col gap-1 pt-2" aria-label="Nawigacja mobilna">
+        <div className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
+          {/* Nav links */}
+          <nav className="flex-1 overflow-y-auto px-5 pt-4" aria-label="Nawigacja mobilna">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
                 className={clsx(
-                  'px-4 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                  pathname === link.href
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-100',
+                  'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium transition-colors',
+                  pathname === link.href || pathname.startsWith(link.href + '/')
+                    ? 'text-primary-700'
+                    : 'text-ink',
                 )}
               >
                 {link.label}
+                <ChevronRight className="w-4 h-4 text-slate-300" />
               </Link>
             ))}
 
-            <div className="border-t border-gray-100 mt-2 pt-2">
-              {!loading && user && (
-                <>
+            {!loading && user && (
+              <>
+                <Link
+                  href="/moje-gry"
+                  onClick={() => setMobileOpen(false)}
+                  className={clsx(
+                    'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                    pathname === '/moje-gry' ? 'text-primary-700' : 'text-ink',
+                  )}
+                >
+                  Moje gry
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </Link>
+                {hasVenue && (
+                  <Link
+                    href="/obiekt"
+                    onClick={() => setMobileOpen(false)}
+                    className={clsx(
+                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                      pathname.startsWith('/obiekt') ? 'text-primary-700' : 'text-ink',
+                    )}
+                  >
+                    Moje obiekty
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </Link>
+                )}
+                <div className="pt-5 pb-2">
                   <Link
                     href="/wydarzenia/nowe"
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-primary-700 bg-primary-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 px-4 py-4 text-base font-semibold text-white shadow-sm active:scale-[0.98] transition-transform"
                   >
-                    <Plus className="w-4 h-4" /> Szukam ludzi do gry
+                    <Plus className="w-5 h-5" /> Stwórz wydarzenie
                   </Link>
-                  <Link
-                    href="/moje-gry"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Moje gry
-                  </Link>
-                  {hasVenue && (
-                    <Link
-                      href="/obiekt"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Moje obiekty
-                    </Link>
-                  )}
-                  <Link
-                    href="/profil"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    {userAvatar
-                      ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover" />
-                      : <User className="w-4 h-4" />}
-                    {displayName(user)}
-                  </Link>
-                  <button
-                    onClick={() => { setMobileOpen(false); signOut(); }}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    <LogOut className="w-4 h-4" /> Wyloguj
-                  </button>
-                </>
-              )}
-              {!loading && !user && (
-                <button
-                  onClick={() => { setMobileOpen(false); signInWithGoogle(); }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  <GoogleIcon /> Zaloguj się przez Google
-                </button>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </nav>
+
+          {/* User / login at bottom */}
+          <div className="border-t border-slate-200/70 px-5 py-5">
+            {!loading && user && (
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/profil"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 min-w-0"
+                >
+                  {userAvatar
+                    ? <img src={userAvatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                    : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50">
+                        <User className="w-4.5 h-4.5 text-primary-700" />
+                      </div>
+                  }
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink truncate">{displayName(user)}</p>
+                    <p className="text-xs text-slate-500">Edytuj profil</p>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => { setMobileOpen(false); signOut(); }}
+                  className="ml-3 shrink-0 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 transition-colors"
+                  aria-label="Wyloguj"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+            {!loading && !user && (
+              <button
+                onClick={() => { setMobileOpen(false); signInWithGoogle(); }}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white py-4 text-sm font-semibold text-ink transition-colors hover:bg-slate-50"
+              >
+                <GoogleIcon /> Zaloguj się przez Google
+              </button>
+            )}
+          </div>
         </div>
       )}
     </header>

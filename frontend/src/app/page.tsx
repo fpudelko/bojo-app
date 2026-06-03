@@ -179,16 +179,9 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* How it works — unified intent cards */}
-      <section className="border-y border-slate-200/70 bg-white px-4 py-20">
+      {/* Intent cards */}
+      <section className="border-y border-slate-200/70 bg-white px-4 py-16">
         <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Jak chcesz zagrać?
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">Każdy znajdzie tu swój sposób na grę.</p>
-          </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {USE_CASES.map((uc) => {
               const tone = uc.tone === 'green'

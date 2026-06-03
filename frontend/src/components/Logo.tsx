@@ -59,7 +59,7 @@ export function LogoWordmark({ theme = 'light', className, iconSize = 28 }: Logo
 export function LogoPill({ className }: { className?: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-xl px-3 py-1.5 font-display text-lg font-bold tracking-tight text-white ${className ?? ''}`}
+      className={`inline-flex items-center rounded-xl px-3.5 py-2 font-display text-xl font-bold tracking-tight text-white ${className ?? ''}`}
       style={{ background: '#15663E', letterSpacing: '-0.03em', lineHeight: 1 }}
     >
       bojo

@@ -18,92 +18,86 @@ const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 // ---------------------------------------------------------------------------
-// Sport metadata: ordered by importance for cluster icon display
+// Sport color palette — solid colors, no emoji
 // ---------------------------------------------------------------------------
 const SPORT_ORDER = [
-  'piłka nożna', 'siatkówka plażowa', 'siatkówka', 'koszykówka',
-  'futsal', 'piłka ręczna', 'gokarty', 'inne',
+  'piłka nożna', 'siatkówka plażowa', 'koszykówka',
+  'futsal', 'siatkówka', 'piłka ręczna', 'gokarty', 'inne',
 ];
 
-// TODO: podmienić emoji na własne SVG od grafika gdy będą gotowe
-const SPORT_META: Record<string, { color: string; emoji: string }> = {
-  'piłka nożna':       { color: '#15803d', emoji: '⚽' },
-  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' }, // piaskowy — różny od niebieskiej siatkówki
-  'siatkówka':         { color: '#2563eb', emoji: '🏐' }, // niebieski
-  'koszykówka':        { color: '#ea580c', emoji: '🏀' },
-  'futsal':            { color: '#7c3aed', emoji: '⚡' },
-  'piłka ręczna':      { color: '#dc2626', emoji: '🤾' },
-  'gokarty':           { color: '#0d9488', emoji: '🏎️' },
-  'inne':              { color: '#6b7280', emoji: '⭐' }, // Star — neutralne, nie sugeruje zawodów
-};
-
-function metaFor(sport: string) {
-  return SPORT_META[sport] ?? { color: '#6b7280', emoji: '🏅' };
+function sportColor(sport: string): string {
+  if (sport === 'piłka nożna') return '#15663E';
+  if (sport === 'siatkówka plażowa') return '#d97706';
+  if (sport === 'koszykówka') return '#ea580c';
+  return '#2563eb';
 }
 
-function primaryMeta(sports: string[]) {
+function primaryColor(sports: string[]): string {
   for (const s of SPORT_ORDER) {
-    if (sports.includes(s)) return metaFor(s);
+    if (sports.includes(s)) return sportColor(s);
   }
-  return metaFor(sports[0] ?? 'inne');
+  return sportColor(sports[0] ?? 'inne');
+}
+
+// metaFor — używane przez popup (sport badges z emoji)
+const SPORT_META: Record<string, { color: string; emoji: string }> = {
+  'piłka nożna':       { color: '#15663E', emoji: '⚽' },
+  'siatkówka plażowa': { color: '#d97706', emoji: '🏖️' },
+  'siatkówka':         { color: '#2563eb', emoji: '🏐' },
+  'koszykówka':        { color: '#ea580c', emoji: '🏀' },
+  'futsal':            { color: '#2563eb', emoji: '⚡' },
+  'piłka ręczna':      { color: '#2563eb', emoji: '🤾' },
+  'gokarty':           { color: '#0d9488', emoji: '🏎️' },
+  'inne':              { color: '#2563eb', emoji: '🏅' },
+};
+function metaFor(sport: string) {
+  return SPORT_META[sport] ?? { color: '#2563eb', emoji: '🏅' };
 }
 
 // ---------------------------------------------------------------------------
-// Individual pin icon — teardrop shape, thin (1px) white ring, emoji inside
+// Individual pin — teardrop, sport color, no emoji
 // ---------------------------------------------------------------------------
 function fieldIcon(field: Field): L.DivIcon {
-  const { color, emoji } = primaryMeta(field.sport);
-  const c = field.available ? color : '#9ca3af';
-  // Teardrop: circle body + triangle tip at bottom. Thin white ring keeps it readable on any map tile.
+  const c = field.available ? primaryColor(field.sport) : '#9ca3af';
   return L.divIcon({
     html: `<div style="
-        display:flex;align-items:center;justify-content:center;
-        width:32px;height:32px;border-radius:50% 50% 50% 0;
+        width:28px;height:28px;border-radius:50% 50% 50% 0;
         transform:rotate(-45deg);
         background:${c};
-        border:1.5px solid rgba(255,255,255,0.85);
-        box-shadow:0 2px 8px rgba(0,0,0,.35);
+        border:1.5px solid rgba(255,255,255,0.9);
+        box-shadow:0 2px 6px rgba(0,0,0,.3);
         cursor:pointer
-      ">
-        <span style="transform:rotate(45deg);font-size:14px;line-height:1">${field.available ? emoji : '×'}</span>
-      </div>`,
+      "></div>`,
     className: '',
-    iconSize: [32, 32],
-    iconAnchor: [16, 30],
-    popupAnchor: [0, -32],
+    iconSize: [28, 28],
+    iconAnchor: [14, 26],
+    popupAnchor: [0, -28],
   });
 }
 
 // ---------------------------------------------------------------------------
-// Cluster icon — shows sport emoji mix + count
+// Cluster icon — colored bubble with count
 // ---------------------------------------------------------------------------
 function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const count = cluster.getChildCount();
   const markers = cluster.getAllChildMarkers() as Array<L.Marker & { _bojo_sports?: string[] }>;
 
-  // Collect unique sports in SPORT_ORDER priority
-  const seen = new Set<string>();
-  const emojis: string[] = [];
-  for (const s of SPORT_ORDER) {
-    if (emojis.length >= 3) break;
-    for (const m of markers) {
-      if (m._bojo_sports?.includes(s) && !seen.has(s)) {
-        seen.add(s);
-        emojis.push(metaFor(s).emoji);
-        break;
-      }
-    }
-  }
+  // dominant sport color
+  const allSports = markers.flatMap((m) => m._bojo_sports ?? []);
+  const color = primaryColor(allSports.length ? allSports : ['inne']);
 
-  const size = count >= 100 ? 54 : count >= 20 ? 46 : 40;
-  const emojiSpans = emojis
-    .map((e) => `<span style="font-size:11px;line-height:1">${e}</span>`)
-    .join('');
+  const size = count >= 100 ? 50 : count >= 20 ? 42 : 36;
 
   return L.divIcon({
-    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:white;box-shadow:0 2px 10px rgba(0,0,0,.3);border:1.5px solid #15803d;cursor:pointer">
-      <div style="display:flex;align-items:center;gap:1px">${emojiSpans}</div>
-      <span style="font-size:11px;font-weight:700;color:#15803d;line-height:1.3">${count}</span>
+    html: `<div style="
+      display:flex;align-items:center;justify-content:center;
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${color};
+      border:2px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+      cursor:pointer
+    ">
+      <span style="font-size:12px;font-weight:700;color:white;line-height:1">${count}</span>
     </div>`,
     className: '',
     iconSize: [size, size],
@@ -115,7 +109,7 @@ function clusterIcon(cluster: L.MarkerCluster): L.DivIcon {
 // Popup HTML (plain string — runs outside React)
 // ---------------------------------------------------------------------------
 function popupHtml(field: Field, isAdmin: boolean): string {
-  const { color } = primaryMeta(field.sport);
+  const color = primaryColor(field.sport);
   const slug = slugify(field.name);
 
   const sportsHtml = field.sport
@@ -167,7 +161,7 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       showCoverageOnHover: false,
-      maxClusterRadius: 60,
+      maxClusterRadius: 28,
       iconCreateFunction: clusterIcon,
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 17,
