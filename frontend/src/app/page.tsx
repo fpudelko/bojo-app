@@ -1,5 +1,9 @@
 import Link from 'next/link';
-import { CalendarPlus, UserPlus, Compass, RefreshCw, Building2, ArrowRight } from 'lucide-react';
+import {
+  CalendarPlus, UserPlus, Compass, RefreshCw, Building2, ArrowRight,
+  Link2, ListChecks, Bell, UserCheck, Zap, Share2, Users, MapPin,
+  Navigation, Calendar, CalendarDays, Mail, MessageSquare,
+} from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MapView from '@/components/map/MapView';
@@ -20,7 +24,7 @@ const USE_CASES: UseCase[] = [
     icon: CalendarPlus,
     iconColor: 'green',
     title: 'Organizuję mecz',
-    description: 'Stwórz wydarzenie i zaproś ekipę. Śledź zapisy, potwierdzenia, ustaw przypomnienia — wszystko w jednym miejscu.',
+    description: 'Zaproś ekipę, zbierz potwierdzenia, pilnuj składu. Bez excelów i grupowych wiadomości.',
     cta: 'Stwórz wydarzenie',
     href: '/wydarzenia/nowe',
   },
@@ -28,23 +32,23 @@ const USE_CASES: UseCase[] = [
     icon: UserPlus,
     iconColor: 'amber',
     title: 'Szukam ludzi do gry',
-    description: 'Brakuje 2 do składu? Wrzuć szybkie ogłoszenie albo udostępnij mecz — dograją się gracze z okolicy.',
-    cta: 'Szukam brakujących',
+    description: 'Masz mecz, brakuje 2-3 osób? Jedno ogłoszenie i ktoś z okolicy się dopisze.',
+    cta: 'Ogłoś brakujące miejsca',
     href: '/wydarzenia/nowe',
   },
   {
     icon: Compass,
     iconColor: 'amber',
     title: 'Szukam gry dla siebie',
-    description: 'Dołącz do otwartego meczu. Uratuj komuś gierkę, zagraj, poznaj ludzi — może zaproszą cię na stałe?',
+    description: 'Masz wolny wieczór i chcesz zagrać? Znajdź otwarty mecz blisko, kliknij i już jesteś.',
     cta: 'Znajdź grę',
     href: '/wydarzenia',
   },
   {
     icon: RefreshCw,
     iconColor: 'green',
-    title: 'Gramy cyklicznie',
-    description: 'Stały termin, ta sama ekipa, zero ogarniania co tydzień. Otwierasz zapisy jednym kliknięciem.',
+    title: 'Gramy co tydzień',
+    description: 'Stała ekipa, stały termin — otwierasz zapisy raz na tydzień i gotowe. Koniec z chaosem.',
     cta: 'Moje stałe gierki',
     href: '/cykliczne',
   },
@@ -52,7 +56,7 @@ const USE_CASES: UseCase[] = [
     icon: Building2,
     iconColor: 'green',
     title: 'Rezerwacja boiska',
-    description: 'Znajdź wolny termin, zarezerwuj online — bez telefonowania. Właściciel potwierdza od ręki.',
+    description: 'Sprawdź dostępność i zarezerwuj online — bez dzwonienia. Właściciel potwierdza od ręki.',
     cta: 'Wkrótce',
     href: '#',
     soon: true,
@@ -162,9 +166,9 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Po co tu jesteś?
+              Jak chcesz zagrać?
             </h2>
-            <p className="mt-2 text-sm text-slate-500">Wejdź z dowolnego powodu — resztę ogarniemy.</p>
+            <p className="mt-2 text-sm text-slate-500">Wejdź z dowolnym pomysłem na grę — resztę ogarniemy.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {USE_CASES.map((uc) => {
@@ -215,40 +219,140 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Recurring events promo */}
-      <section className="px-4 py-20">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-12">
-          <div className="flex-1">
-            <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
-              <RefreshCw className="h-4 w-4" />
-              <span>Dla stałych ekip</span>
-            </div>
-            <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              Gracie co tydzień? Ogarnijcie to raz.
-            </h2>
-            <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
-              Stały termin, lista graczy, jeden SMS do wszystkich. Koniec z pisaniem do każdego osobno.
-            </p>
-            <Link href="/cykliczne/nowe">
-              <Button>Stwórz stałe gierki</Button>
-            </Link>
-          </div>
-          <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 text-sm text-slate-700 md:w-auto md:max-w-xs">
-            {[
-              ['📅', 'Stały termin co tydzień'],
-              ['📧', 'Powiadomienia e-mail'],
-              ['📱', 'Powiadomienia SMS'],
-              ['⚡', 'Jeden klik — nowa edycja'],
-            ].map(([icon, text]) => (
-              <div
-                key={text}
-                className="flex items-center gap-2 rounded-xl border border-primary-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card"
-              >
-                <span>{icon}</span>
-                <span className="text-xs font-medium">{text}</span>
+      {/* Feature deep-dives */}
+      <section className="border-y border-slate-200/60 bg-slate-50/50 px-4 py-16">
+        <div className="mx-auto max-w-5xl space-y-6">
+
+          {/* Organizuję mecz */}
+          <div className="flex flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-10">
+            <div className="flex-1">
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
+                <CalendarPlus className="h-4 w-4" />
+                <span>Organizuję mecz</span>
               </div>
-            ))}
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+                Zbierz ekipę. Wszystko masz w jednym miejscu.
+              </h2>
+              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
+                Link do meczu, lista zapisanych, potwierdzenia obecności, przypomnienia — bez excelów i grupowych wiadomości.
+              </p>
+              <Link href="/wydarzenia/nowe">
+                <Button>Stwórz wydarzenie</Button>
+              </Link>
+            </div>
+            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
+              {[
+                { icon: Link2,       label: 'Zaproszenia linkiem'   },
+                { icon: ListChecks,  label: 'Lista zapisów'          },
+                { icon: Bell,        label: 'Przypomnienia'          },
+                { icon: UserCheck,   label: 'Potwierdzenia obecności'},
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 rounded-xl border border-primary-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
+                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Szukam ludzi do gry */}
+          <div className="flex flex-col items-center gap-10 rounded-3xl border border-amber-100 bg-amber-50/30 p-8 md:flex-row md:p-10">
+            <div className="flex-1">
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-700">
+                <UserPlus className="h-4 w-4" />
+                <span>Szukam ludzi do gry</span>
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+                Brakuje 2 osób? Ogłoś — ktoś z okolicy się dograje.
+              </h2>
+              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
+                Otwórz wolne miejsca w swoim meczu. Dołączą gracze szukający gry — szybko, bez rejestracji.
+              </p>
+              <Link href="/wydarzenia/nowe">
+                <Button className="border-transparent bg-amber-500 text-white hover:bg-amber-600">
+                  Ogłoś brakujące miejsca
+                </Button>
+              </Link>
+            </div>
+            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
+              {[
+                { icon: Zap,      label: 'Szybkie ogłoszenie' },
+                { icon: Share2,   label: 'Udostępnij mecz'    },
+                { icon: Users,    label: 'Dograj 2-3 osoby'   },
+                { icon: MapPin,   label: 'Gracze z okolicy'   },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
+                  <Icon className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Szukam gry dla siebie */}
+          <div className="flex flex-col items-center gap-10 rounded-3xl border border-slate-200 bg-white p-8 md:flex-row md:p-10">
+            <div className="flex-1">
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
+                <Compass className="h-4 w-4" />
+                <span>Szukam gry dla siebie</span>
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+                Wolny wieczór? Znajdź mecz i po prostu zagraj.
+              </h2>
+              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
+                Przeglądaj otwarte mecze blisko ciebie. Dołącz jednym kliknięciem — bez rejestracji, bez gadania.
+              </p>
+              <Link href="/wydarzenia">
+                <Button>Znajdź grę</Button>
+              </Link>
+            </div>
+            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
+              {[
+                { icon: Calendar,    label: 'Otwarte mecze'          },
+                { icon: Navigation,  label: 'Blisko ciebie'          },
+                { icon: Zap,         label: 'Dołącz jednym kliknięciem' },
+                { icon: Users,       label: 'Poznaj nowe ekipy'      },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 transition-shadow hover:shadow-card">
+                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Gramy co tydzień */}
+          <div className="flex flex-col items-center gap-10 rounded-3xl border border-primary-100 bg-primary-50/40 p-8 md:flex-row md:p-10">
+            <div className="flex-1">
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
+                <RefreshCw className="h-4 w-4" />
+                <span>Dla stałych ekip</span>
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+                Gracie co tydzień? Ogarnijcie to raz.
+              </h2>
+              <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
+                Stały termin, lista graczy, powiadomienia do wszystkich. Koniec z pisaniem do każdego osobno.
+              </p>
+              <Link href="/cykliczne/nowe">
+                <Button>Stwórz stałe gierki</Button>
+              </Link>
+            </div>
+            <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 md:w-auto md:max-w-xs">
+              {[
+                { icon: CalendarDays,   label: 'Stały termin'          },
+                { icon: Mail,           label: 'Powiadomienia e-mail'  },
+                { icon: MessageSquare,  label: 'Powiadomienia SMS'      },
+                { icon: Zap,            label: 'Jeden klik — nowa edycja' },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 rounded-xl border border-primary-100 bg-white px-3 py-2.5 transition-shadow hover:shadow-card">
+                  <Icon className="h-4 w-4 shrink-0 text-primary-700" />
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </section>
 
