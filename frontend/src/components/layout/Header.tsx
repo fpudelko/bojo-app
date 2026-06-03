@@ -140,6 +140,19 @@ export default function Header() {
                       Kontakt z obiektami
                     </Link>
                   )}
+                  {isAdmin && (
+                    <Link
+                      href="/admin/uzytkownicy"
+                      className={clsx(
+                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname.startsWith('/admin/uzytkownicy')
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                      )}
+                    >
+                      Użytkownicy
+                    </Link>
+                  )}
                   <Link
                     href="/wydarzenia/nowe"
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-primary-700 text-white shadow-sm hover:bg-primary-800 active:scale-[0.97] transition-all"
@@ -245,6 +258,19 @@ export default function Header() {
                     )}
                   >
                     Kontakt z obiektami
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin/uzytkownicy"
+                    onClick={() => setMobileOpen(false)}
+                    className={clsx(
+                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                      pathname.startsWith('/admin/uzytkownicy') ? 'text-primary-700' : 'text-ink',
+                    )}
+                  >
+                    Użytkownicy
                     <ChevronRight className="w-4 h-4 text-slate-300" />
                   </Link>
                 )}
