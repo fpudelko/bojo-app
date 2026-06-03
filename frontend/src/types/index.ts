@@ -23,6 +23,14 @@ export interface Field {
   description?: string;
   imageUrl?: string;
   openingHours?: string;
+  postcode?: string;
+  lit?: boolean;
+  access?: string;
+  fee?: boolean;
+  hasChangingRooms?: boolean;
+  hasShower?: boolean;
+  hasToilets?: boolean;
+  capacity?: number;
 }
 
 export interface FieldsResponse {
