@@ -26,6 +26,12 @@ function toField(row: any): Field {
     managerId: row.manager_id ?? undefined,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
+    email: row.email ?? undefined,
+    operator: row.operator ?? undefined,
+    operatorType: row.operator_type ?? undefined,
+    description: row.description ?? undefined,
+    imageUrl: row.image_url ?? undefined,
+    openingHours: row.opening_hours ?? undefined,
   };
 }
 

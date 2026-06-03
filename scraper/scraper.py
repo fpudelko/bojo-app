@@ -183,6 +183,33 @@ def build_osm_name(tags: dict[str, str], sport_pl: str, surface_normalized: str)
     return " · ".join(parts)
 
 
+# Normalized operator type labels (stored in DB)
+OPERATOR_TYPE_MAP: dict[str, str] = {
+    "public":       "gmina / miasto",
+    "government":   "gmina / miasto",
+    "municipal":    "gmina / miasto",
+    "community":    "stowarzyszenie",
+    "ngo":          "stowarzyszenie",
+    "association":  "stowarzyszenie",
+    "private":      "prywatny",
+    "commercial":   "prywatny",
+    "company":      "prywatny",
+    "educational":  "szkoła / uczelnia",
+    "school":       "szkoła / uczelnia",
+    "university":   "szkoła / uczelnia",
+    "sports":       "klub sportowy",
+    "club":         "klub sportowy",
+}
+
+
+def wikimedia_to_url(value: str) -> str | None:
+    """Convert OSM wikimedia_commons tag (e.g. 'File:Foo.jpg') to a direct image URL."""
+    if value.startswith("File:"):
+        filename = value[5:].replace(" ", "_")
+        return f"https://commons.wikimedia.org/wiki/Special:FilePath/{filename}?width=800"
+    return None
+
+
 def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     """Convert an OSM element to our Field schema. Returns None for non-team sports."""
     tags: dict[str, str] = element.get("tags", {})
@@ -218,6 +245,27 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     ]
     address = " ".join(p for p in address_parts if p).strip() or "Poznań"
 
+    # Operator / manager info
+    operator = (
+        tags.get("operator")
+        or tags.get("name:operator")
+        or tags.get("brand")
+    )
+    op_type_raw = (tags.get("operator:type") or "").lower().strip()
+    # Also infer from amenity / leisure tags
+    if not op_type_raw:
+        amenity = tags.get("amenity", "").lower()
+        if amenity in ("school", "college", "university"):
+            op_type_raw = "educational"
+    operator_type = OPERATOR_TYPE_MAP.get(op_type_raw) if op_type_raw else None
+
+    # Image URL — prefer direct tag, fall back to wikimedia_commons
+    image_url = tags.get("image") or None
+    if not image_url:
+        wmc = tags.get("wikimedia_commons") or tags.get("image:wikimedia")
+        if wmc:
+            image_url = wikimedia_to_url(wmc)
+
     return {
         "name": build_osm_name(tags, sport_pl, surface),
         "address": address,
@@ -229,6 +277,12 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         "is_indoor": is_indoor,
         "phone": tags.get("contact:phone") or tags.get("phone"),
         "website": tags.get("website") or tags.get("contact:website"),
+        "operator": operator,
+        "operator_type": operator_type,
+        "email": tags.get("contact:email") or tags.get("email"),
+        "description": tags.get("description") or tags.get("description:pl"),
+        "image_url": image_url,
+        "opening_hours": tags.get("opening_hours"),
         "source": "osm",
         "external_id": f"osm:{element['type']}/{element['id']}",
     }
