@@ -15,6 +15,7 @@ const Impl = dynamic(() => import('./VenuePickerImpl'), {
 interface Props {
   selectedId?: string;
   onSelect: (field: Field) => void;
+  sport?: string;
 }
 
 export default function VenuePicker(props: Props) {
