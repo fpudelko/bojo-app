@@ -631,9 +631,9 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   <ExternalLink className="w-3.5 h-3.5" /> Otwórz obiekt
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-x-8 gap-y-2">
+              <div className="flex flex-col gap-2">
                 {f.phone && (
-                  <a href={`tel:${f.phone}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline">
+                  <a href={`tel:${f.phone}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
                     <Phone className="w-4 h-4 text-gray-400 shrink-0" /> {f.phone}
                   </a>
                 )}
@@ -653,13 +653,13 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   </span>
                 )}
                 {f.openingHours && (
-                  <span className="inline-flex items-start gap-2 text-sm text-gray-700 w-full">
+                  <span className="inline-flex items-start gap-2 text-sm text-gray-700">
                     <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                     <span className="whitespace-pre-wrap">{f.openingHours}</span>
                   </span>
                 )}
                 {f.description && (
-                  <p className="text-sm text-gray-600 w-full border-t border-gray-100 pt-2 mt-1">{f.description}</p>
+                  <p className="text-sm text-gray-600 border-t border-gray-100 pt-2 mt-1">{f.description}</p>
                 )}
               </div>
               {suspicious && (
