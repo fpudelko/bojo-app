@@ -38,6 +38,11 @@ on:
         options:
           - claude-haiku-4-5-20251001
           - claude-sonnet-4-6
+      concurrency:
+        description: 'Równoległe zapytania (1 = bezpieczne dla 50k TPM, 2-3 jeśli masz wyższy limit)'
+        default: '1'
+        required: false
+        type: string
 
 jobs:
   enrich:
@@ -63,7 +68,7 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --concurrency 4 --model ${{ inputs.model }}"
+          ARGS="--limit ${{ inputs.limit }} --concurrency ${{ inputs.concurrency }} --model ${{ inputs.model }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
