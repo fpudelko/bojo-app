@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
-  UserCheck, RotateCcw, Check, Sparkles,
+  UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -34,6 +34,10 @@ function formatPl(iso?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function siteHost(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url.slice(0, 40); }
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +194,8 @@ export default function OutreachPanel() {
     return list;
   }, [fields, getO, search, fStatus, fSport, fAssign, fContact, fHideDone, user?.id]);
 
+  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone;
+
   // --- Pipeline stats ---
   const stats = useMemo(() => {
     const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, 0])) as Record<OutreachStatus, number>;
@@ -237,7 +243,7 @@ export default function OutreachPanel() {
           <div>
             <h1 className="text-2xl font-bold text-ink">Kontakt z obiektami</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {loading ? 'Ładowanie…' : `${rows.length} z ${fields.length} obiektów`}
+              {loading ? 'Ładowanie…' : `${fields.length} obiektów łącznie`}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => exportCsv(rows)} disabled={loading || rows.length === 0}>
@@ -294,6 +300,12 @@ export default function OutreachPanel() {
             <input type="checkbox" checked={fHideDone} onChange={(e) => setFHideDone(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
             Ukryj zamknięte
           </label>
+          {/* Count badge */}
+          {!loading && (
+            <span className={`ml-auto text-sm font-medium tabular-nums px-3 py-1.5 rounded-lg ${filtersActive ? 'bg-primary-50 text-primary-700' : 'text-gray-500'}`}>
+              {rows.length}{filtersActive ? ` / ${fields.length}` : ''} obiektów
+            </span>
+          )}
         </div>
 
         {/* Table */}
@@ -370,21 +382,29 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
   const [notes, setNotes] = useState(o.notes ?? '');
   const [contactPerson, setContactPerson] = useState(o.contactPerson ?? '');
   const [followup, setFollowup] = useState(o.nextFollowupAt ?? '');
+  const [assignName, setAssignName] = useState(o.assignedName ?? '');
   const [savingDraft, setSavingDraft] = useState(false);
 
   // keep drafts in sync if outreach changes underneath
   useEffect(() => { setNotes(o.notes ?? ''); }, [o.notes]);
   useEffect(() => { setContactPerson(o.contactPerson ?? ''); }, [o.contactPerson]);
   useEffect(() => { setFollowup(o.nextFollowupAt ?? ''); }, [o.nextFollowupAt]);
+  useEffect(() => { setAssignName(o.assignedName ?? ''); }, [o.assignedName]);
 
   const dirty =
     notes !== (o.notes ?? '') ||
     contactPerson !== (o.contactPerson ?? '') ||
-    followup !== (o.nextFollowupAt ?? '');
+    followup !== (o.nextFollowupAt ?? '') ||
+    assignName !== (o.assignedName ?? '');
 
   const saveDraft = async () => {
     setSavingDraft(true);
-    await onPatch({ notes, contactPerson, nextFollowupAt: followup });
+    const patch: OutreachPatch = { notes, contactPerson, nextFollowupAt: followup };
+    if (assignName !== (o.assignedName ?? '')) {
+      patch.assignedName = assignName || undefined;
+      if (!assignName) patch.assignedTo = undefined;
+    }
+    await onPatch(patch);
     setSavingDraft(false);
     onToast('Zapisano');
   };
@@ -396,6 +416,9 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
   const release = () => onPatch({ assignedTo: undefined, assignedName: undefined });
 
   const markContactedToday = () => onPatch({ lastContactedAt: new Date().toISOString() });
+
+  const isMyRow = o.assignedTo === currentUser?.id;
+  const isSomeoneElsesRow = !!o.assignedTo && !isMyRow;
 
   return (
     <>
@@ -420,24 +443,27 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
           </div>
         </td>
 
-        {/* Kontakt */}
+        {/* Kontakt — pełny tekst */}
         <td className="px-3 py-3 align-top hidden md:table-cell">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
             {f.phone ? (
-              <a href={`tel:${f.phone}`} title={f.phone} className="text-primary-700 hover:text-primary-800" onClick={(e) => e.stopPropagation()}>
-                <Phone className="w-4 h-4" />
+              <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-900 hover:underline" onClick={(e) => e.stopPropagation()}>
+                <Phone className="w-3.5 h-3.5 shrink-0" /> {f.phone}
               </a>
-            ) : <Phone className="w-4 h-4 text-gray-200" />}
+            ) : null}
             {f.email ? (
-              <a href={`mailto:${f.email}`} title={f.email} className="text-primary-700 hover:text-primary-800" onClick={(e) => e.stopPropagation()}>
-                <Mail className="w-4 h-4" />
+              <a href={`mailto:${f.email}`} className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-900 hover:underline max-w-[200px] truncate" onClick={(e) => e.stopPropagation()}>
+                <Mail className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{f.email}</span>
               </a>
-            ) : <Mail className="w-4 h-4 text-gray-200" />}
+            ) : null}
             {f.website ? (
-              <a href={f.website} target="_blank" rel="noopener noreferrer" title={f.website} className="text-primary-700 hover:text-primary-800" onClick={(e) => e.stopPropagation()}>
-                <Globe className="w-4 h-4" />
+              <a href={f.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-900 hover:underline max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+                <Globe className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{siteHost(f.website)}</span>
               </a>
-            ) : <Globe className="w-4 h-4 text-gray-200" />}
+            ) : null}
+            {!f.phone && !f.email && !f.website && (
+              <span className="text-xs text-gray-300">brak kontaktu</span>
+            )}
           </div>
         </td>
 
@@ -471,13 +497,27 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
         {/* Przypisany */}
         <td className="px-3 py-3 align-top">
           {o.assignedName ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); release(); }}
-              title="Kliknij, aby zwolnić"
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${o.assignedTo === currentUser?.id ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}
-            >
-              <UserCheck className="w-3.5 h-3.5" /> {o.assignedName}
-            </button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${isMyRow ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
+                <UserCheck className="w-3.5 h-3.5" /> {o.assignedName}
+              </span>
+              {isMyRow ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); release(); }}
+                  title="Zwolnij"
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); claim(); }}
+                  className="text-xs text-primary-700 hover:underline font-medium"
+                >
+                  Przejmij
+                </button>
+              )}
+            </div>
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); claim(); }}
@@ -498,6 +538,43 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
       {isExpanded && (
         <tr className="bg-gray-50/80">
           <td colSpan={6} className="px-4 py-4">
+
+            {/* Dane obiektu */}
+            <div className="mb-4 p-3 rounded-xl bg-white border border-gray-200">
+              <div className="flex flex-wrap gap-x-8 gap-y-2">
+                {f.phone && (
+                  <a href={`tel:${f.phone}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline">
+                    <Phone className="w-4 h-4 text-gray-400 shrink-0" /> {f.phone}
+                  </a>
+                )}
+                {f.email && (
+                  <a href={`mailto:${f.email}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
+                    <Mail className="w-4 h-4 text-gray-400 shrink-0" /> {f.email}
+                  </a>
+                )}
+                {f.website && (
+                  <a href={f.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
+                    <Globe className="w-4 h-4 text-gray-400 shrink-0" /> {f.website}
+                  </a>
+                )}
+                {f.operator && (
+                  <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <Building2 className="w-4 h-4 text-gray-400 shrink-0" /> {f.operator}
+                  </span>
+                )}
+                {f.openingHours && (
+                  <span className="inline-flex items-start gap-2 text-sm text-gray-700 w-full">
+                    <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="whitespace-pre-wrap">{f.openingHours}</span>
+                  </span>
+                )}
+                {f.description && (
+                  <p className="text-sm text-gray-600 w-full border-t border-gray-100 pt-2 mt-1">{f.description}</p>
+                )}
+              </div>
+            </div>
+
+            {/* AI enrichment */}
             {(o.aiSummary || o.bookingUrl) && (
               <div className="mb-4 flex gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
                 <Sparkles className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
@@ -523,6 +600,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                 </div>
               </div>
             )}
+
             <div className="grid md:grid-cols-3 gap-4">
               {/* Notes */}
               <div className="md:col-span-2">
@@ -565,17 +643,31 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                     </button>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Przypisany do</label>
+                  <div className="flex gap-1.5">
+                    <input
+                      value={assignName}
+                      onChange={(e) => setAssignName(e.target.value)}
+                      placeholder={isSomeoneElsesRow ? o.assignedName : 'Imię osoby…'}
+                      className={`${inputCls} flex-1 min-w-0`}
+                    />
+                    {assignName && assignName !== (o.assignedName ?? '') && (
+                      <button onClick={() => setAssignName(o.assignedName ?? '')} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
               <div className="text-xs text-gray-400">
                 {o.updatedByName ? <>Ostatnia zmiana: {o.updatedByName} · {formatPl(o.updatedAt)}</> : 'Brak historii zmian'}
-                {f.phone && <span className="ml-3 text-gray-500">📞 {f.phone}</span>}
-                {f.email && <span className="ml-3 text-gray-500">✉️ {f.email}</span>}
               </div>
               <Button size="sm" variant="primary" onClick={saveDraft} isLoading={savingDraft} disabled={!dirty}>
-                <Check className="w-4 h-4" /> Zapisz notatki
+                <Check className="w-4 h-4" /> Zapisz
               </Button>
             </div>
           </td>
