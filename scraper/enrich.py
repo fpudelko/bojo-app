@@ -25,7 +25,8 @@ Flags:
     --dry-run        print findings, write nothing
     --all            re-process already-enriched venues
     --require-empty  only venues missing phone AND email
-    --concurrency N  parallel requests (default 4)
+    --concurrency N  parallel requests (default 1 — web search uses ~62k tokens/req,
+                     Haiku limit is 50k TPM, so >1 causes 429 with retry backoff)
     --model ID       Claude model (default: env ANTHROPIC_MODEL or haiku 4.5)
 """
 
@@ -290,7 +291,15 @@ async def enrich_group(
         if round_idx == 1:
             body["tool_choice"] = {"type": "tool", "name": "record_findings"}
 
-        r = await client.post(ANTHROPIC_URL, headers=headers, json=body, timeout=120.0)
+        for attempt in range(4):
+            r = await client.post(ANTHROPIC_URL, headers=headers, json=body, timeout=120.0)
+            if r.status_code == 429:
+                wait = float(r.headers.get("retry-after", min(30 * 2 ** attempt, 120)))
+                log.warning("  429 rate limit — wait %.0fs (attempt %d/3)", wait, attempt + 1)
+                await asyncio.sleep(wait)
+                continue
+            break
+
         if r.status_code != 200:
             log.error("  Claude error %s: %s", r.status_code, r.text[:300])
             return None, usage_total
@@ -400,7 +409,8 @@ def parse_args() -> argparse.Namespace:
                    help="re-process already-enriched venues")
     p.add_argument("--require-empty", action="store_true",
                    help="only venues missing both phone and email")
-    p.add_argument("--concurrency",  type=int, default=4)
+    p.add_argument("--concurrency",  type=int, default=1,
+                   help="parallel requests — keep at 1 to avoid 50k TPM rate limit")
     p.add_argument("--model",        type=str, default="")
     return p.parse_args()
 
