@@ -43,6 +43,11 @@ on:
         default: '1'
         required: false
         type: string
+      max_searches:
+        description: 'Maks. wyszukań web na grupę adresową (2 = szybsze/tańsze, 4 = więcej danych)'
+        default: '2'
+        required: false
+        type: string
 
 jobs:
   enrich:
@@ -68,7 +73,7 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --concurrency ${{ inputs.concurrency }} --model ${{ inputs.model }}"
+          ARGS="--limit ${{ inputs.limit }} --concurrency ${{ inputs.concurrency }} --max-searches ${{ inputs.max_searches }} --model ${{ inputs.model }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
