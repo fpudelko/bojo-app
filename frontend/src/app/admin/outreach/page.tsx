@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
-  UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock,
+  UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock, ExternalLink, MapPin,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -147,7 +147,7 @@ export default function OutreachPanel() {
     // optimistic
     setOutreach((prev) => {
       const next = new Map(prev);
-      next.set(fieldId, { ...(prev.get(fieldId) ?? defaultOutreach(fieldId)), ...patch });
+      next.set(fieldId, { ...(prev.get(fieldId) ?? defaultOutreach(fieldId)), ...patch } as Outreach);
       return next;
     });
     try {
@@ -401,8 +401,8 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
     setSavingDraft(true);
     const patch: OutreachPatch = { notes, contactPerson, nextFollowupAt: followup };
     if (assignName !== (o.assignedName ?? '')) {
-      patch.assignedName = assignName || undefined;
-      if (!assignName) patch.assignedTo = undefined;
+      patch.assignedName = assignName || null;
+      if (!assignName) patch.assignedTo = null;
     }
     await onPatch(patch);
     setSavingDraft(false);
@@ -413,7 +413,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
     if (!currentUser) return;
     onPatch({ assignedTo: currentUser.id, assignedName: currentUser.name });
   };
-  const release = () => onPatch({ assignedTo: undefined, assignedName: undefined });
+  const release = () => onPatch({ assignedTo: null, assignedName: null });
 
   const markContactedToday = () => onPatch({ lastContactedAt: new Date().toISOString() });
 
@@ -541,6 +541,27 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
 
             {/* Dane obiektu */}
             <div className="mb-4 p-3 rounded-xl bg-white border border-gray-200">
+              {/* Header: name + address + link */}
+              <div className="flex items-start justify-between gap-3 mb-3 pb-2.5 border-b border-gray-100">
+                <div>
+                  <p className="font-semibold text-ink">{f.name}</p>
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    {f.address}{f.postcode ? `, ${f.postcode}` : ''}
+                  </p>
+                  {f.sport.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5">{f.sport.join(' · ')}</p>
+                  )}
+                </div>
+                <Link
+                  href={`/boisko/${f.id}`}
+                  target="_blank"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 shrink-0 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Otwórz obiekt
+                </Link>
+              </div>
               <div className="flex flex-wrap gap-x-8 gap-y-2">
                 {f.phone && (
                   <a href={`tel:${f.phone}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline">

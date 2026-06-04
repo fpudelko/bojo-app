@@ -45,20 +45,22 @@ export interface Outreach {
 }
 
 // Patch = the subset a user edits in the panel.
+// assignedTo/assignedName accept null explicitly to clear the field.
 export type OutreachPatch = Partial<
   Pick<
     Outreach,
     | 'status'
     | 'bookingSystem'
     | 'priority'
-    | 'assignedTo'
-    | 'assignedName'
     | 'contactPerson'
     | 'notes'
     | 'lastContactedAt'
     | 'nextFollowupAt'
   >
->;
+> & {
+  assignedTo?: string | null;
+  assignedName?: string | null;
+};
 
 // ---------------------------------------------------------------------------
 // Labels (display) — single source of truth for the UI
@@ -177,8 +179,8 @@ export async function saveOutreach(
   if (patch.status !== undefined) payload.status = patch.status;
   if (patch.bookingSystem !== undefined) payload.booking_system = patch.bookingSystem;
   if (patch.priority !== undefined) payload.priority = patch.priority;
-  if (patch.assignedTo !== undefined) payload.assigned_to = patch.assignedTo;
-  if (patch.assignedName !== undefined) payload.assigned_name = patch.assignedName;
+  if ('assignedTo' in patch) payload.assigned_to = patch.assignedTo ?? null;
+  if ('assignedName' in patch) payload.assigned_name = patch.assignedName ?? null;
   if (patch.contactPerson !== undefined) payload.contact_person = patch.contactPerson || null;
   if (patch.notes !== undefined) payload.notes = patch.notes || null;
   if (patch.lastContactedAt !== undefined) payload.last_contacted_at = patch.lastContactedAt;
