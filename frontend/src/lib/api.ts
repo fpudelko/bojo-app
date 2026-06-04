@@ -68,6 +68,8 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
   if (filters?.limit !== undefined) {
     const from = filters.offset ?? 0;
     query = query.range(from, from + filters.limit - 1);
+  } else {
+    query = query.limit(10000);
   }
 
   const { data, error, count } = await query;
