@@ -67,13 +67,47 @@ def _norm_addr(addr: str) -> str:
     return re.sub(r'\s+', ' ', s)
 
 
-def group_by_address(fields: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
-    """Return list of address groups, sorted so largest groups come first."""
+_CITY_ONLY = re.compile(
+    r'^(poznań|warszawa|kraków|wrocław|gdańsk|łódź|katowice|'
+    r'luboń|mosina|kórnik|swarzędz|murowana goślina|środa wielkopolska|'
+    r'puszczykowo|czerwonak|buk|szamotuły|oborniki|'
+    r'[a-ząćęłńóśźż ]{1,25})$'
+)
+
+
+def _has_street(addr: str) -> bool:
+    """True when address contains a house number — i.e. it's a real street address."""
+    return bool(re.search(r'\d', addr))
+
+
+def group_by_address(
+    fields: list[dict[str, Any]], max_group_size: int = 20
+) -> list[list[dict[str, Any]]]:
+    """Return list of address groups, sorted so largest groups come first.
+
+    Groups with no street number (city-only addresses) or above max_group_size
+    are each treated as individual records so we don't send one AI call for
+    hundreds of unrelated venues.
+    """
     buckets: dict[str, list[dict[str, Any]]] = {}
     for f in fields:
-        key = _norm_addr(f.get("address") or "")
-        buckets.setdefault(key, []).append(f)
-    groups = list(buckets.values())
+        raw = f.get("address") or ""
+        key = _norm_addr(raw)
+        # city-only address — keep as singleton so AI gets a useful address
+        if not _has_street(raw) or _CITY_ONLY.fullmatch(key):
+            buckets.setdefault(f"__solo__{f['id']}", [f])
+        else:
+            buckets.setdefault(key, []).append(f)
+
+    groups: list[list[dict[str, Any]]] = []
+    for g in buckets.values():
+        if len(g) <= max_group_size:
+            groups.append(g)
+        else:
+            # split oversized groups into chunks so each AI call stays focused
+            for i in range(0, len(g), max_group_size):
+                groups.append(g[i : i + max_group_size])
+
     groups.sort(key=lambda g: (-len(g), (g[0].get("address") or "")))
     return groups
 
@@ -251,22 +285,22 @@ async def write_back_group(
             if rp.status_code not in (200, 204):
                 log.error("  field patch %s failed %s: %s", f.get("name"), rp.status_code, rp.text[:150])
 
-        # upsert outreach AI columns
-        payload: dict[str, Any] = {
-            "field_id": f["id"],
-            "ai_summary": result.get("summary"),
-            "ai_enriched_at": enriched_at,
-        }
-        if booking in BOOKING_ENUM and booking != "nieznany" and confident:
-            payload["booking_system"] = booking
+    # batch upsert outreach AI columns — one POST for the whole group
+    outreach_base: dict[str, Any] = {
+        "ai_summary": result.get("summary"),
+        "ai_enriched_at": enriched_at,
+    }
+    if booking in BOOKING_ENUM and booking != "nieznany" and confident:
+        outreach_base["booking_system"] = booking
 
-        ru = await client.post(
-            f"{base}/rest/v1/field_outreach?on_conflict=field_id",
-            headers=_sb_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
-            json=payload,
-        )
-        if ru.status_code not in (200, 201, 204):
-            log.error("  outreach upsert %s failed %s: %s", f.get("name"), ru.status_code, ru.text[:150])
+    outreach_rows = [{"field_id": f["id"], **outreach_base} for f in fields]
+    ru = await client.post(
+        f"{base}/rest/v1/field_outreach?on_conflict=field_id",
+        headers=_sb_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
+        json=outreach_rows,
+    )
+    if ru.status_code not in (200, 201, 204):
+        log.error("  outreach batch upsert failed %s: %s", ru.status_code, ru.text[:150])
 
 # ---------------------------------------------------------------------------
 # Claude call (one call per address group)
