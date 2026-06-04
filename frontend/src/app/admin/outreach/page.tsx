@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
   UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock, ExternalLink, MapPin,
+  AlertTriangle, Trash2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -103,6 +104,7 @@ export default function OutreachPanel() {
   const [fAssign, setFAssign] = useState<'all' | 'mine' | 'unassigned'>('all');
   const [fContact, setFContact] = useState<'all' | 'phone' | 'email' | 'website' | 'any'>('all');
   const [fHideDone, setFHideDone] = useState(false);
+  const [fDuplicates, setFDuplicates] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   // --- Admin check (own, to avoid access-denied flash) ---
@@ -158,6 +160,36 @@ export default function OutreachPanel() {
     }
   }, [user, addToast]);
 
+  // --- Suspicious contacts: phone/email shared by 3+ fields ---
+  const suspiciousMap = useMemo(() => {
+    const phoneCnt = new Map<string, number>();
+    const emailCnt = new Map<string, number>();
+    fields.forEach((f) => {
+      if (f.phone) phoneCnt.set(f.phone, (phoneCnt.get(f.phone) ?? 0) + 1);
+      if (f.email) emailCnt.set(f.email, (emailCnt.get(f.email) ?? 0) + 1);
+    });
+    const result = new Map<string, { phoneCount: number; emailCount: number }>();
+    fields.forEach((f) => {
+      const pc = f.phone ? (phoneCnt.get(f.phone) ?? 1) : 1;
+      const ec = f.email ? (emailCnt.get(f.email) ?? 1) : 1;
+      if (pc >= 3 || ec >= 3) result.set(f.id, { phoneCount: pc, emailCount: ec });
+    });
+    return result;
+  }, [fields]);
+
+  // --- Clear AI-enriched contact data from fields table ---
+  const clearContact = useCallback(async (fieldId: string) => {
+    const { error } = await supabase
+      .from('fields')
+      .update({ phone: null, email: null, website: null })
+      .eq('id', fieldId);
+    if (error) { addToast(error.message, 'error'); return; }
+    setFields((prev) => prev.map((f) =>
+      f.id === fieldId ? { ...f, phone: undefined, email: undefined, website: undefined } : f,
+    ));
+    addToast('Dane kontaktowe wyczyszczone');
+  }, [addToast]);
+
   // --- Sports for filter dropdown ---
   const sportOptions = useMemo(() => {
     const s = new Set<string>();
@@ -181,6 +213,7 @@ export default function OutreachPanel() {
         if (fContact === 'website' && !f.website) return false;
         if (fContact === 'any' && !f.phone && !f.email && !f.website) return false;
         if (fHideDone && (o.status === 'umowiony' || o.status === 'odrzucony')) return false;
+        if (fDuplicates && !suspiciousMap.has(f.id)) return false;
         return true;
       });
     // sort: high priority first, then has-contact-info, then name
@@ -192,9 +225,9 @@ export default function OutreachPanel() {
       return a.field.name.localeCompare(b.field.name, 'pl');
     });
     return list;
-  }, [fields, getO, search, fStatus, fSport, fAssign, fContact, fHideDone, user?.id]);
+  }, [fields, getO, search, fStatus, fSport, fAssign, fContact, fHideDone, fDuplicates, suspiciousMap, user?.id]);
 
-  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone;
+  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone || fDuplicates;
 
   // --- Pipeline stats ---
   const stats = useMemo(() => {
@@ -300,6 +333,14 @@ export default function OutreachPanel() {
             <input type="checkbox" checked={fHideDone} onChange={(e) => setFHideDone(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
             Ukryj zamknięte
           </label>
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer select-none text-amber-700">
+            <input type="checkbox" checked={fDuplicates} onChange={(e) => setFDuplicates(e.target.checked)} className="rounded border-amber-300 text-amber-600 focus:ring-amber-500" />
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Duplikaty kontaktu
+            {suspiciousMap.size > 0 && (
+              <span className="ml-0.5 bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{suspiciousMap.size}</span>
+            )}
+          </label>
           {/* Count badge */}
           {!loading && (
             <span className={`ml-auto text-sm font-medium tabular-nums px-3 py-1.5 rounded-lg ${filtersActive ? 'bg-primary-50 text-primary-700' : 'text-gray-500'}`}>
@@ -341,6 +382,8 @@ export default function OutreachPanel() {
                     onPatch={(patch) => persist(f.id, patch)}
                     currentUser={user ? { id: user.id, name: displayName(user) } : null}
                     onToast={addToast}
+                    suspicious={suspiciousMap.get(f.id)}
+                    onClearContact={() => clearContact(f.id)}
                   />
                 ))}
               </tbody>
@@ -375,15 +418,18 @@ interface RowProps {
   onPatch: (patch: OutreachPatch) => void;
   currentUser: { id: string; name: string } | null;
   onToast: (m: string, t?: 'success' | 'error') => void;
+  suspicious?: { phoneCount: number; emailCount: number };
+  onClearContact: () => Promise<void>;
 }
 
-function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, onToast }: RowProps) {
+function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, onToast, suspicious, onClearContact }: RowProps) {
   // Local draft for free-text fields (saved explicitly)
   const [notes, setNotes] = useState(o.notes ?? '');
   const [contactPerson, setContactPerson] = useState(o.contactPerson ?? '');
   const [followup, setFollowup] = useState(o.nextFollowupAt ?? '');
   const [assignName, setAssignName] = useState(o.assignedName ?? '');
   const [savingDraft, setSavingDraft] = useState(false);
+  const [clearingContact, setClearingContact] = useState(false);
 
   // keep drafts in sync if outreach changes underneath
   useEffect(() => { setNotes(o.notes ?? ''); }, [o.notes]);
@@ -446,6 +492,12 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
         {/* Kontakt — pełny tekst */}
         <td className="px-3 py-3 align-top hidden md:table-cell">
           <div className="flex flex-col gap-1">
+            {suspicious && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium mb-0.5">
+                <AlertTriangle className="w-3 h-3" />
+                {Math.max(suspicious.phoneCount, suspicious.emailCount)}× ten sam kontakt
+              </span>
+            )}
             {f.phone ? (
               <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-900 hover:underline" onClick={(e) => e.stopPropagation()}>
                 <Phone className="w-3.5 h-3.5 shrink-0" /> {f.phone}
@@ -593,6 +645,29 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   <p className="text-sm text-gray-600 w-full border-t border-gray-100 pt-2 mt-1">{f.description}</p>
                 )}
               </div>
+              {suspicious && (
+                <div className="mt-3 pt-2.5 border-t border-amber-100 flex items-center justify-between gap-3">
+                  <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    {f.phone && suspicious.phoneCount >= 3 && <>Telefon {f.phone} używany w {suspicious.phoneCount} obiektach. </>}
+                    {f.email && suspicious.emailCount >= 3 && <>E-mail {f.email} używany w {suspicious.emailCount} obiektach. </>}
+                    Prawdopodobnie błędne dane z AI.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Wyczyścić telefon, e-mail i stronę WWW z tego obiektu?')) return;
+                      setClearingContact(true);
+                      await onClearContact();
+                      setClearingContact(false);
+                    }}
+                    disabled={clearingContact}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 shrink-0 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {clearingContact ? 'Czyszczę…' : 'Wyczyść dane kontaktowe'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* AI enrichment */}
