@@ -60,7 +60,7 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --concurrency 4"
+          ARGS="--limit ${{ inputs.limit }} --concurrency 2"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

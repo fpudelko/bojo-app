@@ -255,14 +255,23 @@ async def analyze_with_claude(
         "anthropic-version": ANTHROPIC_VERSION,
         "content-type": "application/json",
     }
-    r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=30.0)
-    r.raise_for_status()
-    data = r.json()
+    for attempt in range(4):
+        r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=30.0)
+        if r.status_code == 429:
+            wait = float(r.headers.get("retry-after", min(30 * 2 ** attempt, 120)))
+            log.warning("  429 rate limit — wait %.0fs (attempt %d/3)", wait, attempt + 1)
+            await asyncio.sleep(wait)
+            continue
+        break
 
+    if r.status_code != 200:
+        log.error("Claude error %s: %s", r.status_code, r.text[:200])
+        return {"booking_system": "nieznany", "_tokens_in": 0, "_tokens_out": 0}
+
+    data = r.json()
     for block in data.get("content", []):
         if block.get("type") == "tool_use" and block.get("name") == "record_booking":
             inp = block.get("input", {})
-            # Token tracking
             usage = data.get("usage", {})
             return {**inp, "_tokens_in": usage.get("input_tokens", 0), "_tokens_out": usage.get("output_tokens", 0)}
 
@@ -351,7 +360,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=0, help="max venues (0 = all)")
     p.add_argument("--dry-run", action="store_true", help="print results, write nothing")
     p.add_argument("--all", action="store_true", help="re-process already analysed venues")
-    p.add_argument("--concurrency", type=int, default=4)
+    p.add_argument("--concurrency", type=int, default=2)
     p.add_argument("--model", default="", help="Claude model ID")
     p.add_argument("--fetch-timeout", type=float, default=12.0,
                    help="HTTP timeout for website fetch (seconds)")
