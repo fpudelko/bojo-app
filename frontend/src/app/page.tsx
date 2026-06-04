@@ -1,16 +1,22 @@
 import Link from 'next/link';
 import {
   CalendarPlus, UserPlus, Compass, RefreshCw, Building2, ArrowRight,
+  Link2, ListChecks, Bell, UserCheck, Zap, Users, MapPin,
+  Navigation, Calendar, CalendarDays, Mail,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MapView from '@/components/map/MapView';
 import SportsSectionWithCounts from '@/components/SportsSectionWithCounts';
 
+type Chip = { icon: React.ElementType; label: string };
+
 type UseCase = {
   icon: React.ElementType;
   tone: 'green' | 'amber';
   eyebrow: string;
+  description: string;
+  chips: Chip[];
   cta: string;
   href: string;
 };
@@ -20,6 +26,12 @@ const USE_CASES: UseCase[] = [
     icon: CalendarPlus,
     tone: 'green',
     eyebrow: 'Organizuję mecz',
+    description: 'Stwórz mecz, rozdaj link i miej zapisy, potwierdzenia i przypomnienia pod ręką.',
+    chips: [
+      { icon: Link2, label: 'Zaproszenia linkiem' },
+      { icon: ListChecks, label: 'Lista zapisów' },
+      { icon: Bell, label: 'Przypomnienia' },
+    ],
     cta: 'Stwórz mecz',
     href: '/wydarzenia/nowe',
   },
@@ -27,6 +39,12 @@ const USE_CASES: UseCase[] = [
     icon: UserPlus,
     tone: 'amber',
     eyebrow: 'Szukam ludzi do gry',
+    description: 'Otwórz wolne miejsca, a dograją się gracze z okolicy. Szybko i bez rejestracji.',
+    chips: [
+      { icon: Zap, label: 'Szybkie ogłoszenie' },
+      { icon: Users, label: 'Wolne miejsca' },
+      { icon: MapPin, label: 'Gracze z okolicy' },
+    ],
     cta: 'Ogłoś mecz',
     href: '/wydarzenia/nowe',
   },
@@ -34,6 +52,12 @@ const USE_CASES: UseCase[] = [
     icon: Compass,
     tone: 'amber',
     eyebrow: 'Szukam gry dla siebie',
+    description: 'Przeglądaj otwarte mecze blisko ciebie i dołącz do gry jednym kliknięciem.',
+    chips: [
+      { icon: Calendar, label: 'Otwarte mecze' },
+      { icon: Navigation, label: 'Blisko ciebie' },
+      { icon: UserCheck, label: 'Bez rejestracji' },
+    ],
     cta: 'Znajdź grę',
     href: '/wydarzenia',
   },
@@ -41,6 +65,12 @@ const USE_CASES: UseCase[] = [
     icon: RefreshCw,
     tone: 'green',
     eyebrow: 'Gramy co tydzień',
+    description: 'Ustaw stały termin i otwieraj zapisy jednym kliknięciem — bez ganiania ludzi co tydzień.',
+    chips: [
+      { icon: CalendarDays, label: 'Stały termin' },
+      { icon: Mail, label: 'Powiadomienia' },
+      { icon: Zap, label: 'Jeden klik' },
+    ],
     cta: 'Stałe gierki',
     href: '/cykliczne',
   },
@@ -150,13 +180,13 @@ export default function HomePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {USE_CASES.map((uc) => {
               const tone = uc.tone === 'green'
-                ? { badge: 'bg-primary-50 text-primary-700', icon: 'text-primary-700', eyebrow: 'text-primary-700', cta: 'text-primary-700', border: 'hover:border-primary-200' }
-                : { badge: 'bg-amber-50 text-amber-600',     icon: 'text-amber-600',   eyebrow: 'text-amber-600',   cta: 'text-amber-700',   border: 'hover:border-amber-200' };
+                ? { badge: 'bg-primary-50 text-primary-700', chipIcon: 'text-primary-700', eyebrow: 'text-primary-700', cta: 'text-primary-700', border: 'hover:border-primary-200' }
+                : { badge: 'bg-amber-50 text-amber-600',     chipIcon: 'text-amber-600',   eyebrow: 'text-amber-600',   cta: 'text-amber-700',   border: 'hover:border-amber-200' };
 
               return (
                 <Link key={uc.eyebrow} href={uc.href} className="group">
                   <div className={`flex h-full flex-col rounded-2xl border border-slate-200 bg-canvas p-6 transition-all duration-200 hover:-translate-y-1 hover:bg-white hover:shadow-card-hover sm:p-7 ${tone.border}`}>
-                    <div className="mb-5 flex items-center gap-3">
+                    <div className="mb-4 flex items-center gap-3">
                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tone.badge}`}>
                         <uc.icon className="h-6 w-6" />
                       </div>
@@ -165,7 +195,21 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <span className={`mt-auto inline-flex items-center gap-1 text-sm font-semibold transition-all group-hover:gap-2 ${tone.cta}`}>
+                    <p className="text-sm leading-relaxed text-slate-500">{uc.description}</p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {uc.chips.map((chip) => (
+                        <span
+                          key={chip.label}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600"
+                        >
+                          <chip.icon className={`h-3.5 w-3.5 ${tone.chipIcon}`} />
+                          {chip.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span className={`mt-6 inline-flex items-center gap-1 text-sm font-semibold transition-all group-hover:gap-2 ${tone.cta}`}>
                       {uc.cta} <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
