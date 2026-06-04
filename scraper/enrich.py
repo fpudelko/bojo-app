@@ -125,6 +125,14 @@ RECORD_TOOL = {
                     "how to make a reservation. Shown to the outreach team."
                 ),
             },
+            "description": {
+                "type": ["string", "null"],
+                "description": (
+                    "Short description in Polish (1-3 sentences) for venue visitors: "
+                    "what kind of place it is, which sports, what makes it notable. "
+                    "Only if you found reliable info — otherwise null."
+                ),
+            },
         },
         "required": ["booking_system", "confidence", "summary"],
     },
@@ -232,7 +240,7 @@ async def write_back_group(
     for f in fields:
         # fill-if-empty on fields
         patch: dict[str, Any] = {}
-        for col in ("phone", "email", "website", "operator", "opening_hours"):
+        for col in ("phone", "email", "website", "operator", "opening_hours", "description"):
             found = result.get(col)
             if found and not f.get(col):
                 patch[col] = found

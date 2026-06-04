@@ -12,6 +12,8 @@ import { venueThumbnail, surfaceLabel } from '@/lib/labels';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
+import { getOutreach } from '@/lib/outreach';
+import type { Outreach } from '@/lib/outreach';
 import type { Field, TimeSlot } from '@/types';
 
 const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -69,6 +71,7 @@ export default function VenueDetailClient({
   const [field, setField] = useState<Field | null>(null);
   const [fieldLoading, setFieldLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [outreach, setOutreach] = useState<Outreach | null>(null);
 
   const [date, setDate] = useState(tomorrowIso());
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -85,7 +88,10 @@ export default function VenueDetailClient({
 
   useEffect(() => {
     getField(id)
-      .then(setField)
+      .then((f) => {
+        setField(f);
+        getOutreach(f.id).then(setOutreach).catch(() => {});
+      })
       .catch(() => setNotFound(true))
       .finally(() => setFieldLoading(false));
   }, [id]);
@@ -506,15 +512,22 @@ export default function VenueDetailClient({
         {showBookingForField(field) && field.bookingType === 'external' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
-            {field.bookingUrl ? (
-              <a
-                href={field.bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
-              >
-                Przejdź do rezerwacji →
-              </a>
+            {(field.bookingUrl || outreach?.bookingUrl) ? (
+              <>
+                {outreach?.bookingProvider && !field.bookingUrl && (
+                  <p className="text-sm text-gray-500">
+                    Przez: <span className="font-medium text-gray-700">{outreach.bookingProvider}</span>
+                  </p>
+                )}
+                <a
+                  href={field.bookingUrl || outreach!.bookingUrl!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
+                >
+                  Przejdź do rezerwacji →
+                </a>
+              </>
             ) : (
               <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                 📞 Kontakt telefoniczny
@@ -524,11 +537,39 @@ export default function VenueDetailClient({
         )}
 
         {/* Booking section — none */}
-        {showBookingForField(field) && field.bookingType === 'none' && (
+        {showBookingForField(field) && field.bookingType === 'none' && !outreach?.bookingUrl && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
               Brak rezerwacji online dla tego obiektu.
             </p>
+          </div>
+        )}
+
+        {/* AI-found booking URL — shown when outreach has a booking URL and we're not already showing internal booking */}
+        {outreach?.bookingUrl && field.bookingType !== 'internal' && !(showBookingForField(field) && field.bookingType === 'external' && field.bookingUrl) && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+            <h2 className="text-base font-semibold text-gray-900">Rezerwacja online</h2>
+            {outreach.bookingProvider && (
+              <p className="text-sm text-gray-500">
+                Przez: <span className="font-medium text-gray-700">{outreach.bookingProvider}</span>
+              </p>
+            )}
+            <a
+              href={outreach.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl px-6 py-3 text-sm transition-colors"
+            >
+              Zarezerwuj →
+            </a>
+          </div>
+        )}
+
+        {/* AI summary — subtle info, only when meaningful */}
+        {outreach?.aiSummary && outreach.aiSummary.length > 40 && (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Opis AI</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{outreach.aiSummary}</p>
           </div>
         )}
 

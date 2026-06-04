@@ -139,6 +139,17 @@ function toOutreach(row: any): Outreach {
 // Queries
 // ---------------------------------------------------------------------------
 
+/** Fetch outreach record for a single field. Returns null when none exists. */
+export async function getOutreach(fieldId: string): Promise<Outreach | null> {
+  const { data, error } = await supabase
+    .from('field_outreach')
+    .select('*')
+    .eq('field_id', fieldId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toOutreach(data) : null;
+}
+
 /** Fetch all outreach rows, keyed by field_id for easy merge with fields. */
 export async function getOutreachMap(): Promise<Map<string, Outreach>> {
   const { data, error } = await supabase.from('field_outreach').select('*');
