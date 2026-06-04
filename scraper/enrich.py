@@ -81,11 +81,8 @@ def group_by_address(fields: list[dict[str, Any]]) -> list[list[dict[str, Any]]]
 # Claude tool definitions
 # ---------------------------------------------------------------------------
 
-WEB_SEARCH_TOOL = {
-    "type": "web_search_20250305",
-    "name": "web_search",
-    "max_uses": 4,
-}
+def _web_search_tool(max_uses: int) -> dict:
+    return {"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}
 
 RECORD_TOOL = {
     "name": "record_findings",
@@ -277,7 +274,7 @@ async def write_back_group(
 
 async def enrich_group(
     client: httpx.AsyncClient, api_key: str, model: str,
-    address: str, fields: list[dict[str, Any]],
+    address: str, fields: list[dict[str, Any]], max_searches: int = 2,
 ) -> tuple[dict[str, Any] | None, dict[str, int]]:
     headers = {
         "x-api-key": api_key,
@@ -293,7 +290,7 @@ async def enrich_group(
         body: dict[str, Any] = {
             "model": model,
             "max_tokens": 1024,
-            "tools": [WEB_SEARCH_TOOL, RECORD_TOOL],
+            "tools": [_web_search_tool(max_searches), RECORD_TOOL],
             "messages": messages,
         }
         if round_idx == 1:
@@ -367,7 +364,7 @@ async def run(args: argparse.Namespace) -> None:
         async def worker(grp: list[dict[str, Any]]) -> None:
             address = grp[0].get("address") or "?"
             async with sem:
-                findings, usage = await enrich_group(client, api_key, model, address, grp)
+                findings, usage = await enrich_group(client, api_key, model, address, grp, args.max_searches)
                 totals["in_tok"] += usage["input_tokens"]
                 totals["out_tok"] += usage["output_tokens"]
                 totals["searches"] += usage["web_searches"]
@@ -419,6 +416,8 @@ def parse_args() -> argparse.Namespace:
                    help="only venues missing both phone and email")
     p.add_argument("--concurrency",  type=int, default=1,
                    help="parallel requests — keep at 1 to avoid 50k TPM rate limit")
+    p.add_argument("--max-searches", type=int, default=2, dest="max_searches",
+                   help="max web searches per venue group (default 2; 4 = more data but hits TPM limit faster)")
     p.add_argument("--model",        type=str, default="")
     return p.parse_args()
 
