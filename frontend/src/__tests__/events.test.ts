@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 const {
   mockInsert, mockSelect, mockSingle, mockDelete, mockUpdate,
-  mockEq, mockOrder, mockLimit, mockMaybeSingle, mockChain,
+  mockEq, mockOrder, mockLimit, mockMaybeSingle, mockRpc, mockChain,
 } = vi.hoisted(() => {
   const mockInsert = vi.fn();
   const mockSelect = vi.fn();
@@ -16,6 +16,8 @@ const {
   const mockOrder = vi.fn();
   const mockLimit = vi.fn();
   const mockMaybeSingle = vi.fn();
+  // Rate-limit RPC — default to "allowed" so the guarded path runs.
+  const mockRpc = vi.fn().mockResolvedValue({ data: true, error: null });
 
   const mockChain: Record<string, ReturnType<typeof vi.fn>> = {
     insert: mockInsert, select: mockSelect, single: mockSingle,
@@ -32,13 +34,14 @@ const {
 
   return {
     mockInsert, mockSelect, mockSingle, mockDelete, mockUpdate,
-    mockEq, mockOrder, mockLimit, mockMaybeSingle, mockChain,
+    mockEq, mockOrder, mockLimit, mockMaybeSingle, mockRpc, mockChain,
   };
 });
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn().mockReturnValue(mockChain),
+    rpc: mockRpc,
   },
 }));
 
@@ -54,6 +57,7 @@ beforeEach(() => {
   });
   mockDelete.mockResolvedValue({ error: null });
   mockUpdate.mockResolvedValue({ error: null });
+  mockRpc.mockResolvedValue({ data: true, error: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -124,6 +128,11 @@ describe('joinEvent', () => {
     });
 
     await expect(joinEvent('event-1', 'user-1', 'Test User')).resolves.toBeUndefined();
+  });
+
+  it('throws when the rate limit is exceeded', async () => {
+    mockRpc.mockResolvedValue({ data: false, error: null });
+    await expect(joinEvent('event-1', 'user-1', 'Test User')).rejects.toThrow(/Zbyt wiele/);
   });
 });
 
