@@ -53,6 +53,17 @@ DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
 BOOKING_ENUM = {"telefon", "email", "wlasny_system", "zewnetrzny", "brak", "inny", "nieznany"}
 
+_GENERIC_NAME = re.compile(
+    r'^(boisko|boiska|orlik|korty?|kort|'
+    r'boisko\s+(sportowe|wielofunkcyjne|szkolne|piłkarskie)|'
+    r'hala\s+sportowa|sala\s+gimnastyczna|'
+    r'plac\s+zabaw|obiekt\s+sport\w*|'
+    r'kompleks\s+sport\w*|'
+    r'strzelnica|skatepark|skateboard)'
+    r'\s*\d*\s*$',
+    re.IGNORECASE,
+)
+
 # ---------------------------------------------------------------------------
 # Address normalisation — key for grouping
 # ---------------------------------------------------------------------------
@@ -250,13 +261,27 @@ async def fetch_candidates(
     r2.raise_for_status()
     enriched = {row["field_id"] for row in r2.json() if row.get("ai_enriched_at")}
 
+    skipped_addr = skipped_generic = 0
     out = []
     for f in fields:
         if f["id"] in enriched and not redo_all:
             continue
         if require_empty and (f.get("phone") and f.get("email")):
             continue
+        addr = f.get("address") or ""
+        if not _has_street(addr):
+            skipped_addr += 1
+            continue  # city-only address — web search won't help
+        name = (f.get("name") or "").strip()
+        has_data = f.get("website") or f.get("phone") or f.get("email")
+        if _GENERIC_NAME.fullmatch(name.lower()) and not has_data:
+            skipped_generic += 1
+            continue  # generic name + no existing data → school pitch, skip
         out.append(f)
+
+    if skipped_addr or skipped_generic:
+        log.info("Skipped: %d city-only addresses + %d generic names without data",
+                 skipped_addr, skipped_generic)
     return out
 
 
