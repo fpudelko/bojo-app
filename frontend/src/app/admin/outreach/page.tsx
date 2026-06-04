@@ -485,6 +485,23 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               {f.sport.length > 0 && (
                 <p className="text-[11px] text-gray-400 truncate mt-0.5">{f.sport.join(' · ')}</p>
               )}
+              {/* Mobile-only badges: booking system + assignment */}
+              <div className="flex flex-wrap items-center gap-1 mt-1.5 md:hidden">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
+                  {BOOKING_SYSTEM_META[o.bookingSystem]}
+                </span>
+                {o.assignedName && (
+                  <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${isMyRow ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <UserCheck className="w-2.5 h-2.5" />{o.assignedName}
+                  </span>
+                )}
+                {(f.phone || f.email || f.website) && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
+                    {f.phone ? <Phone className="w-2.5 h-2.5" /> : f.email ? <Mail className="w-2.5 h-2.5" /> : <Globe className="w-2.5 h-2.5" />}
+                    kontakt
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </td>
