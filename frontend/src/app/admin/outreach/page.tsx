@@ -58,12 +58,12 @@ function csvCell(v: string | number | undefined | null): string {
 
 function exportCsv(rows: { field: Field; o: Outreach }[]) {
   const headers = [
-    'Nazwa', 'Adres', 'Kod', 'Sporty', 'Telefon', 'E-mail', 'WWW', 'Operator',
+    'Nazwa', 'Dzielnica', 'Adres', 'Kod', 'Sporty', 'Telefon', 'E-mail', 'WWW', 'Operator',
     'Status', 'System rezerwacji', 'Przypisany', 'Osoba kontaktowa',
     'Ostatni kontakt', 'Followup', 'Notatki', 'AI', 'Ostatnia zmiana',
   ];
   const lines = rows.map(({ field: f, o }) => [
-    f.name, f.address, f.postcode, f.sport.join(' / '),
+    f.name, f.district, f.address, f.postcode, f.sport.join(' / '),
     f.phone, f.email, f.website, f.operator,
     STATUS_META[o.status].label, BOOKING_SYSTEM_META[o.bookingSystem],
     o.assignedName, o.contactPerson,
@@ -102,6 +102,7 @@ export default function OutreachPanel() {
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState<'all' | OutreachStatus>('all');
   const [fSport, setFSport] = useState('all');
+  const [fDistrict, setFDistrict] = useState('all');
   const [fAssign, setFAssign] = useState<'all' | 'mine' | 'unassigned'>('all');
   const [fContact, setFContact] = useState<'all' | 'phone' | 'email' | 'website' | 'any'>('all');
   const [fHideDone, setFHideDone] = useState(false);
@@ -209,6 +210,13 @@ export default function OutreachPanel() {
     return Array.from(s).sort();
   }, [fields]);
 
+  // --- Districts for filter dropdown ---
+  const districtOptions = useMemo(() => {
+    const s = new Set<string>();
+    fields.forEach((f) => { if (f.district) s.add(f.district); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'pl'));
+  }, [fields]);
+
   // --- Filtered + sorted rows ---
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -218,6 +226,7 @@ export default function OutreachPanel() {
         if (q && !f.name.toLowerCase().includes(q) && !f.address.toLowerCase().includes(q)) return false;
         if (fStatus !== 'all' && o.status !== fStatus) return false;
         if (fSport !== 'all' && !f.sport.includes(fSport)) return false;
+        if (fDistrict !== 'all' && f.district !== fDistrict) return false;
         if (fAssign === 'mine' && o.assignedTo !== user?.id) return false;
         if (fAssign === 'unassigned' && o.assignedTo) return false;
         if (fContact === 'phone' && !f.phone) return false;
@@ -239,7 +248,7 @@ export default function OutreachPanel() {
     return list;
   }, [fields, getO, search, fStatus, fSport, fAssign, fContact, fHideDone, fDuplicates, suspiciousMap, user?.id]);
 
-  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone || fDuplicates;
+  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fDistrict !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone || fDuplicates;
 
   // --- Pipeline stats ---
   const stats = useMemo(() => {
@@ -329,6 +338,12 @@ export default function OutreachPanel() {
             <option value="all">Wszystkie sporty</option>
             {sportOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          {districtOptions.length > 0 && (
+            <select value={fDistrict} onChange={(e) => setFDistrict(e.target.value)} className={inputCls}>
+              <option value="all">Wszystkie dzielnice</option>
+              {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          )}
           <select value={fContact} onChange={(e) => setFContact(e.target.value as typeof fContact)} className={inputCls}>
             <option value="all">Dowolny kontakt</option>
             <option value="any">Ma jakikolwiek kontakt</option>
