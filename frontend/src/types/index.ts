@@ -1,5 +1,5 @@
 export type BookingType = 'internal' | 'external' | 'none';
-export type MapVisibility = 'public' | 'organizer_only';
+export type MapVisibility = 'public' | 'organizer_only' | 'hidden';
 
 export interface Field {
   id: string;

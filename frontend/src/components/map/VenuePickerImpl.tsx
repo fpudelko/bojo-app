@@ -30,8 +30,8 @@ export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) 
 
   useEffect(() => {
     let cancelled = false;
-    getFields()
-      .then((res) => { if (!cancelled) setFields(res.fields); })
+    getFields({ mapVisibility: undefined })
+      .then((res) => { if (!cancelled) setFields(res.fields.filter(f => f.mapVisibility !== 'hidden')); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
