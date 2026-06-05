@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Target, Circle, Trophy, Sun, Zap, Dumbbell } from 'lucide-react';
+import { Target, Circle, Trophy, Sun, Dumbbell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-type SportRow = [React.ComponentType<{ className?: string }>, string, string];
+type SportRow = {
+  Icon: React.ComponentType<{ className?: string }>;
+  display: string;
+  keys: string[];
+  href: string;
+};
 
 const SPORTS: SportRow[] = [
-  [Target,   'Piłka nożna',       'piłka nożna'],
-  [Circle,   'Koszykówka',         'koszykówka'],
-  [Trophy,   'Siatkówka',          'siatkówka'],
-  [Sun,      'Siatkówka plażowa',  'siatkówka plażowa'],
-  [Zap,      'Futsal',             'futsal'],
-  [Dumbbell, 'Piłka ręczna',       'piłka ręczna'],
+  { Icon: Target,   display: 'Piłka nożna',      keys: ['piłka nożna', 'futsal'],  href: '/wydarzenia?sport=piłka nożna' },
+  { Icon: Circle,   display: 'Koszykówka',         keys: ['koszykówka'],              href: '/wydarzenia?sport=koszykówka' },
+  { Icon: Trophy,   display: 'Siatkówka',          keys: ['siatkówka'],               href: '/wydarzenia?sport=siatkówka' },
+  { Icon: Sun,      display: 'Siatkówka plażowa',  keys: ['siatkówka plażowa'],       href: '/wydarzenia?sport=siatkówka plażowa' },
+  { Icon: Dumbbell, display: 'Piłka ręczna',       keys: ['piłka ręczna'],            href: '/wydarzenia?sport=piłka ręczna' },
 ];
 
 const MIN_COUNT_TO_SHOW = 3;
@@ -56,12 +60,12 @@ export default function SportsSectionWithCounts() {
       <div className="max-w-5xl mx-auto text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-8">Wybierz swój sport</h2>
         <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-gray-700">
-          {SPORTS.map(([Icon, display, key]) => {
-            const count = counts[key] ?? 0;
+          {SPORTS.map(({ Icon, display, keys, href }) => {
+            const count = keys.reduce((sum, k) => sum + (counts[k] ?? 0), 0);
             return (
               <Link
-                key={key}
-                href={`/wydarzenia?sport=${encodeURIComponent(key)}`}
+                key={display}
+                href={href}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 transition-colors"
               >
                 <Icon className="w-4 h-4 text-primary-600" />

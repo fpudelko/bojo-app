@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -204,31 +204,60 @@ export default function Header() {
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
-          <nav className="flex-1 overflow-y-auto px-5 pt-4" aria-label="Nawigacja mobilna">
-            {NAV_LINKS.map((link) => (
+          <nav className="flex-1 overflow-y-auto px-5 pt-5 pb-4" aria-label="Nawigacja mobilna">
+
+            {/* Primary actions — player vs organizer */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
               <Link
-                key={link.href}
-                href={link.href}
+                href="/wydarzenia"
+                onClick={() => setMobileOpen(false)}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 px-3 py-5 text-sm font-semibold text-amber-800 active:scale-[0.97] transition-transform"
+              >
+                <Search className="w-6 h-6 text-amber-600" />
+                Znajdź grę
+              </Link>
+              <Link
+                href="/wydarzenia/nowe"
+                onClick={() => setMobileOpen(false)}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-primary-700 px-3 py-5 text-sm font-semibold text-white shadow-md active:scale-[0.97] transition-transform"
+              >
+                <Plus className="w-6 h-6" />
+                Stwórz mecz
+              </Link>
+            </div>
+
+            {/* Secondary nav */}
+            <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Odkryj</p>
+            {[
+              { href: '/cykliczne', label: 'Stałe gierki', Icon: RefreshCw },
+              { href: '/mapa',      label: 'Mapa boisk',   Icon: Map },
+            ].map(({ href, label, Icon }) => (
+              <Link
+                key={href}
+                href={href}
                 onClick={() => setMobileOpen(false)}
                 className={clsx(
-                  'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium transition-colors',
-                  pathname === link.href || pathname.startsWith(link.href + '/')
-                    ? 'text-primary-700'
-                    : 'text-ink',
+                  'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium transition-colors',
+                  pathname === href || pathname.startsWith(href + '/') ? 'text-primary-700' : 'text-ink',
                 )}
               >
-                {link.label}
+                <span className="flex items-center gap-2.5">
+                  <Icon className="w-4 h-4 text-slate-400" />
+                  {label}
+                </span>
                 <ChevronRight className="w-4 h-4 text-slate-300" />
               </Link>
             ))}
 
+            {/* User-specific section */}
             {!loading && user && (
               <>
+                <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Twoje</p>
                 <Link
                   href="/moje-gry"
                   onClick={() => setMobileOpen(false)}
                   className={clsx(
-                    'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                    'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
                     pathname === '/moje-gry' ? 'text-primary-700' : 'text-ink',
                   )}
                 >
@@ -240,7 +269,7 @@ export default function Header() {
                     href="/obiekt"
                     onClick={() => setMobileOpen(false)}
                     className={clsx(
-                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
+                      'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
                       pathname.startsWith('/obiekt') ? 'text-primary-700' : 'text-ink',
                     )}
                   >
@@ -249,40 +278,32 @@ export default function Header() {
                   </Link>
                 )}
                 {isAdmin && (
-                  <Link
-                    href="/admin/outreach"
-                    onClick={() => setMobileOpen(false)}
-                    className={clsx(
-                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
-                      pathname.startsWith('/admin/outreach') ? 'text-primary-700' : 'text-ink',
-                    )}
-                  >
-                    Kontakt z obiektami
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
+                  <>
+                    <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
+                    <Link
+                      href="/admin/outreach"
+                      onClick={() => setMobileOpen(false)}
+                      className={clsx(
+                        'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
+                        pathname.startsWith('/admin/outreach') ? 'text-primary-700' : 'text-ink',
+                      )}
+                    >
+                      Kontakt z obiektami
+                      <ChevronRight className="w-4 h-4 text-slate-300" />
+                    </Link>
+                    <Link
+                      href="/admin/uzytkownicy"
+                      onClick={() => setMobileOpen(false)}
+                      className={clsx(
+                        'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
+                        pathname.startsWith('/admin/uzytkownicy') ? 'text-primary-700' : 'text-ink',
+                      )}
+                    >
+                      Użytkownicy
+                      <ChevronRight className="w-4 h-4 text-slate-300" />
+                    </Link>
+                  </>
                 )}
-                {isAdmin && (
-                  <Link
-                    href="/admin/uzytkownicy"
-                    onClick={() => setMobileOpen(false)}
-                    className={clsx(
-                      'flex items-center justify-between py-4 border-b border-slate-100 text-base font-medium',
-                      pathname.startsWith('/admin/uzytkownicy') ? 'text-primary-700' : 'text-ink',
-                    )}
-                  >
-                    Użytkownicy
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
-                )}
-                <div className="pt-5 pb-2">
-                  <Link
-                    href="/wydarzenia/nowe"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 px-4 py-4 text-base font-semibold text-white shadow-sm active:scale-[0.98] transition-transform"
-                  >
-                    <Plus className="w-5 h-5" /> Stwórz wydarzenie
-                  </Link>
-                </div>
               </>
             )}
           </nav>
