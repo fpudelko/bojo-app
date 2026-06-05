@@ -113,7 +113,7 @@ export default function LeafletMapImpl({
   useEffect(() => {
     let cancelled = false;
     getFields({ available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
-      .then((res) => { if (!cancelled) setAllFields(res.fields); })
+      .then((res) => { if (!cancelled) setAllFields(res.fields.filter(f => f.mapVisibility !== 'hidden')); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd'); });
     return () => { cancelled = true; };
   }, [onlyAvailable, onlyBookable]);
