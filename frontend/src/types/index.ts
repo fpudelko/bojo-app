@@ -324,3 +324,28 @@ export interface RecurringEventInvite {
   phone?: string;
   createdAt: string;
 }
+
+export interface GameAlert {
+  id: string;
+  userId: string;
+  sport?: string;       // undefined = any sport
+  daysOfWeek: number[]; // [] = any day; 1=Mon…7=Sun (ISO)
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  cityLabel?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body?: string;
+  eventId?: string;
+  alertId?: string;
+  readAt?: string;
+  createdAt: string;
+}

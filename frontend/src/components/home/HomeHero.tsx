@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CalendarPlus, ChevronRight } from 'lucide-react';
+import NearbyGames from './NearbyGames';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { getMyParticipatedEvents } from '@/lib/events';
@@ -119,27 +120,30 @@ function PersonalizedHero({ name, matches }: { name: string; matches: { event: E
         <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
       </section>
 
-      {/* Upcoming matches */}
-      {hasMatches && (
-        <section className="mx-auto w-full max-w-3xl px-4 pt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Twoje najbliższe mecze
-            </h2>
-            <Link
-              href="/moje-gry"
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800"
-            >
-              Wszystkie <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {matches.map(({ event, isOrganizer }) => (
-              <EventCard key={event.id} event={event} isOrganizer={isOrganizer} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Personal games + nearby */}
+      <section className="mx-auto w-full max-w-3xl px-4 pt-8 pb-10">
+        {hasMatches && (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Twoje najbliższe mecze
+              </h2>
+              <Link
+                href="/moje-gry"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800"
+              >
+                Wszystkie <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {matches.map(({ event, isOrganizer }) => (
+                <EventCard key={event.id} event={event} isOrganizer={isOrganizer} />
+              ))}
+            </div>
+          </>
+        )}
+        <NearbyGames />
+      </section>
     </>
   );
 }

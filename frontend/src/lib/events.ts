@@ -129,7 +129,14 @@ export async function createEvent(
     });
   }
 
-  return row.id as string;
+  const id = row.id as string;
+
+  // Fire-and-forget: notify users with matching game alerts
+  if (data.visibility === 'public') {
+    supabase.functions.invoke('notify-game-alert', { body: { eventId: id } }).catch(() => {});
+  }
+
+  return id;
 }
 
 export async function updateEvent(id: string, data: EventCreate): Promise<void> {
@@ -318,6 +325,17 @@ export async function togglePayment(participantId: string, hasPaid: boolean): Pr
 export async function setVisibility(eventId: string, visibility: Visibility): Promise<void> {
   const { error } = await supabase.from('events').update({ visibility }).eq('id', eventId);
   if (error) throw new Error(error.message);
+  if (visibility === 'public') {
+    supabase.functions.invoke('notify-game-alert', { body: { eventId } }).catch(() => {});
+  }
+}
+
+export async function getNearbyEvents(lat: number, lng: number, radiusKm = 5, limit = 6): Promise<EventItem[]> {
+  const { data, error } = await supabase.rpc('get_nearby_events', {
+    p_lat: lat, p_lng: lng, p_radius_km: radiusKm, p_limit: limit,
+  });
+  if (error) return [];
+  return (data ?? []).map(toEvent);
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {

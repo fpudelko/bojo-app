@@ -9,6 +9,7 @@ import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
+import NotificationBell from './NotificationBell';
 
 // Ordered by user-journey priority: discover → organize → recurring → map
 const NAV_LINKS = [
@@ -153,6 +154,7 @@ export default function Header() {
                       Użytkownicy
                     </Link>
                   )}
+                  <NotificationBell />
                   <Link
                     href="/wydarzenia/nowe"
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium bg-primary-700 text-white shadow-sm hover:bg-primary-800 active:scale-[0.97] transition-all"
