@@ -120,7 +120,7 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   className={clsx(
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                     pathname === link.href || pathname.startsWith(link.href + '/')
                       ? 'bg-primary-50 text-primary-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
@@ -137,7 +137,7 @@ export default function Header() {
                   <Link
                     href="/moje-gry"
                     className={clsx(
-                      'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       pathname === '/moje-gry'
                         ? 'bg-primary-50 text-primary-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
@@ -149,7 +149,7 @@ export default function Header() {
                     <Link
                       href="/obiekt"
                       className={clsx(
-                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                         pathname === '/obiekt' || pathname.startsWith('/obiekt/')
                           ? 'bg-primary-50 text-primary-700'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
@@ -162,7 +162,7 @@ export default function Header() {
                     <Link
                       href="/admin/outreach"
                       className={clsx(
-                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                         pathname.startsWith('/admin/outreach')
                           ? 'bg-primary-50 text-primary-700'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
@@ -175,7 +175,7 @@ export default function Header() {
                     <Link
                       href="/admin/uzytkownicy"
                       className={clsx(
-                        'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                         pathname.startsWith('/admin/uzytkownicy')
                           ? 'bg-primary-50 text-primary-700'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',

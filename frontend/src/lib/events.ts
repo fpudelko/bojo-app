@@ -24,6 +24,7 @@ function toEvent(row: any): EventItem {
     time: row.event_time,
     endTime: row.end_time ?? undefined,
     maxPlayers: row.max_players,
+    externalCount: row.external_count ?? 0,
     visibility: row.visibility,
     createdAt: row.created_at,
     requireSmsConfirmation: row.require_sms_confirmation ?? false,
@@ -103,6 +104,7 @@ export async function createEvent(
       event_time: data.time,
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
+      external_count: data.externalCount ?? 0,
       visibility: data.visibility,
       require_sms_confirmation: data.requireSmsConfirmation ?? false,
       track_attendance: data.trackAttendance ?? false,
@@ -169,6 +171,7 @@ export async function updateEvent(
       event_time: data.time,
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
+      external_count: data.externalCount ?? 0,
       visibility: data.visibility,
       require_sms_confirmation: data.requireSmsConfirmation ?? false,
       track_attendance: data.trackAttendance ?? false,
@@ -267,9 +270,9 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
 
   const safeName = validateName(name, 'Imię', 80);
 
-  // Check if event is full (non-reserve count vs max_players)
+  // Check if event is full (non-reserve count + external players vs max_players)
   const [{ data: ev }, { count }] = await Promise.all([
-    supabase.from('events').select('max_players').eq('id', eventId).single(),
+    supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
     supabase
       .from('event_participants')
       .select('id', { count: 'exact', head: true })
@@ -277,7 +280,8 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
       .eq('is_reserve', false),
   ]);
 
-  const isReserve = (count ?? 0) >= (ev?.max_players ?? 999);
+  const taken = (count ?? 0) + (ev?.external_count ?? 0);
+  const isReserve = taken >= (ev?.max_players ?? 999);
 
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,

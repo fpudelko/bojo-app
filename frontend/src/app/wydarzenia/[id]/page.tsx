@@ -170,7 +170,9 @@ export default function EventDetailPage() {
   const regulars = participants.filter((p) => !p.isReserve);
   const reserves = participants.filter((p) => p.isReserve);
   const myParticipation = participants.find((p) => p.userId && p.userId === user?.id);
-  const isFull = regulars.length >= event.maxPlayers;
+  const externalCount = event.externalCount ?? 0;
+  const takenSpots = regulars.length + externalCount;
+  const isFull = takenSpots >= event.maxPlayers;
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
@@ -450,7 +452,7 @@ export default function EventDetailPage() {
                     ? <><Globe className="w-3 h-3" /> Publiczne</>
                     : <><Lock className="w-3 h-3" /> Prywatne</>}
                 </span>
-                <SpotsBadge regulars={regulars.length} max={event.maxPlayers} />
+                <SpotsBadge regulars={takenSpots} max={event.maxPlayers} />
               </div>
             </div>
 
@@ -520,9 +522,21 @@ export default function EventDetailPage() {
               'text-sm font-medium px-2.5 py-1 rounded-full',
               isFull ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700',
             ].join(' ')}>
-              {regulars.length} / {event.maxPlayers}
+              {takenSpots} / {event.maxPlayers}
             </span>
           </div>
+
+          {externalCount > 0 && (
+            <p className="-mt-2 mb-3 text-xs text-gray-500">
+              W tym <span className="font-medium text-gray-700">{externalCount}</span>{' '}
+              {externalCount === 1 ? 'gracz' : externalCount < 5 ? 'graczy' : 'graczy'} spoza aplikacji.
+              {!isFull && (
+                <span className="text-primary-700 font-medium">
+                  {' '}Szukamy jeszcze {event.maxPlayers - takenSpots}.
+                </span>
+              )}
+            </p>
+          )}
 
           <ul className="divide-y divide-gray-100">
             {regulars.map((p) => (

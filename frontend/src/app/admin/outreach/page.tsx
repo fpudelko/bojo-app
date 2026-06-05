@@ -371,8 +371,8 @@ export default function OutreachPanel() {
             <p className="font-medium">Brak obiektów spełniających filtry</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                 <tr>
                   <th className="text-left font-medium px-4 py-3">Obiekt</th>

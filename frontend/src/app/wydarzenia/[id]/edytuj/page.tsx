@@ -37,10 +37,7 @@ function ToggleRow({ label, desc, checked, onChange }: {
 }
 import Link from 'next/link';
 
-const SPORTS = [
-  'piłka nożna', 'futsal', 'koszykówka', 'siatkówka',
-  'siatkówka plażowa', 'piłka ręczna', 'inne',
-];
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 
 export default function EditEventPage() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +54,7 @@ export default function EditEventPage() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -87,6 +85,7 @@ export default function EditEventPage() {
         setTime(ev.time?.slice(0, 5) ?? '18:00');
         setEndTime(ev.endTime?.slice(0, 5) ?? '');
         setMaxPlayers(ev.maxPlayers);
+        setExternalCount(ev.externalCount ?? 0);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
@@ -155,6 +154,7 @@ export default function EditEventPage() {
         time,
         endTime: endTime || undefined,
         maxPlayers,
+        externalCount,
         visibility,
         requireSmsConfirmation,
         trackAttendance,
@@ -220,7 +220,10 @@ export default function EditEventPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
             <select value={sport} onChange={(e) => setSport(e.target.value)} className={inputCls}>
-              {SPORTS.map((s) => <option key={s} value={s}>{s}</option>)}
+              {(FOCUS_SPORTS.includes(sport as typeof FOCUS_SPORTS[number])
+                ? FOCUS_SPORTS
+                : [sport, ...FOCUS_SPORTS]
+              ).map((s) => <option key={s} value={s}>{sportLabel(s)}</option>)}
             </select>
           </div>
 
@@ -285,8 +288,32 @@ export default function EditEventPage() {
             </label>
             <input
               type="range" min={2} max={30} value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setMaxPlayers(v);
+                if (externalCount > v) setExternalCount(v);
+              }}
               className="w-full accent-primary-600"
+            />
+          </div>
+
+          {/* Players already committed outside the app */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gracze spoza aplikacji <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Ilu graczy macie już zebranych poza aplikacją. Liczą się do limitu miejsc.
+            </p>
+            <input
+              type="number" min={0} max={maxPlayers}
+              value={externalCount === 0 ? '' : externalCount}
+              onChange={(e) => {
+                const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
+                setExternalCount(v);
+              }}
+              placeholder="0"
+              className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 

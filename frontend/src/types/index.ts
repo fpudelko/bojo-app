@@ -144,6 +144,7 @@ export interface EventItem {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  externalCount: number; // players already committed outside the app
   visibility: Visibility;
   createdAt: string;
   status: EventStatus;
@@ -192,6 +193,7 @@ export interface EventCreate {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  externalCount?: number;
   visibility: Visibility;
   customLocationName?: string;
   customAddress?: string;

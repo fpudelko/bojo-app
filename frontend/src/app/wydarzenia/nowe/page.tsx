@@ -12,6 +12,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 import type { Visibility } from '@/types';
 
 function ToggleRow({ label, desc, checked, onChange }: {
@@ -36,15 +37,7 @@ function ToggleRow({ label, desc, checked, onChange }: {
   );
 }
 
-const SPORTS = [
-  'piłka nożna',
-  'futsal',
-  'koszykówka',
-  'siatkówka',
-  'siatkówka plażowa',
-  'piłka ręczna',
-  'inne',
-];
+const SPORTS = FOCUS_SPORTS;
 
 const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, address: '' };
 
@@ -60,6 +53,7 @@ function NewEventForm() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -148,6 +142,7 @@ function NewEventForm() {
           time,
           endTime: endTime || undefined,
           maxPlayers,
+          externalCount,
           visibility,
           requireSmsConfirmation: false,
           trackAttendance,
@@ -194,7 +189,7 @@ function NewEventForm() {
               className={inputCls}
             >
               {SPORTS.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{sportLabel(s)}</option>
               ))}
             </select>
           </div>
@@ -285,9 +280,40 @@ function NewEventForm() {
             </label>
             <input
               type="range" min={2} max={30} value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setMaxPlayers(v);
+                if (externalCount > v) setExternalCount(v);
+              }}
               className="w-full accent-primary-600"
             />
+          </div>
+
+          {/* Players already committed outside the app — "dograj skład" */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Macie już graczy spoza aplikacji? <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Wpisz, ilu graczy macie już zebranych (np. ze swojej ekipy). Aplikacja będzie szukać tylko brakujących.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="number" min={0} max={maxPlayers}
+                value={externalCount === 0 ? '' : externalCount}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
+                  setExternalCount(v);
+                }}
+                placeholder="0"
+                className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              {externalCount > 0 && (
+                <span className="text-sm text-primary-700 font-medium">
+                  Szukasz jeszcze {Math.max(0, maxPlayers - externalCount)} {maxPlayers - externalCount === 1 ? 'gracza' : 'graczy'}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Organizer participates */}
