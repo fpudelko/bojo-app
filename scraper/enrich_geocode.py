@@ -302,7 +302,7 @@ async def patch_field(
 # ---------------------------------------------------------------------------
 
 _last_call: list[float] = [0.0]
-_MIN_INTERVAL = 1.1   # seconds between ANY geocode request
+_MIN_INTERVAL = 1.5   # seconds between ANY geocode request (Nominatim policy: max 1/s, we're conservative)
 
 
 async def _throttle() -> None:
@@ -324,7 +324,7 @@ async def _photon_reverse(
     try:
         r = await client.get(
             PHOTON_URL,
-            params={"lat": str(lat), "lon": str(lng), "limit": "1", "lang": "pl"},
+            params={"lat": str(lat), "lon": str(lng), "limit": "1"},
             headers={"User-Agent": USER_AGENT},
             timeout=15.0,
         )
