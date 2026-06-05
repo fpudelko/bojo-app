@@ -51,7 +51,7 @@ const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, addr
 function NewEventForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading } = useAuth();
 
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
@@ -105,7 +105,7 @@ function NewEventForm() {
             <p className="text-gray-500 text-sm mt-2 mb-6">
               Potrzebujesz konta, żeby organizować mecze i zarządzać uczestnikami.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

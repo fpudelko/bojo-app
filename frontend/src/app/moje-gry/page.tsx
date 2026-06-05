@@ -35,7 +35,7 @@ function Section({
 }
 
 export default function MojeGryPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<{ event: EventItem; isOrganizer: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +66,7 @@ export default function MojeGryPage() {
             </div>
             <h1 className="font-display text-2xl font-bold text-ink mb-2">Moje gry</h1>
             <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje gry.</p>
-            <Button onClick={() => signInWithGoogle()} className="inline-flex items-center gap-2">
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="inline-flex items-center gap-2">
               <LogIn className="w-4 h-4" /> Zaloguj się
             </Button>
           </div>

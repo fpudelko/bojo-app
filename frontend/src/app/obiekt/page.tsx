@@ -21,7 +21,7 @@ const SPORT_EMOJI: Record<string, string> = {
 };
 
 export default function MyVenuesPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [venues, setVenues] = useState<Field[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +65,7 @@ export default function MyVenuesPage() {
             <p className="text-gray-500 text-sm mt-2 mb-6">
               Potrzebujesz konta, aby zarządzać obiektami sportowymi.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

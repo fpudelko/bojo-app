@@ -66,7 +66,7 @@ export default function VenueDetailClient({
   upcomingEvents?: UpcomingEvent[];
 }) {
   const id = fieldId;
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [field, setField] = useState<Field | null>(null);
   const [fieldLoading, setFieldLoading] = useState(true);
@@ -350,7 +350,7 @@ export default function VenueDetailClient({
             {!user && !authLoading && (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-4">Zaloguj się, aby zarezerwować slot.</p>
-                <Button variant="outline" onClick={() => signInWithGoogle()}>
+                <Button variant="outline" onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>
                   Zaloguj się, aby zarezerwować
                 </Button>
               </div>

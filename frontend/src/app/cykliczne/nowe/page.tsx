@@ -33,7 +33,7 @@ const DAY_OPTIONS: { value: number; label: string }[] = [
 
 function NewRecurringForm() {
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [sport, setSport] = useState('piłka nożna');
   const [field, setField] = useState<Field | null>(null);
@@ -61,7 +61,7 @@ function NewRecurringForm() {
             <p className="text-gray-500 text-sm mt-2 mb-6">
               Potrzebujesz konta, żeby organizować regularne mecze i zarządzać grupą graczy.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

@@ -114,7 +114,7 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function MyBookingsPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [bookings, setBookings] = useState<BookingWithField[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -172,7 +172,7 @@ export default function MyBookingsPage() {
             <p className="text-gray-500 text-sm mt-2 mb-6">
               Zaloguj się, aby zobaczyć swoje rezerwacje.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

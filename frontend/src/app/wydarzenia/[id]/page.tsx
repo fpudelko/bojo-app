@@ -90,7 +90,7 @@ function SpotsBadge({ regulars, max }: { regulars: number; max: number }) {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
 
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -710,7 +710,7 @@ export default function EventDetailPage() {
             </div>
           )}
           {!authLoading && !user && (
-            <Button onClick={() => signInWithGoogle()} variant="outline" className="w-full">Zaloguj się, aby dołączyć</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} variant="outline" className="w-full">Zaloguj się, aby dołączyć</Button>
           )}
         </div>
 

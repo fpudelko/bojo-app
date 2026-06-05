@@ -32,7 +32,7 @@ const inputCls =
 
 export default function NewVenuePage() {
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -77,7 +77,7 @@ export default function NewVenuePage() {
             <p className="text-gray-500 text-sm mt-2 mb-6">
               Musisz być zalogowany, aby dodać obiekt.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

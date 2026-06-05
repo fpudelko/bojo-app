@@ -7,19 +7,31 @@ import { supabase } from './supabase';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (next?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ needsConfirmation: boolean }>;
+  sendMagicLink: (email: string, next?: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
 }
 
+const noop = async () => {};
+
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
-  updateDisplayName: async () => {},
-  uploadAvatar: async () => {},
+  signInWithGoogle: noop,
+  signInWithEmail: noop,
+  signUpWithEmail: async () => ({ needsConfirmation: false }),
+  sendMagicLink: noop,
+  sendPasswordReset: noop,
+  updatePassword: noop,
+  signOut: noop,
+  updateDisplayName: noop,
+  uploadAvatar: noop,
 });
 
 /** Returns the avatar URL stored in user metadata, or null. */
@@ -39,6 +51,19 @@ export function displayName(user: User | null): string {
   );
 }
 
+/** Translate common Supabase auth errors into friendly Polish copy. */
+function mapAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Nieprawidłowy e-mail lub hasło.';
+  if (m.includes('email not confirmed')) return 'Potwierdź e-mail, zanim się zalogujesz — sprawdź skrzynkę (także spam).';
+  if (m.includes('user already registered') || m.includes('already been registered')) return 'Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.';
+  if (m.includes('password should be at least')) return 'Hasło musi mieć co najmniej 6 znaków.';
+  if (m.includes('unable to validate email') || m.includes('invalid email')) return 'Podaj poprawny adres e-mail.';
+  if (m.includes('rate limit')) return 'Za dużo prób. Odczekaj chwilę i spróbuj ponownie.';
+  if (m.includes('signups not allowed')) return 'Rejestracja jest chwilowo wyłączona.';
+  return message;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,11 +81,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  /** Build the post-auth redirect URL, preserving an optional `next` target. */
+  const callbackUrl = (next?: string) => {
+    const base = `${window.location.origin}/auth/callback`;
+    return next ? `${base}?next=${encodeURIComponent(next)}` : base;
+  };
+
+  const signInWithGoogle = async (next?: string) => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/wydarzenia` },
+      options: { redirectTo: callbackUrl(next) },
     });
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) throw new Error(mapAuthError(error.message));
+  };
+
+  const signUpWithEmail = async (email: string, password: string, name?: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: name?.trim() ? { display_name: name.trim() } : undefined,
+        emailRedirectTo: callbackUrl(),
+      },
+    });
+    if (error) throw new Error(mapAuthError(error.message));
+    // When e-mail confirmation is enabled, no session is returned yet.
+    return { needsConfirmation: !data.session };
+  };
+
+  const sendMagicLink = async (email: string, next?: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: callbackUrl(next) },
+    });
+    if (error) throw new Error(mapAuthError(error.message));
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/reset`,
+    });
+    if (error) throw new Error(mapAuthError(error.message));
+  };
+
+  const updatePassword = async (password: string) => {
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(mapAuthError(error.message));
+    setUser(data.user);
   };
 
   const signOut = async () => {
@@ -101,7 +175,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut, updateDisplayName, uploadAvatar }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        sendMagicLink,
+        sendPasswordReset,
+        updatePassword,
+        signOut,
+        updateDisplayName,
+        uploadAvatar,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

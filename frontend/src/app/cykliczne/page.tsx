@@ -86,7 +86,7 @@ function ActionButton({ status, ev, isOrganizer }: {
 }
 
 export default function RecurringEventsPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<RecurringEvent[]>([]);
   const [nextEvents, setNextEvents] = useState<Record<string, NextEvent | null>>({});
   const [loading, setLoading] = useState(true);
@@ -120,7 +120,7 @@ export default function RecurringEventsPage() {
             <p className="text-slate-500 text-sm mt-2 mb-6">
               Stałe gierki wymagają konta organizatora.
             </p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>

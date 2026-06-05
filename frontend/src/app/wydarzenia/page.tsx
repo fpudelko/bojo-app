@@ -100,7 +100,7 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
 }
 
 export default function EventsPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
@@ -324,7 +324,7 @@ export default function EventsPage() {
                 <p className="text-lg font-medium text-ink">Brak publicznych wydarzeń</p>
                 <p className="text-sm mt-1">Bądź pierwszy — stwórz publiczne wydarzenie.</p>
                 {!authLoading && !user && (
-                  <button onClick={() => signInWithGoogle()} className="text-primary-700 text-sm underline mt-4">
+                  <button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="text-primary-700 text-sm underline mt-4">
                     Zaloguj się, aby tworzyć
                   </button>
                 )}

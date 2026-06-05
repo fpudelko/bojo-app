@@ -11,7 +11,7 @@ import { validatePhone, normalizePhone } from '@/lib/validation';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading, signOut, updateDisplayName, signInWithGoogle, uploadAvatar } = useAuth();
+  const { user, loading, signOut, updateDisplayName, uploadAvatar } = useAuth();
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,7 +70,7 @@ export default function ProfilePage() {
             <User className="w-10 h-10 mx-auto mb-4 text-gray-300" />
             <h1 className="text-xl font-bold text-gray-900">Zaloguj się</h1>
             <p className="text-gray-500 text-sm mt-2 mb-6">Potrzebujesz konta, aby zobaczyć swój profil.</p>
-            <Button onClick={() => signInWithGoogle()}>Zaloguj się przez Google</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
       </div>
