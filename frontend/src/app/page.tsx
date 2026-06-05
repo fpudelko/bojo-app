@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {
   CalendarPlus, UserPlus, Compass, RefreshCw, Building2, ArrowRight,
   Link2, ListChecks, Bell, UserCheck, Zap, Users, MapPin,
-  Navigation, Calendar, CalendarDays, Mail, Map as MapIcon, Share2, ShieldCheck,
+  Navigation, Calendar, CalendarDays, Mail,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -92,45 +92,6 @@ const USE_CASE_GROUPS: UseCaseGroup[] = [
         href: '/wydarzenia/nowe',
       },
     ],
-  },
-];
-
-type Feature = {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  cta: string;
-  href: string;
-};
-
-const FEATURES: Feature[] = [
-  {
-    icon: MapIcon,
-    title: 'Mapa boisk',
-    description: 'Setki boisk w Poznaniu i okolicach na jednej mapie — z lokalizacją, sportami i nawierzchnią.',
-    cta: 'Otwórz mapę',
-    href: '/mapa',
-  },
-  {
-    icon: Share2,
-    title: 'Zapisy przez link',
-    description: 'Tworzysz mecz, wysyłasz jeden link. Zapisy, lista rezerwowa i potwierdzenia w jednym miejscu.',
-    cta: 'Zorganizuj mecz',
-    href: '/wydarzenia/nowe',
-  },
-  {
-    icon: Users,
-    title: 'Dograj skład',
-    description: 'Brakuje paru osób? Otwórz mecz publicznie, a gracze z okolicy dołączą jednym kliknięciem.',
-    cta: 'Przeglądaj mecze',
-    href: '/wydarzenia',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Bez instalacji',
-    description: 'Działa w przeglądarce na telefonie i komputerze. Logujesz się przez Google — nic nie instalujesz.',
-    cta: 'Zobacz, jak gra okolica',
-    href: '/wydarzenia',
   },
 ];
 
@@ -247,38 +208,50 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Jak to działa — features with links */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">Jak to działa</span>
-            <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              Wszystko, czego trzeba, żeby zagrać
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-              Od znalezienia boiska po zebranie składu — bez dzwonienia, bez excela, bez ganiania ludzi.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {FEATURES.map((feat) => (
-              <Link key={feat.title} href={feat.href} className="group">
-                <div className="flex h-full items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover sm:p-6">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-                    <feat.icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-display text-base font-bold text-ink">{feat.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-500">{feat.description}</p>
-                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 transition-all group-hover:gap-2">
-                      {feat.cta} <ArrowRight className="h-4 w-4" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+      {/* Jak to działa — editorial story, not tiles */}
+      <section className="px-4 py-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">Jak to działa</span>
+          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Bez dzwonienia. Bez excela. Bez ganiania ludzi.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600">
+            Kiedyś zebranie składu to były trzy grupy na WhatsAppie, lista w notatniku
+            i ciągłe „kto w końcu gra?”. U nas wygląda to inaczej — od pomysłu do
+            pierwszego gwizdka w kilka minut.
+          </p>
         </div>
+
+        <div className="mx-auto mt-12 grid max-w-4xl gap-10 sm:grid-cols-3">
+          {[
+            {
+              n: '01',
+              title: 'Znajdź albo stwórz',
+              body: 'Przeglądaj otwarte mecze na mapie i dołącz jednym kliknięciem — albo sam zakładasz grę i ustawiasz termin, boisko i liczbę miejsc.',
+            },
+            {
+              n: '02',
+              title: 'Rozdaj jeden link',
+              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a wolne miejsca dograją gracze z okolicy.',
+            },
+            {
+              n: '03',
+              title: 'Po prostu zagraj',
+              body: 'Lista składu, rezerwowi i przypomnienia działają w tle. Ty masz pewność, że skład dopięty i nikt nie zniknie w dniu meczu.',
+            },
+          ].map((step) => (
+            <div key={step.n} className="text-center sm:text-left">
+              <span className="font-display text-4xl font-extrabold text-primary-200">{step.n}</span>
+              <h3 className="mt-3 font-display text-lg font-bold text-ink">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-12 max-w-xl text-center text-sm text-slate-500">
+          Wszystko działa w przeglądarce na telefonie i komputerze — logujesz się przez
+          Google i nic nie instalujesz.
+        </p>
       </section>
 
       {/* Sports with live counts */}
