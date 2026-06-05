@@ -41,8 +41,9 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("geocode")
 
+PHOTON_URL    = "https://photon.komoot.io/reverse"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
-USER_AGENT = "bojo-app-venue-enricher/1.0 (contact: admin@bojo.app)"
+USER_AGENT    = "bojo-app-venue-enricher/1.0 (contact: admin@bojo.app)"
 
 # ---------------------------------------------------------------------------
 # Nominatim helpers
@@ -297,52 +298,121 @@ async def patch_field(
 
 
 # ---------------------------------------------------------------------------
-# Nominatim reverse geocoding
+# Rate-limit helper  (shared between photon + Nominatim)
 # ---------------------------------------------------------------------------
 
 _last_call: list[float] = [0.0]
+_MIN_INTERVAL = 1.1   # seconds between ANY geocode request
 
+
+async def _throttle() -> None:
+    elapsed = time.monotonic() - _last_call[0]
+    if elapsed < _MIN_INTERVAL:
+        await asyncio.sleep(_MIN_INTERVAL - elapsed)
+    _last_call[0] = time.monotonic()
+
+
+# ---------------------------------------------------------------------------
+# photon.komoot.io  (primary — permissive rate limits, same OSM data)
+# ---------------------------------------------------------------------------
+
+async def _photon_reverse(
+    client: httpx.AsyncClient, lat: float, lng: float,
+) -> dict[str, Any] | None:
+    """Reverse geocode via photon.komoot.io. Returns normalised address dict or None."""
+    await _throttle()
+    try:
+        r = await client.get(
+            PHOTON_URL,
+            params={"lat": str(lat), "lon": str(lng), "limit": "1", "lang": "pl"},
+            headers={"User-Agent": USER_AGENT},
+            timeout=15.0,
+        )
+        if r.status_code == 429:
+            log.warning("  photon 429 — czekam 30s")
+            await asyncio.sleep(30)
+            return None
+        if r.status_code != 200:
+            return None
+        features = r.json().get("features") or []
+        if not features:
+            return None
+        props = features[0].get("properties", {})
+        # Normalise to the same dict shape as Nominatim's `address` block
+        return {
+            "road":          props.get("street", ""),
+            "house_number":  props.get("housenumber", ""),
+            "postcode":      props.get("postcode", ""),
+            # photon returns osiedle/dzielnica in "district" or "locality"
+            "suburb":        props.get("district") or props.get("locality") or "",
+            "city_district": "",   # photon doesn't split this further
+            "_source":       "photon",
+        }
+    except Exception as exc:
+        log.debug("  photon error %.5f,%.5f — %s", lat, lng, exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Nominatim  (fallback — strict 1 req/sec; 429 handled with backoff)
+# ---------------------------------------------------------------------------
+
+async def _nominatim_reverse(
+    client: httpx.AsyncClient, lat: float, lng: float,
+) -> dict[str, Any] | None:
+    """Reverse geocode via Nominatim with exponential backoff on 429."""
+    for attempt in range(3):
+        await _throttle()
+        try:
+            r = await client.get(
+                NOMINATIM_URL,
+                params={
+                    "lat": str(lat), "lon": str(lng),
+                    "format": "jsonv2", "addressdetails": "1",
+                    "zoom": "18", "accept-language": "pl",
+                },
+                headers={"User-Agent": USER_AGENT},
+                timeout=15.0,
+            )
+            if r.status_code == 429:
+                wait = int(r.headers.get("Retry-After", 60 * (2 ** attempt)))
+                log.warning("  Nominatim 429 — czekam %ds (próba %d/3)", wait, attempt + 1)
+                await asyncio.sleep(wait)
+                continue
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            if "address" not in data:
+                return None
+            addr = data["address"]
+            addr["_source"] = "nominatim"
+            return addr
+        except Exception as exc:
+            log.debug("  Nominatim error %.5f,%.5f — %s", lat, lng, exc)
+            return None
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Combined reverse geocoder  (photon first, Nominatim fallback)
+# ---------------------------------------------------------------------------
 
 async def reverse_geocode(
     client: httpx.AsyncClient, lat: float, lng: float,
 ) -> dict[str, Any] | None:
-    """Call Nominatim reverse geocode, enforcing 1 req/sec rate limit."""
-    now = time.monotonic()
-    elapsed = now - _last_call[0]
-    if elapsed < 1.05:
-        await asyncio.sleep(1.05 - elapsed)
-
-    try:
-        r = await client.get(
-            NOMINATIM_URL,
-            params={
-                "lat": str(lat),
-                "lon": str(lng),
-                "format": "jsonv2",
-                "addressdetails": "1",
-                "zoom": "18",   # building level — gives street+house number
-                "accept-language": "pl",
-            },
-            headers={"User-Agent": USER_AGENT},
-            timeout=15.0,
-        )
-        _last_call[0] = time.monotonic()
-        if r.status_code != 200:
-            log.warning("  Nominatim HTTP %d for %.5f,%.5f", r.status_code, lat, lng)
-            return None
-        data = r.json()
-        return data if "address" in data else None
-    except Exception as exc:
-        log.warning("  Nominatim error %.5f,%.5f — %s", lat, lng, exc)
-        return None
+    """Try photon first; fall back to Nominatim if photon returns nothing useful."""
+    addr = await _photon_reverse(client, lat, lng)
+    if addr and (addr.get("road") or addr.get("postcode")):
+        return addr
+    # photon gave nothing useful — try Nominatim
+    return await _nominatim_reverse(client, lat, lng)
 
 
-def parse_nominatim(data: dict[str, Any], field: dict[str, Any], overwrite: bool) -> dict[str, Any]:
+def parse_result(addr: dict[str, Any], field: dict[str, Any], overwrite: bool) -> dict[str, Any]:
     """
-    Extract address, postcode, district from a Nominatim reverse-geocode response.
-    Returns a patch dict (only keys that should be updated).
+    Extract address, postcode, district from a normalised address dict.
+    Works with output from both _photon_reverse and _nominatim_reverse.
     """
-    addr = data.get("address", {})
     patch: dict[str, Any] = {}
 
     # --- Address ---
@@ -354,7 +424,7 @@ def parse_nominatim(data: dict[str, Any], field: dict[str, Any], overwrite: bool
 
     # --- Postcode ---
     if not field.get("postcode") or overwrite:
-        pc = addr.get("postcode", "").strip()
+        pc = (addr.get("postcode") or "").strip()
         if pc:
             patch["postcode"] = pc
 
@@ -408,20 +478,21 @@ async def run(args: argparse.Namespace) -> None:
 
             data = await reverse_geocode(client, lat, lng)
             if data is None:
-                log.warning("[%d/%d] ✗ %s — brak odpowiedzi Nominatim", i, total, name[:50])
+                log.warning("[%d/%d] ✗ %s — brak odpowiedzi geocodera", i, total, name[:50])
                 stats["no_result"] += 1
                 continue
 
-            patch = parse_nominatim(data, field, args.overwrite)
+            patch = parse_result(data, field, args.overwrite)
             if not patch:
                 stats["no_change"] += 1
                 log.debug("[%d/%d] · %s — bez zmian", i, total, name[:50])
                 continue
 
+            source = data.get("_source", "?")
             log.info(
-                "[%d/%d] ✓ %s | %s",
-                i, total, name[:40],
-                "  ".join(f"{k}={v}" for k, v in patch.items()),
+                "[%d/%d] ✓ %s [%s] | %s",
+                i, total, name[:40], source,
+                "  ".join(f"{k}={v}" for k, v in patch.items() if not k.startswith("_")),
             )
 
             if not args.dry_run:
