@@ -20,16 +20,8 @@ import {
   sendInvites,
 } from '@/lib/recurring';
 import type { RecurringEvent, RecurringEventInvite } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽',
-  futsal: '⚡',
-  koszykówka: '🏀',
-  siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️',
-  'piłka ręczna': '🤾',
-  inne: '🏅',
-};
 
 const DAY_NAMES: Record<number, string> = {
   1: 'Poniedziałek',
@@ -285,7 +277,7 @@ export default function RecurringEventDetailPage() {
           <div className="p-6">
             <div className="flex items-start gap-3">
               <span className="text-4xl shrink-0" role="img" aria-label={event.sport}>
-                {SPORT_EMOJI[event.sport] ?? '🏅'}
+                {sportEmoji(event.sport)}
               </span>
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl font-bold text-gray-900">{event.title || event.sport}</h1>

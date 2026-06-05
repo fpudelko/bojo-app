@@ -1,0 +1,41 @@
+// Single source of truth for sport metadata.
+// FOCUS_SPORTS are shown in UI filters and event creation.
+// Legacy sports (piłka ręczna, gokarty) stay in DB and appear on the map
+// but are hidden from filter dropdowns and event forms.
+
+export const SPORT_CONFIG = {
+  'piłka nożna':       { emoji: '⚽', color: '#15663E', label: 'Piłka nożna' },
+  'futsal':            { emoji: '⚽', color: '#15663E', label: 'Futsal' },
+  'siatkówka':         { emoji: '🏐', color: '#1d4ed8', label: 'Siatkówka' },
+  'siatkówka plażowa': { emoji: '🏖️', color: '#d97706', label: 'Siatkówka plażowa' },
+  'koszykówka':        { emoji: '🏀', color: '#c2410c', label: 'Koszykówka' },
+  // Legacy — shown on map but hidden from filters / creation form
+  'piłka ręczna':      { emoji: '🤾', color: '#6b7280', label: 'Piłka ręczna' },
+  'gokarty':           { emoji: '🏎️', color: '#6b7280', label: 'Gokarty' },
+  'inne':              { emoji: '🏅', color: '#6b7280', label: 'Inne' },
+} as const;
+
+/** Sports shown in filters / event creation / homepage shortcuts. */
+export const FOCUS_SPORTS = [
+  'piłka nożna',
+  'futsal',
+  'siatkówka',
+  'siatkówka plażowa',
+  'koszykówka',
+] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
+
+export type SportKey = keyof typeof SPORT_CONFIG;
+
+const _cfg = SPORT_CONFIG as Record<string, { emoji: string; color: string; label: string }>;
+
+export function sportEmoji(sport: string): string {
+  return _cfg[sport]?.emoji ?? '🏅';
+}
+
+export function sportColor(sport: string): string {
+  return _cfg[sport]?.color ?? '#6b7280';
+}
+
+export function sportLabel(sport: string): string {
+  return _cfg[sport]?.label ?? sport;
+}

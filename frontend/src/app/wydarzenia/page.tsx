@@ -12,11 +12,8 @@ import { useAuth } from '@/lib/auth';
 import { getPublicEvents } from '@/lib/events';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', koszykówka: '🏀', siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️', tenis: '🎾', 'piłka ręczna': '🤾', inne: '🏅',
-};
 
 // Futsal i gokarty usunięte z filtrów per spec
 const SPORTS_FILTER: { sport: string; label: string }[] = [
@@ -66,7 +63,7 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl" role="img">
-              {SPORT_EMOJI[event.sport] ?? '🏅'}
+              {sportEmoji(event.sport)}
             </span>
             <div className="min-w-0">
               <p className="font-semibold text-ink truncate">{event.title || event.sport}</p>
@@ -227,7 +224,7 @@ export default function EventsPage() {
                   ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200'
                   : 'bg-white border-slate-200 hover:border-slate-400',
               ].join(' ')}
-            >{SPORT_EMOJI[sport]}</button>
+            >{sportEmoji(sport)}</button>
           ))}
         </div>
 

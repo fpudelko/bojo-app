@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LogIn, Users } from 'lucide-react';
+import { LogIn, Users, RefreshCw, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -85,6 +85,23 @@ export default function MojeGryPage() {
             <Button size="sm">+ Nowa gra</Button>
           </Link>
         </div>
+
+        {/* Quick access to recurring games */}
+        <Link
+          href="/cykliczne"
+          className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-card hover:border-primary-200 hover:shadow-card-hover transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50">
+              <RefreshCw className="w-4 h-4 text-primary-700" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-ink">Stałe gierki</p>
+              <p className="text-xs text-slate-500">Cykliczne mecze z Twoją ekipą</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-600 transition-colors" />
+        </Link>
 
         {loading ? (
           <div className="space-y-3">

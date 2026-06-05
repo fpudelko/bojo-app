@@ -33,11 +33,7 @@ import {
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
 } from '@/types';
-
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', koszykówka: '🏀', siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️', tenis: '🎾', futsal: '⚡', 'piłka ręczna': '🤾', inne: '🏅',
-};
+import { sportEmoji } from '@/lib/sports';
 
 const TEAM_COLORS = [
   { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
@@ -440,7 +436,7 @@ export default function EventDetailPage() {
           )}
           <div className="p-6">
             <div className="flex items-start gap-3">
-              <span className="text-4xl" role="img">{SPORT_EMOJI[event.sport] ?? '🏅'}</span>
+              <span className="text-4xl" role="img">{sportEmoji(event.sport)}</span>
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl font-bold text-gray-900">{event.title || event.sport}</h1>
                 <p className="text-sm text-gray-500 capitalize">{event.sport}</p>
@@ -470,7 +466,7 @@ export default function EventDetailPage() {
               </div>
               <div className="flex items-start gap-2 text-gray-700 sm:col-span-2">
                 <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <span className="font-medium">{event.fieldName}</span>
                   {(event.customAddress || event.customLocationName) && (
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -478,6 +474,16 @@ export default function EventDetailPage() {
                     </p>
                   )}
                 </div>
+                {event.lat && event.lng && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-xs text-primary-600 hover:text-primary-700 font-medium ml-1 whitespace-nowrap"
+                  >
+                    Nawiguj →
+                  </a>
+                )}
               </div>
               {costPln && (
                 <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">

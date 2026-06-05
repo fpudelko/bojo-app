@@ -2,23 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Target, Circle, Trophy, Sun, Dumbbell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-
-type SportRow = {
-  Icon: React.ComponentType<{ className?: string }>;
-  display: string;
-  keys: string[];
-  href: string;
-};
-
-const SPORTS: SportRow[] = [
-  { Icon: Target,   display: 'Piłka nożna',      keys: ['piłka nożna', 'futsal'],  href: '/wydarzenia?sport=piłka nożna' },
-  { Icon: Circle,   display: 'Koszykówka',         keys: ['koszykówka'],              href: '/wydarzenia?sport=koszykówka' },
-  { Icon: Trophy,   display: 'Siatkówka',          keys: ['siatkówka'],               href: '/wydarzenia?sport=siatkówka' },
-  { Icon: Sun,      display: 'Siatkówka plażowa',  keys: ['siatkówka plażowa'],       href: '/wydarzenia?sport=siatkówka plażowa' },
-  { Icon: Dumbbell, display: 'Piłka ręczna',       keys: ['piłka ręczna'],            href: '/wydarzenia?sport=piłka ręczna' },
-];
+import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 
 const MIN_COUNT_TO_SHOW = 3;
 
@@ -45,7 +30,8 @@ export default function SportsSectionWithCounts() {
       .gte('event_date', from)
       .lte('event_date', to)
       .eq('visibility', 'public')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) { console.warn('[SportsCounts]', error); return; }
         const c: Record<string, number> = {};
         (data ?? []).forEach((e) => {
           const s = (e.sport as string).toLowerCase();
@@ -60,16 +46,16 @@ export default function SportsSectionWithCounts() {
       <div className="max-w-5xl mx-auto text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-8">Wybierz swój sport</h2>
         <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-gray-700">
-          {SPORTS.map(({ Icon, display, keys, href }) => {
-            const count = keys.reduce((sum, k) => sum + (counts[k] ?? 0), 0);
+          {FOCUS_SPORTS.map((sport) => {
+            const count = counts[sport] ?? 0;
             return (
               <Link
-                key={display}
-                href={href}
+                key={sport}
+                href={`/wydarzenia?sport=${encodeURIComponent(sport)}`}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 transition-colors"
               >
-                <Icon className="w-4 h-4 text-primary-600" />
-                <span>{display}</span>
+                <span role="img" aria-hidden>{sportEmoji(sport)}</span>
+                <span>{sportLabel(sport)}</span>
                 <span className="text-gray-400 font-normal">
                   {count >= MIN_COUNT_TO_SHOW
                     ? `· ${count} gier w ten weekend`

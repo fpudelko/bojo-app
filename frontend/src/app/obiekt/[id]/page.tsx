@@ -9,16 +9,8 @@ import Card from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { getField } from '@/lib/api';
 import type { Field } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽',
-  futsal: '⚡',
-  koszykówka: '🏀',
-  siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️',
-  'piłka ręczna': '🤾',
-  inne: '🏅',
-};
 
 export default function VenueDashboardPage() {
   const { id } = useParams<{ id: string }>();
@@ -150,7 +142,7 @@ export default function VenueDashboardPage() {
                 key={s}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 text-xs font-medium"
               >
-                {SPORT_EMOJI[s] ?? '🏅'} {s}
+                {sportEmoji(s)} {s}
               </span>
             ))}
           </div>

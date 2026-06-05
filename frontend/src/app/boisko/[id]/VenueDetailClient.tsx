@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
+import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock } from 'lucide-react';
+import { sportEmoji, sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -16,15 +17,6 @@ import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
 import type { Field, TimeSlot } from '@/types';
 
-const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'piłka nożna': Target,
-  koszykówka: Circle,
-  siatkówka: Trophy,
-  'siatkówka plażowa': Sun,
-  futsal: Zap,
-  'piłka ręczna': Dumbbell,
-  inne: Activity,
-};
 
 interface UpcomingEvent {
   id: string;
@@ -237,18 +229,16 @@ export default function VenueDetailClient({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {field.sport.map((s) => {
-                const Icon = SPORT_ICONS[s] ?? Activity;
-                return (
+              {field.sport.map((s) => (
                   <span
                     key={s}
-                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-primary-50 text-primary-700 font-medium"
+                    style={{ background: sportColor(s) + '18', color: sportColor(s) }}
+                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
                   >
-                    <Icon className="w-3 h-3" />
+                    <span role="img" aria-hidden>{sportEmoji(s)}</span>
                     {s}
                   </span>
-                );
-              })}
+              ))}
               {field.surface && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
                   {surfaceLabel(field.surface)}

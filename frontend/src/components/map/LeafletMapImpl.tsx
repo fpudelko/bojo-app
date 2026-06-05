@@ -24,7 +24,7 @@ function popupHtml(field: Field, isAdmin: boolean): string {
   const sportsHtml = field.sport
     .map((s) => {
       const m = metaFor(s);
-      return `<span style="background:${m.color}18;color:${m.color};border-radius:4px;padding:1px 7px;font-size:11px;font-weight:500">${m.emoji} ${s}</span>`;
+      return `<span style="background:${m.color}1a;color:${m.color};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">${m.emoji} ${s}</span>`;
     })
     .join(' ');
 
@@ -32,7 +32,11 @@ function popupHtml(field: Field, isAdmin: boolean): string {
     ? `<span style="color:#15803d;font-size:11px;font-weight:500">● Dostępne</span>`
     : `<span style="color:#9ca3af;font-size:11px">● Niedostępne</span>`;
 
-  const surfaceTxt = field.surface ? ` · <span style="color:#9ca3af;font-size:11px">${surfaceLabel(field.surface)}</span>` : '';
+  const surfaceTxt = field.surface ? ` · <span style="color:#94a3b8;font-size:11px">${surfaceLabel(field.surface)}</span>` : '';
+  const indoorTxt = field.isIndoor ? ` · <span style="color:#94a3b8;font-size:11px">Hala</span>` : '';
+  const phoneTxt = field.phone
+    ? `<p style="margin:4px 0 0;font-size:11px;color:#475569">📞 <a href="tel:${field.phone}" style="color:#475569;text-decoration:none">${field.phone}</a></p>`
+    : '';
   const slug = slugify(field.name);
 
   const bookingBtn =
@@ -41,19 +45,19 @@ function popupHtml(field: Field, isAdmin: boolean): string {
       : '';
 
   const adminLink = isAdmin
-    ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:5px;font-size:11px;color:#6b7280;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
+    ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:6px;font-size:11px;color:#94a3b8;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
     : '';
 
   return `<div style="min-width:230px;max-width:280px;font-family:system-ui,sans-serif">
     <p style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 2px">${field.name}</p>
-    <p style="font-size:11px;color:#6b7280;margin:0 0 6px">${field.address}</p>
+    <p style="font-size:11px;color:#64748b;margin:0 0 6px">${field.address}</p>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${sportsHtml}</div>
-    <p style="margin:0 0 10px">${availHtml}${surfaceTxt}</p>
-    <div style="display:flex;gap:5px;flex-wrap:wrap">
+    <p style="margin:0 0 0">${availHtml}${surfaceTxt}${indoorTxt}</p>
+    ${phoneTxt}
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">
       ${bookingBtn}
       <a href="/boisko/${slug}" style="flex:1;min-width:70px;text-align:center;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">Szczegóły →</a>
       <a href="/wydarzenia/nowe?fieldId=${field.id}" style="flex:1;min-width:70px;text-align:center;background:#15803d;color:#fff;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">+ Mecz</a>
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:55px;text-align:center;background:#f3f4f6;color:#374151;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">Nawiguj</a>
     </div>
     ${adminLink}
   </div>`;

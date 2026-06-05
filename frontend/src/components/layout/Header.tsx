@@ -11,10 +11,9 @@ import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 
-// Ordered by user-journey priority: discover → organize → recurring → map
+// Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
   { href: '/wydarzenia', label: 'Znajdź grę' },
-  { href: '/cykliczne', label: 'Stałe gierki' },
   { href: '/mapa', label: 'Mapa boisk' },
 ];
 
@@ -262,8 +261,7 @@ export default function Header() {
             {/* Secondary nav */}
             <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Odkryj</p>
             {[
-              { href: '/cykliczne', label: 'Stałe gierki', Icon: RefreshCw },
-              { href: '/mapa',      label: 'Mapa boisk',   Icon: Map },
+              { href: '/mapa', label: 'Mapa boisk', Icon: Map },
             ].map(({ href, label, Icon }) => (
               <Link
                 key={href}
@@ -295,6 +293,20 @@ export default function Header() {
                   )}
                 >
                   Moje gry
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </Link>
+                <Link
+                  href="/cykliczne"
+                  onClick={() => setMobileOpen(false)}
+                  className={clsx(
+                    'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
+                    pathname === '/cykliczne' || pathname.startsWith('/cykliczne/') ? 'text-primary-700' : 'text-ink',
+                  )}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <RefreshCw className="w-4 h-4 text-slate-400" />
+                    Stałe gierki
+                  </span>
                   <ChevronRight className="w-4 h-4 text-slate-300" />
                 </Link>
                 {hasVenue && (

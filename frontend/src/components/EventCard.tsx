@@ -3,11 +3,12 @@ import { format, parseISO, isFuture, isToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import type { EventItem } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
-export const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', koszykówka: '🏀', siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️', futsal: '⚡', 'piłka ręczna': '🤾', inne: '🏅',
-};
+/** @deprecated Import sportEmoji from @/lib/sports instead */
+export const SPORT_EMOJI: Record<string, string> = new Proxy({}, {
+  get: (_, sport) => typeof sport === 'string' ? sportEmoji(sport) : '🏅',
+}) as Record<string, string>;
 
 export function isUpcoming(event: EventItem): boolean {
   try {
@@ -32,7 +33,7 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
           : 'border-slate-200/80 shadow-card hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover',
       ].join(' ')}>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl" role="img">
-          {SPORT_EMOJI[event.sport] ?? '🏅'}
+          {sportEmoji(event.sport)}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ink truncate">

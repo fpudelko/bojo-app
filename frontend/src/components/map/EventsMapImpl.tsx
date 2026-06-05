@@ -10,19 +10,11 @@ import type { EventItem } from '@/types';
 const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', koszykówka: '🏀', siatkówka: '🏐',
-  'siatkówka plażowa': '🏖️', tenis: '🎾', futsal: '⚡', 'piłka ręczna': '🤾', inne: '⭐',
-};
-
-const SPORT_COLOR: Record<string, string> = {
-  'piłka nożna': '#15803d', koszykówka: '#ea580c', siatkówka: '#2563eb',
-  'siatkówka plażowa': '#d97706', futsal: '#7c3aed', 'piłka ręczna': '#dc2626', inne: '#6b7280',
-};
+import { sportEmoji, sportColor } from '@/lib/sports';
 
 function eventIcon(event: EventItem): L.DivIcon {
-  const emoji = SPORT_EMOJI[event.sport] ?? '⭐';
-  const color = SPORT_COLOR[event.sport] ?? '#6b7280';
+  const emoji = sportEmoji(event.sport);
+  const color = sportColor(event.sport);
   return L.divIcon({
     html: `<div style="
         display:flex;align-items:center;justify-content:center;
@@ -43,7 +35,7 @@ function eventIcon(event: EventItem): L.DivIcon {
 }
 
 function popupHtml(event: EventItem): string {
-  const emoji = SPORT_EMOJI[event.sport] ?? '⭐';
+  const emoji = sportEmoji(event.sport);
   const spots = event.maxPlayers;
   const dateStr = event.date;
   const timeStr = event.time?.slice(0, 5) ?? '';

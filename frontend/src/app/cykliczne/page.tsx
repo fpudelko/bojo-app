@@ -8,11 +8,8 @@ import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { getMyRecurringEvents, getNextEventsForRecurring } from '@/lib/recurring';
 import type { RecurringEvent } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
-const SPORT_EMOJI: Record<string, string> = {
-  'piłka nożna': '⚽', futsal: '⚡', koszykówka: '🏀',
-  siatkówka: '🏐', 'siatkówka plażowa': '🏖️', 'piłka ręczna': '🤾', inne: '🏅',
-};
 
 const DAY_SHORT: Record<number, string> = {
   1: 'Pon', 2: 'Wt', 3: 'Śr', 4: 'Czw', 5: 'Pt', 6: 'Sob', 7: 'Nd',
@@ -180,7 +177,7 @@ export default function RecurringEventsPage() {
                     <div className="flex items-start gap-4">
                       {/* Sport emoji */}
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl">
-                        {SPORT_EMOJI[ev.sport] ?? '🏅'}
+                        {sportEmoji(ev.sport)}
                       </span>
 
                       <div className="flex-1 min-w-0">
