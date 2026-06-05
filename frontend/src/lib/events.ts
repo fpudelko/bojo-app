@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
+import { logActivity } from './activityLog';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -131,15 +132,29 @@ export async function createEvent(
 
   const id = row.id as string;
 
+  // Log activity (fire-and-forget)
+  logActivity(id, organizerId, safeOrganizerName, 'event_created', {
+    sport: data.sport,
+    date: data.date,
+    visibility: data.visibility,
+  }).catch((e) => console.warn('[ActivityLog] event_created', e));
+
   // Fire-and-forget: notify users with matching game alerts
   if (data.visibility === 'public') {
-    supabase.functions.invoke('notify-game-alert', { body: { eventId: id } }).catch(() => {});
+    supabase.functions.invoke('notify-game-alert', { body: { eventId: id } }).catch((e) => {
+      console.warn('[notify-game-alert]', e);
+    });
   }
 
   return id;
 }
 
-export async function updateEvent(id: string, data: EventCreate): Promise<void> {
+export async function updateEvent(
+  id: string,
+  data: EventCreate,
+  actorId?: string,
+  actorName?: string,
+): Promise<void> {
   const { error } = await supabase
     .from('events')
     .update({
@@ -167,6 +182,12 @@ export async function updateEvent(id: string, data: EventCreate): Promise<void> 
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  if (actorId) {
+    logActivity(id, actorId, actorName ?? null, 'event_updated', { date: data.date }).catch(
+      (e) => console.warn('[ActivityLog] event_updated', e),
+    );
+  }
 }
 
 export async function getEvent(
@@ -266,6 +287,10 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
     is_reserve: isReserve,
   });
   if (error) throw new Error(error.message);
+
+  logActivity(eventId, userId, safeName, 'participant_joined', { is_reserve: isReserve }).catch(
+    (e) => console.warn('[ActivityLog] participant_joined', e),
+  );
 }
 
 export async function addGuest(
@@ -322,11 +347,23 @@ export async function togglePayment(participantId: string, hasPaid: boolean): Pr
   if (error) throw new Error(error.message);
 }
 
-export async function setVisibility(eventId: string, visibility: Visibility): Promise<void> {
+export async function setVisibility(
+  eventId: string,
+  visibility: Visibility,
+  actorId?: string,
+  actorName?: string,
+): Promise<void> {
   const { error } = await supabase.from('events').update({ visibility }).eq('id', eventId);
   if (error) throw new Error(error.message);
+  if (actorId) {
+    logActivity(eventId, actorId, actorName ?? null, 'visibility_changed', { visibility }).catch(
+      (e) => console.warn('[ActivityLog] visibility_changed', e),
+    );
+  }
   if (visibility === 'public') {
-    supabase.functions.invoke('notify-game-alert', { body: { eventId } }).catch(() => {});
+    supabase.functions.invoke('notify-game-alert', { body: { eventId } }).catch((e) => {
+      console.warn('[notify-game-alert]', e);
+    });
   }
 }
 
@@ -343,14 +380,70 @@ export async function deleteEvent(eventId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function cancelEvent(eventId: string): Promise<void> {
+export async function cancelEvent(
+  eventId: string,
+  actorId?: string,
+  actorName?: string,
+): Promise<void> {
   const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId);
   if (error) throw new Error(error.message);
+  if (actorId) {
+    logActivity(eventId, actorId, actorName ?? null, 'event_cancelled').catch(
+      (e) => console.warn('[ActivityLog] event_cancelled', e),
+    );
+  }
 }
 
-export async function restoreEvent(eventId: string): Promise<void> {
+export async function restoreEvent(
+  eventId: string,
+  actorId?: string,
+  actorName?: string,
+): Promise<void> {
   const { error } = await supabase.from('events').update({ status: 'active' }).eq('id', eventId);
   if (error) throw new Error(error.message);
+  if (actorId) {
+    logActivity(eventId, actorId, actorName ?? null, 'event_restored').catch(
+      (e) => console.warn('[ActivityLog] event_restored', e),
+    );
+  }
+}
+
+export async function repeatEvent(
+  source: EventItem,
+  newDate: string,
+  newTime: string,
+  organizerId: string,
+  organizerName: string,
+): Promise<string> {
+  return createEvent(
+    {
+      sport: source.sport,
+      fieldId: source.fieldId,
+      fieldName: source.fieldName,
+      lat: source.lat,
+      lng: source.lng,
+      title: source.title,
+      description: source.description,
+      date: newDate,
+      time: newTime,
+      endTime: source.endTime,
+      maxPlayers: source.maxPlayers,
+      visibility: source.visibility,
+      requireSmsConfirmation: source.requireSmsConfirmation,
+      trackAttendance: source.trackAttendance,
+      teamMode: source.teamMode,
+      trackPayments: source.trackPayments,
+      showPaymentStatus: source.showPaymentStatus,
+      trackResults: source.trackResults,
+      confirmationDeadlineH: source.confirmationDeadlineH,
+      costGrosze: source.costGrosze,
+      customLocationName: source.customLocationName,
+      customAddress: source.customAddress,
+    },
+    organizerId,
+    organizerName,
+    true,
+  );
 }
 
 export async function getMyParticipatedEvents(

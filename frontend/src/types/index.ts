@@ -349,3 +349,13 @@ export interface AppNotification {
   readAt?: string;
   createdAt: string;
 }
+
+export interface EventComment {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  body: string;
+  deletedAt?: string;
+  createdAt: string;
+}

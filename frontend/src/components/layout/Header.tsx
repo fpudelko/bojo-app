@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -40,6 +40,7 @@ export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { user, loading, signOut } = useAuth();
   const isAdmin = useAdmin();
   const userAvatar = avatarUrl(user);
@@ -58,6 +59,42 @@ export default function Header() {
       .eq('manager_id', user.id)
       .then(({ count }) => setHasVenue((count ?? 0) > 0));
   }, [user]);
+
+  // Focus trap + scroll lock for mobile menu
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMobileOpen(false); return; }
+      if (e.key !== 'Tab') return;
+
+      const el = mobileMenuRef.current;
+      if (!el) return;
+      const focusable = Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((n) => !n.closest('[hidden]'));
+
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -199,7 +236,7 @@ export default function Header() {
 
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
+        <div ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-5 pt-5 pb-4" aria-label="Nawigacja mobilna">
 
             {/* Primary actions — player vs organizer */}

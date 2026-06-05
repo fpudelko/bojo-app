@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
+import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
 
 const inter = Inter({
@@ -72,8 +73,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-canvas font-sans antialiased text-ink">
         <AuthProvider>
-          {children}
-          <CookieBanner />
+          <ToastProvider>
+            {children}
+            <CookieBanner />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

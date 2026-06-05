@@ -8,19 +8,21 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
-  BanIcon, RotateCcw, AlertTriangle,
+  BanIcon, RotateCcw, AlertTriangle, Copy,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import RemindersSection from '@/components/events/RemindersSection';
+import EventComments from '@/components/events/EventComments';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
+import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent,
+  cancelEvent, restoreEvent, repeatEvent,
 } from '@/lib/events';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
@@ -92,6 +94,7 @@ export default function EventDetailPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
+  const { toast } = useToast();
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -114,6 +117,11 @@ export default function EventDetailPage() {
   const [reportType, setReportType] = useState<ReportType>('nie_przyszedl');
   const [reportComment, setReportComment] = useState('');
   const [reportBusy, setReportBusy] = useState(false);
+  // Repeat game dialog
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [repeatDate, setRepeatDate] = useState('');
+  const [repeatTime, setRepeatTime] = useState('');
+  const [repeatBusy, setRepeatBusy] = useState(false);
 
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
@@ -183,9 +191,13 @@ export default function EventDetailPage() {
   const handleJoin = async () => {
     if (!user) return;
     setBusy(true);
-    try { await joinEvent(event.id, user.id, displayName(user)); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    try {
+      await joinEvent(event.id, user.id, displayName(user));
+      await load();
+      toast('Dołączyłeś do gry!');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleAddGuest = async () => {
@@ -195,16 +207,22 @@ export default function EventDetailPage() {
       await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined);
       setGuestName('');
       await load();
-    }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+      toast('Gość dodany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleRemove = async (participantId: string) => {
     setBusy(true);
-    try { await removeParticipant(participantId); await load(); setLocalTeams(null); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    try {
+      await removeParticipant(participantId);
+      await load();
+      setLocalTeams(null);
+      toast('Uczestnik usunięty');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleTogglePayment = async (p: EventParticipant) => {
@@ -213,66 +231,71 @@ export default function EventDetailPage() {
     try {
       await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? event.costGrosze : 0);
       await load();
-    }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleStatusCycle = async (p: EventParticipant) => {
     if (!isOrganizer) return;
     setBusy(true);
     try { await updateParticipantStatus(p.id, NEXT_STATUS[p.status]); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
   const handleSendSms = async (p: EventParticipant) => {
     setSmsBusy(p.id);
-    try { await sendConfirmationSms(event.id, p.id); alert(`SMS wysłany do ${p.name}`); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd SMS'); }
+    try { await sendConfirmationSms(event.id, p.id); toast(`SMS wysłany do ${p.name}`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd SMS', 'error'); }
     finally { setSmsBusy(null); }
   };
 
   const handleAssignTeam = async (participantId: string, team: 'A' | 'B' | null) => {
     setBusy(true);
     try { await updateParticipantTeam(participantId, team); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
   const handleAssignRandom = async () => {
     setBusy(true);
     try { await assignTeamsRandomly(event.id, regulars.map((p) => p.id)); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
   const handleClearTeams = async () => {
     setBusy(true);
     try { await clearTeamsDb(event.id); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
   const handleToggleCaptain = async (p: EventParticipant) => {
     setBusy(true);
     try { await setCaptain(p.id, !p.isCaptain); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
   const handleToggleVisibility = async () => {
     setBusy(true);
-    try { await setVisibility(event.id, event.visibility === 'public' ? 'private' : 'public'); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    try {
+      const next = event.visibility === 'public' ? 'private' : 'public';
+      await setVisibility(event.id, next, user?.id, displayName(user ?? null));
+      await load();
+      toast(next === 'public' ? 'Mecz jest teraz publiczny' : 'Mecz jest teraz prywatny');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleShare = async () => {
     const url = window.location.href;
     try {
       if (navigator.share) { await navigator.share({ title: event.title || event.sport, url }); }
-      else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+      else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); toast('Link skopiowany!'); }
     } catch { /* user cancelled */ }
   };
 
@@ -280,22 +303,43 @@ export default function EventDetailPage() {
     if (!confirm('Na pewno usunąć to wydarzenie? Tej operacji nie można cofnąć.')) return;
     setBusy(true);
     try { await deleteEvent(event.id); router.push('/wydarzenia'); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); setBusy(false); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
   const handleCancel = async () => {
     if (!confirm('Odwołać mecz? Uczestnicy zobaczą że mecz jest odwołany.')) return;
     setBusy(true);
-    try { await cancelEvent(event.id); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    try {
+      await cancelEvent(event.id, user?.id, displayName(user ?? null));
+      await load();
+      toast('Mecz odwołany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
   };
 
   const handleRestore = async () => {
     setBusy(true);
-    try { await restoreEvent(event.id); await load(); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setBusy(false); }
+    try {
+      await restoreEvent(event.id, user?.id, displayName(user ?? null));
+      await load();
+      toast('Mecz przywrócony');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleRepeat = async () => {
+    if (!user || !repeatDate || !repeatTime) return;
+    setRepeatBusy(true);
+    try {
+      const newId = await repeatEvent(event, repeatDate, repeatTime, user.id, displayName(user));
+      setRepeatOpen(false);
+      toast('Wydarzenie skopiowane!');
+      router.push(`/wydarzenia/${newId}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setRepeatBusy(false); }
   };
 
   const handleSaveResult = async () => {
@@ -304,9 +348,13 @@ export default function EventDetailPage() {
     const b = parseInt(scoreB, 10);
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0) return;
     setSavingResult(true);
-    try { await saveMatchResult(event.id, a, b, user.id); await loadMatchData(event); }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setSavingResult(false); }
+    try {
+      await saveMatchResult(event.id, a, b, user.id);
+      await loadMatchData(event);
+      toast('Wynik zapisany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setSavingResult(false); }
   };
 
   const handleSetGoals = async (participantId: string, goals: number) => {
@@ -319,8 +367,9 @@ export default function EventDetailPage() {
         if (existing) return prev.map((x) => x.participantId === participantId ? { ...x, goals: g } : x);
         return [...prev, { id: '', eventId: event.id, participantId, participantName: '', goals: g }];
       });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
     }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
   };
 
   const handleSubmitReport = async () => {
@@ -330,10 +379,10 @@ export default function EventDetailPage() {
       await submitReport(event.id, reportTarget.id, reportType, user?.id, reportComment || undefined);
       setReportTarget(null);
       setReportComment('');
-      alert('Zgłoszenie wysłane.');
-    }
-    catch (e) { alert(e instanceof Error ? e.message : 'Błąd'); }
-    finally { setReportBusy(false); }
+      toast('Zgłoszenie wysłane');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setReportBusy(false); }
   };
 
   const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
@@ -731,6 +780,47 @@ export default function EventDetailPage() {
         {/* POWIADOMIENIA — automatyczne przypomnienia dla zapisanych uczestników */}
         {isOrganizer && <RemindersSection eventId={event.id} />}
 
+        {/* Cost split summary */}
+        {event.trackPayments && event.costGrosze > 0 && isOrganizer && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <Banknote className="w-4 h-4" /> Podział kosztów
+            </h2>
+            <div className="flex items-center justify-between text-sm mb-3">
+              <span className="text-gray-500">Koszt / os.</span>
+              <span className="font-semibold text-gray-900">{(event.costGrosze / 100).toFixed(2)} PLN</span>
+            </div>
+            <div className="flex items-center justify-between text-sm mb-3">
+              <span className="text-gray-500">Opłaconych</span>
+              <span className="font-semibold text-green-700">
+                {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Zebrano</span>
+              <span className="font-semibold text-gray-900">
+                {((regulars.filter((p) => p.hasPaid).length * event.costGrosze) / 100).toFixed(2)} PLN
+                {' '}<span className="text-gray-400 font-normal">z {((regulars.length * event.costGrosze) / 100).toFixed(2)} PLN</span>
+              </span>
+            </div>
+            {regulars.some((p) => !p.hasPaid) && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 mb-2">Czekamy na wpłatę od:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {regulars.filter((p) => !p.hasPaid).map((p) => (
+                    <span key={p.id} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Comments */}
+        <EventComments eventId={event.id} />
+
         {/* Organizer controls */}
         {isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
@@ -742,6 +832,13 @@ export default function EventDetailPage() {
               {event.visibility === 'public'
                 ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
                 : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+            </button>
+            <button
+              onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
+              disabled={busy}
+              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
+            >
+              <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
             </button>
             {!isCancelled ? (
               <button
@@ -767,6 +864,53 @@ export default function EventDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Repeat game dialog */}
+      {repeatOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          onClick={() => setRepeatOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900 mb-1">Powtórz mecz</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę.
+            </p>
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Data</label>
+                <input
+                  type="date"
+                  value={repeatDate}
+                  onChange={(e) => setRepeatDate(e.target.value)}
+                  min={new Date().toISOString().slice(0, 10)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Godzina</label>
+                <input
+                  type="time"
+                  value={repeatTime}
+                  onChange={(e) => setRepeatTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setRepeatOpen(false)} className="flex-1">Anuluj</Button>
+              <Button
+                onClick={handleRepeat}
+                isLoading={repeatBusy}
+                disabled={!repeatDate || !repeatTime}
+                className="flex-1"
+              >
+                Stwórz kopię
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report modal */}
       {reportTarget && (
