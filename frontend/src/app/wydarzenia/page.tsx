@@ -9,7 +9,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
-import { getMyEvents, getPublicEvents } from '@/lib/events';
+import { getPublicEvents } from '@/lib/events';
+import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
 
 const SPORT_EMOJI: Record<string, string> = {
@@ -18,7 +19,13 @@ const SPORT_EMOJI: Record<string, string> = {
 };
 
 // Futsal i gokarty usunięte z filtrów per spec
-const SPORTS_FILTER = ['piłka nożna', 'siatkówka plażowa', 'siatkówka', 'koszykówka', 'piłka ręczna'];
+const SPORTS_FILTER: { sport: string; label: string }[] = [
+  { sport: 'piłka nożna',       label: 'Piłka nożna' },
+  { sport: 'siatkówka plażowa', label: 'Siatkówka plażowa' },
+  { sport: 'siatkówka',         label: 'Siatkówka' },
+  { sport: 'koszykówka',        label: 'Koszykówka' },
+  { sport: 'piłka ręczna',      label: 'Piłka ręczna' },
+];
 
 type LocationMode = 'none' | 'browser' | 'address';
 interface GeoPoint { lat: number; lng: number }
@@ -94,8 +101,6 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
 
 export default function EventsPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
-  const [tab, setTab] = useState<'publiczne' | 'moje'>('publiczne');
-  const [myEvents, setMyEvents] = useState<EventItem[]>([]);
   const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
@@ -112,35 +117,28 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pub, mine] = await Promise.all([
-        getPublicEvents(),
-        user ? getMyEvents(user.id) : Promise.resolve([]),
-      ]);
+      const pub = await getPublicEvents();
       setPublicEvents(pub);
-      setMyEvents(mine);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [user]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
   // Request browser geolocation
-  function handleBrowserGeo() {
-    if (!navigator.geolocation) { setGeoError('Twoja przeglądarka nie obsługuje geolokalizacji.'); return; }
+  async function handleBrowserGeo() {
     setGeoLoading(true);
     setGeoError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGeoPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationMode('browser');
-        setGeoLoading(false);
-      },
-      () => {
-        setGeoError('Nie udało się pobrać lokalizacji. Sprawdź uprawnienia przeglądarki.');
-        setGeoLoading(false);
-      },
-      { timeout: 8000 },
-    );
+    const result = await getCurrentLocation();
+    setGeoLoading(false);
+    if (result.ok) {
+      setGeoPoint({ lat: result.lat, lng: result.lng });
+      setLocationMode('browser');
+    } else {
+      setGeoError(geoErrorMessage(result.kind));
+      // Offer the manual address field as a fallback
+      if (result.kind !== 'unsupported') setLocationMode('address');
+    }
   }
 
   // Geocode typed address via Nominatim (debounced)
@@ -172,7 +170,7 @@ export default function EventsPage() {
     setGeoError(null);
   }
 
-  const raw = tab === 'moje' ? myEvents : publicEvents;
+  const raw = publicEvents;
 
   // Distances (only computed when geoPoint set)
   const withDistances = useMemo(() => {
@@ -203,52 +201,33 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-5">
-          <button
-            onClick={() => setTab('publiczne')}
-            className={[
-              'px-4 py-1.5 rounded-full text-sm font-medium border transition-colors',
-              tab === 'publiczne'
-                ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
-            ].join(' ')}
-          >Wszystkie</button>
-          {user && (
-            <button
-              onClick={() => setTab('moje')}
-              className={[
-                'px-4 py-1.5 rounded-full text-sm font-medium border transition-colors',
-                tab === 'moje'
-                  ? 'bg-primary-700 text-white border-primary-700'
-                  : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
-              ].join(' ')}
-            >Moje</button>
-          )}
-        </div>
-
-        {/* Sport filter chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
+        {/* Sport filter — emoji-only chips, no horizontal scroll on mobile */}
+        <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setSportFilter('')}
+            aria-label="Każdy sport"
+            aria-pressed={!sportFilter}
             className={[
-              'shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+              'shrink-0 px-3.5 h-10 rounded-xl text-sm font-medium border transition-colors',
               !sportFilter
                 ? 'bg-primary-700 text-white border-primary-700'
                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400',
             ].join(' ')}
-          >Każdy sport</button>
-          {SPORTS_FILTER.map((s) => (
+          >Wszystkie</button>
+          {SPORTS_FILTER.map(({ sport, label }) => (
             <button
-              key={s}
-              onClick={() => setSportFilter(sportFilter === s ? '' : s)}
+              key={sport}
+              onClick={() => setSportFilter(sportFilter === sport ? '' : sport)}
+              aria-label={label}
+              aria-pressed={sportFilter === sport}
+              title={label}
               className={[
-                'shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                sportFilter === s
-                  ? 'bg-primary-700 text-white border-primary-700'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400',
+                'shrink-0 w-10 h-10 rounded-xl text-xl border transition-colors flex items-center justify-center',
+                sportFilter === sport
+                  ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200'
+                  : 'bg-white border-slate-200 hover:border-slate-400',
               ].join(' ')}
-            >{SPORT_EMOJI[s]} {s}</button>
+            >{SPORT_EMOJI[sport]}</button>
           ))}
         </div>
 
@@ -339,12 +318,6 @@ export default function EventsPage() {
                   onClick={() => setSportFilter('')}
                   className="text-primary-700 text-sm underline mt-3"
                 >Wyczyść filtry</button>
-              </>
-            ) : tab === 'moje' ? (
-              <>
-                <p className="text-lg font-medium text-ink">Nie masz jeszcze wydarzeń</p>
-                <p className="text-sm mt-1 mb-5">Stwórz pierwsze i zaproś znajomych.</p>
-                <Link href="/wydarzenia/nowe"><Button>Stwórz wydarzenie</Button></Link>
               </>
             ) : (
               <>

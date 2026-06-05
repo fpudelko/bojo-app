@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let fieldPages: MetadataRoute.Sitemap = [];
   try {
-    const { data } = await supabase.from('fields').select('name, id');
+    const { data } = await supabase.from('fields').select('name, id').eq('map_visibility', 'public');
     fieldPages = (data ?? []).map((field) => ({
       url: `${base}/boisko/${slugify(field.name)}`,
       lastModified: new Date(),

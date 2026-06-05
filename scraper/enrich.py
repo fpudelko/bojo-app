@@ -425,13 +425,7 @@ async def run(args: argparse.Namespace) -> None:
         async def worker(grp: list[dict[str, Any]]) -> None:
             address = grp[0].get("address") or "?"
             async with sem:
-                if args.sleep > 0 and last_request[0] > 0:
-                    elapsed = asyncio.get_event_loop().time() - last_request[0]
-                    wait = args.sleep - elapsed
-                    if wait > 0:
-                        log.info("  sleeping %.0fs to stay under TPM limit…", wait)
-                        await asyncio.sleep(wait)
-                last_request[0] = asyncio.get_event_loop().time()
+
                 findings, usage = await enrich_group(client, api_key, model, address, grp, args.max_searches)
                 totals["in_tok"] += usage["input_tokens"]
                 totals["out_tok"] += usage["output_tokens"]
@@ -486,8 +480,7 @@ def parse_args() -> argparse.Namespace:
                    help="parallel requests — keep at 1 to avoid 50k TPM rate limit")
     p.add_argument("--max-searches", type=int, default=2, dest="max_searches",
                    help="max web searches per venue group (default 2; 4 = more data but hits TPM limit faster)")
-    p.add_argument("--sleep",        type=float, default=65.0,
-                   help="seconds to wait between groups (default 65 — stays under 50k TPM for Haiku; set 0 if you have higher limits)")
+
     p.add_argument("--model",        type=str, default="")
     return p.parse_args()
 

@@ -1,6 +1,8 @@
 # Bojo — Status projektu
 
-*Aktualizacja: 2 czerwca 2026*
+*Aktualizacja: 4 czerwca 2026*
+
+> Pełny opis funkcji dla nowych osób: [PRZEWODNIK.md](./PRZEWODNIK.md).
 
 ---
 
@@ -46,9 +48,8 @@
 
 ## Rzeczy, o które warto się martwić
 
-### Mała troska (do ogarnięcia przy okazji)
-- **Martwy kod backendu** — w folderze `/backend/` jest plik Pythona z fałszywymi danymi testowymi. Nigdy nie jest uruchamiany. Warto usunąć, żeby nie mylić przyszłych deweloperów.
-- **Pliki React Native** — `App.js`, `screens/`, `components/` w głównym folderze to pozostałość po wersji mobilnej, która nie powstała. Bezpieczne do usunięcia.
+### Załatwione
+- ~~Martwy kod backendu / pliki React Native~~ — usunięte (pozostałości po szablonie „Material Kit React Native": `app.json`, `babel.config.js`, `constants/`, `assets/` oraz nieużywany `docker-compose.yml`).
 
 ### Średnia troska (warto rozwiązać)
 - **Autoryzacja po stronie frontendu** — sprawdzenie, czy użytkownik jest organizatorem, odbywa się w przeglądarce, nie na serwerze. Oznacza to, że technicznie sprytny użytkownik mógłby edytować cudzy mecz. Wymaga zabezpieczenia w bazie danych (Row Level Security w Supabase).

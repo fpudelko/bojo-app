@@ -152,10 +152,20 @@ async def fetch_html(client: httpx.AsyncClient, url: str, timeout: float) -> str
 # Supabase
 # ---------------------------------------------------------------------------
 
+_SKIP_DOMAINS = re.compile(
+    r'facebook\.com|instagram\.com|twitter\.com|youtube\.com|linkedin\.com',
+    re.IGNORECASE,
+)
+
+
 async def fetch_candidates(
     client: httpx.AsyncClient, base: str, key: str, *, reprocess: bool,
 ) -> list[dict[str, Any]]:
-    """Return fields with a website that need booking analysis."""
+    """Return fields with a website that need booking analysis.
+
+    Groups by URL so each unique website is analysed only once — all venues
+    sharing the same URL get the same result applied.
+    """
     r = await client.get(
         f"{base}/rest/v1/fields",
         headers=_sb_headers(key),
@@ -167,7 +177,6 @@ async def fetch_candidates(
     if not fields:
         return []
 
-    # Fetch existing outreach rows so we know which already have booking_system
     ro = await client.get(
         f"{base}/rest/v1/field_outreach",
         headers=_sb_headers(key),
@@ -176,40 +185,57 @@ async def fetch_candidates(
     ro.raise_for_status()
     outreach_map = {row["field_id"]: row for row in ro.json()}
 
-    out = []
+    # Group venues by normalised URL so we analyse each page only once
+    url_groups: dict[str, list[dict[str, Any]]] = {}
+    skipped_social = 0
     for fid, f in fields.items():
+        url = (f.get("website") or "").strip().rstrip("/").lower()
+        if _SKIP_DOMAINS.search(url):
+            skipped_social += 1
+            continue
         o = outreach_map.get(fid, {})
         bs = o.get("booking_system")
         if not reprocess and bs and bs not in ("nieznany", None):
             continue
-        out.append(f)
+        url_groups.setdefault(url, []).append(f)
 
+    if skipped_social:
+        log.info("Skipped %d social-media URLs (always nieznany)", skipped_social)
+
+    # Return one representative per URL group, carrying all sibling IDs
+    out = []
+    for url, group in url_groups.items():
+        rep = dict(group[0])
+        rep["_all_ids"] = [f["id"] for f in group]
+        out.append(rep)
+
+    log.info("Deduped %d venues → %d unique URLs to fetch",
+             sum(len(g) for g in url_groups.values()), len(out))
     return out
 
 
 async def save_result(
     client: httpx.AsyncClient, base: str, key: str,
-    field_id: str, result: dict[str, Any],
+    field_ids: list[str], result: dict[str, Any],
 ) -> bool:
     now = datetime.now(timezone.utc).isoformat()
-    patch = {
+    base_patch = {
         "booking_system": result.get("booking_system", "nieznany"),
         "ai_enriched_at": now,
     }
     if result.get("booking_url"):
-        patch["booking_url"] = result["booking_url"]
+        base_patch["booking_url"] = result["booking_url"]
     if result.get("booking_provider"):
-        patch["booking_provider"] = result["booking_provider"]
+        base_patch["booking_provider"] = result["booking_provider"]
     if result.get("notes"):
-        patch["ai_summary"] = result["notes"]
+        base_patch["ai_summary"] = result["notes"]
 
-    # Upsert into field_outreach (insert if not exists, update if exists)
-    patch["field_id"] = field_id
+    rows = [{"field_id": fid, **base_patch} for fid in field_ids]
     rp = await client.post(
         f"{base}/rest/v1/field_outreach",
         headers=_sb_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
         params={"on_conflict": "field_id"},
-        json=patch,
+        json=rows,
     )
     return rp.status_code in (200, 201, 204)
 
@@ -255,14 +281,23 @@ async def analyze_with_claude(
         "anthropic-version": ANTHROPIC_VERSION,
         "content-type": "application/json",
     }
-    r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=30.0)
-    r.raise_for_status()
-    data = r.json()
+    for attempt in range(4):
+        r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=30.0)
+        if r.status_code == 429:
+            wait = float(r.headers.get("retry-after", min(30 * 2 ** attempt, 120)))
+            log.warning("  429 rate limit — wait %.0fs (attempt %d/3)", wait, attempt + 1)
+            await asyncio.sleep(wait)
+            continue
+        break
 
+    if r.status_code != 200:
+        log.error("Claude error %s: %s", r.status_code, r.text[:200])
+        return {"booking_system": "nieznany", "_tokens_in": 0, "_tokens_out": 0}
+
+    data = r.json()
     for block in data.get("content", []):
         if block.get("type") == "tool_use" and block.get("name") == "record_booking":
             inp = block.get("input", {})
-            # Token tracking
             usage = data.get("usage", {})
             return {**inp, "_tokens_in": usage.get("input_tokens", 0), "_tokens_out": usage.get("output_tokens", 0)}
 
@@ -302,21 +337,22 @@ async def run(args: argparse.Namespace) -> None:
         async def worker(venue: dict[str, Any]) -> None:
             url = venue.get("website", "")
             name = venue.get("name", "?")
+            all_ids: list[str] = venue.get("_all_ids") or [venue["id"]]
+            siblings = len(all_ids)
             async with sem:
                 raw_html = await fetch_html(client, url, args.fetch_timeout)
                 if not raw_html:
-                    totals["no_html"] += 1
+                    totals["no_html"] += siblings
                     log.info("✗ %s — nie można pobrać %s", name[:40], url[:50])
                     return
 
-                # Fast path: known platform detected by regex
                 quick = _quick_detect(raw_html)
                 if quick:
-                    sys, provider, burl = quick
-                    result = {"booking_system": sys, "booking_provider": provider,
+                    bs, provider, burl = quick
+                    result = {"booking_system": bs, "booking_provider": provider,
                               "booking_url": burl, "notes": f"Wykryto platformę {provider}"}
                     totals["quick"] += 1
-                    log.info("⚡ %s → %s (%s)%s", name[:40], sys, provider,
+                    log.info("⚡ %s ×%d → %s (%s)%s", name[:40], siblings, bs, provider,
                              f" {burl[:50]}" if burl else "")
                 else:
                     text = _strip_html(raw_html)
@@ -324,15 +360,15 @@ async def run(args: argparse.Namespace) -> None:
                     totals["claude"] += 1
                     totals["tok_in"] += result.pop("_tokens_in", 0)
                     totals["tok_out"] += result.pop("_tokens_out", 0)
-                    sys = result.get("booking_system", "nieznany")
+                    bs = result.get("booking_system", "nieznany")
                     burl = result.get("booking_url", "")
-                    log.info("✓ %s → %s%s", name[:40], sys,
+                    log.info("✓ %s ×%d → %s%s", name[:40], siblings, bs,
                              f" {burl[:50]}" if burl else "")
 
                 if not args.dry_run:
-                    ok = await save_result(client, base, sb_key, venue["id"], result)
+                    ok = await save_result(client, base, sb_key, all_ids, result)
                     if ok:
-                        totals["saved"] += 1
+                        totals["saved"] += siblings
 
         await asyncio.gather(*(worker(v) for v in candidates))
 
@@ -351,7 +387,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=0, help="max venues (0 = all)")
     p.add_argument("--dry-run", action="store_true", help="print results, write nothing")
     p.add_argument("--all", action="store_true", help="re-process already analysed venues")
-    p.add_argument("--concurrency", type=int, default=4)
+    p.add_argument("--concurrency", type=int, default=2)
     p.add_argument("--model", default="", help="Claude model ID")
     p.add_argument("--fetch-timeout", type=float, default=12.0,
                    help="HTTP timeout for website fetch (seconds)")

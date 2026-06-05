@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
+import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import UnifiedLocationPicker from '@/components/map/UnifiedLocationPicker';
@@ -65,6 +66,17 @@ function NewEventForm() {
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [seekerCount, setSeekerCount] = useState(0);
+
+  // Count users with matching alerts — shown near visibility picker
+  useEffect(() => {
+    const lat = location.lat;
+    const lng = location.lng;
+    if (!lat || !lng || !date) { setSeekerCount(0); return; }
+    const dow = (() => { const d = new Date(date).getDay(); return d === 0 ? 7 : d; })();
+    countAlertSeekers(lat, lng, sport, dow).then(setSeekerCount).catch(() => {});
+  }, [location.lat, location.lng, sport, date]);
 
   const [advOpen, setAdvOpen] = useState(false);
   const [trackAttendance, setTrackAttendance] = useState(false);
@@ -316,6 +328,17 @@ function NewEventForm() {
               placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
             />
           </div>
+
+          {/* Seeker count nudge — appears when we have location + date */}
+          {seekerCount >= 2 && (
+            <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+              <Users className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">{seekerCount} {seekerCount === 1 ? 'osoba szuka' : seekerCount < 5 ? 'osoby szukają' : 'osób szuka'}</span>
+                {' '}podobnej gry w tym rejonie — rozważ otwarcie zapisów publicznie!
+              </p>
+            </div>
+          )}
 
           {/* Visibility */}
           <div>

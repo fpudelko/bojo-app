@@ -121,6 +121,7 @@ export default function EditEventPage() {
               isBookable: false,
               bookingType: 'none' as const,
               bookingEnabled: false,
+              mapVisibility: 'organizer_only',
             });
           }
         }

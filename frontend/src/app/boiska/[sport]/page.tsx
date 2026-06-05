@@ -36,6 +36,7 @@ function toField(row: any): Field {
     bookingUrl: row.booking_url ?? undefined, bookingEnabled: row.booking_enabled ?? false,
     managerId: row.manager_id ?? undefined, phone: row.phone ?? undefined,
     website: row.website ?? undefined,
+    mapVisibility: row.map_visibility ?? 'organizer_only',
   };
 }
 
@@ -64,6 +65,7 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
     .from('fields')
     .select('*')
     .contains('sport', [entry.db])
+    .eq('map_visibility', 'public')
     .order('name', { ascending: true });
 
   const fields = (data ?? []).map(toField);

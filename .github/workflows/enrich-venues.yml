@@ -48,11 +48,7 @@ on:
         default: '2'
         required: false
         type: string
-      sleep:
-        description: 'Przerwa między grupami w sekundach (65 = bezpieczne dla 50k TPM Haiku, 0 = brak limitu)'
-        default: '65'
-        required: false
-        type: string
+
 
 jobs:
   enrich:
@@ -78,7 +74,7 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --concurrency ${{ inputs.concurrency }} --max-searches ${{ inputs.max_searches }} --sleep ${{ inputs.sleep }} --model ${{ inputs.model }}"
+          ARGS="--limit ${{ inputs.limit }} --concurrency ${{ inputs.concurrency }} --max-searches ${{ inputs.max_searches }} --model ${{ inputs.model }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi

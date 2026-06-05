@@ -75,7 +75,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
 
   useEffect(() => {
     let cancelled = false;
-    getFields().then((r) => { if (!cancelled) setFields(r.fields); }).catch(() => {});
+    getFields().then((r) => { if (!cancelled) setFields(r.fields.filter(f => f.mapVisibility !== 'hidden')); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 

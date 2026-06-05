@@ -44,6 +44,7 @@ function toField(row: any): Field {
     managerId: row.manager_id ?? undefined,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
+    mapVisibility: row.map_visibility ?? 'organizer_only',
   };
 }
 
