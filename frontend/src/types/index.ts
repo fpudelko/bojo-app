@@ -33,6 +33,7 @@ export interface Field {
   hasToilets?: boolean;
   capacity?: number;
   mapVisibility: MapVisibility;
+  district?: string; // dzielnica Poznania
 }
 
 export interface FieldsResponse {
@@ -150,6 +151,7 @@ export interface EventItem {
   status: EventStatus;
   customLocationName?: string;
   customAddress?: string;
+  fieldAddress?: string; // address fetched from fields table (when field_id is set)
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
   trackAttendance: boolean;

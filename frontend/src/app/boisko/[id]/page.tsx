@@ -45,6 +45,7 @@ function toField(row: any): Field {
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
     mapVisibility: row.map_visibility ?? 'organizer_only',
+    district: row.district ?? undefined,
   };
 }
 

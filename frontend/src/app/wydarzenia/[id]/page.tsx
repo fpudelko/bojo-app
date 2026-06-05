@@ -470,10 +470,15 @@ export default function EventDetailPage() {
                 <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <span className="font-medium">{event.fieldName}</span>
-                  {(event.customAddress || event.customLocationName) && (
+                  {(event.fieldAddress || event.customAddress || event.customLocationName) && (
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {event.customAddress || event.customLocationName}
+                      {event.fieldAddress || event.customAddress || event.customLocationName}
                     </p>
+                  )}
+                  {event.fieldId && (
+                    <Link href={`/boisko/${event.fieldId}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
+                      Szczegóły obiektu →
+                    </Link>
                   )}
                 </div>
                 {event.lat && event.lng && (

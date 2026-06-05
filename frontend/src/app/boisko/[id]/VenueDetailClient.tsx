@@ -206,6 +206,9 @@ export default function VenueDetailClient({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-gray-900">{field.name}</h2>
+                {field.district && (
+                  <p className="text-xs font-medium text-primary-700 mt-0.5">{field.district}</p>
+                )}
                 <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {field.address}

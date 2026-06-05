@@ -253,7 +253,7 @@ export default function OutreachPanel() {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Header />
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-8">
           <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse mb-6" />
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
@@ -282,7 +282,7 @@ export default function OutreachPanel() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-8">
         {/* Title row */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
@@ -372,13 +372,13 @@ export default function OutreachPanel() {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm min-w-[1000px]">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                 <tr>
                   <th className="text-left font-medium px-4 py-3">Obiekt</th>
-                  <th className="text-left font-medium px-3 py-3 hidden md:table-cell">Kontakt</th>
+                  <th className="text-left font-medium px-3 py-3">Kontakt</th>
                   <th className="text-left font-medium px-3 py-3">Status</th>
-                  <th className="text-left font-medium px-3 py-3 hidden lg:table-cell">System</th>
+                  <th className="text-left font-medium px-3 py-3">System</th>
                   <th className="text-left font-medium px-3 py-3">Przypisany</th>
                   <th className="px-3 py-3 w-8"></th>
                 </tr>
@@ -504,33 +504,19 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   <X className="w-3 h-3 text-red-400 shrink-0" />
                 )}
               </div>
-              <p className="text-xs text-gray-500 truncate">{f.address}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {f.district && <span className="font-medium text-gray-600">{f.district} · </span>}
+                {f.address}
+              </p>
               {f.sport.length > 0 && (
                 <p className="text-[11px] text-gray-400 truncate mt-0.5">{f.sport.join(' · ')}</p>
               )}
-              {/* Mobile-only badges: booking system + assignment */}
-              <div className="flex flex-wrap items-center gap-1 mt-1.5 md:hidden">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
-                  {BOOKING_SYSTEM_META[o.bookingSystem]}
-                </span>
-                {o.assignedName && (
-                  <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${isMyRow ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
-                    <UserCheck className="w-2.5 h-2.5" />{o.assignedName}
-                  </span>
-                )}
-                {(f.phone || f.email || f.website) && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
-                    {f.phone ? <Phone className="w-2.5 h-2.5" /> : f.email ? <Mail className="w-2.5 h-2.5" /> : <Globe className="w-2.5 h-2.5" />}
-                    kontakt
-                  </span>
-                )}
-              </div>
             </div>
           </div>
         </td>
 
         {/* Kontakt — pełny tekst */}
-        <td className="px-3 py-3 align-top hidden md:table-cell">
+        <td className="px-3 py-3 align-top">
           <div className="flex flex-col gap-1">
             {suspicious && (
               <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium mb-0.5">
@@ -575,7 +561,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
         </td>
 
         {/* System rezerwacji */}
-        <td className="px-3 py-3 align-top hidden lg:table-cell">
+        <td className="px-3 py-3 align-top">
           <select
             value={o.bookingSystem}
             onChange={(e) => onPatch({ bookingSystem: e.target.value as BookingSystem })}

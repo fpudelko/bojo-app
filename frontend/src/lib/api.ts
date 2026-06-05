@@ -41,6 +41,7 @@ function toField(row: any): Field {
     hasToilets: row.has_toilets ?? undefined,
     capacity: row.capacity ?? undefined,
     mapVisibility: (row.map_visibility ?? 'organizer_only') as MapVisibility,
+    district: row.district ?? undefined,
   };
 }
 

@@ -38,6 +38,7 @@ function toEvent(row: any): EventItem {
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
+    fieldAddress: row.field_address ?? undefined,
   };
 }
 
@@ -198,10 +199,17 @@ export async function getEvent(
 ): Promise<{ event: EventItem; participants: EventParticipant[] }> {
   const { data: eventRow, error } = await supabase
     .from('events')
-    .select('*')
+    .select('*, fields(address)')
     .eq('id', id)
     .single();
   if (error) throw new Error(error.message);
+
+  // Flatten the joined field address onto the row for toEvent()
+  if (eventRow?.fields) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eventRow.field_address = (eventRow.fields as any)?.address ?? null;
+    delete eventRow.fields;
+  }
 
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
