@@ -103,31 +103,49 @@ export default function HomePage() {
       {/* Hero — personalized for logged-in users, marketing for visitors */}
       <HomeHero />
 
-      {/* Map preview — after hero, degraded to helper section */}
-      <section className="mx-auto w-full max-w-5xl px-4 py-12">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
-              Setki boisk. Poznań i okolice.
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.
-            </p>
-          </div>
-          <Link
-            href="/mapa"
-            className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors"
-          >
-            Pełna mapa <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+      {/* Jak to działa — editorial explainer, placed first so visitors grasp the product */}
+      <section className="px-4 py-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">Jak to działa</span>
+          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            Bez dzwonienia. Bez excela. Bez ganiania ludzi.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600">
+            Kiedyś zebranie składu to były trzy grupy na WhatsAppie, lista w notatniku
+            i ciągłe „kto w końcu gra?”. U nas wygląda to inaczej — od pomysłu do
+            pierwszego gwizdka w kilka minut.
+          </p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card-hover">
-          <MapView className="h-72 overflow-hidden rounded-xl sm:h-80" />
+
+        <div className="mx-auto mt-12 grid max-w-4xl gap-10 sm:grid-cols-3">
+          {[
+            {
+              n: '01',
+              title: 'Znajdź albo stwórz',
+              body: 'Przeglądaj otwarte mecze na mapie i dołącz jednym kliknięciem — albo sam zakładasz grę i ustawiasz termin, boisko i liczbę miejsc.',
+            },
+            {
+              n: '02',
+              title: 'Rozdaj jeden link',
+              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a wolne miejsca dograją gracze z okolicy.',
+            },
+            {
+              n: '03',
+              title: 'Po prostu zagraj',
+              body: 'Lista składu, rezerwowi i przypomnienia działają w tle. Ty masz pewność, że skład dopięty i nikt nie zniknie w dniu meczu.',
+            },
+          ].map((step) => (
+            <div key={step.n} className="text-center sm:text-left">
+              <span className="font-display text-4xl font-extrabold text-primary-200">{step.n}</span>
+              <h3 className="mt-3 font-display text-lg font-bold text-ink">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.body}</p>
+            </div>
+          ))}
         </div>
-        <p className="mt-3 text-center text-sm sm:hidden">
-          <Link href="/mapa" className="inline-flex items-center gap-1 font-medium text-primary-700 hover:text-primary-800">
-            Otwórz pełną mapę <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+
+        <p className="mx-auto mt-12 max-w-xl text-center text-sm text-slate-500">
+          Wszystko działa w przeglądarce na telefonie i komputerze — logujesz się przez
+          Google i nic nie instalujesz.
         </p>
       </section>
 
@@ -208,49 +226,31 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Jak to działa — editorial story, not tiles */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">Jak to działa</span>
-          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            Bez dzwonienia. Bez excela. Bez ganiania ludzi.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600">
-            Kiedyś zebranie składu to były trzy grupy na WhatsAppie, lista w notatniku
-            i ciągłe „kto w końcu gra?”. U nas wygląda to inaczej — od pomysłu do
-            pierwszego gwizdka w kilka minut.
-          </p>
+      {/* Map preview — moved below the fold; explore real venues before the closing CTA */}
+      <section className="mx-auto w-full max-w-5xl px-4 py-12">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
+              Setki boisk. Poznań i okolice.
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Kliknij boisko, żeby zobaczyć dostępność i aktywne gry.
+            </p>
+          </div>
+          <Link
+            href="/mapa"
+            className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors"
+          >
+            Pełna mapa <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
-
-        <div className="mx-auto mt-12 grid max-w-4xl gap-10 sm:grid-cols-3">
-          {[
-            {
-              n: '01',
-              title: 'Znajdź albo stwórz',
-              body: 'Przeglądaj otwarte mecze na mapie i dołącz jednym kliknięciem — albo sam zakładasz grę i ustawiasz termin, boisko i liczbę miejsc.',
-            },
-            {
-              n: '02',
-              title: 'Rozdaj jeden link',
-              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a wolne miejsca dograją gracze z okolicy.',
-            },
-            {
-              n: '03',
-              title: 'Po prostu zagraj',
-              body: 'Lista składu, rezerwowi i przypomnienia działają w tle. Ty masz pewność, że skład dopięty i nikt nie zniknie w dniu meczu.',
-            },
-          ].map((step) => (
-            <div key={step.n} className="text-center sm:text-left">
-              <span className="font-display text-4xl font-extrabold text-primary-200">{step.n}</span>
-              <h3 className="mt-3 font-display text-lg font-bold text-ink">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.body}</p>
-            </div>
-          ))}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card-hover">
+          <MapView className="h-72 overflow-hidden rounded-xl sm:h-80" />
         </div>
-
-        <p className="mx-auto mt-12 max-w-xl text-center text-sm text-slate-500">
-          Wszystko działa w przeglądarce na telefonie i komputerze — logujesz się przez
-          Google i nic nie instalujesz.
+        <p className="mt-3 text-center text-sm sm:hidden">
+          <Link href="/mapa" className="inline-flex items-center gap-1 font-medium text-primary-700 hover:text-primary-800">
+            Otwórz pełną mapę <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </p>
       </section>
 

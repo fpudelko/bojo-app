@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, MapPin, Loader2, Bell, BellOff, Navigation } from 'lucide-react';
 import { getMyAlert, saveAlert, deleteMyAlert, geocodeCity, type AlertInput } from '@/lib/alerts';
+import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
 import type { GameAlert } from '@/types';
 
@@ -43,6 +44,7 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
 
   const [gpsLoading,   setGpsLoading]   = useState(false);
   const [geoLoading,   setGeoLoading]   = useState(false);
+  const [gpsError,     setGpsError]     = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
   const [deleting,     setDeleting]     = useState(false);
   const [saved,        setSaved]        = useState(false);
@@ -64,19 +66,18 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
 
   const hasLocation = lat !== null && lng !== null;
 
-  const handleGps = () => {
-    if (!navigator.geolocation) return;
+  const handleGps = async () => {
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
-        if (!label) setLabel('Moja lokalizacja');
-        setGpsLoading(false);
-      },
-      () => setGpsLoading(false),
-      { timeout: 8000 },
-    );
+    setGpsError(null);
+    const result = await getCurrentLocation();
+    setGpsLoading(false);
+    if (result.ok) {
+      setLat(result.lat);
+      setLng(result.lng);
+      if (!label) setLabel('Moja lokalizacja');
+    } else {
+      setGpsError(geoErrorMessage(result.kind));
+    }
   };
 
   const handleGeocode = async () => {
@@ -232,6 +233,12 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
                     {geoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Szukaj'}
                   </button>
                 </div>
+
+                {gpsError && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {gpsError}
+                  </p>
+                )}
               </div>
             )}
 

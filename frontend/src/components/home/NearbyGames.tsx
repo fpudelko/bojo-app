@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Navigation, Loader2, Bell, BellRing } from 'lucide-react';
 import { getNearbyEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
+import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { EventCard } from '@/components/EventCard';
 import AlertSetupDialog from './AlertSetupDialog';
 import type { EventItem, GameAlert } from '@/types';
@@ -38,6 +39,7 @@ export default function NearbyGames() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [alert,     setAlert]    = useState<GameAlert | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [geoError,  setGeoError] = useState<string | null>(null);
 
   // Restore saved location
   useEffect(() => {
@@ -63,19 +65,19 @@ export default function NearbyGames() {
       .finally(() => setLoadingEvents(false));
   }, [location]);
 
-  const requestGps = () => {
-    if (!navigator.geolocation) { setGeoState('denied'); return; }
+  const requestGps = async () => {
     setGeoState('loading');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, label: 'Moja lokalizacja' };
-        setLocation(loc);
-        saveLocation(loc.lat, loc.lng, loc.label);
-        setGeoState('ok');
-      },
-      () => setGeoState('denied'),
-      { timeout: 8000 },
-    );
+    setGeoError(null);
+    const result = await getCurrentLocation();
+    if (result.ok) {
+      const loc = { lat: result.lat, lng: result.lng, label: 'Moja lokalizacja' };
+      setLocation(loc);
+      saveLocation(loc.lat, loc.lng, loc.label);
+      setGeoState('ok');
+    } else {
+      setGeoError(geoErrorMessage(result.kind));
+      setGeoState('denied');
+    }
   };
 
   // ── idle / denied: show prompt button ──
@@ -86,7 +88,7 @@ export default function NearbyGames() {
         <p className="text-sm font-medium text-slate-600 mb-1">Gry w Twojej okolicy</p>
         <p className="text-xs text-slate-400 mb-4">
           {geoState === 'denied'
-            ? 'Brak dostępu do lokalizacji. Możesz podać ją ręcznie przy ustawianiu alertu.'
+            ? (geoError ?? 'Brak dostępu do lokalizacji. Możesz podać ją ręcznie przy ustawianiu alertu.')
             : 'Pokaż otwarte mecze w pobliżu i ustaw powiadomienie na nowe.'}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
