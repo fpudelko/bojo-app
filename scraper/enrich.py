@@ -129,10 +129,15 @@ def group_by_address(
 def _web_search_tool(max_uses: int) -> dict:
     return {"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}
 
+VALID_SPORTS = [
+    "piłka nożna", "futsal", "siatkówka", "siatkówka plażowa",
+    "koszykówka", "piłka ręczna", "hokej", "rugby", "inne",
+]
+
 RECORD_TOOL = {
     "name": "record_findings",
     "description": (
-        "Record the verified contact and reservation information you found for "
+        "Record the verified contact, reservation, and sports information you found for "
         "this sports venue / location. Only fill a field if you actually found "
         "it in the search results — use null when unknown. Never invent data."
     ),
@@ -153,6 +158,24 @@ RECORD_TOOL = {
                     "'zewnetrzny' (external platform like Decathlon, e-sportowe, etc.), "
                     "'brak' (no booking / walk-in / public access), "
                     "'inny' (other method), 'nieznany' (couldn't determine)."
+                ),
+            },
+            "booking_url": {
+                "type": ["string", "null"],
+                "description": (
+                    "Direct URL to the online booking page, if booking_system is "
+                    "'wlasny_system' or 'zewnetrzny'. Otherwise null."
+                ),
+            },
+            "sports": {
+                "type": ["array", "null"],
+                "items": {"type": "string", "enum": VALID_SPORTS},
+                "description": (
+                    "Specific sports available at this venue. Fill ONLY when the venue "
+                    "is currently tagged as 'wielofunkcyjne' (multi-purpose) and you found "
+                    "reliable information about which sports are actually offered. "
+                    "Use values from the enum — do NOT include 'wielofunkcyjne' itself. "
+                    "Leave null if already specific or if you found nothing reliable."
                 ),
             },
             "confidence": {
@@ -197,7 +220,9 @@ Wyszukaj w internecie TĘ DOKŁADNĄ lokalizację (adres + ewentualnie nazwa + P
 3. Oficjalna strona WWW
 4. Kto zarządza / jest operatorem (szkoła, klub, firma, jednostka miejska jak POSiR/ZOO Sport itp.)
 5. Godziny otwarcia
-6. JAK rezerwuje się obiekty sportowe pod tym adresem (telefon / e-mail / własny system online / zewnętrzna platforma / wstęp wolny / inny)
+6. JAK można zarezerwować boisko (telefon / e-mail / własny system online / zewnętrzna platforma / wstęp wolny)
+   — jeśli jest rezerwacja online, podaj też bezpośredni URL do strony rezerwacji (booking_url)
+7. {sports_question}
 
 Zasady:
 - Szukaj KONKRETNIE tej lokalizacji pod podanym adresem.
@@ -205,6 +230,21 @@ Zasady:
 - Podawaj tylko dane faktycznie znalezione. Czego nie wiesz → null.
 - Wywołaj record_findings z wynikami. summary napisz po polsku.\
 """
+
+PROMPT_SPORTS_GENERIC = (
+    "Ten obiekt jest oznaczony jako 'wielofunkcyjne' — ustal jakie konkretne dyscypliny "
+    "sportowe są tam faktycznie dostępne (np. piłka nożna, koszykówka, siatkówka) "
+    "i wpisz je w pole `sports`. Jeśli nie znajdziesz nic pewnego — zostaw null."
+)
+PROMPT_SPORTS_SPECIFIC = (
+    "Sporty są już określone — nie musisz szukać. Skup się na kontakcie i rezerwacji."
+)
+
+
+def _is_generic_sport(sports: list[str]) -> bool:
+    """True when all sports in the list are non-specific (wielofunkcyjne / inne / empty)."""
+    generic = {"wielofunkcyjne", "inne", ""}
+    return not sports or all(s in generic for s in sports)
 
 
 def build_prompt(address: str, fields: list[dict[str, Any]]) -> str:
@@ -220,11 +260,17 @@ def build_prompt(address: str, fields: list[dict[str, Any]]) -> str:
         if val:
             known_bits.append(f"- {label} z OSM: {val} (zweryfikuj / uzupełnij resztę)")
     known = ("Już znane dane (zweryfikuj i uzupełnij brakujące):\n" + "\n".join(known_bits)) if known_bits else ""
+
+    # Ask about sports only when at least one field in the group is generic
+    any_generic = any(_is_generic_sport(f.get("sport") or []) for f in fields)
+    sports_question = PROMPT_SPORTS_GENERIC if any_generic else PROMPT_SPORTS_SPECIFIC
+
     return PROMPT.format(
         address=address,
         count=len(fields),
         venues_list=venues,
         known=known,
+        sports_question=sports_question,
     )
 
 # ---------------------------------------------------------------------------
@@ -293,13 +339,27 @@ async def write_back_group(
     booking = result.get("booking_system")
     confident = result.get("confidence") in ("high", "medium")
 
+    # Validated sports list from Claude (filter to known values, deduplicate)
+    raw_sports: list[str] | None = result.get("sports")
+    found_sports: list[str] | None = None
+    if raw_sports and confident:
+        found_sports = list(dict.fromkeys(s for s in raw_sports if s in VALID_SPORTS)) or None
+
     for f in fields:
-        # fill-if-empty on fields
         patch: dict[str, Any] = {}
+
+        # fill-if-empty for text fields
         for col in ("phone", "email", "website", "operator", "opening_hours", "description"):
             found = result.get(col)
             if found and not f.get(col):
                 patch[col] = found
+
+        # overwrite sport[] only when current value is generic ("wielofunkcyjne" / "inne")
+        # and Claude returned at least one specific sport with medium/high confidence
+        if found_sports and _is_generic_sport(f.get("sport") or []):
+            patch["sport"] = found_sports
+            log.info("  sport update %s: %s → %s", f.get("name", "?"), f.get("sport"), found_sports)
+
         if patch:
             rp = await client.patch(
                 f"{base}/rest/v1/fields",
@@ -317,6 +377,8 @@ async def write_back_group(
     }
     if booking in BOOKING_ENUM and booking != "nieznany" and confident:
         outreach_base["booking_system"] = booking
+    if result.get("booking_url") and confident:
+        outreach_base["booking_url"] = result["booking_url"]
 
     outreach_rows = [{"field_id": f["id"], **outreach_base} for f in fields]
     ru = await client.post(
@@ -443,13 +505,24 @@ async def run(args: argparse.Namespace) -> None:
                 if new_contact:
                     totals["found_contact"] += 1
 
+                new_contact = ",".join(
+                    c for c in ("phone", "email", "website")
+                    if findings.get(c) and not any(f.get(c) for f in grp)
+                ) or "—"
+                sports_note = ""
+                if findings.get("sports"):
+                    sports_note = f" sports={','.join(findings['sports'])}"
+                booking_note = ""
+                if findings.get("booking_url"):
+                    booking_note = f" url={findings['booking_url'][:40]}"
                 log.info(
-                    "✓ [%d] %s | conf=%s book=%s new=%s | %s",
+                    "✓ [%d] %s | conf=%s book=%s%s new=%s%s | %s",
                     len(grp), address[:50],
                     findings.get("confidence"),
                     findings.get("booking_system"),
-                    ",".join(c for c in ("phone", "email", "website")
-                             if findings.get(c) and not any(f.get(c) for f in grp)) or "—",
+                    booking_note,
+                    new_contact,
+                    sports_note,
                     (findings.get("summary") or "")[:70],
                 )
                 if not args.dry_run:
