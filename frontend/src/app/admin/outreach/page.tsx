@@ -5,13 +5,14 @@ import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
   UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock, ExternalLink, MapPin,
-  AlertTriangle, Trash2,
+  AlertTriangle, Trash2, Eye, EyeOff,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getFields } from '@/lib/api';
+import type { MapVisibility } from '@/types';
 import {
   getOutreachMap, saveOutreach,
   STATUS_META, STATUS_ORDER, BOOKING_SYSTEM_META, BOOKING_SYSTEM_ORDER,
@@ -176,6 +177,17 @@ export default function OutreachPanel() {
     });
     return result;
   }, [fields]);
+
+  // --- Toggle map_visibility on a field ---
+  const changeVisibility = useCallback(async (fieldId: string, v: MapVisibility) => {
+    const { error } = await supabase
+      .from('fields')
+      .update({ map_visibility: v })
+      .eq('id', fieldId);
+    if (error) { addToast(error.message, 'error'); return; }
+    setFields((prev) => prev.map((f) => f.id === fieldId ? { ...f, mapVisibility: v } : f));
+    addToast(v === 'public' ? 'Obiekt widoczny na mapie' : 'Obiekt ukryty z mapy');
+  }, [addToast]);
 
   // --- Clear AI-enriched contact data from fields table ---
   const clearContact = useCallback(async (fieldId: string) => {
@@ -384,6 +396,7 @@ export default function OutreachPanel() {
                     onToast={addToast}
                     suspicious={suspiciousMap.get(f.id)}
                     onClearContact={() => clearContact(f.id)}
+                    onVisibilityChange={(v) => changeVisibility(f.id, v)}
                   />
                 ))}
               </tbody>
@@ -420,9 +433,10 @@ interface RowProps {
   onToast: (m: string, t?: 'success' | 'error') => void;
   suspicious?: { phoneCount: number; emailCount: number };
   onClearContact: () => Promise<void>;
+  onVisibilityChange: (v: MapVisibility) => Promise<void>;
 }
 
-function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, onToast, suspicious, onClearContact }: RowProps) {
+function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, onToast, suspicious, onClearContact, onVisibilityChange }: RowProps) {
   // Local draft for free-text fields (saved explicitly)
   const [notes, setNotes] = useState(o.notes ?? '');
   const [contactPerson, setContactPerson] = useState(o.contactPerson ?? '');
@@ -430,6 +444,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
   const [assignName, setAssignName] = useState(o.assignedName ?? '');
   const [savingDraft, setSavingDraft] = useState(false);
   const [clearingContact, setClearingContact] = useState(false);
+  const [togglingVis, setTogglingVis] = useState(false);
 
   // keep drafts in sync if outreach changes underneath
   useEffect(() => { setNotes(o.notes ?? ''); }, [o.notes]);
@@ -480,7 +495,12 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               <Star className={`w-4 h-4 ${o.priority ? 'fill-amber-400 text-amber-400' : 'text-gray-300 hover:text-amber-300'}`} />
             </button>
             <div className="min-w-0">
-              <p className="font-medium text-ink truncate">{f.name}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="font-medium text-ink truncate">{f.name}</p>
+                {f.mapVisibility === 'organizer_only' && (
+                  <EyeOff className="w-3 h-3 text-gray-300 shrink-0" aria-label="Ukryty z mapy publicznej" />
+                )}
+              </div>
               <p className="text-xs text-gray-500 truncate">{f.address}</p>
               {f.sport.length > 0 && (
                 <p className="text-[11px] text-gray-400 truncate mt-0.5">{f.sport.join(' · ')}</p>
@@ -622,14 +642,37 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                     <p className="text-xs text-gray-400 mt-0.5">{f.sport.join(' · ')}</p>
                   )}
                 </div>
-                <Link
-                  href={`/boisko/${f.id}`}
-                  target="_blank"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 shrink-0 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Otwórz obiekt
-                </Link>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    disabled={togglingVis}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const next: MapVisibility = f.mapVisibility === 'public' ? 'organizer_only' : 'public';
+                      setTogglingVis(true);
+                      await onVisibilityChange(next);
+                      setTogglingVis(false);
+                    }}
+                    title={f.mapVisibility === 'public' ? 'Widoczny na mapie publicznej — kliknij, żeby ukryć' : 'Ukryty z mapy — kliknij, żeby pokazać'}
+                    className={[
+                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50',
+                      f.mapVisibility === 'public'
+                        ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                    ].join(' ')}
+                  >
+                    {f.mapVisibility === 'public'
+                      ? <><Eye className="w-3.5 h-3.5" /> Na mapie</>
+                      : <><EyeOff className="w-3.5 h-3.5" /> Tylko org.</>}
+                  </button>
+                  <Link
+                    href={`/boisko/${f.id}`}
+                    target="_blank"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Otwórz
+                  </Link>
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 {f.phone && (

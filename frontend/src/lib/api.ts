@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Field, FieldFilters, FieldsResponse, BookingType } from '@/types';
+import type { Field, FieldFilters, FieldsResponse, BookingType, MapVisibility } from '@/types';
 import { slugify } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -40,6 +40,7 @@ function toField(row: any): Field {
     hasShower: row.has_shower ?? undefined,
     hasToilets: row.has_toilets ?? undefined,
     capacity: row.capacity ?? undefined,
+    mapVisibility: (row.map_visibility ?? 'organizer_only') as MapVisibility,
   };
 }
 
@@ -64,6 +65,9 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
   }
   if (filters?.bookingType !== undefined) {
     query = query.eq('booking_type', filters.bookingType);
+  }
+  if (filters?.mapVisibility !== undefined) {
+    query = query.eq('map_visibility', filters.mapVisibility);
   }
   if (filters?.limit !== undefined) {
     const from = filters.offset ?? 0;
