@@ -1,4 +1,5 @@
 export type BookingType = 'internal' | 'external' | 'none';
+export type MapVisibility = 'public' | 'organizer_only' | 'hidden';
 
 export interface Field {
   id: string;
@@ -31,6 +32,7 @@ export interface Field {
   hasShower?: boolean;
   hasToilets?: boolean;
   capacity?: number;
+  mapVisibility: MapVisibility;
 }
 
 export interface FieldsResponse {
