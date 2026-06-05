@@ -1,9 +1,13 @@
 name: Pełne wzbogacanie danych (wszystkie źródła)
 
 # Uruchamia wszystkie enrichery po kolei w optymalnej kolejności:
-#   1. Google Places   → telefon, strona WWW, godziny otwarcia  (bezpłatne w limicie $200/mc)
-#   2. Nominatim       → adres, kod pocztowy, dzielnica          (całkowicie bezpłatne)
+#   1. Nominatim       → adres, kod pocztowy, dzielnica          (całkowicie bezpłatne)
+#   2. Google Places   → telefon, strona WWW, godziny otwarcia  (bezpłatne w limicie $200/mc)
 #   3. Claude AI       → e-mail, sposób rezerwacji, AI-summary   (płatne: ~$10/1000 wyszukań)
+#
+# Kolejność ma znaczenie: Nominatim idzie pierwszy, żeby Claude dostał
+# porządny adres ("ul. Roosevelta 18") zamiast "Poznań" — web search
+# trafia wtedy w znacznie lepsze wyniki.
 #
 # Uruchom z dry_run=true przed pierwszym prawdziwym uruchomieniem!
 #
@@ -26,13 +30,13 @@ on:
         default: '50'
         required: false
         type: string
-      skip_google:
-        description: 'Pomiń krok Google Places'
+      skip_geocode:
+        description: 'Pomiń krok Nominatim (adresy/dzielnice)'
         default: false
         required: false
         type: boolean
-      skip_geocode:
-        description: 'Pomiń krok Nominatim (adresy/dzielnice)'
+      skip_google:
+        description: 'Pomiń krok Google Places'
         default: false
         required: false
         type: boolean
@@ -51,12 +55,45 @@ on:
           - claude-sonnet-4-6
 
 jobs:
-  # ── KROK 1: Google Places ─────────────────────────────────────────────────
+  # ── KROK 1: Nominatim — adresy i dzielnice ───────────────────────────────
+  geocode:
+    name: "1/3 · Nominatim (adresy/dzielnice) ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ inputs.skip_geocode != true }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+      - name: Install dependencies
+        working-directory: scraper
+        run: pip install httpx python-dotenv
+
+      - name: Build arguments
+        id: args
+        run: |
+          ARGS="--limit ${{ inputs.limit }}"
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run geocode enrichment
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python enrich_geocode.py ${{ steps.args.outputs.args }}
+
+  # ── KROK 2: Google Places — telefon, WWW, godziny ────────────────────────
   google:
-    name: "1/3 · Google Places ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
+    name: "2/3 · Google Places ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ inputs.skip_google != true }}
+    needs: geocode
+    if: ${{ always() && inputs.skip_google != true }}
 
     steps:
       - uses: actions/checkout@v4
@@ -84,45 +121,12 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python enrich_google.py ${{ steps.args.outputs.args }}
 
-  # ── KROK 2: Nominatim geocoding ───────────────────────────────────────────
-  geocode:
-    name: "2/3 · Nominatim (adresy/dzielnice) ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs: google
-    if: ${{ always() && inputs.skip_geocode != true }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: scraper/requirements.txt
-      - name: Install dependencies
-        working-directory: scraper
-        run: pip install httpx python-dotenv
-
-      - name: Build arguments
-        id: args
-        run: |
-          ARGS="--limit ${{ inputs.limit }}"
-          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
-          echo "args=$ARGS" >> $GITHUB_OUTPUT
-
-      - name: Run geocode enrichment
-        working-directory: scraper
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python enrich_geocode.py ${{ steps.args.outputs.args }}
-
-  # ── KROK 3: Claude AI ─────────────────────────────────────────────────────
+  # ── KROK 3: Claude AI — e-mail, rezerwacja, summary ──────────────────────
   claude:
     name: "3/3 · Claude AI ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: geocode
+    needs: google
     if: ${{ always() && inputs.skip_claude != true }}
 
     steps:
