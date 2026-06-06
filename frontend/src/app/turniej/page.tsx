@@ -157,7 +157,7 @@ export default function TournamentLandingPage() {
 
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <div className="hero-surface relative overflow-hidden">
-        <div className="hero-dots absolute inset-0" aria-hidden />
+        <div className="hero-dots absolute inset-0 pointer-events-none" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-accent-400" />
@@ -387,7 +387,7 @@ export default function TournamentLandingPage() {
 
       {/* ── FINAL CTA ──────────────────────────────────────────────────── */}
       <div className="hero-surface relative overflow-hidden">
-        <div className="hero-dots absolute inset-0" aria-hidden />
+        <div className="hero-dots absolute inset-0 pointer-events-none" aria-hidden />
         <div className="relative mx-auto max-w-4xl px-4 py-20 text-center">
           <h2 className="font-display text-3xl font-extrabold text-white sm:text-4xl">
             Gotowi na pierwszy gwizdek?

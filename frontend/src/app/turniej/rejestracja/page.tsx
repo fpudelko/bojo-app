@@ -1,42 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, Plus, Trash2, Check, ChevronLeft, ChevronRight, Shield,
-  CalendarDays, Trophy, Star, AlertCircle, Loader2,
+  Trophy, ChevronLeft, ChevronRight, Shield, CalendarDays,
+  Check, AlertCircle, Loader2, Copy, CheckCircle2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import {
-  getActiveTournament, getMyTeam, registerTeam,
-  type SquadMemberInput,
-} from '@/lib/tournaments';
-import {
-  ALL_POSITIONS, POSITION_LABELS, POSITION_TONE,
-  DAY_NAMES_FULL, DAY_NAMES,
-} from '@/lib/tournamentLabels';
-import type { Tournament, PlayerPosition } from '@/types';
+import { getActiveTournament, getMyTeam, registerTeam } from '@/lib/tournaments';
+import { DAY_NAMES, DAY_NAMES_FULL } from '@/lib/tournamentLabels';
+import type { Tournament } from '@/types';
 
-interface DraftMember extends SquadMemberInput {
-  key: string;
-}
-
-function newMember(isCaptain = false): DraftMember {
-  return {
-    key: Math.random().toString(36).slice(2),
-    name: '',
-    position: isCaptain ? 'pomocnik' : 'uniwersalny',
-    shirtNumber: undefined,
-    isCaptain,
-    isReserve: false,
-  };
-}
-
-const STEPS = ['Drużyna', 'Skład', 'Dostępność'] as const;
+const STEPS = ['Drużyna', 'Dostępność'] as const;
 
 export default function TeamRegistrationPage() {
   const { user, loading } = useAuth();
@@ -44,16 +23,19 @@ export default function TeamRegistrationPage() {
   const { toast } = useToast();
 
   const [t, setT] = useState<Tournament | null>(null);
-  const [alreadyTeam, setAlreadyTeam] = useState<string | null>(null);
+  const [alreadyTeamId, setAlreadyTeamId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // form state
+  // success state
+  const [createdTeamId, setCreatedTeamId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // form
   const [teamName, setTeamName] = useState('');
   const [district, setDistrict] = useState('');
   const [phone, setPhone] = useState('');
-  const [members, setMembers] = useState<DraftMember[]>([]);
   const [days, setDays] = useState<number[]>([]);
   const [fromTime, setFromTime] = useState('18:00');
   const [toTime, setToTime] = useState('21:00');
@@ -61,52 +43,21 @@ export default function TeamRegistrationPage() {
 
   useEffect(() => {
     if (loading) return;
-    getActiveTournament().then(async (tour) => {
-      setT(tour);
-      if (tour && user) {
-        const mine = await getMyTeam(tour.id, user.id);
-        if (mine) setAlreadyTeam(mine.id);
-      }
-      setReady(true);
-    });
+    getActiveTournament()
+      .then(async (tour) => {
+        setT(tour);
+        if (tour && user) {
+          const mine = await getMyTeam(tour.id, user.id);
+          if (mine) setAlreadyTeamId(mine.id);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setReady(true));
   }, [loading, user]);
 
-  // seed the squad with the captain as first row once we know the user
-  useEffect(() => {
-    if (user && members.length === 0) {
-      const captain = newMember(true);
-      captain.name = displayName(user);
-      const min = t?.minSquad ?? 5;
-      const rest = Array.from({ length: Math.max(0, min - 1) }, () => newMember());
-      setMembers([captain, ...rest]);
-    }
-  }, [user, t]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const minSquad = t?.minSquad ?? 5;
-  const maxSquad = t?.maxSquad ?? 10;
-  const filledMembers = useMemo(() => members.filter((m) => m.name.trim()), [members]);
-
-  function updateMember(key: string, patch: Partial<DraftMember>) {
-    setMembers((prev) => prev.map((m) => (m.key === key ? { ...m, ...patch } : m)));
-  }
-  function removeMember(key: string) {
-    setMembers((prev) => prev.filter((m) => m.key !== key));
-  }
-  function addMember() {
-    if (members.length >= maxSquad) return;
-    setMembers((prev) => [...prev, newMember()]);
-  }
-  function setCaptain(key: string) {
-    setMembers((prev) => prev.map((m) => ({ ...m, isCaptain: m.key === key })));
-  }
   function toggleDay(d: number) {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   }
-
-  // ── validation per step ───────────────────────────────────────────────
-  const step0Ok = teamName.trim().length >= 2;
-  const step1Ok = filledMembers.length >= minSquad && members.some((m) => m.isCaptain && m.name.trim());
-  const step2Ok = days.length > 0;
 
   async function submit() {
     if (!user || !t) return;
@@ -122,17 +73,32 @@ export default function TeamRegistrationPage() {
         availabilityFrom: fromTime || undefined,
         availabilityTo: toTime || undefined,
         finalsConfirmed,
-        squad: filledMembers.map(({ key, ...m }) => m),
+        squad: [], // players join themselves via invite link
       });
-      toast('Drużyna zgłoszona! Do zobaczenia na boisku 🏆', 'success');
-      router.push(`/turniej/druzyna/${teamId}`);
+      setCreatedTeamId(teamId);
     } catch (e: any) {
       toast(e?.message ?? 'Nie udało się zgłosić drużyny.', 'error');
+    } finally {
       setSaving(false);
     }
   }
 
-  // ── guards ────────────────────────────────────────────────────────────
+  const step0Ok = teamName.trim().length >= 2;
+  const step1Ok = days.length > 0;
+
+  const inviteUrl = createdTeamId
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/turniej/druzyna/${createdTeamId}/dolacz`
+    : '';
+
+  async function copyLink() {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  // ── guards ──────────────────────────────────────────────────────────────
+
   if (loading || !ready) {
     return (
       <div className="min-h-screen">
@@ -145,32 +111,90 @@ export default function TeamRegistrationPage() {
   }
 
   if (!user) {
+    return <Guard
+      title="Zaloguj się, aby zgłosić drużynę"
+      body="Kapitan musi mieć konto BOJO — zajmuje to 30 sekund."
+      cta="Zaloguj się"
+      href="/logowanie?next=/turniej/rejestracja"
+    />;
+  }
+
+  if (alreadyTeamId) {
+    return <Guard
+      title="Masz już zgłoszoną drużynę"
+      body="W tej edycji możesz prowadzić jedną drużynę jako kapitan."
+      cta="Przejdź do drużyny"
+      href={`/turniej/druzyna/${alreadyTeamId}`}
+    />;
+  }
+
+  // ── success screen ───────────────────────────────────────────────────────
+
+  if (createdTeamId) {
     return (
-      <Guard
-        title="Zaloguj się, aby zgłosić drużynę"
-        body="Rejestracja drużyny wymaga konta — zajmuje to chwilę."
-        cta="Zaloguj się"
-        href="/logowanie?next=/turniej/rejestracja"
-      />
+      <div className="min-h-screen bg-canvas">
+        <Header />
+        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700">
+            <Trophy className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="mt-5 font-display text-2xl font-bold text-ink">
+            Drużyna {teamName} zgłoszona!
+          </h1>
+          <p className="mt-2 text-slate-500">
+            Teraz zaproś graczy. Każdy kliknie link i dołączy do drużyny przez swoje konto BOJO
+            — to ich punkt wejścia do aplikacji.
+          </p>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-card text-left">
+            <p className="text-sm font-semibold text-ink">Link dla zawodników</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Wrzuć do grupki na WhatsApp/Messenger — każdy musi się zarejestrować w BOJO, żeby dołączyć.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <code className="flex-1 truncate rounded-xl bg-slate-100 px-3 py-2.5 text-xs text-slate-700">
+                {inviteUrl}
+              </code>
+              <button
+                onClick={copyLink}
+                className={clsx(
+                  'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+                  copied
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'bg-primary-700 text-white hover:bg-primary-800',
+                )}
+              >
+                {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Skopiowano' : 'Kopiuj'}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Link
+              href={`/turniej/druzyna/${createdTeamId}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-700 px-6 py-3 font-semibold text-white hover:bg-primary-800"
+            >
+              Przejdź do drużyny <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/turniej"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-6 py-3 font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Wróć na stronę turnieju
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 
-  if (alreadyTeam) {
-    return (
-      <Guard
-        title="Masz już zgłoszoną drużynę"
-        body="W tej edycji możesz prowadzić jedną drużynę."
-        cta="Przejdź do drużyny"
-        href={`/turniej/druzyna/${alreadyTeam}`}
-      />
-    );
-  }
+  // ── form ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-canvas">
       <Header />
-
-      <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="mx-auto max-w-xl px-4 py-8">
         <Link href="/turniej" className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
           <ChevronLeft className="h-4 w-4" /> Wróć do turnieju
         </Link>
@@ -199,150 +223,52 @@ export default function TeamRegistrationPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-card sm:p-7">
-          {/* ── STEP 0: Team ──────────────────────────────────────────── */}
+
+          {/* ── Step 0: team basics ───────────────────────────────────────── */}
           {step === 0 && (
             <div className="space-y-5">
-              <Field label="Nazwa drużyny" hint="2–40 znaków, widoczna publicznie">
+              <FieldRow label="Nazwa drużyny" hint="2–40 znaków, widoczna publicznie">
                 <input
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value.slice(0, 40))}
                   placeholder="np. Orły Winogrady"
-                  className="input"
                   autoFocus
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary-500"
                 />
-              </Field>
-              <Field label="Dzielnica / rejon" hint="Skąd jesteście? (opcjonalnie)">
+              </FieldRow>
+              <FieldRow label="Dzielnica / rejon" hint="Opcjonalnie — pomaga dobrać rywali z okolicy">
                 <input
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
-                  placeholder="np. Jeżyce, Grunwald, Nowe Miasto…"
-                  className="input"
+                  placeholder="np. Jeżyce, Grunwald, Wilda…"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary-500"
                 />
-              </Field>
-              <Field label="Telefon kapitana" hint="Do kontaktu w sprawach meczów (opcjonalnie)">
+              </FieldRow>
+              <FieldRow label="Telefon kapitana" hint="Do kontaktu w sprawach meczów (opcjonalnie)">
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="600 700 800"
                   inputMode="tel"
-                  className="input"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary-500"
                 />
-              </Field>
+              </FieldRow>
+
               <div className="rounded-xl bg-primary-50 p-3.5 text-sm text-primary-800">
                 <Shield className="mr-1.5 inline h-4 w-4" />
-                Jesteś kapitanem tej drużyny ({displayName(user)}). Tylko Ty zarządzasz składem
-                i umawiasz mecze.
+                Kapitan: <strong>{displayName(user)}</strong> — po rejestracji dostaniesz link,
+                który wrzucasz ekipie. Każdy dołącza przez swoje konto BOJO.
               </div>
             </div>
           )}
 
-          {/* ── STEP 1: Squad ─────────────────────────────────────────── */}
+          {/* ── Step 1: availability ──────────────────────────────────────── */}
           {step === 1 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-ink">Skład</h2>
-                  <p className="text-sm text-slate-500">
-                    {filledMembers.length}/{maxSquad} · minimum {minSquad}
-                  </p>
-                </div>
-                <button
-                  onClick={addMember}
-                  disabled={members.length >= maxSquad}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-40"
-                >
-                  <Plus className="h-4 w-4" /> Zawodnik
-                </button>
-              </div>
-
-              <div className="space-y-2.5">
-                {members.map((m, idx) => (
-                  <div key={m.key} className="rounded-2xl border border-slate-200 p-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={m.shirtNumber ?? ''}
-                        onChange={(e) => {
-                          const n = parseInt(e.target.value, 10);
-                          updateMember(m.key, { shirtNumber: isNaN(n) ? undefined : Math.min(99, Math.max(1, n)) });
-                        }}
-                        placeholder="#"
-                        inputMode="numeric"
-                        className="w-12 shrink-0 rounded-lg border border-slate-200 px-2 py-2 text-center text-sm font-bold tabular-nums focus:border-primary-500 focus:outline-none"
-                      />
-                      <input
-                        value={m.name}
-                        onChange={(e) => updateMember(m.key, { name: e.target.value })}
-                        placeholder={idx === 0 ? 'Kapitan — imię i nazwisko' : 'Imię i nazwisko'}
-                        className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => removeMember(m.key)}
-                        className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                        aria-label="Usuń zawodnika"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* position picker */}
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      {ALL_POSITIONS.map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => updateMember(m.key, { position: p })}
-                          className={clsx(
-                            'rounded-full px-2.5 py-1 text-xs font-semibold transition-all',
-                            m.position === p
-                              ? POSITION_TONE[p] + ' ring-2 ring-offset-1 ring-current/30'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
-                          )}
-                        >
-                          {POSITION_LABELS[p]}
-                        </button>
-                      ))}
-                      <div className="ml-auto flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={m.isReserve}
-                            onChange={(e) => updateMember(m.key, { isReserve: e.target.checked })}
-                            className="accent-primary-700"
-                          />
-                          Rezerwa
-                        </label>
-                        <button
-                          onClick={() => setCaptain(m.key)}
-                          className={clsx(
-                            'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold',
-                            m.isCaptain ? 'bg-accent-100 text-accent-700' : 'text-slate-400 hover:text-slate-600',
-                          )}
-                          title="Ustaw jako kapitana"
-                        >
-                          <Star className={clsx('h-3.5 w-3.5', m.isCaptain && 'fill-accent-500 text-accent-500')} />
-                          {m.isCaptain ? 'Kapitan' : ''}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {!step1Ok && (
-                <p className="flex items-center gap-1.5 text-sm text-amber-600">
-                  <AlertCircle className="h-4 w-4" />
-                  Uzupełnij co najmniej {minSquad} zawodników i wskaż kapitana.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ── STEP 2: Availability ──────────────────────────────────── */}
-          {step === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="font-semibold text-ink">W jakie dni gracie?</h2>
-                <p className="text-sm text-slate-500">
-                  Dobierzemy rywali tak, by mieli ten sam dzień co wy — łatwiej umówić mecz.
+                <p className="font-semibold text-ink">W jakie dni gracie?</p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Dobierzemy grupę tak, by rywale mieli ten sam dzień — łatwiej umówić mecze.
                 </p>
                 <div className="mt-3 grid grid-cols-7 gap-1.5">
                   {DAY_NAMES.map((label, i) => {
@@ -351,27 +277,35 @@ export default function TeamRegistrationPage() {
                     return (
                       <button
                         key={d}
+                        type="button"
                         onClick={() => toggleDay(d)}
+                        title={DAY_NAMES_FULL[i]}
                         className={clsx(
                           'rounded-xl py-2.5 text-sm font-semibold transition-colors',
                           on ? 'bg-primary-700 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
                         )}
-                        title={DAY_NAMES_FULL[i]}
                       >
                         {label}
                       </button>
                     );
                   })}
                 </div>
+                {!step1Ok && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                    <AlertCircle className="h-3.5 w-3.5" /> Zaznacz co najmniej jeden dzień.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Gracie od">
-                  <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} className="input" />
-                </Field>
-                <Field label="Gracie do">
-                  <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} className="input" />
-                </Field>
+                <FieldRow label="Od">
+                  <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
+                </FieldRow>
+                <FieldRow label="Do">
+                  <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
+                </FieldRow>
               </div>
 
               <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-4 hover:bg-slate-50">
@@ -389,39 +323,43 @@ export default function TeamRegistrationPage() {
                 </span>
               </label>
 
-              {/* Summary */}
-              <div className="rounded-2xl bg-primary-50 p-4 text-sm">
-                <p className="font-semibold text-primary-800">Podsumowanie</p>
-                <ul className="mt-2 space-y-1 text-primary-700/90">
-                  <li className="flex items-center gap-2"><Users className="h-4 w-4" /> {teamName || 'Twoja drużyna'} · {filledMembers.length} zawodników</li>
-                  <li className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {days.length ? days.sort((a, b) => a - b).map((d) => DAY_NAMES[d - 1]).join(', ') : 'wybierz dni'} · {fromTime}–{toTime}</li>
+              <div className="rounded-xl bg-slate-50 p-4 text-sm">
+                <p className="font-semibold text-ink">Podsumowanie</p>
+                <ul className="mt-2 space-y-1 text-slate-600">
+                  <li>🏟 <strong>{teamName}</strong>{district ? ` · ${district}` : ''}</li>
+                  <li><CalendarDays className="mr-1 inline h-4 w-4" />
+                    {days.sort((a, b) => a - b).map((d) => DAY_NAMES[d - 1]).join(', ')} · {fromTime}–{toTime}
+                  </li>
                 </ul>
               </div>
             </div>
           )}
 
-          {/* ── nav ───────────────────────────────────────────────────── */}
-          <div className="mt-7 flex items-center justify-between gap-3">
+          {/* nav */}
+          <div className="mt-7 flex items-center justify-between">
             <button
+              type="button"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0}
-              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-0"
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 disabled:invisible"
             >
               <ChevronLeft className="h-4 w-4" /> Wstecz
             </button>
 
             {step < STEPS.length - 1 ? (
               <button
+                type="button"
                 onClick={() => setStep((s) => s + 1)}
-                disabled={(step === 0 && !step0Ok) || (step === 1 && !step1Ok)}
+                disabled={!step0Ok}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-40"
               >
                 Dalej <ChevronRight className="h-4 w-4" />
               </button>
             ) : (
               <button
+                type="button"
                 onClick={submit}
-                disabled={!step2Ok || saving}
+                disabled={!step1Ok || saving}
                 className="inline-flex items-center gap-2 rounded-xl bg-accent-500 px-6 py-2.5 text-sm font-bold text-primary-950 hover:bg-accent-400 disabled:opacity-40"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
@@ -431,26 +369,11 @@ export default function TeamRegistrationPage() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        :global(.input) {
-          width: 100%;
-          border-radius: 0.75rem;
-          border: 1px solid rgb(226 232 240);
-          padding: 0.625rem 0.875rem;
-          font-size: 0.95rem;
-          outline: none;
-          transition: border-color 0.15s;
-        }
-        :global(.input:focus) {
-          border-color: #15663e;
-        }
-      `}</style>
     </div>
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
