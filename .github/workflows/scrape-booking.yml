@@ -1,8 +1,9 @@
 name: Odwrotny scraper rezerwacji (strony → obiekty)
 
-# Zaczyna od stron z rezerwacjami i wyciąga z nich obiekty (nazwa + adres +
-# link do rezerwacji), geokoduje, dopasowuje do istniejących albo dodaje nowe.
-# Źródła: AI/web-search, platformy rezerwacyjne, POSiR/orliki.
+# Odkrywa obiekty sportowe z linkami do rezerwacji i zapisuje je w bazie.
+# Źródła: AI/web-search (Claude odkrywa organicznie) + POSiR/orliki (dane publiczne).
+# Komercyjne platformy rezerwacyjne NIE są scrapowane — chronione prawem
+# sui generis do baz danych (dyrektywa 96/9/WE, ustawa o prawie autorskim art. 102-104).
 #
 # Wymagane sekrety repozytorium:
 #   ANTHROPIC_API_KEY
@@ -20,7 +21,6 @@ on:
         options:
           - all
           - ai
-          - platforms
           - posir
       limit:
         description: 'Maks. obiektów (0 = wszystkie)'
@@ -45,7 +45,7 @@ on:
 
 jobs:
   scrape-booking:
-    name: Booking (${{ inputs.dry_run == true && 'DRY RUN' || 'ZAPIS' }}, source=${{ inputs.source }})
+    name: Reverse Booking (${{ inputs.dry_run == true && 'DRY RUN' || 'ZAPIS' }}, source=${{ inputs.source }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
 

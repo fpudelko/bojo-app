@@ -9,10 +9,22 @@ dopasowuje do istniejących obiektów albo dodaje nowe — od razu widoczne na m
 Źródła (providerzy) — wybierane flagą --source:
   • ai        — Claude z web search szuka stron typu "rezerwacja boiska Poznań",
                 wchodzi na nie i wyciąga listę obiektów + URL rezerwacji.
-  • platforms — znane platformy rezerwacyjne (Playarena, Activenow, Hally,
-                ZagrajwMieście…). Pobiera ich strony-listy i Claude wyciąga obiekty.
-  • posir     — strony miejskie / POSiR z grafikami orlików i hal.
-  • all       — wszystkie powyższe (domyślnie).
+  • posir     — strony miejskie / POSiR i Miasto Poznań (obiekty publiczne).
+  • all       — oba powyższe (domyślnie).
+
+PODSTAWA PRAWNA / OGRANICZENIA:
+  Komercyjne platformy rezerwacyjne (Playarena, Activenow, Hally itp.) są
+  chronione bazodanowym prawem sui generis (ustawa o prawie autorskim i prawach
+  pokrewnych, art. 102-104, implementacja dyrektywy 96/9/WE). Systematyczne
+  pobieranie i ponowne wykorzystanie ich list obiektów może naruszać te prawa.
+  Platformy te blokują też zautomatyzowany dostęp (HTTP 403). Z tego powodu NIE
+  są uwzględnione jako osobny provider. Zamiast tego:
+    • provider "ai" odkrywa obiekty organicznie poprzez web search Claude'a,
+    • provider "posir" pobiera dane z publicznych stron instytucji miejskich,
+    • dane OSM zbiera scraper.py (licencja ODbL, wolne użycie z atrybucją).
+  Przechowywane dane: nazwa, adres, sport, współrzędne, URL rezerwacji
+  (link odsyłający do oryginalnej platformy). NIE przechowujemy cen, grafików
+  ani żadnych danych wyłącznie z platform komercyjnych.
 
 Każdy znaleziony obiekt:
   1. forward-geocode adresu (Nominatim) → lat/lng,
@@ -78,18 +90,11 @@ VALID_SPORTS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Seed URLs per platform. Edytuj/rozszerzaj — Claude wyciąga obiekty z treści
-# strony, więc dokładny layout nie ma znaczenia (odporne na zmiany HTML).
-# Listy-katalogi obiektów w Poznaniu / powiecie poznańskim.
+# Seed URLs — TYLKO publiczne instytucje (dane publiczne, brak ograniczeń).
+# Komercyjne platformy rezerwacyjne zostały usunięte — patrz docstring.
 # ---------------------------------------------------------------------------
-PLATFORM_SEEDS: list[tuple[str, str]] = [
-    ("Playarena",      "https://playarena.pl/poznan"),
-    ("Activenow",      "https://activenow.pl/poznan"),
-    ("Hally",          "https://hally.pl/poznan"),
-    ("ZagrajwMieście", "https://zagrajwmiescie.pl/poznan"),
-    ("RezerwujKort",   "https://rezerwujkort.pl/poznan"),
-]
 
+# Publiczne instytucje miejskie: POSiR, Miasto Poznań (orliki), BIP itp.
 POSIR_SEEDS: list[tuple[str, str]] = [
     ("POSiR Poznań",   "https://posir.poznan.pl/obiekty/"),
     ("Poznań Orliki",  "https://www.poznan.pl/mim/sport/orliki,p,15076.html"),
@@ -454,10 +459,6 @@ async def run(args: argparse.Namespace) -> None:
             log.info("Provider: AI / web search (%d zapytań)…", len(AI_QUERIES))
             for c in await provider_ai(client, api_key, model, AI_QUERIES):
                 candidates.setdefault(c.key(), c)
-        if src in ("platforms", "all"):
-            log.info("Provider: platformy rezerwacyjne (%d źródeł)…", len(PLATFORM_SEEDS))
-            for c in await provider_pages(client, api_key, model, PLATFORM_SEEDS, args.concurrency):
-                candidates.setdefault(c.key(), c)
         if src in ("posir", "all"):
             log.info("Provider: POSiR / orliki (%d źródeł)…", len(POSIR_SEEDS))
             for c in await provider_pages(client, api_key, model, POSIR_SEEDS, args.concurrency):
@@ -519,7 +520,7 @@ async def run(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Reverse booking scraper — strony rezerwacji → obiekty")
-    p.add_argument("--source", choices=["ai", "platforms", "posir", "all"], default="all")
+    p.add_argument("--source", choices=["ai", "posir", "all"], default="all")
     p.add_argument("--limit", type=int, default=0, help="maks. obiektów (0 = wszystkie)")
     p.add_argument("--dry-run", action="store_true", help="wypisz, nic nie zapisuj")
     p.add_argument("--no-add", action="store_true", help="nie twórz nowych, tylko wzbogacaj")
