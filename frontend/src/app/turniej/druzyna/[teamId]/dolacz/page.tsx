@@ -73,7 +73,7 @@ export default function JoinTeamPage() {
   }
 
   const currentCount = team.members?.length ?? 0;
-  const maxSquad = 10; // TODO: from tournament
+  const maxSquad = 12;
 
   return (
     <div className="min-h-screen bg-canvas">

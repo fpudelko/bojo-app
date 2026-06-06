@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -169,32 +169,7 @@ export default function Header() {
                       Moje obiekty
                     </Link>
                   )}
-                  {isAdmin && (
-                    <Link
-                      href="/admin/outreach"
-                      className={clsx(
-                        'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                        pathname.startsWith('/admin/outreach')
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
-                      )}
-                    >
-                      Kontakt z obiektami
-                    </Link>
-                  )}
-                  {isAdmin && (
-                    <Link
-                      href="/admin/uzytkownicy"
-                      className={clsx(
-                        'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                        pathname.startsWith('/admin/uzytkownicy')
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
-                      )}
-                    >
-                      Użytkownicy
-                    </Link>
-                  )}
+                  {isAdmin && <AdminMenu pathname={pathname} />}
                   <NotificationBell />
                   <Link
                     href="/wydarzenia/nowe"
@@ -421,5 +396,62 @@ export default function Header() {
         </div>
       )}
     </>
+  );
+}
+
+const ADMIN_LINKS = [
+  { href: '/admin/outreach', label: 'Kontakt z obiektami', Icon: Building2 },
+  { href: '/admin/uzytkownicy', label: 'Użytkownicy', Icon: UsersIcon },
+];
+
+/** Admin tools tucked behind a small gear menu so they don't clutter the
+ *  main nav (and admins see the same bar a normal user does). */
+function AdminMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = pathname.startsWith('/admin');
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={clsx(
+          'flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors',
+          active ? 'bg-primary-50 text-primary-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+        )}
+        aria-label="Narzędzia administratora"
+        aria-expanded={open}
+        title="Admin"
+      >
+        <Settings className="w-4 h-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-card-hover z-[1020]">
+          <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
+          {ADMIN_LINKS.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setOpen(false)}
+              className={clsx(
+                'flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
+                pathname.startsWith(href) ? 'text-primary-700 bg-primary-50' : 'text-gray-700 hover:bg-gray-50',
+              )}
+            >
+              <Icon className="w-4 h-4 text-slate-400" /> {label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

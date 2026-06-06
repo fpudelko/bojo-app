@@ -195,10 +195,17 @@ export async function getTeamCount(tournamentId: string): Promise<number> {
 // Teams + squad
 // ---------------------------------------------------------------------------
 
+// Public-safe columns: captain_phone / captain_email are RODO-restricted at the
+// DB level (migration 030), so we must NOT select '*' — list columns explicitly.
+const TEAM_COLS =
+  'id,tournament_id,name,district,captain_id,captain_name,status,paid_at,' +
+  'group_id,seed,availability_days,availability_from,availability_to,' +
+  'finals_confirmed,created_at';
+
 export async function getTeams(tournamentId: string): Promise<TournamentTeam[]> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('tournament_id', tournamentId)
     .neq('status', 'withdrawn')
     .order('created_at', { ascending: true });
@@ -208,7 +215,7 @@ export async function getTeams(tournamentId: string): Promise<TournamentTeam[]> 
 export async function getTeam(teamId: string): Promise<TournamentTeam | null> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('id', teamId)
     .maybeSingle();
   return data ? toTeam(data) : null;
@@ -218,7 +225,7 @@ export async function getTeam(teamId: string): Promise<TournamentTeam | null> {
 export async function getMyTeam(tournamentId: string, userId: string): Promise<TournamentTeam | null> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('tournament_id', tournamentId)
     .eq('captain_id', userId)
     .maybeSingle();
