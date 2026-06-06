@@ -101,13 +101,39 @@ POSIR_SEEDS: list[tuple[str, str]] = [
 ]
 
 # Web-search queries for the AI discovery provider
+# Phrased to return venues with specific street addresses, not just city names.
 AI_QUERIES = [
-    "rezerwacja boiska Poznań online",
-    "wynajem boiska piłkarskiego Poznań rezerwacja",
-    "rezerwacja hali sportowej Poznań",
-    "rezerwacja orlika Poznań powiat poznański",
-    "boisko do siatkówki Poznań rezerwacja online",
+    "rezerwacja boiska piłkarskiego Poznań online adres ulica",
+    "wynajem hali sportowej Poznań rezerwacja kalendarz konkretny adres",
+    "rezerwacja orlika Poznań powiat poznański ulica numer",
+    "boisko siatkówka koszykówka Poznań rezerwacja system online",
+    "kompleks sportowy Poznań powiat rezerwacja przez internet adres",
 ]
+
+# ---------------------------------------------------------------------------
+# Address quality guard
+# ---------------------------------------------------------------------------
+
+_CITY_ONLY = re.compile(
+    r'^(pozna[nń]|lubo[nń]|mosina|swarzędz|k[oó]rnik|puszczykowo|'
+    r'czerwonak|suchy las|murowana go[sś]lina|tarnowo podgórne|'
+    r'dopiewo|rokietnica|buk|szamotuły|oborniki|środa\s+wlkp\.?)\s*$',
+    re.IGNORECASE,
+)
+
+_HAS_STREET_NUMBER = re.compile(r'\d')
+
+
+def _address_ok(address: str) -> bool:
+    """Return True only when address contains a street number.
+
+    Rejects city-only strings ("Poznań") and generic strings ("powiat poznański")
+    that would geocode to city centre and produce false matches.
+    """
+    a = address.strip()
+    if not a or _CITY_ONLY.fullmatch(a):
+        return False
+    return bool(_HAS_STREET_NUMBER.search(a))
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +176,7 @@ EXTRACT_TOOL = {
                     "required": ["name", "address"],
                     "properties": {
                         "name":    {"type": "string", "description": "Nazwa obiektu."},
-                        "address": {"type": "string", "description": "Pełny adres z ulicą i numerem, miasto."},
+                        "address": {"type": "string", "description": "Pełny adres: ulica + numer budynku + miasto. Pomiń obiekt jeśli nie znasz numeru — nie podawaj samej nazwy miasta."},
                         "booking_url": {
                             "type": ["string", "null"],
                             "description": "Bezpośredni link do rezerwacji tego obiektu, jeśli jest.",
@@ -226,9 +252,10 @@ async def provider_ai(
         prompt = (
             f'Wyszukaj w internecie: "{q}". Wejdź na strony z rezerwacją obiektów '
             "sportowych i zbierz konkretne obiekty (boiska, hale, kompleksy) w Poznaniu "
-            "lub powiecie poznańskim, które można zarezerwować. Dla każdego podaj nazwę, "
-            "pełny adres (ulica + numer) oraz link do rezerwacji. Następnie wywołaj "
-            "record_venues z wynikami."
+            "lub powiecie poznańskim, które można zarezerwować online. "
+            "WAŻNE: podawaj tylko obiekty z PEŁNYM ADRESEM (ulica + numer domu). "
+            "Pomiń obiekty, dla których znasz tylko nazwę miasta lub dzielnicę. "
+            "Następnie wywołaj record_venues z wynikami."
         )
         body = {
             "model": model,
@@ -294,7 +321,8 @@ async def provider_pages(
             prompt = (
                 f'To jest treść strony "{provider}" ({url}) z obiektami sportowymi do '
                 "rezerwacji. Wyciągnij wszystkie obiekty w Poznaniu / powiecie poznańskim: "
-                "nazwa, pełny adres (ulica + numer), link do rezerwacji jeśli jest. "
+                "nazwa, pełny adres (ulica + numer budynku + miasto), link do rezerwacji jeśli jest. "
+                "Pomiń obiekty bez numeru ulicy. "
                 f"Wywołaj record_venues.\n\nTreść:\n{text}"
             )
             body = {
@@ -464,8 +492,12 @@ async def run(args: argparse.Namespace) -> None:
             for c in await provider_pages(client, api_key, model, POSIR_SEEDS, args.concurrency):
                 candidates.setdefault(c.key(), c)
 
-        cands = list(candidates.values())
-        log.info("Zebrano %d unikalnych obiektów z rezerwacją", len(cands))
+        cands_all = list(candidates.values())
+        cands = [c for c in cands_all if _address_ok(c.address)]
+        skipped_addr = len(cands_all) - len(cands)
+        if skipped_addr:
+            log.info("Odrzucono %d obiektów bez numeru ulicy (za generyczny adres)", skipped_addr)
+        log.info("Zebrano %d obiektów z konkretnymi adresami", len(cands))
         if args.limit:
             cands = cands[: args.limit]
         if not cands:
