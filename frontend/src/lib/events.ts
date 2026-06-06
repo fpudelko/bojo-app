@@ -39,6 +39,7 @@ function toEvent(row: any): EventItem {
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
     fieldAddress: row.field_address ?? undefined,
+    district: row.field_district ?? undefined,
   };
 }
 
@@ -256,12 +257,18 @@ export async function getMyEvents(userId: string): Promise<EventItem[]> {
 export async function getPublicEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*')
+    .select('*, fields(district)')
     .eq('visibility', 'public')
     .gte('event_date', new Date().toISOString().slice(0, 10))
     .order('event_date', { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(toEvent);
+  // flatten the joined district onto the row before mapping
+  return (data ?? []).map((row) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = row as any;
+    r.field_district = r.fields?.district ?? null;
+    return toEvent(r);
+  });
 }
 
 // ---------------------------------------------------------------------------

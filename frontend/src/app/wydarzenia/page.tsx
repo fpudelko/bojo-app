@@ -101,6 +101,7 @@ export default function EventsPage() {
   const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('');
 
   // Location filter
   const [locationMode, setLocationMode] = useState<LocationMode>('none');
@@ -177,13 +178,20 @@ export default function EventsPage() {
     });
   }, [raw, geoPoint]);
 
+  const districtOptions = useMemo(() => {
+    const s = new Set<string>();
+    raw.forEach((e) => { if (e.district) s.add(e.district); });
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'pl'));
+  }, [raw]);
+
   const filtered = useMemo(() => {
     let list = withDistances;
     if (sportFilter) list = list.filter(({ event }) => event.sport === sportFilter);
+    if (districtFilter) list = list.filter(({ event }) => event.district === districtFilter);
     if (geoPoint) list = list.filter(({ distance }) => distance !== undefined);
     if (geoPoint) list = [...list].sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
     return list;
-  }, [withDistances, sportFilter, geoPoint]);
+  }, [withDistances, sportFilter, districtFilter, geoPoint]);
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -227,6 +235,20 @@ export default function EventsPage() {
             >{sportEmoji(sport)}</button>
           ))}
         </div>
+
+        {/* District filter */}
+        {districtOptions.length > 0 && (
+          <div className="mb-4">
+            <select
+              value={districtFilter}
+              onChange={(e) => setDistrictFilter(e.target.value)}
+              className="w-full px-3 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-600"
+            >
+              <option value="">Wszystkie dzielnice</option>
+              {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        )}
 
         {/* Location filter */}
         <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3">
@@ -308,11 +330,11 @@ export default function EventsPage() {
         {!loading && filtered.length === 0 && (
           <div className="text-center py-16 text-slate-400">
             <Users className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-            {sportFilter ? (
+            {sportFilter || districtFilter ? (
               <>
                 <p className="text-lg font-medium text-ink">Brak wydarzeń pasujących do filtrów</p>
                 <button
-                  onClick={() => setSportFilter('')}
+                  onClick={() => { setSportFilter(''); setDistrictFilter(''); }}
                   className="text-primary-700 text-sm underline mt-3"
                 >Wyczyść filtry</button>
               </>

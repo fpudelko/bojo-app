@@ -152,6 +152,7 @@ export interface EventItem {
   customLocationName?: string;
   customAddress?: string;
   fieldAddress?: string; // address fetched from fields table (when field_id is set)
+  district?: string;     // dzielnica from the linked field (when field_id is set)
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
   trackAttendance: boolean;

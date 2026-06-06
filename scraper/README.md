@@ -45,6 +45,48 @@ Aby scraper uruchamiał się automatycznie co noc:
 0 2 * * * cd /path/to/bojo-app/scraper && python scraper.py >> /var/log/boiska-scraper.log 2>&1
 ```
 
+## Odwrotny scraper rezerwacji (`scrape_booking.py`) — strony rezerwacji → obiekty
+
+Działa **od drugiej strony** niż `scraper.py`: zaczyna od stron z rezerwacjami,
+wyciąga z nich **gdzie jest boisko** (nazwa + adres + link do rezerwacji),
+geokoduje adres na współrzędne, dopasowuje do istniejących obiektów albo **dodaje
+nowe — od razu widoczne na mapie** (`source='booking'`, `map_visibility='public'`).
+
+Źródła (providerzy), wybierane flagą `--source`:
+
+| Źródło | Co robi |
+|--------|---------|
+| `ai` | Claude z web search szuka stron „rezerwacja boiska Poznań", wchodzi na nie i wyciąga obiekty + URL rezerwacji |
+| `platforms` | znane platformy (Playarena, Activenow, Hally, ZagrajwMieście…) — pobiera listy obiektów, Claude wyciąga dane |
+| `posir` | strony miejskie / POSiR z orlikami i halami |
+| `all` | wszystkie powyższe (domyślnie) |
+
+Każdy obiekt: forward-geocode (Nominatim) → dopasowanie (geo + adres) → albo
+uzupełnienie `fields.booking_url` istniejącego obiektu, albo dodanie nowego.
+Idempotentny i bezpieczny do ponownego uruchamiania.
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export SUPABASE_URL=https://xxxx.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+python scrape_booking.py --source all --dry-run   # podgląd
+python scrape_booking.py --source ai --limit 20    # tylko odkrywanie AI
+python scrape_booking.py                           # wszystko, zapis
+```
+
+> ⚠️ Listy URL w `PLATFORM_SEEDS` / `POSIR_SEEDS` to punkt startowy — zweryfikuj
+> i dopisz aktualne adresy katalogów. Ekstrakcja działa na treści strony
+> (Claude), więc jest odporna na zmiany layoutu HTML.
+
+| Flaga | Opis |
+|-------|------|
+| `--source {ai,platforms,posir,all}` | źródło danych |
+| `--limit N` | maks. obiektów (0 = wszystkie) |
+| `--dry-run` | podgląd, bez zapisu |
+| `--no-add` | nie twórz nowych, tylko wzbogacaj istniejące |
+| `--concurrency N` | równoległe pobierania stron (domyślnie 3) |
+
 ## Wzbogacanie z Google Places (`enrich_google.py`) — darmowe
 
 Dla istniejących obiektów pobiera z Google **telefon, stronę WWW i godziny

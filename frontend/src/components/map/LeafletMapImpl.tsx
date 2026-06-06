@@ -13,6 +13,7 @@ import { useAdmin } from '@/lib/admin';
 import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
 import type { MapViewProps } from './MapView';
+import { fieldMatchesData, districtsOf } from '@/lib/fieldFilters';
 import { POZNAN, metaFor, fieldPin, clusterDivIcon } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -108,6 +109,9 @@ export default function LeafletMapImpl({
   onlyAvailable,
   onlyBookable,
   search,
+  district,
+  dataKeys,
+  onDistrictsLoaded,
 }: MapViewProps) {
   const [allFields, setAllFields] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -117,14 +121,21 @@ export default function LeafletMapImpl({
   useEffect(() => {
     let cancelled = false;
     getFields({ available: onlyAvailable || undefined, bookable: onlyBookable || undefined })
-      .then((res) => { if (!cancelled) setAllFields(res.fields.filter(f => f.mapVisibility !== 'hidden')); })
+      .then((res) => {
+        if (cancelled) return;
+        const visible = res.fields.filter(f => f.mapVisibility !== 'hidden');
+        setAllFields(visible);
+        onDistrictsLoaded?.(districtsOf(visible));
+      })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Błąd'); });
     return () => { cancelled = true; };
-  }, [onlyAvailable, onlyBookable]);
+  }, [onlyAvailable, onlyBookable, onDistrictsLoaded]);
 
   const q = search?.trim().toLowerCase() ?? '';
   const displayed = allFields.filter((f) => {
     if (sports && sports.length > 0 && !f.sport.some((s) => sports.includes(s))) return false;
+    if (district && f.district !== district) return false;
+    if (dataKeys && dataKeys.length > 0 && !fieldMatchesData(f, dataKeys)) return false;
     if (q && !f.name.toLowerCase().includes(q) && !f.address.toLowerCase().includes(q)) return false;
     return true;
   });

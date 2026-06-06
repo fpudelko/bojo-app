@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Search, Target, Sun, Disc, Circle, Dumbbell, Star, MapPin, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MapView from '@/components/map/MapView';
 import EventsMapView from '@/components/map/EventsMapView';
 import { FEATURE_RESERVATIONS } from '@/config/features';
+import { PUBLIC_DATA_FILTERS, type DataKey } from '@/lib/fieldFilters';
 
 interface SportChip {
   value: string;
@@ -34,9 +35,20 @@ export default function MapaPage() {
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [onlyBookable, setOnlyBookable] = useState(false);
   const [search, setSearch] = useState('');
+  const [district, setDistrict] = useState('');
+  const [dataKeys, setDataKeys] = useState<DataKey[]>([]);
+  const [districts, setDistricts] = useState<string[]>([]);
+
+  const onDistrictsLoaded = useCallback((d: string[]) => setDistricts(d), []);
 
   function toggleSport(value: string) {
     setActiveSports((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value],
+    );
+  }
+
+  function toggleData(value: DataKey) {
+    setDataKeys((prev) =>
       prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value],
     );
   }
@@ -73,16 +85,58 @@ export default function MapaPage() {
 
       {/* Search row — only for Boiska tab */}
       {mapTab === 'boiska' && (
-        <div className="bg-white border-b border-slate-100 px-3 pt-2 pb-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Szukaj boiska po nazwie lub adresie…"
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-shadow"
-            />
+        <div className="bg-white border-b border-slate-100 px-3 pt-2 pb-2 space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Szukaj boiska po nazwie lub adresie…"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-shadow"
+              />
+            </div>
+            {districts.length > 0 && (
+              <select
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                className="shrink-0 max-w-[45%] px-3 py-2 text-sm border border-slate-200 rounded-xl bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-600"
+              >
+                <option value="">Wszystkie dzielnice</option>
+                {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+          </div>
+          {/* Data filters (multi-select) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            <span className="text-xs text-slate-400 shrink-0">Z danymi:</span>
+            {PUBLIC_DATA_FILTERS.map(({ key, label }) => {
+              const active = dataKeys.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleData(key)}
+                  aria-pressed={active}
+                  className={[
+                    'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap',
+                    active
+                      ? 'bg-primary-700 text-white border-primary-700'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {(dataKeys.length > 0 || district) && (
+              <button
+                onClick={() => { setDataKeys([]); setDistrict(''); }}
+                className="shrink-0 text-xs text-slate-400 hover:text-slate-600 underline ml-1"
+              >
+                Wyczyść
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -162,6 +216,9 @@ export default function MapaPage() {
             onlyAvailable={onlyAvailable || undefined}
             onlyBookable={onlyBookable || undefined}
             search={search || undefined}
+            district={district || undefined}
+            dataKeys={dataKeys.length > 0 ? dataKeys : undefined}
+            onDistrictsLoaded={onDistrictsLoaded}
           />
         ) : (
           <EventsMapView

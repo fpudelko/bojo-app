@@ -249,6 +249,26 @@ def wikimedia_to_url(value: str) -> str | None:
     return None
 
 
+def parse_osm_sports(sport_raw: str) -> list[str] | None:
+    """Parse the (possibly multi-valued) OSM `sport` tag into PL sport labels.
+
+    OSM allows several sports on one pitch separated by ';' or ',', e.g.
+    "soccer;basketball". The previous single-value check dropped every such
+    multi-sport pitch — exactly the orliki we care about. Returns:
+      • list of PL labels  → keep the pitch
+      • ["wielofunkcyjne"]  → no sport tag at all (multi-purpose)
+      • None                → only individual sports (tennis…) → skip
+    """
+    sports_list = [s.strip() for s in _re.split(r"[;,/]", sport_raw) if s.strip()]
+    if not sports_list:
+        return ["wielofunkcyjne"]
+    team = [s for s in sports_list if s in TEAM_SPORTS]
+    if not team:
+        return None  # purely individual sports — not for us
+    pl = list(dict.fromkeys(OSM_SPORT_MAP.get(s, "inne") for s in team))
+    return pl or ["wielofunkcyjne"]
+
+
 def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
     """Convert an OSM element to our Field schema. Returns None for non-team sports."""
     tags: dict[str, str] = element.get("tags", {})
@@ -266,21 +286,27 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
 
     # Skip individual sports (tennis, athletics, golf, etc.)
     # Pitches with no sport tag are kept — they're usually multi-purpose orliki.
-    sport_raw = tags.get("sport", "").lower()
-    if sport_raw and sport_raw not in TEAM_SPORTS:
+    # Multi-sport pitches ("soccer;basketball") are now parsed instead of dropped.
+    sport_list = parse_osm_sports(tags.get("sport", "").lower())
+    if sport_list is None:
         return None
-
-    sport_pl = OSM_SPORT_MAP.get(sport_raw, "wielofunkcyjne" if not sport_raw else "inne")
+    sport_pl = sport_list[0]
 
     surface_raw = tags.get("surface", "").lower()
     surface = SURFACE_MAP.get(surface_raw, "")
 
-    is_indoor = tags.get("indoor", "no").lower() in ("yes", "true", "1") or bool(tags.get("building"))
+    is_indoor = (
+        tags.get("indoor", "no").lower() in ("yes", "true", "1")
+        or tags.get("covered", "no").lower() in ("yes", "true", "1")
+        or bool(tags.get("building"))
+    )
 
     suburb = tags.get("addr:suburb") or tags.get("addr:quarter") or tags.get("addr:neighbourhood") or ""
+    # District (dzielnica/osiedle) straight from OSM — enrich_geocode normalises later.
+    district = suburb.strip().title() if suburb else None
+    house = tags.get("addr:housenumber", "").strip()
     address_parts = [
-        tags.get("addr:street", ""),
-        tags.get("addr:housenumber", ""),
+        (tags.get("addr:street", "") + (f" {house}" if house else "")).strip(),
         suburb,
         tags.get("addr:city", ""),
     ]
@@ -314,23 +340,41 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         if v in ("no", "false", "0"): return False
         return None
 
-    capacity_raw = tags.get("capacity")
+    capacity_raw = tags.get("capacity") or tags.get("seats")
     try:
         capacity = int(capacity_raw) if capacity_raw else None
     except ValueError:
         capacity = None
 
-    return {
+    phone = tags.get("contact:phone") or tags.get("phone") or tags.get("contact:mobile")
+    # Website — fall back to a social profile so outreach has *somewhere* to look.
+    website = (
+        tags.get("website")
+        or tags.get("contact:website")
+        or tags.get("url")
+        or tags.get("contact:facebook")
+        or tags.get("contact:instagram")
+    )
+
+    # OSM sometimes states the reservation policy directly.
+    # reservation=yes/required/members → there IS a booking process; if we also
+    # have a website, expose it as an external booking link for the public filter.
+    reservation = (tags.get("reservation") or "").lower().strip()
+    booking_url = tags.get("website:booking") or tags.get("booking")
+    if not booking_url and reservation in ("yes", "required", "members", "recommended") and website:
+        booking_url = website
+
+    record = {
         "name": build_osm_name(tags, sport_pl, surface),
         "address": address,
         "lat": float(lat),
         "lng": float(lng),
-        "sport": [sport_pl],
+        "sport": sport_list,
         "available": True,
         "surface": surface,
         "is_indoor": is_indoor,
-        "phone": tags.get("contact:phone") or tags.get("phone"),
-        "website": tags.get("website") or tags.get("contact:website"),
+        "phone": phone,
+        "website": website,
         "operator": operator,
         "operator_type": operator_type,
         "email": tags.get("contact:email") or tags.get("email"),
@@ -338,6 +382,7 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         "image_url": image_url,
         "opening_hours": tags.get("opening_hours"),
         "postcode": postcode,
+        "district": district,
         "lit": yes_no("lit"),
         "access": tags.get("access") or None,
         "fee": yes_no("fee"),
@@ -348,6 +393,12 @@ def normalize_osm_element(element: dict[str, Any]) -> dict[str, Any] | None:
         "source": "osm",
         "external_id": f"osm:{element['type']}/{element['id']}",
     }
+    # Only set booking columns when OSM actually states a reservation process,
+    # so re-runs never reset a manager's booking settings back to 'none'.
+    if booking_url:
+        record["booking_type"] = "external"
+        record["booking_url"] = booking_url
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -468,6 +519,31 @@ def _match_score(incoming: dict[str, Any], existing: dict[str, Any],
 # ---------------------------------------------------------------------------
 # Supabase upsert
 # ---------------------------------------------------------------------------
+
+
+def log_field_stats(fields: list[dict[str, Any]], label: str = "Razem") -> None:
+    """Print a one-glance completeness summary so we see what the run produced."""
+    n = len(fields)
+    if not n:
+        return
+
+    def has_number(addr: str | None) -> bool:
+        return bool(addr and _re.search(r"\d", addr))
+
+    counts = {
+        "z numerem w adresie": sum(1 for f in fields if has_number(f.get("address"))),
+        "z dzielnicą":         sum(1 for f in fields if f.get("district")),
+        "z telefonem":         sum(1 for f in fields if f.get("phone")),
+        "z e-mailem":          sum(1 for f in fields if f.get("email")),
+        "ze stroną WWW":       sum(1 for f in fields if f.get("website")),
+        "z rezerwacją online": sum(1 for f in fields if f.get("booking_url")),
+        "z godzinami":         sum(1 for f in fields if f.get("opening_hours")),
+        "z operatorem":        sum(1 for f in fields if f.get("operator")),
+        "kryte / hala":        sum(1 for f in fields if f.get("is_indoor")),
+    }
+    log.info("── %s: %d obiektów ──", label, n)
+    for k, v in counts.items():
+        log.info("   %-22s %4d  (%3d%%)", k, v, round(100 * v / n))
 
 
 def deduplicate(fields: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -599,6 +675,7 @@ async def main() -> None:
 
     all_fields = deduplicate(osm_fields + google_fields)
     log.info("Grand total: %d fields to upsert", len(all_fields))
+    log_field_stats(all_fields, "Po scrapowaniu (przed wzbogacaniem)")
 
     if not all_fields:
         log.warning("Nothing to upsert.")

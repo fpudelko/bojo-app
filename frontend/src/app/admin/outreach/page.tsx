@@ -19,6 +19,9 @@ import {
   type Outreach, type OutreachStatus, type BookingSystem, type OutreachPatch,
 } from '@/lib/outreach';
 import type { Field } from '@/types';
+import {
+  OUTREACH_DATA_FILTERS, fieldHasData, type DataKey,
+} from '@/lib/fieldFilters';
 
 const inputCls =
   'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -104,7 +107,10 @@ export default function OutreachPanel() {
   const [fSport, setFSport] = useState('all');
   const [fDistrict, setFDistrict] = useState('all');
   const [fAssign, setFAssign] = useState<'all' | 'mine' | 'unassigned'>('all');
-  const [fContact, setFContact] = useState<'all' | 'phone' | 'email' | 'website' | 'any'>('all');
+  const [fData, setFData] = useState<DataKey[]>([]);
+  const toggleData = useCallback((k: DataKey) => {
+    setFData((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  }, []);
   const [fHideDone, setFHideDone] = useState(false);
   const [fDuplicates, setFDuplicates] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -229,10 +235,14 @@ export default function OutreachPanel() {
         if (fDistrict !== 'all' && f.district !== fDistrict) return false;
         if (fAssign === 'mine' && o.assignedTo !== user?.id) return false;
         if (fAssign === 'unassigned' && o.assignedTo) return false;
-        if (fContact === 'phone' && !f.phone) return false;
-        if (fContact === 'email' && !f.email) return false;
-        if (fContact === 'website' && !f.website) return false;
-        if (fContact === 'any' && !f.phone && !f.email && !f.website) return false;
+        // Multi-select data requirements (AND). 'booking' also looks at the
+        // outreach record, since the team logs the reservation system there.
+        for (const k of fData) {
+          const ok = k === 'booking'
+            ? (o.bookingSystem !== 'nieznany' && o.bookingSystem !== 'brak') || fieldHasData(f, 'booking')
+            : fieldHasData(f, k);
+          if (!ok) return false;
+        }
         if (fHideDone && (o.status === 'umowiony' || o.status === 'odrzucony')) return false;
         if (fDuplicates && !suspiciousMap.has(f.id)) return false;
         return true;
@@ -246,9 +256,9 @@ export default function OutreachPanel() {
       return a.field.name.localeCompare(b.field.name, 'pl');
     });
     return list;
-  }, [fields, getO, search, fStatus, fSport, fAssign, fContact, fHideDone, fDuplicates, suspiciousMap, user?.id]);
+  }, [fields, getO, search, fStatus, fSport, fDistrict, fAssign, fData, fHideDone, fDuplicates, suspiciousMap, user?.id]);
 
-  const filtersActive = search || fStatus !== 'all' || fSport !== 'all' || fDistrict !== 'all' || fAssign !== 'all' || fContact !== 'all' || fHideDone || fDuplicates;
+  const filtersActive = !!search || fStatus !== 'all' || fSport !== 'all' || fDistrict !== 'all' || fAssign !== 'all' || fData.length > 0 || fHideDone || fDuplicates;
 
   // --- Pipeline stats ---
   const stats = useMemo(() => {
@@ -344,13 +354,6 @@ export default function OutreachPanel() {
               {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           )}
-          <select value={fContact} onChange={(e) => setFContact(e.target.value as typeof fContact)} className={inputCls}>
-            <option value="all">Dowolny kontakt</option>
-            <option value="any">Ma jakikolwiek kontakt</option>
-            <option value="phone">Ma telefon</option>
-            <option value="email">Ma e-mail</option>
-            <option value="website">Ma stronę</option>
-          </select>
           <select value={fAssign} onChange={(e) => setFAssign(e.target.value as typeof fAssign)} className={inputCls}>
             <option value="all">Wszyscy</option>
             <option value="mine">Moje</option>
@@ -374,6 +377,34 @@ export default function OutreachPanel() {
               {rows.length}{filtersActive ? ` / ${fields.length}` : ''} obiektów
             </span>
           )}
+
+          {/* Multi-select: which data the venue has (AND) */}
+          <div className="basis-full flex flex-wrap items-center gap-1.5 pt-1 border-t border-gray-100">
+            <span className="text-xs text-gray-400 mr-1">Ma dane:</span>
+            {OUTREACH_DATA_FILTERS.map(({ key, label }) => {
+              const active = fData.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleData(key)}
+                  aria-pressed={active}
+                  className={[
+                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                    active
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {fData.length > 0 && (
+              <button onClick={() => setFData([])} className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">
+                Wyczyść
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Table */}
