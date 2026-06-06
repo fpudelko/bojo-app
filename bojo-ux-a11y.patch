@@ -1,0 +1,181 @@
+--- a/frontend/src/app/page.tsx
++++ b/frontend/src/app/page.tsx
+@@ -73,7 +73,7 @@
+         chips: [
+           { icon: Calendar, label: 'Otwarte mecze' },
+           { icon: Navigation, label: 'Blisko ciebie' },
+-          { icon: UserCheck, label: 'Bez rejestracji' },
++          { icon: UserCheck, label: 'Dołącz w 1 klik' },
+         ],
+         cta: 'Znajdź grę',
+         href: '/wydarzenia',
+@@ -98,8 +98,15 @@
+ export default function HomePage() {
+   return (
+     <div className="min-h-screen flex flex-col bg-canvas">
++      <a
++        href="#main"
++        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[2000] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-700 focus:shadow-lg focus:ring-2 focus:ring-primary-600"
++      >
++        Przejdź do treści
++      </a>
+       <Header />
+ 
++      <main id="main" className="flex-1">
+       {/* Hero — personalized for logged-in users, marketing for visitors */}
+       <HomeHero />
+ 
+@@ -256,6 +263,31 @@
+ 
+       {/* Sports with live counts */}
+       <SportsSectionWithCounts />
++
++      {/* Tournament acquisition banner */}
++      <section className="px-4 pt-8">
++        <div className="mx-auto max-w-5xl rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100/60 p-6 sm:p-8">
++          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
++            <div className="flex-1">
++              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-800">
++                Nowość · zapisy otwarte
++              </div>
++              <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
++                Turniej startowy Bojo
++              </h2>
++              <p className="mt-1 text-sm text-slate-600">
++                Zbierz ekipę albo zapisz się solo — dograjemy cię do drużyny. Poznań, najbliższe weekendy.
++              </p>
++            </div>
++            <Link
++              href="/wydarzenia?sport=turniej"
++              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-[#1A1D21] shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2"
++            >
++              Zapisz się <ArrowRight className="h-4 w-4" />
++            </Link>
++          </div>
++        </div>
++      </section>
+ 
+       {/* Closing CTA */}
+       <section className="hero-surface relative overflow-hidden px-4 py-24 text-center text-white">
+@@ -282,12 +314,14 @@
+                 size="lg"
+                 className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
+               >
+-                Szukam ludzi do gry
++                Zorganizuj mecz
+               </Button>
+             </Link>
+           </div>
+         </div>
+       </section>
++
++      </main>
+ 
+       {/* Footer */}
+       <footer className="bg-slate-900 px-4 py-10 text-slate-400">
+@@ -295,7 +329,7 @@
+           <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
+           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+             <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź grę</Link>
+-            <Link href="/wydarzenie/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
++            <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
+             <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
+             <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
+             <span className="hidden text-slate-600 md:inline">·</span>
+--- a/frontend/src/app/wydarzenia/page.tsx
++++ b/frontend/src/app/wydarzenia/page.tsx
+@@ -62,7 +62,11 @@
+       <Card className="hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 border-slate-200/80" padding="md">
+         <div className="flex items-center justify-between gap-3">
+           <div className="flex items-center gap-3 min-w-0">
+-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl" role="img">
++            <span
++              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl"
++              role="img"
++              aria-label={event.sport}
++            >
+               {sportEmoji(event.sport)}
+             </span>
+             <div className="min-w-0">
+@@ -240,6 +244,7 @@
+         {districtOptions.length > 0 && (
+           <div className="mb-4">
+             <select
++              aria-label="Filtruj po dzielnicy"
+               value={districtFilter}
+               onChange={(e) => setDistrictFilter(e.target.value)}
+               className="w-full px-3 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-600"
+@@ -293,6 +298,7 @@
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+               <input
+                 type="text"
++                aria-label="Adres do wyszukania pobliskich wydarzeń"
+                 value={addressInput}
+                 onChange={(e) => handleAddressChange(e.target.value)}
+                 placeholder="np. ul. Dąbrowskiego 7, Poznań"
+--- a/frontend/src/components/EventCard.tsx
++++ b/frontend/src/components/EventCard.tsx
+@@ -32,7 +32,11 @@
+           ? 'border-red-100 opacity-60'
+           : 'border-slate-200/80 shadow-card hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover',
+       ].join(' ')}>
+-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl" role="img">
++        <span
++          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl"
++          role="img"
++          aria-label={event.sport}
++        >
+           {sportEmoji(event.sport)}
+         </span>
+         <div className="flex-1 min-w-0">
+--- a/frontend/src/components/SportsSectionWithCounts.tsx
++++ b/frontend/src/components/SportsSectionWithCounts.tsx
+@@ -52,7 +52,8 @@
+               <Link
+                 key={sport}
+                 href={`/wydarzenia?sport=${encodeURIComponent(sport)}`}
+-                className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 transition-colors"
++                aria-label={`${sportLabel(sport)} — ${count >= MIN_COUNT_TO_SHOW ? `${count} gier w ten weekend` : "znajdź mecz"}`}
++                className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 transition-colors"
+               >
+                 <span role="img" aria-hidden>{sportEmoji(sport)}</span>
+                 <span>{sportLabel(sport)}</span>
+--- a/frontend/src/components/home/HomeHero.tsx
++++ b/frontend/src/components/home/HomeHero.tsx
+@@ -41,7 +41,7 @@
+           className="mx-auto mt-6 max-w-xl animate-fade-up text-lg font-medium text-white/80 sm:text-xl"
+           style={{ animationDelay: '160ms' }}
+         >
+-          Boiska, mecze i gracze w Poznaniu i okolicach.
++          Otwarte mecze blisko ciebie, jeden link do zapisów, składy bez ganiania ludzi po grupach. Piłka, koszykówka, siatkówka i więcej — w Poznaniu i okolicach.
+         </p>
+ 
+         <div
+@@ -62,7 +62,7 @@
+               size="lg"
+               className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
+             >
+-              Szukam ludzi do gry
++              Zorganizuj mecz
+             </Button>
+           </Link>
+         </div>
+--- a/frontend/src/components/layout/Header.tsx
++++ b/frontend/src/components/layout/Header.tsx
+@@ -226,6 +226,7 @@
+               onClick={() => setMobileOpen((o) => !o)}
+               aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
+               aria-expanded={mobileOpen}
++              aria-controls="mobile-nav"
+             >
+               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+             </button>
+@@ -235,7 +236,7 @@
+ 
+       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
+       {mobileOpen && (
+-        <div ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
++        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
+           <nav className="flex-1 overflow-y-auto px-5 pt-5 pb-4" aria-label="Nawigacja mobilna">
+ 
+             {/* Primary actions — player vs organizer */}
