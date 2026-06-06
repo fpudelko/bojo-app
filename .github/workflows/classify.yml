@@ -1,0 +1,63 @@
+name: Klasyfikacja obiektów (map_visibility)
+
+# Ustawia map_visibility na podstawie danych w bazie:
+#   public         — boisko do sportu zespołowego z rezerwacją lub dobrymi danymi
+#   organizer_only — wygląda na boisko ale mało danych (warto sprawdzić)
+#   hidden         — siłownia, bilard, brak danych itp.
+#
+# Wymagane sekrety:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Tryb podglądu — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      limit:
+        description: 'Maks. obiektów (0 = wszystkie)'
+        default: '0'
+        required: false
+        type: string
+      reset:
+        description: 'Nadpisz też obiekty z już ustawioną visibility (domyślnie: tylko public)'
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  classify:
+    name: Klasyfikacja (${{ inputs.dry_run == true && 'DRY RUN' || 'ZAPIS' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        working-directory: scraper
+        run: pip install httpx python-dotenv
+
+      - name: Build arguments
+        id: args
+        run: |
+          ARGS="--limit ${{ inputs.limit }}"
+          [ "${{ inputs.dry_run }}" = "true" ]  && ARGS="$ARGS --dry-run"
+          [ "${{ inputs.reset }}"   = "true" ]  && ARGS="$ARGS --reset"
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run classifier
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python classify.py ${{ steps.args.outputs.args }}
