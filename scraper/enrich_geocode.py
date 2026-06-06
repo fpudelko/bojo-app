@@ -41,7 +41,6 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("geocode")
 
-PHOTON_URL    = "https://photon.komoot.io/reverse"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT    = "bojo-app-venue-enricher/1.0 (contact: admin@bojo.app)"
 
@@ -313,51 +312,10 @@ async def _throttle() -> None:
 
 
 # ---------------------------------------------------------------------------
-# photon.komoot.io  (primary — permissive rate limits, same OSM data)
+# Nominatim  (1 req/sec, 429 handled with backoff)
 # ---------------------------------------------------------------------------
 
-async def _photon_reverse(
-    client: httpx.AsyncClient, lat: float, lng: float,
-) -> dict[str, Any] | None:
-    """Reverse geocode via photon.komoot.io. Returns normalised address dict or None."""
-    await _throttle()
-    try:
-        r = await client.get(
-            PHOTON_URL,
-            params={"lat": str(lat), "lon": str(lng), "limit": "1", "lang": "pl"},
-            headers={"User-Agent": USER_AGENT},
-            timeout=15.0,
-        )
-        if r.status_code == 429:
-            log.warning("  photon 429 — czekam 30s")
-            await asyncio.sleep(30)
-            return None
-        if r.status_code != 200:
-            return None
-        features = r.json().get("features") or []
-        if not features:
-            return None
-        props = features[0].get("properties", {})
-        # Normalise to the same dict shape as Nominatim's `address` block
-        return {
-            "road":          props.get("street", ""),
-            "house_number":  props.get("housenumber", ""),
-            "postcode":      props.get("postcode", ""),
-            # photon returns osiedle/dzielnica in "district" or "locality"
-            "suburb":        props.get("district") or props.get("locality") or "",
-            "city_district": "",   # photon doesn't split this further
-            "_source":       "photon",
-        }
-    except Exception as exc:
-        log.debug("  photon error %.5f,%.5f — %s", lat, lng, exc)
-        return None
-
-
-# ---------------------------------------------------------------------------
-# Nominatim  (fallback — strict 1 req/sec; 429 handled with backoff)
-# ---------------------------------------------------------------------------
-
-async def _nominatim_reverse(
+async def reverse_geocode(
     client: httpx.AsyncClient, lat: float, lng: float,
 ) -> dict[str, Any] | None:
     """Reverse geocode via Nominatim with exponential backoff on 429."""
@@ -391,35 +349,6 @@ async def _nominatim_reverse(
             log.debug("  Nominatim error %.5f,%.5f — %s", lat, lng, exc)
             return None
     return None
-
-
-# ---------------------------------------------------------------------------
-# Combined reverse geocoder  (photon first, Nominatim fallback)
-# ---------------------------------------------------------------------------
-
-async def reverse_geocode(
-    client: httpx.AsyncClient, lat: float, lng: float,
-) -> dict[str, Any] | None:
-    """Reverse geocode preferring a result that includes a house number.
-
-    photon is fast but frequently omits the house number for a point dropped in
-    the middle of a pitch; Nominatim (zoom 18) resolves the building more often.
-    So we try photon first, and if it gives a street WITHOUT a number we still
-    consult Nominatim and keep whichever actually has a house number — that's the
-    whole point of "numery, nie tylko ulice".
-    """
-    photon = await _photon_reverse(client, lat, lng)
-    if photon and photon.get("house_number"):
-        return photon  # already complete — no need to bother Nominatim
-
-    # photon missing a number (or empty) → ask Nominatim too
-    nomi = await _nominatim_reverse(client, lat, lng)
-    if nomi and nomi.get("house_number"):
-        return nomi
-    # neither has a number — return whatever has a street/postcode
-    if photon and (photon.get("road") or photon.get("postcode")):
-        return photon
-    return nomi
 
 
 def parse_result(addr: dict[str, Any], field: dict[str, Any], overwrite: bool) -> dict[str, Any]:
