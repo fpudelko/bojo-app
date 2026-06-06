@@ -56,6 +56,7 @@ BOOKING_ENUM = {"telefon", "email", "wlasny_system", "zewnetrzny", "brak", "inny
 _GENERIC_NAME = re.compile(
     r'^(boisko|boiska|orlik|korty?|kort|'
     r'boisko\s+(sportowe|wielofunkcyjne|szkolne|piłkarskie)|'
+    r'boisko\s+[—\-–]\s+\S.*|'          # "Boisko — piłka nożna", "Boisko - hokej"
     r'hala\s+sportowa|sala\s+gimnastyczna|'
     r'plac\s+zabaw|obiekt\s+sport\w*|'
     r'kompleks\s+sport\w*|'
@@ -91,36 +92,72 @@ def _has_street(addr: str) -> bool:
     return bool(re.search(r'\d', addr))
 
 
+def _website_key(url: str) -> str:
+    """Normalise a URL to its path-stripped domain for secondary grouping.
+
+    E.g. "https://posir.poznan.pl/obiekty/golecin/boiska" → "posir.poznan.pl/obiekty/golecin/boiska"
+    Strips scheme and trailing slash so minor URL variations still group together.
+    We keep the full path (not just domain) so different sub-sites of a big portal
+    (e.g. posir.poznan.pl/golecin vs posir.poznan.pl/rataje) stay separate.
+    """
+    u = re.sub(r'^https?://', '', url.strip().lower()).rstrip('/')
+    return u
+
+
 def group_by_address(
     fields: list[dict[str, Any]], max_group_size: int = 20
 ) -> list[list[dict[str, Any]]]:
-    """Return list of address groups, sorted so largest groups come first.
+    """Return list of address groups, sorted largest-first.
 
-    Groups with no street number (city-only addresses) or above max_group_size
-    are each treated as individual records so we don't send one AI call for
-    hundreds of unrelated venues.
+    Primary grouping key: normalised address (street + number).
+    - Records with no street number become singletons.
+    - Singletons that share the same website URL are then merged into one
+      group — e.g. 18 pitches at chwialka.poznan.pl with slightly different
+      addresses produce one AI call instead of 18.
+    Groups above max_group_size are split so each AI call stays focused.
     """
-    buckets: dict[str, list[dict[str, Any]]] = {}
+    # ── Pass 1: group by address ──────────────────────────────────────────────
+    addr_buckets: dict[str, list[dict[str, Any]]] = {}
     for f in fields:
         raw = f.get("address") or ""
         key = _norm_addr(raw)
-        # city-only address — keep as singleton so AI gets a useful address
         if not _has_street(raw) or _CITY_ONLY.fullmatch(key):
-            buckets.setdefault(f"__solo__{f['id']}", [f])
+            addr_buckets.setdefault(f"__solo__{f['id']}", [f])
         else:
-            buckets.setdefault(key, []).append(f)
+            addr_buckets.setdefault(key, []).append(f)
 
-    groups: list[list[dict[str, Any]]] = []
-    for g in buckets.values():
+    # ── Pass 2: merge singletons that share the same website URL ─────────────
+    multi_groups: list[list[dict[str, Any]]] = []
+    solo_by_url: dict[str, list[dict[str, Any]]] = {}
+    no_url_solos: list[list[dict[str, Any]]] = []
+
+    for key, group in addr_buckets.items():
+        if not key.startswith("__solo__"):
+            multi_groups.append(group)
+            continue
+        # singleton — try to merge with others sharing same website
+        url = (group[0].get("website") or "").strip()
+        if url:
+            solo_by_url.setdefault(_website_key(url), []).extend(group)
+        else:
+            no_url_solos.append(group)
+
+    # Collect all groups: multi-address + website-merged + true singletons
+    groups: list[list[dict[str, Any]]] = list(multi_groups) + list(no_url_solos)
+    for url_group in solo_by_url.values():
+        groups.append(url_group)
+
+    # ── Pass 3: split oversized groups ───────────────────────────────────────
+    final: list[list[dict[str, Any]]] = []
+    for g in groups:
         if len(g) <= max_group_size:
-            groups.append(g)
+            final.append(g)
         else:
-            # split oversized groups into chunks so each AI call stays focused
             for i in range(0, len(g), max_group_size):
-                groups.append(g[i : i + max_group_size])
+                final.append(g[i : i + max_group_size])
 
-    groups.sort(key=lambda g: (-len(g), (g[0].get("address") or "")))
-    return groups
+    final.sort(key=lambda g: (-len(g), (g[0].get("address") or "")))
+    return final
 
 # ---------------------------------------------------------------------------
 # Claude tool definitions
@@ -207,14 +244,14 @@ PROMPT = """\
 Jesteś asystentem zbierającym dane kontaktowe obiektów sportowych w Polsce (rejon Poznania).
 
 Lokalizacja do sprawdzenia:
-- Adres: {address}
+- {location_line}
 - Liczba obiektów: {count}
 - Obiekty:
 {venues_list}
 
 {known}
 
-Wyszukaj w internecie TĘ DOKŁADNĄ lokalizację (adres + ewentualnie nazwa + Poznań / powiat poznański) i ustal:
+Wyszukaj w internecie TĘ DOKŁADNĄ lokalizację ({search_hint}) i ustal:
 1. Telefon kontaktowy
 2. E-mail kontaktowy
 3. Oficjalna strona WWW
@@ -225,7 +262,7 @@ Wyszukaj w internecie TĘ DOKŁADNĄ lokalizację (adres + ewentualnie nazwa + P
 7. {sports_question}
 
 Zasady:
-- Szukaj KONKRETNIE tej lokalizacji pod podanym adresem.
+- Szukaj KONKRETNIE tej lokalizacji.
 - Jeśli wyniki dotyczą zupełnie innego miejsca o podobnej nazwie — zaznacz confidence=low.
 - Podawaj tylko dane faktycznie znalezione. Czego nie wiesz → null.
 - Wywołaj record_findings z wynikami. summary napisz po polsku.\
@@ -251,12 +288,26 @@ def build_prompt(address: str, fields: list[dict[str, Any]]) -> str:
     venues = "\n".join(
         f"  • {f.get('name') or 'Boisko'}"
         + (f" [{', '.join(f['sport'])}]" if f.get("sport") else "")
+        + (f" @ {f.get('address', '')}" if f.get('address', '') != address else "")
         for f in fields
     )
+
+    # Detect website-grouped records (addresses differ across the group)
+    addresses = list(dict.fromkeys(f.get("address") or "" for f in fields))
+    shared_url = next((f.get("website") for f in fields if f.get("website")), None)
+    is_website_group = len(addresses) > 1 or (len(addresses) == 1 and not addresses[0])
+
+    if is_website_group and shared_url:
+        location_line = f"Strona WWW: {shared_url}"
+        search_hint = f"strona {shared_url} + Poznań / powiat poznański"
+    else:
+        location_line = f"Adres: {address}"
+        search_hint = f"adres + ewentualnie nazwa + Poznań / powiat poznański"
+
     # surface known info so the AI focuses on what's missing
     known_bits: list[str] = []
-    for key, label in (("phone", "Telefon"), ("email", "E-mail"), ("website", "WWW")):
-        val = next((f[key] for f in fields if f.get(key)), None)
+    for col, label in (("phone", "Telefon"), ("email", "E-mail"), ("website", "WWW")):
+        val = next((f[col] for f in fields if f.get(col)), None)
         if val:
             known_bits.append(f"- {label} z OSM: {val} (zweryfikuj / uzupełnij resztę)")
     known = ("Już znane dane (zweryfikuj i uzupełnij brakujące):\n" + "\n".join(known_bits)) if known_bits else ""
@@ -266,7 +317,8 @@ def build_prompt(address: str, fields: list[dict[str, Any]]) -> str:
     sports_question = PROMPT_SPORTS_GENERIC if any_generic else PROMPT_SPORTS_SPECIFIC
 
     return PROMPT.format(
-        address=address,
+        location_line=location_line,
+        search_hint=search_hint,
         count=len(fields),
         venues_list=venues,
         known=known,
@@ -471,9 +523,15 @@ async def run(args: argparse.Namespace) -> None:
             groups = groups[: args.limit]
 
         total_fields = sum(len(g) for g in groups)
+        # Count website-merged groups for visibility in logs
+        url_groups = sum(
+            1 for g in groups
+            if len(set(f.get("address", "") for f in g)) > 1
+            or (len(g) > 1 and all(f.get("website") for f in g))
+        )
         log.info(
-            "Model: %s · %d address groups (%d fields total)%s",
-            model, len(groups), total_fields,
+            "Model: %s · %d groups (%d fields) — %d adresowe · %d po WWW%s",
+            model, len(groups), total_fields, len(groups) - url_groups, url_groups,
             " · DRY RUN" if args.dry_run else "",
         )
         if not groups:
@@ -482,10 +540,11 @@ async def run(args: argparse.Namespace) -> None:
         sem = asyncio.Semaphore(args.concurrency)
         totals = {"done": 0, "found_contact": 0, "in_tok": 0, "out_tok": 0, "searches": 0}
 
-        last_request: list[float] = [0.0]
-
         async def worker(grp: list[dict[str, Any]]) -> None:
-            address = grp[0].get("address") or "?"
+            addresses = list(dict.fromkeys(f.get("address") or "" for f in grp))
+            shared_url = next((f.get("website") for f in grp if f.get("website")), None)
+            is_url_group = len(addresses) > 1 or (len(addresses) == 1 and not addresses[0])
+            address = shared_url if is_url_group else (addresses[0] or "?")
             async with sem:
 
                 findings, usage = await enrich_group(client, api_key, model, address, grp, args.max_searches)
