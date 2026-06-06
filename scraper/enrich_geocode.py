@@ -400,12 +400,26 @@ async def _nominatim_reverse(
 async def reverse_geocode(
     client: httpx.AsyncClient, lat: float, lng: float,
 ) -> dict[str, Any] | None:
-    """Try photon first; fall back to Nominatim if photon returns nothing useful."""
-    addr = await _photon_reverse(client, lat, lng)
-    if addr and (addr.get("road") or addr.get("postcode")):
-        return addr
-    # photon gave nothing useful — try Nominatim
-    return await _nominatim_reverse(client, lat, lng)
+    """Reverse geocode preferring a result that includes a house number.
+
+    photon is fast but frequently omits the house number for a point dropped in
+    the middle of a pitch; Nominatim (zoom 18) resolves the building more often.
+    So we try photon first, and if it gives a street WITHOUT a number we still
+    consult Nominatim and keep whichever actually has a house number — that's the
+    whole point of "numery, nie tylko ulice".
+    """
+    photon = await _photon_reverse(client, lat, lng)
+    if photon and photon.get("house_number"):
+        return photon  # already complete — no need to bother Nominatim
+
+    # photon missing a number (or empty) → ask Nominatim too
+    nomi = await _nominatim_reverse(client, lat, lng)
+    if nomi and nomi.get("house_number"):
+        return nomi
+    # neither has a number — return whatever has a street/postcode
+    if photon and (photon.get("road") or photon.get("postcode")):
+        return photon
+    return nomi
 
 
 def parse_result(addr: dict[str, Any], field: dict[str, Any], overwrite: bool) -> dict[str, Any]:
@@ -470,7 +484,8 @@ async def run(args: argparse.Namespace) -> None:
         if not total:
             log.info("Nic do zrobienia."); return
 
-        stats = {"patched": 0, "no_result": 0, "no_change": 0}
+        stats = {"patched": 0, "no_result": 0, "no_change": 0,
+                 "with_number": 0, "street_only": 0, "district": 0}
 
         for i, field in enumerate(candidates, 1):
             lat, lng = float(field["lat"]), float(field["lng"])
@@ -487,6 +502,15 @@ async def run(args: argparse.Namespace) -> None:
                 stats["no_change"] += 1
                 log.debug("[%d/%d] · %s — bez zmian", i, total, name[:50])
                 continue
+
+            # track address quality so the log shows how many got a house number
+            if "address" in patch:
+                if re.search(r"\d", patch["address"]):
+                    stats["with_number"] += 1
+                else:
+                    stats["street_only"] += 1
+            if "district" in patch:
+                stats["district"] += 1
 
             source = data.get("_source", "?")
             log.info(
@@ -506,6 +530,10 @@ async def run(args: argparse.Namespace) -> None:
             "Gotowe: %d/%d zaktualizowano · %d bez wyników · %d bez zmian%s",
             stats["patched"], total, stats["no_result"], stats["no_change"],
             " (DRY RUN — nic nie zapisano)" if args.dry_run else "",
+        )
+        log.info(
+            "Adresy: %d z numerem domu · %d tylko ulica · dzielnice: %d",
+            stats["with_number"], stats["street_only"], stats["district"],
         )
 
 

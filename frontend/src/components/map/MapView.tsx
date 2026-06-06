@@ -2,12 +2,16 @@
 
 import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
+import type { DataKey } from '@/lib/fieldFilters';
 export interface MapViewProps {
   className?: string;
   sports?: string[];       // undefined = all; array = multi-select filter
   onlyAvailable?: boolean;
   onlyBookable?: boolean;
   search?: string;
+  district?: string;       // undefined = all districts
+  dataKeys?: DataKey[];    // AND requirements: only venues with all of these
+  onDistrictsLoaded?: (districts: string[]) => void;
 }
 
 const LeafletMapImpl = dynamic(() => import('./LeafletMapImpl'), {
