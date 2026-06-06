@@ -364,3 +364,178 @@ export interface EventComment {
   deletedAt?: string;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// BOJO Community Cup — turniej drużynowy
+// ---------------------------------------------------------------------------
+
+export type TournamentStatus =
+  | 'draft'
+  | 'registration'
+  | 'group_stage'
+  | 'knockout'
+  | 'finals'
+  | 'completed';
+
+export type TeamStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'rejected'
+  | 'eliminated'
+  | 'withdrawn';
+
+export type PlayerPosition =
+  | 'bramkarz'
+  | 'obrońca'
+  | 'pomocnik'
+  | 'napastnik'
+  | 'uniwersalny';
+
+export type MatchStage =
+  | 'group'
+  | 'round_of_32'
+  | 'round_of_16'
+  | 'quarter'
+  | 'semi'
+  | 'third_place'
+  | 'final';
+
+export type TournamentMatchStatus =
+  | 'pending'
+  | 'proposed'
+  | 'scheduled'
+  | 'played'
+  | 'walkover'
+  | 'disputed';
+
+export type SlotStatus = 'free' | 'reserved' | 'taken';
+
+export interface Tournament {
+  id: string;
+  slug: string;
+  name: string;
+  sport: string;
+  city: string;
+  status: TournamentStatus;
+  format: string;
+  maxTeams: number;
+  groupSize: number;
+  advancePerGroup: number;
+  minSquad: number;
+  maxSquad: number;
+  registrationDeadline?: string;
+  startDate?: string;
+  finalsDate?: string;
+  finalsVenue?: string;
+  tagline?: string;
+  prizePool?: string;
+  rules?: string;
+  entryFeeGrosze: number;
+  createdAt: string;
+}
+
+export interface TournamentGroup {
+  id: string;
+  tournamentId: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournamentId: string;
+  name: string;
+  district?: string;
+  captainId: string;
+  captainName: string;
+  captainPhone?: string;
+  captainEmail?: string;
+  status: TeamStatus;
+  paidAt?: string;
+  groupId?: string;
+  seed?: number;
+  availabilityDays: number[]; // 1=Mon…7=Sun (ISO)
+  availabilityFrom?: string;
+  availabilityTo?: string;
+  finalsConfirmed: boolean;
+  createdAt: string;
+  members?: TournamentTeamMember[];
+}
+
+export interface TournamentTeamMember {
+  id: string;
+  teamId: string;
+  userId?: string;
+  name: string;
+  position: PlayerPosition;
+  shirtNumber?: number;
+  isCaptain: boolean;
+  isReserve: boolean;
+  createdAt: string;
+}
+
+export interface TournamentVenue {
+  id: string;
+  tournamentId: string;
+  fieldId?: string;
+  name: string;
+  address?: string;
+  district?: string;
+  isPartner: boolean;
+  createdAt: string;
+  slots?: TournamentVenueSlot[];
+}
+
+export interface TournamentVenueSlot {
+  id: string;
+  venueId: string;
+  startsAt: string;
+  durationMin: number;
+  status: SlotStatus;
+  matchId?: string;
+  createdAt: string;
+}
+
+export interface TournamentMatch {
+  id: string;
+  tournamentId: string;
+  stage: MatchStage;
+  groupId?: string;
+  round?: number;
+  bracketPosition?: number;
+  teamAId?: string;
+  teamBId?: string;
+  feedsAMatchId?: string;
+  feedsBMatchId?: string;
+  proposedByTeamId?: string;
+  proposedSlot?: string;
+  venueSlotId?: string;
+  venueText?: string;
+  scheduledAt?: string;
+  status: TournamentMatchStatus;
+  scoreA?: number;
+  scoreB?: number;
+  winnerTeamId?: string;
+  reportedByTeamId?: string;
+  confirmedByTeamId?: string;
+  disputeNote?: string;
+  proofUrl?: string;
+  deadline?: string;
+  playedAt?: string;
+  createdAt: string;
+}
+
+export interface TournamentStanding {
+  teamId: string;
+  tournamentId: string;
+  groupId: string;
+  teamName: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDiff: number;
+  points: number;
+}

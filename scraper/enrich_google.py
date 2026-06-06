@@ -48,13 +48,26 @@ from enrich import _sb_headers  # reuse Supabase helper
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("enrich-google")
 
-NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+NEARBY_URL  = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+TEXT_URL    = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 DETAIL_FIELDS = "formatted_phone_number,international_phone_number,website,opening_hours"
 
 # Grid cell size for location-based grouping.
 # 3 decimal places ≈ 111m; venues that close together share one API call.
 LOC_PRECISION = 3
+
+# Google Places types tried in order for the Nearby fallback.
+# 'stadium' covers sports halls; 'park' covers outdoor fields/orliki.
+_NEARBY_TYPES = ("stadium", "park", "gym")
+
+# Generic OSM names that are useless for Text Search — fall back to Nearby only.
+import re as _re
+_GENERIC = _re.compile(
+    r'^(boisko|boiska|orlik|kort|hala\s+sport|sala\s+gimn|'
+    r'kompleks\s+sport|obiekt\s+sport|boisko\s+[—\-])',
+    _re.I,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -134,36 +147,9 @@ async def write_back_group(
 # Google Places — Nearby Search + Place Details
 # ---------------------------------------------------------------------------
 
-async def lookup_group(
-    client: httpx.AsyncClient, api_key: str,
-    fields: list[dict[str, Any]], radius: int,
+async def _place_details(
+    client: httpx.AsyncClient, api_key: str, place_id: str,
 ) -> dict[str, Any] | None:
-    """Find the closest sports venue within `radius` metres of the group's coordinates."""
-    first = fields[0]
-    lat, lng = first.get("lat"), first.get("lng")
-    if lat is None or lng is None:
-        return None
-
-    # Nearby Search — radius-based so we never pick up a venue from 5 km away
-    nearby_params = {
-        "location": f"{lat},{lng}",
-        "radius": radius,
-        "keyword": "boisko sportowe hala centrum sportowe",
-        "key": api_key,
-        "language": "pl",
-    }
-    rn = await client.get(NEARBY_URL, params=nearby_params, timeout=20.0)
-    rn.raise_for_status()
-    ndata = rn.json()
-
-    results = ndata.get("results") or []
-    if ndata.get("status") not in ("OK",) or not results:
-        return None
-
-    place_id = results[0].get("place_id")
-    if not place_id:
-        return None
-
     rd = await client.get(
         DETAILS_URL,
         params={"place_id": place_id, "fields": DETAIL_FIELDS, "key": api_key, "language": "pl"},
@@ -174,13 +160,73 @@ async def lookup_group(
     if ddata.get("status") != "OK":
         return None
     res = ddata.get("result", {})
-
     hours = res.get("opening_hours", {}).get("weekday_text")
     return {
         "phone": res.get("formatted_phone_number") or res.get("international_phone_number"),
         "website": res.get("website"),
         "opening_hours": "\n".join(hours) if hours else None,
     }
+
+
+async def lookup_group(
+    client: httpx.AsyncClient, api_key: str,
+    fields: list[dict[str, Any]], radius: int,
+) -> dict[str, Any] | None:
+    """Find the closest sports venue within `radius` metres of the group's coordinates."""
+    first = fields[0]
+    lat, lng = first.get("lat"), first.get("lng")
+    if lat is None or lng is None:
+        return None
+
+    loc_str = f"{lat},{lng}"
+    name = first.get("name", "")
+    address = first.get("address", "")
+
+    # ── Step 1: Text Search for non-generic named venues ──────────────────────
+    if name and not _GENERIC.match(name):
+        query = f"{name}, {address}" if address else name
+        rt = await client.get(
+            TEXT_URL,
+            params={
+                "query": query,
+                "location": loc_str,
+                "radius": radius * 5,   # bias, not hard filter
+                "key": api_key,
+                "language": "pl",
+            },
+            timeout=20.0,
+        )
+        rt.raise_for_status()
+        tdata = rt.json()
+        if tdata.get("status") == "OK":
+            results = tdata.get("results") or []
+            if results:
+                place_id = results[0].get("place_id")
+                if place_id:
+                    return await _place_details(client, api_key, place_id)
+
+    # ── Step 2: Nearby Search — try each type in sequence ─────────────────────
+    for ptype in _NEARBY_TYPES:
+        rn = await client.get(
+            NEARBY_URL,
+            params={
+                "location": loc_str,
+                "radius": radius,
+                "type": ptype,
+                "key": api_key,
+                "language": "pl",
+            },
+            timeout=20.0,
+        )
+        rn.raise_for_status()
+        ndata = rn.json()
+        results = ndata.get("results") or []
+        if ndata.get("status") == "OK" and results:
+            place_id = results[0].get("place_id")
+            if place_id:
+                return await _place_details(client, api_key, place_id)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
