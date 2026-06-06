@@ -45,6 +45,11 @@ on:
         default: false
         required: false
         type: boolean
+      claude_rerun_all:
+        description: 'Claude --all: przetwórz też już wzbogacone rekordy (fix gdy ai_enriched_at ustawione na złych rekordach)'
+        default: false
+        required: false
+        type: boolean
       claude_model:
         description: 'Model Claude dla ostatniego kroku'
         default: 'claude-haiku-4-5-20251001'
@@ -143,8 +148,9 @@ jobs:
       - name: Build arguments
         id: args
         run: |
-          ARGS="--limit ${{ inputs.limit }} --model ${{ inputs.claude_model }} --require-empty"
-          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          ARGS="--limit ${{ inputs.limit }} --model ${{ inputs.claude_model }}"
+          [ "${{ inputs.dry_run }}"        = "true" ] && ARGS="$ARGS --dry-run"
+          [ "${{ inputs.claude_rerun_all }}" = "true" ] && ARGS="$ARGS --all" || ARGS="$ARGS --require-empty"
           echo "args=$ARGS" >> $GITHUB_OUTPUT
 
       - name: Run Claude enrichment
