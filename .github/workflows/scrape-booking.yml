@@ -1,0 +1,88 @@
+name: Odwrotny scraper rezerwacji (strony → obiekty)
+
+# Zaczyna od stron z rezerwacjami i wyciąga z nich obiekty (nazwa + adres +
+# link do rezerwacji), geokoduje, dopasowuje do istniejących albo dodaje nowe.
+# Źródła: AI/web-search, platformy rezerwacyjne, POSiR/orliki.
+#
+# Wymagane sekrety repozytorium:
+#   ANTHROPIC_API_KEY
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Źródło danych'
+        default: 'all'
+        required: true
+        type: choice
+        options:
+          - all
+          - ai
+          - platforms
+          - posir
+      limit:
+        description: 'Maks. obiektów (0 = wszystkie)'
+        default: '0'
+        required: false
+        type: string
+      dry_run:
+        description: 'Tryb podglądu — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      no_add:
+        description: 'Nie twórz nowych obiektów — tylko wzbogacaj istniejące'
+        default: false
+        required: false
+        type: boolean
+      model:
+        description: 'Model Claude (pusty = haiku 4.5)'
+        default: ''
+        required: false
+        type: string
+
+jobs:
+  scrape-booking:
+    name: Booking (${{ inputs.dry_run == true && 'DRY RUN' || 'ZAPIS' }}, source=${{ inputs.source }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        working-directory: scraper
+        run: pip install httpx python-dotenv tenacity
+
+      - name: Build arguments
+        id: args
+        run: |
+          ARGS="--source ${{ inputs.source }} --limit ${{ inputs.limit }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.no_add }}" = "true" ]; then
+            ARGS="$ARGS --no-add"
+          fi
+          if [ -n "${{ inputs.model }}" ]; then
+            ARGS="$ARGS --model ${{ inputs.model }}"
+          fi
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run reverse booking scraper
+        working-directory: scraper
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scrape_booking.py ${{ steps.args.outputs.args }}
