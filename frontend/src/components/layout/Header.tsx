@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -129,6 +129,17 @@ export default function Header() {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                href="/turniej"
+                className={clsx(
+                  'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
+                  pathname === '/turniej' || pathname.startsWith('/turniej/')
+                    ? 'bg-accent-100 text-accent-700'
+                    : 'text-accent-700 hover:bg-accent-50',
+                )}
+              >
+                <Trophy className="w-4 h-4" /> Cup
+              </Link>
             </nav>
 
             <div className="hidden md:flex items-center gap-3">
@@ -257,6 +268,22 @@ export default function Header() {
                 Stwórz mecz
               </Link>
             </div>
+
+            {/* BOJO Cup highlight */}
+            <Link
+              href="/turniej"
+              onClick={() => setMobileOpen(false)}
+              className="mb-6 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
+            >
+              <span className="flex items-center gap-3">
+                <Trophy className="h-6 w-6 text-accent-400" />
+                <span>
+                  <span className="block text-sm font-bold">BOJO Community Cup</span>
+                  <span className="block text-xs text-white/70">Zgłoś drużynę do turnieju</span>
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 text-white/60" />
+            </Link>
 
             {/* Secondary nav */}
             <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Odkryj</p>
