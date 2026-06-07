@@ -87,7 +87,7 @@ def classify_named_venue(rows: list[dict]) -> str:
         elif specific or contact:
             vis = "public"   # named venue with ANY data → public
         else:
-            vis = "organizer_only"
+            vis = "organizer_only"  # named but no data → still visible to organizer
 
         if PRIO[vis] < PRIO[best]:
             best = vis
@@ -200,22 +200,20 @@ def main():
   );
 """)
 
-    print("-- Mark remaining generic entries as 'hidden' (no address, no contact)")
-    print("""UPDATE fields SET map_visibility = 'hidden'
+    print("-- Mark remaining generic entries as 'organizer_only' (no address, no contact)")
+    print("""UPDATE fields SET map_visibility = 'organizer_only'
   WHERE name IN (""" + generic_in + """)
   AND map_visibility NOT IN ('public', 'organizer_only');
 """)
 
     print("-- ────────────────────────────────────────────────────────────")
-    print("-- BLOCK 3: Safety net — hide anything still defaulting to")
-    print("--           organizer_only with absolutely no contact data")
+    print("-- BLOCK 3: Catch-all — everything else → organizer_only")
+    print("--   Fields not matched above keep their default from migration 024.")
+    print("--   Run this to explicitly promote any remaining 'organizer_only' → kept,")
+    print("--   and ensure nothing is accidentally left hidden.")
     print("-- ────────────────────────────────────────────────────────────")
     print()
-    print("""UPDATE fields SET map_visibility = 'hidden'
-  WHERE map_visibility = 'organizer_only'
-  AND phone IS NULL
-  AND email IS NULL
-  AND website IS NULL;
+    print("""-- (No hidden entries generated — all unrecognised fields stay organizer_only)
 """)
 
     print("-- Done. Review before running on production.")

@@ -232,21 +232,19 @@ UPDATE fields SET map_visibility = 'organizer_only'
     OR (website IS NOT NULL AND website NOT LIKE '%orlik2012%')
   );
 
--- Mark remaining generic entries as 'hidden' (no address, no contact)
-UPDATE fields SET map_visibility = 'hidden'
+-- Mark remaining generic entries as 'organizer_only' (no address, no contact)
+UPDATE fields SET map_visibility = 'organizer_only'
   WHERE name IN ('Boisko Grunwald', 'Boisko Sportowe', 'Boisko sportowe', 'Boisko sportowe na Zielińcu', 'Boisko sportowe · beton', 'Boisko sportowe · mączka ceglana', 'Boisko sportowe · piasek', 'Boisko sportowe · sztuczna trawa', 'Boisko sportowe · tartan / asfalt', 'Boisko sportowe · trawa naturalna', 'Boisko — baseball', 'Boisko — baseball · tartan / asfalt', 'Boisko — hokej', 'Boisko — hokej na trawie', 'Boisko — hokej na trawie · sztuczna trawa', 'Boisko — koszykówka', 'Boisko — koszykówka · beton', 'Boisko — koszykówka · mączka ceglana', 'Boisko — koszykówka · sztuczna trawa', 'Boisko — koszykówka · tartan / asfalt', 'Boisko — koszykówka · trawa naturalna', 'Boisko — piłka nożna', 'Boisko — piłka nożna · beton', 'Boisko — piłka nożna · piasek', 'Boisko — piłka nożna · sztuczna trawa', 'Boisko — piłka nożna · tartan / asfalt', 'Boisko — piłka nożna · trawa naturalna', 'Boisko — piłka ręczna', 'Boisko — piłka ręczna · piasek', 'Boisko — piłka ręczna · sztuczna trawa', 'Boisko — piłka ręczna · tartan / asfalt', 'Boisko — siatkówka', 'Boisko — siatkówka · piasek', 'Boisko — siatkówka · sztuczna trawa', 'Boisko — siatkówka · tartan / asfalt', 'Boisko — siatkówka · trawa naturalna', 'Hala Sportowa, siłownia, sauna')
   AND map_visibility NOT IN ('public', 'organizer_only');
 
 -- ────────────────────────────────────────────────────────────
--- BLOCK 3: Safety net — hide anything still defaulting to
---           organizer_only with absolutely no contact data
+-- BLOCK 3: Catch-all — everything else → organizer_only
+--   Fields not matched above keep their default from migration 024.
+--   Run this to explicitly promote any remaining 'organizer_only' → kept,
+--   and ensure nothing is accidentally left hidden.
 -- ────────────────────────────────────────────────────────────
 
-UPDATE fields SET map_visibility = 'hidden'
-  WHERE map_visibility = 'organizer_only'
-  AND phone IS NULL
-  AND email IS NULL
-  AND website IS NULL;
+-- (No hidden entries generated — all unrecognised fields stay organizer_only)
 
 -- Done. Review before running on production.
 -- Total named venues processed: 141
