@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, ChevronRight } from 'lucide-react';
+import { ArrowRight, CalendarPlus, ChevronRight, MapPin, Users, Trophy } from 'lucide-react';
 import NearbyGames from './NearbyGames';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -67,11 +67,37 @@ function MarketingHero() {
           </Link>
         </div>
 
-        <p className="mt-6 animate-fade-up text-sm text-white/50" style={{ animationDelay: '320ms' }}>
-          <Link href="/mapa" className="hover:text-white/80 transition-colors underline underline-offset-2">
-            Przeglądaj boiska →
+        <div className="mt-6 animate-fade-up" style={{ animationDelay: '320ms' }}>
+          <Link
+            href="/mapa"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/5 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-white/15"
+          >
+            <MapPin className="h-4 w-4" /> Przeglądaj mapę boisk
           </Link>
-        </p>
+        </div>
+
+        {/* Proof bar — szybki sygnał zaufania pod CTA */}
+        <div
+          className="mt-10 animate-fade-up flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs sm:text-sm text-white/70"
+          style={{ animationDelay: '400ms' }}
+          aria-label="Szybkie fakty o serwisie"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 text-amber-300" />
+            Setki boisk w Poznaniu i okolicy
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Users className="h-4 w-4 text-amber-300" />
+            5 dyscyplin zespołowych
+          </span>
+          <Link
+            href="/turniej"
+            className="inline-flex items-center gap-1.5 underline-offset-2 hover:text-white hover:underline"
+          >
+            <Trophy className="h-4 w-4 text-amber-300" />
+            BOJO Cup — zapisy otwarte
+          </Link>
+        </div>
       </div>
 
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />

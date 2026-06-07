@@ -37,9 +37,16 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
 }
 
 function statusBadge(event: EventItem) {
+  const taken = event.externalCount ?? 0;
+  const max = event.maxPlayers ?? 0;
+  const label = taken > 0 && max > 0 ? `${taken}/${max} miejsc` : `max ${max}`;
+  const full = max > 0 && taken >= max;
   return (
-    <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-      <Users className="w-3 h-3" /> max {event.maxPlayers}
+    <span className={[
+      'text-xs font-medium flex items-center gap-1',
+      full ? 'text-red-600' : 'text-slate-600',
+    ].join(' ')}>
+      <Users className="w-3 h-3" /> {label}
     </span>
   );
 }
@@ -70,9 +77,13 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
               {sportEmoji(event.sport)}
             </span>
             <div className="min-w-0">
-              <p className="font-semibold text-ink truncate">{event.title || event.sport}</p>
+              <p className="font-semibold text-ink truncate">
+                {event.title || `${event.sport}${event.district ? ` · ${event.district}` : ''}`}
+              </p>
               <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 shrink-0" /> {event.fieldName}
+                <MapPin className="w-3 h-3 shrink-0" />
+                {event.fieldName}
+                {event.district && event.title && <span className="text-slate-400">· {event.district}</span>}
               </p>
             </div>
           </div>
@@ -210,34 +221,37 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter — emoji-only chips, no horizontal scroll on mobile */}
+        {/* Sport filter — emoji + visible label */}
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setSportFilter('')}
-            aria-label="Każdy sport"
             aria-pressed={!sportFilter}
             className={[
               'shrink-0 px-3.5 h-10 rounded-xl text-sm font-medium border transition-colors',
               !sportFilter
                 ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400',
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
             ].join(' ')}
           >Wszystkie</button>
-          {SPORTS_FILTER.map(({ sport, label }) => (
-            <button
-              key={sport}
-              onClick={() => setSportFilter(sportFilter === sport ? '' : sport)}
-              aria-label={label}
-              aria-pressed={sportFilter === sport}
-              title={label}
-              className={[
-                'shrink-0 w-10 h-10 rounded-xl text-xl border transition-colors flex items-center justify-center',
-                sportFilter === sport
-                  ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200'
-                  : 'bg-white border-slate-200 hover:border-slate-400',
-              ].join(' ')}
-            >{sportEmoji(sport)}</button>
-          ))}
+          {SPORTS_FILTER.map(({ sport, label }) => {
+            const active = sportFilter === sport;
+            return (
+              <button
+                key={sport}
+                onClick={() => setSportFilter(active ? '' : sport)}
+                aria-pressed={active}
+                className={[
+                  'shrink-0 inline-flex items-center gap-1.5 px-3 h-10 rounded-xl text-sm font-medium border transition-colors',
+                  active
+                    ? 'bg-primary-50 border-primary-500 text-primary-800 ring-2 ring-primary-200'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400',
+                ].join(' ')}
+              >
+                <span aria-hidden="true" className="text-lg leading-none">{sportEmoji(sport)}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* District filter */}
@@ -325,12 +339,8 @@ export default function EventsPage() {
           </div>
         )}
 
-        {!loading && (
-          <div className="space-y-3">
-            {filtered.map(({ event, distance }) => (
-              <EventRow key={event.id} event={event} distance={distance} />
-            ))}
-          </div>
+        {!loading && filtered.length > 0 && (
+          <GroupedEventList items={filtered} />
         )}
 
         {!loading && filtered.length === 0 && (
@@ -360,4 +370,52 @@ export default function EventsPage() {
       </main>
     </div>
   );
+}
+
+/** Groups events by relative date bucket — easier to scan than a flat list. */
+function GroupedEventList({ items }: { items: { event: EventItem; distance?: number }[] }) {
+  const groups = useMemo(() => groupByDateBucket(items), [items]);
+  return (
+    <div className="space-y-6">
+      {groups.map(([label, rows]) => (
+        <section key={label}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
+            {label} <span className="text-slate-400 font-normal">· {rows.length}</span>
+          </h2>
+          <div className="space-y-3">
+            {rows.map(({ event, distance }) => (
+              <EventRow key={event.id} event={event} distance={distance} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function groupByDateBucket(
+  items: { event: EventItem; distance?: number }[],
+): [string, { event: EventItem; distance?: number }[]][] {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + (7 - today.getDay() || 7));
+
+  const buckets = new Map<string, { event: EventItem; distance?: number }[]>();
+  const order = ['Dziś', 'Jutro', 'W tym tygodniu', 'Później'];
+  order.forEach((k) => buckets.set(k, []));
+
+  for (const row of items) {
+    let bucket = 'Później';
+    try {
+      const [y, m, d] = row.event.date.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (dt.getTime() === today.getTime()) bucket = 'Dziś';
+      else if (dt.getTime() === tomorrow.getTime()) bucket = 'Jutro';
+      else if (dt <= weekEnd) bucket = 'W tym tygodniu';
+    } catch { /* keep default */ }
+    buckets.get(bucket)!.push(row);
+  }
+  return order
+    .map((k) => [k, buckets.get(k)!] as [string, { event: EventItem; distance?: number }[]])
+    .filter(([, rows]) => rows.length > 0);
 }
