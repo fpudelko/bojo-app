@@ -89,17 +89,69 @@ function NewEventForm() {
   }, [preFieldId]);
 
   if (!loading && !user) {
+    const loginHref = typeof window !== 'undefined'
+      ? `/logowanie?next=${encodeURIComponent(window.location.pathname)}`
+      : '/logowanie?next=/wydarzenia/nowe';
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-canvas">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4">
-          <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">Zaloguj się, aby tworzyć wydarzenia</h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">
-              Potrzebujesz konta, żeby organizować mecze i zarządzać uczestnikami.
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-ink">
+            Zorganizuj mecz w 60 sekund
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Wybierz boisko, ustaw termin i wyślij jeden link. Reszta robi się sama.
+          </p>
+
+          <ul className="mt-5 grid gap-2 text-sm text-slate-700">
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Lista zapisów aktualizuje się na żywo</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Przypomnienia o meczu dla wszystkich uczestników</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Wolne miejsca dograją gracze z okolicy</li>
+          </ul>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+                <Lock className="w-4 h-4 text-primary-700" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-ink">Zaloguj się, żeby opublikować mecz</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Konto Google wystarczy — 10 sekund, bez weryfikacji mailowej.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="w-full mt-4"
+              onClick={() => { window.location.href = loginHref; }}
+            >
+              Zaloguj się i kontynuuj
+            </Button>
+            <p className="mt-3 text-center text-xs text-slate-400">
+              Wracasz tu od razu po zalogowaniu — nic nie tracisz.
             </p>
-            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
+          </div>
+
+          {/* Preview kreatora pod blurem — pokazuje co user dostanie */}
+          <div className="relative mt-8 rounded-2xl border border-slate-200 bg-white overflow-hidden select-none pointer-events-none" aria-hidden="true">
+            <div className="p-5 space-y-4 blur-[3px] opacity-70">
+              <div className="h-8 w-32 rounded bg-slate-200" />
+              <div className="grid grid-cols-5 gap-2">
+                {[1,2,3,4,5].map(i => <div key={i} className="h-10 rounded-lg bg-slate-100" />)}
+              </div>
+              <div className="h-32 rounded-xl bg-slate-100" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-10 rounded-lg bg-slate-100" />
+                <div className="h-10 rounded-lg bg-slate-100" />
+              </div>
+              <div className="h-20 rounded-lg bg-slate-100" />
+              <div className="h-11 rounded-xl bg-primary-200" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/40 to-white/90" />
+            <p className="absolute bottom-3 inset-x-0 text-center text-xs text-slate-500 font-medium">
+              ↑ tak wygląda kreator po zalogowaniu
+            </p>
           </div>
         </main>
       </div>

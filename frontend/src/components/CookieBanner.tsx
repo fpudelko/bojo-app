@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { X } from 'lucide-react';
 
 const STORAGE_KEY = 'bojo_cookie_consent_v1';
 
@@ -36,23 +37,27 @@ export default function CookieBanner() {
     <div
       role="dialog"
       aria-label="Informacja o plikach cookie"
-      className="fixed bottom-0 left-0 right-0 z-[9999] bg-gray-900 border-t border-gray-700 px-4 py-3"
+      className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md z-[9999] bg-gray-900 border border-gray-700 rounded-2xl shadow-xl px-4 py-3"
     >
-      <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <p className="flex-1 text-sm text-gray-300">
-          Używamy tylko niezbędnych plików cookie do obsługi sesji logowania.
-          Nie stosujemy śledzenia ani reklam.{' '}
-          <Link href="/prywatnosc" className="text-primary-400 hover:text-primary-300 underline">
-            Polityka prywatności
-          </Link>
-        </p>
-        <button
-          onClick={accept}
-          className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-        >
-          OK, rozumiem
-        </button>
-      </div>
+      <button
+        onClick={accept}
+        aria-label="Zamknij i zaakceptuj informację o plikach cookie"
+        className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+      <p className="text-xs sm:text-sm text-gray-300 pr-8 leading-relaxed">
+        Używamy tylko niezbędnych cookies (logowanie). Bez śledzenia, bez reklam.{' '}
+        <Link href="/prywatnosc" className="text-primary-400 hover:text-primary-300 underline">
+          Szczegóły
+        </Link>
+      </p>
+      <button
+        onClick={accept}
+        className="mt-2 w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+      >
+        OK, rozumiem
+      </button>
     </div>
   );
 }

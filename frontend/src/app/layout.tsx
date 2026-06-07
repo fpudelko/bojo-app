@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
+import AnnouncementBar from '@/components/AnnouncementBar';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-canvas font-sans antialiased text-ink">
         <AuthProvider>
           <ToastProvider>
+            <AnnouncementBar />
             {children}
             <CookieBanner />
           </ToastProvider>
