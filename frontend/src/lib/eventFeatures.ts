@@ -36,6 +36,16 @@ export async function saveEventAdvancedSettings(
 // Participant management
 // ---------------------------------------------------------------------------
 
+export async function publishTeams(eventId: string): Promise<void> {
+  const { error } = await supabase.from('events').update({ teams_published: true }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
+export async function unpublishTeams(eventId: string): Promise<void> {
+  const { error } = await supabase.from('events').update({ teams_published: false }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
 export async function updateParticipantStatus(
   participantId: string,
   status: ParticipantStatus,

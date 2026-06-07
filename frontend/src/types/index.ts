@@ -162,6 +162,7 @@ export interface EventItem {
   trackResults: boolean;
   confirmationDeadlineH: number;
   costGrosze: number;
+  teamsPublished: boolean;
 }
 
 export interface EventParticipant {

@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
-import { Shuffle, Star, X } from 'lucide-react';
+import { Shuffle, Star, X, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import type { EventParticipant, TeamMode } from '@/types';
 import { TEAM_MODE_LABELS } from '@/lib/eventFeatures';
@@ -182,16 +182,19 @@ export interface TeamsPanelProps {
   teamB: EventParticipant[];
   unassigned: EventParticipant[];
   isOrganizer: boolean;
+  teamsPublished: boolean;
   busy: boolean;
   onAssignTeam: (participantId: string, team: 'A' | 'B' | null) => Promise<void>;
   onAssignRandom: () => Promise<void>;
   onClearTeams: () => Promise<void>;
   onToggleCaptain: (p: EventParticipant) => Promise<void>;
+  onPublishTeams?: () => Promise<void>;
+  onUnpublishTeams?: () => Promise<void>;
 }
 
 export default function TeamsPanel({
-  teamMode, teamA, teamB, unassigned, isOrganizer, busy,
-  onAssignTeam, onAssignRandom, onClearTeams, onToggleCaptain,
+  teamMode, teamA, teamB, unassigned, isOrganizer, teamsPublished, busy,
+  onAssignTeam, onAssignRandom, onClearTeams, onToggleCaptain, onPublishTeams, onUnpublishTeams,
 }: TeamsPanelProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -228,16 +231,29 @@ export default function TeamsPanel({
           <Shuffle className="w-4 h-4" />
           Składy
           <span className="text-xs font-normal text-gray-500">({TEAM_MODE_LABELS[teamMode]})</span>
+          {teamsPublished
+            ? <span className="text-xs font-normal text-green-600 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">opublikowane</span>
+            : isOrganizer && <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">robocze</span>
+          }
         </h2>
         {isOrganizer && (
           <div className="flex gap-2">
-            {/* Losuj składy dostępny zawsze dla organizatora, niezależnie od trybu */}
             <Button variant="outline" size="sm" onClick={onAssignRandom} disabled={busy}>
               <Shuffle className="w-3.5 h-3.5" /> Losuj
             </Button>
             {(teamA.length > 0 || teamB.length > 0) && (
               <Button variant="outline" size="sm" onClick={onClearTeams} disabled={busy}>
                 <X className="w-3.5 h-3.5" /> Wyczyść
+              </Button>
+            )}
+            {!teamsPublished && onPublishTeams && (
+              <Button size="sm" onClick={onPublishTeams} disabled={busy}>
+                <Eye className="w-3.5 h-3.5" /> Opublikuj
+              </Button>
+            )}
+            {teamsPublished && onUnpublishTeams && (
+              <Button variant="outline" size="sm" onClick={onUnpublishTeams} disabled={busy}>
+                <EyeOff className="w-3.5 h-3.5" /> Ukryj
               </Button>
             )}
           </div>

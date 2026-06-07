@@ -35,6 +35,7 @@ function toEvent(row: any): EventItem {
     trackResults: row.track_results ?? false,
     confirmationDeadlineH: row.confirmation_deadline_h ?? 24,
     costGrosze: row.cost_grosz ?? 0,
+    teamsPublished: row.teams_published ?? false,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,

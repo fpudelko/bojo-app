@@ -28,6 +28,7 @@ import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
   sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
+  publishTeams, unpublishTeams,
   TEAM_MODE_LABELS,
 } from '@/lib/eventFeatures';
 import type {
@@ -322,6 +323,28 @@ export default function EventDetailPage() {
       await restoreEvent(event.id, user?.id, displayName(user ?? null));
       await load();
       toast('Mecz przywrócony');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handlePublishTeams = async () => {
+    setBusy(true);
+    try {
+      await publishTeams(event.id);
+      await load();
+      toast('Składy opublikowane — uczestnicy mogą je teraz zobaczyć');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleUnpublishTeams = async () => {
+    setBusy(true);
+    try {
+      await unpublishTeams(event.id);
+      await load();
+      toast('Składy ukryte');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -689,29 +712,32 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* DB-persisted teams (when teamMode !== 'brak') — uses drag & drop */}
-        {showTeams && (
+        {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
+        {showTeams && (isOrganizer || event.teamsPublished) && (
           <TeamsPanel
             teamMode={event.teamMode}
             teamA={teamA}
             teamB={teamB}
             unassigned={unassigned}
             isOrganizer={isOrganizer}
+            teamsPublished={event.teamsPublished}
             busy={busy}
             onAssignTeam={handleAssignTeam}
             onAssignRandom={handleAssignRandom}
             onClearTeams={handleClearTeams}
             onToggleCaptain={handleToggleCaptain}
+            onPublishTeams={handlePublishTeams}
+            onUnpublishTeams={handleUnpublishTeams}
           />
         )}
 
-        {/* Quick shuffle (teamMode === 'brak') — available to all, results shown client-side only */}
-        {!showTeams && regulars.length >= 2 && (
+        {/* Quick shuffle (teamMode === 'brak') — organizer only, client-side */}
+        {!showTeams && isOrganizer && regulars.length >= 2 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Shuffle className="w-4 h-4" /> Losuj składy
-                <span className="text-xs font-normal text-gray-400">(tylko lokalnie, nie zapisuje)</span>
+                <span className="text-xs font-normal text-gray-400">tylko dla Ciebie</span>
               </h2>
               <Button variant="outline" onClick={() => setLocalTeams(splitTeams(regulars))} disabled={busy}>
                 {localTeams ? 'Losuj ponownie' : 'Losuj składy'}
