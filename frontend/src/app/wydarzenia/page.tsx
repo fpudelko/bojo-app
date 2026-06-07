@@ -62,7 +62,11 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
       <Card className="hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 border-slate-200/80" padding="md">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl" role="img">
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl"
+              role="img"
+              aria-label={event.sport}
+            >
               {sportEmoji(event.sport)}
             </span>
             <div className="min-w-0">
@@ -240,6 +244,7 @@ export default function EventsPage() {
         {districtOptions.length > 0 && (
           <div className="mb-4">
             <select
+              aria-label="Filtruj po dzielnicy"
               value={districtFilter}
               onChange={(e) => setDistrictFilter(e.target.value)}
               className="w-full px-3 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-600"
@@ -293,6 +298,7 @@ export default function EventsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
+                aria-label="Adres do wyszukania pobliskich wydarzeń"
                 value={addressInput}
                 onChange={(e) => handleAddressChange(e.target.value)}
                 placeholder="np. ul. Dąbrowskiego 7, Poznań"

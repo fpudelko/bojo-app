@@ -52,7 +52,8 @@ export default function SportsSectionWithCounts() {
               <Link
                 key={sport}
                 href={`/wydarzenia?sport=${encodeURIComponent(sport)}`}
-                className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                aria-label={`${sportLabel(sport)} — ${count >= MIN_COUNT_TO_SHOW ? `${count} gier w ten weekend` : "znajdź mecz"}`}
+                className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 transition-colors"
               >
                 <span role="img" aria-hidden>{sportEmoji(sport)}</span>
                 <span>{sportLabel(sport)}</span>

@@ -11,7 +11,7 @@ import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';
 import Countdown from '@/components/tournament/Countdown';
 import { useAuth } from '@/lib/auth';
-import { getActiveTournament, getTeams, getVenues, getTeamCount } from '@/lib/tournaments';
+import { getActiveTournament, getTeams, getVenues } from '@/lib/tournaments';
 import { STATUS_LABELS } from '@/lib/tournamentLabels';
 import type { Tournament, TournamentTeam, TournamentVenue } from '@/types';
 
@@ -26,8 +26,8 @@ const DEFAULTS = {
   maxTeams: 32,
   groupSize: 3,
   advancePerGroup: 2,
-  minSquad: 5,
-  maxSquad: 10,
+  minSquad: 7,
+  maxSquad: 12,
   // ~3 tygodnie od „dziś" jako placeholder deadline'u rejestracji
   registrationDeadline: new Date(Date.now() + 21 * 86_400_000).toISOString(),
 };
@@ -35,7 +35,7 @@ const DEFAULTS = {
 const FAQ: { q: string; a: string }[] = [
   {
     q: 'Ile osób musi liczyć drużyna?',
-    a: 'Minimum 5 zawodników (gramy na orlikach 5v5), maksymalnie 10 na liście — 5 w podstawie plus rezerwowi. Skład zamykasz przed pierwszym meczem fazy grupowej.',
+    a: 'Minimum 7 zawodników — to pełny skład na orliku z rezerwowymi. Na pojedynczy mecz możecie dostawić maksymalnie 2 osoby spoza zgłoszonej listy.',
   },
   {
     q: 'Ile meczów zagramy?',
@@ -61,7 +61,7 @@ const FAQ: { q: string; a: string }[] = [
 
 const RULES: { title: string; body: string }[] = [
   { title: 'Format', body: 'Faza grupowa (grupy po 3 drużyny, awansuje 2) → drabinka pucharowa → Finals Day. Format skaluje się od 16 do 64 drużyn.' },
-  { title: 'Skład', body: 'Od 5 do 10 zawodników z przypisanymi pozycjami. Rezerwowych można zmieniać do końca fazy grupowej.' },
+  { title: 'Skład', body: 'Minimum 7 zawodników z przypisanymi pozycjami. Na mecz można dostawić maksymalnie 2 graczy spoza listy. Każdy zawodnik dołącza przez własne konto BOJO.' },
   { title: 'Terminy', body: 'Każda kolejka trwa tydzień. Drużyny umawiają mecz między sobą w tym oknie. Po deadline — walkower.' },
   { title: 'Wyniki', body: 'Kapitan zgłasza wynik, rywal potwierdza w 12h. Brak potwierdzenia = wynik zatwierdzony automatycznie.' },
   { title: 'Spory', body: 'Rozstrzyga organizator na podstawie zgłoszeń i ewentualnego nagrania. Decyzja jest ostateczna.' },
@@ -118,37 +118,26 @@ export default function TournamentLandingPage() {
   const [t, setT] = useState<Tournament | null>(null);
   const [teams, setTeams] = useState<TournamentTeam[]>([]);
   const [venues, setVenues] = useState<TournamentVenue[]>([]);
-  const [count, setCount] = useState(0);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getActiveTournament().then(async (tour) => {
       setT(tour);
       if (tour) {
-        const [tm, vn, c] = await Promise.all([
-          getTeams(tour.id),
-          getVenues(tour.id),
-          getTeamCount(tour.id),
-        ]);
+        const [tm, vn] = await Promise.all([getTeams(tour.id), getVenues(tour.id)]);
         setTeams(tm);
         setVenues(vn);
-        setCount(c);
       }
-      setLoaded(true);
     });
   }, []);
 
   const name = t?.name ?? DEFAULTS.name;
   const tagline = t?.tagline ?? DEFAULTS.tagline;
   const city = t?.city ?? DEFAULTS.city;
-  const maxTeams = t?.maxTeams ?? DEFAULTS.maxTeams;
   const groupSize = t?.groupSize ?? DEFAULTS.groupSize;
   const advance = t?.advancePerGroup ?? DEFAULTS.advancePerGroup;
   const minSquad = t?.minSquad ?? DEFAULTS.minSquad;
   const maxSquad = t?.maxSquad ?? DEFAULTS.maxSquad;
   const deadline = t?.registrationDeadline ?? DEFAULTS.registrationDeadline;
-  const spotsLeft = Math.max(0, maxTeams - count);
-  const pct = Math.min(100, Math.round((count / maxTeams) * 100));
   const isOpen = !t || t.status === 'draft' || t.status === 'registration';
 
   return (
@@ -157,7 +146,7 @@ export default function TournamentLandingPage() {
 
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <div className="hero-surface relative overflow-hidden">
-        <div className="hero-dots absolute inset-0" aria-hidden />
+        <div className="hero-dots absolute inset-0 pointer-events-none" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-accent-400" />
@@ -195,12 +184,12 @@ export default function TournamentLandingPage() {
             </Link>
           </div>
 
-          {/* Live stats */}
+          {/* Format highlights (bez liczby zapisanych drużyn) */}
           <div className="mt-10 grid max-w-lg grid-cols-3 gap-3">
             {[
-              { icon: Users, value: loaded ? `${count}/${maxTeams}` : `—/${maxTeams}`, label: 'drużyn' },
-              { icon: Goal, value: `${minSquad}–${maxSquad}`, label: 'zawodników' },
-              { icon: Flame, value: `${groupSize}→${advance}`, label: 'awans z grupy' },
+              { icon: Goal, value: `${minSquad}+`, label: 'zawodników' },
+              { icon: Users, value: `${groupSize}→${advance}`, label: 'awans z grupy' },
+              { icon: Flame, value: 'Finals Day', label: 'wielki finał' },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="rounded-2xl bg-white/5 px-4 py-3.5 backdrop-blur ring-1 ring-white/10">
                 <Icon className="h-5 w-5 text-accent-400" />
@@ -208,16 +197,6 @@ export default function TournamentLandingPage() {
                 <p className="text-xs text-white/60">{label}</p>
               </div>
             ))}
-          </div>
-
-          {/* Fill bar */}
-          <div className="mt-6 max-w-lg">
-            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-accent-500 transition-all duration-700" style={{ width: `${pct}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-white/60">
-              {spotsLeft > 0 ? `Zostało ${spotsLeft} miejsc` : 'Komplet drużyn — dołącz do listy rezerwowej'}
-            </p>
           </div>
         </div>
       </div>
@@ -240,6 +219,12 @@ export default function TournamentLandingPage() {
             </div>
           ))}
         </div>
+
+        <p className="mt-6 flex items-start gap-2 rounded-2xl bg-primary-50 px-4 py-3 text-sm text-primary-800">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent-600" />
+          Format dopasujemy do frekwencji — przy bardzo dużym zainteresowaniu zwiększymy
+          liczbę drużyn, a przy mniejszym zagramy w kameralnym składzie 16 ekip.
+        </p>
       </Section>
 
       {/* ── DLACZEGO WARTO ─────────────────────────────────────────────── */}
@@ -263,7 +248,7 @@ export default function TournamentLandingPage() {
       </div>
 
       {/* ── ZAREJESTROWANE DRUŻYNY ─────────────────────────────────────── */}
-      <Section id="druzyny" eyebrow="Stawka" title={`Zgłoszone drużyny${loaded ? ` (${count})` : ''}`}>
+      <Section id="druzyny" eyebrow="Stawka" title="Zgłoszone drużyny">
         {teams.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <Trophy className="mx-auto h-10 w-10 text-slate-300" />
@@ -387,7 +372,7 @@ export default function TournamentLandingPage() {
 
       {/* ── FINAL CTA ──────────────────────────────────────────────────── */}
       <div className="hero-surface relative overflow-hidden">
-        <div className="hero-dots absolute inset-0" aria-hidden />
+        <div className="hero-dots absolute inset-0 pointer-events-none" aria-hidden />
         <div className="relative mx-auto max-w-4xl px-4 py-20 text-center">
           <h2 className="font-display text-3xl font-extrabold text-white sm:text-4xl">
             Gotowi na pierwszy gwizdek?

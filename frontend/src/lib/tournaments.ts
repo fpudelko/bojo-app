@@ -9,6 +9,7 @@ import type {
   TournamentVenue,
   TournamentVenueSlot,
   PlayerPosition,
+  TeamStatus,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -194,10 +195,17 @@ export async function getTeamCount(tournamentId: string): Promise<number> {
 // Teams + squad
 // ---------------------------------------------------------------------------
 
+// Public-safe columns: captain_phone / captain_email are RODO-restricted at the
+// DB level (migration 030), so we must NOT select '*' — list columns explicitly.
+const TEAM_COLS =
+  'id,tournament_id,name,district,captain_id,captain_name,status,paid_at,' +
+  'group_id,seed,availability_days,availability_from,availability_to,' +
+  'finals_confirmed,created_at';
+
 export async function getTeams(tournamentId: string): Promise<TournamentTeam[]> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('tournament_id', tournamentId)
     .neq('status', 'withdrawn')
     .order('created_at', { ascending: true });
@@ -207,7 +215,7 @@ export async function getTeams(tournamentId: string): Promise<TournamentTeam[]> 
 export async function getTeam(teamId: string): Promise<TournamentTeam | null> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('id', teamId)
     .maybeSingle();
   return data ? toTeam(data) : null;
@@ -217,7 +225,7 @@ export async function getTeam(teamId: string): Promise<TournamentTeam | null> {
 export async function getMyTeam(tournamentId: string, userId: string): Promise<TournamentTeam | null> {
   const { data } = await supabase
     .from('tournament_teams')
-    .select('*, tournament_team_members(*)')
+    .select(`${TEAM_COLS}, tournament_team_members(*)`)
     .eq('tournament_id', tournamentId)
     .eq('captain_id', userId)
     .maybeSingle();
@@ -245,7 +253,7 @@ export interface TeamRegistration {
   squad: SquadMemberInput[];
 }
 
-/** Register a team + its squad. Returns the created team id. */
+/** Register a team. The captain is auto-added as the first member. Returns the team id. */
 export async function registerTeam(
   tournamentId: string,
   captainId: string,
@@ -271,21 +279,47 @@ export async function registerTeam(
   if (error) throw error;
 
   const teamId = team.id as string;
-  const rows = reg.squad
-    .filter((m) => m.name.trim())
-    .map((m) => ({
-      team_id: teamId,
-      name: m.name.trim(),
-      position: m.position,
-      shirt_number: m.shirtNumber ?? null,
-      is_captain: m.isCaptain ?? false,
-      is_reserve: m.isReserve ?? false,
-    }));
-  if (rows.length) {
-    const { error: mErr } = await supabase.from('tournament_team_members').insert(rows);
-    if (mErr) throw mErr;
-  }
+
+  // Captain is always the first member — no manual entry needed.
+  await supabase.from('tournament_team_members').insert({
+    team_id: teamId,
+    user_id: captainId,
+    name: reg.captainName.trim(),
+    position: 'pomocnik',
+    is_captain: true,
+    is_reserve: false,
+  });
+
   return teamId;
+}
+
+/** Join an existing team as a player (called from the invite link page). */
+export async function joinTeam(
+  teamId: string,
+  userId: string,
+  name: string,
+  position: PlayerPosition,
+  shirtNumber?: number,
+): Promise<void> {
+  // Prevent duplicate membership.
+  const { data: existing } = await supabase
+    .from('tournament_team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (existing) throw new Error('Jesteś już w tej drużynie.');
+
+  const { error } = await supabase.from('tournament_team_members').insert({
+    team_id: teamId,
+    user_id: userId,
+    name: name.trim(),
+    position,
+    shirt_number: shirtNumber ?? null,
+    is_captain: false,
+    is_reserve: false,
+  });
+  if (error) throw error;
 }
 
 export async function withdrawTeam(teamId: string): Promise<void> {

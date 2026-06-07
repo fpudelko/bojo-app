@@ -73,7 +73,7 @@ const USE_CASE_GROUPS: UseCaseGroup[] = [
         chips: [
           { icon: Calendar, label: 'Otwarte mecze' },
           { icon: Navigation, label: 'Blisko ciebie' },
-          { icon: UserCheck, label: 'Bez rejestracji' },
+          { icon: UserCheck, label: 'Dołącz w 1 klik' },
         ],
         cta: 'Znajdź grę',
         href: '/wydarzenia',
@@ -98,8 +98,15 @@ const USE_CASE_GROUPS: UseCaseGroup[] = [
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[2000] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-700 focus:shadow-lg focus:ring-2 focus:ring-primary-600"
+      >
+        Przejdź do treści
+      </a>
       <Header />
 
+      <main id="main" className="flex-1">
       {/* Hero — personalized for logged-in users, marketing for visitors */}
       <HomeHero />
 
@@ -257,6 +264,31 @@ export default function HomePage() {
       {/* Sports with live counts */}
       <SportsSectionWithCounts />
 
+      {/* Tournament acquisition banner */}
+      <section className="px-4 pt-8">
+        <div className="mx-auto max-w-5xl rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100/60 p-6 sm:p-8">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-800">
+                Nowość · zapisy otwarte
+              </div>
+              <h2 className="font-display text-xl font-bold text-ink sm:text-2xl">
+                Turniej startowy Bojo
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Zgłoś drużynę, rozdaj link — reszta ekipy dołącza w aplikacji. Poznań, najbliższe weekendy.
+              </p>
+            </div>
+            <Link
+              href="/turniej"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-[#1A1D21] shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2"
+            >
+              Zapisz się <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Closing CTA */}
       <section className="hero-surface relative overflow-hidden px-4 py-24 text-center text-white">
         <div className="hero-dots absolute inset-0" aria-hidden="true" />
@@ -282,12 +314,14 @@ export default function HomePage() {
                 size="lg"
                 className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
               >
-                Szukam ludzi do gry
+                Zorganizuj mecz
               </Button>
             </Link>
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 px-4 py-10 text-slate-400">
@@ -295,7 +329,7 @@ export default function HomePage() {
           <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
             <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź grę</Link>
-            <Link href="/wydarzenie/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
+            <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
             <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
             <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
             <span className="hidden text-slate-600 md:inline">·</span>

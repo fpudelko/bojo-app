@@ -41,7 +41,7 @@ function MarketingHero() {
           className="mx-auto mt-6 max-w-xl animate-fade-up text-lg font-medium text-white/80 sm:text-xl"
           style={{ animationDelay: '160ms' }}
         >
-          Boiska, mecze i gracze w Poznaniu i okolicach.
+          Otwarte mecze blisko ciebie, jeden link do zapisów, składy bez ganiania ludzi po grupach. Piłka, koszykówka, siatkówka i więcej — w Poznaniu i okolicach.
         </p>
 
         <div
@@ -62,7 +62,7 @@ function MarketingHero() {
               size="lg"
               className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
             >
-              Szukam ludzi do gry
+              Zorganizuj mecz
             </Button>
           </Link>
         </div>

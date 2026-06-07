@@ -32,7 +32,11 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
           ? 'border-red-100 opacity-60'
           : 'border-slate-200/80 shadow-card hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover',
       ].join(' ')}>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl" role="img">
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl"
+          role="img"
+          aria-label={event.sport}
+        >
           {sportEmoji(event.sport)}
         </span>
         <div className="flex-1 min-w-0">
