@@ -276,7 +276,7 @@ export default function HomePage() {
                 Turniej startowy Bojo
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Zbierz ekipę albo zapisz się solo — dograjemy cię do drużyny. Poznań, najbliższe weekendy.
+                Zgłoś drużynę, rozdaj link — reszta ekipy dołącza w aplikacji. Poznań, najbliższe weekendy.
               </p>
             </div>
             <Link
