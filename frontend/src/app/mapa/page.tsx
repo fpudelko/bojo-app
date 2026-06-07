@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Search, Target, Sun, Disc, Circle, Dumbbell, Star, MapPin, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -38,8 +38,22 @@ export default function MapaPage() {
   const [district, setDistrict] = useState('');
   const [dataKeys, setDataKeys] = useState<DataKey[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'weekend'>('all');
 
   const onDistrictsLoaded = useCallback((d: string[]) => setDistricts(d), []);
+
+  const { dateFrom, dateTo } = useMemo(() => {
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    const today = new Date();
+    if (dateFilter === 'today') return { dateFrom: fmt(today), dateTo: fmt(today) };
+    if (dateFilter === 'weekend') {
+      const day = today.getDay();
+      const sat = new Date(today); sat.setDate(today.getDate() + ((6 - day + 7) % 7 || 7));
+      const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
+      return { dateFrom: fmt(sat), dateTo: fmt(sun) };
+    }
+    return { dateFrom: undefined, dateTo: undefined };
+  }, [dateFilter]);
 
   function toggleSport(value: string) {
     setActiveSports((prev) =>
@@ -110,7 +124,6 @@ export default function MapaPage() {
           </div>
           {/* Data filters (multi-select) */}
           <div className="flex items-center gap-1.5 overflow-x-auto">
-            <span className="text-xs text-slate-400 shrink-0">Z danymi:</span>
             {PUBLIC_DATA_FILTERS.map(({ key, label }) => {
               const active = dataKeys.includes(key);
               return (
@@ -166,9 +179,28 @@ export default function MapaPage() {
           );
         })}
 
+        {mapTab === 'mecze' && (
+          <div className="shrink-0 flex items-center gap-1 ml-2 pl-3 border-l border-slate-200">
+            {(['all', 'today', 'weekend'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setDateFilter(v)}
+                className={[
+                  'shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap',
+                  dateFilter === v
+                    ? 'bg-primary-700 text-white border-primary-700'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
+                ].join(' ')}
+              >
+                {v === 'all' ? 'Wszystkie' : v === 'today' ? 'Dziś' : 'Ten weekend'}
+              </button>
+            ))}
+          </div>
+        )}
+
         {mapTab === 'boiska' && (
           <div className="shrink-0 flex items-center gap-2 ml-2 pl-3 border-l border-slate-200">
-            <span className="text-sm text-slate-600 whitespace-nowrap">Dostępne</span>
+            <span className="text-sm text-slate-600 whitespace-nowrap">Wolne boiska</span>
             <button
               onClick={() => setOnlyAvailable(!onlyAvailable)}
               aria-pressed={onlyAvailable}
@@ -223,6 +255,8 @@ export default function MapaPage() {
         ) : (
           <EventsMapView
             sports={activeSports.length > 0 ? activeSports : undefined}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
           />
         )}
       </main>

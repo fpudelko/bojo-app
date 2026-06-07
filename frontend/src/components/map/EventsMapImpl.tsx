@@ -75,9 +75,11 @@ function EventMarkers({ events }: { events: EventItem[] }) {
 export interface EventsMapImplProps {
   className?: string;
   sports?: string[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export default function EventsMapImpl({ className, sports }: EventsMapImplProps) {
+export default function EventsMapImpl({ className, sports, dateFrom, dateTo }: EventsMapImplProps) {
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,9 +89,12 @@ export default function EventsMapImpl({ className, sports }: EventsMapImplProps)
       .catch(() => setError('Nie udało się załadować wydarzeń'));
   }, []);
 
-  const displayed = sports && sports.length > 0
-    ? allEvents.filter((e) => sports.includes(e.sport))
-    : allEvents;
+  const displayed = allEvents.filter((e) => {
+    if (sports && sports.length > 0 && !sports.includes(e.sport)) return false;
+    if (dateFrom && e.date < dateFrom) return false;
+    if (dateTo && e.date > dateTo) return false;
+    return true;
+  });
 
   return (
     <div className={['w-full h-full min-h-[400px] relative', className ?? ''].join(' ')}>

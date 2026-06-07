@@ -6,6 +6,8 @@ import { MapPin } from 'lucide-react';
 export interface EventsMapViewProps {
   className?: string;
   sports?: string[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 const EventsMapImpl = dynamic(() => import('./EventsMapImpl'), {

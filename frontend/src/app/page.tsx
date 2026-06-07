@@ -81,14 +81,14 @@ const USE_CASE_GROUPS: UseCaseGroup[] = [
       {
         icon: UserPlus,
         tone: 'amber',
-        eyebrow: 'Dograj skład',
-        description: 'Otwórz wolne miejsca w swoim meczu, a gracze z okolicy dograją się sami.',
+        eyebrow: 'Uzupełnij skład',
+        description: 'Masz grę, ale brakuje kilku osób? Otwórz wolne miejsca — zapiszą się chętni z okolicy.',
         chips: [
           { icon: Zap, label: 'Szybkie ogłoszenie' },
           { icon: Users, label: 'Wolne miejsca' },
-          { icon: MapPin, label: 'Gracze z okolicy' },
+          { icon: MapPin, label: 'Chętni z okolicy' },
         ],
-        cta: 'Ogłoś wolne miejsca',
+        cta: 'Ogłoś miejsca',
         href: '/wydarzenia/nowe',
       },
     ],
@@ -134,7 +134,7 @@ export default function HomePage() {
             {
               n: '02',
               title: 'Rozdaj jeden link',
-              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a wolne miejsca dograją gracze z okolicy.',
+              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a na wolne miejsca znajdą się chętni z okolicy.',
             },
             {
               n: '03',
@@ -290,31 +290,19 @@ export default function HomePage() {
       </section>
 
       {/* Closing CTA */}
-      <section className="hero-surface relative overflow-hidden px-4 py-24 text-center text-white">
+      <section className="hero-surface relative overflow-hidden px-4 py-20 text-center text-white">
         <div className="hero-dots absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto max-w-2xl">
-          <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
-            Zbierz skład. Zagraj dziś.
+        <div className="relative mx-auto max-w-xl">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Następna gierka jest blisko.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-white/75">
-            Boiska, mecze i gracze w Poznaniu i okolicach.
-          </p>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-8">
             <Link href="/wydarzenia">
               <Button
                 size="lg"
-                className="w-full sm:w-auto bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg"
+                className="bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg"
               >
-                Dołącz do gry <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/wydarzenia/nowe">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto"
-              >
-                Zorganizuj mecz
+                Znajdź mecz w okolicy <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>

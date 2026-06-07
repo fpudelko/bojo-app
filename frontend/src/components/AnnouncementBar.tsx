@@ -31,7 +31,7 @@ export default function AnnouncementBar() {
   }
 
   return (
-    <div className="relative z-[1011] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-amber-950">
+    <div className="relative bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-amber-950">
       <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 text-sm font-medium">
         <Trophy className="w-4 h-4 shrink-0" aria-hidden="true" />
         <p className="flex-1 truncate">

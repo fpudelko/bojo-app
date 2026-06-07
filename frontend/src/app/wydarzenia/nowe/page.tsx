@@ -97,16 +97,16 @@ function NewEventForm() {
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-ink">
-            Zorganizuj mecz w 60 sekund
+            Zorganizuj mecz
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Wybierz boisko, ustaw termin i wyślij jeden link. Reszta robi się sama.
+            Wybierz boisko, ustaw termin i wrzuć link na grupę.
           </p>
 
           <ul className="mt-5 grid gap-2 text-sm text-slate-700">
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Lista zapisów aktualizuje się na żywo</li>
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Przypomnienia o meczu dla wszystkich uczestników</li>
-            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Wolne miejsca dograją gracze z okolicy</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Brakujące miejsca? Zapiszą się chętni z okolicy.</li>
           </ul>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
@@ -117,7 +117,7 @@ function NewEventForm() {
               <div className="min-w-0">
                 <p className="font-semibold text-ink">Zaloguj się, żeby opublikować mecz</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Konto Google wystarczy — 10 sekund, bez weryfikacji mailowej.
+                  Logujesz się przez Google — bez rejestracji.
                 </p>
               </div>
             </div>
@@ -128,14 +128,11 @@ function NewEventForm() {
             >
               Zaloguj się i kontynuuj
             </Button>
-            <p className="mt-3 text-center text-xs text-slate-400">
-              Wracasz tu od razu po zalogowaniu — nic nie tracisz.
-            </p>
           </div>
 
-          {/* Preview kreatora pod blurem — pokazuje co user dostanie */}
+          {/* Preview kreatora pod blurem */}
           <div className="relative mt-8 rounded-2xl border border-slate-200 bg-white overflow-hidden select-none pointer-events-none" aria-hidden="true">
-            <div className="p-5 space-y-4 blur-[3px] opacity-70">
+            <div className="p-5 space-y-4 blur-[1.5px] opacity-75">
               <div className="h-8 w-32 rounded bg-slate-200" />
               <div className="grid grid-cols-5 gap-2">
                 {[1,2,3,4,5].map(i => <div key={i} className="h-10 rounded-lg bg-slate-100" />)}
