@@ -212,6 +212,7 @@ export default function Header() {
               onClick={() => setMobileOpen((o) => !o)}
               aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
               aria-expanded={mobileOpen}
+              aria-controls="mobile-nav"
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -221,7 +222,7 @@ export default function Header() {
 
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
-        <div ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
+        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-5 pt-5 pb-4" aria-label="Nawigacja mobilna">
 
             {/* Primary actions — player vs organizer */}
