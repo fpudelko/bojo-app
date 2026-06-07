@@ -60,7 +60,10 @@ export default function TeamRegistrationPage() {
   }
 
   async function submit() {
-    if (!user || !t) return;
+    if (!user || !t) {
+      toast('Turniej niedostępny — odśwież stronę i spróbuj ponownie.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const teamId = await registerTeam(t.id, user.id, {
@@ -125,6 +128,15 @@ export default function TeamRegistrationPage() {
       body="W tej edycji możesz prowadzić jedną drużynę jako kapitan."
       cta="Przejdź do drużyny"
       href={`/turniej/druzyna/${alreadyTeamId}`}
+    />;
+  }
+
+  if (!t) {
+    return <Guard
+      title="Zapisy są chwilowo niedostępne"
+      body="Turniej jest w przygotowaniu lub zapisy zostały zamknięte. Sprawdź stronę turnieju."
+      cta="Wróć do turnieju"
+      href="/turniej"
     />;
   }
 
