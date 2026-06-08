@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ChevronDown, Navigation, Check, BookOpen, CircleDot } from 'lucide-react';
+import { ChevronDown, Navigation, Check, BookOpen, CalendarCheck } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -27,9 +28,7 @@ const SPORT_OPTIONS = [
   { value: 'koszykówka', label: 'Koszykówka', emoji: '🏀' },
 ];
 
-// Morton (Z-order) key — interleaves quantised lat/lng bits so that
-// sorting by this key preserves geographic locality.  Adjacent entries
-// in a Morton-sorted list are always physically close on the map.
+// Morton (Z-order) key — adjacent items in sorted list are geographically close
 function mortonKey(lat: number, lng: number): number {
   const x = Math.max(0, Math.round((lng - 16.5) * 1000)) & 0xffff;
   const y = Math.max(0, Math.round((lat - 52.0) * 1000)) & 0xffff;
@@ -41,7 +40,6 @@ function mortonKey(lat: number, lng: number): number {
   return key;
 }
 
-// Polish plural for "gra / gry / gier"
 function gamesWord(n: number): string {
   if (n === 1) return 'gra';
   const mod10 = n % 10;
@@ -51,8 +49,7 @@ function gamesWord(n: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// MapLayer — markers + pan/fly on selection change
-// lives inside <MapContainer> so it can call useMap()
+// MapLayer
 // ---------------------------------------------------------------------------
 function MapLayer({
   fields,
@@ -70,7 +67,6 @@ function MapLayer({
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
-  // (Re)build markers whenever the field set changes
   useEffect(() => {
     const layer = L.layerGroup();
     const markers: Record<string, L.Marker> = {};
@@ -82,14 +78,10 @@ function MapLayer({
     }
     markersRef.current = markers;
     layer.addTo(map);
-    return () => {
-      layer.remove();
-      markersRef.current = {};
-    };
+    return () => { layer.remove(); markersRef.current = {}; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, map]);
 
-  // Highlight the selected pin
   useEffect(() => {
     for (const [id, m] of Object.entries(markersRef.current)) {
       const f = fields.find((x) => x.id === id);
@@ -97,12 +89,11 @@ function MapLayer({
     }
   }, [selectedId, fields]);
 
-  // Pan/fly on selection change — but only pan (no zoom) when triggered by carousel scroll
   useEffect(() => {
     if (!selectedId) return;
     const f = fields.find((x) => x.id === selectedId);
     if (!f) return;
-    map.stop(); // cancel any in-flight animation first
+    map.stop();
     if (selectedSource === 'scroll') {
       map.panTo([f.lat, f.lng], { animate: true, duration: 0.3 });
     } else {
@@ -114,7 +105,8 @@ function MapLayer({
 }
 
 // ---------------------------------------------------------------------------
-// PillDropdown
+// PillDropdown — uses a fixed-position portal so overflow-x-auto on the
+// pill bar never clips the dropdown panel
 // ---------------------------------------------------------------------------
 function PillDropdown({
   label,
@@ -126,21 +118,51 @@ function PillDropdown({
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left });
+    }
+    setOpen((o) => !o);
+  }
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        btnRef.current && btnRef.current.contains(e.target as Node)
+      ) return;
+      if (
+        panelRef.current && panelRef.current.contains(e.target as Node)
+      ) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const panel = open && mounted ? createPortal(
+    <div
+      ref={panelRef}
+      style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+      className="min-w-[200px] overflow-hidden rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
+    >
+      {children(() => setOpen(false))}
+    </div>,
+    document.body,
+  ) : null;
+
   return (
-    <div className="relative shrink-0" ref={ref}>
+    <div className="shrink-0">
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={toggle}
         className={[
           'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
           active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
@@ -149,25 +171,23 @@ function PillDropdown({
         {label}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-[1200] mt-2 min-w-[200px] overflow-hidden rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl">
-          {children(() => setOpen(false))}
-        </div>
-      )}
+      {panel}
     </div>
   );
 }
 
-// Toggle pill (for boolean filters)
+// Toggle pill (no dropdown)
 function TogglePill({
   label,
   icon,
   active,
+  loading,
   onClick,
 }: {
   label: string;
   icon: React.ReactNode;
   active: boolean;
+  loading?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -178,7 +198,7 @@ function TogglePill({
         active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
       ].join(' ')}
     >
-      {icon}
+      <span className={loading ? 'animate-pulse' : ''}>{icon}</span>
       {label}
     </button>
   );
@@ -187,46 +207,40 @@ function TogglePill({
 // ---------------------------------------------------------------------------
 // VenueCard
 // ---------------------------------------------------------------------------
-function VenueCard({ field, games }: { field: Field; games: number }) {
+function VenueCard({ field, games, hasGameToday }: { field: Field; games: number; hasGameToday: boolean }) {
   const thumb = field.imageUrl || venueThumbnail(field.lat, field.lng, 320, 320, 16);
   const slug = slugify(field.name);
 
   return (
     <div className="flex h-full w-full gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)]">
       <div className="relative h-[112px] w-[112px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
-        {thumb && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="h-full w-full object-cover" />
-        )}
+        {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="font-display text-lg font-bold leading-tight text-primary-700 line-clamp-2">
           {field.name}
         </p>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-          <span className="text-slate-400">👥</span>
+          <span>👥</span>
           {games > 0 ? `${games} ${gamesWord(games)} w tym tygodniu` : 'Brak gier w tym tygodniu'}
         </p>
-        {(field.bookingEnabled || field.available) && (
-          <div className="mt-1 flex items-center gap-1.5">
-            {field.bookingEnabled && (
-              <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
-                Rezerwacja online
-              </span>
-            )}
-            {field.available && (
-              <span className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
-                Wolne
-              </span>
-            )}
-          </div>
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {hasGameToday && (
+            <span className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
+              📅 Gra dziś
+            </span>
+          )}
+          {field.bookingEnabled && (
+            <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
+              Rezerwacja online
+            </span>
+          )}
+        </div>
         <Link
           href={`/boisko/${slug}`}
           className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-800"
         >
-          Zobacz boisko
-          <span aria-hidden="true">›</span>
+          Zobacz boisko <span aria-hidden="true">›</span>
         </Link>
       </div>
     </div>
@@ -246,14 +260,12 @@ export default function VenueExplorer({
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events, setEvents] = useState<EventItem[]>(initialEvents ?? []);
 
-  // Filters
   const [sport, setSport] = useState('');
   const [onlyBookable, setOnlyBookable] = useState(false);
-  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [onlyGamesToday, setOnlyGamesToday] = useState(false);
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
 
-  // Selection: id + source so MapLayer knows how to animate
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId = selected.id;
   const selectedSource = selected.source;
@@ -268,7 +280,6 @@ export default function VenueExplorer({
     setSelected({ id, source });
   }, []);
 
-  // Fetch fields + events once (skipped when seeded with initialFields/initialEvents)
   useEffect(() => {
     if (initialFields || initialEvents) return;
     let cancelled = false;
@@ -279,49 +290,51 @@ export default function VenueExplorer({
       .then((evs) => { if (!cancelled) setEvents(evs.filter((e) => e.status !== 'cancelled')); })
       .catch(() => {});
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Game counts for the next 7 days per field
-  const gameCounts = useMemo(() => {
-    const now = new Date(); now.setHours(0, 0, 0, 0);
-    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
-    const counts: Record<string, number> = {};
+  const today = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+  }, []);
+
+  // Precompute per-field: total games this week + whether there's a game today
+  const fieldStats = useMemo(() => {
+    const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+    const stats: Record<string, { count: number; today: boolean }> = {};
     for (const e of events) {
       if (!e.fieldId) continue;
       const d = new Date(e.date); d.setHours(0, 0, 0, 0);
-      if (d >= now && d <= weekEnd) counts[e.fieldId] = (counts[e.fieldId] ?? 0) + 1;
+      if (d < today || d > weekEnd) continue;
+      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false };
+      stats[e.fieldId].count++;
+      if (d.getTime() === today.getTime()) stats[e.fieldId].today = true;
     }
-    return counts;
-  }, [events]);
+    return stats;
+  }, [events, today]);
 
-  // Filtered + sorted field list
   const fields = useMemo(() => {
     let list = allFields;
     if (sport) list = list.filter((f) => f.sport.includes(sport));
     if (onlyBookable) list = list.filter((f) => f.bookingEnabled);
-    if (onlyAvailable) list = list.filter((f) => f.available);
+    if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     if (geo) {
-      // Distance from user — nearest first
       const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
       list = [...list].sort((a, b) => dist(a) - dist(b));
     } else {
-      // Morton (Z-order) sort: adjacent cards in the carousel are
-      // geographically close, so swiping never jumps across the city.
       list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     }
     return list;
-  }, [allFields, sport, onlyBookable, onlyAvailable, geo, gameCounts]);
+  }, [allFields, sport, onlyBookable, onlyGamesToday, geo, fieldStats]);
 
-  // Clean up stale card refs when the filtered list changes
+  // Clean stale card refs when list changes
   useEffect(() => {
-    const currentIds = new Set(fields.map((f) => f.id));
+    const ids = new Set(fields.map((f) => f.id));
     for (const id of Object.keys(cardRefs.current)) {
-      if (!currentIds.has(id)) delete cardRefs.current[id];
+      if (!ids.has(id)) delete cardRefs.current[id];
     }
   }, [fields]);
 
-  // When the filtered list changes, if selected id is no longer in it, jump to first
+  // Reset to first when filtered list no longer contains selected
   useEffect(() => {
     if (fields.length === 0) return;
     if (!selectedIdRef.current || !fields.some((f) => f.id === selectedIdRef.current)) {
@@ -329,17 +342,16 @@ export default function VenueExplorer({
     }
   }, [fields]);
 
-  // When selection comes from map click or init, scroll the carousel to center that card
+  // Scroll carousel to selected card (unless it came from scroll itself)
   useEffect(() => {
     if (!selectedId || selected.source === 'scroll') return;
     const el = cardRefs.current[selectedId];
     const c = scrollRef.current;
     if (!el || !c) return;
-    // Use scrollTo so snap doesn't fight — align the card's center with the container's center
     c.scrollTo({ left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [selectedId, selected.source]);
 
-  // Scroll handler: debounce → detect centered card → pan map (don't flyTo from scroll)
+  // Detect centred card after scroll settles
   const handleScroll = useCallback(() => {
     if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
     scrollDebounceRef.current = setTimeout(() => {
@@ -350,8 +362,7 @@ export default function VenueExplorer({
       let bestDist = Infinity;
       for (const [id, el] of Object.entries(cardRefs.current)) {
         if (!el) continue;
-        const cardCenter = el.offsetLeft + el.offsetWidth / 2;
-        const d = Math.abs(cardCenter - viewCenter);
+        const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - viewCenter);
         if (d < bestDist) { bestDist = d; best = id; }
       }
       if (best && best !== selectedIdRef.current) onSelect(best, 'scroll');
@@ -367,6 +378,7 @@ export default function VenueExplorer({
   }
 
   const sportLabel = SPORT_OPTIONS.find((o) => o.value === sport)?.label ?? 'Wszystkie sporty';
+  const CARD_W = 'min(85vw, 360px)';
 
   const street = MAPBOX_TOKEN ? (
     <TileLayer
@@ -378,81 +390,67 @@ export default function VenueExplorer({
     <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
   );
 
-  // Card width used for scroll-padding so first/last cards center correctly
-  const CARD_W = 'min(85vw, 360px)';
-
   return (
     <div className="relative flex-1 min-h-0 overflow-hidden">
       <MapContainer center={POZNAN} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
         {street}
-        <MapLayer
-          fields={fields}
-          selectedId={selectedId}
-          selectedSource={selectedSource}
-          onSelect={onSelect}
-        />
+        <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
       </MapContainer>
 
-      {/* Floating filter pills */}
+      {/* Filter pills — overflow-x-auto here; dropdowns escape via portal */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1100] px-3 pt-3">
         <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {/* Sport */}
           <PillDropdown label={sportLabel} active={!!sport}>
-            {(close) => (
-              <>
-                {SPORT_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => { setSport(o.value); close(); }}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-                  >
-                    <span className="text-base">{o.emoji}</span>
-                    <span className="flex-1 text-left">{o.label}</span>
-                    {sport === o.value && <Check className="h-4 w-4 text-primary-700" />}
-                  </button>
-                ))}
-              </>
-            )}
+            {(close) => SPORT_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => { setSport(o.value); close(); }}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
+              >
+                <span className="text-base">{o.emoji}</span>
+                <span className="flex-1 text-left">{o.label}</span>
+                {sport === o.value && <Check className="h-4 w-4 text-primary-700" />}
+              </button>
+            ))}
           </PillDropdown>
 
-          {/* Rezerwacja online */}
           <TogglePill
             label="Rezerwacja"
-            icon={<BookOpen className={`h-3.5 w-3.5 shrink-0 ${onlyBookable ? 'text-white' : 'text-blue-500'}`} />}
+            icon={<BookOpen className="h-3.5 w-3.5 shrink-0" />}
             active={onlyBookable}
             onClick={() => setOnlyBookable((v) => !v)}
           />
 
-          {/* Wolne boiska */}
           <TogglePill
-            label="Wolne"
-            icon={<CircleDot className={`h-3.5 w-3.5 shrink-0 ${onlyAvailable ? 'text-white' : 'text-green-600'}`} />}
-            active={onlyAvailable}
-            onClick={() => setOnlyAvailable((v) => !v)}
+            label="Gry dziś"
+            icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
+            active={onlyGamesToday}
+            onClick={() => setOnlyGamesToday((v) => !v)}
           />
 
-          {/* Blisko mnie */}
           <TogglePill
             label="Blisko mnie"
-            icon={<Navigation className={`h-3.5 w-3.5 shrink-0 ${geoLoading ? 'animate-pulse' : ''}`} />}
+            icon={<Navigation className="h-3.5 w-3.5 shrink-0" />}
             active={!!geo}
+            loading={geoLoading}
             onClick={handleGeo}
           />
         </div>
       </div>
 
-      {/* Bottom carousel — scroll-padding makes first/last cards center properly */}
+      {/* Carousel */}
       {fields.length > 0 && (
         <div className="absolute inset-x-0 bottom-0 z-[1100] pb-4">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            style={{ scrollPaddingLeft: `calc((100% - ${CARD_W}) / 2)`, scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)` }}
+            style={{
+              scrollPaddingLeft: `calc((100% - ${CARD_W}) / 2)`,
+              scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)`,
+            }}
             className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {/* Left spacer so first card can snap to center */}
             <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
-
             {fields.map((f) => (
               <div
                 key={f.id}
@@ -461,11 +459,13 @@ export default function VenueExplorer({
                 style={{ width: CARD_W }}
                 className="shrink-0 snap-center px-1.5 h-[140px] cursor-pointer"
               >
-                <VenueCard field={f} games={gameCounts[f.id] ?? 0} />
+                <VenueCard
+                  field={f}
+                  games={fieldStats[f.id]?.count ?? 0}
+                  hasGameToday={fieldStats[f.id]?.today ?? false}
+                />
               </div>
             ))}
-
-            {/* Right spacer so last card can snap to center */}
             <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
           </div>
         </div>
