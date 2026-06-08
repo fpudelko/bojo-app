@@ -603,10 +603,18 @@ export default function EventDetailPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-xs text-slate-400">Organizator: {event.organizerName}</p>
+            <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-9 h-9 shrink-0 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
+                  {event.organizerName?.charAt(0).toUpperCase() ?? '?'}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Organizator</p>
+                  <p className="text-sm font-semibold text-ink truncate">{event.organizerName}</p>
+                </div>
+              </div>
               {isOrganizer && (
-                <Link href={`/wydarzenia/${event.id}/edytuj`} className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <Link href={`/wydarzenia/${event.id}/edytuj`} className="flex items-center gap-1.5 shrink-0 text-xs text-primary-600 hover:text-primary-700 font-medium">
                   <Pencil className="w-3.5 h-3.5" /> Edytuj
                 </Link>
               )}
@@ -761,8 +769,8 @@ export default function EventDetailPage() {
         </div>
         )}
 
-        {/* Reserve list */}
-        {reserves.length > 0 && (
+        {/* Reserve list — organizer only (squad info is private) */}
+        {reserves.length > 0 && isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Users className="w-4 h-4 text-gray-400" />
@@ -867,19 +875,21 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* ZAPROSZENIE — skopiuj link i wklej gdzie chcesz (WhatsApp, Messenger, SMS…) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
-            <Share2 className="w-4 h-4" /> Zaproś
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Skopiuj link i wklej go na grupie WhatsApp, Messengerze, SMS-ie — gdziekolwiek chcesz.
-            Zaproszeni NIE muszą zakładać konta, żeby potwierdzić udział.
-          </p>
-          <Button onClick={handleShare} variant="outline" className="w-full">
-            {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Skopiuj link zaproszenia</>}
-          </Button>
-        </div>
+        {/* ZAPROSZENIE — organizator kopiuje link i wkleja gdzie chce (WhatsApp, Messenger, SMS…) */}
+        {isOrganizer && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
+              <Share2 className="w-4 h-4" /> Zaproś
+            </h2>
+            <p className="text-xs text-gray-400 mb-3">
+              Skopiuj link i wklej go na grupie WhatsApp, Messengerze, SMS-ie — gdziekolwiek chcesz.
+              Zaproszeni NIE muszą zakładać konta, żeby potwierdzić udział.
+            </p>
+            <Button onClick={handleShare} variant="outline" className="w-full">
+              {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Skopiuj link zaproszenia</>}
+            </Button>
+          </div>
+        )}
 
         {/* POWIADOMIENIA — automatyczne przypomnienia dla zapisanych uczestników */}
         {isOrganizer && <RemindersSection eventId={event.id} />}
