@@ -88,7 +88,7 @@ export default function Header() {
                   </Link>
                 )}
                 {!loading && !user && (
-                  <Link href={loginHref} className="text-xs font-semibold text-primary-700 whitespace-nowrap">
+                  <Link href={loginHref} className="px-2 py-1.5 text-xs font-semibold text-primary-700 whitespace-nowrap">
                     Zaloguj
                   </Link>
                 )}

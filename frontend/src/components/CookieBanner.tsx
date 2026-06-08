@@ -37,7 +37,7 @@ export default function CookieBanner() {
     <div
       role="dialog"
       aria-label="Informacja o plikach cookie"
-      className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md z-[9999] bg-gray-900 border border-gray-700 rounded-2xl shadow-xl px-4 py-3"
+      className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md z-[9999] bg-gray-900 border border-gray-700 rounded-2xl shadow-xl px-4 py-3"
     >
       <button
         onClick={accept}
