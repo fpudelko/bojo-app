@@ -146,6 +146,7 @@ export interface EventItem {
   endTime?: string;
   maxPlayers: number;
   externalCount: number; // players already committed outside the app
+  participantsCount?: number; // non-reserve app participants (populated in list queries)
   visibility: Visibility;
   createdAt: string;
   status: EventStatus;

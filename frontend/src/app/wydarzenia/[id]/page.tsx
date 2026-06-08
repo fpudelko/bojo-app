@@ -574,27 +574,6 @@ export default function EventDetailPage() {
             </span>
           </div>
 
-          {/* Avatar strip */}
-          {regulars.length > 0 && (
-            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
-              <div className="flex -space-x-2">
-                {regulars.slice(0, 6).map((p) =>
-                  p.avatarUrl
-                    ? <img key={p.id} src={p.avatarUrl} alt={p.name} title={p.name} className="w-9 h-9 rounded-full border-2 border-white object-cover" />
-                    : <span key={p.id} title={p.name} className="w-9 h-9 rounded-full border-2 border-white bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold">{p.name.charAt(0).toUpperCase()}</span>
-                )}
-                {regulars.length > 6 && (
-                  <span className="w-9 h-9 rounded-full border-2 border-white bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-medium">+{regulars.length - 6}</span>
-                )}
-              </div>
-              <p className="text-sm text-slate-500">
-                <span className="font-semibold text-ink">{takenSpots}</span> z {event.maxPlayers} graczy
-                {!isFull && <span className="text-primary-600 font-medium"> · {event.maxPlayers - takenSpots} wolnych</span>}
-              </p>
-            </div>
-          )}
-
-
           {externalCount > 0 && (
             <p className="-mt-2 mb-3 text-xs text-gray-500">
               W tym <span className="font-medium text-gray-700">{externalCount}</span>{' '}

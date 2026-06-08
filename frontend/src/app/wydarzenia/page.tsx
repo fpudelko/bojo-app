@@ -59,7 +59,7 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
   } catch {}
   if (event.time) timeLabel = event.time.slice(0, 5);
 
-  const taken = event.externalCount ?? 0;
+  const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
   const max = event.maxPlayers ?? 0;
   const isFull = max > 0 && taken >= max;
   const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
@@ -91,7 +91,7 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
           </p>
           <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
             <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-            {event.fieldName}
+            {event.district ? `${event.district}, Poznań` : event.fieldName}
           </p>
         </div>
 

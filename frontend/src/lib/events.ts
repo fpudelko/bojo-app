@@ -25,6 +25,10 @@ function toEvent(row: any): EventItem {
     endTime: row.end_time ?? undefined,
     maxPlayers: row.max_players,
     externalCount: row.external_count ?? 0,
+    participantsCount: Array.isArray(row.event_participants)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (row.event_participants as any[]).filter((p) => !p.is_reserve).length
+      : undefined,
     visibility: row.visibility,
     createdAt: row.created_at,
     requireSmsConfirmation: row.require_sms_confirmation ?? false,
@@ -258,7 +262,7 @@ export async function getMyEvents(userId: string): Promise<EventItem[]> {
 export async function getPublicEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, fields(district)')
+    .select('*, fields(district), event_participants(id, is_reserve)')
     .eq('visibility', 'public')
     .gte('event_date', new Date().toISOString().slice(0, 10))
     .order('event_date', { ascending: true });
