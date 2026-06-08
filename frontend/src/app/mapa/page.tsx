@@ -4,7 +4,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { Search, Target, Sun, Disc, Circle, Dumbbell, Star, MapPin, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
 import MapView from '@/components/map/MapView';
 import EventsMapView from '@/components/map/EventsMapView';
 import { FEATURE_RESERVATIONS } from '@/config/features';
@@ -261,7 +260,6 @@ export default function MapaPage() {
           />
         )}
       </main>
-      <BottomNav />
     </div>
   );
 }

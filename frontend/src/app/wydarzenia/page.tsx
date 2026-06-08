@@ -6,7 +6,6 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getPublicEvents } from '@/lib/events';
@@ -384,7 +383,6 @@ export default function EventsPage() {
           </div>
         )}
       </main>
-      <BottomNav />
     </div>
   );
 }

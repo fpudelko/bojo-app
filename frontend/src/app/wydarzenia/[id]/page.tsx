@@ -11,7 +11,6 @@ import {
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
@@ -1031,7 +1030,6 @@ export default function EventDetailPage() {
           </div>
         </div>
       )}
-      <BottomNav />
     </div>
   );
 }
