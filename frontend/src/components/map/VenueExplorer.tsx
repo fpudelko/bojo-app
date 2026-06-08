@@ -90,13 +90,13 @@ function MapLayer({
   useEffect(() => {
     const cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
-      maxClusterRadius: 40,
+      maxClusterRadius: 22,
       iconCreateFunction: (c) => {
         const ms = c.getAllChildMarkers() as Array<L.Marker & { _sports?: string[] }>;
         return clusterDivIcon(c.getChildCount(), ms.flatMap((m) => m._sports ?? []));
       },
       spiderfyOnMaxZoom: true,
-      disableClusteringAtZoom: 16,
+      disableClusteringAtZoom: 13,
       animate: true,
     });
     const markers: Record<string, L.Marker> = {};
