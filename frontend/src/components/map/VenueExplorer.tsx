@@ -27,6 +27,20 @@ const SPORT_OPTIONS = [
   { value: 'koszykówka', label: 'Koszykówka', emoji: '🏀' },
 ];
 
+// Morton (Z-order) key — interleaves quantised lat/lng bits so that
+// sorting by this key preserves geographic locality.  Adjacent entries
+// in a Morton-sorted list are always physically close on the map.
+function mortonKey(lat: number, lng: number): number {
+  const x = Math.max(0, Math.round((lng - 16.5) * 1000)) & 0xffff;
+  const y = Math.max(0, Math.round((lat - 52.0) * 1000)) & 0xffff;
+  let key = 0;
+  for (let i = 0; i < 16; i++) {
+    key |= ((x >> i) & 1) << (2 * i);
+    key |= ((y >> i) & 1) << (2 * i + 1);
+  }
+  return key;
+}
+
 // Polish plural for "gra / gry / gier"
 function gamesWord(n: number): string {
   if (n === 1) return 'gra';
@@ -88,10 +102,11 @@ function MapLayer({
     if (!selectedId) return;
     const f = fields.find((x) => x.id === selectedId);
     if (!f) return;
+    map.stop(); // cancel any in-flight animation first
     if (selectedSource === 'scroll') {
-      map.panTo([f.lat, f.lng], { animate: true, duration: 0.35 });
+      map.panTo([f.lat, f.lng], { animate: true, duration: 0.3 });
     } else {
-      map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
+      map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 13), { duration: 0.45 });
     }
   }, [selectedId, selectedSource, fields, map]);
 
@@ -287,11 +302,13 @@ export default function VenueExplorer({
     if (onlyBookable) list = list.filter((f) => f.bookingEnabled);
     if (onlyAvailable) list = list.filter((f) => f.available);
     if (geo) {
+      // Distance from user — nearest first
       const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
       list = [...list].sort((a, b) => dist(a) - dist(b));
     } else {
-      // Most active venues first
-      list = [...list].sort((a, b) => (gameCounts[b.id] ?? 0) - (gameCounts[a.id] ?? 0));
+      // Morton (Z-order) sort: adjacent cards in the carousel are
+      // geographically close, so swiping never jumps across the city.
+      list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     }
     return list;
   }, [allFields, sport, onlyBookable, onlyAvailable, geo, gameCounts]);
