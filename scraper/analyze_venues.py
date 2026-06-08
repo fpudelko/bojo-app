@@ -1,0 +1,405 @@
+"""
+Boiska Poznań — AI Satellite Image Analyzer
+============================================
+For each venue, fetches a Mapbox satellite tile and asks Claude to classify:
+  • is it actually a sports venue?
+  • type label (orlik / pełnowymiarowe / piątka / siódemka / kort …)
+  • surface type
+  • dimensions estimate
+  • access type (public / school / private / club)
+  • visible infrastructure (lights, fence, stands, changing rooms)
+  • condition
+  • pitch count
+
+Results are written back to the `fields` table.
+Existing non-null values for columns like `surface`, `is_indoor`, `lit`,
+`has_changing_rooms` are only overwritten when --overwrite flag is passed.
+
+Usage:
+    pip install httpx python-dotenv anthropic
+    export ANTHROPIC_API_KEY=sk-ant-...
+    export SUPABASE_URL=https://xxxx.supabase.co
+    export SUPABASE_SERVICE_ROLE_KEY=eyJ...
+    export NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
+
+    python analyze_venues.py --limit 5 --dry-run   # preview, no writes
+    python analyze_venues.py --limit 20            # process 20 venues
+    python analyze_venues.py                       # all untyped venues
+    python analyze_venues.py --all --overwrite     # re-analyse everything
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import base64
+import json
+import logging
+import os
+import sys
+from datetime import datetime, timezone
+from typing import Any
+
+import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger("analyze_venues")
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+SUPABASE_URL          = os.environ["SUPABASE_URL"]
+SUPABASE_KEY          = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+ANTHROPIC_API_KEY     = os.environ["ANTHROPIC_API_KEY"]
+MAPBOX_TOKEN          = os.environ.get("NEXT_PUBLIC_MAPBOX_TOKEN") or os.environ.get("MAPBOX_TOKEN", "")
+ANTHROPIC_URL         = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION     = "2023-06-01"
+MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+
+# Satellite tile: 512×512 @2x at zoom 18 gives ~1m/px resolution — enough to read surface & count pitches
+MAPBOX_ZOOM           = 18
+MAPBOX_W, MAPBOX_H    = 512, 512
+
+SUPABASE_HEADERS = {
+    "apikey":        SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type":  "application/json",
+    "Prefer":        "return=minimal",
+}
+
+# ---------------------------------------------------------------------------
+# Taxonomy used in the prompt — must match migration comment
+# ---------------------------------------------------------------------------
+VENUE_TYPES = {
+    # Football
+    "full_size":     "Pełnowymiarowe (11v11, ~105×68 m)",
+    "seven_a_side":  "Siódemka (7v7, ~65×45 m)",
+    "five_a_side":   "Piątka (5v5, ~40×20 m)",
+    "orlik":         "Orlik (rządowy program — syntetyk, ~56×26 m, charakterystyczne niebieskie/zielone pole)",
+    "futsal_hall":   "Hala futsal / sala gimnastyczna",
+    # Basketball
+    "basketball_full":  "Koszykówka pełna (28×15 m)",
+    "basketball_half":  "Koszykówka połówka",
+    # Volleyball
+    "volleyball_outdoor": "Siatkówka outdoor (18×9 m + strefa)",
+    "volleyball_beach":   "Siatkówka plażowa / piasek",
+    # Tennis / other
+    "tennis_outdoor": "Kort tenisowy (23×11 m)",
+    "multi_sport":    "Wielofunkcyjne (linie do kilku sportów)",
+    "other":          "Inne / niejednoznaczne",
+}
+
+SURFACE_VALUES = [
+    "trawa_naturalna",    # natural grass
+    "sztuczna_trawa",     # artificial turf
+    "tartan",             # rubber/tartan
+    "szuter",             # gravel / red shale
+    "asfalt",             # asphalt
+    "beton",              # concrete
+    "piasek",             # sand
+    "parkiet",            # indoor hardcourt / parquet
+    "nieznana",           # unknown
+]
+
+ACCESS_VALUES = [
+    "public",    # open park, street-side, no gate
+    "school",    # inside school/university campus
+    "private",   # residential, company
+    "club",      # sports club, enclosed facility
+    "unknown",
+]
+
+CONDITION_VALUES = ["good", "fair", "poor", "unknown"]
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def mapbox_satellite_url(lat: float, lng: float) -> str:
+    return (
+        f"https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/"
+        f"{lng},{lat},{MAPBOX_ZOOM},0/{MAPBOX_W}x{MAPBOX_H}@2x"
+        f"?access_token={MAPBOX_TOKEN}"
+    )
+
+
+async def fetch_image_b64(client: httpx.AsyncClient, url: str) -> str | None:
+    try:
+        r = await client.get(url, timeout=15)
+        r.raise_for_status()
+        return base64.b64encode(r.content).decode()
+    except Exception as e:
+        log.warning("Image fetch failed %s: %s", url, e)
+        return None
+
+
+async def analyse_with_claude(client: httpx.AsyncClient, image_b64: str, field: dict) -> dict | None:
+    venue_type_list = "\n".join(f'  "{k}" — {v}' for k, v in VENUE_TYPES.items())
+    surface_list    = ", ".join(SURFACE_VALUES)
+    access_list     = ", ".join(ACCESS_VALUES)
+    condition_list  = ", ".join(CONDITION_VALUES)
+
+    prompt = f"""Analizujesz zdjęcie satelitarne obiektu sportowego z bazy danych boisk w Polsce.
+
+Znane dane z bazy:
+  name:     {field.get("name", "?")}
+  address:  {field.get("address", "?")}
+  sport:    {field.get("sport", [])}
+  surface:  {field.get("surface") or "brak danych"}
+  is_indoor:{field.get("is_indoor", False)}
+
+Twoje zadanie: na podstawie WYŁĄCZNIE widoku satelitarnego określ poniższe pola i zwróć je jako JSON.
+Jeśli nie możesz czegoś stwierdzić z widoku, użyj wartości null.
+
+Pola do wypełnienia:
+
+1. is_verified_venue (boolean)
+   true = na zdjęciu widać obiekt sportowy (boisko, kort, hala)
+   false = brak widocznego obiektu sportowego (błędny wpis w bazie)
+
+2. venue_type (string | null) — wybierz JEDEN z poniższych kodów, który najlepiej opisuje GŁÓWNY obiekt:
+{venue_type_list}
+
+3. surface (string | null) — nawierzchnia głównego obiektu, jeden z: {surface_list}
+
+4. is_indoor (boolean | null) — czy to hala/obiekt kryty?
+
+5. dimensions_m (string | null) — przybliżone wymiary głównego boiska w metrach, format "DŁUGOŚĆxSZEROKOŚĆ", np. "105x68"
+   Wskazówki: linie bramkowe piłki nożnej ~7.3m; szerokość pasa = łatwy kaliber.
+
+6. pitch_count (int | null) — ile osobnych boisk/kortów widać w tym miejscu?
+
+7. access_type (string | null) — jeden z: {access_list}
+   Wskazówki:
+   - "school" = obiekt w obrębie budynku szkolnego lub otoczony innymi budynkami szkoły
+   - "public"  = otwarty teren parku, przy ulicy, brak ogrodzenia lub wejście otwarte
+   - "club"    = zamknięty teren klubu sportowego, widoczne trybuny lub wiele boisk
+   - "private" = posesja prywatna, dom/firma
+
+8. lit (boolean | null) — widoczne maszty/słupy oświetleniowe przy boisku?
+
+9. has_changing_rooms (boolean | null) — widoczny budynek/przybudówka (szatnia, sanitariaty)?
+
+10. has_stands (boolean | null) — widoczne trybuny lub ławki dla widzów?
+
+11. has_fence (boolean | null) — obiekt ogrodzony?
+
+12. condition (string | null) — wizualny stan nawierzchni: {condition_list}
+    good = wyraźne linie, zadbana nawierzchnia
+    fair = linie widoczne ale wyblakłe, lub nawierzchnia lekko zużyta
+    poor = brak linii, zniszczona nawierzchnia, zaniedbanie
+
+13. ai_notes (string | null) — opcjonalny komentarz: wątpliwości, osobliwości, ciekawe cechy.
+    Zostaw null jeśli nie ma nic do dodania. Maksymalnie 1 zdanie.
+
+Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
+{{
+  "is_verified_venue": true,
+  "venue_type": "orlik",
+  "surface": "sztuczna_trawa",
+  "is_indoor": false,
+  "dimensions_m": "56x26",
+  "pitch_count": 2,
+  "access_type": "public",
+  "lit": true,
+  "has_changing_rooms": true,
+  "has_stands": false,
+  "has_fence": true,
+  "condition": "good",
+  "ai_notes": null
+}}"""
+
+    payload = {
+        "model": MODEL,
+        "max_tokens": 512,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": image_b64,
+                        },
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ],
+    }
+
+    headers = {
+        "x-api-key":         ANTHROPIC_API_KEY,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type":      "application/json",
+    }
+
+    try:
+        r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=60)
+        r.raise_for_status()
+        text = r.json()["content"][0]["text"].strip()
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text)
+    except Exception as e:
+        log.error("Claude API error: %s", e)
+        return None
+
+
+def build_update(result: dict, existing: dict, overwrite: bool) -> dict:
+    """Build the Supabase update dict, respecting overwrite flag."""
+    OVERWRITABLE = {"surface", "is_indoor", "lit", "has_changing_rooms"}
+    update: dict[str, Any] = {
+        "venue_type":          result.get("venue_type"),
+        "dimensions_m":        result.get("dimensions_m"),
+        "pitch_count":         result.get("pitch_count"),
+        "access_type":         result.get("access_type"),
+        "is_verified_venue":   result.get("is_verified_venue"),
+        "has_stands":          result.get("has_stands"),
+        "has_fence":           result.get("has_fence"),
+        "condition":           result.get("condition"),
+        "ai_notes":            result.get("ai_notes"),
+        "ai_typed_at":         datetime.now(timezone.utc).isoformat(),
+    }
+    # Conditionally overwrite existing columns
+    for col in OVERWRITABLE:
+        new_val = result.get(col)
+        if new_val is None:
+            continue
+        if overwrite or existing.get(col) is None:
+            update[col] = new_val
+
+    # Drop None values — don't clobber DB with nulls for uncertain fields
+    return {k: v for k, v in update.items() if v is not None}
+
+
+# ---------------------------------------------------------------------------
+# Supabase helpers
+# ---------------------------------------------------------------------------
+
+async def fetch_fields(client: httpx.AsyncClient, process_all: bool, limit: int | None) -> list[dict]:
+    url = f"{SUPABASE_URL}/rest/v1/fields"
+    params: dict[str, Any] = {
+        "select": "id,name,address,sport,lat,lng,surface,is_indoor,lit,has_changing_rooms,map_visibility",
+        "map_visibility": "eq.public",
+        "order": "id.asc",
+    }
+    if not process_all:
+        params["venue_type"] = "is.null"
+    if limit:
+        params["limit"] = limit
+
+    r = await client.get(url, headers=SUPABASE_HEADERS, params=params, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
+async def upsert_field(client: httpx.AsyncClient, field_id: str, update: dict) -> None:
+    url = f"{SUPABASE_URL}/rest/v1/fields"
+    r = await client.patch(
+        url,
+        headers=SUPABASE_HEADERS,
+        params={"id": f"eq.{field_id}"},
+        json=update,
+        timeout=15,
+    )
+    r.raise_for_status()
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+async def process_field(
+    http: httpx.AsyncClient,
+    field: dict,
+    dry_run: bool,
+    overwrite: bool,
+    sem: asyncio.Semaphore,
+) -> None:
+    async with sem:
+        fid   = field["id"]
+        fname = field.get("name", fid)
+        lat, lng = field.get("lat"), field.get("lng")
+
+        if not lat or not lng:
+            log.warning("Skip %s — no coordinates", fname)
+            return
+
+        if not MAPBOX_TOKEN:
+            log.error("MAPBOX_TOKEN not set — cannot fetch satellite images")
+            return
+
+        log.info("Analysing: %s", fname)
+
+        sat_url  = mapbox_satellite_url(lat, lng)
+        img_b64  = await fetch_image_b64(http, sat_url)
+        if not img_b64:
+            log.warning("Skip %s — satellite image unavailable", fname)
+            return
+
+        result = await analyse_with_claude(http, img_b64, field)
+        if not result:
+            log.warning("Skip %s — Claude returned no result", fname)
+            return
+
+        update = build_update(result, field, overwrite)
+
+        if dry_run:
+            print(f"\n{'='*60}")
+            print(f"Field: {fname} ({fid})")
+            print(f"Satellite: {sat_url}")
+            print(f"Claude result: {json.dumps(result, ensure_ascii=False, indent=2)}")
+            print(f"Would write: {json.dumps(update, ensure_ascii=False, indent=2)}")
+        else:
+            await upsert_field(http, fid, update)
+            verified = result.get("is_verified_venue")
+            vtype    = result.get("venue_type", "?")
+            surface  = result.get("surface", "?")
+            dims     = result.get("dimensions_m", "?")
+            access   = result.get("access_type", "?")
+            log.info(
+                "  → %s | %s | %s | %s | access=%s | verified=%s",
+                vtype, surface, dims, fname, access, verified,
+            )
+
+
+async def main() -> None:
+    ap = argparse.ArgumentParser(description="Analyse venue satellite images with Claude")
+    ap.add_argument("--limit",     type=int,  default=None, help="Max venues to process")
+    ap.add_argument("--dry-run",   action="store_true",     help="Print results, write nothing")
+    ap.add_argument("--all",       action="store_true",     help="Re-process already-typed venues")
+    ap.add_argument("--overwrite", action="store_true",     help="Overwrite existing surface/is_indoor/lit/has_changing_rooms")
+    ap.add_argument("--concurrency", type=int, default=2,   help="Parallel Claude requests (default 2)")
+    args = ap.parse_args()
+
+    if not MAPBOX_TOKEN:
+        sys.exit("ERROR: MAPBOX_TOKEN / NEXT_PUBLIC_MAPBOX_TOKEN not set")
+
+    async with httpx.AsyncClient() as http:
+        fields = await fetch_fields(http, args.all, args.limit)
+        log.info("Fetched %d venues to process", len(fields))
+        if not fields:
+            log.info("Nothing to do.")
+            return
+
+        sem = asyncio.Semaphore(args.concurrency)
+        tasks = [
+            process_field(http, f, args.dry_run, args.overwrite, sem)
+            for f in fields
+        ]
+        await asyncio.gather(*tasks)
+
+    log.info("Done.")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
