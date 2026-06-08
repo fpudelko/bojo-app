@@ -51,8 +51,8 @@ on:
           - claude-sonnet-4-6
           - claude-opus-4-8
       concurrency:
-        description: 'Równoległe requesty do API (max 5 przy Sonnet)'
-        default: '3'
+        description: 'Równoległe requesty do API (1–2 dla Haiku, max 3 dla Sonnet)'
+        default: '1'
         required: false
         type: string
 

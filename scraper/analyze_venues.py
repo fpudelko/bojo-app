@@ -239,19 +239,31 @@ Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
         "content-type":      "application/json",
     }
 
-    try:
-        r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=60)
-        r.raise_for_status()
-        text = r.json()["content"][0]["text"].strip()
-        # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text)
-    except Exception as e:
-        log.error("Claude API error: %s", e)
-        return None
+    for attempt in range(5):
+        try:
+            r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=60)
+            if r.status_code == 429:
+                wait = 2 ** attempt + 1  # 2, 3, 5, 9, 17 seconds
+                log.warning("Rate limited (429), retrying in %ds (attempt %d/5)…", wait, attempt + 1)
+                await asyncio.sleep(wait)
+                continue
+            r.raise_for_status()
+            text = r.json()["content"][0]["text"].strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            return json.loads(text)
+        except Exception as e:
+            if "429" in str(e):
+                wait = 2 ** attempt + 1
+                log.warning("Rate limited, retrying in %ds (attempt %d/5)…", wait, attempt + 1)
+                await asyncio.sleep(wait)
+                continue
+            log.error("Claude API error: %s", e)
+            return None
+    log.error("Claude API: gave up after 5 retries (rate limit)")
+    return None
 
 
 def build_update(result: dict, existing: dict, overwrite: bool) -> dict:
@@ -414,7 +426,7 @@ async def main() -> None:
     ap.add_argument("--dry-run",   action="store_true",     help="Print results, write nothing")
     ap.add_argument("--all",       action="store_true",     help="Re-process already-typed venues")
     ap.add_argument("--overwrite", action="store_true",     help="Overwrite existing surface/is_indoor/lit/has_changing_rooms")
-    ap.add_argument("--concurrency", type=int, default=2,   help="Parallel Claude requests (default 2)")
+    ap.add_argument("--concurrency", type=int, default=1,   help="Parallel Claude requests (default 1; increase carefully to avoid 429s)")
     ap.add_argument("--model",     type=str,  default=None, help="Claude model override (default: claude-sonnet-4-6)")
     args = ap.parse_args()
 
