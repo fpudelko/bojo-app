@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Calendar, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
+import { Clock, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getPublicEvents } from '@/lib/events';
@@ -45,68 +46,70 @@ function DistanceBadge({ km }: { km: number }) {
 }
 
 function EventRow({ event, distance }: { event: EventItem; distance?: number }) {
+  let timeLabel = '';
   let dayLabel = '';
   try {
     const d = parseISO(event.date);
     const now = new Date(); now.setHours(0, 0, 0, 0);
     const evDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const diff = Math.round((evDay.getTime() - now.getTime()) / 86400000);
-    if (diff === 0) dayLabel = 'Dziś';
+    if (diff === 0) dayLabel = 'Dzisiaj';
     else if (diff === 1) dayLabel = 'Jutro';
-    else dayLabel = format(d, 'd MMM', { locale: pl });
+    else dayLabel = format(d, 'EEE d MMM', { locale: pl });
   } catch {}
+  if (event.time) timeLabel = event.time.slice(0, 5);
 
   const taken = event.externalCount ?? 0;
   const max = event.maxPlayers ?? 0;
-  const left = max > 0 ? max - taken : null;
-  const isFull = left !== null && left <= 0;
+  const isFull = max > 0 && taken >= max;
+  const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
 
   return (
-    <Link href={`/wydarzenia/${event.id}`} className="block group">
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 p-4">
-        <div className="flex items-start gap-3">
-          <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl mt-0.5"
-            role="img"
-            aria-label={event.sport}
-          >
-            {sportEmoji(event.sport)}
+    <Link href={`/wydarzenia/${event.id}`} className="block active:scale-[0.99] transition-transform">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        {/* Title row + CTA */}
+        <div className="flex items-start gap-2.5">
+          <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" />
+          <p className="flex-1 font-semibold text-ink leading-snug min-w-0 truncate">
+            {event.title || `${sportEmoji(event.sport)} ${event.sport}${event.district ? ` · ${event.district}` : ''}`}
+          </p>
+          <span className={[
+            'shrink-0 ml-1 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
+            isFull
+              ? 'bg-slate-100 text-slate-400'
+              : 'bg-primary-700 text-white',
+          ].join(' ')}>
+            {isFull ? 'Pełne' : 'Dołącz'}
           </span>
-
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-ink leading-snug truncate">
-              {event.title || `${event.sport}${event.district ? ` · ${event.district}` : ''}`}
-            </p>
-            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-              <Calendar className="w-3 h-3 shrink-0" />
-              {dayLabel}{event.time ? `, ${event.time.slice(0, 5)}` : ''}
-            </p>
-            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
-              <MapPin className="w-3 h-3 shrink-0" />
-              {event.fieldName}
-            </p>
-            <div className="flex items-center gap-2 mt-1.5">
-              {max > 0 && (
-                <span className={`text-xs font-medium flex items-center gap-1 ${isFull ? 'text-red-500' : 'text-slate-400'}`}>
-                  <Users className="w-3 h-3" />
-                  {isFull ? 'Brak miejsc' : left !== null ? `${left} wolnych z ${max}` : `max ${max}`}
-                </span>
-              )}
-              {distance !== undefined && <DistanceBadge km={distance} />}
-            </div>
-          </div>
-
-          <div className="shrink-0 self-center">
-            <span className={[
-              'inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors',
-              isFull
-                ? 'bg-slate-100 text-slate-400'
-                : 'bg-primary-700 text-white group-hover:bg-primary-800',
-            ].join(' ')}>
-              {isFull ? 'Pełne' : 'Dołącz'}
-            </span>
-          </div>
         </div>
+
+        {/* Date + location */}
+        <div className="ml-5 mt-2 space-y-1">
+          <p className="text-sm text-slate-500 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            {dayLabel}{timeLabel ? ` ${timeLabel}` : ''}
+          </p>
+          <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            {event.fieldName}
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        {max > 0 && (
+          <div className="ml-5 mt-3 flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${isFull ? 'bg-red-400' : 'bg-primary-600'}`}
+                style={{ width: `${fillPct}%` }}
+              />
+            </div>
+            <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">
+              {taken}/{max} dołączonych
+            </span>
+            {distance !== undefined && <DistanceBadge km={distance} />}
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -212,7 +215,7 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Znajdź grę</h1>
           {user && (
@@ -336,7 +339,20 @@ export default function EventsPage() {
         {/* List */}
         {loading && (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-200/80 animate-pulse" />)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-slate-200 shrink-0" />
+                  <div className="flex-1 h-5 bg-slate-100 rounded-lg" />
+                  <div className="h-8 w-16 bg-slate-100 rounded-xl shrink-0" />
+                </div>
+                <div className="ml-5 mt-2 space-y-2">
+                  <div className="h-4 w-32 bg-slate-100 rounded" />
+                  <div className="h-4 w-48 bg-slate-100 rounded" />
+                </div>
+                <div className="ml-5 mt-3 h-1.5 bg-slate-100 rounded-full" />
+              </div>
+            ))}
           </div>
         )}
 
@@ -369,6 +385,7 @@ export default function EventsPage() {
           </div>
         )}
       </main>
+      <BottomNav />
     </div>
   );
 }

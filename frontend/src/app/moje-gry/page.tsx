@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LogIn, Users, RefreshCw, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { getMyParticipatedEvents } from '@/lib/events';
@@ -129,6 +130,7 @@ export default function MojeGryPage() {
           </>
         )}
       </main>
+      <BottomNav />
     </div>
   );
 }

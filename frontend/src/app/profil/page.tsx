@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Check, LogOut, Trash2, Phone, AlertTriangle } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -340,6 +341,7 @@ export default function ProfilePage() {
           )}
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }
