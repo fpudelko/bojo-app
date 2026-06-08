@@ -9,6 +9,9 @@ import Button from '@/components/ui/Button';
 import MapView from '@/components/map/MapView';
 import SportsSectionWithCounts from '@/components/SportsSectionWithCounts';
 import HomeHero from '@/components/home/HomeHero';
+import TrustBar from '@/components/home/TrustBar';
+import FeaturesSection from '@/components/home/FeaturesSection';
+import FieldsTeaser from '@/components/home/FieldsTeaser';
 
 type Chip = { icon: React.ElementType; label: string };
 
@@ -110,51 +113,11 @@ export default function HomePage() {
       {/* Hero — personalized for logged-in users, marketing for visitors */}
       <HomeHero />
 
-      {/* Jak to działa — editorial explainer, placed first so visitors grasp the product */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">Jak to działa</span>
-          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            Bez dzwonienia. Bez excela. Bez ganiania ludzi.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-600">
-            Kiedyś zebranie składu to były trzy grupy na WhatsAppie, lista w notatniku
-            i ciągłe „kto w końcu gra?”. U nas wygląda to inaczej — od pomysłu do
-            pierwszego gwizdka w kilka minut.
-          </p>
-        </div>
+      {/* Community / social-proof bar */}
+      <TrustBar />
 
-        <div className="mx-auto mt-12 grid max-w-4xl gap-10 sm:grid-cols-3">
-          {[
-            {
-              n: '01',
-              title: 'Znajdź albo stwórz',
-              body: 'Przeglądaj otwarte mecze na mapie i dołącz jednym kliknięciem — albo sam zakładasz grę i ustawiasz termin, boisko i liczbę miejsc.',
-            },
-            {
-              n: '02',
-              title: 'Rozdaj jeden link',
-              body: 'Zamiast spamu po grupach wysyłasz jeden link. Znajomi zapisują się sami, a na wolne miejsca znajdą się chętni z okolicy.',
-            },
-            {
-              n: '03',
-              title: 'Po prostu zagraj',
-              body: 'Lista składu, rezerwowi i przypomnienia działają w tle. Ty masz pewność, że skład dopięty i nikt nie zniknie w dniu meczu.',
-            },
-          ].map((step) => (
-            <div key={step.n} className="text-center sm:text-left">
-              <span className="font-display text-4xl font-extrabold text-primary-200">{step.n}</span>
-              <h3 className="mt-3 font-display text-lg font-bold text-ink">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.body}</p>
-            </div>
-          ))}
-        </div>
-
-        <p className="mx-auto mt-12 max-w-xl text-center text-sm text-slate-500">
-          Wszystko działa w przeglądarce na telefonie i komputerze — logujesz się przez
-          Google i nic nie instalujesz.
-        </p>
-      </section>
+      {/* Features — visual product tour with phone mockups */}
+      <FeaturesSection />
 
       {/* Intent cards */}
       <section className="border-y border-slate-200/70 bg-white px-4 py-16">
@@ -232,6 +195,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Popular venues — real fields from DB */}
+      <FieldsTeaser />
 
       {/* Map preview — moved below the fold; explore real venues before the closing CTA */}
       <section className="mx-auto w-full max-w-5xl px-4 py-12">
