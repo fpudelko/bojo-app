@@ -223,18 +223,8 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setSportFilter('')}
-            aria-pressed={!sportFilter}
-            className={[
-              'shrink-0 px-4 h-9 rounded-full text-sm font-semibold border transition-colors',
-              !sportFilter
-                ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-700',
-            ].join(' ')}
-          >Wszystkie</button>
+        {/* Sport filter — 4 emoji pills across the screen width */}
+        <div className="grid grid-cols-4 gap-2.5 mb-5">
           {SPORTS_FILTER.map(({ sport, label }) => {
             const active = sportFilter === sport;
             return (
@@ -242,15 +232,16 @@ export default function EventsPage() {
                 key={sport}
                 onClick={() => setSportFilter(active ? '' : sport)}
                 aria-pressed={active}
+                aria-label={label}
+                title={label}
                 className={[
-                  'shrink-0 inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full text-sm font-semibold border transition-colors',
+                  'flex items-center justify-center h-16 rounded-2xl border transition-all duration-150',
                   active
-                    ? 'bg-primary-700 text-white border-primary-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 hover:text-primary-700',
+                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
+                    : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
                 ].join(' ')}
               >
-                <span aria-hidden="true" className="text-base leading-none">{sportEmoji(sport)}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <span aria-hidden="true" className="text-[28px] leading-none">{sportEmoji(sport)}</span>
               </button>
             );
           })}

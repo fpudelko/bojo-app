@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
+  Calendar, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight,
 } from 'lucide-react';
@@ -77,13 +77,6 @@ function splitTeams(players: EventParticipant[]): [EventParticipant[], EventPart
   const s = shuffle(players);
   const mid = Math.ceil(s.length / 2);
   return [s.slice(0, mid), s.slice(mid)];
-}
-
-function SpotsBadge({ regulars, max }: { regulars: number; max: number }) {
-  const left = max - regulars;
-  if (left <= 0) return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-red-100 text-red-700">Pełne</span>;
-  if (left <= 3) return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">Brakuje {left}</span>;
-  return <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-green-100 text-green-700">Wolne</span>;
 }
 
 export default function EventDetailPage() {
@@ -183,8 +176,11 @@ export default function EventDetailPage() {
   const teamB = regulars.filter((p) => p.team === 'B');
   const unassigned = regulars.filter((p) => !p.team);
 
-  let dateStr = event.date;
-  try { dateStr = format(parseISO(event.date), 'EEEE, d MMMM yyyy', { locale: pl }); } catch {}
+  let dateShort = event.date;
+  try {
+    dateShort = format(parseISO(event.date), 'EEE d MMM', { locale: pl });
+  } catch {}
+  const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
 
   // Handlers
   const handleJoin = async () => {
@@ -453,93 +449,54 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Header card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Header card — mockup-style: photo, title, date pill, location, players, chips, CTA */}
+        <div className="bg-white rounded-3xl shadow-card border border-slate-100 overflow-hidden">
           {venueThumbnail(event.lat, event.lng, 800, 400, 17) ? (
-            <div className="relative">
+            <div className="p-3 pb-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={venueThumbnail(event.lat, event.lng, 800, 400, 17)!} alt={event.fieldName} className="w-full h-52 object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-              <div className="absolute top-3 right-3">
-                <SpotsBadge regulars={takenSpots} max={event.maxPlayers} />
-              </div>
+              <img src={venueThumbnail(event.lat, event.lng, 800, 400, 17)!} alt={event.fieldName} className="w-full h-48 object-cover rounded-2xl" />
             </div>
           ) : (
-            <div className="h-24 bg-gradient-to-br from-primary-700 to-primary-900 flex items-center justify-center">
-              <span className="text-5xl opacity-70">{sportEmoji(event.sport)}</span>
+            <div className="p-3 pb-0">
+              <div className="h-40 rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 flex items-center justify-center">
+                <span className="text-6xl opacity-80">{sportEmoji(event.sport)}</span>
+              </div>
             </div>
           )}
+
           <div className="p-5">
-            <div className="flex items-start justify-between gap-3">
+            {/* Title */}
+            <h1 className="font-display text-2xl font-bold text-ink leading-tight sm:text-3xl">{event.title || event.sport}</h1>
+
+            {/* Date pill */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary-50 border border-primary-200 px-3.5 py-1.5 text-sm font-semibold text-primary-700">
+                <Calendar className="w-4 h-4" />
+                <span className="capitalize">{dateShort}</span> · {timeStr}
+              </span>
+            </div>
+
+            {/* Location */}
+            <div className="mt-3 flex items-start gap-2 text-sm">
+              <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-ink leading-tight">{event.title || event.sport}</h1>
-                <p className="text-sm text-slate-500 capitalize mt-0.5">{event.sport}</p>
-              </div>
-              {!venueThumbnail(event.lat, event.lng, 1, 1) && (
-                <SpotsBadge regulars={takenSpots} max={event.maxPlayers} />
-              )}
-            </div>
-
-            {/* Info chips */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span className="capitalize">{dateStr}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                {event.time?.slice(0, 5)}{event.endTime && `–${event.endTime.slice(0, 5)}`}
-              </span>
-              {event.costGrosze > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
-                  <Banknote className="w-3.5 h-3.5" />
-                  {(event.costGrosze / 100).toFixed(0)} PLN / os.
-                </span>
-              )}
-              {event.costGrosze === 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-700">
-                  Bez opłaty
-                </span>
-              )}
-              <span className={[
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border',
-                event.visibility === 'public'
-                  ? 'bg-primary-50 border-primary-200 text-primary-700'
-                  : 'bg-slate-50 border-slate-200 text-slate-600',
-              ].join(' ')}>
-                {event.visibility === 'public'
-                  ? <><Globe className="w-3.5 h-3.5" /> Publiczne</>
-                  : <><Lock className="w-3.5 h-3.5" /> Prywatne</>}
-              </span>
-            </div>
-
-            <div className="mt-4 text-sm">
-              <div className="flex items-start gap-2 text-slate-700">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-ink">{event.fieldName}</span>
-                  {(event.fieldAddress || event.customAddress || event.customLocationName) && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {event.fieldAddress || event.customAddress || event.customLocationName}
-                    </p>
-                  )}
-                  {event.fieldId && (
-                    <Link href={`/boisko/${event.fieldId}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
-                      Szczegóły obiektu →
-                    </Link>
-                  )}
-                </div>
-                {event.lat && event.lng && (
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-xs text-primary-600 hover:text-primary-700 font-medium ml-1 whitespace-nowrap"
-                  >
-                    Nawiguj →
-                  </a>
+                <span className="font-medium text-ink">{event.fieldName}</span>
+                {(event.fieldAddress || event.customAddress || event.customLocationName) && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {event.fieldAddress || event.customAddress || event.customLocationName}
+                  </p>
                 )}
               </div>
+              {event.lat && event.lng && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-xs text-primary-600 hover:text-primary-700 font-semibold ml-1 whitespace-nowrap"
+                >
+                  Nawiguj →
+                </a>
+              )}
             </div>
 
             {event.description && (
@@ -547,6 +504,104 @@ export default function EventDetailPage() {
                 {event.description}
               </p>
             )}
+
+            <div className="my-5 border-t border-slate-100" />
+
+            {/* Players — avatar stack like the mockup */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-ink">
+                Zapisani gracze <span className="text-slate-400 font-semibold">{takenSpots}/{event.maxPlayers}</span>
+              </h2>
+              {!isFull && (
+                <span className="text-xs font-semibold text-primary-600">{event.maxPlayers - takenSpots} wolnych</span>
+              )}
+            </div>
+            {regulars.length > 0 ? (
+              <div className="flex items-center -space-x-2.5">
+                {regulars.slice(0, 6).map((p) =>
+                  p.avatarUrl
+                    ? <img key={p.id} src={p.avatarUrl} alt={p.name} title={p.name} className="w-11 h-11 rounded-full border-2 border-white object-cover" />
+                    : <span key={p.id} title={p.name} className="w-11 h-11 rounded-full border-2 border-white bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">{p.name.charAt(0).toUpperCase()}</span>
+                )}
+                {takenSpots > 6 && (
+                  <span className="w-11 h-11 rounded-full border-2 border-white bg-primary-700 text-white flex items-center justify-center text-sm font-bold">+{takenSpots - 6}</span>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
+            )}
+
+            {/* Info chips */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700">
+                <span className="text-sm leading-none">{sportEmoji(event.sport)}</span>
+                <span className="capitalize">{event.sport}</span>
+              </span>
+              {event.costGrosze > 0 ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100 text-xs font-semibold text-amber-700">
+                  <Banknote className="w-3.5 h-3.5" />
+                  {(event.costGrosze / 100).toFixed(0)} zł / os.
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-50 border border-green-100 text-xs font-semibold text-green-700">
+                  <Banknote className="w-3.5 h-3.5" /> Bez opłaty
+                </span>
+              )}
+              <span className={[
+                'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border',
+                event.visibility === 'public'
+                  ? 'bg-primary-50 border-primary-100 text-primary-700'
+                  : 'bg-slate-50 border-slate-100 text-slate-600',
+              ].join(' ')}>
+                {event.visibility === 'public'
+                  ? <><Globe className="w-3.5 h-3.5" /> Publiczne</>
+                  : <><Lock className="w-3.5 h-3.5" /> Prywatne</>}
+              </span>
+            </div>
+
+            {/* Primary CTA — Dołącz do gry */}
+            <div className="mt-5">
+              {user && !myParticipation && !isFull && (
+                <Button
+                  onClick={handleJoin}
+                  isLoading={busy}
+                  className="w-full h-14 bg-primary-700 hover:bg-primary-800 text-white text-base font-bold rounded-2xl shadow-md active:scale-[0.98] transition-all"
+                >
+                  Dołącz do gry <ArrowRight className="w-5 h-5" />
+                </Button>
+              )}
+              {user && !myParticipation && isFull && (
+                <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full h-14 rounded-2xl text-base">
+                  Zapisz się na listę rezerwową
+                </Button>
+              )}
+              {user && myParticipation && (
+                <div className="flex items-center gap-2">
+                  <div className={[
+                    'flex-1 flex items-center justify-center gap-2 rounded-2xl text-sm font-bold h-14',
+                    myParticipation.isReserve ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700',
+                  ].join(' ')}>
+                    {myParticipation.isReserve
+                      ? <><Users className="w-5 h-5" /> Na liście rezerwowej</>
+                      : <><Check className="w-5 h-5" /> Jesteś zapisany</>}
+                  </div>
+                  {!isOrganizer && (
+                    <button
+                      onClick={() => handleRemove(myParticipation.id)}
+                      disabled={busy}
+                      className="h-14 px-4 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 transition-colors"
+                    >
+                      Opuść
+                    </button>
+                  )}
+                </div>
+              )}
+              {!authLoading && !user && (
+                <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="w-full h-14 rounded-2xl text-base">
+                  Zaloguj się, aby dołączyć
+                </Button>
+              )}
+            </div>
 
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-slate-400">Organizator: {event.organizerName}</p>
@@ -559,11 +614,12 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Participants */}
+        {/* Detailed roster — organizer management (everyone sees the avatar stack in the header card) */}
+        {isOrganizer && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-ink flex items-center gap-2">
-              <Users className="w-4 h-4 text-slate-400" /> Uczestnicy
+              <Users className="w-4 h-4 text-slate-400" /> Zarządzaj składem
             </h2>
             <span className={[
               'text-sm font-medium px-2.5 py-1 rounded-full',
@@ -703,6 +759,7 @@ export default function EventDetailPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Reserve list */}
         {reserves.length > 0 && (
@@ -809,38 +866,6 @@ export default function EventDetailPage() {
             onSaved={(result) => setMatchResult(result)}
           />
         )}
-
-        {/* Join / status */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
-          {user && !myParticipation && !isFull && (
-            <Button
-              onClick={handleJoin}
-              isLoading={busy}
-              size="lg"
-              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl shadow-md active:scale-[0.98] transition-all"
-            >
-              Dołącz do gry <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-          {user && !myParticipation && isFull && (
-            <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full" size="lg">Zapisz się na listę rezerwową</Button>
-          )}
-          {user && myParticipation && !myParticipation.isReserve && !isOrganizer && (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-green-50 text-green-700 text-sm font-semibold py-3">
-              <Check className="w-4 h-4" /> Jesteś zapisany
-            </div>
-          )}
-          {user && myParticipation?.isReserve && (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-50 text-amber-700 text-sm font-semibold py-3">
-              <Users className="w-4 h-4" /> Jesteś na liście rezerwowej
-            </div>
-          )}
-          {!authLoading && !user && (
-            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="w-full" size="lg">
-              Zaloguj się, aby dołączyć
-            </Button>
-          )}
-        </div>
 
         {/* ZAPROSZENIE — skopiuj link i wklej gdzie chcesz (WhatsApp, Messenger, SMS…) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">

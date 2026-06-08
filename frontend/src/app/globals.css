@@ -77,3 +77,16 @@ a {
 .mapboxgl-ctrl-logo {
   display: none !important;
 }
+
+/* Leaflet popup — rounded card look to match venue card mockup */
+.leaflet-popup-content-wrapper {
+  border-radius: 18px !important;
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.25) !important;
+  padding: 6px !important;
+}
+.leaflet-popup-content {
+  margin: 8px !important;
+}
+.leaflet-popup-tip {
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.25) !important;
+}

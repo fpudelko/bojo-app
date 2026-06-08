@@ -8,7 +8,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import type { Field } from '@/types';
 import { getFields } from '@/lib/api';
-import { surfaceLabel } from '@/lib/labels';
+import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { useAdmin } from '@/lib/admin';
 import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
@@ -46,20 +46,24 @@ function popupHtml(field: Field, isAdmin: boolean): string {
       : '';
 
   const adminLink = isAdmin
-    ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:6px;font-size:11px;color:#94a3b8;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
+    ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:8px;font-size:11px;color:#94a3b8;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
     : '';
 
-  return `<div style="min-width:230px;max-width:280px;font-family:system-ui,sans-serif">
-    <p style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 2px">${field.name}</p>
-    <p style="font-size:11px;color:#64748b;margin:0 0 6px">${field.address}</p>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${sportsHtml}</div>
+  const thumb = venueThumbnail(field.lat, field.lng, 320, 180, 16);
+  const imgHtml = thumb
+    ? `<img src="${thumb}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:14px;margin-bottom:10px;display:block" />`
+    : '';
+
+  return `<div style="min-width:240px;max-width:280px;font-family:system-ui,sans-serif;padding:2px">
+    ${imgHtml}
+    <p style="font-weight:700;font-size:15px;color:#0f172a;margin:0 0 3px;line-height:1.25">${field.name}</p>
+    <p style="font-size:12px;color:#64748b;margin:0 0 8px">${field.address}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${sportsHtml}</div>
     <p style="margin:0 0 0">${availHtml}${surfaceTxt}${indoorTxt}</p>
     ${phoneTxt}
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">
-      ${bookingBtn}
-      <a href="/boisko/${slug}" style="flex:1;min-width:70px;text-align:center;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">Szczegóły →</a>
-      <a href="/wydarzenia/nowe?fieldId=${field.id}" style="flex:1;min-width:70px;text-align:center;background:#15803d;color:#fff;border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;text-decoration:none">+ Mecz</a>
-    </div>
+    <a href="/boisko/${slug}" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;background:#15663E;color:#fff;border-radius:14px;padding:11px 14px;font-size:14px;font-weight:700;text-decoration:none">Zobacz boisko →</a>
+    ${bookingBtn ? `<div style="margin-top:6px">${bookingBtn}</div>` : ''}
+    <a href="/wydarzenia/nowe?fieldId=${field.id}" style="display:block;text-align:center;margin-top:6px;color:#15663E;font-size:12px;font-weight:600;text-decoration:none">+ Zorganizuj tu mecz</a>
     ${adminLink}
   </div>`;
 }
