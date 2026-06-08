@@ -45,7 +45,7 @@ function MarketingHero() {
             className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg lg:mx-0"
             style={{ animationDelay: '160ms' }}
           >
-            Piłka, kosz, siatka, ręczna. Zero grup na WhatsAppie, zero excela,
+            Piłka, kosz, siatka. Zero grup na WhatsAppie, zero excela,
             zero „kto w końcu gra?". Znajdź grę blisko, kliknij Dołącz, idź zagrać.
           </p>
 

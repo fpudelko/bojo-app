@@ -21,7 +21,6 @@ const SPORTS_FILTER: { sport: string; label: string }[] = [
   { sport: 'siatkówka plażowa', label: 'Siatkówka plażowa' },
   { sport: 'siatkówka',         label: 'Siatkówka' },
   { sport: 'koszykówka',        label: 'Koszykówka' },
-  { sport: 'piłka ręczna',      label: 'Piłka ręczna' },
 ];
 
 type LocationMode = 'none' | 'browser' | 'address';
