@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ChevronDown, Navigation, Check } from 'lucide-react';
+import { ChevronDown, Navigation, Check, BookOpen, CircleDot } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -17,7 +17,6 @@ import { POZNAN, fieldPin } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-type DateRange = 'week' | 'today' | 'weekend';
 type SelSource = 'map' | 'scroll' | 'init';
 
 const SPORT_OPTIONS = [
@@ -27,18 +26,6 @@ const SPORT_OPTIONS = [
   { value: 'siatkówka', label: 'Siatkówka', emoji: '🏐' },
   { value: 'koszykówka', label: 'Koszykówka', emoji: '🏀' },
 ];
-
-const DATE_OPTIONS: { value: DateRange; label: string }[] = [
-  { value: 'week', label: 'Ten tydzień' },
-  { value: 'today', label: 'Dziś' },
-  { value: 'weekend', label: 'Ten weekend' },
-];
-
-const DATE_SUFFIX: Record<DateRange, string> = {
-  week: 'w tym tygodniu',
-  today: 'dziś',
-  weekend: 'w ten weekend',
-};
 
 // Polish plural for "gra / gry / gier"
 function gamesWord(n: number): string {
@@ -50,15 +37,18 @@ function gamesWord(n: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Map layer — markers + programmatic panning (lives inside MapContainer)
+// MapLayer — markers + pan/fly on selection change
+// lives inside <MapContainer> so it can call useMap()
 // ---------------------------------------------------------------------------
 function MapLayer({
   fields,
   selectedId,
+  selectedSource,
   onSelect,
 }: {
   fields: Field[];
   selectedId: string | null;
+  selectedSource: SelSource;
   onSelect: (id: string, source: SelSource) => void;
 }) {
   const map = useMap();
@@ -85,7 +75,7 @@ function MapLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, map]);
 
-  // Update which marker looks selected
+  // Highlight the selected pin
   useEffect(() => {
     for (const [id, m] of Object.entries(markersRef.current)) {
       const f = fields.find((x) => x.id === id);
@@ -93,19 +83,23 @@ function MapLayer({
     }
   }, [selectedId, fields]);
 
-  // Pan to the selected venue (whatever triggered the selection)
+  // Pan/fly on selection change — but only pan (no zoom) when triggered by carousel scroll
   useEffect(() => {
     if (!selectedId) return;
     const f = fields.find((x) => x.id === selectedId);
     if (!f) return;
-    map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 14), { duration: 0.55 });
-  }, [selectedId, fields, map]);
+    if (selectedSource === 'scroll') {
+      map.panTo([f.lat, f.lng], { animate: true, duration: 0.35 });
+    } else {
+      map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 13), { duration: 0.5 });
+    }
+  }, [selectedId, selectedSource, fields, map]);
 
   return null;
 }
 
 // ---------------------------------------------------------------------------
-// Filter pill with dropdown
+// PillDropdown
 // ---------------------------------------------------------------------------
 function PillDropdown({
   label,
@@ -133,12 +127,12 @@ function PillDropdown({
       <button
         onClick={() => setOpen((o) => !o)}
         className={[
-          'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors',
-          active ? 'border-primary-300 text-primary-700' : 'border-slate-200 text-ink',
+          'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+          active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
         ].join(' ')}
       >
         {label}
-        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-[1200] mt-2 min-w-[200px] overflow-hidden rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl">
@@ -149,18 +143,36 @@ function PillDropdown({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Venue card (carousel item)
-// ---------------------------------------------------------------------------
-function VenueCard({
-  field,
-  games,
-  dateRange,
+// Toggle pill (for boolean filters)
+function TogglePill({
+  label,
+  icon,
+  active,
+  onClick,
 }: {
-  field: Field;
-  games: number;
-  dateRange: DateRange;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
 }) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+        active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
+      ].join(' ')}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VenueCard
+// ---------------------------------------------------------------------------
+function VenueCard({ field, games }: { field: Field; games: number }) {
   const thumb = field.imageUrl || venueThumbnail(field.lat, field.lng, 320, 320, 16);
   const slug = slugify(field.name);
 
@@ -178,10 +190,22 @@ function VenueCard({
         </p>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
           <span className="text-slate-400">👥</span>
-          {games > 0
-            ? `${games} ${gamesWord(games)} ${DATE_SUFFIX[dateRange]}`
-            : `Brak gier ${DATE_SUFFIX[dateRange]}`}
+          {games > 0 ? `${games} ${gamesWord(games)} w tym tygodniu` : 'Brak gier w tym tygodniu'}
         </p>
+        {(field.bookingEnabled || field.available) && (
+          <div className="mt-1 flex items-center gap-1.5">
+            {field.bookingEnabled && (
+              <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
+                Rezerwacja online
+              </span>
+            )}
+            {field.available && (
+              <span className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-2 py-0.5">
+                Wolne
+              </span>
+            )}
+          </div>
+        )}
         <Link
           href={`/boisko/${slug}`}
           className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-800"
@@ -206,93 +230,81 @@ export default function VenueExplorer({
 } = {}) {
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events, setEvents] = useState<EventItem[]>(initialEvents ?? []);
+
+  // Filters
   const [sport, setSport] = useState('');
-  const [dateRange, setDateRange] = useState<DateRange>('week');
+  const [onlyBookable, setOnlyBookable] = useState(false);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
 
-  const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({
-    id: null,
-    source: 'init',
-  });
+  // Selection: id + source so MapLayer knows how to animate
+  const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId = selected.id;
+  const selectedSource = selected.source;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onSelect = useCallback((id: string, source: SelSource) => {
     setSelected({ id, source });
   }, []);
 
-  // Fetch fields + events once (skipped when seeded with initial data, e.g. previews)
+  // Fetch fields + events once (skipped when seeded with initialFields/initialEvents)
   useEffect(() => {
     if (initialFields || initialEvents) return;
     let cancelled = false;
     getFields({})
-      .then((res) => {
-        if (cancelled) return;
-        setAllFields(res.fields.filter((f) => f.mapVisibility !== 'hidden'));
-      })
+      .then((res) => { if (!cancelled) setAllFields(res.fields.filter((f) => f.mapVisibility !== 'hidden')); })
       .catch(() => {});
     getPublicEvents()
-      .then((evs) => {
-        if (!cancelled) setEvents(evs.filter((e) => e.status !== 'cancelled'));
-      })
+      .then((evs) => { if (!cancelled) setEvents(evs.filter((e) => e.status !== 'cancelled')); })
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Game counts per field id, within the selected date range
+  // Game counts for the next 7 days per field
   const gameCounts = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const inRange = (dateStr: string): boolean => {
-      const d = new Date(dateStr);
-      d.setHours(0, 0, 0, 0);
-      if (dateRange === 'today') return d.getTime() === now.getTime();
-      if (dateRange === 'weekend') {
-        const day = now.getDay();
-        const sat = new Date(now);
-        sat.setDate(now.getDate() + ((6 - day + 7) % 7));
-        const sun = new Date(sat);
-        sun.setDate(sat.getDate() + 1);
-        return d.getTime() === sat.getTime() || d.getTime() === sun.getTime();
-      }
-      // this week — next 7 days inclusive
-      const weekEnd = new Date(now);
-      weekEnd.setDate(now.getDate() + 7);
-      return d.getTime() >= now.getTime() && d.getTime() <= weekEnd.getTime();
-    };
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
     const counts: Record<string, number> = {};
     for (const e of events) {
-      if (!e.fieldId || !inRange(e.date)) continue;
-      counts[e.fieldId] = (counts[e.fieldId] ?? 0) + 1;
+      if (!e.fieldId) continue;
+      const d = new Date(e.date); d.setHours(0, 0, 0, 0);
+      if (d >= now && d <= weekEnd) counts[e.fieldId] = (counts[e.fieldId] ?? 0) + 1;
     }
     return counts;
-  }, [events, dateRange]);
+  }, [events]);
 
-  // Filtered + sorted field list shown on map & carousel
+  // Filtered + sorted field list
   const fields = useMemo(() => {
     let list = allFields;
     if (sport) list = list.filter((f) => f.sport.includes(sport));
+    if (onlyBookable) list = list.filter((f) => f.bookingEnabled);
+    if (onlyAvailable) list = list.filter((f) => f.available);
     if (geo) {
-      const dist = (f: Field) =>
-        (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
+      const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
       list = [...list].sort((a, b) => dist(a) - dist(b));
     } else {
-      // Venues with games first, so the carousel opens on something lively
-      list = [...list].sort(
-        (a, b) => (gameCounts[b.id] ?? 0) - (gameCounts[a.id] ?? 0),
-      );
+      // Most active venues first
+      list = [...list].sort((a, b) => (gameCounts[b.id] ?? 0) - (gameCounts[a.id] ?? 0));
     }
     return list;
-  }, [allFields, sport, geo, gameCounts]);
+  }, [allFields, sport, onlyBookable, onlyAvailable, geo, gameCounts]);
 
-  // Select the first venue once the list is ready / filters change
+  // Clean up stale card refs when the filtered list changes
+  useEffect(() => {
+    const currentIds = new Set(fields.map((f) => f.id));
+    for (const id of Object.keys(cardRefs.current)) {
+      if (!currentIds.has(id)) delete cardRefs.current[id];
+    }
+  }, [fields]);
+
+  // When the filtered list changes, if selected id is no longer in it, jump to first
   useEffect(() => {
     if (fields.length === 0) return;
     if (!selectedIdRef.current || !fields.some((f) => f.id === selectedIdRef.current)) {
@@ -300,47 +312,37 @@ export default function VenueExplorer({
     }
   }, [fields]);
 
-  // When selection comes from the map (or init), scroll the carousel to it
+  // When selection comes from map click or init, scroll the carousel to center that card
   useEffect(() => {
     if (!selectedId || selected.source === 'scroll') return;
     const el = cardRefs.current[selectedId];
     const c = scrollRef.current;
-    if (el && c) {
-      c.scrollTo({
-        left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2,
-        behavior: 'smooth',
-      });
-    }
+    if (!el || !c) return;
+    // Use scrollTo so snap doesn't fight — align the card's center with the container's center
+    c.scrollTo({ left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [selectedId, selected.source]);
 
-  // Detect the centered card as the user scrolls the carousel
-  const rafRef = useRef<number | null>(null);
+  // Scroll handler: debounce → detect centered card → pan map (don't flyTo from scroll)
   const handleScroll = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
+    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+    scrollDebounceRef.current = setTimeout(() => {
       const c = scrollRef.current;
       if (!c) return;
-      const center = c.scrollLeft + c.clientWidth / 2;
+      const viewCenter = c.scrollLeft + c.clientWidth / 2;
       let best: string | null = null;
       let bestDist = Infinity;
       for (const [id, el] of Object.entries(cardRefs.current)) {
         if (!el) continue;
         const cardCenter = el.offsetLeft + el.offsetWidth / 2;
-        const d = Math.abs(cardCenter - center);
-        if (d < bestDist) {
-          bestDist = d;
-          best = id;
-        }
+        const d = Math.abs(cardCenter - viewCenter);
+        if (d < bestDist) { bestDist = d; best = id; }
       }
       if (best && best !== selectedIdRef.current) onSelect(best, 'scroll');
-    });
+    }, 100);
   }, [onSelect]);
 
   async function handleGeo() {
-    if (geo) {
-      setGeo(null);
-      return;
-    }
+    if (geo) { setGeo(null); return; }
     setGeoLoading(true);
     const res = await getCurrentLocation();
     setGeoLoading(false);
@@ -348,47 +350,43 @@ export default function VenueExplorer({
   }
 
   const sportLabel = SPORT_OPTIONS.find((o) => o.value === sport)?.label ?? 'Wszystkie sporty';
-  const dateLabel = DATE_OPTIONS.find((o) => o.value === dateRange)?.label ?? 'Ten tydzień';
 
   const street = MAPBOX_TOKEN ? (
     <TileLayer
       attribution='&copy; Mapbox &copy; OpenStreetMap'
       url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-      tileSize={512}
-      zoomOffset={-1}
+      tileSize={512} zoomOffset={-1}
     />
   ) : (
-    <TileLayer
-      attribution='&copy; OpenStreetMap'
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    />
+    <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
   );
+
+  // Card width used for scroll-padding so first/last cards center correctly
+  const CARD_W = 'min(85vw, 360px)';
 
   return (
     <div className="relative flex-1 min-h-0 overflow-hidden">
-      <MapContainer
-        center={POZNAN}
-        zoom={12}
-        style={{ height: '100%', width: '100%' }}
-        zoomControl={false}
-      >
+      <MapContainer center={POZNAN} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
         {street}
-        <MapLayer fields={fields} selectedId={selectedId} onSelect={onSelect} />
+        <MapLayer
+          fields={fields}
+          selectedId={selectedId}
+          selectedSource={selectedSource}
+          onSelect={onSelect}
+        />
       </MapContainer>
 
       {/* Floating filter pills */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1100] px-3 pt-3">
         <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Sport */}
           <PillDropdown label={sportLabel} active={!!sport}>
             {(close) => (
               <>
                 {SPORT_OPTIONS.map((o) => (
                   <button
                     key={o.value}
-                    onClick={() => {
-                      setSport(o.value);
-                      close();
-                    }}
+                    onClick={() => { setSport(o.value); close(); }}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
                   >
                     <span className="text-base">{o.emoji}</span>
@@ -400,59 +398,66 @@ export default function VenueExplorer({
             )}
           </PillDropdown>
 
-          <PillDropdown label={dateLabel} active={dateRange !== 'week'}>
-            {(close) => (
-              <>
-                {DATE_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => {
-                      setDateRange(o.value);
-                      close();
-                    }}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-                  >
-                    <span className="flex-1 text-left">{o.label}</span>
-                    {dateRange === o.value && <Check className="h-4 w-4 text-primary-700" />}
-                  </button>
-                ))}
-              </>
-            )}
-          </PillDropdown>
+          {/* Rezerwacja online */}
+          <TogglePill
+            label="Rezerwacja"
+            icon={<BookOpen className={`h-3.5 w-3.5 shrink-0 ${onlyBookable ? 'text-white' : 'text-blue-500'}`} />}
+            active={onlyBookable}
+            onClick={() => setOnlyBookable((v) => !v)}
+          />
 
-          <button
+          {/* Wolne boiska */}
+          <TogglePill
+            label="Wolne"
+            icon={<CircleDot className={`h-3.5 w-3.5 shrink-0 ${onlyAvailable ? 'text-white' : 'text-green-600'}`} />}
+            active={onlyAvailable}
+            onClick={() => setOnlyAvailable((v) => !v)}
+          />
+
+          {/* Blisko mnie */}
+          <TogglePill
+            label="Blisko mnie"
+            icon={<Navigation className={`h-3.5 w-3.5 shrink-0 ${geoLoading ? 'animate-pulse' : ''}`} />}
+            active={!!geo}
             onClick={handleGeo}
-            className={[
-              'inline-flex shrink-0 items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors',
-              geo ? 'border-primary-300 text-primary-700' : 'border-slate-200 text-ink',
-            ].join(' ')}
-          >
-            <Navigation className={`h-3.5 w-3.5 ${geoLoading ? 'animate-pulse' : ''}`} />
-            Blisko mnie
-          </button>
+          />
         </div>
       </div>
 
-      {/* Bottom carousel */}
+      {/* Bottom carousel — scroll-padding makes first/last cards center properly */}
       {fields.length > 0 && (
         <div className="absolute inset-x-0 bottom-0 z-[1100] pb-4">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ scrollPaddingLeft: `calc((100% - ${CARD_W}) / 2)`, scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)` }}
+            className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
+            {/* Left spacer so first card can snap to center */}
+            <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
+
             {fields.map((f) => (
               <div
                 key={f.id}
-                ref={(el) => {
-                  cardRefs.current[f.id] = el;
-                }}
+                ref={(el) => { cardRefs.current[f.id] = el; }}
                 onClick={() => onSelect(f.id, 'map')}
-                className="h-[140px] w-[min(85vw,360px)] shrink-0 snap-center"
+                style={{ width: CARD_W }}
+                className="shrink-0 snap-center px-1.5 h-[140px] cursor-pointer"
               >
-                <VenueCard field={f} games={gameCounts[f.id] ?? 0} dateRange={dateRange} />
+                <VenueCard field={f} games={gameCounts[f.id] ?? 0} />
               </div>
             ))}
+
+            {/* Right spacer so last card can snap to center */}
+            <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
+          </div>
+        </div>
+      )}
+
+      {fields.length === 0 && allFields.length > 0 && (
+        <div className="absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
+          <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
+            Brak boisk dla tych filtrów
           </div>
         </div>
       )}
