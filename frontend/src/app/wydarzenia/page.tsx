@@ -217,7 +217,7 @@ export default function EventsPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Znajdź grę</h1>
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Nadchodzące mecze</h1>
           {user && (
             <Link href="/wydarzenia/nowe">
               <Button className="flex items-center gap-1.5"><Plus className="w-4 h-4" /> Nowe</Button>
