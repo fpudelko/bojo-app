@@ -57,7 +57,7 @@ ANTHROPIC_API_KEY     = os.environ["ANTHROPIC_API_KEY"]
 MAPBOX_TOKEN          = os.environ.get("NEXT_PUBLIC_MAPBOX_TOKEN") or os.environ.get("MAPBOX_TOKEN", "")
 ANTHROPIC_URL         = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION     = "2023-06-01"
-MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 # Satellite tile: 512×512 @2x at zoom 18 gives ~1m/px resolution — enough to read surface & count pitches
 MAPBOX_ZOOM           = 18

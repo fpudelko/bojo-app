@@ -28,7 +28,7 @@ on:
         type: boolean
       limit:
         description: 'Maks. liczba boisk (0 = wszystkie kwalifikujące się)'
-        default: '50'
+        default: '0'
         required: false
         type: string
       all:
@@ -43,12 +43,12 @@ on:
         type: boolean
       model:
         description: 'Model Claude'
-        default: 'claude-sonnet-4-6'
+        default: 'claude-haiku-4-5-20251001'
         required: false
         type: choice
         options:
-          - claude-sonnet-4-6
           - claude-haiku-4-5-20251001
+          - claude-sonnet-4-6
           - claude-opus-4-8
       concurrency:
         description: 'Równoległe requesty do API (max 5 przy Sonnet)'
