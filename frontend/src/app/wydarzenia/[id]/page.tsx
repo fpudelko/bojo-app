@@ -8,7 +8,7 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
-  BanIcon, RotateCcw, AlertTriangle, Copy,
+  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -427,7 +427,7 @@ export default function EventDetailPage() {
   })();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
@@ -454,47 +454,72 @@ export default function EventDetailPage() {
         )}
 
         {/* Header card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          {venueThumbnail(event.lat, event.lng, 600, 200) && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={venueThumbnail(event.lat, event.lng, 600, 200)!} alt={event.fieldName} className="w-full h-40 object-cover" />
-          )}
-          <div className="p-6">
-            <div className="flex items-start gap-3">
-              <span className="text-4xl" role="img">{sportEmoji(event.sport)}</span>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-gray-900">{event.title || event.sport}</h1>
-                <p className="text-sm text-gray-500 capitalize">{event.sport}</p>
-              </div>
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span className={[
-                  'text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1',
-                  event.visibility === 'public' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600',
-                ].join(' ')}>
-                  {event.visibility === 'public'
-                    ? <><Globe className="w-3 h-3" /> Publiczne</>
-                    : <><Lock className="w-3 h-3" /> Prywatne</>}
-                </span>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          {venueThumbnail(event.lat, event.lng, 800, 400, 17) ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={venueThumbnail(event.lat, event.lng, 800, 400, 17)!} alt={event.fieldName} className="w-full h-52 object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              <div className="absolute top-3 right-3">
                 <SpotsBadge regulars={takenSpots} max={event.maxPlayers} />
               </div>
             </div>
+          ) : (
+            <div className="h-24 bg-gradient-to-br from-primary-700 to-primary-900 flex items-center justify-center">
+              <span className="text-5xl opacity-70">{sportEmoji(event.sport)}</span>
+            </div>
+          )}
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-ink leading-tight">{event.title || event.sport}</h1>
+                <p className="text-sm text-slate-500 capitalize mt-0.5">{event.sport}</p>
+              </div>
+              {!venueThumbnail(event.lat, event.lng, 1, 1) && (
+                <SpotsBadge regulars={takenSpots} max={event.maxPlayers} />
+              )}
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 text-sm">
-              <div className="flex items-center gap-2 text-gray-700">
-                <Calendar className="w-4 h-4 text-gray-400" />
+            {/* Info chips */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 <span className="capitalize">{dateStr}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <Clock className="w-4 h-4 text-gray-400" />
-                {event.time?.slice(0, 5)}
-                {event.endTime && <span className="text-gray-400">– {event.endTime.slice(0, 5)}</span>}
-              </div>
-              <div className="flex items-start gap-2 text-gray-700 sm:col-span-2">
-                <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {event.time?.slice(0, 5)}{event.endTime && `–${event.endTime.slice(0, 5)}`}
+              </span>
+              {event.costGrosze > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
+                  <Banknote className="w-3.5 h-3.5" />
+                  {(event.costGrosze / 100).toFixed(0)} PLN / os.
+                </span>
+              )}
+              {event.costGrosze === 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-700">
+                  Bez opłaty
+                </span>
+              )}
+              <span className={[
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border',
+                event.visibility === 'public'
+                  ? 'bg-primary-50 border-primary-200 text-primary-700'
+                  : 'bg-slate-50 border-slate-200 text-slate-600',
+              ].join(' ')}>
+                {event.visibility === 'public'
+                  ? <><Globe className="w-3.5 h-3.5" /> Publiczne</>
+                  : <><Lock className="w-3.5 h-3.5" /> Prywatne</>}
+              </span>
+            </div>
+
+            <div className="mt-4 text-sm">
+              <div className="flex items-start gap-2 text-slate-700">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium">{event.fieldName}</span>
+                  <span className="font-medium text-ink">{event.fieldName}</span>
                   {(event.fieldAddress || event.customAddress || event.customLocationName) && (
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       {event.fieldAddress || event.customAddress || event.customLocationName}
                     </p>
                   )}
@@ -515,22 +540,16 @@ export default function EventDetailPage() {
                   </a>
                 )}
               </div>
-              {costPln && (
-                <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
-                  <Banknote className="w-4 h-4 text-gray-400" />
-                  Koszt: {costPln} PLN / os.
-                </div>
-              )}
             </div>
 
             {event.description && (
-              <p className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3 leading-relaxed">
+              <p className="mt-4 text-sm text-slate-600 bg-slate-50 rounded-xl p-3 leading-relaxed">
                 {event.description}
               </p>
             )}
 
             <div className="flex items-center justify-between mt-4">
-              <p className="text-xs text-gray-400">Organizator: {event.organizerName}</p>
+              <p className="text-xs text-slate-400">Organizator: {event.organizerName}</p>
               {isOrganizer && (
                 <Link href={`/wydarzenia/${event.id}/edytuj`} className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium">
                   <Pencil className="w-3.5 h-3.5" /> Edytuj
@@ -541,10 +560,10 @@ export default function EventDetailPage() {
         </div>
 
         {/* Participants */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-4 h-4" /> Uczestnicy
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-ink flex items-center gap-2">
+              <Users className="w-4 h-4 text-slate-400" /> Uczestnicy
             </h2>
             <span className={[
               'text-sm font-medium px-2.5 py-1 rounded-full',
@@ -553,6 +572,27 @@ export default function EventDetailPage() {
               {takenSpots} / {event.maxPlayers}
             </span>
           </div>
+
+          {/* Avatar strip */}
+          {regulars.length > 0 && (
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+              <div className="flex -space-x-2">
+                {regulars.slice(0, 6).map((p) =>
+                  p.avatarUrl
+                    ? <img key={p.id} src={p.avatarUrl} alt={p.name} title={p.name} className="w-9 h-9 rounded-full border-2 border-white object-cover" />
+                    : <span key={p.id} title={p.name} className="w-9 h-9 rounded-full border-2 border-white bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold">{p.name.charAt(0).toUpperCase()}</span>
+                )}
+                {regulars.length > 6 && (
+                  <span className="w-9 h-9 rounded-full border-2 border-white bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-medium">+{regulars.length - 6}</span>
+                )}
+              </div>
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-ink">{takenSpots}</span> z {event.maxPlayers} graczy
+                {!isFull && <span className="text-primary-600 font-medium"> · {event.maxPlayers - takenSpots} wolnych</span>}
+              </p>
+            </div>
+          )}
+
 
           {externalCount > 0 && (
             <p className="-mt-2 mb-3 text-xs text-gray-500">
@@ -566,7 +606,7 @@ export default function EventDetailPage() {
             </p>
           )}
 
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-slate-100">
             {regulars.map((p) => (
               <li key={p.id} className="py-2.5">
                 <div className="flex items-center gap-2">
@@ -577,7 +617,7 @@ export default function EventDetailPage() {
                   }
 
                   {/* Name + badges */}
-                  <span className="flex-1 flex items-center gap-1.5 text-sm text-gray-800 min-w-0">
+                  <span className="flex-1 flex items-center gap-1.5 text-sm text-ink min-w-0">
                     <span className="truncate max-w-[120px]">{p.name}</span>
                     {p.isGuest && (
                       <span className="text-xs text-gray-400 shrink-0">
@@ -687,13 +727,13 @@ export default function EventDetailPage() {
 
         {/* Reserve list */}
         {reserves.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Users className="w-4 h-4 text-gray-400" />
               Lista rezerwowa
               <span className="text-xs font-normal text-gray-400 ml-1">{reserves.length} os.</span>
             </h2>
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {reserves.map((p, i) => (
                 <li key={p.id} className="flex items-center justify-between py-2.5">
                   <span className="flex items-center gap-2 text-sm text-gray-600">
@@ -733,9 +773,9 @@ export default function EventDetailPage() {
 
         {/* Quick shuffle (teamMode === 'brak') — organizer only, client-side */}
         {!showTeams && isOrganizer && regulars.length >= 2 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="font-semibold text-ink flex items-center gap-2">
                 <Shuffle className="w-4 h-4" /> Losuj składy
                 <span className="text-xs font-normal text-gray-400">tylko dla Ciebie</span>
               </h2>
@@ -772,7 +812,7 @@ export default function EventDetailPage() {
 
         {/* Match results (trackResults) — locked until 30 min after event start */}
         {event.trackResults && !resultsAvailable && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-3 text-sm text-gray-400">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-gray-400">
             <Trophy className="w-4 h-4 shrink-0" />
             Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
           </div>
@@ -792,31 +832,40 @@ export default function EventDetailPage() {
         )}
 
         {/* Join / status */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
           {user && !myParticipation && !isFull && (
-            <Button onClick={handleJoin} isLoading={busy} className="w-full" size="lg">Dołącz do gry</Button>
+            <Button
+              onClick={handleJoin}
+              isLoading={busy}
+              size="lg"
+              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold rounded-xl shadow-md active:scale-[0.98] transition-all"
+            >
+              Dołącz do gry <ArrowRight className="w-4 h-4" />
+            </Button>
           )}
           {user && !myParticipation && isFull && (
             <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full" size="lg">Zapisz się na listę rezerwową</Button>
           )}
           {user && myParticipation && !myParticipation.isReserve && !isOrganizer && (
-            <div className="flex items-center justify-center gap-2 text-green-700 text-sm font-medium py-2">
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-green-50 text-green-700 text-sm font-semibold py-3">
               <Check className="w-4 h-4" /> Jesteś zapisany
             </div>
           )}
           {user && myParticipation?.isReserve && (
-            <div className="flex items-center justify-center gap-2 text-amber-600 text-sm font-medium py-2">
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-50 text-amber-700 text-sm font-semibold py-3">
               <Users className="w-4 h-4" /> Jesteś na liście rezerwowej
             </div>
           )}
           {!authLoading && !user && (
-            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} variant="outline" className="w-full">Zaloguj się, aby dołączyć</Button>
+            <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="w-full" size="lg">
+              Zaloguj się, aby dołączyć
+            </Button>
           )}
         </div>
 
         {/* ZAPROSZENIE — skopiuj link i wklej gdzie chcesz (WhatsApp, Messenger, SMS…) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
             <Share2 className="w-4 h-4" /> Zaproś
           </h2>
           <p className="text-xs text-gray-400 mb-3">
@@ -833,13 +882,13 @@ export default function EventDetailPage() {
 
         {/* Cost split summary */}
         {event.trackPayments && event.costGrosze > 0 && isOrganizer && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Banknote className="w-4 h-4" /> Podział kosztów
             </h2>
             <div className="flex items-center justify-between text-sm mb-3">
               <span className="text-gray-500">Koszt / os.</span>
-              <span className="font-semibold text-gray-900">{(event.costGrosze / 100).toFixed(2)} PLN</span>
+              <span className="font-semibold text-ink">{(event.costGrosze / 100).toFixed(2)} PLN</span>
             </div>
             <div className="flex items-center justify-between text-sm mb-3">
               <span className="text-gray-500">Opłaconych</span>
@@ -849,7 +898,7 @@ export default function EventDetailPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Zebrano</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-ink">
                 {((regulars.filter((p) => p.hasPaid).length * event.costGrosze) / 100).toFixed(2)} PLN
                 {' '}<span className="text-gray-400 font-normal">z {((regulars.length * event.costGrosze) / 100).toFixed(2)} PLN</span>
               </span>
@@ -874,8 +923,8 @@ export default function EventDetailPage() {
 
         {/* Organizer controls */}
         {isOrganizer && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
-            <h2 className="font-semibold text-gray-900 text-sm mb-2">Zarządzaj wydarzeniem</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+            <h2 className="font-semibold text-ink text-sm mb-2">Zarządzaj wydarzeniem</h2>
             <button
               onClick={handleToggleVisibility} disabled={busy}
               className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
@@ -923,7 +972,7 @@ export default function EventDetailPage() {
           onClick={() => setRepeatOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-gray-900 mb-1">Powtórz mecz</h3>
+            <h3 className="font-semibold text-ink mb-1">Powtórz mecz</h3>
             <p className="text-sm text-gray-500 mb-4">
               Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę.
             </p>
@@ -970,7 +1019,7 @@ export default function EventDetailPage() {
           onClick={() => setReportTarget(null)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-gray-900 mb-1">Zgłoś uczestnika</h3>
+            <h3 className="font-semibold text-ink mb-1">Zgłoś uczestnika</h3>
             <p className="text-sm text-gray-500 mb-4">{reportTarget.name}</p>
             <div className="space-y-2 mb-4">
               {REPORT_TYPES.map((rt) => (

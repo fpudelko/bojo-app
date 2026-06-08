@@ -19,21 +19,29 @@ export function isUpcoming(event: EventItem): boolean {
 }
 
 export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganizer: boolean }) {
-  let dateStr = event.date;
-  try { dateStr = format(parseISO(event.date), 'EEE, d MMM', { locale: pl }); } catch {}
+  let dayLabel = '';
+  try {
+    const d = parseISO(event.date);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const evDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((evDay.getTime() - now.getTime()) / 86400000);
+    if (diff === 0) dayLabel = 'Dziś';
+    else if (diff === 1) dayLabel = 'Jutro';
+    else dayLabel = format(d, 'EEE, d MMM', { locale: pl });
+  } catch {}
 
   const cancelled = event.status === 'cancelled';
 
   return (
     <Link href={`/wydarzenia/${event.id}`} className="block group">
       <div className={[
-        'bg-white rounded-2xl border p-4 flex items-center gap-4 transition-all duration-200',
+        'bg-white rounded-2xl border p-4 flex items-center gap-3 transition-all duration-200',
         cancelled
           ? 'border-red-100 opacity-60'
           : 'border-slate-200/80 shadow-card hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover',
       ].join(' ')}>
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-canvas text-2xl"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl"
           role="img"
           aria-label={event.sport}
         >
@@ -44,14 +52,13 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
             {event.title || event.sport}
             {cancelled && <span className="ml-2 text-xs text-red-500 font-normal">Odwołane</span>}
           </p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />{dateStr} {event.time?.slice(0, 5)}
-            </span>
-            <span className="flex items-center gap-1 truncate">
-              <MapPin className="w-3 h-3 shrink-0" />{event.fieldName}
-            </span>
-          </div>
+          <p className="flex items-center gap-1 mt-0.5 text-xs text-slate-500">
+            <Calendar className="w-3 h-3 shrink-0" />
+            {dayLabel}{event.time ? `, ${event.time.slice(0, 5)}` : ''}
+          </p>
+          <p className="flex items-center gap-1 mt-0.5 text-xs text-slate-500 truncate">
+            <MapPin className="w-3 h-3 shrink-0" />{event.fieldName}
+          </p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5">
           {isOrganizer && (

@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Calendar, Clock, MapPin, Users, Plus, Lock, Globe, Navigation, Search, X } from 'lucide-react';
+import { Calendar, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { getPublicEvents } from '@/lib/events';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
@@ -36,21 +35,6 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-function statusBadge(event: EventItem) {
-  const taken = event.externalCount ?? 0;
-  const max = event.maxPlayers ?? 0;
-  const label = taken > 0 && max > 0 ? `${taken}/${max} miejsc` : `max ${max}`;
-  const full = max > 0 && taken >= max;
-  return (
-    <span className={[
-      'text-xs font-medium flex items-center gap-1',
-      full ? 'text-red-600' : 'text-slate-600',
-    ].join(' ')}>
-      <Users className="w-3 h-3" /> {label}
-    </span>
-  );
-}
-
 function DistanceBadge({ km }: { km: number }) {
   const label = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
   return (
@@ -61,52 +45,69 @@ function DistanceBadge({ km }: { km: number }) {
 }
 
 function EventRow({ event, distance }: { event: EventItem; distance?: number }) {
-  let dateStr = event.date;
-  try { dateStr = format(parseISO(event.date), 'd MMM', { locale: pl }); } catch {}
+  let dayLabel = '';
+  try {
+    const d = parseISO(event.date);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const evDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((evDay.getTime() - now.getTime()) / 86400000);
+    if (diff === 0) dayLabel = 'Dziś';
+    else if (diff === 1) dayLabel = 'Jutro';
+    else dayLabel = format(d, 'd MMM', { locale: pl });
+  } catch {}
+
+  const taken = event.externalCount ?? 0;
+  const max = event.maxPlayers ?? 0;
+  const left = max > 0 ? max - taken : null;
+  const isFull = left !== null && left <= 0;
 
   return (
-    <Link href={`/wydarzenia/${event.id}`}>
-      <Card className="hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 border-slate-200/80" padding="md">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl"
-              role="img"
-              aria-label={event.sport}
-            >
-              {sportEmoji(event.sport)}
-            </span>
-            <div className="min-w-0">
-              <p className="font-semibold text-ink truncate">
-                {event.title || `${event.sport}${event.district ? ` · ${event.district}` : ''}`}
-              </p>
-              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 shrink-0" />
-                {event.fieldName}
-                {event.district && event.title && <span className="text-slate-400">· {event.district}</span>}
-              </p>
+    <Link href={`/wydarzenia/${event.id}`} className="block group">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 p-4">
+        <div className="flex items-start gap-3">
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl mt-0.5"
+            role="img"
+            aria-label={event.sport}
+          >
+            {sportEmoji(event.sport)}
+          </span>
+
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-ink leading-snug truncate">
+              {event.title || `${event.sport}${event.district ? ` · ${event.district}` : ''}`}
+            </p>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
+              <Calendar className="w-3 h-3 shrink-0" />
+              {dayLabel}{event.time ? `, ${event.time.slice(0, 5)}` : ''}
+            </p>
+            <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
+              <MapPin className="w-3 h-3 shrink-0" />
+              {event.fieldName}
+            </p>
+            <div className="flex items-center gap-2 mt-1.5">
+              {max > 0 && (
+                <span className={`text-xs font-medium flex items-center gap-1 ${isFull ? 'text-red-500' : 'text-slate-400'}`}>
+                  <Users className="w-3 h-3" />
+                  {isFull ? 'Brak miejsc' : left !== null ? `${left} wolnych z ${max}` : `max ${max}`}
+                </span>
+              )}
+              {distance !== undefined && <DistanceBadge km={distance} />}
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-medium text-ink flex items-center gap-1 justify-end">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" /> {dateStr}
-            </p>
-            <p className="text-xs text-slate-500 flex items-center gap-1 justify-end mt-0.5">
-              <Clock className="w-3 h-3" /> {event.time?.slice(0, 5)}
-              {event.endTime && <span className="text-slate-400">–{event.endTime.slice(0, 5)}</span>}
-            </p>
+
+          <div className="shrink-0 self-center">
+            <span className={[
+              'inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors',
+              isFull
+                ? 'bg-slate-100 text-slate-400'
+                : 'bg-primary-700 text-white group-hover:bg-primary-800',
+            ].join(' ')}>
+              {isFull ? 'Pełne' : 'Dołącz'}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
-          {statusBadge(event)}
-          <span className="flex items-center gap-1">
-            {event.visibility === 'public'
-              ? <><Globe className="w-3 h-3" /> Publiczne</>
-              : <><Lock className="w-3 h-3" /> Prywatne</>}
-          </span>
-          {distance !== undefined && <DistanceBadge km={distance} />}
-        </div>
-      </Card>
+      </div>
     </Link>
   );
 }
@@ -221,16 +222,16 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter — emoji + visible label */}
+        {/* Sport filter */}
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setSportFilter('')}
             aria-pressed={!sportFilter}
             className={[
-              'shrink-0 px-3.5 h-10 rounded-xl text-sm font-medium border transition-colors',
+              'shrink-0 px-4 h-9 rounded-full text-sm font-semibold border transition-colors',
               !sportFilter
                 ? 'bg-primary-700 text-white border-primary-700'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
+                : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-700',
             ].join(' ')}
           >Wszystkie</button>
           {SPORTS_FILTER.map(({ sport, label }) => {
@@ -241,14 +242,14 @@ export default function EventsPage() {
                 onClick={() => setSportFilter(active ? '' : sport)}
                 aria-pressed={active}
                 className={[
-                  'shrink-0 inline-flex items-center gap-1.5 px-3 h-10 rounded-xl text-sm font-medium border transition-colors',
+                  'shrink-0 inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full text-sm font-semibold border transition-colors',
                   active
-                    ? 'bg-primary-50 border-primary-500 text-primary-800 ring-2 ring-primary-200'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400',
+                    ? 'bg-primary-700 text-white border-primary-700'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 hover:text-primary-700',
                 ].join(' ')}
               >
-                <span aria-hidden="true" className="text-lg leading-none">{sportEmoji(sport)}</span>
-                <span>{label}</span>
+                <span aria-hidden="true" className="text-base leading-none">{sportEmoji(sport)}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             );
           })}
@@ -379,8 +380,8 @@ function GroupedEventList({ items }: { items: { event: EventItem; distance?: num
     <div className="space-y-6">
       {groups.map(([label, rows]) => (
         <section key={label}>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
-            {label} <span className="text-slate-400 font-normal">· {rows.length}</span>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">
+            {label} <span className="font-normal text-slate-300">· {rows.length}</span>
           </h2>
           <div className="space-y-3">
             {rows.map(({ event, distance }) => (
