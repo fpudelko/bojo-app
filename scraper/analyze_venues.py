@@ -336,8 +336,7 @@ def _ai_visibility(result: dict, existing: dict) -> str:
 async def fetch_fields(client: httpx.AsyncClient, process_all: bool, limit: int | None) -> list[dict]:
     url = f"{SUPABASE_URL}/rest/v1/fields"
     params: dict[str, Any] = {
-        "select": "id,name,address,sport,lat,lng,surface,is_indoor,lit,has_changing_rooms,map_visibility",
-        "map_visibility": "eq.public",
+        "select": "id,name,address,sport,lat,lng,surface,is_indoor,lit,has_changing_rooms,map_visibility,phone,website,email",
         "order": "id.asc",
     }
     if not process_all:
