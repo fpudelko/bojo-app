@@ -185,7 +185,7 @@ export default function EventsPage() {
     setGeoError(null);
   }
 
-  const raw = publicEvents;
+  const raw = publicEvents.filter((e) => e.status !== 'cancelled');
 
   // Distances (only computed when geoPoint set)
   const withDistances = useMemo(() => {

@@ -161,11 +161,12 @@ function PersonalizedHero({ name }: { name: string }) {
     }).finally(() => setLoading(false));
   }, [user]);
 
-  const openEvents = allEvents.filter((e) => {
+  const nonCancelled = allEvents.filter((e) => e.status !== 'cancelled');
+  const openEvents = nonCancelled.filter((e) => {
     const taken = (e.participantsCount ?? 0) + (e.externalCount ?? 0);
     return isUpcoming(e) && taken < e.maxPlayers;
   });
-  const fullOrPast = allEvents.filter((e) => {
+  const fullOrPast = nonCancelled.filter((e) => {
     const taken = (e.participantsCount ?? 0) + (e.externalCount ?? 0);
     return !isUpcoming(e) || taken >= e.maxPlayers;
   }).slice(0, 4);
