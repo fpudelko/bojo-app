@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { LogIn, Users, RefreshCw, ChevronRight } from 'lucide-react';
+import { LogIn, Users, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -11,25 +11,20 @@ import { EventCard, isUpcoming } from '@/components/EventCard';
 import type { EventItem } from '@/types';
 
 function Section({
-  title, events, isOrganizer, emptyText,
+  title, events,
 }: {
   title: string;
   events: { event: EventItem; isOrganizer: boolean }[];
-  isOrganizer?: boolean;
-  emptyText: string;
 }) {
+  if (events.length === 0) return null;
   return (
     <section>
       <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">{title}</h2>
-      {events.length === 0
-        ? <p className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-6 text-center text-sm text-slate-400">{emptyText}</p>
-        : (
-          <div className="space-y-2">
-            {events.map(({ event, isOrganizer: org }) => (
-              <EventCard key={event.id} event={event} isOrganizer={isOrganizer ?? org} />
-            ))}
-          </div>
-        )}
+      <div className="space-y-2">
+        {events.map(({ event, isOrganizer }) => (
+          <EventCard key={event.id} event={event} isOrganizer={isOrganizer} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -86,20 +81,11 @@ export default function MojeGryPage() {
           </Link>
         </div>
 
-        {/* Quick access to recurring games */}
         <Link
           href="/cykliczne"
           className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-card hover:border-primary-200 hover:shadow-card-hover transition-all group"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50">
-              <RefreshCw className="w-4 h-4 text-primary-700" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-ink">Stałe gierki</p>
-              <p className="text-xs text-slate-500">Cykliczne mecze z Twoją ekipą</p>
-            </div>
-          </div>
+          <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-600 transition-colors" />
         </Link>
 
@@ -111,21 +97,12 @@ export default function MojeGryPage() {
           </div>
         ) : (
           <>
-            <Section
-              title="Nadchodzące — biorę udział"
-              events={upcomingAsParticipant}
-              emptyText="Brak nadchodzących gier jako uczestnik."
-            />
-            <Section
-              title="Nadchodzące — organizuję"
-              events={upcomingAsOrganizer}
-              emptyText="Nie organizujesz żadnych nadchodzących gier."
-            />
-            <Section
-              title="Historia"
-              events={history}
-              emptyText="Brak rozegranych gier."
-            />
+            <Section title="Nadchodzące — gram" events={upcomingAsParticipant} />
+            <Section title="Nadchodzące — organizuję" events={upcomingAsOrganizer} />
+            <Section title="Historia" events={history} />
+            {!loading && items.length === 0 && (
+              <p className="text-center text-sm text-slate-400 py-8">Nie masz jeszcze żadnych gier.</p>
+            )}
           </>
         )}
       </main>
