@@ -1,0 +1,99 @@
+name: Analiza satelitarna boisk (AI)
+
+# Wykrywa typ boiska, nawierzchnię, wymiary, infrastrukturę
+# na podstawie zdjęcia satelitarnego Mapbox (zoom 18).
+#
+# Koszt szacunkowy:
+#   • claude-sonnet-4-6  → ~$0.010–0.015 / boisko  (vision input ~1000 tok, output ~300 tok)
+#   • claude-haiku-4-5   → ~$0.002–0.003 / boisko  (tańszy, nieco gorszy przy skomplikowanych obiektach)
+#   • 400 "quality" boisk (powiat poznański, mają jakieś info) → ~$4–6 Sonnet / ~$1 Haiku
+#   • Ponowna analiza wszystkich co miesiąc: zalecaj Haiku, Sonnet tylko przy pierwszym przebiegu
+#
+# Wymagane sekrety:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   ANTHROPIC_API_KEY
+#   MAPBOX_TOKEN                  (publiczny token z uprawnieniami styles:tiles)
+
+on:
+  schedule:
+    # Pierwszy piątek miesiąca, 03:00 UTC (niski ruch, tani czas)
+    - cron: '0 3 1-7 * 5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Tryb podglądu — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      limit:
+        description: 'Maks. liczba boisk (0 = wszystkie kwalifikujące się)'
+        default: '50'
+        required: false
+        type: string
+      all:
+        description: 'Przetwórz też już przeanalizowane (--all)'
+        default: false
+        required: false
+        type: boolean
+      overwrite:
+        description: 'Nadpisz istniejące pola (surface, is_indoor, lit…) wartościami AI'
+        default: false
+        required: false
+        type: boolean
+      model:
+        description: 'Model Claude'
+        default: 'claude-sonnet-4-6'
+        required: false
+        type: choice
+        options:
+          - claude-sonnet-4-6
+          - claude-haiku-4-5-20251001
+          - claude-opus-4-8
+      concurrency:
+        description: 'Równoległe requesty do API (max 5 przy Sonnet)'
+        default: '3'
+        required: false
+        type: string
+
+jobs:
+  analyze:
+    name: "Analiza satelitarna ${{ inputs.dry_run == true && '(DRY RUN)' || '(ZAPIS)' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Zainstaluj zależności
+        working-directory: scraper
+        run: pip install httpx anthropic python-dotenv
+
+      - name: Zbuduj argumenty
+        id: args
+        run: |
+          LIMIT="${{ inputs.limit || '0' }}"
+          MODEL="${{ inputs.model || 'claude-sonnet-4-6' }}"
+          CONCURRENCY="${{ inputs.concurrency || '3' }}"
+          ARGS="--model $MODEL --concurrency $CONCURRENCY"
+          [ "$LIMIT" != "0" ] && ARGS="$ARGS --limit $LIMIT"
+          [ "${{ inputs.dry_run }}"   = "true" ] && ARGS="$ARGS --dry-run"
+          [ "${{ inputs.all }}"       = "true" ] && ARGS="$ARGS --all"
+          [ "${{ inputs.overwrite }}" = "true" ] && ARGS="$ARGS --overwrite"
+          echo "args=$ARGS" >> $GITHUB_OUTPUT
+          echo "Argumenty: $ARGS"
+
+      - name: Uruchom analizę satelitarną
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: python analyze_venues.py ${{ steps.args.outputs.args }}

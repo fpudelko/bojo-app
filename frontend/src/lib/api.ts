@@ -24,9 +24,10 @@ function toField(row: any): Field {
     bookingUrl: row.booking_url ?? undefined,
     bookingEnabled: row.booking_enabled ?? false,
     managerId: row.manager_id ?? undefined,
-    phone: row.phone ?? undefined,
+    phone: row.contact_visible ? (row.phone ?? undefined) : undefined,
     website: row.website ?? undefined,
-    email: row.email ?? undefined,
+    email: row.contact_visible ? (row.email ?? undefined) : undefined,
+    contactVisible: row.contact_visible ?? false,
     operator: row.operator ?? undefined,
     operatorType: row.operator_type ?? undefined,
     description: row.description ?? undefined,
@@ -154,7 +155,7 @@ export async function getAllFieldSlugs(): Promise<{ slug: string; id: string }[]
 
 export async function updateField(
   fieldId: string,
-  data: Pick<Field, 'name' | 'address' | 'sport' | 'available' | 'surface' | 'isIndoor' | 'phone' | 'website'>,
+  data: Pick<Field, 'name' | 'address' | 'sport' | 'available' | 'surface' | 'isIndoor' | 'phone' | 'website'> & { contactVisible?: boolean },
 ): Promise<void> {
   const { error } = await supabase
     .from('fields')
@@ -167,6 +168,7 @@ export async function updateField(
       is_indoor: data.isIndoor,
       phone: data.phone ?? null,
       website: data.website ?? null,
+      ...(data.contactVisible !== undefined ? { contact_visible: data.contactVisible } : {}),
     })
     .eq('id', fieldId);
   if (error) throw new Error(error.message);

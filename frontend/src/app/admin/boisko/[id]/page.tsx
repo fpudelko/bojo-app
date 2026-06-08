@@ -8,7 +8,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
-import { getField, updateField } from '@/lib/api';
+import { updateField } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 const SPORTS = [
   'piłka nożna',
@@ -50,6 +51,7 @@ export default function AdminVenueEditorPage() {
   const [isIndoor, setIsIndoor] = useState(false);
   const [phone, setPhone] = useState('');
   const [website, setWebsite] = useState('');
+  const [contactVisible, setContactVisible] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -60,16 +62,24 @@ export default function AdminVenueEditorPage() {
     if (authLoading) return;
     if (!user) return;
 
-    getField(id)
-      .then((f) => {
+    // Admin fetches raw field — phone/email gated by contact_visible in toField(),
+    // so we query DB directly to always show values to admin
+    supabase
+      .from('fields')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data: f, error }) => {
+        if (error || !f) { setNotAllowed(true); return; }
         setName(f.name);
         setAddress(f.address);
-        setSport(f.sport);
+        setSport(f.sport ?? []);
         setAvailable(f.available);
         setSurface(f.surface ?? '');
-        setIsIndoor(f.isIndoor);
+        setIsIndoor(f.is_indoor ?? false);
         setPhone(f.phone ?? '');
         setWebsite(f.website ?? '');
+        setContactVisible(f.contact_visible ?? false);
       })
       .catch(() => setNotAllowed(true))
       .finally(() => setPageLoading(false));
@@ -97,6 +107,7 @@ export default function AdminVenueEditorPage() {
         isIndoor,
         phone: phone.trim() || undefined,
         website: website.trim() || undefined,
+        contactVisible,
       });
       router.push('/mapa');
     } catch (err) {
@@ -237,31 +248,51 @@ export default function AdminVenueEditorPage() {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefon <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-              </label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+48 123 456 789"
-                className={inputCls}
-                maxLength={30}
-              />
-            </div>
+              <p className="text-sm font-semibold text-gray-700 mb-0.5">Dane kontaktowe</p>
+              <p className="text-xs text-gray-400 mb-4">
+                Telefon i e-mail ze scrapera OSM są domyślnie ukryte. Zaznacz poniżej, żeby udostępnić je użytkownikom.
+              </p>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Strona www <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-              </label>
-              <input
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://"
-                className={inputCls}
-                maxLength={200}
-              />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Telefon (tylko dla admina)</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+48 123 456 789"
+                    className={inputCls}
+                    maxLength={30}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Strona www</label>
+                  <input
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://"
+                    className={inputCls}
+                    maxLength={200}
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={contactVisible}
+                    onChange={(e) => setContactVisible(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Pokaż dane kontaktowe użytkownikom</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Gdy zaznaczone, telefon i e-mail będą widoczne na stronie boiska.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 

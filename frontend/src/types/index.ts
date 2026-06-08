@@ -34,6 +34,7 @@ export interface Field {
   capacity?: number;
   mapVisibility: MapVisibility;
   district?: string; // dzielnica Poznania
+  contactVisible?: boolean;
 }
 
 export interface FieldsResponse {

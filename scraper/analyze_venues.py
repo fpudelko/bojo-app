@@ -57,7 +57,7 @@ ANTHROPIC_API_KEY     = os.environ["ANTHROPIC_API_KEY"]
 MAPBOX_TOKEN          = os.environ.get("NEXT_PUBLIC_MAPBOX_TOKEN") or os.environ.get("MAPBOX_TOKEN", "")
 ANTHROPIC_URL         = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION     = "2023-06-01"
-MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
 # Satellite tile: 512×512 @2x at zoom 18 gives ~1m/px resolution — enough to read surface & count pitches
 MAPBOX_ZOOM           = 18
@@ -277,6 +277,11 @@ def build_update(result: dict, existing: dict, overwrite: bool) -> dict:
         if overwrite or existing.get(col) is None:
             update[col] = new_val
 
+    # Auto-hide venues Claude says aren't real sports venues.
+    # Only hide — never auto-reveal (admin must do that manually).
+    if result.get("is_verified_venue") is False:
+        update["map_visibility"] = "hidden"
+
     # Drop None values — don't clobber DB with nulls for uncertain fields
     return {k: v for k, v in update.items() if v is not None}
 
@@ -379,7 +384,12 @@ async def main() -> None:
     ap.add_argument("--all",       action="store_true",     help="Re-process already-typed venues")
     ap.add_argument("--overwrite", action="store_true",     help="Overwrite existing surface/is_indoor/lit/has_changing_rooms")
     ap.add_argument("--concurrency", type=int, default=2,   help="Parallel Claude requests (default 2)")
+    ap.add_argument("--model",     type=str,  default=None, help="Claude model override (default: claude-sonnet-4-6)")
     args = ap.parse_args()
+
+    if args.model:
+        global MODEL  # noqa: PLW0603
+        MODEL = args.model
 
     if not MAPBOX_TOKEN:
         sys.exit("ERROR: MAPBOX_TOKEN / NEXT_PUBLIC_MAPBOX_TOKEN not set")
