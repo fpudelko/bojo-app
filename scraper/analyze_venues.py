@@ -277,13 +277,44 @@ def build_update(result: dict, existing: dict, overwrite: bool) -> dict:
         if overwrite or existing.get(col) is None:
             update[col] = new_val
 
-    # Auto-hide venues Claude says aren't real sports venues.
-    # Only hide — never auto-reveal (admin must do that manually).
-    if result.get("is_verified_venue") is False:
-        update["map_visibility"] = "hidden"
+    # Set map_visibility based on what AI actually found in the satellite image.
+    # This replaces the classify.py heuristic for all satellite-analysed venues.
+    update["map_visibility"] = _ai_visibility(result, existing)
 
     # Drop None values — don't clobber DB with nulls for uncertain fields
     return {k: v for k, v in update.items() if v is not None}
+
+
+def _ai_visibility(result: dict, existing: dict) -> str:
+    """
+    Decide map_visibility from AI analysis results.
+
+      hidden        — AI says it's not a sports venue at all
+      organizer_only — venue confirmed but very little info (no type/surface/dims)
+      public         — confirmed venue with meaningful data worth showing users
+    """
+    if result.get("is_verified_venue") is False:
+        return "hidden"
+
+    if not result.get("is_verified_venue"):
+        # AI was uncertain (null) — keep existing visibility, don't downgrade
+        return existing.get("map_visibility") or "organizer_only"
+
+    # Venue confirmed — score how much useful info we have
+    info_points = sum([
+        bool(result.get("venue_type") and result.get("venue_type") != "other"),
+        bool(result.get("surface") and result.get("surface") != "nieznana"),
+        bool(result.get("dimensions_m")),
+        bool(result.get("access_type") and result.get("access_type") != "unknown"),
+        bool(result.get("condition") and result.get("condition") != "unknown"),
+    ])
+
+    # Also count existing metadata (phone/website already in DB)
+    has_contact = bool(existing.get("phone") or existing.get("website") or existing.get("email"))
+
+    if info_points >= 2 or has_contact:
+        return "public"
+    return "organizer_only"
 
 
 # ---------------------------------------------------------------------------
