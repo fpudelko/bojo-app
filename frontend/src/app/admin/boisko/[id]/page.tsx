@@ -62,15 +62,15 @@ export default function AdminVenueEditorPage() {
     if (authLoading) return;
     if (!user) return;
 
-    // Admin fetches raw field — phone/email gated by contact_visible in toField(),
-    // so we query DB directly to always show values to admin
-    supabase
-      .from('fields')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data: f, error }) => {
-        if (error || !f) { setNotAllowed(true); return; }
+    (async () => {
+      const { data: f, error } = await supabase
+        .from('fields')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !f) {
+        setNotAllowed(true);
+      } else {
         setName(f.name);
         setAddress(f.address);
         setSport(f.sport ?? []);
@@ -80,9 +80,9 @@ export default function AdminVenueEditorPage() {
         setPhone(f.phone ?? '');
         setWebsite(f.website ?? '');
         setContactVisible(f.contact_visible ?? false);
-      })
-      .catch(() => setNotAllowed(true))
-      .finally(() => setPageLoading(false));
+      }
+      setPageLoading(false);
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
