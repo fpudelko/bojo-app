@@ -251,22 +251,22 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter — emoji + label chips */}
+        {/* Sport filter — emoji-only chips */}
         <div className="grid grid-cols-5 gap-2 mb-5">
           <button
             onClick={() => setSportFilter('')}
             aria-pressed={sportFilter === ''}
+            aria-label="Wszystkie sporty"
             className={[
-              'flex flex-col items-center justify-center gap-1 min-h-[72px] rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+              'flex items-center justify-center h-14 rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
               sportFilter === ''
-                ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03] text-white'
-                : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 active:scale-95',
+                ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
+                : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
             ].join(' ')}
           >
             <span aria-hidden="true" className="text-2xl leading-none">✨</span>
-            <span className="text-xs font-medium leading-tight">Wszystkie</span>
           </button>
-          {SPORTS_FILTER.map(({ sport, label, short }) => {
+          {SPORTS_FILTER.map(({ sport, label }) => {
             const active = sportFilter === sport;
             return (
               <button
@@ -275,14 +275,13 @@ export default function EventsPage() {
                 aria-pressed={active}
                 aria-label={label}
                 className={[
-                  'flex flex-col items-center justify-center gap-1 min-h-[72px] rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                  'flex items-center justify-center h-14 rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
                   active
-                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03] text-white'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 active:scale-95',
+                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
+                    : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
                 ].join(' ')}
               >
-                <span aria-hidden="true" className="text-2xl leading-none">{sportEmoji(sport)}</span>
-                <span className="text-xs font-medium leading-tight text-center px-0.5">{short}</span>
+                <span aria-hidden="true" className="text-[28px] leading-none">{sportEmoji(sport)}</span>
               </button>
             );
           })}

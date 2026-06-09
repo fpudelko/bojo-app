@@ -580,22 +580,22 @@ export default function EventDetailPage() {
                 </Button>
               )}
               {user && myParticipation && (
-                <div className="flex items-center gap-2">
+                <div className="space-y-2">
                   <div className={[
-                    'flex-1 flex items-center justify-center gap-2 rounded-2xl text-sm font-bold h-14',
+                    'flex items-center justify-center gap-2 rounded-2xl text-sm font-bold h-14',
                     myParticipation.isReserve ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700',
                   ].join(' ')}>
                     {myParticipation.isReserve
                       ? <><Users className="w-5 h-5" /> Na liście rezerwowej</>
                       : <><Check className="w-5 h-5" /> Jesteś zapisany</>}
                   </div>
-                  {!isOrganizer && (
+                  {user.id !== event.organizerId && (
                     <button
                       onClick={() => handleRemove(myParticipation.id)}
                       disabled={busy}
-                      className="h-14 px-4 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 transition-colors"
+                      className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
                     >
-                      Opuść
+                      Wypisz się z meczu
                     </button>
                   )}
                 </div>
