@@ -21,35 +21,20 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 type SelSource = 'map' | 'scroll' | 'init';
 
-// Powiat Poznański bounding box (generously includes surrounding gminas)
-const POWIAT_BOUNDS = {
-  latMin: 52.05, latMax: 52.70,
-  lngMin: 16.55, lngMax: 17.35,
-};
+const POWIAT_BOUNDS = { latMin: 52.05, latMax: 52.70, lngMin: 16.55, lngMax: 17.35 };
 function inPowiat(lat: number, lng: number) {
   return lat >= POWIAT_BOUNDS.latMin && lat <= POWIAT_BOUNDS.latMax
       && lng >= POWIAT_BOUNDS.lngMin && lng <= POWIAT_BOUNDS.lngMax;
 }
 
-// A venue is "rich enough" to show if it has at least one real data point
 function hasUsefulInfo(f: Field) {
   return !!(f.phone || f.website || f.email || f.description || f.bookingEnabled || f.imageUrl);
 }
 
-// Strip redundant "Boisko -" / "Boisko-" prefix that floods the list
 function displayName(name: string): string {
   return name.replace(/^boisko\s*[-–—]\s*/i, '').trim() || name;
 }
 
-const SPORT_OPTIONS = [
-  { value: '', label: 'Wszystkie sporty', emoji: '🏟️' },
-  { value: 'piłka nożna', label: 'Piłka nożna', emoji: '⚽' },
-  { value: 'siatkówka plażowa', label: 'Siatkówka plażowa', emoji: '🏖️' },
-  { value: 'siatkówka', label: 'Siatkówka', emoji: '🏐' },
-  { value: 'koszykówka', label: 'Koszykówka', emoji: '🏀' },
-];
-
-// Morton (Z-order) key — adjacent items in sorted list are geographically close
 function mortonKey(lat: number, lng: number): number {
   const x = Math.max(0, Math.round((lng - 16.5) * 1000)) & 0xffff;
   const y = Math.max(0, Math.round((lat - 52.0) * 1000)) & 0xffff;
@@ -63,23 +48,44 @@ function mortonKey(lat: number, lng: number): number {
 
 function gamesWord(n: number): string {
   if (n === 1) return 'gra';
-  const mod10 = n % 10; const mod100 = n % 100;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'gry';
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'gry';
   return 'gier';
 }
 
+const VENUE_TYPE_LABELS: Record<string, string> = {
+  full_size:          'Pełnowymiarowe',
+  seven_a_side:       'Siódemka',
+  five_a_side:        'Piątka',
+  orlik:              'Orlik',
+  futsal_hall:        'Hala',
+  basketball_full:    'Koszykówka pełna',
+  basketball_half:    'Koszykówka',
+  volleyball_outdoor: 'Siatkówka',
+  volleyball_beach:   'Siatkówka plażowa',
+  tennis_outdoor:     'Tenis',
+  multi_sport:        'Wielofunkcyjne',
+  other:              'Inne',
+};
+
+const VENUE_TYPE_OPTIONS = [
+  { value: '', label: 'Wszystkie typy' },
+  ...Object.entries(VENUE_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l })),
+];
+
+const SPORT_OPTIONS = [
+  { value: '', label: 'Wszystkie sporty', emoji: '🏟️' },
+  { value: 'piłka nożna',       label: 'Piłka nożna',         emoji: '⚽' },
+  { value: 'siatkówka plażowa', label: 'Siatkówka plażowa',    emoji: '🏖️' },
+  { value: 'siatkówka',         label: 'Siatkówka',            emoji: '🏐' },
+  { value: 'koszykówka',        label: 'Koszykówka',           emoji: '🏀' },
+];
+
 // ---------------------------------------------------------------------------
-// MapLayer — clustered markers
+// MapLayer
 // ---------------------------------------------------------------------------
-function MapLayer({
-  fields,
-  selectedId,
-  selectedSource,
-  onSelect,
-}: {
-  fields: Field[];
-  selectedId: string | null;
-  selectedSource: SelSource;
+function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
+  fields: Field[]; selectedId: string | null; selectedSource: SelSource;
   onSelect: (id: string, source: SelSource) => void;
 }) {
   const map = useMap();
@@ -89,15 +95,12 @@ function MapLayer({
 
   useEffect(() => {
     const cluster = L.markerClusterGroup({
-      showCoverageOnHover: false,
-      maxClusterRadius: 22,
+      showCoverageOnHover: false, maxClusterRadius: 22,
       iconCreateFunction: (c) => {
         const ms = c.getAllChildMarkers() as Array<L.Marker & { _sports?: string[] }>;
         return clusterDivIcon(c.getChildCount(), ms.flatMap((m) => m._sports ?? []));
       },
-      spiderfyOnMaxZoom: true,
-      disableClusteringAtZoom: 13,
-      animate: true,
+      spiderfyOnMaxZoom: true, disableClusteringAtZoom: 13, animate: true,
     });
     const markers: Record<string, L.Marker> = {};
     for (const f of fields) {
@@ -113,7 +116,6 @@ function MapLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, map]);
 
-  // Highlight selected pin
   useEffect(() => {
     for (const [id, m] of Object.entries(markersRef.current)) {
       const f = fields.find((x) => x.id === id);
@@ -121,7 +123,6 @@ function MapLayer({
     }
   }, [selectedId, fields]);
 
-  // Pan/fly on selection change
   useEffect(() => {
     if (!selectedId) return;
     const f = fields.find((x) => x.id === selectedId);
@@ -138,11 +139,10 @@ function MapLayer({
 }
 
 // ---------------------------------------------------------------------------
-// PillDropdown — portal so overflow-x-auto on the bar never clips it
+// PillDropdown — portal escapes overflow-x-auto clipping
 // ---------------------------------------------------------------------------
 function PillDropdown({ label, active, children }: {
-  label: string;
-  active: boolean;
+  label: string; active: boolean;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -173,8 +173,7 @@ function PillDropdown({ label, active, children }: {
 
   return (
     <div className="shrink-0">
-      <button
-        ref={btnRef} onClick={toggle}
+      <button ref={btnRef} onClick={toggle}
         className={[
           'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
           active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
@@ -183,10 +182,9 @@ function PillDropdown({ label, active, children }: {
         {label}<ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
       {open && mounted && createPortal(
-        <div
-          ref={panelRef}
+        <div ref={panelRef}
           style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[200px] overflow-hidden rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
+          className="min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
         >
           {children(() => setOpen(false))}
         </div>,
@@ -200,8 +198,7 @@ function TogglePill({ label, icon, active, loading, onClick }: {
   label: string; icon: React.ReactNode; active: boolean; loading?: boolean; onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
+    <button onClick={onClick}
       className={[
         'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
         active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
@@ -215,14 +212,20 @@ function TogglePill({ label, icon, active, loading, onClick }: {
 // ---------------------------------------------------------------------------
 // VenueCard
 // ---------------------------------------------------------------------------
-function VenueCard({ field, games, hasGameToday }: { field: Field; games: number; hasGameToday: boolean }) {
+function VenueCard({ field, games, hasGameToday, selected }: {
+  field: Field; games: number; hasGameToday: boolean; selected?: boolean;
+}) {
   const thumb = field.imageUrl || venueThumbnail(field.lat, field.lng, 320, 320, 16);
   const slug = slugify(field.name);
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
+  const typeLabel = field.venueType ? VENUE_TYPE_LABELS[field.venueType] ?? field.venueType : null;
 
   return (
-    <div className="flex h-full w-full gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)]">
+    <div className={[
+      'flex h-full w-full gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)] transition-shadow',
+      selected ? 'ring-2 ring-primary-700' : '',
+    ].join(' ')}>
       <div className="relative h-[112px] w-[112px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
         {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
         {field.isIndoor && (
@@ -235,14 +238,17 @@ function VenueCard({ field, games, hasGameToday }: { field: Field; games: number
         <p className="font-display text-[15px] font-bold leading-tight text-primary-700 line-clamp-2">
           {name}
         </p>
-        {/* Surface + games line */}
         <p className="mt-0.5 text-xs text-slate-500 truncate">
+          {typeLabel && <span className="font-medium text-slate-600">{typeLabel}</span>}
+          {typeLabel && surface && <span className="mx-1">·</span>}
           {surface && <span>{surface}</span>}
-          {surface && games > 0 && <span className="mx-1">·</span>}
-          {games > 0 && <span>👥 {games} {gamesWord(games)} / tydzień</span>}
-          {!surface && games === 0 && <span className="text-slate-400">Brak gier w tym tygodniu</span>}
+          {!typeLabel && !surface && games === 0 && <span className="text-slate-400">Brak danych</span>}
         </p>
-        {/* Badges */}
+        {games > 0 && (
+          <p className="mt-0.5 text-xs text-slate-400">
+            👥 {games} {gamesWord(games)} / tydzień
+          </p>
+        )}
         <div className="mt-1 flex flex-wrap items-center gap-1">
           {hasGameToday && (
             <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-1.5 py-0.5">
@@ -254,15 +260,11 @@ function VenueCard({ field, games, hasGameToday }: { field: Field; games: number
               Rezerwacja
             </span>
           )}
-          {field.lit && (
-            <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded-full px-1.5 py-0.5">
-              ⚡ Oświetlone
-            </span>
-          )}
         </div>
         <Link
           href={`/boisko/${slug}`}
           className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
+          onClick={(e) => e.stopPropagation()}
         >
           Zobacz boisko <span aria-hidden="true">›</span>
         </Link>
@@ -272,30 +274,87 @@ function VenueCard({ field, games, hasGameToday }: { field: Field; games: number
 }
 
 // ---------------------------------------------------------------------------
+// Shared filter pills — rendered both in sidebar and mobile overlay
+// ---------------------------------------------------------------------------
+function FilterPills({
+  sport, setSport, venueType, setVenueType,
+  onlyBookable, setOnlyBookable, onlyGamesToday, setOnlyGamesToday,
+  geo, geoLoading, handleGeo,
+  wrap,
+}: {
+  sport: string; setSport: (v: string) => void;
+  venueType: string; setVenueType: (v: string) => void;
+  onlyBookable: boolean; setOnlyBookable: (v: boolean) => void;
+  onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
+  geo: { lat: number; lng: number } | null; geoLoading: boolean; handleGeo: () => void;
+  wrap?: boolean;
+}) {
+  const sportLabel = SPORT_OPTIONS.find((o) => o.value === sport)?.label ?? 'Wszystkie sporty';
+  const typeLabel  = VENUE_TYPE_OPTIONS.find((o) => o.value === venueType)?.label ?? 'Wszystkie typy';
+
+  return (
+    <div className={wrap
+      ? 'flex flex-wrap gap-2'
+      : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+    }>
+      <PillDropdown label={sportLabel} active={!!sport}>
+        {(close) => SPORT_OPTIONS.map((o) => (
+          <button key={o.value} onClick={() => { setSport(o.value); close(); }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+            <span className="text-base">{o.emoji}</span>
+            <span className="flex-1 text-left">{o.label}</span>
+            {sport === o.value && <Check className="h-4 w-4 text-primary-700" />}
+          </button>
+        ))}
+      </PillDropdown>
+
+      <PillDropdown label={typeLabel} active={!!venueType}>
+        {(close) => VENUE_TYPE_OPTIONS.map((o) => (
+          <button key={o.value} onClick={() => { setVenueType(o.value); close(); }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+            <span className="flex-1 text-left">{o.label}</span>
+            {venueType === o.value && <Check className="h-4 w-4 text-primary-700" />}
+          </button>
+        ))}
+      </PillDropdown>
+
+      <TogglePill label="Rezerwacja" icon={<BookOpen className="h-3.5 w-3.5 shrink-0" />}
+        active={onlyBookable} onClick={() => setOnlyBookable(!onlyBookable)} />
+      <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
+        active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
+      <TogglePill label="Blisko mnie" icon={<Navigation className="h-3.5 w-3.5 shrink-0" />}
+        active={!!geo} loading={geoLoading} onClick={handleGeo} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main explorer
 // ---------------------------------------------------------------------------
 export default function VenueExplorer({
-  initialFields,
-  initialEvents,
-}: {
-  initialFields?: Field[];
-  initialEvents?: EventItem[];
-} = {}) {
+  initialFields, initialEvents,
+}: { initialFields?: Field[]; initialEvents?: EventItem[]; } = {}) {
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
-  const [events, setEvents] = useState<EventItem[]>(initialEvents ?? []);
+  const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
 
-  const [sport, setSport] = useState('');
-  const [onlyBookable, setOnlyBookable] = useState(false);
+  const [sport,         setSport]         = useState('');
+  const [venueType,     setVenueType]     = useState('');
+  const [onlyBookable,  setOnlyBookable]  = useState(false);
   const [onlyGamesToday, setOnlyGamesToday] = useState(false);
-  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoLoading, setGeoLoading] = useState(false);
+  const [geo,           setGeo]           = useState<{ lat: number; lng: number } | null>(null);
+  const [geoLoading,    setGeoLoading]    = useState(false);
 
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
-  const selectedId = selected.id;
+  const selectedId     = selected.id;
   const selectedSource = selected.source;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Mobile carousel
+  const scrollRef    = useRef<HTMLDivElement>(null);
+  const cardRefs     = useRef<Record<string, HTMLDivElement | null>>({});
+  // Desktop sidebar
+  const sidebarRef      = useRef<HTMLDivElement>(null);
+  const sidebarCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
   const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,10 +369,9 @@ export default function VenueExplorer({
     getFields({})
       .then((res) => {
         if (cancelled) return;
-        const filtered = res.fields.filter(
+        setAllFields(res.fields.filter(
           (f) => f.mapVisibility !== 'hidden' && inPowiat(f.lat, f.lng) && hasUsefulInfo(f),
-        );
-        setAllFields(filtered);
+        ));
       })
       .catch(() => {});
     getPublicEvents()
@@ -341,8 +399,9 @@ export default function VenueExplorer({
 
   const fields = useMemo(() => {
     let list = allFields;
-    if (sport) list = list.filter((f) => f.sport.includes(sport));
-    if (onlyBookable) list = list.filter((f) => f.bookingEnabled);
+    if (sport)     list = list.filter((f) => f.sport.includes(sport));
+    if (venueType) list = list.filter((f) => f.venueType === venueType);
+    if (onlyBookable)   list = list.filter((f) => f.bookingEnabled);
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     if (geo) {
       const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
@@ -351,15 +410,16 @@ export default function VenueExplorer({
       list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     }
     return list;
-  }, [allFields, sport, onlyBookable, onlyGamesToday, geo, fieldStats]);
+  }, [allFields, sport, venueType, onlyBookable, onlyGamesToday, geo, fieldStats]);
 
+  // Clean up stale card refs
   useEffect(() => {
     const ids = new Set(fields.map((f) => f.id));
-    for (const id of Object.keys(cardRefs.current)) {
-      if (!ids.has(id)) delete cardRefs.current[id];
-    }
+    for (const id of Object.keys(cardRefs.current))     { if (!ids.has(id)) delete cardRefs.current[id]; }
+    for (const id of Object.keys(sidebarCardRefs.current)) { if (!ids.has(id)) delete sidebarCardRefs.current[id]; }
   }, [fields]);
 
+  // Auto-select first field
   useEffect(() => {
     if (fields.length === 0) return;
     if (!selectedIdRef.current || !fields.some((f) => f.id === selectedIdRef.current)) {
@@ -367,13 +427,24 @@ export default function VenueExplorer({
     }
   }, [fields]);
 
+  // Scroll mobile carousel to selected
   useEffect(() => {
     if (!selectedId || selected.source === 'scroll') return;
     const el = cardRefs.current[selectedId];
-    const c = scrollRef.current;
+    const c  = scrollRef.current;
     if (!el || !c) return;
     c.scrollTo({ left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [selectedId, selected.source]);
+
+  // Scroll desktop sidebar to selected
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = sidebarCardRefs.current[selectedId];
+    const c  = sidebarRef.current;
+    if (!el || !c) return;
+    const targetTop = el.offsetTop - (c.clientHeight - el.offsetHeight) / 2;
+    c.scrollTo({ top: targetTop, behavior: 'smooth' });
+  }, [selectedId]);
 
   const handleScroll = useCallback(() => {
     if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
@@ -399,7 +470,12 @@ export default function VenueExplorer({
     if (res.ok) setGeo({ lat: res.lat, lng: res.lng });
   }
 
-  const sportLabel = SPORT_OPTIONS.find((o) => o.value === sport)?.label ?? 'Wszystkie sporty';
+  const filterProps = {
+    sport, setSport, venueType, setVenueType,
+    onlyBookable, setOnlyBookable, onlyGamesToday, setOnlyGamesToday,
+    geo, geoLoading, handleGeo,
+  };
+
   const CARD_W = 'min(85vw, 360px)';
 
   const street = MAPBOX_TOKEN ? (
@@ -413,91 +489,99 @@ export default function VenueExplorer({
   );
 
   return (
-    <div className="relative flex-1 min-h-0 overflow-hidden">
-      <MapContainer center={POZNAN} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-        {street}
-        <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
-      </MapContainer>
+    <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* Filters */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1100] px-3 pt-3">
-        <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <PillDropdown label={sportLabel} active={!!sport}>
-            {(close) => SPORT_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                onClick={() => { setSport(o.value); close(); }}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-              >
-                <span className="text-base">{o.emoji}</span>
-                <span className="flex-1 text-left">{o.label}</span>
-                {sport === o.value && <Check className="h-4 w-4 text-primary-700" />}
-              </button>
-            ))}
-          </PillDropdown>
-
-          <TogglePill
-            label="Rezerwacja"
-            icon={<BookOpen className="h-3.5 w-3.5 shrink-0" />}
-            active={onlyBookable}
-            onClick={() => setOnlyBookable((v) => !v)}
-          />
-          <TogglePill
-            label="Gry dziś"
-            icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
-            active={onlyGamesToday}
-            onClick={() => setOnlyGamesToday((v) => !v)}
-          />
-          <TogglePill
-            label="Blisko mnie"
-            icon={<Navigation className="h-3.5 w-3.5 shrink-0" />}
-            active={!!geo}
-            loading={geoLoading}
-            onClick={handleGeo}
-          />
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside className="hidden md:flex flex-col w-[380px] shrink-0 border-r border-slate-100 bg-[#FAF9F6] overflow-hidden">
+        {/* Filters */}
+        <div className="px-3 pt-3 pb-3 border-b border-slate-100">
+          <FilterPills {...filterProps} wrap />
         </div>
+
+        {/* Venue count */}
+        <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
+          {fields.length} {fields.length === 1 ? 'boisko' : fields.length < 5 ? 'boiska' : 'boisk'}
+        </div>
+
+        {/* Scrollable list */}
+        <div ref={sidebarRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          {fields.map((f) => (
+            <div
+              key={f.id}
+              ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
+              onClick={() => onSelect(f.id, 'map')}
+              className="h-[140px] cursor-pointer"
+            >
+              <VenueCard
+                field={f}
+                games={fieldStats[f.id]?.count ?? 0}
+                hasGameToday={fieldStats[f.id]?.today ?? false}
+                selected={f.id === selectedId}
+              />
+            </div>
+          ))}
+          {fields.length === 0 && allFields.length > 0 && (
+            <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
+          )}
+        </div>
+      </aside>
+
+      {/* ── Map area ─────────────────────────────────────────────────── */}
+      <div className="relative flex-1 min-w-0 min-h-0">
+        <MapContainer center={POZNAN} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          {street}
+          <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
+        </MapContainer>
+
+        {/* Mobile: filter overlay */}
+        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[1100] px-3 pt-3">
+          <div className="pointer-events-auto">
+            <FilterPills {...filterProps} />
+          </div>
+        </div>
+
+        {/* Mobile: carousel */}
+        {fields.length > 0 && (
+          <div className="md:hidden absolute inset-x-0 bottom-0 z-[1100] pb-4">
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              style={{
+                scrollPaddingLeft:  `calc((100% - ${CARD_W}) / 2)`,
+                scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)`,
+              }}
+              className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
+              {fields.map((f) => (
+                <div
+                  key={f.id}
+                  ref={(el) => { cardRefs.current[f.id] = el; }}
+                  onClick={() => onSelect(f.id, 'map')}
+                  style={{ width: CARD_W }}
+                  className="shrink-0 snap-center px-1.5 h-[140px] cursor-pointer"
+                >
+                  <VenueCard
+                    field={f}
+                    games={fieldStats[f.id]?.count ?? 0}
+                    hasGameToday={fieldStats[f.id]?.today ?? false}
+                    selected={f.id === selectedId}
+                  />
+                </div>
+              ))}
+              <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
+            </div>
+          </div>
+        )}
+
+        {fields.length === 0 && allFields.length > 0 && (
+          <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
+            <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
+              Brak boisk dla tych filtrów
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Carousel */}
-      {fields.length > 0 && (
-        <div className="absolute inset-x-0 bottom-0 z-[1100] pb-4">
-          <div
-            ref={scrollRef}
-            onScroll={handleScroll}
-            style={{
-              scrollPaddingLeft: `calc((100% - ${CARD_W}) / 2)`,
-              scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)`,
-            }}
-            className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
-            {fields.map((f) => (
-              <div
-                key={f.id}
-                ref={(el) => { cardRefs.current[f.id] = el; }}
-                onClick={() => onSelect(f.id, 'map')}
-                style={{ width: CARD_W }}
-                className="shrink-0 snap-center px-1.5 h-[140px] cursor-pointer"
-              >
-                <VenueCard
-                  field={f}
-                  games={fieldStats[f.id]?.count ?? 0}
-                  hasGameToday={fieldStats[f.id]?.today ?? false}
-                />
-              </div>
-            ))}
-            <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
-          </div>
-        </div>
-      )}
-
-      {fields.length === 0 && allFields.length > 0 && (
-        <div className="absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
-          <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
-            Brak boisk dla tych filtrów
-          </div>
-        </div>
-      )}
     </div>
   );
 }

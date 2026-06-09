@@ -239,12 +239,17 @@ Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
         "content-type":      "application/json",
     }
 
-    for attempt in range(5):
+    # 429 waits: 30s, 60s, 90s, 120s — API has per-minute rate limits
+    RETRY_WAITS = [30, 60, 90, 120]
+    for attempt in range(len(RETRY_WAITS) + 1):
         try:
             r = await client.post(ANTHROPIC_URL, json=payload, headers=headers, timeout=60)
             if r.status_code == 429:
-                wait = 2 ** attempt + 1  # 2, 3, 5, 9, 17 seconds
-                log.warning("Rate limited (429), retrying in %ds (attempt %d/5)…", wait, attempt + 1)
+                if attempt >= len(RETRY_WAITS):
+                    log.error("Claude API: gave up after %d retries (rate limit)", len(RETRY_WAITS))
+                    return None
+                wait = RETRY_WAITS[attempt]
+                log.warning("Rate limited (429), waiting %ds before retry %d/%d…", wait, attempt + 1, len(RETRY_WAITS))
                 await asyncio.sleep(wait)
                 continue
             r.raise_for_status()
@@ -256,13 +261,15 @@ Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
             return json.loads(text)
         except Exception as e:
             if "429" in str(e):
-                wait = 2 ** attempt + 1
-                log.warning("Rate limited, retrying in %ds (attempt %d/5)…", wait, attempt + 1)
+                if attempt >= len(RETRY_WAITS):
+                    log.error("Claude API: gave up after %d retries (rate limit)", len(RETRY_WAITS))
+                    return None
+                wait = RETRY_WAITS[attempt]
+                log.warning("Rate limited, waiting %ds before retry %d/%d…", wait, attempt + 1, len(RETRY_WAITS))
                 await asyncio.sleep(wait)
                 continue
             log.error("Claude API error: %s", e)
             return None
-    log.error("Claude API: gave up after 5 retries (rate limit)")
     return None
 
 

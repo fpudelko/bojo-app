@@ -33,8 +33,14 @@ export interface Field {
   hasToilets?: boolean;
   capacity?: number;
   mapVisibility: MapVisibility;
-  district?: string; // dzielnica Poznania
+  district?: string;
   contactVisible?: boolean;
+  venueType?: string;
+  dimensionsM?: string;
+  accessType?: string;
+  isVerifiedVenue?: boolean;
+  condition?: string;
+  aiTypedAt?: string;
 }
 
 export interface FieldsResponse {

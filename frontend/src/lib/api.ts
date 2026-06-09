@@ -43,6 +43,12 @@ function toField(row: any): Field {
     capacity: row.capacity ?? undefined,
     mapVisibility: (row.map_visibility ?? 'organizer_only') as MapVisibility,
     district: row.district ?? undefined,
+    venueType: row.venue_type ?? undefined,
+    dimensionsM: row.dimensions_m ?? undefined,
+    accessType: row.access_type ?? undefined,
+    isVerifiedVenue: row.is_verified_venue ?? undefined,
+    condition: row.condition ?? undefined,
+    aiTypedAt: row.ai_typed_at ?? undefined,
   };
 }
 
