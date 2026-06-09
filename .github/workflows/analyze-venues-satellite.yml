@@ -43,12 +43,12 @@ on:
         type: boolean
       model:
         description: 'Model Claude'
-        default: 'claude-haiku-4-5-20251001'
+        default: 'claude-sonnet-4-6'
         required: false
         type: choice
         options:
-          - claude-haiku-4-5-20251001
           - claude-sonnet-4-6
+          - claude-haiku-4-5-20251001
           - claude-opus-4-8
       concurrency:
         description: 'Równoległe requesty do API (1–2 dla Haiku, max 3 dla Sonnet)'

@@ -57,7 +57,7 @@ ANTHROPIC_API_KEY     = os.environ["ANTHROPIC_API_KEY"]
 MAPBOX_TOKEN          = os.environ.get("NEXT_PUBLIC_MAPBOX_TOKEN") or os.environ.get("MAPBOX_TOKEN", "")
 ANTHROPIC_URL         = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION     = "2023-06-01"
-MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
 # Satellite tile: 512×512 @2x at zoom 18 gives ~1m/px resolution — enough to read surface & count pitches
 MAPBOX_ZOOM           = 18
@@ -192,7 +192,22 @@ Pola do wypełnienia:
     fair = linie widoczne ale wyblakłe, lub nawierzchnia lekko zużyta
     poor = brak linii, zniszczona nawierzchnia, zaniedbanie
 
-13. ai_notes (string | null) — opcjonalny komentarz: wątpliwości, osobliwości, ciekawe cechy.
+13. sports (array of strings | null) — jakie sporty można tu grać na podstawie widoku?
+    Używaj TYLKO wartości z tej listy (możesz wybrać kilka):
+      "piłka nożna", "futsal", "koszykówka", "siatkówka", "siatkówka plażowa",
+      "tenis", "piłka ręczna", "inne"
+    Wskazówki:
+    - Boisko z liniami bramkowymi + duże pole → "piłka nożna"
+    - Małe boisko ~40x20 z bramkami → "futsal" lub "piłka nożna" (zależnie od nawierzchni)
+    - Linie do koszykówki (obręcze/trójki) → "koszykówka"
+    - Linie siatkówki (18x9) → "siatkówka"
+    - Piasek + linie siatkówki → "siatkówka plażowa"
+    - Kort (23x11, ograniczony siatką) → "tenis"
+    - Wiele linii różnych sportów → kilka wartości
+    - Hala bez widocznych linii → null (nie zgaduj)
+    - is_verified_venue=false → null
+
+14. ai_notes (string | null) — opcjonalny komentarz: wątpliwości, osobliwości, ciekawe cechy.
     Zostaw null jeśli nie ma nic do dodania. Maksymalnie 1 zdanie.
 
 Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
@@ -209,12 +224,13 @@ Odpowiedz TYLKO czystym JSON-em, bez żadnego tekstu przed ani po. Przykład:
   "has_stands": false,
   "has_fence": true,
   "condition": "good",
+  "sports": ["piłka nożna", "futsal"],
   "ai_notes": null
 }}"""
 
     payload = {
         "model": MODEL,
-        "max_tokens": 512,
+        "max_tokens": 600,
         "messages": [
             {
                 "role": "user",
@@ -288,6 +304,18 @@ def build_update(result: dict, existing: dict, overwrite: bool) -> dict:
         "ai_notes":            result.get("ai_notes"),
         "ai_typed_at":         datetime.now(timezone.utc).isoformat(),
     }
+
+    # AI-detected sports — update sport[] column when AI found something.
+    # Merge with existing OSM sports rather than overwrite, unless --overwrite.
+    ai_sports = result.get("sports")
+    if ai_sports and isinstance(ai_sports, list) and len(ai_sports) > 0:
+        if overwrite:
+            update["sport"] = ai_sports
+        else:
+            existing_sports = existing.get("sport") or []
+            merged = list(dict.fromkeys(existing_sports + ai_sports))  # dedupe, preserve order
+            update["sport"] = merged
+
     # Conditionally overwrite existing columns
     for col in OVERWRITABLE:
         new_val = result.get(col)
@@ -420,9 +448,10 @@ async def process_field(
             surface  = result.get("surface", "?")
             dims     = result.get("dimensions_m", "?")
             access   = result.get("access_type", "?")
+            sports   = ",".join(result.get("sports") or []) or "?"
             log.info(
-                "  → %s | %s | %s | %s | access=%s | verified=%s",
-                vtype, surface, dims, fname, access, verified,
+                "  → %s | %s | %s | sports=[%s] | %s | access=%s | verified=%s",
+                vtype, surface, dims, sports, fname, access, verified,
             )
 
 
