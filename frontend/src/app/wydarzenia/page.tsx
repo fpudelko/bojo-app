@@ -118,7 +118,7 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
           )}
         </div>
 
-        {/* Progress bar + spots label */}
+        {/* Progress bar + spots label (label only when urgent) */}
         {max > 0 && (
           <div className="ml-5 mt-3 flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -127,12 +127,14 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
                 style={{ width: `${fillPct}%` }}
               />
             </div>
-            <span className={[
-              'text-xs whitespace-nowrap shrink-0 font-medium',
-              isFull ? 'text-red-500' : fillPct >= 80 ? 'text-amber-600' : 'text-slate-400',
-            ].join(' ')}>
-              {isFull ? 'Brak miejsc' : `${freeSpots} wolnych`}
-            </span>
+            {(isFull || fillPct >= 80) && (
+              <span className={[
+                'text-xs whitespace-nowrap shrink-0 font-medium',
+                isFull ? 'text-red-500' : 'text-amber-600',
+              ].join(' ')}>
+                {isFull ? 'Brak miejsc' : `${freeSpots} wolnych`}
+              </span>
+            )}
             {distance !== undefined && <DistanceBadge km={distance} />}
           </div>
         )}

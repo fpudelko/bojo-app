@@ -8,7 +8,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Navigation, Check, BookOpen, CalendarCheck } from 'lucide-react';
+import { ChevronDown, Navigation, Check, BookOpen, CalendarCheck, MapPin, Globe } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -220,13 +220,16 @@ function VenueCard({ field, games, hasGameToday, selected }: {
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
   const typeLabel = field.venueType ? VENUE_TYPE_LABELS[field.venueType] ?? field.venueType : null;
+  const shortAddress = field.address
+    ? field.address.split(',').slice(0, 2).join(',').trim()
+    : null;
 
   return (
     <div className={[
       'flex h-full w-full gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)] transition-shadow',
       selected ? 'ring-2 ring-primary-700' : '',
     ].join(' ')}>
-      <div className="relative h-[112px] w-[112px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+      <div className="relative h-full w-[100px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
         {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
         {field.isIndoor && (
           <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
@@ -234,22 +237,28 @@ function VenueCard({ field, games, hasGameToday, selected }: {
           </span>
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <p className="font-display text-[15px] font-bold leading-tight text-primary-700 line-clamp-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="font-display text-[14px] font-bold leading-tight text-primary-700 line-clamp-2">
           {name}
         </p>
-        <p className="mt-0.5 text-xs text-slate-500 truncate">
-          {typeLabel && <span className="font-medium text-slate-600">{typeLabel}</span>}
-          {typeLabel && surface && <span className="mx-1">·</span>}
-          {surface && <span>{surface}</span>}
-          {!typeLabel && !surface && games === 0 && <span className="text-slate-400">Brak danych</span>}
-        </p>
+        {(typeLabel || surface) && (
+          <p className="text-[11px] text-slate-500 truncate">
+            {typeLabel && <span className="font-medium text-slate-600">{typeLabel}</span>}
+            {typeLabel && surface && <span className="mx-1">·</span>}
+            {surface && <span>{surface}</span>}
+          </p>
+        )}
+        {shortAddress && (
+          <p className="text-[11px] text-slate-400 truncate flex items-center gap-0.5">
+            <MapPin className="w-2.5 h-2.5 shrink-0" />{shortAddress}
+          </p>
+        )}
         {games > 0 && (
-          <p className="mt-0.5 text-xs text-slate-400">
+          <p className="text-[11px] text-slate-400">
             👥 {games} {gamesWord(games)} / tydzień
           </p>
         )}
-        <div className="mt-1 flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {hasGameToday && (
             <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-1.5 py-0.5">
               📅 Dziś
@@ -259,6 +268,17 @@ function VenueCard({ field, games, hasGameToday, selected }: {
             <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-1.5 py-0.5">
               Rezerwacja
             </span>
+          )}
+          {field.website && (
+            <a
+              href={field.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-1.5 py-0.5 hover:text-primary-700 hover:border-primary-200"
+            >
+              <Globe className="w-2.5 h-2.5" /> www
+            </a>
           )}
         </div>
         <Link
@@ -510,7 +530,7 @@ export default function VenueExplorer({
               key={f.id}
               ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
               onClick={() => onSelect(f.id, 'map')}
-              className="h-[140px] cursor-pointer"
+              className="h-[160px] cursor-pointer"
             >
               <VenueCard
                 field={f}
@@ -528,13 +548,13 @@ export default function VenueExplorer({
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
       <div className="relative flex-1 min-w-0 min-h-0">
-        <MapContainer center={POZNAN} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+        <MapContainer center={POZNAN} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
           {street}
           <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
         </MapContainer>
 
         {/* Mobile: filter overlay */}
-        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[1100] px-3 pt-3">
+        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3">
           <div className="pointer-events-auto">
             <FilterPills {...filterProps} />
           </div>
@@ -542,7 +562,7 @@ export default function VenueExplorer({
 
         {/* Mobile: carousel */}
         {fields.length > 0 && (
-          <div className="md:hidden absolute inset-x-0 bottom-0 z-[1100] pb-4">
+          <div className="md:hidden absolute inset-x-0 bottom-0 z-[600] pb-4">
             <div
               ref={scrollRef}
               onScroll={handleScroll}
@@ -559,13 +579,12 @@ export default function VenueExplorer({
                   ref={(el) => { cardRefs.current[f.id] = el; }}
                   onClick={() => onSelect(f.id, 'map')}
                   style={{ width: CARD_W }}
-                  className="shrink-0 snap-center px-1.5 h-[140px] cursor-pointer"
+                  className="shrink-0 snap-center px-1.5 h-[160px] cursor-pointer"
                 >
                   <VenueCard
                     field={f}
                     games={fieldStats[f.id]?.count ?? 0}
                     hasGameToday={fieldStats[f.id]?.today ?? false}
-                    selected={f.id === selectedId}
                   />
                 </div>
               ))}
