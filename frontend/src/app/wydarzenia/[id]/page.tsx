@@ -712,16 +712,18 @@ export default function EventDetailPage() {
                     {/* Payment (trackPayments on) */}
                     {event.trackPayments && (isOrganizer || event.showPaymentStatus) && (
                       <button
-                        onClick={() => handleTogglePayment(p)}
+                        onClick={() => isOrganizer && handleTogglePayment(p)}
                         disabled={busy || !isOrganizer}
-                        title={p.hasPaid ? 'Opłacone' : 'Nieopłacone'}
+                        aria-label={p.hasPaid ? 'Oznacz jako nieopłacone' : 'Oznacz jako opłacone'}
                         className={[
-                          'p-1.5 rounded transition-colors',
-                          p.hasPaid ? 'text-green-600 hover:text-green-700' : 'text-gray-300 hover:text-gray-500',
-                          !isOrganizer ? 'cursor-default' : '',
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold border transition-colors select-none',
+                          p.hasPaid
+                            ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'
+                            : 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100',
+                          !isOrganizer ? 'cursor-default' : 'cursor-pointer',
                         ].join(' ')}
                       >
-                        <Banknote className="w-4 h-4" />
+                        {p.hasPaid ? '✓ Zapłacił' : '✗ Nie zapłacił'}
                       </button>
                     )}
 
