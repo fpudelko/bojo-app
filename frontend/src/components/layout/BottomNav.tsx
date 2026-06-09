@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Users, CalendarDays, User } from 'lucide-react';
+import { Map, Plus, CalendarDays, User } from 'lucide-react';
 import { clsx } from 'clsx';
 
 function BallIcon({ className }: { className?: string }) {
@@ -15,19 +15,38 @@ function BallIcon({ className }: { className?: string }) {
   );
 }
 
-const NAV_ITEMS = [
-  { href: '/wydarzenia', label: 'Mecze',        Icon: BallIcon },
-  { href: '/mapa',       label: 'Znajdź grę',   Icon: Users },
-  { href: '/moje-gry',   label: 'Moje mecze',   Icon: CalendarDays },
-  { href: '/profil',     label: 'Profil',        Icon: User },
+const LEFT_ITEMS = [
+  { href: '/wydarzenia', label: 'Gry',   Icon: BallIcon },
+  { href: '/mapa',       label: 'Mapa',  Icon: Map },
+] as const;
+
+const RIGHT_ITEMS = [
+  { href: '/moje-gry', label: 'Moje',   Icon: CalendarDays },
+  { href: '/profil',   label: 'Profil', Icon: User },
 ] as const;
 
 export default function BottomNav() {
   const pathname = usePathname();
 
+  function NavLink({ href, label, Icon }: { href: string; label: string; Icon: React.ComponentType<{ className?: string }> }) {
+    const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
+    return (
+      <Link
+        href={href}
+        className={clsx(
+          'flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
+          active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
+        )}
+      >
+        <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
+        <span>{label}</span>
+      </Link>
+    );
+  }
+
   return (
     <>
-      {/* Spacer so page content is never hidden behind the nav */}
+      {/* Spacer so content is never hidden behind the nav */}
       <div className="h-16 md:hidden" aria-hidden="true" />
 
       <nav
@@ -35,23 +54,22 @@ export default function BottomNav() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Nawigacja główna"
       >
-        <div className="grid grid-cols-4">
-          {NAV_ITEMS.map(({ href, label, Icon }) => {
-            const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={clsx(
-                  'flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
-                  active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
-                )}
-              >
-                <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-5 items-end">
+          {LEFT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}
+
+          {/* Centre FAB — always accessible, can't be deselected */}
+          <Link
+            href="/wydarzenia/nowe"
+            aria-label="Stwórz nowy mecz"
+            className="flex flex-col items-center justify-center gap-0.5 pb-2 group"
+          >
+            <span className="flex h-12 w-12 -mt-4 items-center justify-center rounded-full bg-primary-700 text-white shadow-lg ring-4 ring-white group-active:scale-95 transition-transform">
+              <Plus className="w-6 h-6" />
+            </span>
+            <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
+          </Link>
+
+          {RIGHT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}
         </div>
       </nav>
     </>

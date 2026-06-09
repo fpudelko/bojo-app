@@ -15,17 +15,23 @@ import { sportEmoji, sportColor } from '@/lib/sports';
 function eventIcon(event: EventItem): L.DivIcon {
   const emoji = sportEmoji(event.sport);
   const color = sportColor(event.sport);
+  const today = new Date().toISOString().split('T')[0];
+  const isToday = event.date === today;
+
+  // Today → filled vibrant pin with "DZIŚ" badge; future → lighter outline pin
+  const pinStyle = isToday
+    ? `background:${color};border:2px solid rgba(255,255,255,0.9);box-shadow:0 3px 10px rgba(0,0,0,.40);`
+    : `background:${color};opacity:0.55;border:1.5px solid rgba(255,255,255,0.7);box-shadow:0 1px 5px rgba(0,0,0,.20);`;
+  const badge = isToday
+    ? `<span style="position:absolute;top:-6px;right:-6px;background:#f59e0b;color:#fff;font-size:7px;font-weight:700;border-radius:4px;padding:1px 3px;line-height:1.2;letter-spacing:.3px;transform:rotate(45deg)">DZIŚ</span>`
+    : '';
+
   return L.divIcon({
-    html: `<div style="
-        display:flex;align-items:center;justify-content:center;
-        width:36px;height:36px;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        background:${color};
-        border:1.5px solid rgba(255,255,255,0.85);
-        box-shadow:0 2px 8px rgba(0,0,0,.35);
-        cursor:pointer
-      ">
+    html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;
+        width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+        cursor:pointer;${pinStyle}">
         <span style="transform:rotate(45deg);font-size:16px;line-height:1">${emoji}</span>
+        ${badge}
       </div>`,
     className: '',
     iconSize: [36, 36],

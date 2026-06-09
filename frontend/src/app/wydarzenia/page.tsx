@@ -43,6 +43,19 @@ function DistanceBadge({ km }: { km: number }) {
   );
 }
 
+function timeUntil(date: string, time?: string): string | null {
+  if (!time) return null;
+  try {
+    const [y, m, d] = date.split('-').map(Number);
+    const [h, min] = time.split(':').map(Number);
+    const ms = new Date(y, m - 1, d, h, min).getTime() - Date.now();
+    if (ms <= 0 || ms > 24 * 3600_000) return null;
+    const hours = ms / 3600_000;
+    if (hours < 1) return `za ${Math.round(hours * 60)} min`;
+    return `za ${Math.round(hours)} h`;
+  } catch { return null; }
+}
+
 function EventRow({ event, distance }: { event: EventItem; distance?: number }) {
   let timeLabel = '';
   let dayLabel = '';
@@ -60,52 +73,65 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
   const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
   const max = event.maxPlayers ?? 0;
   const isFull = max > 0 && taken >= max;
+  const freeSpots = max > 0 ? max - taken : null;
   const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
+  const fillColor = isFull ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600';
+  const until = timeUntil(event.date, event.time ?? undefined);
+
+  const location = event.district
+    ? `${event.district}, Poznań`
+    : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : null);
 
   return (
     <Link href={`/wydarzenia/${event.id}`} className="block active:scale-[0.99] transition-transform">
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
         {/* Title row + CTA */}
         <div className="flex items-start gap-2.5">
-          <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600" aria-hidden="true" />
+          <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${fillColor}`} aria-hidden="true" />
           <p className="flex-1 font-semibold text-ink leading-snug min-w-0 truncate">
-            {event.title || `${sportEmoji(event.sport)} ${event.sport}${event.district ? ` · ${event.district}` : ''}`}
+            {event.title || `${sportEmoji(event.sport)} ${event.sport}`}
           </p>
           <span className={[
             'shrink-0 ml-1 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
             isFull
               ? 'bg-slate-100 text-slate-400'
-              : 'bg-primary-700 text-white',
+              : fillPct >= 80
+                ? 'bg-amber-500 text-white'
+                : 'bg-primary-700 text-white',
           ].join(' ')}>
             {isFull ? 'Pełne' : 'Dołącz'}
           </span>
         </div>
 
-        {/* Date + location */}
+        {/* Date + location + countdown */}
         <div className="ml-5 mt-2 space-y-1">
           <p className="text-sm text-slate-500 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
             {dayLabel}{timeLabel ? ` ${timeLabel}` : ''}
+            {until && <span className="text-primary-600 font-medium">{until}</span>}
           </p>
-          <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-            {event.district
-              ? `${event.district}, Poznań`
-              : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : 'Boisko nieznane')}
-          </p>
+          {location && (
+            <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+              {location}
+            </p>
+          )}
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar + spots label */}
         {max > 0 && (
           <div className="ml-5 mt-3 flex items-center gap-2">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${isFull ? 'bg-red-400' : 'bg-primary-600'}`}
+                className={`h-full rounded-full transition-all ${fillColor}`}
                 style={{ width: `${fillPct}%` }}
               />
             </div>
-            <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">
-              {taken}/{max} dołączonych
+            <span className={[
+              'text-xs whitespace-nowrap shrink-0 font-medium',
+              isFull ? 'text-red-500' : fillPct >= 80 ? 'text-amber-600' : 'text-slate-400',
+            ].join(' ')}>
+              {isFull ? 'Brak miejsc' : `${freeSpots} wolnych`}
             </span>
             {distance !== undefined && <DistanceBadge km={distance} />}
           </div>
