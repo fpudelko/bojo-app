@@ -55,6 +55,11 @@ on:
         default: '1'
         required: false
         type: string
+      save_images:
+        description: 'Zapisz zdjęcia satelitarne do Supabase Storage (bucket: venue-satellites)'
+        default: false
+        required: false
+        type: boolean
 
 jobs:
   analyze:
@@ -85,7 +90,8 @@ jobs:
           [ "$LIMIT" != "0" ] && ARGS="$ARGS --limit $LIMIT"
           [ "${{ inputs.dry_run }}"   = "true" ] && ARGS="$ARGS --dry-run"
           [ "${{ inputs.all }}"       = "true" ] && ARGS="$ARGS --all"
-          [ "${{ inputs.overwrite }}" = "true" ] && ARGS="$ARGS --overwrite"
+          [ "${{ inputs.overwrite }}"    = "true" ] && ARGS="$ARGS --overwrite"
+          [ "${{ inputs.save_images }}" = "true" ] && ARGS="$ARGS --save-images"
           echo "args=$ARGS" >> $GITHUB_OUTPUT
           echo "Argumenty: $ARGS"
 

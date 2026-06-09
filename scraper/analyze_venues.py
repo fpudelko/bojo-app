@@ -63,6 +63,11 @@ MODEL                 = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 MAPBOX_ZOOM           = 18
 MAPBOX_W, MAPBOX_H    = 512, 512
 
+# Supabase Storage bucket for satellite images.
+# Create it once in Supabase Dashboard → Storage → New bucket:
+#   Name: venue-satellites   Public: YES
+STORAGE_BUCKET        = "venue-satellites"
+
 SUPABASE_HEADERS = {
     "apikey":        SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -126,13 +131,32 @@ def mapbox_satellite_url(lat: float, lng: float) -> str:
     )
 
 
-async def fetch_image_b64(client: httpx.AsyncClient, url: str) -> str | None:
+async def fetch_satellite_bytes(client: httpx.AsyncClient, url: str) -> bytes | None:
+    """Fetch Mapbox satellite tile, return raw JPEG bytes."""
     try:
         r = await client.get(url, timeout=15)
         r.raise_for_status()
-        return base64.b64encode(r.content).decode()
+        return r.content
     except Exception as e:
         log.warning("Image fetch failed %s: %s", url, e)
+        return None
+
+
+async def upload_satellite_image(client: httpx.AsyncClient, field_id: str, img_bytes: bytes) -> str | None:
+    """Upload satellite JPEG to Supabase Storage, return public URL."""
+    path    = f"{field_id}.jpg"
+    api_url = f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}"
+    headers = {
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type":  "image/jpeg",
+        "x-upsert":      "true",   # overwrite on re-run
+    }
+    try:
+        r = await client.put(api_url, content=img_bytes, headers=headers, timeout=30)
+        r.raise_for_status()
+        return f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{path}"
+    except Exception as e:
+        log.warning("Storage upload failed for %s: %s", field_id, e)
         return None
 
 
@@ -371,7 +395,7 @@ def _ai_visibility(result: dict, existing: dict) -> str:
 async def fetch_fields(client: httpx.AsyncClient, process_all: bool, limit: int | None) -> list[dict]:
     url = f"{SUPABASE_URL}/rest/v1/fields"
     params: dict[str, Any] = {
-        "select": "id,name,address,sport,lat,lng,surface,is_indoor,lit,has_changing_rooms,map_visibility,phone,website,email",
+        "select": "id,name,address,sport,lat,lng,surface,is_indoor,lit,has_changing_rooms,map_visibility,phone,website,email,image_url",
         "order": "id.asc",
     }
     if not process_all:
@@ -405,6 +429,7 @@ async def process_field(
     field: dict,
     dry_run: bool,
     overwrite: bool,
+    save_images: bool,
     sem: asyncio.Semaphore,
 ) -> None:
     async with sem:
@@ -422,11 +447,13 @@ async def process_field(
 
         log.info("Analysing: %s", fname)
 
-        sat_url  = mapbox_satellite_url(lat, lng)
-        img_b64  = await fetch_image_b64(http, sat_url)
-        if not img_b64:
+        sat_url   = mapbox_satellite_url(lat, lng)
+        img_bytes = await fetch_satellite_bytes(http, sat_url)
+        if not img_bytes:
             log.warning("Skip %s — satellite image unavailable", fname)
             return
+
+        img_b64 = base64.b64encode(img_bytes).decode()
 
         result = await analyse_with_claude(http, img_b64, field)
         if not result:
@@ -435,12 +462,24 @@ async def process_field(
 
         update = build_update(result, field, overwrite)
 
+        # Upload satellite image to Supabase Storage.
+        # Only overwrite existing image_url when --overwrite or when it's not set.
+        if save_images and not dry_run:
+            has_image = bool(field.get("image_url"))
+            if overwrite or not has_image:
+                sat_storage_url = await upload_satellite_image(http, fid, img_bytes)
+                if sat_storage_url:
+                    update["image_url"] = sat_storage_url
+                    log.info("  ↑ Uploaded satellite image")
+
         if dry_run:
             print(f"\n{'='*60}")
             print(f"Field: {fname} ({fid})")
             print(f"Satellite: {sat_url}")
             print(f"Claude result: {json.dumps(result, ensure_ascii=False, indent=2)}")
             print(f"Would write: {json.dumps(update, ensure_ascii=False, indent=2)}")
+            if save_images:
+                print(f"Would upload image to: {SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{fid}.jpg")
         else:
             await upsert_field(http, fid, update)
             verified = result.get("is_verified_venue")
@@ -462,7 +501,8 @@ async def main() -> None:
     ap.add_argument("--all",       action="store_true",     help="Re-process already-typed venues")
     ap.add_argument("--overwrite", action="store_true",     help="Overwrite existing surface/is_indoor/lit/has_changing_rooms")
     ap.add_argument("--concurrency", type=int, default=1,   help="Parallel Claude requests (default 1; increase carefully to avoid 429s)")
-    ap.add_argument("--model",     type=str,  default=None, help="Claude model override (default: claude-sonnet-4-6)")
+    ap.add_argument("--model",       type=str,  default=None, help="Claude model override (default: claude-sonnet-4-6)")
+    ap.add_argument("--save-images", action="store_true",    help=f"Upload satellite images to Supabase Storage (bucket: {STORAGE_BUCKET})")
     args = ap.parse_args()
 
     if args.model:
@@ -481,7 +521,7 @@ async def main() -> None:
 
         sem = asyncio.Semaphore(args.concurrency)
         tasks = [
-            process_field(http, f, args.dry_run, args.overwrite, sem)
+            process_field(http, f, args.dry_run, args.overwrite, args.save_images, sem)
             for f in fields
         ]
         await asyncio.gather(*tasks)
