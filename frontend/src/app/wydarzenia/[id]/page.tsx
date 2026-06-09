@@ -94,6 +94,7 @@ export default function EventDetailPage() {
   const [smsBusy, setSmsBusy] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   // Legacy client-side teams (teamMode === 'brak' only)
   const [localTeams, setLocalTeams] = useState<[EventParticipant[], EventParticipant[]] | null>(null);
   // Match data
@@ -589,15 +590,13 @@ export default function EventDetailPage() {
                       ? <><Users className="w-5 h-5" /> Na liście rezerwowej</>
                       : <><Check className="w-5 h-5" /> Jesteś zapisany</>}
                   </div>
-                  {user.id !== event.organizerId && (
-                    <button
-                      onClick={() => handleRemove(myParticipation.id)}
-                      disabled={busy}
-                      className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
-                    >
-                      Wypisz się z meczu
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setLeaveConfirmOpen(true)}
+                    disabled={busy}
+                    className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+                  >
+                    Wypisz się z meczu
+                  </button>
                 </div>
               )}
               {!authLoading && !user && (
@@ -982,6 +981,33 @@ export default function EventDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Leave confirmation */}
+      {leaveConfirmOpen && myParticipation && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          onClick={() => setLeaveConfirmOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">Wypisać się z meczu?</h3>
+            <p className="text-sm text-slate-500 mb-5">
+              Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setLeaveConfirmOpen(false)} className="flex-1">
+                Zostań
+              </Button>
+              <Button
+                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myParticipation.id); }}
+                isLoading={busy}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Wypisz mnie
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Repeat game dialog */}
       {repeatOpen && (

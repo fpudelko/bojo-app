@@ -60,6 +60,7 @@ function NewEventForm() {
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [seekerCount, setSeekerCount] = useState(0);
 
@@ -159,13 +160,14 @@ function NewEventForm() {
     e.preventDefault();
     if (!user) return;
 
-    if (!location.venue && location.lat === null) {
-      setError('Wskaż lokalizację — kliknij boisko na mapie, wpisz adres lub kliknij dowolne miejsce.');
-      return;
-    }
-    if (!date) { setError('Podaj datę.'); return; }
-    if (endTime && endTime <= time) {
-      setError('Godzina zakończenia musi być późniejsza niż rozpoczęcia.');
+    const errs: Record<string, string> = {};
+    if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
+    if (!date) errs.date = 'Podaj datę meczu.';
+    if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      // scroll to first error
+      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
 
@@ -248,6 +250,11 @@ function NewEventForm() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Lokalizacja
             </label>
+            {fieldErrors.location && (
+              <p data-field-error className="mb-2 text-xs font-medium text-red-600 flex items-center gap-1">
+                <span aria-hidden>⚠</span> {fieldErrors.location}
+              </p>
+            )}
             <p className="text-xs text-gray-500 mb-2">
               Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
             </p>
@@ -255,7 +262,7 @@ function NewEventForm() {
               <UnifiedLocationPicker
                 sport={sport}
                 value={location}
-                onChange={setLocation}
+                onChange={(v) => { setLocation(v); setFieldErrors((f) => ({ ...f, location: '' })); }}
               />
             </div>
 
@@ -308,7 +315,17 @@ function NewEventForm() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} required />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => { setDate(e.target.value); setFieldErrors((f) => ({ ...f, date: '' })); }}
+                className={[inputCls, fieldErrors.date ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
+              />
+              {fieldErrors.date && (
+                <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <span aria-hidden>⚠</span> {fieldErrors.date}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
@@ -318,7 +335,18 @@ function NewEventForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
               </label>
-              <input type="time" value={endTime} min={time} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
+              <input
+                type="time"
+                value={endTime}
+                min={time}
+                onChange={(e) => { setEndTime(e.target.value); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
+                className={[inputCls, fieldErrors.endTime ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
+              />
+              {fieldErrors.endTime && (
+                <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                  <span aria-hidden>⚠</span> {fieldErrors.endTime}
+                </p>
+              )}
             </div>
           </div>
 
