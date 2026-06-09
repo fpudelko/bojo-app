@@ -8,6 +8,7 @@ import NearbyGames from './NearbyGames';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
 import { isUpcoming } from '@/components/EventCard';
@@ -70,6 +71,20 @@ function EventFeedRow({ event, taken }: { event: EventItem; taken: number }) {
 
 /** Marketing hero for logged-out visitors */
 function MarketingHero() {
+  const [venueCount, setVenueCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { count } = await supabase
+          .from('fields')
+          .select('id', { count: 'exact', head: true })
+          .eq('map_visibility', 'public');
+        setVenueCount(count ?? 0);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   return (
     <section className="hero-surface relative overflow-hidden text-white">
       <div className="hero-dots absolute inset-0" aria-hidden="true" />
@@ -116,11 +131,23 @@ function MarketingHero() {
             </Link>
           </div>
           <dl
-            className="mx-auto mt-10 grid max-w-md animate-fade-up grid-cols-3 gap-6 border-t border-white/10 pt-6 lg:mx-0"
+            className="mx-auto mt-10 grid max-w-md animate-fade-up grid-cols-2 gap-6 border-t border-white/10 pt-6 lg:mx-0"
             style={{ animationDelay: '320ms' }}
           >
-            <div><dt className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider text-white/55 lg:justify-start"><MapPin className="h-4 w-4" /> boisk</dt><dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">Setki</dd></div>
-            <div><dt className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider text-white/55 lg:justify-start"><Users className="h-4 w-4" /> dyscyplin</dt><dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">5</dd></div>
+            <div>
+              <dt className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider text-white/55 lg:justify-start">
+                <MapPin className="h-4 w-4" /> boisk w bazie
+              </dt>
+              <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">
+                {venueCount !== null ? venueCount : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider text-white/55 lg:justify-start">
+                <Users className="h-4 w-4" /> dyscypliny
+              </dt>
+              <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">4</dd>
+            </div>
           </dl>
         </div>
         <div className="relative mx-auto w-full max-w-[300px] animate-fade-up sm:max-w-[340px] lg:max-w-[400px]" style={{ animationDelay: '200ms' }}>

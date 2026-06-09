@@ -1,63 +1,45 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 
-const STORAGE_KEY = 'bojo_cookie_consent_v1';
-
-// Structure prepared for future analytics consent.
-// Currently only 'necessary' cookies are used (Supabase session).
-type ConsentLevel = 'necessary'; // extend to 'analytics' | 'marketing' when needed
+const KEY = 'bojo_cookie_consent_v1';
 
 export default function CookieBanner() {
-  const [visible, setVisible] = useState(false);
-
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) setVisible(true);
-    } catch { /* SSR or private mode */ }
+    try { setOpen(!localStorage.getItem(KEY)); } catch {}
   }, []);
-
-  function accept() {
-    try {
-      const consent: { level: ConsentLevel; date: string } = {
-        level: 'necessary',
-        date: new Date().toISOString(),
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consent));
-    } catch { /* ignore */ }
-    setVisible(false);
-  }
-
-  if (!visible) return null;
-
+  if (!open) return null;
+  const dismiss = () => {
+    try { localStorage.setItem(KEY, '1'); } catch {}
+    setOpen(false);
+  };
   return (
     <div
       role="dialog"
-      aria-label="Informacja o plikach cookie"
-      className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-md z-[9999] bg-gray-900 border border-gray-700 rounded-2xl shadow-xl px-4 py-3"
+      aria-label="Informacja o cookies"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
     >
-      <button
-        onClick={accept}
-        aria-label="Zamknij i zaakceptuj informację o plikach cookie"
-        className="absolute top-2 right-2 p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-      <p className="text-xs sm:text-sm text-gray-300 pr-8 leading-relaxed">
-        Używamy tylko niezbędnych cookies (logowanie). Bez śledzenia, bez reklam.{' '}
-        <Link href="/prywatnosc" className="text-primary-400 hover:text-primary-300 underline">
-          Szczegóły
-        </Link>
-      </p>
-      <button
-        onClick={accept}
-        className="mt-2 w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-      >
-        OK, rozumiem
-      </button>
+      <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2 text-sm">
+        <span className="flex-1 text-foreground/90">
+          Używamy tylko niezbędnych cookies (logowanie). Bez śledzenia, bez reklam.{' '}
+          <Link href="/prywatnosc" className="underline underline-offset-2">Szczegóły</Link>
+        </span>
+        <button
+          onClick={dismiss}
+          className="rounded-md bg-primary-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-800"
+        >
+          OK
+        </button>
+        <button
+          onClick={dismiss}
+          aria-label="Zamknij"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
     </div>
   );
 }

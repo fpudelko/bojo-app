@@ -57,7 +57,8 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
             {dayLabel}{event.time ? `, ${event.time.slice(0, 5)}` : ''}
           </p>
           <p className="flex items-center gap-1 mt-0.5 text-xs text-slate-500 truncate">
-            <MapPin className="w-3 h-3 shrink-0" />{event.fieldName}
+            <MapPin className="w-3 h-3 shrink-0" />
+            {event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : 'Boisko nieznane'}
           </p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5">

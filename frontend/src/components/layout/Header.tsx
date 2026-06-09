@@ -230,17 +230,17 @@ export default function Header() {
               <Link
                 href="/wydarzenia"
                 onClick={() => setMobileOpen(false)}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 px-3 py-5 text-sm font-semibold text-amber-800 active:scale-[0.97] transition-transform"
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-primary-700 px-3 py-5 text-sm font-semibold text-white shadow-md active:scale-[0.97] transition-transform"
               >
-                <Search className="w-6 h-6 text-amber-600" />
+                <Search className="w-6 h-6" />
                 Znajdź grę
               </Link>
               <Link
                 href="/wydarzenia/nowe"
                 onClick={() => setMobileOpen(false)}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-primary-700 px-3 py-5 text-sm font-semibold text-white shadow-md active:scale-[0.97] transition-transform"
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-primary-200 bg-primary-50 px-3 py-5 text-sm font-semibold text-primary-800 active:scale-[0.97] transition-transform"
               >
-                <Plus className="w-6 h-6" />
+                <Plus className="w-6 h-6 text-primary-700" />
                 Stwórz mecz
               </Link>
             </div>

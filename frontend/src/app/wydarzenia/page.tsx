@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isThisWeek, isThisMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -15,11 +15,11 @@ import { sportEmoji } from '@/lib/sports';
 
 
 // Futsal i gokarty usunięte z filtrów per spec
-const SPORTS_FILTER: { sport: string; label: string }[] = [
-  { sport: 'piłka nożna',       label: 'Piłka nożna' },
-  { sport: 'siatkówka plażowa', label: 'Siatkówka plażowa' },
-  { sport: 'siatkówka',         label: 'Siatkówka' },
-  { sport: 'koszykówka',        label: 'Koszykówka' },
+const SPORTS_FILTER: { sport: string; label: string; short: string }[] = [
+  { sport: 'piłka nożna',       label: 'Piłka nożna',       short: 'Piłka' },
+  { sport: 'siatkówka plażowa', label: 'Siatkówka plażowa',  short: 'Plaża' },
+  { sport: 'siatkówka',         label: 'Siatkówka',          short: 'Siatka' },
+  { sport: 'koszykówka',        label: 'Koszykówka',         short: 'Kosz' },
 ];
 
 type LocationMode = 'none' | 'browser' | 'address';
@@ -89,7 +89,9 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
           </p>
           <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
             <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-            {event.district ? `${event.district}, Poznań` : event.fieldName}
+            {event.district
+              ? `${event.district}, Poznań`
+              : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : 'Boisko nieznane')}
           </p>
         </div>
 
@@ -223,9 +225,22 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter — 4 emoji pills across the screen width */}
-        <div className="grid grid-cols-4 gap-2.5 mb-5">
-          {SPORTS_FILTER.map(({ sport, label }) => {
+        {/* Sport filter — emoji + label chips */}
+        <div className="grid grid-cols-5 gap-2 mb-5">
+          <button
+            onClick={() => setSportFilter('')}
+            aria-pressed={sportFilter === ''}
+            className={[
+              'flex flex-col items-center justify-center gap-1 min-h-[72px] rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+              sportFilter === ''
+                ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03] text-white'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 active:scale-95',
+            ].join(' ')}
+          >
+            <span aria-hidden="true" className="text-2xl leading-none">✨</span>
+            <span className="text-xs font-medium leading-tight">Wszystkie</span>
+          </button>
+          {SPORTS_FILTER.map(({ sport, label, short }) => {
             const active = sportFilter === sport;
             return (
               <button
@@ -233,15 +248,15 @@ export default function EventsPage() {
                 onClick={() => setSportFilter(active ? '' : sport)}
                 aria-pressed={active}
                 aria-label={label}
-                title={label}
                 className={[
-                  'flex items-center justify-center h-16 rounded-2xl border transition-all duration-150',
+                  'flex flex-col items-center justify-center gap-1 min-h-[72px] rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
                   active
-                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
-                    : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
+                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03] text-white'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300 active:scale-95',
                 ].join(' ')}
               >
-                <span aria-hidden="true" className="text-[28px] leading-none">{sportEmoji(sport)}</span>
+                <span aria-hidden="true" className="text-2xl leading-none">{sportEmoji(sport)}</span>
+                <span className="text-xs font-medium leading-tight text-center px-0.5">{short}</span>
               </button>
             );
           })}
@@ -404,10 +419,9 @@ function groupByDateBucket(
 ): [string, { event: EventItem; distance?: number }[]][] {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + (7 - today.getDay() || 7));
 
   const buckets = new Map<string, { event: EventItem; distance?: number }[]>();
-  const order = ['Dziś', 'Jutro', 'W tym tygodniu', 'Później'];
+  const order = ['Dziś', 'Jutro', 'W tym tygodniu', 'W tym miesiącu', 'Później'];
   order.forEach((k) => buckets.set(k, []));
 
   for (const row of items) {
@@ -417,7 +431,8 @@ function groupByDateBucket(
       const dt = new Date(y, m - 1, d);
       if (dt.getTime() === today.getTime()) bucket = 'Dziś';
       else if (dt.getTime() === tomorrow.getTime()) bucket = 'Jutro';
-      else if (dt <= weekEnd) bucket = 'W tym tygodniu';
+      else if (isThisWeek(dt, { weekStartsOn: 1 })) bucket = 'W tym tygodniu';
+      else if (isThisMonth(dt)) bucket = 'W tym miesiącu';
     } catch { /* keep default */ }
     buckets.get(bucket)!.push(row);
   }
