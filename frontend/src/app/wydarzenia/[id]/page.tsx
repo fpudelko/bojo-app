@@ -354,7 +354,9 @@ export default function EventDetailPage() {
 
   const handleCopyInviteLink = (invite: EventInvite) => {
     const url = `${window.location.origin}/wydarzenia/${event.id}?token=${invite.token}`;
-    navigator.clipboard.writeText(url).then(() => toast('Link zaproszenia skopiowany!')).catch(() => {});
+    navigator.clipboard.writeText(url)
+      .then(() => toast('Link zaproszenia skopiowany!'))
+      .catch(() => toast('Nie udało się skopiować — użyj przycisku "Skopiuj link"', 'error'));
   };
 
   const handleToggleAllowGuestAdds = async () => {
@@ -734,7 +736,7 @@ export default function EventDetailPage() {
             <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="w-9 h-9 shrink-0 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
-                  {event.organizerName?.charAt(0).toUpperCase() ?? '?'}
+                  {event.organizerName?.[0]?.toUpperCase() ?? '?'}
                 </span>
                 <div className="min-w-0">
                   <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Organizator</p>
@@ -789,8 +791,8 @@ export default function EventDetailPage() {
                   }
 
                   {/* Name + badges */}
-                  <span className="flex-1 flex items-center gap-1.5 text-sm text-ink min-w-0">
-                    <span className="truncate max-w-[120px]">{p.name}</span>
+                  <span className="flex-1 flex items-center gap-1 text-sm text-ink min-w-0 overflow-hidden">
+                    <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
                     {p.isGuest && (
                       <span className="text-xs text-gray-400 shrink-0">
                         (gość{isOrganizer && p.addedBy && p.addedBy !== user?.id
@@ -1025,7 +1027,7 @@ export default function EventDetailPage() {
 
             {/* Send invite by email */}
             <div>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-slate-500 mb-2">
                 Wpisz adres email — otworzymy Twój klient pocztowy z gotową wiadomością.
               </p>
               <div className="flex gap-2">
@@ -1057,7 +1059,7 @@ export default function EventDetailPage() {
                       'w-2 h-2 rounded-full shrink-0',
                       inv.acceptedAt ? 'bg-green-500' : 'bg-amber-400',
                     ].join(' ')} title={inv.acceptedAt ? 'Zaakceptowane' : 'Oczekuje'} />
-                    <span className="flex-1 text-sm text-gray-700 truncate">{inv.email}</span>
+                    <span className="flex-1 text-sm text-slate-700 truncate">{inv.email}</span>
                     {inv.acceptedAt && (
                       <span className="text-xs text-green-600 font-medium shrink-0">Dołączył/a</span>
                     )}
@@ -1197,7 +1199,7 @@ export default function EventDetailPage() {
           className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
           onClick={() => setLeaveConfirmOpen(false)}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Wypisać się z meczu?</h3>
             <p className="text-sm text-slate-500 mb-5">
               Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.
@@ -1224,7 +1226,7 @@ export default function EventDetailPage() {
           className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
           onClick={() => setRepeatOpen(false)}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Powtórz mecz</h3>
             <p className="text-sm text-gray-500 mb-4">
               Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę.
@@ -1271,7 +1273,7 @@ export default function EventDetailPage() {
           className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
           onClick={() => setReportTarget(null)}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Zgłoś uczestnika</h3>
             <p className="text-sm text-gray-500 mb-4">{reportTarget.name}</p>
             <div className="space-y-2 mb-4">

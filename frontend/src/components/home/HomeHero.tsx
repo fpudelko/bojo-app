@@ -69,7 +69,7 @@ function MarketingHero() {
           </span>
 
           <h1
-            className="mt-5 animate-fade-up font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            className="mt-5 animate-fade-up font-display text-3xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
             style={{ animationDelay: '80ms' }}
           >
             Znajdź grę
@@ -119,24 +119,24 @@ function MarketingHero() {
 
           {/* Stats bar */}
           <dl
-            className="mx-auto mt-10 grid max-w-md animate-fade-up grid-cols-3 gap-4 border-t border-white/10 pt-6"
+            className="mx-auto mt-10 grid max-w-xs animate-fade-up grid-cols-3 gap-2 border-t border-white/10 pt-6 sm:max-w-md sm:gap-4"
             style={{ animationDelay: '360ms' }}
           >
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">boisk</dt>
-              <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">
+              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">boisk</dt>
+              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
                 {venueCount !== null ? venueCount : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">gier dziś</dt>
-              <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">
+              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">gier dziś</dt>
+              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
                 {todayCount !== null ? todayCount : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">dyscypliny</dt>
-              <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">4</dd>
+              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">sporty</dt>
+              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">4</dd>
             </div>
           </dl>
         </div>
