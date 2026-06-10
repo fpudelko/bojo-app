@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { LocationPickerProps } from './LocationPicker';
@@ -76,6 +77,7 @@ export default function LocationPickerImpl({ lat, lng, onSelect }: LocationPicke
         style={{ height: '100%', width: '100%', minHeight: '280px' }}
         zoomControl={false}
       >
+        <MapAttribution />
         {MAPBOX_TOKEN ? (
           <TileLayer
             attribution='&copy; Mapbox &copy; OpenStreetMap'

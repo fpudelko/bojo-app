@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
@@ -178,6 +179,7 @@ export default function LeafletMapImpl({
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={false}
       >
+        <MapAttribution />
         {satellite ? satelliteLayer : streetLayer}
         <ZoomControl position="topright" />
         <ClusteredMarkers fields={displayed} isAdmin={isAdmin} />

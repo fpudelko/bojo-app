@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMapEvents } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Loader2 } from 'lucide-react';
@@ -145,6 +146,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
         style={{ height: '100%', width: '100%', minHeight: '300px' }}
         zoomControl={false}
       >
+        <MapAttribution />
         {MAPBOX_TOKEN ? (
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

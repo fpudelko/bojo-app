@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMapEvents } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Field } from '@/types';
@@ -46,6 +47,7 @@ export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) 
       style={{ height: '100%', width: '100%', minHeight: '320px' }}
       zoomControl={false}
     >
+      <MapAttribution />
       {MAPBOX_TOKEN ? (
         <TileLayer
           attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

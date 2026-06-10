@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
@@ -14,7 +15,7 @@ import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { getCurrentLocation } from '@/lib/geo';
 import { venueThumbnail, surfaceLabel } from '@/lib/labels';
-import { slugify } from '@/lib/utils';
+import { slugify, externalUrl } from '@/lib/utils';
 import { POZNAN, fieldPin, clusterDivIcon } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -273,7 +274,7 @@ function VenueCard({ field, games, hasGameToday, selected }: {
           )}
           {field.website && (
             <a
-              href={field.website}
+              href={externalUrl(field.website)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -551,6 +552,7 @@ export default function VenueExplorer({
       {/* ── Map area ─────────────────────────────────────────────────── */}
       <div className="relative flex-1 min-w-0 min-h-0">
         <MapContainer center={POZNAN} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <MapAttribution />
           {street}
           <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
         </MapContainer>

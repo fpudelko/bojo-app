@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { venueThumbnail, surfaceLabel } from '@/lib/labels';
+import { externalUrl } from '@/lib/utils';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
@@ -313,7 +314,7 @@ export default function VenueDetailClient({
               )}
               {field.website && (
                 <a
-                  href={field.website}
+                  href={externalUrl(field.website)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"

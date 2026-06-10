@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getPublicEvents } from '@/lib/events';
@@ -110,6 +111,7 @@ export default function EventsMapImpl({ className, sports, dateFrom, dateTo }: E
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={false}
       >
+        <MapAttribution />
         {MAPBOX_TOKEN ? (
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
