@@ -203,26 +203,34 @@ export default function EventsPage() {
     }
   }
 
-  // Geocode typed address via Nominatim (debounced)
+  // Geocode typed address via Nominatim (debounced), biased to Poznań
   function handleAddressChange(val: string) {
     setAddressInput(val);
+    setGeoError(null);
     if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
     if (!val.trim()) { setGeoPoint(null); return; }
     addressDebounceRef.current = setTimeout(async () => {
       setAddressLoading(true);
       try {
+        // Bias to Poznań so short queries like "Rataje" resolve locally
+        const q = /pozna/i.test(val) ? val : `${val}, Poznań`;
         const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=1&countrycodes=pl`,
-          { headers: { 'Accept-Language': 'pl' } },
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=pl&addressdetails=0`,
         );
         const results = await resp.json();
-        if (results[0]) {
+        if (results && results[0]) {
           setGeoPoint({ lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) });
           setLocationMode('address');
+          setGeoError(null);
+        } else {
+          setGeoPoint(null);
+          setGeoError('Nie znaleziono tego adresu. Spróbuj inaczej, np. „Rataje" albo „ul. Główna".');
         }
-      } catch { /* ignore */ }
+      } catch {
+        setGeoError('Nie udało się wyszukać adresu. Sprawdź połączenie.');
+      }
       finally { setAddressLoading(false); }
-    }, 700);
+    }, 600);
   }
 
   function clearLocation() {

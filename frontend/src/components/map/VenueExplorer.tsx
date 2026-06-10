@@ -125,6 +125,8 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
 
   useEffect(() => {
     if (!selectedId) return;
+    // On first load ('init') keep the wide powiat view — don't zoom to a venue.
+    if (selectedSource === 'init') return;
     const f = fields.find((x) => x.id === selectedId);
     if (!f) return;
     map.stop();

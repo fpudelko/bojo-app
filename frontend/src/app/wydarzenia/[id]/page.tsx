@@ -510,12 +510,13 @@ export default function EventDetailPage() {
 
             {/* Players — avatar stack like the mockup */}
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-ink">
-                Zapisani gracze <span className="text-slate-400 font-semibold">{takenSpots}/{event.maxPlayers}</span>
-              </h2>
-              {!isFull && (
-                <span className="text-xs font-semibold text-primary-600">{event.maxPlayers - takenSpots} wolnych</span>
-              )}
+              <h2 className="text-sm font-bold text-ink">Gracze</h2>
+              <span className="text-xs font-semibold text-slate-500">
+                {takenSpots} z {event.maxPlayers}
+                {isFull
+                  ? ' · komplet'
+                  : <span className="text-primary-600"> · {event.maxPlayers - takenSpots} wolnych</span>}
+              </span>
             </div>
             {regulars.length > 0 ? (
               <div className="flex items-center -space-x-2.5">
@@ -642,8 +643,9 @@ export default function EventDetailPage() {
 
           {externalCount > 0 && (
             <p className="-mt-2 mb-3 text-xs text-gray-500">
-              W tym <span className="font-medium text-gray-700">{externalCount}</span>{' '}
-              {externalCount === 1 ? 'gracz' : externalCount < 5 ? 'graczy' : 'graczy'} spoza aplikacji.
+              <span className="font-medium text-gray-700">{externalCount}</span>{' '}
+              {externalCount === 1 ? 'gracz dodany' : 'graczy dodanych'} z własnej ekipy
+              {event.organizerName && <> przez <span className="font-medium text-gray-700">{event.organizerName}</span></>}.
               {!isFull && (
                 <span className="text-primary-700 font-medium">
                   {' '}Szukamy jeszcze {event.maxPlayers - takenSpots}.

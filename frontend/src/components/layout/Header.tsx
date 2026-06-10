@@ -11,6 +11,9 @@ import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 
+// Turniej (Cup) ukryty na razie — przełącz na true, by przywrócić
+const SHOW_CUP = false;
+
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
   { href: '/wydarzenia', label: 'Znajdź grę' },
@@ -129,17 +132,19 @@ export default function Header() {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/turniej"
-                className={clsx(
-                  'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
-                  pathname === '/turniej' || pathname.startsWith('/turniej/')
-                    ? 'bg-accent-100 text-accent-700'
-                    : 'text-accent-700 hover:bg-accent-50',
-                )}
-              >
-                <Trophy className="w-4 h-4" /> Cup
-              </Link>
+              {SHOW_CUP && (
+                <Link
+                  href="/turniej"
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
+                    pathname === '/turniej' || pathname.startsWith('/turniej/')
+                      ? 'bg-accent-100 text-accent-700'
+                      : 'text-accent-700 hover:bg-accent-50',
+                  )}
+                >
+                  <Trophy className="w-4 h-4" /> Cup
+                </Link>
+              )}
             </nav>
 
             <div className="hidden md:flex items-center gap-3">
@@ -246,20 +251,22 @@ export default function Header() {
             </div>
 
             {/* BOJO Cup highlight */}
-            <Link
-              href="/turniej"
-              onClick={() => setMobileOpen(false)}
-              className="mb-6 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
-            >
-              <span className="flex items-center gap-3">
-                <Trophy className="h-6 w-6 text-accent-400" />
-                <span>
-                  <span className="block text-sm font-bold">BOJO Community Cup</span>
-                  <span className="block text-xs text-white/70">Zgłoś drużynę do turnieju</span>
+            {SHOW_CUP && (
+              <Link
+                href="/turniej"
+                onClick={() => setMobileOpen(false)}
+                className="mb-6 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
+              >
+                <span className="flex items-center gap-3">
+                  <Trophy className="h-6 w-6 text-accent-400" />
+                  <span>
+                    <span className="block text-sm font-bold">BOJO Community Cup</span>
+                    <span className="block text-xs text-white/70">Zgłoś drużynę do turnieju</span>
+                  </span>
                 </span>
-              </span>
-              <ChevronRight className="h-5 w-5 text-white/60" />
-            </Link>
+                <ChevronRight className="h-5 w-5 text-white/60" />
+              </Link>
+            )}
 
             {/* Secondary nav */}
             <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Odkryj</p>
