@@ -24,8 +24,10 @@ export default function MojeGryPage() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  const upcoming = items.filter(({ event }) => isUpcoming(event));
-  const history = items.filter(({ event }) => !isUpcoming(event));
+  // Cancelled games never count as "upcoming" — they drop into History so the
+  // calendar only shows games that are actually happening.
+  const upcoming = items.filter(({ event }) => event.status !== 'cancelled' && isUpcoming(event));
+  const history = items.filter(({ event }) => event.status === 'cancelled' || !isUpcoming(event));
 
   if (!authLoading && !user) {
     return (

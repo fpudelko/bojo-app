@@ -81,8 +81,8 @@ function MarketingHero() {
             className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg lg:mx-0"
             style={{ animationDelay: '160ms' }}
           >
-            Dołącz do otwartego meczu piłki, siatki lub kosza — bez dzwonienia po
-            znajomych. Płać online, graj z zaufanymi graczami, zero ghostingu.
+            Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do
+            otwartych meczów w okolicy — piłka, siatka czy kosz, wszystko w jednym miejscu.
           </p>
 
           {/* CTA */}
@@ -172,7 +172,7 @@ function DashboardHeader() {
               Znajdź grę na dziś wieczór.
             </h1>
             <p className="mt-1 text-sm text-white/70 max-w-sm">
-              Dołącz do otwartego meczu blisko Ciebie — bez dzwonienia po znajomych.
+              Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
             </p>
           </div>
           <Link href="/wydarzenia/nowe" className="shrink-0">
@@ -195,7 +195,7 @@ function MyGamesSection({ userId }: { userId: string }) {
 
   useEffect(() => {
     getMyParticipatedEvents(userId)
-      .then((items) => setGames(items.filter(({ event }) => isUpcoming(event))))
+      .then((items) => setGames(items.filter(({ event }) => event.status !== 'cancelled' && isUpcoming(event))))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);
