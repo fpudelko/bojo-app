@@ -12,7 +12,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Visibility } from '@/types';
 
 function ToggleRow({ label, desc, checked, onChange }: {
@@ -45,6 +45,8 @@ function NewEventForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
+
+  const [step, setStep] = useState(1);
 
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
@@ -218,297 +220,419 @@ function NewEventForm() {
   const inputCls =
     'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
+  const goToStep2 = () => {
+    const errs: Record<string, string> = {};
+    if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return;
+    }
+    setFieldErrors({});
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goToStep3 = () => {
+    const errs: Record<string, string> = {};
+    if (!date) errs.date = 'Podaj datę meczu.';
+    if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return;
+    }
+    setFieldErrors({});
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const stepIndicator = (
+    <div className="flex items-center gap-2 mb-6">
+      {[1, 2, 3].map((n) => (
+        <div
+          key={n}
+          className={[
+            'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all',
+            step >= n ? 'bg-primary-700 text-white' : 'bg-slate-100 text-slate-400',
+          ].join(' ')}
+        >
+          {n}
+        </div>
+      ))}
+      <span className="ml-2 text-sm text-slate-500">
+        {step === 1 ? 'Co i gdzie' : step === 2 ? 'Kiedy i ile' : 'Opcje'}
+      </span>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Nowe wydarzenie</h1>
 
+        {stepIndicator}
+
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Sport */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
-            <select
-              value={sport}
-              onChange={(e) => {
-                setSport(e.target.value);
-                // clear venue if it doesn't match new sport
-                if (location.venue && !location.venue.sport.includes(e.target.value)) {
-                  setLocation(EMPTY_LOCATION);
-                }
-              }}
-              className={inputCls}
-            >
-              {SPORTS.map((s) => (
-                <option key={s} value={s}>{sportLabel(s)}</option>
-              ))}
-            </select>
-          </div>
 
-          {/* Unified location picker */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Lokalizacja
-            </label>
-            {fieldErrors.location && (
-              <p data-field-error className="mb-2 text-xs font-medium text-red-600 flex items-center gap-1">
-                <span aria-hidden>⚠</span> {fieldErrors.location}
-              </p>
-            )}
-            <p className="text-xs text-gray-500 mb-2">
-              Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
-            </p>
-            <div className="h-80 rounded-xl overflow-hidden border border-gray-200">
-              <UnifiedLocationPicker
-                sport={sport}
-                value={location}
-                onChange={(v) => { setLocation(v); setFieldErrors((f) => ({ ...f, location: '' })); }}
-              />
-            </div>
+          {/* ── STEP 1 ── */}
+          {step === 1 && (
+            <>
+              {/* Sport chips */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Sport</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SPORTS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setSport(s);
+                        if (location.venue && !location.venue.sport.includes(s)) {
+                          setLocation(EMPTY_LOCATION);
+                        }
+                      }}
+                      className={[
+                        'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors',
+                        sport === s
+                          ? 'bg-primary-700 text-white border-primary-700'
+                          : 'bg-white text-gray-700 border-slate-200 hover:border-primary-400',
+                      ].join(' ')}
+                    >
+                      <span>{sportEmoji(s)}</span>
+                      <span>{sportLabel(s)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            {/* Selected location summary */}
-            {location.venue && (
-              <div className="mt-2 flex gap-3 items-center bg-gray-50 rounded-lg p-2">
-                {venueThumbnail(location.venue.lat, location.venue.lng, 160, 100) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={venueThumbnail(location.venue.lat, location.venue.lng, 160, 100)!}
-                    alt={location.venue.name}
-                    className="w-20 h-14 object-cover rounded-md shrink-0"
-                  />
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{location.venue.name}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
-                    <MapPin className="w-3 h-3 shrink-0" /> {location.venue.address}
+              {/* Unified location picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lokalizacja
+                </label>
+                {fieldErrors.location && (
+                  <p data-field-error className="mb-2 text-xs font-medium text-red-600 flex items-center gap-1">
+                    <span aria-hidden>⚠</span> {fieldErrors.location}
                   </p>
-                  {location.venue.surface && (
-                    <p className="text-xs text-gray-400">{surfaceLabel(location.venue.surface)}</p>
+                )}
+                <p className="text-xs text-gray-500 mb-2">
+                  Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
+                </p>
+                <div className="h-80 rounded-xl overflow-hidden border border-gray-200">
+                  <UnifiedLocationPicker
+                    sport={sport}
+                    value={location}
+                    onChange={(v) => { setLocation(v); setFieldErrors((f) => ({ ...f, location: '' })); }}
+                  />
+                </div>
+
+                {/* Selected location summary */}
+                {location.venue && (
+                  <div className="mt-2 flex gap-3 items-center bg-gray-50 rounded-lg p-2">
+                    {venueThumbnail(location.venue.lat, location.venue.lng, 160, 100) && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={venueThumbnail(location.venue.lat, location.venue.lng, 160, 100)!}
+                        alt={location.venue.name}
+                        className="w-20 h-14 object-cover rounded-md shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{location.venue.name}</p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                        <MapPin className="w-3 h-3 shrink-0" /> {location.venue.address}
+                      </p>
+                      {location.venue.surface && (
+                        <p className="text-xs text-gray-400">{surfaceLabel(location.venue.surface)}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLocation(EMPTY_LOCATION)}
+                      className="ml-auto text-gray-300 hover:text-gray-500"
+                      aria-label="Wyczyść lokalizację"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                {!location.venue && location.lat !== null && (
+                  <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    {location.address || `${location.lat?.toFixed(5)}, ${location.lng?.toFixed(5)}`}
+                    <button
+                      type="button"
+                      onClick={() => setLocation(EMPTY_LOCATION)}
+                      className="ml-1 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </p>
+                )}
+              </div>
+
+              <Button type="button" size="lg" className="w-full" onClick={goToStep2}>
+                Dalej →
+              </Button>
+            </>
+          )}
+
+          {/* ── STEP 2 ── */}
+          {step === 2 && (
+            <>
+              {/* Date / time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => { setDate(e.target.value); setFieldErrors((f) => ({ ...f, date: '' })); }}
+                    className={[inputCls, fieldErrors.date ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
+                  />
+                  {fieldErrors.date && (
+                    <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                      <span aria-hidden>⚠</span> {fieldErrors.date}
+                    </p>
                   )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    min={time}
+                    onChange={(e) => { setEndTime(e.target.value); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
+                    className={[inputCls, fieldErrors.endTime ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
+                  />
+                  {fieldErrors.endTime && (
+                    <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                      <span aria-hidden>⚠</span> {fieldErrors.endTime}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Max players stepper */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Liczba miejsc
+                </label>
+                <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const v = Math.max(2, maxPlayers - 1);
+                      setMaxPlayers(v);
+                      if (externalCount > v) setExternalCount(v);
+                    }}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                    disabled={maxPlayers <= 2}
+                    aria-label="Zmniejsz liczbę miejsc"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-lg font-semibold text-gray-900 tabular-nums">
+                    {maxPlayers}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMaxPlayers((v) => Math.min(30, v + 1))}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                    disabled={maxPlayers >= 30}
+                    aria-label="Zwiększ liczbę miejsc"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Players already committed outside the app */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Macie już graczy spoza aplikacji? <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Wpisz, ilu graczy macie już zebranych (np. ze swojej ekipy). Aplikacja będzie szukać tylko brakujących.
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number" min={0} max={maxPlayers}
+                    value={externalCount === 0 ? '' : externalCount}
+                    onChange={(e) => {
+                      const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
+                      setExternalCount(v);
+                    }}
+                    placeholder="0"
+                    className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  {externalCount > 0 && (
+                    <span className="text-sm text-primary-700 font-medium">
+                      Szukasz jeszcze {Math.max(0, maxPlayers - externalCount)} {maxPlayers - externalCount === 1 ? 'gracza' : 'graczy'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Cost per player */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Koszt uczestnictwa (zł)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={costPln}
+                  onChange={(e) => setCostPln(e.target.value)}
+                  placeholder="0 = za darmo"
+                  className={inputCls}
+                />
+              </div>
+
+              {/* Organizer participates */}
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Biorę udział</p>
+                  <p className="text-xs text-gray-500">Zapisz mnie jako uczestnika tej gry</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setLocation(EMPTY_LOCATION)}
-                  className="ml-auto text-gray-300 hover:text-gray-500"
-                  aria-label="Wyczyść lokalizację"
+                  onClick={() => setOrganizerParticipates((v) => !v)}
+                  className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-gray-200'].join(' ')}
+                  role="switch"
+                  aria-checked={organizerParticipates}
                 >
-                  <X className="w-4 h-4" />
+                  <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
                 </button>
               </div>
-            )}
-            {!location.venue && location.lat !== null && (
-              <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
-                <MapPin className="w-3 h-3 shrink-0" />
-                {location.address || `${location.lat?.toFixed(5)}, ${location.lng?.toFixed(5)}`}
-                <button
-                  type="button"
-                  onClick={() => setLocation(EMPTY_LOCATION)}
-                  className="ml-1 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </p>
-            )}
-          </div>
 
-          {/* Date / time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => { setDate(e.target.value); setFieldErrors((f) => ({ ...f, date: '' })); }}
-                className={[inputCls, fieldErrors.date ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
-              />
-              {fieldErrors.date && (
-                <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                  <span aria-hidden>⚠</span> {fieldErrors.date}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                min={time}
-                onChange={(e) => { setEndTime(e.target.value); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
-                className={[inputCls, fieldErrors.endTime ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
-              />
-              {fieldErrors.endTime && (
-                <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                  <span aria-hidden>⚠</span> {fieldErrors.endTime}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Max players */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Liczba miejsc: <span className="text-primary-600 font-semibold">{maxPlayers}</span>
-            </label>
-            <input
-              type="range" min={2} max={30} value={maxPlayers}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setMaxPlayers(v);
-                if (externalCount > v) setExternalCount(v);
-              }}
-              className="w-full accent-primary-600"
-            />
-          </div>
-
-          {/* Players already committed outside the app — "dograj skład" */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Macie już graczy spoza aplikacji? <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Wpisz, ilu graczy macie już zebranych (np. ze swojej ekipy). Aplikacja będzie szukać tylko brakujących.
-            </p>
-            <div className="flex items-center gap-3">
-              <input
-                type="number" min={0} max={maxPlayers}
-                value={externalCount === 0 ? '' : externalCount}
-                onChange={(e) => {
-                  const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
-                  setExternalCount(v);
-                }}
-                placeholder="0"
-                className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              {externalCount > 0 && (
-                <span className="text-sm text-primary-700 font-medium">
-                  Szukasz jeszcze {Math.max(0, maxPlayers - externalCount)} {maxPlayers - externalCount === 1 ? 'gracza' : 'graczy'}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Organizer participates */}
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Biorę udział</p>
-              <p className="text-xs text-gray-500">Zapisz mnie jako uczestnika tej gry</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOrganizerParticipates((v) => !v)}
-              className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-gray-200'].join(' ')}
-              role="switch"
-              aria-checked={organizerParticipates}
-            >
-              <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-            </button>
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tytuł <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-            </label>
-            <input
-              type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder="np. Czwartkowa ligówka" className={inputCls} maxLength={80}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Opis <span className="text-gray-400 font-normal">(opcjonalnie)</span>
-            </label>
-            <textarea
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
-            />
-          </div>
-
-          {/* Seeker count nudge — appears when we have location + date */}
-          {seekerCount >= 2 && (
-            <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-              <Users className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-800">
-                <span className="font-semibold">{seekerCount} {seekerCount === 1 ? 'osoba szuka' : seekerCount < 5 ? 'osoby szukają' : 'osób szuka'}</span>
-                {' '}podobnej gry w tym rejonie — rozważ otwarcie zapisów publicznie!
-              </p>
-            </div>
+              <Button type="button" size="lg" className="w-full" onClick={goToStep3}>
+                Dalej →
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="w-full text-center text-sm text-slate-500 hover:text-ink py-1 transition-colors"
+              >
+                ← Wróć
+              </button>
+            </>
           )}
 
-          {/* Visibility */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Widoczność</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button" onClick={() => setVisibility('private')}
-                className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400'].join(' ')}
-              >
-                <Lock className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
-                <span>
-                  <span className="block text-sm font-medium text-gray-900">Prywatne</span>
-                  <span className="block text-xs text-gray-500">Tylko przez link</span>
-                </span>
-              </button>
-              <button
-                type="button" onClick={() => setVisibility('public')}
-                className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400'].join(' ')}
-              >
-                <Globe className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
-                <span>
-                  <span className="block text-sm font-medium text-gray-900">Publiczne</span>
-                  <span className="block text-xs text-gray-500">Widoczne dla wszystkich</span>
-                </span>
-              </button>
-            </div>
-          </div>
+          {/* ── STEP 3 ── */}
+          {step === 3 && (
+            <>
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tytuł <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                </label>
+                <input
+                  type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="np. Czwartkowa ligówka" className={inputCls} maxLength={80}
+                />
+              </div>
 
-          {/* Advanced */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setAdvOpen((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Ustawienia zaawansowane
-              {advOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            </button>
-            {advOpen && (
-              <div className="px-4 pb-2 border-t border-gray-100 divide-y divide-gray-100">
-                <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
-                <ToggleRow label="Śledzenie płatności" desc="Rejestruj wpłaty uczestników" checked={trackPayments} onChange={setTrackPayments} />
-                {trackPayments && (
-                  <div className="py-3 space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Koszt uczestnictwa (PLN)</label>
-                      <input type="number" min={0} step={0.5} value={costPln}
-                        onChange={(e) => setCostPln(e.target.value)}
-                        placeholder="0.00"
-                        className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                    </div>
-                    <ToggleRow label="Pokaż status płatności uczestnikom" checked={showPaymentStatus} onChange={setShowPaymentStatus} />
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Opis <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                </label>
+                <textarea
+                  value={description} onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
+                />
+              </div>
+
+              {/* Visibility */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Widoczność</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button" onClick={() => setVisibility('private')}
+                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400'].join(' ')}
+                  >
+                    <Lock className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-medium text-gray-900">Prywatne</span>
+                      <span className="block text-xs text-gray-500">Tylko przez link</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button" onClick={() => setVisibility('public')}
+                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400'].join(' ')}
+                  >
+                    <Globe className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-medium text-gray-900">Publiczne</span>
+                      <span className="block text-xs text-gray-500">Widoczne dla wszystkich</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Seeker count nudge — appears when we have location + date */}
+              {seekerCount >= 2 && (
+                <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                  <Users className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-800">
+                    <span className="font-semibold">{seekerCount} {seekerCount === 1 ? 'osoba szuka' : seekerCount < 5 ? 'osoby szukają' : 'osób szuka'}</span>
+                    {' '}podobnej gry w tym rejonie — rozważ otwarcie zapisów publicznie!
+                  </p>
+                </div>
+              )}
+
+              {/* Advanced */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setAdvOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Ustawienia zaawansowane
+                  {advOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </button>
+                {advOpen && (
+                  <div className="px-4 pb-2 border-t border-gray-100 divide-y divide-gray-100">
+                    <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
+                    <ToggleRow label="Śledzenie płatności" desc="Rejestruj wpłaty uczestników" checked={trackPayments} onChange={setTrackPayments} />
+                    {trackPayments && (
+                      <div className="py-3">
+                        <ToggleRow label="Pokaż status płatności uczestnikom" checked={showPaymentStatus} onChange={setShowPaymentStatus} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              <Button type="submit" size="lg" isLoading={submitting} className="w-full">
+                Opublikuj mecz →
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="w-full text-center text-sm text-slate-500 hover:text-ink py-1 transition-colors"
+              >
+                ← Wróć
+              </button>
+            </>
           )}
 
-          <Button type="submit" size="lg" isLoading={submitting} className="w-full">
-            Utwórz wydarzenie
-          </Button>
         </form>
       </main>
     </div>

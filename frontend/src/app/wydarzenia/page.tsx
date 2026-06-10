@@ -73,7 +73,6 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
   const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
   const max = event.maxPlayers ?? 0;
   const isFull = max > 0 && taken >= max;
-  const freeSpots = max > 0 ? max - taken : null;
   const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
   const fillColor = isFull ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600';
   const until = timeUntil(event.date, event.time ?? undefined);
@@ -82,15 +81,26 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
     ? `${event.district}, Poznań`
     : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : null);
 
+  const costGrosze = event.costGrosze ?? 0;
+  const priceLabel = costGrosze > 0
+    ? `${(costGrosze / 100).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} zł`
+    : 'Za darmo';
+  const priceClass = costGrosze > 0
+    ? 'bg-amber-50 text-amber-700'
+    : 'bg-green-50 text-green-700';
+
   return (
     <Link href={`/wydarzenia/${event.id}`} className="block active:scale-[0.99] transition-transform">
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-        {/* Title row + CTA */}
+        {/* Title row + price chip + CTA */}
         <div className="flex items-start gap-2.5">
           <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${fillColor}`} aria-hidden="true" />
           <p className="flex-1 font-semibold text-ink leading-snug min-w-0 truncate">
             {event.title || `${sportEmoji(event.sport)} ${event.sport}`}
           </p>
+          <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg ${priceClass}`}>
+            {priceLabel}
+          </span>
           <span className={[
             'shrink-0 ml-1 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
             isFull
@@ -102,6 +112,13 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
             {isFull ? 'Pełne' : 'Dołącz'}
           </span>
         </div>
+
+        {/* Sport badge */}
+        <p className="ml-5 mt-1">
+          <span className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-full px-2 py-0.5">
+            {sportEmoji(event.sport)} {event.sport}
+          </span>
+        </p>
 
         {/* Date + location + countdown */}
         <div className="ml-5 mt-2 space-y-1">
@@ -118,24 +135,24 @@ function EventRow({ event, distance }: { event: EventItem; distance?: number }) 
           )}
         </div>
 
-        {/* Progress bar + spots label (label only when urgent) */}
+        {/* Progress bar + participants count */}
         {max > 0 && (
-          <div className="ml-5 mt-3 flex items-center gap-2">
+          <div className="ml-5 mt-3">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${fillColor}`}
                 style={{ width: `${fillPct}%` }}
               />
             </div>
-            {(isFull || fillPct >= 80) && (
-              <span className={[
-                'text-xs whitespace-nowrap shrink-0 font-medium',
-                isFull ? 'text-red-500' : 'text-amber-600',
-              ].join(' ')}>
-                {isFull ? 'Brak miejsc' : `${freeSpots} wolnych`}
-              </span>
-            )}
-            {distance !== undefined && <DistanceBadge km={distance} />}
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-xs text-slate-400">{taken} z {max} graczy</span>
+              {distance !== undefined && <DistanceBadge km={distance} />}
+            </div>
+          </div>
+        )}
+        {max === 0 && distance !== undefined && (
+          <div className="ml-5 mt-2 flex justify-end">
+            <DistanceBadge km={distance} />
           </div>
         )}
       </div>
@@ -245,7 +262,7 @@ export default function EventsPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Nadchodzące mecze</h1>
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Otwarte gry</h1>
           {user && (
             <Link href="/wydarzenia/nowe">
               <Button className="flex items-center gap-1.5"><Plus className="w-4 h-4" /> Nowe</Button>
@@ -427,8 +444,11 @@ function GroupedEventList({ items }: { items: { event: EventItem; distance?: num
     <div className="space-y-6">
       {groups.map(([label, rows]) => (
         <section key={label}>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">
-            {label} <span className="font-normal text-slate-300">· {rows.length}</span>
+          <h2 className="flex items-center gap-2 text-sm font-bold text-ink mb-3 px-1">
+            {label}
+            <span className="text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
+              {rows.length}
+            </span>
           </h2>
           <div className="space-y-3">
             {rows.map(({ event, distance }) => (
