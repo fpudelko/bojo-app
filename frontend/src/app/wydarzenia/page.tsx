@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { format, parseISO, isThisWeek, isThisMonth } from 'date-fns';
-import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Users, Plus, Navigation, Search, X } from 'lucide-react';
+import { isThisWeek, isThisMonth } from 'date-fns';
+import { Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -12,6 +11,7 @@ import { getPublicEvents } from '@/lib/events';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import { EventListCard } from '@/components/EventListCard';
 
 
 // Futsal i gokarty usunięte z filtrów per spec
@@ -32,132 +32,6 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
   const x = Math.sin(dLat / 2) ** 2 +
     Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-
-function DistanceBadge({ km }: { km: number }) {
-  const label = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-  return (
-    <span className="text-xs text-primary-700 font-medium flex items-center gap-1">
-      <Navigation className="w-3 h-3" /> {label}
-    </span>
-  );
-}
-
-function timeUntil(date: string, time?: string): string | null {
-  if (!time) return null;
-  try {
-    const [y, m, d] = date.split('-').map(Number);
-    const [h, min] = time.split(':').map(Number);
-    const ms = new Date(y, m - 1, d, h, min).getTime() - Date.now();
-    if (ms <= 0 || ms > 24 * 3600_000) return null;
-    const hours = ms / 3600_000;
-    if (hours < 1) return `za ${Math.round(hours * 60)} min`;
-    return `za ${Math.round(hours)} h`;
-  } catch { return null; }
-}
-
-function EventRow({ event, distance }: { event: EventItem; distance?: number }) {
-  let timeLabel = '';
-  let dayLabel = '';
-  try {
-    const d = parseISO(event.date);
-    const now = new Date(); now.setHours(0, 0, 0, 0);
-    const evDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const diff = Math.round((evDay.getTime() - now.getTime()) / 86400000);
-    if (diff === 0) dayLabel = 'Dzisiaj';
-    else if (diff === 1) dayLabel = 'Jutro';
-    else dayLabel = format(d, 'EEE d MMM', { locale: pl });
-  } catch {}
-  if (event.time) timeLabel = event.time.slice(0, 5);
-
-  const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
-  const max = event.maxPlayers ?? 0;
-  const isFull = max > 0 && taken >= max;
-  const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const fillColor = isFull ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600';
-  const until = timeUntil(event.date, event.time ?? undefined);
-
-  const location = event.district
-    ? `${event.district}, Poznań`
-    : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : null);
-
-  const costGrosze = event.costGrosze ?? 0;
-  const priceLabel = costGrosze > 0
-    ? `${(costGrosze / 100).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} zł`
-    : 'Za darmo';
-  const priceClass = costGrosze > 0
-    ? 'bg-amber-50 text-amber-700'
-    : 'bg-green-50 text-green-700';
-
-  return (
-    <Link href={`/wydarzenia/${event.id}`} className="block active:scale-[0.99] transition-transform">
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-        {/* Title row + price chip + CTA */}
-        <div className="flex items-start gap-2.5">
-          <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${fillColor}`} aria-hidden="true" />
-          <p className="flex-1 font-semibold text-ink leading-snug min-w-0 truncate">
-            {event.title || `${sportEmoji(event.sport)} ${event.sport}`}
-          </p>
-          <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg ${priceClass}`}>
-            {priceLabel}
-          </span>
-          <span className={[
-            'shrink-0 ml-1 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
-            isFull
-              ? 'bg-slate-100 text-slate-400'
-              : fillPct >= 80
-                ? 'bg-amber-500 text-white'
-                : 'bg-primary-700 text-white',
-          ].join(' ')}>
-            {isFull ? 'Pełne' : 'Dołącz'}
-          </span>
-        </div>
-
-        {/* Sport badge */}
-        <p className="ml-5 mt-1">
-          <span className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-full px-2 py-0.5">
-            {sportEmoji(event.sport)} {event.sport}
-          </span>
-        </p>
-
-        {/* Date + location + countdown */}
-        <div className="ml-5 mt-2 space-y-1">
-          <p className="text-sm text-slate-500 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-            {dayLabel}{timeLabel ? ` ${timeLabel}` : ''}
-            {until && <span className="text-primary-600 font-medium">{until}</span>}
-          </p>
-          {location && (
-            <p className="text-sm text-slate-500 flex items-center gap-1.5 truncate">
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-              {location}
-            </p>
-          )}
-        </div>
-
-        {/* Progress bar + participants count */}
-        {max > 0 && (
-          <div className="ml-5 mt-3">
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${fillColor}`}
-                style={{ width: `${fillPct}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-slate-400">{taken} z {max} graczy</span>
-              {distance !== undefined && <DistanceBadge km={distance} />}
-            </div>
-          </div>
-        )}
-        {max === 0 && distance !== undefined && (
-          <div className="ml-5 mt-2 flex justify-end">
-            <DistanceBadge km={distance} />
-          </div>
-        )}
-      </div>
-    </Link>
-  );
 }
 
 export default function EventsPage() {
@@ -278,20 +152,19 @@ export default function EventsPage() {
           )}
         </div>
 
-        {/* Sport filter — emoji-only chips */}
-        <div className="grid grid-cols-5 gap-2 mb-5">
+        {/* Sport filter — "Wszystkie" pill + round emoji chips */}
+        <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => setSportFilter('')}
             aria-pressed={sportFilter === ''}
-            aria-label="Wszystkie sporty"
             className={[
-              'flex items-center justify-center h-14 rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+              'shrink-0 px-5 h-11 rounded-full text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
               sportFilter === ''
-                ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
-                : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
+                ? 'bg-primary-700 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-ink hover:border-primary-300 active:scale-95',
             ].join(' ')}
           >
-            <span aria-hidden="true" className="text-2xl leading-none">✨</span>
+            Wszystkie
           </button>
           {SPORTS_FILTER.map(({ sport, label }) => {
             const active = sportFilter === sport;
@@ -301,14 +174,15 @@ export default function EventsPage() {
                 onClick={() => setSportFilter(active ? '' : sport)}
                 aria-pressed={active}
                 aria-label={label}
+                title={label}
                 className={[
-                  'flex items-center justify-center h-14 rounded-2xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                  'shrink-0 flex items-center justify-center h-11 w-11 rounded-full border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
                   active
-                    ? 'bg-primary-700 border-primary-700 shadow-md scale-[1.03]'
+                    ? 'bg-primary-700 border-primary-700 shadow-md scale-105'
                     : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
                 ].join(' ')}
               >
-                <span aria-hidden="true" className="text-[28px] leading-none">{sportEmoji(sport)}</span>
+                <span aria-hidden="true" className="text-xl leading-none">{sportEmoji(sport)}</span>
               </button>
             );
           })}
@@ -460,7 +334,7 @@ function GroupedEventList({ items }: { items: { event: EventItem; distance?: num
           </h2>
           <div className="space-y-3">
             {rows.map(({ event, distance }) => (
-              <EventRow key={event.id} event={event} distance={distance} />
+              <EventListCard key={event.id} event={event} distance={distance} />
             ))}
           </div>
         </section>

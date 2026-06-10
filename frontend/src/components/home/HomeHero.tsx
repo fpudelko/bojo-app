@@ -6,67 +6,13 @@ import Image from 'next/image';
 import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
 import { isUpcoming } from '@/components/EventCard';
+import { EventListCard } from '@/components/EventListCard';
 import type { EventItem, GameAlert } from '@/types';
-import { sportEmoji } from '@/lib/sports';
-import { format, parseISO, isToday, isTomorrow } from 'date-fns';
-import { pl } from 'date-fns/locale';
-
-function firstName(name: string): string {
-  return name.split(' ')[0] || name;
-}
-
-function dayLabel(dateStr: string): string {
-  try {
-    const d = parseISO(dateStr);
-    if (isToday(d)) return 'Dziś';
-    if (isTomorrow(d)) return 'Jutro';
-    return format(d, 'EEE d MMM', { locale: pl });
-  } catch { return dateStr; }
-}
-
-/** Compact event row — open games shown normally, full/past as subdued ghost */
-function EventFeedRow({ event, taken }: { event: EventItem; taken: number }) {
-  const max = event.maxPlayers ?? 0;
-  const isFull = max > 0 && taken >= max;
-  const isPast = !isUpcoming(event);
-  const muted = isFull || isPast;
-  const location = event.district ? `${event.district}` : event.fieldName;
-  const label = event.title || `${sportEmoji(event.sport)} ${event.sport}`;
-
-  return (
-    <Link
-      href={`/wydarzenia/${event.id}`}
-      className={[
-        'flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all',
-        muted
-          ? 'border-slate-100 bg-white/50 opacity-60'
-          : 'border-slate-200/80 bg-white shadow-sm hover:border-primary-200 hover:shadow-card-hover active:scale-[0.99]',
-      ].join(' ')}
-    >
-      <span className={`h-2 w-2 shrink-0 rounded-full ${muted ? 'bg-slate-300' : 'bg-primary-500'}`} />
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold truncate ${muted ? 'text-slate-400' : 'text-ink'}`}>{label}</p>
-        <p className="text-xs text-slate-400 mt-0.5">
-          {dayLabel(event.date)}{event.time ? ` ${event.time.slice(0, 5)}` : ''} · {location}
-        </p>
-      </div>
-      {muted ? (
-        <span className="shrink-0 text-xs text-slate-400 font-medium">
-          {isPast ? 'Odbyło się' : 'Pełne'}
-        </span>
-      ) : (
-        <span className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-700 text-white">
-          Dołącz
-        </span>
-      )}
-    </Link>
-  );
-}
 
 const SPORT_CHIPS = [
   { sport: 'piłka nożna',       emoji: '⚽', label: 'Piłka' },
@@ -212,7 +158,7 @@ function MarketingHero() {
 }
 
 /** Dashboard hero for logged-in users */
-function PersonalizedHero({ name }: { name: string }) {
+function PersonalizedHero() {
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<GameAlert | null>(null);
@@ -338,7 +284,7 @@ function PersonalizedHero({ name }: { name: string }) {
           ) : (
             <div className="space-y-2">
               {openEvents.slice(0, 8).map((e) => (
-                <EventFeedRow key={e.id} event={e} taken={(e.participantsCount ?? 0) + (e.externalCount ?? 0)} />
+                <EventListCard key={e.id} event={e} />
               ))}
               {openEvents.length > 8 && (
                 <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
@@ -382,5 +328,5 @@ export default function HomeHero() {
   const { user, loading: authLoading } = useAuth();
 
   if (authLoading || !user) return <MarketingHero />;
-  return <PersonalizedHero name={displayName(user)} />;
+  return <PersonalizedHero />;
 }
