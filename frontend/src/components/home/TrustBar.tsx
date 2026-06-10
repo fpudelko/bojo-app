@@ -1,10 +1,7 @@
 import Link from 'next/link';
 
-/**
- * Community / social-proof bar shown under the hero.
- * Numbers kept honest — no fake user counts. Frames the product as early-stage
- * ("bądź wśród pierwszych") instead of claiming a crowd that isn't there yet.
- */
+const SHOW_CUP = false;
+
 export default function TrustBar() {
   return (
     <section className="border-y border-slate-200/70 bg-white">
@@ -26,12 +23,14 @@ export default function TrustBar() {
           <li><strong className="text-ink">Setki</strong> boisk w bazie</li>
           <li><strong className="text-ink">5</strong> dyscyplin</li>
           <li><strong className="text-ink">Poznań</strong> i okolice</li>
-          <li>
-            <Link href="/turniej" className="font-semibold text-primary-700 underline-offset-2 hover:underline">
-              BOJO Cup
-            </Link>{' '}
-            — zapisy otwarte
-          </li>
+          {SHOW_CUP && (
+            <li>
+              <Link href="/turniej" className="font-semibold text-primary-700 underline-offset-2 hover:underline">
+                BOJO Cup
+              </Link>{' '}
+              — zapisy otwarte
+            </li>
+          )}
         </ul>
       </div>
     </section>

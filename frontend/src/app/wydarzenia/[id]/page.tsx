@@ -22,7 +22,7 @@ import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent, repeatEvent,
+  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
 } from '@/lib/events';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
@@ -284,6 +284,17 @@ export default function EventDetailPage() {
       await setVisibility(event.id, next, user?.id, displayName(user ?? null));
       await load();
       toast(next === 'public' ? 'Mecz jest teraz publiczny' : 'Mecz jest teraz prywatny');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleToggleAllowGuestAdds = async () => {
+    setBusy(true);
+    try {
+      await setAllowGuestAdds(event.id, !event.allowGuestAdds);
+      await load();
+      toast(event.allowGuestAdds ? 'Uczestnicy nie mogą już zapraszać gości' : 'Uczestnicy mogą teraz dodawać gości');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -612,6 +623,21 @@ export default function EventDetailPage() {
                       ? <><Users className="w-5 h-5" /> Na liście rezerwowej</>
                       : <><Check className="w-5 h-5" /> Jesteś zapisany</>}
                   </div>
+                  {!isOrganizer && !myParticipation.isReserve && event.allowGuestAdds && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
+                        placeholder="Dodaj znajomego bez konta…"
+                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                   <button
                     onClick={() => setLeaveConfirmOpen(true)}
                     disabled={busy}
@@ -979,6 +1005,19 @@ export default function EventDetailPage() {
               {event.visibility === 'public'
                 ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
                 : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+            </button>
+            <button
+              onClick={handleToggleAllowGuestAdds}
+              disabled={busy}
+              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              {event.allowGuestAdds
+                ? 'Wyłącz dodawanie gości przez uczestników'
+                : 'Pozwól uczestnikom zapraszać gości'}
+              {event.allowGuestAdds && (
+                <span className="ml-auto text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Włączone</span>
+              )}
             </button>
             <button
               onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}

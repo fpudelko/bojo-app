@@ -171,6 +171,7 @@ export interface EventItem {
   confirmationDeadlineH: number;
   costGrosze: number;
   teamsPublished: boolean;
+  allowGuestAdds: boolean;
 }
 
 export interface EventParticipant {

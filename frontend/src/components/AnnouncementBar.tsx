@@ -5,13 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Trophy, X } from 'lucide-react';
 
+const SHOW_CUP = false;
 const STORAGE_KEY = 'bojo_cup_announce_dismissed_v1';
 
-/**
- * Top utility bar promoting the Cup tournament — the primary acquisition hook.
- * Dismissible (persists per-browser). Hidden on the /turniej page itself
- * to avoid duplicating the CTA.
- */
 export default function AnnouncementBar() {
   const pathname = usePathname();
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid SSR flash
@@ -22,6 +18,7 @@ export default function AnnouncementBar() {
     } catch { /* ignore */ }
   }, []);
 
+  if (!SHOW_CUP) return null;
   if (dismissed) return null;
   if (pathname?.startsWith('/turniej')) return null;
 

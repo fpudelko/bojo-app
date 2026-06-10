@@ -40,6 +40,7 @@ function toEvent(row: any): EventItem {
     confirmationDeadlineH: row.confirmation_deadline_h ?? 24,
     costGrosze: row.cost_grosz ?? 0,
     teamsPublished: row.teams_published ?? false,
+    allowGuestAdds: row.allow_guest_adds ?? false,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -404,6 +405,11 @@ export async function getNearbyEvents(lat: number, lng: number, radiusKm = 5, li
   });
   if (error) return [];
   return (data ?? []).map(toEvent);
+}
+
+export async function setAllowGuestAdds(eventId: string, value: boolean): Promise<void> {
+  const { error } = await supabase.from('events').update({ allow_guest_adds: value }).eq('id', eventId);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {
