@@ -161,6 +161,17 @@ export default function Header() {
                   >
                     Moje gry
                   </Link>
+                  <Link
+                    href="/cykliczne"
+                    className={clsx(
+                      'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
+                      pathname === '/cykliczne' || pathname.startsWith('/cykliczne/')
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                    )}
+                  >
+                    <RefreshCw className="w-4 h-4" /> Stałe gierki
+                  </Link>
                   {hasVenue && (
                     <Link
                       href="/obiekt"
@@ -250,6 +261,26 @@ export default function Header() {
               </Link>
             </div>
 
+            {/* Twoje gry — prominent for logged-in players */}
+            {!loading && user && (
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <Link
+                  href="/moje-gry"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-ink shadow-sm active:scale-[0.97] transition-transform"
+                >
+                  <span className="text-xl">📋</span> Moje gry
+                </Link>
+                <Link
+                  href="/cykliczne"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-ink shadow-sm active:scale-[0.97] transition-transform"
+                >
+                  <span className="text-xl">🔁</span> Stałe gierki
+                </Link>
+              </div>
+            )}
+
             {/* BOJO Cup highlight */}
             {SHOW_CUP && (
               <Link
@@ -293,32 +324,9 @@ export default function Header() {
             {/* User-specific section */}
             {!loading && user && (
               <>
-                <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Twoje</p>
-                <Link
-                  href="/moje-gry"
-                  onClick={() => setMobileOpen(false)}
-                  className={clsx(
-                    'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                    pathname === '/moje-gry' ? 'text-primary-700' : 'text-ink',
-                  )}
-                >
-                  Moje gry
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                </Link>
-                <Link
-                  href="/cykliczne"
-                  onClick={() => setMobileOpen(false)}
-                  className={clsx(
-                    'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                    pathname === '/cykliczne' || pathname.startsWith('/cykliczne/') ? 'text-primary-700' : 'text-ink',
-                  )}
-                >
-                  <span className="flex items-center gap-2.5">
-                    <RefreshCw className="w-4 h-4 text-slate-400" />
-                    Stałe gierki
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                </Link>
+                {hasVenue && (
+                  <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Twoje</p>
+                )}
                 {hasVenue && (
                   <Link
                     href="/obiekt"
