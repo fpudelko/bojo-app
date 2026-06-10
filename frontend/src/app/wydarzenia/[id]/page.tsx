@@ -170,6 +170,8 @@ export default function EventDetailPage() {
   const isFull = takenSpots >= event.maxPlayers;
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
+  const isFootball = event.sport === 'piłka nożna';
+  const hasGoalkeeper = regulars.some((p) => p.isGoalkeeper);
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
   const goalsMap: Record<string, number> = {};
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
@@ -184,13 +186,13 @@ export default function EventDetailPage() {
   const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
 
   // Handlers
-  const handleJoin = async () => {
+  const handleJoin = async (asGoalkeeper = false) => {
     if (!user) return;
     setBusy(true);
     try {
-      await joinEvent(event.id, user.id, displayName(user));
+      await joinEvent(event.id, user.id, displayName(user), asGoalkeeper);
       await load();
-      toast('Dołączyłeś do gry!');
+      toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do gry!');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -532,6 +534,14 @@ export default function EventDetailPage() {
             ) : (
               <p className="text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
             )}
+            {isFootball && !isFull && (
+              <p className={[
+                'mt-2 inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1',
+                hasGoalkeeper ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700',
+              ].join(' ')}>
+                🧤 {hasGoalkeeper ? 'Bramkarz jest' : 'Szukamy bramkarza'}
+              </p>
+            )}
 
             {/* Info chips */}
             <div className="mt-5 flex flex-wrap gap-2">
@@ -564,20 +574,31 @@ export default function EventDetailPage() {
             {/* Primary CTA — Dołącz do gry */}
             <div className="mt-5">
               {user && !myParticipation && !isFull && (
-                <Button
-                  onClick={handleJoin}
-                  isLoading={busy}
-                  className="w-full h-14 bg-primary-700 hover:bg-primary-800 text-white text-base font-bold rounded-2xl shadow-md active:scale-[0.98] transition-all"
-                >
-                  Dołącz
-                  {costPln
-                    ? <span className="ml-1 opacity-80">· {costPln} zł</span>
-                    : <span className="ml-1 opacity-80">· Za darmo</span>}
-                  <ArrowRight className="w-5 h-5 ml-1" />
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => handleJoin(false)}
+                    isLoading={busy}
+                    className="w-full h-14 bg-primary-700 hover:bg-primary-800 text-white text-base font-bold rounded-2xl shadow-md active:scale-[0.98] transition-all"
+                  >
+                    Dołącz
+                    {costPln
+                      ? <span className="ml-1 opacity-80">· {costPln} zł</span>
+                      : <span className="ml-1 opacity-80">· Za darmo</span>}
+                    <ArrowRight className="w-5 h-5 ml-1" />
+                  </Button>
+                  {event.sport === 'piłka nożna' && (
+                    <button
+                      onClick={() => handleJoin(true)}
+                      disabled={busy}
+                      className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-colors disabled:opacity-50"
+                    >
+                      🧤 Dołącz jako bramkarz
+                    </button>
+                  )}
+                </div>
               )}
               {user && !myParticipation && isFull && (
-                <Button onClick={handleJoin} isLoading={busy} variant="outline" className="w-full h-14 rounded-2xl text-base">
+                <Button onClick={() => handleJoin(false)} isLoading={busy} variant="outline" className="w-full h-14 rounded-2xl text-base">
                   Zapisz się na listę rezerwową
                 </Button>
               )}
@@ -674,6 +695,11 @@ export default function EventDetailPage() {
                               participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'
                             }`
                           : ''})
+                      </span>
+                    )}
+                    {p.isGoalkeeper && (
+                      <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
+                        🧤 BR
                       </span>
                     )}
                     {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}

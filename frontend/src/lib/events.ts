@@ -67,6 +67,7 @@ function toParticipant(row: any): EventParticipant {
     phone: row.phone ?? undefined,
     isCaptain: row.is_captain ?? false,
     addedBy: row.added_by ?? undefined,
+    isGoalkeeper: row.is_goalkeeper ?? false,
   };
 }
 
@@ -280,7 +281,12 @@ export async function getPublicEvents(): Promise<EventItem[]> {
 // Participants
 // ---------------------------------------------------------------------------
 
-export async function joinEvent(eventId: string, userId: string, name: string): Promise<void> {
+export async function joinEvent(
+  eventId: string,
+  userId: string,
+  name: string,
+  asGoalkeeper = false,
+): Promise<void> {
   // Rate limit: max 20 joins per hour
   const { data: allowed } = await supabase.rpc('check_rate_limit', {
     p_action: 'join_event',
@@ -309,6 +315,7 @@ export async function joinEvent(eventId: string, userId: string, name: string): 
     name: safeName,
     is_guest: false,
     is_reserve: isReserve,
+    is_goalkeeper: asGoalkeeper,
   });
   if (error) throw new Error(error.message);
 

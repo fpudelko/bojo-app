@@ -191,6 +191,7 @@ export interface EventParticipant {
   phone?: string;
   isCaptain: boolean;
   addedBy?: string;
+  isGoalkeeper: boolean;
 }
 
 export interface EventCreate {
