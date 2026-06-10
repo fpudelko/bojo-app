@@ -46,6 +46,48 @@ function siteHost(url: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Map visibility — shared metadata + control
+// ---------------------------------------------------------------------------
+const VIS_OPTIONS: { value: MapVisibility; icon: React.ElementType; label: string; short: string; cls: string }[] = [
+  { value: 'public',         icon: Eye,    label: 'Na mapie',    short: 'Mapa',  cls: 'bg-green-50 text-green-700 border-green-200' },
+  { value: 'organizer_only', icon: EyeOff, label: 'Tylko org.',  short: 'Org.',  cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { value: 'hidden',         icon: X,      label: 'Ukryty',      short: 'Ukryty', cls: 'bg-red-50 text-red-700 border-red-200' },
+];
+
+function VisibilityControl({ value, onChange, busy, compact }: {
+  value: MapVisibility;
+  onChange: (v: MapVisibility) => void;
+  busy?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        'inline-flex items-center rounded-lg border border-gray-200 overflow-hidden',
+        busy ? 'opacity-50 pointer-events-none' : '',
+      ].join(' ')}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {VIS_OPTIONS.map(({ value: v, icon: Icon, label, short, cls }) => (
+        <button
+          key={v}
+          onClick={() => { if (value !== v) onChange(v); }}
+          title={label}
+          className={[
+            'inline-flex items-center gap-1 transition-colors',
+            compact ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs',
+            value === v ? `${cls} font-semibold` : 'bg-white text-gray-400 hover:text-gray-600',
+          ].join(' ')}
+        >
+          <Icon className="w-3 h-3 shrink-0" />
+          {compact ? <span className="hidden sm:inline">{short}</span> : label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Toast
 // ---------------------------------------------------------------------------
 interface Toast { id: number; message: string; type: 'success' | 'error' }
@@ -107,6 +149,7 @@ export default function OutreachPanel() {
   const [fSport, setFSport] = useState('all');
   const [fDistrict, setFDistrict] = useState('all');
   const [fAssign, setFAssign] = useState<'all' | 'mine' | 'unassigned'>('all');
+  const [fVis, setFVis] = useState<'all' | MapVisibility>('all');
   const [fData, setFData] = useState<DataKey[]>([]);
   const toggleData = useCallback((k: DataKey) => {
     setFData((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
@@ -235,6 +278,7 @@ export default function OutreachPanel() {
         if (fDistrict !== 'all' && f.district !== fDistrict) return false;
         if (fAssign === 'mine' && o.assignedTo !== user?.id) return false;
         if (fAssign === 'unassigned' && o.assignedTo) return false;
+        if (fVis !== 'all' && f.mapVisibility !== fVis) return false;
         // Multi-select data requirements (AND). 'booking' also looks at the
         // outreach record, since the team logs the reservation system there.
         for (const k of fData) {
@@ -256,9 +300,9 @@ export default function OutreachPanel() {
       return a.field.name.localeCompare(b.field.name, 'pl');
     });
     return list;
-  }, [fields, getO, search, fStatus, fSport, fDistrict, fAssign, fData, fHideDone, fDuplicates, suspiciousMap, user?.id]);
+  }, [fields, getO, search, fStatus, fSport, fDistrict, fAssign, fVis, fData, fHideDone, fDuplicates, suspiciousMap, user?.id]);
 
-  const filtersActive = !!search || fStatus !== 'all' || fSport !== 'all' || fDistrict !== 'all' || fAssign !== 'all' || fData.length > 0 || fHideDone || fDuplicates;
+  const filtersActive = !!search || fStatus !== 'all' || fSport !== 'all' || fDistrict !== 'all' || fAssign !== 'all' || fVis !== 'all' || fData.length > 0 || fHideDone || fDuplicates;
 
   // --- Pipeline stats ---
   const stats = useMemo(() => {
@@ -359,6 +403,12 @@ export default function OutreachPanel() {
             <option value="mine">Moje</option>
             <option value="unassigned">Nieprzypisane</option>
           </select>
+          <select value={fVis} onChange={(e) => setFVis(e.target.value as typeof fVis)} className={inputCls}>
+            <option value="all">Mapa: wszystkie</option>
+            <option value="public">Na mapie</option>
+            <option value="organizer_only">Tylko organizator</option>
+            <option value="hidden">Ukryte z mapy</option>
+          </select>
           <label className="inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
             <input type="checkbox" checked={fHideDone} onChange={(e) => setFHideDone(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
             Ukryj zamknięte
@@ -422,6 +472,7 @@ export default function OutreachPanel() {
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
                 <tr>
                   <th className="text-left font-medium px-4 py-3">Obiekt</th>
+                  <th className="text-left font-medium px-3 py-3">Mapa</th>
                   <th className="text-left font-medium px-3 py-3">Kontakt</th>
                   <th className="text-left font-medium px-3 py-3">Status</th>
                   <th className="text-left font-medium px-3 py-3">System</th>
@@ -543,12 +594,6 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <p className="font-medium text-ink truncate">{f.name}</p>
-                {f.mapVisibility === 'organizer_only' && (
-                  <EyeOff className="w-3 h-3 text-gray-300 shrink-0" />
-                )}
-                {f.mapVisibility === 'hidden' && (
-                  <X className="w-3 h-3 text-red-400 shrink-0" />
-                )}
               </div>
               <p className="text-xs text-gray-500 truncate">
                 {f.district && <span className="font-medium text-gray-600">{f.district} · </span>}
@@ -559,6 +604,20 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               )}
             </div>
           </div>
+        </td>
+
+        {/* Mapa — szybki przełącznik widoczności */}
+        <td className="px-3 py-3 align-top">
+          <VisibilityControl
+            value={f.mapVisibility}
+            busy={togglingVis}
+            compact
+            onChange={async (v) => {
+              setTogglingVis(true);
+              await onVisibilityChange(v);
+              setTogglingVis(false);
+            }}
+          />
         </td>
 
         {/* Kontakt — pełny tekst */}
@@ -661,7 +720,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
       {/* Expanded editor */}
       {isExpanded && (
         <tr className="bg-gray-50/80">
-          <td colSpan={6} className="px-4 py-4">
+          <td colSpan={7} className="px-4 py-4">
 
             {/* Dane obiektu */}
             <div className="mb-4 p-3 rounded-xl bg-white border border-gray-200">
@@ -678,32 +737,15 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className={[
-                    'inline-flex items-center gap-1 rounded-lg border text-xs font-medium overflow-hidden',
-                    togglingVis ? 'opacity-50 pointer-events-none' : '',
-                  ].join(' ')} onClick={(e) => e.stopPropagation()}>
-                    {([
-                      { value: 'public',         icon: Eye,    label: 'Na mapie',    cls: 'bg-green-50 text-green-700 border-green-200' },
-                      { value: 'organizer_only', icon: EyeOff, label: 'Tylko org.',  cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-                      { value: 'hidden',         icon: X,      label: 'Ukryty',      cls: 'bg-red-50 text-red-700 border-red-200' },
-                    ] as { value: MapVisibility; icon: React.ElementType; label: string; cls: string }[]).map(({ value, icon: Icon, label, cls }) => (
-                      <button
-                        key={value}
-                        onClick={async () => {
-                          if (f.mapVisibility === value) return;
-                          setTogglingVis(true);
-                          await onVisibilityChange(value);
-                          setTogglingVis(false);
-                        }}
-                        className={[
-                          'inline-flex items-center gap-1 px-2.5 py-1.5 transition-colors',
-                          f.mapVisibility === value ? cls : 'bg-white text-gray-400 hover:text-gray-600',
-                        ].join(' ')}
-                      >
-                        <Icon className="w-3 h-3" /> {label}
-                      </button>
-                    ))}
-                  </div>
+                  <VisibilityControl
+                    value={f.mapVisibility}
+                    busy={togglingVis}
+                    onChange={async (v) => {
+                      setTogglingVis(true);
+                      await onVisibilityChange(v);
+                      setTogglingVis(false);
+                    }}
+                  />
                   <Link
                     href={`/boisko/${f.id}`}
                     target="_blank"
