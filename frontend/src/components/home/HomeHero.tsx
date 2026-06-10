@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
@@ -10,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
-import { isUpcoming } from '@/components/EventCard';
+import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventListCard } from '@/components/EventListCard';
 import { sportEmoji } from '@/lib/sports';
 import type { EventItem, GameAlert } from '@/types';
@@ -56,8 +55,8 @@ function MarketingHero() {
   return (
     <section className="hero-surface relative overflow-hidden text-white">
       <div className="hero-dots absolute inset-0" aria-hidden="true" />
-      <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 pb-16 pt-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12 lg:pb-20 lg:pt-20">
-        <div className="text-center lg:text-left">
+      <div className="relative mx-auto max-w-3xl px-4 pb-16 pt-14 text-center lg:pb-20 lg:pt-20">
+        <div>
           {/* Live today badge */}
           <span className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-amber-200 backdrop-blur-sm">
             <span className="relative flex h-2 w-2">
@@ -78,7 +77,7 @@ function MarketingHero() {
             <span className="text-white/85">na dziś wieczór.</span>
           </h1>
           <p
-            className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg lg:mx-0"
+            className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg"
             style={{ animationDelay: '160ms' }}
           >
             Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do
@@ -87,7 +86,7 @@ function MarketingHero() {
 
           {/* CTA */}
           <div
-            className="mt-8 flex animate-fade-up flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start"
+            className="mt-8 flex animate-fade-up flex-col items-center justify-center gap-3 sm:flex-row"
             style={{ animationDelay: '240ms' }}
           >
             <Link href="/wydarzenia" className="w-full sm:w-auto">
@@ -104,7 +103,7 @@ function MarketingHero() {
 
           {/* Sport chips */}
           <div
-            className="mt-6 flex animate-fade-up flex-wrap items-center justify-center gap-2 lg:justify-start"
+            className="mt-6 flex animate-fade-up flex-wrap items-center justify-center gap-2"
             style={{ animationDelay: '300ms' }}
           >
             {SPORT_CHIPS.map(({ sport, emoji, label }) => (
@@ -120,40 +119,28 @@ function MarketingHero() {
 
           {/* Stats bar */}
           <dl
-            className="mx-auto mt-10 grid max-w-md animate-fade-up grid-cols-3 gap-4 border-t border-white/10 pt-6 lg:mx-0"
+            className="mx-auto mt-10 grid max-w-md animate-fade-up grid-cols-3 gap-4 border-t border-white/10 pt-6"
             style={{ animationDelay: '360ms' }}
           >
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center lg:text-left">boisk</dt>
+              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">boisk</dt>
               <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">
                 {venueCount !== null ? venueCount : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center lg:text-left">gier dziś</dt>
+              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">gier dziś</dt>
               <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">
                 {todayCount !== null ? todayCount : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-white/55 text-center lg:text-left">dyscypliny</dt>
+              <dt className="text-xs uppercase tracking-wider text-white/55 text-center">dyscypliny</dt>
               <dd className="mt-1 text-center font-display text-2xl font-bold tracking-tight lg:text-left">4</dd>
             </div>
           </dl>
         </div>
 
-        {/* Mockup */}
-        <div className="relative mx-auto hidden w-full max-w-[300px] animate-fade-up sm:block sm:max-w-[340px] lg:max-w-[400px]" style={{ animationDelay: '200ms' }}>
-          <Image
-            src="/mockups/mockup-1-lista-gier.png"
-            alt="Aplikacja BOJO — lista nadchodzących meczów"
-            width={1024}
-            height={1536}
-            priority
-            sizes="(max-width: 640px) 70vw, 400px"
-            className="w-full select-none drop-shadow-[0_30px_60px_rgba(0,0,0,0.45)]"
-          />
-        </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
@@ -253,7 +240,7 @@ function OpenGamesSection() {
   const openEvents = allEvents.filter((e) => {
     if (e.status === 'cancelled') return false;
     const taken = (e.participantsCount ?? 0) + (e.externalCount ?? 0);
-    if (!isUpcoming(e) || taken >= e.maxPlayers) return false;
+    if (!isEventJoinable(e) || taken >= e.maxPlayers) return false;
     if (activeSport && e.sport !== activeSport) return false;
     return true;
   });

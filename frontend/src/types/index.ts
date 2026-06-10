@@ -172,6 +172,7 @@ export interface EventItem {
   costGrosze: number;
   teamsPublished: boolean;
   allowGuestAdds: boolean;
+  inviteOnly: boolean;
 }
 
 export interface EventParticipant {
@@ -220,6 +221,7 @@ export interface EventCreate {
   trackResults?: boolean;
   confirmationDeadlineH?: number;
   costGrosze?: number;
+  inviteOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------

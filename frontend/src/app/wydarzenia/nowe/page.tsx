@@ -59,6 +59,7 @@ function NewEventForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
+  const [inviteOnly, setInviteOnly] = useState(false);
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +206,7 @@ function NewEventForm() {
           trackResults: true,
           confirmationDeadlineH: 24,
           costGrosze: Math.round(parseFloat(costPln || '0') * 100),
+          inviteOnly,
         },
         user.id,
         displayName(user),
@@ -578,6 +580,23 @@ function NewEventForm() {
                     </span>
                   </button>
                 </div>
+              </div>
+
+              {/* Invite-only toggle */}
+              <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Tylko dla zaproszonych</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Zapisy tylko przez personalny link — reszta zobaczy mecz jako zamknięty</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInviteOnly((v) => !v)}
+                  className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', inviteOnly ? 'bg-primary-600' : 'bg-gray-200'].join(' ')}
+                  role="switch"
+                  aria-checked={inviteOnly}
+                >
+                  <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', inviteOnly ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                </button>
               </div>
 
               {/* Seeker count nudge — appears when we have location + date */}

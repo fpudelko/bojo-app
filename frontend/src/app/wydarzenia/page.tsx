@@ -12,6 +12,7 @@ import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { EventListCard } from '@/components/EventListCard';
+import { isEventJoinable } from '@/components/EventCard';
 
 
 // Futsal i gokarty usunięte z filtrów per spec
@@ -113,7 +114,7 @@ export default function EventsPage() {
     setGeoError(null);
   }
 
-  const raw = publicEvents.filter((e) => e.status !== 'cancelled');
+  const raw = publicEvents.filter((e) => e.status !== 'cancelled' && isEventJoinable(e));
 
   // Distances (only computed when geoPoint set)
   const withDistances = useMemo(() => {

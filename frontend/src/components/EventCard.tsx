@@ -18,6 +18,15 @@ export function isUpcoming(event: EventItem): boolean {
   } catch { return false; }
 }
 
+/** True when the event's start time hasn't passed yet (used for open-games listings). */
+export function isEventJoinable(event: EventItem): boolean {
+  try {
+    const [y, m, d] = event.date.split('-').map(Number);
+    const [h, min] = (event.time ?? '23:59').split(':').map(Number);
+    return Date.now() < new Date(y, m - 1, d, h, min).getTime();
+  } catch { return false; }
+}
+
 export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganizer: boolean }) {
   let dayLabel = '';
   try {

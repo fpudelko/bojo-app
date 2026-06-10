@@ -14,7 +14,6 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
-import RemindersSection from '@/components/events/RemindersSection';
 import EventComments from '@/components/events/EventComments';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -22,8 +21,13 @@ import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
+  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
 } from '@/lib/events';
+import {
+  getEventInvites, createInvite, deleteInvite, validateInviteToken, acceptInvite,
+  openInviteMailto,
+} from '@/lib/invites';
+import type { EventInvite } from '@/lib/invites';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
   sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
@@ -113,6 +117,11 @@ export default function EventDetailPage() {
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
+  // Invites
+  const [invites, setInvites] = useState<EventInvite[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [validInviteToken, setValidInviteToken] = useState<EventInvite | null>(null);
 
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
@@ -128,12 +137,31 @@ export default function EventDetailPage() {
       setEvent(ev);
       setParticipants(parts);
       await loadMatchData(ev);
+      // Load invites for organizer
+      if (ev.organizerId) {
+        getEventInvites(id).then(setInvites).catch(() => {});
+      }
     } catch {
       setNotFound(true);
     } finally {
       setLoading(false);
     }
   }, [id, loadMatchData]);
+
+  // Validate invite token from URL (?token=...)
+  useEffect(() => {
+    const token = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('token')
+      : null;
+    if (token) {
+      validateInviteToken(token).then((inv) => {
+        if (inv && inv.eventId === id) {
+          setValidInviteToken(inv);
+          acceptInvite(token).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -287,6 +315,46 @@ export default function EventDetailPage() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
+  };
+
+  const handleToggleInviteOnly = async () => {
+    setBusy(true);
+    try {
+      await setInviteOnly(event.id, !event.inviteOnly);
+      await load();
+      toast(event.inviteOnly ? 'Zapisy otwarte dla wszystkich' : 'Mecz tylko dla zaproszonych');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleAddInvite = async () => {
+    if (!inviteEmail.trim() || !user) return;
+    setInviteBusy(true);
+    try {
+      const invite = await createInvite(event.id, inviteEmail.trim(), user.id);
+      setInvites((prev) => [...prev, invite]);
+      const inviteUrl = `${window.location.origin}/wydarzenia/${event.id}?token=${invite.token}`;
+      openInviteMailto(inviteEmail.trim(), event.title || event.sport, displayName(user), inviteUrl);
+      setInviteEmail('');
+      toast('Zaproszenie gotowe — otwarto klienta pocztowego');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setInviteBusy(false); }
+  };
+
+  const handleDeleteInvite = async (inviteId: string) => {
+    try {
+      await deleteInvite(inviteId);
+      setInvites((prev) => prev.filter((i) => i.id !== inviteId));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    }
+  };
+
+  const handleCopyInviteLink = (invite: EventInvite) => {
+    const url = `${window.location.origin}/wydarzenia/${event.id}?token=${invite.token}`;
+    navigator.clipboard.writeText(url).then(() => toast('Link zaproszenia skopiowany!')).catch(() => {});
   };
 
   const handleToggleAllowGuestAdds = async () => {
@@ -584,7 +652,16 @@ export default function EventDetailPage() {
 
             {/* Primary CTA — Dołącz do gry */}
             <div className="mt-5">
-              {user && !myParticipation && !isFull && (
+              {event.inviteOnly && !isOrganizer && !myParticipation && !validInviteToken && (
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-ink">Mecz tylko dla zaproszonych</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Poproś organizatora o link z zaproszeniem.</p>
+                  </div>
+                </div>
+              )}
+              {(!event.inviteOnly || isOrganizer || myParticipation || validInviteToken) && user && !myParticipation && !isFull && (
                 <div className="space-y-2">
                   <Button
                     onClick={() => handleJoin(false)}
@@ -608,7 +685,7 @@ export default function EventDetailPage() {
                   )}
                 </div>
               )}
-              {user && !myParticipation && isFull && (
+              {(!event.inviteOnly || isOrganizer || myParticipation || validInviteToken) && user && !myParticipation && isFull && (
                 <Button onClick={() => handleJoin(false)} isLoading={busy} variant="outline" className="w-full h-14 rounded-2xl text-base">
                   Zapisz się na listę rezerwową
                 </Button>
@@ -934,24 +1011,76 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* ZAPROSZENIE — organizator kopiuje link i wkleja gdzie chce (WhatsApp, Messenger, SMS…) */}
+        {/* ZAPROSZENIA */}
         {isOrganizer && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
-              <Share2 className="w-4 h-4" /> Zaproś
-            </h2>
-            <p className="text-xs text-gray-400 mb-3">
-              Skopiuj link i wklej go na grupie WhatsApp, Messengerze, SMS-ie — gdziekolwiek chcesz.
-              Zaproszeni NIE muszą zakładać konta, żeby potwierdzić udział.
-            </p>
-            <Button onClick={handleShare} variant="outline" className="w-full">
-              {copied ? <><Check className="w-4 h-4" /> Skopiowano link</> : <><Share2 className="w-4 h-4" /> Skopiuj link zaproszenia</>}
-            </Button>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-ink flex items-center gap-2">
+                <Share2 className="w-4 h-4" /> Zaproszenia
+              </h2>
+              <Button onClick={handleShare} variant="outline" size="sm">
+                {copied ? <><Check className="w-3.5 h-3.5" /> Skopiowano</> : <><Share2 className="w-3.5 h-3.5" /> Skopiuj link</>}
+              </Button>
+            </div>
+
+            {/* Send invite by email */}
+            <div>
+              <p className="text-xs text-gray-500 mb-2">
+                Wpisz adres email — otworzymy Twój klient pocztowy z gotową wiadomością.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()}
+                  placeholder="email@przykład.pl"
+                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <Button
+                  onClick={handleAddInvite}
+                  disabled={inviteBusy || !inviteEmail.trim()}
+                  variant="outline"
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  Wyślij zaproszenie →
+                </Button>
+              </div>
+            </div>
+
+            {/* Invite list */}
+            {invites.length > 0 && (
+              <ul className="divide-y divide-slate-100">
+                {invites.map((inv) => (
+                  <li key={inv.id} className="flex items-center gap-3 py-2.5">
+                    <span className={[
+                      'w-2 h-2 rounded-full shrink-0',
+                      inv.acceptedAt ? 'bg-green-500' : 'bg-amber-400',
+                    ].join(' ')} title={inv.acceptedAt ? 'Zaakceptowane' : 'Oczekuje'} />
+                    <span className="flex-1 text-sm text-gray-700 truncate">{inv.email}</span>
+                    {inv.acceptedAt && (
+                      <span className="text-xs text-green-600 font-medium shrink-0">Dołączył/a</span>
+                    )}
+                    <button
+                      onClick={() => handleCopyInviteLink(inv)}
+                      className="p-1.5 text-gray-300 hover:text-primary-600 rounded shrink-0"
+                      title="Kopiuj link zaproszenia"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteInvite(inv.id)}
+                      className="p-1.5 text-gray-300 hover:text-red-400 rounded shrink-0"
+                      title="Usuń zaproszenie"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
-
-        {/* POWIADOMIENIA — automatyczne przypomnienia dla zapisanych uczestników */}
-        {isOrganizer && <RemindersSection eventId={event.id} />}
 
         {/* Cost split summary */}
         {event.trackPayments && event.costGrosze > 0 && isOrganizer && (
@@ -1005,6 +1134,17 @@ export default function EventDetailPage() {
               {event.visibility === 'public'
                 ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
                 : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+            </button>
+            <button
+              onClick={handleToggleInviteOnly}
+              disabled={busy}
+              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
+            >
+              <Lock className="w-4 h-4" />
+              {event.inviteOnly ? 'Otwórz zapisy dla wszystkich' : 'Tylko dla zaproszonych'}
+              {event.inviteOnly && (
+                <span className="ml-auto text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Zamknięte</span>
+              )}
             </button>
             <button
               onClick={handleToggleAllowGuestAdds}
