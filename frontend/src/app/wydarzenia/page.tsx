@@ -7,11 +7,11 @@ import { Users, Plus, Navigation, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getPublicEvents } from '@/lib/events';
+import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { EventListCard } from '@/components/EventListCard';
+import { EventListCard, type EventRelation } from '@/components/EventListCard';
 import { isEventJoinable } from '@/components/EventCard';
 
 
@@ -38,6 +38,7 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
 export default function EventsPage() {
   const { user, loading: authLoading } = useAuth();
   const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
+  const [myRel, setMyRel] = useState<Record<string, EventRelation>>({});
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
 
@@ -53,11 +54,17 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const pub = await getPublicEvents();
+      const [pub, mine] = await Promise.all([
+        getPublicEvents(),
+        user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
+      ]);
       setPublicEvents(pub);
+      setMyRel(Object.fromEntries(
+        mine.map(({ event, isOrganizer }) => [event.id, isOrganizer ? 'organizer' : 'going'] as const),
+      ));
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, []);
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -253,7 +260,7 @@ export default function EventsPage() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <GroupedEventList items={filtered} />
+          <GroupedEventList items={filtered} myRel={myRel} />
         )}
 
         {!loading && filtered.length === 0 && (
@@ -286,7 +293,7 @@ export default function EventsPage() {
 }
 
 /** Groups events by relative date bucket — easier to scan than a flat list. */
-function GroupedEventList({ items }: { items: { event: EventItem; distance?: number }[] }) {
+function GroupedEventList({ items, myRel }: { items: { event: EventItem; distance?: number }[]; myRel: Record<string, EventRelation> }) {
   const groups = useMemo(() => groupByDateBucket(items), [items]);
   return (
     <div className="space-y-6">
@@ -300,7 +307,7 @@ function GroupedEventList({ items }: { items: { event: EventItem; distance?: num
           </h2>
           <div className="space-y-3">
             {rows.map(({ event, distance }) => (
-              <EventListCard key={event.id} event={event} distance={distance} />
+              <EventListCard key={event.id} event={event} distance={distance} relation={myRel[event.id]} />
             ))}
           </div>
         </section>

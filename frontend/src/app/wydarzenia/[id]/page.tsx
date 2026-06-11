@@ -8,7 +8,7 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
-  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight,
+  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, Settings,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -19,6 +19,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
+import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
@@ -44,6 +45,42 @@ const TEAM_COLORS = [
   { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
   { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
 ];
+
+/** A labelled on/off switch — shows the current state clearly, unlike an
+ *  action button whose label flips on every click. */
+function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
+  icon: React.ReactNode; title: string; desc: string;
+  checked: boolean; disabled?: boolean; onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      disabled={disabled}
+      aria-pressed={checked}
+      className="w-full flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-white disabled:opacity-50 transition-colors"
+    >
+      <span className={['mt-0.5 shrink-0', checked ? 'text-primary-700' : 'text-slate-400'].join(' ')}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="block text-xs text-slate-500 mt-0.5">{desc}</span>
+      </span>
+      <span
+        className={[
+          'relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors',
+          checked ? 'bg-primary-700' : 'bg-slate-300',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
+          ].join(' ')}
+        />
+      </span>
+    </button>
+  );
+}
 
 const STATUS_LABELS: Record<ParticipantStatus, string> = {
   zaproszony: 'Zaproszony',
@@ -117,6 +154,7 @@ export default function EventDetailPage() {
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Invites
   const [invites, setInvites] = useState<EventInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -196,6 +234,7 @@ export default function EventDetailPage() {
   const externalCount = event.externalCount ?? 0;
   const takenSpots = regulars.length + externalCount;
   const isFull = takenSpots >= event.maxPlayers;
+  const eventLoc = eventLocation(event);
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
   const isFootball = event.sport === 'piłka nożna';
@@ -564,11 +603,9 @@ export default function EventDetailPage() {
             <div className="mt-3 flex items-start gap-2 text-sm">
               <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <span className="font-medium text-ink">{event.fieldName}</span>
-                {(event.fieldAddress || event.customAddress || event.customLocationName) && (
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {event.fieldAddress || event.customAddress || event.customLocationName}
-                  </p>
+                <span className="font-medium text-ink">{eventLoc.primary}</span>
+                {eventLoc.secondary && (
+                  <p className="text-xs text-slate-500 mt-0.5">{eventLoc.secondary}</p>
                 )}
               </div>
               {event.lat && event.lng && (
@@ -1128,39 +1165,57 @@ export default function EventDetailPage() {
         {/* Organizer controls */}
         {isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
-            <h2 className="font-semibold text-ink text-sm mb-2">Zarządzaj wydarzeniem</h2>
+            <h2 className="font-semibold text-ink text-sm mb-1">Zarządzaj wydarzeniem</h2>
+
+            {/* Settings — collapsed by default so the panel isn't a wall of toggles */}
             <button
-              onClick={handleToggleVisibility} disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+              onClick={() => setSettingsOpen((o) => !o)}
+              className="w-full flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
             >
-              {event.visibility === 'public'
-                ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
-                : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+              <Settings className="w-4 h-4 text-slate-400" />
+              Ustawienia zapisów i prywatności
+              <span className="ml-auto flex items-center gap-2">
+                {event.inviteOnly && (
+                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Tylko zaproszeni</span>
+                )}
+                {event.visibility !== 'public' && !event.inviteOnly && (
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">Prywatne</span>
+                )}
+                <ChevronDown className={['w-4 h-4 text-slate-400 transition-transform', settingsOpen ? 'rotate-180' : ''].join(' ')} />
+              </span>
             </button>
-            <button
-              onClick={handleToggleInviteOnly}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
-            >
-              <Lock className="w-4 h-4" />
-              {event.inviteOnly ? 'Otwórz zapisy dla wszystkich' : 'Tylko dla zaproszonych'}
-              {event.inviteOnly && (
-                <span className="ml-auto text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Zamknięte</span>
-              )}
-            </button>
-            <button
-              onClick={handleToggleAllowGuestAdds}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              {event.allowGuestAdds
-                ? 'Wyłącz dodawanie gości przez uczestników'
-                : 'Pozwól uczestnikom zapraszać gości'}
-              {event.allowGuestAdds && (
-                <span className="ml-auto text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Włączone</span>
-              )}
-            </button>
+
+            {settingsOpen && (
+              <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                <SettingSwitch
+                  icon={<Globe className="w-4 h-4" />}
+                  title="Widoczne publicznie"
+                  desc="Mecz pojawia się w „Otwarte gry” i może do niego dołączyć każdy."
+                  checked={event.visibility === 'public'}
+                  disabled={busy}
+                  onChange={handleToggleVisibility}
+                />
+                <SettingSwitch
+                  icon={<Lock className="w-4 h-4" />}
+                  title="Tylko dla zaproszonych"
+                  desc="Dołączyć mogą wyłącznie osoby z linkiem zaproszenia."
+                  checked={event.inviteOnly}
+                  disabled={busy}
+                  onChange={handleToggleInviteOnly}
+                />
+                <SettingSwitch
+                  icon={<UserPlus className="w-4 h-4" />}
+                  title="Uczestnicy mogą dodawać gości"
+                  desc="Każdy zapisany może dopisać osobę bez konta."
+                  checked={event.allowGuestAdds}
+                  disabled={busy}
+                  onChange={handleToggleAllowGuestAdds}
+                />
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 pt-2" />
+
             <button
               onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
               disabled={busy}

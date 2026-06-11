@@ -204,14 +204,7 @@ function MyGamesSection({ userId }: { userId: string }) {
       </div>
       <div className="space-y-2">
         {games.slice(0, 3).map(({ event, isOrganizer }) => (
-          <div key={event.id} className="relative">
-            {isOrganizer && (
-              <span className="absolute top-2 right-2 z-10 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 rounded-full px-2 py-0.5 pointer-events-none">
-                Organizujesz
-              </span>
-            )}
-            <EventListCard event={event} />
-          </div>
+          <EventListCard key={event.id} event={event} relation={isOrganizer ? 'organizer' : 'going'} />
         ))}
       </div>
     </div>
@@ -225,15 +218,18 @@ function OpenGamesSection() {
   const [alert, setAlert] = useState<GameAlert | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const [activeSport, setActiveSport] = useState('');
+  const [myRel, setMyRel] = useState<Record<string, 'organizer' | 'going'>>({});
   const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
       getPublicEvents(),
       user ? getMyAlert().catch(() => null) : Promise.resolve(null),
-    ]).then(([events, myAlert]) => {
+      user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
+    ]).then(([events, myAlert, mine]) => {
       setAllEvents(events);
       setAlert(myAlert);
+      setMyRel(Object.fromEntries(mine.map(({ event, isOrganizer }) => [event.id, isOrganizer ? 'organizer' : 'going'] as const)));
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -320,7 +316,7 @@ function OpenGamesSection() {
       ) : (
         <div className="space-y-2.5">
           {openEvents.slice(0, 8).map((e) => (
-            <EventListCard key={e.id} event={e} />
+            <EventListCard key={e.id} event={e} relation={myRel[e.id]} />
           ))}
           {openEvents.length > 8 && (
             <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
