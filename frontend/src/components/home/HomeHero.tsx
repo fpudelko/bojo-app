@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Bell, BellRing, Map as MapIcon } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -99,6 +99,11 @@ function MarketingHero() {
                 Stwórz mecz
               </Button>
             </Link>
+            <Link href="/mapa" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto">
+                <MapIcon className="h-4 w-4" /> Mapa boisk
+              </Button>
+            </Link>
           </div>
 
           {/* Sport chips */}
@@ -162,11 +167,18 @@ function DashboardHeader() {
               Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
             </p>
           </div>
-          <Link href="/wydarzenia/nowe" className="shrink-0">
-            <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
-              <CalendarPlus className="h-4 w-4" /> Stwórz
-            </Button>
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/mapa">
+              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
+                <MapIcon className="h-4 w-4" /> Mapa
+              </Button>
+            </Link>
+            <Link href="/wydarzenia/nowe">
+              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
+                <CalendarPlus className="h-4 w-4" /> Stwórz
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />

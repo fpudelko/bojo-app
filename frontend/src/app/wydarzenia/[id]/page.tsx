@@ -154,7 +154,7 @@ export default function EventDetailPage() {
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   // Invites
   const [invites, setInvites] = useState<EventInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -1162,88 +1162,96 @@ export default function EventDetailPage() {
         {/* Comments */}
         <EventComments eventId={event.id} />
 
-        {/* Organizer controls */}
+        {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
+            page or invite accidental clicks on cancel/delete. */}
         {isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
-            <h2 className="font-semibold text-ink text-sm mb-1">Zarządzaj wydarzeniem</h2>
-
-            {/* Settings — collapsed by default so the panel isn't a wall of toggles */}
             <button
-              onClick={() => setSettingsOpen((o) => !o)}
-              className="w-full flex items-center gap-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+              onClick={() => setEditMode((o) => !o)}
+              className="w-full flex items-center gap-2"
             >
               <Settings className="w-4 h-4 text-slate-400" />
-              Ustawienia zapisów i prywatności
-              <span className="ml-auto flex items-center gap-2">
-                {event.inviteOnly && (
+              <h2 className="font-semibold text-ink text-sm">Zarządzaj wydarzeniem</h2>
+              <span className="ml-auto flex items-center gap-2 text-xs font-medium text-primary-600">
+                {!editMode && event.inviteOnly && (
                   <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Tylko zaproszeni</span>
                 )}
-                {event.visibility !== 'public' && !event.inviteOnly && (
+                {!editMode && event.visibility !== 'public' && !event.inviteOnly && (
                   <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">Prywatne</span>
                 )}
-                <ChevronDown className={['w-4 h-4 text-slate-400 transition-transform', settingsOpen ? 'rotate-180' : ''].join(' ')} />
+                {editMode ? 'Zamknij' : 'Edytuj'}
+                <ChevronDown className={['w-4 h-4 transition-transform', editMode ? 'rotate-180' : ''].join(' ')} />
               </span>
             </button>
 
-            {settingsOpen && (
-              <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
-                <SettingSwitch
-                  icon={<Globe className="w-4 h-4" />}
-                  title="Widoczne publicznie"
-                  desc="Mecz pojawia się w „Otwarte gry” i może do niego dołączyć każdy."
-                  checked={event.visibility === 'public'}
+            {editMode && (
+              <div className="space-y-3 pt-1">
+                {/* Settings switches */}
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                  <SettingSwitch
+                    icon={<Globe className="w-4 h-4" />}
+                    title="Widoczne publicznie"
+                    desc="Mecz pojawia się w „Otwarte gry” i może do niego dołączyć każdy."
+                    checked={event.visibility === 'public'}
+                    disabled={busy}
+                    onChange={handleToggleVisibility}
+                  />
+                  <SettingSwitch
+                    icon={<Lock className="w-4 h-4" />}
+                    title="Tylko dla zaproszonych"
+                    desc="Dołączyć mogą wyłącznie osoby z linkiem zaproszenia."
+                    checked={event.inviteOnly}
+                    disabled={busy}
+                    onChange={handleToggleInviteOnly}
+                  />
+                  <SettingSwitch
+                    icon={<UserPlus className="w-4 h-4" />}
+                    title="Uczestnicy mogą dodawać gości"
+                    desc="Każdy zapisany może dopisać osobę bez konta."
+                    checked={event.allowGuestAdds}
+                    disabled={busy}
+                    onChange={handleToggleAllowGuestAdds}
+                  />
+                </div>
+
+                {/* Edit event details (separate form page) */}
+                <Link
+                  href={`/wydarzenia/${event.id}/edytuj`}
+                  className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                >
+                  <Pencil className="w-4 h-4" /> Edytuj szczegóły (data, miejsce, liczba graczy)
+                </Link>
+
+                <button
+                  onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
                   disabled={busy}
-                  onChange={handleToggleVisibility}
-                />
-                <SettingSwitch
-                  icon={<Lock className="w-4 h-4" />}
-                  title="Tylko dla zaproszonych"
-                  desc="Dołączyć mogą wyłącznie osoby z linkiem zaproszenia."
-                  checked={event.inviteOnly}
-                  disabled={busy}
-                  onChange={handleToggleInviteOnly}
-                />
-                <SettingSwitch
-                  icon={<UserPlus className="w-4 h-4" />}
-                  title="Uczestnicy mogą dodawać gości"
-                  desc="Każdy zapisany może dopisać osobę bez konta."
-                  checked={event.allowGuestAdds}
-                  disabled={busy}
-                  onChange={handleToggleAllowGuestAdds}
-                />
+                  className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                >
+                  <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
+                </button>
+                {!isCancelled ? (
+                  <button
+                    onClick={handleCancel} disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
+                  >
+                    <BanIcon className="w-4 h-4" /> Odwołaj mecz
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRestore} disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Przywróć mecz
+                  </button>
+                )}
+                <button
+                  onClick={handleDelete} disabled={busy}
+                  className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
+                </button>
               </div>
             )}
-
-            <div className="border-t border-slate-100 pt-2" />
-
-            <button
-              onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
-            >
-              <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
-            </button>
-            {!isCancelled ? (
-              <button
-                onClick={handleCancel} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
-              >
-                <BanIcon className="w-4 h-4" /> Odwołaj mecz
-              </button>
-            ) : (
-              <button
-                onClick={handleRestore} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
-              >
-                <RotateCcw className="w-4 h-4" /> Przywróć mecz
-              </button>
-            )}
-            <button
-              onClick={handleDelete} disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 text-xs"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
-            </button>
           </div>
         )}
       </main>

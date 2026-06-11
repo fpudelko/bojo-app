@@ -41,20 +41,14 @@ export const metadata: Metadata = {
     description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
-    images: [{ url: '/opengraph-image', width: 1200, height: 630 }],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Bojo — zbierz ekipę, zagraj dziś',
     description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
   },
-  icons: {
-    // SVG favicon — works in all modern browsers; green "B" readable even at 16px
-    icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/apple-touch-icon.png',
-  },
+  // Favicon is inlined as a data-URI <link> in <head> below, so we don't
+  // reference external icon files here (they would 404 in the console).
 };
 
 export default function RootLayout({
