@@ -256,7 +256,7 @@ export async function getEvent(
 export async function getMyEvents(userId: string): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*')
+    .select('*, event_participants(id, is_reserve)')
     .eq('organizer_id', userId)
     .order('event_date', { ascending: true });
   if (error) throw new Error(error.message);
@@ -504,7 +504,7 @@ export async function getMyParticipatedEvents(
 
   const { data, error } = await supabase
     .from('events')
-    .select('*')
+    .select('*, event_participants(id, is_reserve)')
     .in('id', eventIds)
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);
