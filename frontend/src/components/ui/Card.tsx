@@ -29,18 +29,18 @@ export default function Card({
     <div
       onClick={onClick}
       className={clsx(
-        'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden',
+        'bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden',
         className,
       )}
     >
       {header && (
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">{header}</div>
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">{header}</div>
       )}
 
       <div className={paddingClasses[padding]}>{children}</div>
 
       {footer && (
-        <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">{footer}</div>
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50">{footer}</div>
       )}
     </div>
   );

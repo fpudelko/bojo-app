@@ -29,16 +29,16 @@ export default function MyVenuesPage() {
 
   if (authLoading || (loading && user)) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
           <div className="flex items-center justify-between mb-6">
-            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-9 w-32 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse" />
+            <div className="h-9 w-32 bg-slate-200 rounded-lg animate-pulse" />
           </div>
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="h-28 bg-slate-100 rounded-2xl animate-pulse" />
             ))}
           </div>
         </main>
@@ -52,9 +52,9 @@ export default function MyVenuesPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">Zaloguj się</h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-xl font-bold text-slate-900">Zaloguj się</h1>
+            <p className="text-slate-500 text-sm mt-2 mb-6">
               Potrzebujesz konta, aby zarządzać obiektami sportowymi.
             </p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
@@ -65,13 +65,13 @@ export default function MyVenuesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Moje obiekty</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{displayName(user)}</p>
+            <h1 className="text-2xl font-bold text-slate-900">Moje obiekty</h1>
+            <p className="text-sm text-slate-500 mt-0.5">{displayName(user)}</p>
           </div>
           <Link href="/obiekt/nowe">
             <Button className="flex items-center gap-1.5">
@@ -81,9 +81,9 @@ export default function MyVenuesPage() {
         </div>
 
         {venues.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium text-gray-700">
+          <div className="text-center py-20 text-slate-400">
+            <Building2 className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg font-medium text-slate-700">
               Nie zarządzasz jeszcze żadnym obiektem
             </p>
             <p className="text-sm mt-1 mb-6">
@@ -101,14 +101,14 @@ export default function MyVenuesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-900 truncate">{venue.name}</p>
+                        <p className="font-semibold text-slate-900 truncate">{venue.name}</p>
                         {venue.isBookable && (
                           <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700 border border-primary-200">
                             Rezerwacje
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 flex items-center gap-1 mt-1 truncate">
+                      <p className="text-sm text-slate-500 flex items-center gap-1 mt-1 truncate">
                         <MapPin className="w-3.5 h-3.5 shrink-0" /> {venue.address}
                       </p>
                     </div>
@@ -117,11 +117,11 @@ export default function MyVenuesPage() {
                     </span>
                   </div>
                   {venue.sport.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex gap-1.5 flex-wrap mt-3 pt-3 border-t border-slate-100">
                       {venue.sport.map((s) => (
                         <span
                           key={s}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium"
                         >
                           {sportEmoji(s)} {s}
                         </span>

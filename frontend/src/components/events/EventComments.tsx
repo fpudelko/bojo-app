@@ -50,11 +50,11 @@ export default function EventComments({ eventId }: { eventId: string }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
         <MessageSquare className="w-4 h-4" /> Komentarze
         {!loading && comments.length > 0 && (
-          <span className="text-xs font-normal text-gray-400">({comments.length})</span>
+          <span className="text-xs font-normal text-slate-400">({comments.length})</span>
         )}
       </h2>
 
@@ -63,7 +63,7 @@ export default function EventComments({ eventId }: { eventId: string }) {
           <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-3">
+        <p className="text-sm text-slate-400 text-center py-3">
           Brak komentarzy. {user ? 'Napisz pierwszy!' : 'Zaloguj się, aby dodać komentarz.'}
         </p>
       ) : (
@@ -75,17 +75,17 @@ export default function EventComments({ eventId }: { eventId: string }) {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-gray-800">{c.userName}</span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs font-semibold text-slate-800">{c.userName}</span>
+                  <span className="text-xs text-slate-400">
                     {format(parseISO(c.createdAt), 'd MMM, HH:mm', { locale: pl })}
                   </span>
                 </div>
-                <p className="text-sm text-gray-700 break-words leading-relaxed">{c.body}</p>
+                <p className="text-sm text-slate-700 break-words leading-relaxed">{c.body}</p>
               </div>
               {user?.id === c.userId && (
                 <button
                   onClick={() => handleDelete(c.id)}
-                  className="p-1.5 text-gray-200 hover:text-red-400 rounded shrink-0 self-start transition-colors"
+                  className="p-1.5 text-slate-200 hover:text-red-400 rounded shrink-0 self-start transition-colors"
                   aria-label="Usuń komentarz"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -97,7 +97,7 @@ export default function EventComments({ eventId }: { eventId: string }) {
       )}
 
       {user ? (
-        <div className="flex gap-2 pt-3 border-t border-gray-100">
+        <div className="flex gap-2 pt-3 border-t border-slate-100">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -110,7 +110,7 @@ export default function EventComments({ eventId }: { eventId: string }) {
             placeholder="Napisz komentarz…"
             rows={2}
             maxLength={1000}
-            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           />
           <button
             onClick={handleAdd}

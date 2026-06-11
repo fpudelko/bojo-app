@@ -68,7 +68,7 @@ export default function LocationPickerImpl({ lat, lng, onSelect }: LocationPicke
 
   return (
     <div className="w-full h-full min-h-[280px] relative">
-      <div className="absolute top-2 left-2 right-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-gray-500 px-2.5 py-1.5 rounded-lg shadow text-center">
+      <div className="absolute top-2 left-2 right-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-slate-500 px-2.5 py-1.5 rounded-lg shadow text-center">
         Kliknij na mapie, aby wskazać lokalizację
       </div>
       <MapContainer

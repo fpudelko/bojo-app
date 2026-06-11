@@ -188,7 +188,7 @@ export default function LeafletMapImpl({
       {/* Satellite toggle */}
       <button
         onClick={() => setSatellite((s) => !s)}
-        className="absolute bottom-8 right-2 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+        className="absolute bottom-8 right-2 z-[1000] bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
         title={satellite ? 'Przełącz na mapę' : 'Przełącz na satelitę'}
       >
         {satellite ? '🗺️ Mapa' : '🛰️ Satelita'}
@@ -196,7 +196,7 @@ export default function LeafletMapImpl({
 
       {/* Result count badge */}
       {(q || (sports && sports.length > 0)) && (
-        <div className="absolute top-2 left-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-gray-600 px-2.5 py-1 rounded-full shadow-sm border border-gray-100">
+        <div className="absolute top-2 left-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-slate-600 px-2.5 py-1 rounded-full shadow-sm border border-slate-100">
           {displayed.length} z {allFields.length} boisk
         </div>
       )}

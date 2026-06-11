@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Bell, BellRing, Map as MapIcon } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
+import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventListCard } from '@/components/EventListCard';
 import { sportEmoji } from '@/lib/sports';
@@ -25,19 +26,9 @@ const FILTER_SPORTS = ['piłka nożna', 'siatkówka plażowa', 'siatkówka', 'ko
 
 /** Marketing hero for logged-out visitors */
 function MarketingHero() {
-  const [venueCount, setVenueCount] = useState<number | null>(null);
   const [todayCount, setTodayCount] = useState<number | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { count } = await supabase
-          .from('fields')
-          .select('id', { count: 'exact', head: true })
-          .eq('map_visibility', 'public');
-        setVenueCount(count ?? 0);
-      } catch { /* ignore */ }
-    })();
     (async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -99,6 +90,11 @@ function MarketingHero() {
                 Stwórz mecz
               </Button>
             </Link>
+            <Link href="/mapa" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto">
+                <MapIcon className="h-4 w-4" /> Mapa boisk
+              </Button>
+            </Link>
           </div>
 
           {/* Sport chips */}
@@ -117,28 +113,7 @@ function MarketingHero() {
             ))}
           </div>
 
-          {/* Stats bar */}
-          <dl
-            className="mx-auto mt-10 grid max-w-xs animate-fade-up grid-cols-3 gap-2 border-t border-white/10 pt-6 sm:max-w-md sm:gap-4"
-            style={{ animationDelay: '360ms' }}
-          >
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">boisk</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
-                {venueCount !== null ? venueCount : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">gier dziś</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
-                {todayCount !== null ? todayCount : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">sporty</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">4</dd>
-            </div>
-          </dl>
+
         </div>
 
       </div>
@@ -162,11 +137,18 @@ function DashboardHeader() {
               Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
             </p>
           </div>
-          <Link href="/wydarzenia/nowe" className="shrink-0">
-            <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
-              <CalendarPlus className="h-4 w-4" /> Stwórz
-            </Button>
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/mapa">
+              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
+                <MapIcon className="h-4 w-4" /> Mapa
+              </Button>
+            </Link>
+            <Link href="/wydarzenia/nowe">
+              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
+                <CalendarPlus className="h-4 w-4" /> Stwórz
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
@@ -204,14 +186,7 @@ function MyGamesSection({ userId }: { userId: string }) {
       </div>
       <div className="space-y-2">
         {games.slice(0, 3).map(({ event, isOrganizer }) => (
-          <div key={event.id} className="relative">
-            {isOrganizer && (
-              <span className="absolute top-2 right-2 z-10 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 rounded-full px-2 py-0.5 pointer-events-none">
-                Organizujesz
-              </span>
-            )}
-            <EventListCard event={event} />
-          </div>
+          <EventListCard key={event.id} event={event} relation={isOrganizer ? 'organizer' : 'going'} />
         ))}
       </div>
     </div>
@@ -225,15 +200,18 @@ function OpenGamesSection() {
   const [alert, setAlert] = useState<GameAlert | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const [activeSport, setActiveSport] = useState('');
+  const [myRel, setMyRel] = useState<Record<string, 'organizer' | 'going'>>({});
   const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
       getPublicEvents(),
-      user ? getMyAlert().catch(() => null) : Promise.resolve(null),
-    ]).then(([events, myAlert]) => {
+      user && SHOW_GAME_ALERTS ? getMyAlert().catch(() => null) : Promise.resolve(null),
+      user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
+    ]).then(([events, myAlert, mine]) => {
       setAllEvents(events);
       setAlert(myAlert);
+      setMyRel(Object.fromEntries(mine.map(({ event, isOrganizer }) => [event.id, isOrganizer ? 'organizer' : 'going'] as const)));
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -256,7 +234,7 @@ function OpenGamesSection() {
             </span>
           )}
         </h2>
-        {user && (
+        {user && SHOW_GAME_ALERTS && (
           <button
             onClick={() => setShowAlert(true)}
             className={[
@@ -304,7 +282,7 @@ function OpenGamesSection() {
           <p className="text-sm font-medium text-slate-600 mb-4">
             {activeSport ? 'Brak otwartych gier w tym sporcie' : 'Brak otwartych gier w tej chwili'}
           </p>
-          {user ? (
+          {user && SHOW_GAME_ALERTS ? (
             <button
               onClick={() => setShowAlert(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white"
@@ -313,14 +291,14 @@ function OpenGamesSection() {
             </button>
           ) : (
             <Link href="/wydarzenia/nowe" className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">
-              Stwórz pierwszy mecz
+              <CalendarPlus className="w-4 h-4" /> Stwórz mecz
             </Link>
           )}
         </div>
       ) : (
         <div className="space-y-2.5">
           {openEvents.slice(0, 8).map((e) => (
-            <EventListCard key={e.id} event={e} />
+            <EventListCard key={e.id} event={e} relation={myRel[e.id]} />
           ))}
           {openEvents.length > 8 && (
             <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
@@ -385,6 +363,19 @@ export default function HomeHero() {
       <MarketingHero />
       <section className="mx-auto w-full max-w-3xl px-4 pt-2 pb-12 space-y-6">
         <OpenGamesSection />
+        <Link
+          href="/mapa"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm hover:border-primary-200 hover:shadow-card-hover transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🗺️</span>
+            <div>
+              <p className="text-sm font-semibold text-ink">Mapa boisk</p>
+              <p className="text-xs text-slate-400">Setki boisk w Poznaniu i okolicach</p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+        </Link>
       </section>
     </>
   );

@@ -128,13 +128,13 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleGeocode(); } }}
           placeholder="Szukaj adresu lub nazwy miejsca…"
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white/95 backdrop-blur-sm shadow focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white/95 backdrop-blur-sm shadow focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         <button
           type="button"
           onClick={handleGeocode}
           disabled={geocoding}
-          className="px-3 py-2 rounded-lg bg-white/95 backdrop-blur-sm border border-gray-200 shadow text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center"
+          className="px-3 py-2 rounded-lg bg-white/95 backdrop-blur-sm border border-slate-200 shadow text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center"
         >
           {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
         </button>

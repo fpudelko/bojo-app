@@ -12,9 +12,9 @@ export interface LocationPickerProps {
 const Impl = dynamic(() => import('./LocationPickerImpl'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full min-h-[280px] bg-gray-100 flex items-center justify-center text-sm text-gray-400">
+    <div className="w-full h-full min-h-[280px] bg-slate-100 flex items-center justify-center text-sm text-slate-400">
       <div className="text-center">
-        <MapPin className="w-6 h-6 mx-auto mb-1 text-gray-300" />
+        <MapPin className="w-6 h-6 mx-auto mb-1 text-slate-300" />
         Ładowanie mapy…
       </div>
     </div>

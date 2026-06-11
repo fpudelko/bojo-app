@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import RemindersSection from '@/components/events/RemindersSection';
+import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
@@ -20,13 +21,13 @@ function ToggleRow({ label, desc, checked, onChange }: {
   return (
     <div className="flex items-start justify-between gap-4 py-3">
       <div>
-        <p className="text-sm font-medium text-gray-900">{label}</p>
-        {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
+        <p className="text-sm font-medium text-slate-900">{label}</p>
+        {desc && <p className="text-xs text-slate-500 mt-0.5">{desc}</p>}
       </div>
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', checked ? 'bg-primary-600' : 'bg-gray-200'].join(' ')}
+        className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', checked ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
         role="switch"
         aria-checked={checked}
       >
@@ -173,14 +174,14 @@ export default function EditEventPage() {
   };
 
   const inputCls =
-    'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
   if (pageLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
         </main>
       </div>
     );
@@ -190,10 +191,10 @@ export default function EditEventPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
             <p className="text-sm mt-1">Tylko organizator może edytować wydarzenie.</p>
             <Link href={`/wydarzenia/${id}`} className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do wydarzenia
@@ -209,16 +210,16 @@ export default function EditEventPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <Link href={`/wydarzenia/${id}`} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100">
+          <Link href={`/wydarzenia/${id}`} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edytuj wydarzenie</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Edytuj wydarzenie</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Sport */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sport</label>
             <select value={sport} onChange={(e) => setSport(e.target.value)} className={inputCls}>
               {(FOCUS_SPORTS.includes(sport as typeof FOCUS_SPORTS[number])
                 ? FOCUS_SPORTS
@@ -229,15 +230,15 @@ export default function EditEventPage() {
 
           {/* Venue */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Boisko {field && <span className="text-primary-600">— {field.name}</span>}
             </label>
-            <p className="text-xs text-gray-500 mb-2">Kliknij pinezkę na mapie, aby zmienić boisko.</p>
-            <div className="h-72 rounded-xl overflow-hidden border border-gray-200">
+            <p className="text-xs text-slate-500 mb-2">Kliknij pinezkę na mapie, aby zmienić boisko.</p>
+            <div className="h-72 rounded-xl overflow-hidden border border-slate-200">
               <VenuePicker selectedId={field?.id} onSelect={setField} />
             </div>
             {field && (
-              <div className="mt-2 flex gap-3 items-center bg-gray-50 rounded-lg p-2">
+              <div className="mt-2 flex gap-3 items-center bg-slate-50 rounded-lg p-2">
                 {venueThumbnail(field.lat, field.lng, 160, 100) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -247,12 +248,12 @@ export default function EditEventPage() {
                   />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{field.name}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                  <p className="text-sm font-medium text-slate-800 truncate">{field.name}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
                     <MapPin className="w-3 h-3 shrink-0" /> {field.address}
                   </p>
                   {field.surface && (
-                    <p className="text-xs text-gray-400">{surfaceLabel(field.surface)}</p>
+                    <p className="text-xs text-slate-400">{surfaceLabel(field.surface)}</p>
                   )}
                 </div>
               </div>
@@ -262,16 +263,16 @@ export default function EditEventPage() {
           {/* Date / start time / end time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Zakończenie <span className="text-slate-400 font-normal">(opcjonalnie)</span>
               </label>
               <input
                 type="time" value={endTime} min={time}
@@ -283,7 +284,7 @@ export default function EditEventPage() {
 
           {/* Max players */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Liczba miejsc: <span className="text-primary-600 font-semibold">{maxPlayers}</span>
             </label>
             <input
@@ -299,10 +300,10 @@ export default function EditEventPage() {
 
           {/* Players already committed outside the app */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gracze spoza aplikacji <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Gracze spoza aplikacji <span className="text-slate-400 font-normal">(opcjonalnie)</span>
             </label>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-slate-500 mb-2">
               Ilu graczy macie już zebranych poza aplikacją. Liczą się do limitu miejsc.
             </p>
             <input
@@ -313,14 +314,14 @@ export default function EditEventPage() {
                 setExternalCount(v);
               }}
               placeholder="0"
-              className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tytuł <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Tytuł <span className="text-slate-400 font-normal">(opcjonalnie)</span>
             </label>
             <input
               type="text" value={title} onChange={(e) => setTitle(e.target.value)}
@@ -330,8 +331,8 @@ export default function EditEventPage() {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Opis <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Opis <span className="text-slate-400 font-normal">(opcjonalnie)</span>
             </label>
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)}
@@ -341,66 +342,68 @@ export default function EditEventPage() {
 
           {/* Visibility */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Widoczność</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button" onClick={() => setVisibility('private')}
                 className={[
                   'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
-                  visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400',
+                  visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
                 ].join(' ')}
               >
-                <Lock className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-gray-900">Prywatne</span>
-                  <span className="block text-xs text-gray-500">Tylko przez link</span>
+                  <span className="block text-sm font-medium text-slate-900">Prywatne</span>
+                  <span className="block text-xs text-slate-500">Tylko przez link</span>
                 </span>
               </button>
               <button
                 type="button" onClick={() => setVisibility('public')}
                 className={[
                   'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
-                  visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-gray-400',
+                  visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
                 ].join(' ')}
               >
-                <Globe className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-gray-900">Publiczne</span>
-                  <span className="block text-xs text-gray-500">Widoczne dla wszystkich</span>
+                  <span className="block text-sm font-medium text-slate-900">Publiczne</span>
+                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich</span>
                 </span>
               </button>
             </div>
           </div>
 
           {/* Advanced settings accordion */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => setAdvOpen((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Ustawienia zaawansowane
-              {advOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              {advOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
             {advOpen && (
-              <div className="px-4 pb-2 border-t border-gray-100 divide-y divide-gray-100">
+              <div className="px-4 pb-2 border-t border-slate-100 divide-y divide-slate-100">
+                {SHOW_SMS_FEATURES && (
                 <ToggleRow label="Potwierdzenie SMS" desc="Zaproszeni gracze potwierdzają przez SMS" checked={requireSmsConfirmation} onChange={setRequireSmsConfirmation} />
-                {requireSmsConfirmation && (
+                )}
+                {SHOW_SMS_FEATURES && requireSmsConfirmation && (
                   <div className="py-3">
-                    <label className="block text-xs text-gray-600 mb-1">Termin potwierdzenia (h przed meczem)</label>
+                    <label className="block text-xs text-slate-600 mb-1">Termin potwierdzenia (h przed meczem)</label>
                     <input type="number" min={1} max={168} value={confirmationDeadlineH}
                       onChange={(e) => setConfirmationDeadlineH(Number(e.target.value))}
-                      className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                 )}
                 <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
                 <div className="flex items-start justify-between gap-4 py-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Tryb drużyn</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Jak są tworzone składy</p>
+                    <p className="text-sm font-medium text-slate-900">Tryb drużyn</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Jak są tworzone składy</p>
                   </div>
                   <select value={teamMode} onChange={(e) => setTeamMode(e.target.value as TeamMode)}
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="brak">Brak</option>
                     <option value="reczne">Ręczne</option>
                     <option value="kapitanowie">Kapitanowie</option>
@@ -411,11 +414,11 @@ export default function EditEventPage() {
                 {trackPayments && (
                   <div className="py-3 space-y-3">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Koszt uczestnictwa (PLN)</label>
+                      <label className="block text-xs text-slate-600 mb-1">Koszt uczestnictwa (PLN)</label>
                       <input type="number" min={0} step={0.5} value={costPln}
                         onChange={(e) => setCostPln(e.target.value)}
                         placeholder="0.00"
-                        className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                        className="w-28 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     </div>
                     <ToggleRow label="Pokaż status płatności uczestnikom" checked={showPaymentStatus} onChange={setShowPaymentStatus} />
                   </div>
@@ -442,7 +445,7 @@ export default function EditEventPage() {
         </form>
 
         {/* Reminders — standalone section, saves independently from the main form */}
-        <RemindersSection eventId={id} />
+        {SHOW_SMS_FEATURES && <RemindersSection eventId={id} />}
       </main>
     </div>
   );

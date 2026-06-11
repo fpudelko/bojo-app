@@ -8,7 +8,7 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
-  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight,
+  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, Settings,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -19,6 +19,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
+import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
@@ -45,6 +46,42 @@ const TEAM_COLORS = [
   { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
 ];
 
+/** A labelled on/off switch — shows the current state clearly, unlike an
+ *  action button whose label flips on every click. */
+function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
+  icon: React.ReactNode; title: string; desc: string;
+  checked: boolean; disabled?: boolean; onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      disabled={disabled}
+      aria-pressed={checked}
+      className="w-full flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-white disabled:opacity-50 transition-colors"
+    >
+      <span className={['mt-0.5 shrink-0', checked ? 'text-primary-700' : 'text-slate-400'].join(' ')}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="block text-xs text-slate-500 mt-0.5">{desc}</span>
+      </span>
+      <span
+        className={[
+          'relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors',
+          checked ? 'bg-primary-700' : 'bg-slate-300',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
+          ].join(' ')}
+        />
+      </span>
+    </button>
+  );
+}
+
 const STATUS_LABELS: Record<ParticipantStatus, string> = {
   zaproszony: 'Zaproszony',
   potwierdzony: 'Potwierdzony',
@@ -55,7 +92,7 @@ const STATUS_CLS: Record<ParticipantStatus, string> = {
   zaproszony: 'bg-yellow-100 text-yellow-700',
   potwierdzony: 'bg-green-100 text-green-700',
   odrzucony: 'bg-red-100 text-red-700',
-  brak_odpowiedzi: 'bg-gray-100 text-gray-500',
+  brak_odpowiedzi: 'bg-slate-100 text-slate-500',
 };
 const NEXT_STATUS: Record<ParticipantStatus, ParticipantStatus> = {
   zaproszony: 'potwierdzony',
@@ -117,6 +154,7 @@ export default function EventDetailPage() {
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   // Invites
   const [invites, setInvites] = useState<EventInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -170,7 +208,7 @@ export default function EventDetailPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
         </main>
       </div>
     );
@@ -179,9 +217,9 @@ export default function EventDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <X className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <X className="w-10 h-10 mx-auto mb-3 text-slate-300" />
             <p className="font-medium">Nie znaleziono wydarzenia</p>
           </div>
         </main>
@@ -196,6 +234,7 @@ export default function EventDetailPage() {
   const externalCount = event.externalCount ?? 0;
   const takenSpots = regulars.length + externalCount;
   const isFull = takenSpots >= event.maxPlayers;
+  const eventLoc = eventLocation(event);
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
   const isFootball = event.sport === 'piłka nożna';
@@ -564,11 +603,9 @@ export default function EventDetailPage() {
             <div className="mt-3 flex items-start gap-2 text-sm">
               <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <span className="font-medium text-ink">{event.fieldName}</span>
-                {(event.fieldAddress || event.customAddress || event.customLocationName) && (
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {event.fieldAddress || event.customAddress || event.customLocationName}
-                  </p>
+                <span className="font-medium text-ink">{eventLoc.primary}</span>
+                {eventLoc.secondary && (
+                  <p className="text-xs text-slate-500 mt-0.5">{eventLoc.secondary}</p>
                 )}
               </div>
               {event.lat && event.lng && (
@@ -710,7 +747,7 @@ export default function EventDetailPage() {
                         onChange={(e) => setGuestName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
                         placeholder="Dodaj znajomego bez konta…"
-                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                       <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
                         <UserPlus className="w-4 h-4" />
@@ -768,10 +805,10 @@ export default function EventDetailPage() {
           </div>
 
           {externalCount > 0 && (
-            <p className="-mt-2 mb-3 text-xs text-gray-500">
-              <span className="font-medium text-gray-700">{externalCount}</span>{' '}
+            <p className="-mt-2 mb-3 text-xs text-slate-500">
+              <span className="font-medium text-slate-700">{externalCount}</span>{' '}
               {externalCount === 1 ? 'gracz dodany' : 'graczy dodanych'} z własnej ekipy
-              {event.organizerName && <> przez <span className="font-medium text-gray-700">{event.organizerName}</span></>}.
+              {event.organizerName && <> przez <span className="font-medium text-slate-700">{event.organizerName}</span></>}.
               {!isFull && (
                 <span className="text-primary-700 font-medium">
                   {' '}Szukamy jeszcze {event.maxPlayers - takenSpots}.
@@ -794,7 +831,7 @@ export default function EventDetailPage() {
                   <span className="flex-1 flex items-center gap-1 text-sm text-ink min-w-0 overflow-hidden">
                     <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
                     {p.isGuest && (
-                      <span className="text-xs text-gray-400 shrink-0">
+                      <span className="text-xs text-slate-400 shrink-0">
                         (gość{isOrganizer && p.addedBy && p.addedBy !== user?.id
                           ? ` · dodany przez: ${
                               participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'
@@ -835,7 +872,7 @@ export default function EventDetailPage() {
                       <button
                         onClick={() => handleSendSms(p)}
                         disabled={smsBusy === p.id}
-                        className="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                        className="p-1.5 text-slate-400 hover:text-blue-500 rounded"
                         title="Wyślij SMS z potwierdzeniem"
                       >
                         <Phone className="w-4 h-4" />
@@ -864,7 +901,7 @@ export default function EventDetailPage() {
                     {user && !isOrganizer && p.userId !== user.id && (
                       <button
                         onClick={() => setReportTarget(p)}
-                        className="p-1.5 text-gray-200 hover:text-red-400 rounded"
+                        className="p-1.5 text-slate-200 hover:text-red-400 rounded"
                         title="Zgłoś uczestnika"
                       >
                         <MessageSquare className="w-4 h-4" />
@@ -875,7 +912,7 @@ export default function EventDetailPage() {
                     {(isOrganizer || p.userId === user?.id) && p.userId !== event.organizerId && (
                       <button
                         onClick={() => handleRemove(p.id)} disabled={busy}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded"
                         aria-label="Usuń uczestnika"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -886,18 +923,18 @@ export default function EventDetailPage() {
               </li>
             ))}
             {regulars.length === 0 && (
-              <li className="py-4 text-sm text-gray-400 text-center">Nikt jeszcze nie dołączył</li>
+              <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
             )}
           </ul>
 
           {/* Add guest */}
           {isOrganizer && (
-            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+            <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
               <input
                 type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
                 placeholder="Imię znajomego (bez konta)"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()}>
                 <UserPlus className="w-4 h-4" /> Dodaj
@@ -911,20 +948,20 @@ export default function EventDetailPage() {
         {reserves.length > 0 && isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
-              <Users className="w-4 h-4 text-gray-400" />
+              <Users className="w-4 h-4 text-slate-400" />
               Lista rezerwowa
-              <span className="text-xs font-normal text-gray-400 ml-1">{reserves.length} os.</span>
+              <span className="text-xs font-normal text-slate-400 ml-1">{reserves.length} os.</span>
             </h2>
             <ul className="divide-y divide-slate-100">
               {reserves.map((p, i) => (
                 <li key={p.id} className="flex items-center justify-between py-2.5">
-                  <span className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
+                  <span className="flex items-center gap-2 text-sm text-slate-600">
+                    <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
                     <span className="truncate max-w-[160px]">{p.name}</span>
-                    {p.isGuest && <span className="text-xs text-gray-400 shrink-0">(gość)</span>}
+                    {p.isGuest && <span className="text-xs text-slate-400 shrink-0">(gość)</span>}
                   </span>
                   {(isOrganizer || p.userId === user?.id) && (
-                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-gray-400 hover:text-red-500 rounded">
+                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -959,7 +996,7 @@ export default function EventDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-ink flex items-center gap-2">
                 <Shuffle className="w-4 h-4" /> Losuj składy
-                <span className="text-xs font-normal text-gray-400">tylko dla Ciebie</span>
+                <span className="text-xs font-normal text-slate-400">tylko dla Ciebie</span>
               </h2>
               <Button variant="outline" onClick={() => setLocalTeams(splitTeams(regulars))} disabled={busy}>
                 {localTeams ? 'Losuj ponownie' : 'Losuj składy'}
@@ -974,7 +1011,7 @@ export default function EventDetailPage() {
                       <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>Drużyna {ti + 1}</p>
                       <ul className="space-y-1">
                         {team.map((p) => (
-                          <li key={p.id} className="flex items-center gap-1.5 text-sm text-gray-800">
+                          <li key={p.id} className="flex items-center gap-1.5 text-sm text-slate-800">
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
                             {p.name}
                           </li>
@@ -985,7 +1022,7 @@ export default function EventDetailPage() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 text-center py-2">
+              <p className="text-sm text-slate-400 text-center py-2">
                 Kliknij przycisk, aby podzielić {regulars.length} graczy losowo.
               </p>
             )}
@@ -994,7 +1031,7 @@ export default function EventDetailPage() {
 
         {/* Match results (trackResults) — locked until 30 min after event start */}
         {event.trackResults && !resultsAvailable && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-gray-400">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
             <Trophy className="w-4 h-4 shrink-0" />
             Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
           </div>
@@ -1037,7 +1074,7 @@ export default function EventDetailPage() {
                   onChange={(e) => setInviteEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()}
                   placeholder="email@przykład.pl"
-                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <Button
                   onClick={handleAddInvite}
@@ -1065,14 +1102,14 @@ export default function EventDetailPage() {
                     )}
                     <button
                       onClick={() => handleCopyInviteLink(inv)}
-                      className="p-1.5 text-gray-300 hover:text-primary-600 rounded shrink-0"
+                      className="p-1.5 text-slate-300 hover:text-primary-600 rounded shrink-0"
                       title="Kopiuj link zaproszenia"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteInvite(inv.id)}
-                      className="p-1.5 text-gray-300 hover:text-red-400 rounded shrink-0"
+                      className="p-1.5 text-slate-300 hover:text-red-400 rounded shrink-0"
                       title="Usuń zaproszenie"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1091,25 +1128,25 @@ export default function EventDetailPage() {
               <Banknote className="w-4 h-4" /> Podział kosztów
             </h2>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-gray-500">Koszt / os.</span>
+              <span className="text-slate-500">Koszt / os.</span>
               <span className="font-semibold text-ink">{(event.costGrosze / 100).toFixed(2)} PLN</span>
             </div>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-gray-500">Opłaconych</span>
+              <span className="text-slate-500">Opłaconych</span>
               <span className="font-semibold text-green-700">
                 {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Zebrano</span>
+              <span className="text-slate-500">Zebrano</span>
               <span className="font-semibold text-ink">
                 {((regulars.filter((p) => p.hasPaid).length * event.costGrosze) / 100).toFixed(2)} PLN
-                {' '}<span className="text-gray-400 font-normal">z {((regulars.length * event.costGrosze) / 100).toFixed(2)} PLN</span>
+                {' '}<span className="text-slate-400 font-normal">z {((regulars.length * event.costGrosze) / 100).toFixed(2)} PLN</span>
               </span>
             </div>
             {regulars.some((p) => !p.hasPaid) && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500 mb-2">Czekamy na wpłatę od:</p>
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <p className="text-xs text-slate-500 mb-2">Czekamy na wpłatę od:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {regulars.filter((p) => !p.hasPaid).map((p) => (
                     <span key={p.id} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
@@ -1125,70 +1162,96 @@ export default function EventDetailPage() {
         {/* Comments */}
         <EventComments eventId={event.id} />
 
-        {/* Organizer controls */}
+        {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
+            page or invite accidental clicks on cancel/delete. */}
         {isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
-            <h2 className="font-semibold text-ink text-sm mb-2">Zarządzaj wydarzeniem</h2>
             <button
-              onClick={handleToggleVisibility} disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
+              onClick={() => setEditMode((o) => !o)}
+              className="w-full flex items-center gap-2"
             >
-              {event.visibility === 'public'
-                ? <><Lock className="w-4 h-4" /> Ustaw jako prywatne</>
-                : <><Globe className="w-4 h-4" /> Upublicznij (gdy brakuje ludzi)</>}
+              <Settings className="w-4 h-4 text-slate-400" />
+              <h2 className="font-semibold text-ink text-sm">Zarządzaj wydarzeniem</h2>
+              <span className="ml-auto flex items-center gap-2 text-xs font-medium text-primary-600">
+                {!editMode && event.inviteOnly && (
+                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Tylko zaproszeni</span>
+                )}
+                {!editMode && event.visibility !== 'public' && !event.inviteOnly && (
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">Prywatne</span>
+                )}
+                {editMode ? 'Zamknij' : 'Edytuj'}
+                <ChevronDown className={['w-4 h-4 transition-transform', editMode ? 'rotate-180' : ''].join(' ')} />
+              </span>
             </button>
-            <button
-              onClick={handleToggleInviteOnly}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
-            >
-              <Lock className="w-4 h-4" />
-              {event.inviteOnly ? 'Otwórz zapisy dla wszystkich' : 'Tylko dla zaproszonych'}
-              {event.inviteOnly && (
-                <span className="ml-auto text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Zamknięte</span>
-              )}
-            </button>
-            <button
-              onClick={handleToggleAllowGuestAdds}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              {event.allowGuestAdds
-                ? 'Wyłącz dodawanie gości przez uczestników'
-                : 'Pozwól uczestnikom zapraszać gości'}
-              {event.allowGuestAdds && (
-                <span className="ml-auto text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Włączone</span>
-              )}
-            </button>
-            <button
-              onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
-              disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg px-3 py-2"
-            >
-              <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
-            </button>
-            {!isCancelled ? (
-              <button
-                onClick={handleCancel} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
-              >
-                <BanIcon className="w-4 h-4" /> Odwołaj mecz
-              </button>
-            ) : (
-              <button
-                onClick={handleRestore} disabled={busy}
-                className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
-              >
-                <RotateCcw className="w-4 h-4" /> Przywróć mecz
-              </button>
+
+            {editMode && (
+              <div className="space-y-3 pt-1">
+                {/* Settings switches */}
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                  <SettingSwitch
+                    icon={<Globe className="w-4 h-4" />}
+                    title="Widoczne publicznie"
+                    desc="Mecz pojawia się w „Otwarte gry” i może do niego dołączyć każdy."
+                    checked={event.visibility === 'public'}
+                    disabled={busy}
+                    onChange={handleToggleVisibility}
+                  />
+                  <SettingSwitch
+                    icon={<Lock className="w-4 h-4" />}
+                    title="Tylko dla zaproszonych"
+                    desc="Dołączyć mogą wyłącznie osoby z linkiem zaproszenia."
+                    checked={event.inviteOnly}
+                    disabled={busy}
+                    onChange={handleToggleInviteOnly}
+                  />
+                  <SettingSwitch
+                    icon={<UserPlus className="w-4 h-4" />}
+                    title="Uczestnicy mogą dodawać gości"
+                    desc="Każdy zapisany może dopisać osobę bez konta."
+                    checked={event.allowGuestAdds}
+                    disabled={busy}
+                    onChange={handleToggleAllowGuestAdds}
+                  />
+                </div>
+
+                {/* Edit event details (separate form page) */}
+                <Link
+                  href={`/wydarzenia/${event.id}/edytuj`}
+                  className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                >
+                  <Pencil className="w-4 h-4" /> Edytuj szczegóły (data, miejsce, liczba graczy)
+                </Link>
+
+                <button
+                  onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
+                  disabled={busy}
+                  className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                >
+                  <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
+                </button>
+                {!isCancelled ? (
+                  <button
+                    onClick={handleCancel} disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
+                  >
+                    <BanIcon className="w-4 h-4" /> Odwołaj mecz
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRestore} disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-green-700 hover:bg-green-50 rounded-lg px-3 py-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Przywróć mecz
+                  </button>
+                )}
+                <button
+                  onClick={handleDelete} disabled={busy}
+                  className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
+                </button>
+              </div>
             )}
-            <button
-              onClick={handleDelete} disabled={busy}
-              className="w-full flex items-center gap-2 text-sm text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 text-xs"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
-            </button>
           </div>
         )}
       </main>
@@ -1228,27 +1291,27 @@ export default function EventDetailPage() {
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Powtórz mecz</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-slate-500 mb-4">
               Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę.
             </p>
             <div className="space-y-3 mb-5">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Data</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Data</label>
                 <input
                   type="date"
                   value={repeatDate}
                   onChange={(e) => setRepeatDate(e.target.value)}
                   min={new Date().toISOString().slice(0, 10)}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Godzina</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Godzina</label>
                 <input
                   type="time"
                   value={repeatTime}
                   onChange={(e) => setRepeatTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -1275,7 +1338,7 @@ export default function EventDetailPage() {
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Zgłoś uczestnika</h3>
-            <p className="text-sm text-gray-500 mb-4">{reportTarget.name}</p>
+            <p className="text-sm text-slate-500 mb-4">{reportTarget.name}</p>
             <div className="space-y-2 mb-4">
               {REPORT_TYPES.map((rt) => (
                 <button
@@ -1285,7 +1348,7 @@ export default function EventDetailPage() {
                     'w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors',
                     reportType === rt.value
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-gray-200 text-gray-700 hover:border-gray-300',
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300',
                   ].join(' ')}
                 >
                   {rt.label}
@@ -1297,7 +1360,7 @@ export default function EventDetailPage() {
               onChange={(e) => setReportComment(e.target.value)}
               placeholder="Opcjonalny komentarz…"
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
             />
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setReportTarget(null)} className="flex-1">Anuluj</Button>

@@ -17,7 +17,7 @@ type BookingWithField = Booking & { fieldName: string };
 type Tab = 'rezerwacje' | 'ustawienia';
 
 const inputCls =
-  'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
+  'border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -27,7 +27,7 @@ function StatusBadge({ status }: { status: Booking['status'] }) {
   const map: Record<Booking['status'], { label: string; cls: string }> = {
     pending: { label: 'Oczekujące', cls: 'bg-amber-100 text-amber-700' },
     confirmed: { label: 'Potwierdzone', cls: 'bg-green-100 text-green-700' },
-    cancelled: { label: 'Anulowane', cls: 'bg-gray-100 text-gray-500' },
+    cancelled: { label: 'Anulowane', cls: 'bg-slate-100 text-slate-500' },
   };
   const { label, cls } = map[status];
   return (
@@ -141,13 +141,13 @@ export default function AdminFieldPage() {
   // --- Loading skeleton ---
   if (authLoading || pageLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse mb-6" />
+          <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse mb-6" />
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="h-16 bg-slate-100 rounded-2xl animate-pulse" />
             ))}
           </div>
         </main>
@@ -162,9 +162,9 @@ export default function AdminFieldPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 text-center">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Musisz być zalogowany</p>
-            <p className="text-sm text-gray-500 mt-1">Zaloguj się, aby uzyskać dostęp do panelu.</p>
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Musisz być zalogowany</p>
+            <p className="text-sm text-slate-500 mt-1">Zaloguj się, aby uzyskać dostęp do panelu.</p>
             <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
             </Link>
@@ -181,9 +181,9 @@ export default function AdminFieldPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 text-center">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
+            <p className="text-sm text-slate-500 mt-1">
               Ta strona jest dostępna tylko dla menedżera obiektu lub administratorów.
             </p>
             <Link href="/obiekt" className="text-primary-600 text-sm underline mt-4 inline-block">
@@ -196,27 +196,27 @@ export default function AdminFieldPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         {/* Header row */}
         <div className="flex items-center gap-3 mb-6">
           <Link
             href="/obiekt"
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-slate-900">
               {field?.name ?? 'Panel rezerwacji'}
             </h1>
-            <p className="text-sm text-gray-500">Panel zarządzania obiektem</p>
+            <p className="text-sm text-slate-500">Panel zarządzania obiektem</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6">
           {(['rezerwacje', 'ustawienia'] as Tab[]).map((t) => (
             <button
               key={t}
@@ -224,8 +224,8 @@ export default function AdminFieldPage() {
               className={[
                 'flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors',
                 tab === t
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700',
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700',
               ].join(' ')}
             >
               {t === 'rezerwacje' ? 'Rezerwacje' : 'Ustawienia'}
@@ -237,8 +237,8 @@ export default function AdminFieldPage() {
         {tab === 'rezerwacje' && (
           <div className="space-y-5">
             {/* Date picker */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Wybierz datę
               </label>
               <input
@@ -253,16 +253,16 @@ export default function AdminFieldPage() {
             {bookingsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+                  <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : bookingsForDate.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-base font-medium text-gray-600">Brak rezerwacji na ten dzień</p>
+              <div className="text-center py-16 text-slate-400">
+                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                <p className="text-base font-medium text-slate-600">Brak rezerwacji na ten dzień</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 {bookingsForDate.map((booking, idx) => {
                   const isBusy = busy.has(booking.id);
                   return (
@@ -270,26 +270,26 @@ export default function AdminFieldPage() {
                       key={booking.id}
                       className={[
                         'px-5 py-4',
-                        idx < bookingsForDate.length - 1 ? 'border-b border-gray-100' : '',
+                        idx < bookingsForDate.length - 1 ? 'border-b border-slate-100' : '',
                       ].join(' ')}
                     >
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="min-w-0 flex-1">
                           {/* Time + status */}
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-semibold text-gray-900 text-sm">
+                            <span className="font-semibold text-slate-900 text-sm">
                               {booking.startTime.slice(0, 5)}–{booking.endTime.slice(0, 5)}
                             </span>
                             <StatusBadge status={booking.status} />
                           </div>
                           {/* Player name */}
-                          <p className="text-sm font-medium text-gray-800">{booking.userName}</p>
+                          <p className="text-sm font-medium text-slate-800">{booking.userName}</p>
                           {/* Phone */}
                           {booking.phone && (
-                            <p className="text-xs text-gray-500 mt-0.5">{booking.phone}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{booking.phone}</p>
                           )}
                           {/* Players count + sport */}
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-xs text-slate-400 mt-0.5">
                             {booking.playersCount} os.
                             {booking.sport ? ` · ${booking.sport}` : ''}
                           </p>
@@ -333,8 +333,8 @@ export default function AdminFieldPage() {
         {/* === Tab: Ustawienia === */}
         {tab === 'ustawienia' && (
           <form onSubmit={handleSaveSettings} className="space-y-5">
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
-              <h2 className="text-base font-semibold text-gray-900">Typ rezerwacji</h2>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+              <h2 className="text-base font-semibold text-slate-900">Typ rezerwacji</h2>
 
               {/* Radio: none */}
               <label className="flex items-start gap-3 cursor-pointer">
@@ -344,11 +344,11 @@ export default function AdminFieldPage() {
                   value="none"
                   checked={bookingType === 'none'}
                   onChange={() => setBookingType('none')}
-                  className="mt-1 w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                  className="mt-1 w-4 h-4 text-primary-600 border-slate-300 focus:ring-primary-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Brak rezerwacji</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-sm font-medium text-slate-800">Brak rezerwacji</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Boisko nie przyjmuje rezerwacji przez aplikację
                   </p>
                 </div>
@@ -362,13 +362,13 @@ export default function AdminFieldPage() {
                   value="internal"
                   checked={bookingType === 'internal'}
                   onChange={() => setBookingType('internal')}
-                  className="mt-1 w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                  className="mt-1 w-4 h-4 text-primary-600 border-slate-300 focus:ring-primary-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-slate-800">
                     Rezerwacja online (przez aplikację)
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Gracze mogą rezerwować bezpośrednio — wybierają datę i slot czasowy
                   </p>
                 </div>
@@ -382,13 +382,13 @@ export default function AdminFieldPage() {
                   value="external"
                   checked={bookingType === 'external'}
                   onChange={() => setBookingType('external')}
-                  className="mt-1 w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                  className="mt-1 w-4 h-4 text-primary-600 border-slate-300 focus:ring-primary-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-slate-800">
                     Rezerwacja zewnętrzna (link)
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Gracze są przekierowani na zewnętrzny system rezerwacji
                   </p>
                 </div>
@@ -397,7 +397,7 @@ export default function AdminFieldPage() {
               {/* bookingUrl input — shown only for external */}
               {bookingType === 'external' && (
                 <div className="pl-7">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     URL systemu rezerwacji
                   </label>
                   <input
@@ -413,19 +413,19 @@ export default function AdminFieldPage() {
             </div>
 
             {/* booking_enabled override */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Widoczność rezerwacji</h2>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              <h2 className="text-base font-semibold text-slate-900 mb-3">Widoczność rezerwacji</h2>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={bookingEnabled}
                   onChange={(e) => setBookingEnabled(e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="mt-1 w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">Pokaż rezerwację dla tego boiska</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Gdy włączone, opcja rezerwacji jest widoczna dla graczy nawet gdy globalna flaga <code className="bg-gray-100 px-1 rounded">FEATURE_RESERVATIONS</code> jest wyłączona.
+                  <p className="text-sm font-medium text-slate-800">Pokaż rezerwację dla tego boiska</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Gdy włączone, opcja rezerwacji jest widoczna dla graczy nawet gdy globalna flaga <code className="bg-slate-100 px-1 rounded">FEATURE_RESERVATIONS</code> jest wyłączona.
                   </p>
                 </div>
               </label>

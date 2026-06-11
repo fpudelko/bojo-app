@@ -117,7 +117,7 @@ export default function PublicPlayerPage() {
         ) : (
           <>
             {/* Profile card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
               <div className="flex items-center gap-4">
                 {profile.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -152,8 +152,8 @@ export default function PublicPlayerPage() {
 
             {/* Stats */}
             {stats && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
                   <Trophy className="w-4 h-4" /> Statystyki
                 </h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -183,9 +183,9 @@ export default function PublicPlayerPage() {
                 </div>
 
                 {attendanceRate !== null && stats.eventsJoined >= 3 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="mt-4 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between text-sm mb-1.5">
-                      <span className="text-gray-500">Frekwencja</span>
+                      <span className="text-slate-500">Frekwencja</span>
                       <span className={[
                         'font-semibold',
                         attendanceRate >= 80 ? 'text-green-700' : attendanceRate >= 60 ? 'text-amber-600' : 'text-red-500',
@@ -193,7 +193,7 @@ export default function PublicPlayerPage() {
                         {attendanceRate}%
                       </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className={[
                           'h-full rounded-full transition-all',
@@ -206,8 +206,8 @@ export default function PublicPlayerPage() {
                 )}
 
                 {stats.eventsOrganized > 0 && (
-                  <p className="text-sm text-gray-500 mt-3">
-                    Zorganizował <span className="font-semibold text-gray-800">{stats.eventsOrganized}</span>{' '}
+                  <p className="text-sm text-slate-500 mt-3">
+                    Zorganizował <span className="font-semibold text-slate-800">{stats.eventsOrganized}</span>{' '}
                     {stats.eventsOrganized === 1 ? 'mecz' : stats.eventsOrganized < 5 ? 'mecze' : 'meczów'}
                   </p>
                 )}
@@ -221,7 +221,7 @@ export default function PublicPlayerPage() {
 }
 
 function StatBox({
-  icon, label, value, color = 'text-gray-800',
+  icon, label, value, color = 'text-slate-800',
 }: {
   icon: React.ReactNode;
   label: string;
@@ -229,10 +229,10 @@ function StatBox({
   color?: string;
 }) {
   return (
-    <div className="rounded-xl bg-gray-50 p-3">
-      <div className={`flex items-center gap-1.5 text-gray-400 text-xs mb-1 ${color}`}>
+    <div className="rounded-xl bg-slate-50 p-3">
+      <div className={`flex items-center gap-1.5 text-slate-400 text-xs mb-1 ${color}`}>
         {icon}
-        <span className="text-gray-500">{label}</span>
+        <span className="text-slate-500">{label}</span>
       </div>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
     </div>

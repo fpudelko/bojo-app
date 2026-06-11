@@ -31,14 +31,14 @@ export default function VenueDashboardPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse mb-2" />
-          <div className="h-4 w-40 bg-gray-100 rounded animate-pulse mb-8" />
+          <div className="h-8 w-56 bg-slate-200 rounded-lg animate-pulse mb-2" />
+          <div className="h-4 w-40 bg-slate-100 rounded animate-pulse mb-8" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-36 bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="h-36 bg-slate-100 rounded-2xl animate-pulse" />
             ))}
           </div>
         </main>
@@ -52,8 +52,8 @@ export default function VenueDashboardPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-gray-700">Zaloguj się, aby zarządzać obiektem.</p>
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <p className="font-medium text-slate-700">Zaloguj się, aby zarządzać obiektem.</p>
           </div>
         </main>
       </div>
@@ -66,8 +66,8 @@ export default function VenueDashboardPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-gray-700">Nie znaleziono obiektu.</p>
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <p className="font-medium text-slate-700">Nie znaleziono obiektu.</p>
             <Link href="/obiekt" className="text-primary-600 text-sm underline mt-3 inline-block">
               Wróć do listy
             </Link>
@@ -83,9 +83,9 @@ export default function VenueDashboardPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
-            <p className="text-sm text-gray-500 mt-1">Nie jesteś menedżerem tego obiektu.</p>
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
+            <p className="text-sm text-slate-500 mt-1">Nie jesteś menedżerem tego obiektu.</p>
             <Link href="/obiekt" className="text-primary-600 text-sm underline mt-3 inline-block">
               Wróć do listy
             </Link>
@@ -117,19 +117,19 @@ export default function VenueDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link
             href="/obiekt"
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 truncate">{field.name}</h1>
-            <p className="text-sm text-gray-500 flex items-center gap-1 truncate">
+            <h1 className="text-2xl font-bold text-slate-900 truncate">{field.name}</h1>
+            <p className="text-sm text-slate-500 flex items-center gap-1 truncate">
               <MapPin className="w-3.5 h-3.5 shrink-0" /> {field.address}
             </p>
           </div>
@@ -140,7 +140,7 @@ export default function VenueDashboardPage() {
             {field.sport.map((s) => (
               <span
                 key={s}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-medium"
               >
                 {sportEmoji(s)} {s}
               </span>
@@ -168,8 +168,8 @@ export default function VenueDashboardPage() {
                   <div className="p-2.5 bg-primary-50 rounded-xl w-fit mb-4 group-hover:bg-primary-100 transition-colors">
                     <Icon className="w-5 h-5 text-primary-600" />
                   </div>
-                  <p className="font-semibold text-gray-900 mb-1">{label}</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                  <p className="font-semibold text-slate-900 mb-1">{label}</p>
+                  <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
                 </div>
               </Card>
             </Link>

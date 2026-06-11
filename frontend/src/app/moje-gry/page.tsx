@@ -14,13 +14,15 @@ export default function MojeGryPage() {
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<{ event: EventItem; isOrganizer: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming');
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    setLoadError(false);
     getMyParticipatedEvents(user.id)
       .then(setItems)
-      .catch(console.error)
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -103,6 +105,12 @@ export default function MojeGryPage() {
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-[76px] bg-white rounded-2xl border border-slate-200/80 animate-pulse" />
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+            <span className="text-4xl">⚠️</span>
+            <p className="text-base font-semibold text-ink">Nie udało się załadować gier</p>
+            <button onClick={() => { setLoading(true); setLoadError(false); getMyParticipatedEvents(user!.id).then(setItems).catch(() => setLoadError(true)).finally(() => setLoading(false)); }} className="text-sm font-semibold text-primary-700 hover:text-primary-800">Spróbuj ponownie</button>
           </div>
         ) : tab === 'upcoming' ? (
           upcoming.length === 0 ? (

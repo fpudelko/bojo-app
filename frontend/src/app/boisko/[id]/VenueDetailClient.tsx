@@ -153,8 +153,8 @@ export default function VenueDetailClient({
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-          <div className="h-60 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="h-60 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
         </main>
       </div>
     );
@@ -164,10 +164,10 @@ export default function VenueDetailClient({
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <MapPin className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Nie znaleziono boiska</p>
+            <MapPin className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Nie znaleziono boiska</p>
             <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
             </Link>
@@ -181,19 +181,19 @@ export default function VenueDetailClient({
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
         <div className="flex items-center gap-3">
-          <Link href="/mapa" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+          <Link href="/mapa" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-xl font-bold text-gray-900 truncate">{field.name}</h1>
+          <h1 className="text-xl font-bold text-slate-900 truncate">{field.name}</h1>
         </div>
 
         {/* Field info card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           {thumbnail && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -206,11 +206,11 @@ export default function VenueDetailClient({
           <div className="p-6 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-gray-900">{field.name}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{field.name}</h2>
                 {field.district && (
                   <p className="text-xs font-medium text-primary-700 mt-0.5">{field.district}</p>
                 )}
-                <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1.5">
+                <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   {field.address}
                 </p>
@@ -244,38 +244,38 @@ export default function VenueDetailClient({
                   </span>
               ))}
               {field.surface && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
                   {surfaceLabel(field.surface)}
                 </span>
               )}
             </div>
 
             {showBookingForField(field) && field.bookingType === 'none' && (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
                 Ten obiekt nie przyjmuje rezerwacji online.
               </p>
             )}
 
             {/* Operator / manager info */}
             {(field.operator || field.operatorType || field.description || field.openingHours) && (
-              <div className="border-t border-gray-100 pt-4 space-y-2">
+              <div className="border-t border-slate-100 pt-4 space-y-2">
                 {field.operator && (
-                  <p className="flex items-center gap-2 text-sm text-gray-700">
-                    <Building2 className="w-4 h-4 shrink-0 text-gray-400" />
+                  <p className="flex items-center gap-2 text-sm text-slate-700">
+                    <Building2 className="w-4 h-4 shrink-0 text-slate-400" />
                     <span className="font-medium">{field.operator}</span>
                     {field.operatorType && (
-                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{field.operatorType}</span>
+                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{field.operatorType}</span>
                     )}
                   </p>
                 )}
                 {field.openingHours && (
-                  <p className="flex items-center gap-2 text-sm text-gray-600">
-                    <ClockIcon className="w-4 h-4 shrink-0 text-gray-400" />
+                  <p className="flex items-center gap-2 text-sm text-slate-600">
+                    <ClockIcon className="w-4 h-4 shrink-0 text-slate-400" />
                     {field.openingHours}
                   </p>
                 )}
                 {field.description && (
-                  <p className="text-sm text-gray-500 leading-relaxed">{field.description}</p>
+                  <p className="text-sm text-slate-500 leading-relaxed">{field.description}</p>
                 )}
               </div>
             )}
@@ -288,8 +288,8 @@ export default function VenueDetailClient({
                 {field.fee === true && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">💳 Płatne</span>}
                 {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">👕 Szatnia</span>}
                 {field.hasShower && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">🚿 Prysznic</span>}
-                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-200">🚻 Toaleta</span>}
-                {field.capacity && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-200">👥 maks. {field.capacity} os.</span>}
+                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">🚻 Toaleta</span>}
+                {field.capacity && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">👥 maks. {field.capacity} os.</span>}
               </div>
             )}
 
@@ -297,7 +297,7 @@ export default function VenueDetailClient({
               {field.phone && (
                 <a
                   href={`tel:${field.phone}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-primary-600 transition-colors"
                 >
                   <Phone className="w-4 h-4" />
                   {field.phone}
@@ -306,7 +306,7 @@ export default function VenueDetailClient({
               {field.email && (
                 <a
                   href={`mailto:${field.email}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-primary-600 transition-colors"
                 >
                   <Mail className="w-4 h-4" />
                   {field.email}
@@ -317,7 +317,7 @@ export default function VenueDetailClient({
                   href={externalUrl(field.website)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-primary-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-primary-600 transition-colors"
                 >
                   <Globe className="w-4 h-4" />
                   Strona www
@@ -338,12 +338,12 @@ export default function VenueDetailClient({
 
         {/* Booking section — internal */}
         {showBookingForField(field) && field.bookingType === 'internal' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-            <h2 className="text-base font-semibold text-gray-900">Zarezerwuj termin</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
+            <h2 className="text-base font-semibold text-slate-900">Zarezerwuj termin</h2>
 
             {!user && !authLoading && (
               <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-4">Zaloguj się, aby zarezerwować slot.</p>
+                <p className="text-sm text-slate-500 mb-4">Zaloguj się, aby zarezerwować slot.</p>
                 <Button variant="outline" onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>
                   Zaloguj się, aby zarezerwować
                 </Button>
@@ -353,7 +353,7 @@ export default function VenueDetailClient({
             {user && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Wybierz datę
                   </label>
                   <input
@@ -361,23 +361,23 @@ export default function VenueDetailClient({
                     value={date}
                     min={todayIso()}
                     onChange={handleDateChange}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Dostępne sloty</p>
+                  <p className="text-sm font-medium text-slate-700 mb-2">Dostępne sloty</p>
 
                   {slotsLoading && (
                     <div className="flex flex-wrap gap-2">
                       {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-9 w-36 rounded-full bg-gray-100 animate-pulse" />
+                        <div key={i} className="h-9 w-36 rounded-full bg-slate-100 animate-pulse" />
                       ))}
                     </div>
                   )}
 
                   {!slotsLoading && slotsLoaded && slots.length === 0 && (
-                    <p className="text-sm text-gray-500 py-2">
+                    <p className="text-sm text-slate-500 py-2">
                       Brak slotów dla wybranego dnia — obiekt może być nieczynny.
                     </p>
                   )}
@@ -394,7 +394,7 @@ export default function VenueDetailClient({
                             <button
                               key={slot.startTime}
                               disabled
-                              className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
+                              className="px-3 py-1.5 rounded-full text-sm font-medium bg-slate-100 text-slate-400 cursor-not-allowed"
                             >
                               {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}&nbsp;&nbsp;ZAJĘTE
                             </button>
@@ -427,25 +427,25 @@ export default function VenueDetailClient({
                 )}
 
                 {selectedSlot && (
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-gray-900">Potwierdzenie rezerwacji</p>
-                    <div className="text-sm text-gray-700 space-y-1">
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-slate-900">Potwierdzenie rezerwacji</p>
+                    <div className="text-sm text-slate-700 space-y-1">
                       <p>
-                        <span className="text-gray-500">Data:</span>{' '}
+                        <span className="text-slate-500">Data:</span>{' '}
                         <span className="capitalize">{formatDatePl(date)}</span>
                       </p>
                       <p>
-                        <span className="text-gray-500">Godzina:</span>{' '}
+                        <span className="text-slate-500">Godzina:</span>{' '}
                         {selectedSlot.startTime.slice(0, 5)}–{selectedSlot.endTime.slice(0, 5)}
                       </p>
                       <p>
-                        <span className="text-gray-500">Cena:</span>{' '}
+                        <span className="text-slate-500">Cena:</span>{' '}
                         {(selectedSlot.priceGrosze / 100).toFixed(0)} zł
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Liczba osób
                       </label>
                       <input
@@ -454,33 +454,33 @@ export default function VenueDetailClient({
                         min={1}
                         max={20}
                         onChange={(e) => setPlayersCount(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
-                        className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Twój telefon <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Twój telefon <span className="text-slate-400 font-normal">(opcjonalnie)</span>
                       </label>
                       <input
                         type="text"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="+48 500 000 000"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Uwagi <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Uwagi <span className="text-slate-400 font-normal">(opcjonalnie)</span>
                       </label>
                       <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Uwagi dla zarządcy…"
                         rows={2}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                       />
                     </div>
 
@@ -504,13 +504,13 @@ export default function VenueDetailClient({
 
         {/* Booking section — external */}
         {showBookingForField(field) && field.bookingType === 'external' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">Rezerwacja zewnętrzna</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-900">Rezerwacja zewnętrzna</h2>
             {(field.bookingUrl || outreach?.bookingUrl) ? (
               <>
                 {outreach?.bookingProvider && !field.bookingUrl && (
-                  <p className="text-sm text-gray-500">
-                    Przez: <span className="font-medium text-gray-700">{outreach.bookingProvider}</span>
+                  <p className="text-sm text-slate-500">
+                    Przez: <span className="font-medium text-slate-700">{outreach.bookingProvider}</span>
                   </p>
                 )}
                 <a
@@ -523,7 +523,7 @@ export default function VenueDetailClient({
                 </a>
               </>
             ) : (
-              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
                 📞 Kontakt telefoniczny
               </p>
             )}
@@ -532,8 +532,8 @@ export default function VenueDetailClient({
 
         {/* Booking section — none */}
         {showBookingForField(field) && field.bookingType === 'none' && !outreach?.bookingUrl && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
               Brak rezerwacji online dla tego obiektu.
             </p>
           </div>
@@ -541,11 +541,11 @@ export default function VenueDetailClient({
 
         {/* AI-found booking URL — shown when outreach has a booking URL and we're not already showing internal booking */}
         {outreach?.bookingUrl && field.bookingType !== 'internal' && !(showBookingForField(field) && field.bookingType === 'external' && field.bookingUrl) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
-            <h2 className="text-base font-semibold text-gray-900">Rezerwacja online</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+            <h2 className="text-base font-semibold text-slate-900">Rezerwacja online</h2>
             {outreach.bookingProvider && (
-              <p className="text-sm text-gray-500">
-                Przez: <span className="font-medium text-gray-700">{outreach.bookingProvider}</span>
+              <p className="text-sm text-slate-500">
+                Przez: <span className="font-medium text-slate-700">{outreach.bookingProvider}</span>
               </p>
             )}
             <a
@@ -561,21 +561,21 @@ export default function VenueDetailClient({
 
         {/* AI summary — subtle info, only when meaningful */}
         {outreach?.aiSummary && outreach.aiSummary.length > 40 && (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Opis AI</p>
-            <p className="text-sm text-gray-600 leading-relaxed">{outreach.aiSummary}</p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Opis AI</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{outreach.aiSummary}</p>
           </div>
         )}
 
         {/* Upcoming events */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Nadchodzące mecze
             </h2>
           </div>
           {upcomingEvents.length > 0 ? (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {upcomingEvents.map((ev) => {
                 let dateStr = ev.date;
                 try { dateStr = format(parseISO(ev.date), 'd MMM yyyy', { locale: pl }); } catch {}
@@ -585,8 +585,8 @@ export default function VenueDetailClient({
                     <Link href={`/wydarzenia/${ev.id}`} className="flex items-center justify-between gap-3 hover:opacity-80 transition-opacity">
                       <div className="flex items-center gap-3 text-sm">
                         <div className="flex flex-col">
-                          <span className="font-medium text-gray-800 capitalize">{ev.sport}</span>
-                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="font-medium text-slate-800 capitalize">{ev.sport}</span>
+                          <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Clock className="w-3 h-3" /> {dateStr} · {ev.time}
                           </span>
                         </div>
@@ -600,10 +600,10 @@ export default function VenueDetailClient({
               })}
             </ul>
           ) : (
-            <p className="text-sm text-gray-400">Brak nadchodzących gier na tym boisku.</p>
+            <p className="text-sm text-slate-400">Brak nadchodzących gier na tym boisku.</p>
           )}
 
-          <div className="mt-5 pt-4 border-t border-gray-100">
+          <div className="mt-5 pt-4 border-t border-slate-100">
             <Link href={`/wydarzenia/nowe?fieldId=${field.id}`}>
               <Button className="w-full">Stwórz mecz tutaj</Button>
             </Link>

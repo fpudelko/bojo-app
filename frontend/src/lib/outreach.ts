@@ -67,7 +67,7 @@ export type OutreachPatch = Partial<
 // ---------------------------------------------------------------------------
 
 export const STATUS_META: Record<OutreachStatus, { label: string; cls: string }> = {
-  nowy:               { label: 'Nowy',               cls: 'bg-gray-100 text-gray-600' },
+  nowy:               { label: 'Nowy',               cls: 'bg-slate-100 text-slate-600' },
   do_kontaktu:        { label: 'Do kontaktu',        cls: 'bg-blue-100 text-blue-700' },
   w_toku:             { label: 'W toku',             cls: 'bg-indigo-100 text-indigo-700' },
   czeka_na_odpowiedz: { label: 'Czeka na odpowiedź', cls: 'bg-amber-100 text-amber-700' },
@@ -75,7 +75,7 @@ export const STATUS_META: Record<OutreachStatus, { label: string; cls: string }>
   zainteresowany:     { label: 'Zainteresowany',     cls: 'bg-emerald-100 text-emerald-700' },
   umowiony:           { label: 'Umówiony ✓',         cls: 'bg-green-600 text-white' },
   odrzucony:          { label: 'Odrzucony',          cls: 'bg-rose-100 text-rose-700' },
-  brak_kontaktu:      { label: 'Brak kontaktu',      cls: 'bg-gray-200 text-gray-500' },
+  brak_kontaktu:      { label: 'Brak kontaktu',      cls: 'bg-slate-200 text-slate-500' },
 };
 
 export const STATUS_ORDER: OutreachStatus[] = [

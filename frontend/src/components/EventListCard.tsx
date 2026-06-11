@@ -3,9 +3,13 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Navigation } from 'lucide-react';
+import { Clock, MapPin, Navigation, Check, Crown } from 'lucide-react';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import { eventLocation } from '@/lib/utils';
+
+/** How the current user relates to this event — drives the CTA. */
+export type EventRelation = 'organizer' | 'going' | 'reserve';
 
 const SPORT_SHORT: Record<string, string> = {
   'piłka nożna': 'Piłka',
@@ -44,7 +48,7 @@ function DistanceBadge({ km }: { km: number }) {
   );
 }
 
-export function EventListCard({ event, distance }: { event: EventItem; distance?: number }) {
+export function EventListCard({ event, distance, relation }: { event: EventItem; distance?: number; relation?: EventRelation }) {
   let timeLabel = '';
   let dayLabel = '';
   try {
@@ -65,9 +69,7 @@ export function EventListCard({ event, distance }: { event: EventItem; distance?
   const fillColor = isFull ? 'bg-red-400' : fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600';
   const until = timeUntil(event.date, event.time ?? undefined);
 
-  const location = event.district
-    ? `${event.district}, Poznań`
-    : (event.fieldName && !/^\d+$/.test(event.fieldName.trim()) ? event.fieldName : null);
+  const location = eventLocation(event).primary;
 
   const costGrosze = event.costGrosze ?? 0;
   const priceLabel = costGrosze > 0
@@ -135,16 +137,30 @@ export function EventListCard({ event, distance }: { event: EventItem; distance?
             )}
             {max === 0 && distance !== undefined && <DistanceBadge km={distance} />}
           </div>
-          <span className={[
-            'shrink-0 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
-            isFull
-              ? 'bg-slate-100 text-slate-400'
-              : fillPct >= 80
-                ? 'bg-amber-500 text-white'
-                : 'bg-primary-700 text-white',
-          ].join(' ')}>
-            {isFull ? 'Pełne' : 'Dołącz'}
-          </span>
+          {relation === 'organizer' ? (
+            <span className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap bg-primary-50 text-primary-700 border border-primary-100">
+              <Crown className="w-3.5 h-3.5" /> Twój mecz
+            </span>
+          ) : relation === 'going' ? (
+            <span className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap bg-green-50 text-green-700 border border-green-100">
+              <Check className="w-3.5 h-3.5" /> Zapisany
+            </span>
+          ) : relation === 'reserve' ? (
+            <span className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-700 border border-amber-100">
+              Rezerwa
+            </span>
+          ) : (
+            <span className={[
+              'shrink-0 px-4 py-1.5 rounded-xl text-sm font-bold whitespace-nowrap',
+              isFull
+                ? 'bg-slate-100 text-slate-400'
+                : fillPct >= 80
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-primary-700 text-white',
+            ].join(' ')}>
+              {isFull ? 'Pełne' : 'Dołącz'}
+            </span>
+          )}
         </div>
       </div>
     </Link>

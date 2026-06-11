@@ -19,9 +19,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   accent:
     'bg-accent-500 text-primary-950 hover:bg-accent-400 focus:ring-accent-500 border border-transparent shadow-sm font-semibold',
   outline:
-    'bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-400 border border-gray-300',
+    'bg-transparent text-slate-700 hover:bg-slate-50 focus:ring-slate-400 border border-slate-300',
   ghost:
-    'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-400 border border-transparent',
+    'bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-400 border border-transparent',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -13,9 +13,9 @@ export default function EditRecurringEventPage() {
       <Header />
       <main className="flex-1 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <Wrench className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-          <h1 className="text-xl font-bold text-gray-900">Edycja szablonu</h1>
-          <p className="text-gray-500 text-sm mt-2 mb-6">
+          <Wrench className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+          <h1 className="text-xl font-bold text-slate-900">Edycja szablonu</h1>
+          <p className="text-slate-500 text-sm mt-2 mb-6">
             Ta funkcja jest jeszcze w przygotowaniu.
           </p>
           <Link

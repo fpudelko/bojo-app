@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Trophy, X } from 'lucide-react';
+import { SHOW_CUP } from '@/lib/features';
 
-const SHOW_CUP = false;
 const STORAGE_KEY = 'bojo_cup_announce_dismissed_v1';
 
 export default function AnnouncementBar() {

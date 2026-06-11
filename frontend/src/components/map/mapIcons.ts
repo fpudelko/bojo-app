@@ -25,7 +25,7 @@ export function primaryColor(sports: string[]): string {
 // Teardrop pin: solid sport-color background, white emoji — crisper than white bg + border
 export function fieldPin(field: Field, selected = false): L.DivIcon {
   const { color } = selected ? { color: '#1e40af' } : field.available ? primaryMeta(field.sport) : { color: '#9ca3af' };
-  const { emoji } = field.available ? primaryMeta(field.sport) : { emoji: '🏅' };
+  const { emoji } = field.available ? primaryMeta(field.sport) : { emoji: '🏟️' };
   const d = selected ? 36 : 30;
   const fs = selected ? 15 : 13;
   const tw = 5;

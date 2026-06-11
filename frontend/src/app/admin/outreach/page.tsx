@@ -24,7 +24,7 @@ import {
 } from '@/lib/fieldFilters';
 
 const inputCls =
-  'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
+  'border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
 
 function defaultOutreach(fieldId: string): Outreach {
   return { fieldId, status: 'nowy', bookingSystem: 'nieznany', priority: 0 };
@@ -63,7 +63,7 @@ function VisibilityControl({ value, onChange, busy, compact }: {
   return (
     <div
       className={[
-        'inline-flex items-center rounded-lg border border-gray-200 overflow-hidden',
+        'inline-flex items-center rounded-lg border border-slate-200 overflow-hidden',
         busy ? 'opacity-50 pointer-events-none' : '',
       ].join(' ')}
       onClick={(e) => e.stopPropagation()}
@@ -76,7 +76,7 @@ function VisibilityControl({ value, onChange, busy, compact }: {
           className={[
             'inline-flex items-center gap-1 transition-colors',
             compact ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs',
-            value === v ? `${cls} font-semibold` : 'bg-white text-gray-400 hover:text-gray-600',
+            value === v ? `${cls} font-semibold` : 'bg-white text-slate-400 hover:text-slate-600',
           ].join(' ')}
         >
           <Icon className="w-3 h-3 shrink-0" />
@@ -314,12 +314,12 @@ export default function OutreachPanel() {
   // ---- Guards ----
   if (authLoading || adminState === 'checking') {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse mb-6" />
+          <div className="h-8 w-56 bg-slate-200 rounded-lg animate-pulse mb-6" />
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+            {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
           </div>
         </main>
       </div>
@@ -332,9 +332,9 @@ export default function OutreachPanel() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 text-center">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
-            <p className="text-sm text-gray-500 mt-1">Panel kontaktu z obiektami jest dostępny tylko dla administratorów.</p>
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
+            <p className="text-sm text-slate-500 mt-1">Panel kontaktu z obiektami jest dostępny tylko dla administratorów.</p>
             <Link href="/" className="text-primary-600 text-sm underline mt-4 inline-block">Wróć na stronę główną</Link>
           </div>
         </main>
@@ -343,14 +343,14 @@ export default function OutreachPanel() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-8">
         {/* Title row */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
             <h1 className="text-2xl font-bold text-ink">Kontakt z obiektami</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-slate-500 mt-0.5">
               {loading ? 'Ładowanie…' : `${fields.length} obiektów łącznie`}
             </p>
           </div>
@@ -378,9 +378,9 @@ export default function OutreachPanel() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-5 flex flex-wrap items-center gap-3">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-5 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -409,8 +409,8 @@ export default function OutreachPanel() {
             <option value="organizer_only">Tylko organizator</option>
             <option value="hidden">Ukryte z mapy</option>
           </select>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-            <input type="checkbox" checked={fHideDone} onChange={(e) => setFHideDone(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          <label className="inline-flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+            <input type="checkbox" checked={fHideDone} onChange={(e) => setFHideDone(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
             Ukryj zamknięte
           </label>
           <label className="inline-flex items-center gap-2 text-sm cursor-pointer select-none text-amber-700">
@@ -423,14 +423,14 @@ export default function OutreachPanel() {
           </label>
           {/* Count badge */}
           {!loading && (
-            <span className={`ml-auto text-sm font-medium tabular-nums px-3 py-1.5 rounded-lg ${filtersActive ? 'bg-primary-50 text-primary-700' : 'text-gray-500'}`}>
+            <span className={`ml-auto text-sm font-medium tabular-nums px-3 py-1.5 rounded-lg ${filtersActive ? 'bg-primary-50 text-primary-700' : 'text-slate-500'}`}>
               {rows.length}{filtersActive ? ` / ${fields.length}` : ''} obiektów
             </span>
           )}
 
           {/* Multi-select: which data the venue has (AND) */}
-          <div className="basis-full flex flex-wrap items-center gap-1.5 pt-1 border-t border-gray-100">
-            <span className="text-xs text-gray-400 mr-1">Ma dane:</span>
+          <div className="basis-full flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
+            <span className="text-xs text-slate-400 mr-1">Ma dane:</span>
             {OUTREACH_DATA_FILTERS.map(({ key, label }) => {
               const active = fData.includes(key);
               return (
@@ -442,7 +442,7 @@ export default function OutreachPanel() {
                     'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
                     active
                       ? 'bg-primary-600 text-white border-primary-600'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
                   ].join(' ')}
                 >
                   {label}
@@ -450,7 +450,7 @@ export default function OutreachPanel() {
               );
             })}
             {fData.length > 0 && (
-              <button onClick={() => setFData([])} className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">
+              <button onClick={() => setFData([])} className="text-xs text-slate-400 hover:text-slate-600 underline ml-1">
                 Wyczyść
               </button>
             )}
@@ -460,16 +460,16 @@ export default function OutreachPanel() {
         {/* Table */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+            {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
           </div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-slate-500">
             <p className="font-medium">Brak obiektów spełniających filtry</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
             <table className="w-full text-sm min-w-[1000px]">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
                 <tr>
                   <th className="text-left font-medium px-4 py-3">Obiekt</th>
                   <th className="text-left font-medium px-3 py-3">Mapa</th>
@@ -480,7 +480,7 @@ export default function OutreachPanel() {
                   <th className="px-3 py-3 w-8"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {rows.map(({ field: f, o }) => (
                   <OutreachRow
                     key={f.id}
@@ -580,7 +580,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
 
   return (
     <>
-      <tr className="hover:bg-gray-50/60 transition-colors">
+      <tr className="hover:bg-slate-50/60 transition-colors">
         {/* Obiekt */}
         <td className="px-4 py-3 align-top cursor-pointer" onClick={onToggle}>
           <div className="flex items-start gap-2">
@@ -589,18 +589,18 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               title={o.priority ? 'Usuń flagę' : 'Oznacz jako ważny'}
               className="mt-0.5 shrink-0"
             >
-              <Star className={`w-4 h-4 ${o.priority ? 'fill-amber-400 text-amber-400' : 'text-gray-300 hover:text-amber-300'}`} />
+              <Star className={`w-4 h-4 ${o.priority ? 'fill-amber-400 text-amber-400' : 'text-slate-300 hover:text-amber-300'}`} />
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <p className="font-medium text-ink truncate">{f.name}</p>
               </div>
-              <p className="text-xs text-gray-500 truncate">
-                {f.district && <span className="font-medium text-gray-600">{f.district} · </span>}
+              <p className="text-xs text-slate-500 truncate">
+                {f.district && <span className="font-medium text-slate-600">{f.district} · </span>}
                 {f.address}
               </p>
               {f.sport.length > 0 && (
-                <p className="text-[11px] text-gray-400 truncate mt-0.5">{f.sport.join(' · ')}</p>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">{f.sport.join(' · ')}</p>
               )}
             </div>
           </div>
@@ -645,7 +645,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               </a>
             ) : null}
             {!f.phone && !f.email && !f.website && (
-              <span className="text-xs text-gray-300">brak kontaktu</span>
+              <span className="text-xs text-slate-300">brak kontaktu</span>
             )}
           </div>
         </td>
@@ -671,7 +671,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
             value={o.bookingSystem}
             onChange={(e) => onPatch({ bookingSystem: e.target.value as BookingSystem })}
             onClick={(e) => e.stopPropagation()}
-            className="border border-gray-300 rounded-lg px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+            className="border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
           >
             {BOOKING_SYSTEM_ORDER.map((b) => <option key={b} value={b}>{BOOKING_SYSTEM_META[b]}</option>)}
           </select>
@@ -681,14 +681,14 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
         <td className="px-3 py-3 align-top">
           {o.assignedName ? (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${isMyRow ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${isMyRow ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>
                 <UserCheck className="w-3.5 h-3.5" /> {o.assignedName}
               </span>
               {isMyRow ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); release(); }}
                   title="Zwolnij"
-                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  className="text-slate-400 hover:text-red-500 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -704,7 +704,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); claim(); }}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 border border-dashed border-gray-300"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-dashed border-slate-300"
             >
               Przejmij
             </button>
@@ -713,27 +713,27 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
 
         {/* Expand chevron */}
         <td className="px-3 py-3 align-top cursor-pointer" onClick={onToggle}>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </td>
       </tr>
 
       {/* Expanded editor */}
       {isExpanded && (
-        <tr className="bg-gray-50/80">
+        <tr className="bg-slate-50/80">
           <td colSpan={7} className="px-4 py-4">
 
             {/* Dane obiektu */}
-            <div className="mb-4 p-3 rounded-xl bg-white border border-gray-200">
+            <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
               {/* Header: name + address + link */}
-              <div className="flex items-start justify-between gap-3 mb-3 pb-2.5 border-b border-gray-100">
+              <div className="flex items-start justify-between gap-3 mb-3 pb-2.5 border-b border-slate-100">
                 <div>
                   <p className="font-semibold text-ink">{f.name}</p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                  <p className="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
                     {f.address}{f.postcode ? `, ${f.postcode}` : ''}
                   </p>
                   {f.sport.length > 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5">{f.sport.join(' · ')}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{f.sport.join(' · ')}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -759,32 +759,32 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               <div className="flex flex-col gap-2">
                 {f.phone && (
                   <a href={`tel:${f.phone}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
-                    <Phone className="w-4 h-4 text-gray-400 shrink-0" /> {f.phone}
+                    <Phone className="w-4 h-4 text-slate-400 shrink-0" /> {f.phone}
                   </a>
                 )}
                 {f.email && (
                   <a href={`mailto:${f.email}`} className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
-                    <Mail className="w-4 h-4 text-gray-400 shrink-0" /> {f.email}
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" /> {f.email}
                   </a>
                 )}
                 {f.website && (
                   <a href={f.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary-700 hover:underline break-all">
-                    <Globe className="w-4 h-4 text-gray-400 shrink-0" /> {f.website}
+                    <Globe className="w-4 h-4 text-slate-400 shrink-0" /> {f.website}
                   </a>
                 )}
                 {f.operator && (
-                  <span className="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <Building2 className="w-4 h-4 text-gray-400 shrink-0" /> {f.operator}
+                  <span className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" /> {f.operator}
                   </span>
                 )}
                 {f.openingHours && (
-                  <span className="inline-flex items-start gap-2 text-sm text-gray-700">
-                    <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <span className="inline-flex items-start gap-2 text-sm text-slate-700">
+                    <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                     <span className="whitespace-pre-wrap">{f.openingHours}</span>
                   </span>
                 )}
                 {f.description && (
-                  <p className="text-sm text-gray-600 border-t border-gray-100 pt-2 mt-1">{f.description}</p>
+                  <p className="text-sm text-slate-600 border-t border-slate-100 pt-2 mt-1">{f.description}</p>
                 )}
               </div>
               {suspicious && (
@@ -842,7 +842,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
             <div className="grid md:grid-cols-3 gap-4">
               {/* Notes */}
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Notatki — co odpowiedzieli</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Notatki — co odpowiedzieli</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -855,7 +855,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               {/* Side fields */}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Osoba kontaktowa</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Osoba kontaktowa</label>
                   <input
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
@@ -864,7 +864,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Oddzwonić / followup</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Oddzwonić / followup</label>
                   <input
                     type="date"
                     value={followup}
@@ -873,16 +873,16 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Ostatni kontakt</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Ostatni kontakt</label>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">{formatPl(o.lastContactedAt)}</span>
+                    <span className="text-sm text-slate-700">{formatPl(o.lastContactedAt)}</span>
                     <button onClick={markContactedToday} className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1">
                       <RotateCcw className="w-3 h-3" /> Ustaw dziś
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Przypisany do</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Przypisany do</label>
                   <div className="flex gap-1.5">
                     <input
                       value={assignName}
@@ -891,7 +891,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                       className={`${inputCls} flex-1 min-w-0`}
                     />
                     {assignName && assignName !== (o.assignedName ?? '') && (
-                      <button onClick={() => setAssignName(o.assignedName ?? '')} className="text-gray-400 hover:text-gray-600">
+                      <button onClick={() => setAssignName(o.assignedName ?? '')} className="text-slate-400 hover:text-slate-600">
                         <X className="w-4 h-4" />
                       </button>
                     )}
@@ -900,8 +900,8 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
               </div>
             </div>
 
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
-              <div className="text-xs text-gray-400">
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200">
+              <div className="text-xs text-slate-400">
                 {o.updatedByName ? <>Ostatnia zmiana: {o.updatedByName} · {formatPl(o.updatedAt)}</> : 'Brak historii zmian'}
               </div>
               <Button size="sm" variant="primary" onClick={saveDraft} isLoading={savingDraft} disabled={!dirty}>

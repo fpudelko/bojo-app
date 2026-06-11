@@ -60,7 +60,7 @@ export default function NotificationBell() {
       <button
         onClick={handleToggle}
         aria-label={`Powiadomienia${unread > 0 ? ` · ${unread} nowych` : ''}`}
-        className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
       >
         <Bell className="w-5 h-5" />
         {unread > 0 && (
@@ -83,7 +83,7 @@ export default function NotificationBell() {
             <div className="px-4 py-10 text-center">
               <Bell className="w-8 h-8 text-slate-200 mx-auto mb-2" />
               <p className="text-sm text-slate-400">Brak powiadomień</p>
-              <p className="text-xs text-slate-300 mt-1">Ustaw alert, żeby dostać powiadomienie gdy pojawi się gra.</p>
+              <p className="text-xs text-slate-300 mt-1">Damy znać, gdy coś się wydarzy w Twoich grach.</p>
             </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">

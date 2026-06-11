@@ -73,18 +73,18 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
   const Icon = SPORT_ICONS[entry.db] ?? Activity;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2 bg-primary-100 rounded-xl">
             <Icon className="w-5 h-5 text-primary-700" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 capitalize">
+          <h1 className="text-2xl font-bold text-slate-900 capitalize">
             Boiska do {entry.label} w Poznaniu
           </h1>
         </div>
-        <p className="text-gray-500 text-sm mb-8">
+        <p className="text-slate-500 text-sm mb-8">
           {fields.length > 0
             ? `Znalezionych obiektów: ${fields.length}`
             : 'Brak obiektów w bazie.'}
@@ -96,11 +96,11 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
               <li key={field.id}>
                 <Link
                   href={`/boisko/${slugify(field.name)}`}
-                  className="flex items-start gap-4 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-primary-200 transition-all"
+                  className="flex items-start gap-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-primary-200 transition-all"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{field.name}</p>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-1 truncate">
+                    <p className="font-semibold text-slate-900 truncate">{field.name}</p>
+                    <p className="text-sm text-slate-500 flex items-center gap-1 mt-1 truncate">
                       <MapPin className="w-3.5 h-3.5 shrink-0" /> {field.address}
                     </p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -114,7 +114,7 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
                       })}
                     </div>
                   </div>
-                  <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${field.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${field.available ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                     {field.available ? 'Dostępne' : 'Niedostępne'}
                   </span>
                 </Link>
