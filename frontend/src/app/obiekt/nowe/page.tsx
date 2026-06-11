@@ -28,7 +28,7 @@ const SURFACES = [
 ] as const;
 
 const inputCls =
-  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+  'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
 export default function NewVenuePage() {
   const router = useRouter();
@@ -52,13 +52,13 @@ export default function NewVenuePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse mb-6" />
+          <div className="h-8 w-48 bg-slate-200 rounded-lg animate-pulse mb-6" />
           <div className="space-y-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
             ))}
           </div>
         </main>
@@ -72,9 +72,9 @@ export default function NewVenuePage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">Zaloguj się</h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-xl font-bold text-slate-900">Zaloguj się</h1>
+            <p className="text-slate-500 text-sm mt-2 mb-6">
               Musisz być zalogowany, aby dodać obiekt.
             </p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
@@ -128,23 +128,23 @@ export default function NewVenuePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link
             href="/obiekt"
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Nowy obiekt</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Nowy obiekt</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Nazwa obiektu <span className="text-red-500">*</span>
               </label>
               <input
@@ -159,7 +159,7 @@ export default function NewVenuePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Adres <span className="text-red-500">*</span>
               </label>
               <input
@@ -173,12 +173,12 @@ export default function NewVenuePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Współrzędne geograficzne
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Szerokość (lat)</label>
+                  <label className="block text-xs text-slate-500 mb-1">Szerokość (lat)</label>
                   <input
                     type="number"
                     value={lat}
@@ -191,7 +191,7 @@ export default function NewVenuePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Długość (lng)</label>
+                  <label className="block text-xs text-slate-500 mb-1">Długość (lng)</label>
                   <input
                     type="number"
                     value={lng}
@@ -204,13 +204,13 @@ export default function NewVenuePage() {
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">
+              <p className="text-xs text-slate-400 mt-1.5">
                 Otwórz Google Maps, kliknij prawym przyciskiem na swoje boisko i skopiuj współrzędne.
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Sporty <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -220,16 +220,16 @@ export default function NewVenuePage() {
                       type="checkbox"
                       checked={sport.includes(s)}
                       onChange={() => toggleSport(s)}
-                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">{s}</span>
+                    <span className="text-sm text-slate-700">{s}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nawierzchnia</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nawierzchnia</label>
               <select
                 value={surface}
                 onChange={(e) => setSurface(e.target.value)}
@@ -246,17 +246,17 @@ export default function NewVenuePage() {
                 type="checkbox"
                 checked={isIndoor}
                 onChange={(e) => setIsIndoor(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
               />
-              <span className="text-sm font-medium text-gray-700">Kryty obiekt</span>
+              <span className="text-sm font-medium text-slate-700">Kryty obiekt</span>
             </label>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Telefon kontaktowy{' '}
-                <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                <span className="text-slate-400 font-normal">(opcjonalnie)</span>
               </label>
               <input
                 type="tel"
@@ -269,9 +269,9 @@ export default function NewVenuePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Strona www{' '}
-                <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+                <span className="text-slate-400 font-normal">(opcjonalnie)</span>
               </label>
               <input
                 type="url"

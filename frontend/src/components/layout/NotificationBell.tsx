@@ -60,7 +60,7 @@ export default function NotificationBell() {
       <button
         onClick={handleToggle}
         aria-label={`Powiadomienia${unread > 0 ? ` · ${unread} nowych` : ''}`}
-        className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
       >
         <Bell className="w-5 h-5" />
         {unread > 0 && (

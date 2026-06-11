@@ -10,15 +10,15 @@ export const metadata: Metadata = {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="text-lg font-bold text-gray-900 mb-3">{title}</h2>
-      <div className="text-sm text-gray-700 space-y-2 leading-relaxed">{children}</div>
+      <h2 className="text-lg font-bold text-slate-900 mb-3">{title}</h2>
+      <div className="text-sm text-slate-700 space-y-2 leading-relaxed">{children}</div>
     </section>
   );
 }
 
 export default function RegulaminPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
 
@@ -30,8 +30,8 @@ export default function RegulaminPage() {
           kodeks cywilny, RODO).
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Regulamin serwisu Bojo</h1>
-        <p className="text-sm text-gray-400 mb-8">Ostatnia aktualizacja: czerwiec 2025</p>
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">Regulamin serwisu Bojo</h1>
+        <p className="text-sm text-slate-400 mb-8">Ostatnia aktualizacja: czerwiec 2025</p>
 
         <Section title="§1 Postanowienia ogólne">
           <p>
@@ -164,10 +164,10 @@ export default function RegulaminPage() {
           </p>
         </Section>
 
-        <div className="mt-10 pt-6 border-t border-gray-200 text-xs text-gray-400 text-center">
-          <Link href="/" className="hover:text-gray-600">← Wróć do strony głównej</Link>
+        <div className="mt-10 pt-6 border-t border-slate-200 text-xs text-slate-400 text-center">
+          <Link href="/" className="hover:text-slate-600">← Wróć do strony głównej</Link>
           {' · '}
-          <Link href="/prywatnosc" className="hover:text-gray-600">Polityka prywatności</Link>
+          <Link href="/prywatnosc" className="hover:text-slate-600">Polityka prywatności</Link>
         </div>
       </main>
     </div>

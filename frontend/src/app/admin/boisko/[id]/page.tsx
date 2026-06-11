@@ -30,7 +30,7 @@ const SURFACES = [
 ] as const;
 
 const inputCls =
-  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+  'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
 export default function AdminVenueEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -121,12 +121,12 @@ export default function AdminVenueEditorPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-40 bg-gray-100 rounded-lg animate-pulse mb-6" />
+          <div className="h-8 w-40 bg-slate-100 rounded-lg animate-pulse mb-6" />
           <div className="space-y-4">
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+            <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+            <div className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+            <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
           </div>
         </main>
       </div>
@@ -137,10 +137,10 @@ export default function AdminVenueEditorPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
             <p className="text-sm mt-1">Ta strona jest dostępna tylko dla administratorów.</p>
             <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
@@ -152,20 +152,20 @@ export default function AdminVenueEditorPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/mapa" className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+          <Link href="/mapa" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Edytuj boisko</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Edytuj boisko</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nazwa</label>
               <input
                 type="text"
                 value={name}
@@ -177,7 +177,7 @@ export default function AdminVenueEditorPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adres</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Adres</label>
               <input
                 type="text"
                 value={address}
@@ -189,7 +189,7 @@ export default function AdminVenueEditorPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sporty</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Sporty</label>
               <div className="grid grid-cols-2 gap-2">
                 {SPORTS.map((s) => (
                   <label
@@ -200,16 +200,16 @@ export default function AdminVenueEditorPage() {
                       type="checkbox"
                       checked={sport.includes(s)}
                       onChange={() => toggleSport(s)}
-                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-sm text-gray-700">{s}</span>
+                    <span className="text-sm text-slate-700">{s}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nawierzchnia</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nawierzchnia</label>
               <select
                 value={surface}
                 onChange={(e) => setSurface(e.target.value)}
@@ -227,9 +227,9 @@ export default function AdminVenueEditorPage() {
                   type="checkbox"
                   checked={isIndoor}
                   onChange={(e) => setIsIndoor(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Hala (zadaszony obiekt)</span>
+                <span className="text-sm font-medium text-slate-700">Hala (zadaszony obiekt)</span>
               </label>
             </div>
 
@@ -239,23 +239,23 @@ export default function AdminVenueEditorPage() {
                   type="checkbox"
                   checked={available}
                   onChange={(e) => setAvailable(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Dostępne do rezerwacji</span>
+                <span className="text-sm font-medium text-slate-700">Dostępne do rezerwacji</span>
               </label>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-0.5">Dane kontaktowe</p>
-              <p className="text-xs text-gray-400 mb-4">
+              <p className="text-sm font-semibold text-slate-700 mb-0.5">Dane kontaktowe</p>
+              <p className="text-xs text-slate-400 mb-4">
                 Telefon i e-mail ze scrapera OSM są domyślnie ukryte. Zaznacz poniżej, żeby udostępnić je użytkownikom.
               </p>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Telefon (tylko dla admina)</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Telefon (tylko dla admina)</label>
                   <input
                     type="text"
                     value={phone}
@@ -267,7 +267,7 @@ export default function AdminVenueEditorPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Strona www</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Strona www</label>
                   <input
                     type="url"
                     value={website}
@@ -278,16 +278,16 @@ export default function AdminVenueEditorPage() {
                   />
                 </div>
 
-                <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-slate-200 p-3 hover:bg-slate-50 transition-colors">
                   <input
                     type="checkbox"
                     checked={contactVisible}
                     onChange={(e) => setContactVisible(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-800">Pokaż dane kontaktowe użytkownikom</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-sm font-medium text-slate-800">Pokaż dane kontaktowe użytkownikom</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
                       Gdy zaznaczone, telefon i e-mail będą widoczne na stronie boiska.
                     </p>
                   </div>
@@ -302,8 +302,8 @@ export default function AdminVenueEditorPage() {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <p className="text-sm font-medium text-gray-700 mb-2">Panel rezerwacji</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <p className="text-sm font-medium text-slate-700 mb-2">Panel rezerwacji</p>
             <Link
               href={`/admin/${id}`}
               className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline"

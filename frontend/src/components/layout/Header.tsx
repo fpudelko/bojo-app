@@ -126,7 +126,7 @@ export default function Header() {
                     'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                     pathname === link.href || pathname.startsWith(link.href + '/')
                       ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
                   )}
                 >
                   {link.label}
@@ -156,7 +156,7 @@ export default function Header() {
                       'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       pathname === '/moje-gry'
                         ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
                     )}
                   >
                     Moje gry
@@ -167,7 +167,7 @@ export default function Header() {
                       'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       pathname === '/cykliczne' || pathname.startsWith('/cykliczne/')
                         ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
                     )}
                   >
                     <RefreshCw className="w-4 h-4" /> Stałe gierki
@@ -179,7 +179,7 @@ export default function Header() {
                         'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                         pathname === '/obiekt' || pathname.startsWith('/obiekt/')
                           ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
                       )}
                     >
                       Moje obiekty
@@ -195,17 +195,17 @@ export default function Header() {
                   </Link>
                   <Link
                     href="/profil"
-                    className="text-sm text-gray-600 hover:text-gray-900 max-w-[140px] truncate flex items-center gap-1.5"
+                    className="text-sm text-slate-600 hover:text-slate-900 max-w-[140px] truncate flex items-center gap-1.5"
                     title="Edytuj profil"
                   >
                     {userAvatar
                       ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
-                      : <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
+                      : <User className="w-3.5 h-3.5 shrink-0 text-slate-400" />}
                     {displayName(user)}
                   </Link>
                   <button
                     onClick={() => signOut()}
-                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
                     aria-label="Wyloguj"
                     title="Wyloguj"
                   >
@@ -224,7 +224,7 @@ export default function Header() {
             </div>
 
             <button
-              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
               onClick={() => setMobileOpen((o) => !o)}
               aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
               aria-expanded={mobileOpen}
@@ -442,7 +442,7 @@ function AdminMenu({ pathname }: { pathname: string }) {
         onClick={() => setOpen((o) => !o)}
         className={clsx(
           'flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors',
-          active ? 'bg-primary-50 text-primary-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+          active ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
         )}
         aria-label="Narzędzia administratora"
         aria-expanded={open}
@@ -460,7 +460,7 @@ function AdminMenu({ pathname }: { pathname: string }) {
               onClick={() => setOpen(false)}
               className={clsx(
                 'flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
-                pathname.startsWith(href) ? 'text-primary-700 bg-primary-50' : 'text-gray-700 hover:bg-gray-50',
+                pathname.startsWith(href) ? 'text-primary-700 bg-primary-50' : 'text-slate-700 hover:bg-slate-50',
               )}
             >
               <Icon className="w-4 h-4 text-slate-400" /> {label}

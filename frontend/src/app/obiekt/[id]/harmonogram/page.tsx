@@ -35,7 +35,7 @@ const defaultDay = (): DayState => ({
 });
 
 const inputCls =
-  'border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+  'border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
 export default function HarmonogramPage() {
   const { id } = useParams<{ id: string }>();
@@ -104,13 +104,13 @@ export default function HarmonogramPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse mb-8" />
+          <div className="h-8 w-56 bg-slate-200 rounded-lg animate-pulse mb-8" />
           <div className="space-y-3">
             {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+              <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
             ))}
           </div>
         </main>
@@ -124,8 +124,8 @@ export default function HarmonogramPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
             <Link href={`/obiekt/${id}`} className="text-primary-600 text-sm underline mt-3 inline-block">
               Wróć do obiektu
             </Link>
@@ -136,23 +136,23 @@ export default function HarmonogramPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link
             href={`/obiekt/${id}`}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Harmonogram</h1>
-            {field && <p className="text-sm text-gray-500">{field.name}</p>}
+            <h1 className="text-2xl font-bold text-slate-900">Harmonogram</h1>
+            {field && <p className="text-sm text-slate-500">{field.name}</p>}
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-4">
           {[1, 2, 3, 4, 5, 6, 7].map((day, idx) => {
             const state = days[day];
             const isLast = idx === 6;
@@ -161,8 +161,8 @@ export default function HarmonogramPage() {
                 key={day}
                 className={[
                   'px-5 py-4',
-                  !isLast ? 'border-b border-gray-100' : '',
-                  !state.open ? 'bg-gray-50/60' : '',
+                  !isLast ? 'border-b border-slate-100' : '',
+                  !state.open ? 'bg-slate-50/60' : '',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-4 flex-wrap">
@@ -171,12 +171,12 @@ export default function HarmonogramPage() {
                       type="checkbox"
                       checked={state.open}
                       onChange={(e) => setDay(day, { open: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                     />
                     <span
                       className={[
                         'text-sm font-medium',
-                        state.open ? 'text-gray-900' : 'text-gray-400',
+                        state.open ? 'text-slate-900' : 'text-slate-400',
                       ].join(' ')}
                     >
                       {DAY_NAMES[day]}
@@ -186,7 +186,7 @@ export default function HarmonogramPage() {
                   {state.open ? (
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-500">od</span>
+                        <span className="text-xs text-slate-500">od</span>
                         <input
                           type="time"
                           value={state.openTime}
@@ -195,7 +195,7 @@ export default function HarmonogramPage() {
                         />
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-500">do</span>
+                        <span className="text-xs text-slate-500">do</span>
                         <input
                           type="time"
                           value={state.closeTime}
@@ -214,7 +214,7 @@ export default function HarmonogramPage() {
                       </select>
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400">Zamknięty</span>
+                    <span className="text-xs text-slate-400">Zamknięty</span>
                   )}
                 </div>
               </div>

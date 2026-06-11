@@ -57,7 +57,7 @@ function DraggablePlayer({
         isDragging ? 'ring-2 ring-primary-300' : '',
       ].join(' ')}
     >
-      <span className="flex items-center gap-1.5 text-gray-800 min-w-0">
+      <span className="flex items-center gap-1.5 text-slate-800 min-w-0">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${teamColor.dot}`} />
         <span className="truncate">{participant.name}</span>
         {participant.isCaptain && <Star className="w-3 h-3 text-amber-500 shrink-0" />}
@@ -66,7 +66,7 @@ function DraggablePlayer({
         <button
           onClick={(e) => { e.stopPropagation(); onToggleCaptain(participant); }}
           disabled={busy}
-          className={participant.isCaptain ? 'text-amber-500 hover:text-amber-400' : 'text-gray-300 hover:text-amber-400'}
+          className={participant.isCaptain ? 'text-amber-500 hover:text-amber-400' : 'text-slate-300 hover:text-amber-400'}
           title={participant.isCaptain ? 'Usuń kapitana' : 'Ustaw kapitana'}
         >
           <Star className="w-3 h-3" />
@@ -126,7 +126,7 @@ function DroppableColumn({
           />
         ))}
         {participants.length === 0 && (
-          <li className="text-xs text-gray-400 italic py-1 px-2">
+          <li className="text-xs text-slate-400 italic py-1 px-2">
             {isOver ? 'Upuść tutaj…' : 'Brak graczy'}
           </li>
         )}
@@ -154,11 +154,11 @@ function UnassignedTray({
   if (participants.length === 0) return null;
 
   return (
-    <div ref={setNodeRef} className={['mt-3 rounded-xl border border-dashed border-gray-300 p-3 transition-colors', isOver ? 'bg-gray-100' : ''].join(' ')}>
-      <p className="text-xs text-gray-500 mb-2">Nieprzypisani ({participants.length})</p>
+    <div ref={setNodeRef} className={['mt-3 rounded-xl border border-dashed border-slate-300 p-3 transition-colors', isOver ? 'bg-slate-100' : ''].join(' ')}>
+      <p className="text-xs text-slate-500 mb-2">Nieprzypisani ({participants.length})</p>
       <div className="flex flex-wrap gap-2">
         {participants.map((p) => (
-          <div key={p.id} className="flex items-center gap-1.5 bg-white rounded-xl px-2.5 py-1 text-sm text-gray-700 border border-gray-200">
+          <div key={p.id} className="flex items-center gap-1.5 bg-white rounded-xl px-2.5 py-1 text-sm text-slate-700 border border-slate-200">
             <span>{p.name}</span>
             {isOrganizer && (
               <>
@@ -225,12 +225,12 @@ export default function TeamsPanel({
   const draggingParticipant = draggingId ? allParticipants.find((p) => p.id === draggingId) : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
           <Shuffle className="w-4 h-4" />
           Składy
-          <span className="text-xs font-normal text-gray-500">({TEAM_MODE_LABELS[teamMode]})</span>
+          <span className="text-xs font-normal text-slate-500">({TEAM_MODE_LABELS[teamMode]})</span>
           {teamsPublished
             ? <span className="text-xs font-normal text-green-600 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">opublikowane</span>
             : isOrganizer && <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">robocze</span>
@@ -299,7 +299,7 @@ export default function TeamsPanel({
 
         <DragOverlay>
           {draggingParticipant && (
-            <div className="bg-white rounded-lg border border-primary-300 shadow-lg px-3 py-1.5 text-sm font-medium text-gray-800 cursor-grabbing">
+            <div className="bg-white rounded-lg border border-primary-300 shadow-lg px-3 py-1.5 text-sm font-medium text-slate-800 cursor-grabbing">
               {draggingParticipant.name}
             </div>
           )}

@@ -6,7 +6,7 @@ export type { LocationResult } from './UnifiedLocationPickerImpl';
 const Impl = dynamic(() => import('./UnifiedLocationPickerImpl'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full min-h-[300px] bg-gray-100 flex items-center justify-center text-sm text-gray-400">
+    <div className="w-full h-full min-h-[300px] bg-slate-100 flex items-center justify-center text-sm text-slate-400">
       Ładowanie mapy…
     </div>
   ),

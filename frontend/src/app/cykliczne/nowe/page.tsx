@@ -54,11 +54,11 @@ function NewRecurringForm() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-xl font-bold text-slate-900">
               Zaloguj się, aby tworzyć cykliczne wydarzenia
             </h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">
+            <p className="text-slate-500 text-sm mt-2 mb-6">
               Potrzebujesz konta, żeby organizować regularne mecze i zarządzać grupą graczy.
             </p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
@@ -107,7 +107,7 @@ function NewRecurringForm() {
   };
 
   const inputCls =
-    'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
   const notifyLabel =
     notifyDaysBefore === 0
@@ -120,12 +120,12 @@ function NewRecurringForm() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Nowe cykliczne wydarzenie</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">Nowe cykliczne wydarzenie</h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Sport */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sport</label>
             <select value={sport} onChange={(e) => setSport(e.target.value)} className={inputCls}>
               {SPORTS.map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -135,15 +135,15 @@ function NewRecurringForm() {
 
           {/* Venue */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Boisko {field && <span className="text-primary-600">— {field.name}</span>}
             </label>
-            <p className="text-xs text-gray-500 mb-2">Kliknij pinezkę na mapie, aby wybrać boisko.</p>
-            <div className="h-72 rounded-xl overflow-hidden border border-gray-200">
+            <p className="text-xs text-slate-500 mb-2">Kliknij pinezkę na mapie, aby wybrać boisko.</p>
+            <div className="h-72 rounded-xl overflow-hidden border border-slate-200">
               <VenuePicker selectedId={field?.id} onSelect={setField} />
             </div>
             {field && (
-              <div className="mt-2 flex gap-3 items-center bg-gray-50 rounded-lg p-2">
+              <div className="mt-2 flex gap-3 items-center bg-slate-50 rounded-lg p-2">
                 {venueThumbnail(field.lat, field.lng, 160, 100) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -153,12 +153,12 @@ function NewRecurringForm() {
                   />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{field.name}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                  <p className="text-sm font-medium text-slate-800 truncate">{field.name}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
                     <MapPin className="w-3 h-3 shrink-0" /> {field.address}
                   </p>
                   {field.surface && (
-                    <p className="text-xs text-gray-400">{surfaceLabel(field.surface)}</p>
+                    <p className="text-xs text-slate-400">{surfaceLabel(field.surface)}</p>
                   )}
                 </div>
               </div>
@@ -168,7 +168,7 @@ function NewRecurringForm() {
           {/* Day of week + times */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Dzień tygodnia</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Dzień tygodnia</label>
               <select
                 value={dayOfWeek}
                 onChange={(e) => setDayOfWeek(Number(e.target.value))}
@@ -180,7 +180,7 @@ function NewRecurringForm() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rozpoczęcie</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
               <input
                 type="time"
                 value={eventTime}
@@ -190,8 +190,8 @@ function NewRecurringForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zakończenie <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Zakończenie <span className="text-slate-400 font-normal">(opcjonalnie)</span>
               </label>
               <input
                 type="time"
@@ -205,7 +205,7 @@ function NewRecurringForm() {
 
           {/* Max players */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Liczba miejsc: <span className="text-primary-600 font-semibold">{maxPlayers}</span>
             </label>
             <input
@@ -220,8 +220,8 @@ function NewRecurringForm() {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tytuł <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Tytuł <span className="text-slate-400 font-normal">(opcjonalnie)</span>
             </label>
             <input
               type="text"
@@ -235,8 +235,8 @@ function NewRecurringForm() {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Opis <span className="text-gray-400 font-normal">(opcjonalnie)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Opis <span className="text-slate-400 font-normal">(opcjonalnie)</span>
             </label>
             <textarea
               value={description}
@@ -249,7 +249,7 @@ function NewRecurringForm() {
 
           {/* Visibility */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Widoczność</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -258,13 +258,13 @@ function NewRecurringForm() {
                   'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
                   visibility === 'private'
                     ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 hover:border-gray-400',
+                    : 'border-slate-300 hover:border-slate-400',
                 ].join(' ')}
               >
-                <Lock className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-gray-900">Prywatne</span>
-                  <span className="block text-xs text-gray-500">Tylko przez link</span>
+                  <span className="block text-sm font-medium text-slate-900">Prywatne</span>
+                  <span className="block text-xs text-slate-500">Tylko przez link</span>
                 </span>
               </button>
               <button
@@ -274,13 +274,13 @@ function NewRecurringForm() {
                   'flex items-start gap-2 p-3 rounded-lg border text-left transition-colors',
                   visibility === 'public'
                     ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 hover:border-gray-400',
+                    : 'border-slate-300 hover:border-slate-400',
                 ].join(' ')}
               >
-                <Globe className="w-4 h-4 mt-0.5 text-gray-600 shrink-0" />
+                <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
-                  <span className="block text-sm font-medium text-gray-900">Publiczne</span>
-                  <span className="block text-xs text-gray-500">Widoczne dla wszystkich</span>
+                  <span className="block text-sm font-medium text-slate-900">Publiczne</span>
+                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich</span>
                 </span>
               </button>
             </div>
@@ -288,7 +288,7 @@ function NewRecurringForm() {
 
           {/* Notify days before */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Powiadamiaj graczy:{' '}
               <span className="text-primary-600 font-semibold">{notifyDaysBefore} dni wcześniej</span>
             </label>
@@ -300,7 +300,7 @@ function NewRecurringForm() {
               onChange={(e) => setNotifyDaysBefore(Number(e.target.value))}
               className="w-full accent-primary-600"
             />
-            <p className="text-xs text-gray-500 mt-1">{notifyLabel}</p>
+            <p className="text-xs text-slate-500 mt-1">{notifyLabel}</p>
           </div>
 
           {error && (

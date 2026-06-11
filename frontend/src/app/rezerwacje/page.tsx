@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: Booking['status'] }) {
     );
   }
   return (
-    <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+    <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">
       Anulowana
     </span>
   );
@@ -60,34 +60,34 @@ function BookingCard({
   cancelling: string | null;
 }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="font-semibold text-gray-900 truncate flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <p className="font-semibold text-slate-900 truncate flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             {booking.fieldName}
           </p>
-          <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+          <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
             <span className="flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
               <span className="capitalize">{formatDatePl(booking.date)}</span>
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
               {booking.startTime.slice(0, 5)}–{booking.endTime.slice(0, 5)}
             </span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <StatusBadge status={booking.status} />
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-sm font-medium text-slate-700">
             {(booking.priceGrosze / 100).toFixed(0)} zł
           </p>
         </div>
       </div>
 
       {booking.notes && (
-        <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+        <p className="text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
           {booking.notes}
         </p>
       )}
@@ -109,7 +109,7 @@ function BookingCard({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide px-1">{title}</h2>
+    <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide px-1">{title}</h2>
   );
 }
 
@@ -153,9 +153,9 @@ export default function MyBookingsPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-          <div className="h-8 w-48 bg-gray-100 rounded-lg animate-pulse" />
-          <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="h-8 w-48 bg-slate-100 rounded-lg animate-pulse" />
+          <div className="h-28 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-28 bg-slate-100 rounded-2xl animate-pulse" />
         </main>
       </div>
     );
@@ -167,9 +167,9 @@ export default function MyBookingsPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <User className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">Moje rezerwacje</h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">
+            <User className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-xl font-bold text-slate-900">Moje rezerwacje</h1>
+            <p className="text-slate-500 text-sm mt-2 mb-6">
               Zaloguj się, aby zobaczyć swoje rezerwacje.
             </p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
@@ -199,23 +199,23 @@ export default function MyBookingsPage() {
   const isEmpty = bookings.length === 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Moje rezerwacje</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Moje rezerwacje</h1>
 
         {loadingBookings && (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="h-28 bg-slate-100 rounded-2xl animate-pulse" />
             ))}
           </div>
         )}
 
         {!loadingBookings && isEmpty && (
-          <div className="text-center py-16 text-gray-500">
-            <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Nie masz jeszcze żadnych rezerwacji.</p>
+          <div className="text-center py-16 text-slate-500">
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Nie masz jeszcze żadnych rezerwacji.</p>
             <p className="text-sm mt-1 mb-6">Znajdź boisko i zarezerwuj swój pierwszy termin.</p>
             <Link
               href="/mapa"

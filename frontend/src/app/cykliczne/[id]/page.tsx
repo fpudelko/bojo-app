@@ -110,9 +110,9 @@ export default function RecurringEventDetailPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-          <div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-32 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-32 bg-slate-100 rounded-2xl animate-pulse" />
         </main>
       </div>
     );
@@ -123,9 +123,9 @@ export default function RecurringEventDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <X className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <X className="w-10 h-10 mx-auto mb-3 text-slate-300" />
             <p className="font-medium">Nie znaleziono cyklicznego wydarzenia</p>
             <Link href="/cykliczne" className="text-primary-600 text-sm underline mt-3 inline-block">
               Wróć do listy
@@ -143,10 +143,10 @@ export default function RecurringEventDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center text-gray-500">
+        <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
-            <Lock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
+            <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
             <p className="text-sm mt-1">Tylko organizator może zarządzać tym szablonem.</p>
             <Link href="/cykliczne" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do listy
@@ -237,12 +237,12 @@ export default function RecurringEventDetailPage() {
   };
 
   const inputCls =
-    'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
   const thumbnail = venueThumbnail(event.lat, event.lng, 600, 200);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
 
       {/* Toast stack */}
@@ -265,7 +265,7 @@ export default function RecurringEventDetailPage() {
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
         {/* ── Section 1: Header card ──────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           {thumbnail && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -280,9 +280,9 @@ export default function RecurringEventDetailPage() {
                 {sportEmoji(event.sport)}
               </span>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-gray-900">{event.title || event.sport}</h1>
+                <h1 className="text-xl font-bold text-slate-900">{event.title || event.sport}</h1>
                 {event.title && (
-                  <p className="text-sm text-gray-500 capitalize">{event.sport}</p>
+                  <p className="text-sm text-slate-500 capitalize">{event.sport}</p>
                 )}
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
@@ -290,7 +290,7 @@ export default function RecurringEventDetailPage() {
                   'text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1',
                   event.visibility === 'public'
                     ? 'bg-green-50 text-green-700'
-                    : 'bg-gray-100 text-gray-600',
+                    : 'bg-slate-100 text-slate-600',
                 ].join(' ')}>
                   {event.visibility === 'public'
                     ? <><Globe className="w-3 h-3" /> Publiczne</>
@@ -300,7 +300,7 @@ export default function RecurringEventDetailPage() {
                   'text-xs px-2 py-1 rounded-full font-medium',
                   event.isActive
                     ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-500',
+                    : 'bg-slate-100 text-slate-500',
                 ].join(' ')}>
                   {event.isActive ? 'Aktywne' : 'Nieaktywne'}
                 </span>
@@ -308,40 +308,40 @@ export default function RecurringEventDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5 text-sm">
-              <div className="flex items-center gap-2 text-gray-700">
-                <RepeatIcon className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-slate-700">
+                <RepeatIcon className="w-4 h-4 text-slate-400" />
                 <span>{DAY_NAMES[event.dayOfWeek]}</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <Clock className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-slate-700">
+                <Clock className="w-4 h-4 text-slate-400" />
                 {event.eventTime.slice(0, 5)}
                 {event.endTime && (
-                  <span className="text-gray-400">– {event.endTime.slice(0, 5)}</span>
+                  <span className="text-slate-400">– {event.endTime.slice(0, 5)}</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-gray-700 sm:col-span-2">
-                <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2 text-slate-700 sm:col-span-2">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                 {event.fieldName}
               </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <Users className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-slate-700">
+                <Users className="w-4 h-4 text-slate-400" />
                 Maks. {event.maxPlayers} graczy
               </div>
               {event.notifyDaysBefore > 0 && (
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Calendar className="w-4 h-4 text-slate-400" />
                   Powiadomienie {event.notifyDaysBefore} dni wcześniej
                 </div>
               )}
             </div>
 
             {event.description && (
-              <p className="mt-4 text-sm text-gray-600 bg-gray-50 rounded-lg p-3 leading-relaxed">
+              <p className="mt-4 text-sm text-slate-600 bg-slate-50 rounded-lg p-3 leading-relaxed">
                 {event.description}
               </p>
             )}
 
-            <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
               <button
                 onClick={handleToggleActive}
                 disabled={togglingActive}
@@ -367,20 +367,20 @@ export default function RecurringEventDetailPage() {
         </div>
 
         {/* ── Section 2: Invite list ──────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
             <Users className="w-4 h-4" /> Lista zaproszonych
             {invites.length > 0 && (
-              <span className="text-xs font-normal text-gray-400 ml-1">{invites.length} os.</span>
+              <span className="text-xs font-normal text-slate-400 ml-1">{invites.length} os.</span>
             )}
           </h2>
 
           {invites.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">
+            <p className="text-sm text-slate-400 text-center py-4">
               Nie dodano jeszcze żadnych graczy
             </p>
           ) : (
-            <ul className="divide-y divide-gray-100 mb-4">
+            <ul className="divide-y divide-slate-100 mb-4">
               {invites.map((inv) => (
                 <li key={inv.id} className="flex items-center justify-between py-2.5 gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -388,8 +388,8 @@ export default function RecurringEventDetailPage() {
                       {inv.name.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{inv.name}</p>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-sm font-medium text-slate-800 truncate">{inv.name}</p>
+                      <p className="text-xs text-slate-400 truncate">
                         {[inv.email, inv.phone].filter(Boolean).join(' · ') || 'Brak kontaktu'}
                       </p>
                     </div>
@@ -397,7 +397,7 @@ export default function RecurringEventDetailPage() {
                   <button
                     onClick={() => handleRemoveInvite(inv.id)}
                     disabled={removingId === inv.id}
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded shrink-0 transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded shrink-0 transition-colors"
                     aria-label="Usuń gracza"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -408,14 +408,14 @@ export default function RecurringEventDetailPage() {
           )}
 
           {/* Add invite form */}
-          <form onSubmit={handleAddInvite} className="pt-4 border-t border-gray-100 space-y-3">
+          <form onSubmit={handleAddInvite} className="pt-4 border-t border-slate-100 space-y-3">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
                 placeholder="Imię i nazwisko *"
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -425,14 +425,14 @@ export default function RecurringEventDetailPage() {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="Email (opcjonalnie)"
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <input
                 type="tel"
                 value={invitePhone}
                 onChange={(e) => setInvitePhone(e.target.value)}
                 placeholder="Telefon (opcjonalnie)"
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             {inviteError && (
@@ -450,16 +450,16 @@ export default function RecurringEventDetailPage() {
         </div>
 
         {/* ── Section 3: Spawn instance ───────────────────────────────────── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2 mb-1">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-1">
             <PlayCircle className="w-4 h-4" /> Utwórz nową edycję
           </h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <p className="text-xs text-slate-400 mb-4">
             Tworzy jednorazowe wydarzenie na podstawie tego szablonu.
           </p>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data edycji</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Data edycji</label>
             <input
               type="date"
               value={spawnDate}
@@ -468,7 +468,7 @@ export default function RecurringEventDetailPage() {
               required
             />
             {spawnDate && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 {DAY_NAMES[event.dayOfWeek]}, {event.eventTime.slice(0, 5)}
                 {event.endTime && ` – ${event.endTime.slice(0, 5)}`}
               </p>
@@ -498,7 +498,7 @@ export default function RecurringEventDetailPage() {
             </Button>
           </div>
           {invites.length === 0 && (
-            <p className="text-xs text-gray-400 mt-2 text-center">
+            <p className="text-xs text-slate-400 mt-2 text-center">
               Dodaj graczy do listy zaproszonych, aby móc wysyłać powiadomienia.
             </p>
           )}

@@ -55,7 +55,7 @@ export default function ProfilePage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8">
-          <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
         </main>
       </div>
     );
@@ -67,9 +67,9 @@ export default function ProfilePage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <User className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <h1 className="text-xl font-bold text-gray-900">Zaloguj się</h1>
-            <p className="text-gray-500 text-sm mt-2 mb-6">Potrzebujesz konta, aby zobaczyć swój profil.</p>
+            <User className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <h1 className="text-xl font-bold text-slate-900">Zaloguj się</h1>
+            <p className="text-slate-500 text-sm mt-2 mb-6">Potrzebujesz konta, aby zobaczyć swój profil.</p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}>Zaloguj się</Button>
           </div>
         </main>
@@ -155,16 +155,16 @@ export default function ProfilePage() {
   };
 
   const inputCls =
-    'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Profil</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Profil</h1>
 
         {/* Identity card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
           {/* Avatar */}
           <div className="flex flex-col items-center gap-2">
             {currentAvatarUrl ? (
@@ -188,14 +188,14 @@ export default function ProfilePage() {
 
           <div className="flex items-center gap-4 min-w-0">
             <div className="min-w-0">
-              <p className="font-semibold text-gray-900 text-lg truncate">{currentName}</p>
-              <p className="text-sm text-gray-400 truncate">{user.email}</p>
+              <p className="font-semibold text-slate-900 text-lg truncate">{currentName}</p>
+              <p className="text-sm text-slate-400 truncate">{user.email}</p>
             </div>
           </div>
 
           {/* Display name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Wyświetlana nazwa</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Wyświetlana nazwa</label>
             {editing ? (
               <div className="space-y-2">
                 <input
@@ -212,7 +212,7 @@ export default function ProfilePage() {
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-800">{currentName}</p>
+                  <p className="text-sm text-slate-800">{currentName}</p>
                   {saved && <span className="flex items-center gap-1 text-xs text-green-600"><Check className="w-3 h-3" /> Zapisano</span>}
                 </div>
                 <button onClick={handleStartEdit} className="text-xs text-primary-600 hover:text-primary-700 font-medium">Zmień</button>
@@ -222,23 +222,23 @@ export default function ProfilePage() {
 
           {/* E-mail */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-            <p className="text-sm text-gray-500">{user.email}</p>
+            <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
+            <p className="text-sm text-slate-500">{user.email}</p>
           </div>
         </div>
 
         {/* Phone with consent */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
           <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-900">Numer telefonu</h2>
-            <span className="text-xs text-gray-400 font-normal">(opcjonalny)</span>
+            <Phone className="w-4 h-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-900">Numer telefonu</h2>
+            <span className="text-xs text-slate-400 font-normal">(opcjonalny)</span>
           </div>
 
           {!phoneEditMode ? (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                {phone || <span className="text-gray-400 italic">Nie podano</span>}
+              <p className="text-sm text-slate-600">
+                {phone || <span className="text-slate-400 italic">Nie podano</span>}
                 {phoneSaved && <span className="ml-2 text-xs text-green-600"><Check className="inline w-3 h-3" /> Zapisano</span>}
               </p>
               <button
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                   onChange={(e) => setPhoneConsent(e.target.checked)}
                   className="mt-0.5 shrink-0 accent-primary-600"
                 />
-                <span className="text-xs text-gray-600 leading-relaxed">
+                <span className="text-xs text-slate-600 leading-relaxed">
                   Wyrażam zgodę na kontakt SMS w sprawach wydarzeń, w których uczestniczę
                   lub które organizuję. Zgoda jest dobrowolna i można ją cofnąć w dowolnym
                   momencie usuwając numer z profilu.
@@ -286,10 +286,10 @@ export default function ProfilePage() {
         </div>
 
         {/* Sign out */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
           <button
             onClick={() => signOut()}
-            className="w-full flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 transition-colors"
+            className="w-full flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 transition-colors"
           >
             <LogOut className="w-4 h-4" /> Wyloguj się
           </button>
@@ -300,7 +300,7 @@ export default function ProfilePage() {
           <h2 className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" /> Strefa niebezpieczna
           </h2>
-          <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
             Usunięcie konta jest nieodwracalne. Twoje dane osobowe zostaną zanonimizowane
             lub usunięte zgodnie z{' '}
             <a href="/prywatnosc" className="text-primary-600 hover:underline">Polityką prywatności</a>.

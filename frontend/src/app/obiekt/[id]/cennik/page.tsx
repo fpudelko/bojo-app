@@ -25,7 +25,7 @@ const emptyDraft = (): RuleDraft => ({
 });
 
 const inputCls =
-  'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+  'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
 function formatPrice(grosze: number) {
   return (grosze / 100).toFixed(0) + ' zł';
@@ -118,12 +118,12 @@ export default function CennikPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-slate-50">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-8 w-40 bg-gray-200 rounded-lg animate-pulse mb-8" />
+          <div className="h-8 w-40 bg-slate-200 rounded-lg animate-pulse mb-8" />
           <div className="space-y-3">
-            {[1, 2].map((i) => <div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />)}
+            {[1, 2].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />)}
           </div>
         </main>
       </div>
@@ -136,8 +136,8 @@ export default function CennikPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <Lock className="w-10 h-10 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium text-gray-700">Brak dostępu</p>
+            <Lock className="w-10 h-10 mx-auto mb-4 text-slate-300" />
+            <p className="font-medium text-slate-700">Brak dostępu</p>
             <Link href={`/obiekt/${id}`} className="text-primary-600 text-sm underline mt-3 inline-block">
               Wróć do obiektu
             </Link>
@@ -148,19 +148,19 @@ export default function CennikPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link
             href={`/obiekt/${id}`}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cennik</h1>
-            {field && <p className="text-sm text-gray-500">{field.name}</p>}
+            <h1 className="text-2xl font-bold text-slate-900">Cennik</h1>
+            {field && <p className="text-sm text-slate-500">{field.name}</p>}
           </div>
         </div>
 
@@ -169,32 +169,32 @@ export default function CennikPage() {
             Dodaj przynajmniej jedną regułę — np. &quot;Standardowa&quot; 100 zł przez cały tydzień.
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-4">
             {rules.map((rule, idx) => (
               <div
                 key={idx}
                 className={[
                   'flex items-center justify-between gap-3 px-5 py-4',
-                  idx < rules.length - 1 ? 'border-b border-gray-100' : '',
+                  idx < rules.length - 1 ? 'border-b border-slate-100' : '',
                 ].join(' ')}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-gray-900 truncate">{rule.name}</p>
+                    <p className="font-medium text-slate-900 truncate">{rule.name}</p>
                     <span className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2 py-0.5">
                       {formatPrice(rule.priceGrosze)}
                     </span>
-                    <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+                    <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">
                       prioryt. {rule.priority}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {formatDays(rule.dayOfWeek)} &middot; {formatTime(rule.timeFrom, rule.timeTo)}
                   </p>
                 </div>
                 <button
                   onClick={() => removeRule(idx)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
                   aria-label="Usuń regułę"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -204,12 +204,12 @@ export default function CennikPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4 mb-4">
-          <p className="text-sm font-semibold text-gray-700">Dodaj regułę</p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 mb-4">
+          <p className="text-sm font-semibold text-slate-700">Dodaj regułę</p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Nazwa</label>
+              <label className="block text-xs text-slate-500 mb-1">Nazwa</label>
               <input
                 type="text"
                 value={draft.name}
@@ -220,7 +220,7 @@ export default function CennikPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Cena (PLN)</label>
+              <label className="block text-xs text-slate-500 mb-1">Cena (PLN)</label>
               <input
                 type="number"
                 value={draft.priceGrosze > 0 ? draft.priceGrosze / 100 : ''}
@@ -236,8 +236,8 @@ export default function CennikPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">
-              Dni tygodnia <span className="text-gray-400">(brak zaznaczenia = wszystkie)</span>
+            <label className="block text-xs text-slate-500 mb-1.5">
+              Dni tygodnia <span className="text-slate-400">(brak zaznaczenia = wszystkie)</span>
             </label>
             <div className="grid grid-cols-4 gap-1.5">
               {[1, 2, 3, 4, 5, 6, 7].map((day) => (
@@ -246,9 +246,9 @@ export default function CennikPage() {
                     type="checkbox"
                     checked={draftDays.includes(day)}
                     onChange={() => toggleDraftDay(day)}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-xs text-gray-700">{DAY_NAMES[day].slice(0, 3)}</span>
+                  <span className="text-xs text-slate-700">{DAY_NAMES[day].slice(0, 3)}</span>
                 </label>
               ))}
             </div>
@@ -256,8 +256,8 @@ export default function CennikPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Od godziny <span className="text-gray-400">(opcjonalnie)</span>
+              <label className="block text-xs text-slate-500 mb-1">
+                Od godziny <span className="text-slate-400">(opcjonalnie)</span>
               </label>
               <input
                 type="time"
@@ -269,8 +269,8 @@ export default function CennikPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Do godziny <span className="text-gray-400">(opcjonalnie)</span>
+              <label className="block text-xs text-slate-500 mb-1">
+                Do godziny <span className="text-slate-400">(opcjonalnie)</span>
               </label>
               <input
                 type="time"
@@ -284,7 +284,7 @@ export default function CennikPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Priorytet</label>
+            <label className="block text-xs text-slate-500 mb-1">Priorytet</label>
             <input
               type="number"
               value={draft.priority}
