@@ -9,7 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Navigation, Check, BookOpen, CalendarCheck, MapPin, Globe } from 'lucide-react';
+import { ChevronDown, Navigation, Check, CalendarCheck, MapPin, Globe } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -30,6 +30,15 @@ function inPowiat(lat: number, lng: number) {
 
 function hasUsefulInfo(f: Field) {
   return !!(f.phone || f.website || f.email || f.description || f.bookingEnabled || f.imageUrl);
+}
+
+// Only show venues built for the team sports BOJO supports — keeps gyms,
+// tennis-only courts, karting tracks and other noise off the discovery map.
+const RELEVANT_SPORTS = new Set([
+  'piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna',
+]);
+function isRelevantVenue(f: Field) {
+  return f.sport.some((s) => RELEVANT_SPORTS.has(s));
 }
 
 function displayName(name: string): string {
@@ -69,18 +78,25 @@ const VENUE_TYPE_LABELS: Record<string, string> = {
   other:              'Inne',
 };
 
-const VENUE_TYPE_OPTIONS = [
-  { value: '', label: 'Wszystkie typy' },
-  ...Object.entries(VENUE_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l })),
-];
+const VENUE_TYPE_OPTIONS = Object.entries(VENUE_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }));
 
 const SPORT_OPTIONS = [
-  { value: '', label: 'Wszystkie sporty', emoji: '🏟️' },
   { value: 'piłka nożna',       label: 'Piłka nożna',         emoji: '⚽' },
   { value: 'siatkówka plażowa', label: 'Siatkówka plażowa',    emoji: '🏖️' },
   { value: 'siatkówka',         label: 'Siatkówka',            emoji: '🏐' },
   { value: 'koszykówka',        label: 'Koszykówka',           emoji: '🏀' },
 ];
+
+/** Label for a multi-select pill: "Wszystkie X" / single label / "N wybrane". */
+function multiLabel(selected: string[], allLabel: string, options: { value: string; label: string }[]): string {
+  if (selected.length === 0) return allLabel;
+  if (selected.length === 1) return options.find((o) => o.value === selected[0])?.label ?? allLabel;
+  return `${selected.length} wybrane`;
+}
+
+function toggleInArray(arr: string[], value: string): string[] {
+  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
 
 // ---------------------------------------------------------------------------
 // MapLayer
@@ -300,49 +316,65 @@ function VenueCard({ field, games, hasGameToday, selected }: {
 // Shared filter pills — rendered both in sidebar and mobile overlay
 // ---------------------------------------------------------------------------
 function FilterPills({
-  sport, setSport, venueType, setVenueType,
-  onlyBookable, setOnlyBookable, onlyGamesToday, setOnlyGamesToday,
+  sports, setSports, venueTypes, setVenueTypes,
+  onlyGamesToday, setOnlyGamesToday,
   geo, geoLoading, handleGeo,
   wrap,
 }: {
-  sport: string; setSport: (v: string) => void;
-  venueType: string; setVenueType: (v: string) => void;
-  onlyBookable: boolean; setOnlyBookable: (v: boolean) => void;
+  sports: string[]; setSports: (v: string[]) => void;
+  venueTypes: string[]; setVenueTypes: (v: string[]) => void;
   onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
   geo: { lat: number; lng: number } | null; geoLoading: boolean; handleGeo: () => void;
   wrap?: boolean;
 }) {
-  const sportLabel = SPORT_OPTIONS.find((o) => o.value === sport)?.label ?? 'Wszystkie sporty';
-  const typeLabel  = VENUE_TYPE_OPTIONS.find((o) => o.value === venueType)?.label ?? 'Wszystkie typy';
+  const sportLabel = multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS);
+  const typeLabel  = multiLabel(venueTypes, 'Wszystkie typy', VENUE_TYPE_OPTIONS);
 
   return (
     <div className={wrap
       ? 'flex flex-wrap gap-2'
       : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
     }>
-      <PillDropdown label={sportLabel} active={!!sport}>
-        {(close) => SPORT_OPTIONS.map((o) => (
-          <button key={o.value} onClick={() => { setSport(o.value); close(); }}
-            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-            <span className="text-base">{o.emoji}</span>
-            <span className="flex-1 text-left">{o.label}</span>
-            {sport === o.value && <Check className="h-4 w-4 text-primary-700" />}
-          </button>
-        ))}
+      <PillDropdown label={sportLabel} active={sports.length > 0}>
+        {() => (
+          <>
+            <button onClick={() => setSports([])}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
+              <span className="text-base">🏟️</span>
+              <span className="flex-1 text-left">Wszystkie sporty</span>
+              {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
+            </button>
+            {SPORT_OPTIONS.map((o) => (
+              <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+                <span className="text-base">{o.emoji}</span>
+                <span className="flex-1 text-left">{o.label}</span>
+                {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
+              </button>
+            ))}
+          </>
+        )}
       </PillDropdown>
 
-      <PillDropdown label={typeLabel} active={!!venueType}>
-        {(close) => VENUE_TYPE_OPTIONS.map((o) => (
-          <button key={o.value} onClick={() => { setVenueType(o.value); close(); }}
-            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-            <span className="flex-1 text-left">{o.label}</span>
-            {venueType === o.value && <Check className="h-4 w-4 text-primary-700" />}
-          </button>
-        ))}
+      <PillDropdown label={typeLabel} active={venueTypes.length > 0}>
+        {() => (
+          <>
+            <button onClick={() => setVenueTypes([])}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
+              <span className="flex-1 text-left">Wszystkie typy</span>
+              {venueTypes.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
+            </button>
+            {VENUE_TYPE_OPTIONS.map((o) => (
+              <button key={o.value} onClick={() => setVenueTypes(toggleInArray(venueTypes, o.value))}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+                <span className="flex-1 text-left">{o.label}</span>
+                {venueTypes.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
+              </button>
+            ))}
+          </>
+        )}
       </PillDropdown>
 
-      <TogglePill label="Rezerwacja" icon={<BookOpen className="h-3.5 w-3.5 shrink-0" />}
-        active={onlyBookable} onClick={() => setOnlyBookable(!onlyBookable)} />
       <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
         active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
       <TogglePill label="Blisko mnie" icon={<Navigation className="h-3.5 w-3.5 shrink-0" />}
@@ -360,9 +392,8 @@ export default function VenueExplorer({
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
 
-  const [sport,         setSport]         = useState('');
-  const [venueType,     setVenueType]     = useState('');
-  const [onlyBookable,  setOnlyBookable]  = useState(false);
+  const [sports,         setSports]        = useState<string[]>([]);
+  const [venueTypes,     setVenueTypes]    = useState<string[]>([]);
   const [onlyGamesToday, setOnlyGamesToday] = useState(false);
   const [geo,           setGeo]           = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading,    setGeoLoading]    = useState(false);
@@ -393,7 +424,7 @@ export default function VenueExplorer({
       .then((res) => {
         if (cancelled) return;
         setAllFields(res.fields.filter(
-          (f) => f.mapVisibility !== 'hidden' && inPowiat(f.lat, f.lng) && hasUsefulInfo(f),
+          (f) => f.mapVisibility !== 'hidden' && inPowiat(f.lat, f.lng) && hasUsefulInfo(f) && isRelevantVenue(f),
         ));
       })
       .catch(() => {});
@@ -422,9 +453,8 @@ export default function VenueExplorer({
 
   const fields = useMemo(() => {
     let list = allFields;
-    if (sport)     list = list.filter((f) => f.sport.includes(sport));
-    if (venueType) list = list.filter((f) => f.venueType === venueType);
-    if (onlyBookable)   list = list.filter((f) => f.bookingEnabled);
+    if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
+    if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     if (geo) {
       const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
@@ -433,7 +463,7 @@ export default function VenueExplorer({
       list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     }
     return list;
-  }, [allFields, sport, venueType, onlyBookable, onlyGamesToday, geo, fieldStats]);
+  }, [allFields, sports, venueTypes, onlyGamesToday, geo, fieldStats]);
 
   // Clean up stale card refs
   useEffect(() => {
@@ -494,8 +524,8 @@ export default function VenueExplorer({
   }
 
   const filterProps = {
-    sport, setSport, venueType, setVenueType,
-    onlyBookable, setOnlyBookable, onlyGamesToday, setOnlyGamesToday,
+    sports, setSports, venueTypes, setVenueTypes,
+    onlyGamesToday, setOnlyGamesToday,
     geo, geoLoading, handleGeo,
   };
 

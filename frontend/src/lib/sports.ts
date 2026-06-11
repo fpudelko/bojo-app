@@ -12,7 +12,7 @@ export const SPORT_CONFIG = {
   // Legacy — shown on map but hidden from filters / creation form
   'piłka ręczna':      { emoji: '🤾', color: '#6b7280', label: 'Piłka ręczna' },
   'gokarty':           { emoji: '🏎️', color: '#6b7280', label: 'Gokarty' },
-  'inne':              { emoji: '🏅', color: '#6b7280', label: 'Inne' },
+  'inne':              { emoji: '🏟️', color: '#6b7280', label: 'Inne' },
 } as const;
 
 /** Sports shown in filters / event creation / homepage shortcuts. */
@@ -29,7 +29,7 @@ export type SportKey = keyof typeof SPORT_CONFIG;
 const _cfg = SPORT_CONFIG as Record<string, { emoji: string; color: string; label: string }>;
 
 export function sportEmoji(sport: string): string {
-  return _cfg[sport]?.emoji ?? '🏅';
+  return _cfg[sport]?.emoji ?? '🏟️';
 }
 
 export function sportColor(sport: string): string {

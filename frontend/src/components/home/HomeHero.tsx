@@ -385,6 +385,19 @@ export default function HomeHero() {
       <MarketingHero />
       <section className="mx-auto w-full max-w-3xl px-4 pt-2 pb-12 space-y-6">
         <OpenGamesSection />
+        <Link
+          href="/mapa"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm hover:border-primary-200 hover:shadow-card-hover transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🗺️</span>
+            <div>
+              <p className="text-sm font-semibold text-ink">Mapa boisk</p>
+              <p className="text-xs text-slate-400">Setki boisk w Poznaniu i okolicach</p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+        </Link>
       </section>
     </>
   );
