@@ -25,6 +25,13 @@ export function formatLabel(sport: string, max: number): string {
   return max > 0 ? `${short} · ${max} os.` : short;
 }
 
+/** Just the size suffix — "6v6", "· 10 os." — no sport name prefix */
+function formatSize(max: number): string {
+  if (max <= 0) return '';
+  if (max % 2 === 0) return ` ${max / 2}v${max / 2}`;
+  return ` · ${max} os.`;
+}
+
 /** "za 2 h" / "za 30 min" within 24h, else null */
 export function timeUntil(date: string, time?: string): string | null {
   if (!time) return null;
@@ -94,12 +101,16 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
           <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${fillColor}`} aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-ink leading-snug truncate">
-              {event.title || `${sportEmoji(event.sport)} ${event.sport}`}
+              {event.title
+                ? event.title
+                : `${sportEmoji(event.sport)} ${event.sport}${formatSize(max)}`}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-100 rounded-full px-2 py-0.5">
-                {sportEmoji(event.sport)} {fmt}
-              </span>
+              {event.title && (
+                <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-100 rounded-full px-2 py-0.5">
+                  {sportEmoji(event.sport)} {fmt}
+                </span>
+              )}
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${priceClass}`}>
                 {priceLabel}
               </span>
