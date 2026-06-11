@@ -26,19 +26,9 @@ const FILTER_SPORTS = ['piłka nożna', 'siatkówka plażowa', 'siatkówka', 'ko
 
 /** Marketing hero for logged-out visitors */
 function MarketingHero() {
-  const [venueCount, setVenueCount] = useState<number | null>(null);
   const [todayCount, setTodayCount] = useState<number | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { count } = await supabase
-          .from('fields')
-          .select('id', { count: 'exact', head: true })
-          .eq('map_visibility', 'public');
-        setVenueCount(count ?? 0);
-      } catch { /* ignore */ }
-    })();
     (async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -123,28 +113,7 @@ function MarketingHero() {
             ))}
           </div>
 
-          {/* Stats bar */}
-          <dl
-            className="mx-auto mt-10 grid max-w-xs animate-fade-up grid-cols-3 gap-2 border-t border-white/10 pt-6 sm:max-w-md sm:gap-4"
-            style={{ animationDelay: '360ms' }}
-          >
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">boisk</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
-                {venueCount !== null ? venueCount : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">gier dziś</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">
-                {todayCount !== null ? todayCount : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] sm:text-xs uppercase tracking-wider text-white/55 text-center">sporty</dt>
-              <dd className="mt-1 text-center font-display text-xl sm:text-2xl font-bold tracking-tight">4</dd>
-            </div>
-          </dl>
+
         </div>
 
       </div>
