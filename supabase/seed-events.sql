@@ -172,7 +172,10 @@ BEGIN
         ORDER BY random()
         LIMIT signup_count
       ) picked
-      ON CONFLICT (event_id, user_id) DO NOTHING;
+      WHERE NOT EXISTS (
+        SELECT 1 FROM event_participants p
+        WHERE p.event_id = ev_id AND p.user_id = picked.id
+      );
     END LOOP;
   END LOOP;
 
@@ -185,8 +188,7 @@ BEGIN
       AND ev.event_date >= current_date
       AND NOT EXISTS (SELECT 1 FROM event_participants p WHERE p.event_id = ev.id AND p.user_id = me)
     ORDER BY random()
-    LIMIT 5
-    ON CONFLICT (event_id, user_id) DO NOTHING;
+    LIMIT 5;
   END IF;
 
   RAISE NOTICE 'Seed complete: % fake users created.', n_users;
