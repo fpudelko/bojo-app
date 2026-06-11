@@ -10,9 +10,7 @@ import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
-
-// Turniej (Cup) ukryty na razie — przełącz na true, by przywrócić
-const SHOW_CUP = false;
+import { SHOW_CUP } from '@/lib/features';
 
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [

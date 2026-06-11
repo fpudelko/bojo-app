@@ -1,6 +1,5 @@
 import Link from 'next/link';
-
-const SHOW_CUP = false;
+import { SHOW_CUP } from '@/lib/features';
 
 export default function TrustBar() {
   return (

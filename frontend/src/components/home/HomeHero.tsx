@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
+import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventListCard } from '@/components/EventListCard';
 import { sportEmoji } from '@/lib/sports';
@@ -236,7 +237,7 @@ function OpenGamesSection() {
   useEffect(() => {
     Promise.all([
       getPublicEvents(),
-      user ? getMyAlert().catch(() => null) : Promise.resolve(null),
+      user && SHOW_GAME_ALERTS ? getMyAlert().catch(() => null) : Promise.resolve(null),
       user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
     ]).then(([events, myAlert, mine]) => {
       setAllEvents(events);
@@ -264,7 +265,7 @@ function OpenGamesSection() {
             </span>
           )}
         </h2>
-        {user && (
+        {user && SHOW_GAME_ALERTS && (
           <button
             onClick={() => setShowAlert(true)}
             className={[
@@ -312,7 +313,7 @@ function OpenGamesSection() {
           <p className="text-sm font-medium text-slate-600 mb-4">
             {activeSport ? 'Brak otwartych gier w tym sporcie' : 'Brak otwartych gier w tej chwili'}
           </p>
-          {user ? (
+          {user && SHOW_GAME_ALERTS ? (
             <button
               onClick={() => setShowAlert(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white"
@@ -321,7 +322,7 @@ function OpenGamesSection() {
             </button>
           ) : (
             <Link href="/wydarzenia/nowe" className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">
-              Stwórz pierwszy mecz
+              <CalendarPlus className="w-4 h-4" /> Stwórz mecz
             </Link>
           )}
         </div>

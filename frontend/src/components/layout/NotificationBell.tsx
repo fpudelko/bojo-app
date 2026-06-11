@@ -83,7 +83,7 @@ export default function NotificationBell() {
             <div className="px-4 py-10 text-center">
               <Bell className="w-8 h-8 text-slate-200 mx-auto mb-2" />
               <p className="text-sm text-slate-400">Brak powiadomień</p>
-              <p className="text-xs text-slate-300 mt-1">Ustaw alert, żeby dostać powiadomienie gdy pojawi się gra.</p>
+              <p className="text-xs text-slate-300 mt-1">Damy znać, gdy coś się wydarzy w Twoich grach.</p>
             </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">

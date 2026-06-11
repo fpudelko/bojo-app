@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import RemindersSection from '@/components/events/RemindersSection';
+import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
@@ -384,8 +385,10 @@ export default function EditEventPage() {
             </button>
             {advOpen && (
               <div className="px-4 pb-2 border-t border-slate-100 divide-y divide-slate-100">
+                {SHOW_SMS_FEATURES && (
                 <ToggleRow label="Potwierdzenie SMS" desc="Zaproszeni gracze potwierdzają przez SMS" checked={requireSmsConfirmation} onChange={setRequireSmsConfirmation} />
-                {requireSmsConfirmation && (
+                )}
+                {SHOW_SMS_FEATURES && requireSmsConfirmation && (
                   <div className="py-3">
                     <label className="block text-xs text-slate-600 mb-1">Termin potwierdzenia (h przed meczem)</label>
                     <input type="number" min={1} max={168} value={confirmationDeadlineH}
@@ -442,7 +445,7 @@ export default function EditEventPage() {
         </form>
 
         {/* Reminders — standalone section, saves independently from the main form */}
-        <RemindersSection eventId={id} />
+        {SHOW_SMS_FEATURES && <RemindersSection eventId={id} />}
       </main>
     </div>
   );
