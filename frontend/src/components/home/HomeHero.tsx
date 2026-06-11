@@ -63,9 +63,9 @@ function MarketingHero() {
             className="mt-5 animate-fade-up font-display text-3xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
             style={{ animationDelay: '80ms' }}
           >
-            Znajdź grę
+            Twoja gra
             <br />
-            <span className="text-white/85">na dziś wieczór.</span>
+            <span className="text-white/85">zaczyna się tutaj.</span>
           </h1>
           <p
             className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg"
@@ -129,7 +129,7 @@ function DashboardHeader() {
       <div className="hero-dots absolute inset-0" aria-hidden="true" />
       <div className="relative mx-auto max-w-3xl px-4 pt-8 pb-10">
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Znajdź grę na dziś wieczór.
+          Twoja gra zaczyna się tutaj.
         </h1>
         <p className="mt-1 text-sm text-white/70 max-w-sm">
           Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
