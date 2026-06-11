@@ -77,21 +77,21 @@ function MarketingHero() {
 
           {/* CTA */}
           <div
-            className="mt-8 flex animate-fade-up flex-col items-center justify-center gap-3 sm:flex-row"
+            className="mt-8 flex animate-fade-up flex-row flex-wrap items-center justify-center gap-3"
             style={{ animationDelay: '240ms' }}
           >
-            <Link href="/wydarzenia" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg active:scale-[0.97]">
+            <Link href="/wydarzenia">
+              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
                 Znajdź grę <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/wydarzenia/nowe" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto">
+            <Link href="/wydarzenia/nowe">
+              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
                 Stwórz mecz
               </Button>
             </Link>
-            <Link href="/mapa" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 sm:w-auto">
+            <Link href="/mapa">
+              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
                 <MapIcon className="h-4 w-4" /> Mapa boisk
               </Button>
             </Link>
@@ -134,9 +134,9 @@ function DashboardHeader() {
         <p className="mt-1 text-sm text-white/70 max-w-sm">
           Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
         </p>
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-5 flex flex-row gap-2">
           <Link href="/wydarzenia" className="flex-1">
-            <Button size="sm" className="w-full bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent">
+            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
               <ArrowRight className="h-4 w-4" /> Znajdź grę
             </Button>
           </Link>
