@@ -127,28 +127,29 @@ function DashboardHeader() {
   return (
     <section className="hero-surface relative overflow-hidden text-white">
       <div className="hero-dots absolute inset-0" aria-hidden="true" />
-      <div className="relative mx-auto max-w-3xl px-4 py-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-              Znajdź grę na dziś wieczór.
-            </h1>
-            <p className="mt-1 text-sm text-white/70 max-w-sm">
-              Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Link href="/mapa">
-              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
-                <MapIcon className="h-4 w-4" /> Mapa
-              </Button>
-            </Link>
-            <Link href="/wydarzenia/nowe">
-              <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15 whitespace-nowrap">
-                <CalendarPlus className="h-4 w-4" /> Stwórz
-              </Button>
-            </Link>
-          </div>
+      <div className="relative mx-auto max-w-3xl px-4 pt-8 pb-10">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+          Znajdź grę na dziś wieczór.
+        </h1>
+        <p className="mt-1 text-sm text-white/70 max-w-sm">
+          Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
+        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <Link href="/wydarzenia" className="flex-1">
+            <Button size="sm" className="w-full bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent">
+              <ArrowRight className="h-4 w-4" /> Znajdź grę
+            </Button>
+          </Link>
+          <Link href="/wydarzenia/nowe" className="flex-1">
+            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
+              <CalendarPlus className="h-4 w-4" /> Stwórz mecz
+            </Button>
+          </Link>
+          <Link href="/mapa" className="flex-1">
+            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
+              <MapIcon className="h-4 w-4" /> Mapa boisk
+            </Button>
+          </Link>
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
