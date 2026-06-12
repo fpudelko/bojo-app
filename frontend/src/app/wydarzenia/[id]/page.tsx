@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
   Calendar, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
-  Check, X, Pencil, Banknote, Shuffle, Phone, Trophy, MessageSquare, Star,
+  Check, X, Pencil, Banknote, Phone, Trophy, MessageSquare, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, Settings,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -25,8 +25,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
 } from '@/lib/events';
 import {
-  getEventInvites, createInvite, deleteInvite, validateInviteToken, acceptInvite,
-  openInviteMailto,
+  getEventInvites, deleteInvite, validateInviteToken, acceptInvite,
 } from '@/lib/invites';
 import type { EventInvite } from '@/lib/invites';
 import {
@@ -40,11 +39,6 @@ import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-
-const TEAM_COLORS = [
-  { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
-  { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
-];
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -106,20 +100,6 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'inne', label: 'Inne' },
 ];
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-function splitTeams(players: EventParticipant[]): [EventParticipant[], EventParticipant[]] {
-  const s = shuffle(players);
-  const mid = Math.ceil(s.length / 2);
-  return [s.slice(0, mid), s.slice(mid)];
-}
-
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -140,7 +120,6 @@ export default function EventDetailPage() {
   const [joinAsReserve, setJoinAsReserve] = useState(false);
   const [joinRole, setJoinRole] = useState<'player' | 'goalkeeper'>('player');
   // Legacy client-side teams (teamMode === 'brak' only)
-  const [localTeams, setLocalTeams] = useState<[EventParticipant[], EventParticipant[]] | null>(null);
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [playerGoals, setPlayerGoals] = useState<PlayerGoal[]>([]);
@@ -160,8 +139,6 @@ export default function EventDetailPage() {
   const [editMode, setEditMode] = useState(false);
   // Invites
   const [invites, setInvites] = useState<EventInvite[]>([]);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteBusy, setInviteBusy] = useState(false);
   const [validInviteToken, setValidInviteToken] = useState<EventInvite | null>(null);
 
   const loadMatchData = useCallback(async (ev: EventItem) => {
@@ -289,7 +266,6 @@ export default function EventDetailPage() {
     try {
       await removeParticipant(participantId);
       await load();
-      setLocalTeams(null);
       toast('Uczestnik usunięty');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -371,21 +347,6 @@ export default function EventDetailPage() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
-  };
-
-  const handleAddInvite = async () => {
-    if (!inviteEmail.trim() || !user) return;
-    setInviteBusy(true);
-    try {
-      const invite = await createInvite(event.id, inviteEmail.trim(), user.id);
-      setInvites((prev) => [...prev, invite]);
-      const inviteUrl = `${window.location.origin}/wydarzenia/${event.id}?token=${invite.token}`;
-      openInviteMailto(inviteEmail.trim(), event.title || event.sport, displayName(user), inviteUrl);
-      setInviteEmail('');
-      toast('Zaproszenie gotowe — otwarto klienta pocztowego');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    } finally { setInviteBusy(false); }
   };
 
   const handleDeleteInvite = async (inviteId: string) => {
@@ -564,7 +525,7 @@ export default function EventDetailPage() {
               <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
               <p className="text-xs text-red-500">Ten mecz został odwołany przez organizatora.</p>
             </div>
-            {isOrganizer && (
+            {isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -788,7 +749,7 @@ export default function EventDetailPage() {
         </div>
 
         {/* Detailed roster — organizer management (everyone sees the avatar stack in the header card) */}
-        {isOrganizer && (
+        {isOwner && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-ink flex items-center gap-2">
@@ -943,7 +904,7 @@ export default function EventDetailPage() {
         )}
 
         {/* Reserve list — organizer only (squad info is private) */}
-        {reserves.length > 0 && isOrganizer && (
+        {reserves.length > 0 && isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Users className="w-4 h-4 text-slate-400" />
@@ -988,45 +949,6 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* Quick shuffle (teamMode === 'brak') — organizer only, client-side */}
-        {!showTeams && isOrganizer && regulars.length >= 2 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-ink flex items-center gap-2">
-                <Shuffle className="w-4 h-4" /> Losuj składy
-                <span className="text-xs font-normal text-slate-400">tylko dla Ciebie</span>
-              </h2>
-              <Button variant="outline" onClick={() => setLocalTeams(splitTeams(regulars))} disabled={busy}>
-                {localTeams ? 'Losuj ponownie' : 'Losuj składy'}
-              </Button>
-            </div>
-            {localTeams ? (
-              <div className="grid grid-cols-2 gap-3">
-                {localTeams.map((team, ti) => {
-                  const c = TEAM_COLORS[ti];
-                  return (
-                    <div key={ti} className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
-                      <p className={`text-xs font-bold mb-2 uppercase tracking-wide ${c.text}`}>Drużyna {ti + 1}</p>
-                      <ul className="space-y-1">
-                        {team.map((p) => (
-                          <li key={p.id} className="flex items-center gap-1.5 text-sm text-slate-800">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
-                            {p.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400 text-center py-2">
-                Kliknij przycisk, aby podzielić {regulars.length} graczy losowo.
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Match results (trackResults) — locked until 30 min after event start */}
         {event.trackResults && !resultsAvailable && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
@@ -1049,7 +971,7 @@ export default function EventDetailPage() {
         )}
 
         {/* ZAPROSZENIA */}
-        {isOrganizer && (
+        {isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-ink flex items-center gap-2">
@@ -1060,30 +982,9 @@ export default function EventDetailPage() {
               </Button>
             </div>
 
-            {/* Send invite by email */}
-            <div>
-              <p className="text-xs text-slate-500 mb-2">
-                Wpisz adres email — otworzymy Twój klient pocztowy z gotową wiadomością.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()}
-                  placeholder="email@przykład.pl"
-                  className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <Button
-                  onClick={handleAddInvite}
-                  disabled={inviteBusy || !inviteEmail.trim()}
-                  variant="outline"
-                  className="shrink-0 whitespace-nowrap"
-                >
-                  Wyślij zaproszenie →
-                </Button>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500">
+              Udostępnij link do meczu — każdy z linkiem może dołączyć.
+            </p>
 
             {/* Invite list */}
             {invites.length > 0 && (
@@ -1120,7 +1021,7 @@ export default function EventDetailPage() {
         )}
 
         {/* Cost split summary */}
-        {event.trackPayments && event.costGrosze > 0 && isOrganizer && (
+        {event.trackPayments && event.costGrosze > 0 && isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Banknote className="w-4 h-4" /> Podział kosztów
@@ -1162,7 +1063,7 @@ export default function EventDetailPage() {
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. */}
-        {isOrganizer && (
+        {isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}

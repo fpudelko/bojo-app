@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
-import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
@@ -81,18 +80,6 @@ function DashboardHeader() {
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
           Mecze, boiska i gracze w Twojej okolicy.
         </h1>
-        <div className="mt-5 flex flex-row gap-2">
-          <Link href="/wydarzenia/nowe" className="flex-1">
-            <Button size="sm" className="w-full bg-white text-primary-800 hover:bg-white/90 font-bold">
-              <CalendarPlus className="h-4 w-4" /> Stwórz mecz
-            </Button>
-          </Link>
-          <Link href="/wydarzenia">
-            <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
-              Znajdź grę
-            </Button>
-          </Link>
-        </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
@@ -117,8 +104,8 @@ function MyGamesSection({ userId }: { userId: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-ink">
-          Twoje gry
+        <h2 className="text-base font-bold text-ink">
+          Twoje najbliższe gry
           <span className="ml-2 text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
             {games.length}
           </span>
@@ -167,8 +154,8 @@ function OpenGamesSection() {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-ink">
-          Otwarte gry
+        <h2 className="text-base font-bold text-ink">
+          Najbliższe otwarte gry
           {openEvents.length > 0 && (
             <span className="ml-2 text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
               {openEvents.length}
