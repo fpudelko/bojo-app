@@ -135,19 +135,14 @@ function DashboardHeader() {
           Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
         </p>
         <div className="mt-5 flex flex-row gap-2">
-          <Link href="/wydarzenia" className="flex-1">
-            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
-              <ArrowRight className="h-4 w-4" /> Znajdź grę
-            </Button>
-          </Link>
           <Link href="/wydarzenia/nowe" className="flex-1">
-            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
+            <Button size="sm" className="w-full bg-white text-primary-800 hover:bg-white/90 font-bold">
               <CalendarPlus className="h-4 w-4" /> Stwórz mecz
             </Button>
           </Link>
-          <Link href="/mapa" className="flex-1">
-            <Button variant="outline" size="sm" className="w-full border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
-              <MapIcon className="h-4 w-4" /> Mapa boisk
+          <Link href="/wydarzenia">
+            <Button variant="outline" size="sm" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
+              Znajdź grę
             </Button>
           </Link>
         </div>
@@ -319,25 +314,32 @@ function OpenGamesSection() {
   );
 }
 
-/** Quick links to the user's games and the venue map. */
-function QuickLinks() {
+/** Map teaser linking to /mapa */
+function MapTeaser() {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Link href="/moje-gry" className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-card-hover transition-all">
-        <span className="text-xl">📋</span>
-        <div>
-          <p className="text-sm font-semibold text-ink">Twoje mecze</p>
-          <p className="text-xs text-slate-400">Nadchodzące i historia</p>
+    <Link href="/mapa" className="group block rounded-2xl overflow-hidden relative h-32 bg-[#e8f0e9] hover:shadow-card-hover transition-all">
+      {/* pseudo-map grid */}
+      <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#15803d" strokeWidth="0.8"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#map-grid)" />
+      </svg>
+      {/* decorative pins */}
+      <span className="absolute top-4 left-1/3 text-2xl drop-shadow">📍</span>
+      <span className="absolute top-8 left-2/3 text-xl drop-shadow">📍</span>
+      <span className="absolute top-3 left-3/5 text-base drop-shadow">📍</span>
+      {/* label */}
+      <div className="absolute inset-0 flex items-end p-4">
+        <div className="flex-1">
+          <p className="text-sm font-bold text-primary-800">Mapa boisk</p>
+          <p className="text-xs text-primary-700/70">Boiska w Poznaniu i okolicach</p>
         </div>
-      </Link>
-      <Link href="/mapa" className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-card-hover transition-all">
-        <span className="text-xl">🗺️</span>
-        <div>
-          <p className="text-sm font-semibold text-ink">Mapa boisk</p>
-          <p className="text-xs text-slate-400">Setki lokalizacji</p>
-        </div>
-      </Link>
-    </div>
+        <ArrowRight className="w-5 h-5 text-primary-700 group-hover:translate-x-0.5 transition-transform" />
+      </div>
+    </Link>
   );
 }
 
@@ -352,7 +354,7 @@ export default function HomeHero() {
         <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-10 space-y-6">
           <MyGamesSection userId={user.id} />
           <OpenGamesSection />
-          <QuickLinks />
+          <MapTeaser />
         </section>
       </>
     );
