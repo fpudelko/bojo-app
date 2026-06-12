@@ -64,22 +64,6 @@ function MarketingHero() {
             Znajdź brakujących graczy i dołączaj do otwartych meczów.
           </p>
 
-          {/* CTA */}
-          <div
-            className="mt-8 flex animate-fade-up flex-row items-center justify-center gap-3"
-            style={{ animationDelay: '240ms' }}
-          >
-            <Link href="/wydarzenia">
-              <Button size="lg" className="bg-white text-primary-800 hover:bg-white/90 font-bold">
-                Znajdź grę <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/wydarzenia/nowe">
-              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
-                Stwórz mecz
-              </Button>
-            </Link>
-          </div>
         </div>
 
       </div>
