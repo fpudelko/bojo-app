@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, Bell, BellRing, Map as MapIcon } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -12,17 +12,7 @@ import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventListCard } from '@/components/EventListCard';
-import { sportEmoji } from '@/lib/sports';
 import type { EventItem, GameAlert } from '@/types';
-
-const SPORT_CHIPS = [
-  { sport: 'piłka nożna',       emoji: '⚽', label: 'Piłka' },
-  { sport: 'siatkówka plażowa', emoji: '🏖️', label: 'Siatkówka plażowa' },
-  { sport: 'siatkówka',         emoji: '🏐', label: 'Siatkówka' },
-  { sport: 'koszykówka',        emoji: '🏀', label: 'Koszykówka' },
-];
-
-const FILTER_SPORTS = ['piłka nożna', 'siatkówka plażowa', 'siatkówka', 'koszykówka'];
 
 /** Marketing hero for logged-out visitors */
 function MarketingHero() {
@@ -68,20 +58,19 @@ function MarketingHero() {
             <span className="text-white/85">w Twojej okolicy.</span>
           </h1>
           <p
-            className="mx-auto mt-5 max-w-xl animate-fade-up text-base font-medium text-white/80 sm:text-lg"
+            className="mx-auto mt-5 max-w-md animate-fade-up text-base font-medium text-white/80 sm:text-lg"
             style={{ animationDelay: '160ms' }}
           >
-            Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do
-            otwartych meczów w okolicy — piłka, siatka czy kosz, wszystko w jednym miejscu.
+            Znajdź brakujących graczy i dołączaj do otwartych meczów.
           </p>
 
           {/* CTA */}
           <div
-            className="mt-8 flex animate-fade-up flex-row flex-wrap items-center justify-center gap-3"
+            className="mt-8 flex animate-fade-up flex-row items-center justify-center gap-3"
             style={{ animationDelay: '240ms' }}
           >
             <Link href="/wydarzenia">
-              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
+              <Button size="lg" className="bg-white text-primary-800 hover:bg-white/90 font-bold">
                 Znajdź grę <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -90,30 +79,7 @@ function MarketingHero() {
                 Stwórz mecz
               </Button>
             </Link>
-            <Link href="/mapa">
-              <Button variant="outline" size="lg" className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15">
-                <MapIcon className="h-4 w-4" /> Mapa boisk
-              </Button>
-            </Link>
           </div>
-
-          {/* Sport chips */}
-          <div
-            className="mt-6 flex animate-fade-up flex-wrap items-center justify-center gap-2"
-            style={{ animationDelay: '300ms' }}
-          >
-            {SPORT_CHIPS.map(({ sport, emoji, label }) => (
-              <Link
-                key={sport}
-                href={`/wydarzenia?sport=${encodeURIComponent(sport)}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white/90 backdrop-blur-sm hover:bg-white/20 transition-colors"
-              >
-                <span>{emoji}</span> {label}
-              </Link>
-            ))}
-          </div>
-
-
         </div>
 
       </div>
@@ -131,9 +97,6 @@ function DashboardHeader() {
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
           Mecze, boiska i gracze w Twojej okolicy.
         </h1>
-        <p className="mt-1 text-sm text-white/70 max-w-sm">
-          Organizuj grę ze znajomymi, znajdź brakujących graczy i dołączaj do otwartych meczów w okolicy.
-        </p>
         <div className="mt-5 flex flex-row gap-2">
           <Link href="/wydarzenia/nowe" className="flex-1">
             <Button size="sm" className="w-full bg-white text-primary-800 hover:bg-white/90 font-bold">
@@ -195,7 +158,6 @@ function OpenGamesSection() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<GameAlert | null>(null);
   const [showAlert, setShowAlert] = useState(false);
-  const [activeSport, setActiveSport] = useState('');
   const [myRel, setMyRel] = useState<Record<string, 'organizer' | 'going'>>({});
   const { user } = useAuth();
 
@@ -215,7 +177,6 @@ function OpenGamesSection() {
     if (e.status === 'cancelled') return false;
     const taken = (e.participantsCount ?? 0) + (e.externalCount ?? 0);
     if (!isEventJoinable(e) || taken >= e.maxPlayers) return false;
-    if (activeSport && e.sport !== activeSport) return false;
     return true;
   });
 
@@ -244,30 +205,6 @@ function OpenGamesSection() {
         )}
       </div>
 
-      {/* Sport filter — emoji chips; nic nie wybrane = wszystkie */}
-      <div className="flex items-center gap-2.5 mb-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {FILTER_SPORTS.map((sport) => {
-          const active = activeSport === sport;
-          return (
-            <button
-              key={sport}
-              onClick={() => setActiveSport(active ? '' : sport)}
-              aria-pressed={active}
-              aria-label={sport}
-              title={sport}
-              className={[
-                'shrink-0 flex items-center justify-center h-11 w-11 rounded-full border transition-all',
-                active
-                  ? 'bg-primary-700 border-primary-700 shadow-md scale-105'
-                  : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
-              ].join(' ')}
-            >
-              <span aria-hidden="true" className="text-xl leading-none">{sportEmoji(sport)}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
@@ -276,7 +213,7 @@ function OpenGamesSection() {
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
           <p className="text-2xl mb-3">⚽</p>
           <p className="text-sm font-medium text-slate-600 mb-4">
-            {activeSport ? 'Brak otwartych gier w tym sporcie' : 'Brak otwartych gier w tej chwili'}
+            Brak otwartych gier w tej chwili
           </p>
           {user && SHOW_GAME_ALERTS ? (
             <button
@@ -293,10 +230,10 @@ function OpenGamesSection() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {openEvents.slice(0, 8).map((e) => (
+          {openEvents.slice(0, 5).map((e) => (
             <EventListCard key={e.id} event={e} relation={myRel[e.id]} />
           ))}
-          {openEvents.length > 8 && (
+          {openEvents.length > 5 && (
             <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
               Pokaż wszystkie ({openEvents.length}) <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -366,19 +303,7 @@ export default function HomeHero() {
       <MarketingHero />
       <section className="mx-auto w-full max-w-3xl px-4 pt-2 pb-12 space-y-6">
         <OpenGamesSection />
-        <Link
-          href="/mapa"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-sm hover:border-primary-200 hover:shadow-card-hover transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🗺️</span>
-            <div>
-              <p className="text-sm font-semibold text-ink">Mapa boisk</p>
-              <p className="text-xs text-slate-400">Setki boisk w Poznaniu i okolicach</p>
-            </div>
-          </div>
-          <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
-        </Link>
+        <MapTeaser />
       </section>
     </>
   );

@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import Button from '@/components/ui/Button';
 import HomeHero from '@/components/home/HomeHero';
 import TrustBar from '@/components/home/TrustBar';
 
@@ -19,25 +17,6 @@ export default function HomePage() {
       <main id="main" className="flex-1">
         <HomeHero />
         <TrustBar />
-
-        <section className="hero-surface relative overflow-hidden px-4 py-20 text-center text-white">
-          <div className="hero-dots absolute inset-0" aria-hidden="true" />
-          <div className="relative mx-auto max-w-xl">
-            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Następna gierka jest blisko.
-            </h2>
-            <div className="mt-8">
-              <Link href="/wydarzenia">
-                <Button
-                  size="lg"
-                  className="bg-[#F5A623] text-[#1A1D21] font-bold hover:bg-amber-400 border-transparent shadow-lg"
-                >
-                  Znajdź mecz w okolicy <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="bg-slate-900 px-4 py-10 text-slate-400">
