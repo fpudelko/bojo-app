@@ -1,334 +1,357 @@
 -- ============================================================
--- Boiska do siatkówki plażowej — powiat poznański
--- Źródło: ręczne wyszukiwanie, napiachu.pl, posir.poznan.pl
+-- Boiska do siatkówki plażowej — powiat poznański (16 obiektów)
+-- Źródło: napiachu.pl, posir.poznan.pl, strony własne obiektów
+-- GPS i dane kontaktowe zweryfikowane czerwiec 2025
 -- ============================================================
 
 INSERT INTO fields (
   id, name, address, lat, lng,
   sport, available, surface, is_indoor,
   phone, website, source,
-  operator, description, image_url, opening_hours,
+  operator, description, opening_hours,
   fee, has_changing_rooms, has_shower, has_toilets,
-  capacity, pitch_count, venue_type, access_type,
+  pitch_count, venue_type, access_type,
   district, postcode, is_verified_venue, condition
 ) VALUES
 
 -- 1. POSiR Rusałka — 8 boisk, bezpłatne (rezerwacja online)
 (
-  gen_random_uuid(),
+  'bv000001-0000-0000-0000-000000000001',
   'POSiR Rusałka — Boiska Siatkówki Plażowej',
   'ul. Golęcińska 27, 60-626 Poznań',
-  52.43820, 16.89950,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 61 835 79 07',
+  52.42640, 16.87670,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 847 54 67',
   'https://posir.poznan.pl/obiekty/rusalka/boiska-do-siatkowki-plazowej',
   'manual',
   'POSiR Poznań',
   'Największy kompleks boisk do siatkówki plażowej w Poznaniu — 8 pełnowymiarowych kortów na piasku nad Jeziorem Rusałka. Bezpłatne, wymagana rezerwacja online. Co roku gospodarz turnieju Lotto Plaża Wolności.',
-  'https://posir.poznan.pl/images/rusalka/siatkowka-plazowa.jpg',
-  'Mo-Su 08:00-21:00',
+  'Mo-Su 08:00-22:00',
   false, true, true, true,
-  NULL, 8, 'volleyball_beach', 'public',
+  8, 'volleyball_beach', 'public',
   'Jeżyce', '60-626', true, 'good'
 ),
 
--- 2. Piach i Podróże (POSiR Rataje) — 4 boiska, płatne
+-- 2. Piach i Podróże (POSiR Rataje) — 4 boiska, płatne 8 zł/os/h
 (
-  gen_random_uuid(),
+  'bv000002-0000-0000-0000-000000000002',
   'Piach i Podróże — Boiska Plażowe',
   'Os. Piastowskie 106A, 61-164 Poznań',
-  52.39180, 16.99820,
-  ARRAY['siatkówka plażowa', 'beach tennis'],
-  true, 'sand', false,
+  52.41850, 16.97420,
+  ARRAY['siatkówka plażowa', 'beach tennis'], true, 'sand', false,
   '+48 668 675 147',
   'https://piachipodroze.pl',
   'manual',
   'Beach Volleyball Academy / Proskos',
-  '4 pełnowymiarowe boiska do siatkówki plażowej przy POSiR Rataje. Beach bar, leżaki, beach tennis, obozy i turnieje. Rezerwacja telefonicznie lub e-mailowo. Koszt: 8 zł/os/h.',
-  'https://piachipodroze.pl/wp-content/uploads/boiska-rataje.jpg',
-  'Mo-Fr 10:00-22:00; Sa-Su 09:00-22:00',
+  '4 pełnowymiarowe boiska przy POSiR Rataje. Beach bar, leżaki, beach tennis, obozy i turnieje. Rezerwacja online przez Playmore. Koszt: 8 zł/os/h.',
+  'Mo-Fr 14:00-23:00; Sa-Su 10:00-23:00',
   true, true, true, true,
-  NULL, 4, 'volleyball_beach', 'public',
+  4, 'volleyball_beach', 'public',
   'Nowe Miasto', '61-164', true, 'good'
 ),
 
 -- 3. Beach Arena BVA — Park Kasprowicza — 4 boiska, płatne
 (
-  gen_random_uuid(),
+  'bv000003-0000-0000-0000-000000000003',
   'Beach Arena — Beach Volleyball Academy',
   'Park im. Jana Kasprowicza 1, 60-238 Poznań',
-  52.40510, 16.90830,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.40980, 16.92350,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 693 569 408',
   'https://bvacademy.pl/beach-arena/',
   'manual',
   'Beach Volleyball Academy (BVA)',
-  '4 profesjonalne boiska w Parku Kasprowicza. Siedziba Beach Volleyball Academy — szkolenia dla dzieci od ok. 99 zł/mies. (dofinansowanie Miasta), wynajem dla grup, Beach Bar, prysznice, oficjalne piłki Mikasa.',
-  'https://bvacademy.pl/wp-content/uploads/beach-arena-poznan.jpg',
-  'Mo-Su 09:00-22:00',
+  '4 profesjonalne boiska w Parku Kasprowicza. Szkolenia dla dzieci (dofinansowanie Miasta), wynajem dla grup, Beach Bar, prysznice, oficjalne piłki Mikasa.',
+  'Mo-Su 08:00-22:00',
   true, true, true, true,
-  NULL, 4, 'volleyball_beach', 'public',
+  4, 'volleyball_beach', 'public',
   'Grunwald', '60-238', true, 'good'
 ),
 
--- 4. POSiR Chwiałka — Wilda — 3 boiska, bezpłatne*
+-- 4. POSiR Chwiałka — 3 boiska, bezpłatne (wejście na kąpielisko płatne)
 (
-  gen_random_uuid(),
+  'bv000004-0000-0000-0000-000000000004',
   'POSiR Chwiałka — Boiska Siatkówki Plażowej',
   'ul. Chwiałkowskiego 34, 60-171 Poznań',
-  52.39560, 16.90220,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 61 835 18 01',
+  52.42190, 16.94780,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 833 05 11',
   'https://posir.poznan.pl/obiekty/chwialka',
   'manual',
   'POSiR Poznań',
-  '3 boiska na piasku kwarcowym przy kąpielisku Chwiałka. Boiska oświetlone — gra możliwa po zmroku. Wejście na kąpielisko: 11,50 zł (po 18:00 — 6 zł); boiska dostępne osobno od ulicy. Turniej "Chwiałka Volley" we wrześniu.',
-  NULL,
-  'Mo-Su 07:00-21:00',
+  '3 boiska na piasku kwarcowym przy kąpielisku Chwiałka. Oświetlone — gra możliwa po zmroku. Wejście: 11,50 zł (po 18:00 — 6 zł). Turniej "Chwiałka Volley" we wrześniu.',
+  'Mo-Su 09:00-20:00',
   false, true, true, true,
-  NULL, 3, 'volleyball_beach', 'public',
+  3, 'volleyball_beach', 'public',
   'Wilda', '60-171', true, 'good'
 ),
 
--- 5. POSiR Strzeszynek — 2 boiska, bezpłatne*
+-- 5. POSiR Strzeszynek — 2 boiska, bezpłatne
 (
-  gen_random_uuid(),
+  'bv000005-0000-0000-0000-000000000005',
   'POSiR Strzeszynek — Boiska Siatkówki Plażowej',
   'ul. Koszalińska 15, 60-449 Poznań',
-  52.37900, 16.85800,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 61 847 00 60',
+  52.43500, 16.83120,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 848 31 29',
   'https://posir.poznan.pl/obiekty/strzeszynek',
   'manual',
   'POSiR Poznań',
-  '2 boiska przy kąpielisku nad Jeziorem Strzeszyńskim. Wejście na plażę sezonowo płatne. Boiska otoczone piłkochwytami.',
-  NULL,
-  'Mo-Su 08:00-20:00',
+  '2 boiska przy kąpielisku nad Jeziorem Strzeszyńskim. Otoczone piłkochwytami. Wejście na plażę sezonowo płatne.',
+  'Mo-Su 09:00-19:00',
   false, true, true, true,
-  NULL, 2, 'volleyball_beach', 'public',
+  2, 'volleyball_beach', 'public',
   'Piątkowo', '60-449', true, 'good'
 ),
 
 -- 6. Restauracja Oaza Strzeszynek — 4 boiska, bezpłatne
 (
-  gen_random_uuid(),
+  'bv000006-0000-0000-0000-000000000006',
   'Oaza Strzeszynek — Boiska Plażowe',
   'ul. Koszalińska 15 (teren ośrodka), 60-449 Poznań',
-  52.37820, 16.85720,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 61 848 31 29',
+  52.43500, 16.83050,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 848 31 45',
   'https://strzeszynek.pl',
   'manual',
   'Restauracja Oaza',
-  '4 boiska na terenie ośrodka Oaza przy Jeziorze Strzeszyńskim. Dostęp bezpłatny. Plac zabaw, leżaki, parasole, wypożyczalnia sprzętu wodnego.',
-  NULL,
-  'Mo-Su 10:00-22:00',
+  '4 boiska na terenie ośrodka Oaza przy Jeziorze Strzeszyńskim. Bezpłatne. Leżaki, parasole, wypożyczalnia sprzętu wodnego, plac zabaw.',
+  'Tu-Su 13:00-22:00',
   false, false, false, true,
-  NULL, 4, 'volleyball_beach', 'public',
+  4, 'volleyball_beach', 'public',
   'Piątkowo', '60-449', true, 'good'
 ),
 
 -- 7. POSiR MOS Wyspiańskiego — 2 boiska, płatne
 (
-  gen_random_uuid(),
+  'bv000007-0000-0000-0000-000000000007',
   'POSiR MOS — Boiska Siatkówki Plażowej',
   'ul. Stanisława Wyspiańskiego 27, 60-751 Poznań',
-  52.39100, 16.92700,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 61 877 23 29',
+  52.40030, 16.91010,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 835 79 00',
   'https://posir.poznan.pl/obiekty/mos/boiska-do-siatkowki-plazowej',
   'manual',
   'POSiR Poznań / MOS',
-  '2 boiska plażowe przy MOS (Miejski Ośrodek Sportu). Rezerwacja przez biuro MOS, ul. Gdańska 1.',
-  NULL,
-  'Mo-Fr 08:00-22:00; Sa-Su 09:00-20:00',
+  '2 boiska plażowe przy MOS. Rezerwacja e-mail: mos@posir.poznan.pl lub przez biuro MOS ul. Gdańska 1.',
+  'Mo-Fr 07:00-20:00; Sa-Su 10:00-18:00',
   true, true, true, true,
-  NULL, 2, 'volleyball_beach', 'public',
+  2, 'volleyball_beach', 'public',
   'Grunwald', '60-751', true, 'good'
 ),
 
 -- 8. Politechnika Poznańska CSPP — 1 boisko
 (
-  gen_random_uuid(),
+  'bv000008-0000-0000-0000-000000000008',
   'CSPP Politechnika Poznańska — Boisko Plażowe',
   'ul. Piotrowo 4, 61-138 Poznań',
-  52.40870, 16.94620,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.40260, 16.94800,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 665 34 92',
   'https://cspp.put.poznan.pl',
   'manual',
   'Centrum Sportu i Rekreacji Politechniki Poznańskiej',
-  '1 boisko do siatkówki plażowej na terenie kampusu Politechniki. Do końca czerwca pierwszeństwo dla studentów i pracowników PP; sezonowo otwarte dla zewnętrznych. Godz. 8:00–22:00.',
-  NULL,
+  '1 boisko na kampusie PP. Do końca czerwca pierwszeństwo dla studentów i pracowników; sezonowo otwarte dla zewnętrznych. Rezerwacja przez recepcję lub e-mail: obiekt.sportowy.recepcja@put.poznan.pl',
   'Mo-Su 08:00-22:00',
   true, true, true, true,
-  NULL, 1, 'volleyball_beach', 'club',
+  1, 'volleyball_beach', 'club',
   'Wilda', '61-138', true, 'good'
 ),
 
--- 9. Univ. Przyrodniczy CKF — 2 boiska
+-- 9. Univ. Przyrodniczy CKF — 2 boiska, ~15 zł/h
 (
-  gen_random_uuid(),
+  'bv000009-0000-0000-0000-000000000009',
   'CKF Uniwersytet Przyrodniczy — Boiska Plażowe',
   'ul. Wojska Polskiego 28, 60-637 Poznań',
-  52.40070, 16.89680,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.40420, 16.92400,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 846 62 45',
   'https://sparrow.up.poznan.pl/ckf/',
   'manual',
   'Centrum Kultury Fizycznej UP Poznań',
-  '2 boiska przy kampusie Uniwersytetu Przyrodniczego. Ok. 15 zł/h. Głównie dla studentów i pracowników; dostęp zewnętrzny możliwy.',
-  NULL,
+  '2 boiska przy kampusie Uniwersytetu Przyrodniczego. Rezerwacja online przez Bo5.pl. Ok. 15 zł/h. Głównie dla studentów i pracowników; dostęp zewnętrzny możliwy.',
   'Mo-Fr 08:00-22:00; Sa-Su 09:00-20:00',
   true, true, true, true,
-  NULL, 2, 'volleyball_beach', 'club',
+  2, 'volleyball_beach', 'club',
   'Jeżyce', '60-637', true, 'good'
 ),
 
 -- 10. OAZA Kórnik — 3 boiska, bezpłatne
 (
-  gen_random_uuid(),
+  'bv000010-0000-0000-0000-000000000010',
   'OAZA Kórnickie Centrum Rekreacji — Boiska Plażowe',
   'ul. Ignacego Krasickiego 1, 62-035 Kórnik',
-  52.23800, 17.09500,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
+  52.24190, 17.08820,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
   '+48 61 649 88 75',
   'https://oaza.kornik.pl/blonie/siatkowka-plazowa',
   'manual',
   'Kórnickie Centrum Rekreacji i Sportu OAZA',
-  '3 boiska przy kąpielisku nad jeziorem w Kórniku. Bezpłatne. Wypożyczalnia sprzętu wodnego, leżaki z parasolami, plac zabaw. Organizowane turnieje (finały mistrzostw).',
-  NULL,
-  'Mo-Su 10:00-20:00',
+  '3 boiska przy kąpielisku w Kórniku. Bezpłatne. Wypożyczalnia sprzętu wodnego, leżaki z parasolami, plac zabaw. Organizowane turnieje.',
+  'Mo-Su 06:30-22:30',
   false, true, true, true,
-  NULL, 3, 'volleyball_beach', 'public',
+  3, 'volleyball_beach', 'public',
   NULL, '62-035', true, 'good'
 ),
 
 -- 11. AKWEN Czerwonak — 1 boisko, płatne
 (
-  gen_random_uuid(),
+  'bv000011-0000-0000-0000-000000000011',
   'AKWEN Centrum Sportu — Boisko Siatkówki Plażowej',
   'ul. Leśna 6, 62-004 Czerwonak',
-  52.46950, 17.01200,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  '+48 510 908 777',
+  52.47470, 17.01160,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 790 722 544',
   'https://akwenczerwonak.pl/nasze-obiekty/boiska-sportowe/',
   'manual',
   'Centrum Rozwoju Kultury Fizycznej AKWEN',
-  '1 boisko ogrodzone piłkochwytem 4 m. Rezerwacja wymagana (tel. 510 908 777 lub 790 722 544). Wypożyczenie sprzętu. Szatnie + prysznice, siłownia zewnętrzna, plac zabaw.',
-  NULL,
+  '1 boisko ogrodzone piłkochwytem 4 m. Rezerwacja tel. 790 722 544 lub 510 908 777. Wypożyczenie sprzętu, szatnie, prysznice, siłownia zewnętrzna.',
   'Mo-Fr 10:00-22:00; Sa-Su 10:00-20:00',
   true, true, true, true,
-  NULL, 1, 'volleyball_beach', 'public',
+  1, 'volleyball_beach', 'public',
   NULL, '62-004', true, 'good'
 ),
 
--- 12. Suchy Las — ul. Poziomkowa — bezpłatne
+-- 12. Suchy Las — ul. Poziomkowa
 (
-  gen_random_uuid(),
+  'bv000012-0000-0000-0000-000000000012',
   'Boisko Siatkówki Plażowej — ul. Poziomkowa',
   'ul. Poziomkowa, 62-002 Suchy Las',
-  52.45300, 16.91800,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.47010, 16.88600,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 892 65 35',
   'https://www.suchylas.pl/dla-mieszkancow/sport-i-rekreacja/boiska/',
   'manual',
   'Gmina Suchy Las',
-  'Publiczne boisko do siatkówki plażowej na piasku. Bezpłatne dla mieszkańców.',
-  NULL,
-  NULL,
+  'Publiczne boisko do siatkówki plażowej. Bezpłatne, bez rezerwacji.',
+  'Mo-Su 08:00-22:00',
   false, false, false, false,
-  NULL, NULL, 'volleyball_beach', 'public',
+  NULL, 'volleyball_beach', 'public',
   NULL, '62-002', true, 'fair'
 ),
 
--- 13. Suchy Las — ul. Szkółkarska — bezpłatne
+-- 13. Suchy Las — ul. Szkółkarska
 (
-  gen_random_uuid(),
+  'bv000013-0000-0000-0000-000000000013',
   'Boisko Siatkówki Plażowej — ul. Szkółkarska',
   'ul. Szkółkarska, 62-002 Suchy Las',
-  52.45100, 16.92000,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.46160, 16.89520,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 892 65 35',
   'https://www.suchylas.pl/dla-mieszkancow/sport-i-rekreacja/boiska/',
   'manual',
   'Gmina Suchy Las',
-  'Publiczne boisko do siatkówki plażowej. Bezpłatne dla mieszkańców.',
-  NULL,
-  NULL,
+  'Publiczne boisko do siatkówki plażowej. Bezpłatne, bez rezerwacji.',
+  'Mo-Su 08:00-22:00',
   false, false, false, false,
-  NULL, NULL, 'volleyball_beach', 'public',
+  NULL, 'volleyball_beach', 'public',
   NULL, '62-002', true, 'fair'
 ),
 
--- 14. GOKiS Tulce (Kleszczewo) — 1 boisko, bezpłatne*
+-- 14. GOKiS Tulce (Kleszczewo) — 1 boisko, bezpłatne z rezerwacją
 (
-  gen_random_uuid(),
+  'bv000014-0000-0000-0000-000000000014',
   'GOKiS Tulce — Boisko Siatkówki Plażowej',
   'ul. Szkolna 1, 63-005 Tulce',
-  52.35800, 17.06500,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.33710, 17.12310,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 513 762 783',
   'https://gokis.kleszczewo.pl/boisko-do-siatkowki-plazowej-w-tulcach.html',
   'manual',
   'GOKiS Kleszczewo',
-  '1 boisko przy hali sportowej w Tulcach. Bezpłatne — wymagana rezerwacja online (gokis.kleszczewo.pl). W godz. 8–15 pierwszeństwo dla SP w Tulcach. Coroczny turniej "Tulce Plaża Oldboy".',
-  NULL,
+  '1 boisko przy hali sportowej. Bezpłatne — rezerwacja online (gokis.kleszczewo.pl). Pon.–pt. 8–15 pierwszeństwo SP w Tulcach. Coroczny turniej "Tulce Plaża Oldboy".',
   'Mo-Fr 15:00-21:00; Sa-Su 09:00-21:00',
   false, true, false, true,
-  NULL, 1, 'volleyball_beach', 'school',
+  1, 'volleyball_beach', 'school',
   NULL, '63-005', true, 'good'
 ),
 
 -- 15. OSiR Mosina — 2 boiska
 (
-  gen_random_uuid(),
+  'bv000015-0000-0000-0000-000000000015',
   'OSiR Mosina — Boiska Siatkówki Plażowej',
   'ul. Marii Konopnickiej 31, 62-050 Mosina',
-  52.24380, 16.84820,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.24240, 16.85100,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 813 29 03',
   'https://osirmosina.pl/index.php/stadion/',
   'manual',
   'OSiR Mosina',
-  '2 boiska do siatkówki plażowej przy stadionie OSiR Mosina. Kontakt z ośrodkiem w celu rezerwacji.',
-  NULL,
-  NULL,
+  '2 boiska przy stadionie OSiR. Rezerwacja telefoniczna min. 2h wcześniej: 61 813 29 03 (08:00–15:00) lub 607 162 581 (po 15:00, weekendy).',
+  'Mo-Fr 07:00-19:00; Sa-Su 09:00-19:00',
   NULL, NULL, NULL, NULL,
-  NULL, 2, 'volleyball_beach', 'public',
+  2, 'volleyball_beach', 'public',
   NULL, '62-050', true, 'good'
 ),
 
--- 16. Stadion Miejski Buk — 2 boiska, publiczne
+-- 16. OSiR Buk — 2 boiska, publiczne
 (
-  gen_random_uuid(),
+  'bv000016-0000-0000-0000-000000000016',
   'OSiR Buk — Boiska Siatkówki Plażowej',
   'ul. Sportowa 14, 64-320 Buk',
-  52.35770, 16.52300,
-  ARRAY['siatkówka plażowa'],
-  true, 'sand', false,
-  NULL,
+  52.35850, 16.52300,
+  ARRAY['siatkówka plażowa'], true, 'sand', false,
+  '+48 61 814 91 40',
   'https://osir-buk.pl/stadion-miejski.html',
   'manual',
   'OSiR Buk',
-  '2 pełnowymiarowe boiska (8×8 m) przy stadionie miejskim. Na terenie też pole do piłki ręcznej plażowej (33×18 m). Publiczne, bezpłatne dla mieszkańców. Wakacyjne turnieje organizowane przez OSiR.',
-  NULL,
-  NULL,
+  '2 pełnowymiarowe boiska (8×8 m) przy stadionie. Na terenie też pole do piłki ręcznej plażowej. Publiczne, bezpłatne. Wakacyjne turnieje OSiR.',
+  'Mo-Su 07:00-23:00',
   false, NULL, NULL, true,
-  NULL, 2, 'volleyball_beach', 'public',
+  2, 'volleyball_beach', 'public',
   NULL, '64-320', true, 'good'
 );
+
+-- ============================================================
+-- Rezerwacje — field_outreach z booking_url
+-- ============================================================
+
+INSERT INTO field_outreach (field_id, status, booking_system, booking_url, booking_provider, priority)
+VALUES
+  ('bv000001-0000-0000-0000-000000000001', 'umowiony', 'wlasny_system',
+   'https://posir.poznan.pl/obiekty/rusalka/boiska-do-siatkowki-plazowej', 'POSiR', 1),
+
+  ('bv000002-0000-0000-0000-000000000002', 'umowiony', 'zewnetrzny',
+   'https://playmore.pl/klub/piach-i-podroze/', 'Playmore', 1),
+
+  ('bv000003-0000-0000-0000-000000000003', 'umowiony', 'wlasny_system',
+   'https://bvacademy.pl/beach-arena-rezerwacja/', 'BVA', 1),
+
+  ('bv000004-0000-0000-0000-000000000004', 'umowiony', 'telefon',
+   NULL, NULL, 0),
+
+  ('bv000005-0000-0000-0000-000000000005', 'umowiony', 'brak',
+   NULL, NULL, 0),
+
+  ('bv000006-0000-0000-0000-000000000006', 'umowiony', 'telefon',
+   NULL, NULL, 0),
+
+  ('bv000007-0000-0000-0000-000000000007', 'umowiony', 'email',
+   NULL, NULL, 0),
+
+  ('bv000008-0000-0000-0000-000000000008', 'umowiony', 'email',
+   NULL, NULL, 0),
+
+  ('bv000009-0000-0000-0000-000000000009', 'umowiony', 'zewnetrzny',
+   'https://bo5.pl/ckf', 'Bo5.pl', 1),
+
+  ('bv000010-0000-0000-0000-000000000010', 'umowiony', 'telefon',
+   NULL, NULL, 0),
+
+  ('bv000011-0000-0000-0000-000000000011', 'umowiony', 'telefon',
+   NULL, NULL, 0),
+
+  ('bv000012-0000-0000-0000-000000000012', 'umowiony', 'brak',
+   NULL, NULL, 0),
+
+  ('bv000013-0000-0000-0000-000000000013', 'umowiony', 'brak',
+   NULL, NULL, 0),
+
+  ('bv000014-0000-0000-0000-000000000014', 'umowiony', 'wlasny_system',
+   'https://gokis.kleszczewo.pl/rezerwacja-obiektow.html', 'GOKiS', 1),
+
+  ('bv000015-0000-0000-0000-000000000015', 'umowiony', 'telefon',
+   NULL, NULL, 0),
+
+  ('bv000016-0000-0000-0000-000000000016', 'umowiony', 'brak',
+   NULL, NULL, 0);
