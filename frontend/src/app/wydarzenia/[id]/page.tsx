@@ -136,6 +136,9 @@ export default function EventDetailPage() {
   const [guestName, setGuestName] = useState('');
   const [copied, setCopied] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [joinAsReserve, setJoinAsReserve] = useState(false);
+  const [joinRole, setJoinRole] = useState<'player' | 'goalkeeper'>('player');
   // Legacy client-side teams (teamMode === 'brak' only)
   const [localTeams, setLocalTeams] = useState<[EventParticipant[], EventParticipant[]] | null>(null);
   // Match data
@@ -228,6 +231,9 @@ export default function EventDetailPage() {
   }
 
   const isOrganizer = !!user && (user.id === event.organizerId || isAdmin);
+  // Strict ownership — only the actual creator, never admins. Drives the inline
+  // "Edytuj" link so admins don't see an edit shortcut on other people's events.
+  const isOwner = !!user && user.id === event.organizerId;
   const regulars = participants.filter((p) => !p.isReserve);
   const reserves = participants.filter((p) => p.isReserve);
   const myParticipation = participants.find((p) => p.userId && p.userId === user?.id);
@@ -701,31 +707,23 @@ export default function EventDetailPage() {
                 </div>
               )}
               {(!event.inviteOnly || isOrganizer || myParticipation || validInviteToken) && user && !myParticipation && !isFull && (
-                <div className="space-y-2">
-                  <Button
-                    onClick={() => handleJoin(false)}
-                    isLoading={busy}
-                    className="w-full h-14 bg-primary-700 hover:bg-primary-800 text-white text-base font-bold rounded-2xl shadow-md active:scale-[0.98] transition-all"
-                  >
-                    Dołącz
-                    {costPln
-                      ? <span className="ml-1 opacity-80">· {costPln} zł</span>
-                      : <span className="ml-1 opacity-80">· Za darmo</span>}
-                    <ArrowRight className="w-5 h-5 ml-1" />
-                  </Button>
-                  {event.sport === 'piłka nożna' && (
-                    <button
-                      onClick={() => handleJoin(true)}
-                      disabled={busy}
-                      className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-colors disabled:opacity-50"
-                    >
-                      🧤 Dołącz jako bramkarz
-                    </button>
-                  )}
-                </div>
+                <Button
+                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                  className="w-full h-14 bg-primary-700 hover:bg-primary-800 text-white text-base font-bold rounded-2xl shadow-md active:scale-[0.98] transition-all"
+                >
+                  Dołącz
+                  {costPln
+                    ? <span className="ml-1 opacity-80">· {costPln} zł</span>
+                    : <span className="ml-1 opacity-80">· Za darmo</span>}
+                  <ArrowRight className="w-5 h-5 ml-1" />
+                </Button>
               )}
               {(!event.inviteOnly || isOrganizer || myParticipation || validInviteToken) && user && !myParticipation && isFull && (
-                <Button onClick={() => handleJoin(false)} isLoading={busy} variant="outline" className="w-full h-14 rounded-2xl text-base">
+                <Button
+                  onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
+                  variant="outline"
+                  className="w-full h-14 rounded-2xl text-base"
+                >
                   Zapisz się na listę rezerwową
                 </Button>
               )}
@@ -780,7 +778,7 @@ export default function EventDetailPage() {
                   <p className="text-sm font-semibold text-ink truncate">{event.organizerName}</p>
                 </div>
               </div>
-              {isOrganizer && (
+              {isOwner && (
                 <Link href={`/wydarzenia/${event.id}/edytuj`} className="flex items-center gap-1.5 shrink-0 text-xs text-primary-600 hover:text-primary-700 font-medium">
                   <Pencil className="w-3.5 h-3.5" /> Edytuj
                 </Link>
@@ -1277,6 +1275,74 @@ export default function EventDetailPage() {
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
                 Wypisz mnie
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Join confirmation — role choice + explicit confirm so nobody signs up by accident */}
+      {joinDialogOpen && user && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          onClick={() => setJoinDialogOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">
+              {joinAsReserve ? 'Zapisać się na listę rezerwową?' : 'Zapisać się na mecz?'}
+            </h3>
+            <p className="text-sm text-slate-500 mb-4">
+              {sportEmoji(event.sport)} {event.title || event.sport}
+              {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
+            </p>
+
+            {/* Role chooser — football only */}
+            {event.sport === 'piłka nożna' && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Twoja rola</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setJoinRole('player')}
+                    className={[
+                      'h-12 rounded-xl border text-sm font-semibold transition-colors',
+                      joinRole === 'player'
+                        ? 'border-primary-600 bg-primary-50 text-primary-700'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    ⚽ Zawodnik
+                  </button>
+                  <button
+                    onClick={() => setJoinRole('goalkeeper')}
+                    className={[
+                      'h-12 rounded-xl border text-sm font-semibold transition-colors',
+                      joinRole === 'goalkeeper'
+                        ? 'border-primary-600 bg-primary-50 text-primary-700'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    🧤 Bramkarz
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Cost */}
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 mb-5 text-sm">
+              <span className="text-slate-500">Koszt</span>
+              <span className="font-semibold text-ink">{costPln ? `${costPln} zł` : 'Za darmo'}</span>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setJoinDialogOpen(false)} className="flex-1">
+                Anuluj
+              </Button>
+              <Button
+                onClick={() => { setJoinDialogOpen(false); handleJoin(joinRole === 'goalkeeper'); }}
+                isLoading={busy}
+                className="flex-1 bg-primary-700 hover:bg-primary-800"
+              >
+                Zapisz mnie
               </Button>
             </div>
           </div>
