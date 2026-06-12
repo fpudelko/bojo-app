@@ -16,7 +16,7 @@ INSERT INTO fields (
 
 -- 1. POSiR Rusałka — 8 boisk, bezpłatne (rezerwacja online)
 (
-  'bv000001-0000-0000-0000-000000000001',
+  'bb000001-0000-0000-0000-000000000001',
   'POSiR Rusałka — Boiska Siatkówki Plażowej',
   'ul. Golęcińska 27, 60-626 Poznań',
   52.42640, 16.87670,
@@ -34,7 +34,7 @@ INSERT INTO fields (
 
 -- 2. Piach i Podróże (POSiR Rataje) — 4 boiska, płatne 8 zł/os/h
 (
-  'bv000002-0000-0000-0000-000000000002',
+  'bb000002-0000-0000-0000-000000000002',
   'Piach i Podróże — Boiska Plażowe',
   'Os. Piastowskie 106A, 61-164 Poznań',
   52.41850, 16.97420,
@@ -52,7 +52,7 @@ INSERT INTO fields (
 
 -- 3. Beach Arena BVA — Park Kasprowicza — 4 boiska, płatne
 (
-  'bv000003-0000-0000-0000-000000000003',
+  'bb000003-0000-0000-0000-000000000003',
   'Beach Arena — Beach Volleyball Academy',
   'Park im. Jana Kasprowicza 1, 60-238 Poznań',
   52.40980, 16.92350,
@@ -70,7 +70,7 @@ INSERT INTO fields (
 
 -- 4. POSiR Chwiałka — 3 boiska, bezpłatne (wejście na kąpielisko płatne)
 (
-  'bv000004-0000-0000-0000-000000000004',
+  'bb000004-0000-0000-0000-000000000004',
   'POSiR Chwiałka — Boiska Siatkówki Plażowej',
   'ul. Chwiałkowskiego 34, 60-171 Poznań',
   52.42190, 16.94780,
@@ -88,7 +88,7 @@ INSERT INTO fields (
 
 -- 5. POSiR Strzeszynek — 2 boiska, bezpłatne
 (
-  'bv000005-0000-0000-0000-000000000005',
+  'bb000005-0000-0000-0000-000000000005',
   'POSiR Strzeszynek — Boiska Siatkówki Plażowej',
   'ul. Koszalińska 15, 60-449 Poznań',
   52.43500, 16.83120,
@@ -106,7 +106,7 @@ INSERT INTO fields (
 
 -- 6. Restauracja Oaza Strzeszynek — 4 boiska, bezpłatne
 (
-  'bv000006-0000-0000-0000-000000000006',
+  'bb000006-0000-0000-0000-000000000006',
   'Oaza Strzeszynek — Boiska Plażowe',
   'ul. Koszalińska 15 (teren ośrodka), 60-449 Poznań',
   52.43500, 16.83050,
@@ -124,7 +124,7 @@ INSERT INTO fields (
 
 -- 7. POSiR MOS Wyspiańskiego — 2 boiska, płatne
 (
-  'bv000007-0000-0000-0000-000000000007',
+  'bb000007-0000-0000-0000-000000000007',
   'POSiR MOS — Boiska Siatkówki Plażowej',
   'ul. Stanisława Wyspiańskiego 27, 60-751 Poznań',
   52.40030, 16.91010,
@@ -142,7 +142,7 @@ INSERT INTO fields (
 
 -- 8. Politechnika Poznańska CSPP — 1 boisko
 (
-  'bv000008-0000-0000-0000-000000000008',
+  'bb000008-0000-0000-0000-000000000008',
   'CSPP Politechnika Poznańska — Boisko Plażowe',
   'ul. Piotrowo 4, 61-138 Poznań',
   52.40260, 16.94800,
@@ -160,7 +160,7 @@ INSERT INTO fields (
 
 -- 9. Univ. Przyrodniczy CKF — 2 boiska, ~15 zł/h
 (
-  'bv000009-0000-0000-0000-000000000009',
+  'bb000009-0000-0000-0000-000000000009',
   'CKF Uniwersytet Przyrodniczy — Boiska Plażowe',
   'ul. Wojska Polskiego 28, 60-637 Poznań',
   52.40420, 16.92400,
@@ -178,7 +178,7 @@ INSERT INTO fields (
 
 -- 10. OAZA Kórnik — 3 boiska, bezpłatne
 (
-  'bv000010-0000-0000-0000-000000000010',
+  'bb000010-0000-0000-0000-000000000010',
   'OAZA Kórnickie Centrum Rekreacji — Boiska Plażowe',
   'ul. Ignacego Krasickiego 1, 62-035 Kórnik',
   52.24190, 17.08820,
@@ -196,7 +196,7 @@ INSERT INTO fields (
 
 -- 11. AKWEN Czerwonak — 1 boisko, płatne
 (
-  'bv000011-0000-0000-0000-000000000011',
+  'bb000011-0000-0000-0000-000000000011',
   'AKWEN Centrum Sportu — Boisko Siatkówki Plażowej',
   'ul. Leśna 6, 62-004 Czerwonak',
   52.47470, 17.01160,
@@ -214,7 +214,7 @@ INSERT INTO fields (
 
 -- 12. Suchy Las — ul. Poziomkowa
 (
-  'bv000012-0000-0000-0000-000000000012',
+  'bb000012-0000-0000-0000-000000000012',
   'Boisko Siatkówki Plażowej — ul. Poziomkowa',
   'ul. Poziomkowa, 62-002 Suchy Las',
   52.47010, 16.88600,
@@ -232,7 +232,7 @@ INSERT INTO fields (
 
 -- 13. Suchy Las — ul. Szkółkarska
 (
-  'bv000013-0000-0000-0000-000000000013',
+  'bb000013-0000-0000-0000-000000000013',
   'Boisko Siatkówki Plażowej — ul. Szkółkarska',
   'ul. Szkółkarska, 62-002 Suchy Las',
   52.46160, 16.89520,
@@ -250,7 +250,7 @@ INSERT INTO fields (
 
 -- 14. GOKiS Tulce (Kleszczewo) — 1 boisko, bezpłatne z rezerwacją
 (
-  'bv000014-0000-0000-0000-000000000014',
+  'bb000014-0000-0000-0000-000000000014',
   'GOKiS Tulce — Boisko Siatkówki Plażowej',
   'ul. Szkolna 1, 63-005 Tulce',
   52.33710, 17.12310,
@@ -268,7 +268,7 @@ INSERT INTO fields (
 
 -- 15. OSiR Mosina — 2 boiska
 (
-  'bv000015-0000-0000-0000-000000000015',
+  'bb000015-0000-0000-0000-000000000015',
   'OSiR Mosina — Boiska Siatkówki Plażowej',
   'ul. Marii Konopnickiej 31, 62-050 Mosina',
   52.24240, 16.85100,
@@ -286,7 +286,7 @@ INSERT INTO fields (
 
 -- 16. OSiR Buk — 2 boiska, publiczne
 (
-  'bv000016-0000-0000-0000-000000000016',
+  'bb000016-0000-0000-0000-000000000016',
   'OSiR Buk — Boiska Siatkówki Plażowej',
   'ul. Sportowa 14, 64-320 Buk',
   52.35850, 16.52300,
@@ -308,50 +308,50 @@ INSERT INTO fields (
 
 INSERT INTO field_outreach (field_id, status, booking_system, booking_url, booking_provider, priority)
 VALUES
-  ('bv000001-0000-0000-0000-000000000001', 'umowiony', 'wlasny_system',
+  ('bb000001-0000-0000-0000-000000000001', 'umowiony', 'wlasny_system',
    'https://posir.poznan.pl/obiekty/rusalka/boiska-do-siatkowki-plazowej', 'POSiR', 1),
 
-  ('bv000002-0000-0000-0000-000000000002', 'umowiony', 'zewnetrzny',
+  ('bb000002-0000-0000-0000-000000000002', 'umowiony', 'zewnetrzny',
    'https://playmore.pl/klub/piach-i-podroze/', 'Playmore', 1),
 
-  ('bv000003-0000-0000-0000-000000000003', 'umowiony', 'wlasny_system',
+  ('bb000003-0000-0000-0000-000000000003', 'umowiony', 'wlasny_system',
    'https://bvacademy.pl/beach-arena-rezerwacja/', 'BVA', 1),
 
-  ('bv000004-0000-0000-0000-000000000004', 'umowiony', 'telefon',
+  ('bb000004-0000-0000-0000-000000000004', 'umowiony', 'telefon',
    NULL, NULL, 0),
 
-  ('bv000005-0000-0000-0000-000000000005', 'umowiony', 'brak',
+  ('bb000005-0000-0000-0000-000000000005', 'umowiony', 'brak',
    NULL, NULL, 0),
 
-  ('bv000006-0000-0000-0000-000000000006', 'umowiony', 'telefon',
+  ('bb000006-0000-0000-0000-000000000006', 'umowiony', 'telefon',
    NULL, NULL, 0),
 
-  ('bv000007-0000-0000-0000-000000000007', 'umowiony', 'email',
+  ('bb000007-0000-0000-0000-000000000007', 'umowiony', 'email',
    NULL, NULL, 0),
 
-  ('bv000008-0000-0000-0000-000000000008', 'umowiony', 'email',
+  ('bb000008-0000-0000-0000-000000000008', 'umowiony', 'email',
    NULL, NULL, 0),
 
-  ('bv000009-0000-0000-0000-000000000009', 'umowiony', 'zewnetrzny',
+  ('bb000009-0000-0000-0000-000000000009', 'umowiony', 'zewnetrzny',
    'https://bo5.pl/ckf', 'Bo5.pl', 1),
 
-  ('bv000010-0000-0000-0000-000000000010', 'umowiony', 'telefon',
+  ('bb000010-0000-0000-0000-000000000010', 'umowiony', 'telefon',
    NULL, NULL, 0),
 
-  ('bv000011-0000-0000-0000-000000000011', 'umowiony', 'telefon',
+  ('bb000011-0000-0000-0000-000000000011', 'umowiony', 'telefon',
    NULL, NULL, 0),
 
-  ('bv000012-0000-0000-0000-000000000012', 'umowiony', 'brak',
+  ('bb000012-0000-0000-0000-000000000012', 'umowiony', 'brak',
    NULL, NULL, 0),
 
-  ('bv000013-0000-0000-0000-000000000013', 'umowiony', 'brak',
+  ('bb000013-0000-0000-0000-000000000013', 'umowiony', 'brak',
    NULL, NULL, 0),
 
-  ('bv000014-0000-0000-0000-000000000014', 'umowiony', 'wlasny_system',
+  ('bb000014-0000-0000-0000-000000000014', 'umowiony', 'wlasny_system',
    'https://gokis.kleszczewo.pl/rezerwacja-obiektow.html', 'GOKiS', 1),
 
-  ('bv000015-0000-0000-0000-000000000015', 'umowiony', 'telefon',
+  ('bb000015-0000-0000-0000-000000000015', 'umowiony', 'telefon',
    NULL, NULL, 0),
 
-  ('bv000016-0000-0000-0000-000000000016', 'umowiony', 'brak',
+  ('bb000016-0000-0000-0000-000000000016', 'umowiony', 'brak',
    NULL, NULL, 0);
