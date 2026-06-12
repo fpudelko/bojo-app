@@ -37,7 +37,7 @@ INSERT INTO fields (
   'bb000002-0000-0000-0000-000000000002',
   'Piach i Podróże — Boiska Plażowe',
   'Os. Piastowskie 106A, 61-164 Poznań',
-  52.41850, 16.97420,
+  52.39600, 16.97950,
   ARRAY['siatkówka plażowa', 'beach tennis'], true, 'sand', false,
   '+48 668 675 147',
   'https://piachipodroze.pl',
