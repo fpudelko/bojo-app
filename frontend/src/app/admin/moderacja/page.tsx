@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
-import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { sportEmoji } from '@/lib/sports';
 
@@ -216,7 +215,18 @@ const TABS: { key: ModerationStatus | 'all'; label: string }[] = [
 
 export default function ModeracjaPage() {
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = useAdmin();
+  const [adminState, setAdminState] = useState<'checking' | 'yes' | 'no'>('checking');
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setAdminState('no'); return; }
+    supabase
+      .from('profiles').select('is_admin').eq('id', user.id).maybeSingle()
+      .then(
+        ({ data }) => setAdminState(data?.is_admin ? 'yes' : 'no'),
+        () => setAdminState('no'),
+      );
+  }, [authLoading, user]);
 
   const [venues, setVenues] = useState<VenueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,8 +245,8 @@ export default function ModeracjaPage() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
+    if (adminState === 'yes') load();
+  }, [adminState, load]);
 
   const filtered = useMemo(() => {
     let list = venues;
@@ -269,7 +279,7 @@ export default function ModeracjaPage() {
   }, [addToast]);
 
   // --- Auth guards ---
-  if (authLoading) {
+  if (authLoading || adminState === 'checking') {
     return (
       <div className="min-h-screen bg-slate-50">
         <Header />
@@ -277,7 +287,7 @@ export default function ModeracjaPage() {
       </div>
     );
   }
-  if (!user || !isAdmin) {
+  if (adminState === 'no') {
     return (
       <div className="min-h-screen bg-slate-50">
         <Header />
