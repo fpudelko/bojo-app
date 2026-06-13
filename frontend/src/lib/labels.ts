@@ -33,13 +33,10 @@ export function surfaceLabel(surface?: string | null): string {
  * 3. On-the-fly Mapbox satellite fallback
  */
 export function fieldPhotoUrl(
-  field: { photoReference?: string; photoUrl?: string; imageUrl?: string; lat?: number; lng?: number },
+  field: { lat?: number; lng?: number },
   width = 480,
   height = 240,
 ): string | null {
-  if (field.photoReference) return `/api/venue-photo?ref=${encodeURIComponent(field.photoReference)}&w=${width}`;
-  if (field.photoUrl) return field.photoUrl;
-  if (field.imageUrl) return field.imageUrl;
   return venueThumbnail(field.lat, field.lng, width, height);
 }
 
