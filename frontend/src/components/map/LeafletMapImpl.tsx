@@ -169,7 +169,7 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
 
     // Group co-located venues into a single pin
     const groups = groupByLocation(fields);
-    for (const [, group] of groups) {
+    groups.forEach((group) => {
       const rep = group[0];
       const allSports = Array.from(new Set(group.flatMap((f) => f.sport)));
       const marker = L.marker([rep.lat, rep.lng], {
@@ -178,7 +178,7 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
       marker._bojo_sports = allSports;
       marker.bindPopup(groupPopupHtml(group, isAdmin), { maxWidth: 290, closeButton: true });
       clusterGroup.addLayer(marker);
-    }
+    });
 
     map.addLayer(clusterGroup);
     return () => { map.removeLayer(clusterGroup); };
