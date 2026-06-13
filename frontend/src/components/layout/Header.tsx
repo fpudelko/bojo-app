@@ -414,6 +414,7 @@ export default function Header() {
 }
 
 const ADMIN_LINKS = [
+  { href: '/admin/moderacja', label: 'Moderacja boisk', Icon: Building2 },
   { href: '/admin/outreach', label: 'Kontakt z obiektami', Icon: Building2 },
   { href: '/admin/uzytkownicy', label: 'Użytkownicy', Icon: UsersIcon },
 ];
