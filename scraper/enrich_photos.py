@@ -61,21 +61,32 @@ async def fetch_venues(
     client: httpx.AsyncClient, base: str, key: str, limit: int,
 ) -> list[dict[str, Any]]:
     """Return venues that have coordinates but no photo yet."""
-    params: dict[str, str] = {
-        "select": "id,name,lat,lng,address,google_place_id,photo_reference,photo_url",
-        "lat": "not.is.null",
-        "lng": "not.is.null",
-        "limit": str(limit) if limit else "10000",
-        "order": "name.asc",
-    }
-    r = await client.get(f"{base}/rest/v1/fields", headers=_sb_headers(key), params=params)
-    r.raise_for_status()
-    all_venues = r.json()
-    # Only venues that have no photo at all
-    return [
-        v for v in all_venues
-        if not v.get("photo_reference") and not v.get("photo_url")
-    ]
+    # Select only columns guaranteed to exist (photo_url from migration 037).
+    # google_place_id / photo_reference come from migration 038 — we try to
+    # include them but fall back gracefully if the migration hasn't been applied.
+    for select in (
+        "id,name,lat,lng,address,photo_url,photo_reference,google_place_id",
+        "id,name,lat,lng,address,photo_url",   # fallback: 038 not yet applied
+    ):
+        params: dict[str, str] = {
+            "select": select,
+            "photo_url": "is.null",
+            "lat": "not.is.null",
+            "lng": "not.is.null",
+            "limit": str(limit) if limit else "10000",
+            "order": "name.asc",
+        }
+        r = await client.get(f"{base}/rest/v1/fields", headers=_sb_headers(key), params=params)
+        if r.status_code == 400:
+            log.warning("Column not found in DB, retrying with reduced select (%s)", select)
+            continue
+        r.raise_for_status()
+        all_venues = r.json()
+        return [
+            v for v in all_venues
+            if not v.get("photo_reference") and not v.get("photo_url")
+        ]
+    raise RuntimeError("Failed to fetch venues — check Supabase columns (run migration 037)")
 
 
 async def save_google(
