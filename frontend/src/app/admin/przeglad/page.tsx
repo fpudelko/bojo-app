@@ -315,7 +315,7 @@ export default function PrzegladPage() {
   }, [busy, idx, queue]);
 
   const handleDeleteDuplicate = useCallback((id: string) => {
-    setDeletedIds((prev) => new Set([...prev, id]));
+    setDeletedIds((prev) => new Set(Array.from(prev).concat(id)));
     setAllVenues((prev) => prev.filter((v) => v.id !== id));
   }, []);
 
