@@ -62,8 +62,8 @@ async def fetch_venues(
     params: dict[str, str] = {
         "select": "id,name,lat,lng,address",
         "photo_url": "is.null",
-        "not.lat": "is.null",
-        "not.lng": "is.null",
+        "lat": "not.is.null",
+        "lng": "not.is.null",
         "limit": str(limit) if limit else "10000",
         "order": "name.asc",
     }

@@ -90,9 +90,9 @@ async def fetch_venues(
 ) -> list[dict[str, Any]]:
     params: dict[str, str] = {
         "select": "id,name,address,lat,lng,source",
-        "not.address": "is.null",
-        "not.lat": "is.null",
-        "not.lng": "is.null",
+        "address": "not.is.null",
+        "lat": "not.is.null",
+        "lng": "not.is.null",
         "limit": str(limit) if limit else "10000",
         "order": "name.asc",
     }
