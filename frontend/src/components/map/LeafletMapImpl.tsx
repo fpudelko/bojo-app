@@ -15,7 +15,8 @@ import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
 import type { MapViewProps } from './MapView';
 import { fieldMatchesData, districtsOf } from '@/lib/fieldFilters';
-import { POZNAN, metaFor, fieldPin, clusterDivIcon } from './mapIcons';
+import { POZNAN, metaFor, primaryMeta, fieldPin, clusterDivIcon } from './mapIcons';
+import { sportEmoji } from '@/lib/sports';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -70,6 +71,83 @@ function popupHtml(field: Field, isAdmin: boolean): string {
 }
 
 // ---------------------------------------------------------------------------
+// Co-location grouping — venues at the same spot become one pin
+// ---------------------------------------------------------------------------
+
+// Round to 3 decimal places ≈ 110 m grid. Venues closer than that share one pin.
+const LOC_PRECISION = 3;
+
+function groupByLocation(fields: Field[]): Map<string, Field[]> {
+  const map = new Map<string, Field[]>();
+  for (const f of fields) {
+    const key = `${f.lat.toFixed(LOC_PRECISION)},${f.lng.toFixed(LOC_PRECISION)}`;
+    const bucket = map.get(key);
+    if (bucket) bucket.push(f);
+    else map.set(key, [f]);
+  }
+  return map;
+}
+
+// Pin for a group: show up to 3 sport emojis side-by-side
+function groupPin(fields: Field[]): L.DivIcon {
+  const allSports = Array.from(new Set(fields.flatMap((f) => f.sport)));
+  const available = fields.some((f) => f.available);
+  const color = available ? primaryMeta(allSports).color : '#9ca3af';
+  const emojis = allSports
+    .slice(0, 3)
+    .map((s) => sportEmoji(s))
+    .join('');
+  const d = 32;
+  const tw = 5; const th = 7;
+  const w = d + 4; const h = d + th + 2;
+  return L.divIcon({
+    html: `<div style="display:flex;flex-direction:column;align-items:center;width:${w}px;cursor:pointer;filter:drop-shadow(0 2px 5px rgba(0,0,0,.30))">
+      <div style="width:${d}px;height:${d}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.7)">
+        <span style="font-size:11px;line-height:1;user-select:none">${emojis}</span>
+      </div>
+      <div style="width:0;height:0;border-left:${tw}px solid transparent;border-right:${tw}px solid transparent;border-top:${th}px solid ${color};margin-top:-1px"></div>
+    </div>`,
+    className: '',
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h],
+    popupAnchor: [0, -(h + 4)],
+  });
+}
+
+// Popup for a group of co-located venues
+function groupPopupHtml(fields: Field[], isAdmin: boolean): string {
+  if (fields.length === 1) return popupHtml(fields[0], isAdmin);
+
+  const items = fields.map((f) => {
+    const sportsHtml = f.sport
+      .map((s) => {
+        const m = metaFor(s);
+        return `<span style="background:${m.color}1a;color:${m.color};border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">${m.emoji} ${s}</span>`;
+      })
+      .join(' ');
+    const slug = slugify(f.name);
+    return `<div style="padding:8px 0;border-bottom:1px solid #f1f5f9">
+      <p style="font-weight:700;font-size:13px;color:#0f172a;margin:0 0 3px">${f.name}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${sportsHtml}</div>
+      <a href="/boisko/${slug}" style="display:inline-block;background:#15663E;color:#fff;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;text-decoration:none">Zobacz →</a>
+      ${isAdmin ? `<a href="/admin/boisko/${f.id}" style="margin-left:8px;font-size:11px;color:#94a3b8;text-decoration:none">✏️</a>` : ''}
+    </div>`;
+  }).join('');
+
+  const first = fields[0];
+  const thumb = venueThumbnail(first.lat, first.lng, 320, 180, 16);
+  const imgHtml = thumb
+    ? `<img src="${thumb}" alt="" style="width:100%;height:100px;object-fit:cover;border-radius:10px;margin-bottom:8px;display:block" />`
+    : '';
+
+  return `<div style="min-width:240px;max-width:280px;font-family:system-ui,sans-serif;padding:2px">
+    ${imgHtml}
+    <p style="font-size:12px;color:#64748b;margin:0 0 6px">${first.address}</p>
+    ${items}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------------
 // Cluster marker group
 // ---------------------------------------------------------------------------
 function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boolean }) {
@@ -89,12 +167,16 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
       animate: true,
     });
 
-    for (const field of fields) {
-      const marker = L.marker([field.lat, field.lng], { icon: fieldPin(field) }) as L.Marker & {
-        _bojo_sports?: string[];
-      };
-      marker._bojo_sports = field.sport;
-      marker.bindPopup(popupHtml(field, isAdmin), { maxWidth: 290, closeButton: true });
+    // Group co-located venues into a single pin
+    const groups = groupByLocation(fields);
+    for (const [, group] of groups) {
+      const rep = group[0];
+      const allSports = Array.from(new Set(group.flatMap((f) => f.sport)));
+      const marker = L.marker([rep.lat, rep.lng], {
+        icon: group.length === 1 ? fieldPin(rep) : groupPin(group),
+      }) as L.Marker & { _bojo_sports?: string[] };
+      marker._bojo_sports = allSports;
+      marker.bindPopup(groupPopupHtml(group, isAdmin), { maxWidth: 290, closeButton: true });
       clusterGroup.addLayer(marker);
     }
 
