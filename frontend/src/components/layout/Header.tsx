@@ -341,28 +341,20 @@ export default function Header() {
                 {isAdmin && (
                   <>
                     <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
-                    <Link
-                      href="/admin/outreach"
-                      onClick={() => setMobileOpen(false)}
-                      className={clsx(
-                        'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                        pathname.startsWith('/admin/outreach') ? 'text-primary-700' : 'text-ink',
-                      )}
-                    >
-                      Kontakt z obiektami
-                      <ChevronRight className="w-4 h-4 text-slate-300" />
-                    </Link>
-                    <Link
-                      href="/admin/uzytkownicy"
-                      onClick={() => setMobileOpen(false)}
-                      className={clsx(
-                        'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                        pathname.startsWith('/admin/uzytkownicy') ? 'text-primary-700' : 'text-ink',
-                      )}
-                    >
-                      Użytkownicy
-                      <ChevronRight className="w-4 h-4 text-slate-300" />
-                    </Link>
+                    {ADMIN_LINKS.map(({ href, label }) => (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setMobileOpen(false)}
+                        className={clsx(
+                          'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
+                          pathname.startsWith(href) ? 'text-primary-700' : 'text-ink',
+                        )}
+                      >
+                        {label}
+                        <ChevronRight className="w-4 h-4 text-slate-300" />
+                      </Link>
+                    ))}
                   </>
                 )}
               </>
