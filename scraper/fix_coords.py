@@ -114,7 +114,25 @@ async def _nominatim_query(
 async def forward_geocode(
     client: httpx.AsyncClient, address: str
 ) -> tuple[float, float] | None:
-    """Return (lat, lon) for an address trying progressively simpler queries."""
+    """Return (lat, lon) for an address trying progressively simpler queries.
+
+    Returns None immediately (without querying Nominatim) when the address is
+    too vague to produce a useful pin — e.g. just a district name like "Rataje"
+    or a city name with no street.
+    """
+    import re
+
+    stripped = address.strip()
+    # Reject if it looks like only a district/city with no street component:
+    # - no digits (house number / postcode)
+    # - fewer than 2 comma-separated parts
+    # - matches known single-word place patterns
+    parts = [p.strip() for p in stripped.split(",")]
+    has_number = bool(re.search(r"\d", stripped))
+    if not has_number and len(parts) < 2:
+        log.info("SKIP vague address (no street/number): %s", address)
+        return None
+
     variants = _address_variants(address)
     for i, query in enumerate(variants):
         if i > 0:
