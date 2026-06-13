@@ -230,6 +230,13 @@ async def run(args: argparse.Namespace) -> None:
 
         found = skipped = errors = 0
 
+        # Track how many different venues each place_id was assigned to.
+        # If the same place_id appears for many venues at different locations
+        # it's almost certainly a nearby stadium/park returned as a catch-all
+        # rather than the actual venue. We reject place_ids reused >MAX_REUSE times.
+        MAX_PLACE_REUSE = 3
+        place_id_usage: dict[str, int] = {}
+
         for v in venues:
             fid  = v["id"]
             name = v.get("name", fid)
@@ -243,6 +250,13 @@ async def run(args: argparse.Namespace) -> None:
             # --- Google ---
             if gkey and args.strategy in ("auto", "google"):
                 gresult = await google_find(client, lat, lng, gkey)
+                if gresult:
+                    place_id, photo_ref = gresult
+                    usage = place_id_usage.get(place_id, 0) + 1
+                    place_id_usage[place_id] = usage
+                    if usage > MAX_PLACE_REUSE:
+                        log.info("SKIP Google %s — place_id reused %dx (generic result)", name, usage)
+                        gresult = None
                 if gresult:
                     place_id, photo_ref = gresult
                     if args.dry_run:
