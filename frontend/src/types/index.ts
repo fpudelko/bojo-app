@@ -23,6 +23,9 @@ export interface Field {
   operatorType?: string;
   description?: string;
   imageUrl?: string;
+  photoUrl?: string;
+  photoReference?: string;
+  photoSource?: string;
   openingHours?: string;
   postcode?: string;
   lit?: boolean;

@@ -9,7 +9,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import type { Field } from '@/types';
 import { getFields } from '@/lib/api';
-import { surfaceLabel, venueThumbnail } from '@/lib/labels';
+import { surfaceLabel, fieldPhotoUrl } from '@/lib/labels';
 import { useAdmin } from '@/lib/admin';
 import { FEATURE_RESERVATIONS, showBookingForField } from '@/config/features';
 import { slugify } from '@/lib/utils';
@@ -51,7 +51,7 @@ function popupHtml(field: Field, isAdmin: boolean): string {
     ? `<a href="/admin/boisko/${field.id}" style="display:block;margin-top:8px;font-size:11px;color:#94a3b8;text-decoration:none">✏️ Edytuj boisko (admin)</a>`
     : '';
 
-  const thumb = venueThumbnail(field.lat, field.lng, 320, 180, 16);
+  const thumb = fieldPhotoUrl(field, 320, 180);
   const imgHtml = thumb
     ? `<img src="${thumb}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:14px;margin-bottom:10px;display:block" />`
     : '';
@@ -135,7 +135,7 @@ function groupPopupHtml(fields: Field[], isAdmin: boolean): string {
   }).join('');
 
   const first = fields[0];
-  const thumb = venueThumbnail(first.lat, first.lng, 320, 180, 16);
+  const thumb = fieldPhotoUrl(first, 320, 180);
   const imgHtml = thumb
     ? `<img src="${thumb}" alt="" style="width:100%;height:100px;object-fit:cover;border-radius:10px;margin-bottom:8px;display:block" />`
     : '';

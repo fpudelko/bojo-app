@@ -9,7 +9,7 @@ import { sportEmoji, sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
-import { venueThumbnail, surfaceLabel } from '@/lib/labels';
+import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { externalUrl } from '@/lib/utils';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
@@ -177,7 +177,7 @@ export default function VenueDetailClient({
     );
   }
 
-  const thumbnail = field.imageUrl || venueThumbnail(field.lat, field.lng, 600, 240);
+  const thumbnail = fieldPhotoUrl(field, 600, 240);
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
 
   return (

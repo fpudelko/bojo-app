@@ -14,7 +14,7 @@ import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { getCurrentLocation } from '@/lib/geo';
-import { venueThumbnail, surfaceLabel } from '@/lib/labels';
+import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
 import { POZNAN, fieldPin, clusterDivIcon } from './mapIcons';
 
@@ -234,7 +234,7 @@ function TogglePill({ label, icon, active, loading, onClick }: {
 function VenueCard({ field, games, hasGameToday, selected }: {
   field: Field; games: number; hasGameToday: boolean; selected?: boolean;
 }) {
-  const thumb = field.imageUrl || venueThumbnail(field.lat, field.lng, 320, 320, 16);
+  const thumb = fieldPhotoUrl(field, 320, 320);
   const slug = slugify(field.name);
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
