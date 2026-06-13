@@ -54,23 +54,78 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # Nominatim forward geocoding
 # ---------------------------------------------------------------------------
 
-async def forward_geocode(
-    client: httpx.AsyncClient, address: str
+def _address_variants(address: str) -> list[str]:
+    """
+    Return progressively simplified address candidates.
+    Example: "ul. Leśna 6, 62-004 Czerwonak"
+      → ["ul. Leśna 6, 62-004 Czerwonak, Polska"]
+      → ["ul. Leśna 6, Czerwonak, Polska"]
+      → ["Leśna 6, Czerwonak, Polska"]
+      → ["Leśna, Czerwonak, Polska"]
+    """
+    import re
+
+    base = address.strip().rstrip(",")
+    variants: list[str] = []
+
+    # 1. Full address
+    variants.append(base + ", Polska")
+
+    # Split on comma to get street part and city part
+    parts = [p.strip() for p in base.split(",")]
+    street_raw = parts[0] if parts else base
+    # City = last part that looks like a city (ignore postal codes like 60-xxx)
+    city_parts = [p for p in parts[1:] if not re.match(r"^\d{2}-\d{3}$", p.strip())]
+    city = city_parts[-1].strip() if city_parts else ""
+
+    if city:
+        # 2. Street + city (no postcode)
+        variants.append(f"{street_raw}, {city}, Polska")
+
+        # 3. Street without prefix (ul., os., al., Park im. ...) + city
+        clean = re.sub(r"^(ul\.|al\.|os\.|pl\.|park\s+im\.\s*\S+\s*)", "", street_raw, flags=re.I).strip()
+        if clean and clean != street_raw:
+            variants.append(f"{clean}, {city}, Polska")
+
+        # 4. Street name only (no house number) + city
+        no_number = re.sub(r"\s+\d+[A-Za-z]?$", "", clean).strip()
+        if no_number and no_number != clean:
+            variants.append(f"{no_number}, {city}, Polska")
+
+    return list(dict.fromkeys(variants))  # deduplicate while preserving order
+
+
+async def _nominatim_query(
+    client: httpx.AsyncClient, query: str
 ) -> tuple[float, float] | None:
-    """Return (lat, lon) for an address, or None."""
-    query = address if "polska" in address.lower() else address + ", Polska"
     r = await client.get(
         NOMINATIM_SEARCH,
         params={"q": query, "format": "json", "limit": 1, "countrycodes": "pl"},
     )
     if r.status_code != 200:
-        log.warning("Nominatim HTTP %s for: %s", r.status_code, address)
+        log.warning("Nominatim HTTP %s for: %s", r.status_code, query)
         return None
     data = r.json()
     if not data:
-        log.warning("No result for: %s", address)
         return None
     return round(float(data[0]["lat"]), 5), round(float(data[0]["lon"]), 5)
+
+
+async def forward_geocode(
+    client: httpx.AsyncClient, address: str
+) -> tuple[float, float] | None:
+    """Return (lat, lon) for an address trying progressively simpler queries."""
+    variants = _address_variants(address)
+    for i, query in enumerate(variants):
+        if i > 0:
+            await asyncio.sleep(RATE_DELAY)  # respect rate limit between fallbacks
+        result = await _nominatim_query(client, query)
+        if result:
+            if i > 0:
+                log.debug("  resolved via fallback %d: %s", i, query)
+            return result
+    log.warning("No result for: %s", address)
+    return None
 
 
 # ---------------------------------------------------------------------------
