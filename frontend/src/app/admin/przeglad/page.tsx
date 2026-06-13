@@ -307,7 +307,10 @@ export default function PrzegladPage() {
   const decide = useCallback(async (status: 'approved' | 'hidden') => {
     if (busy || !queue[idx]) return;
     setBusy(true);
-    await supabase.from('fields').update({ moderation_status: status }).eq('id', queue[idx].id);
+    await supabase.from('fields').update({
+      moderation_status: status,
+      map_visibility: status === 'approved' ? 'public' : 'hidden',
+    }).eq('id', queue[idx].id);
     setBusy(false);
     const next = idx + 1;
     if (next >= queue.length) setDone(true);

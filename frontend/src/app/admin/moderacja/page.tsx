@@ -171,17 +171,17 @@ function VenueCard({
         {/* Status + delete controls */}
         <div className="flex gap-1.5 flex-wrap">
           {status !== 'approved' && (
-            <button disabled={busy} className={btnGreen} onClick={() => act({ moderation_status: 'approved' } as Partial<VenueRow>)}>
+            <button disabled={busy} className={btnGreen} onClick={() => act({ moderation_status: 'approved', map_visibility: 'public' } as Partial<VenueRow>)}>
               <Check className="w-3.5 h-3.5" /> Zatwierdź
             </button>
           )}
           {status !== 'hidden' && (
-            <button disabled={busy} className={btnAmber} onClick={() => act({ moderation_status: 'hidden' } as Partial<VenueRow>)}>
+            <button disabled={busy} className={btnAmber} onClick={() => act({ moderation_status: 'hidden', map_visibility: 'hidden' } as Partial<VenueRow>)}>
               <EyeOff className="w-3.5 h-3.5" /> Ukryj
             </button>
           )}
           {status !== 'pending' && (
-            <button disabled={busy} className={btnGhost} onClick={() => act({ moderation_status: 'pending' } as Partial<VenueRow>)}>
+            <button disabled={busy} className={btnGhost} onClick={() => act({ moderation_status: 'pending', map_visibility: 'organizer_only' } as Partial<VenueRow>)}>
               <RefreshCw className="w-3.5 h-3.5" /> Cofnij
             </button>
           )}

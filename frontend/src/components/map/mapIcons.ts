@@ -22,12 +22,15 @@ export function primaryColor(sports: string[]): string {
   return primaryMeta(sports).color;
 }
 
-// Teardrop pin: solid sport-color background, white emoji — crisper than white bg + border
+// Teardrop pin: solid sport-color background, emoji(s) — up to 3 sports
 export function fieldPin(field: Field, selected = false): L.DivIcon {
   const { color } = selected ? { color: '#1e40af' } : field.available ? primaryMeta(field.sport) : { color: '#9ca3af' };
-  const { emoji } = field.available ? primaryMeta(field.sport) : { emoji: '🏟️' };
-  const d = selected ? 36 : 30;
-  const fs = selected ? 15 : 13;
+  const emojis = field.available
+    ? field.sport.slice(0, 3).map((s) => sportEmoji(s)).join('')
+    : '🏟️';
+  const multi = field.sport.length > 1;
+  const d = selected ? 36 : multi ? 34 : 30;
+  const fs = selected ? 14 : multi ? 9 : 13;
   const tw = 5;
   const th = 7;
   const w = d + 4;
@@ -35,7 +38,7 @@ export function fieldPin(field: Field, selected = false): L.DivIcon {
   return L.divIcon({
     html: `<div style="display:flex;flex-direction:column;align-items:center;width:${w}px;cursor:pointer;filter:drop-shadow(0 2px 5px rgba(0,0,0,.30))">
       <div style="width:${d}px;height:${d}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.7)">
-        <span style="font-size:${fs}px;line-height:1;user-select:none">${emoji}</span>
+        <span style="font-size:${fs}px;line-height:1;user-select:none">${emojis}</span>
       </div>
       <div style="width:0;height:0;border-left:${tw}px solid transparent;border-right:${tw}px solid transparent;border-top:${th}px solid ${color};margin-top:-1px"></div>
     </div>`,
