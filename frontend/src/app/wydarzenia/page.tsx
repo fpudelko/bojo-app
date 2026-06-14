@@ -3,27 +3,34 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { isThisWeek, isThisMonth } from 'date-fns';
-import { Users, Plus, Navigation, Search, X } from 'lucide-react';
+import { ArrowLeft, Plus, Search, X, Navigation, SlidersHorizontal } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import type { EventItem } from '@/types';
-import { sportEmoji } from '@/lib/sports';
-import { EventListCard, type EventRelation } from '@/components/EventListCard';
+import { sportEmoji, FOCUS_SPORTS } from '@/lib/sports';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { isEventJoinable } from '@/components/EventCard';
+import { useRouter } from 'next/navigation';
 
+const SPORT_CHIPS = [
+  { value: '',                  label: 'Wszystkie' },
+  { value: 'piłka nożna',       label: 'Piłka' },
+  { value: 'siatkówka',         label: 'Siatkówka' },
+  { value: 'siatkówka plażowa', label: 'Plaża' },
+  { value: 'koszykówka',        label: 'Koszykówka' },
+  { value: 'futsal',            label: 'Futsal' },
+] as const;
 
-// Futsal i gokarty usunięte z filtrów per spec
-const SPORTS_FILTER: { sport: string; label: string; short: string }[] = [
-  { sport: 'piłka nożna',       label: 'Piłka nożna',       short: 'Piłka' },
-  { sport: 'siatkówka plażowa', label: 'Siatkówka plażowa',  short: 'Plaża' },
-  { sport: 'siatkówka',         label: 'Siatkówka',          short: 'Siatka' },
-  { sport: 'koszykówka',        label: 'Koszykówka',         short: 'Kosz' },
+type DateBucket = 'dzisiaj' | 'jutro' | 'tydzien' | 'wszystkie';
+const DATE_CHIPS: { value: DateBucket; label: string }[] = [
+  { value: 'dzisiaj',   label: 'Dzisiaj' },
+  { value: 'jutro',     label: 'Jutro' },
+  { value: 'tydzien',   label: 'Ten tydzień' },
+  { value: 'wszystkie', label: 'Wszystkie' },
 ];
 
-type LocationMode = 'none' | 'browser' | 'address';
 interface GeoPoint { lat: number; lng: number }
 
 function haversineKm(a: GeoPoint, b: GeoPoint): number {
@@ -35,18 +42,31 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+function dateBucket(dateStr: string): DateBucket {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    if (dt.getTime() === today.getTime()) return 'dzisiaj';
+    if (dt.getTime() === tomorrow.getTime()) return 'jutro';
+    if (isThisWeek(dt, { weekStartsOn: 1 })) return 'tydzien';
+    return 'wszystkie';
+  } catch { return 'wszystkie'; }
+}
+
 export default function EventsPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
-  const [myRel, setMyRel] = useState<Record<string, EventRelation>>({});
+  const router = useRouter();
+  const { user } = useAuth();
+  const [allEvents, setAllEvents] = useState<{ event: EventItem; distance?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
-
-  // Location filter
-  const [locationMode, setLocationMode] = useState<LocationMode>('none');
+  const [dateFilter, setDateFilter] = useState<DateBucket>('dzisiaj');
+  const [query, setQuery] = useState('');
+  const [showGeoBar, setShowGeoBar] = useState(false);
   const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [addressInput, setAddressInput] = useState('');
   const [addressLoading, setAddressLoading] = useState(false);
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,21 +74,24 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pub, mine] = await Promise.all([
-        getPublicEvents(),
-        user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
-      ]);
-      setPublicEvents(pub);
-      setMyRel(Object.fromEntries(
-        mine.map(({ event, isOrganizer }) => [event.id, isOrganizer ? 'organizer' : 'going'] as const),
-      ));
+      const pub = await getPublicEvents();
+      setAllEvents(pub.map((event) => ({ event })));
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [user]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // Request browser geolocation
+  // Recompute distances when geoPoint changes
+  useEffect(() => {
+    setAllEvents((prev) => prev.map(({ event }) => ({
+      event,
+      distance: geoPoint && event.lat != null && event.lng != null
+        ? haversineKm(geoPoint, { lat: event.lat!, lng: event.lng! })
+        : undefined,
+    })));
+  }, [geoPoint]);
+
   async function handleBrowserGeo() {
     setGeoLoading(true);
     setGeoError(null);
@@ -76,15 +99,11 @@ export default function EventsPage() {
     setGeoLoading(false);
     if (result.ok) {
       setGeoPoint({ lat: result.lat, lng: result.lng });
-      setLocationMode('browser');
     } else {
       setGeoError(geoErrorMessage(result.kind));
-      // Offer the manual address field as a fallback
-      if (result.kind !== 'unsupported') setLocationMode('address');
     }
   }
 
-  // Geocode typed address via Nominatim (debounced), biased to Poznań
   function handleAddressChange(val: string) {
     setAddressInput(val);
     setGeoError(null);
@@ -93,252 +112,261 @@ export default function EventsPage() {
     addressDebounceRef.current = setTimeout(async () => {
       setAddressLoading(true);
       try {
-        // Bias to Poznań so short queries like "Rataje" resolve locally
         const q = /pozna/i.test(val) ? val : `${val}, Poznań`;
         const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=pl&addressdetails=0`,
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=pl`,
         );
         const results = await resp.json();
-        if (results && results[0]) {
+        if (results?.[0]) {
           setGeoPoint({ lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) });
-          setLocationMode('address');
-          setGeoError(null);
         } else {
           setGeoPoint(null);
-          setGeoError('Nie znaleziono tego adresu. Spróbuj inaczej, np. „Rataje" albo „ul. Główna".');
+          setGeoError('Nie znaleziono adresu.');
         }
-      } catch {
-        setGeoError('Nie udało się wyszukać adresu. Sprawdź połączenie.');
-      }
+      } catch { setGeoError('Błąd połączenia.'); }
       finally { setAddressLoading(false); }
     }, 600);
   }
 
-  function clearLocation() {
-    setLocationMode('none');
+  function clearGeo() {
     setGeoPoint(null);
     setAddressInput('');
     setGeoError(null);
+    setShowGeoBar(false);
   }
 
-  const raw = publicEvents.filter((e) => e.status !== 'cancelled' && isEventJoinable(e));
-
-  // Distances (only computed when geoPoint set)
-  const withDistances = useMemo(() => {
-    return raw.map((event) => {
-      if (!geoPoint || event.lat == null || event.lng == null) return { event, distance: undefined };
-      return { event, distance: haversineKm(geoPoint, { lat: event.lat!, lng: event.lng! }) };
-    });
-  }, [raw, geoPoint]);
-
   const filtered = useMemo(() => {
-    let list = withDistances;
+    let list = allEvents.filter(({ event }) =>
+      event.status !== 'cancelled' && isEventJoinable(event),
+    );
     if (sportFilter) list = list.filter(({ event }) => event.sport === sportFilter);
-    if (geoPoint) list = list.filter(({ distance }) => distance !== undefined);
+    if (dateFilter !== 'wszystkie') {
+      list = list.filter(({ event }) => {
+        const b = dateBucket(event.date);
+        if (dateFilter === 'tydzien') return b === 'dzisiaj' || b === 'jutro' || b === 'tydzien';
+        return b === dateFilter;
+      });
+    }
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      list = list.filter(({ event }) =>
+        event.title?.toLowerCase().includes(q) ||
+        event.sport.toLowerCase().includes(q) ||
+        event.fieldName?.toLowerCase().includes(q),
+      );
+    }
     if (geoPoint) list = [...list].sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
     return list;
-  }, [withDistances, sportFilter, geoPoint]);
+  }, [allEvents, sportFilter, dateFilter, query, geoPoint]);
+
+  const hasFilters = !!sportFilter || dateFilter !== 'dzisiaj' || !!query || !!geoPoint;
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
-      <Header />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Otwarte gry</h1>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 h-14">
+          <button
+            type="button"
+            aria-label="Wróć"
+            onClick={() => router.back()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <span className="flex-1 text-base font-bold text-ink">Szukaj gry</span>
+          <button
+            type="button"
+            aria-label="Filtruj po lokalizacji"
+            onClick={() => setShowGeoBar((v) => !v)}
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <SlidersHorizontal className="h-5 w-5" />
+            {geoPoint && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent-500" />
+            )}
+          </button>
           {user && (
-            <Link href="/wydarzenia/nowe">
-              <Button className="flex items-center gap-1.5"><Plus className="w-4 h-4" /> Nowe</Button>
+            <Link
+              href="/wydarzenia/nowe"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-primary-950 hover:bg-accent-400 transition-colors"
+              aria-label="Nowy mecz"
+            >
+              <Plus className="h-5 w-5" />
             </Link>
           )}
         </div>
+      </div>
 
-        {/* Sport filter — emoji chips; nic nie wybrane = wszystkie */}
-        <div className="flex items-center gap-2.5 mb-5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {SPORTS_FILTER.map(({ sport, label }) => {
-            const active = sportFilter === sport;
+      <main className="flex-1 mx-auto w-full max-w-2xl">
+        {/* Search bar */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Szukaj po nazwie lub boisku…"
+              className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:bg-white transition-colors"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Geo bar (collapsible) */}
+        {showGeoBar && (
+          <div className="mx-4 mb-2 rounded-2xl border border-slate-200 bg-white p-3 space-y-2.5">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={geoPoint ? clearGeo : handleBrowserGeo}
+                disabled={geoLoading}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium border transition-colors ${
+                  geoPoint ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300'
+                }`}
+              >
+                <Navigation className="h-4 w-4" />
+                {geoLoading ? 'Pobieranie…' : geoPoint ? 'Blisko mnie ✓' : 'Blisko mnie'}
+              </button>
+              {geoPoint && (
+                <button type="button" onClick={clearGeo} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 px-2">
+                  <X className="h-3.5 w-3.5" /> Wyczyść
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={addressInput}
+                onChange={(e) => handleAddressChange(e.target.value)}
+                placeholder="lub wpisz adres: Rataje, ul. Główna…"
+                className="w-full rounded-xl border border-slate-200 bg-canvas pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+              />
+              {addressLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>}
+            </div>
+            {geoError && <p className="text-xs text-red-500">{geoError}</p>}
+          </div>
+        )}
+
+        {/* Sport chips */}
+        <div className="flex gap-2 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SPORT_CHIPS.map(({ value, label }) => {
+            const active = sportFilter === value;
+            const emoji = value ? sportEmoji(value) : null;
             return (
               <button
-                key={sport}
-                onClick={() => setSportFilter(active ? '' : sport)}
-                aria-pressed={active}
-                aria-label={label}
-                title={label}
-                className={[
-                  'shrink-0 flex items-center justify-center h-12 w-12 rounded-full border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600',
+                key={value || '_all'}
+                type="button"
+                onClick={() => setSportFilter(active && value ? '' : value)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
                   active
-                    ? 'bg-primary-700 border-primary-700 shadow-md scale-105'
-                    : 'bg-white border-slate-200 hover:border-primary-300 active:scale-95',
-                ].join(' ')}
+                    ? 'bg-primary-700 text-white'
+                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-primary-300'
+                }`}
               >
-                <span aria-hidden="true" className="text-xl leading-none">{sportEmoji(sport)}</span>
+                {emoji && <span className="text-sm leading-none" aria-hidden="true">{emoji}</span>}
+                {label}
               </button>
             );
           })}
         </div>
 
-        {/* Location filter */}
-        <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sortuj od najbliższych</p>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={locationMode === 'browser' ? clearLocation : handleBrowserGeo}
-              disabled={geoLoading}
-              className={[
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors',
-                locationMode === 'browser'
-                  ? 'bg-primary-50 text-primary-700 border-primary-200'
-                  : 'bg-white text-slate-600 border-slate-300 hover:border-primary-300',
-              ].join(' ')}
-            >
-              <Navigation className="w-4 h-4" />
-              {geoLoading ? 'Pobieranie…' : locationMode === 'browser' ? 'Blisko mnie ✓' : 'Blisko mnie'}
-            </button>
-            <button
-              onClick={() => {
-                if (locationMode === 'address') { clearLocation(); }
-                else { setLocationMode('address'); }
-              }}
-              className={[
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors',
-                locationMode === 'address'
-                  ? 'bg-primary-50 text-primary-700 border-primary-200'
-                  : 'bg-white text-slate-600 border-slate-300 hover:border-primary-300',
-              ].join(' ')}
-            >
-              <Search className="w-4 h-4" /> Blisko adresu
-            </button>
-            {locationMode !== 'none' && (
-              <button onClick={clearLocation} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 px-2">
-                <X className="w-3.5 h-3.5" /> Wyczyść
+        {/* Date chips */}
+        <div className="flex gap-2 overflow-x-auto px-4 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {DATE_CHIPS.map(({ value, label }) => {
+            const active = dateFilter === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setDateFilter(value)}
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-primary-700 text-white'
+                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-primary-300'
+                }`}
+              >
+                {label}
               </button>
-            )}
-          </div>
-
-          {locationMode === 'address' && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                aria-label="Adres do wyszukania pobliskich wydarzeń"
-                value={addressInput}
-                onChange={(e) => handleAddressChange(e.target.value)}
-                placeholder="np. ul. Dąbrowskiego 7, Poznań"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
-              />
-              {addressLoading && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">…</span>
-              )}
-            </div>
-          )}
-
-          {geoError && <p className="text-xs text-red-500">{geoError}</p>}
-          {geoPoint && locationMode !== 'none' && (
-            <p className="text-xs text-primary-700 font-medium">
-              Pokazuję wydarzenia posortowane od najbliższych.
-            </p>
-          )}
+            );
+          })}
         </div>
 
-        {/* List */}
+        {/* Results count */}
+        {!loading && (
+          <div className="flex items-center justify-between px-4 pb-2">
+            <span className="text-[13px] text-slate-500">
+              {filtered.length > 0 ? `${filtered.length} ${filtered.length === 1 ? 'gra' : filtered.length < 5 ? 'gry' : 'gier'}` : 'Brak gier'}
+            </span>
+            {geoPoint && (
+              <span className="text-[11px] font-medium text-primary-700">posortowane od najbliższych</span>
+            )}
+          </div>
+        )}
+
+        {/* Skeletons */}
         {loading && (
-          <div className="space-y-3">
+          <div className="space-y-3 px-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
-                <div className="flex items-start gap-2.5">
-                  <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-slate-200 shrink-0" />
-                  <div className="flex-1 h-5 bg-slate-100 rounded-lg" />
-                  <div className="h-8 w-16 bg-slate-100 rounded-xl shrink-0" />
-                </div>
-                <div className="ml-5 mt-2 space-y-2">
-                  <div className="h-4 w-32 bg-slate-100 rounded" />
-                  <div className="h-4 w-48 bg-slate-100 rounded" />
-                </div>
-                <div className="ml-5 mt-3 h-1.5 bg-slate-100 rounded-full" />
-              </div>
+              <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />
             ))}
           </div>
         )}
 
+        {/* List */}
         {!loading && filtered.length > 0 && (
-          <GroupedEventList items={filtered} myRel={myRel} />
+          <div className="space-y-3 px-4 pb-24">
+            {filtered.map(({ event, distance }) => (
+              <EventBrowseCard key={event.id} event={event} distance={distance} />
+            ))}
+          </div>
         )}
 
+        {/* Empty state */}
         {!loading && filtered.length === 0 && (
-          <div className="text-center py-16 text-slate-400">
-            <Users className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-            {sportFilter ? (
-              <>
-                <p className="text-lg font-medium text-ink">Brak wydarzeń pasujących do filtrów</p>
-                <button
-                  onClick={() => setSportFilter('')}
-                  className="text-primary-700 text-sm underline mt-3"
-                >Wyczyść filtry</button>
-              </>
-            ) : (
-              <>
-                <p className="text-lg font-medium text-ink">Brak publicznych wydarzeń</p>
-                <p className="text-sm mt-1">Bądź pierwszy — stwórz publiczne wydarzenie.</p>
-                {!authLoading && !user && (
-                  <button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="text-primary-700 text-sm underline mt-4">
-                    Zaloguj się, aby tworzyć
-                  </button>
-                )}
-              </>
+          <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+            <span className="text-5xl mb-4">⚽</span>
+            <p className="text-base font-bold text-slate-700">Brak gier w tym terminie</p>
+            <p className="mt-1 text-sm text-slate-500">Zmień filtr lub stwórz własny mecz.</p>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => { setSportFilter(''); setDateFilter('dzisiaj'); setQuery(''); clearGeo(); }}
+                className="mt-4 text-sm font-semibold text-primary-700 underline"
+              >
+                Wyczyść filtry
+              </button>
             )}
+            <Link
+              href="/wydarzenia/nowe"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+            >
+              <Plus className="h-4 w-4" /> Stwórz mecz
+            </Link>
           </div>
         )}
       </main>
+
+      {/* FAB */}
+      {user && filtered.length > 0 && (
+        <Link
+          href="/wydarzenia/nowe"
+          aria-label="Nowy mecz"
+          className="fixed bottom-6 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 text-primary-950 shadow-lg shadow-black/15 transition-transform hover:scale-105 active:scale-95"
+        >
+          <Plus className="h-6 w-6" strokeWidth={2.5} />
+        </Link>
+      )}
     </div>
   );
-}
-
-/** Groups events by relative date bucket — easier to scan than a flat list. */
-function GroupedEventList({ items, myRel }: { items: { event: EventItem; distance?: number }[]; myRel: Record<string, EventRelation> }) {
-  const groups = useMemo(() => groupByDateBucket(items), [items]);
-  return (
-    <div className="space-y-6">
-      {groups.map(([label, rows]) => (
-        <section key={label}>
-          <h2 className="flex items-center gap-2 text-sm font-bold text-ink mb-3 px-1">
-            {label}
-            <span className="text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
-              {rows.length}
-            </span>
-          </h2>
-          <div className="space-y-3">
-            {rows.map(({ event, distance }) => (
-              <EventListCard key={event.id} event={event} distance={distance} relation={myRel[event.id]} />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function groupByDateBucket(
-  items: { event: EventItem; distance?: number }[],
-): [string, { event: EventItem; distance?: number }[]][] {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-
-  const buckets = new Map<string, { event: EventItem; distance?: number }[]>();
-  const order = ['Dziś', 'Jutro', 'W tym tygodniu', 'W tym miesiącu', 'Później'];
-  order.forEach((k) => buckets.set(k, []));
-
-  for (const row of items) {
-    let bucket = 'Później';
-    try {
-      const [y, m, d] = row.event.date.split('-').map(Number);
-      const dt = new Date(y, m - 1, d);
-      if (dt.getTime() === today.getTime()) bucket = 'Dziś';
-      else if (dt.getTime() === tomorrow.getTime()) bucket = 'Jutro';
-      else if (isThisWeek(dt, { weekStartsOn: 1 })) bucket = 'W tym tygodniu';
-      else if (isThisMonth(dt)) bucket = 'W tym miesiącu';
-    } catch { /* keep default */ }
-    buckets.get(bucket)!.push(row);
-  }
-  return order
-    .map((k) => [k, buckets.get(k)!] as [string, { event: EventItem; distance?: number }[]])
-    .filter(([, rows]) => rows.length > 0);
 }
