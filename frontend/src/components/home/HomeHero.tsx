@@ -10,8 +10,7 @@ import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
-import { EventListCard } from '@/components/EventListCard';
-import { GameFeedCard } from '@/components/GameFeedCard';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
 import type { EventItem, GameAlert } from '@/types';
 
 /** Marketing hero for logged-out visitors */
@@ -170,9 +169,9 @@ function MyGamesSection({ userId }: { userId: string }) {
           Wszystkie <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {games.slice(0, 3).map(({ event, isOrganizer }) => (
-          <EventListCard key={event.id} event={event} relation={isOrganizer ? 'organizer' : 'going'} />
+          <EventBrowseCard key={event.id} event={event} />
         ))}
       </div>
     </div>
@@ -215,7 +214,12 @@ function OpenGamesSection() {
             </span>
           )}
         </h2>
-        {user && SHOW_GAME_ALERTS && (
+        <Link href="/wydarzenia" className="text-xs font-semibold text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
+          Wszystkie <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+      {user && SHOW_GAME_ALERTS && (
+        <div className="mb-3 flex justify-end">
           <button
             onClick={() => setShowAlert(true)}
             className={[
@@ -226,8 +230,8 @@ function OpenGamesSection() {
             {alert ? <BellRing className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
             {alert ? 'Alert włączony' : 'Ustaw alert'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -253,15 +257,10 @@ function OpenGamesSection() {
           )}
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {openEvents.slice(0, 5).map((e) => (
-            <GameFeedCard key={e.id} event={e} />
+            <EventBrowseCard key={e.id} event={e} />
           ))}
-          {openEvents.length > 5 && (
-            <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
-              Pokaż wszystkie ({openEvents.length}) <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          )}
         </div>
       )}
 

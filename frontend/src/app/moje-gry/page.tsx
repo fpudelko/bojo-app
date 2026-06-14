@@ -7,7 +7,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { getMyParticipatedEvents } from '@/lib/events';
-import { EventCard, isUpcoming } from '@/components/EventCard';
+import { isUpcoming } from '@/components/EventCard';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
 import type { EventItem } from '@/types';
 
 export default function MojeGryPage() {
@@ -127,16 +128,9 @@ export default function MojeGryPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {upcoming.map(({ event, isOrganizer }) => (
-                <div key={event.id} className="relative">
-                  {isOrganizer && (
-                    <span className="absolute top-2 right-2 z-10 text-[10px] font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5 pointer-events-none">
-                      Organizujesz
-                    </span>
-                  )}
-                  <EventCard event={event} isOrganizer={isOrganizer} />
-                </div>
+                <EventBrowseCard key={event.id} event={event} />
               ))}
             </div>
           )
@@ -144,16 +138,9 @@ export default function MojeGryPage() {
           history.length === 0 ? (
             <p className="text-center text-sm text-slate-400 py-12">Brak historii gier</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {history.map(({ event, isOrganizer }) => (
-                <div key={event.id} className="relative">
-                  {isOrganizer && (
-                    <span className="absolute top-2 right-2 z-10 text-[10px] font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5 pointer-events-none">
-                      Organizujesz
-                    </span>
-                  )}
-                  <EventCard event={event} isOrganizer={isOrganizer} />
-                </div>
+                <EventBrowseCard key={event.id} event={event} />
               ))}
             </div>
           )
