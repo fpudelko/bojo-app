@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Search, Map as MapIcon, Users, Trophy } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Map as MapIcon, Users, Trophy } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -78,20 +78,6 @@ function MarketingHero() {
       <p className="mt-4 max-w-sm text-base font-medium leading-relaxed text-white/80 sm:text-lg">
         Koniec z dzwonieniem do znajomych. Wrzuć termin — gracze z okolicy dopiszą się sami.
       </p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Link
-          href="/wydarzenia"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-bold text-primary-950 shadow transition-colors hover:bg-accent-400"
-        >
-          <Search className="h-4 w-4" /> Znajdź mecz
-        </Link>
-        <Link
-          href="/wydarzenia/nowe"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/10"
-        >
-          <Plus className="h-4 w-4" /> Stwórz mecz
-        </Link>
-      </div>
     </HeroShell>
   );
 }
@@ -108,20 +94,6 @@ function DashboardHero() {
       <p className="mt-3 max-w-sm text-base font-medium leading-relaxed text-white/80">
         Wrzuć termin i zbierz skład — albo dołącz do otwartego meczu poniżej.
       </p>
-      <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Link
-          href="/wydarzenia/nowe"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-6 py-3.5 text-base font-bold text-primary-950 shadow transition-colors hover:bg-accent-400"
-        >
-          <Plus className="h-4 w-4" /> Stwórz mecz
-        </Link>
-        <Link
-          href="/wydarzenia"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/10"
-        >
-          <Search className="h-4 w-4" /> Przeglądaj mecze
-        </Link>
-      </div>
     </HeroShell>
   );
 }
