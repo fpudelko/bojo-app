@@ -41,12 +41,37 @@ function todayLabel(count: number | null) {
   return 'Aktywne w Poznaniu i okolicach';
 }
 
-/** Shared hero shell — clean gradient, no decorative noise. */
+/** Football-pitch line motif (pure SVG, no stock photo). */
+function PitchLines({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.5">
+        <rect x="14" y="14" width="172" height="232" rx="3" />
+        <line x1="14" y1="130" x2="186" y2="130" />
+        <circle cx="100" cy="130" r="34" />
+        <circle cx="100" cy="130" r="2.5" fill="currentColor" stroke="none" />
+        <rect x="60" y="14" width="80" height="38" />
+        <rect x="60" y="208" width="80" height="38" />
+      </g>
+    </svg>
+  );
+}
+
+/** Shared hero shell — gradient + a contained pitch/ball motif. The decoration
+ *  lives INSIDE the centred column (overflow-clipped), so it never drifts off to
+ *  the far edges on wide desktop screens. */
 function HeroShell({ children }: { children: React.ReactNode }) {
   return (
     <section className="hero-surface relative overflow-hidden text-white">
       <div className="relative mx-auto max-w-3xl px-5 pb-14 pt-14">
-        {children}
+        {/* Decorative layer — clipped to this column's bounds */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <PitchLines className="absolute -right-10 top-0 h-full w-[56%] text-white/[0.07]" />
+          <span className="absolute right-2 top-7 select-none text-5xl leading-none opacity-[0.14] rotate-12">⚽</span>
+          <span className="absolute right-24 bottom-12 select-none text-4xl leading-none opacity-[0.11] -rotate-12">🏐</span>
+          <span className="absolute right-3 bottom-7 select-none text-4xl leading-none opacity-[0.11] rotate-6">🏀</span>
+        </div>
+        <div className="relative">{children}</div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
@@ -75,8 +100,9 @@ function MarketingHero() {
       <h1 className="mt-5 max-w-xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
         Zbierz skład.<br />Wyjdź na boisko.
       </h1>
-      <p className="mt-4 max-w-sm text-base font-medium leading-relaxed text-white/80 sm:text-lg">
-        Koniec z dzwonieniem do znajomych. Wrzuć termin — gracze z okolicy dopiszą się sami.
+      <p className="mt-4 max-w-md text-base font-medium leading-relaxed text-white/80 sm:text-lg">
+        Brakuje paru osób do składu? Upublicznij mecz, a gracze z okolicy dopiszą się sami.
+        Możesz też wskoczyć do otwartego meczu obok.
       </p>
     </HeroShell>
   );
