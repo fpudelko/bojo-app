@@ -13,7 +13,7 @@ import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import type { EventItem, GameAlert } from '@/types';
 
-// ── Pure-CSS/SVG sport-field motifs (no stock photos) ──────────────────────
+// ── Pure-CSS/SVG pitch motif (no stock photos) ─────────────────────────────
 function PitchLines({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
@@ -29,38 +29,40 @@ function PitchLines({ className = '' }: { className?: string }) {
   );
 }
 
-function HoopLines({ className = '' }: { className?: string }) {
+/** Live "today" count pill — used in both hero variants for one shared look. */
+function LivePill({ label }: { label: string }) {
   return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <rect x="72" y="14" width="56" height="86" />
-        <circle cx="100" cy="100" r="28" />
-        <path d="M44 14 V52 A56 56 0 0 0 156 52 V14" />
-        <line x1="86" y1="30" x2="114" y2="30" />
-        <circle cx="100" cy="38" r="6" />
-      </g>
-    </svg>
+    <span className="inline-flex animate-fade-up items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/15 backdrop-blur-sm">
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-500 opacity-75" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-500" />
+      </span>
+      {label}
+    </span>
   );
 }
 
-function NetLines({ className = '' }: { className?: string }) {
+/** Shared hero shell — same gradient, pitch motif and floating glyphs in both
+ *  the logged-out marketing view and the logged-in dashboard, so they match. */
+function HeroShell({ children }: { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <line x1="14" y1="90" x2="186" y2="90" />
-        <line x1="14" y1="170" x2="186" y2="170" />
-        <line x1="14" y1="130" x2="186" y2="130" strokeWidth="5" strokeDasharray="7 7" />
-      </g>
-    </svg>
+    <section className="relative overflow-hidden text-white">
+      <div className="hero-surface absolute inset-0" aria-hidden="true" />
+      <PitchLines className="absolute -right-20 top-0 hidden h-full w-[68%] text-white/[0.07] sm:block" />
+      <span aria-hidden="true" className="pointer-events-none absolute right-5 top-9 select-none text-5xl opacity-[0.13] rotate-12">⚽</span>
+      <span aria-hidden="true" className="pointer-events-none absolute right-28 bottom-20 select-none text-4xl opacity-[0.10] -rotate-12">🏐</span>
+      <span aria-hidden="true" className="pointer-events-none absolute right-3 bottom-8 select-none text-4xl opacity-[0.10] rotate-6">🏀</span>
+      <div className="relative mx-auto max-w-md px-5 pb-12 pt-12 lg:max-w-3xl">
+        {children}
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
+    </section>
   );
 }
 
-/** Marketing hero for logged-out visitors */
-function MarketingHero() {
-  const [todayCount, setTodayCount] = useState<number | null>(null);
-
+/** Reads today's open public match count for the live pill. */
+function useTodayCount() {
+  const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
     (async () => {
       try {
@@ -71,108 +73,100 @@ function MarketingHero() {
           .eq('date', today)
           .eq('visibility', 'public')
           .eq('status', 'active');
-        setTodayCount(count ?? 0);
+        setCount(count ?? 0);
       } catch { /* ignore */ }
     })();
   }, []);
+  return count;
+}
 
-  const liveLabel =
-    todayCount !== null && todayCount > 0
-      ? `${todayCount} ${todayCount === 1 ? 'otwarty mecz' : todayCount < 5 ? 'otwarte mecze' : 'otwartych meczy'} dziś`
-      : 'Poznań i okolice';
+function todayLabel(count: number | null) {
+  if (count !== null && count > 0) {
+    const word = count === 1 ? 'otwarty mecz' : count < 5 ? 'otwarte mecze' : 'otwartych meczy';
+    return `${count} ${word} dziś w okolicy`;
+  }
+  return 'Poznań i okolice';
+}
+
+/** Marketing hero for logged-out visitors */
+function MarketingHero() {
+  const count = useTodayCount();
 
   return (
-    <section className="relative overflow-hidden text-white">
-      {/* Brand gradient mesh (green + amber glow, pure CSS) */}
-      <div className="hero-surface absolute inset-0" aria-hidden="true" />
-      {/* Pitch-line motif drifting off the right edge */}
-      <PitchLines className="absolute -right-20 top-0 hidden h-full w-[68%] text-white/[0.07] sm:block" />
-      {/* Floating sport glyphs for depth */}
-      <span aria-hidden="true" className="pointer-events-none absolute right-5 top-9 select-none text-5xl opacity-[0.13] rotate-12">⚽</span>
-      <span aria-hidden="true" className="pointer-events-none absolute right-28 bottom-20 select-none text-4xl opacity-[0.10] -rotate-12">🏐</span>
-      <span aria-hidden="true" className="pointer-events-none absolute right-3 bottom-8 select-none text-4xl opacity-[0.10] rotate-6">🏀</span>
+    <HeroShell>
+      <LivePill label={todayLabel(count)} />
 
-      <div className="relative mx-auto max-w-md px-5 pb-12 pt-12 lg:max-w-3xl">
-        {/* Live today pill */}
-        <span className="inline-flex animate-fade-up items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/15 backdrop-blur-sm">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-500 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-500" />
-          </span>
-          {liveLabel}
-        </span>
+      <h1
+        className="mt-5 animate-fade-up font-display text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl"
+        style={{ animationDelay: '80ms' }}
+      >
+        Zbierz skład.<br />Wyjdź na boisko.
+      </h1>
+      <p
+        className="mt-4 max-w-md animate-fade-up text-base font-medium leading-relaxed text-white/85 sm:text-lg"
+        style={{ animationDelay: '160ms' }}
+      >
+        Koniec z dzwonieniem po znajomych. Wrzuć termin, a gracze z Poznania
+        dopiszą się sami. Brakuje Ci gry? Wskocz do otwartego meczu obok.
+      </p>
 
-        <h1
-          className="mt-5 animate-fade-up font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl"
-          style={{ animationDelay: '80ms' }}
+      <div
+        className="mt-7 flex animate-fade-up flex-col gap-3 sm:max-w-sm"
+        style={{ animationDelay: '240ms' }}
+      >
+        <Link
+          href="/wydarzenia"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/5 px-5 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10"
         >
-          Organizuj mecz.<br />Zbierz skład. Zagraj.
-        </h1>
-        <p
-          className="mt-4 max-w-md animate-fade-up text-base font-medium leading-relaxed text-white/85 sm:text-lg"
-          style={{ animationDelay: '160ms' }}
-        >
-          Wrzuć termin i sport — gracze dołączą sami. Albo dołącz do otwartego meczu i uzupełnij skład.
-        </p>
-
-        <div
-          className="mt-7 flex animate-fade-up flex-col gap-3 sm:max-w-sm"
-          style={{ animationDelay: '240ms' }}
-        >
-          <Link
-            href="/wydarzenia"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/5 px-5 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10"
-          >
-            <Search className="h-5 w-5" aria-hidden="true" /> Znajdź mecz
-          </Link>
-        </div>
+          <Search className="h-5 w-5" aria-hidden="true" /> Znajdź mecz w okolicy
+        </Link>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
-    </section>
+    </HeroShell>
   );
 }
 
-/** Sport picker — 3 designed cards (gradient + court motif, no stock photos). */
-const SPORT_CARDS = [
-  { label: 'Piłka nożna',       emoji: '⚽', grad: 'linear-gradient(150deg,#1f8a52 0%,#0f4c2e 100%)', Lines: PitchLines },
-  { label: 'Siatkówka plażowa', emoji: '🏖️', grad: 'linear-gradient(150deg,#f3bd6b 0%,#d4881c 100%)', Lines: NetLines },
-  { label: 'Koszykówka',        emoji: '🏀', grad: 'linear-gradient(150deg,#f0903e 0%,#bf3d12 100%)', Lines: HoopLines },
-] as const;
+/** Hero for logged-in users — same shell + copy tuned to "create a match". */
+function DashboardHeader() {
+  const count = useTodayCount();
 
-function SportsShowcase() {
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-ink">Wybierz sport</h2>
-        <Link href="/wydarzenia" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
-          Wszystkie <ArrowRight className="h-3.5 w-3.5" />
+    <HeroShell>
+      <LivePill label={todayLabel(count)} />
+
+      <h1
+        className="mt-5 animate-fade-up font-display text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl"
+        style={{ animationDelay: '80ms' }}
+      >
+        Czas na mecz?
+      </h1>
+      <p
+        className="mt-3 max-w-md animate-fade-up text-base font-medium leading-relaxed text-white/85"
+        style={{ animationDelay: '160ms' }}
+      >
+        Wrzuć termin i zbierz skład — albo dołącz do otwartego meczu poniżej.
+      </p>
+
+      <div
+        className="mt-6 flex animate-fade-up flex-col gap-3 sm:max-w-sm"
+        style={{ animationDelay: '240ms' }}
+      >
+        <Link
+          href="/wydarzenia/nowe"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-sm transition-colors hover:bg-accent-400"
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
         </Link>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {SPORT_CARDS.map(({ label, emoji, grad, Lines }) => (
-          <Link
-            key={label}
-            href="/wydarzenia"
-            className="group relative aspect-[3/4] overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 transition-transform active:scale-[0.98]"
-            style={{ background: grad }}
-          >
-            <Lines className="absolute inset-0 h-full w-full text-white/[0.18]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-            <span aria-hidden="true" className="absolute left-1/2 top-5 -translate-x-1/2 text-3xl drop-shadow-md transition-transform group-hover:scale-110">{emoji}</span>
-            <span className="absolute inset-x-0 bottom-0 p-2.5 text-[13px] font-bold leading-tight text-white">{label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
+    </HeroShell>
   );
 }
 
 /** "Jak to działa" — 3 numbered steps, shown to logged-out visitors. */
 function HowItWorks() {
   const steps = [
-    { Icon: CalendarPlus, title: 'Wrzuć mecz', desc: 'Sport, miejsce, ilu graczy potrzebujesz.' },
-    { Icon: Users, title: 'Gracze dołączają', desc: 'Inni widzą Twój mecz i zapisują się sami.' },
-    { Icon: Trophy, title: 'Komplet? Gracie!', desc: 'Skład pełny — wychodzicie na boisko.' },
+    { Icon: CalendarPlus, title: 'Stwórz mecz', desc: 'Wybierz sport, boisko i termin. Zajmie Ci to minutę.' },
+    { Icon: Users, title: 'Skład zbiera się sam', desc: 'Gracze z okolicy widzą Twój mecz i zapisują się.' },
+    { Icon: Trophy, title: 'Wychodzicie grać', desc: 'Komplet graczy? Widzimy się na boisku.' },
   ];
   return (
     <div>
@@ -197,25 +191,9 @@ function HowItWorks() {
         href="/wydarzenia/nowe"
         className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-sm transition-colors hover:bg-accent-400"
       >
-        <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
+        <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz pierwszy mecz
       </Link>
     </div>
-  );
-}
-
-/** Compact green header for logged-in users */
-function DashboardHeader() {
-  return (
-    <section className="hero-surface relative overflow-hidden text-white">
-      <div className="hero-dots absolute inset-0" aria-hidden="true" />
-      <PitchLines className="absolute -right-16 top-0 hidden h-full w-[55%] text-white/[0.06] sm:block" />
-      <div className="relative mx-auto max-w-3xl px-4 pt-8 pb-10">
-        <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Mecze, boiska i gracze w Twojej okolicy.
-        </h1>
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
-    </section>
   );
 }
 
@@ -248,7 +226,7 @@ function MyGamesSection({ userId }: { userId: string }) {
         </Link>
       </div>
       <div className="space-y-3">
-        {games.slice(0, 2).map(({ event, isOrganizer }) => (
+        {games.slice(0, 2).map(({ event }) => (
           <EventBrowseCard key={event.id} event={event} />
         ))}
       </div>
@@ -256,7 +234,7 @@ function MyGamesSection({ userId }: { userId: string }) {
   );
 }
 
-/** Public open-games feed with sport filter — shown to everyone. */
+/** Public open-games feed — shown to everyone. */
 function OpenGamesSection() {
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,7 +263,7 @@ function OpenGamesSection() {
     <div id="otwarte-gry" className="scroll-mt-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-ink">
-          Najbliższe otwarte mecze
+          Otwarte mecze
           {openEvents.length > 0 && (
             <span className="ml-2 text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
               {openEvents.length}
@@ -318,8 +296,11 @@ function OpenGamesSection() {
       ) : openEvents.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
           <p className="text-2xl mb-3">⚽</p>
-          <p className="text-sm font-medium text-slate-600 mb-4">
-            Brak otwartych meczy w tej chwili
+          <p className="text-sm font-medium text-slate-600 mb-1">
+            Na razie cisza — żadnego otwartego meczu
+          </p>
+          <p className="text-sm text-slate-500 mb-4">
+            Bądź pierwszy i wrzuć termin. Reszta się dopisze.
           </p>
           {user && SHOW_GAME_ALERTS ? (
             <button
@@ -369,7 +350,7 @@ function MapTeaser() {
       </div>
       <div className="relative min-w-0 flex-1">
         <p className="font-bold">Mapa boisk</p>
-        <p className="text-sm text-white/85">Boiska w Poznaniu i okolicach</p>
+        <p className="text-sm text-white/85">Sprawdź, gdzie zagrać w Poznaniu i okolicach</p>
       </div>
       <ArrowRight className="relative h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
     </Link>
@@ -379,27 +360,25 @@ function MapTeaser() {
 export default function HomeHero() {
   const { user, loading: authLoading } = useAuth();
 
-  // Logged-in dashboard: greeting → your games → open games → quick links
+  // Logged-in dashboard: hero → your games → open games → map
   if (!authLoading && user) {
     return (
       <>
         <DashboardHeader />
-        <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-10 space-y-6">
+        <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-10 space-y-8">
           <MyGamesSection userId={user.id} />
           <OpenGamesSection />
-          <SportsShowcase />
           <MapTeaser />
         </section>
       </>
     );
   }
 
-  // Logged-out: marketing hero + public open games below
+  // Logged-out: marketing hero → open games → how it works → map
   return (
     <>
       <MarketingHero />
       <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-12 space-y-8">
-        <SportsShowcase />
         <OpenGamesSection />
         <HowItWorks />
         <MapTeaser />
