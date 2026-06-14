@@ -101,15 +101,26 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'inne', label: 'Inne' },
 ];
 
-/** Collapsible participants list — visible to all (names only), teams + publish for organizer. */
+/** Player avatar — real photo when available, initials otherwise. */
+function PlayerAvatar({ p }: { p: EventParticipant }) {
+  return p.avatarUrl ? (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img src={p.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+  ) : (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-[11px] font-bold text-primary-700">
+      {p.name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+/** Inline roster — rendered INSIDE the player-count card when the avatar stack
+ *  is expanded. Real avatars, teams + publish for organizer. */
 function ParticipantsList({
-  regulars, reserves, takenSpots, maxPlayers, isOrganizer,
+  regulars, reserves, isOrganizer,
   showTeams, teamsPublished, onPublishTeams, onUnpublishTeams, busy,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
-  takenSpots: number;
-  maxPlayers: number;
   isOrganizer: boolean;
   showTeams: boolean;
   teamsPublished: boolean;
@@ -117,17 +128,14 @@ function ParticipantsList({
   onUnpublishTeams: () => void;
   busy: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? regulars : regulars.slice(0, 4);
   const teamA = regulars.filter((p) => p.team === 'A');
   const teamB = regulars.filter((p) => p.team === 'B');
   const canSeeTeams = isOrganizer || teamsPublished;
 
   return (
-    <div className="px-4">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Skład</p>
-        {isOrganizer && showTeams && (
+    <div className="space-y-3 text-left">
+      {isOrganizer && showTeams && (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={teamsPublished ? onUnpublishTeams : onPublishTeams}
@@ -140,66 +148,45 @@ function ParticipantsList({
           >
             {teamsPublished ? '✓ Składy opublikowane' : 'Upublicznij składy'}
           </button>
-        )}
-      </div>
-      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
-        {/* Team columns (when teams assigned and visible) */}
-        {canSeeTeams && showTeams && teamA.length > 0 ? (
-          <div className="grid grid-cols-2 divide-x divide-slate-100">
-            {[{ label: 'Drużyna A', players: teamA, color: 'bg-blue-100 text-blue-700' },
-              { label: 'Drużyna B', players: teamB, color: 'bg-orange-100 text-orange-700' }]
-              .map(({ label, players, color }) => (
-                <div key={label} className="p-4">
-                  <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-3 ${color}`}>{label}</p>
-                  <div className="space-y-2">
-                    {players.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
-                          {p.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-medium text-ink truncate">{p.name}</span>
-                        {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                      </div>
-                    ))}
-                  </div>
+        </div>
+      )}
+
+      {canSeeTeams && showTeams && teamA.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4">
+          {[{ label: 'Drużyna A', players: teamA, color: 'bg-blue-100 text-blue-700' },
+            { label: 'Drużyna B', players: teamB, color: 'bg-orange-100 text-orange-700' }]
+            .map(({ label, players, color }) => (
+              <div key={label}>
+                <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
+                <div className="space-y-2">
+                  {players.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <PlayerAvatar p={p} />
+                      <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+                      {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                    </div>
+                  ))}
                 </div>
-              ))}
-          </div>
-        ) : (
-          /* Flat list */
-          <div className="divide-y divide-slate-50">
-            {shown.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="flex-1 text-sm font-medium text-ink">{p.name}</span>
-                {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
               </div>
             ))}
-          </div>
-        )}
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-50">
+          {regulars.map((p) => (
+            <div key={p.id} className="flex items-center gap-3 py-2">
+              <PlayerAvatar p={p} />
+              <span className="flex-1 text-sm font-medium text-ink truncate">{p.name}</span>
+              {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* Expand toggle */}
-        {regulars.length > 4 && !canSeeTeams && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="w-full py-2.5 text-xs font-semibold text-primary-700 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-          >
-            {expanded ? 'Zwiń ↑' : `Pokaż wszystkich (${regulars.length}) ↓`}
-          </button>
-        )}
-
-        {/* Reserve note */}
-        {reserves.length > 0 && (
-          <div className="px-4 py-2.5 border-t border-slate-100">
-            <p className="text-[11px] text-slate-400">
-              Lista rezerwowa: <span className="font-semibold text-slate-600">{reserves.length} os.</span>
-            </p>
-          </div>
-        )}
-      </div>
+      {reserves.length > 0 && (
+        <p className="border-t border-slate-100 pt-2.5 text-[11px] text-slate-400">
+          Lista rezerwowa: <span className="font-semibold text-slate-600">{reserves.length} os.</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -820,6 +807,22 @@ export default function EventDetailPage() {
               <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
             )}
 
+            {/* Roster — expands inline within this same card */}
+            {regulars.length > 0 && rosterOpen && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <ParticipantsList
+                  regulars={regulars}
+                  reserves={reserves}
+                  isOrganizer={isOrganizer}
+                  showTeams={showTeams}
+                  teamsPublished={event.teamsPublished}
+                  onPublishTeams={handlePublishTeams}
+                  onUnpublishTeams={handleUnpublishTeams}
+                  busy={busy}
+                />
+              </div>
+            )}
+
             {isFootball && hasGoalkeeper && (
               <p className="mt-3 inline-flex w-full items-center justify-center gap-1.5 text-center text-xs font-semibold text-green-600">
                 🧤 Bramkarz jest
@@ -827,22 +830,6 @@ export default function EventDetailPage() {
             )}
           </div>
         </div>
-
-        {/* ── UCZESTNICY — revealed only when the avatar stack is tapped ── */}
-        {regulars.length > 0 && rosterOpen && (
-          <ParticipantsList
-            regulars={regulars}
-            reserves={reserves}
-            takenSpots={takenSpots}
-            maxPlayers={event.maxPlayers}
-            isOrganizer={isOrganizer}
-            showTeams={showTeams}
-            teamsPublished={event.teamsPublished}
-            onPublishTeams={handlePublishTeams}
-            onUnpublishTeams={handleUnpublishTeams}
-            busy={busy}
-          />
-        )}
 
         {/* ── BOISKO CARD ── */}
         {(eventLoc.primary || (event.lat && event.lng)) && (() => {
@@ -1164,8 +1151,8 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* Match results — only visible to participants */}
-        {myParticipation && event.trackResults && !resultsAvailable && (
+        {/* Pre-match "result coming" note — only the organizer enters results */}
+        {isOwner && event.trackResults && !resultsAvailable && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
             <Trophy className="w-4 h-4 shrink-0" />
             Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
