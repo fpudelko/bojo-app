@@ -1,41 +1,25 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Siatkówka plażowa">
   <defs>
-    <linearGradient id="bvSky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7dd3fc"/>
-      <stop offset="1" stop-color="#bae6fd"/>
-    </linearGradient>
-    <linearGradient id="bvSand" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fcd9a0"/>
-      <stop offset="1" stop-color="#f0b860"/>
-    </linearGradient>
-    <radialGradient id="bvSun" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#fef08a"/>
-      <stop offset="1" stop-color="#fde047"/>
-    </radialGradient>
+    <linearGradient id="bvSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#bae6fd"/></linearGradient>
+    <linearGradient id="bvSand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fcd9a0"/><stop offset="1" stop-color="#f0b860"/></linearGradient>
+    <radialGradient id="bvSun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#fde047"/></radialGradient>
+    <radialGradient id="bvBallSh" cx="0.36" cy="0.32" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></radialGradient>
     <clipPath id="bvClip"><rect width="64" height="64" rx="14"/></clipPath>
+    <clipPath id="bvBall"><circle cx="50" cy="50" r="42"/></clipPath>
   </defs>
-
   <g clip-path="url(#bvClip)">
-    <!-- sky -->
     <rect width="64" height="64" fill="url(#bvSky)"/>
-    <!-- sun -->
     <circle cx="50" cy="15" r="8" fill="url(#bvSun)"/>
-    <!-- sea -->
     <rect y="30" width="64" height="9" fill="#38bdf8"/>
     <path d="M0 30 Q16 27 32 30 T64 30 V39 H0 Z" fill="#0ea5e9" opacity="0.55"/>
-    <!-- sand -->
     <path d="M0 37 Q20 33 40 37 T64 38 V64 H0 Z" fill="url(#bvSand)"/>
-    <!-- sand texture dots -->
-    <g fill="#d99a45" opacity="0.5">
-      <circle cx="12" cy="52" r="1"/>
-      <circle cx="24" cy="58" r="1"/>
-      <circle cx="44" cy="54" r="1"/>
-      <circle cx="54" cy="60" r="1"/>
-      <circle cx="34" cy="61" r="1"/>
-    </g>
-
-    <!-- volleyball emoji 🏐 -->
+    <g fill="#d99a45" opacity="0.5"><circle cx="12" cy="52" r="1"/><circle cx="24" cy="58" r="1"/><circle cx="44" cy="54" r="1"/><circle cx="54" cy="60" r="1"/><circle cx="34" cy="61" r="1"/></g>
     <ellipse cx="32" cy="49" rx="11" ry="3" fill="#000" opacity="0.12"/>
-    <text x="32" y="35" font-size="26" text-anchor="middle" dominant-baseline="central">🏐</text>
+    <g transform="translate(16.524 18.524) scale(0.3095)">
+      <circle cx="50" cy="50" r="42" fill="#ffffff"/>
+      <g clip-path="url(#bvBall)"><path d="M50,8 C-47,33 -21,67 50,92 C7,67 -19,33 50,8 Z" fill="#ffffff"/><path d="M50,8 C-19,33 7,67 50,92 C35,67 9,33 50,8 Z" fill="#2547c4"/><path d="M50,8 C9,33 35,67 50,92 C63,67 37,33 50,8 Z" fill="#f5c518"/><path d="M50,8 C37,33 63,67 50,92 C91,67 65,33 50,8 Z" fill="#ffffff"/><path d="M50,8 C65,33 91,67 50,92 C119,67 93,33 50,8 Z" fill="#2547c4"/><path d="M50,8 C93,33 119,67 50,92 C147,67 121,33 50,8 Z" fill="#f5c518"/><path d="M50,8 C-47,33 -21,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C-19,33 7,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C9,33 35,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C37,33 63,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C65,33 91,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C93,33 119,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/><path d="M50,8 C121,33 147,67 50,92" fill="none" stroke="#1e3a8a" stroke-width="1.6" stroke-linecap="round"/></g>
+      <circle cx="50" cy="50" r="42" fill="url(#bvBallSh)"/>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="#1e3a8a" stroke-width="2.5"/>
+    </g>
   </g>
 </svg>
