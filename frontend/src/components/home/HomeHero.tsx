@@ -119,10 +119,10 @@ function Hero() {
     <HeroShell>
       <LivePill label={todayLabel(count)} />
       <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl">
-        Czas na mecz?
+        Czas na bojo?
       </h1>
       <p className="mt-4 max-w-md text-base font-medium leading-relaxed text-white/80 sm:text-lg">
-        Wrzuć termin i zbierz skład — albo dołącz do otwartego meczu poniżej.
+        Masz wolną chwilę albo wolny termin na boisku? Wrzuć mecz i zbierz skład — albo dołącz do otwartej gry obok.
       </p>
     </HeroShell>
   );

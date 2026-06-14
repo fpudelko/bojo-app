@@ -112,7 +112,9 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
                 {full ? (
                   <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">brak {left}</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                    {left === 1 ? '1 wolne miejsce' : left < 5 ? `${left} wolne miejsca` : `${left} wolnych miejsc`}
+                  </span>
                 )}
                 {!full && (
                   <span className="text-xs font-bold text-primary-700">Dołącz →</span>
