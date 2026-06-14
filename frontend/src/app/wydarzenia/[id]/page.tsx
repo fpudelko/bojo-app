@@ -23,7 +23,7 @@ import { venueThumbnail } from '@/lib/labels';
 import { eventLocation, slugify } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
+  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
 } from '@/lib/events';
 import {
   getEventInvites, deleteInvite, validateInviteToken, acceptInvite,
@@ -442,16 +442,6 @@ export default function EventDetailPage() {
     } finally { setBusy(false); }
   };
 
-  const handleToggleInviteOnly = async () => {
-    setBusy(true);
-    try {
-      await setInviteOnly(event.id, !event.inviteOnly);
-      await load();
-      toast(event.inviteOnly ? 'Zapisy otwarte dla wszystkich' : 'Mecz tylko dla zaproszonych');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    } finally { setBusy(false); }
-  };
 
   const handleDeleteInvite = async (inviteId: string) => {
     try {
@@ -823,12 +813,9 @@ export default function EventDetailPage() {
               <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
             )}
 
-            {isFootball && (
-              <p className={[
-                'mt-3 text-center inline-flex w-full justify-center items-center gap-1.5 text-xs font-semibold',
-                hasGoalkeeper ? 'text-green-600' : 'text-amber-600',
-              ].join(' ')}>
-                🧤 {hasGoalkeeper ? 'Bramkarz jest' : 'Szukamy bramkarza'}
+            {isFootball && hasGoalkeeper && (
+              <p className="mt-3 inline-flex w-full items-center justify-center gap-1.5 text-center text-xs font-semibold text-green-600">
+                🧤 Bramkarz jest
               </p>
             )}
           </div>
@@ -1311,18 +1298,10 @@ export default function EventDetailPage() {
                   <SettingSwitch
                     icon={<Globe className="w-4 h-4" />}
                     title="Widoczne publicznie"
-                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy."
+                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
                     checked={event.visibility === 'public'}
                     disabled={busy}
                     onChange={handleToggleVisibility}
-                  />
-                  <SettingSwitch
-                    icon={<Lock className="w-4 h-4" />}
-                    title="Tylko dla zaproszonych"
-                    desc="Dołączyć mogą wyłącznie osoby z linkiem zaproszenia."
-                    checked={event.inviteOnly}
-                    disabled={busy}
-                    onChange={handleToggleInviteOnly}
                   />
                   <SettingSwitch
                     icon={<UserPlus className="w-4 h-4" />}

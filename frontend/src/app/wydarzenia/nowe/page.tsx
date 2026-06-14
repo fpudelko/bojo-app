@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users, UserPlus } from 'lucide-react';
+import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
 import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -555,38 +555,30 @@ function NewEventForm() {
                 />
               </div>
 
-              {/* Visibility — 3 options replacing old 2-button + toggle */}
+              {/* Visibility — public / private */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
-                <div className="flex flex-col gap-2">
-                  {([
-                    { id: 'pub',     icon: <Globe className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Publiczne',            desc: 'Widoczne dla wszystkich, każdy może dołączyć' },
-                    { id: 'priv',    icon: <Lock  className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Prywatne',             desc: 'Nie pojawia się na liście — dołączyć można tylko przez link' },
-                    { id: 'invite',  icon: <UserPlus className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Tylko zaproszeni', desc: 'Każdy uczestnik musi dostać personalny link zaproszenia' },
-                  ] as const).map(({ id, icon, title, desc }) => {
-                    const active =
-                      id === 'pub'    ? (visibility === 'public'  && !inviteOnly) :
-                      id === 'priv'   ? (visibility === 'private' && !inviteOnly) :
-                      inviteOnly;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          if (id === 'pub')    { setVisibility('public');  setInviteOnly(false); }
-                          if (id === 'priv')   { setVisibility('private'); setInviteOnly(false); }
-                          if (id === 'invite') { setVisibility('private'); setInviteOnly(true);  }
-                        }}
-                        className={['flex items-start gap-3 p-3 rounded-lg border text-left transition-colors', active ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
-                      >
-                        <span className="mt-0.5">{icon}</span>
-                        <span>
-                          <span className="block text-sm font-medium text-slate-900">{title}</span>
-                          <span className="block text-xs text-slate-500">{desc}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button" onClick={() => { setVisibility('public'); setInviteOnly(false); }}
+                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
+                  >
+                    <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-medium text-slate-900">Publiczne</span>
+                      <span className="block text-xs text-slate-500">Widoczne dla wszystkich, każdy może dołączyć</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button" onClick={() => { setVisibility('private'); setInviteOnly(false); }}
+                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
+                  >
+                    <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
+                    <span>
+                      <span className="block text-sm font-medium text-slate-900">Prywatne</span>
+                      <span className="block text-xs text-slate-500">Tylko przez link — nie pojawia się na liście</span>
+                    </span>
+                  </button>
                 </div>
               </div>
 

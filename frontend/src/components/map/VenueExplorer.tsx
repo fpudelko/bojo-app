@@ -9,11 +9,10 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Navigation, Check, CalendarCheck, MapPin, Globe } from 'lucide-react';
+import { ChevronDown, Check, CalendarCheck, MapPin, Globe } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
-import { getCurrentLocation } from '@/lib/geo';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
 import { POZNAN, fieldPin, clusterDivIcon } from './mapIcons';
@@ -318,13 +317,11 @@ function VenueCard({ field, games, hasGameToday, selected }: {
 function FilterPills({
   sports, setSports, venueTypes, setVenueTypes,
   onlyGamesToday, setOnlyGamesToday,
-  geo, geoLoading, handleGeo,
   wrap,
 }: {
   sports: string[]; setSports: (v: string[]) => void;
   venueTypes: string[]; setVenueTypes: (v: string[]) => void;
   onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
-  geo: { lat: number; lng: number } | null; geoLoading: boolean; handleGeo: () => void;
   wrap?: boolean;
 }) {
   const sportLabel = multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS);
@@ -377,8 +374,6 @@ function FilterPills({
 
       <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
         active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
-      <TogglePill label="Blisko mnie" icon={<Navigation className="h-3.5 w-3.5 shrink-0" />}
-        active={!!geo} loading={geoLoading} onClick={handleGeo} />
     </div>
   );
 }
@@ -395,8 +390,6 @@ export default function VenueExplorer({
   const [sports,         setSports]        = useState<string[]>([]);
   const [venueTypes,     setVenueTypes]    = useState<string[]>([]);
   const [onlyGamesToday, setOnlyGamesToday] = useState(false);
-  const [geo,           setGeo]           = useState<{ lat: number; lng: number } | null>(null);
-  const [geoLoading,    setGeoLoading]    = useState(false);
 
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId     = selected.id;
@@ -456,14 +449,9 @@ export default function VenueExplorer({
     if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
-    if (geo) {
-      const dist = (f: Field) => (f.lat - geo.lat) ** 2 + (f.lng - geo.lng) ** 2;
-      list = [...list].sort((a, b) => dist(a) - dist(b));
-    } else {
-      list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
-    }
+    list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
-  }, [allFields, sports, venueTypes, onlyGamesToday, geo, fieldStats]);
+  }, [allFields, sports, venueTypes, onlyGamesToday, fieldStats]);
 
   // Clean up stale card refs
   useEffect(() => {
@@ -515,18 +503,9 @@ export default function VenueExplorer({
     }, 100);
   }, [onSelect]);
 
-  async function handleGeo() {
-    if (geo) { setGeo(null); return; }
-    setGeoLoading(true);
-    const res = await getCurrentLocation();
-    setGeoLoading(false);
-    if (res.ok) setGeo({ lat: res.lat, lng: res.lng });
-  }
-
   const filterProps = {
     sports, setSports, venueTypes, setVenueTypes,
     onlyGamesToday, setOnlyGamesToday,
-    geo, geoLoading, handleGeo,
   };
 
   const CARD_W = 'min(85vw, 360px)';

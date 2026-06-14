@@ -241,25 +241,17 @@ export default function Header() {
         <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
 
-            {/* Primary CTA */}
-            <Link
-              href="/wydarzenia/nowe"
-              onClick={() => setMobileOpen(false)}
-              className="mb-5 flex items-center justify-center gap-2 rounded-2xl bg-primary-700 px-4 py-4 text-base font-bold text-white shadow-md active:scale-[0.98] transition-transform"
-            >
-              <Plus className="h-5 w-5" /> Stwórz mecz
-            </Link>
-
-            {/* Main navigation — uniform rows */}
+            {/* Main navigation — uniform rows ("Stwórz mecz" highlighted) */}
             <div className="space-y-1">
               {(() => {
-                const items: { href: string; label: string; Icon: typeof Search }[] = [
+                const items: { href: string; label: string; Icon: typeof Search; primary?: boolean }[] = [
+                  { href: '/wydarzenia/nowe', label: 'Stwórz mecz', Icon: Plus, primary: true },
                   { href: '/wydarzenia', label: 'Znajdź mecz', Icon: Search },
                   ...(!loading && user ? [{ href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays }] : []),
                   { href: '/mapa', label: 'Mapa boisk', Icon: Map },
                   ...(!loading && user && hasVenue ? [{ href: '/obiekt', label: 'Moje obiekty', Icon: Building2 }] : []),
                 ];
-                return items.map(({ href, label, Icon }) => {
+                return items.map(({ href, label, Icon, primary }) => {
                   const active = pathname === href || pathname.startsWith(href + '/');
                   return (
                     <Link
@@ -273,11 +265,11 @@ export default function Header() {
                     >
                       <span className={clsx(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                        active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
+                        primary ? 'bg-primary-700 text-white' : active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
                       )}>
                         <Icon className="h-5 w-5" />
                       </span>
-                      <span className={clsx('flex-1 text-[15px] font-semibold', active ? 'text-primary-700' : 'text-ink')}>
+                      <span className={clsx('flex-1 text-[15px] font-semibold', primary || active ? 'text-primary-700' : 'text-ink')}>
                         {label}
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
