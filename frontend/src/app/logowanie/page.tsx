@@ -17,7 +17,7 @@ function LoginInner() {
 
   // Already logged in → bounce to destination
   useEffect(() => {
-    if (!loading && user) router.replace(next || '/wydarzenia');
+    if (!loading && user) router.replace(next || '/');
   }, [user, loading, next, router]);
 
   if (loading || user) {

@@ -73,7 +73,6 @@ function HeroShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="relative">{children}</div>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
   );
 }
@@ -91,33 +90,16 @@ function LivePill({ label }: { label: string }) {
   );
 }
 
-/** Hero for logged-out visitors. */
-function MarketingHero() {
+/** Hero — identical copy for logged-in and logged-out visitors. */
+function Hero() {
   const count = useTodayCount();
   return (
     <HeroShell>
       <LivePill label={todayLabel(count)} />
-      <h1 className="mt-5 max-w-xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
-        Zbierz skład.<br />Wyjdź na boisko.
-      </h1>
-      <p className="mt-4 max-w-md text-base font-medium leading-relaxed text-white/80 sm:text-lg">
-        Brakuje paru osób do składu? Upublicznij mecz, a gracze z okolicy dopiszą się sami.
-        Możesz też wskoczyć do otwartego meczu obok.
-      </p>
-    </HeroShell>
-  );
-}
-
-/** Compact hero for logged-in users — same look, action-oriented copy. */
-function DashboardHero() {
-  const count = useTodayCount();
-  return (
-    <HeroShell>
-      <LivePill label={todayLabel(count)} />
-      <h1 className="mt-5 font-display text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl">
+      <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl">
         Czas na mecz?
       </h1>
-      <p className="mt-3 max-w-sm text-base font-medium leading-relaxed text-white/80">
+      <p className="mt-4 max-w-md text-base font-medium leading-relaxed text-white/80 sm:text-lg">
         Wrzuć termin i zbierz skład — albo dołącz do otwartego meczu poniżej.
       </p>
     </HeroShell>
@@ -154,7 +136,7 @@ function HowItWorks() {
         href="/wydarzenia/nowe"
         className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-sm transition-colors hover:bg-accent-400"
       >
-        <Plus className="h-5 w-5" /> Stwórz pierwszy mecz
+        <Plus className="h-5 w-5" /> Stwórz mecz
       </Link>
     </div>
   );
@@ -323,11 +305,12 @@ export default function HomeHero() {
   if (!authLoading && user) {
     return (
       <>
-        <DashboardHero />
-        <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-10 pt-8">
+        <Hero />
+        <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
           <MyGamesSection userId={user.id} />
           <OpenGamesSection />
           <MapTeaser />
+          <HowItWorks />
         </section>
       </>
     );
@@ -335,7 +318,7 @@ export default function HomeHero() {
 
   return (
     <>
-      <MarketingHero />
+      <Hero />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
         <OpenGamesSection />
         <HowItWorks />

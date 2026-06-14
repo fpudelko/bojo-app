@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || '/wydarzenia';
+  const next = params.get('next') || '/';
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
