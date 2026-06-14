@@ -20,7 +20,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
-import { eventLocation, slugify } from '@/lib/utils';
+import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
@@ -219,6 +219,7 @@ export default function EventDetailPage() {
   const [smsBusy, setSmsBusy] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [joinAsReserve, setJoinAsReserve] = useState(false);
@@ -706,9 +707,9 @@ export default function EventDetailPage() {
             )}
             {/* venue */}
             {eventLoc.primary && (() => {
-              const href = event.fieldId
-                ? `/boisko/${event.fieldId}`
-                : event.fieldName ? `/boisko/${slugify(event.fieldName)}` : null;
+              // Only link to a venue page for real fields (have a fieldId).
+              // Custom addresses have no venue page → linking would 404.
+              const href = event.fieldId ? `/boisko/${event.fieldId}` : null;
               return href ? (
                 <Link
                   href={href}
@@ -772,9 +773,14 @@ export default function EventDetailPage() {
                 : `Zostało ${freeSpots} ${freeSpots === 1 ? 'wolne miejsce' : freeSpots < 5 ? 'wolne miejsca' : 'wolnych miejsc'}`}
             </p>
 
-            {/* Avatar stack */}
+            {/* Avatar stack — tap to expand the full roster below */}
             {regulars.length > 0 && (
-              <div className="mt-5 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setRosterOpen((v) => !v)}
+                aria-expanded={rosterOpen}
+                className="mt-5 flex w-full items-center justify-center gap-2"
+              >
                 <div className="flex">
                   {regulars.slice(0, 8).map((p, i) => (
                     p.avatarUrl ? (
@@ -798,16 +804,17 @@ export default function EventDetailPage() {
                       </div>
                     )
                   ))}
-                  {freeSpots > 0 && (
+                  {regulars.length > 8 && (
                     <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-400 ring-2 ring-white"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500 ring-2 ring-white"
                       style={{ marginLeft: -8 }}
                     >
-                      +{freeSpots}
+                      +{regulars.length - 8}
                     </div>
                   )}
                 </div>
-              </div>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${rosterOpen ? 'rotate-180' : ''}`} />
+              </button>
             )}
             {regulars.length === 0 && (
               <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
@@ -821,8 +828,8 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* ── UCZESTNICY — collapsible, visible to all ── */}
-        {regulars.length > 0 && (
+        {/* ── UCZESTNICY — revealed only when the avatar stack is tapped ── */}
+        {regulars.length > 0 && rosterOpen && (
           <ParticipantsList
             regulars={regulars}
             reserves={reserves}
@@ -839,9 +846,9 @@ export default function EventDetailPage() {
 
         {/* ── BOISKO CARD ── */}
         {(eventLoc.primary || (event.lat && event.lng)) && (() => {
-          const venueHref = event.fieldId
-            ? `/boisko/${event.fieldId}`
-            : event.fieldName ? `/boisko/${slugify(event.fieldName)}` : null;
+          // Real venues (with a fieldId) link to their page; custom addresses
+          // have no page, so we render a plain non-clickable card (no 404).
+          const venueHref = event.fieldId ? `/boisko/${event.fieldId}` : null;
           return (
             <div className="px-4">
               <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Boisko</p>
