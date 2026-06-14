@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -52,6 +52,10 @@ export default function AdminVenueEditorPage() {
   const [phone, setPhone] = useState('');
   const [website, setWebsite] = useState('');
   const [contactVisible, setContactVisible] = useState(false);
+  const [mapVisibility, setMapVisibility] = useState<'public' | 'hidden' | 'organizer_only'>('organizer_only');
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -80,6 +84,7 @@ export default function AdminVenueEditorPage() {
         setPhone(f.phone ?? '');
         setWebsite(f.website ?? '');
         setContactVisible(f.contact_visible ?? false);
+        setMapVisibility(f.map_visibility ?? 'organizer_only');
       }
       setPageLoading(false);
     })();
@@ -90,6 +95,29 @@ export default function AdminVenueEditorPage() {
     setSport((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!isAdmin) return;
+    const next = mapVisibility === 'public' ? 'hidden' : 'public';
+    const nextModeration = next === 'public' ? 'approved' : 'hidden';
+    setVisibilityBusy(true);
+    try {
+      await supabase.from('fields').update({
+        map_visibility: next,
+        moderation_status: nextModeration,
+      }).eq('id', id);
+      setMapVisibility(next);
+    } finally { setVisibilityBusy(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!isAdmin || !deleteConfirm) return;
+    setDeleteBusy(true);
+    try {
+      await supabase.from('fields').delete().eq('id', id);
+      router.push('/admin/moderacja');
+    } finally { setDeleteBusy(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -311,6 +339,77 @@ export default function AdminVenueEditorPage() {
               → Panel rezerwacji
             </Link>
           </div>
+
+          {/* ── Admin: widoczność + usuwanie ── */}
+          {isAdmin && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+              <p className="text-sm font-semibold text-slate-700">Widoczność na mapie</p>
+
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  {mapVisibility === 'public'
+                    ? <Eye className="h-5 w-5 text-primary-600" />
+                    : <EyeOff className="h-5 w-5 text-slate-400" />}
+                  <div>
+                    <p className="text-sm font-medium text-ink">
+                      {mapVisibility === 'public' ? 'Widoczny publicznie' : 'Ukryty'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {mapVisibility === 'public'
+                        ? 'Obiekt pojawia się na mapie dla wszystkich'
+                        : 'Obiekt nie jest widoczny na mapie'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleVisibility}
+                  disabled={visibilityBusy}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                    mapVisibility === 'public'
+                      ? 'bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-700'
+                      : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                  }`}
+                >
+                  {visibilityBusy ? '…' : mapVisibility === 'public' ? 'Ukryj' : 'Upublicznij'}
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-sm font-semibold text-red-600 mb-2">Strefa niebezpieczna</p>
+                {!deleteConfirm ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" /> Usuń obiekt
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 font-medium">Na pewno? Tej operacji nie można cofnąć.</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleteBusy}
+                        className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 transition-colors"
+                      >
+                        {deleteBusy ? 'Usuwanie…' : 'Tak, usuń'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm(false)}
+                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        Anuluj
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <Link href="/mapa" className="flex-1">

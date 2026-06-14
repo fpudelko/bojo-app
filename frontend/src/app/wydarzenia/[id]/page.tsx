@@ -101,6 +101,109 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'inne', label: 'Inne' },
 ];
 
+/** Collapsible participants list — visible to all (names only), teams + publish for organizer. */
+function ParticipantsList({
+  regulars, reserves, takenSpots, maxPlayers, isOrganizer,
+  showTeams, teamsPublished, onPublishTeams, onUnpublishTeams, busy,
+}: {
+  regulars: EventParticipant[];
+  reserves: EventParticipant[];
+  takenSpots: number;
+  maxPlayers: number;
+  isOrganizer: boolean;
+  showTeams: boolean;
+  teamsPublished: boolean;
+  onPublishTeams: () => void;
+  onUnpublishTeams: () => void;
+  busy: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? regulars : regulars.slice(0, 4);
+  const teamA = regulars.filter((p) => p.team === 'A');
+  const teamB = regulars.filter((p) => p.team === 'B');
+  const canSeeTeams = isOrganizer || teamsPublished;
+
+  return (
+    <div className="px-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[13px] font-semibold uppercase tracking-wide text-slate-400">Skład</p>
+        {isOrganizer && showTeams && (
+          <button
+            type="button"
+            onClick={teamsPublished ? onUnpublishTeams : onPublishTeams}
+            disabled={busy}
+            className={`text-xs font-bold rounded-full px-3 py-1 transition-colors ${
+              teamsPublished
+                ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+            }`}
+          >
+            {teamsPublished ? '✓ Składy opublikowane' : 'Upublicznij składy'}
+          </button>
+        )}
+      </div>
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
+        {/* Team columns (when teams assigned and visible) */}
+        {canSeeTeams && showTeams && teamA.length > 0 ? (
+          <div className="grid grid-cols-2 divide-x divide-slate-100">
+            {[{ label: 'Drużyna A', players: teamA, color: 'bg-blue-100 text-blue-700' },
+              { label: 'Drużyna B', players: teamB, color: 'bg-orange-100 text-orange-700' }]
+              .map(({ label, players, color }) => (
+                <div key={label} className="p-4">
+                  <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-3 ${color}`}>{label}</p>
+                  <div className="space-y-2">
+                    {players.map((p) => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">
+                          {p.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-medium text-ink truncate">{p.name}</span>
+                        {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          /* Flat list */
+          <div className="divide-y divide-slate-50">
+            {shown.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">
+                  {p.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="flex-1 text-sm font-medium text-ink">{p.name}</span>
+                {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Expand toggle */}
+        {regulars.length > 4 && !canSeeTeams && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full py-2.5 text-xs font-semibold text-primary-700 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+          >
+            {expanded ? 'Zwiń ↑' : `Pokaż wszystkich (${regulars.length}) ↓`}
+          </button>
+        )}
+
+        {/* Reserve note */}
+        {reserves.length > 0 && (
+          <div className="px-4 py-2.5 border-t border-slate-100">
+            <p className="text-[11px] text-slate-400">
+              Lista rezerwowa: <span className="font-semibold text-slate-600">{reserves.length} os.</span>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -718,35 +821,20 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* ── "O MECZU" CARD ── */}
-        {(event.description || event.organizerName) && (
-          <div className="px-4">
-            <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">O meczu</p>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              {event.organizerName && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
-                    {event.organizerName[0]?.toUpperCase() ?? '?'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Organizuje</p>
-                    <p className="text-sm font-bold text-ink truncate">{event.organizerName}</p>
-                  </div>
-                  {isOwner && (
-                    <Link
-                      href={`/wydarzenia/${event.id}/edytuj`}
-                      className="inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
-                    >
-                      <Pencil className="h-4 w-4" strokeWidth={2.25} /> Edytuj
-                    </Link>
-                  )}
-                </div>
-              )}
-              {event.description && (
-                <p className="mt-4 text-sm leading-relaxed text-slate-600">{event.description}</p>
-              )}
-            </div>
-          </div>
+        {/* ── UCZESTNICY — collapsible, visible to all ── */}
+        {regulars.length > 0 && (
+          <ParticipantsList
+            regulars={regulars}
+            reserves={reserves}
+            takenSpots={takenSpots}
+            maxPlayers={event.maxPlayers}
+            isOrganizer={isOrganizer}
+            showTeams={showTeams}
+            teamsPublished={event.teamsPublished}
+            onPublishTeams={handlePublishTeams}
+            onUnpublishTeams={handleUnpublishTeams}
+            busy={busy}
+          />
         )}
 
         {/* ── BOISKO CARD ── */}
@@ -784,82 +872,108 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* ── STICKY JOIN BAR ── */}
-        <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
-          <div className="mx-auto max-w-2xl space-y-2">
-            {event.inviteOnly && !isOrganizer && !myParticipation && !validInviteToken ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                <Lock className="w-5 h-5 text-slate-400 shrink-0" />
-                <div>
-                  <p className="font-semibold text-ink">Mecz tylko dla zaproszonych</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Poproś organizatora o link z zaproszeniem.</p>
-                </div>
+        {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
+        {user && myParticipation && (
+          <div className="px-4">
+            {!isOrganizer && !myParticipation.isReserve && event.allowGuestAdds && (
+              <div className="mb-3 flex gap-2">
+                <input
+                  type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
+                  placeholder="Dodaj znajomego bez konta…"
+                  className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
+                  <UserPlus className="w-4 h-4" />
+                </Button>
               </div>
-            ) : user && myParticipation ? (
-              <>
-                <div className={[
-                  'flex items-center justify-center gap-2 rounded-2xl text-sm font-bold h-14',
-                  myParticipation.isReserve ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700',
-                ].join(' ')}>
-                  {myParticipation.isReserve
-                    ? <><Users className="w-5 h-5" /> Na liście rezerwowej</>
-                    : <><Check className="w-5 h-5" /> Jesteś zapisany</>}
-                </div>
-                {!isOrganizer && !myParticipation.isReserve && event.allowGuestAdds && (
-                  <div className="flex gap-2">
-                    <input
-                      type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                      placeholder="Dodaj znajomego bez konta…"
-                      className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                    <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                      <UserPlus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-                <button
-                  onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
-                  className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
-                >
-                  Wypisz się z meczu
-                </button>
-              </>
-            ) : !authLoading && !user ? (
-              <>
-                <button
-                  onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}
-                  className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
-                >
-                  Zaloguj się, aby dołączyć
-                </button>
-                <p className="text-center text-[11px] text-slate-500">Logowanie przez Google · za darmo</p>
-              </>
-            ) : user && !myParticipation && !isFull ? (
-              <>
-                <button
-                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
-                  className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
-                >
-                  Dołącz do meczu →
-                </button>
-                <p className="text-center text-[11px] text-slate-500">
-                  Dołączysz jako gracz · możesz zrezygnować do 2h przed
-                </p>
-              </>
-            ) : user && !myParticipation && isFull ? (
-              <>
-                <button
-                  onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
-                  className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-slate-200 text-base font-bold text-slate-600 transition active:scale-[0.99]"
-                >
-                  Komplet — zapisz się na rezerwę
-                </button>
-                <p className="text-center text-[11px] text-slate-500">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
-              </>
-            ) : null}
+            )}
+            <button
+              onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
+              className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+            >
+              Wypisz się z meczu
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany ── */}
+        {!(user && myParticipation) && (
+          <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
+            <div className="mx-auto max-w-2xl">
+              {event.inviteOnly && !isOrganizer && !validInviteToken ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-ink">Mecz tylko dla zaproszonych</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Poproś organizatora o link z zaproszeniem.</p>
+                  </div>
+                </div>
+              ) : !authLoading && !user ? (
+                <>
+                  <button
+                    onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}
+                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
+                  >
+                    Zaloguj się, aby dołączyć
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-slate-500">Logowanie przez Google · za darmo</p>
+                </>
+              ) : user && !isFull ? (
+                <>
+                  <button
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
+                  >
+                    Dołącz do meczu →
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-slate-500">
+                    Dołączysz jako gracz · możesz zrezygnować do 2h przed
+                  </p>
+                </>
+              ) : user && isFull ? (
+                <>
+                  <button
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
+                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-slate-200 text-base font-bold text-slate-600 transition active:scale-[0.99]"
+                  >
+                    Komplet — zapisz się na rezerwę
+                  </button>
+                  <p className="mt-2 text-center text-[11px] text-slate-500">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* ── "O MECZU" — na dole ── */}
+        {(event.description || event.organizerName) && (
+          <div className="px-4">
+            <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">O meczu</p>
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 space-y-3">
+              {event.organizerName && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
+                    {event.organizerName[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Organizuje</p>
+                    <p className="text-sm font-bold text-ink truncate">{event.organizerName}</p>
+                  </div>
+                  {isOwner && (
+                    <Link href={`/wydarzenia/${event.id}/edytuj`}
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-primary-700">
+                      <Pencil className="h-4 w-4" /> Edytuj
+                    </Link>
+                  )}
+                </div>
+              )}
+              {event.description && (
+                <p className="text-sm leading-relaxed text-slate-600">{event.description}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── DETAILED ROSTER (organizer only) ── */}
         {isOwner && (
