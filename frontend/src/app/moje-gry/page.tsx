@@ -9,6 +9,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { getMyParticipatedEvents } from '@/lib/events';
 import { isUpcoming } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { SHOW_RECURRING } from '@/lib/features';
 import type { EventItem } from '@/types';
 
 export default function MojeGryPage() {
@@ -66,13 +67,15 @@ export default function MojeGryPage() {
         </div>
 
         {/* Stałe gierki link */}
-        <Link
-          href="/cykliczne"
-          className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
-        >
-          <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
-          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-600 transition-colors" />
-        </Link>
+        {SHOW_RECURRING && (
+          <Link
+            href="/cykliczne"
+            className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+          >
+            <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
+            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-600 transition-colors" />
+          </Link>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-slate-100">

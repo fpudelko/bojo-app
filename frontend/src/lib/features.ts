@@ -20,3 +20,10 @@ export const SHOW_GAME_ALERTS = false;
  * lib/reminders.ts, sendConfirmationSms in lib/eventFeatures.ts.
  */
 export const SHOW_SMS_FEATURES = false;
+
+/**
+ * Recurring games ("Stałe gierki") — fixed weekly pickup games with a saved
+ * roster. Hidden from nav for now while we focus on one-off matches.
+ * Code lives in /app/cykliczne/* and lib/recurring.ts.
+ */
+export const SHOW_RECURRING = false;

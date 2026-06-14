@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import HomeHero from '@/components/home/HomeHero';
 import TrustBar from '@/components/home/TrustBar';
+import { SHOW_RECURRING } from '@/lib/features';
 
 export default function HomePage() {
   return (
@@ -23,10 +24,12 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 md:flex-row">
           <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
-            <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź grę</Link>
-            <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj grę</Link>
+            <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź mecz</Link>
+            <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>
             <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
-            <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
+            {SHOW_RECURRING && (
+              <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
+            )}
             <span className="hidden text-slate-600 md:inline">·</span>
             <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
             <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>

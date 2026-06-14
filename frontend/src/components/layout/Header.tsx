@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, Users as UsersIcon } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
-import { SHOW_CUP } from '@/lib/features';
+import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
 
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
@@ -159,17 +159,19 @@ export default function Header() {
                   >
                     Moje mecze
                   </Link>
-                  <Link
-                    href="/cykliczne"
-                    className={clsx(
-                      'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                      pathname === '/cykliczne' || pathname.startsWith('/cykliczne/')
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
-                    )}
-                  >
-                    <RefreshCw className="w-4 h-4" /> Stałe gierki
-                  </Link>
+                  {SHOW_RECURRING && (
+                    <Link
+                      href="/cykliczne"
+                      className={clsx(
+                        'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
+                        pathname === '/cykliczne' || pathname.startsWith('/cykliczne/')
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                      )}
+                    >
+                      <RefreshCw className="w-4 h-4" /> Stałe gierki
+                    </Link>
+                  )}
                   {hasVenue && (
                     <Link
                       href="/obiekt"
@@ -237,54 +239,60 @@ export default function Header() {
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
         <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
-          <nav className="flex-1 overflow-y-auto px-5 pt-5 pb-4" aria-label="Nawigacja mobilna">
+          <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
 
-            {/* Primary actions — player vs organizer */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <Link
-                href="/wydarzenia"
-                onClick={() => setMobileOpen(false)}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-primary-700 px-3 py-5 text-sm font-semibold text-white shadow-md active:scale-[0.97] transition-transform"
-              >
-                <Search className="w-6 h-6" />
-                Znajdź grę
-              </Link>
-              <Link
-                href="/wydarzenia/nowe"
-                onClick={() => setMobileOpen(false)}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-primary-200 bg-primary-50 px-3 py-5 text-sm font-semibold text-primary-800 active:scale-[0.97] transition-transform"
-              >
-                <Plus className="w-6 h-6 text-primary-700" />
-                Stwórz mecz
-              </Link>
+            {/* Primary CTA */}
+            <Link
+              href="/wydarzenia/nowe"
+              onClick={() => setMobileOpen(false)}
+              className="mb-5 flex items-center justify-center gap-2 rounded-2xl bg-primary-700 px-4 py-4 text-base font-bold text-white shadow-md active:scale-[0.98] transition-transform"
+            >
+              <Plus className="h-5 w-5" /> Stwórz mecz
+            </Link>
+
+            {/* Main navigation — uniform rows */}
+            <div className="space-y-1">
+              {(() => {
+                const items: { href: string; label: string; Icon: typeof Search }[] = [
+                  { href: '/wydarzenia', label: 'Znajdź mecz', Icon: Search },
+                  ...(!loading && user ? [{ href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays }] : []),
+                  { href: '/mapa', label: 'Mapa boisk', Icon: Map },
+                  ...(!loading && user && hasVenue ? [{ href: '/obiekt', label: 'Moje obiekty', Icon: Building2 }] : []),
+                ];
+                return items.map(({ href, label, Icon }) => {
+                  const active = pathname === href || pathname.startsWith(href + '/');
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className={clsx(
+                        'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
+                        active ? 'bg-primary-50' : 'hover:bg-slate-50',
+                      )}
+                    >
+                      <span className={clsx(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                        active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
+                      )}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className={clsx('flex-1 text-[15px] font-semibold', active ? 'text-primary-700' : 'text-ink')}>
+                        {label}
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                    </Link>
+                  );
+                });
+              })()}
             </div>
-
-            {/* Twoje gry — prominent for logged-in players */}
-            {!loading && user && (
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <Link
-                  href="/moje-gry"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-ink shadow-sm active:scale-[0.97] transition-transform"
-                >
-                  <span className="text-xl">📋</span> Moje mecze
-                </Link>
-                <Link
-                  href="/cykliczne"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-ink shadow-sm active:scale-[0.97] transition-transform"
-                >
-                  <span className="text-xl">🔁</span> Stałe gierki
-                </Link>
-              </div>
-            )}
 
             {/* BOJO Cup highlight */}
             {SHOW_CUP && (
               <Link
                 href="/turniej"
                 onClick={() => setMobileOpen(false)}
-                className="mb-6 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
+                className="mt-5 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
               >
                 <span className="flex items-center gap-3">
                   <Trophy className="h-6 w-6 text-accent-400" />
@@ -297,67 +305,38 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Secondary nav */}
-            <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Odkryj</p>
-            {[
-              { href: '/mapa', label: 'Mapa boisk', Icon: Map },
-            ].map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMobileOpen(false)}
-                className={clsx(
-                  'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium transition-colors',
-                  pathname === href || pathname.startsWith(href + '/') ? 'text-primary-700' : 'text-ink',
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Icon className="w-4 h-4 text-slate-400" />
-                  {label}
-                </span>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-              </Link>
-            ))}
-
-            {/* User-specific section */}
-            {!loading && user && (
-              <>
-                {hasVenue && (
-                  <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Twoje</p>
-                )}
-                {hasVenue && (
-                  <Link
-                    href="/obiekt"
-                    onClick={() => setMobileOpen(false)}
-                    className={clsx(
-                      'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                      pathname.startsWith('/obiekt') ? 'text-primary-700' : 'text-ink',
-                    )}
-                  >
-                    Moje obiekty
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
-                )}
-                {isAdmin && (
-                  <>
-                    <p className="mt-5 mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
-                    {ADMIN_LINKS.map(({ href, label }) => (
+            {/* Admin section */}
+            {!loading && user && isAdmin && (
+              <div className="mt-6">
+                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
+                <div className="space-y-1">
+                  {ADMIN_LINKS.map(({ href, label, Icon }) => {
+                    const active = pathname.startsWith(href);
+                    return (
                       <Link
                         key={href}
                         href={href}
                         onClick={() => setMobileOpen(false)}
                         className={clsx(
-                          'flex items-center justify-between py-3.5 border-b border-slate-100 text-sm font-medium',
-                          pathname.startsWith(href) ? 'text-primary-700' : 'text-ink',
+                          'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
+                          active ? 'bg-primary-50' : 'hover:bg-slate-50',
                         )}
                       >
-                        {label}
-                        <ChevronRight className="w-4 h-4 text-slate-300" />
+                        <span className={clsx(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                          active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
+                        )}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className={clsx('flex-1 text-[15px] font-semibold', active ? 'text-primary-700' : 'text-ink')}>
+                          {label}
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
                       </Link>
-                    ))}
-                  </>
-                )}
-              </>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </nav>
 
