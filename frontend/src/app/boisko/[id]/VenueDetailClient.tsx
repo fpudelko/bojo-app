@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock } from 'lucide-react';
+import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff } from 'lucide-react';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,8 @@ import { externalUrl } from '@/lib/utils';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
+import { useAdmin } from '@/lib/admin';
+import { supabase } from '@/lib/supabase';
 import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
 import type { Field, TimeSlot } from '@/types';
@@ -60,6 +62,7 @@ export default function VenueDetailClient({
 }) {
   const id = fieldId;
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useAdmin();
 
   const [field, setField] = useState<Field | null>(null);
   const [fieldLoading, setFieldLoading] = useState(true);
@@ -78,11 +81,14 @@ export default function VenueDetailClient({
   const [booking, setBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [mapVisibility, setMapVisibility] = useState<'public' | 'hidden' | 'organizer_only'>('organizer_only');
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
 
   useEffect(() => {
     getField(id)
       .then((f) => {
         setField(f);
+        setMapVisibility(f.mapVisibility ?? 'organizer_only');
         getOutreach(f.id).then(setOutreach).catch(() => {});
       })
       .catch(() => setNotFound(true))
@@ -146,6 +152,19 @@ export default function VenueDetailClient({
     } finally {
       setBooking(false);
     }
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!isAdmin || !field) return;
+    const next = mapVisibility === 'public' ? 'hidden' : 'public';
+    setVisibilityBusy(true);
+    try {
+      await supabase.from('fields').update({
+        map_visibility: next,
+        moderation_status: next === 'public' ? 'approved' : 'hidden',
+      }).eq('id', field.id);
+      setMapVisibility(next);
+    } finally { setVisibilityBusy(false); }
   };
 
   if (fieldLoading || authLoading) {
@@ -609,6 +628,41 @@ export default function VenueDetailClient({
             </Link>
           </div>
         </div>
+        {/* Admin: map visibility toggle */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Panel admina</p>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                {mapVisibility === 'public'
+                  ? <Eye className="h-5 w-5 text-primary-600" />
+                  : <EyeOff className="h-5 w-5 text-slate-400" />}
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {mapVisibility === 'public' ? 'Widoczny na mapie' : 'Ukryty z mapy'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {mapVisibility === 'public'
+                      ? 'Obiekt pojawia się dla wszystkich użytkowników'
+                      : 'Obiekt nie jest widoczny na mapie'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleToggleVisibility}
+                disabled={visibilityBusy}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                  mapVisibility === 'public'
+                    ? 'bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-700'
+                    : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                }`}
+              >
+                {visibilityBusy ? '…' : mapVisibility === 'public' ? 'Ukryj' : 'Upublicznij'}
+              </button>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
