@@ -5,7 +5,7 @@ import { Navigation, Loader2, Bell, BellRing } from 'lucide-react';
 import { getNearbyEvents } from '@/lib/events';
 import { getMyAlert } from '@/lib/alerts';
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
-import { EventCard } from '@/components/EventCard';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
 import AlertSetupDialog from './AlertSetupDialog';
 import type { EventItem, GameAlert } from '@/types';
 import { useAuth } from '@/lib/auth';
@@ -168,9 +168,9 @@ export default function NearbyGames() {
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} isOrganizer={false} />
+            <EventBrowseCard key={event.id} event={event} />
           ))}
         </div>
       )}

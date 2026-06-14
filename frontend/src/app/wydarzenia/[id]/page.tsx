@@ -8,7 +8,7 @@ import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Phone, Trophy, MessageSquare, Star,
-  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, Settings,
+  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
   ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -716,10 +716,20 @@ export default function EventDetailPage() {
             )}
             {/* venue */}
             {eventLoc.primary && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
-                {eventLoc.primary}
-              </span>
+              event.fieldId ? (
+                <Link
+                  href={`/boisko/${event.fieldId}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
+                  {eventLoc.primary}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                  <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
+                  {eventLoc.primary}
+                </span>
+              )
             )}
             {/* price */}
             {event.costGrosze > 0 ? (
@@ -746,14 +756,14 @@ export default function EventDetailPage() {
 
         {/* ── PLAYER COUNT BLOCK ── */}
         <div className="px-4">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
             <div className="text-center">
-              <span className="text-5xl font-extrabold tracking-tight text-primary-700">
+              <span className="text-3xl font-extrabold tracking-tight text-primary-700">
                 {takenSpots} / {event.maxPlayers}
               </span>
             </div>
 
-            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -838,39 +848,54 @@ export default function EventDetailPage() {
         )}
 
         {/* ── BOISKO CARD ── */}
-        {(eventLoc.primary || (event.lat && event.lng)) && (
-          <div className="px-4">
-            <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Boisko</p>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-ink">{event.fieldName}</p>
-                  {eventLoc.secondary && (
-                    <p className="mt-0.5 text-xs text-slate-500">{eventLoc.secondary}</p>
-                  )}
-                  {event.lat && event.lng && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
-                    >
-                      <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj →
-                    </a>
-                  )}
-                </div>
-                {venueThumbnail(event.lat, event.lng, 160, 160) && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={venueThumbnail(event.lat, event.lng, 160, 160)!}
-                    alt="Miniatura boiska"
-                    className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                  />
+        {(eventLoc.primary || (event.lat && event.lng)) && (() => {
+          const inner = (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-ink">{event.fieldName}</p>
+                {eventLoc.secondary && (
+                  <p className="mt-0.5 text-xs text-slate-500">{eventLoc.secondary}</p>
+                )}
+                {event.lat && event.lng && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
+                  >
+                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj →
+                  </button>
                 )}
               </div>
+              {venueThumbnail(event.lat, event.lng, 160, 160) && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={venueThumbnail(event.lat, event.lng, 160, 160)!}
+                  alt="Miniatura boiska"
+                  className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                />
+              )}
+              {event.fieldId && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
             </div>
-          </div>
-        )}
+          );
+          return (
+            <div className="px-4">
+              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Boisko</p>
+              {event.fieldId ? (
+                <Link
+                  href={`/boisko/${event.fieldId}`}
+                  className="block rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md hover:ring-primary-200"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">{inner}</div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
         {user && myParticipation && (
@@ -913,7 +938,7 @@ export default function EventDetailPage() {
                 <>
                   <button
                     onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}
-                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
                     Zaloguj się, aby dołączyć
                   </button>
@@ -923,7 +948,7 @@ export default function EventDetailPage() {
                 <>
                   <button
                     onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
-                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-accent-500 text-base font-bold text-primary-950 transition active:scale-[0.99]"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
                     Dołącz do meczu →
                   </button>
@@ -935,42 +960,13 @@ export default function EventDetailPage() {
                 <>
                   <button
                     onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
-                    className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-slate-200 text-base font-bold text-slate-600 transition active:scale-[0.99]"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 text-[15px] font-bold text-slate-600 transition active:scale-[0.99]"
                   >
                     Komplet — zapisz się na rezerwę
                   </button>
                   <p className="mt-2 text-center text-[11px] text-slate-500">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
                 </>
               ) : null}
-            </div>
-          </div>
-        )}
-
-        {/* ── "O MECZU" — na dole ── */}
-        {(event.description || event.organizerName) && (
-          <div className="px-4">
-            <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">O meczu</p>
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 space-y-3">
-              {event.organizerName && (
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700">
-                    {event.organizerName[0]?.toUpperCase() ?? '?'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Organizuje</p>
-                    <p className="text-sm font-bold text-ink truncate">{event.organizerName}</p>
-                  </div>
-                  {isOwner && (
-                    <Link href={`/wydarzenia/${event.id}/edytuj`}
-                      className="inline-flex items-center gap-1.5 text-sm font-bold text-primary-700">
-                      <Pencil className="h-4 w-4" /> Edytuj
-                    </Link>
-                  )}
-                </div>
-              )}
-              {event.description && (
-                <p className="text-sm leading-relaxed text-slate-600">{event.description}</p>
-              )}
             </div>
           </div>
         )}
