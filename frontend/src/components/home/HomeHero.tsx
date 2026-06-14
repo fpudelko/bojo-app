@@ -13,6 +13,50 @@ import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import type { EventItem, GameAlert } from '@/types';
 
+// ── Pure-CSS/SVG sport-field motifs (no stock photos) ──────────────────────
+function PitchLines({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.5">
+        <rect x="14" y="14" width="172" height="232" rx="3" />
+        <line x1="14" y1="130" x2="186" y2="130" />
+        <circle cx="100" cy="130" r="34" />
+        <circle cx="100" cy="130" r="2.5" fill="currentColor" stroke="none" />
+        <rect x="60" y="14" width="80" height="38" />
+        <rect x="60" y="208" width="80" height="38" />
+      </g>
+    </svg>
+  );
+}
+
+function HoopLines({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.5">
+        <rect x="14" y="14" width="172" height="232" rx="3" />
+        <rect x="72" y="14" width="56" height="86" />
+        <circle cx="100" cy="100" r="28" />
+        <path d="M44 14 V52 A56 56 0 0 0 156 52 V14" />
+        <line x1="86" y1="30" x2="114" y2="30" />
+        <circle cx="100" cy="38" r="6" />
+      </g>
+    </svg>
+  );
+}
+
+function NetLines({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.5">
+        <rect x="14" y="14" width="172" height="232" rx="3" />
+        <line x1="14" y1="90" x2="186" y2="90" />
+        <line x1="14" y1="170" x2="186" y2="170" />
+        <line x1="14" y1="130" x2="186" y2="130" strokeWidth="5" strokeDasharray="7 7" />
+      </g>
+    </svg>
+  );
+}
+
 /** Marketing hero for logged-out visitors */
 function MarketingHero() {
   const [todayCount, setTodayCount] = useState<number | null>(null);
@@ -38,17 +82,15 @@ function MarketingHero() {
       : 'Poznań i okolice';
 
   return (
-    <section className="relative overflow-hidden bg-primary-700 text-white">
-      {/* Satellite backdrop */}
-      <div
-        className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-luminosity"
-        style={{ backgroundImage: 'url(/poznan-satellite.jpg)' }}
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0 bg-gradient-to-b from-primary-700/70 via-primary-700/85 to-primary-800"
-        aria-hidden="true"
-      />
+    <section className="relative overflow-hidden text-white">
+      {/* Brand gradient mesh (green + amber glow, pure CSS) */}
+      <div className="hero-surface absolute inset-0" aria-hidden="true" />
+      {/* Pitch-line motif drifting off the right edge */}
+      <PitchLines className="absolute -right-20 top-0 hidden h-full w-[68%] text-white/[0.07] sm:block" />
+      {/* Floating sport glyphs for depth */}
+      <span aria-hidden="true" className="pointer-events-none absolute right-5 top-9 select-none text-5xl opacity-[0.13] rotate-12">⚽</span>
+      <span aria-hidden="true" className="pointer-events-none absolute right-28 bottom-20 select-none text-4xl opacity-[0.10] -rotate-12">🏐</span>
+      <span aria-hidden="true" className="pointer-events-none absolute right-3 bottom-8 select-none text-4xl opacity-[0.10] rotate-6">🏀</span>
 
       <div className="relative mx-auto max-w-md px-5 pb-12 pt-12 lg:max-w-3xl">
         {/* Live today pill */}
@@ -87,6 +129,41 @@ function MarketingHero() {
       </div>
       <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
+  );
+}
+
+/** Sport picker — 3 designed cards (gradient + court motif, no stock photos). */
+const SPORT_CARDS = [
+  { label: 'Piłka nożna',       emoji: '⚽', grad: 'linear-gradient(150deg,#1f8a52 0%,#0f4c2e 100%)', Lines: PitchLines },
+  { label: 'Siatkówka plażowa', emoji: '🏖️', grad: 'linear-gradient(150deg,#f3bd6b 0%,#d4881c 100%)', Lines: NetLines },
+  { label: 'Koszykówka',        emoji: '🏀', grad: 'linear-gradient(150deg,#f0903e 0%,#bf3d12 100%)', Lines: HoopLines },
+] as const;
+
+function SportsShowcase() {
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold text-ink">Wybierz sport</h2>
+        <Link href="/wydarzenia" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
+          Wszystkie <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {SPORT_CARDS.map(({ label, emoji, grad, Lines }) => (
+          <Link
+            key={label}
+            href="/wydarzenia"
+            className="group relative aspect-[3/4] overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 transition-transform active:scale-[0.98]"
+            style={{ background: grad }}
+          >
+            <Lines className="absolute inset-0 h-full w-full text-white/[0.18]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+            <span aria-hidden="true" className="absolute left-1/2 top-5 -translate-x-1/2 text-3xl drop-shadow-md transition-transform group-hover:scale-110">{emoji}</span>
+            <span className="absolute inset-x-0 bottom-0 p-2.5 text-[13px] font-bold leading-tight text-white">{label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -131,6 +208,7 @@ function DashboardHeader() {
   return (
     <section className="hero-surface relative overflow-hidden text-white">
       <div className="hero-dots absolute inset-0" aria-hidden="true" />
+      <PitchLines className="absolute -right-16 top-0 hidden h-full w-[55%] text-white/[0.06] sm:block" />
       <div className="relative mx-auto max-w-3xl px-4 pt-8 pb-10">
         <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
           Mecze, boiska i gracze w Twojej okolicy.
@@ -309,6 +387,7 @@ export default function HomeHero() {
         <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-10 space-y-6">
           <MyGamesSection userId={user.id} />
           <OpenGamesSection />
+          <SportsShowcase />
           <MapTeaser />
         </section>
       </>
@@ -320,6 +399,7 @@ export default function HomeHero() {
     <>
       <MarketingHero />
       <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-12 space-y-8">
+        <SportsShowcase />
         <OpenGamesSection />
         <HowItWorks />
         <MapTeaser />
