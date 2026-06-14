@@ -1353,6 +1353,28 @@ export default function EventDetailPage() {
             )}
           </div>
         )}
+
+        {/* ── Organizator (zawsze na dole, widoczne dla wszystkich) ── */}
+        {(() => {
+          const organizerParticipant = participants.find((p) => p.userId && p.userId === event.organizerId);
+          const organizerAvatar = organizerParticipant?.avatarUrl;
+          const organizerLabel = event.organizerName || organizerParticipant?.name || 'Organizator';
+          return (
+            <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+              {organizerAvatar ? (
+                <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+              ) : (
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+                  {initials(organizerLabel)}
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Organizator</p>
+                <p className="font-semibold text-ink truncate">{organizerLabel}</p>
+              </div>
+            </div>
+          );
+        })()}
       </main>
 
       {/* Leave confirmation */}
