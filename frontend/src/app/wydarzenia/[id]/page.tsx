@@ -976,7 +976,7 @@ export default function EventDetailPage() {
         )}
 
         {/* ── DETAILED ROSTER (organizer only) ── */}
-        {isOwner && (
+        {isOwner && !eventStarted && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-ink flex items-center gap-2">
@@ -1131,7 +1131,7 @@ export default function EventDetailPage() {
         )}
 
         {/* Reserve list — organizer only (squad info is private) */}
-        {reserves.length > 0 && isOwner && (
+        {reserves.length > 0 && isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Users className="w-4 h-4 text-slate-400" />
@@ -1198,7 +1198,7 @@ export default function EventDetailPage() {
         )}
 
         {/* ZAPROSZENIA */}
-        {isOwner && (
+        {isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-ink flex items-center gap-2">
@@ -1248,7 +1248,7 @@ export default function EventDetailPage() {
         )}
 
         {/* Cost split summary */}
-        {event.trackPayments && event.costGrosze > 0 && isOwner && (
+        {event.trackPayments && event.costGrosze > 0 && isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Banknote className="w-4 h-4" /> Podział kosztów
@@ -1290,7 +1290,7 @@ export default function EventDetailPage() {
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. */}
-        {isOwner && (
+        {isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}

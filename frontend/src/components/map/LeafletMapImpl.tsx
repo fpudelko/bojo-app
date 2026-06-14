@@ -176,7 +176,7 @@ function ClusteredMarkers({ fields, isAdmin }: { fields: Field[]; isAdmin: boole
         icon: group.length === 1 ? fieldPin(rep) : groupPin(group),
       }) as L.Marker & { _bojo_sports?: string[] };
       marker._bojo_sports = allSports;
-      marker.bindPopup(groupPopupHtml(group, isAdmin), { maxWidth: 290, closeButton: true });
+      marker.bindPopup(groupPopupHtml(group, isAdmin), { maxWidth: 290, closeButton: true, autoPan: false });
       clusterGroup.addLayer(marker);
     });
 
