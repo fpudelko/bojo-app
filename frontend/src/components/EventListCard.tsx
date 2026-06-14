@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Navigation } from 'lucide-react';
+import { Clock, MapPin, Navigation, Users } from 'lucide-react';
 import type { EventItem } from '@/types';
-import { sportEmoji } from '@/lib/sports';
+import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 
 /** How the current user relates to this event — drives the CTA. */
@@ -84,7 +84,8 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
     : 'Za darmo';
   const priceClass = costGrosze > 0 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
 
-  const fmt = formatLabel(event.sport, max);
+  const spotsLeft = max > 0 ? Math.max(0, max - taken) : 0;
+  const color = sportColor(event.sport);
 
   const borderAccent =
     relation === 'organizer' ? 'border-l-primary-500' :
@@ -94,49 +95,64 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
 
   return (
     <Link href={`/wydarzenia/${event.id}`} className="block active:scale-[0.99] transition-transform">
-      <div className={`relative bg-white rounded-2xl border border-slate-100 border-l-4 ${borderAccent} shadow-sm px-4 py-3.5`}>
+      <div className={`group relative flex gap-3.5 bg-white rounded-2xl border border-slate-100 border-l-4 ${borderAccent} shadow-[0_1px_3px_rgba(15,23,42,0.06),0_4px_12px_-4px_rgba(15,23,42,0.10)] hover:shadow-[0_2px_6px_rgba(15,23,42,0.08),0_8px_24px_-6px_rgba(15,23,42,0.16)] transition-shadow px-3.5 py-3.5`}>
 
-        {/* Row 1: sport emoji + title + price */}
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl leading-none shrink-0">{sportEmoji(event.sport)}</span>
-          <p className="font-semibold text-ink leading-snug truncate flex-1">
-            {event.title || `${event.sport}${formatSize(max)}`}
-          </p>
-          <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${priceClass}`}>
-            {priceLabel}
-          </span>
+        {/* Sport badge — colored container makes the icon look intentional */}
+        <div
+          className="shrink-0 flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
+          style={{ backgroundColor: `${color}14`, boxShadow: `inset 0 0 0 1px ${color}22` }}
+        >
+          {sportEmoji(event.sport)}
         </div>
 
-        {/* Row 2: date/time + location */}
-        <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
-          <span className="flex items-center gap-1 shrink-0">
-            <Clock className="w-3 h-3 text-slate-400" />
-            {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
-            {until && <span className="ml-1 font-semibold text-amber-600">({until})</span>}
-          </span>
-          {location && (
-            <span className="flex items-center gap-1 truncate">
-              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-              <span className="truncate">{location}</span>
+        <div className="min-w-0 flex-1">
+          {/* Row 1: title + price */}
+          <div className="flex items-start gap-2">
+            <p className="font-bold text-ink leading-snug truncate flex-1">
+              {event.title || `${event.sport}${formatSize(max)}`}
+            </p>
+            <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${priceClass}`}>
+              {priceLabel}
             </span>
+          </div>
+
+          {/* Row 2: date/time + location */}
+          <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+            <span className="flex items-center gap-1 shrink-0">
+              <Clock className="w-3 h-3 text-slate-400" />
+              {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
+              {until && <span className="ml-1 font-semibold text-amber-600">({until})</span>}
+            </span>
+            {location && (
+              <span className="flex items-center gap-1 truncate">
+                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">{location}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Row 3: progress bar + slots count */}
+          {max > 0 && (
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${fillColor} transition-all`} style={{ width: `${fillPct}%` }} />
+              </div>
+              {isFull ? (
+                <span className="shrink-0 text-xs font-bold text-red-500">Komplet</span>
+              ) : (
+                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-slate-600">
+                  <Users className="w-3.5 h-3.5 text-slate-400" />
+                  {taken}/{max}
+                  <span className="font-semibold text-primary-700">· brak {spotsLeft}</span>
+                </span>
+              )}
+              {distance !== undefined && <DistanceBadge km={distance} />}
+            </div>
+          )}
+          {max === 0 && distance !== undefined && (
+            <div className="mt-2"><DistanceBadge km={distance} /></div>
           )}
         </div>
-
-        {/* Row 3: progress bar + slots + distance */}
-        {max > 0 && (
-          <div className="mt-2.5 flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${fillColor}`} style={{ width: `${fillPct}%` }} />
-            </div>
-            <span className={`text-xs font-semibold ${isFull ? 'text-red-500' : 'text-slate-400'}`}>
-              {taken}/{max}
-            </span>
-            {distance !== undefined && <DistanceBadge km={distance} />}
-          </div>
-        )}
-        {max === 0 && distance !== undefined && (
-          <div className="mt-2"><DistanceBadge km={distance} /></div>
-        )}
       </div>
     </Link>
   );
