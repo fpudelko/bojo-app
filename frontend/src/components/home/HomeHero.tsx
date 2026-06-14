@@ -13,49 +13,6 @@ import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import type { EventItem, GameAlert } from '@/types';
 
-// ── Pure-CSS/SVG sport-court motifs (no stock photos) ──────────────────────
-function PitchLines({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <line x1="14" y1="130" x2="186" y2="130" />
-        <circle cx="100" cy="130" r="34" />
-        <circle cx="100" cy="130" r="2.5" fill="currentColor" stroke="none" />
-        <rect x="60" y="14" width="80" height="38" />
-        <rect x="60" y="208" width="80" height="38" />
-      </g>
-    </svg>
-  );
-}
-
-function HoopLines({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <rect x="72" y="14" width="56" height="86" />
-        <circle cx="100" cy="100" r="28" />
-        <path d="M44 14 V52 A56 56 0 0 0 156 52 V14" />
-        <line x1="86" y1="30" x2="114" y2="30" />
-        <circle cx="100" cy="38" r="6" />
-      </g>
-    </svg>
-  );
-}
-
-function NetLines({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <line x1="14" y1="90" x2="186" y2="90" />
-        <line x1="14" y1="170" x2="186" y2="170" />
-        <line x1="14" y1="130" x2="186" y2="130" strokeWidth="5" strokeDasharray="7 7" />
-      </g>
-    </svg>
-  );
-}
 
 /** Live "today" count pill — used in both hero variants for one shared look. */
 function LivePill({ label }: { label: string }) {
@@ -75,19 +32,24 @@ function LivePill({ label }: { label: string }) {
 function HeroShell({ children }: { children: React.ReactNode }) {
   return (
     <section className="relative overflow-hidden text-white">
-      <div className="hero-surface absolute inset-0" aria-hidden="true" />
-      {/* Combined sport-court motifs — football + basketball + volleyball blended */}
-      <PitchLines className="absolute -right-24 top-0 h-full w-[60%] text-white/[0.07]" />
-      <HoopLines className="absolute -right-8 -bottom-16 hidden h-[72%] w-[38%] text-white/[0.05] sm:block" />
-      <NetLines className="absolute right-[34%] -top-10 hidden h-[64%] w-[30%] text-white/[0.045] md:block" />
-      {/* Oversized floating balls for depth */}
-      <span aria-hidden="true" className="pointer-events-none absolute right-6 top-6 select-none text-[5.5rem] leading-none opacity-[0.16] rotate-12 drop-shadow-sm">⚽</span>
-      <span aria-hidden="true" className="pointer-events-none absolute right-36 bottom-16 select-none text-7xl leading-none opacity-[0.13] -rotate-12">🏐</span>
-      <span aria-hidden="true" className="pointer-events-none absolute right-4 bottom-6 select-none text-[5rem] leading-none opacity-[0.13] rotate-6">🏀</span>
+      {/* Photo background — drop hero-bg.jpg into /public to enable.
+          Gradient overlay keeps text readable at any brightness level. */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/hero-bg.jpg)' }}
+        aria-hidden="true"
+      />
+      {/* Dark gradient: left side fully opaque so text pops, right side reveals photo */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(105deg, #0f4c2e 0%, #0f4c2edd 38%, #0f4c2e99 65%, #0f4c2e55 100%)' }}
+        aria-hidden="true"
+      />
+      {/* Bottom fade to canvas */}
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
       <div className="relative mx-auto max-w-md px-5 pb-12 pt-12 lg:max-w-3xl">
         {children}
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
   );
 }
