@@ -127,9 +127,9 @@ function DashboardHero() {
 /** "Jak to działa" — 3 numbered steps. */
 function HowItWorks() {
   const steps = [
-    { Icon: CalendarPlus, title: 'Stwórz mecz',          desc: 'Wybierz sport, boisko i termin. Zajmie Ci to minutę.' },
-    { Icon: Users,        title: 'Skład zbiera się sam', desc: 'Gracze z okolicy widzą Twój mecz i zapisują się.' },
-    { Icon: Trophy,       title: 'Wychodzicie grać',     desc: 'Komplet graczy? Widzimy się na boisku.' },
+    { Icon: CalendarPlus, title: 'Stwórz mecz',           desc: 'Wybierz sport, boisko i termin. Zajmie Ci to minutę.' },
+    { Icon: Users,        title: 'Zaproś i uzupełnij',    desc: 'Wyślij link ekipie. Brakuje kilku osób? Upublicznij mecz, a gracze z okolicy dobiorą się sami.' },
+    { Icon: Trophy,       title: 'Wychodzicie grać',      desc: 'Komplet graczy? Widzimy się na boisku.' },
   ];
   return (
     <div>
