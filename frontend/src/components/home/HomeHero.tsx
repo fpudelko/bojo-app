@@ -78,16 +78,10 @@ function MarketingHero() {
           style={{ animationDelay: '240ms' }}
         >
           <Link
-            href="/wydarzenia/nowe"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-lg shadow-black/10 transition-colors hover:bg-accent-400"
-          >
-            <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
-          </Link>
-          <Link
             href="/wydarzenia"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/5 px-5 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10"
           >
-            <Search className="h-5 w-5" aria-hidden="true" /> Znajdź grę
+            <Search className="h-5 w-5" aria-hidden="true" /> Znajdź mecz
           </Link>
         </div>
       </div>
@@ -122,6 +116,12 @@ function HowItWorks() {
           </li>
         ))}
       </ol>
+      <Link
+        href="/wydarzenia/nowe"
+        className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-sm transition-colors hover:bg-accent-400"
+      >
+        <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
+      </Link>
     </div>
   );
 }
@@ -170,7 +170,7 @@ function MyGamesSection({ userId }: { userId: string }) {
         </Link>
       </div>
       <div className="space-y-3">
-        {games.slice(0, 3).map(({ event, isOrganizer }) => (
+        {games.slice(0, 2).map(({ event, isOrganizer }) => (
           <EventBrowseCard key={event.id} event={event} />
         ))}
       </div>
@@ -258,7 +258,7 @@ function OpenGamesSection() {
         </div>
       ) : (
         <div className="space-y-3">
-          {openEvents.slice(0, 5).map((e) => (
+          {openEvents.slice(0, 2).map((e) => (
             <EventBrowseCard key={e.id} event={e} />
           ))}
         </div>

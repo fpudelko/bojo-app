@@ -935,7 +935,7 @@ export default function EventDetailPage() {
               ) : !authLoading && !user ? (
                 <>
                   <button
-                    onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }}
+                    onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname + window.location.search)}`; }}
                     className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
                     Zaloguj się, aby dołączyć

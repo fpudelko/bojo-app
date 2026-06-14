@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
+import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users, UserPlus } from 'lucide-react';
 import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -555,48 +555,39 @@ function NewEventForm() {
                 />
               </div>
 
-              {/* Visibility */}
+              {/* Visibility — 3 options replacing old 2-button + toggle */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button" onClick={() => setVisibility('private')}
-                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
-                  >
-                    <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
-                    <span>
-                      <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-                      <span className="block text-xs text-slate-500">Tylko przez link</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button" onClick={() => setVisibility('public')}
-                    className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
-                  >
-                    <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
-                    <span>
-                      <span className="block text-sm font-medium text-slate-900">Publiczne</span>
-                      <span className="block text-xs text-slate-500">Widoczne dla wszystkich</span>
-                    </span>
-                  </button>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { id: 'pub',     icon: <Globe className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Publiczne',            desc: 'Widoczne dla wszystkich, każdy może dołączyć' },
+                    { id: 'priv',    icon: <Lock  className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Prywatne',             desc: 'Nie pojawia się na liście — dołączyć można tylko przez link' },
+                    { id: 'invite',  icon: <UserPlus className="w-4 h-4 text-slate-600 shrink-0" />, title: 'Tylko zaproszeni', desc: 'Każdy uczestnik musi dostać personalny link zaproszenia' },
+                  ] as const).map(({ id, icon, title, desc }) => {
+                    const active =
+                      id === 'pub'    ? (visibility === 'public'  && !inviteOnly) :
+                      id === 'priv'   ? (visibility === 'private' && !inviteOnly) :
+                      inviteOnly;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          if (id === 'pub')    { setVisibility('public');  setInviteOnly(false); }
+                          if (id === 'priv')   { setVisibility('private'); setInviteOnly(false); }
+                          if (id === 'invite') { setVisibility('private'); setInviteOnly(true);  }
+                        }}
+                        className={['flex items-start gap-3 p-3 rounded-lg border text-left transition-colors', active ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
+                      >
+                        <span className="mt-0.5">{icon}</span>
+                        <span>
+                          <span className="block text-sm font-medium text-slate-900">{title}</span>
+                          <span className="block text-xs text-slate-500">{desc}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Invite-only toggle */}
-              <div className="flex items-start justify-between gap-4 py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Tylko dla zaproszonych</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Zapisy tylko przez personalny link — reszta zobaczy mecz jako zamknięty</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setInviteOnly((v) => !v)}
-                  className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', inviteOnly ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
-                  role="switch"
-                  aria-checked={inviteOnly}
-                >
-                  <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', inviteOnly ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-                </button>
               </div>
 
               {/* Seeker count nudge — appears when we have location + date */}
