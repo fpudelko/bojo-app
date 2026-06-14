@@ -41,17 +41,39 @@ function todayLabel(count: number | null) {
   return 'Aktywne w Poznaniu i okolicach';
 }
 
-/** Football-pitch line motif (pure SVG, no stock photo). */
-function PitchLines({ className = '' }: { className?: string }) {
+/** Combined court motif (pure SVG, no stock photo):
+ *  basketball key + hoop up top, a volleyball net across the middle, and a
+ *  football penalty box at the bottom — three sports in one line drawing. */
+function CourtLines({ className = '' }: { className?: string }) {
+  // Vertical strands of the volleyball net mesh.
+  const netStrands = Array.from({ length: 13 }, (_, i) => 22 + i * 13);
   return (
-    <svg viewBox="0 0 200 260" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="2.5">
-        <rect x="14" y="14" width="172" height="232" rx="3" />
-        <line x1="14" y1="130" x2="186" y2="130" />
-        <circle cx="100" cy="130" r="34" />
-        <circle cx="100" cy="130" r="2.5" fill="currentColor" stroke="none" />
-        <rect x="60" y="14" width="80" height="38" />
-        <rect x="60" y="208" width="80" height="38" />
+    <svg viewBox="0 0 200 300" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinejoin="round">
+        {/* Outer boundary */}
+        <rect x="14" y="14" width="172" height="272" rx="3" />
+
+        {/* TOP — basketball: key, free-throw circle, three-point arc, hoop */}
+        <rect x="72" y="14" width="56" height="62" />
+        <circle cx="100" cy="76" r="22" />
+        <path d="M42 14 V38 A60 60 0 0 0 158 38 V14" />
+        <line x1="86" y1="26" x2="114" y2="26" />
+        <circle cx="100" cy="33" r="5" />
+
+        {/* MIDDLE — volleyball net */}
+        <line x1="14" y1="150" x2="186" y2="150" />
+        <line x1="14" y1="166" x2="186" y2="166" />
+        <line x1="14" y1="142" x2="14" y2="174" />
+        <line x1="186" y1="142" x2="186" y2="174" />
+        {netStrands.map((x) => (
+          <line key={x} x1={x} y1="150" x2={x} y2="166" strokeWidth="1.4" />
+        ))}
+
+        {/* BOTTOM — football: penalty box, goal area, spot + arc */}
+        <rect x="50" y="232" width="100" height="54" />
+        <rect x="74" y="262" width="52" height="24" />
+        <circle cx="100" cy="250" r="2.5" fill="currentColor" stroke="none" />
+        <path d="M66 232 A40 40 0 0 0 134 232" />
       </g>
     </svg>
   );
@@ -66,7 +88,7 @@ function HeroShell({ children }: { children: React.ReactNode }) {
       <div className="relative mx-auto max-w-3xl px-5 pb-14 pt-14">
         {/* Decorative layer — clipped to this column's bounds */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-          <PitchLines className="absolute -right-10 top-0 h-full w-[56%] text-white/[0.07]" />
+          <CourtLines className="absolute -right-6 top-0 h-full w-[62%] text-white/[0.08]" />
           <span className="absolute right-2 top-7 select-none text-5xl leading-none opacity-[0.14] rotate-12">⚽</span>
           <span className="absolute right-24 bottom-12 select-none text-4xl leading-none opacity-[0.11] -rotate-12">🏐</span>
           <span className="absolute right-3 bottom-7 select-none text-4xl leading-none opacity-[0.11] rotate-6">🏀</span>
