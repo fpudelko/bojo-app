@@ -20,7 +20,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
-import { eventLocation } from '@/lib/utils';
+import { eventLocation, slugify } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setInviteOnly,
@@ -715,10 +715,13 @@ export default function EventDetailPage() {
               </span>
             )}
             {/* venue */}
-            {eventLoc.primary && (
-              event.fieldId ? (
+            {eventLoc.primary && (() => {
+              const href = event.fieldId
+                ? `/boisko/${event.fieldId}`
+                : event.fieldName ? `/boisko/${slugify(event.fieldName)}` : null;
+              return href ? (
                 <Link
-                  href={`/boisko/${event.fieldId}`}
+                  href={href}
                   className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
                 >
                   <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
@@ -729,8 +732,8 @@ export default function EventDetailPage() {
                   <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
                   {eventLoc.primary}
                 </span>
-              )
-            )}
+              );
+            })()}
             {/* price */}
             {event.costGrosze > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
@@ -849,50 +852,45 @@ export default function EventDetailPage() {
 
         {/* ── BOISKO CARD ── */}
         {(eventLoc.primary || (event.lat && event.lng)) && (() => {
-          const inner = (
-            <div className="flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-ink">{event.fieldName}</p>
-                {eventLoc.secondary && (
-                  <p className="mt-0.5 text-xs text-slate-500">{eventLoc.secondary}</p>
-                )}
-                {event.lat && event.lng && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`, '_blank', 'noopener,noreferrer');
-                    }}
-                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
-                  >
-                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj →
-                  </button>
-                )}
-              </div>
-              {venueThumbnail(event.lat, event.lng, 160, 160) && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={venueThumbnail(event.lat, event.lng, 160, 160)!}
-                  alt="Miniatura boiska"
-                  className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                />
-              )}
-              {event.fieldId && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
-            </div>
-          );
+          const venueHref = event.fieldId
+            ? `/boisko/${event.fieldId}`
+            : event.fieldName ? `/boisko/${slugify(event.fieldName)}` : null;
           return (
             <div className="px-4">
               <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Boisko</p>
-              {event.fieldId ? (
-                <Link
-                  href={`/boisko/${event.fieldId}`}
-                  className="block rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md hover:ring-primary-200"
-                >
-                  {inner}
-                </Link>
-              ) : (
-                <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">{inner}</div>
-              )}
+              <div
+                className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 ${venueHref ? 'cursor-pointer transition hover:shadow-md hover:ring-primary-200' : ''}`}
+                onClick={() => venueHref && router.push(venueHref)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-ink">{event.fieldName}</p>
+                    {eventLoc.secondary && (
+                      <p className="mt-0.5 text-xs text-slate-500">{eventLoc.secondary}</p>
+                    )}
+                    {event.lat && event.lng && (
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
+                      >
+                        <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj →
+                      </a>
+                    )}
+                  </div>
+                  {venueThumbnail(event.lat, event.lng, 160, 160) && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={venueThumbnail(event.lat, event.lng, 160, 160)!}
+                      alt="Miniatura boiska"
+                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                    />
+                  )}
+                  {venueHref && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
+                </div>
+              </div>
             </div>
           );
         })()}
