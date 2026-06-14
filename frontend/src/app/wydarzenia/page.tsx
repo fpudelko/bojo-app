@@ -15,12 +15,10 @@ import { isEventJoinable } from '@/components/EventCard';
 import { useRouter } from 'next/navigation';
 
 const SPORT_CHIPS = [
-  { value: '',                  label: 'Wszystkie' },
-  { value: 'piłka nożna',       label: 'Piłka' },
-  { value: 'siatkówka',         label: 'Siatkówka' },
-  { value: 'siatkówka plażowa', label: 'Plaża' },
-  { value: 'koszykówka',        label: 'Koszykówka' },
-  { value: 'futsal',            label: 'Futsal' },
+  { value: 'piłka nożna' },
+  { value: 'siatkówka' },
+  { value: 'siatkówka plażowa' },
+  { value: 'koszykówka' },
 ] as const;
 
 type DateBucket = 'dzisiaj' | 'jutro' | 'tydzien' | 'wszystkie';
@@ -61,7 +59,7 @@ export default function EventsPage() {
   const [allEvents, setAllEvents] = useState<{ event: EventItem; distance?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState<DateBucket>('dzisiaj');
+  const [dateFilter, setDateFilter] = useState<DateBucket>('wszystkie');
   const [query, setQuery] = useState('');
   const [showGeoBar, setShowGeoBar] = useState(false);
   const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
@@ -139,7 +137,10 @@ export default function EventsPage() {
     let list = allEvents.filter(({ event }) =>
       event.status !== 'cancelled' && isEventJoinable(event),
     );
-    if (sportFilter) list = list.filter(({ event }) => event.sport === sportFilter);
+    if (sportFilter) {
+      const matchSports = sportFilter === 'piłka nożna' ? ['piłka nożna', 'futsal'] : [sportFilter];
+      list = list.filter(({ event }) => matchSports.includes(event.sport));
+    }
     if (dateFilter !== 'wszystkie') {
       list = list.filter(({ event }) => {
         const b = dateBucket(event.date);
@@ -159,7 +160,7 @@ export default function EventsPage() {
     return list;
   }, [allEvents, sportFilter, dateFilter, query, geoPoint]);
 
-  const hasFilters = !!sportFilter || dateFilter !== 'dzisiaj' || !!query || !!geoPoint;
+  const hasFilters = !!sportFilter || dateFilter !== 'wszystkie' || !!query || !!geoPoint;
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -174,7 +175,7 @@ export default function EventsPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <span className="flex-1 text-base font-bold text-ink">Szukaj gry</span>
+          <span className="flex-1 text-base font-bold text-ink">Szukaj meczu</span>
           <button
             type="button"
             aria-label="Filtruj po lokalizacji"
@@ -258,24 +259,25 @@ export default function EventsPage() {
           </div>
         )}
 
-        {/* Sport chips */}
+        {/* Sport chips — emoji only, no "Wszystkie" (empty = all) */}
         <div className="flex gap-2 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {SPORT_CHIPS.map(({ value, label }) => {
+          {SPORT_CHIPS.map(({ value }) => {
             const active = sportFilter === value;
-            const emoji = value ? sportEmoji(value) : null;
+            const emoji = sportEmoji(value);
             return (
               <button
-                key={value || '_all'}
+                key={value}
                 type="button"
-                onClick={() => setSportFilter(active && value ? '' : value)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${
+                onClick={() => setSportFilter(active ? '' : value)}
+                title={value}
+                className={`flex shrink-0 items-center justify-center h-9 w-9 rounded-full text-lg transition-colors ${
                   active
-                    ? 'bg-primary-700 text-white'
-                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-primary-300'
+                    ? 'bg-primary-700 ring-2 ring-primary-700 ring-offset-1'
+                    : 'bg-white ring-1 ring-slate-200 hover:ring-primary-300'
                 }`}
+                aria-pressed={active}
               >
-                {emoji && <span className="text-sm leading-none" aria-hidden="true">{emoji}</span>}
-                {label}
+                <span aria-hidden="true">{emoji}</span>
               </button>
             );
           })}
@@ -306,7 +308,7 @@ export default function EventsPage() {
         {!loading && (
           <div className="flex items-center justify-between px-4 pb-2">
             <span className="text-[13px] text-slate-500">
-              {filtered.length > 0 ? `${filtered.length} ${filtered.length === 1 ? 'gra' : filtered.length < 5 ? 'gry' : 'gier'}` : 'Brak gier'}
+              {filtered.length > 0 ? `${filtered.length} ${filtered.length === 1 ? 'mecz' : filtered.length < 5 ? 'mecze' : 'meczy'}` : 'Brak meczy'}
             </span>
             {geoPoint && (
               <span className="text-[11px] font-medium text-primary-700">posortowane od najbliższych</span>
@@ -336,12 +338,12 @@ export default function EventsPage() {
         {!loading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
             <span className="text-5xl mb-4">⚽</span>
-            <p className="text-base font-bold text-slate-700">Brak gier w tym terminie</p>
+            <p className="text-base font-bold text-slate-700">Brak meczy</p>
             <p className="mt-1 text-sm text-slate-500">Zmień filtr lub stwórz własny mecz.</p>
             {hasFilters && (
               <button
                 type="button"
-                onClick={() => { setSportFilter(''); setDateFilter('dzisiaj'); setQuery(''); clearGeo(); }}
+                onClick={() => { setSportFilter(''); setDateFilter('wszystkie'); setQuery(''); clearGeo(); }}
                 className="mt-4 text-sm font-semibold text-primary-700 underline"
               >
                 Wyczyść filtry

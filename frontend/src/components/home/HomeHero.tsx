@@ -34,7 +34,7 @@ function MarketingHero() {
 
   const liveLabel =
     todayCount !== null && todayCount > 0
-      ? `${todayCount} ${todayCount === 1 ? 'otwarta gra' : todayCount < 5 ? 'otwarte gry' : 'otwartych gier'} dziś`
+      ? `${todayCount} ${todayCount === 1 ? 'otwarty mecz' : todayCount < 5 ? 'otwarte mecze' : 'otwartych meczy'} dziś`
       : 'Poznań i okolice';
 
   return (
@@ -160,7 +160,7 @@ function MyGamesSection({ userId }: { userId: string }) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-ink">
-          Twoje najbliższe gry
+          Twoje najbliższe mecze
           <span className="ml-2 text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
             {games.length}
           </span>
@@ -207,7 +207,7 @@ function OpenGamesSection() {
     <div id="otwarte-gry" className="scroll-mt-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-ink">
-          Najbliższe otwarte gry
+          Najbliższe otwarte mecze
           {openEvents.length > 0 && (
             <span className="ml-2 text-xs font-bold bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-2 py-0.5">
               {openEvents.length}
@@ -241,7 +241,7 @@ function OpenGamesSection() {
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
           <p className="text-2xl mb-3">⚽</p>
           <p className="text-sm font-medium text-slate-600 mb-4">
-            Brak otwartych gier w tej chwili
+            Brak otwartych meczy w tej chwili
           </p>
           {user && SHOW_GAME_ALERTS ? (
             <button

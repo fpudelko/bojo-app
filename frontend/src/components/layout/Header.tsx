@@ -157,7 +157,7 @@ export default function Header() {
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
                     )}
                   >
-                    Moje gry
+                    Moje mecze
                   </Link>
                   <Link
                     href="/cykliczne"
@@ -267,7 +267,7 @@ export default function Header() {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-ink shadow-sm active:scale-[0.97] transition-transform"
                 >
-                  <span className="text-xl">📋</span> Moje gry
+                  <span className="text-xl">📋</span> Moje mecze
                 </Link>
                 <Link
                   href="/cykliczne"

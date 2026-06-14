@@ -346,7 +346,7 @@ export default function EventDetailPage() {
     try {
       await joinEvent(event.id, user.id, displayName(user), asGoalkeeper);
       await load();
-      toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do gry!');
+      toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1172,14 +1172,14 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* Match results (trackResults) — locked until 30 min after event start */}
-        {event.trackResults && !resultsAvailable && (
+        {/* Match results — only visible to participants */}
+        {myParticipation && event.trackResults && !resultsAvailable && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
             <Trophy className="w-4 h-4 shrink-0" />
             Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
           </div>
         )}
-        {event.trackResults && resultsAvailable && (
+        {myParticipation && event.trackResults && resultsAvailable && (
           <MatchResultForm
             sport={event.sport}
             eventId={event.id}
@@ -1281,8 +1281,8 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Comments */}
-        <EventComments eventId={event.id} />
+        {/* Comments — only for participants */}
+        {myParticipation && <EventComments eventId={event.id} />}
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. */}
@@ -1313,7 +1313,7 @@ export default function EventDetailPage() {
                   <SettingSwitch
                     icon={<Globe className="w-4 h-4" />}
                     title="Widoczne publicznie"
-                    desc="Mecz pojawia się w „Otwarte gry” i może do niego dołączyć każdy."
+                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy."
                     checked={event.visibility === 'public'}
                     disabled={busy}
                     onChange={handleToggleVisibility}

@@ -42,7 +42,7 @@ export default function MojeGryPage() {
               <Users className="w-7 h-7 text-primary-700" />
             </div>
             <h1 className="font-display text-2xl font-bold text-ink mb-2">Twoje mecze</h1>
-            <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje gry.</p>
+            <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje mecze.</p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="inline-flex items-center gap-2">
               <LogIn className="w-4 h-4" /> Zaloguj się
             </Button>
@@ -61,7 +61,7 @@ export default function MojeGryPage() {
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Twoje mecze</h1>
           <Link href="/wydarzenia/nowe">
-            <Button size="sm">+ Nowa gra</Button>
+            <Button size="sm">+ Nowy mecz</Button>
           </Link>
         </div>
 
@@ -110,14 +110,14 @@ export default function MojeGryPage() {
         ) : loadError ? (
           <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
             <span className="text-4xl">⚠️</span>
-            <p className="text-base font-semibold text-ink">Nie udało się załadować gier</p>
+            <p className="text-base font-semibold text-ink">Nie udało się załadować meczy</p>
             <button onClick={() => { setLoading(true); setLoadError(false); getMyParticipatedEvents(user!.id).then(setItems).catch(() => setLoadError(true)).finally(() => setLoading(false)); }} className="text-sm font-semibold text-primary-700 hover:text-primary-800">Spróbuj ponownie</button>
           </div>
         ) : tab === 'upcoming' ? (
           upcoming.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
               <span className="text-5xl">⚽</span>
-              <p className="text-base font-semibold text-ink">Brak gier w kalendarzu</p>
+              <p className="text-base font-semibold text-ink">Brak meczy w kalendarzu</p>
               <div className="flex flex-col sm:flex-row gap-3 mt-2">
                 <Link href="/wydarzenia">
                   <Button size="sm">Znajdź grę dziś</Button>
@@ -136,7 +136,7 @@ export default function MojeGryPage() {
           )
         ) : (
           history.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-12">Brak historii gier</p>
+            <p className="text-center text-sm text-slate-400 py-12">Brak historii meczy</p>
           ) : (
             <div className="space-y-3">
               {history.map(({ event, isOrganizer }) => (

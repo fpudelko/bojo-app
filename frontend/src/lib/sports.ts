@@ -15,10 +15,10 @@ export const SPORT_CONFIG = {
   'inne':              { emoji: '🏟️', color: '#6b7280', label: 'Inne' },
 } as const;
 
-/** Sports shown in filters / event creation / homepage shortcuts. */
+/** Sports shown in filters / event creation / homepage shortcuts.
+ *  Futsal is intentionally excluded — it maps to "piłka nożna" in UI. */
 export const FOCUS_SPORTS = [
   'piłka nożna',
-  'futsal',
   'siatkówka',
   'siatkówka plażowa',
   'koszykówka',

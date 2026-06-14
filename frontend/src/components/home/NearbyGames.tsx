@@ -97,7 +97,7 @@ export default function NearbyGames() {
               onClick={requestGps}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] transition-transform"
             >
-              <Navigation className="w-4 h-4" /> Pokaż gry w pobliżu
+              <Navigation className="w-4 h-4" /> Pokaż mecze w pobliżu
             </button>
           )}
           <button
@@ -150,11 +150,11 @@ export default function NearbyGames() {
 
       {loadingEvents ? (
         <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Ładuję gry…
+          <Loader2 className="w-4 h-4 animate-spin" /> Ładuję mecze…
         </div>
       ) : events.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-          <p className="text-sm font-medium text-slate-600">Brak otwartych gier w promieniu 5 km</p>
+          <p className="text-sm font-medium text-slate-600">Brak otwartych meczy w promieniu 5 km</p>
           <p className="text-xs text-slate-400 mt-1 mb-4">
             Ustaw alert — dostaniesz powiadomienie gdy ktoś stworzy grę w Twoim rejonie.
           </p>

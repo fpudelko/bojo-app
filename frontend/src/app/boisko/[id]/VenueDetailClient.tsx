@@ -619,7 +619,7 @@ export default function VenueDetailClient({
               })}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">Brak nadchodzących gier na tym boisku.</p>
+            <p className="text-sm text-slate-400">Brak nadchodzących meczy na tym boisku.</p>
           )}
 
           <div className="mt-5 pt-4 border-t border-slate-100">
