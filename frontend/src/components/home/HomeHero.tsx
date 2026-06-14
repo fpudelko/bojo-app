@@ -84,20 +84,12 @@ function MarketingHero() {
           >
             <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
           </Link>
-          <a
-            href="#otwarte-gry"
+          <Link
+            href="/wydarzenia"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/5 px-5 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10"
           >
             <Search className="h-5 w-5" aria-hidden="true" /> Znajdź grę
-          </a>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-white/70">
-          <span>Darmowe</span>
-          <span aria-hidden="true">·</span>
-          <span>Logowanie przez Google</span>
-          <span aria-hidden="true">·</span>
-          <span>Poznań i okolice</span>
+          </Link>
         </div>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
