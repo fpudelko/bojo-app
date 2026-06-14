@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CalendarPlus, Bell, BellRing } from 'lucide-react';
+import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Search, Map as MapIcon, Users, Trophy } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +11,7 @@ import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventListCard } from '@/components/EventListCard';
+import { GameFeedCard } from '@/components/GameFeedCard';
 import type { EventItem, GameAlert } from '@/types';
 
 /** Marketing hero for logged-out visitors */
@@ -32,42 +33,105 @@ function MarketingHero() {
     })();
   }, []);
 
+  const liveLabel =
+    todayCount !== null && todayCount > 0
+      ? `${todayCount} ${todayCount === 1 ? 'otwarta gra' : todayCount < 5 ? 'otwarte gry' : 'otwartych gier'} dziś`
+      : 'Poznań i okolice';
+
   return (
-    <section className="hero-surface relative overflow-hidden text-white">
-      <div className="hero-dots absolute inset-0" aria-hidden="true" />
-      <div className="relative mx-auto max-w-3xl px-4 pb-16 pt-14 text-center lg:pb-20 lg:pt-20">
-        <div>
-          {/* Live today badge */}
-          <span className="inline-flex animate-fade-up items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-amber-200 backdrop-blur-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
-            </span>
-            {todayCount !== null && todayCount > 0
-              ? `Dziś wieczorem · ${todayCount} ${todayCount === 1 ? 'gra' : todayCount < 5 ? 'gry' : 'gier'}`
-              : 'Poznań i okolice'}
+    <section className="relative overflow-hidden bg-primary-700 text-white">
+      {/* Satellite backdrop */}
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-luminosity"
+        style={{ backgroundImage: 'url(/poznan-satellite.jpg)' }}
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-primary-700/70 via-primary-700/85 to-primary-800"
+        aria-hidden="true"
+      />
+
+      <div className="relative mx-auto max-w-md px-5 pb-12 pt-12 lg:max-w-3xl">
+        {/* Live today pill */}
+        <span className="inline-flex animate-fade-up items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/15 backdrop-blur-sm">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-500 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-500" />
           </span>
+          {liveLabel}
+        </span>
 
-          <h1
-            className="mt-5 animate-fade-up font-display text-3xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
-            style={{ animationDelay: '80ms' }}
-          >
-            Mecze, boiska i gracze
-            <br />
-            <span className="text-white/85">w Twojej okolicy.</span>
-          </h1>
-          <p
-            className="mx-auto mt-5 max-w-md animate-fade-up text-base font-medium text-white/80 sm:text-lg"
-            style={{ animationDelay: '160ms' }}
-          >
-            Znajdź brakujących graczy i dołączaj do otwartych meczów.
-          </p>
+        <h1
+          className="mt-5 animate-fade-up font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl"
+          style={{ animationDelay: '80ms' }}
+        >
+          Organizuj mecz.<br />Zbierz skład. Zagraj.
+        </h1>
+        <p
+          className="mt-4 max-w-md animate-fade-up text-base font-medium leading-relaxed text-white/85 sm:text-lg"
+          style={{ animationDelay: '160ms' }}
+        >
+          Wrzuć termin i sport — gracze dołączą sami. Albo dołącz do otwartego meczu i uzupełnij skład.
+        </p>
 
+        <div
+          className="mt-7 flex animate-fade-up flex-col gap-3 sm:max-w-sm"
+          style={{ animationDelay: '240ms' }}
+        >
+          <Link
+            href="/wydarzenia/nowe"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-lg shadow-black/10 transition-colors hover:bg-accent-400"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" /> Stwórz mecz
+          </Link>
+          <a
+            href="#otwarte-gry"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/5 px-5 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/10"
+          >
+            <Search className="h-5 w-5" aria-hidden="true" /> Znajdź grę
+          </a>
         </div>
 
+        <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-white/70">
+          <span>Darmowe</span>
+          <span aria-hidden="true">·</span>
+          <span>Logowanie przez Google</span>
+          <span aria-hidden="true">·</span>
+          <span>Poznań i okolice</span>
+        </div>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
+      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-canvas" aria-hidden="true" />
     </section>
+  );
+}
+
+/** "Jak to działa" — 3 numbered steps, shown to logged-out visitors. */
+function HowItWorks() {
+  const steps = [
+    { Icon: CalendarPlus, title: 'Wrzuć mecz', desc: 'Sport, miejsce, ilu graczy potrzebujesz.' },
+    { Icon: Users, title: 'Gracze dołączają', desc: 'Inni widzą Twój mecz i zapisują się sami.' },
+    { Icon: Trophy, title: 'Komplet? Gracie!', desc: 'Skład pełny — wychodzicie na boisko.' },
+  ];
+  return (
+    <div>
+      <h2 className="mb-4 text-base font-bold text-ink">Jak to działa</h2>
+      <ol className="flex flex-col gap-3">
+        {steps.map(({ Icon, title, desc }, i) => (
+          <li key={title} className="flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+              <Icon className="h-6 w-6" aria-hidden="true" />
+              <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-xs font-bold text-primary-950 ring-2 ring-canvas">
+                {i + 1}
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-ink">{title}</h3>
+              <p className="text-sm leading-relaxed text-slate-500">{desc}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -129,18 +193,15 @@ function OpenGamesSection() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<GameAlert | null>(null);
   const [showAlert, setShowAlert] = useState(false);
-  const [myRel, setMyRel] = useState<Record<string, 'organizer' | 'going'>>({});
   const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
       getPublicEvents(),
       user && SHOW_GAME_ALERTS ? getMyAlert().catch(() => null) : Promise.resolve(null),
-      user ? getMyParticipatedEvents(user.id).catch(() => []) : Promise.resolve([]),
-    ]).then(([events, myAlert, mine]) => {
+    ]).then(([events, myAlert]) => {
       setAllEvents(events);
       setAlert(myAlert);
-      setMyRel(Object.fromEntries(mine.map(({ event, isOrganizer }) => [event.id, isOrganizer ? 'organizer' : 'going'] as const)));
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -152,7 +213,7 @@ function OpenGamesSection() {
   });
 
   return (
-    <div>
+    <div id="otwarte-gry" className="scroll-mt-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-ink">
           Najbliższe otwarte gry
@@ -200,9 +261,9 @@ function OpenGamesSection() {
           )}
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3.5">
           {openEvents.slice(0, 5).map((e) => (
-            <EventListCard key={e.id} event={e} relation={myRel[e.id]} />
+            <GameFeedCard key={e.id} event={e} />
           ))}
           {openEvents.length > 5 && (
             <Link href="/wydarzenia" className="flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
@@ -222,31 +283,26 @@ function OpenGamesSection() {
   );
 }
 
-/** Map teaser linking to /mapa */
+/** Map teaser linking to /mapa — green card with satellite backdrop */
 function MapTeaser() {
   return (
-    <Link href="/mapa" className="group block rounded-2xl overflow-hidden relative h-32 bg-[#e8f0e9] hover:shadow-card-hover transition-all">
-      {/* pseudo-map grid */}
-      <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#15803d" strokeWidth="0.8"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#map-grid)" />
-      </svg>
-      {/* decorative pins */}
-      <span className="absolute top-4 left-1/3 text-2xl drop-shadow">📍</span>
-      <span className="absolute top-8 left-2/3 text-xl drop-shadow">📍</span>
-      <span className="absolute top-3 left-3/5 text-base drop-shadow">📍</span>
-      {/* label */}
-      <div className="absolute inset-0 flex items-end p-4">
-        <div className="flex-1">
-          <p className="text-sm font-bold text-primary-800">Mapa boisk</p>
-          <p className="text-xs text-primary-700/70">Boiska w Poznaniu i okolicach</p>
-        </div>
-        <ArrowRight className="w-5 h-5 text-primary-700 group-hover:translate-x-0.5 transition-transform" />
+    <Link
+      href="/mapa"
+      className="group relative flex items-center gap-4 overflow-hidden rounded-2xl bg-primary-700 p-5 text-white shadow-[0_8px_24px_-8px_rgba(20,40,30,0.30)] transition-shadow hover:shadow-[0_12px_32px_-8px_rgba(20,40,30,0.40)]"
+    >
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-luminosity"
+        style={{ backgroundImage: 'url(/poznan-satellite.jpg)' }}
+        aria-hidden="true"
+      />
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+        <MapIcon className="h-6 w-6" aria-hidden="true" />
       </div>
+      <div className="relative min-w-0 flex-1">
+        <p className="font-bold">Mapa boisk</p>
+        <p className="text-sm text-white/85">Boiska w Poznaniu i okolicach</p>
+      </div>
+      <ArrowRight className="relative h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
     </Link>
   );
 }
@@ -272,8 +328,9 @@ export default function HomeHero() {
   return (
     <>
       <MarketingHero />
-      <section className="mx-auto w-full max-w-3xl px-4 pt-2 pb-12 space-y-6">
+      <section className="mx-auto w-full max-w-3xl px-4 pt-6 pb-12 space-y-8">
         <OpenGamesSection />
+        <HowItWorks />
         <MapTeaser />
       </section>
     </>
