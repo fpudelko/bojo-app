@@ -41,12 +41,10 @@ function todayLabel(count: number | null) {
   return 'Aktywne w Poznaniu i okolicach';
 }
 
-/** Combined court motif (pure SVG, no stock photo):
- *  basketball key + hoop up top, a volleyball net across the middle, and a
- *  football penalty box at the bottom — three sports in one line drawing. */
+/** Combined court motif (pure SVG, no stock photo): basketball key + hoop up
+ *  top, volleyball court lines across the middle, football penalty box at the
+ *  bottom — three sports in one clean line drawing. */
 function CourtLines({ className = '' }: { className?: string }) {
-  // Vertical strands of the volleyball net mesh.
-  const netStrands = Array.from({ length: 13 }, (_, i) => 22 + i * 13);
   return (
     <svg viewBox="0 0 200 300" fill="none" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden="true">
       <g stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinejoin="round">
@@ -60,14 +58,10 @@ function CourtLines({ className = '' }: { className?: string }) {
         <line x1="86" y1="26" x2="114" y2="26" />
         <circle cx="100" cy="33" r="5" />
 
-        {/* MIDDLE — volleyball net */}
+        {/* MIDDLE — volleyball court lines: center line + two attack lines */}
         <line x1="14" y1="150" x2="186" y2="150" />
-        <line x1="14" y1="166" x2="186" y2="166" />
-        <line x1="14" y1="142" x2="14" y2="174" />
-        <line x1="186" y1="142" x2="186" y2="174" />
-        {netStrands.map((x) => (
-          <line key={x} x1={x} y1="150" x2={x} y2="166" strokeWidth="1.4" />
-        ))}
+        <line x1="14" y1="126" x2="186" y2="126" />
+        <line x1="14" y1="174" x2="186" y2="174" />
 
         {/* BOTTOM — football: penalty box, goal area, spot + arc */}
         <rect x="50" y="232" width="100" height="54" />
