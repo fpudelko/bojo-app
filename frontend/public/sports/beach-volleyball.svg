@@ -1,0 +1,53 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Siatkówka plażowa">
+  <defs>
+    <linearGradient id="bvSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#bae6fd"/>
+    </linearGradient>
+    <linearGradient id="bvSand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fcd9a0"/>
+      <stop offset="1" stop-color="#f0b860"/>
+    </linearGradient>
+    <radialGradient id="bvSun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fef08a"/>
+      <stop offset="1" stop-color="#fde047"/>
+    </radialGradient>
+    <clipPath id="bvClip"><rect width="64" height="64" rx="14"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#bvClip)">
+    <!-- sky -->
+    <rect width="64" height="64" fill="url(#bvSky)"/>
+    <!-- sun -->
+    <circle cx="50" cy="15" r="8" fill="url(#bvSun)"/>
+    <!-- sea -->
+    <rect y="30" width="64" height="9" fill="#38bdf8"/>
+    <path d="M0 30 Q16 27 32 30 T64 30 V39 H0 Z" fill="#0ea5e9" opacity="0.55"/>
+    <!-- sand -->
+    <path d="M0 37 Q20 33 40 37 T64 38 V64 H0 Z" fill="url(#bvSand)"/>
+    <!-- sand texture dots -->
+    <g fill="#d99a45" opacity="0.5">
+      <circle cx="12" cy="52" r="1"/>
+      <circle cx="24" cy="58" r="1"/>
+      <circle cx="44" cy="54" r="1"/>
+      <circle cx="54" cy="60" r="1"/>
+      <circle cx="34" cy="61" r="1"/>
+    </g>
+
+    <!-- volleyball -->
+    <g>
+      <ellipse cx="32" cy="49" rx="11" ry="3" fill="#000" opacity="0.12"/>
+      <circle cx="32" cy="34" r="13" fill="#ffffff"/>
+      <circle cx="32" cy="34" r="13" fill="none" stroke="#cbd5e1" stroke-width="0.8"/>
+      <!-- classic volleyball seams -->
+      <g stroke="#3b4a5a" stroke-width="1.4" fill="none" stroke-linecap="round">
+        <path d="M32 21 Q26 34 32 47"/>
+        <path d="M32 21 Q38 34 32 47"/>
+        <path d="M20 28 Q32 31 44 28"/>
+        <path d="M21 41 Q32 37 43 41"/>
+        <path d="M22.5 26 Q26 30 25 39"/>
+        <path d="M41.5 26 Q38 30 39 39"/>
+      </g>
+    </g>
+  </g>
+</svg>
