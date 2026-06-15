@@ -243,11 +243,12 @@ export interface TeamsPanelProps {
   onToggleCaptain: (p: EventParticipant) => Promise<void>;
   onPublishTeams?: () => Promise<void>;
   onUnpublishTeams?: () => Promise<void>;
+  onDisableTeams?: () => Promise<void>;
 }
 
 export default function TeamsPanel({
   teamMode, teamA, teamB, unassigned, isOrganizer, teamsPublished, busy,
-  onAssignTeam, onAssignRandom, onClearTeams, onToggleCaptain, onPublishTeams, onUnpublishTeams,
+  onAssignTeam, onAssignRandom, onClearTeams, onToggleCaptain, onPublishTeams, onUnpublishTeams, onDisableTeams,
 }: TeamsPanelProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -323,6 +324,11 @@ export default function TeamsPanel({
           {teamsPublished && onUnpublishTeams && (
             <Button variant="outline" size="sm" onClick={onUnpublishTeams} disabled={busy}>
               <EyeOff className="w-3.5 h-3.5" /> Ukryj składy
+            </Button>
+          )}
+          {onDisableTeams && (
+            <Button variant="outline" size="sm" onClick={onDisableTeams} disabled={busy}>
+              <X className="w-3.5 h-3.5" /> Wyłącz skład
             </Button>
           )}
         </div>

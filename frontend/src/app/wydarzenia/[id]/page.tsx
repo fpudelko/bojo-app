@@ -33,7 +33,7 @@ import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
   sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
-  publishTeams, unpublishTeams,
+  publishTeams, unpublishTeams, saveEventAdvancedSettings,
   TEAM_MODE_LABELS,
 } from '@/lib/eventFeatures';
 import type {
@@ -422,6 +422,24 @@ export default function EventDetailPage() {
   const handleClearTeams = async () => {
     setBusy(true);
     try { await clearTeamsDb(event.id); await load(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const handleEnableTeams = async () => {
+    setBusy(true);
+    try { await saveEventAdvancedSettings(event.id, { teamMode: 'reczne' }); await load(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const handleDisableTeams = async () => {
+    setBusy(true);
+    try {
+      await clearTeamsDb(event.id);
+      await saveEventAdvancedSettings(event.id, { teamMode: 'brak' });
+      await load();
+    }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
@@ -1137,6 +1155,23 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        {/* Quick enable teams for organizer */}
+        {!showTeams && isOrganizer && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
+              <p className="text-xs text-slate-500 mt-0.5">Niebiescy vs Czerwoni — przypisz graczy ręcznie lub losuj</p>
+            </div>
+            <button
+              onClick={handleEnableTeams}
+              disabled={busy}
+              className="shrink-0 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-60"
+            >
+              Utwórz skład
+            </button>
+          </div>
+        )}
+
         {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
         {showTeams && (isOrganizer || event.teamsPublished) && (
           <TeamsPanel
@@ -1153,6 +1188,7 @@ export default function EventDetailPage() {
             onToggleCaptain={handleToggleCaptain}
             onPublishTeams={handlePublishTeams}
             onUnpublishTeams={handleUnpublishTeams}
+            onDisableTeams={isOrganizer ? handleDisableTeams : undefined}
           />
         )}
 
