@@ -183,9 +183,23 @@ function ParticipantsList({
       )}
 
       {reserves.length > 0 && (
-        <p className="border-t border-slate-100 pt-2.5 text-[11px] text-slate-400">
-          Lista rezerwowa: <span className="font-semibold text-slate-600">{reserves.length} os.</span>
-        </p>
+        <>
+          <div className="flex items-center gap-2 pt-2">
+            <div className="flex-1 border-t border-slate-100" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Rezerwa</span>
+            <div className="flex-1 border-t border-slate-100" />
+          </div>
+          <div className="divide-y divide-slate-50">
+            {reserves.map((p, i) => (
+              <div key={p.id} className="flex items-center gap-3 py-2">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-400">
+                  {i + 1}
+                </span>
+                <span className="flex-1 text-sm font-medium text-slate-500 truncate">{p.name}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -224,6 +238,7 @@ export default function EventDetailPage() {
   const [reportComment, setReportComment] = useState('');
   const [reportBusy, setReportBusy] = useState(false);
   // Repeat game dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
@@ -467,7 +482,6 @@ export default function EventDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Na pewno usunąć to wydarzenie? Tej operacji nie można cofnąć.')) return;
     setBusy(true);
     try { await deleteEvent(event.id); router.push('/wydarzenia'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
@@ -1338,7 +1352,7 @@ export default function EventDetailPage() {
                   </button>
                 )}
                 <button
-                  onClick={handleDelete} disabled={busy}
+                  onClick={() => setDeleteConfirmOpen(true)} disabled={busy}
                   className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
@@ -1507,6 +1521,31 @@ export default function EventDetailPage() {
                 className="flex-1"
               >
                 Stwórz kopię
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          onClick={() => setDeleteConfirmOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">Usunąć wydarzenie?</h3>
+            <p className="text-sm text-slate-500 mb-5">Tej operacji nie można cofnąć. Wszyscy uczestnicy stracą dostęp do meczu.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="flex-1">
+                Anuluj
+              </Button>
+              <Button
+                onClick={() => { setDeleteConfirmOpen(false); handleDelete(); }}
+                isLoading={busy}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                Usuń na stałe
               </Button>
             </div>
           </div>
