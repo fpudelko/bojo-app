@@ -846,7 +846,7 @@ export default function EventDetailPage() {
                 <ParticipantsList
                   regulars={regulars}
                   reserves={reserves}
-                  isOrganizer={isOrganizer}
+                  isOrganizer={isOwner}
                   showTeams={showTeams}
                   teamsPublished={event.teamsPublished}
                   busy={busy}
@@ -1144,7 +1144,7 @@ export default function EventDetailPage() {
         )}
 
         {/* Quick enable teams for organizer */}
-        {!showTeams && isOrganizer && (
+        {!showTeams && isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
@@ -1161,13 +1161,13 @@ export default function EventDetailPage() {
         )}
 
         {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
-        {showTeams && isOrganizer && (
+        {showTeams && isOwner && (
           <TeamsPanel
             teamMode={event.teamMode}
             teamA={teamA}
             teamB={teamB}
             unassigned={unassigned}
-            isOrganizer={isOrganizer}
+            isOrganizer={isOwner}
             teamsPublished={event.teamsPublished}
             busy={busy}
             onAssignTeam={handleAssignTeam}
@@ -1176,7 +1176,7 @@ export default function EventDetailPage() {
             onToggleCaptain={handleToggleCaptain}
             onPublishTeams={handlePublishTeams}
             onUnpublishTeams={handleUnpublishTeams}
-            onDisableTeams={isOrganizer ? handleDisableTeams : undefined}
+            onDisableTeams={handleDisableTeams}
           />
         )}
 
@@ -1201,8 +1201,8 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* PANEL ZAPRASZANIA — widoczny dla wszystkich uczestników */}
-        {(myParticipation || isOrganizer) && !eventStarted && event.joinCode && (
+        {/* PANEL ZAPRASZANIA — widoczny dla uczestników i organizatora */}
+        {(myParticipation || isOwner) && !eventStarted && event.joinCode && (
           <JoinCodePanel
             joinCode={event.joinCode}
             eventId={event.id}
