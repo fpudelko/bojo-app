@@ -304,6 +304,29 @@ export default function TeamsPanel({
         )}
       </div>
 
+      {/* Publish toggle */}
+      {isOrganizer && (onPublishTeams || onUnpublishTeams) && (
+        <button
+          type="button"
+          onClick={teamsPublished ? onUnpublishTeams : onPublishTeams}
+          disabled={busy}
+          className="w-full flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 mb-4 text-left hover:bg-slate-100 disabled:opacity-50 transition-colors"
+        >
+          <span className={teamsPublished ? 'text-primary-700' : 'text-slate-400'}>
+            {teamsPublished ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-medium text-ink">Opublikuj składy</span>
+            <span className="block text-xs text-slate-500">
+              {teamsPublished ? 'Gracze widzą podział na drużyny' : 'Tylko Ty widzisz skład — gracze nie'}
+            </span>
+          </span>
+          <span className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', teamsPublished ? 'bg-primary-700' : 'bg-slate-300'].join(' ')}>
+            <span className={['inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', teamsPublished ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+          </span>
+        </button>
+      )}
+
       {/* Organizer actions */}
       {isOrganizer && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -313,16 +336,6 @@ export default function TeamsPanel({
           {hasTeams && (
             <Button variant="outline" size="sm" onClick={onClearTeams} disabled={busy}>
               <X className="w-3.5 h-3.5" /> Wyczyść
-            </Button>
-          )}
-          {!teamsPublished && onPublishTeams && (
-            <Button size="sm" onClick={onPublishTeams} disabled={busy}>
-              <Eye className="w-3.5 h-3.5" /> Opublikuj
-            </Button>
-          )}
-          {teamsPublished && onUnpublishTeams && (
-            <Button variant="outline" size="sm" onClick={onUnpublishTeams} disabled={busy}>
-              <EyeOff className="w-3.5 h-3.5" /> Ukryj składy
             </Button>
           )}
           {onDisableTeams && (

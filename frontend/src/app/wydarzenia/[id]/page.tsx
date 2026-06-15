@@ -113,15 +113,13 @@ function PlayerAvatar({ p }: { p: EventParticipant }) {
  *  is expanded. Real avatars, teams + publish for organizer. */
 function ParticipantsList({
   regulars, reserves, isOrganizer,
-  showTeams, teamsPublished, onPublishTeams, onUnpublishTeams, busy,
+  showTeams, teamsPublished, busy,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
   isOrganizer: boolean;
   showTeams: boolean;
   teamsPublished: boolean;
-  onPublishTeams: () => void;
-  onUnpublishTeams: () => void;
   busy: boolean;
 }) {
   const teamA = regulars.filter((p) => p.team === 'A');
@@ -130,22 +128,6 @@ function ParticipantsList({
 
   return (
     <div className="space-y-3 text-left">
-      {isOrganizer && showTeams && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={teamsPublished ? onUnpublishTeams : onPublishTeams}
-            disabled={busy}
-            className={`text-xs font-bold rounded-full px-3 py-1 transition-colors ${
-              teamsPublished
-                ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-            }`}
-          >
-            {teamsPublished ? '✓ Składy opublikowane' : 'Upublicznij składy'}
-          </button>
-        </div>
-      )}
 
       {canSeeTeams && showTeams && teamA.length > 0 ? (
         <div className="grid grid-cols-2 gap-4">
@@ -228,37 +210,26 @@ function JoinCodePanel({ joinCode, eventId }: { joinCode: string; eventId: strin
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-          <Share2 className="w-4 h-4" /> Zaproś znajomych
-        </h2>
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3">
+      <Share2 className="w-4 h-4 text-slate-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-800">Zaproś znajomych</p>
+        <p className="text-xs text-slate-400 mt-0.5 font-mono">bojo.pl/d/{joinCode}</p>
       </div>
-
-      {/* Big code display */}
-      <div className="flex items-center justify-center gap-3 rounded-2xl bg-slate-50 border border-slate-200 py-4 mb-3">
-        <span className="font-mono text-3xl font-bold tracking-[0.2em] text-primary-700 select-all">
-          {joinCode}
-        </span>
-      </div>
-
-      <div className="flex gap-2">
+      <div className="flex gap-2 shrink-0">
         <button
           onClick={share}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-700 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95"
+          className="flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95"
         >
-          <Share2 className="w-4 h-4" /> Udostępnij link
+          <Share2 className="w-3.5 h-3.5" /> Udostępnij
         </button>
         <button
           onClick={copyLink}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
         >
-          {copied ? <><Check className="w-4 h-4 text-green-600" /> Skopiowano</> : <><Copy className="w-4 h-4" /> Kopiuj link</>}
+          {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> OK</> : <><Copy className="w-3.5 h-3.5" /> Kopiuj</>}
         </button>
       </div>
-      <p className="mt-2.5 text-center text-xs text-slate-400">
-        bojo.pl/d/{joinCode} · każdy z linkiem lub kodem może zobaczyć i dołączyć
-      </p>
     </div>
   );
 }
@@ -811,12 +782,11 @@ export default function EventDetailPage() {
                 : `Zostało ${freeSpots} ${freeSpots === 1 ? 'wolne miejsce' : freeSpots < 5 ? 'wolne miejsca' : 'wolnych miejsc'}`}
             </p>
 
-            {/* Avatar stack — tap to expand the full roster below */}
-            {regulars.length > 0 && (
+            {/* Avatar stack — tap to expand. Hidden when roster is open. */}
+            {regulars.length > 0 && !rosterOpen && (
               <button
                 type="button"
-                onClick={() => setRosterOpen((v) => !v)}
-                aria-expanded={rosterOpen}
+                onClick={() => setRosterOpen(true)}
                 className="mt-5 flex w-full items-center justify-center gap-2"
               >
                 <div className="flex">
@@ -851,24 +821,34 @@ export default function EventDetailPage() {
                     </div>
                   )}
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${rosterOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className="h-4 w-4 text-slate-400" />
               </button>
             )}
             {regulars.length === 0 && (
               <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
             )}
 
-            {/* Roster — expands inline within this same card */}
+            {/* Roster — replaces avatar row when open */}
             {regulars.length > 0 && rosterOpen && (
               <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {regulars.length} {regulars.length === 1 ? 'gracz' : regulars.length < 5 ? 'gracze' : 'graczy'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRosterOpen(false)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
+                  </button>
+                </div>
                 <ParticipantsList
                   regulars={regulars}
                   reserves={reserves}
                   isOrganizer={isOrganizer}
                   showTeams={showTeams}
                   teamsPublished={event.teamsPublished}
-                  onPublishTeams={handlePublishTeams}
-                  onUnpublishTeams={handleUnpublishTeams}
                   busy={busy}
                 />
               </div>
