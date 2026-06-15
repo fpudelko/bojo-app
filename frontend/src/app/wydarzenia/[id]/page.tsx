@@ -836,12 +836,6 @@ export default function EventDetailPage() {
                 />
               </div>
             )}
-
-            {isFootball && hasGoalkeeper && (
-              <p className="mt-3 inline-flex w-full items-center justify-center gap-1.5 text-center text-xs font-semibold text-green-600">
-                🧤 Bramkarz jest
-              </p>
-            )}
           </div>
         </div>
 
@@ -945,9 +939,6 @@ export default function EventDetailPage() {
                   >
                     Dołącz do meczu →
                   </button>
-                  <p className="mt-2 text-center text-[11px] text-slate-500">
-                    Dołączysz jako gracz · możesz zrezygnować do 2h przed
-                  </p>
                 </>
               ) : user && isFull ? (
                 <>
