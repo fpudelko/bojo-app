@@ -175,7 +175,8 @@ export interface EventItem {
   costGrosze: number;
   teamsPublished: boolean;
   allowGuestAdds: boolean;
-  inviteOnly: boolean;
+  joinCode: string;
+  requireApproval: boolean;
 }
 
 export interface EventParticipant {
@@ -224,7 +225,7 @@ export interface EventCreate {
   trackResults?: boolean;
   confirmationDeadlineH?: number;
   costGrosze?: number;
-  inviteOnly?: boolean;
+  requireApproval?: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -59,7 +59,7 @@ function NewEventForm() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
-  const [inviteOnly, setInviteOnly] = useState(false);
+  const [requireApproval, setRequireApproval] = useState(false);
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,7 +206,7 @@ function NewEventForm() {
           trackResults: true,
           confirmationDeadlineH: 24,
           costGrosze: Math.round(parseFloat(costPln || '0') * 100),
-          inviteOnly,
+          requireApproval,
         },
         user.id,
         displayName(user),
@@ -560,7 +560,7 @@ function NewEventForm() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    type="button" onClick={() => { setVisibility('public'); setInviteOnly(false); }}
+                    type="button" onClick={() => { setVisibility('public'); setRequireApproval(false); }}
                     className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'public' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
                   >
                     <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
@@ -570,7 +570,7 @@ function NewEventForm() {
                     </span>
                   </button>
                   <button
-                    type="button" onClick={() => { setVisibility('private'); setInviteOnly(false); }}
+                    type="button" onClick={() => { setVisibility('private'); setRequireApproval(false); }}
                     className={['flex items-start gap-2 p-3 rounded-lg border text-left transition-colors', visibility === 'private' ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400'].join(' ')}
                   >
                     <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />

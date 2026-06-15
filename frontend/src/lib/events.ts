@@ -41,7 +41,8 @@ function toEvent(row: any): EventItem {
     costGrosze: row.cost_grosz ?? 0,
     teamsPublished: row.teams_published ?? false,
     allowGuestAdds: row.allow_guest_adds ?? false,
-    inviteOnly: row.invite_only ?? false,
+    joinCode: row.join_code ?? '',
+    requireApproval: row.require_approval ?? false,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -124,7 +125,7 @@ export async function createEvent(
       track_results: data.trackResults ?? false,
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
-      invite_only: data.inviteOnly ?? false,
+      require_approval: data.requireApproval ?? false,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
     })
@@ -192,6 +193,7 @@ export async function updateEvent(
       track_results: data.trackResults ?? false,
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
+      require_approval: data.requireApproval ?? false,
     })
     .eq('id', id);
 
@@ -409,9 +411,18 @@ export async function getNearbyEvents(lat: number, lng: number, radiusKm = 5, li
   return (data ?? []).map(toEvent);
 }
 
-export async function setInviteOnly(eventId: string, value: boolean): Promise<void> {
-  const { error } = await supabase.from('events').update({ invite_only: value }).eq('id', eventId);
+export async function setRequireApproval(eventId: string, value: boolean): Promise<void> {
+  const { error } = await supabase.from('events').update({ require_approval: value }).eq('id', eventId);
   if (error) throw new Error(error.message);
+}
+
+export async function getEventByJoinCode(code: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('events')
+    .select('id')
+    .eq('join_code', code.toUpperCase().trim())
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 export async function setAllowGuestAdds(eventId: string, value: boolean): Promise<void> {

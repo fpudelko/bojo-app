@@ -26,10 +26,6 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
 } from '@/lib/events';
 import {
-  getEventInvites, deleteInvite, validateInviteToken, acceptInvite,
-} from '@/lib/invites';
-import type { EventInvite } from '@/lib/invites';
-import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
   sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
@@ -205,6 +201,68 @@ function ParticipantsList({
   );
 }
 
+// ---------------------------------------------------------------------------
+// JoinCodePanel — visible to all participants
+// ---------------------------------------------------------------------------
+function JoinCodePanel({ joinCode, eventId }: { joinCode: string; eventId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const link = typeof window !== 'undefined'
+    ? `${window.location.origin}/d/${joinCode}`
+    : `https://bojo.pl/d/${joinCode}`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch { /* ignore */ }
+  };
+
+  const share = async () => {
+    if (navigator.share) {
+      await navigator.share({ url: link }).catch(() => {});
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+          <Share2 className="w-4 h-4" /> Zaproś znajomych
+        </h2>
+      </div>
+
+      {/* Big code display */}
+      <div className="flex items-center justify-center gap-3 rounded-2xl bg-slate-50 border border-slate-200 py-4 mb-3">
+        <span className="font-mono text-3xl font-bold tracking-[0.2em] text-primary-700 select-all">
+          {joinCode}
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={share}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-700 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95"
+        >
+          <Share2 className="w-4 h-4" /> Udostępnij link
+        </button>
+        <button
+          onClick={copyLink}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+        >
+          {copied ? <><Check className="w-4 h-4 text-green-600" /> Skopiowano</> : <><Copy className="w-4 h-4" /> Kopiuj link</>}
+        </button>
+      </div>
+      <p className="mt-2.5 text-center text-xs text-slate-400">
+        bojo.pl/d/{joinCode} · każdy z linkiem lub kodem może zobaczyć i dołączyć
+      </p>
+    </div>
+  );
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -244,10 +302,6 @@ export default function EventDetailPage() {
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  // Invites
-  const [invites, setInvites] = useState<EventInvite[]>([]);
-  const [validInviteToken, setValidInviteToken] = useState<EventInvite | null>(null);
-
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -262,31 +316,12 @@ export default function EventDetailPage() {
       setEvent(ev);
       setParticipants(parts);
       await loadMatchData(ev);
-      // Load invites for organizer
-      if (ev.organizerId) {
-        getEventInvites(id).then(setInvites).catch(() => {});
-      }
     } catch {
       setNotFound(true);
     } finally {
       setLoading(false);
     }
   }, [id, loadMatchData]);
-
-  // Validate invite token from URL (?token=...)
-  useEffect(() => {
-    const token = typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('token')
-      : null;
-    if (token) {
-      validateInviteToken(token).then((inv) => {
-        if (inv && inv.eventId === id) {
-          setValidInviteToken(inv);
-          acceptInvite(token).catch(() => {});
-        }
-      }).catch(() => {});
-    }
-  }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -463,22 +498,6 @@ export default function EventDetailPage() {
     } finally { setBusy(false); }
   };
 
-
-  const handleDeleteInvite = async (inviteId: string) => {
-    try {
-      await deleteInvite(inviteId);
-      setInvites((prev) => prev.filter((i) => i.id !== inviteId));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    }
-  };
-
-  const handleCopyInviteLink = (invite: EventInvite) => {
-    const url = `${window.location.origin}/wydarzenia/${event.id}?token=${invite.token}`;
-    navigator.clipboard.writeText(url)
-      .then(() => toast('Link zaproszenia skopiowany!'))
-      .catch(() => toast('Nie udało się skopiować — użyj przycisku "Skopiuj link"', 'error'));
-  };
 
   const handleToggleAllowGuestAdds = async () => {
     setBusy(true);
@@ -931,24 +950,13 @@ export default function EventDetailPage() {
         {!(user && myParticipation) && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
-              {event.inviteOnly && !isOrganizer && !validInviteToken ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                  <Lock className="w-5 h-5 text-slate-400 shrink-0" />
-                  <div>
-                    <p className="font-semibold text-ink">Mecz tylko dla zaproszonych</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Poproś organizatora o link z zaproszeniem.</p>
-                  </div>
-                </div>
-              ) : !authLoading && !user ? (
-                <>
-                  <button
-                    onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname + window.location.search)}`; }}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
-                  >
-                    Zaloguj się, aby dołączyć
-                  </button>
-                  <p className="mt-2 text-center text-[11px] text-slate-500">Logowanie przez Google · za darmo</p>
-                </>
+              {!authLoading && !user ? (
+                <button
+                  onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname + window.location.search)}`; }}
+                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
+                >
+                  Zaloguj się, aby dołączyć
+                </button>
               ) : user && !isFull ? (
                 <>
                   <button
@@ -1213,54 +1221,12 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* ZAPROSZENIA */}
-        {isOwner && !eventStarted && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-ink flex items-center gap-2">
-                <Share2 className="w-4 h-4" /> Zaproszenia
-              </h2>
-              <Button onClick={handleShare} variant="outline" size="sm">
-                {copied ? <><Check className="w-3.5 h-3.5" /> Skopiowano</> : <><Share2 className="w-3.5 h-3.5" /> Skopiuj link</>}
-              </Button>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Udostępnij link do meczu — każdy z linkiem może dołączyć.
-            </p>
-
-            {/* Invite list */}
-            {invites.length > 0 && (
-              <ul className="divide-y divide-slate-100">
-                {invites.map((inv) => (
-                  <li key={inv.id} className="flex items-center gap-3 py-2.5">
-                    <span className={[
-                      'w-2 h-2 rounded-full shrink-0',
-                      inv.acceptedAt ? 'bg-green-500' : 'bg-amber-400',
-                    ].join(' ')} title={inv.acceptedAt ? 'Zaakceptowane' : 'Oczekuje'} />
-                    <span className="flex-1 text-sm text-slate-700 truncate">{inv.email}</span>
-                    {inv.acceptedAt && (
-                      <span className="text-xs text-green-600 font-medium shrink-0">Dołączył/a</span>
-                    )}
-                    <button
-                      onClick={() => handleCopyInviteLink(inv)}
-                      className="p-1.5 text-slate-300 hover:text-primary-600 rounded shrink-0"
-                      title="Kopiuj link zaproszenia"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteInvite(inv.id)}
-                      className="p-1.5 text-slate-300 hover:text-red-400 rounded shrink-0"
-                      title="Usuń zaproszenie"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        {/* PANEL ZAPRASZANIA — widoczny dla wszystkich uczestników */}
+        {(myParticipation || isOrganizer) && !eventStarted && event.joinCode && (
+          <JoinCodePanel
+            joinCode={event.joinCode}
+            eventId={event.id}
+          />
         )}
 
         {/* Cost split summary */}
@@ -1315,10 +1281,7 @@ export default function EventDetailPage() {
               <Settings className="w-4 h-4 text-slate-400" />
               <h2 className="font-semibold text-ink text-sm">Zarządzaj wydarzeniem</h2>
               <span className="ml-auto flex items-center gap-2 text-xs font-medium text-primary-600">
-                {!editMode && event.inviteOnly && (
-                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Tylko zaproszeni</span>
-                )}
-                {!editMode && event.visibility !== 'public' && !event.inviteOnly && (
+                {!editMode && event.visibility !== 'public' && (
                   <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">Prywatne</span>
                 )}
                 {editMode ? 'Zamknij' : 'Edytuj'}
