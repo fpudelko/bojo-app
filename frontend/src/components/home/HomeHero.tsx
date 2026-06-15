@@ -80,14 +80,14 @@ function CourtLines({ className = '' }: { className?: string }) {
  *  the far edges on wide desktop screens. */
 function HeroShell({ children }: { children: React.ReactNode }) {
   return (
-    <section className="hero-surface relative overflow-hidden text-white">
-      <div className="relative mx-auto max-w-3xl px-5 pb-14 pt-14">
+    <section className="hero-surface relative overflow-hidden text-white min-h-[240px] sm:min-h-[320px]">
+      <div className="relative mx-auto max-w-3xl px-5 pb-14 pt-14 sm:pb-24 sm:pt-20">
         {/* Decorative layer — clipped to this column's bounds */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-          <CourtLines className="absolute -right-6 top-0 h-full w-[62%] text-white/[0.08]" />
-          <span className="absolute right-2 top-7 select-none text-5xl leading-none opacity-[0.14] rotate-12">⚽</span>
-          <span className="absolute right-24 bottom-12 select-none text-4xl leading-none opacity-[0.11] -rotate-12">🏐</span>
-          <span className="absolute right-3 bottom-7 select-none text-4xl leading-none opacity-[0.11] rotate-6">🏀</span>
+          <CourtLines className="absolute -right-4 -top-6 w-[58%] text-white/[0.11] sm:text-white/[0.13]" />
+          <span className="absolute right-2 top-7 select-none text-5xl leading-none opacity-[0.16] rotate-12">⚽</span>
+          <span className="absolute right-24 bottom-12 select-none text-4xl leading-none opacity-[0.13] -rotate-12">🏐</span>
+          <span className="absolute right-3 bottom-7 select-none text-4xl leading-none opacity-[0.13] rotate-6">🏀</span>
         </div>
         <div className="relative">{children}</div>
       </div>
