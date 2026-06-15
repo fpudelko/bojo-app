@@ -137,8 +137,7 @@ function DroppableColumn({
         isOver && canManualAssign ? `${c.borderDrop} ${c.dropBg}` : c.border,
       ].join(' ')}
     >
-      <div className="flex items-center justify-between mb-2.5">
-        <span className={`text-xs font-bold uppercase tracking-wide ${c.text}`}>{c.label}</span>
+      <div className="flex items-center justify-end mb-2.5">
         <span className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${c.badge}`}>
           {participants.length}
         </span>
@@ -334,12 +333,6 @@ export default function TeamsPanel({
         </div>
       )}
 
-      {canManualAssign && isOrganizer && (
-        <p className="text-xs text-slate-400 mb-3 flex items-center gap-1">
-          <GripVertical className="w-3 h-3" />
-          Przeciągnij gracza do drużyny lub kliknij <strong className="text-blue-600 mx-0.5">N</strong> / <strong className="text-red-600 mx-0.5">C</strong> przy nieprzypisanym.
-        </p>
-      )}
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {/* Nieprzypisani — na górze żeby nie szukać */}
