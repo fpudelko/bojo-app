@@ -116,7 +116,7 @@ function Hero() {
         Czas na bojo?
       </h1>
       <p className="mt-4 max-w-md text-base font-medium leading-relaxed text-white/80 sm:text-lg">
-        Masz wolną chwilę albo wolny termin na boisku? Wrzuć mecz i zbierz skład — albo dołącz do otwartej gry obok.
+        Wrzuć termin i zbierz skład albo dołącz do otwartego meczu w okolicy.
       </p>
     </HeroShell>
   );
