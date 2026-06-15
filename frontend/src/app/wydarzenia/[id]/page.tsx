@@ -1173,7 +1173,7 @@ export default function EventDetailPage() {
         )}
 
         {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
-        {showTeams && (isOrganizer || event.teamsPublished) && (
+        {showTeams && isOrganizer && (
           <TeamsPanel
             teamMode={event.teamMode}
             teamA={teamA}
