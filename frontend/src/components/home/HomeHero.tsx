@@ -51,23 +51,25 @@ function CourtLines({ className = '' }: { className?: string }) {
         {/* Outer boundary */}
         <rect x="14" y="14" width="172" height="272" rx="3" />
 
-        {/* TOP — basketball: key, free-throw circle, three-point arc, hoop */}
+        {/* TOP — basketball: 3-point arc, key, free-throw circle, backboard, hoop */}
+        <path d="M42 14 V38 A60 60 0 0 0 158 38 V14" />
         <rect x="72" y="14" width="56" height="62" />
         <circle cx="100" cy="76" r="22" />
-        <path d="M42 14 V38 A60 60 0 0 0 158 38 V14" />
-        <line x1="86" y1="26" x2="114" y2="26" />
-        <circle cx="100" cy="33" r="5" />
+        {/* Backboard — short, thick line just inside baseline */}
+        <line x1="88" y1="21" x2="112" y2="21" strokeWidth="5" />
+        {/* Hoop — larger circle clearly visible below backboard */}
+        <circle cx="100" cy="31" r="9" />
 
-        {/* MIDDLE — volleyball court lines: center line + two attack lines */}
-        <line x1="14" y1="150" x2="186" y2="150" />
+        {/* MIDDLE — volleyball: net (thick center) + two attack lines */}
+        <line x1="14" y1="150" x2="186" y2="150" strokeWidth="5" />
         <line x1="14" y1="126" x2="186" y2="126" />
         <line x1="14" y1="174" x2="186" y2="174" />
 
-        {/* BOTTOM — football: penalty box, goal area, spot + arc */}
+        {/* BOTTOM — football: penalty box, goal area, spot, arc (curves away from box) */}
         <rect x="50" y="232" width="100" height="54" />
         <rect x="74" y="262" width="52" height="24" />
         <circle cx="100" cy="250" r="2.5" fill="currentColor" stroke="none" />
-        <path d="M66 232 A40 40 0 0 0 134 232" />
+        <path d="M66 232 A40 40 0 0 1 134 232" />
       </g>
     </svg>
   );
@@ -266,8 +268,8 @@ function OpenGamesSection() {
       ) : openEvents.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
           <p className="text-2xl mb-2">⚽</p>
-          <p className="text-sm font-semibold text-slate-700 mb-1">Brak otwartych meczy</p>
-          <p className="text-sm text-slate-500 mb-4">Bądź pierwszy — wrzuć termin, reszta się dopisze.</p>
+          <p className="text-sm font-semibold text-slate-700 mb-1">Brak wolnych miejsc</p>
+          <p className="text-sm text-slate-500 mb-4">Wszystkie mecze w okolicy mają już komplet. Wrzuć własny albo wróć za chwilę.</p>
           {user && SHOW_GAME_ALERTS ? (
             <button onClick={() => setShowAlert(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">
               <Bell className="h-4 w-4" /> Ustaw alert
