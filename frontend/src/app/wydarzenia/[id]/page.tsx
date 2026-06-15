@@ -153,8 +153,8 @@ function ParticipantsList({
 
       {canSeeTeams && showTeams && teamA.length > 0 ? (
         <div className="grid grid-cols-2 gap-4">
-          {[{ label: 'Drużyna A', players: teamA, color: 'bg-blue-100 text-blue-700' },
-            { label: 'Drużyna B', players: teamB, color: 'bg-orange-100 text-orange-700' }]
+          {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
+            { label: 'Czerwoni', players: teamB, color: 'bg-red-100 text-red-700' }]
             .map(({ label, players, color }) => (
               <div key={label}>
                 <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
