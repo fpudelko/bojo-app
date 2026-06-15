@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
 import L from 'leaflet';
@@ -384,12 +385,36 @@ function FilterPills({
 export default function VenueExplorer({
   initialFields, initialEvents,
 }: { initialFields?: Field[]; initialEvents?: EventItem[]; } = {}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
 
-  const [sports,         setSports]        = useState<string[]>([]);
-  const [venueTypes,     setVenueTypes]    = useState<string[]>([]);
-  const [onlyGamesToday, setOnlyGamesToday] = useState(false);
+  // Filters live in the URL so they survive back-navigation
+  const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
+  const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
+  const onlyGamesToday = searchParams.get('today') === '1';
+
+  function updateParams(patch: { sport?: string[]; type?: string[]; today?: boolean }) {
+    const p = new URLSearchParams(searchParams.toString());
+    if (patch.sport !== undefined) {
+      p.delete('sport');
+      patch.sport.forEach((s) => p.append('sport', s));
+    }
+    if (patch.type !== undefined) {
+      p.delete('type');
+      patch.type.forEach((t) => p.append('type', t));
+    }
+    if (patch.today !== undefined) {
+      if (patch.today) p.set('today', '1'); else p.delete('today');
+    }
+    router.replace(`/mapa?${p.toString()}`, { scroll: false });
+  }
+
+  const setSports        = (v: string[]) => updateParams({ sport: v });
+  const setVenueTypes    = (v: string[]) => updateParams({ type: v });
+  const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
 
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId     = selected.id;
