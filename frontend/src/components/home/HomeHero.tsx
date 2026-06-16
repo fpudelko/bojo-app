@@ -362,7 +362,6 @@ export default function HomeHero() {
         <Hero />
         <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
           <MyGamesSection userId={user.id} />
-          <JoinByCodeSection />
           <OpenGamesSection />
           <MapTeaser />
           <HowItWorks />
@@ -375,7 +374,6 @@ export default function HomeHero() {
     <>
       <Hero />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
-        <JoinByCodeSection />
         <OpenGamesSection />
         <HowItWorks />
         <MapTeaser />
