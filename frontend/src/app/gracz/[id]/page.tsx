@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, User, Trophy, Calendar, Star, ChevronRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Loader2, User, Trophy, Calendar, Star, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -106,34 +106,36 @@ export default function PublicPlayerPage() {
                     color="text-green-700"
                   />
                   <StatBox
-                    icon={<Trophy className="w-4 h-4" />}
-                    label="Gole"
-                    value={stats.goalsTotal}
-                    color="text-amber-600"
-                  />
-                  <StatBox
                     icon={<Star className="w-4 h-4" />}
                     label="Zorganizowane"
                     value={stats.eventsOrganized}
                     color="text-primary-700"
                   />
-                  {stats.noShows === 0 ? (
-                    <div className="rounded-xl bg-green-50 dark:bg-green-950 p-3 flex flex-col justify-between">
-                      <div className="flex items-center gap-1.5 text-xs text-green-700 mb-1">
-                        <ShieldCheck className="w-4 h-4" />
-                        <span className="text-slate-500 dark:text-slate-400">Niezawodność</span>
-                      </div>
-                      <p className="text-sm font-bold text-green-700 dark:text-green-400">Bezbłędna</p>
-                    </div>
-                  ) : (
-                    <StatBox
-                      icon={<AlertCircle className="w-4 h-4" />}
-                      label="Nieobecności"
-                      value={stats.noShows}
-                      color={stats.noShows >= 3 ? 'text-red-500' : 'text-amber-600'}
-                    />
-                  )}
                 </div>
+
+                {stats.noShows > 0 && stats.eventsJoined > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    {(() => {
+                      const rate = Math.round(((stats.eventsJoined - stats.noShows) / stats.eventsJoined) * 100);
+                      return (
+                        <>
+                          <div className="flex items-center justify-between text-sm mb-1.5">
+                            <span className="text-slate-500 dark:text-slate-400">Frekwencja</span>
+                            <span className={rate >= 80 ? 'font-semibold text-amber-600' : 'font-semibold text-red-500'}>
+                              {rate}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${rate >= 80 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
 
