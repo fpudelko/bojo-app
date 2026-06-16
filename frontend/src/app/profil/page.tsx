@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Check, LogOut, Trash2, Phone, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -161,7 +162,15 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
-        <h1 className="text-2xl font-bold text-slate-900">Profil</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Profil</h1>
+          <Link
+            href={`/gracz/${user.id}`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <BarChart2 className="w-4 h-4" /> Moje statystyki
+          </Link>
+        </div>
 
         {/* Identity card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">

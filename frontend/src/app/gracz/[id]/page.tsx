@@ -38,12 +38,8 @@ export default function PublicPlayerPage() {
     load();
   }, [id]);
 
-  const attendanceRate =
-    stats && stats.eventsJoined > 0
-      ? Math.round((stats.attended / stats.eventsJoined) * 100)
-      : null;
-
-  const reliablePlayer = attendanceRate !== null && attendanceRate >= 80 && stats!.eventsJoined >= 5;
+  const reliablePlayer =
+    !!stats && stats.eventsJoined >= 5 && stats.noShows === 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -138,29 +134,6 @@ export default function PublicPlayerPage() {
                     />
                   )}
                 </div>
-
-                {attendanceRate !== null && stats.attended > 0 && stats.eventsJoined >= 3 && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between text-sm mb-1.5">
-                      <span className="text-slate-500 dark:text-slate-400">Frekwencja</span>
-                      <span className={[
-                        'font-semibold',
-                        attendanceRate >= 80 ? 'text-green-700' : attendanceRate >= 60 ? 'text-amber-600' : 'text-red-500',
-                      ].join(' ')}>
-                        {attendanceRate}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        className={[
-                          'h-full rounded-full transition-all',
-                          attendanceRate >= 80 ? 'bg-green-500' : attendanceRate >= 60 ? 'bg-amber-400' : 'bg-red-400',
-                        ].join(' ')}
-                        style={{ width: `${attendanceRate}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
