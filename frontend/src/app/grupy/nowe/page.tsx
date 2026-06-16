@@ -22,7 +22,7 @@ export default function NewGroupPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const inputCls =
-    'w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+    'w-full border border-slate-300 dark:border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100';
 
   const handleSubmit = async () => {
     if (!user || name.trim().length < 2) return;
@@ -55,9 +55,9 @@ export default function NewGroupPage() {
 
         <h1 className="font-display text-2xl font-bold text-ink mb-6">Nowa grupa</h1>
 
-        <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="space-y-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Nazwa grupy *</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Nazwa grupy *</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -68,7 +68,7 @@ export default function NewGroupPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Sport</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Sport</label>
             <div className="flex flex-wrap gap-2">
               {FOCUS_SPORTS.map((s) => (
                 <button
@@ -77,7 +77,7 @@ export default function NewGroupPage() {
                   onClick={() => setSport(sport === s ? '' : s)}
                   className={[
                     'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                    sport === s ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                    sport === s ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800',
                   ].join(' ')}
                 >
                   <span>{sportEmoji(s)}</span> {sportLabel(s)}
@@ -87,7 +87,7 @@ export default function NewGroupPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Miasto / dzielnica</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Miasto / dzielnica</label>
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -98,7 +98,7 @@ export default function NewGroupPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Opis (opcjonalnie)</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Opis (opcjonalnie)</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}

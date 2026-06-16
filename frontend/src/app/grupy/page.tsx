@@ -54,7 +54,7 @@ export default function GroupsPage() {
               <Users className="w-7 h-7 text-primary-700" />
             </div>
             <h1 className="font-display text-2xl font-bold text-ink mb-2">Grupy</h1>
-            <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby tworzyć grupy i grać ze swoją ekipą.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Zaloguj się, aby tworzyć grupy i grać ze swoją ekipą.</p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent('/grupy')}`; }} className="inline-flex items-center gap-2">
               <LogIn className="w-4 h-4" /> Zaloguj się
             </Button>
@@ -77,8 +77,8 @@ export default function GroupsPage() {
         </div>
 
         {/* Join by code */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2.5 text-sm font-semibold text-slate-800">Masz kod grupy?</p>
+        <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 p-4 shadow-sm">
+          <p className="mb-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">Masz kod grupy?</p>
           <div className="flex gap-2 max-w-xs">
             <input
               value={code}
@@ -86,7 +86,7 @@ export default function GroupsPage() {
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               placeholder="K7QP4B"
               maxLength={8}
-              className="w-32 min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-base font-bold uppercase tracking-widest text-primary-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-32 min-w-0 rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2.5 font-mono text-base font-bold uppercase tracking-widest text-primary-700 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-slate-700 dark:text-slate-100"
             />
             <button
               onClick={handleJoin}
@@ -101,13 +101,13 @@ export default function GroupsPage() {
         {/* My groups */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2].map((i) => <div key={i} className="h-[72px] bg-white rounded-2xl border border-slate-200/80 animate-pulse" />)}
+            {[1, 2].map((i) => <div key={i} className="h-[72px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />)}
           </div>
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
             <span className="text-5xl">👥</span>
             <p className="text-base font-semibold text-ink">Nie należysz jeszcze do żadnej grupy</p>
-            <p className="text-sm text-slate-500 max-w-xs">Stwórz grupę dla swojej ekipy albo dołącz kodem od znajomego.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">Stwórz grupę dla swojej ekipy albo dołącz kodem od znajomego.</p>
             <Link href="/grupy/nowe" className="mt-1">
               <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="w-4 h-4" /> Stwórz grupę</Button>
             </Link>
@@ -118,19 +118,19 @@ export default function GroupsPage() {
               <Link
                 key={g.id}
                 href={`/grupy/${g.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+                className="flex items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
                   {g.sport ? sportEmoji(g.sport) : '👥'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-ink truncate">{g.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {g.memberCount ?? 0} {g.memberCount === 1 ? 'członek' : (g.memberCount ?? 0) < 5 ? 'członków' : 'członków'}
                     {g.city && ` · ${g.city}`}
                   </p>
                 </div>
-                <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-primary-600 transition-colors" />
+                <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
               </Link>
             ))}
           </div>

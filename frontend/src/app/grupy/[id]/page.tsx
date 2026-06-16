@@ -111,7 +111,7 @@ export default function GroupDetailPage() {
       <div className="min-h-screen flex flex-col bg-canvas">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-40 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+          <div className="h-40 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 animate-pulse" />
         </main>
       </div>
     );
@@ -123,8 +123,8 @@ export default function GroupDetailPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 text-center">
           <div>
-            <Users className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-            <p className="font-medium text-slate-500 mb-3">Nie znaleziono grupy</p>
+            <Users className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+            <p className="font-medium text-slate-500 dark:text-slate-400 mb-3">Nie znaleziono grupy</p>
             <Link href="/grupy" className="text-primary-700 text-sm font-medium hover:underline">Wróć do grup</Link>
           </div>
         </main>
@@ -140,19 +140,19 @@ export default function GroupDetailPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
 
-        <button onClick={() => router.push('/grupy')} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
+        <button onClick={() => router.push('/grupy')} className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-ink transition-colors">
           <ArrowLeft className="w-4 h-4" /> Grupy
         </button>
 
         {/* Header card */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
           <div className="flex items-start gap-4">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-3xl">
               {group.sport ? sportEmoji(group.sport) : '👥'}
             </span>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold text-ink">{group.name}</h1>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                 {members.length} {members.length === 1 ? 'członek' : 'członków'}
                 {group.sport && ` · ${sportLabel(group.sport)}`}
                 {group.city && ` · ${group.city}`}
@@ -160,7 +160,7 @@ export default function GroupDetailPage() {
             </div>
           </div>
           {group.description && (
-            <p className="mt-4 text-sm text-slate-600 whitespace-pre-line">{group.description}</p>
+            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{group.description}</p>
           )}
 
           {/* Membership actions */}
@@ -181,17 +181,17 @@ export default function GroupDetailPage() {
 
         {/* Invite */}
         {member && (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800 flex items-center gap-2"><Share2 className="w-4 h-4 text-slate-400" /> Zaproś do grupy</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><Share2 className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Zaproś do grupy</p>
                 <p className="mt-1 font-mono text-2xl font-bold tracking-[0.2em] text-primary-700">{group.joinCode}</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button onClick={share} className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95">
                   <Share2 className="w-3.5 h-3.5" /> Udostępnij
                 </button>
-                <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95">
+                <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95">
                   {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> OK</> : <><Copy className="w-3.5 h-3.5" /> Kod</>}
                 </button>
               </div>
@@ -200,23 +200,23 @@ export default function GroupDetailPage() {
         )}
 
         {/* Events */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-            <Calendar className="w-4 h-4 text-slate-400" /> Mecze grupy
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
+            <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Mecze grupy
           </h2>
           {events.length === 0 ? (
-            <p className="text-sm text-slate-400 py-2">Brak meczów. {member && 'Stwórz pierwszy!'}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-2">Brak meczów. {member && 'Stwórz pierwszy!'}</p>
           ) : (
             <div className="space-y-4">
               {upcoming.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Nadchodzące</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Nadchodzące</p>
                   {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} />)}
                 </div>
               )}
               {past.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Historia</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Historia</p>
                   {past.map((e) => <EventBrowseCard key={e.id} event={e} />)}
                 </div>
               )}
@@ -225,12 +225,12 @@ export default function GroupDetailPage() {
         </div>
 
         {/* Members */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
-            <Users className="w-4 h-4 text-slate-400" /> Członkowie
-            <span className="text-xs font-normal text-slate-400">{members.length}</span>
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
+            <Users className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Członkowie
+            <span className="text-xs font-normal text-slate-400 dark:text-slate-500">{members.length}</span>
           </h2>
-          <ul className="divide-y divide-slate-50">
+          <ul className="divide-y divide-slate-50 dark:divide-slate-700">
             {members.map((m) => (
               <li key={m.id} className="flex items-center gap-3 py-2.5">
                 <Link href={`/gracz/${m.userId}`} className="flex items-center gap-3 flex-1 min-w-0 group">
@@ -250,10 +250,10 @@ export default function GroupDetailPage() {
                       </span>
                     )}
                   </span>
-                  <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 group-hover:text-primary-600 transition-colors" />
+                  <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
                 </Link>
                 {isOwner && m.userId !== user?.id && (
-                  <button onClick={() => handleRemove(m.userId)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded shrink-0" title="Usuń z grupy">
+                  <button onClick={() => handleRemove(m.userId)} disabled={busy} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-500 rounded shrink-0" title="Usuń z grupy">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -266,11 +266,11 @@ export default function GroupDetailPage() {
         {member && (
           <div className="flex flex-col gap-2 pt-2">
             {isOwner ? (
-              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-800 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
                 <Trash2 className="w-4 h-4" /> Usuń grupę
               </button>
             ) : (
-              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors">
+              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors">
                 <LogOut className="w-4 h-4" /> Opuść grupę
               </button>
             )}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, User, Trophy, Calendar, Check, Star, ChevronRight } from 'lucide-react';
+import { Loader2, User, Trophy, Calendar, Star, ChevronRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -50,12 +50,12 @@ export default function PublicPlayerPage() {
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
         {loading ? (
-          <div className="flex justify-center py-20 text-slate-300">
+          <div className="flex justify-center py-20 text-slate-300 dark:text-slate-600">
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
         ) : notFound || !profile ? (
           <div className="text-center py-20">
-            <p className="text-slate-400 mb-4">Nie znaleziono gracza</p>
+            <p className="text-slate-400 dark:text-slate-500 mb-4">Nie znaleziono gracza</p>
             <Link href="/wydarzenia" className="text-primary-700 text-sm font-medium hover:underline">
               Wróć do wydarzeń
             </Link>
@@ -63,7 +63,7 @@ export default function PublicPlayerPage() {
         ) : (
           <>
             {/* Profile card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
               <div className="flex items-center gap-4">
                 {profile.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -89,7 +89,7 @@ export default function PublicPlayerPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-400 mt-0.5">
+                  <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
                     W Bojo od {new Date(profile.createdAt).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -98,18 +98,13 @@ export default function PublicPlayerPage() {
 
             {/* Stats */}
             {stats && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
                   <Trophy className="w-4 h-4" /> Statystyki
                 </h2>
                 <div className="grid grid-cols-2 gap-4">
                   <StatBox
                     icon={<Calendar className="w-4 h-4" />}
-                    label="Mecze dołączone"
-                    value={stats.eventsJoined}
-                  />
-                  <StatBox
-                    icon={<Check className="w-4 h-4" />}
                     label="Mecze rozegrane"
                     value={stats.matchesPlayed}
                     color="text-green-700"
@@ -126,12 +121,28 @@ export default function PublicPlayerPage() {
                     value={stats.eventsOrganized}
                     color="text-primary-700"
                   />
+                  {stats.noShows === 0 ? (
+                    <div className="rounded-xl bg-green-50 dark:bg-green-950 p-3 flex flex-col justify-between">
+                      <div className="flex items-center gap-1.5 text-xs text-green-700 mb-1">
+                        <ShieldCheck className="w-4 h-4" />
+                        <span className="text-slate-500 dark:text-slate-400">Niezawodność</span>
+                      </div>
+                      <p className="text-sm font-bold text-green-700 dark:text-green-400">Bezbłędna</p>
+                    </div>
+                  ) : (
+                    <StatBox
+                      icon={<AlertCircle className="w-4 h-4" />}
+                      label="Nieobecności"
+                      value={stats.noShows}
+                      color={stats.noShows >= 3 ? 'text-red-500' : 'text-amber-600'}
+                    />
+                  )}
                 </div>
 
                 {attendanceRate !== null && stats.attended > 0 && stats.eventsJoined >= 3 && (
-                  <div className="mt-4 pt-4 border-t border-slate-100">
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
                     <div className="flex items-center justify-between text-sm mb-1.5">
-                      <span className="text-slate-500">Frekwencja</span>
+                      <span className="text-slate-500 dark:text-slate-400">Frekwencja</span>
                       <span className={[
                         'font-semibold',
                         attendanceRate >= 80 ? 'text-green-700' : attendanceRate >= 60 ? 'text-amber-600' : 'text-red-500',
@@ -139,7 +150,7 @@ export default function PublicPlayerPage() {
                         {attendanceRate}%
                       </span>
                     </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div
                         className={[
                           'h-full rounded-full transition-all',
@@ -154,37 +165,37 @@ export default function PublicPlayerPage() {
             )}
 
             {/* Game history */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
                 <Calendar className="w-4 h-4" /> Historia gier
               </h2>
               {history.length === 0 ? (
-                <p className="text-sm text-slate-400 py-2">Brak rozegranych meczów.</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 py-2">Brak rozegranych meczów.</p>
               ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                   {history.map((h) => (
                     <li key={h.eventId}>
                       <Link
                         href={`/wydarzenia/${h.eventId}`}
-                        className="flex items-center gap-3 py-3 -mx-2 px-2 rounded-xl hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-3 py-3 -mx-2 px-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                       >
                         <span className="text-2xl shrink-0" aria-hidden="true">{sportEmoji(h.sport)}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-ink truncate">
                             {h.title || h.fieldName}
                           </p>
-                          <p className="text-xs text-slate-400">
+                          <p className="text-xs text-slate-400 dark:text-slate-500">
                             {(() => { try { return format(parseISO(h.date), 'd MMM yyyy', { locale: pl }); } catch { return h.date; } })()}
                             {h.isOrganizer && ' · organizator'}
                             {h.isReserve && ' · rezerwa'}
                           </p>
                         </div>
                         {h.goals > 0 && (
-                          <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                          <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950 rounded-full px-2 py-0.5">
                             {h.goals} {h.goals === 1 ? 'gol' : 'gole'}
                           </span>
                         )}
-                        <ChevronRight className="w-4 h-4 shrink-0 text-slate-300" />
+                        <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600" />
                       </Link>
                     </li>
                   ))}
@@ -207,10 +218,10 @@ function StatBox({
   color?: string;
 }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 dark:bg-slate-900 p-3">
       <div className={`flex items-center gap-1.5 text-xs mb-1 ${color}`}>
         {icon}
-        <span className="text-slate-500">{label}</span>
+        <span className="text-slate-500 dark:text-slate-400">{label}</span>
       </div>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
     </div>

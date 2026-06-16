@@ -100,7 +100,7 @@ export default function EventsPage() {
             type="button"
             aria-label="Wróć"
             onClick={() => router.back()}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -110,19 +110,19 @@ export default function EventsPage() {
         {/* Search bar */}
         <div className="px-4 pt-1 pb-2">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Szukaj po nazwie lub boisku…"
-              className="w-full rounded-2xl bg-slate-100 py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:bg-white transition-colors"
+              className="w-full rounded-2xl bg-slate-100 dark:bg-slate-700 py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:bg-white dark:focus:bg-slate-700 transition-colors"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -144,7 +144,7 @@ export default function EventsPage() {
                 className={`flex shrink-0 items-center justify-center h-9 w-9 rounded-full text-lg transition-colors ${
                   active
                     ? 'bg-primary-700 ring-2 ring-primary-700 ring-offset-1'
-                    : 'bg-white ring-1 ring-slate-200 hover:ring-primary-300'
+                    : 'bg-white dark:bg-slate-800 ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-primary-300'
                 }`}
                 aria-pressed={active}
               >
@@ -166,7 +166,7 @@ export default function EventsPage() {
                 className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   active
                     ? 'bg-primary-700 text-white'
-                    : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-primary-300'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700 hover:ring-primary-300'
                 }`}
               >
                 {label}
@@ -178,7 +178,7 @@ export default function EventsPage() {
         {/* Results count */}
         {!loading && (
           <div className="flex items-center justify-between px-4 pb-2">
-            <span className="text-[13px] text-slate-500">
+            <span className="text-[13px] text-slate-500 dark:text-slate-400">
               {filtered.length > 0 ? `${filtered.length} ${filtered.length === 1 ? 'mecz' : filtered.length < 5 ? 'mecze' : 'meczy'}` : 'Brak meczy'}
             </span>
           </div>
@@ -188,7 +188,7 @@ export default function EventsPage() {
         {loading && (
           <div className="space-y-3 px-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+              <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-700" />
             ))}
           </div>
         )}
@@ -206,8 +206,8 @@ export default function EventsPage() {
         {!loading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
             <span className="text-5xl mb-4">⚽</span>
-            <p className="text-base font-bold text-slate-700">Brak meczy</p>
-            <p className="mt-1 text-sm text-slate-500">Zmień filtr lub stwórz własny mecz.</p>
+            <p className="text-base font-bold text-slate-700 dark:text-slate-300">Brak meczy</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Zmień filtr lub stwórz własny mecz.</p>
             {hasFilters && (
               <button
                 type="button"

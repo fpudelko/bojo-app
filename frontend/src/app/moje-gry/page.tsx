@@ -43,7 +43,7 @@ export default function MojeGryPage() {
               <Users className="w-7 h-7 text-primary-700" />
             </div>
             <h1 className="font-display text-2xl font-bold text-ink mb-2">Twoje mecze</h1>
-            <p className="text-slate-500 text-sm mb-6">Zaloguj się, aby zobaczyć swoje mecze.</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Zaloguj się, aby zobaczyć swoje mecze.</p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="inline-flex items-center gap-2">
               <LogIn className="w-4 h-4" /> Zaloguj się
             </Button>
@@ -70,22 +70,22 @@ export default function MojeGryPage() {
         {SHOW_RECURRING && (
           <Link
             href="/cykliczne"
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+            className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
           >
             <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
-            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-600 transition-colors" />
+            <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
           </Link>
         )}
 
         {/* Tabs */}
-        <div className="border-b border-slate-100">
+        <div className="border-b border-slate-100 dark:border-slate-700">
           <div className="flex gap-6">
             <button
               onClick={() => setTab('upcoming')}
               className={`pb-2.5 text-sm transition-colors ${
                 tab === 'upcoming'
                   ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
-                  : 'text-slate-500 hover:text-ink'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
               }`}
             >
               Nadchodzące
@@ -95,7 +95,7 @@ export default function MojeGryPage() {
               className={`pb-2.5 text-sm transition-colors ${
                 tab === 'history'
                   ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
-                  : 'text-slate-500 hover:text-ink'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
               }`}
             >
               Historia
@@ -107,7 +107,7 @@ export default function MojeGryPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-[76px] bg-white rounded-2xl border border-slate-200/80 animate-pulse" />
+              <div key={i} className="h-[76px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />
             ))}
           </div>
         ) : loadError ? (
@@ -139,7 +139,7 @@ export default function MojeGryPage() {
           )
         ) : (
           history.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-12">Brak historii meczy</p>
+            <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-12">Brak historii meczy</p>
           ) : (
             <div className="space-y-3">
               {history.map(({ event, isOrganizer }) => (
