@@ -164,6 +164,7 @@ export interface EventItem {
   customAddress?: string;
   fieldAddress?: string; // address fetched from fields table (when field_id is set)
   district?: string;     // dzielnica from the linked field (when field_id is set)
+  groupId?: string;      // optional group this event belongs to
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
   trackAttendance: boolean;
@@ -226,6 +227,7 @@ export interface EventCreate {
   confirmationDeadlineH?: number;
   costGrosze?: number;
   requireApproval?: boolean;
+  groupId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -380,6 +382,60 @@ export interface EventComment {
   body: string;
   deletedAt?: string;
   createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Groups — a recurring crew of players
+// ---------------------------------------------------------------------------
+
+export type GroupRole = 'admin' | 'member';
+
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  sport?: string;
+  city?: string;
+  createdBy?: string;
+  joinCode: string;
+  createdAt: string;
+  memberCount?: number; // populated in list queries
+}
+
+export interface GroupMember {
+  id: string;
+  groupId: string;
+  userId: string;
+  role: GroupRole;
+  joinedAt: string;
+  // joined from profiles / participations
+  name: string;
+  avatarUrl?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Player profile — aggregated stats + game history
+// ---------------------------------------------------------------------------
+
+export interface PlayerAggregateStats {
+  eventsJoined: number;
+  eventsOrganized: number;
+  matchesPlayed: number;
+  goalsTotal: number;
+  attended: number;
+  noShows: number;
+}
+
+export interface PlayerHistoryItem {
+  eventId: string;
+  sport: string;
+  title?: string;
+  fieldName: string;
+  date: string;
+  isOrganizer: boolean;
+  isReserve: boolean;
+  goals: number;
+  hasResult: boolean;
 }
 
 // ---------------------------------------------------------------------------

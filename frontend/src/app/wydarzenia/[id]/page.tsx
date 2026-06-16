@@ -109,6 +109,21 @@ function PlayerAvatar({ p }: { p: EventParticipant }) {
   );
 }
 
+/** Wraps a participant row in a link to their public profile — but only for
+ *  real accounts (guests have no profile page). */
+function PlayerLink({ p, className, children }: {
+  p: EventParticipant; className?: string; children: React.ReactNode;
+}) {
+  if (p.userId && !p.isGuest) {
+    return (
+      <Link href={`/gracz/${p.userId}`} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return <div className={className}>{children}</div>;
+}
+
 /** Inline roster — rendered INSIDE the player-count card when the avatar stack
  *  is expanded. Real avatars, teams + publish for organizer. */
 function ParticipantsList({
@@ -138,11 +153,11 @@ function ParticipantsList({
                 <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
                 <div className="space-y-2">
                   {players.map((p) => (
-                    <div key={p.id} className="flex items-center gap-2">
+                    <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
                       <PlayerAvatar p={p} />
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
                       {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                    </div>
+                    </PlayerLink>
                   ))}
                 </div>
               </div>
@@ -151,11 +166,11 @@ function ParticipantsList({
       ) : (
         <div className="divide-y divide-slate-50">
           {regulars.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 py-2">
+            <PlayerLink key={p.id} p={p} className="flex items-center gap-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
               <PlayerAvatar p={p} />
               <span className="flex-1 text-sm font-medium text-ink truncate">{p.name}</span>
               {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
-            </div>
+            </PlayerLink>
           ))}
         </div>
       )}
@@ -273,6 +288,7 @@ export default function EventDetailPage() {
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -287,6 +303,13 @@ export default function EventDetailPage() {
       setEvent(ev);
       setParticipants(parts);
       await loadMatchData(ev);
+      if (ev.groupId) {
+        import('@/lib/groups').then(({ getGroup }) =>
+          getGroup(ev.groupId!).then((g) => g && setGroupInfo({ id: g.id, name: g.name })).catch(() => {}),
+        );
+      } else {
+        setGroupInfo(null);
+      }
     } catch {
       setNotFound(true);
     } finally {
@@ -754,6 +777,15 @@ export default function EventDetailPage() {
                 ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
                 : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
             </span>
+            {/* group */}
+            {groupInfo && (
+              <Link
+                href={`/grupy/${groupInfo.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+              >
+                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -1001,7 +1033,13 @@ export default function EventDetailPage() {
 
                   {/* Name + badges */}
                   <span className="flex-1 flex items-center gap-1 text-sm text-ink min-w-0 overflow-hidden">
-                    <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
+                    {p.userId && !p.isGuest ? (
+                      <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[100px] sm:max-w-[160px] hover:text-primary-700 hover:underline">
+                        {p.name}
+                      </Link>
+                    ) : (
+                      <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
+                    )}
                     {p.isGuest && (
                       <span className="text-xs text-slate-400 shrink-0">
                         (gość{isOrganizer && p.addedBy && p.addedBy !== user?.id

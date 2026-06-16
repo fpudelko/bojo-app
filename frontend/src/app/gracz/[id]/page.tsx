@@ -2,86 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, User, Trophy, Calendar, Check, X, Star } from 'lucide-react';
+import { Loader2, User, Trophy, Calendar, Check, Star, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
-import { supabase } from '@/lib/supabase';
-
-interface PublicProfile {
-  id: string;
-  displayName: string;
-  avatarUrl?: string;
-  createdAt: string;
-}
-
-interface PlayerStats {
-  eventsOrganized: number;
-  eventsJoined: number;
-  eventsAttended: number;
-  noShows: number;
-  goalsTotal: number;
-}
+import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } from '@/lib/players';
+import { sportEmoji } from '@/lib/sports';
+import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
 
 export default function PublicPlayerPage() {
   const { id } = useParams<{ id: string }>();
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [profile, setProfile] = useState<PublicPlayer | null>(null);
+  const [stats, setStats] = useState<PlayerAggregateStats | null>(null);
+  const [history, setHistory] = useState<PlayerHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        // Profile
-        const { data: profileRow, error: pErr } = await supabase
-          .from('profiles')
-          .select('id, avatar_url, created_at')
-          .eq('id', id)
-          .single();
-        if (pErr || !profileRow) { setNotFound(true); return; }
-
-        // Display name from auth metadata via participants table (most recent non-guest entry)
-        const { data: nameRow } = await supabase
-          .from('event_participants')
-          .select('name')
-          .eq('user_id', id)
-          .eq('is_guest', false)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        setProfile({
-          id: profileRow.id,
-          displayName: nameRow?.name ?? 'Gracz',
-          avatarUrl: profileRow.avatar_url ?? undefined,
-          createdAt: profileRow.created_at,
-        });
-
-        // Stats
-        const [{ count: organized }, { count: joined }, playerStatsRow] = await Promise.all([
-          supabase
-            .from('events')
-            .select('id', { count: 'exact', head: true })
-            .eq('organizer_id', id),
-          supabase
-            .from('event_participants')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', id)
-            .eq('is_guest', false),
-          supabase
-            .from('player_stats')
-            .select('confirmed_count, no_show_count, goals_total')
-            .eq('user_id', id)
-            .maybeSingle(),
-        ]);
-
-        setStats({
-          eventsOrganized: organized ?? 0,
-          eventsJoined: joined ?? 0,
-          eventsAttended: playerStatsRow.data?.confirmed_count ?? 0,
-          noShows: playerStatsRow.data?.no_show_count ?? 0,
-          goalsTotal: playerStatsRow.data?.goals_total ?? 0,
-        });
+        const p = await getPublicPlayer(id);
+        if (!p) { setNotFound(true); return; }
+        setProfile(p);
+        const [s, h] = await Promise.all([getPlayerStats(id), getPlayerHistory(id)]);
+        setStats(s);
+        setHistory(h);
       } catch (e) {
         console.error('[PublicProfile]', e);
         setNotFound(true);
@@ -94,7 +40,7 @@ export default function PublicPlayerPage() {
 
   const attendanceRate =
     stats && stats.eventsJoined > 0
-      ? Math.round((stats.eventsAttended / stats.eventsJoined) * 100)
+      ? Math.round((stats.attended / stats.eventsJoined) * 100)
       : null;
 
   const reliablePlayer = attendanceRate !== null && attendanceRate >= 80 && stats!.eventsJoined >= 5;
@@ -132,7 +78,7 @@ export default function PublicPlayerPage() {
                   </div>
                 )}
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-xl font-bold text-ink">{profile.displayName}</h1>
                     {reliablePlayer && (
                       <span
@@ -165,14 +111,8 @@ export default function PublicPlayerPage() {
                   <StatBox
                     icon={<Check className="w-4 h-4" />}
                     label="Mecze rozegrane"
-                    value={stats.eventsAttended}
+                    value={stats.matchesPlayed}
                     color="text-green-700"
-                  />
-                  <StatBox
-                    icon={<X className="w-4 h-4" />}
-                    label="Nie przyszedł"
-                    value={stats.noShows}
-                    color="text-red-500"
                   />
                   <StatBox
                     icon={<Trophy className="w-4 h-4" />}
@@ -180,9 +120,15 @@ export default function PublicPlayerPage() {
                     value={stats.goalsTotal}
                     color="text-amber-600"
                   />
+                  <StatBox
+                    icon={<Star className="w-4 h-4" />}
+                    label="Zorganizowane"
+                    value={stats.eventsOrganized}
+                    color="text-primary-700"
+                  />
                 </div>
 
-                {attendanceRate !== null && stats.eventsJoined >= 3 && (
+                {attendanceRate !== null && stats.attended > 0 && stats.eventsJoined >= 3 && (
                   <div className="mt-4 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between text-sm mb-1.5">
                       <span className="text-slate-500">Frekwencja</span>
@@ -204,15 +150,47 @@ export default function PublicPlayerPage() {
                     </div>
                   </div>
                 )}
-
-                {stats.eventsOrganized > 0 && (
-                  <p className="text-sm text-slate-500 mt-3">
-                    Zorganizował <span className="font-semibold text-slate-800">{stats.eventsOrganized}</span>{' '}
-                    {stats.eventsOrganized === 1 ? 'mecz' : stats.eventsOrganized < 5 ? 'mecze' : 'meczów'}
-                  </p>
-                )}
               </div>
             )}
+
+            {/* Game history */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
+                <Calendar className="w-4 h-4" /> Historia gier
+              </h2>
+              {history.length === 0 ? (
+                <p className="text-sm text-slate-400 py-2">Brak rozegranych meczów.</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {history.map((h) => (
+                    <li key={h.eventId}>
+                      <Link
+                        href={`/wydarzenia/${h.eventId}`}
+                        className="flex items-center gap-3 py-3 -mx-2 px-2 rounded-xl hover:bg-slate-50 transition-colors"
+                      >
+                        <span className="text-2xl shrink-0" aria-hidden="true">{sportEmoji(h.sport)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-ink truncate">
+                            {h.title || h.fieldName}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {(() => { try { return format(parseISO(h.date), 'd MMM yyyy', { locale: pl }); } catch { return h.date; } })()}
+                            {h.isOrganizer && ' · organizator'}
+                            {h.isReserve && ' · rezerwa'}
+                          </p>
+                        </div>
+                        {h.goals > 0 && (
+                          <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                            {h.goals} {h.goals === 1 ? 'gol' : 'gole'}
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 shrink-0 text-slate-300" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </>
         )}
       </main>
@@ -230,7 +208,7 @@ function StatBox({
 }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3">
-      <div className={`flex items-center gap-1.5 text-slate-400 text-xs mb-1 ${color}`}>
+      <div className={`flex items-center gap-1.5 text-xs mb-1 ${color}`}>
         {icon}
         <span className="text-slate-500">{label}</span>
       </div>

@@ -82,6 +82,20 @@ function NewEventForm() {
   const [showPaymentStatus, setShowPaymentStatus] = useState(false);
   const [costPln, setCostPln] = useState('');
 
+  // Attach the new event to a group when arriving via ?group=
+  const groupId = searchParams.get('group') || undefined;
+  const [groupName, setGroupName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!groupId) return;
+    import('@/lib/groups').then(({ getGroup }) =>
+      getGroup(groupId).then((g) => {
+        if (!g) return;
+        setGroupName(g.name);
+        if (g.sport) setSport(g.sport);
+      }).catch(() => {}),
+    );
+  }, [groupId]);
+
   // Pre-select field from URL ?fieldId=
   const preFieldId = searchParams.get('fieldId');
   useEffect(() => {
@@ -207,6 +221,7 @@ function NewEventForm() {
           confirmationDeadlineH: 24,
           costGrosze: Math.round(parseFloat(costPln || '0') * 100),
           requireApproval,
+          groupId,
         },
         user.id,
         displayName(user),
@@ -273,6 +288,13 @@ function NewEventForm() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-6">Nowe wydarzenie</h1>
+
+        {groupName && (
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm text-primary-800">
+            <Users className="w-4 h-4 shrink-0" />
+            Mecz w grupie <span className="font-semibold">{groupName}</span>
+          </div>
+        )}
 
         {stepIndicator}
 

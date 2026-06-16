@@ -159,6 +159,17 @@ export default function Header() {
                   >
                     Moje mecze
                   </Link>
+                  <Link
+                    href="/grupy"
+                    className={clsx(
+                      'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
+                      pathname === '/grupy' || pathname.startsWith('/grupy/')
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                    )}
+                  >
+                    Grupy
+                  </Link>
                   {SHOW_RECURRING && (
                     <Link
                       href="/cykliczne"
@@ -248,6 +259,7 @@ export default function Header() {
                   { href: '/wydarzenia/nowe', label: 'Stwórz mecz', Icon: Plus, primary: true },
                   { href: '/wydarzenia', label: 'Znajdź mecz', Icon: Search },
                   ...(!loading && user ? [{ href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays }] : []),
+                  ...(!loading && user ? [{ href: '/grupy', label: 'Grupy', Icon: UsersIcon }] : []),
                   { href: '/mapa', label: 'Mapa boisk', Icon: Map },
                   ...(!loading && user && hasVenue ? [{ href: '/obiekt', label: 'Moje obiekty', Icon: Building2 }] : []),
                 ];

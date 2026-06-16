@@ -48,6 +48,7 @@ function toEvent(row: any): EventItem {
     customAddress: row.custom_address ?? undefined,
     fieldAddress: row.field_address ?? undefined,
     district: row.field_district ?? undefined,
+    groupId: row.group_id ?? undefined,
   };
 }
 
@@ -126,6 +127,7 @@ export async function createEvent(
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
+      group_id: data.groupId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
     })
@@ -261,6 +263,16 @@ export async function getMyEvents(userId: string): Promise<EventItem[]> {
     .select('*, event_participants(id, is_reserve)')
     .eq('organizer_id', userId)
     .order('event_date', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toEvent);
+}
+
+export async function getEventsByGroup(groupId: string): Promise<EventItem[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, event_participants(id, is_reserve)')
+    .eq('group_id', groupId)
+    .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map(toEvent);
 }
