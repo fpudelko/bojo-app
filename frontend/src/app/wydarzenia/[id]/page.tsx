@@ -958,9 +958,9 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany ── */}
-        {!(user && myParticipation) && (
-          <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
+        {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany i mecz się nie zaczął ── */}
+        {!(user && myParticipation) && !eventStarted && (
+          <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
                 <button
@@ -982,13 +982,27 @@ export default function EventDetailPage() {
                 <>
                   <button
                     onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 text-[15px] font-bold text-slate-600 transition active:scale-[0.99]"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
                   >
                     Komplet — zapisz się na rezerwę
                   </button>
-                  <p className="mt-2 text-center text-[11px] text-slate-500">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
+                  <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
                 </>
               ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* ── MECZ JUŻ TRWA / PO MECZU — komunikat zamiast przycisku dołączania ── */}
+        {!(user && myParticipation) && eventStarted && (
+          <div className="px-4">
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3.5 text-sm font-medium text-slate-500 dark:text-slate-400">
+              <Clock className="w-4 h-4 shrink-0" />
+              {event.status === 'cancelled'
+                ? 'Mecz został odwołany'
+                : resultsAvailable
+                  ? 'Mecz już się odbył — zapisy zamknięte'
+                  : 'Mecz już się rozpoczął — zapisy zamknięte'}
             </div>
           </div>
         )}
