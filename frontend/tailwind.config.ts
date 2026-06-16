@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -49,8 +50,8 @@ const config: Config = {
           800: '#92400e',
           900: '#78350f',
         },
-        ink:    '#1A1D21',
-        canvas: '#FAF9F6',
+        ink:    'var(--color-ink)',
+        canvas: 'var(--color-canvas)',
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Bricolage_Grotesque } from 'next/font/google';
+import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
@@ -57,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={`${inter.variable} ${bricolage.variable}`}>
+    <html lang="pl" suppressHydrationWarning className={`${inter.variable} ${bricolage.variable}`}>
       <head>
         {/* SVG favicon — inlined so it works without a file server */}
         <link
@@ -67,13 +68,15 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-canvas font-sans antialiased text-ink">
-        <AuthProvider>
-          <ToastProvider>
-            <AnnouncementBar />
-            {children}
-            <CookieBanner />
-          </ToastProvider>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>
+            <ToastProvider>
+              <AnnouncementBar />
+              {children}
+              <CookieBanner />
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

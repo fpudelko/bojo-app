@@ -8,6 +8,7 @@ import type { EventItem } from '@/types';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { timeUntil } from './EventListCard';
+import { isUpcoming } from './EventCard';
 
 function sizeSuffix(max: number): string {
   if (max <= 0) return '';
@@ -40,6 +41,8 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
   const timeLabel = event.time ? event.time.slice(0, 5) : '';
   const until = timeUntil(event.date, event.time ?? undefined);
   const soon = until !== null;
+  const cancelled = event.status === 'cancelled';
+  const past = cancelled || !isUpcoming(event);
 
   const location = eventLocation(event).primary;
   const title = event.title || `${event.sport}${sizeSuffix(max)}`;
@@ -52,8 +55,8 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
   return (
     <Link
       href={`/wydarzenia/${event.id}`}
-      className="flex overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] active:scale-[0.995]"
-      style={{ borderLeft: `4px solid ${color}` }}
+      className={`flex overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 dark:ring-slate-700 transition-shadow active:scale-[0.995] ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
+      style={{ borderLeft: `4px solid ${past ? '#94a3b8' : color}` }}
     >
       <div className="flex-1 p-3">
         {/* top: icon + title + price */}
@@ -97,17 +100,28 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
           </div>
         </div>
 
-        {/* progress */}
-        {max > 0 && (
+        {/* progress / past indicator */}
+        {past ? (
+          <div className="mt-2.5 flex items-center gap-2">
+            {cancelled ? (
+              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Anulowany</span>
+            ) : (
+              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
+            )}
+            {max > 0 && (
+              <span className="text-xs text-slate-400 dark:text-slate-500">{taken} graczy</span>
+            )}
+          </div>
+        ) : max > 0 ? (
           <>
-            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
               <div
                 className="h-full rounded-full transition-all"
                 style={{ width: `${pct}%`, backgroundColor: barColor }}
               />
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-700">{taken}/{max} graczy</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
               <div className="flex items-center gap-3">
                 {full ? (
                   <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
@@ -122,7 +136,7 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
               </div>
             </div>
           </>
-        )}
+        ) : null}
       </div>
     </Link>
   );

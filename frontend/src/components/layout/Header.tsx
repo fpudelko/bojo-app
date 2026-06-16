@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
@@ -45,6 +46,9 @@ export default function Header() {
   const isAdmin = useAdmin();
   const userAvatar = avatarUrl(user);
   const [hasVenue, setHasVenue] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Send users back to where they were after logging in.
   const loginHref = pathname && pathname !== '/'
@@ -106,7 +110,7 @@ export default function Header() {
     <>
       {/* ── Sticky header bar ── */}
       <header className={clsx(
-        'bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-slate-200/70 sticky top-0 z-[1010] transition-shadow duration-200',
+        'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-slate-900/80 border-b border-slate-200/70 dark:border-slate-700/70 sticky top-0 z-[1010] transition-shadow duration-200',
         scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
       )}>
         <div className="max-w-6xl mx-auto px-4">
@@ -197,6 +201,16 @@ export default function Header() {
                     </Link>
                   )}
                   {isAdmin && <AdminMenu pathname={pathname} />}
+                  {mounted && (
+                    <button
+                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                      className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                      aria-label={resolvedTheme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'}
+                      title={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
+                    >
+                      {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
+                  )}
                   <NotificationBell />
                   <Link
                     href="/wydarzenia/nowe"
@@ -225,12 +239,24 @@ export default function Header() {
                 </>
               )}
               {!loading && !user && (
-                <Link
-                  href={loginHref}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary-700 text-white hover:bg-primary-800 transition-colors"
-                >
-                  Zaloguj się
-                </Link>
+                <>
+                  {mounted && (
+                    <button
+                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                      className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                      aria-label={resolvedTheme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'}
+                      title={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
+                    >
+                      {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
+                  )}
+                  <Link
+                    href={loginHref}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary-700 text-white hover:bg-primary-800 transition-colors"
+                  >
+                    Zaloguj się
+                  </Link>
+                </>
               )}
             </div>
 
@@ -249,7 +275,7 @@ export default function Header() {
 
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
-        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white flex flex-col pt-16">
+        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white dark:bg-slate-900 flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
 
             {/* Main navigation — uniform rows ("Stwórz mecz" highlighted) */}
@@ -272,12 +298,12 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className={clsx(
                         'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
-                        active ? 'bg-primary-50' : 'hover:bg-slate-50',
+                        active ? 'bg-primary-50 dark:bg-primary-950' : 'hover:bg-slate-50 dark:hover:bg-slate-800',
                       )}
                     >
                       <span className={clsx(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                        primary ? 'bg-primary-700 text-white' : active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
+                        primary ? 'bg-primary-700 text-white' : active ? 'bg-primary-100 dark:bg-primary-900 text-primary-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
                       )}>
                         <Icon className="h-5 w-5" />
                       </span>
@@ -344,7 +370,7 @@ export default function Header() {
             )}
           </nav>
 
-          <div className="border-t border-slate-200/70 px-5 py-5">
+          <div className="border-t border-slate-200/70 dark:border-slate-700/70 px-5 py-5">
             {!loading && user && (
               <div className="flex items-center justify-between">
                 <Link
@@ -363,9 +389,18 @@ export default function Header() {
                     <p className="text-xs text-slate-500">Edytuj profil</p>
                   </div>
                 </Link>
+                {mounted && (
+                  <button
+                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                    className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
+                  >
+                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
+                )}
                 <button
                   onClick={() => { setMobileOpen(false); signOut(); }}
-                  className="ml-3 shrink-0 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 transition-colors"
+                  className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   aria-label="Wyloguj"
                 >
                   <LogOut className="w-5 h-5" />
@@ -373,13 +408,24 @@ export default function Header() {
               </div>
             )}
             {!loading && !user && (
-              <Link
-                href={loginHref}
-                onClick={() => setMobileOpen(false)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-              >
-                Zaloguj się
-              </Link>
+              <div className="flex items-center gap-2">
+                {mounted && (
+                  <button
+                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                    className="shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
+                  >
+                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
+                )}
+                <Link
+                  href={loginHref}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                >
+                  Zaloguj się
+                </Link>
+              </div>
             )}
           </div>
         </div>

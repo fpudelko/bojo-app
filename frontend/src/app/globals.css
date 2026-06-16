@@ -12,6 +12,19 @@
   --color-text: #1A1D21;
   --color-text-muted: #64748b;
   --color-border: #E4E2DD;
+  --color-ink: #1A1D21;
+  --color-canvas: #FAF9F6;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-bg: #0F172A;
+  --color-bg-muted: #1E293B;
+  --color-text: #E2E8F0;
+  --color-text-muted: #94A3B8;
+  --color-border: #334155;
+  --color-ink: #E2E8F0;
+  --color-canvas: #0F172A;
 }
 
 * {
