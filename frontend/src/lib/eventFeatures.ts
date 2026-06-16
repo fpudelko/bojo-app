@@ -37,23 +37,19 @@ export async function saveEventAdvancedSettings(
 // ---------------------------------------------------------------------------
 
 export async function publishTeams(eventId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('events')
-    .update({ teams_published: true })
-    .eq('id', eventId)
-    .select('id');
-  if (error) throw new Error(`${error.code}: ${error.message}`);
-  if (!data || data.length === 0) throw new Error('Brak uprawnień — sprawdź czy jesteś organizatorem meczu');
+  const { error } = await supabase.rpc('set_event_teams_published', {
+    p_event_id: eventId,
+    p_published: true,
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function unpublishTeams(eventId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('events')
-    .update({ teams_published: false })
-    .eq('id', eventId)
-    .select('id');
-  if (error) throw new Error(`${error.code}: ${error.message}`);
-  if (!data || data.length === 0) throw new Error('Brak uprawnień — sprawdź czy jesteś organizatorem meczu');
+  const { error } = await supabase.rpc('set_event_teams_published', {
+    p_event_id: eventId,
+    p_published: false,
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function updateParticipantStatus(
