@@ -79,19 +79,19 @@ export default function GroupsPage() {
         {/* Join by code */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2.5 text-sm font-semibold text-slate-800">Masz kod grupy?</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-w-xs">
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-              placeholder="np. K7QP4B"
+              placeholder="K7QP4B"
               maxLength={8}
-              className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 font-mono text-base font-bold uppercase tracking-widest text-primary-700 placeholder:font-sans placeholder:text-sm placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-32 min-w-0 rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-base font-bold uppercase tracking-widest text-primary-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <button
               onClick={handleJoin}
               disabled={code.trim().length < 4 || joining}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-40"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-40"
             >
               {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Dołącz <ArrowRight className="w-4 h-4" /></>}
             </button>
