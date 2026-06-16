@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -165,6 +165,100 @@ function DroppableColumn({
 }
 
 // ---------------------------------------------------------------------------
+// Swipeable row for unassigned players
+// ---------------------------------------------------------------------------
+const SWIPE_THRESHOLD = 72;
+
+function SwipeablePlayerRow({
+  participant,
+  busy,
+  onAssign,
+}: {
+  participant: EventParticipant;
+  busy: boolean;
+  onAssign: (id: string, team: 'A' | 'B') => void;
+}) {
+  const startX = useRef<number | null>(null);
+  const [offsetX, setOffsetX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    setOffsetX(0);
+    setSwiping(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startX.current === null) return;
+    const dx = e.touches[0].clientX - startX.current;
+    if (Math.abs(dx) > 8) {
+      setSwiping(true);
+      setOffsetX(dx);
+      e.preventDefault(); // stop scroll while swiping
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (Math.abs(offsetX) >= SWIPE_THRESHOLD && !busy) {
+      onAssign(participant.id, offsetX > 0 ? 'A' : 'B');
+    }
+    setOffsetX(0);
+    setSwiping(false);
+    startX.current = null;
+  };
+
+  const pct = Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1);
+  const toBlue = offsetX > 0;
+  const toRed = offsetX < 0;
+  const committed = Math.abs(offsetX) >= SWIPE_THRESHOLD;
+
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      {/* Reveal background */}
+      <div className={[
+        'absolute inset-0 rounded-xl flex items-center transition-colors',
+        toBlue ? 'bg-blue-500' : toRed ? 'bg-red-500' : 'bg-slate-100',
+      ].join(' ')}
+        style={{ opacity: pct * 0.9 }}
+      >
+        {toBlue && <span className="pl-3 text-xs font-bold text-white">Niebiescy</span>}
+        {toRed && <span className="ml-auto pr-3 text-xs font-bold text-white">Czerwoni</span>}
+      </div>
+
+      <div
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: swiping ? 'none' : 'transform 0.25s ease',
+          ...(committed ? { opacity: 0.6 } : {}),
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="relative flex items-center gap-2 bg-white rounded-xl px-3 py-2 text-sm text-slate-700 border border-slate-200 touch-pan-y select-none"
+      >
+        <span className="flex-1 truncate">{participant.name}</span>
+        <div className="flex gap-1.5 shrink-0">
+          <button
+            onClick={() => !busy && onAssign(participant.id, 'A')}
+            disabled={busy}
+            className="rounded-lg px-2.5 py-0.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+          >
+            N
+          </button>
+          <button
+            onClick={() => !busy && onAssign(participant.id, 'B')}
+            disabled={busy}
+            className="rounded-lg px-2.5 py-0.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+          >
+            C
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Unassigned tray
 // ---------------------------------------------------------------------------
 function UnassignedTray({
@@ -194,32 +288,23 @@ function UnassignedTray({
         Nieprzypisani — {participants.length}
       </p>
       <div className="space-y-1.5">
-        {participants.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 text-sm text-slate-700 border border-slate-200"
-          >
-            <span className="flex-1 truncate">{p.name}</span>
-            {isOrganizer && (
-              <div className="flex gap-1.5 shrink-0">
-                <button
-                  onClick={() => onAssign(p.id, 'A')}
-                  disabled={busy}
-                  className="rounded-lg px-2.5 py-0.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
-                >
-                  N
-                </button>
-                <button
-                  onClick={() => onAssign(p.id, 'B')}
-                  disabled={busy}
-                  className="rounded-lg px-2.5 py-0.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
-                >
-                  C
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+        {participants.map((p) =>
+          isOrganizer ? (
+            <SwipeablePlayerRow
+              key={p.id}
+              participant={p}
+              busy={busy}
+              onAssign={onAssign}
+            />
+          ) : (
+            <div
+              key={p.id}
+              className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 text-sm text-slate-700 border border-slate-200"
+            >
+              <span className="flex-1 truncate">{p.name}</span>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
@@ -308,7 +393,7 @@ export default function TeamsPanel({
       {isOrganizer && (onPublishTeams || onUnpublishTeams) && (
         <button
           type="button"
-          onClick={teamsPublished ? onUnpublishTeams : onPublishTeams}
+          onClick={() => teamsPublished ? onUnpublishTeams?.() : onPublishTeams?.()}
           disabled={busy}
           className="w-full flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 mb-4 text-left hover:bg-slate-100 disabled:opacity-50 transition-colors"
         >
