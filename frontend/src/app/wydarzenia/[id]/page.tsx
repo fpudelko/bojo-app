@@ -1201,13 +1201,6 @@ export default function EventDetailPage() {
           />
         )}
 
-        {/* PANEL ZAPRASZANIA — widoczny dla uczestników i organizatora */}
-        {(myParticipation || isOwner) && !eventStarted && event.joinCode && (
-          <JoinCodePanel
-            joinCode={event.joinCode}
-            eventId={event.id}
-          />
-        )}
 
         {/* Cost split summary */}
         {event.trackPayments && event.costGrosze > 0 && isOwner && !eventStarted && (
