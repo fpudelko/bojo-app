@@ -179,26 +179,6 @@ export default function GroupDetailPage() {
           </div>
         </div>
 
-        {/* Invite */}
-        {member && (
-          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><Share2 className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Zaproś do grupy</p>
-                <p className="mt-1 font-mono text-2xl font-bold tracking-[0.2em] text-primary-700">{group.joinCode}</p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={share} className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95">
-                  <Share2 className="w-3.5 h-3.5" /> Udostępnij
-                </button>
-                <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95">
-                  {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> OK</> : <><Copy className="w-3.5 h-3.5" /> Kod</>}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Events */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
           <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
@@ -261,6 +241,28 @@ export default function GroupDetailPage() {
             ))}
           </ul>
         </div>
+
+        {/* Invite */}
+        {member && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">Zaproś do grupy</p>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-3xl font-bold tracking-[0.2em] text-primary-700 flex-1">{group.joinCode}</span>
+              <button
+                onClick={copyCode}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95"
+              >
+                {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> Skopiowano</> : <><Copy className="w-3.5 h-3.5" /> Kopiuj kod</>}
+              </button>
+              <button
+                onClick={share}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Udostępnij
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Danger zone */}
         {member && (

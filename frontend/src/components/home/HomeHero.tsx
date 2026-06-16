@@ -8,11 +8,13 @@ import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
+import { getMyGroups } from '@/lib/groups';
 import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import type { EventItem, GameAlert } from '@/types';
+import type { EventItem, GameAlert, Group } from '@/types';
+import { sportEmoji } from '@/lib/sports';
 
 /** Reads today's open public match count. */
 function useTodayCount() {
@@ -318,6 +320,45 @@ function MapTeaser() {
   );
 }
 
+/** User's groups teaser — max 2 shown, + link to /grupy. */
+function MyGroupsSection({ userId }: { userId: string }) {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getMyGroups(userId).then(setGroups).catch(() => {}).finally(() => setLoading(false));
+  }, [userId]);
+
+  if (loading || groups.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Twoje grupy" href="/grupy" />
+      <div className="space-y-2">
+        {groups.slice(0, 2).map((g) => (
+          <Link
+            key={g.id}
+            href={`/grupy/${g.id}`}
+            className="flex items-center gap-3 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-xl">
+              {g.sport ? sportEmoji(g.sport) : '👥'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-ink truncate">{g.name}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {g.memberCount ?? 0} {(g.memberCount ?? 0) === 1 ? 'członek' : 'członków'}
+                {g.city && ` · ${g.city}`}
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function JoinByCodeSection() {
   const router = useRouter();
   const [code, setCode] = useState('');
@@ -364,6 +405,7 @@ export default function HomeHero() {
           <MyGamesSection userId={user.id} />
           <OpenGamesSection />
           <MapTeaser />
+          <MyGroupsSection userId={user.id} />
           <HowItWorks />
         </section>
       </>
