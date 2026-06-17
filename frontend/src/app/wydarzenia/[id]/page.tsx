@@ -125,93 +125,96 @@ function PlayerLink({ p, className, children }: {
 }
 
 /** Inline roster — rendered INSIDE the player-count card when the avatar stack
- *  is expanded. Real avatars, teams + publish for organizer. */
+ *  is expanded. Always shows flat lists: regulars then reserves. */
 function ParticipantsList({
-  regulars, reserves, isOrganizer,
-  showTeams, teamsPublished, busy,
+  regulars, reserves,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
-  isOrganizer: boolean;
-  showTeams: boolean;
-  teamsPublished: boolean;
-  busy: boolean;
 }) {
-  const teamA = regulars.filter((p) => p.team === 'A');
-  const teamB = regulars.filter((p) => p.team === 'B');
-  const unassignedPlayers = regulars.filter((p) => !p.team);
-  const canSeeTeams = isOrganizer || teamsPublished;
-
   return (
     <div className="space-y-3 text-left">
-
-      {canSeeTeams && showTeams && teamA.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 gap-4">
-            {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
-              { label: 'Czerwoni', players: teamB, color: 'bg-red-100 text-red-700' }]
-              .map(({ label, players, color }) => (
-                <div key={label}>
-                  <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
-                  <div className="space-y-2">
-                    {players.map((p) => (
-                      <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
-                        <PlayerAvatar p={p} />
-                        <span className="text-sm font-medium text-ink truncate">{p.name}</span>
-                        {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                      </PlayerLink>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </div>
-          {unassignedPlayers.length > 0 && (
-            <div className="pt-2 border-t border-slate-100">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Nieprzypisani — {unassignedPlayers.length}
-              </p>
-              <div className="space-y-1">
-                {unassignedPlayers.map((p) => (
-                  <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <PlayerAvatar p={p} />
-                    <span className="text-sm font-medium text-ink truncate">{p.name}</span>
-                    {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                  </PlayerLink>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="divide-y divide-slate-50">
-          {regulars.map((p) => (
-            <PlayerLink key={p.id} p={p} className="flex items-center gap-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
-              <PlayerAvatar p={p} />
-              <span className="flex-1 text-sm font-medium text-ink truncate">{p.name}</span>
-              {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
-            </PlayerLink>
-          ))}
-        </div>
-      )}
+      <div className="divide-y divide-slate-50 dark:divide-slate-700">
+        {regulars.map((p) => (
+          <PlayerLink key={p.id} p={p} className="flex items-center gap-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <PlayerAvatar p={p} />
+            <span className="flex-1 text-sm font-medium text-ink truncate">{p.name}</span>
+            {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
+          </PlayerLink>
+        ))}
+      </div>
 
       {reserves.length > 0 && (
         <>
           <div className="flex items-center gap-2 pt-2">
-            <div className="flex-1 border-t border-slate-100" />
+            <div className="flex-1 border-t border-slate-100 dark:border-slate-700" />
             <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Rezerwa</span>
-            <div className="flex-1 border-t border-slate-100" />
+            <div className="flex-1 border-t border-slate-100 dark:border-slate-700" />
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-slate-700">
             {reserves.map((p, i) => (
               <div key={p.id} className="flex items-center gap-3 py-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-400">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
                   {i + 1}
                 </span>
-                <span className="flex-1 text-sm font-medium text-slate-500 truncate">{p.name}</span>
+                <span className="flex-1 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
               </div>
             ))}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/** Public read-only teams view — shown when teams are published, separate from the participant list. */
+function PublishedTeamsCard({
+  teamA, teamB, unassigned,
+}: {
+  teamA: EventParticipant[];
+  teamB: EventParticipant[];
+  unassigned: EventParticipant[];
+}) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">Składy</p>
+      <div className="grid grid-cols-2 gap-4">
+        {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
+          { label: 'Czerwoni',  players: teamB, color: 'bg-red-100 text-red-700'  }]
+          .map(({ label, players, color }) => (
+            <div key={label}>
+              <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>
+                {label} · {players.length}
+              </p>
+              <div className="space-y-1.5">
+                {players.length === 0
+                  ? <p className="text-xs italic text-slate-400">Brak graczy</p>
+                  : players.map((p) => (
+                    <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                      <PlayerAvatar p={p} />
+                      <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+                      {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                      {p.isCaptain && <span className="text-[10px]">⭐</span>}
+                    </PlayerLink>
+                  ))}
+              </div>
+            </div>
+          ))}
+      </div>
+      {unassigned.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+            Nieprzypisani — {unassigned.length}
+          </p>
+          <div className="space-y-1">
+            {unassigned.map((p) => (
+              <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <PlayerAvatar p={p} />
+                <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+              </PlayerLink>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -897,10 +900,6 @@ export default function EventDetailPage() {
                 <ParticipantsList
                   regulars={regulars}
                   reserves={reserves}
-                  isOrganizer={isOwner}
-                  showTeams={showTeams}
-                  teamsPublished={event.teamsPublished}
-                  busy={busy}
                 />
               </div>
             )}
@@ -1211,6 +1210,13 @@ export default function EventDetailPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Published teams — visible to all participants (separate from roster) */}
+        {showTeams && event.teamsPublished && !isOwner && (
+          <div className="px-4">
+            <PublishedTeamsCard teamA={teamA} teamB={teamB} unassigned={unassigned} />
           </div>
         )}
 
