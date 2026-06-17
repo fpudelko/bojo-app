@@ -249,10 +249,7 @@ function JoinCodePanel({ joinCode, eventId }: { joinCode: string; eventId: strin
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3">
       <Share2 className="w-4 h-4 text-slate-400 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800">Zaproś znajomych</p>
-        <p className="text-xs text-slate-400 mt-0.5 font-mono">bojo.pl/d/{joinCode}</p>
-      </div>
+      <p className="flex-1 text-sm font-semibold text-slate-800">Zaproś znajomych</p>
       <div className="flex gap-2 shrink-0">
         <button
           onClick={share}
@@ -1399,6 +1396,13 @@ export default function EventDetailPage() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Zaproś znajomych — panel udostępniania linku ── */}
+        {event.joinCode && !isCancelled && (
+          <div className="px-4">
+            <JoinCodePanel joinCode={event.joinCode} eventId={event.id} />
           </div>
         )}
 
