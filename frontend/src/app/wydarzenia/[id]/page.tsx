@@ -177,7 +177,7 @@ function PublishedTeamsCard({
 }) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">Składy</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Składy</p>
       <div className="grid grid-cols-2 gap-4">
         {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
           { label: 'Czerwoni',  players: teamB, color: 'bg-red-100 text-red-700'  }]
@@ -913,7 +913,7 @@ export default function EventDetailPage() {
           const venueHref = event.fieldId ? `/boisko/${event.fieldId}` : null;
           return (
             <div className="px-4">
-              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-400">Boisko</p>
+              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Boisko</p>
               <div
                 className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 ${venueHref ? 'cursor-pointer transition hover:shadow-md hover:ring-primary-200' : ''}`}
                 onClick={() => venueHref && router.push(venueHref)}
@@ -1408,17 +1408,19 @@ export default function EventDetailPage() {
           const organizerAvatar = organizerParticipant?.avatarUrl;
           const organizerLabel = event.organizerName || organizerParticipant?.name || 'Organizator';
           return (
-            <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-              {organizerAvatar ? (
-                <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
-              ) : (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
-                  {initials(organizerLabel)}
-                </span>
-              )}
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Organizator</p>
-                <p className="font-semibold text-ink truncate">{organizerLabel}</p>
+            <div className="px-4">
+              <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                {organizerAvatar ? (
+                  <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950 text-sm font-bold text-primary-700">
+                    {initials(organizerLabel)}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organizator</p>
+                  <p className="font-semibold text-ink truncate">{organizerLabel}</p>
+                </div>
               </div>
             </div>
           );

@@ -182,21 +182,21 @@ export default function GroupDetailPage() {
         {/* Events */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
           <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-            <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Mecze grupy
+            <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Mecze grupy
           </h2>
           {events.length === 0 ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500 py-2">Brak meczów. {member && 'Stwórz pierwszy!'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 py-2">Brak meczów. {member && 'Stwórz pierwszy!'}</p>
           ) : (
             <div className="space-y-4">
               {upcoming.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Nadchodzące</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</p>
                   {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} />)}
                 </div>
               )}
               {past.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Historia</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</p>
                   {past.map((e) => <EventBrowseCard key={e.id} event={e} />)}
                 </div>
               )}
@@ -207,8 +207,8 @@ export default function GroupDetailPage() {
         {/* Members */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
           <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-            <Users className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Członkowie
-            <span className="text-xs font-normal text-slate-400 dark:text-slate-500">{members.length}</span>
+            <Users className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Członkowie
+            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{members.length}</span>
           </h2>
           <ul className="divide-y divide-slate-50 dark:divide-slate-700">
             {members.map((m) => (
@@ -233,7 +233,7 @@ export default function GroupDetailPage() {
                   <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
                 </Link>
                 {isOwner && m.userId !== user?.id && (
-                  <button onClick={() => handleRemove(m.userId)} disabled={busy} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-500 rounded shrink-0" title="Usuń z grupy">
+                  <button onClick={() => handleRemove(m.userId)} disabled={busy} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-500 rounded shrink-0" title="Usuń z grupy">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -245,7 +245,7 @@ export default function GroupDetailPage() {
         {/* Invite */}
         {member && (
           <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-3">Zaproś do grupy</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Zaproś do grupy</p>
             <div className="flex items-center gap-3">
               <span className="font-mono text-3xl font-bold tracking-[0.2em] text-primary-700 flex-1">{group.joinCode}</span>
               <button

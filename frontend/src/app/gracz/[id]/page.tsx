@@ -51,7 +51,7 @@ export default function PublicPlayerPage() {
           </div>
         ) : notFound || !profile ? (
           <div className="text-center py-20">
-            <p className="text-slate-400 dark:text-slate-500 mb-4">Nie znaleziono gracza</p>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">Nie znaleziono gracza</p>
             <Link href="/wydarzenia" className="text-primary-700 text-sm font-medium hover:underline">
               Wróć do wydarzeń
             </Link>
@@ -85,7 +85,7 @@ export default function PublicPlayerPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                     W Bojo od {new Date(profile.createdAt).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -145,7 +145,7 @@ export default function PublicPlayerPage() {
                 <Calendar className="w-4 h-4" /> Historia gier
               </h2>
               {history.length === 0 ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500 py-2">Brak rozegranych meczów.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 py-2">Brak rozegranych meczów.</p>
               ) : (
                 <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                   {history.map((h) => (
@@ -159,7 +159,7 @@ export default function PublicPlayerPage() {
                           <p className="text-sm font-medium text-ink truncate">
                             {h.title || h.fieldName}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {(() => { try { return format(parseISO(h.date), 'd MMM yyyy', { locale: pl }); } catch { return h.date; } })()}
                             {h.isOrganizer && ' · organizator'}
                             {h.isReserve && ' · rezerwa'}

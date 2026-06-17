@@ -139,7 +139,7 @@ export default function MojeGryPage() {
           )
         ) : (
           history.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-12">Brak historii meczy</p>
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>
           ) : (
             <div className="space-y-3">
               {history.map(({ event, isOrganizer }) => (

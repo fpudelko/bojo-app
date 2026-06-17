@@ -110,7 +110,7 @@ export default function EventsPage() {
         {/* Search bar */}
         <div className="px-4 pt-1 pb-2">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400 pointer-events-none" />
             <input
               type="search"
               value={query}
@@ -122,7 +122,7 @@ export default function EventsPage() {
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -131,7 +131,7 @@ export default function EventsPage() {
         </div>
 
         {/* Sport chips — emoji only, no "Wszystkie" (empty = all) */}
-        <div className="flex gap-2 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2 overflow-x-auto px-4 py-1 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SPORT_CHIPS.map(({ value }) => {
             const active = sportFilter === value;
             const emoji = sportEmoji(value);
@@ -155,7 +155,7 @@ export default function EventsPage() {
         </div>
 
         {/* Date chips */}
-        <div className="flex gap-2 overflow-x-auto px-4 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2 overflow-x-auto px-4 py-1 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {DATE_CHIPS.map(({ value, label }) => {
             const active = dateFilter === value;
             return (

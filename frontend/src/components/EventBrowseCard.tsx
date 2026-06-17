@@ -109,7 +109,7 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
               <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
             )}
             {max > 0 && (
-              <span className="text-xs text-slate-400 dark:text-slate-500">{taken} graczy</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{taken} graczy</span>
             )}
           </div>
         ) : max > 0 ? (
