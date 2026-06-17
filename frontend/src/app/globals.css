@@ -42,28 +42,67 @@
   --color-text-muted: #8B949E;
 }
 
-/* ── Dark-mode elevation system ──────────────────────────────────────────────
-   Intercept the most common Tailwind dark-variant bg classes so every card /
-   panel gets the elevation palette without touching each component file.      */
-.dark .dark\:bg-slate-800    { background-color: var(--color-surface); }
-.dark .dark\:bg-slate-900    { background-color: var(--color-canvas); }
-.dark .dark\:bg-slate-700    { background-color: var(--color-surface-raised); }
+/* ── Dark-mode global token mapping ─────────────────────────────────────────
+   Most of the app was written with plain light utilities (bg-white,
+   text-slate-700, border-slate-100…) and no dark: variant. Rather than touch
+   every file, we remap those utilities under .dark so the WHOLE app turns dark
+   consistently. Author-provided dark:* variants are re-asserted afterwards so
+   they always win over these defaults.                                        */
 
-/* Nested/raised surfaces used for inputs, inline pills, etc. */
-.dark .dark\:bg-slate-950    { background-color: var(--color-canvas); }
+/* Surfaces — elevation by lightness (canvas < surface < raised < overlay) */
+.dark .bg-white      { background-color: var(--color-surface); }
+.dark .bg-slate-50   { background-color: var(--color-canvas); }        /* page bg / recessed inset */
+.dark .bg-slate-100  { background-color: var(--color-surface-raised); } /* chips, tracks, pills */
+.dark .bg-slate-200  { background-color: var(--color-surface-overlay); }
 
-/* Border softening — hairlines only */
-.dark .dark\:border-slate-700  { border-color: var(--color-border-strong); }
-.dark .dark\:border-slate-600  { border-color: var(--color-border-strong); }
-.dark .dark\:border-slate-800  { border-color: var(--color-border); }
+.dark .hover\:bg-white:hover     { background-color: var(--color-surface-raised); }
+.dark .hover\:bg-slate-50:hover  { background-color: rgba(255, 255, 255, 0.04); }
+.dark .hover\:bg-slate-100:hover { background-color: rgba(255, 255, 255, 0.06); }
 
-/* Divider lines */
-.dark .dark\:divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--color-border-strong);
-}
-.dark .dark\:divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--color-border);
-}
+/* Text — warm off-white scale */
+.dark .text-slate-900 { color: #E8EDF3; }
+.dark .text-slate-800 { color: #DBE2EA; }
+.dark .text-slate-700 { color: #C4CDD8; }
+.dark .text-slate-600 { color: #AAB4C0; }
+.dark .text-slate-500 { color: #8B95A1; }
+.dark .text-slate-400 { color: #6E7783; }
+.dark .text-slate-300 { color: #525B67; }
+.dark .placeholder\:text-slate-400::placeholder { color: #6E7783; }
+.dark .placeholder\:text-slate-500::placeholder { color: #5B6470; }
+
+/* Borders / rings / dividers — hairlines */
+.dark .border-slate-100 { border-color: var(--color-border); }
+.dark .border-slate-200 { border-color: var(--color-border); }
+.dark .border-slate-300 { border-color: var(--color-border-strong); }
+.dark .ring-slate-100 { --tw-ring-color: var(--color-border); }
+.dark .ring-slate-200 { --tw-ring-color: var(--color-border); }
+.dark .divide-slate-50  > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border); }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border); }
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border); }
+
+/* Brand green — lift dark greens so they read on dark surfaces */
+.dark .bg-primary-50  { background-color: rgba(34, 163, 97, 0.15); }
+.dark .text-primary-600 { color: #5FC88A; }
+.dark .text-primary-700 { color: #5FC88A; }
+.dark .text-primary-800 { color: #5FC88A; }
+
+/* ── Author-provided dark:* variants — re-asserted so they win ───────────── */
+.dark .dark\:bg-slate-800 { background-color: var(--color-surface); }
+.dark .dark\:bg-slate-900 { background-color: var(--color-canvas); }
+.dark .dark\:bg-slate-700 { background-color: var(--color-surface-raised); }
+.dark .dark\:bg-slate-950 { background-color: var(--color-canvas); }
+
+.dark .dark\:text-slate-100 { color: #E8EDF3; }
+.dark .dark\:text-slate-200 { color: #D5DCE5; }
+.dark .dark\:text-slate-300 { color: #C4CDD8; }
+.dark .dark\:text-slate-400 { color: #8B95A1; }
+.dark .dark\:text-slate-500 { color: #6E7783; }
+
+.dark .dark\:border-slate-700 { border-color: var(--color-border-strong); }
+.dark .dark\:border-slate-600 { border-color: var(--color-border-strong); }
+.dark .dark\:border-slate-800 { border-color: var(--color-border); }
+.dark .dark\:divide-slate-700 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border-strong); }
+.dark .dark\:divide-slate-800 > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border); }
 
 * {
   box-sizing: border-box;
