@@ -52,6 +52,11 @@ const config: Config = {
         },
         ink:    'var(--color-ink)',
         canvas: 'var(--color-canvas)',
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          raised:  'var(--color-surface-raised)',
+          overlay: 'var(--color-surface-overlay)',
+        },
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

@@ -14,17 +14,55 @@
   --color-border: #E4E2DD;
   --color-ink: #1A1D21;
   --color-canvas: #FAF9F6;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F8F9FA;
 }
 
 .dark {
   color-scheme: dark;
-  --color-bg: #0F172A;
-  --color-bg-muted: #1E293B;
-  --color-text: #E2E8F0;
-  --color-text-muted: #94A3B8;
-  --color-border: #334155;
-  --color-ink: #E2E8F0;
-  --color-canvas: #0F172A;
+
+  /* Ink-blue palette — complements brand green without generic slate */
+  --color-canvas: #0D1117;
+  --color-surface: #161C27;
+  --color-surface-raised: #1C2333;
+  --color-surface-overlay: #222B3A;
+
+  /* Borders — hairlines instead of heavy lines; depth via elevation */
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Typography — warm off-white (not cool blue-gray) */
+  --color-ink: #E8EDF3;
+  --color-ink-muted: #8B949E;
+
+  /* Legacy vars */
+  --color-bg: #0D1117;
+  --color-bg-muted: #161C27;
+  --color-text: #E8EDF3;
+  --color-text-muted: #8B949E;
+}
+
+/* ── Dark-mode elevation system ──────────────────────────────────────────────
+   Intercept the most common Tailwind dark-variant bg classes so every card /
+   panel gets the elevation palette without touching each component file.      */
+.dark .dark\:bg-slate-800    { background-color: var(--color-surface); }
+.dark .dark\:bg-slate-900    { background-color: var(--color-canvas); }
+.dark .dark\:bg-slate-700    { background-color: var(--color-surface-raised); }
+
+/* Nested/raised surfaces used for inputs, inline pills, etc. */
+.dark .dark\:bg-slate-950    { background-color: var(--color-canvas); }
+
+/* Border softening — hairlines only */
+.dark .dark\:border-slate-700  { border-color: var(--color-border-strong); }
+.dark .dark\:border-slate-600  { border-color: var(--color-border-strong); }
+.dark .dark\:border-slate-800  { border-color: var(--color-border); }
+
+/* Divider lines */
+.dark .dark\:divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border-strong);
+}
+.dark .dark\:divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border);
 }
 
 * {

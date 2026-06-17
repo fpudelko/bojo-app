@@ -110,7 +110,7 @@ export default function Header() {
     <>
       {/* ── Sticky header bar ── */}
       <header className={clsx(
-        'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-slate-900/80 border-b border-slate-200/70 dark:border-slate-700/70 sticky top-0 z-[1010] transition-shadow duration-200',
+        'bg-white/90 dark:bg-[#0D1117]/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-[#0D1117]/88 border-b border-slate-200/70 dark:border-white/[0.07] sticky top-0 z-[1010] transition-shadow duration-200',
         scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
       )}>
         <div className="max-w-6xl mx-auto px-4">
@@ -127,8 +127,8 @@ export default function Header() {
                   className={clsx(
                     'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                     pathname === link.href || pathname.startsWith(link.href + '/')
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                      ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
                   )}
                 >
                   {link.label}
@@ -157,8 +157,8 @@ export default function Header() {
                     className={clsx(
                       'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       pathname === '/moje-gry'
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                        ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
                     )}
                   >
                     Moje mecze
@@ -168,8 +168,8 @@ export default function Header() {
                     className={clsx(
                       'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                       pathname === '/grupy' || pathname.startsWith('/grupy/')
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                        ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
                     )}
                   >
                     Grupy
@@ -220,7 +220,7 @@ export default function Header() {
                   </Link>
                   <Link
                     href="/profil"
-                    className="text-sm text-slate-600 hover:text-slate-900 max-w-[140px] truncate flex items-center gap-1.5"
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 max-w-[140px] truncate flex items-center gap-1.5 transition-colors"
                     title="Edytuj profil"
                   >
                     {userAvatar
@@ -230,7 +230,7 @@ export default function Header() {
                   </Link>
                   <button
                     onClick={() => signOut()}
-                    className="p-2 rounded-lg text-slate-500 hover:bg-slate-100"
+                    className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
                     aria-label="Wyloguj"
                     title="Wyloguj"
                   >
@@ -275,7 +275,7 @@ export default function Header() {
 
       {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
       {mobileOpen && (
-        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white dark:bg-slate-900 flex flex-col pt-16">
+        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white dark:bg-[#0D1117] flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
 
             {/* Main navigation — uniform rows ("Stwórz mecz" highlighted) */}
@@ -349,12 +349,12 @@ export default function Header() {
                         onClick={() => setMobileOpen(false)}
                         className={clsx(
                           'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
-                          active ? 'bg-primary-50' : 'hover:bg-slate-50',
+                          active ? 'bg-primary-50 dark:bg-primary-950/50' : 'hover:bg-slate-50 dark:hover:bg-white/[0.05]',
                         )}
                       >
                         <span className={clsx(
                           'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                          active ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500',
+                          active ? 'bg-primary-100 dark:bg-primary-900 text-primary-700' : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400',
                         )}>
                           <Icon className="h-5 w-5" />
                         </span>
@@ -370,7 +370,7 @@ export default function Header() {
             )}
           </nav>
 
-          <div className="border-t border-slate-200/70 dark:border-slate-700/70 px-5 py-5">
+          <div className="border-t border-slate-200/70 dark:border-white/[0.07] px-5 py-5">
             {!loading && user && (
               <div className="flex items-center justify-between">
                 <Link
@@ -463,7 +463,7 @@ function AdminMenu({ pathname }: { pathname: string }) {
         onClick={() => setOpen((o) => !o)}
         className={clsx(
           'flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors',
-          active ? 'bg-primary-50 text-primary-700' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
+          active ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
         )}
         aria-label="Narzędzia administratora"
         aria-expanded={open}
@@ -472,7 +472,7 @@ function AdminMenu({ pathname }: { pathname: string }) {
         <Settings className="w-4 h-4" />
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1.5 shadow-card-hover z-[1020]">
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#161C27] py-1.5 shadow-card-hover dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.6)] z-[1020]">
           <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
           {ADMIN_LINKS.map(({ href, label, Icon }) => (
             <Link
@@ -481,7 +481,7 @@ function AdminMenu({ pathname }: { pathname: string }) {
               onClick={() => setOpen(false)}
               className={clsx(
                 'flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
-                pathname.startsWith(href) ? 'text-primary-700 bg-primary-50' : 'text-slate-700 hover:bg-slate-50',
+                pathname.startsWith(href) ? 'text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]',
               )}
             >
               <Icon className="w-4 h-4 text-slate-400" /> {label}
