@@ -139,30 +139,49 @@ function ParticipantsList({
 }) {
   const teamA = regulars.filter((p) => p.team === 'A');
   const teamB = regulars.filter((p) => p.team === 'B');
+  const unassignedPlayers = regulars.filter((p) => !p.team);
   const canSeeTeams = isOrganizer || teamsPublished;
 
   return (
     <div className="space-y-3 text-left">
 
       {canSeeTeams && showTeams && teamA.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4">
-          {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
-            { label: 'Czerwoni', players: teamB, color: 'bg-red-100 text-red-700' }]
-            .map(({ label, players, color }) => (
-              <div key={label}>
-                <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
-                <div className="space-y-2">
-                  {players.map((p) => (
-                    <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
-                      <PlayerAvatar p={p} />
-                      <span className="text-sm font-medium text-ink truncate">{p.name}</span>
-                      {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                    </PlayerLink>
-                  ))}
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
+              { label: 'Czerwoni', players: teamB, color: 'bg-red-100 text-red-700' }]
+              .map(({ label, players, color }) => (
+                <div key={label}>
+                  <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>{label}</p>
+                  <div className="space-y-2">
+                    {players.map((p) => (
+                      <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
+                        <PlayerAvatar p={p} />
+                        <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+                        {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                      </PlayerLink>
+                    ))}
+                  </div>
                 </div>
+              ))}
+          </div>
+          {unassignedPlayers.length > 0 && (
+            <div className="pt-2 border-t border-slate-100">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                Nieprzypisani — {unassignedPlayers.length}
+              </p>
+              <div className="space-y-1">
+                {unassignedPlayers.map((p) => (
+                  <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <PlayerAvatar p={p} />
+                    <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+                    {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                  </PlayerLink>
+                ))}
               </div>
-            ))}
-        </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="divide-y divide-slate-50">
           {regulars.map((p) => (
