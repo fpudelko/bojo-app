@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users, ArrowLeft, Share2, Copy, Check, Plus, LogOut, Trash2,
-  User as UserIcon, Loader2, Crown, ChevronRight, Calendar,
+  User as UserIcon, Loader2, Crown, ChevronRight, Calendar, Pencil,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -190,13 +190,23 @@ export default function GroupDetailPage() {
           </div>
 
           <div className="p-6">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-ink">{group.name}</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                {members.length} {members.length === 1 ? 'członek' : 'członków'}
-                {group.sport && ` · ${sportLabel(group.sport)}`}
-                {group.city && ` · ${group.city}`}
-              </p>
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-ink">{group.name}</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  {members.length} {members.length === 1 ? 'członek' : 'członków'}
+                  {group.sport && ` · ${sportLabel(group.sport)}`}
+                  {group.city && ` · ${group.city}`}
+                </p>
+              </div>
+              {isOwner && (
+                <Link
+                  href={`/grupy/${group.id}/edytuj`}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Edytuj
+                </Link>
+              )}
             </div>
             {group.description && (
               <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{group.description}</p>

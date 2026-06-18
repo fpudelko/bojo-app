@@ -41,6 +41,25 @@ export async function createGroup(
   return row.id as string;
 }
 
+/** Update a group's details. RLS ("Creator updates group") restricts this to
+ *  the group's creator, so callers should also gate the UI on ownership. */
+export async function updateGroup(
+  groupId: string,
+  data: { name: string; description?: string; sport?: string; city?: string },
+): Promise<void> {
+  const safeName = validateName(data.name, 'Nazwa grupy', 60);
+  const { error } = await supabase
+    .from('groups')
+    .update({
+      name: safeName,
+      description: data.description?.trim() || null,
+      sport: data.sport || null,
+      city: data.city?.trim() || null,
+    })
+    .eq('id', groupId);
+  if (error) throw new Error(error.message);
+}
+
 /** Groups the user belongs to, with member counts. */
 export async function getMyGroups(userId: string): Promise<Group[]> {
   const { data: memberRows, error: mErr } = await supabase
