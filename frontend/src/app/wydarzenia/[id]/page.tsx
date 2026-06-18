@@ -1419,8 +1419,8 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* ── Zaproś znajomych — panel udostępniania linku ── */}
-        {event.joinCode && !isCancelled && (
+        {/* ── Zaproś znajomych — tylko dla uczestników ── */}
+        {event.joinCode && !isCancelled && (myParticipation || isOwner) && (
           <div className="px-4">
             <JoinCodePanel joinCode={event.joinCode} eventId={event.id} />
           </div>
