@@ -49,6 +49,7 @@ function toEvent(row: any): EventItem {
     fieldAddress: row.field_address ?? undefined,
     district: row.field_district ?? undefined,
     groupId: row.group_id ?? undefined,
+    coverImageUrl: row.cover_image_url ?? undefined,
   };
 }
 

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import CoverUpload from '@/components/ui/CoverUpload';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { isUpcoming } from '@/components/EventCard';
 import { useAuth } from '@/lib/auth';
@@ -145,11 +146,36 @@ export default function GroupDetailPage() {
         </button>
 
         {/* Header card */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-3xl">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+          {/* Cover image */}
+          <div className="relative h-36 bg-gradient-to-br from-primary-700 to-primary-900">
+            {group.coverImageUrl && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            <span className="absolute bottom-3 left-4 text-3xl drop-shadow-md">
               {group.sport ? sportEmoji(group.sport) : '👥'}
             </span>
+            {isOwner && (
+              <div className="absolute bottom-3 right-3">
+                <CoverUpload
+                  currentUrl={group.coverImageUrl}
+                  path={`groups/${group.id}/cover`}
+                  onSaved={async (url) => {
+                    const { supabase } = await import('@/lib/supabase');
+                    const { error } = await supabase
+                      .from('groups')
+                      .update({ cover_image_url: url })
+                      .eq('id', group.id);
+                    if (!error) setGroup((g) => g ? { ...g, coverImageUrl: url ?? undefined } : g);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="p-6">
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold text-ink">{group.name}</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -158,24 +184,24 @@ export default function GroupDetailPage() {
                 {group.city && ` · ${group.city}`}
               </p>
             </div>
-          </div>
-          {group.description && (
-            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{group.description}</p>
-          )}
-
-          {/* Membership actions */}
-          <div className="mt-5">
-            {!member ? (
-              <Button onClick={handleJoin} disabled={busy} className="w-full inline-flex items-center justify-center gap-2">
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Dołącz do grupy</>}
-              </Button>
-            ) : (
-              <Link href={`/wydarzenia/nowe?group=${group.id}`}>
-                <Button className="w-full inline-flex items-center justify-center gap-2">
-                  <Plus className="w-4 h-4" /> Stwórz mecz w grupie
-                </Button>
-              </Link>
+            {group.description && (
+              <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{group.description}</p>
             )}
+
+            {/* Membership actions */}
+            <div className="mt-5">
+              {!member ? (
+                <Button onClick={handleJoin} disabled={busy} className="w-full inline-flex items-center justify-center gap-2">
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Dołącz do grupy</>}
+                </Button>
+              ) : (
+                <Link href={`/wydarzenia/nowe?group=${group.id}`}>
+                  <Button className="w-full inline-flex items-center justify-center gap-2">
+                    <Plus className="w-4 h-4" /> Stwórz mecz w grupie
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
 

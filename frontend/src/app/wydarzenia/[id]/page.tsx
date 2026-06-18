@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import CoverUpload from '@/components/ui/CoverUpload';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import EventComments from '@/components/events/EventComments';
@@ -695,7 +696,10 @@ export default function EventDetailPage() {
           </div>
 
           <div className="relative h-[200px] overflow-hidden rounded-[20px]">
-            {venueThumbnail(event.lat, event.lng, 800, 400, 17) ? (
+            {event.coverImageUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={event.coverImageUrl} alt="" className="h-full w-full object-cover" />
+            ) : venueThumbnail(event.lat, event.lng, 800, 400, 17) ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={venueThumbnail(event.lat, event.lng, 800, 400, 17)!}
@@ -711,6 +715,22 @@ export default function EventDetailPage() {
                 {sportEmoji(event.sport)}
               </span>
             </div>
+            {isOwner && (
+              <div className="absolute bottom-3 right-3">
+                <CoverUpload
+                  currentUrl={event.coverImageUrl}
+                  path={`events/${event.id}/cover`}
+                  onSaved={async (url) => {
+                    const { supabase } = await import('@/lib/supabase');
+                    const { error } = await supabase
+                      .from('events')
+                      .update({ cover_image_url: url })
+                      .eq('id', event.id);
+                    if (!error) setEvent((e) => e ? { ...e, coverImageUrl: url ?? undefined } : e);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 

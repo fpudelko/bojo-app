@@ -178,6 +178,7 @@ export interface EventItem {
   allowGuestAdds: boolean;
   joinCode: string;
   requireApproval: boolean;
+  coverImageUrl?: string;
 }
 
 export interface EventParticipant {
@@ -400,6 +401,7 @@ export interface Group {
   joinCode: string;
   createdAt: string;
   memberCount?: number; // populated in list queries
+  coverImageUrl?: string;
 }
 
 export interface GroupMember {

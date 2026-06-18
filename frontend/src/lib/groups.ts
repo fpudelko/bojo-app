@@ -15,6 +15,7 @@ function toGroup(row: any): Group {
     joinCode: row.join_code,
     createdAt: row.created_at,
     memberCount: Array.isArray(row.group_members) ? row.group_members.length : undefined,
+    coverImageUrl: row.cover_image_url ?? undefined,
   };
 }
 
