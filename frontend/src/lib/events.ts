@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
+import { track } from './analytics';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -155,6 +156,7 @@ export async function createEvent(
     date: data.date,
     visibility: data.visibility,
   }).catch((e) => console.warn('[ActivityLog] event_created', e));
+  track('event_created', { eventId: id, sport: data.sport, visibility: data.visibility });
 
   // Fire-and-forget: notify users with matching game alerts
   if (data.visibility === 'public') {
@@ -340,6 +342,7 @@ export async function joinEvent(
   logActivity(eventId, userId, safeName, 'participant_joined', { is_reserve: isReserve }).catch(
     (e) => console.warn('[ActivityLog] participant_joined', e),
   );
+  track('event_joined', { eventId, isReserve });
 }
 
 export async function addGuest(

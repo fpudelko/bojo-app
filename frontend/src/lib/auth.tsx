@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { track } from './analytics';
 
 interface AuthContextValue {
   user: User | null;
@@ -74,8 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      // Track a login once per browser session (SIGNED_IN also fires on tab
+      // refocus / token refresh, so dedupe with a sessionStorage flag).
+      if (event === 'SIGNED_IN' && session?.user) {
+        const key = `bojo:login-tracked:${session.user.id}`;
+        if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          track('login').catch(() => {});
+        }
+      }
     });
 
     return () => sub.subscription.unsubscribe();

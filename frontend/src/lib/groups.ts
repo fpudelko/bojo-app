@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { validateName } from './validation';
 import { getEventsByGroup } from './events';
+import { track } from './analytics';
 import type { Group, GroupMember, EventItem } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,6 +37,7 @@ export async function createGroup(
     .select('id')
     .single();
   if (error) throw new Error(error.message);
+  track('group_created', { groupId: row.id, sport: data.sport });
   return row.id as string;
 }
 
@@ -143,6 +145,7 @@ export async function joinGroup(groupId: string, userId: string): Promise<void> 
   if (error && !error.message.toLowerCase().includes('duplicate')) {
     throw new Error(error.message);
   }
+  track('group_joined', { groupId });
 }
 
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon, Sun, Moon } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon, BarChart3, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -435,6 +435,7 @@ export default function Header() {
 }
 
 const ADMIN_LINKS = [
+  { href: '/admin/analityka', label: 'Analityka',            Icon: BarChart3 },
   { href: '/admin/przeglad',  label: 'Przegląd boisk',      Icon: Building2 },
   { href: '/admin/moderacja', label: 'Moderacja boisk',      Icon: Building2 },
   { href: '/admin/outreach',  label: 'Kontakt z obiektami',  Icon: Building2 },
