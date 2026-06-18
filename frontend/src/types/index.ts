@@ -200,6 +200,8 @@ export interface EventParticipant {
   isCaptain: boolean;
   addedBy?: string;
   isGoalkeeper: boolean;
+  /** True while awaiting organizer approval (event.requireApproval). */
+  pendingApproval: boolean;
 }
 
 export interface EventCreate {

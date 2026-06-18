@@ -59,6 +59,7 @@ export default function EditEventPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
+  const [requireApproval, setRequireApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,6 +91,7 @@ export default function EditEventPage() {
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
+        setRequireApproval(ev.requireApproval);
         setRequireSmsConfirmation(ev.requireSmsConfirmation);
         setTrackAttendance(ev.trackAttendance);
         setTeamMode(ev.teamMode);
@@ -157,6 +159,7 @@ export default function EditEventPage() {
         maxPlayers,
         externalCount,
         visibility,
+        requireApproval,
         requireSmsConfirmation,
         trackAttendance,
         teamMode,
@@ -370,6 +373,16 @@ export default function EditEventPage() {
                   <span className="block text-xs text-slate-500">Widoczne dla wszystkich</span>
                 </span>
               </button>
+            </div>
+
+            {/* Approval toggle — applies to both public and private events */}
+            <div className="mt-3 rounded-lg border border-slate-200 px-4">
+              <ToggleRow
+                label="Wymagaj akceptacji"
+                desc="Każdą prośbę o dołączenie zatwierdzasz ręcznie, zanim gracz wejdzie do składu"
+                checked={requireApproval}
+                onChange={setRequireApproval}
+              />
             </div>
           </div>
 

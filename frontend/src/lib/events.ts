@@ -28,7 +28,7 @@ function toEvent(row: any): EventItem {
     externalCount: row.external_count ?? 0,
     participantsCount: Array.isArray(row.event_participants)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (row.event_participants as any[]).filter((p) => !p.is_reserve).length
+      ? (row.event_participants as any[]).filter((p) => !p.is_reserve && !p.pending_approval).length
       : undefined,
     visibility: row.visibility,
     createdAt: row.created_at,
@@ -74,6 +74,7 @@ function toParticipant(row: any): EventParticipant {
     isCaptain: row.is_captain ?? false,
     addedBy: row.added_by ?? undefined,
     isGoalkeeper: row.is_goalkeeper ?? false,
+    pendingApproval: row.pending_approval ?? false,
   };
 }
 
@@ -263,7 +264,7 @@ export async function getEvent(
 export async function getMyEvents(userId: string): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_participants(id, is_reserve)')
+    .select('*, event_participants(id, is_reserve, pending_approval)')
     .eq('organizer_id', userId)
     .order('event_date', { ascending: true });
   if (error) throw new Error(error.message);
@@ -273,7 +274,7 @@ export async function getMyEvents(userId: string): Promise<EventItem[]> {
 export async function getEventsByGroup(groupId: string): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_participants(id, is_reserve)')
+    .select('*, event_participants(id, is_reserve, pending_approval)')
     .eq('group_id', groupId)
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);
@@ -283,7 +284,7 @@ export async function getEventsByGroup(groupId: string): Promise<EventItem[]> {
 export async function getPublicEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, fields(district), event_participants(id, is_reserve)')
+    .select('*, fields(district), event_participants(id, is_reserve, pending_approval)')
     .eq('visibility', 'public')
     .gte('event_date', new Date().toISOString().slice(0, 10))
     .order('event_date', { ascending: true });
@@ -318,16 +319,20 @@ export async function joinEvent(
 
   // Check if event is full (non-reserve count + external players vs max_players)
   const [{ data: ev }, { count }] = await Promise.all([
-    supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
+    supabase.from('events').select('max_players, external_count, require_approval').eq('id', eventId).single(),
     supabase
       .from('event_participants')
       .select('id', { count: 'exact', head: true })
       .eq('event_id', eventId)
-      .eq('is_reserve', false),
+      .eq('is_reserve', false)
+      .eq('pending_approval', false),
   ]);
 
+  // When the organizer requires approval, the join lands as a pending request
+  // (not counted toward capacity); reserve status is decided on approval.
+  const needsApproval = ev?.require_approval ?? false;
   const taken = (count ?? 0) + (ev?.external_count ?? 0);
-  const isReserve = taken >= (ev?.max_players ?? 999);
+  const isReserve = needsApproval ? false : taken >= (ev?.max_players ?? 999);
 
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
@@ -336,13 +341,14 @@ export async function joinEvent(
     is_guest: false,
     is_reserve: isReserve,
     is_goalkeeper: asGoalkeeper,
+    pending_approval: needsApproval,
   });
   if (error) throw new Error(error.message);
 
-  logActivity(eventId, userId, safeName, 'participant_joined', { is_reserve: isReserve }).catch(
+  logActivity(eventId, userId, safeName, 'participant_joined', { is_reserve: isReserve, pending: needsApproval }).catch(
     (e) => console.warn('[ActivityLog] participant_joined', e),
   );
-  track('event_joined', { eventId, isReserve });
+  track('event_joined', { eventId, isReserve, pending: needsApproval });
 }
 
 export async function addGuest(
@@ -429,6 +435,43 @@ export async function getNearbyEvents(lat: number, lng: number, radiusKm = 5, li
 
 export async function setRequireApproval(eventId: string, value: boolean): Promise<void> {
   const { error } = await supabase.from('events').update({ require_approval: value }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
+/** Approve a pending join request. Decides reserve vs. regular based on the
+ *  event's current free capacity at approval time. */
+export async function approveParticipant(participantId: string): Promise<void> {
+  const { data: part, error: pErr } = await supabase
+    .from('event_participants')
+    .select('event_id')
+    .eq('id', participantId)
+    .single();
+  if (pErr) throw new Error(pErr.message);
+
+  const eventId = part.event_id as string;
+  const [{ data: ev }, { count }] = await Promise.all([
+    supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
+    supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('is_reserve', false)
+      .eq('pending_approval', false),
+  ]);
+
+  const taken = (count ?? 0) + (ev?.external_count ?? 0);
+  const isReserve = taken >= (ev?.max_players ?? 999);
+
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ pending_approval: false, is_reserve: isReserve })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
+}
+
+/** Reject (delete) a pending join request. */
+export async function rejectParticipant(participantId: string): Promise<void> {
+  const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
   if (error) throw new Error(error.message);
 }
 
@@ -531,7 +574,7 @@ export async function getMyParticipatedEvents(
 
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_participants(id, is_reserve)')
+    .select('*, event_participants(id, is_reserve, pending_approval)')
     .in('id', eventIds)
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);

@@ -104,7 +104,7 @@ describe('joinEvent', () => {
 
     // joinEvent calls supabase.from() 3 times:
     //   1. events → .select().eq().single() → { max_players: 10 }
-    //   2. event_participants → .select({count}).eq().eq() → { count: 5 }
+    //   2. event_participants → .select({count}).eq().eq().eq() → { count: 5 }
     //   3. event_participants → .insert() → { error: null }
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'events') {
@@ -117,9 +117,11 @@ describe('joinEvent', () => {
           }),
         } as unknown as ReturnType<typeof supabase.from>;
       }
-      // event_participants: count query + insert
-      const finalEq = vi.fn().mockResolvedValue({ count: 5, error: null });
-      const firstEq = vi.fn().mockReturnValue({ eq: finalEq });
+      // event_participants count query chains three .eq() filters
+      // (event_id, is_reserve, pending_approval), then resolves.
+      const thirdEq = vi.fn().mockResolvedValue({ count: 5, error: null });
+      const secondEq = vi.fn().mockReturnValue({ eq: thirdEq });
+      const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
       return {
         ...mockChain,
         select: vi.fn().mockReturnValue({ eq: firstEq }),

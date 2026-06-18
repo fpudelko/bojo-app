@@ -25,6 +25,7 @@ import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
+  approveParticipant, rejectParticipant,
 } from '@/lib/events';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
@@ -367,9 +368,15 @@ export default function EventDetailPage() {
   // Strict ownership — only the actual creator, never admins. Drives the inline
   // "Edytuj" link so admins don't see an edit shortcut on other people's events.
   const isOwner = !!user && user.id === event.organizerId;
-  const regulars = participants.filter((p) => !p.isReserve);
-  const reserves = participants.filter((p) => p.isReserve);
-  const myParticipation = participants.find((p) => p.userId && p.userId === user?.id);
+  // Pending requests don't count toward the roster or capacity.
+  const confirmed = participants.filter((p) => !p.pendingApproval);
+  const pendingRequests = participants.filter((p) => p.pendingApproval);
+  const regulars = confirmed.filter((p) => !p.isReserve);
+  const reserves = confirmed.filter((p) => p.isReserve);
+  const myConfirmed = confirmed.find((p) => p.userId && p.userId === user?.id);
+  const myPendingRequest = pendingRequests.find((p) => p.userId && p.userId === user?.id);
+  // "myParticipation" = I'm in the roster (confirmed). Pending is handled separately.
+  const myParticipation = myConfirmed;
   const externalCount = event.externalCount ?? 0;
   const takenSpots = regulars.length + externalCount;
   const isFull = takenSpots >= event.maxPlayers;
@@ -398,7 +405,33 @@ export default function EventDetailPage() {
     try {
       await joinEvent(event.id, user.id, displayName(user), asGoalkeeper);
       await load();
-      toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
+      if (event.requireApproval) {
+        toast('Wysłano prośbę o dołączenie — czekaj na akceptację organizatora');
+      } else {
+        toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleApprove = async (participantId: string) => {
+    setBusy(true);
+    try {
+      await approveParticipant(participantId);
+      await load();
+      toast('Zaakceptowano gracza');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleReject = async (participantId: string) => {
+    setBusy(true);
+    try {
+      await rejectParticipant(participantId);
+      await load();
+      toast('Odrzucono prośbę');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -828,6 +861,56 @@ export default function EventDetailPage() {
           </div>
         </div>
 
+        {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
+        {isOwner && pendingRequests.length > 0 && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-amber-600" />
+                <p className="text-sm font-semibold text-amber-800">
+                  Prośby o dołączenie
+                  <span className="ml-1.5 rounded-full bg-amber-200 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">{pendingRequests.length}</span>
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {pendingRequests.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-amber-100">
+                    {p.avatarUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                        <UserPlus className="w-4 h-4" />
+                      </span>
+                    )}
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
+                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
+                    </span>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleApprove(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-800 active:scale-95 transition disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Akceptuj
+                      </button>
+                      <button
+                        onClick={() => handleReject(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition disabled:opacity-50"
+                        title="Odrzuć"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* ── PLAYER COUNT BLOCK ── */}
         <div className="px-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
@@ -993,8 +1076,30 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        {/* ── OCZEKUJESZ NA AKCEPTACJĘ — gdy wysłałeś prośbę o dołączenie ── */}
+        {user && myPendingRequest && !eventStarted && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-800">Oczekujesz na akceptację</p>
+                  <p className="text-xs text-amber-600">Organizator musi zatwierdzić Twoją prośbę o dołączenie.</p>
+                </div>
+                <button
+                  onClick={() => handleReject(myPendingRequest.id)}
+                  disabled={busy}
+                  className="shrink-0 rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany i mecz się nie zaczął ── */}
-        {!(user && myParticipation) && !eventStarted && (
+        {!(user && (myParticipation || myPendingRequest)) && !eventStarted && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
