@@ -37,16 +37,27 @@ export default function GroupDetailPage() {
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
+    // Only a missing/unreadable group means "not found". Failures loading the
+    // secondary data (members, events) must NOT hide the whole group page.
+    let g: Group | null = null;
     try {
-      const g = await getGroup(id);
-      if (!g) { setNotFound(true); return; }
-      setGroup(g);
+      g = await getGroup(id);
+    } catch {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    if (!g) { setNotFound(true); setLoading(false); return; }
+    setGroup(g);
+
+    try {
       const [m, ev] = await Promise.all([getGroupMembers(id), getGroupEvents(id)]);
       setMembers(m);
       setEvents(ev);
       setMember(user ? m.some((x) => x.userId === user.id) : false);
-    } catch {
-      setNotFound(true);
+    } catch (e) {
+      // Group still renders; just log the partial-load failure.
+      console.warn('[group] secondary data load failed', e);
     } finally {
       setLoading(false);
     }
