@@ -1411,21 +1411,36 @@ export default function EventDetailPage() {
           const organizerParticipant = participants.find((p) => p.userId && p.userId === event.organizerId);
           const organizerAvatar = organizerParticipant?.avatarUrl;
           const organizerLabel = event.organizerName || organizerParticipant?.name || 'Organizator';
+          const inner = (
+            <>
+              {organizerAvatar ? (
+                <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+              ) : (
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950 text-sm font-bold text-primary-700">
+                  {initials(organizerLabel)}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organizator</p>
+                <p className="font-semibold text-ink truncate">{organizerLabel}</p>
+              </div>
+              {event.organizerId && <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600" />}
+            </>
+          );
           return (
             <div className="px-4">
-              <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
-                {organizerAvatar ? (
-                  <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
-                ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950 text-sm font-bold text-primary-700">
-                    {initials(organizerLabel)}
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organizator</p>
-                  <p className="font-semibold text-ink truncate">{organizerLabel}</p>
+              {event.organizerId ? (
+                <Link
+                  href={`/gracz/${event.organizerId}`}
+                  className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700 hover:border-primary-200 dark:hover:border-primary-800 transition-colors"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                  {inner}
                 </div>
-              </div>
+              )}
             </div>
           );
         })()}
