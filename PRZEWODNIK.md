@@ -17,9 +17,12 @@ Ten dokument w 5 minut wprowadza Cię w to, co aplikacja potrafi i jak jest zbud
 | **Szczegóły boiska** (`/boisko/...`) | Adres, sporty, zdjęcie, opis, dane kontaktowe, nadchodzące mecze. Strona zoptymalizowana pod wyszukiwarki (JSON-LD) |
 | **Wydarzenia** (`/wydarzenia`) | Lista meczów — publiczne i „moje". Filtry po sporcie, sortowanie po odległości od Ciebie |
 | **Nowy mecz** (`/wydarzenia/nowe`) | Tworzysz mecz: sport, miejsce (z mapy lub adresu), data, godzina, liczba graczy, widoczność (publiczny/prywatny link) + opcje zaawansowane (obecność, płatności, termin potwierdzenia) |
-| **Mecz** (`/wydarzenia/...`) | Dołącz / dodaj gościa / kopiuj link / podział na drużyny / wynik / lista rezerwowa / zgłoszenie gracza |
+| **Mecz** (`/wydarzenia/...`) | Dołącz / dodaj gościa / kopiuj link / podział na drużyny / wynik / lista rezerwowa / zgłoszenie gracza. Organizator może wymagać **akceptacji** dołączeń |
+| **Grupy** (`/grupy`) | Stałe ekipy graczy (sport, miasto). Zakładanie, **link z zaproszeniem** (`/g/kod`), członkowie, mecze grupy, okładka. Edycja przez założyciela |
+| **Profile graczy** (`/gracze`, `/gracz/...`) | Publiczny profil gracza: awatar, statystyki (rozegrane mecze, frekwencja), znaczek „rzetelny gracz", historia |
 | **Moje gry** (`/moje-gry`) | Mecze, które organizujesz lub na które się zapisałeś + historia |
 | **Cykliczne** (`/cykliczne`) | Szablony powtarzalnych meczów (np. „każdy wtorek 18:00") z zapisami |
+| **Turniej** (`/turniej`) | Rejestracja drużyn, składy, drabinka i terminarz meczów |
 | **Rezerwacje** (`/rezerwacje`) | Twoje rezerwacje terminów (funkcja włączana flagą — patrz niżej) |
 | **Profil** (`/profil`) | Imię, awatar, telefon (za zgodą), usunięcie konta |
 
@@ -47,6 +50,7 @@ Admin = pole `is_admin = true` w tabeli `profiles`. Nadajesz je w panelu użytko
 | Strona | Co robi |
 |---|---|
 | **Użytkownicy** (`/admin/uzytkownicy`) | Lista kont, nadawanie/odbieranie roli admina, szukanie |
+| **Analityka** (`/admin/analityka`) | Aktywni użytkownicy, retencja, log akcji (logowania, tworzenie/dołączanie do meczów i grup) |
 | **Kontakt z obiektami** (`/admin/outreach`) | **CRM do pozyskiwania boisk** — najważniejszy panel admina (opis niżej) |
 | **Rezerwacje obiektu** (`/admin/...`) | Zarządzanie rezerwacjami i konfiguracją systemu rezerwacji dowolnego boiska |
 
@@ -106,7 +110,7 @@ Struktura: `frontend/` (apka), `scraper/` (skrypty danych), `supabase/` (schema 
 - **Powiadomienia** — e-mail/push, gdy ktoś dołączy do meczu albo awansuje z rezerwy (dziś brak)
 - **Agent kontaktowy** — automat, który wysyła maile do obiektów, zbiera odpowiedzi i podpowiada następny ruch w CRM (szkic gotowy, do uzgodnienia)
 - **Wyszukiwarka** boisk po nazwie/dzielnicy na mapie
-- **Zdjęcia** wgrywane przez użytkowników/menedżerów
+- **Płatności** — zbieranie składek za mecz (BLIK/Stripe)
 - **Twardsze zabezpieczenia** (część reguł dostępu sprawdzana dziś po stronie przeglądarki — do domknięcia w RLS)
 
 ---
