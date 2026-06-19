@@ -102,12 +102,14 @@ export default function GroupDetailPage() {
 
   const handleLeave = async () => {
     if (!user) return;
+    if (!confirm('Na pewno opuścić grupę?')) return;
     setBusy(true);
     try { await leaveGroup(id, user.id); toast('Opuściłeś grupę'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
   const handleRemove = async (userId: string) => {
+    if (!confirm('Usunąć tego gracza z grupy?')) return;
     setBusy(true);
     try { await removeMember(id, userId); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
@@ -323,16 +325,16 @@ export default function GroupDetailPage() {
           </div>
         )}
 
-        {/* Danger zone */}
+        {/* Danger zone — celowo dyskretne, by nie kusiło do przypadkowego kliknięcia */}
         {member && (
-          <div className="flex flex-col gap-2 pt-2">
+          <div className="flex justify-center pt-4 pb-2">
             {isOwner ? (
-              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-800 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
-                <Trash2 className="w-4 h-4" /> Usuń grupę
+              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Usuń grupę
               </button>
             ) : (
-              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors">
-                <LogOut className="w-4 h-4" /> Opuść grupę
+              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors">
+                <LogOut className="w-3.5 h-3.5" /> Opuść grupę
               </button>
             )}
           </div>
