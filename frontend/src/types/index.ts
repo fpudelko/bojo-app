@@ -202,6 +202,8 @@ export interface EventParticipant {
   isGoalkeeper: boolean;
   /** True while awaiting organizer approval (event.requireApproval). */
   pendingApproval: boolean;
+  /** 'yes' = confirmed spot; 'maybe' = interested, doesn't take a capacity slot. */
+  rsvp: 'yes' | 'maybe';
 }
 
 export interface EventCreate {

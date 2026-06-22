@@ -75,6 +75,7 @@ function toParticipant(row: any): EventParticipant {
     addedBy: row.added_by ?? undefined,
     isGoalkeeper: row.is_goalkeeper ?? false,
     pendingApproval: row.pending_approval ?? false,
+    rsvp: row.rsvp ?? 'yes',
   };
 }
 
@@ -349,6 +350,40 @@ export async function joinEvent(
     (e) => console.warn('[ActivityLog] participant_joined', e),
   );
   track('event_joined', { eventId, isReserve, pending: needsApproval });
+}
+
+/** Mark event as "maybe" — adds user to participants without taking a capacity slot. */
+export async function joinEventMaybe(eventId: string, userId: string, name: string): Promise<void> {
+  const safeName = validateName(name, 'Imię', 80);
+  const { error } = await supabase.from('event_participants').insert({
+    event_id: eventId,
+    user_id: userId,
+    name: safeName,
+    is_guest: false,
+    is_reserve: true,
+    rsvp: 'maybe',
+  });
+  if (error && !error.message.toLowerCase().includes('duplicate')) throw new Error(error.message);
+}
+
+/** Switch an existing "maybe" to a confirmed join (takes a capacity spot). */
+export async function confirmFromMaybe(participantId: string, eventId: string): Promise<void> {
+  const [{ data: ev }, { count }] = await Promise.all([
+    supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
+    supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('is_reserve', false)
+      .eq('rsvp', 'yes'),
+  ]);
+  const taken = (count ?? 0) + (ev?.external_count ?? 0);
+  const isReserve = taken >= (ev?.max_players ?? 999);
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ rsvp: 'yes', is_reserve: isReserve })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
 }
 
 export async function addGuest(

@@ -77,6 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      // When the user clicks a password-reset email, Supabase fires PASSWORD_RECOVERY
+      // on whatever page the redirect_to URL lands on. Redirect to the reset form
+      // regardless of which page is currently shown (handles cases where Supabase
+      // ignores our redirectTo because the URL isn't whitelisted yet).
+      if (event === 'PASSWORD_RECOVERY') {
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/reset')) {
+          window.location.href = '/auth/reset';
+        }
+        return;
+      }
       // Track a login once per browser session (SIGNED_IN also fires on tab
       // refocus / token refresh, so dedupe with a sessionStorage flag).
       if (event === 'SIGNED_IN' && session?.user) {

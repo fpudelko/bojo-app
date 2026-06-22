@@ -200,7 +200,7 @@ function SwipeablePlayerRow({
 
   const handleTouchEnd = () => {
     if (Math.abs(offsetX) >= SWIPE_THRESHOLD && !busy) {
-      onAssign(participant.id, offsetX > 0 ? 'A' : 'B');
+      onAssign(participant.id, offsetX < 0 ? 'A' : 'B');
     }
     setOffsetX(0);
     setSwiping(false);
@@ -208,8 +208,8 @@ function SwipeablePlayerRow({
   };
 
   const pct = Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1);
-  const toBlue = offsetX > 0;
-  const toRed = offsetX < 0;
+  const toBlue = offsetX < 0;
+  const toRed = offsetX > 0;
   const committed = Math.abs(offsetX) >= SWIPE_THRESHOLD;
 
   return (

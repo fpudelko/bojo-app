@@ -23,7 +23,7 @@ import { useToast } from '@/lib/toast';
 import { venueThumbnail } from '@/lib/labels';
 import { eventLocation } from '@/lib/utils';
 import {
-  getEvent, joinEvent, addGuest, removeParticipant, setVisibility, deleteEvent,
+  getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
   approveParticipant, rejectParticipant,
 } from '@/lib/events';
@@ -373,7 +373,8 @@ export default function EventDetailPage() {
   const pendingRequests = participants.filter((p) => p.pendingApproval);
   const regulars = confirmed.filter((p) => !p.isReserve);
   const reserves = confirmed.filter((p) => p.isReserve);
-  const myConfirmed = confirmed.find((p) => p.userId && p.userId === user?.id);
+  const myConfirmed = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp !== 'maybe');
+  const myMaybe = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp === 'maybe');
   const myPendingRequest = pendingRequests.find((p) => p.userId && p.userId === user?.id);
   // "myParticipation" = I'm in the roster (confirmed). Pending is handled separately.
   const myParticipation = myConfirmed;
@@ -399,6 +400,30 @@ export default function EventDetailPage() {
   const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
 
   // Handlers
+  const handleMaybe = async () => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await joinEventMaybe(event.id, user.id, displayName(user));
+      await load();
+      toast('Dodano do „Może" — mecz widoczny w Twoich grach');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleConfirmMaybe = async () => {
+    if (!user || !myMaybe) return;
+    setBusy(true);
+    try {
+      await confirmFromMaybe(myMaybe.id, event.id);
+      await load();
+      toast('Potwierdzono udział!');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
   const handleJoin = async (asGoalkeeper = false) => {
     if (!user) return;
     setBusy(true);
@@ -1098,8 +1123,36 @@ export default function EventDetailPage() {
           </div>
         )}
 
+        {/* ── MAYBE BANNER — when user said "maybe" ── */}
+        {user && myMaybe && !eventStarted && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Odpowiedziałeś „Może"</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">Mecz widoczny w Twoich grach. Potwierdź jeśli jesteś pewny.</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={handleConfirmMaybe}
+                  disabled={busy}
+                  className="rounded-xl bg-primary-700 px-3 py-2 text-xs font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
+                >
+                  Dołącz
+                </button>
+                <button
+                  onClick={() => { setLeaveConfirmOpen(true); }}
+                  disabled={busy}
+                  className="rounded-xl border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 transition"
+                >
+                  Wycofaj
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany i mecz się nie zaczął ── */}
-        {!(user && (myParticipation || myPendingRequest)) && !eventStarted && (
+        {!(user && (myParticipation || myPendingRequest || myMaybe)) && !eventStarted && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
@@ -1110,14 +1163,21 @@ export default function EventDetailPage() {
                   Zaloguj się, aby dołączyć
                 </button>
               ) : user && !isFull ? (
-                <>
+                <div className="flex gap-2">
                   <button
                     onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
+                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
-                    Dołącz do meczu →
+                    Dołącz →
                   </button>
-                </>
+                  <button
+                    onClick={handleMaybe}
+                    disabled={busy}
+                    className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
+                  >
+                    Może
+                  </button>
+                </div>
               ) : user && isFull ? (
                 <>
                   <button
