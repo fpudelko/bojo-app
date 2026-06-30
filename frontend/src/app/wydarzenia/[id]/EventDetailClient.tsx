@@ -1543,7 +1543,7 @@ export default function EventDetailClient() {
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. */}
-        {isOwner && !eventStarted && (
+        {isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -1597,7 +1597,7 @@ export default function EventDetailClient() {
                 >
                   <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
                 </button>
-                {!isCancelled ? (
+                {!eventStarted && (!isCancelled ? (
                   <button
                     onClick={handleCancel} disabled={busy}
                     className="w-full flex items-center gap-2 text-sm text-amber-600 hover:bg-amber-50 rounded-lg px-3 py-2"
@@ -1611,7 +1611,7 @@ export default function EventDetailClient() {
                   >
                     <RotateCcw className="w-4 h-4" /> Przywróć mecz
                   </button>
-                )}
+                ))}
                 <button
                   onClick={() => setDeleteConfirmOpen(true)} disabled={busy}
                   className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
