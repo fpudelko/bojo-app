@@ -389,11 +389,6 @@ export default function EventDetailClient() {
   const showTeams = event.teamMode !== 'brak';
   const isFootball = event.sport === 'piłka nożna';
   const hasGoalkeeper = regulars.some((p) => p.isGoalkeeper);
-  // How many guests each registered player added (for the "+N" badge).
-  const guestsAddedBy: Record<string, number> = {};
-  for (const p of participants) {
-    if (p.isGuest && p.addedBy) guestsAddedBy[p.addedBy] = (guestsAddedBy[p.addedBy] ?? 0) + 1;
-  }
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
   const goalsMap: Record<string, number> = {};
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
@@ -1262,47 +1257,52 @@ export default function EventDetailClient() {
                     : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                   }
 
-                  {/* Name + badges */}
-                  <span className="flex-1 flex items-center gap-1 text-sm text-ink min-w-0 overflow-hidden">
-                    {p.userId && !p.isGuest ? (
-                      <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[100px] sm:max-w-[160px] hover:text-primary-700 hover:underline">
-                        {p.name}
-                      </Link>
-                    ) : (
-                      <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
-                    )}
-                    {p.isGuest && (
-                      <span
-                        title={p.addedBy ? `Dodany przez: ${participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'}` : 'Dodany ręcznie (bez konta)'}
-                        className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
-                      >
-                        dodany{isOrganizer && p.addedBy && p.addedBy !== user?.id
-                          ? ` · ${participants.find((x) => x.userId === p.addedBy)?.name ?? '—'}`
-                          : ''}
-                      </span>
-                    )}
-                    {/* +N — how many guests this player brought */}
-                    {p.userId && (guestsAddedBy[p.userId] ?? 0) > 0 && (
-                      <span
-                        title={`Dodał(a) gości: ${guestsAddedBy[p.userId]}`}
-                        className="text-[10px] font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0"
-                      >
-                        +{guestsAddedBy[p.userId]}
-                      </span>
-                    )}
-                    {p.isGoalkeeper && (
-                      <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
-                        🧤 BR
-                      </span>
-                    )}
-                    {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
-                    {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
-                    {showTeams && p.team && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {p.team}
-                      </span>
-                    )}
-                  </span>
+                  {/* Name + attribution */}
+                  <div className="flex-1 min-w-0">
+                    <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
+                      {p.userId && !p.isGuest ? (
+                        <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[110px] sm:max-w-[170px] hover:text-primary-700 hover:underline">
+                          {p.name}
+                        </Link>
+                      ) : (
+                        <span className="truncate min-w-0 max-w-[110px] sm:max-w-[170px]">{p.name}</span>
+                      )}
+                      {p.isGuest && (
+                        <span
+                          title="Gość bez konta — dopisany ręcznie"
+                          className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
+                        >
+                          gość
+                        </span>
+                      )}
+                      {p.isGoalkeeper && (
+                        <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
+                          🧤 BR
+                        </span>
+                      )}
+                      {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
+                      {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                      {showTeams && p.team && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {p.team}
+                        </span>
+                      )}
+                    </span>
+                    {/* "Brought by" line — who added this guest (visible to everyone) */}
+                    {p.isGuest && p.addedBy && (() => {
+                      const adderName = participants.find((x) => x.userId === p.addedBy)?.name
+                        ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
+                        ?? 'innego gracza';
+                      return (
+                        <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                          <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                            {adderName.charAt(0).toUpperCase()}
+                          </span>
+                          dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
+                        </span>
+                      );
+                    })()}
+                  </div>
 
                   {/* Controls */}
                   <div className="flex items-center gap-1 shrink-0">
