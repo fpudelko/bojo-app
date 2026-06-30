@@ -55,6 +55,7 @@ export default function EditEventPage() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [maxGoalkeepers, setMaxGoalkeepers] = useState(2);
   const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -87,6 +88,7 @@ export default function EditEventPage() {
         setTime(ev.time?.slice(0, 5) ?? '18:00');
         setEndTime(ev.endTime?.slice(0, 5) ?? '');
         setMaxPlayers(ev.maxPlayers);
+        setMaxGoalkeepers(ev.maxGoalkeepers ?? 2);
         setExternalCount(ev.externalCount ?? 0);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
@@ -157,6 +159,7 @@ export default function EditEventPage() {
         time,
         endTime: endTime || undefined,
         maxPlayers,
+        maxGoalkeepers: sport === 'piłka nożna' ? maxGoalkeepers : 2,
         externalCount,
         visibility,
         requireApproval,
@@ -300,6 +303,21 @@ export default function EditEventPage() {
               className="w-full accent-primary-600"
             />
           </div>
+
+          {/* Goalkeeper limit — football only */}
+          {sport === 'piłka nożna' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Limit bramkarzy: <span className="text-primary-600 font-semibold">{maxGoalkeepers}</span>
+              </label>
+              <p className="text-xs text-slate-500 mb-1">Kolejni bramkarze trafią na rezerwę.</p>
+              <input
+                type="range" min={0} max={5} value={maxGoalkeepers}
+                onChange={(e) => setMaxGoalkeepers(Number(e.target.value))}
+                className="w-full accent-primary-600"
+              />
+            </div>
+          )}
 
           {/* Players already committed outside the app */}
           <div>

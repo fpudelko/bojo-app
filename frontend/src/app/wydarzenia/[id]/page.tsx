@@ -284,6 +284,7 @@ export default function EventDetailPage() {
   const [busy, setBusy] = useState(false);
   const [smsBusy, setSmsBusy] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
+  const [guestIsGk, setGuestIsGk] = useState(false);
   const [copied, setCopied] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
@@ -387,6 +388,11 @@ export default function EventDetailPage() {
   const showTeams = event.teamMode !== 'brak';
   const isFootball = event.sport === 'piłka nożna';
   const hasGoalkeeper = regulars.some((p) => p.isGoalkeeper);
+  // How many guests each registered player added (for the "+N" badge).
+  const guestsAddedBy: Record<string, number> = {};
+  for (const p of participants) {
+    if (p.isGuest && p.addedBy) guestsAddedBy[p.addedBy] = (guestsAddedBy[p.addedBy] ?? 0) + 1;
+  }
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
   const goalsMap: Record<string, number> = {};
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
@@ -467,8 +473,9 @@ export default function EventDetailPage() {
     if (!guestName.trim()) return;
     setBusy(true);
     try {
-      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined);
+      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestIsGk);
       setGuestName('');
+      setGuestIsGk(false);
       await load();
       toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
     } catch (e) {
@@ -1081,16 +1088,24 @@ export default function EventDetailPage() {
         {user && myParticipation && (
           <div className="px-4">
             {!isOrganizer && !myParticipation.isReserve && event.allowGuestAdds && (
-              <div className="mb-3 flex gap-2">
-                <input
-                  type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                  placeholder="Dodaj znajomego bez konta…"
-                  className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                  <UserPlus className="w-4 h-4" />
-                </Button>
+              <div className="mb-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
+                    placeholder="Dopisz znajomego bez konta…"
+                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
+                    <UserPlus className="w-4 h-4" /> Dopisz
+                  </Button>
+                </div>
+                {isFootball && (
+                  <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
+                    <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+                    🧤 Dodaj jako bramkarza
+                  </label>
+                )}
               </div>
             )}
             <button
@@ -1256,12 +1271,22 @@ export default function EventDetailPage() {
                       <span className="truncate min-w-0 max-w-[100px] sm:max-w-[160px]">{p.name}</span>
                     )}
                     {p.isGuest && (
-                      <span className="text-xs text-slate-400 shrink-0">
-                        (gość{isOrganizer && p.addedBy && p.addedBy !== user?.id
-                          ? ` · dodany przez: ${
-                              participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'
-                            }`
-                          : ''})
+                      <span
+                        title={p.addedBy ? `Dodany przez: ${participants.find((x) => x.userId === p.addedBy)?.name ?? 'innego użytkownika'}` : 'Dodany ręcznie (bez konta)'}
+                        className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
+                      >
+                        dodany{isOrganizer && p.addedBy && p.addedBy !== user?.id
+                          ? ` · ${participants.find((x) => x.userId === p.addedBy)?.name ?? '—'}`
+                          : ''}
+                      </span>
+                    )}
+                    {/* +N — how many guests this player brought */}
+                    {p.userId && (guestsAddedBy[p.userId] ?? 0) > 0 && (
+                      <span
+                        title={`Dodał(a) gości: ${guestsAddedBy[p.userId]}`}
+                        className="text-[10px] font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0"
+                      >
+                        +{guestsAddedBy[p.userId]}
                       </span>
                     )}
                     {p.isGoalkeeper && (
@@ -1352,18 +1377,30 @@ export default function EventDetailPage() {
             )}
           </ul>
 
-          {/* Add guest */}
+          {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
           {isOrganizer && (
-            <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
-              <input
-                type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                placeholder="Imię znajomego (bez konta)"
-                className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()}>
-                <UserPlus className="w-4 h-4" /> Dodaj
-              </Button>
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
+              <div className="flex gap-2">
+                <input
+                  type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
+                  placeholder="Imię znajomego"
+                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()}>
+                  <UserPlus className="w-4 h-4" /> Dopisz do składu
+                </Button>
+              </div>
+              {isFootball && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
+                  <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+                  🧤 Dodaj jako bramkarza
+                </label>
+              )}
+              <p className="mt-2 text-[11px] text-slate-400">
+                Dopisujesz gracza ręcznie. Aby ktoś dołączył sam — użyj „Zaproś / wyślij link" niżej.
+              </p>
             </div>
           )}
         </div>

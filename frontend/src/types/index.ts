@@ -179,6 +179,8 @@ export interface EventItem {
   joinCode: string;
   requireApproval: boolean;
   coverImageUrl?: string;
+  /** Max goalkeepers before extras overflow to reserve (football). Default 2. */
+  maxGoalkeepers: number;
 }
 
 export interface EventParticipant {
@@ -233,6 +235,7 @@ export interface EventCreate {
   costGrosze?: number;
   requireApproval?: boolean;
   groupId?: string;
+  maxGoalkeepers?: number;
 }
 
 // ---------------------------------------------------------------------------

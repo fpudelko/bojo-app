@@ -44,6 +44,7 @@ function toEvent(row: any): EventItem {
     allowGuestAdds: row.allow_guest_adds ?? false,
     joinCode: row.join_code ?? '',
     requireApproval: row.require_approval ?? false,
+    maxGoalkeepers: row.max_goalkeepers ?? 2,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -131,6 +132,7 @@ export async function createEvent(
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
+      max_goalkeepers: data.maxGoalkeepers ?? 2,
       group_id: data.groupId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
@@ -201,6 +203,7 @@ export async function updateEvent(
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
+      max_goalkeepers: data.maxGoalkeepers ?? 2,
     })
     .eq('id', id);
 
@@ -320,7 +323,7 @@ export async function joinEvent(
 
   // Check if event is full (non-reserve count + external players vs max_players)
   const [{ data: ev }, { count }] = await Promise.all([
-    supabase.from('events').select('max_players, external_count, require_approval').eq('id', eventId).single(),
+    supabase.from('events').select('max_players, external_count, require_approval, max_goalkeepers').eq('id', eventId).single(),
     supabase
       .from('event_participants')
       .select('id', { count: 'exact', head: true })
@@ -333,7 +336,19 @@ export async function joinEvent(
   // (not counted toward capacity); reserve status is decided on approval.
   const needsApproval = ev?.require_approval ?? false;
   const taken = (count ?? 0) + (ev?.external_count ?? 0);
-  const isReserve = needsApproval ? false : taken >= (ev?.max_players ?? 999);
+  let isReserve = needsApproval ? false : taken >= (ev?.max_players ?? 999);
+
+  // Goalkeeper cap: extra goalkeepers overflow to the reserve list.
+  if (asGoalkeeper && !isReserve && !needsApproval) {
+    const { count: gkCount } = await supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('is_reserve', false)
+      .eq('pending_approval', false)
+      .eq('is_goalkeeper', true);
+    if ((gkCount ?? 0) >= (ev?.max_goalkeepers ?? 2)) isReserve = true;
+  }
 
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
@@ -343,6 +358,8 @@ export async function joinEvent(
     is_reserve: isReserve,
     is_goalkeeper: asGoalkeeper,
     pending_approval: needsApproval,
+    // Joining yourself = you're confirmed, not merely "invited".
+    status: 'potwierdzony',
   });
   if (error) throw new Error(error.message);
 
@@ -403,7 +420,7 @@ export async function addGuest(
   let reserve = isReserve;
   if (!reserve) {
     const [{ data: ev }, { count }] = await Promise.all([
-      supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
+      supabase.from('events').select('max_players, external_count, max_goalkeepers').eq('id', eventId).single(),
       supabase
         .from('event_participants')
         .select('id', { count: 'exact', head: true })
@@ -413,6 +430,18 @@ export async function addGuest(
     ]);
     const taken = (count ?? 0) + (ev?.external_count ?? 0);
     reserve = taken >= (ev?.max_players ?? 999);
+
+    // Goalkeeper cap: extra goalkeepers overflow to the reserve list.
+    if (asGoalkeeper && !reserve) {
+      const { count: gkCount } = await supabase
+        .from('event_participants')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_id', eventId)
+        .eq('is_reserve', false)
+        .eq('pending_approval', false)
+        .eq('is_goalkeeper', true);
+      if ((gkCount ?? 0) >= (ev?.max_goalkeepers ?? 2)) reserve = true;
+    }
   }
 
   const { error } = await supabase.from('event_participants').insert({
@@ -423,6 +452,7 @@ export async function addGuest(
     is_reserve: reserve,
     is_goalkeeper: asGoalkeeper,
     added_by: addedByUserId ?? null,
+    status: 'potwierdzony',
   });
   if (error) throw new Error(error.message);
   return { isReserve: reserve };
@@ -611,6 +641,7 @@ export async function repeatEvent(
       trackResults: source.trackResults,
       confirmationDeadlineH: source.confirmationDeadlineH,
       costGrosze: source.costGrosze,
+      maxGoalkeepers: source.maxGoalkeepers,
       customLocationName: source.customLocationName,
       customAddress: source.customAddress,
     },

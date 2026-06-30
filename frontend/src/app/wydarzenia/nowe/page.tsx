@@ -55,6 +55,7 @@ function NewEventForm() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [maxGoalkeepers, setMaxGoalkeepers] = useState(2);
   const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -210,6 +211,7 @@ function NewEventForm() {
           time,
           endTime: endTime || undefined,
           maxPlayers,
+          maxGoalkeepers: sport === 'piłka nożna' ? maxGoalkeepers : 2,
           externalCount,
           visibility,
           requireSmsConfirmation: false,
@@ -478,6 +480,39 @@ function NewEventForm() {
                   </button>
                 </div>
               </div>
+
+              {/* Goalkeeper limit — football only */}
+              {sport === 'piłka nożna' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Limit bramkarzy
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">Kolejni bramkarze trafią na rezerwę.</p>
+                  <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setMaxGoalkeepers((v) => Math.max(0, v - 1))}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                      disabled={maxGoalkeepers <= 0}
+                      aria-label="Zmniejsz limit bramkarzy"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center text-lg font-semibold text-slate-900 tabular-nums">
+                      {maxGoalkeepers}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setMaxGoalkeepers((v) => Math.min(5, v + 1))}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
+                      disabled={maxGoalkeepers >= 5}
+                      aria-label="Zwiększ limit bramkarzy"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Players already committed outside the app */}
               <div>
