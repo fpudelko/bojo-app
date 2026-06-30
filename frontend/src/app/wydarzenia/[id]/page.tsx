@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import TimeSelect from '@/components/ui/TimeSelect';
 import CoverUpload from '@/components/ui/CoverUpload';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
@@ -1788,12 +1789,7 @@ export default function EventDetailPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Godzina</label>
-                <input
-                  type="time"
-                  value={repeatTime}
-                  onChange={(e) => setRepeatTime(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+                <TimeSelect value={repeatTime} onChange={setRepeatTime} />
               </div>
               <div className="flex items-center justify-between pt-1">
                 <div>

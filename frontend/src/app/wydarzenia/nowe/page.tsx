@@ -6,6 +6,7 @@ import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users } from 'lucide-re
 import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import TimeSelect from '@/components/ui/TimeSelect';
 import UnifiedLocationPicker from '@/components/map/UnifiedLocationPicker';
 import type { LocationResult } from '@/components/map/UnifiedLocationPicker';
 import { useAuth, displayName } from '@/lib/auth';
@@ -426,18 +427,17 @@ function NewEventForm() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
-                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
+                  <TimeSelect value={time} onChange={setTime} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Zakończenie <span className="text-slate-400 font-normal">(opcjonalnie)</span>
                   </label>
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={endTime}
-                    min={time}
-                    onChange={(e) => { setEndTime(e.target.value); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
-                    className={[inputCls, fieldErrors.endTime ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
+                    allowEmpty
+                    onChange={(v) => { setEndTime(v); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
+                    className={fieldErrors.endTime ? 'ring-1 ring-red-400 rounded-xl' : ''}
                   />
                   {fieldErrors.endTime && (
                     <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">

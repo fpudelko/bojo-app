@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Lock, Globe, ArrowLeft, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import TimeSelect from '@/components/ui/TimeSelect';
 import VenuePicker from '@/components/map/VenuePicker';
 import RemindersSection from '@/components/events/RemindersSection';
 import { SHOW_SMS_FEATURES } from '@/lib/features';
@@ -274,17 +275,13 @@ export default function EditEventPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputCls} required />
+              <TimeSelect value={time} onChange={setTime} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Zakończenie <span className="text-slate-400 font-normal">(opcjonalnie)</span>
               </label>
-              <input
-                type="time" value={endTime} min={time}
-                onChange={(e) => setEndTime(e.target.value)}
-                className={inputCls}
-              />
+              <TimeSelect value={endTime} allowEmpty onChange={setEndTime} />
             </div>
           </div>
 
