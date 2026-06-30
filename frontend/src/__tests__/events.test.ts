@@ -72,7 +72,7 @@ describe('createEvent', () => {
       {
         sport: 'piłka nożna',
         fieldName: 'Orlik Rataje',
-        date: '2026-07-01',
+        date: '2099-07-01',
         time: '18:00',
         maxPlayers: 10,
         visibility: 'private',
@@ -90,7 +90,7 @@ describe('createEvent', () => {
   it('throws when Supabase returns an error', async () => {
     mockSingle.mockResolvedValue({ data: null, error: { message: 'DB error' } });
     await expect(
-      createEvent({ sport: 'futsal', fieldName: 'X', date: '2026-01-01', time: '10:00', maxPlayers: 5, visibility: 'private' }, 'u', 'U'),
+      createEvent({ sport: 'futsal', fieldName: 'X', date: '2099-01-01', time: '10:00', maxPlayers: 5, visibility: 'private' }, 'u', 'U'),
     ).rejects.toThrow('DB error');
   });
 });

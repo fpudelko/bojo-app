@@ -90,6 +90,18 @@ export async function createEvent(
   organizerName: string,
   organizerParticipates = true,
 ): Promise<string> {
+  // A match can't start in the past (covers UI bypass + repeat-into-past).
+  try {
+    const [y, m, d] = data.date.split('-').map(Number);
+    const [h, min] = (data.time || '00:00').split(':').map(Number);
+    if (new Date(y, m - 1, d, h, min).getTime() <= Date.now()) {
+      throw new Error('Mecz nie może zaczynać się w przeszłości.');
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('przeszłości')) throw e;
+    // unparseable date → let downstream validation handle it
+  }
+
   // Rate limit: max 10 events per hour per user
   const { data: allowed } = await supabase.rpc('check_rate_limit', {
     p_action: 'create_event',

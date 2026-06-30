@@ -16,6 +16,15 @@ import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Visibility } from '@/types';
 
+/** True when the given date (YYYY-MM-DD) + time (HH:MM) is at or before now. */
+function isPast(date: string, time: string): boolean {
+  try {
+    const [y, m, d] = date.split('-').map(Number);
+    const [h, min] = (time || '00:00').split(':').map(Number);
+    return new Date(y, m - 1, d, h, min).getTime() <= Date.now();
+  } catch { return false; }
+}
+
 function ToggleRow({ label, desc, checked, onChange }: {
   label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
@@ -182,6 +191,7 @@ function NewEventForm() {
     const errs: Record<string, string> = {};
     if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
     if (!date) errs.date = 'Podaj datę meczu.';
+    if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
     if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -256,6 +266,7 @@ function NewEventForm() {
   const goToStep3 = () => {
     const errs: Record<string, string> = {};
     if (!date) errs.date = 'Podaj datę meczu.';
+    if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
     if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -416,6 +427,7 @@ function NewEventForm() {
                   <input
                     type="date"
                     value={date}
+                    min={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => { setDate(e.target.value); setFieldErrors((f) => ({ ...f, date: '' })); }}
                     className={[inputCls, fieldErrors.date ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
                   />
