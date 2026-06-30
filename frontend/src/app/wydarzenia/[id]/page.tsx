@@ -308,6 +308,7 @@ export default function EventDetailPage() {
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
+  const [repeatJoin, setRepeatJoin] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
   const loadMatchData = useCallback(async (ev: EventItem) => {
@@ -466,10 +467,10 @@ export default function EventDetailPage() {
     if (!guestName.trim()) return;
     setBusy(true);
     try {
-      await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined);
+      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined);
       setGuestName('');
       await load();
-      toast('Gość dodany');
+      toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -645,7 +646,7 @@ export default function EventDetailPage() {
     if (!user || !repeatDate || !repeatTime) return;
     setRepeatBusy(true);
     try {
-      const newId = await repeatEvent(event, repeatDate, repeatTime, user.id, displayName(user));
+      const newId = await repeatEvent(event, repeatDate, repeatTime, user.id, displayName(user), repeatJoin);
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
       router.push(`/wydarzenia/${newId}`);
@@ -1756,6 +1757,21 @@ export default function EventDetailPage() {
                   onChange={(e) => setRepeatTime(e.target.value)}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Biorę udział</p>
+                  <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika kopii</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRepeatJoin((v) => !v)}
+                  className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', repeatJoin ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                  role="switch"
+                  aria-checked={repeatJoin}
+                >
+                  <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', repeatJoin ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                </button>
               </div>
             </div>
             <div className="flex gap-2">

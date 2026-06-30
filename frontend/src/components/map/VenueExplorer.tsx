@@ -10,7 +10,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Check, CalendarCheck, MapPin, Globe } from 'lucide-react';
+import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
 import { getFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -390,6 +390,7 @@ export default function VenueExplorer({
 
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
+  const [search,    setSearch]    = useState('');
 
   // Filters live in the URL so they survive back-navigation
   const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
@@ -474,9 +475,11 @@ export default function VenueExplorer({
     if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
-  }, [allFields, sports, venueTypes, onlyGamesToday, fieldStats]);
+  }, [allFields, sports, venueTypes, onlyGamesToday, fieldStats, search]);
 
   // Clean up stale card refs
   useEffect(() => {
@@ -535,6 +538,27 @@ export default function VenueExplorer({
 
   const CARD_W = 'min(85vw, 360px)';
 
+  const searchBox = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Szukaj boiska po nazwie lub adresie…"
+        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+      />
+      {search && (
+        <button
+          onClick={() => setSearch('')}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          aria-label="Wyczyść"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+
   const street = MAPBOX_TOKEN ? (
     <TileLayer
       attribution='&copy; Mapbox &copy; OpenStreetMap'
@@ -550,8 +574,9 @@ export default function VenueExplorer({
 
       {/* ── Desktop sidebar ─────────────────────────────────────────── */}
       <aside className="hidden md:flex flex-col w-[380px] shrink-0 border-r border-slate-100 bg-[#FAF9F6] overflow-hidden">
-        {/* Filters */}
-        <div className="px-3 pt-3 pb-3 border-b border-slate-100">
+        {/* Search + Filters */}
+        <div className="px-3 pt-3 pb-3 border-b border-slate-100 space-y-3">
+          {searchBox}
           <FilterPills {...filterProps} wrap />
         </div>
 
@@ -591,8 +616,9 @@ export default function VenueExplorer({
           <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
         </MapContainer>
 
-        {/* Mobile: filter overlay */}
-        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3">
+        {/* Mobile: search + filter overlay */}
+        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3 space-y-2">
+          <div className="pointer-events-auto">{searchBox}</div>
           <div className="pointer-events-auto">
             <FilterPills {...filterProps} />
           </div>

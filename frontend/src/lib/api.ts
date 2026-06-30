@@ -80,6 +80,11 @@ export async function getFields(filters?: FieldFilters): Promise<FieldsResponse>
   if (filters?.mapVisibility !== undefined) {
     query = query.eq('map_visibility', filters.mapVisibility);
   }
+  if (filters?.search?.trim()) {
+    // Match by venue name or address (case-insensitive).
+    const term = filters.search.trim();
+    query = query.or(`name.ilike.%${term}%,address.ilike.%${term}%`);
+  }
   if (filters?.limit !== undefined) {
     const from = filters.offset ?? 0;
     query = query.range(from, from + filters.limit - 1);

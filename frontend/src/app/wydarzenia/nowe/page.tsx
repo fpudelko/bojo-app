@@ -498,11 +498,14 @@ function NewEventForm() {
                     placeholder="0"
                     className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
-                  {externalCount > 0 && (
-                    <span className="text-sm text-primary-700 font-medium">
-                      Szukasz jeszcze {Math.max(0, maxPlayers - externalCount)} {maxPlayers - externalCount === 1 ? 'gracza' : 'graczy'}
-                    </span>
-                  )}
+                  {(externalCount > 0 || organizerParticipates) && (() => {
+                    const searched = Math.max(0, maxPlayers - externalCount - (organizerParticipates ? 1 : 0));
+                    return (
+                      <span className="text-sm text-primary-700 font-medium">
+                        Szukasz jeszcze {searched} {searched === 1 ? 'gracza' : 'graczy'}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
 

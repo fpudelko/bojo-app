@@ -386,22 +386,46 @@ export async function confirmFromMaybe(participantId: string, eventId: string): 
   if (error) throw new Error(error.message);
 }
 
+/** Adds a guest (no account) to the roster. When the event is full, the guest
+ *  lands on the reserve list automatically. Returns whether they were placed on
+ *  the reserve so the UI can inform the organizer. */
 export async function addGuest(
   eventId: string,
   name: string,
   isReserve = false,
   addedByUserId?: string,
-): Promise<void> {
+  asGoalkeeper = false,
+): Promise<{ isReserve: boolean }> {
   const safeName = validateName(name, 'Imię gościa', 80);
+
+  // If not explicitly added to reserve, check capacity and overflow to reserve
+  // when the event is full (mirrors joinEvent so the roster never exceeds limit).
+  let reserve = isReserve;
+  if (!reserve) {
+    const [{ data: ev }, { count }] = await Promise.all([
+      supabase.from('events').select('max_players, external_count').eq('id', eventId).single(),
+      supabase
+        .from('event_participants')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_id', eventId)
+        .eq('is_reserve', false)
+        .eq('pending_approval', false),
+    ]);
+    const taken = (count ?? 0) + (ev?.external_count ?? 0);
+    reserve = taken >= (ev?.max_players ?? 999);
+  }
+
   const { error } = await supabase.from('event_participants').insert({
     event_id: eventId,
     user_id: null,
     name: safeName,
     is_guest: true,
-    is_reserve: isReserve,
+    is_reserve: reserve,
+    is_goalkeeper: asGoalkeeper,
     added_by: addedByUserId ?? null,
   });
   if (error) throw new Error(error.message);
+  return { isReserve: reserve };
 }
 
 export async function removeParticipant(participantId: string): Promise<void> {
@@ -563,6 +587,7 @@ export async function repeatEvent(
   newTime: string,
   organizerId: string,
   organizerName: string,
+  organizerParticipates = true,
 ): Promise<string> {
   return createEvent(
     {
@@ -591,7 +616,7 @@ export async function repeatEvent(
     },
     organizerId,
     organizerName,
-    true,
+    organizerParticipates,
   );
 }
 
