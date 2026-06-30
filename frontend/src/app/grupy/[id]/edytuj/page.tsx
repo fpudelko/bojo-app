@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Lock } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
+import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth } from '@/lib/auth';
 import { getGroup, updateGroup } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
@@ -22,6 +23,9 @@ export default function EditGroupPage() {
   const [description, setDescription] = useState('');
   const [sport, setSport] = useState('');
   const [city, setCity] = useState('');
+  const [fieldId, setFieldId] = useState<string | undefined>(undefined);
+  const [fieldName, setFieldName] = useState<string | undefined>(undefined);
+  const [venueOpen, setVenueOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const inputCls =
@@ -37,6 +41,8 @@ export default function EditGroupPage() {
       setDescription(g.description ?? '');
       setSport(g.sport ?? '');
       setCity(g.city ?? '');
+      setFieldId(g.fieldId);
+      setFieldName(g.fieldName);
       setState('ok');
     } catch {
       setState('notfound');
@@ -54,6 +60,8 @@ export default function EditGroupPage() {
         description: description || undefined,
         sport: sport || undefined,
         city: city || undefined,
+        fieldId,
+        fieldName,
       });
       toast('Zapisano zmiany');
       router.push(`/grupy/${id}`);
@@ -143,6 +151,37 @@ export default function EditGroupPage() {
               maxLength={60}
               className={inputCls}
             />
+          </div>
+
+          {/* Optional venue */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Boisko (opcjonalnie)</label>
+            {fieldName ? (
+              <div className="flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 dark:bg-primary-950 px-3 py-2.5 text-sm">
+                <MapPin className="w-4 h-4 text-primary-600 shrink-0" />
+                <span className="flex-1 truncate text-primary-800 dark:text-primary-200">{fieldName}</span>
+                <button type="button" onClick={() => { setFieldId(undefined); setFieldName(undefined); }} className="text-slate-400 hover:text-red-500" aria-label="Usuń boisko">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVenueOpen((v) => !v)}
+                className="w-full flex items-center justify-between rounded-xl border border-slate-300 dark:border-slate-600 px-3.5 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                <span className="inline-flex items-center gap-2"><MapPin className="w-4 h-4" /> Przypisz boisko grupy</span>
+                {venueOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            )}
+            {venueOpen && !fieldName && (
+              <div className="mt-2 h-[320px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <VenuePicker
+                  sport={sport || undefined}
+                  onSelect={(f) => { setFieldId(f.id); setFieldName(f.name); setVenueOpen(false); }}
+                />
+              </div>
+            )}
           </div>
 
           <div>

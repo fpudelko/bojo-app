@@ -409,6 +409,8 @@ export interface Group {
   createdAt: string;
   memberCount?: number; // populated in list queries
   coverImageUrl?: string;
+  fieldId?: string;    // optional venue this group is tied to
+  fieldName?: string;
 }
 
 export interface GroupMember {

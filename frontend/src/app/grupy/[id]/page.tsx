@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users, ArrowLeft, Share2, Copy, Check, Plus, LogOut, Trash2,
-  User as UserIcon, Loader2, Crown, ChevronRight, Calendar, Pencil,
+  User as UserIcon, Loader2, Crown, ChevronRight, Calendar, Pencil, MapPin,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -200,6 +200,17 @@ export default function GroupDetailPage() {
                   {group.sport && ` · ${sportLabel(group.sport)}`}
                   {group.city && ` · ${group.city}`}
                 </p>
+                {group.fieldName && (
+                  group.fieldId ? (
+                    <Link href={`/boisko/${group.fieldId}`} className="mt-1 inline-flex items-center gap-1 text-sm text-primary-700 hover:underline">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {group.fieldName}
+                    </Link>
+                  ) : (
+                    <span className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {group.fieldName}
+                    </span>
+                  )
+                )}
               </div>
               {isOwner && (
                 <Link

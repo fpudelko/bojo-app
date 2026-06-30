@@ -17,11 +17,13 @@ function toGroup(row: any): Group {
     createdAt: row.created_at,
     memberCount: Array.isArray(row.group_members) ? row.group_members.length : undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
+    fieldId: row.field_id ?? undefined,
+    fieldName: row.field_name ?? undefined,
   };
 }
 
 export async function createGroup(
-  data: { name: string; description?: string; sport?: string; city?: string },
+  data: { name: string; description?: string; sport?: string; city?: string; fieldId?: string; fieldName?: string },
   userId: string,
 ): Promise<string> {
   const safeName = validateName(data.name, 'Nazwa grupy', 60);
@@ -32,6 +34,8 @@ export async function createGroup(
       description: data.description?.trim() || null,
       sport: data.sport || null,
       city: data.city?.trim() || null,
+      field_id: data.fieldId || null,
+      field_name: data.fieldName?.trim() || null,
       created_by: userId,
     })
     .select('id')
@@ -45,7 +49,7 @@ export async function createGroup(
  *  the group's creator, so callers should also gate the UI on ownership. */
 export async function updateGroup(
   groupId: string,
-  data: { name: string; description?: string; sport?: string; city?: string },
+  data: { name: string; description?: string; sport?: string; city?: string; fieldId?: string; fieldName?: string },
 ): Promise<void> {
   const safeName = validateName(data.name, 'Nazwa grupy', 60);
   const { error } = await supabase
@@ -55,6 +59,8 @@ export async function updateGroup(
       description: data.description?.trim() || null,
       sport: data.sport || null,
       city: data.city?.trim() || null,
+      field_id: data.fieldId || null,
+      field_name: data.fieldName?.trim() || null,
     })
     .eq('id', groupId);
   if (error) throw new Error(error.message);
