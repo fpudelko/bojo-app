@@ -391,6 +391,9 @@ export default function VenueExplorer({
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
   const [search,    setSearch]    = useState('');
+  // Render only a window of cards to keep the list/carousel snappy (~1400 venues).
+  const PAGE = 60;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
 
   // Filters live in the URL so they survive back-navigation
   const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
@@ -480,6 +483,13 @@ export default function VenueExplorer({
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
   }, [allFields, sports, venueTypes, onlyGamesToday, fieldStats, search]);
+
+  // Reset the render window whenever the result set changes (new search/filter).
+  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, onlyGamesToday, search]);
+
+  // The list/carousel render only this slice; the map still plots every field.
+  const visibleFields = fields.slice(0, visibleCount);
+  const hasMore = fields.length > visibleFields.length;
 
   // Clean up stale card refs
   useEffect(() => {
@@ -587,7 +597,7 @@ export default function VenueExplorer({
 
         {/* Scrollable list */}
         <div ref={sidebarRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
-          {fields.map((f) => (
+          {visibleFields.map((f) => (
             <div
               key={f.id}
               ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
@@ -602,6 +612,14 @@ export default function VenueExplorer({
               />
             </div>
           ))}
+          {hasMore && (
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE)}
+              className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Pokaż więcej ({fields.length - visibleFields.length})
+            </button>
+          )}
           {fields.length === 0 && allFields.length > 0 && (
             <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
           )}
@@ -637,7 +655,7 @@ export default function VenueExplorer({
               className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
-              {fields.map((f) => (
+              {visibleFields.map((f) => (
                 <div
                   key={f.id}
                   ref={(el) => { cardRefs.current[f.id] = el; }}
@@ -652,6 +670,16 @@ export default function VenueExplorer({
                   />
                 </div>
               ))}
+              {hasMore && (
+                <div className="shrink-0 flex items-center px-2" style={{ width: CARD_W }}>
+                  <button
+                    onClick={() => setVisibleCount((c) => c + PAGE)}
+                    className="w-full h-[140px] rounded-2xl border border-dashed border-slate-300 bg-white/80 text-sm font-medium text-slate-600"
+                  >
+                    Pokaż więcej<br />({fields.length - visibleFields.length})
+                  </button>
+                </div>
+              )}
               <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
             </div>
           </div>
