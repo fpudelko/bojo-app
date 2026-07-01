@@ -28,7 +28,11 @@ export const viewport: Viewport = {
   themeColor: '#15663E',
 };
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';
+const OG_IMAGE = '/poznan-satellite.jpg';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Poznaniu',
     template: '%s | Bojo',
@@ -42,11 +46,13 @@ export const metadata: Metadata = {
     description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Bojo — boiska i mecze w Poznaniu' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Bojo — zbierz ekipę, zagraj dziś',
     description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
+    images: [OG_IMAGE],
   },
   // Favicon is inlined as a data-URI <link> in <head> below, so we don't
   // reference external icon files here (they would 404 in the console).

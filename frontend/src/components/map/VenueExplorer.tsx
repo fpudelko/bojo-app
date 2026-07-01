@@ -12,7 +12,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
-import { getFields } from '@/lib/api';
+import { getExplorerFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
@@ -22,24 +22,8 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 type SelSource = 'map' | 'scroll' | 'init';
 
-const POWIAT_BOUNDS = { latMin: 52.05, latMax: 52.70, lngMin: 16.55, lngMax: 17.35 };
-function inPowiat(lat: number, lng: number) {
-  return lat >= POWIAT_BOUNDS.latMin && lat <= POWIAT_BOUNDS.latMax
-      && lng >= POWIAT_BOUNDS.lngMin && lng <= POWIAT_BOUNDS.lngMax;
-}
-
-function hasUsefulInfo(f: Field) {
-  return !!(f.phone || f.website || f.email || f.description || f.bookingEnabled || f.imageUrl);
-}
-
-// Only show venues built for the team sports BOJO supports — keeps gyms,
-// tennis-only courts, karting tracks and other noise off the discovery map.
-const RELEVANT_SPORTS = new Set([
-  'piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna',
-]);
-function isRelevantVenue(f: Field) {
-  return f.sport.some((s) => RELEVANT_SPORTS.has(s));
-}
+// Discovery filtering (powiat bounds, relevant team sports, "has useful info",
+// hidden venues) now runs server-side in getExplorerFields().
 
 function displayName(name: string): string {
   return name.replace(/^boisko\s*[-–—]\s*/i, '').trim() || name;
@@ -442,13 +426,10 @@ export default function VenueExplorer({
   useEffect(() => {
     if (initialFields || initialEvents) return;
     let cancelled = false;
-    getFields({})
-      .then((res) => {
-        if (cancelled) return;
-        setAllFields(res.fields.filter(
-          (f) => f.mapVisibility !== 'hidden' && inPowiat(f.lat, f.lng) && hasUsefulInfo(f) && isRelevantVenue(f),
-        ));
-      })
+    // Filtering (powiat bbox, relevant sport, "has info", not hidden) happens
+    // server-side now — only the venues we'd show are transferred.
+    getExplorerFields()
+      .then((fields) => { if (!cancelled) setAllFields(fields); })
       .catch(() => {});
     getPublicEvents()
       .then((evs) => { if (!cancelled) setEvents(evs.filter((e) => e.status !== 'cancelled')); })

@@ -145,84 +145,28 @@ describe('removeParticipant', () => {
   it('deletes the participant row', async () => {
     const { supabase } = await import('@/lib/supabase');
 
-    // removeParticipant calls supabase.from('event_participants') 3 times:
-    //   1. .select().eq().single()                           → fetch participant
-    //   2. .delete().eq()                                    → delete row
-    //   3. .select().eq().eq().order().limit().maybeSingle() → find reserve (null)
-    let n = 0;
-    vi.mocked(supabase.from).mockImplementation(() => {
-      n++;
-      if (n === 1) return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: { event_id: 'ev1', is_reserve: false }, error: null }),
-          }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-      if (n === 2) return {
-        delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      } as unknown as ReturnType<typeof supabase.from>;
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-                }),
-              }),
-            }),
-          }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-    });
+    // removeParticipant just deletes: .delete().eq()
+    let deleteWasCalled = false;
+    vi.mocked(supabase.from).mockImplementation(() => ({
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockImplementation(() => { deleteWasCalled = true; return Promise.resolve({ error: null }); }),
+      }),
+    } as unknown as ReturnType<typeof supabase.from>));
 
     await expect(removeParticipant('participant-1')).resolves.toBeUndefined();
+    expect(deleteWasCalled).toBe(true);
   });
 
-  it('promotes first reserve when a regular spot opens', async () => {
+  it('does NOT auto-promote a reserve (organizer decides who moves in)', async () => {
     const { supabase } = await import('@/lib/supabase');
 
-    let deleteWasCalled = false;
     let updateWasCalled = false;
-    let n = 0;
-
-    vi.mocked(supabase.from).mockImplementation(() => {
-      n++;
-      if (n === 1) return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: { event_id: 'ev1', is_reserve: false }, error: null }),
-          }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-      if (n === 2) return {
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockImplementation(() => { deleteWasCalled = true; return Promise.resolve({ error: null }); }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-      if (n === 3) return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'reserve-1' }, error: null }),
-                }),
-              }),
-            }),
-          }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-      return {
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockImplementation(() => { updateWasCalled = true; return Promise.resolve({ error: null }); }),
-        }),
-      } as unknown as ReturnType<typeof supabase.from>;
-    });
+    vi.mocked(supabase.from).mockImplementation(() => ({
+      delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      update: vi.fn().mockImplementation(() => { updateWasCalled = true; return { eq: vi.fn().mockResolvedValue({ error: null }) }; }),
+    } as unknown as ReturnType<typeof supabase.from>));
 
     await removeParticipant('participant-1');
-    expect(deleteWasCalled).toBe(true);
-    expect(updateWasCalled).toBe(true);
+    expect(updateWasCalled).toBe(false);
   });
 });

@@ -95,6 +95,7 @@ function NewEventForm() {
 
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
+  const preFieldId = searchParams.get('fieldId');
   const [groupName, setGroupName] = useState<string | null>(null);
   useEffect(() => {
     if (!groupId) return;
@@ -103,12 +104,18 @@ function NewEventForm() {
         if (!g) return;
         setGroupName(g.name);
         if (g.sport) setSport(g.sport);
+        // Prefill the group's home venue (unless a field was passed explicitly).
+        if (g.fieldId && !preFieldId) {
+          getField(g.fieldId)
+            .then((f) => setLocation((cur) => cur.venue || cur.lat !== null ? cur : { venue: f, lat: f.lat, lng: f.lng, address: f.address }))
+            .catch(() => {});
+        }
       }).catch(() => {}),
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
   // Pre-select field from URL ?fieldId=
-  const preFieldId = searchParams.get('fieldId');
   useEffect(() => {
     if (!preFieldId || location.venue) return;
     getField(preFieldId)

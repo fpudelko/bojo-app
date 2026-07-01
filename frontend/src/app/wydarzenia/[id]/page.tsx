@@ -16,12 +16,13 @@ interface EventMeta {
   field_name?: string;
   custom_location_name?: string;
   visibility: string;
+  cover?: string;
 }
 
 async function getEventMeta(id: string): Promise<EventMeta | null> {
   const { data } = await supabase
     .from('events')
-    .select('title, sport, event_date, event_time, field_name, custom_location_name, visibility')
+    .select('title, sport, event_date, event_time, field_name, custom_location_name, visibility, cover_image_url')
     .eq('id', id)
     .maybeSingle();
   if (!data) return null;
@@ -33,6 +34,7 @@ async function getEventMeta(id: string): Promise<EventMeta | null> {
     field_name: data.field_name ?? undefined,
     custom_location_name: data.custom_location_name ?? undefined,
     visibility: data.visibility,
+    cover: data.cover_image_url ?? undefined,
   };
 }
 
@@ -55,7 +57,14 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return {
     title,
     description,
-    openGraph: { title: `${name} • ${whenStr}${timeStr ? ` ${timeStr}` : ''}`, description: `📍 ${place}`, type: 'website' },
+    openGraph: {
+      title: `${name} • ${whenStr}${timeStr ? ` ${timeStr}` : ''}`,
+      description: `📍 ${place}`,
+      type: 'website',
+      // Event cover if set; otherwise inherit the site default from the root layout.
+      ...(ev.cover ? { images: [{ url: ev.cover }] } : {}),
+    },
+    ...(ev.cover ? { twitter: { card: 'summary_large_image', images: [ev.cover] } } : {}),
   };
 }
 

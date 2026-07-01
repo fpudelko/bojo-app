@@ -44,7 +44,7 @@ export default function TimeSelect({
   };
 
   const selectCls =
-    'border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 tabular-nums';
+    'border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500 tabular-nums';
 
   return (
     <div className={`inline-flex items-center gap-1.5 ${className ?? ''}`}>

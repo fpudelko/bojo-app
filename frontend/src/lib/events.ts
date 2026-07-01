@@ -471,31 +471,11 @@ export async function addGuest(
 }
 
 export async function removeParticipant(participantId: string): Promise<void> {
-  // Fetch before delete to know if we should promote a reserve
-  const { data: p } = await supabase
-    .from('event_participants')
-    .select('event_id, is_reserve')
-    .eq('id', participantId)
-    .single();
-
+  // Deliberately NO auto-promotion from the reserve list: when a spot frees up
+  // the organizer decides who moves in. A reserve should never silently become
+  // a regular — someone must notice or be told, so nobody assumes they're in.
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
   if (error) throw new Error(error.message);
-
-  // Promote first reserve when a non-reserve slot opens up
-  if (p && !p.is_reserve) {
-    const { data: first } = await supabase
-      .from('event_participants')
-      .select('id')
-      .eq('event_id', p.event_id)
-      .eq('is_reserve', true)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (first) {
-      await supabase.from('event_participants').update({ is_reserve: false }).eq('id', first.id);
-    }
-  }
 }
 
 export async function togglePayment(participantId: string, hasPaid: boolean): Promise<void> {

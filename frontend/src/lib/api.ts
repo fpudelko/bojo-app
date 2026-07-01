@@ -59,6 +59,29 @@ function toField(row: any): Field {
 // Fields
 // ---------------------------------------------------------------------------
 
+// Lean column set + server-side filtering for the map/list explorer. Cuts
+// egress hard: only venues that actually show up are transferred, and the
+// heavy columns (description, contact, opening hours, amenities…) are dropped.
+const EXPLORER_COLS =
+  'id, name, address, lat, lng, sport, surface, is_indoor, booking_enabled, booking_type, available, website, image_url, photo_url, photo_reference, photo_source, map_visibility, district, venue_type';
+const EXPLORER_BOUNDS = { latMin: 52.05, latMax: 52.70, lngMin: 16.55, lngMax: 17.35 };
+const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna'];
+
+export async function getExplorerFields(): Promise<Field[]> {
+  const { data, error } = await supabase
+    .from('fields')
+    .select(EXPLORER_COLS)
+    .neq('map_visibility', 'hidden')
+    .gte('lat', EXPLORER_BOUNDS.latMin).lte('lat', EXPLORER_BOUNDS.latMax)
+    .gte('lng', EXPLORER_BOUNDS.lngMin).lte('lng', EXPLORER_BOUNDS.lngMax)
+    .overlaps('sport', EXPLORER_SPORTS)
+    // "has useful info" — otherwise it's just noise on the map.
+    .or('phone.not.is.null,website.not.is.null,email.not.is.null,description.not.is.null,booking_enabled.is.true,image_url.not.is.null')
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toField);
+}
+
 export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {
   let query = supabase.from('fields').select('*', { count: 'exact' });
 
