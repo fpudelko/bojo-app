@@ -10,6 +10,7 @@ import { getPublicEvents } from '@/lib/events';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { useMyParticipation } from '@/lib/useMyParticipation';
 import { isEventJoinable } from '@/components/EventCard';
 import { useRouter } from 'next/navigation';
 
@@ -44,6 +45,7 @@ function dateBucket(dateStr: string): DateBucket {
 export default function EventsPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const statusFor = useMyParticipation();
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
@@ -197,7 +199,7 @@ export default function EventsPage() {
         {!loading && filtered.length > 0 && (
           <div className="space-y-3 px-4 pb-24">
             {filtered.map((event) => (
-              <EventBrowseCard key={event.id} event={event} />
+              <EventBrowseCard key={event.id} event={event} myStatus={statusFor(event)} />
             ))}
           </div>
         )}

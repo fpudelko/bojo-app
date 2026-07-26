@@ -644,17 +644,25 @@ export async function repeatEvent(
   );
 }
 
+/** How the signed-in user relates to an event. 'observing' = RSVP "maybe":
+ *  no reserved spot, and never counted as a game they took part in. */
+export type MyEventRole = 'organizer' | 'player' | 'reserve' | 'observing';
+
 export async function getMyParticipatedEvents(
   userId: string,
-): Promise<{ event: EventItem; isOrganizer: boolean }[]> {
+): Promise<{ event: EventItem; isOrganizer: boolean; role: MyEventRole }[]> {
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
-    .select('event_id')
+    .select('event_id, rsvp, is_reserve')
     .eq('user_id', userId);
   if (pErr) throw new Error(pErr.message);
 
-  const eventIds = (partRows ?? []).map((r) => r.event_id as string);
+  const rows = partRows ?? [];
+  const eventIds = rows.map((r) => r.event_id as string);
   if (eventIds.length === 0) return [];
+
+  const myRow: Record<string, { rsvp?: string; is_reserve?: boolean }> = {};
+  for (const r of rows) myRow[r.event_id as string] = { rsvp: r.rsvp, is_reserve: r.is_reserve };
 
   const { data, error } = await supabase
     .from('events')
@@ -663,8 +671,36 @@ export async function getMyParticipatedEvents(
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => ({
-    event: toEvent(row),
-    isOrganizer: row.organizer_id === userId,
-  }));
+  return (data ?? []).map((row) => {
+    const isOrganizer = row.organizer_id === userId;
+    const mine = myRow[row.id as string];
+    // Observing wins over the organizer label only if they never actually joined,
+    // which can't happen — organizers are inserted with rsvp 'yes'.
+    const role: MyEventRole =
+      mine?.rsvp === 'maybe' ? 'observing'
+      : isOrganizer ? 'organizer'
+      : mine?.is_reserve ? 'reserve'
+      : 'player';
+    return { event: toEvent(row), isOrganizer, role };
+  });
+}
+
+/** Map of eventId → my RSVP, for lists that need to hide the "Dołącz" CTA on
+ *  events the user is already part of. */
+export async function getMyParticipationMap(
+  userId: string,
+): Promise<Record<string, { rsvp: 'yes' | 'maybe'; isReserve: boolean }>> {
+  const { data, error } = await supabase
+    .from('event_participants')
+    .select('event_id, rsvp, is_reserve')
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  const out: Record<string, { rsvp: 'yes' | 'maybe'; isReserve: boolean }> = {};
+  for (const r of data ?? []) {
+    out[r.event_id as string] = {
+      rsvp: (r.rsvp ?? 'yes') as 'yes' | 'maybe',
+      isReserve: r.is_reserve ?? false,
+    };
+  }
+  return out;
 }

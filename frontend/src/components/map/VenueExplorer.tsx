@@ -542,16 +542,20 @@ export default function VenueExplorer({
     }
   }, [fields]);
 
-  // Scroll mobile carousel to selected
+  // Scroll mobile carousel to selected.
+  // `visibleCount` is a dependency on purpose: clicking a pin outside the render
+  // window selects a venue whose card doesn't exist yet, so this effect would
+  // bail out and never re-run. Re-running once the window grows is what makes a
+  // single click work (previously it took two).
   useEffect(() => {
     if (!selectedId || selected.source === 'scroll') return;
     const el = cardRefs.current[selectedId];
     const c  = scrollRef.current;
     if (!el || !c) return;
     c.scrollTo({ left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
-  }, [selectedId, selected.source]);
+  }, [selectedId, selected.source, visibleCount]);
 
-  // Scroll desktop sidebar to selected
+  // Scroll desktop sidebar to selected (same reasoning for `visibleCount`).
   useEffect(() => {
     if (!selectedId) return;
     const el = sidebarCardRefs.current[selectedId];
@@ -559,7 +563,7 @@ export default function VenueExplorer({
     if (!el || !c) return;
     const targetTop = el.offsetTop - (c.clientHeight - el.offsetHeight) / 2;
     c.scrollTo({ top: targetTop, behavior: 'smooth' });
-  }, [selectedId]);
+  }, [selectedId, visibleCount]);
 
   const handleScroll = useCallback(() => {
     if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);

@@ -412,7 +412,7 @@ export default function EventDetailClient() {
     try {
       await joinEventMaybe(event.id, user.id, displayName(user));
       await load();
-      toast('Dodano do „Może" — mecz widoczny w Twoich grach');
+      toast('Obserwujesz ten mecz — znajdziesz go w Twoich meczach');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1138,13 +1138,13 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── MAYBE BANNER — when user said "maybe" ── */}
+        {/* ── OBSERVING BANNER — RSVP "maybe": watching, not signed up ── */}
         {user && myMaybe && !eventStarted && (
           <div className="px-4">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Odpowiedziałeś „Może"</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">Mecz widoczny w Twoich grach. Potwierdź jeśli jesteś pewny.</p>
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Obserwujesz ten mecz</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">Nie masz zajętego miejsca — dołącz, gdy będziesz pewny.</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button
@@ -1159,7 +1159,7 @@ export default function EventDetailClient() {
                   disabled={busy}
                   className="rounded-xl border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 transition"
                 >
-                  Wycofaj
+                  Przestań obserwować
                 </button>
               </div>
             </div>
@@ -1190,7 +1190,7 @@ export default function EventDetailClient() {
                     disabled={busy}
                     className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
                   >
-                    Może
+                    Obserwuj
                   </button>
                 </div>
               ) : user && isFull ? (
@@ -1668,11 +1668,11 @@ export default function EventDetailClient() {
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">
-              {myMaybe ? 'Wycofać „Może"?' : 'Wypisać się z meczu?'}
+              {myMaybe ? 'Przestać obserwować?' : 'Wypisać się z meczu?'}
             </h3>
             <p className="text-sm text-slate-500 mb-5">
               {myMaybe
-                ? 'Mecz zniknie z Twoich gier. Możesz dołączyć ponownie później.'
+                ? 'Mecz zniknie z Twoich meczów. Możesz zacząć obserwować ponownie.'
                 : 'Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.'}
             </p>
             <div className="flex gap-2">
@@ -1684,7 +1684,7 @@ export default function EventDetailClient() {
                 isLoading={busy}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
-                {myMaybe ? 'Wycofaj' : 'Wypisz mnie'}
+                {myMaybe ? 'Przestań obserwować' : 'Wypisz mnie'}
               </Button>
             </div>
           </div>

@@ -7,7 +7,8 @@ import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Map as MapIcon, Users, 
 import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { getPublicEvents, getMyParticipatedEvents } from '@/lib/events';
+import { getPublicEvents, getMyParticipatedEvents, type MyEventRole } from '@/lib/events';
+import { useMyParticipation } from '@/lib/useMyParticipation';
 import { getMyGroups } from '@/lib/groups';
 import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
@@ -186,7 +187,7 @@ function SectionHeader({ title, href, count }: { title: string; href?: string; c
 
 /** The user's upcoming games — max 2. */
 function MyGamesSection({ userId }: { userId: string }) {
-  const [games, setGames] = useState<{ event: EventItem; isOrganizer: boolean }[]>([]);
+  const [games, setGames] = useState<{ event: EventItem; isOrganizer: boolean; role: MyEventRole }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -202,8 +203,8 @@ function MyGamesSection({ userId }: { userId: string }) {
     <div>
       <SectionHeader title="Twoje najbliższe mecze" href="/moje-gry" count={games.length} />
       <div className="space-y-3">
-        {games.slice(0, 2).map(({ event }) => (
-          <EventBrowseCard key={event.id} event={event} />
+        {games.slice(0, 2).map(({ event, role }) => (
+          <EventBrowseCard key={event.id} event={event} myStatus={role} />
         ))}
       </div>
     </div>
@@ -217,6 +218,7 @@ function OpenGamesSection() {
   const [alert, setAlert] = useState<GameAlert | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const { user } = useAuth();
+  const statusFor = useMyParticipation();
 
   useEffect(() => {
     Promise.all([
@@ -286,7 +288,7 @@ function OpenGamesSection() {
       ) : (
         <div className="space-y-3">
           {openEvents.slice(0, 2).map((e) => (
-            <EventBrowseCard key={e.id} event={e} />
+            <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />
           ))}
         </div>
       )}

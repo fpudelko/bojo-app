@@ -11,6 +11,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { useMyParticipation } from '@/lib/useMyParticipation';
 import { isUpcoming } from '@/components/EventCard';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -26,6 +27,7 @@ export default function GroupDetailPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const statusFor = useMyParticipation();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -254,13 +256,13 @@ export default function GroupDetailPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</p>
-                  {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} />)}
+                  {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />)}
                 </div>
               )}
               {past.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</p>
-                  {past.map((e) => <EventBrowseCard key={e.id} event={e} />)}
+                  {past.map((e) => <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />)}
                 </div>
               )}
             </div>

@@ -58,12 +58,14 @@ export async function getPlayerHistory(
   userId: string,
   limit = 20,
 ): Promise<PlayerHistoryItem[]> {
-  // 1. Participations (carry participant id → goals, reserve flag)
+  // 1. Participations (carry participant id → goals, reserve flag).
+  // Observing ("maybe") is not participation — it never belongs in match history.
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
     .select('id, event_id, is_reserve')
     .eq('user_id', userId)
-    .eq('is_guest', false);
+    .eq('is_guest', false)
+    .neq('rsvp', 'maybe');
   if (pErr) throw new Error(pErr.message);
   if (!partRows || partRows.length === 0) return [];
 

@@ -16,8 +16,21 @@ function sizeSuffix(max: number): string {
   return ` · ${max} os.`;
 }
 
+/** How the signed-in user relates to this event, when known. Drives the CTA:
+ *  someone who is already in shouldn't be invited to "Dołącz". */
+export type CardStatus = 'organizer' | 'player' | 'reserve' | 'observing';
+
+const STATUS_CHIP: Record<CardStatus, { label: string; cls: string }> = {
+  organizer: { label: 'Twój mecz',   cls: 'bg-primary-50 text-primary-700 border-primary-100' },
+  player:    { label: 'Grasz ✓',     cls: 'bg-green-50 text-green-700 border-green-200' },
+  reserve:   { label: 'Rezerwa',     cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  observing: { label: 'Obserwujesz', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+};
+
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance }: { event: EventItem; distance?: number }) {
+export function EventBrowseCard({ event, distance, myStatus }: {
+  event: EventItem; distance?: number; myStatus?: CardStatus;
+}) {
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
 
@@ -130,7 +143,11 @@ export function EventBrowseCard({ event, distance }: { event: EventItem; distanc
                     {left === 1 ? '1 wolne miejsce' : left < 5 ? `${left} wolne miejsca` : `${left} wolnych miejsc`}
                   </span>
                 )}
-                {!full && (
+                {myStatus ? (
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${STATUS_CHIP[myStatus].cls}`}>
+                    {STATUS_CHIP[myStatus].label}
+                  </span>
+                ) : !full && (
                   <span className="text-xs font-bold text-primary-700">Dołącz →</span>
                 )}
               </div>
