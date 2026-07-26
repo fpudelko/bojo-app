@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
 import { track } from './analytics';
-import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus } from '@/types';
+import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus, PaymentMethod, SportsCardProvider } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Row mappers
@@ -45,6 +45,10 @@ function toEvent(row: any): EventItem {
     requireApproval: row.require_approval ?? false,
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
+    acceptedPaymentMethods: row.accepted_payment_methods ?? [],
+    blikPhone: row.blik_phone ?? undefined,
+    acceptedSportsCards: row.accepted_sports_cards ?? [],
+    sportsCardDiscountGrosze: row.sports_card_discount_grosz ?? null,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -77,6 +81,9 @@ function toParticipant(row: any): EventParticipant {
     isGoalkeeper: row.is_goalkeeper ?? false,
     pendingApproval: row.pending_approval ?? false,
     rsvp: row.rsvp ?? 'yes',
+    paymentMethod: row.payment_method ?? undefined,
+    hasSportsCard: row.has_sports_card ?? false,
+    sportsCardProvider: row.sports_card_provider ?? undefined,
   };
 }
 
@@ -145,6 +152,10 @@ export async function createEvent(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
+      accepted_payment_methods: data.acceptedPaymentMethods ?? [],
+      blik_phone: data.blikPhone?.trim() || null,
+      accepted_sports_cards: data.acceptedSportsCards ?? [],
+      sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       group_id: data.groupId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
@@ -216,6 +227,10 @@ export async function updateEvent(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
+      accepted_payment_methods: data.acceptedPaymentMethods ?? [],
+      blik_phone: data.blikPhone?.trim() || null,
+      accepted_sports_cards: data.acceptedSportsCards ?? [],
+      sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
     })
     .eq('id', id);
 
@@ -318,11 +333,18 @@ export async function getPublicEvents(): Promise<EventItem[]> {
 // Participants
 // ---------------------------------------------------------------------------
 
+export interface JoinPaymentChoice {
+  method?: PaymentMethod;
+  hasSportsCard?: boolean;
+  sportsCardProvider?: SportsCardProvider;
+}
+
 export async function joinEvent(
   eventId: string,
   userId: string,
   name: string,
   asGoalkeeper = false,
+  payment?: JoinPaymentChoice,
 ): Promise<void> {
   // Rate limit: max 20 joins per hour
   const { data: allowed } = await supabase.rpc('check_rate_limit', {
@@ -372,6 +394,9 @@ export async function joinEvent(
     pending_approval: needsApproval,
     // Joining yourself = you're confirmed, not merely "invited".
     status: 'potwierdzony',
+    payment_method: payment?.method ?? null,
+    has_sports_card: payment?.hasSportsCard ?? false,
+    sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
   });
   if (error) throw new Error(error.message);
 
@@ -635,6 +660,10 @@ export async function repeatEvent(
       costGrosze: source.costGrosze,
       maxGoalkeepers: source.maxGoalkeepers,
       goalkeepersEnabled: source.goalkeepersEnabled,
+      acceptedPaymentMethods: source.acceptedPaymentMethods,
+      blikPhone: source.blikPhone,
+      acceptedSportsCards: source.acceptedSportsCards,
+      sportsCardDiscountGrosze: source.sportsCardDiscountGrosze,
       customLocationName: source.customLocationName,
       customAddress: source.customAddress,
     },

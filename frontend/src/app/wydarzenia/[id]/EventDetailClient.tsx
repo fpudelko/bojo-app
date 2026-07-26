@@ -37,8 +37,10 @@ import {
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
+  PaymentMethod, SportsCardProvider,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import { PAYMENT_METHOD_LABELS, SPORTS_CARD_LABELS, priceForParticipant } from '@/lib/payments';
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -292,6 +294,9 @@ export default function EventDetailClient() {
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [joinAsReserve, setJoinAsReserve] = useState(false);
   const [joinRole, setJoinRole] = useState<'player' | 'goalkeeper'>('player');
+  const [joinHasSportsCard, setJoinHasSportsCard] = useState(false);
+  const [joinSportsCardProvider, setJoinSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
+  const [joinPaymentMethod, setJoinPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   // Legacy client-side teams (teamMode === 'brak' only)
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -434,7 +439,11 @@ export default function EventDetailClient() {
     if (!user) return;
     setBusy(true);
     try {
-      await joinEvent(event.id, user.id, displayName(user), asGoalkeeper);
+      await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, {
+        method: joinPaymentMethod,
+        hasSportsCard: joinHasSportsCard,
+        sportsCardProvider: joinSportsCardProvider,
+      });
       await load();
       if (event.requireApproval) {
         toast('Wysłano prośbę o dołączenie — czekaj na akceptację organizatora');
@@ -497,7 +506,10 @@ export default function EventDetailClient() {
     if (!isOrganizer) return;
     setBusy(true);
     try {
-      await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? event.costGrosze : 0);
+      // Use the discounted amount when the player holds a sports card and the
+      // organizer specified a fixed discount — otherwise fall back to full price.
+      const owed = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
+      await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? owed : 0);
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -891,6 +903,21 @@ export default function EventDetailClient() {
               </Link>
             )}
           </div>
+          {/* Payment info — how to pay + sports-card discount, at a glance */}
+          {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
+            <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
+              {event.acceptedPaymentMethods.length > 0 && (
+                <span>Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}</span>
+              )}
+              {event.acceptedSportsCards.length > 0 && (
+                <span>
+                  {event.acceptedPaymentMethods.length > 0 && '· '}
+                  Karty sportowe: {event.acceptedSportsCards.map((c) => SPORTS_CARD_LABELS[c]).join(', ')}
+                  {event.sportsCardDiscountGrosze != null && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
+                </span>
+              )}
+            </p>
+          )}
         </div>
 
         {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
@@ -1270,6 +1297,19 @@ export default function EventDetailClient() {
                           🧤 BR
                         </span>
                       )}
+                      {event.costGrosze > 0 && p.hasSportsCard && (
+                        <span
+                          title={p.sportsCardProvider ? SPORTS_CARD_LABELS[p.sportsCardProvider] : 'Karta sportowa'}
+                          className="text-xs shrink-0"
+                        >
+                          💳
+                        </span>
+                      )}
+                      {event.costGrosze > 0 && p.paymentMethod && isOrganizer && (
+                        <span title="Sposób płatności" className="text-[10px] font-medium text-slate-400 shrink-0">
+                          {PAYMENT_METHOD_LABELS[p.paymentMethod]}
+                        </span>
+                      )}
                       {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
                       {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                       {showTeams && p.team && (
@@ -1509,13 +1549,22 @@ export default function EventDetailClient() {
                 {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
               </span>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Zebrano</span>
-              <span className="font-semibold text-ink">
-                {((regulars.filter((p) => p.hasPaid).length * event.costGrosze) / 100).toFixed(2)} PLN
-                {' '}<span className="text-slate-400 font-normal">z {((regulars.length * event.costGrosze) / 100).toFixed(2)} PLN</span>
-              </span>
-            </div>
+            {(() => {
+              // Sports-card discounts mean not everyone owes the same amount.
+              const owed = (p: EventParticipant) =>
+                priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
+              const collected = regulars.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
+              const expected = regulars.reduce((sum, p) => sum + owed(p), 0);
+              return (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Zebrano</span>
+                  <span className="font-semibold text-ink">
+                    {(collected / 100).toFixed(2)} PLN
+                    {' '}<span className="text-slate-400 font-normal">z {(expected / 100).toFixed(2)} PLN</span>
+                  </span>
+                </div>
+              );
+            })()}
             {regulars.some((p) => !p.hasPaid) && (
               <div className="mt-3 pt-3 border-t border-slate-100">
                 <p className="text-xs text-slate-500 mb-2">Czekamy na wpłatę od:</p>
@@ -1745,11 +1794,93 @@ export default function EventDetailClient() {
               </div>
             )}
 
+            {/* Sports card — only when the event actually offers a discount for one */}
+            {event.costGrosze > 0 && event.acceptedSportsCards.length > 0 && (
+              <div className="mb-4">
+                <label className="flex items-center gap-2 text-sm text-ink select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={joinHasSportsCard}
+                    onChange={(e) => { setJoinHasSportsCard(e.target.checked); setJoinSportsCardProvider(undefined); }}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  Mam kartę sportową
+                </label>
+                {joinHasSportsCard && event.acceptedSportsCards.length > 1 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {event.acceptedSportsCards.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setJoinSportsCardProvider(c)}
+                        className={[
+                          'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                          joinSportsCardProvider === c
+                            ? 'border-primary-600 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                        ].join(' ')}
+                      >
+                        {SPORTS_CARD_LABELS[c]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment method — how you'll settle up with the organizer */}
+            {event.costGrosze > 0 && event.acceptedPaymentMethods.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Jak zapłacisz?</p>
+                <div className="flex flex-wrap gap-2">
+                  {event.acceptedPaymentMethods.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setJoinPaymentMethod(m)}
+                      className={[
+                        'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                        joinPaymentMethod === m
+                          ? 'border-primary-600 bg-primary-50 text-primary-700'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                      ].join(' ')}
+                    >
+                      {PAYMENT_METHOD_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+                {joinPaymentMethod === 'blik' && event.blikPhone && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Cost */}
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 mb-5 text-sm">
-              <span className="text-slate-500">Koszt</span>
-              <span className="font-semibold text-ink">{costPln ? `${costPln} zł` : 'Za darmo'}</span>
-            </div>
+            {(() => {
+              const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, joinHasSportsCard);
+              return (
+                <div className="rounded-xl bg-slate-50 px-4 py-3 mb-5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Koszt</span>
+                    {price.discountApplied ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-slate-400 line-through">{costPln} zł</span>
+                        <span className="font-semibold text-green-700">{(price.priceGrosze / 100).toFixed(2)} zł</span>
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-ink">{costPln ? `${costPln} zł` : 'Za darmo'}</span>
+                    )}
+                  </div>
+                  {price.discountUnspecified && (
+                    <p className="mt-1.5 text-xs text-amber-700">
+                      Karta sportowa daje zniżkę — o dokładną kwotę zapytaj organizatora.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setJoinDialogOpen(false)} className="flex-1">

@@ -14,7 +14,8 @@ import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
-import type { Visibility } from '@/types';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS } from '@/lib/payments';
+import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
 const GK_SPORTS = ['piłka nożna', 'futsal'];
@@ -94,6 +95,11 @@ function NewEventForm() {
   const [trackPayments, setTrackPayments] = useState(false);
   const [showPaymentStatus, setShowPaymentStatus] = useState(false);
   const [costPln, setCostPln] = useState('');
+  const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [blikPhone, setBlikPhone] = useState('');
+  const [cardDiscountEnabled, setCardDiscountEnabled] = useState(false);
+  const [cardDiscountPln, setCardDiscountPln] = useState('');
+  const [acceptedSportsCards, setAcceptedSportsCards] = useState<SportsCardProvider[]>([]);
 
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
@@ -212,6 +218,7 @@ function NewEventForm() {
     const fieldName = location.venue
       ? location.venue.name
       : (location.address.split(',')[0].trim() || 'Nieznana lokalizacja');
+    const hasCost = parseFloat(costPln || '0') > 0;
 
     setSubmitting(true);
     setError(null);
@@ -242,6 +249,12 @@ function NewEventForm() {
           trackResults: true,
           confirmationDeadlineH: 24,
           costGrosze: Math.round(parseFloat(costPln || '0') * 100),
+          acceptedPaymentMethods: hasCost ? acceptedPaymentMethods : [],
+          blikPhone: hasCost && acceptedPaymentMethods.includes('blik') ? blikPhone : undefined,
+          acceptedSportsCards: hasCost && cardDiscountEnabled ? acceptedSportsCards : [],
+          sportsCardDiscountGrosze: hasCost && cardDiscountEnabled && cardDiscountPln
+            ? Math.round(parseFloat(cardDiscountPln) * 100)
+            : null,
           requireApproval,
           groupId,
         },
@@ -532,6 +545,113 @@ function NewEventForm() {
                   className={inputCls}
                 />
               </div>
+
+              {/* Payment options — only relevant once the match actually costs something */}
+              {parseFloat(costPln || '0') > 0 && (
+                <div className="space-y-4 rounded-xl border border-slate-200 p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Jak można zapłacić?
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {PAYMENT_METHODS.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setAcceptedPaymentMethods((cur) =>
+                            cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m])}
+                          className={[
+                            'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                            acceptedPaymentMethods.includes(m)
+                              ? 'border-primary-600 bg-primary-50 text-primary-700'
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                          ].join(' ')}
+                        >
+                          {PAYMENT_METHOD_LABELS[m]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {acceptedPaymentMethods.includes('blik') && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Numer telefonu do BLIKA
+                      </label>
+                      <input
+                        type="tel"
+                        value={blikPhone}
+                        onChange={(e) => setBlikPhone(e.target.value)}
+                        placeholder="np. 600 123 456"
+                        className={inputCls}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Zniżka z kartą sportową</p>
+                      <p className="text-xs text-slate-500">Multisport, FitProfit, Medicover Sport…</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCardDiscountEnabled((v) => !v)}
+                      className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', cardDiscountEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                      role="switch"
+                      aria-checked={cardDiscountEnabled}
+                    >
+                      <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', cardDiscountEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                    </button>
+                  </div>
+
+                  {cardDiscountEnabled && (
+                    <div className="space-y-3 pl-1">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Zniżka (zł) <span className="text-slate-400 font-normal">(opcjonalnie)</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          max={costPln || undefined}
+                          value={cardDiscountPln}
+                          onChange={(e) => setCardDiscountPln(e.target.value)}
+                          placeholder="np. 20"
+                          className={`${inputCls} max-w-[140px]`}
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                          Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
+                          że karta daje zniżkę, i dopytają Cię o szczegóły.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Które karty akceptujesz?
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {SPORTS_CARD_PROVIDERS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setAcceptedSportsCards((cur) =>
+                                cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c])}
+                              className={[
+                                'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                                acceptedSportsCards.includes(c)
+                                  ? 'border-primary-600 bg-primary-50 text-primary-700'
+                                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                              ].join(' ')}
+                            >
+                              {SPORTS_CARD_LABELS[c]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Organizer participates */}
               <div className="flex items-center justify-between py-2 border-b border-slate-100">

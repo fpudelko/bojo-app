@@ -140,6 +140,9 @@ export interface EventAdvancedSettings {
   costGrosze: number;
 }
 
+export type PaymentMethod = 'blik' | 'gotowka' | 'inne';
+export type SportsCardProvider = 'multisport' | 'fitprofit' | 'medicover' | 'inne';
+
 export interface EventItem {
   id: string;
   organizerId: string;
@@ -182,6 +185,15 @@ export interface EventItem {
   maxGoalkeepers: number;
   /** Whether the goalkeeper / field-player distinction is used at all. */
   goalkeepersEnabled: boolean;
+  /** Ways participants may pay when the match costs money. */
+  acceptedPaymentMethods: PaymentMethod[];
+  /** Phone number for BLIK transfers — shown when 'blik' is accepted. */
+  blikPhone?: string;
+  /** Sports-benefit cards honoured for this match (informational + discount). */
+  acceptedSportsCards: SportsCardProvider[];
+  /** Flat discount (grosze) when a participant holds an accepted card. Null =
+   *  "there is a discount, but ask the organizer" (varies too much to fix a number). */
+  sportsCardDiscountGrosze: number | null;
 }
 
 export interface EventParticipant {
@@ -207,6 +219,11 @@ export interface EventParticipant {
   pendingApproval: boolean;
   /** 'yes' = confirmed spot; 'maybe' = interested, doesn't take a capacity slot. */
   rsvp: 'yes' | 'maybe';
+  /** How this participant intends to pay (chosen when joining a paid match). */
+  paymentMethod?: PaymentMethod;
+  /** Whether they hold one of the event's accepted sports cards. */
+  hasSportsCard: boolean;
+  sportsCardProvider?: SportsCardProvider;
 }
 
 export interface EventCreate {
@@ -237,6 +254,10 @@ export interface EventCreate {
   groupId?: string;
   maxGoalkeepers?: number;
   goalkeepersEnabled?: boolean;
+  acceptedPaymentMethods?: PaymentMethod[];
+  blikPhone?: string;
+  acceptedSportsCards?: SportsCardProvider[];
+  sportsCardDiscountGrosze?: number | null;
 }
 
 // ---------------------------------------------------------------------------
