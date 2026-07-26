@@ -69,7 +69,7 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
   } catch {}
   if (event.time) timeLabel = event.time.slice(0, 5);
 
-  const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
+  const taken = event.participantsCount ?? 0;
   const max = event.maxPlayers ?? 0;
   const isFull = max > 0 && taken >= max;
   const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;

@@ -155,7 +155,6 @@ export interface EventItem {
   time: string;
   endTime?: string;
   maxPlayers: number;
-  externalCount: number; // players already committed outside the app
   participantsCount?: number; // non-reserve app participants (populated in list queries)
   visibility: Visibility;
   createdAt: string;
@@ -222,7 +221,6 @@ export interface EventCreate {
   time: string;
   endTime?: string;
   maxPlayers: number;
-  externalCount?: number;
   visibility: Visibility;
   customLocationName?: string;
   customAddress?: string;

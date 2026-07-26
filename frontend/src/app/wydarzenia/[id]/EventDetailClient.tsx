@@ -381,8 +381,9 @@ export default function EventDetailClient() {
   const myPendingRequest = pendingRequests.find((p) => p.userId && p.userId === user?.id);
   // "myParticipation" = I'm in the roster (confirmed). Pending is handled separately.
   const myParticipation = myConfirmed;
-  const externalCount = event.externalCount ?? 0;
-  const takenSpots = regulars.length + externalCount;
+  // My row whichever way I'm in — confirmed or "maybe" (used by the leave dialog).
+  const myEntry = myConfirmed ?? myMaybe;
+  const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
   const eventLoc = eventLocation(event);
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
@@ -1236,19 +1237,6 @@ export default function EventDetailClient() {
             </span>
           </div>
 
-          {externalCount > 0 && (
-            <p className="-mt-2 mb-3 text-xs text-slate-500">
-              <span className="font-medium text-slate-700">{externalCount}</span>{' '}
-              {externalCount === 1 ? 'gracz dodany' : 'graczy dodanych'} z własnej ekipy
-              {event.organizerName && <> przez <span className="font-medium text-slate-700">{event.organizerName}</span></>}.
-              {!isFull && (
-                <span className="text-primary-700 font-medium">
-                  {' '}Szukamy jeszcze {event.maxPlayers - takenSpots}.
-                </span>
-              )}
-            </p>
-          )}
-
           <ul className="divide-y divide-slate-100">
             {regulars.map((p) => (
               <li key={p.id} className="py-2.5">
@@ -1673,26 +1661,30 @@ export default function EventDetailClient() {
       </main>
 
       {/* Leave confirmation */}
-      {leaveConfirmOpen && myParticipation && (
+      {leaveConfirmOpen && myEntry && (
         <div
           className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
           onClick={() => setLeaveConfirmOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-ink mb-1">Wypisać się z meczu?</h3>
+            <h3 className="font-semibold text-ink mb-1">
+              {myMaybe ? 'Wycofać „Może"?' : 'Wypisać się z meczu?'}
+            </h3>
             <p className="text-sm text-slate-500 mb-5">
-              Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.
+              {myMaybe
+                ? 'Mecz zniknie z Twoich gier. Możesz dołączyć ponownie później.'
+                : 'Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.'}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setLeaveConfirmOpen(false)} className="flex-1">
                 Zostań
               </Button>
               <Button
-                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myParticipation.id); }}
+                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id); }}
                 isLoading={busy}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
-                Wypisz mnie
+                {myMaybe ? 'Wycofaj' : 'Wypisz mnie'}
               </Button>
             </div>
           </div>

@@ -233,7 +233,6 @@ function NewEventForm() {
           maxPlayers,
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
-          externalCount: 0,
           visibility,
           requireSmsConfirmation: false,
           trackAttendance,

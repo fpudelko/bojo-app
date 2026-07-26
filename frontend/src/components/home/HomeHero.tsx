@@ -230,7 +230,7 @@ function OpenGamesSection() {
 
   const openEvents = allEvents.filter((e) => {
     if (e.status === 'cancelled') return false;
-    const taken = (e.participantsCount ?? 0) + (e.externalCount ?? 0);
+    const taken = e.participantsCount ?? 0;
     return isEventJoinable(e) && taken < e.maxPlayers;
   });
 

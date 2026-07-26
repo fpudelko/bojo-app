@@ -23,7 +23,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
   const emoji = sportEmoji(event.sport);
 
   const max = event.maxPlayers ?? 0;
-  const taken = (event.participantsCount ?? 0) + (event.externalCount ?? 0);
+  const taken = event.participantsCount ?? 0;
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;

@@ -60,8 +60,6 @@ export default function EditEventPage() {
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
-  // externalCount is no longer editable, but preserve the stored value on save.
-  const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -94,7 +92,6 @@ export default function EditEventPage() {
         setEndTime(ev.endTime?.slice(0, 5) ?? '');
         setMaxPlayers(ev.maxPlayers);
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
-        setExternalCount(ev.externalCount ?? 0);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
@@ -166,7 +163,6 @@ export default function EditEventPage() {
         maxPlayers,
         maxGoalkeepers: 2,
         goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
-        externalCount,
         visibility,
         requireApproval,
         requireSmsConfirmation,
