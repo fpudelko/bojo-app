@@ -108,7 +108,7 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
         <div className="min-w-0 flex-1">
           {/* Row 1: title + price */}
           <div className="flex items-start gap-2">
-            <p className="font-bold text-ink leading-snug truncate flex-1">
+            <p className="min-w-0 flex-1 truncate font-bold text-ink leading-snug">
               {event.title || `${event.sport}${formatSize(max)}`}
             </p>
             <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${priceClass}`}>
@@ -124,9 +124,9 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
               {until && <span className="ml-1 font-semibold text-amber-600">({until})</span>}
             </span>
             {location && (
-              <span className="flex items-center gap-1 truncate">
+              <span className="flex min-w-0 items-center gap-1 truncate">
                 <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="truncate">{location}</span>
+                <span className="min-w-0 truncate">{location}</span>
               </span>
             )}
           </div>

@@ -87,7 +87,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
             {location && (
               <span className="inline-flex min-w-0 items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
-                <span className="truncate">{location}</span>
+                <span className="min-w-0 truncate">{location}</span>
               </span>
             )}
           </div>

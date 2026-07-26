@@ -99,7 +99,7 @@ export function EventBrowseCard({ event, distance, relation }: {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="truncate text-sm font-bold text-ink">{title}</h3>
+              <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{title}</h3>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
                 free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
               }`}>

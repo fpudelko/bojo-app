@@ -5,9 +5,10 @@
 -- Wklej całość w Supabase → SQL Editor i uruchom ręcznie.
 --
 -- Bezpieczne do wielokrotnego uruchamiania: na start czyści poprzednie dane
--- testowe (wszystkie wydarzenia, których tytuł zaczyna się od "[TEST]" —
--- usunięcie wydarzenia kasuje też jego uczestników przez ON DELETE CASCADE),
--- a potem tworzy je od nowa.
+-- testowe (rozpoznawane po opisie zaczynającym się od "[TEST]" — usunięcie
+-- wydarzenia kasuje też jego uczestników przez ON DELETE CASCADE), a potem
+-- tworzy je od nowa. Tytuły wyglądają jak prawdziwe wydarzenia; to, co warto
+-- sprawdzić w danym wydarzeniu, jest opisane w jego opisie.
 --
 -- WYMAGANIA — te konta muszą już istnieć w auth.users (wystarczy, że raz się
 -- zalogowały do apki — e-mail/hasło lub Google):
@@ -18,7 +19,7 @@
 -- Wszystkie wydarzenia mają datę w ciągu najbliższych 7 dni od dziś.
 -- ============================================================
 
-DELETE FROM events WHERE title LIKE '[TEST]%';
+DELETE FROM events WHERE description LIKE '[TEST]%';
 
 DO $$
 DECLARE
@@ -76,13 +77,13 @@ BEGIN
   t10_name := COALESCE((SELECT display_name FROM profiles WHERE id = t10), 'Test 10');
 
   -- ========================================================
-  -- 1. Podstawowy publiczny, darmowy mecz — zero zaawansowanych opcji
+  -- 1. Piłka nożna na Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 1, '18:00', 10, 'public',
-    '[TEST] 1 — Podstawowy publiczny, darmowy mecz',
-    'Testuj: zwykłe dołączanie i wypisanie się, brak płatności, brak zaawansowanych opcji. 4/10 zajętych.')
+    'Piłka nożna na Rataje',
+    '[TEST] Zwykłe dołączanie i wypisywanie się, bez płatności i dodatkowych opcji. 4/10 zajętych miejsc.')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
     (eid, org1, org1_name, 'potwierdzony'),
@@ -91,14 +92,14 @@ BEGIN
     (eid, t3, t3_name, 'potwierdzony');
 
   -- ========================================================
-  -- 2. Bramkarze: limit 2, trzeci automatycznie na rezerwie
+  -- 2. Wtorkowa gra na Malcie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        goalkeepers_enabled, max_goalkeepers)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 2, '19:00', 12, 'public',
-    '[TEST] 2 — Bramkarze: limit 2, trzeci na rezerwie',
-    'Testuj: rozróżnianie bramkarz/zawodnik, limit 2 bramkarzy — trzeci chętny (Test 5) powinien wylądować na rezerwie.',
+    'Wtorkowa gra na Malcie',
+    '[TEST] Rozróżnianie bramkarz/zawodnik, limit 2 bramkarzy — trzeci chętny (Test 5) powinien wylądować na rezerwie.',
     true, 2)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, is_goalkeeper, is_reserve, status) VALUES
@@ -110,14 +111,14 @@ BEGIN
     (eid, t4, t4_name, false, false, 'potwierdzony');
 
   -- ========================================================
-  -- 3. Limit bramkarzy = 1 (niestandardowy, niski limit)
+  -- 3. Futsal w hali OSiR
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        goalkeepers_enabled, max_goalkeepers)
   VALUES (org3, org3_name, 'futsal', 'Hala OSiR', CURRENT_DATE + 3, '20:00', 8, 'public',
-    '[TEST] 3 — Limit bramkarzy = 1',
-    'Testuj: niestandardowy limit bramkarzy (1). Drugi chętny bramkarz (Test 7) powinien wylądować na rezerwie.',
+    'Futsal w hali OSiR',
+    '[TEST] Niestandardowy, niski limit bramkarzy (1) — drugi chętny bramkarz (Test 7) powinien wylądować na rezerwie.',
     true, 1)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, is_goalkeeper, is_reserve, status) VALUES
@@ -126,13 +127,13 @@ BEGIN
     (eid, t7, t7_name, true, true, 'potwierdzony');
 
   -- ========================================================
-  -- 4. Wymaga akceptacji — 2 potwierdzonych + 3 czekające prośby
+  -- 4. Sparing na Orliku Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, require_approval)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 1, '20:00', 10, 'public',
-    '[TEST] 4 — Wymaga akceptacji: 2 potwierdzonych + 3 czekające',
-    'Testuj: panel "Prośby o dołączenie" — akceptuj/odrzuć. 3 osoby czekają.',
+    'Sparing na Orliku Rataje',
+    '[TEST] Wymaga akceptacji organizatora — sprawdź panel "Prośby o dołączenie" (akceptuj/odrzuć). Trzy osoby czekają.',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, pending_approval) VALUES
@@ -143,13 +144,13 @@ BEGIN
     (eid, t4, t4_name, 'zaproszony', true);
 
   -- ========================================================
-  -- 5. Wymaga akceptacji — pusty stan (nikt jeszcze nie prosił)
+  -- 5. Piątkowa kopanka na Malcie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, require_approval)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 2, '17:00', 10, 'public',
-    '[TEST] 5 — Wymaga akceptacji: pusta lista próśb',
-    'Testuj: przy 0 próśb sekcja "Prośby o dołączenie" powinna być widoczna z komunikatem "Na razie nikt nie czeka na akceptację", a nie zniknąć całkiem.',
+    'Piątkowa kopanka na Malcie',
+    '[TEST] Wymaga akceptacji, ale nikt jeszcze nie poprosił o dołączenie — sekcja "Prośby o dołączenie" powinna pokazać pusty stan, a nie zniknąć całkiem.',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
@@ -157,14 +158,14 @@ BEGIN
     (eid, t5, t5_name, 'potwierdzony');
 
   -- ========================================================
-  -- 6. Płatne 20 zł, tylko BLIK (numer widoczny w nagłówku)
+  -- 6. Mecz na Junikowie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        cost_grosz, accepted_payment_methods, blik_phone)
   VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 4, '18:30', 10, 'public',
-    '[TEST] 6 — Płatne 20 zł, tylko BLIK',
-    'Testuj: numer BLIK widoczny w nagłówku wydarzenia (nie tylko w dialogu zapisu) i przy zapisie. Bez kart sportowych.',
+    'Mecz na Junikowie',
+    '[TEST] Płatne 20 zł, akceptowany tylko BLIK — sprawdź, czy numer BLIK jest widoczny w nagłówku wydarzenia (nie tylko w dialogu zapisu).',
     2000, ARRAY['blik']::text[], '500 600 700')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, payment_method, has_paid) VALUES
@@ -173,15 +174,15 @@ BEGIN
     (eid, t2, t2_name, 'potwierdzony', 'blik', false);
 
   -- ========================================================
-  -- 7. Płatne 30 zł, gotówka, Multisport ze znaną zniżką -10 zł
+  -- 7. Gra na Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        cost_grosz, accepted_payment_methods,
                        accepted_sports_cards, sports_card_discount_grosz)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 3, '19:00', 10, 'public',
-    '[TEST] 7 — Płatne 30 zł, gotówka, Multisport -10 zł',
-    'Testuj: Test 3 ma kartę Multisport → płaci 20 zł zamiast 30 zł (kwota przekreślona + nowa). Test 4 bez karty płaci pełną cenę.',
+    'Gra na Rataje',
+    '[TEST] Płatne 30 zł, gotówka. Test 3 ma kartę Multisport → płaci 20 zł zamiast 30 zł (cena przekreślona + nowa). Test 4 bez karty płaci pełną cenę.',
     3000, ARRAY['gotowka']::text[], ARRAY['multisport']::text[], 1000)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, payment_method, has_sports_card, sports_card_provider, has_paid) VALUES
@@ -190,15 +191,15 @@ BEGIN
     (eid, t4, t4_name, 'potwierdzony', 'gotowka', false, NULL, false);
 
   -- ========================================================
-  -- 8. Karta sportowa BEZ podanej kwoty zniżki + "Inna karta" nazwana
+  -- 8. Sobotni mecz na Malcie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        cost_grosz, accepted_payment_methods, blik_phone,
                        accepted_sports_cards, sports_card_discount_grosz, sports_card_other_name)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 5, '18:00', 10, 'public',
-    '[TEST] 8 — Zniżka z karty bez podanej kwoty + "Inna karta" = OK System',
-    'Testuj: zniżka nieznana → gracz z kartą widzi "zapytaj organizatora o szczegóły" zamiast wyliczonej ceny. "Inna karta" ma własną nazwę "OK System" zamiast ogólnika.',
+    'Sobotni mecz na Malcie',
+    '[TEST] Karta sportowa daje zniżkę, ale bez podanej kwoty — gracz z kartą powinien zobaczyć "zapytaj organizatora o szczegóły" zamiast wyliczonej ceny. Zaakceptowana też "Inna karta" nazwana "OK System".',
     2500, ARRAY['blik','gotowka']::text[], '600 111 222',
     ARRAY['multisport','fitprofit','inne']::text[], NULL, 'OK System')
   RETURNING id INTO eid;
@@ -208,14 +209,14 @@ BEGIN
     (eid, t6, t6_name, 'potwierdzony', 'gotowka', true, 'fitprofit', false);
 
   -- ========================================================
-  -- 9. Płatne 15 zł, wszystkie 3 metody płatności naraz
+  -- 9. Wieczorna gra na Junikowie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description,
                        cost_grosz, accepted_payment_methods, blik_phone)
   VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 6, '17:30', 10, 'public',
-    '[TEST] 9 — Płatne 15 zł, wszystkie metody płatności',
-    'Testuj: BLIK + Gotówka + Inne zaakceptowane naraz — wybór metody przy zapisie i wyświetlanie przy każdym uczestniku.',
+    'Wieczorna gra na Junikowie',
+    '[TEST] Płatne 15 zł, zaakceptowane naraz BLIK, gotówka i inne — sprawdź wybór metody przy zapisie i wyświetlanie przy każdym uczestniku.',
     1500, ARRAY['blik','gotowka','inne']::text[], '700 222 333')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, payment_method, has_paid) VALUES
@@ -225,13 +226,13 @@ BEGIN
     (eid, t9, t9_name, 'potwierdzony', 'inne', false);
 
   -- ========================================================
-  -- 10. Obserwujący (RSVP "Może")
+  -- 10. Poniedziałkowa piłka na Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 2, '18:00', 10, 'public',
-    '[TEST] 10 — Obserwujący (RSVP "Może")',
-    'Testuj: Test 2 i Test 3 obserwują (nie zajmują miejsca) — sprawdź osobną sekcję "Obserwujesz" w Moje mecze i na landing page.')
+    'Poniedziałkowa piłka na Rataje',
+    '[TEST] Test 2 i Test 3 tylko obserwują mecz (RSVP "Może") — nie zajmują miejsca. Sprawdź osobną sekcję "Obserwujesz" w Moje mecze i na stronie głównej.')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, rsvp, is_reserve) VALUES
     (eid, org1, org1_name, 'potwierdzony', 'yes', false),
@@ -240,13 +241,13 @@ BEGIN
     (eid, t3, t3_name, 'potwierdzony', 'maybe', true);
 
   -- ========================================================
-  -- 11. Komplet + 3 osoby na liście rezerwowej
+  -- 11. Szóstki na Malcie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 1, '19:30', 6, 'public',
-    '[TEST] 11 — Komplet (6/6) + 3 os. na rezerwie',
-    'Testuj: widok "Komplet — zapisz się na rezerwę", lista rezerwowa widoczna tylko dla organizatora.')
+    'Szóstki na Malcie',
+    '[TEST] Komplet (6/6) plus trzy osoby na liście rezerwowej — sprawdź widok "Komplet — zapisz się na rezerwę" oraz listę rezerwową (widoczną tylko dla organizatora).')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
     (eid, org2, org2_name, 'potwierdzony', false),
@@ -260,13 +261,13 @@ BEGIN
     (eid, t8, t8_name, 'potwierdzony', true);
 
   -- ========================================================
-  -- 12. Goście bez konta (w tym bramkarz-gość), dopisani przez organizatora
+  -- 12. Ekipa na Junikowie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, goalkeepers_enabled)
   VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 3, '18:00', 10, 'public',
-    '[TEST] 12 — Goście bez konta, dopisani przez organizatora',
-    'Testuj: odznaka "gość", linijka "dodał(a): Jan" pod gościem, bramkarz-gość.',
+    'Ekipa na Junikowie',
+    '[TEST] Dwóch graczy dopisanych ręcznie przez organizatora, bez konta — w tym jeden jako bramkarz. Sprawdź odznakę "gość" i podpis "dodał(a): Jan".',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, is_guest, added_by, is_goalkeeper, status) VALUES
@@ -276,13 +277,13 @@ BEGIN
     (eid, NULL, 'Gość Bramkarz', true, org3, true, 'potwierdzony');
 
   -- ========================================================
-  -- 13. Śledzenie obecności — 4 różne statusy (test "Potwierdzenia")
+  -- 13. Czwartkowa gra na Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, track_attendance)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 4, '19:00', 10, 'public',
-    '[TEST] 13 — Śledzenie obecności: 4 różne statusy',
-    'Testuj: kartę "Potwierdzenia" — select z jawnym wyborem statusu (zaproszony/potwierdzony/odrzucił/brak odp.) zamiast klik-cykl.',
+    'Czwartkowa gra na Rataje',
+    '[TEST] Śledzenie obecności włączone, czterech graczy ma różne statusy (zaproszony/potwierdzony/odrzucił/brak odpowiedzi). Sprawdź kartę "Potwierdzenia" — jawny wybór z listy zamiast klik-cykl.',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
@@ -293,13 +294,13 @@ BEGIN
     (eid, t4, t4_name, 'brak_odpowiedzi');
 
   -- ========================================================
-  -- 14. Potwierdzenie SMS — numery telefonów ustawione
+  -- 14. Wieczorny mecz na Malcie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, require_sms_confirmation)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 5, '20:00', 10, 'public',
-    '[TEST] 14 — Potwierdzenie SMS (numery ustawione)',
-    'Testuj: przy uczestnikach z numerem telefonu powinien być widoczny przycisk "Wyślij SMS z potwierdzeniem" w karcie Potwierdzenia.',
+    'Wieczorny mecz na Malcie',
+    '[TEST] Potwierdzenie SMS włączone, dwóch graczy ma numer telefonu — przy nich powinien być widoczny przycisk "Wyślij SMS z potwierdzeniem" w karcie Potwierdzenia.',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, phone) VALUES
@@ -308,13 +309,13 @@ BEGIN
     (eid, t6, t6_name, 'zaproszony', '600333444');
 
   -- ========================================================
-  -- 15. Drużyny (kapitanowie), składy opublikowane
+  -- 15. Derby na Junikowie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, team_mode, teams_published)
   VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 2, '18:00', 10, 'public',
-    '[TEST] 15 — Drużyny (kapitanowie), opublikowane',
-    'Testuj: publiczny widok składów (PublishedTeamsCard), gwiazdka kapitana, plakietki drużyn A/B.',
+    'Derby na Junikowie',
+    '[TEST] Drużyny z kapitanami, składy już opublikowane — sprawdź publiczny widok składów, gwiazdkę kapitana i plakietki drużyn A/B.',
     'kapitanowie', true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, team, is_captain) VALUES
@@ -324,13 +325,13 @@ BEGIN
     (eid, t9, t9_name, 'potwierdzony', 'B', false);
 
   -- ========================================================
-  -- 16. Drużyny (losowe), skład roboczy — niepublikowany
+  -- 16. Niedzielny mecz na Rataje
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, team_mode, teams_published)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 6, '19:00', 10, 'public',
-    '[TEST] 16 — Drużyny (losowe), skład roboczy',
-    'Testuj: skład przydzielony, ale nieopublikowany — organizator widzi "roboczy", gracze jeszcze nie widzą podziału.',
+    'Niedzielny mecz na Rataje',
+    '[TEST] Losowy podział na drużyny, ale jeszcze nieopublikowany — organizator widzi skład "roboczy", gracze go jeszcze nie widzą.',
     'losowe', false)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status, team) VALUES
@@ -338,13 +339,13 @@ BEGIN
     (eid, t10, t10_name, 'potwierdzony', 'B');
 
   -- ========================================================
-  -- 17. Siatkówka, publiczny, prosty wariant sportu
+  -- 17. Siatkówka w Luboniu
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org2, org2_name, 'siatkówka', 'Hala Lubon', CURRENT_DATE + 3, '17:00', 12, 'public',
-    '[TEST] 17 — Siatkówka, publiczny, prosty',
-    'Testuj: inny sport niż piłka nożna — bez opcji bramkarza (nie dotyczy siatkówki).')
+    'Siatkówka w Luboniu',
+    '[TEST] Inny sport niż piłka nożna — sprawdź, że opcja bramkarza się nie pojawia (nie dotyczy siatkówki).')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
     (eid, org2, org2_name, 'potwierdzony'),
@@ -352,26 +353,26 @@ BEGIN
     (eid, t2, t2_name, 'potwierdzony');
 
   -- ========================================================
-  -- 18. Koszykówka, prywatny (dostęp tylko przez link/kod)
+  -- 18. Koszykówka na Świerczewie
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org3, org3_name, 'koszykówka', 'Boisko Świerczewo', CURRENT_DATE + 4, '18:00', 8, 'private',
-    '[TEST] 18 — Koszykówka, prywatny',
-    'Testuj: wydarzenie prywatne — nie pojawia się w publicznej liście, dostęp przez link/kod dołączenia (JoinCodePanel).')
+    'Koszykówka na Świerczewie',
+    '[TEST] Wydarzenie prywatne — nie pojawia się w publicznej liście, dostęp tylko przez link/kod dołączenia (JoinCodePanel).')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
     (eid, org3, org3_name, 'potwierdzony'),
     (eid, t3, t3_name, 'potwierdzony');
 
   -- ========================================================
-  -- 19. Siatkówka plażowa — uczestnicy mogą dopisywać gości
+  -- 19. Siatkówka plażowa na Rusałce
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description, allow_guest_adds)
   VALUES (org1, org1_name, 'siatkówka plażowa', 'Plaża Rusałka', CURRENT_DATE + 7, '16:00', 12, 'public',
-    '[TEST] 19 — Siatkówka plażowa: uczestnicy dopisują gości',
-    'Testuj: zalogowany na Test 4 → w widoku uczestnika powinno być pole "Dopisz znajomego bez konta" (nie tylko dla organizatora).',
+    'Siatkówka plażowa na Rusałce',
+    '[TEST] Uczestnicy (nie tylko organizator) mogą dopisywać znajomych bez konta. Zaloguj się na Test 4 i sprawdź pole "Dopisz znajomego bez konta" w widoku uczestnika.',
     true)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
@@ -379,13 +380,13 @@ BEGIN
     (eid, t4, t4_name, 'potwierdzony');
 
   -- ========================================================
-  -- 20. Futsal, dokładny komplet (test widoku "Komplet")
+  -- 20. Futsal w hali OSiR (komplet)
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                        max_players, visibility, title, description)
   VALUES (org3, org3_name, 'futsal', 'Hala OSiR', CURRENT_DATE + 5, '19:00', 8, 'public',
-    '[TEST] 20 — Futsal: dokładny komplet (8/8)',
-    'Testuj: 8/8 zajętych. Zaloguj się na konto spoza tej listy (np. własne) i sprawdź sticky bar "Komplet — zapisz się na rezerwę".')
+    'Futsal w hali OSiR',
+    '[TEST] 8/8 zajętych — dokładny komplet. Zaloguj się na konto spoza tej listy (np. własne) i sprawdź sticky bar "Komplet — zapisz się na rezerwę".')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, status) VALUES
     (eid, org3, org3_name, 'potwierdzony'),

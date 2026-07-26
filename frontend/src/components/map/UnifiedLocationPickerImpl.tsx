@@ -81,11 +81,16 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
     return () => { cancelled = true; };
   }, []);
 
-  // Memoised so the marker layer isn't handed a new array on every render.
-  const visible = useMemo(
-    () => (sport ? fields.filter((f) => f.sport.includes(sport)) : fields),
-    [fields, sport],
-  );
+  // Live client-side filtering as you type — same behaviour as the general
+  // /mapa search (instant, no network round-trip). The magnifying-glass
+  // button below is a separate, explicit action for addresses that aren't
+  // one of our known venues (geocoded via Nominatim on click/Enter).
+  const visible = useMemo(() => {
+    let list = sport ? fields.filter((f) => f.sport.includes(sport)) : fields;
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
+    return list;
+  }, [fields, sport, search]);
 
   async function handleGeocode() {
     const q = search.trim();

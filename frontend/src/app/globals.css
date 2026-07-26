@@ -180,3 +180,16 @@ a {
 .leaflet-popup-tip {
   box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.25) !important;
 }
+
+/* iOS Safari auto-zooms the page when a focused text input has a computed
+ * font-size below 16px. Most of our inputs use Tailwind's text-sm (14px),
+ * which is exactly what triggers it. Scoped to WebKit/iOS only (via the
+ * -webkit-touch-callout feature check, which only matches Safari on iOS) so
+ * desktop and Android sizing is untouched; !important is needed because a
+ * plain `input { }` rule has lower specificity than the text-sm utility
+ * class most inputs already carry. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
