@@ -181,6 +181,8 @@ export interface EventItem {
   coverImageUrl?: string;
   /** Max goalkeepers before extras overflow to reserve (football). Default 2. */
   maxGoalkeepers: number;
+  /** Whether the goalkeeper / field-player distinction is used at all. */
+  goalkeepersEnabled: boolean;
 }
 
 export interface EventParticipant {
@@ -236,6 +238,7 @@ export interface EventCreate {
   requireApproval?: boolean;
   groupId?: string;
   maxGoalkeepers?: number;
+  goalkeepersEnabled?: boolean;
 }
 
 // ---------------------------------------------------------------------------

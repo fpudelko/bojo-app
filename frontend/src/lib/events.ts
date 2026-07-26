@@ -45,6 +45,7 @@ function toEvent(row: any): EventItem {
     joinCode: row.join_code ?? '',
     requireApproval: row.require_approval ?? false,
     maxGoalkeepers: row.max_goalkeepers ?? 2,
+    goalkeepersEnabled: row.goalkeepers_enabled ?? false,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -145,6 +146,7 @@ export async function createEvent(
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
+      goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       group_id: data.groupId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
@@ -216,6 +218,7 @@ export async function updateEvent(
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
+      goalkeepers_enabled: data.goalkeepersEnabled ?? false,
     })
     .eq('id', id);
 
@@ -634,6 +637,7 @@ export async function repeatEvent(
       confirmationDeadlineH: source.confirmationDeadlineH,
       costGrosze: source.costGrosze,
       maxGoalkeepers: source.maxGoalkeepers,
+      goalkeepersEnabled: source.goalkeepersEnabled,
       customLocationName: source.customLocationName,
       customAddress: source.customAddress,
     },

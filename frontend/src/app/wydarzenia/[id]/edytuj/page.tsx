@@ -16,6 +16,9 @@ import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import type { Field, Visibility, TeamMode } from '@/types';
 
+// Sports where a goalkeeper / field-player distinction makes sense.
+const GK_SPORTS = ['piłka nożna', 'futsal'];
+
 function ToggleRow({ label, desc, checked, onChange }: {
   label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
@@ -56,7 +59,8 @@ export default function EditEventPage() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
-  const [maxGoalkeepers, setMaxGoalkeepers] = useState(2);
+  const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
+  // externalCount is no longer editable, but preserve the stored value on save.
   const [externalCount, setExternalCount] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -89,7 +93,7 @@ export default function EditEventPage() {
         setTime(ev.time?.slice(0, 5) ?? '18:00');
         setEndTime(ev.endTime?.slice(0, 5) ?? '');
         setMaxPlayers(ev.maxPlayers);
-        setMaxGoalkeepers(ev.maxGoalkeepers ?? 2);
+        setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
         setExternalCount(ev.externalCount ?? 0);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
@@ -160,7 +164,8 @@ export default function EditEventPage() {
         time,
         endTime: endTime || undefined,
         maxPlayers,
-        maxGoalkeepers: sport === 'piłka nożna' ? maxGoalkeepers : 2,
+        maxGoalkeepers: 2,
+        goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
         externalCount,
         visibility,
         requireApproval,
@@ -292,49 +297,29 @@ export default function EditEventPage() {
             </label>
             <input
               type="range" min={2} max={30} value={maxPlayers}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setMaxPlayers(v);
-                if (externalCount > v) setExternalCount(v);
-              }}
+              onChange={(e) => setMaxPlayers(Number(e.target.value))}
               className="w-full accent-primary-600"
             />
           </div>
 
-          {/* Goalkeeper limit — football only */}
-          {sport === 'piłka nożna' && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Limit bramkarzy: <span className="text-primary-600 font-semibold">{maxGoalkeepers}</span>
-              </label>
-              <p className="text-xs text-slate-500 mb-1">Kolejni bramkarze trafią na rezerwę.</p>
-              <input
-                type="range" min={0} max={5} value={maxGoalkeepers}
-                onChange={(e) => setMaxGoalkeepers(Number(e.target.value))}
-                className="w-full accent-primary-600"
-              />
+          {/* Goalkeeper distinction — sports with a goalkeeper only */}
+          {GK_SPORTS.includes(sport) && (
+            <div className="flex items-center justify-between py-2 border-b border-slate-100">
+              <div className="pr-3">
+                <p className="text-sm font-medium text-slate-900">Rozróżniaj bramkarzy</p>
+                <p className="text-xs text-slate-500">Gracze wybierają bramkarz / zawodnik z pola. Max 2 bramkarzy — kolejni na rezerwę.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGoalkeepersEnabled((v) => !v)}
+                className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', goalkeepersEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                role="switch"
+                aria-checked={goalkeepersEnabled}
+              >
+                <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', goalkeepersEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+              </button>
             </div>
           )}
-
-          {/* Players already committed outside the app */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Gracze spoza aplikacji <span className="text-slate-400 font-normal">(opcjonalnie)</span>
-            </label>
-            <p className="text-xs text-slate-500 mb-2">
-              Ilu graczy macie już zebranych poza aplikacją. Liczą się do limitu miejsc.
-            </p>
-            <input
-              type="number" min={0} max={maxPlayers}
-              value={externalCount === 0 ? '' : externalCount}
-              onChange={(e) => {
-                const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
-                setExternalCount(v);
-              }}
-              placeholder="0"
-              className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
 
           {/* Title */}
           <div>

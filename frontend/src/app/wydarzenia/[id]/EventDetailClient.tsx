@@ -387,8 +387,10 @@ export default function EventDetailClient() {
   const eventLoc = eventLocation(event);
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
-  const isFootball = event.sport === 'piłka nożna';
-  const hasGoalkeeper = regulars.some((p) => p.isGoalkeeper);
+  // Goalkeeper distinction is an explicit per-event setting now.
+  const gkEnabled = event.goalkeepersEnabled;
+  const gkCount = regulars.filter((p) => p.isGoalkeeper).length;
+  const gkFull = gkCount >= (event.maxGoalkeepers ?? 2);
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
   const goalsMap: Record<string, number> = {};
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
@@ -1096,7 +1098,7 @@ export default function EventDetailClient() {
                     <UserPlus className="w-4 h-4" /> Dopisz
                   </Button>
                 </div>
-                {isFootball && (
+                {gkEnabled && (
                   <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
                     <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                     🧤 Dodaj jako bramkarza
@@ -1275,7 +1277,7 @@ export default function EventDetailClient() {
                           gość
                         </span>
                       )}
-                      {p.isGoalkeeper && (
+                      {gkEnabled && p.isGoalkeeper && (
                         <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
                           🧤 BR
                         </span>
@@ -1393,7 +1395,7 @@ export default function EventDetailClient() {
                   <UserPlus className="w-4 h-4" /> Dopisz do składu
                 </Button>
               </div>
-              {isFootball && (
+              {gkEnabled && (
                 <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
                   <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                   🧤 Dodaj jako bramkarza
@@ -1712,8 +1714,8 @@ export default function EventDetailClient() {
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 
-            {/* Role chooser — football only */}
-            {event.sport === 'piłka nożna' && (
+            {/* Role chooser — only when the event distinguishes goalkeepers */}
+            {gkEnabled && (
               <div className="mb-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Twoja rola</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -1740,6 +1742,11 @@ export default function EventDetailClient() {
                     🧤 Bramkarz
                   </button>
                 </div>
+                {joinRole === 'goalkeeper' && gkFull && !joinAsReserve && (
+                  <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Jest już {gkCount} bramkarzy — dołączysz jako rezerwa.
+                  </p>
+                )}
               </div>
             )}
 

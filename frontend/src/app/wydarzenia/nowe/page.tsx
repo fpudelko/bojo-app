@@ -16,6 +16,9 @@ import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Visibility } from '@/types';
 
+// Sports where a goalkeeper / field-player distinction makes sense.
+const GK_SPORTS = ['piłka nożna', 'futsal'];
+
 /** True when the given date (YYYY-MM-DD) + time (HH:MM) is at or before now. */
 function isPast(date: string, time: string): boolean {
   try {
@@ -65,8 +68,7 @@ function NewEventForm() {
   const [time, setTime] = useState('18:00');
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
-  const [maxGoalkeepers, setMaxGoalkeepers] = useState(2);
-  const [externalCount, setExternalCount] = useState(0);
+  const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -229,8 +231,9 @@ function NewEventForm() {
           time,
           endTime: endTime || undefined,
           maxPlayers,
-          maxGoalkeepers: sport === 'piłka nożna' ? maxGoalkeepers : 2,
-          externalCount,
+          maxGoalkeepers: 2,
+          goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+          externalCount: 0,
           visibility,
           requireSmsConfirmation: false,
           trackAttendance,
@@ -474,11 +477,7 @@ function NewEventForm() {
                 <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const v = Math.max(2, maxPlayers - 1);
-                      setMaxPlayers(v);
-                      if (externalCount > v) setExternalCount(v);
-                    }}
+                    onClick={() => setMaxPlayers((v) => Math.max(2, v - 1))}
                     className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
                     disabled={maxPlayers <= 2}
                     aria-label="Zmniejsz liczbę miejsc"
@@ -500,68 +499,24 @@ function NewEventForm() {
                 </div>
               </div>
 
-              {/* Goalkeeper limit — football only */}
-              {sport === 'piłka nożna' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Limit bramkarzy
-                  </label>
-                  <p className="text-xs text-slate-500 mb-2">Kolejni bramkarze trafią na rezerwę.</p>
-                  <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setMaxGoalkeepers((v) => Math.max(0, v - 1))}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
-                      disabled={maxGoalkeepers <= 0}
-                      aria-label="Zmniejsz limit bramkarzy"
-                    >
-                      −
-                    </button>
-                    <span className="w-8 text-center text-lg font-semibold text-slate-900 tabular-nums">
-                      {maxGoalkeepers}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setMaxGoalkeepers((v) => Math.min(5, v + 1))}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
-                      disabled={maxGoalkeepers >= 5}
-                      aria-label="Zwiększ limit bramkarzy"
-                    >
-                      +
-                    </button>
+              {/* Goalkeeper distinction — sports with a goalkeeper only */}
+              {GK_SPORTS.includes(sport) && (
+                <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                  <div className="pr-3">
+                    <p className="text-sm font-medium text-slate-900">Rozróżniaj bramkarzy</p>
+                    <p className="text-xs text-slate-500">Gracze wybierają bramkarz / zawodnik z pola. Max 2 bramkarzy — kolejni trafią na rezerwę.</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setGoalkeepersEnabled((v) => !v)}
+                    className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', goalkeepersEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                    role="switch"
+                    aria-checked={goalkeepersEnabled}
+                  >
+                    <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', goalkeepersEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                  </button>
                 </div>
               )}
-
-              {/* Players already committed outside the app */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Macie już graczy spoza aplikacji? <span className="text-slate-400 font-normal">(opcjonalnie)</span>
-                </label>
-                <p className="text-xs text-slate-500 mb-2">
-                  Wpisz, ilu graczy macie już zebranych (np. ze swojej ekipy). Aplikacja będzie szukać tylko brakujących.
-                </p>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number" min={0} max={maxPlayers}
-                    value={externalCount === 0 ? '' : externalCount}
-                    onChange={(e) => {
-                      const v = Math.max(0, Math.min(maxPlayers, Math.floor(Number(e.target.value) || 0)));
-                      setExternalCount(v);
-                    }}
-                    placeholder="0"
-                    className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                  {(externalCount > 0 || organizerParticipates) && (() => {
-                    const searched = Math.max(0, maxPlayers - externalCount - (organizerParticipates ? 1 : 0));
-                    return (
-                      <span className="text-sm text-primary-700 font-medium">
-                        Szukasz jeszcze {searched} {searched === 1 ? 'gracza' : 'graczy'}
-                      </span>
-                    );
-                  })()}
-                </div>
-              </div>
 
               {/* Cost per player */}
               <div>
