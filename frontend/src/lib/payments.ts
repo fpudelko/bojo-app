@@ -17,6 +17,13 @@ export const SPORTS_CARD_LABELS: Record<SportsCardProvider, string> = {
 
 export const SPORTS_CARD_PROVIDERS: SportsCardProvider[] = ['multisport', 'fitprofit', 'medicover', 'inne'];
 
+/** Label for a card provider, substituting the organizer's custom name for the
+ *  generic "Inna karta" when they named it (e.g. "OK System"). */
+export function sportsCardLabel(provider: SportsCardProvider, otherName?: string | null): string {
+  if (provider === 'inne' && otherName?.trim()) return otherName.trim();
+  return SPORTS_CARD_LABELS[provider];
+}
+
 export interface PriceForParticipant {
   /** Price to charge — falls back to the full price when the discount amount
    *  is unspecified, since there's nothing to subtract. */

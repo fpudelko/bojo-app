@@ -40,7 +40,7 @@ import type {
   PaymentMethod, SportsCardProvider,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { PAYMENT_METHOD_LABELS, SPORTS_CARD_LABELS, priceForParticipant } from '@/lib/payments';
+import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant } from '@/lib/payments';
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -933,16 +933,22 @@ export default function EventDetailClient() {
               </Link>
             )}
           </div>
-          {/* Payment info — how to pay + sports-card discount, at a glance */}
+          {/* Payment info — how to pay + sports-card discount, at a glance. Shown
+              generally on the event page, not just at join time. */}
           {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
             <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
               {event.acceptedPaymentMethods.length > 0 && (
-                <span>Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}</span>
+                <span>
+                  Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+                  {event.acceptedPaymentMethods.includes('blik') && event.blikPhone && (
+                    <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
+                  )}
+                </span>
               )}
               {event.acceptedSportsCards.length > 0 && (
                 <span>
                   {event.acceptedPaymentMethods.length > 0 && '· '}
-                  Karty sportowe: {event.acceptedSportsCards.map((c) => SPORTS_CARD_LABELS[c]).join(', ')}
+                  Karty sportowe: {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
                   {event.sportsCardDiscountGrosze != null && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
                 </span>
               )}
@@ -951,16 +957,24 @@ export default function EventDetailClient() {
         </div>
 
         {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
-        {isOwner && pendingRequests.length > 0 && (
+        {/* Shown whenever the organizer requires approval — even with zero
+            pending requests — so it's clear the feature is there and working,
+            rather than the whole card vanishing (which read as "broken/missing"). */}
+        {isOwner && event.requireApproval && (
           <div className="px-4">
             <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
                 <UserPlus className="w-4 h-4 text-amber-600" />
                 <p className="text-sm font-semibold text-amber-800">
                   Prośby o dołączenie
-                  <span className="ml-1.5 rounded-full bg-amber-200 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">{pendingRequests.length}</span>
+                  {pendingRequests.length > 0 && (
+                    <span className="ml-1.5 rounded-full bg-amber-200 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">{pendingRequests.length}</span>
+                  )}
                 </p>
               </div>
+              {pendingRequests.length === 0 && (
+                <p className="text-sm text-amber-700/80">Na razie nikt nie czeka na akceptację.</p>
+              )}
               <ul className="space-y-2">
                 {pendingRequests.map((p) => (
                   <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-amber-100">
@@ -1607,7 +1621,7 @@ export default function EventDetailClient() {
                         <span className="flex items-center gap-1.5 text-sm text-ink">
                           <span className="truncate">{p.name}</span>
                           {p.hasSportsCard && (
-                            <span title={p.sportsCardProvider ? SPORTS_CARD_LABELS[p.sportsCardProvider] : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
+                            <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
                           )}
                         </span>
                         <span className="text-xs text-slate-400">
@@ -1852,11 +1866,22 @@ export default function EventDetailClient() {
                   <input
                     type="checkbox"
                     checked={joinHasSportsCard}
-                    onChange={(e) => { setJoinHasSportsCard(e.target.checked); setJoinSportsCardProvider(undefined); }}
+                    onChange={(e) => {
+                      setJoinHasSportsCard(e.target.checked);
+                      // Auto-pick when there's only one accepted card — nothing to choose.
+                      setJoinSportsCardProvider(
+                        e.target.checked && event.acceptedSportsCards.length === 1
+                          ? event.acceptedSportsCards[0]
+                          : undefined,
+                      );
+                    }}
                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                   />
                   Mam kartę sportową
                 </label>
+                <p className="mt-1 ml-6 text-xs text-slate-500">
+                  Akceptowane: {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
+                </p>
                 {joinHasSportsCard && event.acceptedSportsCards.length > 1 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {event.acceptedSportsCards.map((c) => (
@@ -1871,7 +1896,7 @@ export default function EventDetailClient() {
                             : 'border-slate-200 text-slate-600 hover:border-slate-300',
                         ].join(' ')}
                       >
-                        {SPORTS_CARD_LABELS[c]}
+                        {sportsCardLabel(c, event.sportsCardOtherName)}
                       </button>
                     ))}
                   </div>

@@ -100,6 +100,7 @@ function NewEventForm() {
   const [cardDiscountEnabled, setCardDiscountEnabled] = useState(false);
   const [cardDiscountPln, setCardDiscountPln] = useState('');
   const [acceptedSportsCards, setAcceptedSportsCards] = useState<SportsCardProvider[]>([]);
+  const [sportsCardOtherName, setSportsCardOtherName] = useState('');
 
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
@@ -255,6 +256,9 @@ function NewEventForm() {
           sportsCardDiscountGrosze: hasCost && cardDiscountEnabled && cardDiscountPln
             ? Math.round(parseFloat(cardDiscountPln) * 100)
             : null,
+          sportsCardOtherName: hasCost && cardDiscountEnabled && acceptedSportsCards.includes('inne')
+            ? sportsCardOtherName
+            : undefined,
           requireApproval,
           groupId,
         },
@@ -647,6 +651,18 @@ function NewEventForm() {
                             </button>
                           ))}
                         </div>
+                        {acceptedSportsCards.includes('inne') && (
+                          <div className="mt-2">
+                            <input
+                              type="text"
+                              value={sportsCardOtherName}
+                              onChange={(e) => setSportsCardOtherName(e.target.value)}
+                              placeholder="Jaka karta? np. OK System"
+                              maxLength={40}
+                              className={inputCls}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

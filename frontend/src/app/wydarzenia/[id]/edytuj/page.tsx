@@ -83,6 +83,7 @@ export default function EditEventPage() {
   const [cardDiscountEnabled, setCardDiscountEnabled] = useState(false);
   const [cardDiscountPln, setCardDiscountPln] = useState('');
   const [acceptedSportsCards, setAcceptedSportsCards] = useState<SportsCardProvider[]>([]);
+  const [sportsCardOtherName, setSportsCardOtherName] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -115,6 +116,7 @@ export default function EditEventPage() {
         setAcceptedSportsCards(ev.acceptedSportsCards ?? []);
         setCardDiscountEnabled((ev.acceptedSportsCards ?? []).length > 0);
         if (ev.sportsCardDiscountGrosze != null) setCardDiscountPln(String(ev.sportsCardDiscountGrosze / 100));
+        setSportsCardOtherName(ev.sportsCardOtherName ?? '');
         if (ev.requireSmsConfirmation || ev.trackAttendance || ev.teamMode !== 'brak' || ev.trackPayments || ev.trackResults) {
           setAdvOpen(true);
         }
@@ -192,6 +194,9 @@ export default function EditEventPage() {
         sportsCardDiscountGrosze: hasCost && cardDiscountEnabled && cardDiscountPln
           ? Math.round(parseFloat(cardDiscountPln) * 100)
           : null,
+        sportsCardOtherName: hasCost && cardDiscountEnabled && acceptedSportsCards.includes('inne')
+          ? sportsCardOtherName
+          : undefined,
       });
       router.push(`/wydarzenia/${id}`);
     } catch (err) {
@@ -549,6 +554,18 @@ export default function EditEventPage() {
                                   </button>
                                 ))}
                               </div>
+                              {acceptedSportsCards.includes('inne') && (
+                                <div className="mt-2">
+                                  <input
+                                    type="text"
+                                    value={sportsCardOtherName}
+                                    onChange={(e) => setSportsCardOtherName(e.target.value)}
+                                    placeholder="Jaka karta? np. OK System"
+                                    maxLength={40}
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}

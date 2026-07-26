@@ -49,6 +49,7 @@ function toEvent(row: any): EventItem {
     blikPhone: row.blik_phone ?? undefined,
     acceptedSportsCards: row.accepted_sports_cards ?? [],
     sportsCardDiscountGrosze: row.sports_card_discount_grosz ?? null,
+    sportsCardOtherName: row.sports_card_other_name ?? undefined,
     status: (row.status ?? 'active') as EventStatus,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
@@ -156,6 +157,7 @@ export async function createEvent(
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
+      sports_card_other_name: data.sportsCardOtherName?.trim() || null,
       group_id: data.groupId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
@@ -231,6 +233,7 @@ export async function updateEvent(
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
+      sports_card_other_name: data.sportsCardOtherName?.trim() || null,
     })
     .eq('id', id);
 
@@ -664,6 +667,7 @@ export async function repeatEvent(
       blikPhone: source.blikPhone,
       acceptedSportsCards: source.acceptedSportsCards,
       sportsCardDiscountGrosze: source.sportsCardDiscountGrosze,
+      sportsCardOtherName: source.sportsCardOtherName,
       customLocationName: source.customLocationName,
       customAddress: source.customAddress,
     },

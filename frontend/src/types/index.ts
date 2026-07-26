@@ -194,6 +194,9 @@ export interface EventItem {
   /** Flat discount (grosze) when a participant holds an accepted card. Null =
    *  "there is a discount, but ask the organizer" (varies too much to fix a number). */
   sportsCardDiscountGrosze: number | null;
+  /** Name for the "inne" (other) card option, e.g. "OK System" — shown instead
+   *  of the generic "Inna karta" label wherever this event's cards are listed. */
+  sportsCardOtherName?: string;
 }
 
 export interface EventParticipant {
@@ -258,6 +261,7 @@ export interface EventCreate {
   blikPhone?: string;
   acceptedSportsCards?: SportsCardProvider[];
   sportsCardDiscountGrosze?: number | null;
+  sportsCardOtherName?: string;
 }
 
 // ---------------------------------------------------------------------------
