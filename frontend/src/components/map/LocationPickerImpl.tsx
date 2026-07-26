@@ -56,10 +56,7 @@ export default function LocationPickerImpl({ lat, lng, onSelect }: LocationPicke
   async function handleClick(clickLat: number, clickLng: number) {
     let address = `${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}`;
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${clickLat}&lon=${clickLng}&format=json`,
-        { headers: { 'User-Agent': 'bojo-app/1.0' } },
-      );
+      const res = await fetch(`/api/geocode?lat=${clickLat}&lon=${clickLng}`);
       const data = await res.json();
       if (data.display_name) address = data.display_name;
     } catch { /* keep coord string */ }

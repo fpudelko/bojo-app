@@ -72,10 +72,9 @@ export async function countAlertSeekers(lat: number, lng: number, sport: string,
 /** Geocode a Polish city/address via Nominatim (free, no key) */
 export async function geocodeCity(query: string): Promise<{ lat: number; lng: number; label: string } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=pl`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pl', 'User-Agent': 'bojo.app/1.0' } });
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
     const data = await res.json();
-    if (!data[0]) return null;
+    if (!Array.isArray(data) || !data[0]) return null;
     return {
       lat:   parseFloat(data[0].lat),
       lng:   parseFloat(data[0].lon),

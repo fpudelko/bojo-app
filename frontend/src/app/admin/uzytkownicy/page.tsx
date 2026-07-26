@@ -59,6 +59,12 @@ export default function UsersAdminPanel() {
   useEffect(() => { if (adminState === 'yes') load(); }, [adminState, load]);
 
   const toggleAdmin = async (p: Profile) => {
+    const label = p.display_name || p.email || 'tego użytkownika';
+    const confirmMsg = p.is_admin
+      ? `Na pewno odebrać uprawnienia administratora użytkownikowi ${label}?`
+      : `Na pewno nadać uprawnienia administratora użytkownikowi ${label}? Będzie mieć pełny dostęp do panelu admina.`;
+    if (!confirm(confirmMsg)) return;
+
     setBusy((s) => new Set(s).add(p.id));
     // optimistic
     setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_admin: !x.is_admin } : x)));

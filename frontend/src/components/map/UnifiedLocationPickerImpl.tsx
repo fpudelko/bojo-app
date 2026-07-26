@@ -92,14 +92,11 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
     if (!q) return;
     setGeocoding(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=pl`,
-        { headers: { 'User-Agent': 'bojo-app/1.0' } },
-      );
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      if (data.length) {
+      if (Array.isArray(data) && data.length) {
         const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lng);
+        const lng = parseFloat(data[0].lon);
         onChange({ venue: null, lat, lng, address: data[0].display_name });
         setFlyTarget({ lat, lng });
         setSearch('');
@@ -111,10 +108,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   async function handleMapClick(lat: number, lng: number) {
     let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-        { headers: { 'User-Agent': 'bojo-app/1.0' } },
-      );
+      const res = await fetch(`/api/geocode?lat=${lat}&lon=${lng}`);
       const data = await res.json();
       if (data.display_name) address = data.display_name;
     } catch { /* keep coords */ }
