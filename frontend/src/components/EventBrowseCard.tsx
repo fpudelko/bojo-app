@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, Crown } from 'lucide-react';
 import type { EventItem } from '@/types';
+import type { MyEventStatus, MyEventRelation } from '@/lib/events';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { timeUntil } from './EventListCard';
@@ -16,20 +17,33 @@ function sizeSuffix(max: number): string {
   return ` · ${max} os.`;
 }
 
-/** How the signed-in user relates to this event, when known. Drives the CTA:
- *  someone who is already in shouldn't be invited to "Dołącz". */
-export type CardStatus = 'organizer' | 'player' | 'reserve' | 'observing';
+/**
+ * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
+ * This is "my standing / what's next", one value at a time.
+ *
+ * Ownership is deliberately NOT in here: it's a separate axis rendered as a tag
+ * in the meta row, so a match you organize AND play shows both.
+ */
+const STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>> = {
+  playing:   { label: 'Grasz ✓',              cls: 'bg-green-50 text-green-700 border-green-200' },
+  reserve:   { label: 'Rezerwa',              cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  observing: { label: 'Obserwujesz',          cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  pending:   { label: 'Czeka na akceptację',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  invited:   { label: 'Zaproszenie →',        cls: 'bg-accent-100 text-primary-900 border-accent-200' },
+};
 
-const STATUS_CHIP: Record<CardStatus, { label: string; cls: string }> = {
-  organizer: { label: 'Twój mecz',   cls: 'bg-primary-50 text-primary-700 border-primary-100' },
-  player:    { label: 'Grasz ✓',     cls: 'bg-green-50 text-green-700 border-green-200' },
-  reserve:   { label: 'Rezerwa',     cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  observing: { label: 'Obserwujesz', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+// Past-tense labels for the history tab — "Grasz ✓" on an already-played match
+// reads wrong, so a match that has happened gets its own wording.
+const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>> = {
+  playing:   { label: 'Zagrałeś',       cls: 'bg-green-50 text-green-700 border-green-200' },
+  reserve:   { label: 'Byłeś rezerwą',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  observing: { label: 'Obserwowałeś',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  pending:   { label: 'Nie zaakceptowano', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, myStatus }: {
-  event: EventItem; distance?: number; myStatus?: CardStatus;
+export function EventBrowseCard({ event, distance, relation }: {
+  event: EventItem; distance?: number; relation?: MyEventRelation;
 }) {
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
@@ -56,6 +70,7 @@ export function EventBrowseCard({ event, distance, myStatus }: {
   const soon = until !== null;
   const cancelled = event.status === 'cancelled';
   const past = cancelled || !isUpcoming(event);
+  const statusChip = relation ? (past ? PAST_STATUS_CHIP : STATUS_CHIP)[relation.status] : undefined;
 
   const location = eventLocation(event).primary;
   const title = event.title || `${event.sport}${sizeSuffix(max)}`;
@@ -93,6 +108,14 @@ export function EventBrowseCard({ event, distance, myStatus }: {
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+              {/* Ownership tag — a property of the match, not a status. Lives in
+                  the meta row so it never competes with the CTA slot below. */}
+              {relation?.isOrganizer && (
+                <span className="flex items-center gap-1 font-semibold text-primary-700">
+                  <Crown className="h-3 w-3 shrink-0" />
+                  Organizujesz
+                </span>
+              )}
               <span className={`flex items-center gap-1 font-medium ${soon ? 'text-amber-600' : 'text-slate-500'}`}>
                 <Clock className="h-3 w-3" />
                 {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
@@ -124,6 +147,11 @@ export function EventBrowseCard({ event, distance, myStatus }: {
             {max > 0 && (
               <span className="text-xs text-slate-500 dark:text-slate-400">{taken} graczy</span>
             )}
+            {statusChip && (
+              <span className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
+                {statusChip.label}
+              </span>
+            )}
           </div>
         ) : max > 0 ? (
           <>
@@ -143,9 +171,9 @@ export function EventBrowseCard({ event, distance, myStatus }: {
                     {left === 1 ? '1 wolne miejsce' : left < 5 ? `${left} wolne miejsca` : `${left} wolnych miejsc`}
                   </span>
                 )}
-                {myStatus ? (
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${STATUS_CHIP[myStatus].cls}`}>
-                    {STATUS_CHIP[myStatus].label}
+                {statusChip ? (
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
+                    {statusChip.label}
                   </span>
                 ) : !full && (
                   <span className="text-xs font-bold text-primary-700">Dołącz →</span>

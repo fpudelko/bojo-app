@@ -256,13 +256,13 @@ export default function GroupDetailPage() {
               {upcoming.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</p>
-                  {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />)}
+                  {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
                 </div>
               )}
               {past.length > 0 && (
                 <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</p>
-                  {past.map((e) => <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />)}
+                  {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
                 </div>
               )}
             </div>

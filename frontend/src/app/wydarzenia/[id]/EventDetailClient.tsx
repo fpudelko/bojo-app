@@ -1320,8 +1320,11 @@ export default function EventDetailClient() {
                       </button>
                     )}
 
-                    {/* Payment (trackPayments on) */}
-                    {event.trackPayments && (isOrganizer || event.showPaymentStatus) && (
+                    {/* Payment toggle: automatic whenever the match costs money —
+                        the organizer shouldn't have to separately flip "Śledzenie
+                        płatności" just to mark who paid. Participants still only
+                        see it when that advanced setting is explicitly on. */}
+                    {(event.costGrosze > 0 || event.trackPayments) && (isOrganizer || event.showPaymentStatus) && (
                       <button
                         onClick={() => isOrganizer && handleTogglePayment(p)}
                         disabled={busy || !isOrganizer}
@@ -1490,8 +1493,8 @@ export default function EventDetailClient() {
         )}
 
 
-        {/* Cost split summary */}
-        {event.trackPayments && event.costGrosze > 0 && isOwner && !eventStarted && (
+        {/* Cost split summary — same automatic rule as the per-participant toggle */}
+        {event.costGrosze > 0 && isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Banknote className="w-4 h-4" /> Podział kosztów

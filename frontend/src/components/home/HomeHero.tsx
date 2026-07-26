@@ -7,7 +7,7 @@ import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Map as MapIcon, Users, 
 import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { getPublicEvents, getMyParticipatedEvents, type MyEventRole } from '@/lib/events';
+import { getPublicEvents, getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { useMyParticipation } from '@/lib/useMyParticipation';
 import { getMyGroups } from '@/lib/groups';
 import { getMyAlert } from '@/lib/alerts';
@@ -185,28 +185,47 @@ function SectionHeader({ title, href, count }: { title: string; href?: string; c
   );
 }
 
-/** The user's upcoming games — max 2. */
+/** The user's upcoming games, split the same way as /moje-gry: matches you
+ *  organize or are signed up for vs. matches you're merely observing. Kept
+ *  as two sections so "Obserwujesz" never reads as "you're in". */
 function MyGamesSection({ userId }: { userId: string }) {
-  const [games, setGames] = useState<{ event: EventItem; isOrganizer: boolean; role: MyEventRole }[]>([]);
+  const [items, setItems] = useState<{ event: EventItem; relation: MyEventRelation }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getMyParticipatedEvents(userId)
-      .then((items) => setGames(items.filter(({ event }) => event.status !== 'cancelled' && isUpcoming(event))))
+      .then((rows) => setItems(rows.filter(({ event }) => event.status !== 'cancelled' && isUpcoming(event))))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [userId]);
 
-  if (loading || games.length === 0) return null;
+  if (loading || items.length === 0) return null;
+
+  const playing = items.filter(({ relation }) => relation.status !== 'observing');
+  const observing = items.filter(({ relation }) => relation.status === 'observing');
 
   return (
-    <div>
-      <SectionHeader title="Twoje najbliższe mecze" href="/moje-gry" count={games.length} />
-      <div className="space-y-3">
-        {games.slice(0, 2).map(({ event, role }) => (
-          <EventBrowseCard key={event.id} event={event} myStatus={role} />
-        ))}
-      </div>
+    <div className="space-y-6">
+      {playing.length > 0 && (
+        <div>
+          <SectionHeader title="Twoje najbliższe mecze" href="/moje-gry" count={playing.length} />
+          <div className="space-y-3">
+            {playing.slice(0, 2).map(({ event, relation }) => (
+              <EventBrowseCard key={event.id} event={event} relation={relation} />
+            ))}
+          </div>
+        </div>
+      )}
+      {observing.length > 0 && (
+        <div>
+          <SectionHeader title="Obserwujesz" href="/moje-gry" count={observing.length} />
+          <div className="space-y-3">
+            {observing.slice(0, 2).map(({ event, relation }) => (
+              <EventBrowseCard key={event.id} event={event} relation={relation} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -288,7 +307,7 @@ function OpenGamesSection() {
       ) : (
         <div className="space-y-3">
           {openEvents.slice(0, 2).map((e) => (
-            <EventBrowseCard key={e.id} event={e} myStatus={statusFor(e)} />
+            <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
           ))}
         </div>
       )}

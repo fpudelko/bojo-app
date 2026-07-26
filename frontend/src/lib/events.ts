@@ -644,25 +644,64 @@ export async function repeatEvent(
   );
 }
 
-/** How the signed-in user relates to an event. 'observing' = RSVP "maybe":
- *  no reserved spot, and never counted as a game they took part in. */
-export type MyEventRole = 'organizer' | 'player' | 'reserve' | 'observing';
+/**
+ * How the signed-in user relates to an event. Two INDEPENDENT axes:
+ *
+ *   ownership     — isOrganizer: whose match this is (a lasting property)
+ *   participation — status: my standing and what I can do next
+ *
+ * They must stay separate: you can organize a match and play in it, or organize
+ * one without playing (the "Biorę udział" toggle). Collapsing them into a single
+ * label loses information and made the UI ambiguous.
+ *
+ * 'invited' is reserved for the invitations feature — nothing produces it yet,
+ * but the vocabulary is in place so adding it later touches only the label maps.
+ */
+export type MyEventStatus =
+  | 'none'       // no relation — the default "Dołącz" call to action
+  | 'invited'    // (future) someone invited me; awaiting my answer
+  | 'pending'    // I asked to join; the organizer hasn't approved yet
+  | 'observing'  // RSVP "maybe" — watching, holds no spot, counts in no stats
+  | 'reserve'    // signed up, waiting for a spot to open
+  | 'playing';   // signed up and holding a spot
+
+export interface MyEventRelation {
+  isOrganizer: boolean;
+  status: MyEventStatus;
+}
+
+/** Derive the participation status from a participant row. */
+function statusFromRow(row: { rsvp?: string | null; is_reserve?: boolean | null; pending_approval?: boolean | null }): MyEventStatus {
+  if (row.pending_approval) return 'pending';
+  if (row.rsvp === 'maybe') return 'observing';
+  return row.is_reserve ? 'reserve' : 'playing';
+}
 
 export async function getMyParticipatedEvents(
   userId: string,
-): Promise<{ event: EventItem; isOrganizer: boolean; role: MyEventRole }[]> {
+): Promise<{ event: EventItem; relation: MyEventRelation }[]> {
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
-    .select('event_id, rsvp, is_reserve')
+    .select('event_id, rsvp, is_reserve, pending_approval')
     .eq('user_id', userId);
   if (pErr) throw new Error(pErr.message);
 
   const rows = partRows ?? [];
-  const eventIds = rows.map((r) => r.event_id as string);
-  if (eventIds.length === 0) return [];
+  const myRow: Record<string, typeof rows[number]> = {};
+  for (const r of rows) myRow[r.event_id as string] = r;
 
-  const myRow: Record<string, { rsvp?: string; is_reserve?: boolean }> = {};
-  for (const r of rows) myRow[r.event_id as string] = { rsvp: r.rsvp, is_reserve: r.is_reserve };
+  // Matches I organize belong here too, even when I'm not playing in them.
+  const { data: ownRows, error: oErr } = await supabase
+    .from('events')
+    .select('id')
+    .eq('organizer_id', userId);
+  if (oErr) throw new Error(oErr.message);
+
+  const eventIds = Array.from(new Set([
+    ...rows.map((r) => r.event_id as string),
+    ...(ownRows ?? []).map((r) => r.id as string),
+  ]));
+  if (eventIds.length === 0) return [];
 
   const { data, error } = await supabase
     .from('events')
@@ -672,35 +711,28 @@ export async function getMyParticipatedEvents(
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => {
-    const isOrganizer = row.organizer_id === userId;
     const mine = myRow[row.id as string];
-    // Observing wins over the organizer label only if they never actually joined,
-    // which can't happen — organizers are inserted with rsvp 'yes'.
-    const role: MyEventRole =
-      mine?.rsvp === 'maybe' ? 'observing'
-      : isOrganizer ? 'organizer'
-      : mine?.is_reserve ? 'reserve'
-      : 'player';
-    return { event: toEvent(row), isOrganizer, role };
+    return {
+      event: toEvent(row),
+      relation: {
+        isOrganizer: row.organizer_id === userId,
+        status: mine ? statusFromRow(mine) : 'none',
+      },
+    };
   });
 }
 
-/** Map of eventId → my RSVP, for lists that need to hide the "Dołącz" CTA on
- *  events the user is already part of. */
+/** Map of eventId → my participation status, so lists don't invite someone to
+ *  "Dołącz" to a match they're already part of. */
 export async function getMyParticipationMap(
   userId: string,
-): Promise<Record<string, { rsvp: 'yes' | 'maybe'; isReserve: boolean }>> {
+): Promise<Record<string, MyEventStatus>> {
   const { data, error } = await supabase
     .from('event_participants')
-    .select('event_id, rsvp, is_reserve')
+    .select('event_id, rsvp, is_reserve, pending_approval')
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
-  const out: Record<string, { rsvp: 'yes' | 'maybe'; isReserve: boolean }> = {};
-  for (const r of data ?? []) {
-    out[r.event_id as string] = {
-      rsvp: (r.rsvp ?? 'yes') as 'yes' | 'maybe',
-      isReserve: r.is_reserve ?? false,
-    };
-  }
+  const out: Record<string, MyEventStatus> = {};
+  for (const r of data ?? []) out[r.event_id as string] = statusFromRow(r);
   return out;
 }

@@ -6,7 +6,7 @@ import { LogIn, Users, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
-import { getMyParticipatedEvents, type MyEventRole } from '@/lib/events';
+import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { isUpcoming } from '@/components/EventCard';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -14,7 +14,7 @@ import type { EventItem } from '@/types';
 
 export default function MojeGryPage() {
   const { user, loading: authLoading } = useAuth();
-  const [items, setItems] = useState<{ event: EventItem; isOrganizer: boolean; role: MyEventRole }[]>([]);
+  const [items, setItems] = useState<{ event: EventItem; relation: MyEventRelation }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming');
@@ -33,8 +33,9 @@ export default function MojeGryPage() {
   const upcoming = items.filter(({ event }) => event.status !== 'cancelled' && isUpcoming(event));
   const history = items.filter(({ event }) => event.status === 'cancelled' || !isUpcoming(event));
   // Observing is split out: seeing it next to real sign-ups reads as "I'm in".
-  const playing = upcoming.filter(({ role }) => role !== 'observing');
-  const observing = upcoming.filter(({ role }) => role === 'observing');
+  // Organizing and playing stay together in one list — both are "your match".
+  const playing = upcoming.filter(({ relation }) => relation.status !== 'observing');
+  const observing = upcoming.filter(({ relation }) => relation.status === 'observing');
 
   if (!authLoading && !user) {
     return (
@@ -135,14 +136,12 @@ export default function MojeGryPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Playing — an actual spot in the squad */}
+              {/* Twoje mecze — organizing and playing live together here; each
+                  card's own tag/chip (Organizujesz, Grasz ✓, Rezerwa) says which. */}
               {playing.length > 0 && (
                 <section className="space-y-3">
-                  {observing.length > 0 && (
-                    <h2 className="text-sm font-semibold text-ink">Grasz</h2>
-                  )}
-                  {playing.map(({ event, role }) => (
-                    <EventBrowseCard key={event.id} event={event} myStatus={role} />
+                  {playing.map(({ event, relation }) => (
+                    <EventBrowseCard key={event.id} event={event} relation={relation} />
                   ))}
                 </section>
               )}
@@ -156,8 +155,8 @@ export default function MojeGryPage() {
                       Obserwowane mecze nie rezerwują miejsca — zapisz się, gdy będziesz pewny.
                     </p>
                   </div>
-                  {observing.map(({ event, role }) => (
-                    <EventBrowseCard key={event.id} event={event} myStatus={role} />
+                  {observing.map(({ event, relation }) => (
+                    <EventBrowseCard key={event.id} event={event} relation={relation} />
                   ))}
                 </section>
               )}
@@ -168,8 +167,8 @@ export default function MojeGryPage() {
             <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>
           ) : (
             <div className="space-y-3">
-              {history.map(({ event, role }) => (
-                <EventBrowseCard key={event.id} event={event} myStatus={role} />
+              {history.map(({ event, relation }) => (
+                <EventBrowseCard key={event.id} event={event} relation={relation} />
               ))}
             </div>
           )

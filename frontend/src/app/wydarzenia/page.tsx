@@ -199,7 +199,7 @@ export default function EventsPage() {
         {!loading && filtered.length > 0 && (
           <div className="space-y-3 px-4 pb-24">
             {filtered.map((event) => (
-              <EventBrowseCard key={event.id} event={event} myStatus={statusFor(event)} />
+              <EventBrowseCard key={event.id} event={event} relation={statusFor(event)} />
             ))}
           </div>
         )}
