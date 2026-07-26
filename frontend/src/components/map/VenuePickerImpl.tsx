@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, ZoomControl, useMapEvents } from 'react-leaflet';
+import { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
-import L from 'leaflet';
+import ClusteredFieldMarkers from './ClusteredFieldMarkers';
 import 'leaflet/dist/leaflet.css';
 import type { Field } from '@/types';
-import { getFields } from '@/lib/api';
-import { POZNAN, fieldPin } from './mapIcons';
+import { getExplorerFields } from '@/lib/api';
+import { POZNAN } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -31,13 +31,17 @@ export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) 
 
   useEffect(() => {
     let cancelled = false;
-    getFields({ mapVisibility: undefined })
-      .then((res) => { if (!cancelled) setFields(res.fields.filter(f => f.mapVisibility !== 'hidden')); })
+    getExplorerFields()
+      .then((fs) => { if (!cancelled) setFields(fs); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
-  const visible = sport ? fields.filter((f) => f.sport.includes(sport)) : fields;
+  // Memoised so the marker layer isn't handed a new array on every render.
+  const visible = useMemo(
+    () => (sport ? fields.filter((f) => f.sport.includes(sport)) : fields),
+    [fields, sport],
+  );
   const selectedField = visible.find((f) => f.id === selectedId) ?? null;
 
   return (
@@ -64,14 +68,7 @@ export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) 
       <ZoomControl position="bottomright" />
       <FlyToSelected field={selectedField} />
 
-      {visible.map((field) => (
-        <Marker
-          key={field.id}
-          position={[field.lat, field.lng]}
-          icon={fieldPin(field, field.id === selectedId)}
-          eventHandlers={{ click: () => onSelect(field) }}
-        />
-      ))}
+      <ClusteredFieldMarkers fields={visible} selectedId={selectedId} onSelect={onSelect} />
     </MapContainer>
   );
 }

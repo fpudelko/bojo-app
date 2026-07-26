@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, ZoomControl, useMapEvents } from 'react-leaflet';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
+import ClusteredFieldMarkers from './ClusteredFieldMarkers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Loader2 } from 'lucide-react';
 import type { Field } from '@/types';
-import { getFields } from '@/lib/api';
-import { POZNAN, fieldPin } from './mapIcons';
+import { getExplorerFields } from '@/lib/api';
+import { POZNAN } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -76,11 +77,15 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
 
   useEffect(() => {
     let cancelled = false;
-    getFields().then((r) => { if (!cancelled) setFields(r.fields.filter(f => f.mapVisibility !== 'hidden')); }).catch(() => {});
+    getExplorerFields().then((fs) => { if (!cancelled) setFields(fs); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
-  const visible = sport ? fields.filter((f) => f.sport.includes(sport)) : fields;
+  // Memoised so the marker layer isn't handed a new array on every render.
+  const visible = useMemo(
+    () => (sport ? fields.filter((f) => f.sport.includes(sport)) : fields),
+    [fields, sport],
+  );
 
   async function handleGeocode() {
     const q = search.trim();
@@ -164,20 +169,15 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
         <MapClickHandler onCustom={handleMapClick} />
         {showFly && <FlyTo lat={showFly.lat} lng={showFly.lng} />}
 
-        {/* Venue pins */}
-        {visible.map((f) => (
-          <Marker
-            key={f.id}
-            position={[f.lat, f.lng]}
-            icon={fieldPin(f, value.venue?.id === f.id)}
-            eventHandlers={{
-              click: () => {
-                onChange({ venue: f, lat: f.lat, lng: f.lng, address: f.address });
-                setFlyTarget({ lat: f.lat, lng: f.lng });
-              },
-            }}
-          />
-        ))}
+        {/* Venue pins — clustered so dense areas stay readable and fast */}
+        <ClusteredFieldMarkers
+          fields={visible}
+          selectedId={value.venue?.id}
+          onSelect={(f) => {
+            onChange({ venue: f, lat: f.lat, lng: f.lng, address: f.address });
+            setFlyTarget({ lat: f.lat, lng: f.lng });
+          }}
+        />
 
         {/* Custom location pin */}
         {!value.venue && value.lat !== null && value.lng !== null && (

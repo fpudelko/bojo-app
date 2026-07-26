@@ -90,38 +90,85 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
   onSelect: (id: string, source: SelSource) => void;
 }) {
   const map = useMap();
+  const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
+  const fieldsRef = useRef<Record<string, Field>>({});
+  const prevSelectedRef = useRef<string | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
+  // Create the cluster group once. Markers are added/removed incrementally so a
+  // filter change never tears down and rebuilds every pin.
   useEffect(() => {
     const cluster = L.markerClusterGroup({
-      showCoverageOnHover: false, maxClusterRadius: 22,
+      showCoverageOnHover: false,
+      // Bigger radius → fewer, larger clusters → far fewer DOM nodes.
+      maxClusterRadius: 60,
       iconCreateFunction: (c) => {
         const ms = c.getAllChildMarkers() as Array<L.Marker & { _sports?: string[] }>;
         return clusterDivIcon(c.getChildCount(), ms.flatMap((m) => m._sports ?? []));
       },
-      spiderfyOnMaxZoom: true, disableClusteringAtZoom: 13, animate: true,
+      spiderfyOnMaxZoom: true,
+      // Keep clustering active much longer; at 13 every pin in view rendered
+      // individually, which is what made dense areas crawl.
+      disableClusteringAtZoom: 16,
+      animate: true,
+      // Add markers in chunks so the UI thread isn't blocked, and drop pins
+      // outside the viewport from the DOM entirely.
+      chunkedLoading: true,
+      removeOutsideVisibleBounds: true,
     });
-    const markers: Record<string, L.Marker> = {};
+    clusterRef.current = cluster;
+    map.addLayer(cluster);
+    return () => {
+      map.removeLayer(cluster);
+      clusterRef.current = null;
+      markersRef.current = {};
+      fieldsRef.current = {};
+    };
+  }, [map]);
+
+  // Sync markers with the current field set — only the difference is touched.
+  useEffect(() => {
+    const cluster = clusterRef.current;
+    if (!cluster) return;
+
+    const next: Record<string, Field> = {};
+    for (const f of fields) next[f.id] = f;
+    fieldsRef.current = next;
+
+    const existing = markersRef.current;
+    const toRemove: L.Marker[] = [];
+    for (const id of Object.keys(existing)) {
+      if (!next[id]) { toRemove.push(existing[id]); delete existing[id]; }
+    }
+    const toAdd: L.Marker[] = [];
     for (const f of fields) {
+      if (existing[f.id]) continue;
       const m = L.marker([f.lat, f.lng], { icon: fieldPin(f, f.id === selectedId) }) as L.Marker & { _sports?: string[] };
       m._sports = f.sport;
       m.on('click', () => onSelectRef.current(f.id, 'map'));
-      markers[f.id] = m;
-      cluster.addLayer(m);
+      existing[f.id] = m;
+      toAdd.push(m);
     }
-    markersRef.current = markers;
-    map.addLayer(cluster);
-    return () => { map.removeLayer(cluster); markersRef.current = {}; };
+    if (toRemove.length) cluster.removeLayers(toRemove);
+    if (toAdd.length) cluster.addLayers(toAdd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, map]);
+  }, [fields]);
 
+  // Repaint only the two pins that actually changed state (was O(n²) before).
   useEffect(() => {
-    for (const [id, m] of Object.entries(markersRef.current)) {
-      const f = fields.find((x) => x.id === id);
-      if (f) m.setIcon(fieldPin(f, id === selectedId));
+    const markers = markersRef.current;
+    const prev = prevSelectedRef.current;
+    if (prev && prev !== selectedId) {
+      const pf = fieldsRef.current[prev];
+      if (pf && markers[prev]) markers[prev].setIcon(fieldPin(pf, false));
     }
+    if (selectedId) {
+      const sf = fieldsRef.current[selectedId];
+      if (sf && markers[selectedId]) markers[selectedId].setIcon(fieldPin(sf, true));
+    }
+    prevSelectedRef.current = selectedId;
   }, [selectedId, fields]);
 
   useEffect(() => {
@@ -468,7 +515,15 @@ export default function VenueExplorer({
   // Reset the render window whenever the result set changes (new search/filter).
   useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, onlyGamesToday, search]);
 
-  // The list/carousel render only this slice; the map still plots every field.
+  // The map plots every field, but the list/carousel render only a window. A pin
+  // outside that window would select a venue whose card doesn't exist — the click
+  // looked like it did nothing. Grow the window to include the selection.
+  useEffect(() => {
+    if (!selectedId) return;
+    const idx = fields.findIndex((f) => f.id === selectedId);
+    if (idx >= visibleCount) setVisibleCount(Math.ceil((idx + 1) / PAGE) * PAGE);
+  }, [selectedId, fields, visibleCount]);
+
   const visibleFields = fields.slice(0, visibleCount);
   const hasMore = fields.length > visibleFields.length;
 
