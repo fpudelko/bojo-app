@@ -19,7 +19,9 @@
 -- Wszystkie wydarzenia mają datę w ciągu najbliższych 7 dni od dziś.
 -- ============================================================
 
-DELETE FROM events WHERE description LIKE '[TEST]%';
+-- Matches both the current marker (description) and the older format from
+-- an earlier version of this script (title), so stale rows never pile up.
+DELETE FROM events WHERE title LIKE '[TEST]%' OR description LIKE '[TEST]%';
 
 DO $$
 DECLARE
