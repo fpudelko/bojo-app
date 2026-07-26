@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
-  Check, X, Pencil, Banknote, Phone, Trophy, MessageSquare, Star,
+  Check, X, Pencil, Banknote, Phone, Trophy, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
   ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag,
 } from 'lucide-react';
@@ -89,12 +89,6 @@ const STATUS_CLS: Record<ParticipantStatus, string> = {
   potwierdzony: 'bg-green-100 text-green-700',
   odrzucony: 'bg-red-100 text-red-700',
   brak_odpowiedzi: 'bg-slate-100 text-slate-500',
-};
-const NEXT_STATUS: Record<ParticipantStatus, ParticipantStatus> = {
-  zaproszony: 'potwierdzony',
-  potwierdzony: 'brak_odpowiedzi',
-  brak_odpowiedzi: 'odrzucony',
-  odrzucony: 'zaproszony',
 };
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'nie_przyszedl', label: 'Nie przyszedł' },
@@ -222,6 +216,32 @@ function PublishedTeamsCard({
         </div>
       )}
     </div>
+  );
+}
+
+/** Real track+thumb switch — same visual language as "Biorę udział" etc.
+ *  elsewhere in the app, so it unmistakably reads as clickable. */
+function Switch({ checked, onChange, disabled, label }: {
+  checked: boolean; onChange: () => void; disabled?: boolean; label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      disabled={disabled}
+      aria-label={label}
+      aria-checked={checked}
+      role="switch"
+      className={[
+        'relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors disabled:opacity-50',
+        checked ? 'bg-green-600' : 'bg-slate-300',
+      ].join(' ')}
+    >
+      <span className={[
+        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+        checked ? 'translate-x-5' : 'translate-x-0',
+      ].join(' ')} />
+    </button>
   );
 }
 
@@ -502,6 +522,14 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
+  /** Organizer removing someone else — always confirmed, so a misplaced tap in
+   *  a dense list never silently kicks a player. Self-leave has its own
+   *  confirm dialog already and calls handleRemove directly. */
+  const handleRemovePlayer = (p: EventParticipant) => {
+    if (!confirm(`Usunąć ${p.name} ze składu?`)) return;
+    handleRemove(p.id);
+  };
+
   const handleTogglePayment = async (p: EventParticipant) => {
     if (!isOrganizer) return;
     setBusy(true);
@@ -516,10 +544,12 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleStatusCycle = async (p: EventParticipant) => {
-    if (!isOrganizer) return;
+  /** Explicit set from a dropdown of named options — no ambiguity about what
+   *  will change (unlike the old click-to-cycle pill). */
+  const handleSetStatus = async (p: EventParticipant, status: ParticipantStatus) => {
+    if (!isOrganizer || status === p.status) return;
     setBusy(true);
-    try { await updateParticipantStatus(p.id, NEXT_STATUS[p.status]); await load(); }
+    try { await updateParticipantStatus(p.id, status); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
@@ -1249,12 +1279,12 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── DETAILED ROSTER (organizer only) ── */}
+        {/* ── SKŁAD (organizer only) — kto gra, bez kontrolek zarządzania ── */}
         {isOwner && !eventStarted && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-ink flex items-center gap-2">
-              <Users className="w-4 h-4 text-slate-400" /> Zarządzaj składem
+              <Users className="w-4 h-4 text-slate-400" /> Skład
             </h2>
             <span className={[
               'text-sm font-medium px-2.5 py-1 rounded-full',
@@ -1266,143 +1296,58 @@ export default function EventDetailClient() {
 
           <ul className="divide-y divide-slate-100">
             {regulars.map((p) => (
-              <li key={p.id} className="py-2.5">
-                <div className="flex items-center gap-2">
-                  {/* Avatar */}
-                  {p.avatarUrl
-                    ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
-                  }
+              <li key={p.id} className="flex items-center gap-2 py-2.5">
+                {/* Avatar */}
+                {p.avatarUrl
+                  ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                  : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                }
 
-                  {/* Name + attribution */}
-                  <div className="flex-1 min-w-0">
-                    <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
-                      {p.userId && !p.isGuest ? (
-                        <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[110px] sm:max-w-[170px] hover:text-primary-700 hover:underline">
-                          {p.name}
-                        </Link>
-                      ) : (
-                        <span className="truncate min-w-0 max-w-[110px] sm:max-w-[170px]">{p.name}</span>
-                      )}
-                      {p.isGuest && (
-                        <span
-                          title="Gość bez konta — dopisany ręcznie"
-                          className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
-                        >
-                          gość
-                        </span>
-                      )}
-                      {gkEnabled && p.isGoalkeeper && (
-                        <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
-                          🧤 BR
-                        </span>
-                      )}
-                      {event.costGrosze > 0 && p.hasSportsCard && (
-                        <span
-                          title={p.sportsCardProvider ? SPORTS_CARD_LABELS[p.sportsCardProvider] : 'Karta sportowa'}
-                          className="text-xs shrink-0"
-                        >
-                          💳
-                        </span>
-                      )}
-                      {event.costGrosze > 0 && p.paymentMethod && isOrganizer && (
-                        <span title="Sposób płatności" className="text-[10px] font-medium text-slate-400 shrink-0">
-                          {PAYMENT_METHOD_LABELS[p.paymentMethod]}
-                        </span>
-                      )}
-                      {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
-                      {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
-                      {showTeams && p.team && (
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                          {p.team}
-                        </span>
-                      )}
-                    </span>
-                    {/* "Brought by" line — who added this guest (visible to everyone) */}
-                    {p.isGuest && p.addedBy && (() => {
-                      const adderName = participants.find((x) => x.userId === p.addedBy)?.name
-                        ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
-                        ?? 'innego gracza';
-                      return (
-                        <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-                          <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
-                            {adderName.charAt(0).toUpperCase()}
-                          </span>
-                          dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Controls */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Status badge (organizer clicks to cycle) */}
-                    {showStatus && (
-                      <button
-                        onClick={() => handleStatusCycle(p)}
-                        disabled={busy || !isOrganizer}
-                        className={`text-xs px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${STATUS_CLS[p.status]} ${isOrganizer ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                        title={isOrganizer ? 'Kliknij aby zmienić status' : STATUS_LABELS[p.status]}
-                      >
-                        {STATUS_LABELS[p.status]}
-                      </button>
+                {/* Name + attribution */}
+                <div className="flex-1 min-w-0">
+                  <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
+                    {p.userId && !p.isGuest ? (
+                      <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[140px] sm:max-w-[220px] hover:text-primary-700 hover:underline">
+                        {p.name}
+                      </Link>
+                    ) : (
+                      <span className="truncate min-w-0 max-w-[140px] sm:max-w-[220px]">{p.name}</span>
                     )}
-
-                    {/* SMS button */}
-                    {event.requireSmsConfirmation && isOrganizer && p.phone && (
-                      <button
-                        onClick={() => handleSendSms(p)}
-                        disabled={smsBusy === p.id}
-                        className="p-1.5 text-slate-400 hover:text-blue-500 rounded"
-                        title="Wyślij SMS z potwierdzeniem"
+                    {p.isGuest && (
+                      <span
+                        title="Gość bez konta — dopisany ręcznie"
+                        className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
                       >
-                        <Phone className="w-4 h-4" />
-                      </button>
+                        gość
+                      </span>
                     )}
-
-                    {/* Payment toggle: automatic whenever the match costs money —
-                        the organizer shouldn't have to separately flip "Śledzenie
-                        płatności" just to mark who paid. Participants still only
-                        see it when that advanced setting is explicitly on. */}
-                    {(event.costGrosze > 0 || event.trackPayments) && (isOrganizer || event.showPaymentStatus) && (
-                      <button
-                        onClick={() => isOrganizer && handleTogglePayment(p)}
-                        disabled={busy || !isOrganizer}
-                        aria-label={p.hasPaid ? 'Oznacz jako nieopłacone' : 'Oznacz jako opłacone'}
-                        className={[
-                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold border transition-colors select-none',
-                          p.hasPaid
-                            ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'
-                            : 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100',
-                          !isOrganizer ? 'cursor-default' : 'cursor-pointer',
-                        ].join(' ')}
-                      >
-                        {p.hasPaid ? '✓ Zapłacił' : '✗ Nie zapłacił'}
-                      </button>
+                    {gkEnabled && p.isGoalkeeper && (
+                      <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
+                        🧤 BR
+                      </span>
                     )}
-
-                    {/* Report button (for other logged-in participants) */}
-                    {user && !isOrganizer && p.userId !== user.id && (
-                      <button
-                        onClick={() => setReportTarget(p)}
-                        className="p-1.5 text-slate-200 hover:text-red-400 rounded"
-                        title="Zgłoś uczestnika"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </button>
+                    {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
+                    {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                    {showTeams && p.team && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {p.team}
+                      </span>
                     )}
-
-                    {/* Remove */}
-                    {(isOrganizer || p.userId === user?.id) && p.userId !== event.organizerId && (
-                      <button
-                        onClick={() => handleRemove(p.id)} disabled={busy}
-                        className="p-1.5 text-slate-400 hover:text-red-500 rounded"
-                        aria-label="Usuń uczestnika"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+                  </span>
+                  {/* "Brought by" line — who added this guest (visible to everyone) */}
+                  {p.isGuest && p.addedBy && (() => {
+                    const adderName = participants.find((x) => x.userId === p.addedBy)?.name
+                      ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
+                      ?? 'innego gracza';
+                    return (
+                      <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                        <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                          {adderName.charAt(0).toUpperCase()}
+                        </span>
+                        dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
+                      </span>
+                    );
+                  })()}
                 </div>
               </li>
             ))}
@@ -1440,6 +1385,83 @@ export default function EventDetailClient() {
         </div>
         )}
 
+        {/* ── POTWIERDZENIA (organizer only) — osobno od reszty, bo klik-cykl na
+            pillu nie byl czytelny jako kontrolka. Select = jawny wybor. ── */}
+        {isOwner && !eventStarted && showStatus && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+              <Check className="w-4 h-4 text-slate-400" /> Potwierdzenia
+            </h2>
+            <ul className="divide-y divide-slate-100">
+              {regulars.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 py-2.5">
+                  {p.avatarUrl
+                    ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                  }
+                  <span className="flex-1 min-w-0 text-sm text-ink truncate">{p.name}</span>
+                  {event.requireSmsConfirmation && p.phone && (
+                    <button
+                      onClick={() => handleSendSms(p)}
+                      disabled={smsBusy === p.id}
+                      className="p-1.5 text-slate-400 hover:text-blue-500 rounded shrink-0"
+                      title="Wyślij SMS z potwierdzeniem"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </button>
+                  )}
+                  <select
+                    value={p.status}
+                    onChange={(e) => handleSetStatus(p, e.target.value as ParticipantStatus)}
+                    disabled={busy}
+                    className={`text-xs font-medium rounded-lg border px-2 py-1.5 shrink-0 ${STATUS_CLS[p.status]} border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500`}
+                  >
+                    {(Object.keys(STATUS_LABELS) as ParticipantStatus[]).map((s) => (
+                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+              {regulars.length === 0 && (
+                <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* ── ZARZĄDZANIE GRACZAMI (organizer only) — usuwanie, celowo osobno
+            od reszty i zawsze z potwierdzeniem, zeby nic nie znikneło przez
+            przypadkowe klikniecie w gestej liscie. ── */}
+        {isOwner && !eventStarted && regulars.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
+              <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
+            </h2>
+            <p className="text-xs text-slate-500 mb-3">Usuwanie zawsze wymaga potwierdzenia.</p>
+            <ul className="divide-y divide-slate-100">
+              {regulars.filter((p) => p.userId !== event.organizerId).map((p) => (
+                <li key={p.id} className="flex items-center gap-3 py-3">
+                  {p.avatarUrl
+                    ? <img src={p.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    : <span className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                  }
+                  <span className="flex-1 min-w-0 text-sm text-ink truncate">{p.name}</span>
+                  <button
+                    onClick={() => handleRemovePlayer(p)}
+                    disabled={busy}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Usuń
+                  </button>
+                </li>
+              ))}
+              {regulars.filter((p) => p.userId !== event.organizerId).length === 0 && (
+                <li className="py-4 text-sm text-slate-400 text-center">Nikt poza Tobą jeszcze nie dołączył</li>
+              )}
+            </ul>
+          </div>
+        )}
+
         {/* Reserve list — organizer only (squad info is private) */}
         {reserves.length > 0 && isOwner && !eventStarted && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -1456,8 +1478,12 @@ export default function EventDetailClient() {
                     <span className="truncate max-w-[160px]">{p.name}</span>
                     {p.isGuest && <span className="text-xs text-slate-400 shrink-0">(gość)</span>}
                   </span>
-                  {(isOrganizer || p.userId === user?.id) && (
-                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded">
+                  {p.userId === user?.id ? (
+                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Zrezygnuj z rezerwy">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : isOrganizer && (
+                    <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Usuń z rezerwy">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -1565,18 +1591,43 @@ export default function EventDetailClient() {
                 </div>
               );
             })()}
-            {regulars.some((p) => !p.hasPaid) && (
-              <div className="mt-3 pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-500 mb-2">Czekamy na wpłatę od:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {regulars.filter((p) => !p.hasPaid).map((p) => (
-                    <span key={p.id} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                      {p.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Per-participant toggle — a real switch, not a colored pill, so
+                it's unmistakable that clicking it changes something. */}
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <ul className="divide-y divide-slate-100">
+                {regulars.map((p) => {
+                  const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
+                  return (
+                    <li key={p.id} className="flex items-center gap-2.5 py-2.5">
+                      {p.avatarUrl
+                        ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm text-ink">
+                          <span className="truncate">{p.name}</span>
+                          {p.hasSportsCard && (
+                            <span title={p.sportsCardProvider ? SPORTS_CARD_LABELS[p.sportsCardProvider] : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
+                          )}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {price.discountUnspecified
+                            ? 'Zniżka z karty — ustal kwotę'
+                            : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                          {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
+                        </span>
+                      </div>
+                      <Switch
+                        checked={p.hasPaid}
+                        onChange={() => handleTogglePayment(p)}
+                        disabled={busy}
+                        label={p.hasPaid ? `Oznacz ${p.name} jako nieopłacone` : `Oznacz ${p.name} jako opłacone`}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         )}
 
