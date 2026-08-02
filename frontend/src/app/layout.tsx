@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
 import AnnouncementBar from '@/components/AnnouncementBar';
+import { siteJsonLd } from '@/lib/structuredData';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -58,6 +59,10 @@ export const metadata: Metadata = {
   // reference external icon files here (they would 404 in the console).
 };
 
+// Site identity as structured data, emitted once so crawlers and language
+// models don't have to infer it from page copy.
+const SITE_JSON_LD = siteJsonLd(SITE_URL);
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -66,6 +71,10 @@ export default function RootLayout({
   return (
     <html lang="pl" suppressHydrationWarning className={`${inter.variable} ${bricolage.variable}`}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }}
+        />
         {/* SVG favicon — inlined so it works without a file server */}
         <link
           rel="icon"

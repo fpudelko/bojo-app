@@ -5,6 +5,7 @@ import { MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lu
 import Header from '@/components/layout/Header';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
+import { venueListJsonLd } from '@/lib/structuredData';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -72,8 +73,19 @@ export default async function SportCategoryPage({ params }: { params: { sport: s
   const fields = (data ?? []).map(toField);
   const Icon = SPORT_ICONS[entry.db] ?? Activity;
 
+  // Machine-readable version of the same list, so crawlers get the venues as
+  // data instead of having to scrape the markup.
+  const jsonLd = venueListJsonLd(
+    `Boiska do ${entry.label} w Poznaniu`,
+    fields.map((field) => ({ name: field.name, slug: slugify(field.name) })),
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         <div className="flex items-center gap-3 mb-2">

@@ -1,0 +1,49 @@
+# Bojo
+
+> Aplikacja webowa do organizowania amatorskich meczów w Poznaniu: znajdź boisko,
+> stwórz mecz, zbierz skład. Baza ~1400 boisk i obiektów sportowych, mecze publiczne
+> otwarte na dołączenie, stałe ekipy (grupy). Interfejs po polsku.
+> Logowanie: Google lub e-mail.
+
+## Dla graczy
+
+- [Strona główna](/): sporty, najbliższe mecze
+- [Mapa boisk i meczów](/mapa): filtry po sporcie, nawierzchni, dzielnicy
+- [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
+- [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
+- [Moje gry](/moje-gry): mecze organizowane i te, na które jesteś zapisany
+- [Grupy](/grupy): stałe ekipy, dołączanie przez link zaproszenia
+- [Profil](/profil): imię, awatar, telefon, usunięcie konta
+
+## Boiska
+
+- [Piłka nożna](/boiska/pilka-nozna)
+- [Futsal](/boiska/futsal)
+- [Koszykówka](/boiska/koszykowka)
+- [Piłka ręczna](/boiska/pilka-reczna)
+- [Siatkówka](/boiska/siatkowka)
+- [Siatkówka plażowa](/boiska/siatkowka-plazowa)
+
+Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
+zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
+
+## Jak to działa
+
+- Przeglądanie mapy i stron boisk nie wymaga konta. Tworzenie meczu i dołączanie — tak.
+- Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć) albo **prywatny**
+  (dostęp wyłącznie przez link lub kod dołączenia).
+- Organizator może wymagać akceptacji zapisu oraz pozwolić uczestnikom dopisywać gości
+  bez konta.
+- Status **„Obserwuję"** nie zajmuje miejsca w składzie.
+- Gdy komplet jest pełny, kolejne zapisy trafiają na **listę rezerwową**. Rezerwowy
+  **nie wskakuje automatycznie**, gdy ktoś się wypisze — organizator powiadamia go sam.
+- Organizator może włączyć podział kosztów, wyniki meczu, obecność i podział na drużyny.
+
+## Zasięg
+
+Poznań i okolice.
+
+## Regulaminy
+
+- [Regulamin](/regulamin)
+- [Polityka prywatności](/prywatnosc)

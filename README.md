@@ -4,6 +4,13 @@
 
 📖 **Nowy w projekcie? Zacznij od [PRZEWODNIK.md](./PRZEWODNIK.md)** — opis wszystkich funkcji (użytkownik + admin) w 5 minut.
 
+| Chcesz… | Idź do |
+|---|---|
+| poznać funkcje aplikacji | [PRZEWODNIK.md](./PRZEWODNIK.md) |
+| zacząć pisać kod | [AGENTS.md](./AGENTS.md) — komendy, konwencje, pułapki |
+| zrozumieć projekt w szczegółach | [docs/README.md](./docs/README.md) — wizja, funkcje, domena, architektura, baza |
+| zobaczyć, co jest do zrobienia | [BACKLOG.md](./BACKLOG.md) |
+
 ---
 
 ## Architektura
@@ -93,6 +100,8 @@ bojo-app/
 ├── scraper/             # Skrypty Pythona do danych o boiskach
 ├── supabase/migrations/ # Migracje SQL
 ├── .github/workflows/   # Importy/wzbogacanie danych (Actions)
+├── docs/                # Dokumentacja projektu (wizja, funkcje, domena, baza)
+├── AGENTS.md            # Zasady pracy w repo
 └── PRZEWODNIK.md        # Opis funkcji dla współpracowników
 ```
 

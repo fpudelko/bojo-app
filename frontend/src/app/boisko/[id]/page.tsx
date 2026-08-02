@@ -145,7 +145,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   if (!field) notFound();
 
   const upcomingEvents = await getUpcomingEvents(field.id);
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.app';
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = slugify(field.name);
 
   const jsonLd = {

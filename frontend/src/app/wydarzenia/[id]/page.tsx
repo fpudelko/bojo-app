@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
+import { eventJsonLd } from '@/lib/structuredData';
 import EventDetailClient from './EventDetailClient';
 
 // Server wrapper: provides per-event link-preview metadata (Open Graph), then
@@ -13,16 +14,23 @@ interface EventMeta {
   sport: string;
   date: string;
   time?: string;
+  end_time?: string;
   field_name?: string;
   custom_location_name?: string;
+  custom_address?: string;
   visibility: string;
+  status?: string;
+  max_players?: number;
+  cost_grosz?: number;
   cover?: string;
 }
 
 async function getEventMeta(id: string): Promise<EventMeta | null> {
   const { data } = await supabase
     .from('events')
-    .select('title, sport, event_date, event_time, field_name, custom_location_name, visibility, cover_image_url')
+    .select(
+      'title, sport, event_date, event_time, end_time, field_name, custom_location_name, custom_address, visibility, status, max_players, cost_grosz, cover_image_url',
+    )
     .eq('id', id)
     .maybeSingle();
   if (!data) return null;
@@ -31,12 +39,18 @@ async function getEventMeta(id: string): Promise<EventMeta | null> {
     sport: data.sport,
     date: data.event_date,
     time: data.event_time ?? undefined,
+    end_time: data.end_time ?? undefined,
     field_name: data.field_name ?? undefined,
     custom_location_name: data.custom_location_name ?? undefined,
+    custom_address: data.custom_address ?? undefined,
     visibility: data.visibility,
+    status: data.status ?? undefined,
+    max_players: data.max_players ?? undefined,
+    cost_grosz: data.cost_grosz ?? undefined,
     cover: data.cover_image_url ?? undefined,
   };
 }
+
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const ev = await getEventMeta(params.id);
@@ -68,6 +82,19 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default function EventPage() {
-  return <EventDetailClient />;
+export default async function EventPage({ params }: { params: { id: string } }) {
+  const ev = await getEventMeta(params.id);
+  const jsonLd = ev ? eventJsonLd(params.id, ev) : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <EventDetailClient />
+    </>
+  );
 }
