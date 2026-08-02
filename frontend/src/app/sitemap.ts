@@ -12,13 +12,16 @@ const SPORT_SLUGS = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.app';
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
+  // Only routes a user can actually reach from the UI. /cykliczne is deliberately
+  // absent: SHOW_RECURRING hides its nav entries, so listing it here would send
+  // crawlers to a feature nobody can find.
   const staticPages: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
     { url: `${base}/mapa`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
     { url: `${base}/wydarzenia`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
-    { url: `${base}/cykliczne`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${base}/grupy`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
   ];
 
   const sportPages: MetadataRoute.Sitemap = SPORT_SLUGS.map((slug) => ({

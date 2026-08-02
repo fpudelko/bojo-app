@@ -36,7 +36,7 @@ przy starcie sesji, więc potrzebne jest otwarcie `/hooks` albo restart.
 ```bash
 cd frontend
 npx tsc --noEmit       # musi być czysto
-npm test               # Vitest, 38 testów
+npm test               # Vitest, 55 testów
 ```
 
 `npm run lint` nie działa bez interaktywnej konfiguracji ESLint — pomijaj.
