@@ -1,5 +1,8 @@
 'use client';
 
+// DEAD CODE — not imported anywhere. Do not copy patterns from this file.
+// The live map is components/map/VenueExplorer.tsx (route /mapa).
+
 import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
 import type { DataKey } from '@/lib/fieldFilters';

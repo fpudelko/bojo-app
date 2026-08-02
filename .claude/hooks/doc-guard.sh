@@ -22,7 +22,7 @@ mkdir -p "$state" 2>/dev/null || exit 0
 case "$MODE" in
   start)
     jq -nc '{hookSpecificOutput:{hookEventName:"SessionStart",
-      additionalContext:"Dokumentacja projektu leży w docs/ (indeks: docs/README.md), zasady pracy w AGENTS.md. Zmiana kodu pociąga za sobą aktualizację odpowiedniego pliku w docs/ — mapowanie w AGENTS.md, sekcja \"Aktualizacja dokumentacji\". docs/wizja.md jest dokumentem nadrzędnym: jego sekcji 1 nie parafrazować."}}' 2>/dev/null
+      additionalContext:"Dokumentacja projektu leży w docs/ (indeks: docs/README.md), zasady pracy w AGENTS.md. Zmiana kodu pociąga za sobą aktualizację odpowiedniego pliku w docs/ — mapowanie w AGENTS.md, sekcja \"Aktualizacja dokumentacji\". Walidator spójności: npm run check:docs. docs/wizja.md jest dokumentem nadrzędnym: jego sekcji 1 nie parafrazować."}}' 2>/dev/null
     ;;
 
   record)
@@ -62,7 +62,7 @@ case "$MODE" in
 
     jq -nc --arg plik "${f##*/bojo-app/}" --arg cel "$cel" \
       '{hookSpecificOutput:{hookEventName:"PostToolUse",
-        additionalContext:("Zmieniłeś " + $plik + ". Przed końcem zadania sprawdź: " + $cel + ". (Przypomnienie doc-guard — nie blokuje.)")}}' 2>/dev/null
+        additionalContext:("Zmieniłeś " + $plik + ". Przed końcem zadania sprawdź: " + $cel + ". Po zmianach uruchom: npm run check:docs. (Przypomnienie doc-guard — nie blokuje.)")}}' 2>/dev/null
     ;;
 esac
 

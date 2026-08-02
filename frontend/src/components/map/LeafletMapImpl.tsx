@@ -1,5 +1,8 @@
 'use client';
 
+// DEAD CODE — not imported anywhere. Do not copy patterns from this file.
+// The live map is components/map/VenueExplorer.tsx (route /mapa).
+
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
