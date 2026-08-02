@@ -71,6 +71,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return {
     title,
     description,
+    // Canonical only for public matches — a private one is reachable solely
+    // through its join link and must not advertise an indexable address.
+    ...(ev.visibility === 'public'
+      ? { alternates: { canonical: `/wydarzenia/${params.id}` } }
+      : {}),
     openGraph: {
       title: `${name} • ${whenStr}${timeStr ? ` ${timeStr}` : ''}`,
       description: `📍 ${place}`,

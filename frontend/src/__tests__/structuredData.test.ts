@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventJsonLd, siteJsonLd, venueListJsonLd, type EventForJsonLd } from '@/lib/structuredData';
+import { breadcrumbsJsonLd, eventJsonLd, siteJsonLd, venueListJsonLd, type EventForJsonLd } from '@/lib/structuredData';
 
 const BASE = 'https://bojo.pl';
 
@@ -106,6 +106,30 @@ describe('siteJsonLd', () => {
     const org = graph.find((n) => n['@type'] === 'Organization')!;
     const site = graph.find((n) => n['@type'] === 'WebSite')!;
     expect(site.publisher).toEqual({ '@id': org['@id'] });
+  });
+});
+
+describe('breadcrumbsJsonLd', () => {
+  it('numeruje pozycje od 1 i buduje absolutne adresy', () => {
+    const out = breadcrumbsJsonLd([
+      { name: 'Strona główna', path: '/' },
+      { name: 'Boiska: Piłka nożna', path: '/boiska/pilka-nozna' },
+      { name: 'Orlik Rataje' },
+    ], BASE);
+    expect(out['@type']).toBe('BreadcrumbList');
+    expect(out.itemListElement[0]).toMatchObject({ position: 1, item: `${BASE}/` });
+    expect(out.itemListElement[1]).toMatchObject({ position: 2, item: `${BASE}/boiska/pilka-nozna` });
+  });
+
+  it('ostatni element (bieżąca strona) nie ma item — zgodnie ze spec Google', () => {
+    const out = breadcrumbsJsonLd([{ name: 'A', path: '/' }, { name: 'Bieżąca' }], BASE);
+    const last = out.itemListElement[1] as Record<string, unknown>;
+    expect(last.name).toBe('Bieżąca');
+    expect(last.item).toBeUndefined();
+  });
+
+  it('pusta lista nie wywraca budowania', () => {
+    expect(breadcrumbsJsonLd([], BASE).itemListElement).toEqual([]);
   });
 });
 

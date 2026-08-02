@@ -34,6 +34,11 @@ const OG_IMAGE = '/poznan-satellite.jpg';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  // NOTE: no `alternates.canonical` here on purpose — the layout's metadata is
+  // inherited by every page that doesn't define its own, so a canonical set
+  // here would stamp "/" onto /logowanie, /gracz/[id] and every other page,
+  // telling crawlers they are duplicates of the home page. Canonicals live on
+  // the individual public pages instead.
   title: {
     default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Poznaniu',
     template: '%s | Bojo',

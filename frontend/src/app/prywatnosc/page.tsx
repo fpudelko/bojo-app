@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Polityka prywatności',
   description: 'Jak Bojo przetwarza dane osobowe użytkowników.',
+  alternates: { canonical: '/prywatnosc' },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

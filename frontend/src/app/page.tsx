@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import HomeHero from '@/components/home/HomeHero';
 import TrustBar from '@/components/home/TrustBar';
 import { SHOW_RECURRING } from '@/lib/features';
+
+// Title/description come from the root layout; only the canonical is local.
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 export default function HomePage() {
   return (
