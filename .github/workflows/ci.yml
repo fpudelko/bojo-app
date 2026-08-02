@@ -1,0 +1,40 @@
+# CI dla kodu aplikacji — typecheck, testy, spójność dokumentacji.
+# Deterministyczna bramka: agent (i człowiek) dostaje pass/fail zamiast
+# polegać na pamiętaniu o uruchomieniu testów przed pushem na produkcję.
+#
+# `npm run build` celowo NIE wchodzi do CI: wymaga kluczy Supabase
+# (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY) — do dodania po skonfigurowaniu
+# sekretów repo, patrz BACKLOG.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Zależności
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Testy (Vitest)
+        working-directory: frontend
+        run: npm test
+
+      - name: Spójność dokumentacji
+        run: node scripts/check-docs.mjs
