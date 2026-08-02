@@ -1,112 +1,162 @@
-# BOJO — backlog: ukryte funkcje i pomysły
+# BOJO — backlog
 
-Notatnik na to, co jest **zbudowane ale schowane**, oraz **pomysły jeszcze
-niezrobione**. Żeby nic nie umknęło przed publicznym uruchomieniem.
+Co jest **zbudowane, ale schowane**, gdzie **kod nie nadążył za wizją** oraz pomysły
+jeszcze niezrobione.
 
-_Ostatnia aktualizacja: 2026-06-11_
+- Kierunek produktu: [docs/wizja.md](./docs/wizja.md) — **dokument nadrzędny**
+- Stan implementacji: [docs/funkcje.md](./docs/funkcje.md)
+- Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 
----
-
-## 1. Ukryte za flagami (`frontend/src/lib/features.ts`)
-
-Jedno miejsce, jeden przełącznik. Zmień flagę na `true`, żeby przywrócić funkcję.
-
-| Flaga | Co chowa | Dlaczego schowane | Gdzie jest kod |
-|---|---|---|---|
-| `SHOW_CUP` | Turniej **BOJO Cup** — pasek ogłoszeń, TrustBar, link w nagłówku | Brak gotowego turnieju; nie chcemy obiecywać na zapas | `AnnouncementBar`, `TrustBar`, `Header`, route `/turniej`, migracje `029`/`030` |
-| `SHOW_GAME_ALERTS` | **„Ustaw alert"** — powiadomienie gdy pojawi się pasująca gra w okolicy | Brak kanału dostarczania (SMS/e-mail/push) — alert bez powiadomienia to ściema | `lib/alerts.ts`, `AlertSetupDialog`, `NearbyGames` (i tak nieużywany), migracja `025` |
-| `SHOW_SMS_FEATURES` | **„Potwierdzenie SMS"** na meczu + **przypomnienia** SMS/e-mail | Brak bramki SMS | `RemindersSection`, `lib/reminders.ts`, `sendConfirmationSms` w `lib/eventFeatures.ts` |
-
-> Gdy pojawi się kanał powiadomień (SMS/e-mail/push) — odblokowanie alertów,
-> przypomnień i potwierdzeń SMS to w zasadzie przełączenie tych flag (plus
-> faktyczne wysyłanie po stronie backendu).
+_Ostatnia aktualizacja: 2026-08-02_
 
 ---
 
-## 2. Zbudowane, ale nieużywane / martwy kod
+## 1. Luki wobec wizji
 
-- **`components/home/NearbyGames.tsx`** — kompletny komponent „gry w pobliżu +
-  alert", nigdzie nie renderowany. Do decyzji: wpiąć (po włączeniu alertów) albo usunąć.
-- **`RemindersSection` / `AlertSetupDialog`** — renderowane tylko za flagami powyżej.
+Pozycje, w których dokument strategiczny obiecuje coś, czego kod nie robi. **Dokument
+jest nadrzędny** — to są zadania, nie błędy w dokumencie.
+
+### 1.1 Trzeci poziom widoczności meczu — „widoczne dla grupy"
+Wizja wymienia trzy poziomy: prywatny / widoczny dla grupy / publiczny.
+Kod ma dwa: `events.visibility` to CHECK `('private','public')` (`002_events_and_auth.sql`).
+
+Kolumna `group_id` (`051_group_field.sql`) steruje **listowaniem** meczu w grupie, nie
+**dostępem** do niego — mecz przypisany do grupy jest nadal albo publiczny, albo dostępny
+tylko przez kod.
+
+Zakres: migracja rozszerzająca CHECK + polityka RLS + opcja w kreatorze meczu i edycji.
+
+### 1.2 Powiadomienie dla członków grupy o utworzeniu gry
+Wizja stawia to jako część propozycji „Grupy — zastąpienie facebook/whatsapp". Bez
+powiadomienia grupa nie zastępuje czatu, bo nikt nie wie, że gra powstała.
+
+Kanał powiadomień **istnieje** (patrz §3) — brakuje wyzwalacza przy `createEvent`
+z `group_id`. Jedyna dzisiejsza ścieżka to `game_alerts` (promień + sport), oparta
+o lokalizację, nie o członkostwo, i dodatkowo ukryta flagą `SHOW_GAME_ALERTS`.
+
+### 1.3 Gry cykliczne ukryte flagą
+Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi.
+Kod jest kompletny (`lib/recurring.ts`, trasy `/cykliczne/*`, migracja `007`), ale
+`SHOW_RECURRING = false` ukrywa wejścia w `Header.tsx`, `app/page.tsx`, `app/moje-gry`.
+
+Decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
+
+### 1.4 Rozliczenie po meczu
+Propozycja brzmi „Rozliczysz ekipę w minutę", a panel „Podział kosztów" renderuje się
+pod warunkiem `isOwner && !eventStarted` (`EventDetailClient.tsx`). Czyli:
+- po zakończeniu meczu panel znika — a wtedy właśnie się rozlicza,
+- uczestnik nigdy nie widzi, ile ma zapłacić; widzi to tylko organizator.
 
 ---
 
-## 3. Funkcje częściowo wdrożone (do przeglądu przed launchem)
+## 2. Ukryte za flagami
 
-- **Rezerwacje boisk / panel zarządcy obiektu** — routy `/obiekt`, `/rezerwacje`,
-  migracja `008_venue_bookings`. Status: czy to live, czy odkładamy? Jeśli
-  odkładamy — rozważyć ukrycie wejść w nawigacji.
-- **Gry cykliczne (stałe gierki)** — route `/cykliczne`, migracja `007`. Działa?
-  Czy pokazujemy w głównej nawigacji?
-- **Statystyki / wyniki meczów, drużyny, płatności** — zaawansowane opcje meczu
-  (w szczegółach wydarzenia). Działają, ale warto zweryfikować spójność UX.
+Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
+[docs/funkcje.md](./docs/funkcje.md#flagi-funkcji).
+
+| Flaga | Co chowa | Dlaczego schowane |
+|---|---|---|
+| `SHOW_CUP` | Turniej BOJO Cup — pasek ogłoszeń, TrustBar, link w nagłówku | Brak gotowego turnieju; nie obiecywać na zapas |
+| `SHOW_GAME_ALERTS` | „Ustaw alert" o pasującej grze w okolicy | Historycznie: brak kanału dostarczania. **Powód nieaktualny** — kanał istnieje (§3), do ponownej decyzji |
+| `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
+| `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
+| `FEATURE_RESERVATIONS` | Rezerwacje obiektów, panel menedżera | Brak partnerstw z obiektami. Można włączyć per obiekt przez `fields.booking_enabled` |
 
 ---
 
-## 4. Zadania do zrobienia (technika / dane)
+## 3. Kanał powiadomień — jest zbudowany
 
-- [ ] **Migracje na produkcję** — upewnić się, że `032`–`036` są zaaplikowane
-  (`032` venue_type, `033` contact_visibility, `034` goalkeeper, `035`
-  allow_guest_adds, `036` invite_only).
-- [ ] **Czyszczenie bazy boisk** — odsianie siłowni, kortów tylko-tenisowych,
-  kartingów itp. Teraz filtr `RELEVANT_SPORTS` jest **po stronie klienta**
-  (`VenueExplorer`). Docelowo: oznaczyć śmieciowe obiekty `map_visibility =
-  'hidden'` w bazie + prosty **panel admina** do przeglądania i wybierania,
-  które boiska mają sens.
-- [ ] **Dane demo** — `supabase/seed-events.sql` (fake userzy + wydarzenia na 2
-  tygodnie). Sprzątanie: `DELETE FROM auth.users WHERE email LIKE '%@seed.bojo';`
+Wcześniejsze wersje tego pliku i `PRZEWODNIK.md` twierdziły, że powiadomień nie ma.
+**To była nieprawda.** Istnieje:
 
-### Bezpieczeństwo (już wdrożone — pilnować)
-- Telefony/e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
+| Element | Gdzie |
+|---|---|
+| Tabela `notifications` | migracja `025` |
+| Logika | `lib/notifications.ts` |
+| UI (dzwonek) | `components/layout/NotificationBell.tsx`, renderowany w `Header.tsx` |
+| E-mail | Edge function `notify-game-alert` → Resend |
+| SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
+| Zaproszenia cykliczne | Edge function `send-invites` |
+
+Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alerty
+(dołączenie do meczu, awans z rezerwy, nowa gra w grupie — §1.2).
+
+---
+
+## 4. Zbudowane, nieużywane, martwy kod
+
+- **`components/home/NearbyGames.tsx`** — kompletny komponent „gry w pobliżu + alert",
+  nigdzie nie renderowany. Do decyzji: wpiąć (po włączeniu alertów) albo usunąć.
+- **`components/map/{MapView,LeafletMapImpl,EventsMapView,EventsMapImpl}.tsx`** — nic
+  ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`.
+- **Tabela `games`** (`001`) — zastąpiona przez `events` (`002`), żaden kod jej nie używa.
+- **`/gracze`** — trasa istnieje, ale to `redirect('/wydarzenia')`. Albo zbudować listę
+  graczy, albo usunąć trasę.
+- **`RemindersSection` / `AlertSetupDialog`** — renderowane tylko za flagami z §2.
+
+---
+
+## 5. Zadania techniczne
+
+- [ ] **Zweryfikować stan migracji na produkcji.** W repo jest 57 migracji; stanu bazy
+      nie da się odczytać z repo. Patrz [docs/baza-danych.md](./docs/baza-danych.md).
+- [ ] **Adresy kontaktowe wciąż na `bojo.app`** — `kontakt@bojo.app` w `/regulamin`,
+      `/prywatnosc`, `/turniej` oraz nadawca `noreply@bojo.app` w edge functions, przy
+      domenie kanonicznej `bojo.pl`. Wymaga potwierdzenia, że skrzynki na `bojo.pl`
+      istnieją, oraz weryfikacji domeny w Resend (SPF + DKIM).
+- [ ] **Czyszczenie bazy boisk** — odsianie siłowni, kortów tylko-tenisowych, kartingów.
+      Dziś filtr `RELEVANT_SPORTS` jest **po stronie klienta** (`VenueExplorer`).
+      Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
+- [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
+- [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki.
+
+### Bezpieczeństwo (wdrożone — pilnować)
+- Telefony i e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
   włącza admin (`contact_visible`, migracja `033`). Egzekwowane na poziomie DB.
+- `/admin`, `/api`, `/d/`, `/g/` wyłączone z indeksowania (`robots.ts`). Kody dołączenia
+  są jedyną kontrolą dostępu do prywatnych meczów — nie mogą trafić do wyszukiwarki.
+- Mecze prywatne nie emitują JSON-LD (`lib/structuredData.ts`, pokryte testem).
 
 ---
 
-## 5. Turniej — TODO (gdy wracamy do `SHOW_CUP`)
+## 6. Turniej — stan i co zostało
+
+**Zbudowane** (wbrew wcześniejszej wersji tego pliku, która listowała to jako TODO):
+`lib/tournaments.ts` (455 linii), 6 tabel `tournament_*` (`029`–`031`), trasy `/turniej`,
+`/turniej/rejestracja`, `/turniej/drabinka`, `/turniej/druzyna/[teamId]`,
+`/turniej/druzyna/[teamId]/dolacz`, RPC `tournament_team_count`, `shared_availability_days`,
+`admin_team_contacts`. Rejestracja drużyn, składy, terminarz, drabinka, zgłaszanie
+i potwierdzanie wyników — działa. Ukryte flagą `SHOW_CUP`.
 
 **Zakres: 3 sporty — piłka nożna, koszykówka, siatkówka plażowa.**
 
-> ⭐ **Siatkówka plażowa to główny przypadek użycia** — więcej osób będzie
-> robić turnieje plażówki niż hali. Halową siatkówkę traktujemy jako zwykły
-> sport meczowy, a w turniejach wyraźnie eksponujemy plażową.
-
-### Baza
-- [ ] `tournaments`: sport, organizer, field, data, format (pucharowy /
-  grupowy / każdy-z-każdym), liczba drużyn, rozmiar drużyny, deadline zapisów,
-  status, regulamin, nagrody.
-- [ ] `tournament_teams`: nazwa, kapitan, członkowie, potwierdzona, rozstawienie.
-- [ ] `tournament_matches`: runda, drużyna A/B, wynik, zwycięzca, boisko.
-- [ ] RLS: organizator zarządza; drużyny widzą swój pojedynek; publicznie po starcie.
-- _(częściowo: migracje `029`/`030` już istnieją — zweryfikować pokrycie.)_
-
-### UI
-- [ ] `/turnieje` — lista (filtr po sporcie)
-- [ ] `/turnieje/[id]` — drabinka, lista drużyn, terminarz
-- [ ] `/turnieje/nowe` — kreator (jak tworzenie meczu)
-- [ ] rejestracja drużyny (kapitan: nazwa + skład)
-- [ ] panel organizatora: potwierdzanie drużyn, losowanie drabinki, wpisywanie wyników
-
-### Decyzje do podjęcia
-- [ ] Rozmiar drużyny: konfigurowalny czy stały per sport? (plażówka 2v2 / 4v4)
-- [ ] Zapisy otwarte vs tylko zaproszone drużyny (re-użyć logiki „tylko dla zaproszonych")
-- [ ] Płatność za drużynę? (re-użyć `trackPayments`)
-- [ ] Wizualizacja drabinki na mobile (drzewko jest trudne na małym ekranie)
-- [ ] Powiadomienia: gdy wylosowano drabinkę / kiedy następny mecz
+> ⭐ **Siatkówka plażowa to główny przypadek użycia** — więcej osób robi turnieje
+> plażówki niż hali. Halową siatkówkę traktujemy jako zwykły sport meczowy.
 
 | Sport | Format domyślny | Rozmiar | Uwaga |
 |---|---|---|---|
 | **Siatkówka plażowa** ⭐ | pucharowy | 2v2 / 4v4 | główny przypadek; boiska już na mapie |
-| Piłka nożna | grupy → puchar | 5v5 / 7v7 | trzeba wiele boisk lub sloty czasowe |
+| Piłka nożna | grupy → puchar | 5v5 / 7v7 | trzeba wielu boisk lub slotów czasowych |
 | Koszykówka | pucharowy | 3v3 | streetball, najpopularniejszy format amatorski |
+
+### Zostało do decyzji
+- [ ] Wizualizacja drabinki na mobile (drzewko jest trudne na małym ekranie)
+- [ ] Powiadomienia: wylosowano drabinkę / kiedy następny mecz
+- [ ] Płatność za drużynę (re-użyć `trackPayments`)
+- [ ] Lista wielu turniejów — dziś model zakłada jeden aktywny (`getActiveTournament`)
 
 ---
 
-## 6. Pomysły jeszcze niezbudowane
+## 7. Pomysły jeszcze niezbudowane
 
-- **Kanał powiadomień** (SMS / e-mail / web-push) — odblokowuje alerty,
-  przypomnienia, potwierdzenia. Fundament pod sekcję 1.
-- **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy.
-- **Profil gracza / reputacja** — frekwencja, „rzetelny gracz", raporty (część
-  infrastruktury już jest: `submitReport`).
-- **Udostępnianie gry** poza apką (link / obrazek do social/WhatsApp).
-- **Statystyki sezonowe** dla stałych ekip.
+- **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
+- **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy
+- **Rankingi publiczne** i **odznaki** (strzelec miesiąca, 100h na boisku) — wizja §B
+- **Ocena umiejętności i dopasowywanie gier do poziomu** — wizja §B
+- **MVP meczu** — wizja wymienia obok goli i asyst, w kodzie nie istnieje
+- **Realny przepływ pieniędzy** (BLIK/Stripe) — dziś tylko rejestrowanie, kto zapłacił
+- **Wynajem sędziego** — wizja §A
+- **Wyszukiwarka** boisk po nazwie/dzielnicy na mapie
+- **Statystyki sezonowe** dla stałych ekip
+- **Agent kontaktowy** — automat wysyłający maile do obiektów i podpowiadający następny
+  ruch w CRM

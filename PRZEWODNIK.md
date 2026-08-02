@@ -9,24 +9,32 @@ Ten dokument w 5 minut wprowadza Cię w to, co aplikacja potrafi i jak jest zbud
 
 ## 1. Co widzi użytkownik
 
-| Strona | Co robi |
-|---|---|
-| **Start** (`/`) | Strona główna — sporty, najbliższe mecze, „jak to działa" |
-| **Mapa** (`/mapa`) | Interaktywna mapa z dwiema zakładkami: **Boiska** i **Mecze**. Filtry po sporcie, dostępności, nawierzchni. Klik w pinezkę → szczegóły |
-| **Boiska wg sportu** (`/boiska/pilka-nozna`) | Lista boisk dla danego sportu (przyjazne adresy pod Google) |
-| **Szczegóły boiska** (`/boisko/...`) | Adres, sporty, zdjęcie, opis, dane kontaktowe, nadchodzące mecze. Strona zoptymalizowana pod wyszukiwarki (JSON-LD) |
-| **Wydarzenia** (`/wydarzenia`) | Lista meczów — publiczne i „moje". Filtry po sporcie, sortowanie po odległości od Ciebie |
-| **Nowy mecz** (`/wydarzenia/nowe`) | Tworzysz mecz: sport, miejsce (z mapy lub adresu), data, godzina, liczba graczy, widoczność (publiczny/prywatny link) + opcje zaawansowane (obecność, płatności, termin potwierdzenia) |
-| **Mecz** (`/wydarzenia/...`) | Dołącz / dodaj gościa / kopiuj link / podział na drużyny / wynik / lista rezerwowa / zgłoszenie gracza. Organizator może wymagać **akceptacji** dołączeń |
-| **Grupy** (`/grupy`) | Stałe ekipy graczy (sport, miasto). Zakładanie, **link z zaproszeniem** (`/g/kod`), członkowie, mecze grupy, okładka. Edycja przez założyciela |
-| **Profile graczy** (`/gracze`, `/gracz/...`) | Publiczny profil gracza: awatar, statystyki (rozegrane mecze, frekwencja), znaczek „rzetelny gracz", historia |
-| **Moje gry** (`/moje-gry`) | Mecze, które organizujesz lub na które się zapisałeś + historia |
-| **Cykliczne** (`/cykliczne`) | Szablony powtarzalnych meczów (np. „każdy wtorek 18:00") z zapisami |
-| **Turniej** (`/turniej`) | Rejestracja drużyn, składy, drabinka i terminarz meczów |
-| **Rezerwacje** (`/rezerwacje`) | Twoje rezerwacje terminów (funkcja włączana flagą — patrz niżej) |
-| **Profil** (`/profil`) | Imię, awatar, telefon (za zgodą), usunięcie konta |
+Kolumna **Widoczne?** mówi, czy użytkownik trafi tam z interfejsu. „nie" znaczy, że kod
+działa, ale flaga ukryła wejścia w nawigacji — pełna tabela flag w
+[docs/funkcje.md](./docs/funkcje.md#flagi-funkcji).
 
-**Logowanie:** Google OAuth (przez Supabase). Bez logowania można przeglądać mapę i boiska; do tworzenia/dołączania trzeba się zalogować.
+| Strona | Co robi | Widoczne? |
+|---|---|---|
+| **Start** (`/`) | Strona główna — sporty, najbliższe mecze, „jak to działa" | tak |
+| **Mapa** (`/mapa`) | Interaktywna mapa z dwiema zakładkami: **Boiska** i **Mecze**. Filtry po sporcie, dostępności, nawierzchni. Klik w pinezkę → szczegóły | tak |
+| **Boiska wg sportu** (`/boiska/pilka-nozna`) | Lista boisk dla danego sportu (przyjazne adresy pod Google) | tak |
+| **Szczegóły boiska** (`/boisko/...`) | Adres, sporty, zdjęcie, opis, dane kontaktowe, nadchodzące mecze. Strona zoptymalizowana pod wyszukiwarki (JSON-LD) | tak |
+| **Wydarzenia** (`/wydarzenia`) | Lista meczów — publiczne i „moje". Filtry po sporcie, sortowanie po odległości od Ciebie | tak |
+| **Nowy mecz** (`/wydarzenia/nowe`) | Tworzysz mecz: sport, miejsce (z mapy lub adresu), data, godzina, liczba graczy, widoczność (publiczny/prywatny link) + opcje zaawansowane (obecność, płatności, termin potwierdzenia) | tak |
+| **Mecz** (`/wydarzenia/...`) | Dołącz / dodaj gościa / kopiuj link / podział na drużyny / wynik / lista rezerwowa / zgłoszenie gracza. Organizator może wymagać **akceptacji** dołączeń | tak |
+| **Grupy** (`/grupy`) | Stałe ekipy graczy (sport, miasto). Zakładanie, **link z zaproszeniem** (`/g/kod`), członkowie, mecze grupy, okładka. Edycja przez założyciela | tak |
+| **Profil gracza** (`/gracz/...`) | Publiczny profil gracza: awatar, statystyki (rozegrane mecze, frekwencja), znaczek „rzetelny gracz", historia | tak |
+| **Moje gry** (`/moje-gry`) | Mecze, które organizujesz lub na które się zapisałeś + historia | tak |
+| **Profil** (`/profil`) | Imię, awatar, telefon (za zgodą), usunięcie konta | tak |
+| **Cykliczne** (`/cykliczne`) | Szablony powtarzalnych meczów (np. „każdy wtorek 18:00") z zapisami | **nie** — `SHOW_RECURRING` |
+| **Turniej** (`/turniej`) | Rejestracja drużyn, składy, drabinka i terminarz meczów | **nie** — `SHOW_CUP` |
+| **Rezerwacje** (`/rezerwacje`) | Twoje rezerwacje terminów | **nie** — `FEATURE_RESERVATIONS` |
+
+⚠️ **`/gracze` nie jest listą graczy** — to przekierowanie na `/wydarzenia`. Listy graczy
+w aplikacji nie ma.
+
+**Logowanie:** Google OAuth oraz e-mail (hasło, magic link, reset) — przez Supabase.
+Bez logowania można przeglądać mapę i boiska; do tworzenia i dołączania trzeba się zalogować.
 
 ---
 
@@ -70,7 +78,7 @@ Tu prowadzimy rozmowy z obiektami, żeby podłączyć je do rezerwacji. Dla każ
 
 ## 4. Skąd się biorą dane o boiskach
 
-Boisk jest ~1400. Dane uzupełniamy **automatycznie**, uruchamiając skrypty z zakładki **GitHub → Actions** (ręcznie, „Run workflow"). Kolejność:
+Boisk jest ~1400. Dane uzupełniamy **automatycznie**, uruchamiając skrypty z zakładki **GitHub → Actions** (ręcznie, „Run workflow"). Workflowów jest 11; poniżej cztery główne, w kolejności użycia:
 
 | # | Workflow (Actions) | Co dorzuca | Koszt |
 |---|---|---|---|
@@ -107,12 +115,16 @@ Struktura: `frontend/` (apka), `scraper/` (skrypty danych), `supabase/` (schema 
 
 ## 6. Pomysły na rozwój
 
-- **Powiadomienia** — e-mail/push, gdy ktoś dołączy do meczu albo awansuje z rezerwy (dziś brak)
+Pełna lista z priorytetami: [BACKLOG.md](./BACKLOG.md). W skrócie:
+
+- **Web-push (PWA)** — darmowy kanał przypomnień. Powiadomienia in-app, e-mail i SMS
+  **już istnieją** (dzwonek w nagłówku, Resend, SMSAPI); brakuje pushu oraz wyzwalaczy
+  dla zdarzeń takich jak dołączenie do meczu czy nowa gra w grupie
 - **Agent kontaktowy** — automat, który wysyła maile do obiektów, zbiera odpowiedzi i podpowiada następny ruch w CRM (szkic gotowy, do uzgodnienia)
 - **Wyszukiwarka** boisk po nazwie/dzielnicy na mapie
-- **Płatności** — zbieranie składek za mecz (BLIK/Stripe)
+- **Płatności** — realne zbieranie składek (BLIK/Stripe). Dziś aplikacja rejestruje, kto zapłacił, ale nie przelewa pieniędzy
 - **Twardsze zabezpieczenia** (część reguł dostępu sprawdzana dziś po stronie przeglądarki — do domknięcia w RLS)
 
 ---
 
-*Pytania? Najszybciej ogarnąć kod zaczynając od `frontend/src/app` (strony) i `frontend/src/lib` (logika + zapytania do Supabase).*
+*Pytania? Najszybciej ogarnąć kod zaczynając od `frontend/src/app` (strony) i `frontend/src/lib` (logika + zapytania do Supabase). Szczegółowa dokumentacja: [docs/README.md](./docs/README.md).*
