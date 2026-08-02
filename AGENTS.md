@@ -2,9 +2,9 @@
 
 Kontekst projektu i pułapki, które warto znać przed pierwszą zmianą.
 
-- Baza wiedzy: [docs/README.md](./docs/README.md) — wizja, funkcje, domena, architektura, baza
+- Baza wiedzy: [docs/README.md](./docs/README.md) — wizja, funkcje, domena, baza danych
 - Opis funkcji dla ludzi: [PRZEWODNIK.md](./PRZEWODNIK.md)
-- Architektura w skrócie: [README.md](./README.md)
+- Stack i architektura w skrócie: [README.md](./README.md)
 
 ## Szybki start
 
@@ -36,7 +36,18 @@ npm test               # Vitest, 55 testów
   nie może ustawić `User-Agent`).
 - Interfejs jest **po polsku**. Komentarze w kodzie po angielsku.
 
-Szczegóły → [docs/architektura.md](./docs/architektura.md).
+Uzasadnienia i granice → [docs/domena.md](./docs/domena.md#granice-architektury).
+
+## Strefy podwyższonego ryzyka
+
+Zmiany w tych miejscach wymagają testu i zielonego CI (uruchamia `tsc`, Vitest
+i `npm run check:docs` przy każdym PR i push na master):
+
+- **Auth i RLS** — `lib/auth.tsx`, polityki w migracjach. Pamiętaj: niepasująca polityka
+  nie rzuca błędu, tylko po cichu aktualizuje 0 wierszy.
+- **Płatności** — cenę zawsze liczy `priceForParticipant()` (`lib/payments.ts`).
+- **Migracje** — uruchamiane ręcznie na produkcji; błąd w SQL trafia do bazy na żywo.
+- **Kasowanie danych** — `deleteEvent`, `deleteGroup`, usuwanie konta.
 
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
 
@@ -74,25 +85,12 @@ Nie „naprawiaj" tego.
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
 
-## Modele domenowe warte poznania przed zmianami
+## Modele domenowe
 
-**Relacja użytkownik ↔ wydarzenie to DWIE niezależne osie** (`lib/events.ts`):
-- `isOrganizer` — czyj to mecz (trwała cecha)
-- `status` — `none | invited | pending | observing | reserve | playing`
-
-Można organizować mecz i w nim grać, albo organizować bez grania. Nie zwijaj tego do
-jednej etykiety. `invited` jest zarezerwowane pod przyszłe zaproszenia — jeszcze nic
-go nie ustawia.
-
-**Płatności** (`lib/payments.ts`): organizator wybiera akceptowane metody i karty sportowe.
-Kwota zniżki jest **opcjonalna** — `null` znaczy „zniżka jest, ale zapytaj organizatora",
-nie „brak zniżki". Zawsze licz cenę przez `priceForParticipant()`, nie odejmuj ręcznie.
-
-**RSVP „Obserwuję"** to w bazie `rsvp = 'maybe'`. Nie zajmuje miejsca, nie liczy się do
-statystyk gracza ani do historii meczów.
-
-Pełny opis (reguły pojemności, kolejność w `statusFromRow`, pułapka nazw `grosz`/`grosze`)
-→ [docs/domena.md](./docs/domena.md).
+Przed zmianą w `lib/events.ts`, `lib/payments.ts` lub logice zapisów przeczytaj
+[docs/domena.md](./docs/domena.md) — dwie osie relacji do meczu, reguły pojemności,
+semantyka zniżki `null`, pułapka nazw `grosz`/`grosze`. To ~5 minut, które oszczędza
+błędną „naprawę" świadomej decyzji produktowej.
 
 ## Aktualizacja dokumentacji
 
@@ -104,6 +102,10 @@ Zmiana kodu pociąga za sobą aktualizację dokumentu:
 | `frontend/src/lib/*` | [docs/domena.md](./docs/domena.md), [docs/funkcje.md](./docs/funkcje.md) |
 | `frontend/src/app/*` (nowa/usunięta trasa) | [docs/funkcje.md](./docs/funkcje.md), `frontend/public/llms.txt` |
 | `supabase/migrations/*` | [docs/baza-danych.md](./docs/baza-danych.md) |
+
+Po zmianach uruchom **`npm run check:docs`** (z katalogu głównego) — walidator mówi
+deterministycznie, czy dokumentacja rozjechała się z kodem (trasy w `llms.txt`, flagi,
+linki, migracje). CI odrzuci PR, w którym walidator jest czerwony.
 
 Hook `.claude/hooks/doc-guard.sh` przypomina o tym w trakcie pracy. **Nie blokuje** —
 to przypomnienie, nie bramka.
