@@ -1180,6 +1180,19 @@ export default function EventDetailClient() {
                 : `Zostało ${freeSpots} ${freeSpots === 1 ? 'wolne miejsce' : freeSpots < 5 ? 'wolne miejsca' : 'wolnych miejsc'}`}
             </p>
 
+            {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
+                człowiek orientuje się, że brakuje ludzi. Panel z linkiem jest
+                na samym dole strony — zanim ktoś tam dojedzie, zdąży wyjść
+                i wkleić link z Messengera. */}
+            {user && !eventStarted && !isFull && (myParticipation || isOwner) && (
+              <button
+                onClick={() => setInviteOpen(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
+              >
+                <UserPlus className="h-4 w-4" /> Zaproś z ekipy
+              </button>
+            )}
+
             {/* Avatar stack — tap to expand. Hidden when roster is open. */}
             {regulars.length > 0 && !rosterOpen && (
               <button
