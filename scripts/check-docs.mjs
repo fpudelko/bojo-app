@@ -9,6 +9,9 @@
 //   4. every relative .md link (and #anchor) resolves
 //   5. migration numbers cited in docs/baza-danych.md exist on disk
 //   6. table names listed in docs/baza-danych.md exist in migrations
+//   7. frontend/public/llm-context.md is byte-identical to its source in docs/
+//   8. llm-context.md still has every required section, changelog capped at 10
+//   9. llm-context.md's "Stan na" marker matches the newest migration on disk
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -39,6 +42,12 @@ const sportSlugs = [...read('frontend/src/app/boiska/[sport]/page.tsx')
 
 for (const route of llmsRoutes) {
   let page;
+  // Static files served straight from public/ (e.g. /llm-context.md) are not routes.
+  if (/\.(md|txt)$/.test(route)) {
+    const asset = `frontend/public${route}`;
+    if (!existsSync(join(ROOT, asset))) fail(`llms.txt: linkuje ${route}, a nie ma ${asset}`);
+    continue;
+  }
   if (route === '/') page = 'frontend/src/app/page.tsx';
   else if (route.startsWith('/boiska/')) {
     const slug = route.slice('/boiska/'.length);
@@ -133,6 +142,45 @@ for (const table of tableRows) {
     fail(`tabela ${table} z baza-danych.md nie występuje w żadnej migracji`);
 }
 console.log(`  sprawdzono ${tableRows.length} tabel`);
+
+// ---------------------------------------------------------------------------
+section('7. kopia publiczna llm-context.md zgodna ze źródłem');
+const llmContext = read('docs/llm-context.md');
+const llmContextPublic = existsSync(join(ROOT, 'frontend/public/llm-context.md'))
+  ? read('frontend/public/llm-context.md') : null;
+if (llmContextPublic === null) fail('brak frontend/public/llm-context.md — uruchom: npm run sync:llm-context');
+else if (llmContextPublic !== llmContext) fail('frontend/public/llm-context.md rozjechał się ze źródłem — uruchom: npm run sync:llm-context');
+else console.log('  kopia identyczna ze źródłem');
+
+// ---------------------------------------------------------------------------
+section('8. szkielet llm-context.md kompletny');
+// Sections a cold-reading model relies on. Renaming one is fine — update this list
+// in the same commit, so the rename is a decision and not an accident.
+const REQUIRED_SECTIONS = [
+  'Jak czytać ten plik', 'Czym jest Bojo', 'Zasięg i skala', 'Status funkcji',
+  'Mecz: model i widoczność',
+  'Zapisy, pojemność, rezerwa', 'Płatności i karty sportowe', 'Grupy', 'Boiska i mapa',
+  'Architektura', 'Czego Bojo NIE robi', 'Słownik pojęć', 'Gdzie szukać szczegółów',
+  'Ostatnie zmiany',
+];
+const presentSections = [...llmContext.matchAll(/^##\s+(.+)$/gm)].map((m) => m[1].trim());
+for (const wanted of REQUIRED_SECTIONS) {
+  if (!presentSections.includes(wanted)) fail(`llm-context.md: brakuje sekcji "## ${wanted}"`);
+}
+// The changelog is capped on purpose: an unbounded log dilutes every retrieved chunk.
+const changelogEntries = (llmContext.split('## Ostatnie zmiany')[1] ?? '').match(/^###\s+/gm) ?? [];
+if (changelogEntries.length > 10)
+  fail(`llm-context.md: ${changelogEntries.length} wpisów w "Ostatnie zmiany", limit to 10 — usuń najstarsze`);
+console.log(`  sprawdzono ${REQUIRED_SECTIONS.length} sekcji, ${changelogEntries.length}/10 wpisów w logu`);
+
+// ---------------------------------------------------------------------------
+section('9. znacznik "Stan na" w llm-context.md aktualny');
+// Forces a human/agent to re-read the file whenever the database moves.
+const statedMigration = llmContext.match(/\*\*Stan na:\*\*.*?migracja `(\d{3})`/)?.[1];
+if (!statedMigration) fail('llm-context.md: brak znacznika "**Stan na:** ... migracja `NNN`"');
+else if (parseInt(statedMigration, 10) !== maxMigration)
+  fail(`llm-context.md deklaruje migrację ${statedMigration}, a najnowsza na dysku to ${String(maxMigration).padStart(3, '0')} — zaktualizuj plik`);
+else console.log(`  migracja ${statedMigration} zgodna ze stanem repo`);
 
 // ---------------------------------------------------------------------------
 console.log('');

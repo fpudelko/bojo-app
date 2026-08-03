@@ -102,6 +102,7 @@ Zmiana kodu pociąga za sobą aktualizację dokumentu:
 | `frontend/src/lib/*` | [docs/domena.md](./docs/domena.md), [docs/funkcje.md](./docs/funkcje.md) |
 | `frontend/src/app/*` (nowa/usunięta trasa) | [docs/funkcje.md](./docs/funkcje.md), `frontend/public/llms.txt` |
 | `supabase/migrations/*` | [docs/baza-danych.md](./docs/baza-danych.md) |
+| cokolwiek zmienia zachowanie widoczne dla użytkownika | [docs/llm-context.md](./docs/llm-context.md) — patrz „RAG INJECTION" niżej |
 
 Po zmianach uruchom **`npm run check:docs`** (z katalogu głównego) — walidator mówi
 deterministycznie, czy dokumentacja rozjechała się z kodem (trasy w `llms.txt`, flagi,
@@ -109,6 +110,43 @@ linki, migracje). CI odrzuci PR, w którym walidator jest czerwony.
 
 Hook `.claude/hooks/doc-guard.sh` przypomina o tym w trakcie pracy. **Nie blokuje** —
 to przypomnienie, nie bramka.
+
+## RAG INJECTION — obowiązkowe przy zmianie widocznej dla użytkownika
+
+[docs/llm-context.md](./docs/llm-context.md) to jedyny plik pisany dla modelu, który
+czyta **na zimno**, bez dostępu do repo (zewnętrzny asystent odpowiadający na pytanie
+o bojo.pl, baza wiedzy w narzędziu). Zmiana zachowania widocznego dla użytkownika
+aktualizuje ten plik, po czym **`npm run sync:llm-context`** odświeża kopię publiczną
+serwowaną pod `bojo.pl/llm-context.md`. CI odrzuca PR, w którym kopia się rozjechała.
+
+Wpis w sekcji „Ostatnie zmiany" ma format:
+
+```
+PROBLEM:          jaki ból użytkownika to rozwiązuje
+ROZWIĄZANIE BOJO: co zostało zbudowane
+MECHANIKA:        komponenty, funkcje w lib/, tabele, migracje
+```
+
+Sekcja opisująca funkcję dokłada do tego **PYTANIA** — 3–5 pytań w naturalnym języku,
+na które ta sekcja odpowiada.
+
+Zasady, których nie łamiemy:
+
+- **Gęsty, faktograficzny Markdown. Zero języka marketingowego.** Piszesz instrukcję
+  dla modelu, nie opis dla klienta.
+- **Każda sekcja broni się sama** — nazywaj encje wprost („Bojo", nie „aplikacja",
+  nie „to"). W RAG sekcja trafia do modelu wyrwana z kontekstu pliku.
+- **Nie dopisuj list słów kluczowych.** Badania GEO (Aggarwal i in., KDD 2024) pokazują,
+  że keyword stuffing wypada najsłabiej ze wszystkich testowanych metod i obniża ocenę
+  gęstości informacyjnej. Zamiast słów kluczowych — pytania w naturalnym języku.
+- **Nie kopiuj treści z `docs/`.** Tabela flag, mapa tabela → migracja i ścieżki plików
+  żyją w `docs/`; `llm-context.md` odsyła do nich linkiem. Dwie kopie = gwarantowany
+  rozjazd.
+- **Log „Ostatnie zmiany" ma limit 10 wpisów** (pilnuje go walidator). Najstarsze
+  usuwasz — pełną historią jest `git log`, a rosnący log rozmywa cały plik.
+- Znacznik `**Stan na:**` w nagłówku aktualizujesz razem z migracjami.
+
+`llms.txt` to indeks, nie changelog — **nie dopisuj tam logu zmian.**
 
 **[docs/wizja.md](./docs/wizja.md) jest dokumentem nadrzędnym.** Sekcja 1 to dokument
 strategiczny wklejony werbatim — nie parafrazować i nie „poprawiać" przy okazji innych

@@ -12,6 +12,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Jak to jest zamodelowane? Dlaczego architektura wygląda tak? | [domena.md](./domena.md) |
 | Która migracja tworzy tabelę X? Czemu zapis nie działa? | [baza-danych.md](./baza-danych.md) |
 | Ile to kosztuje? Kto co robi? Co jest w której fazie? | [strategia.md](./strategia.md) |
+| Jak opisać Bojo modelowi, który nie ma dostępu do repo? | [llm-context.md](./llm-context.md) |
 
 ## Hierarchia
 
@@ -27,7 +28,7 @@ nie powie: wizję, nieoczywiste reguły, schemat bazy, stan flag.
 
 | Rytm | Co obejmuje | Mechanizm |
 |---|---|---|
-| **Zdarzenie — ten sam PR/commit** | [domena.md](./domena.md), [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md), `frontend/public/llms.txt`, [AGENTS.md](../AGENTS.md) | hook doc-guard przypomina; `npm run check:docs` weryfikuje; CI odrzuca rozjazd |
+| **Zdarzenie — ten sam PR/commit** | [domena.md](./domena.md), [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md), [llm-context.md](./llm-context.md), `frontend/public/llms.txt`, [AGENTS.md](../AGENTS.md) | hook doc-guard przypomina; `npm run check:docs` weryfikuje; CI odrzuca rozjazd |
 | **Audyt kwartalny** | statusy w [wizja.md](./wizja.md) §2–3, [BACKLOG.md](../BACKLOG.md), [PRZEWODNIK.md](../PRZEWODNIK.md) | checklista poniżej |
 | **Ręcznie, gdy ludzie coś ustalą** | [wizja.md](./wizja.md) §1 (werbatim — nigdy przez agenta), [strategia.md](./strategia.md) | człowiek |
 
@@ -52,8 +53,13 @@ nie powie: wizję, nieoczywiste reguły, schemat bazy, stan flag.
 ## Odbiorcy dokumentacji
 
 - **Modele rozwijające kod** — `AGENTS.md` (zasady) + `docs/` (wiedza)
-- **Wyszukiwarki i modele czytające aplikację** — JSON-LD na stronach publicznych
-  (`lib/structuredData.ts`), `robots.txt`, `sitemap.xml`, `frontend/public/llms.txt`
-  (utrzymywany, ale bez dalszych inwestycji — dowody skuteczności są słabe)
+- **Modele czytające o Bojo na zimno, bez dostępu do repo** —
+  [llm-context.md](./llm-context.md), serwowany też pod `bojo.pl/llm-context.md`
+  (kopia w `frontend/public/`, synchronizacja: `npm run sync:llm-context`)
+- **Wyszukiwarki i crawlery** — JSON-LD na stronach publicznych
+  (`lib/structuredData.ts`), `robots.txt`, `sitemap.xml` oraz `frontend/public/llms.txt`
+  — indeks odsyłający do `llm-context.md`. Zastrzeżenie zostaje aktualne: żaden duży
+  dostawca nie potwierdził, że czyta `llms.txt`, więc plik ma być krótki i tani
+  w utrzymaniu, a nie rozbudowywany
 - **Ludzie** — [PRZEWODNIK.md](../PRZEWODNIK.md) (opis funkcji),
   [README.md](../README.md) (start)
