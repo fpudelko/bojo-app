@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Map as MapIcon, Users, Trophy } from 'lucide-react';
 import AlertSetupDialog from './AlertSetupDialog';
@@ -112,7 +111,7 @@ function LivePill({ label }: { label: string }) {
   );
 }
 
-/** Hero — identical copy for logged-in and logged-out visitors. */
+/** Hero for the logged-in dashboard. */
 function Hero() {
   const count = useTodayCount();
   return (
@@ -380,66 +379,20 @@ function MyGroupsSection({ userId }: { userId: string }) {
   );
 }
 
-function JoinByCodeSection() {
-  const router = useRouter();
-  const [code, setCode] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const go = () => {
-    const c = code.trim().toUpperCase().replace(/\s/g, '');
-    if (c.length >= 4) router.push(`/d/${c}`);
-  };
-
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-slate-800">Masz kod meczu?</p>
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-          onKeyDown={(e) => e.key === 'Enter' && go()}
-          placeholder="np. K7QP4B"
-          maxLength={8}
-          className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 font-mono text-lg font-bold uppercase tracking-widest text-primary-700 placeholder:font-sans placeholder:text-sm placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
-        <button
-          onClick={go}
-          disabled={code.trim().length < 4}
-          className="rounded-xl bg-primary-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-40"
-        >
-          Idź →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function HomeHero() {
-  const { user, loading: authLoading } = useAuth();
-
-  if (!authLoading && user) {
-    return (
-      <>
-        <Hero />
-        <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
-          <MyGamesSection userId={user.id} />
-          <OpenGamesSection />
-          <MapTeaser />
-          <MyGroupsSection userId={user.id} />
-          <HowItWorks />
-        </section>
-      </>
-    );
-  }
-
+/** Dashboard shown to signed-in users. Identical in behaviour to the old
+ *  logged-in branch of HomeHero.tsx — only the never-rendered
+ *  JoinByCodeSection was dropped, and auth is resolved by the caller
+ *  (HomeSwitch) instead of read again here. */
+export default function AppHome({ userId }: { userId: string }) {
   return (
     <>
       <Hero />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
+        <MyGamesSection userId={userId} />
         <OpenGamesSection />
-        <HowItWorks />
         <MapTeaser />
+        <MyGroupsSection userId={userId} />
+        <HowItWorks />
       </section>
     </>
   );

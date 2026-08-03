@@ -126,6 +126,21 @@ export function breadcrumbsJsonLd(
   };
 }
 
+/** FAQPage schema. Only ever call this with the same list rendered as visible
+ *  text on the page — schema without matching visible content is a spam
+ *  signal to Google, not a ranking boost. */
+export function faqJsonLd(items: ReadonlyArray<{ q: string; a: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((it) => ({
+      '@type': 'Question',
+      name: it.q,
+      acceptedAnswer: { '@type': 'Answer', text: it.a },
+    })),
+  };
+}
+
 /** Venue list for a sport category page. */
 export function venueListJsonLd(
   listName: string,

@@ -149,6 +149,17 @@ a {
   -webkit-mask-image: linear-gradient(to bottom, black, transparent 85%);
 }
 
+/* Landing hero: deep, cool green so the amber CTA is the only warm accent
+   above the fold. The old .hero-surface keeps its amber glow for the
+   logged-in dashboard header, where there is no competing CTA. */
+.hero-surface-deep {
+  background-color: #08301D;
+  background-image:
+    radial-gradient(55rem 38rem at 6% 106%, rgba(34, 163, 97, 0.30), transparent 62%),
+    radial-gradient(42rem 34rem at 94% 2%, rgba(21, 102, 62, 0.55), transparent 64%),
+    linear-gradient(168deg, #0F5537 0%, #0B3E28 52%, #07291A 100%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

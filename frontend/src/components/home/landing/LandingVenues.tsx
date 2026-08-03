@@ -9,11 +9,12 @@ import { sportEmoji } from '@/lib/sports';
 import type { Field } from '@/types';
 
 /**
- * "Popularne boiska" teaser on the homepage.
- * Wired to real fields from DB (public map_visibility only) instead of mock data.
- * Links to the real venue detail route /boisko/[slug].
+ * "Boiska w okolicy" proof section. Wired to real fields from DB
+ * (public map_visibility only), links to the real venue detail route
+ * /boisko/[slug]. Renders nothing if the query comes back empty — same
+ * rule as LandingOpenGames: no half-empty section on a cold database.
  */
-export default function FieldsTeaser() {
+export default function LandingVenues() {
   const [fields, setFields] = useState<Field[]>([]);
 
   useEffect(() => {
@@ -21,7 +22,6 @@ export default function FieldsTeaser() {
     getFields({ mapVisibility: 'public', limit: 8 })
       .then(({ fields }) => {
         if (cancelled) return;
-        // Prefer fields with a district + at least one sport, take first 4.
         const picked = fields
           .filter((f) => f.district && f.sport.length > 0)
           .slice(0, 4);
@@ -31,11 +31,10 @@ export default function FieldsTeaser() {
     return () => { cancelled = true; };
   }, []);
 
-  // Don't render an empty/half section if we couldn't load anything.
   if (fields.length === 0) return null;
 
   return (
-    <section className="bg-white px-4 py-16 sm:py-20">
+    <section className="bg-canvas px-4 py-16 sm:py-20">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -43,14 +42,14 @@ export default function FieldsTeaser() {
               Boiska w okolicy
             </span>
             <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              Gdzie można zagrać
+              Boiska, na których gra się w Poznaniu
             </h2>
           </div>
           <Link
             href="/mapa"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
           >
-            Cała mapa boisk <ArrowRight className="h-4 w-4" />
+            Cała mapa boisk <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
 
@@ -59,7 +58,7 @@ export default function FieldsTeaser() {
             <li key={f.id}>
               <Link
                 href={`/boisko/${slugify(f.name)}`}
-                className="block rounded-2xl border border-slate-200/80 bg-canvas p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover"
+                className="block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover"
               >
                 <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-primary-50 text-4xl">
                   {sportEmoji(f.sport[0] ?? 'inne')}
@@ -67,7 +66,7 @@ export default function FieldsTeaser() {
                 <h3 className="mt-4 truncate font-semibold text-ink" title={f.name}>{f.name}</h3>
                 {f.district && (
                   <p className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" /> {f.district}
+                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {f.district}
                   </p>
                 )}
                 <p className="mt-3 text-xs font-medium text-primary-700">
