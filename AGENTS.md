@@ -155,10 +155,18 @@ zmian. Gdy kod nie zgadza się z wizją, to kod nie nadążył: rozbieżność t
 
 ## Dane testowe
 
-`supabase/seed_test_data.sql` — 20 wydarzeń pokrywających wszystkie kombinacje ustawień.
+`supabase/seed_test_data.sql` — 25 wydarzeń pokrywających wszystkie kombinacje ustawień.
 Uruchamiany ręcznie w SQL Editor, bezpieczny do wielokrotnego użycia (czyści po markerze
 `[TEST]` w opisie). Konta testowe tworzy `supabase/seed-test-users.sql`
 (`test1..test10@example.com`, hasło `test1234`).
+
+`supabase/seed_test_groups.sql` — 4 grupy i 11 meczów **prywatnych** wokół przepływów
+grupowych: mecze ekipy na stronie głównej, zaproszenia, przypinanie meczu do grupy.
+Marker `[TEST-G]`. Wymaga konta `franekks@gmail.com` w `auth.users`.
+
+Komplet do postawienia bazy od zera: `supabase/bundles/` (3 paczki migracji + seedy),
+generowane przez `node scripts/build-db-bundles.mjs` — po dodaniu migracji uruchom
+ponownie i zacommituj wynik.
 
 ## Konwencje
 

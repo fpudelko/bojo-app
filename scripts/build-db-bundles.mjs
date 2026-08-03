@@ -79,7 +79,7 @@ for (const [i, part] of parts.entries()) {
 // --- Seedy ------------------------------------------------------------------
 // Kolejność ma znaczenie: boiska → konta → wydarzenia (te ostatnie odwołują się
 // do kont po e-mailu i wywalą się z wyjątkiem, jeśli konta nie istnieją).
-const seedFiles = ['seed-orliki.sql', 'seed-test-users.sql', 'seed_test_data.sql'];
+const seedFiles = ['seed-orliki.sql', 'seed-test-users.sql', 'seed_test_data.sql', 'seed_test_groups.sql'];
 
 // Konta organizatorów zakładane hasłem, bo świeży projekt nie ma jeszcze
 // skonfigurowanego Google OAuth, a seed_test_data.sql ich wymaga.
@@ -148,6 +148,7 @@ const seedHead = banner('BOJO — seedy (boiska, konta, wydarzenia testowe)', [
   '  2. konta testowe test1..test10@example.com, hasło test1234',
   '  3. konta organizatorów (hasło test1234) — tylko dla bazy deweloperskiej',
   '  4. 25 wydarzeń testowych pokrywających przepływy aplikacji',
+  '  5. 4 grupy + 11 meczów prywatnych (seed_test_groups.sql)',
   '',
   'Bezpieczny do wielokrotnego uruchamiania: istniejące konta są pomijane,',
   'a wydarzenia oznaczone [TEST] kasowane i tworzone od nowa.',
@@ -159,7 +160,7 @@ const seedsDir = join(root, 'supabase');
 const seedBody =
   concatFiles(seedsDir, seedFiles.slice(0, 2)) +
   devOrganizers +
-  concatFiles(seedsDir, seedFiles.slice(2));
+  concatFiles(seedsDir, seedFiles.slice(2));  // wydarzenia + grupy — wymagają kont powyżej
 
 writeFileSync(join(outDir, '04-seedy.sql'), seedHead + seedBody);
 console.log('04-seedy.sql: boiska + konta + wydarzenia testowe');
