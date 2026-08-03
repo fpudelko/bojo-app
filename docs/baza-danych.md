@@ -56,7 +56,8 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `notifications` | `025` | Powiadomienia in-app |
 | `event_comments` | `026` | Komentarze pod meczem |
 | `event_activity_log` | `026` | Log zdarzeń meczu |
-| `event_invites` | `036` | Zaproszenia na mecz |
+| `event_invites` | `036` | Zaproszenia na mecz po e-mailu — **martwa**, `lib/invites.ts` nie jest nigdzie importowany |
+| `event_player_invites` | `060` | Imienne zaproszenia użytkowników na mecz |
 | `groups` | `044` | Stałe ekipy |
 | `group_members` | `044` | Członkowie ekip |
 | `analytics_events` | `047` | Log akcji do analityki |

@@ -19,6 +19,7 @@ import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
 import EventComments from '@/components/events/EventComments';
+import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
@@ -348,6 +349,7 @@ export default function EventDetailClient() {
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   // Groups the viewer belongs to — the pool they can file this match under.
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -1962,9 +1964,32 @@ export default function EventDetailClient() {
 
         {/* ── Zaproś znajomych — tylko dla uczestników ── */}
         {event.joinCode && !isCancelled && (myParticipation || isOwner) && (
-          <div className="px-4">
+          <div className="space-y-3 px-4">
+            {/* Imienne zaproszenie z ekipy. Nad linkiem, bo trafia prosto do
+                aplikacji zapraszanego — link wklejony na czacie ginie. */}
+            {user && !eventStarted && (
+              <button
+                onClick={() => setInviteOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-semibold text-primary-800 hover:bg-primary-100"
+              >
+                <Users className="h-4 w-4" /> Zaproś z ekipy
+              </button>
+            )}
             <JoinCodePanel joinCode={event.joinCode} eventId={event.id} />
           </div>
+        )}
+
+        {inviteOpen && user && (
+          <InviteFromGroupDialog
+            eventId={event.id}
+            userId={user.id}
+            participantUserIds={participants.map((p) => p.userId).filter((id): id is string => !!id)}
+            onClose={() => setInviteOpen(false)}
+            onInvited={(count) => {
+              setInviteOpen(false);
+              toast(count === 0 ? 'Wszyscy wybrani mieli już zaproszenie' : `Zaproszono ${count}`);
+            }}
+          />
         )}
 
         {/* ── Organizator (zawsze na dole, widoczne dla wszystkich) ── */}

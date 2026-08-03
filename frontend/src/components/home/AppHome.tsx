@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { getPublicEvents, getMyParticipatedEvents, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
 import { useMyParticipation } from '@/lib/useMyParticipation';
 import { getMyGroups } from '@/lib/groups';
+import { getMyInvites, dismissInvite, type InviteWithEvent } from '@/lib/playerInvites';
 import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { isUpcoming, isEventJoinable } from '@/components/EventCard';
@@ -229,6 +230,56 @@ function MyGamesSection({ userId }: { userId: string }) {
   );
 }
 
+/** Imienne zaproszenia — najwyżej na stronie, bo ktoś czeka na odpowiedź.
+ *
+ *  Zaproszenia, na które użytkownik już odpowiedział (dołączył, rezerwa,
+ *  obserwuje), znikają stąd same: mecz jest wtedy w „Twoje najbliższe mecze"
+ *  i pokazywanie go drugi raz jako zaproszenia sugerowałoby, że coś jeszcze
+ *  trzeba zrobić. */
+function InvitesSection({ userId }: { userId: string }) {
+  const [items, setItems] = useState<InviteWithEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const statusFor = useMyParticipation();
+
+  useEffect(() => {
+    getMyInvites(userId)
+      .then((rows) => setItems(rows.filter(({ event }) => isUpcoming(event))))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const open = items.filter(({ event }) => {
+    const rel = statusFor(event);
+    return !rel || (rel.status === 'none' && !rel.isOrganizer);
+  });
+
+  if (loading || open.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Zaproszenia" count={open.length} />
+      <div className="space-y-3">
+        {open.slice(0, 3).map(({ invite, event }) => (
+          <div key={invite.id} className="space-y-1.5">
+            <EventBrowseCard event={event} relation={statusFor(event)} />
+            <button
+              onClick={() => {
+                // Optimistic: zaproszenie znika od razu, bo odrzucenie
+                // niczego nie psuje, a czekanie na sieć wygląda na zawiechę.
+                setItems((prev) => prev.filter((i) => i.invite.id !== invite.id));
+                dismissInvite(invite.id).catch(() => {});
+              }}
+              className="px-1 text-xs font-medium text-slate-400 hover:text-slate-600"
+            >
+              Nie tym razem
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Matches organised inside the user's groups that they haven't reacted to yet.
  *
  *  A group match is usually private, so before this section the only way in was
@@ -427,6 +478,7 @@ export default function AppHome({ userId }: { userId: string }) {
     <>
       <Hero />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
+        <InvitesSection userId={userId} />
         <MyGamesSection userId={userId} />
         <GroupGamesSection userId={userId} />
         <OpenGamesSection />

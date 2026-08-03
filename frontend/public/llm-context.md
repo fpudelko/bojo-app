@@ -4,7 +4,7 @@
 > baza ~1400 boisk i obiektów sportowych, mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy). Interfejs po polsku. Logowanie przez Google lub e-mail.
 
-**Stan na:** 2026-08-03 · migracja `059` · 29 tabel · 81 testów
+**Stan na:** 2026-08-03 · migracja `060` · 30 tabel · 81 testów
 
 ---
 
@@ -294,6 +294,19 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-03 — Imienne zaproszenia na mecz
+PROBLEM: zaproszenie na mecz istniało tylko jako link do wklejenia na czacie.
+Kto go przewinął, nie dowiadywał się o meczu, a organizator nie wiedział, kogo
+w ogóle zaprosił.
+ROZWIĄZANIE BOJO: na stronie meczu jest „Zaproś z ekipy" — organizator lub
+uczestnik wybiera swoją grupę i zaprasza całą albo zaznaczonych członków.
+Zaproszony widzi mecz w sekcji „Zaproszenia" na stronie głównej Bojo i odpowiada
+zwykłym „Dołączam" / „Obserwuję" albo chowa go przez „Nie tym razem".
+Zaproszenie NIE zajmuje miejsca w składzie i niczego nie przesądza.
+MECHANIKA: tabela `event_player_invites` (migracja `060`), `lib/playerInvites.ts`,
+`components/events/InviteFromGroupDialog.tsx`, sekcja `InvitesSection`
+w `components/home/AppHome.tsx`.
 
 ### 2026-08-03 — Mecze grupy na stronie głównej członka
 PROBLEM: mecz grupy jest zwykle prywatny, więc jedyną drogą do niego był link

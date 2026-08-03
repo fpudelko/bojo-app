@@ -9,7 +9,7 @@ import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus,
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toEvent(row: any): EventItem {
+export function toEvent(row: any): EventItem {
   return {
     id: row.id,
     organizerId: row.organizer_id,
