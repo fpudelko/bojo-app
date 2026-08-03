@@ -4,7 +4,7 @@
 > baza ~1400 boisk i obiektów sportowych, mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy). Interfejs po polsku. Logowanie przez Google lub e-mail.
 
-**Stan na:** 2026-08-03 · migracja `058` · 26 tabel · 81 testów
+**Stan na:** 2026-08-03 · migracja `059` · 29 tabel · 81 testów
 
 ---
 

@@ -121,6 +121,34 @@ ręcznie), ale nie blokuje kolejki. Goście bez konta są pomijani — nie mają
 
 ---
 
+## Propozycje składów
+
+Uczestnik może zaproponować podział na drużyny, reszta go popiera (👍), a organizator
+przenosi wybraną propozycję na realne składy (migracja `059`).
+
+**Propozycja niczego nie zmienia w składzie.** Dopóki organizator jej nie zatwierdzi,
+`event_participants.team` pozostaje nietknięte — propozycja żyje w osobnych tabelach
+(`team_proposals`, `team_proposal_picks`, `team_proposal_votes`).
+
+Podział ról:
+
+| | Organizator | Uczestnik |
+|---|---|---|
+| Panel realnych składów (`TeamsPanel`) | ✅ ustawia wprost | ❌ |
+| „Zaproponuj składy" | ❌ — nie musi, ustawia sam | ✅ dopóki składy nieopublikowane |
+| Poparcie propozycji (👍) | ✅ | ✅ |
+| „Zatwierdź" | ✅ wyłącznie on | ❌ |
+| Usunięcie propozycji | ✅ każdą (moderacja) | ✅ tylko własną |
+
+Zatwierdzenie idzie przez `accept_team_proposal(proposal_id)` (`SECURITY DEFINER`,
+sprawdza organizatora w środku): czyści poprzedni podział i wpisuje przypisania
+z propozycji, żeby zatwierdzony układ był pełnym obrazem, a nie nakładką.
+
+Jedna aktywna propozycja na osobę i mecz — kolejna zastępuje poprzednią, żeby lista
+nie zapełniła się wariantami tego samego autora.
+
+---
+
 ## RSVP „Obserwuję"
 
 W bazie to `rsvp = 'maybe'` (`049_participant_rsvp.sql`). Znaczenie:

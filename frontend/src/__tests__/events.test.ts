@@ -163,7 +163,8 @@ describe('removeParticipant', () => {
         onUpdate?.();
         return { eq: vi.fn().mockResolvedValue({ error: null }) };
       }),
-    } as unknown as ReturnType<typeof supabase.from>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
   }
 
   it('deletes the participant row', async () => {

@@ -17,6 +17,7 @@ import TimeSelect from '@/components/ui/TimeSelect';
 import CoverUpload from '@/components/ui/CoverUpload';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
+import TeamProposals from '@/components/events/TeamProposals';
 import EventComments from '@/components/events/EventComments';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -41,6 +42,11 @@ import type {
   PaymentMethod, SportsCardProvider,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import {
+  getTeamProposals, createTeamProposal, deleteTeamProposal,
+  voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
+  type TeamProposal,
+} from '@/lib/teamProposals';
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant } from '@/lib/payments';
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
@@ -339,6 +345,7 @@ export default function EventDetailClient() {
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
+  const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -357,6 +364,12 @@ export default function EventDetailClient() {
       setEvent(ev);
       setParticipants(parts);
       await loadMatchData(ev);
+      // Proposals only matter once the match actually uses teams.
+      if (ev.teamMode !== 'brak') {
+        getTeamProposals(id, user?.id).then(setProposals).catch(() => {});
+      } else {
+        setProposals([]);
+      }
       if (ev.groupId) {
         import('@/lib/groups').then(({ getGroup }) =>
           getGroup(ev.groupId!).then((g) => g && setGroupInfo({ id: g.id, name: g.name })).catch(() => {}),
@@ -369,7 +382,7 @@ export default function EventDetailClient() {
     } finally {
       setLoading(false);
     }
-  }, [id, loadMatchData]);
+  }, [id, loadMatchData, user?.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -488,6 +501,59 @@ export default function EventDetailClient() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
+  };
+
+  // --- Propozycje składów -------------------------------------------------
+  const reloadProposals = async () => {
+    try { setProposals(await getTeamProposals(event.id, user?.id)); } catch { /* ignore */ }
+  };
+
+  const handleProposeTeams = async (picks: Record<string, 'A' | 'B'>) => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await createTeamProposal(event.id, user.id, picks);
+      await reloadProposals();
+      toast('Propozycja wysłana — reszta może ją poprzeć');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleVoteProposal = async (proposalId: string) => {
+    if (!user) return;
+    setBusy(true);
+    try { await voteTeamProposal(proposalId, user.id); await reloadProposals(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const handleUnvoteProposal = async (proposalId: string) => {
+    if (!user) return;
+    setBusy(true);
+    try { await unvoteTeamProposal(proposalId, user.id); await reloadProposals(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const handleAcceptProposal = async (proposalId: string) => {
+    if (!confirm('Zatwierdzić tę propozycję? Zastąpi obecny podział na drużyny.')) return;
+    setBusy(true);
+    try {
+      await acceptTeamProposal(proposalId);
+      await load();
+      toast('Składy zatwierdzone');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleDeleteProposal = async (proposalId: string) => {
+    if (!confirm('Usunąć tę propozycję?')) return;
+    setBusy(true);
+    try { await deleteTeamProposal(proposalId); await reloadProposals(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
+    finally { setBusy(false); }
   };
 
   const handleJoin = async (asGoalkeeper = false) => {
@@ -1629,6 +1695,29 @@ export default function EventDetailClient() {
             onUnpublishTeams={handleUnpublishTeams}
             onDisableTeams={handleDisableTeams}
           />
+        )}
+
+        {/* Propozycje składów. Organizator ustawia drużyny wprost w panelu wyżej,
+            więc sam nie proponuje — widzi tylko cudze propozycje i „Zatwierdź".
+            Uczestnik odwrotnie: może zaproponować i poprzeć, ale nie tknie
+            realnego składu. Po opublikowaniu składów temat jest zamknięty. */}
+        {showTeams && !eventStarted && (
+          <div className="px-4">
+            <TeamProposals
+              proposals={proposals}
+              participants={regulars}
+              teamMode={event.teamMode}
+              isOrganizer={isOwner}
+              canPropose={!!user && !!myParticipation && !isOwner && !event.teamsPublished}
+              currentUserId={user?.id}
+              busy={busy}
+              onSubmit={handleProposeTeams}
+              onVote={handleVoteProposal}
+              onUnvote={handleUnvoteProposal}
+              onAccept={handleAcceptProposal}
+              onDelete={handleDeleteProposal}
+            />
+          </div>
         )}
 
         {/* Pre-match "result coming" note — only the organizer enters results */}

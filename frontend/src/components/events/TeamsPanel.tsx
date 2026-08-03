@@ -328,11 +328,17 @@ export interface TeamsPanelProps {
   onPublishTeams?: () => Promise<void>;
   onUnpublishTeams?: () => Promise<void>;
   onDisableTeams?: () => Promise<void>;
+  /** 'manage' = organizer editing the real squad. 'propose' = a participant
+   *  drafting a suggestion, which changes nothing until the organizer accepts
+   *  it — so the organizer-only chrome (publish state, disable) is hidden and
+   *  the heading says plainly that this is a proposal. */
+  variant?: 'manage' | 'propose';
 }
 
 export default function TeamsPanel({
   teamMode, teamA, teamB, unassigned, isOrganizer, teamsPublished, busy,
   onAssignTeam, onAssignRandom, onClearTeams, onToggleCaptain, onPublishTeams, onUnpublishTeams, onDisableTeams,
+  variant = 'manage',
 }: TeamsPanelProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -369,13 +375,15 @@ export default function TeamsPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
           <Shuffle className="w-4 h-4 text-slate-500" />
-          <h2 className="font-semibold text-slate-900">Składy</h2>
+          <h2 className="font-semibold text-slate-900">{variant === 'propose' ? 'Twoja propozycja' : 'Składy'}</h2>
           <span className="text-xs text-slate-400">({TEAM_MODE_LABELS[teamMode]})</span>
-          {teamsPublished ? (
+          {/* Publish state describes the real squad — meaningless for a draft
+              proposal, which changes nothing until the organizer accepts it. */}
+          {variant === 'manage' && (teamsPublished ? (
             <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">opublikowane</span>
           ) : isOrganizer ? (
             <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">robocze</span>
-          ) : null}
+          ) : null)}
         </div>
 
         {/* Balance badge */}
@@ -390,7 +398,7 @@ export default function TeamsPanel({
       </div>
 
       {/* Publish toggle */}
-      {isOrganizer && (onPublishTeams || onUnpublishTeams) && (
+      {variant === 'manage' && isOrganizer && (onPublishTeams || onUnpublishTeams) && (
         <button
           type="button"
           onClick={() => teamsPublished ? onUnpublishTeams?.() : onPublishTeams?.()}
