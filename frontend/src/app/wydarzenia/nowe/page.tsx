@@ -150,8 +150,8 @@ function NewEventForm() {
 
           <ul className="mt-5 grid gap-2 text-sm text-slate-700">
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Lista zapisów aktualizuje się na żywo</li>
-            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Przypomnienia o meczu dla wszystkich uczestników</li>
-            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Brakujące miejsca? Zapiszą się chętni z okolicy.</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Skład, rezerwa i podział kosztów liczą się same</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Otwórz mecz publicznie, a zobaczą go gracze z Poznania</li>
           </ul>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
@@ -162,7 +162,7 @@ function NewEventForm() {
               <div className="min-w-0">
                 <p className="font-semibold text-ink">Zaloguj się, żeby opublikować mecz</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Logujesz się przez Google — bez rejestracji.
+                  Google, e-mail albo link bez hasła.
                 </p>
               </div>
             </div>

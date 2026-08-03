@@ -112,6 +112,11 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
 - [ ] **Build w CI** — po dodaniu sekretów `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` do
       repo dołożyć `npm run build` do `.github/workflows/ci.yml` (dziś build wymaga
       kluczy i dlatego jest poza CI).
+- [ ] **Sesja w cookie zamiast localStorage** (`@supabase/ssr` + `middleware.ts`) —
+      dziś serwer nie wie, kto ogląda `/`, więc rozróżnienie landing/dashboard dzieje
+      się po stronie klienta (`HomeSwitch.tsx`). Skutek: zalogowany użytkownik widzi
+      na moment landing zamiast dashboardu, zanim `useAuth()` odczyta sesję. Sesja
+      w cookie usunęłaby to mignięcie i otworzyłaby drogę do prawdziwego SSR redirectu.
 
 ### Bezpieczeństwo (wdrożone — pilnować)
 - Telefony i e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
@@ -156,16 +161,17 @@ Warstwa techniczna (JSON-LD, canonical, robots, sitemap, metadata) jest w kodzie
 Poniższe wymagają pisania treści lub działań poza repo — wg badań GEO (Princeton,
 KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 
-- [ ] **Sekcja FAQ na stronie głównej** — widoczne pytania i odpowiedzi („Jak znaleźć
-      grę w Poznaniu?", „Czy Bojo jest darmowe?", „Jak zorganizować mecz?"), dopiero
-      wtedy FAQPage schema. Zapytania „jak działa X" to główny wyzwalacz AI Overviews.
-      Schema bez pasującej widocznej treści = ryzyko, nie zysk — dlatego nie weszła
-      do kodu od razu.
+- [x] **Sekcja FAQ na stronie głównej** — widoczne pytania i odpowiedzi z FAQPage
+      schema, dodane w ramach redesignu landingu (2026-08-03):
+      `components/home/landing/{LandingFaq,content}.tsx`, `lib/structuredData.ts`
+      (`faqJsonLd`). Treść widoczna i schema dzielą jedno źródło (`LANDING_FAQ`),
+      pilnowane testem `src/__tests__/landingContent.test.ts`.
 - [ ] **Strona `/o-nas`** (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt.
       Sygnał wiarygodności ważony przez Google i silniki generatywne.
-- [ ] **Dane własne jako treść** (GEO: statystyki podnoszą cytowalność ~40%) — liczby
-      z własnej bazy: „X boisk w Poznaniu, Y meczów w tym miesiącu, najpopularniejszy
-      sport to Z". Strona lub sekcja statystyk odświeżana z bazy.
+- [x] **Dane własne jako treść** (GEO: statystyki podnoszą cytowalność ~40%) — sekcja
+      `LandingStats` na stronie głównej liczy boiska w bazie przy renderze
+      (`lib/landingStats.ts`, `getPublicVenueCount()`), zaokrąglone w dół do pełnych 50,
+      żeby liczba nigdy nie zawyżała stanu faktycznego.
 - [ ] **Obecność zewnętrzna / backlinki** — profile w katalogach, grupy FB, prasa
       lokalna, współprace z obiektami. Najsilniejszy sygnał klasycznego SEO; buduje
       się miesiącami, poza repo.

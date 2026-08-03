@@ -1,16 +1,20 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import Header from '@/components/layout/Header';
-import HomeHero from '@/components/home/HomeHero';
-import TrustBar from '@/components/home/TrustBar';
-import { SHOW_RECURRING } from '@/lib/features';
+import SiteFooter from '@/components/layout/SiteFooter';
+import HomeSwitch from '@/components/home/HomeSwitch';
+import Landing from '@/components/home/landing/Landing';
+import { LANDING_FAQ } from '@/components/home/landing/content';
+import { getPublicVenueCount } from '@/lib/landingStats';
+import { faqJsonLd } from '@/lib/structuredData';
 
 // Title/description come from the root layout; only the canonical is local.
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const venueCount = await getPublicVenueCount();
+
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <a
@@ -22,26 +26,16 @@ export default function HomePage() {
       <Header />
 
       <main id="main" className="flex-1">
-        <HomeHero />
-        <TrustBar />
+        <HomeSwitch landing={<Landing venueCount={venueCount} />} />
       </main>
 
-      <footer className="bg-slate-900 px-4 py-10 text-slate-400">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
-            <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź mecz</Link>
-            <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>
-            <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
-            {SHOW_RECURRING && (
-              <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
-            )}
-            <span className="hidden text-slate-600 md:inline">·</span>
-            <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
-            <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
+
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(LANDING_FAQ)) }}
+      />
     </div>
   );
 }

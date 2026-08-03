@@ -15,7 +15,7 @@ działa, ale flaga ukryła wejścia w nawigacji — pełna tabela flag w
 
 | Strona | Co robi | Widoczne? |
 |---|---|---|
-| **Start** (`/`) | Strona główna — sporty, najbliższe mecze, „jak to działa" | tak |
+| **Start** (`/`) | Niezalogowani: landing (obietnica + „jak to działa" + otwarte mecze + FAQ). Zalogowani: dashboard — najbliższe mecze, otwarte mecze, grupy | tak |
 | **Mapa** (`/mapa`) | Interaktywna mapa z dwiema zakładkami: **Boiska** i **Mecze**. Filtry po sporcie, dostępności, nawierzchni. Klik w pinezkę → szczegóły | tak |
 | **Boiska wg sportu** (`/boiska/pilka-nozna`) | Lista boisk dla danego sportu (przyjazne adresy pod Google) | tak |
 | **Szczegóły boiska** (`/boisko/...`) | Adres, sporty, zdjęcie, opis, dane kontaktowe, nadchodzące mecze. Strona zoptymalizowana pod wyszukiwarki (JSON-LD) | tak |

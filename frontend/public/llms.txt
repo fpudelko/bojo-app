@@ -13,7 +13,7 @@
 
 ## Dla graczy
 
-- [Strona główna](/): sporty, najbliższe mecze
+- [Strona główna](/): jak zorganizować mecz, otwarte gry w Poznaniu, FAQ
 - [Mapa boisk i meczów](/mapa): filtry po sporcie, nawierzchni, dzielnicy
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność

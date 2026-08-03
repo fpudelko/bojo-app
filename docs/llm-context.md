@@ -295,6 +295,18 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-03 — Landing page mobile-first dla niezalogowanych
+PROBLEM: strona główna była dashboardem pokazywanym też gościom — bez CTA nad
+foldem, z identycznym copy dla zalogowanych i niezalogowanych, i z klientowym
+feedem, który przy pustej bazie renderował „Brak wolnych miejsc".
+ROZWIĄZANIE BOJO: serwerowo renderowany landing dla niezalogowanych (obietnica
+„zbierz skład w dwie minuty", jeden główny CTA, dowód w postaci otwartych gier
+i boisk, FAQ z JSON-LD, sticky CTA na mobile). Zalogowani widzą dotychczasowy
+dashboard bez zmian w zachowaniu.
+MECHANIKA: `components/home/landing/*`, `components/home/{AppHome,HomeSwitch}.tsx`,
+`components/layout/SiteFooter.tsx`, `lib/landingStats.ts` (`getPublicVenueCount`),
+`lib/structuredData.ts` (`faqJsonLd`), `app/page.tsx`.
+
 ### 2026-08-03 — Kontekst RAG dla modeli językowych
 PROBLEM: modele odpowiadające na pytania o bojo.pl nie miały gęstego, faktograficznego
 opisu produktu; `llms.txt` był indeksem bez pliku szczegółowego, do którego mógłby odesłać.
