@@ -91,12 +91,33 @@ Konsekwencje:
 - Limit bramkarzy (`max_goalkeepers`, domyślnie 2, tylko gdy `goalkeepers_enabled`)
   spycha nadmiarowych na rezerwę.
 
-### Brak auto-awansu z listy rezerwowej
+### Zwolnione miejsce: oferta, nie auto-awans
 
-Gdy ktoś się wypisze, rezerwowy **nie wskakuje automatycznie** na jego miejsce. Ktoś musi
-go powiadomić ręcznie.
+Gdy ktoś się wypisze, rezerwowy **nie wskakuje automatycznie**. Miejsce zostaje
+**zaproponowane** pierwszej osobie z rezerwy, która musi sama kliknąć **„Wchodzę"**
+albo **„Odpuszczam"**.
 
-**To świadoma decyzja produktowa, nie luka. Nie „naprawiać".**
+**Nikt nigdy nie trafia do składu po cichu** — to świadoma decyzja produktowa.
+Nie zamieniać tego na automatyczny awans.
+
+Mechanika (migracja `058`):
+
+| Element | Gdzie |
+|---|---|
+| Okno na decyzję | `events.reserve_claim_hours` (1–72 h, domyślnie 3) |
+| Aktywna oferta | `event_participants.claim_offered_at` |
+| Przepuścił (odrzucił lub nie zdążył) | `event_participants.claim_passed` |
+| Utrzymanie kolejki | funkcja `sync_reserve_claim(event_id)`, `SECURITY DEFINER` |
+
+Kolejka rusza się przy **wejściu na stronę meczu** — nie ma backendu ani crona, więc
+`sync_reserve_claim` jest wołane z klienta (`syncReserveClaim` w `lib/events.ts`) i musi
+być idempotentne. Funkcja wygasza przeterminowaną ofertę i przekazuje miejsce dalej.
+
+Miejsce pod aktywną ofertą **liczy się jako zajęte** — ktoś z zewnątrz nie podbierze go
+rezerwowemu w trakcie jego okna (`joinEvent` dolicza oferty do zajętości).
+
+Osoba, która przepuściła, **zostaje na liście** (organizator wciąż może ją awansować
+ręcznie), ale nie blokuje kolejki. Goście bez konta są pomijani — nie mają jak kliknąć.
 
 ---
 

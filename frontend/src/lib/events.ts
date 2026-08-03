@@ -45,6 +45,7 @@ function toEvent(row: any): EventItem {
     requireApproval: row.require_approval ?? false,
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
+    reserveClaimHours: row.reserve_claim_hours ?? 3,
     acceptedPaymentMethods: row.accepted_payment_methods ?? [],
     blikPhone: row.blik_phone ?? undefined,
     acceptedSportsCards: row.accepted_sports_cards ?? [],
@@ -82,6 +83,8 @@ function toParticipant(row: any): EventParticipant {
     isGoalkeeper: row.is_goalkeeper ?? false,
     pendingApproval: row.pending_approval ?? false,
     rsvp: row.rsvp ?? 'yes',
+    claimOfferedAt: row.claim_offered_at ?? undefined,
+    claimPassed: row.claim_passed ?? false,
     paymentMethod: row.payment_method ?? undefined,
     hasSportsCard: row.has_sports_card ?? false,
     sportsCardProvider: row.sports_card_provider ?? undefined,
@@ -153,6 +156,7 @@ export async function createEvent(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
+      reserve_claim_hours: data.reserveClaimHours ?? 3,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -229,6 +233,7 @@ export async function updateEvent(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
+      reserve_claim_hours: data.reserveClaimHours ?? 3,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -358,8 +363,14 @@ export async function joinEvent(
 
   const safeName = validateName(name, 'Imię', 80);
 
-  // Check if event is full (non-reserve participant count vs max_players)
-  const [{ data: ev }, { count }] = await Promise.all([
+  // Make sure any expired reserve offer has lapsed before we measure capacity,
+  // otherwise a stale hold would push a new joiner onto the reserve for nothing.
+  await runSyncReserveClaim(eventId);
+
+  // Check if event is full (non-reserve participant count vs max_players).
+  // A spot currently offered to someone on the reserve counts as taken — it's
+  // being held for them until their window runs out.
+  const [{ data: ev }, { count }, { count: heldCount }] = await Promise.all([
     supabase.from('events').select('max_players, require_approval, max_goalkeepers').eq('id', eventId).single(),
     supabase
       .from('event_participants')
@@ -367,12 +378,17 @@ export async function joinEvent(
       .eq('event_id', eventId)
       .eq('is_reserve', false)
       .eq('pending_approval', false),
+    supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .not('claim_offered_at', 'is', null),
   ]);
 
   // When the organizer requires approval, the join lands as a pending request
   // (not counted toward capacity); reserve status is decided on approval.
   const needsApproval = ev?.require_approval ?? false;
-  const taken = count ?? 0;
+  const taken = (count ?? 0) + (heldCount ?? 0);
   let isReserve = needsApproval ? false : taken >= (ev?.max_players ?? 999);
 
   // Goalkeeper cap: extra goalkeepers overflow to the reserve list.
@@ -498,12 +514,60 @@ export async function addGuest(
   return { isReserve: reserve };
 }
 
+/** Best-effort queue upkeep. Never let a failure here break the caller's main
+ *  action — the next page load will retry it anyway. */
+async function runSyncReserveClaim(eventId: string): Promise<void> {
+  try {
+    await supabase.rpc('sync_reserve_claim', { p_event_id: eventId });
+  } catch {
+    /* ignore — idempotent, retried on next load */
+  }
+}
+
 export async function removeParticipant(participantId: string): Promise<void> {
-  // Deliberately NO auto-promotion from the reserve list: when a spot frees up
-  // the organizer decides who moves in. A reserve should never silently become
-  // a regular — someone must notice or be told, so nobody assumes they're in.
+  // Deliberately NO silent auto-promotion: a freed spot is *offered* to the
+  // first reserve, who must accept it themselves (see sync_reserve_claim /
+  // acceptReserveClaim). Nobody ever wakes up already in the squad.
+  const { data: row } = await supabase
+    .from('event_participants')
+    .select('event_id')
+    .eq('id', participantId)
+    .maybeSingle();
+
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
   if (error) throw new Error(error.message);
+
+  // Hand the freed spot to the queue right away, so the first reserve sees the
+  // offer without waiting for someone else to open the page.
+  if (row?.event_id) {
+    await runSyncReserveClaim(row.event_id);
+  }
+}
+
+/** Bring the reserve queue up to date: lapse expired offers, hand a free spot
+ *  to the next person. Safe to call on every event-page load — idempotent. */
+export async function syncReserveClaim(eventId: string): Promise<void> {
+  await runSyncReserveClaim(eventId);
+}
+
+/** Reserve accepts the offered spot and joins the squad. */
+export async function acceptReserveClaim(participantId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ is_reserve: false, claim_offered_at: null, claim_passed: false })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
+}
+
+/** Reserve passes on the offered spot. They stay on the list (the organizer can
+ *  still promote them by hand) but stop blocking the queue. */
+export async function declineReserveClaim(participantId: string, eventId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ claim_offered_at: null, claim_passed: true })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
+  await runSyncReserveClaim(eventId);
 }
 
 export async function togglePayment(participantId: string, hasPaid: boolean): Promise<void> {
@@ -663,6 +727,7 @@ export async function repeatEvent(
       costGrosze: source.costGrosze,
       maxGoalkeepers: source.maxGoalkeepers,
       goalkeepersEnabled: source.goalkeepersEnabled,
+      reserveClaimHours: source.reserveClaimHours,
       acceptedPaymentMethods: source.acceptedPaymentMethods,
       blikPhone: source.blikPhone,
       acceptedSportsCards: source.acceptedSportsCards,

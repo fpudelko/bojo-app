@@ -61,6 +61,7 @@ export default function EditEventPage() {
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
+  const [reserveClaimHours, setReserveClaimHours] = useState(3);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -99,6 +100,7 @@ export default function EditEventPage() {
         setEndTime(ev.endTime?.slice(0, 5) ?? '');
         setMaxPlayers(ev.maxPlayers);
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
+        setReserveClaimHours(ev.reserveClaimHours ?? 3);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
@@ -178,6 +180,7 @@ export default function EditEventPage() {
         maxPlayers,
         maxGoalkeepers: 2,
         goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+        reserveClaimHours,
         visibility,
         requireApproval,
         requireSmsConfirmation,
@@ -340,6 +343,28 @@ export default function EditEventPage() {
               </button>
             </div>
           )}
+
+          {/* Ile czasu ma rezerwowy na przyjęcie zwolnionego miejsca */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Czas na decyzję z rezerwy
+            </label>
+            <p className="text-xs text-slate-500 mb-2">
+              Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma
+              na kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
+            </p>
+            <select
+              value={reserveClaimHours}
+              onChange={(e) => setReserveClaimHours(Number(e.target.value))}
+              className="w-full max-w-[180px] border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value={1}>1 godzina</option>
+              <option value={3}>3 godziny</option>
+              <option value={6}>6 godzin</option>
+              <option value={12}>12 godzin</option>
+              <option value={24}>24 godziny</option>
+            </select>
+          </div>
 
           {/* Title */}
           <div>

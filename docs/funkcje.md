@@ -83,8 +83,9 @@ o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w kodzie — jeśli piszesz dokumentację
 albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 
-- **Auto-awans z listy rezerwowej.** Świadoma decyzja produktowa
-  ([domena.md](./domena.md#brak-auto-awansu-z-listy-rezerwowej)). Nie „naprawiać".
+- **Auto-awans z listy rezerwowej.** Zwolnione miejsce jest **oferowane** pierwszej
+  osobie z rezerwy, która musi je sama przyjąć — nikt nie trafia do składu po cichu
+  ([domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans)). Nie „naprawiać".
 - **Trzeci poziom widoczności meczu** („widoczne dla grupy"). `events.visibility` to
   wyłącznie `private` / `public`.
 - **Powiadomienie dla członków grupy o nowej grze.**

@@ -27,6 +27,7 @@ import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
   approveParticipant, rejectParticipant,
+  syncReserveClaim, acceptReserveClaim, declineReserveClaim,
 } from '@/lib/events';
 import {
   updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
@@ -348,6 +349,10 @@ export default function EventDetailClient() {
 
   const load = useCallback(async () => {
     try {
+      // Move the reserve queue along before reading: lapses an expired offer and
+      // hands a free spot to the next person. There's no cron, so any page view
+      // is what keeps the queue honest.
+      await syncReserveClaim(id);
       const { event: ev, participants: parts } = await getEvent(id);
       setEvent(ev);
       setParticipants(parts);
@@ -408,6 +413,11 @@ export default function EventDetailClient() {
   const myParticipation = myConfirmed;
   // My row whichever way I'm in — confirmed or "maybe" (used by the leave dialog).
   const myEntry = myConfirmed ?? myMaybe;
+  // A freed spot currently offered to me (I'm on the reserve and it's my turn).
+  const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
+  const claimDeadline = myClaimOffer?.claimOfferedAt
+    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimHours * 3600_000)
+    : null;
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
   const eventLoc = eventLocation(event);
@@ -450,6 +460,31 @@ export default function EventDetailClient() {
       await confirmFromMaybe(myMaybe.id, event.id);
       await load();
       toast('Potwierdzono udział!');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleAcceptClaim = async () => {
+    if (!myClaimOffer) return;
+    setBusy(true);
+    try {
+      await acceptReserveClaim(myClaimOffer.id);
+      await load();
+      toast('Jesteś w składzie! ⚽');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const handleDeclineClaim = async () => {
+    if (!myClaimOffer) return;
+    if (!confirm('Odpuszczasz to miejsce? Przejdzie do kolejnej osoby z rezerwy.')) return;
+    setBusy(true);
+    try {
+      await declineReserveClaim(myClaimOffer.id, event.id);
+      await load();
+      toast('Miejsce przeszło do kolejnej osoby');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1214,6 +1249,36 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        {/* ── OFERTA MIEJSCA Z REZERWY — tylko dla osoby, której dotyczy ── */}
+        {myClaimOffer && !eventStarted && (
+          <div className="px-4">
+            <div className="rounded-2xl border-2 border-green-300 bg-green-50 p-4">
+              <p className="text-sm font-bold text-green-900">Zwolniło się miejsce — jesteś następny!</p>
+              <p className="mt-0.5 text-xs text-green-800">
+                {claimDeadline
+                  ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby.</>
+                  : <>Potwierdź, żeby wejść do składu.</>}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={handleAcceptClaim}
+                  disabled={busy}
+                  className="flex-1 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50"
+                >
+                  Wchodzę
+                </button>
+                <button
+                  onClick={handleDeclineClaim}
+                  disabled={busy}
+                  className="rounded-xl border border-green-300 px-3 py-2.5 text-sm font-medium text-green-800 transition hover:bg-green-100 disabled:opacity-50"
+                >
+                  Odpuszczam
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── OBSERVING BANNER — RSVP "maybe": watching, not signed up ── */}
         {user && myMaybe && !eventStarted && (
           <div className="px-4">
@@ -1496,6 +1561,16 @@ export default function EventDetailClient() {
                     <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
                     <span className="truncate max-w-[160px]">{p.name}</span>
                     {p.isGuest && <span className="text-xs text-slate-400 shrink-0">(gość)</span>}
+                    {p.claimOfferedAt && (
+                      <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                        czeka na decyzję
+                      </span>
+                    )}
+                    {p.claimPassed && !p.claimOfferedAt && (
+                      <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                        przepuścił(a)
+                      </span>
+                    )}
                   </span>
                   {p.userId === user?.id ? (
                     <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Zrezygnuj z rezerwy">

@@ -185,6 +185,8 @@ export interface EventItem {
   maxGoalkeepers: number;
   /** Whether the goalkeeper / field-player distinction is used at all. */
   goalkeepersEnabled: boolean;
+  /** How long a reserve has to accept a freed spot before it passes on. */
+  reserveClaimHours: number;
   /** Ways participants may pay when the match costs money. */
   acceptedPaymentMethods: PaymentMethod[];
   /** Phone number for BLIK transfers — shown when 'blik' is accepted. */
@@ -222,6 +224,12 @@ export interface EventParticipant {
   pendingApproval: boolean;
   /** 'yes' = confirmed spot; 'maybe' = interested, doesn't take a capacity slot. */
   rsvp: 'yes' | 'maybe';
+  /** Set when a freed spot has been offered to this reserve. Null = no pending
+   *  offer. The window length is `event.reserveClaimHours`. */
+  claimOfferedAt?: string;
+  /** True once they declined the offer or let the window lapse. Stays on the
+   *  reserve list (organizer can still promote by hand) but skipped by the queue. */
+  claimPassed: boolean;
   /** How this participant intends to pay (chosen when joining a paid match). */
   paymentMethod?: PaymentMethod;
   /** Whether they hold one of the event's accepted sports cards. */
@@ -257,6 +265,7 @@ export interface EventCreate {
   groupId?: string;
   maxGoalkeepers?: number;
   goalkeepersEnabled?: boolean;
+  reserveClaimHours?: number;
   acceptedPaymentMethods?: PaymentMethod[];
   blikPhone?: string;
   acceptedSportsCards?: SportsCardProvider[];

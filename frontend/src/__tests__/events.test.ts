@@ -102,10 +102,11 @@ describe('joinEvent', () => {
   it('adds participant as non-reserve when slots available', async () => {
     const { supabase } = await import('@/lib/supabase');
 
-    // joinEvent calls supabase.from() 3 times:
-    //   1. events → .select().eq().single() → { max_players: 10 }
-    //   2. event_participants → .select({count}).eq().eq().eq() → { count: 5 }
-    //   3. event_participants → .insert() → { error: null }
+    // joinEvent queries:
+    //   events            → .select().eq().single() → { max_players: 10 }
+    //   event_participants → taken count:  .select({count}).eq().eq().eq()
+    //   event_participants → held count:   .select({count}).eq().not()
+    //   event_participants → .insert()
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'events') {
         return {
@@ -117,11 +118,15 @@ describe('joinEvent', () => {
           }),
         } as unknown as ReturnType<typeof supabase.from>;
       }
-      // event_participants count query chains three .eq() filters
-      // (event_id, is_reserve, pending_approval), then resolves.
+      // The taken-count query chains three .eq() filters (event_id, is_reserve,
+      // pending_approval). The held-count query chains .eq() then .not() for
+      // spots currently offered to someone on the reserve — none here.
       const thirdEq = vi.fn().mockResolvedValue({ count: 5, error: null });
       const secondEq = vi.fn().mockReturnValue({ eq: thirdEq });
-      const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
+      const firstEq = vi.fn().mockReturnValue({
+        eq: secondEq,
+        not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+      });
       return {
         ...mockChain,
         select: vi.fn().mockReturnValue({ eq: firstEq }),
@@ -142,31 +147,44 @@ describe('joinEvent', () => {
 // removeParticipant
 // ---------------------------------------------------------------------------
 describe('removeParticipant', () => {
+  // removeParticipant: reads event_id, deletes the row, then nudges the reserve
+  // queue so the freed spot gets offered to the next person.
+  function mockRemoveChain(onDelete?: () => void, onUpdate?: () => void) {
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: { event_id: 'event-1' }, error: null }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockImplementation(() => { onDelete?.(); return Promise.resolve({ error: null }); }),
+      }),
+      update: vi.fn().mockImplementation(() => {
+        onUpdate?.();
+        return { eq: vi.fn().mockResolvedValue({ error: null }) };
+      }),
+    } as unknown as ReturnType<typeof supabase.from>;
+  }
+
   it('deletes the participant row', async () => {
     const { supabase } = await import('@/lib/supabase');
-
-    // removeParticipant just deletes: .delete().eq()
     let deleteWasCalled = false;
-    vi.mocked(supabase.from).mockImplementation(() => ({
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockImplementation(() => { deleteWasCalled = true; return Promise.resolve({ error: null }); }),
-      }),
-    } as unknown as ReturnType<typeof supabase.from>));
+    vi.mocked(supabase.from).mockImplementation(() => mockRemoveChain(() => { deleteWasCalled = true; }));
 
     await expect(removeParticipant('participant-1')).resolves.toBeUndefined();
     expect(deleteWasCalled).toBe(true);
   });
 
-  it('does NOT auto-promote a reserve (organizer decides who moves in)', async () => {
+  it('does NOT promote a reserve directly — it only asks the queue to offer the spot', async () => {
     const { supabase } = await import('@/lib/supabase');
-
     let updateWasCalled = false;
-    vi.mocked(supabase.from).mockImplementation(() => ({
-      delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      update: vi.fn().mockImplementation(() => { updateWasCalled = true; return { eq: vi.fn().mockResolvedValue({ error: null }) }; }),
-    } as unknown as ReturnType<typeof supabase.from>));
+    vi.mocked(supabase.from).mockImplementation(() => mockRemoveChain(undefined, () => { updateWasCalled = true; }));
 
     await removeParticipant('participant-1');
+
+    // Nobody is written into the squad here: the spot is merely offered, and
+    // the reserve has to accept it themselves.
     expect(updateWasCalled).toBe(false);
+    expect(mockRpc).toHaveBeenCalledWith('sync_reserve_claim', { p_event_id: 'event-1' });
   });
 });

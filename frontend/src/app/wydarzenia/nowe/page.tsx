@@ -70,6 +70,7 @@ function NewEventForm() {
   const [endTime, setEndTime] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
+  const [reserveClaimHours, setReserveClaimHours] = useState(3);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -241,6 +242,7 @@ function NewEventForm() {
           maxPlayers,
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+          reserveClaimHours,
           visibility,
           requireSmsConfirmation: false,
           trackAttendance,
@@ -533,6 +535,28 @@ function NewEventForm() {
                   </button>
                 </div>
               )}
+
+              {/* Ile czasu ma rezerwowy na przyjęcie zwolnionego miejsca */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Czas na decyzję z rezerwy
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma
+                  na kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
+                </p>
+                <select
+                  value={reserveClaimHours}
+                  onChange={(e) => setReserveClaimHours(Number(e.target.value))}
+                  className={`${inputCls} max-w-[160px]`}
+                >
+                  <option value={1}>1 godzina</option>
+                  <option value={3}>3 godziny</option>
+                  <option value={6}>6 godzin</option>
+                  <option value={12}>12 godzin</option>
+                  <option value={24}>24 godziny</option>
+                </select>
+              </div>
 
               {/* Cost per player */}
               <div>
