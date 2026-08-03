@@ -32,52 +32,12 @@ czego użytkownik nie znajdzie w interfejsie.
 
 ---
 
-## Funkcje dla gracza
+## Gdzie jest spis tras
 
-| Funkcja | Trasy | Logika | Widoczne? |
-|---|---|---|---|
-| Strona główna | `/` | `SportsSectionWithCounts`, `HomeHero` | tak |
-| Mapa boisk i meczów | `/mapa` | `VenueExplorer.tsx`, `lib/fieldFilters.ts` | tak |
-| Boiska wg sportu | `/boiska/[sport]` | `lib/api.ts`, `lib/sports.ts` | tak |
-| Szczegóły boiska | `/boisko/[id]` | `lib/api.ts` | tak (JSON-LD) |
-| Lista meczów | `/wydarzenia` | `getPublicEvents`, `getNearbyEvents` | tak |
-| Tworzenie meczu | `/wydarzenia/nowe` | `createEvent` | tak |
-| Szczegóły meczu | `/wydarzenia/[id]` | `EventDetailClient.tsx`, `lib/eventFeatures.ts` | tak |
-| Edycja meczu | `/wydarzenia/[id]/edytuj` | `updateEvent`, `saveEventAdvancedSettings` | tak |
-| Wejście po kodzie | `/d/[code]` | `getEventByJoinCode` | tak (przez link) |
-| Moje gry | `/moje-gry` | `getMyEvents`, `getMyParticipatedEvents` | tak |
-| Grupy | `/grupy`, `/grupy/[id]`, `/grupy/nowe`, `/grupy/[id]/edytuj` | `lib/groups.ts` | tak |
-| Wejście do grupy po kodzie | `/g/[code]` | `getGroupByCode` | tak (przez link) |
-| Profil gracza | `/gracz/[id]` | `lib/players.ts` | tak |
-| Własny profil | `/profil` | `lib/auth.tsx` | tak |
-| Logowanie | `/logowanie`, `/auth/callback`, `/auth/reset` | `lib/auth.tsx` | tak |
-| Regulaminy | `/regulamin`, `/prywatnosc` | — | tak |
-| **Gry cykliczne** | `/cykliczne`, `/cykliczne/[id]`, `/cykliczne/nowe`, `/cykliczne/[id]/edytuj` | `lib/recurring.ts` | **nie — `SHOW_RECURRING`** |
-| **Turniej** | `/turniej`, `/turniej/rejestracja`, `/turniej/drabinka`, `/turniej/druzyna/[teamId]`, `/turniej/druzyna/[teamId]/dolacz` | `lib/tournaments.ts` | **nie — `SHOW_CUP`** |
-| **Rezerwacje (gracz)** | `/rezerwacje` | `lib/bookings.ts` | **nie — `FEATURE_RESERVATIONS`** |
-
-⚠️ **`/gracze` to `redirect('/wydarzenia')`** — nie ma listy graczy, mimo że trasa istnieje.
-
-## Funkcje dla menedżera obiektu
-
-| Funkcja | Trasy | Widoczne? |
-|---|---|---|
-| Moje obiekty, dodawanie | `/obiekt`, `/obiekt/nowe` | **nie — `FEATURE_RESERVATIONS`** |
-| Pulpit obiektu | `/obiekt/[id]` | j.w. |
-| Harmonogram, cennik, rezerwacje | `/obiekt/[id]/{harmonogram,cennik,rezerwacje}` | j.w. |
-
-## Funkcje admina
-
-Admin = `profiles.is_admin = true`.
-
-| Funkcja | Trasa | Logika |
-|---|---|---|
-| Przegląd | `/admin/przeglad` | `lib/admin.ts` |
-| Użytkownicy | `/admin/uzytkownicy` | `lib/admin.ts` |
-| Analityka | `/admin/analityka` | `lib/analytics.ts` |
-| Moderacja boisk | `/admin/moderacja` | `lib/admin.ts` |
-| **CRM kontaktu z obiektami** | `/admin/outreach` | `lib/outreach.ts` |
-| Boisko / rezerwacje obiektu | `/admin/boisko/[id]`, `/admin/[fieldId]` | `lib/bookings.ts` |
+Celowo nie utrzymujemy tu inwentarza tras i komponentów — agent znajdzie je szybciej
+przez `frontend/src/app/**` niż w tabeli, która by się zestarzała. Ludzki opis funkcji
+z trasami: [PRZEWODNIK.md](../PRZEWODNIK.md). Admin = `profiles.is_admin = true`,
+panel pod `/admin/*` (CRM kontaktu z obiektami: `/admin/outreach`, logika `lib/outreach.ts`).
 
 ---
 

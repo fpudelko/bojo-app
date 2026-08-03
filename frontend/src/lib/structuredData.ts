@@ -106,6 +106,26 @@ export function eventJsonLd(
   };
 }
 
+/**
+ * Breadcrumb trail. Per Google's spec the last element (the current page)
+ * carries no `item` URL — pass it with `path` omitted.
+ */
+export function breadcrumbsJsonLd(
+  items: { name: string; path?: string }[],
+  base: string = SITE_URL,
+) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      ...(it.path ? { item: `${base}${it.path}` } : {}),
+    })),
+  };
+}
+
 /** Venue list for a sport category page. */
 export function venueListJsonLd(
   listName: string,

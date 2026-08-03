@@ -8,6 +8,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
 import { slugify, isUuid } from '@/lib/utils';
+import { sportLabel } from '@/lib/sports';
+import { breadcrumbsJsonLd } from '@/lib/structuredData';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
 
@@ -82,6 +84,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return {
     title: `${field.name} — ${sportsStr} w Poznaniu | Bojo`,
     description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Znajdź nadchodzące mecze i zarezerwuj termin na Bojo.`,
+    // Canonical points at the slug URL — the page also resolves by raw id,
+    // and both must collapse into one address for crawlers.
+    alternates: { canonical: `/boisko/${slugify(field.name)}` },
     openGraph: {
       title: `${field.name} | Bojo`,
       description: `Boisko w Poznaniu: ${field.address}. ${sportsStr}.`,
@@ -167,11 +172,28 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
     url: `${base}/boisko/${slug}`,
   };
 
+  // Middle crumb only for sports that actually have a /boiska/[sport] page
+  // (mirror of SPORT_MAP keys in app/boiska/[sport]/page.tsx) — legacy sports
+  // like "gokarty" would otherwise link to a 404.
+  const SPORT_PAGE_SLUGS = ['pilka-nozna', 'koszykowka', 'siatkowka', 'siatkowka-plazowa', 'futsal', 'pilka-reczna', 'inne'];
+  const sportSlug = field.sport.length ? slugify(field.sport[0]) : null;
+  const breadcrumbs = breadcrumbsJsonLd([
+    { name: 'Strona główna', path: '/' },
+    ...(sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug)
+      ? [{ name: `Boiska: ${sportLabel(field.sport[0])}`, path: `/boiska/${sportSlug}` }]
+      : []),
+    { name: field.name },
+  ]);
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
 
       {/* Upcoming events section — server-rendered for SEO */}

@@ -52,6 +52,7 @@ export async function generateMetadata({ params }: { params: { sport: string } }
   return {
     title: `Boiska do ${entry.label} w Poznaniu | Bojo`,
     description: `Znajdź boiska do ${entry.label} w Poznaniu. Pełna lista obiektów, lokalizacje, dostępność. Bojo — zbierz skład i zagraj.`,
+    alternates: { canonical: `/boiska/${params.sport}` },
     openGraph: {
       title: `Boiska do ${entry.label} w Poznaniu | Bojo`,
       description: `Lista boisk do ${entry.label} w Poznaniu.`,

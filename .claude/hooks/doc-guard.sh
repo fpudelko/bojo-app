@@ -22,7 +22,7 @@ mkdir -p "$state" 2>/dev/null || exit 0
 case "$MODE" in
   start)
     jq -nc '{hookSpecificOutput:{hookEventName:"SessionStart",
-      additionalContext:"Dokumentacja projektu leży w docs/ (indeks: docs/README.md), zasady pracy w AGENTS.md. Zmiana kodu pociąga za sobą aktualizację odpowiedniego pliku w docs/ — mapowanie w AGENTS.md, sekcja \"Aktualizacja dokumentacji\". docs/wizja.md jest dokumentem nadrzędnym: jego sekcji 1 nie parafrazować."}}' 2>/dev/null
+      additionalContext:"Dokumentacja projektu leży w docs/ (indeks: docs/README.md), zasady pracy w AGENTS.md. Zmiana kodu pociąga za sobą aktualizację odpowiedniego pliku w docs/ — mapowanie w AGENTS.md, sekcja \"Aktualizacja dokumentacji\". Walidator spójności: npm run check:docs. docs/wizja.md jest dokumentem nadrzędnym: jego sekcji 1 nie parafrazować."}}' 2>/dev/null
     ;;
 
   record)
@@ -31,7 +31,7 @@ case "$MODE" in
 
     # Edycja dokumentacji wycisza hook do końca sesji.
     case "$f" in
-      */docs/*|*/frontend/public/llms.txt|*/AGENTS.md)
+      */docs/*|*/frontend/public/llms.txt|*/frontend/public/llm-context.md|*/AGENTS.md)
         : > "$state/docs"
         exit 0 ;;
     esac
@@ -48,10 +48,10 @@ case "$MODE" in
         cel="docs/baza-danych.md — mapa tabela → migracja" ;;
       */frontend/src/lib/*)
         kat="lib"
-        cel="docs/domena.md (jeśli zmieniły się reguły domenowe) lub docs/funkcje.md (jeśli doszła/zniknęła funkcja)" ;;
+        cel="docs/domena.md (jeśli zmieniły się reguły domenowe) lub docs/funkcje.md (jeśli doszła/zniknęła funkcja); jeśli zmiana jest widoczna dla użytkownika — także docs/llm-context.md (RAG INJECTION, patrz AGENTS.md)" ;;
       */frontend/src/app/*)
         kat="trasy"
-        cel="docs/funkcje.md — a jeśli doszła lub zniknęła trasa użytkownika, także frontend/public/llms.txt" ;;
+        cel="docs/funkcje.md — a jeśli doszła lub zniknęła trasa użytkownika, także frontend/public/llms.txt oraz docs/llm-context.md (RAG INJECTION, patrz AGENTS.md)" ;;
       *)
         exit 0 ;;
     esac
@@ -62,7 +62,7 @@ case "$MODE" in
 
     jq -nc --arg plik "${f##*/bojo-app/}" --arg cel "$cel" \
       '{hookSpecificOutput:{hookEventName:"PostToolUse",
-        additionalContext:("Zmieniłeś " + $plik + ". Przed końcem zadania sprawdź: " + $cel + ". (Przypomnienie doc-guard — nie blokuje.)")}}' 2>/dev/null
+        additionalContext:("Zmieniłeś " + $plik + ". Przed końcem zadania sprawdź: " + $cel + ". Po zmianach uruchom: npm run check:docs. (Przypomnienie doc-guard — nie blokuje.)")}}' 2>/dev/null
     ;;
 esac
 

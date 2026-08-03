@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Regulamin',
   description: 'Zasady korzystania z serwisu Bojo.',
+  alternates: { canonical: '/regulamin' },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

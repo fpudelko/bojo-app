@@ -1,5 +1,8 @@
 'use client';
 
+// DEAD CODE — complete but rendered nowhere. Do not copy patterns from this file.
+// Kept until game alerts ship (flag SHOW_GAME_ALERTS); see BACKLOG §4.
+
 import { useState, useEffect } from 'react';
 import { Navigation, Loader2, Bell, BellRing } from 'lucide-react';
 import { getNearbyEvents } from '@/lib/events';

@@ -109,6 +109,9 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
       Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
 - [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki.
+- [ ] **Build w CI** — po dodaniu sekretów `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` do
+      repo dołożyć `npm run build` do `.github/workflows/ci.yml` (dziś build wymaga
+      kluczy i dlatego jest poza CI).
 
 ### Bezpieczeństwo (wdrożone — pilnować)
 - Telefony i e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
@@ -147,7 +150,29 @@ i potwierdzanie wyników — działa. Ukryte flagą `SHOW_CUP`.
 
 ---
 
-## 7. Pomysły jeszcze niezbudowane
+## 7. SEO / GEO — treści (praca ludzka, nie kod)
+
+Warstwa techniczna (JSON-LD, canonical, robots, sitemap, metadata) jest w kodzie.
+Poniższe wymagają pisania treści lub działań poza repo — wg badań GEO (Princeton,
+KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
+
+- [ ] **Sekcja FAQ na stronie głównej** — widoczne pytania i odpowiedzi („Jak znaleźć
+      grę w Poznaniu?", „Czy Bojo jest darmowe?", „Jak zorganizować mecz?"), dopiero
+      wtedy FAQPage schema. Zapytania „jak działa X" to główny wyzwalacz AI Overviews.
+      Schema bez pasującej widocznej treści = ryzyko, nie zysk — dlatego nie weszła
+      do kodu od razu.
+- [ ] **Strona `/o-nas`** (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt.
+      Sygnał wiarygodności ważony przez Google i silniki generatywne.
+- [ ] **Dane własne jako treść** (GEO: statystyki podnoszą cytowalność ~40%) — liczby
+      z własnej bazy: „X boisk w Poznaniu, Y meczów w tym miesiącu, najpopularniejszy
+      sport to Z". Strona lub sekcja statystyk odświeżana z bazy.
+- [ ] **Obecność zewnętrzna / backlinki** — profile w katalogach, grupy FB, prasa
+      lokalna, współprace z obiektami. Najsilniejszy sygnał klasycznego SEO; buduje
+      się miesiącami, poza repo.
+- [ ] **Core Web Vitals** — zmierzyć po wdrożeniu (PageSpeed Insights) i dopiero na
+      podstawie pomiaru decydować o optymalizacjach.
+
+## 8. Pomysły jeszcze niezbudowane
 
 - **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
 - **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy

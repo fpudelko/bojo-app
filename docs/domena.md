@@ -1,8 +1,35 @@
-# Modele domenowe
+# Modele domenowe i granice architektury
 
 Rzeczy, które trzeba wiedzieć **przed** zmianą kodu — bo są nieoczywiste i już raz kogoś
-ugryzły. Warstwy techniczne → [architektura.md](./architektura.md). Inwentarz funkcji →
-[funkcje.md](./funkcje.md).
+ugryzły. Stan funkcji i flagi → [funkcje.md](./funkcje.md). Schemat bazy →
+[baza-danych.md](./baza-danych.md).
+
+---
+
+## Granice architektury
+
+Uzasadnienia, których grep nie pokaże. Stack i diagram są w [README.md](../README.md).
+
+**Nie ma własnego backendu.** Frontend rozmawia z Supabase bezpośrednio, autoryzacja
+jest w całości w Row Level Security. Konsekwencja: nie da się „dodać endpointu" — nowa
+operacja na danych to funkcja w `frontend/src/lib/` plus polityka RLS w migracji. Jeśli
+operacja wymaga uprawnień, których użytkownik nie ma, właściwe narzędzie to funkcja
+`SECURITY DEFINER` w bazie (RPC), nigdy obejście po stronie klienta.
+
+**Komponenty nie omijają `lib/`.** Zapytanie do Supabase w komponencie to błąd — reguły
+domenowe (np. liczenie pojemności meczu) mają istnieć w jednej kopii i być testowalne.
+
+**Jedyny wyjątek: `app/api/geocode/`** — serwerowy proxy do Nominatim, bo przeglądarka
+nie może ustawić nagłówka `User-Agent`, a Nominatim go wymaga. To nie jest zalążek
+backendu; nie dokładać tam tras.
+
+**Mappery `toEvent` / `toField` to granica typów** (`lib/events.ts`, `lib/api.ts`):
+jedyne miejsce, gdzie `snake_case` bazy spotyka `camelCase` aplikacji. Dziś rzutowanie
+bez walidacji runtime — Zod jest na liście długu ([strategia.md §5](./strategia.md#5-dług-techniczny)).
+
+**Jedno środowisko (prod).** Każdy merge do master idzie na żywo. Domena kanoniczna:
+`bojo.pl` (fallback w `layout.tsx`, `robots.ts`, `sitemap.ts` — nowe miejsca używają tej
+samej wartości). Migracje uruchamia się ręcznie → [baza-danych.md](./baza-danych.md).
 
 ---
 

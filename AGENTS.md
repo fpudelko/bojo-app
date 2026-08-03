@@ -2,9 +2,9 @@
 
 Kontekst projektu i pułapki, które warto znać przed pierwszą zmianą.
 
-- Baza wiedzy: [docs/README.md](./docs/README.md) — wizja, funkcje, domena, architektura, baza
+- Baza wiedzy: [docs/README.md](./docs/README.md) — wizja, funkcje, domena, baza danych
 - Opis funkcji dla ludzi: [PRZEWODNIK.md](./PRZEWODNIK.md)
-- Architektura w skrócie: [README.md](./README.md)
+- Stack i architektura w skrócie: [README.md](./README.md)
 
 ## Szybki start
 
@@ -21,7 +21,7 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 ```bash
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
-npm test               # Vitest, 55 testów
+npm test               # Vitest, 58 testów
 ```
 
 `npm run lint` **nie działa** bez interaktywnej konfiguracji ESLint — pomijaj.
@@ -36,7 +36,18 @@ npm test               # Vitest, 55 testów
   nie może ustawić `User-Agent`).
 - Interfejs jest **po polsku**. Komentarze w kodzie po angielsku.
 
-Szczegóły → [docs/architektura.md](./docs/architektura.md).
+Uzasadnienia i granice → [docs/domena.md](./docs/domena.md#granice-architektury).
+
+## Strefy podwyższonego ryzyka
+
+Zmiany w tych miejscach wymagają testu i zielonego CI (uruchamia `tsc`, Vitest
+i `npm run check:docs` przy każdym PR i push na master):
+
+- **Auth i RLS** — `lib/auth.tsx`, polityki w migracjach. Pamiętaj: niepasująca polityka
+  nie rzuca błędu, tylko po cichu aktualizuje 0 wierszy.
+- **Płatności** — cenę zawsze liczy `priceForParticipant()` (`lib/payments.ts`).
+- **Migracje** — uruchamiane ręcznie na produkcji; błąd w SQL trafia do bazy na żywo.
+- **Kasowanie danych** — `deleteEvent`, `deleteGroup`, usuwanie konta.
 
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
 
@@ -74,25 +85,12 @@ Nie „naprawiaj" tego.
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
 
-## Modele domenowe warte poznania przed zmianami
+## Modele domenowe
 
-**Relacja użytkownik ↔ wydarzenie to DWIE niezależne osie** (`lib/events.ts`):
-- `isOrganizer` — czyj to mecz (trwała cecha)
-- `status` — `none | invited | pending | observing | reserve | playing`
-
-Można organizować mecz i w nim grać, albo organizować bez grania. Nie zwijaj tego do
-jednej etykiety. `invited` jest zarezerwowane pod przyszłe zaproszenia — jeszcze nic
-go nie ustawia.
-
-**Płatności** (`lib/payments.ts`): organizator wybiera akceptowane metody i karty sportowe.
-Kwota zniżki jest **opcjonalna** — `null` znaczy „zniżka jest, ale zapytaj organizatora",
-nie „brak zniżki". Zawsze licz cenę przez `priceForParticipant()`, nie odejmuj ręcznie.
-
-**RSVP „Obserwuję"** to w bazie `rsvp = 'maybe'`. Nie zajmuje miejsca, nie liczy się do
-statystyk gracza ani do historii meczów.
-
-Pełny opis (reguły pojemności, kolejność w `statusFromRow`, pułapka nazw `grosz`/`grosze`)
-→ [docs/domena.md](./docs/domena.md).
+Przed zmianą w `lib/events.ts`, `lib/payments.ts` lub logice zapisów przeczytaj
+[docs/domena.md](./docs/domena.md) — dwie osie relacji do meczu, reguły pojemności,
+semantyka zniżki `null`, pułapka nazw `grosz`/`grosze`. To ~5 minut, które oszczędza
+błędną „naprawę" świadomej decyzji produktowej.
 
 ## Aktualizacja dokumentacji
 
@@ -104,9 +102,51 @@ Zmiana kodu pociąga za sobą aktualizację dokumentu:
 | `frontend/src/lib/*` | [docs/domena.md](./docs/domena.md), [docs/funkcje.md](./docs/funkcje.md) |
 | `frontend/src/app/*` (nowa/usunięta trasa) | [docs/funkcje.md](./docs/funkcje.md), `frontend/public/llms.txt` |
 | `supabase/migrations/*` | [docs/baza-danych.md](./docs/baza-danych.md) |
+| cokolwiek zmienia zachowanie widoczne dla użytkownika | [docs/llm-context.md](./docs/llm-context.md) — patrz „RAG INJECTION" niżej |
+
+Po zmianach uruchom **`npm run check:docs`** (z katalogu głównego) — walidator mówi
+deterministycznie, czy dokumentacja rozjechała się z kodem (trasy w `llms.txt`, flagi,
+linki, migracje). CI odrzuci PR, w którym walidator jest czerwony.
 
 Hook `.claude/hooks/doc-guard.sh` przypomina o tym w trakcie pracy. **Nie blokuje** —
 to przypomnienie, nie bramka.
+
+## RAG INJECTION — obowiązkowe przy zmianie widocznej dla użytkownika
+
+[docs/llm-context.md](./docs/llm-context.md) to jedyny plik pisany dla modelu, który
+czyta **na zimno**, bez dostępu do repo (zewnętrzny asystent odpowiadający na pytanie
+o bojo.pl, baza wiedzy w narzędziu). Zmiana zachowania widocznego dla użytkownika
+aktualizuje ten plik, po czym **`npm run sync:llm-context`** odświeża kopię publiczną
+serwowaną pod `bojo.pl/llm-context.md`. CI odrzuca PR, w którym kopia się rozjechała.
+
+Wpis w sekcji „Ostatnie zmiany" ma format:
+
+```
+PROBLEM:          jaki ból użytkownika to rozwiązuje
+ROZWIĄZANIE BOJO: co zostało zbudowane
+MECHANIKA:        komponenty, funkcje w lib/, tabele, migracje
+```
+
+Sekcja opisująca funkcję dokłada do tego **PYTANIA** — 3–5 pytań w naturalnym języku,
+na które ta sekcja odpowiada.
+
+Zasady, których nie łamiemy:
+
+- **Gęsty, faktograficzny Markdown. Zero języka marketingowego.** Piszesz instrukcję
+  dla modelu, nie opis dla klienta.
+- **Każda sekcja broni się sama** — nazywaj encje wprost („Bojo", nie „aplikacja",
+  nie „to"). W RAG sekcja trafia do modelu wyrwana z kontekstu pliku.
+- **Nie dopisuj list słów kluczowych.** Badania GEO (Aggarwal i in., KDD 2024) pokazują,
+  że keyword stuffing wypada najsłabiej ze wszystkich testowanych metod i obniża ocenę
+  gęstości informacyjnej. Zamiast słów kluczowych — pytania w naturalnym języku.
+- **Nie kopiuj treści z `docs/`.** Tabela flag, mapa tabela → migracja i ścieżki plików
+  żyją w `docs/`; `llm-context.md` odsyła do nich linkiem. Dwie kopie = gwarantowany
+  rozjazd.
+- **Log „Ostatnie zmiany" ma limit 10 wpisów** (pilnuje go walidator). Najstarsze
+  usuwasz — pełną historią jest `git log`, a rosnący log rozmywa cały plik.
+- Znacznik `**Stan na:**` w nagłówku aktualizujesz razem z migracjami.
+
+`llms.txt` to indeks, nie changelog — **nie dopisuj tam logu zmian.**
 
 **[docs/wizja.md](./docs/wizja.md) jest dokumentem nadrzędnym.** Sekcja 1 to dokument
 strategiczny wklejony werbatim — nie parafrazować i nie „poprawiać" przy okazji innych
