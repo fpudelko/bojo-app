@@ -6,7 +6,7 @@ import { ArrowRight, CalendarPlus, Bell, BellRing, Plus, Map as MapIcon, Users, 
 import AlertSetupDialog from './AlertSetupDialog';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { getPublicEvents, getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
+import { getPublicEvents, getMyParticipatedEvents, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
 import { useMyParticipation } from '@/lib/useMyParticipation';
 import { getMyGroups } from '@/lib/groups';
 import { getMyAlert } from '@/lib/alerts';
@@ -229,6 +229,45 @@ function MyGamesSection({ userId }: { userId: string }) {
   );
 }
 
+/** Matches organised inside the user's groups that they haven't reacted to yet.
+ *
+ *  A group match is usually private, so before this section the only way in was
+ *  the invite link someone pasted into a chat — easy to scroll past. Membership
+ *  is enough of a reason to surface it. Anything the user already answered
+ *  (joined, reserve, pending, observing) is dropped: it lives in "Twoje
+ *  najbliższe mecze" above and would otherwise be listed twice. */
+function GroupGamesSection({ userId }: { userId: string }) {
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const statusFor = useMyParticipation();
+
+  useEffect(() => {
+    getMyGroupEvents(userId)
+      .then((rows) => setEvents(rows.filter(isUpcoming)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const fresh = events.filter((e) => {
+    const rel = statusFor(e);
+    // No relation row yet = nothing answered, exactly what we want to surface.
+    return !rel || (rel.status === 'none' && !rel.isOrganizer);
+  });
+
+  if (loading || fresh.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Mecze Twoich ekip" href="/grupy" count={fresh.length} />
+      <div className="space-y-3">
+        {fresh.slice(0, 3).map((e) => (
+          <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Public open-games feed — shown to everyone, max 2. */
 function OpenGamesSection() {
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -389,6 +428,7 @@ export default function AppHome({ userId }: { userId: string }) {
       <Hero />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-8">
         <MyGamesSection userId={userId} />
+        <GroupGamesSection userId={userId} />
         <OpenGamesSection />
         <MapTeaser />
         <MyGroupsSection userId={userId} />

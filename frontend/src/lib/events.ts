@@ -337,6 +337,44 @@ export async function getPublicEvents(): Promise<EventItem[]> {
   });
 }
 
+/**
+ * Upcoming matches from the groups I belong to — including private ones.
+ *
+ * Without this the only way into a group's private match is the invite link
+ * someone pasted into Messenger, which people miss. Membership in the group
+ * already implies the right to see its matches, so the feed shows them.
+ *
+ * Note this covers private matches too: `events.group_id` steers listing, and
+ * being a member is what earns the listing. Visibility of a *public* match is
+ * unaffected — it just also shows up here for members.
+ */
+export async function getMyGroupEvents(userId: string): Promise<EventItem[]> {
+  const { data: memberRows, error: mErr } = await supabase
+    .from('group_members')
+    .select('group_id')
+    .eq('user_id', userId);
+  if (mErr) throw new Error(mErr.message);
+
+  const groupIds = (memberRows ?? []).map((r) => r.group_id as string);
+  if (groupIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, fields(district), event_participants(id, is_reserve, pending_approval)')
+    .in('group_id', groupIds)
+    .eq('status', 'active')
+    .gte('event_date', new Date().toISOString().slice(0, 10))
+    .order('event_date', { ascending: true });
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = row as any;
+    r.field_district = r.fields?.district ?? null;
+    return toEvent(r);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Participants
 // ---------------------------------------------------------------------------

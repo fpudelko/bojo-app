@@ -295,6 +295,16 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-03 — Mecze grupy na stronie głównej członka
+PROBLEM: mecz grupy jest zwykle prywatny, więc jedyną drogą do niego był link
+zaproszenia wklejony na czacie. Kto go przewinął, nie dowiadywał się, że ekipa gra.
+ROZWIĄZANIE BOJO: zalogowany członek grupy widzi na stronie głównej sekcję
+„Mecze Twoich ekip" — nadchodzące mecze grup, do których należy, także prywatne.
+Sekcja pokazuje tylko te, na które użytkownik jeszcze nie odpowiedział; mecze
+już potwierdzone lub obserwowane zostają w „Twoje najbliższe mecze".
+MECHANIKA: `getMyGroupEvents()` w `lib/events.ts` (członkostwo w `group_members`
+→ `events.group_id`), sekcja `GroupGamesSection` w `components/home/AppHome.tsx`.
+
 ### 2026-08-03 — Przypisanie istniejącego meczu do grupy
 PROBLEM: grupę meczu w Bojo dało się wskazać tylko przy zakładaniu. Mecze założone
 poza grupą nigdy nie trafiały na listę meczów grupy, a jedynym wyjściem było
