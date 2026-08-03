@@ -26,7 +26,7 @@ import { venueThumbnail } from '@/lib/labels';
 import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds,
+  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim,
 } from '@/lib/events';
@@ -346,6 +346,8 @@ export default function EventDetailClient() {
   const [editMode, setEditMode] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
+  // Groups the viewer belongs to — the pool they can file this match under.
+  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -385,6 +387,17 @@ export default function EventDetailClient() {
   }, [id, loadMatchData, user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Only needed by the organizer/admin settings panel, so it's fetched lazily
+  // rather than on every visitor's page load.
+  useEffect(() => {
+    if (!user) { setMyGroups([]); return; }
+    import('@/lib/groups').then(({ getMyGroups }) =>
+      getMyGroups(user.id)
+        .then((gs) => setMyGroups(gs.map((g) => ({ id: g.id, name: g.name }))))
+        .catch(() => {}),
+    );
+  }, [user]);
 
   if (loading) {
     return (
@@ -426,6 +439,10 @@ export default function EventDetailClient() {
   const myParticipation = myConfirmed;
   // My row whichever way I'm in — confirmed or "maybe" (used by the leave dialog).
   const myEntry = myConfirmed ?? myMaybe;
+  // Am I already tied to this match in any way? Drives whether the UI still
+  // pitches joining — a squad member, reserve, pending request or observer has
+  // nothing to act on when the match fills up.
+  const amIInvolved = !!(myConfirmed || myMaybe || myPendingRequest);
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer?.claimOfferedAt
@@ -727,6 +744,19 @@ export default function EventDetailClient() {
       await setAllowGuestAdds(event.id, !event.allowGuestAdds);
       await load();
       toast(event.allowGuestAdds ? 'Uczestnicy nie mogą już zapraszać gości' : 'Uczestnicy mogą teraz dodawać gości');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  // Filing an existing match under a group after the fact — matches created
+  // outside a group otherwise never show up on the group's list.
+  const handleSetGroup = async (groupId: string) => {
+    setBusy(true);
+    try {
+      await setEventGroup(event.id, groupId || null);
+      await load();
+      toast(groupId ? 'Mecz przypisany do grupy' : 'Mecz odpięty od grupy');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1141,7 +1171,10 @@ export default function EventDetailClient() {
 
             <p className="mt-3 text-center text-sm font-bold text-amber-500">
               {isFull
-                ? 'Komplet — dołącz do rezerwy'
+                // Only pitch the reserve list to someone who could actually act on
+                // it — a player already signed up (squad, reserve, pending or
+                // observing) is told the match is full, not invited to join again.
+                ? (amIInvolved ? 'Komplet' : 'Komplet — dołącz do rezerwy')
                 : `Zostało ${freeSpots} ${freeSpots === 1 ? 'wolne miejsce' : freeSpots < 5 ? 'wolne miejsca' : 'wolnych miejsc'}`}
             </p>
 
@@ -1819,7 +1852,7 @@ export default function EventDetailClient() {
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. */}
-        {isOwner && (
+        {isOrganizer && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -1857,6 +1890,34 @@ export default function EventDetailClient() {
                     onChange={handleToggleAllowGuestAdds}
                   />
                 </div>
+
+                {/* Filing under a group. The current group is added to the list
+                    explicitly — an admin fixing someone else's match usually
+                    isn't a member of it and would otherwise see a blank select. */}
+                {(myGroups.length > 0 || groupInfo) && (
+                  <label className="block rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+                    <span className="flex items-center gap-2 text-sm text-slate-700">
+                      <Users className="w-4 h-4 text-slate-400" /> Grupa
+                    </span>
+                    <select
+                      value={event.groupId ?? ''}
+                      disabled={busy}
+                      onChange={(e) => handleSetGroup(e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink"
+                    >
+                      <option value="">Bez grupy</option>
+                      {[
+                        ...myGroups,
+                        ...(groupInfo && !myGroups.some((g) => g.id === groupInfo.id) ? [groupInfo] : []),
+                      ].map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                    <span className="mt-1.5 block text-xs text-slate-500">
+                      Mecz pojawi się na liście meczów grupy. Nie zmienia to, kto może go zobaczyć.
+                    </span>
+                  </label>
+                )}
 
                 {/* Edit event details (separate form page) */}
                 <Link

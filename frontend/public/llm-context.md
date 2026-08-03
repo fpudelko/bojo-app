@@ -295,6 +295,19 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-03 — Przypisanie istniejącego meczu do grupy
+PROBLEM: grupę meczu w Bojo dało się wskazać tylko przy zakładaniu. Mecze założone
+poza grupą nigdy nie trafiały na listę meczów grupy, a jedynym wyjściem było
+utworzenie ich od nowa.
+ROZWIĄZANIE BOJO: w panelu „Zarządzaj wydarzeniem" jest wybór grupy — organizator
+i administrator mogą przypiąć istniejący mecz do grupy albo go odpiąć. Przypisanie
+zmienia wyłącznie listowanie; widoczność meczu nadal wynika z ustawienia
+prywatny/publiczny. Osobie już zapisanej na komplet Bojo nie proponuje więcej
+„dołącz do rezerwy" — widzi sam status „Komplet".
+MECHANIKA: `setEventGroup()` w `lib/events.ts`, panel w
+`app/wydarzenia/[id]/EventDetailClient.tsx`. Bez migracji — uprawnienie do UPDATE
+na `events` mają organizator i administrator od migracji `005`.
+
 ### 2026-08-03 — Landing page mobile-first dla niezalogowanych
 PROBLEM: strona główna była dashboardem pokazywanym też gościom — bez CTA nad
 foldem, z identycznym copy dla zalogowanych i niezalogowanych, i z klientowym

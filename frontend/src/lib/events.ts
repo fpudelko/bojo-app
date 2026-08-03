@@ -578,6 +578,18 @@ export async function togglePayment(participantId: string, hasPaid: boolean): Pr
   if (error) throw new Error(error.message);
 }
 
+/** Attach an existing match to a group, or detach it (`null`).
+ *
+ *  Deliberately its own function rather than a field on `updateEvent`: the edit
+ *  form doesn't track `groupId`, so folding it in there would silently clear the
+ *  group every time someone saved the form. Allowed for the organizer and for
+ *  admins (both already hold UPDATE on `events` — migracje `002` i `005`), which
+ *  is what lets an admin file a match somebody created outside their group. */
+export async function setEventGroup(eventId: string, groupId: string | null): Promise<void> {
+  const { error } = await supabase.from('events').update({ group_id: groupId }).eq('id', eventId);
+  if (error) throw new Error(error.message);
+}
+
 export async function setVisibility(
   eventId: string,
   visibility: Visibility,
