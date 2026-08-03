@@ -3,7 +3,9 @@ import { SHOW_RECURRING } from '@/lib/features';
 
 export default function SiteFooter() {
   return (
-    <footer className="bg-slate-900 px-4 py-10 text-slate-400">
+    // id is a hook for the landing's sticky CTA, which hides itself once the
+    // footer is on screen so it never covers these links.
+    <footer id="site-footer" className="bg-slate-900 px-4 py-10 text-slate-400">
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 md:flex-row">
         <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
         <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">

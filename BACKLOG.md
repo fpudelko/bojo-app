@@ -120,12 +120,12 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
 
 ### Bugi UI — zgłoszone z testów na urządzeniu (2026-08-03)
 
-- [ ] **Sticky CTA „Stwórz mecz" zasłania stopkę na landingu.**
-      `components/home/landing/StickyCta.tsx` jest `fixed bottom-0` (mobile),
-      a strona nie ma kompensującego `padding-bottom` — po dojechaniu na sam dół
-      przycisk przykrywa `SiteFooter`. Do wyboru: dopełnienie dołu strony o wysokość
-      CTA na mobile albo chowanie CTA, gdy stopka wchodzi w widok (drugi obserwator
-      `IntersectionObserver`).
+- [x] **Sticky CTA „Stwórz mecz" zasłaniało stopkę na landingu.** (2026-08-03)
+      Przyczyna: `Landing` dopełnia własne sekcje (`pb-24`), ale `SiteFooter` jest
+      rodzeństwem `<main>` w `app/page.tsx` — poza tym dopełnieniem. Naprawione:
+      `StickyCta` obserwuje teraz również stopkę (`#site-footer`) i chowa się, gdy
+      ta wejdzie w widok. Na dole strony jest już `LandingFinalCta`, więc sticky bar
+      nic tam nie wnosił.
 
 - [ ] **Strona główna wygląda pusto, gdy nie ma otwartych meczów.**
       `LandingOpenGames` zwraca `null` przy zerze pasujących gier (świadoma decyzja:
