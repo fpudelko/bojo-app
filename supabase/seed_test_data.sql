@@ -17,6 +17,10 @@
 --   Uczestnicy:    test1@example.com … test10@example.com
 --
 -- Wszystkie wydarzenia mają datę w ciągu najbliższych 7 dni od dziś.
+--
+-- 25 wydarzeń. 1–20 to podstawowe kombinacje ustawień, 21–25 dotyczą nowszych
+-- przepływów: oferty zwolnionego miejsca dla rezerwy (21–23) oraz propozycji
+-- składów od uczestników (24–25).
 -- ============================================================
 
 -- Matches both the current marker (description) and the older format from
@@ -52,6 +56,8 @@ DECLARE
   t9_name TEXT;
   t10_name TEXT;
   eid UUID; -- scratch var: id of the event currently being built
+  prop UUID; -- scratch var: id of the team proposal currently being built
+  pa UUID; pb UUID; pc UUID; pd UUID; -- participant ids, for proposal picks
 BEGIN
   IF org1 IS NULL OR org2 IS NULL OR org3 IS NULL THEN
     RAISE EXCEPTION 'Brakuje jednego z kont organizatora w auth.users — sprawdź e-maile (franciszekpudelko@gmail.com / franekks@gmail.com / j4n.brz0@gmail.com).';
@@ -400,5 +406,123 @@ BEGIN
     (eid, t6, t6_name, 'potwierdzony'),
     (eid, t7, t7_name, 'potwierdzony');
 
-  RAISE NOTICE 'Gotowe — dodano 20 testowych wydarzeń z uczestnikami.';
+  -- ========================================================
+  -- 21. Piątkowa gra na Rataje — REZERWA: aktywna oferta
+  -- ========================================================
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                       max_players, visibility, title, description, reserve_claim_hours)
+  VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 2, '20:00', 4, 'public',
+    'Piątkowa gra na Rataje',
+    '[TEST] Zwolniło się miejsce i czeka na Test 5 (aktywna oferta, okno 3h). Zaloguj się na test5@example.com — powinieneś zobaczyć zielony baner „Zwolniło się miejsce" z „Wchodzę" / „Odpuszczam". Organizator widzi przy nim „czeka na decyzję".',
+    3)
+  RETURNING id INTO eid;
+  -- 3 w składzie przy limicie 4 → jedno miejsce wolne, zarezerwowane ofertą
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
+    (eid, org1, org1_name, 'potwierdzony', false),
+    (eid, t1, t1_name, 'potwierdzony', false),
+    (eid, t2, t2_name, 'potwierdzony', false);
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve, claim_offered_at)
+    VALUES (eid, t5, t5_name, 'potwierdzony', true, now() - interval '20 minutes');
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
+    (eid, t6, t6_name, 'potwierdzony', true);
+
+  -- ========================================================
+  -- 22. Sobotni mecz na Junikowie — REZERWA: oferta wygasła
+  -- ========================================================
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                       max_players, visibility, title, description, reserve_claim_hours)
+  VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 3, '17:00', 4, 'public',
+    'Sobotni mecz na Junikowie',
+    '[TEST] Oferta dla Test 7 wygasła (wysłana 5h temu przy oknie 1h). Samo wejście na stronę meczu powinno ją wygasić i przekazać miejsce do Test 8 — odśwież i sprawdź, czy Test 7 ma „przepuścił(a)", a Test 8 „czeka na decyzję".',
+    1)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
+    (eid, org3, org3_name, 'potwierdzony', false),
+    (eid, t1, t1_name, 'potwierdzony', false),
+    (eid, t2, t2_name, 'potwierdzony', false);
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve, claim_offered_at)
+    VALUES (eid, t7, t7_name, 'potwierdzony', true, now() - interval '5 hours');
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
+    (eid, t8, t8_name, 'potwierdzony', true);
+
+  -- ========================================================
+  -- 23. Niedzielna gra na Malcie — REZERWA: ktoś już przepuścił
+  -- ========================================================
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                       max_players, visibility, title, description, reserve_claim_hours)
+  VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 4, '18:00', 4, 'public',
+    'Niedzielna gra na Malcie',
+    '[TEST] Test 9 już odpuścił miejsce (zostaje na liście z etykietą „przepuścił(a)", ale nie blokuje kolejki), oferta poszła do Test 10. Sprawdź, że organizator wciąż może awansować Test 9 ręcznie.',
+    6)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve) VALUES
+    (eid, org2, org2_name, 'potwierdzony', false),
+    (eid, t1, t1_name, 'potwierdzony', false),
+    (eid, t2, t2_name, 'potwierdzony', false);
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve, claim_passed)
+    VALUES (eid, t9, t9_name, 'potwierdzony', true, true);
+  INSERT INTO event_participants (event_id, user_id, name, status, is_reserve, claim_offered_at)
+    VALUES (eid, t10, t10_name, 'potwierdzony', true, now() - interval '10 minutes');
+
+  -- ========================================================
+  -- 24. Czwartkowy mecz na Rataje — PROPOZYCJE SKŁADÓW
+  -- ========================================================
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                       max_players, visibility, title, description, team_mode)
+  VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 5, '19:30', 4, 'public',
+    'Czwartkowy mecz na Rataje',
+    '[TEST] Dwie propozycje składów od uczestników, jedna z 2 głosami, druga z 1. Zaloguj się jako organizator (Franciszek) — powinieneś widzieć „Zatwierdź" przy każdej, ale NIE przycisk „Zaproponuj składy". Jako Test 1 odwrotnie: możesz proponować i głosować, ale nie zatwierdzać.',
+    'reczne')
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
+    (eid, org1, org1_name, 'potwierdzony'),
+    (eid, t1, t1_name, 'potwierdzony'),
+    (eid, t2, t2_name, 'potwierdzony'),
+    (eid, t3, t3_name, 'potwierdzony');
+
+  SELECT id INTO pa FROM event_participants WHERE event_id = eid AND user_id = org1;
+  SELECT id INTO pb FROM event_participants WHERE event_id = eid AND user_id = t1;
+  SELECT id INTO pc FROM event_participants WHERE event_id = eid AND user_id = t2;
+  SELECT id INTO pd FROM event_participants WHERE event_id = eid AND user_id = t3;
+
+  -- propozycja Test 1: org+t1 vs t2+t3
+  INSERT INTO team_proposals (event_id, proposed_by) VALUES (eid, t1) RETURNING id INTO prop;
+  INSERT INTO team_proposal_picks (proposal_id, participant_id, team) VALUES
+    (prop, pa, 'A'), (prop, pb, 'A'), (prop, pc, 'B'), (prop, pd, 'B');
+  INSERT INTO team_proposal_votes (proposal_id, user_id) VALUES (prop, t2), (prop, t3);
+
+  -- propozycja Test 2: org+t2 vs t1+t3
+  INSERT INTO team_proposals (event_id, proposed_by) VALUES (eid, t2) RETURNING id INTO prop;
+  INSERT INTO team_proposal_picks (proposal_id, participant_id, team) VALUES
+    (prop, pa, 'A'), (prop, pc, 'A'), (prop, pb, 'B'), (prop, pd, 'B');
+  INSERT INTO team_proposal_votes (proposal_id, user_id) VALUES (prop, t1);
+
+  -- ========================================================
+  -- 25. Wtorkowy mecz na Junikowie — PROPOZYCJA ZATWIERDZONA
+  -- ========================================================
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                       max_players, visibility, title, description, team_mode, teams_published)
+  VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 6, '18:30', 4, 'public',
+    'Wtorkowy mecz na Junikowie',
+    '[TEST] Propozycja Test 4 została zatwierdzona i przeniesiona na realne drużyny, składy są opublikowane. Sprawdź, że uczestnik NIE widzi już „Zaproponuj składy" (po publikacji temat zamknięty), a propozycja ma etykietę „zatwierdzona".',
+    'reczne', true)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name, status, team) VALUES
+    (eid, org3, org3_name, 'potwierdzony', 'A'),
+    (eid, t4, t4_name, 'potwierdzony', 'A'),
+    (eid, t5, t5_name, 'potwierdzony', 'B'),
+    (eid, t6, t6_name, 'potwierdzony', 'B');
+
+  SELECT id INTO pa FROM event_participants WHERE event_id = eid AND user_id = org3;
+  SELECT id INTO pb FROM event_participants WHERE event_id = eid AND user_id = t4;
+  SELECT id INTO pc FROM event_participants WHERE event_id = eid AND user_id = t5;
+  SELECT id INTO pd FROM event_participants WHERE event_id = eid AND user_id = t6;
+
+  INSERT INTO team_proposals (event_id, proposed_by, status) VALUES (eid, t4, 'accepted')
+    RETURNING id INTO prop;
+  INSERT INTO team_proposal_picks (proposal_id, participant_id, team) VALUES
+    (prop, pa, 'A'), (prop, pb, 'A'), (prop, pc, 'B'), (prop, pd, 'B');
+  INSERT INTO team_proposal_votes (proposal_id, user_id) VALUES (prop, t5), (prop, t6);
+
+  RAISE NOTICE 'Gotowe — dodano 25 testowych wydarzeń z uczestnikami.';
 END $$;

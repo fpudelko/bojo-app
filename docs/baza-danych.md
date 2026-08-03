@@ -60,6 +60,9 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `groups` | `044` | Stałe ekipy |
 | `group_members` | `044` | Członkowie ekip |
 | `analytics_events` | `047` | Log akcji do analityki |
+| `team_proposals` | `059` | Propozycje składów od uczestników |
+| `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
+| `team_proposal_votes` | `059` | Poparcia propozycji |
 | `tournaments` i 5 tabel `tournament_*` | `029` | Turniej |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
@@ -96,6 +99,8 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
 | `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | Turniej |
+| `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca (`SECURITY DEFINER`) |
+| `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |
 | `haversine_km` | Odległość geograficzna |
 | `trigger_set_updated_at`, `trigger_set_expires_at` | Triggery czasowe |
 
@@ -111,11 +116,39 @@ obejmuje nową kolumnę.
 
 ---
 
+## Osobna baza (dev / preview)
+
+Domyślnie preview na Vercelu korzysta z **produkcyjnej** bazy — wygodne, ale każdy test
+zostawia ślad w prawdziwych danych. Żeby to rozdzielić, stawia się drugi projekt Supabase:
+
+1. **Nowy projekt** w Supabase (ta sama organizacja, np. `bojo-dev`). Zapisz hasło do bazy.
+2. **Migracje po kolei** — SQL Editor, od `001` do najnowszej. Kolejność ma znaczenie
+   (późniejsze zakładają wcześniejsze). Nie da się tego pominąć: nie ma migratora,
+   który zrobi to sam.
+3. **Boiska** — `supabase/seed.sql` (5 sztuk, na szybko) albo `seed-orliki.sql`
+   (pełniejszy zestaw). Bez tego mapa i pickery będą puste.
+4. **Buckety w Storage** — utwórz `covers` i `avatars`, oba **publiczne**. Kod ich nie
+   tworzy; przy braku okładki i awatary rzucą błędem przy uploadzie.
+5. **Konta testowe** — `supabase/seed-test-users.sql`, potem `seed_test_data.sql`.
+   Konta organizatorów muszą istnieć: albo zaloguj się nimi raz w apce wskazującej
+   na tę bazę, albo dopisz je do skryptu z kontami.
+6. **Auth → URL Configuration** — Site URL na adres preview, a w Redirect URLs wildcard
+   dla podglądów Vercela, inaczej logowanie odbije na złą domenę:
+   `https://<projekt>-*-<team>.vercel.app/**`
+7. **Vercel → Settings → Environment Variables** — `NEXT_PUBLIC_SUPABASE_URL`
+   i `NEXT_PUBLIC_SUPABASE_ANON_KEY` z nowego projektu, zaznaczone **tylko dla Preview**
+   (Production zostawia stare). Po zmianie **przebuduj** preview — zmienne wchodzą
+   przy buildzie.
+
+Od tego momentu preview pisze do własnej bazy, a `bojo.pl` zostaje nietknięte.
+
+---
+
 ## Dane testowe
 
 | Plik | Zawartość |
 |---|---|
-| `supabase/seed_test_data.sql` | 20 wydarzeń pokrywających wszystkie kombinacje ustawień. Bezpieczny do wielokrotnego użycia — czyści po markerze `[TEST]` w opisie |
+| `supabase/seed_test_data.sql` | 25 wydarzeń pokrywających wszystkie kombinacje ustawień (w tym oferty z rezerwy i propozycje składów). Bezpieczny do wielokrotnego użycia — czyści po markerze `[TEST]` w opisie |
 | `supabase/seed-test-users.sql` | Konta `test1..test10@example.com`, hasło `test1234` |
 
 Oba uruchamiane ręcznie w SQL Editor.
