@@ -7,7 +7,7 @@ jeszcze niezrobione.
 - Stan implementacji: [docs/funkcje.md](./docs/funkcje.md)
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 
-_Ostatnia aktualizacja: 2026-08-02_
+_Ostatnia aktualizacja: 2026-08-03_
 
 ---
 
@@ -118,6 +118,27 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
       na moment landing zamiast dashboardu, zanim `useAuth()` odczyta sesję. Sesja
       w cookie usunęłaby to mignięcie i otworzyłaby drogę do prawdziwego SSR redirectu.
 
+### Bugi UI — zgłoszone z testów na urządzeniu (2026-08-03)
+
+- [ ] **Sticky CTA „Stwórz mecz" zasłania stopkę na landingu.**
+      `components/home/landing/StickyCta.tsx` jest `fixed bottom-0` (mobile),
+      a strona nie ma kompensującego `padding-bottom` — po dojechaniu na sam dół
+      przycisk przykrywa `SiteFooter`. Do wyboru: dopełnienie dołu strony o wysokość
+      CTA na mobile albo chowanie CTA, gdy stopka wchodzi w widok (drugi obserwator
+      `IntersectionObserver`).
+
+- [ ] **Strona główna wygląda pusto, gdy nie ma otwartych meczów.**
+      `LandingOpenGames` zwraca `null` przy zerze pasujących gier (świadoma decyzja:
+      pusty stan gorszy niż brak sekcji) — ale wtedy landing traci sekcję i robi się
+      rzadki. Do przemyślenia razem z pozycją niżej.
+
+      **Uwaga strukturalna, ważniejsza niż sam wygląd:** sekcja filtruje
+      `taken < maxPlayers`, czyli **pokazuje tylko mecze z wolnymi miejscami**.
+      Skoro celem produktu jest, żeby mecze zdobywały komplet, to przy powodzeniu
+      ta sekcja będzie pusta **tym częściej, im lepiej idzie**. Sam filtr trzeba
+      przemyśleć — np. pokazywać też pełne mecze (jako dowód, że apka żyje, z jasnym
+      oznaczeniem „komplet"), albo zastąpić sekcję czymś innym, gdy brak wolnych miejsc.
+
 ### Bezpieczeństwo (wdrożone — pilnować)
 - Telefony i e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
   włącza admin (`contact_visible`, migracja `033`). Egzekwowane na poziomie DB.
@@ -179,6 +200,24 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
       podstawie pomiaru decydować o optymalizacjach.
 
 ## 8. Pomysły jeszcze niezbudowane
+
+### Zamykanie zapisów po komplecie (decyzja produktowa do wdrożenia)
+Dziś: gdy ktoś się wypisze, miejsce natychmiast wraca do puli i zajmuje je **pierwsza
+osoba, która kliknie „Dołącz"** — również ktoś z zewnątrz, z pominięciem listy rezerwowej.
+
+Docelowo: **komplet = koniec zapisów.** Po zwolnieniu miejsca zapisy zostają zamknięte,
+a organizator decyduje — pyta rezerwowych albo klika **„Otwórz zapisy"**. Spójne
+z istniejącą decyzją o **braku auto-awansu z rezerwy** (patrz `docs/domena.md`): to gracz
+musi wiedzieć, że wchodzi do gry, a nie wskoczyć tam po cichu.
+
+Zakres: flaga na `events` (np. `signups_open`), zamknięcie przy osiągnięciu kompletu,
+przycisk dla organizatora, komunikat dla wchodzących („zapisy zamknięte — zapytaj
+organizatora"), przemyślenie interakcji z listą rezerwową.
+
+### Propozycje składów przez graczy
+Każdy uczestnik może zaproponować podział na drużyny, reszta lajkuje/głosuje;
+organizator zatwierdza wybrany. Odciąża organizatora i angażuje ekipę.
+Dziś składy ustala wyłącznie organizator (`TeamsPanel`, tryby ręczny/kapitanowie/losowy).
 
 - **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
 - **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy
