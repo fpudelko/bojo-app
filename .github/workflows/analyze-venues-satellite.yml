@@ -15,10 +15,14 @@ name: Analiza satelitarna boisk (AI)
 #   ANTHROPIC_API_KEY
 #   MAPBOX_TOKEN                  (publiczny token z uprawnieniami styles:tiles)
 
+# Bez harmonogramu — uruchamiany wyłącznie ręcznie.
+#
+# Poprzedni cron ('0 3 1-7 * 5') miał być pierwszym piątkiem miesiąca, ale
+# GitHub łączy dzień miesiąca z dniem tygodnia przez OR, nie AND: job chodził
+# przez pierwsze 7 dni miesiąca ORAZ w każdy piątek — ~20 przebiegów na miesiąc,
+# każdy przepisujący oceny AI po całej bazie. Analiza kosztuje i nadpisuje dane,
+# więc ma być decyzją, nie tłem.
 on:
-  schedule:
-    # Pierwszy piątek miesiąca, 03:00 UTC (niski ruch, tani czas)
-    - cron: '0 3 1-7 * 5'
   workflow_dispatch:
     inputs:
       dry_run:
