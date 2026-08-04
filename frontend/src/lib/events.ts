@@ -100,6 +100,7 @@ export async function createEvent(
   organizerId: string,
   organizerName: string,
   organizerParticipates = true,
+  organizerIsGoalkeeper = false,
 ): Promise<string> {
   // A match can't start in the past (covers UI bypass + repeat-into-past).
   try {
@@ -178,6 +179,11 @@ export async function createEvent(
       name: safeOrganizerName,
       is_guest: false,
       is_reserve: false,
+      is_goalkeeper: organizerIsGoalkeeper,
+      // Attendance model: signing up means "I'm coming" — the organizer marks
+      // absentees afterwards, not presences. Without this the organizer's own
+      // row sat at the column default 'zaproszony'.
+      status: 'potwierdzony',
     });
   }
 
@@ -752,6 +758,7 @@ export async function repeatEvent(
   organizerId: string,
   organizerName: string,
   organizerParticipates = true,
+  organizerIsGoalkeeper = false,
 ): Promise<string> {
   return createEvent(
     {
@@ -789,6 +796,7 @@ export async function repeatEvent(
     organizerId,
     organizerName,
     organizerParticipates,
+    organizerIsGoalkeeper,
   );
 }
 
