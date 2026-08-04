@@ -1,6 +1,6 @@
 # Baza danych
 
-57 migracji (`001`–`057`) w `supabase/migrations/`. Modele domenowe →
+60 migracji (`001`–`060`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -16,6 +16,27 @@ błędem o nieznanej kolumnie, pierwsza hipoteza brzmi: migracja nie została pu
 
 **Stanu bazy produkcyjnej nie da się odczytać z repo.** Numer ostatniej migracji w repo
 mówi tylko, co zostało napisane — nie co zostało zastosowane.
+
+### ⚠️ Historia migracji w repo ≠ historia w Supabase (MCP)
+
+Od sesji z dostępem do Supabase przez MCP (`execute_sql`, `list_migrations`,
+`apply_migration`) można czytać i pisać do bazy wprost z agenta. **`list_migrations`
+na produkcji zwraca pustą listę** — mimo 60 plików w `supabase/migrations/` — bo
+wszystkie były wklejane ręcznie do SQL Editora, a nie puszczane przez `apply_migration`.
+
+**Pusta lista nie znaczy „baza jest świeża".** Znaczy tylko, że Supabase nigdy nie
+prowadziło własnej księgi migracji dla tego projektu. Pierwsze użycie `apply_migration`
+założy **równoległą historię** zaczynającą się od zera — numeracja w repo (`060_…`)
+i historia w Supabase nigdy nie będą tożsame, i to jest oczekiwane, nie błąd.
+
+Zasady pracy z `apply_migration` (agent, nie człowiek w SQL Editorze):
+- plik w `supabase/migrations/NNN_nazwa.sql` jest źródłem prawdy — `apply_migration`
+  go wykonuje, nigdy odwrotnie (żadnego DDL istniejącego wyłącznie w bazie),
+- najpierw projekt deweloperski, potem produkcja (patrz „Osobna baza" niżej —
+  **projekt `BojoDev` już istnieje**, dziś ze statusem `INACTIVE`),
+- nigdy bez wyraźnej zgody użytkownika w danym momencie — zgoda na jedną migrację
+  nie jest zgodą na następną,
+- po każdym DDL: `get_advisors(type: 'security')` — łapie brakujące polityki RLS.
 
 ## ⚠️ RLS po cichu unieważnia UPDATE
 
@@ -122,7 +143,13 @@ obejmuje nową kolumnę.
 Domyślnie preview na Vercelu korzysta z **produkcyjnej** bazy — wygodne, ale każdy test
 zostawia ślad w prawdziwych danych. Żeby to rozdzielić, stawia się drugi projekt Supabase:
 
-1. **Nowy projekt** w Supabase (ta sama organizacja, np. `bojo-dev`). Zapisz hasło do bazy.
+**Projekt już istnieje — nie zakładać nowego.** `BojoDev` jest w tej samej organizacji,
+dziś ze statusem `INACTIVE` (trzeba go wybudzić przy pierwszym użyciu). Poniższe kroki
+(migracje, boiska, buckety, konta testowe, URL Configuration, zmienne na Vercelu) trzeba
+i tak przejść — projekt istnieje jako powłoka, nie jako gotowe do użycia środowisko.
+
+1. **Wybudź `BojoDev`** albo, jeśli naprawdę potrzebny jest inny projekt, załóż nowy
+   w tej samej organizacji. Zapisz hasło do bazy.
 2. **Migracje po kolei** — SQL Editor, od `001` do najnowszej. Kolejność ma znaczenie
    (późniejsze zakładają wcześniejsze). Nie da się tego pominąć: nie ma migratora,
    który zrobi to sam.

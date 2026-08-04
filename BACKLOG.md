@@ -7,7 +7,7 @@ jeszcze niezrobione.
 - Stan implementacji: [docs/funkcje.md](./docs/funkcje.md)
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 
-_Ostatnia aktualizacja: 2026-08-03_
+_Ostatnia aktualizacja: 2026-08-04_
 
 ---
 
@@ -143,7 +143,7 @@ Cron analizy satelitarnej zdjęty 2026-08-03 (chodził ~20×/mies. przez OR
 w harmonogramie GitHuba). `fix-coords.yml` do usunięcia — forward-geocoding adresu
 przesunął 59 pinezek nawet o 3 km (`supabase/przywroc-wspolrzedne.sql` cofa).
 
-- [ ] **Zweryfikować stan migracji na produkcji.** W repo jest 57 migracji; stanu bazy
+- [ ] **Zweryfikować stan migracji na produkcji.** W repo jest 60 migracji; stanu bazy
       nie da się odczytać z repo. Patrz [docs/baza-danych.md](./docs/baza-danych.md).
 - [ ] **Adresy kontaktowe wciąż na `bojo.app`** — `kontakt@bojo.app` w `/regulamin`,
       `/prywatnosc`, `/turniej` oraz nadawca `noreply@bojo.app` w edge functions, przy
@@ -157,11 +157,38 @@ przesunął 59 pinezek nawet o 3 km (`supabase/przywroc-wspolrzedne.sql` cofa).
 - [ ] **Build w CI** — po dodaniu sekretów `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` do
       repo dołożyć `npm run build` do `.github/workflows/ci.yml` (dziś build wymaga
       kluczy i dlatego jest poza CI).
-- [ ] **Sesja w cookie zamiast localStorage** (`@supabase/ssr` + `middleware.ts`) —
-      dziś serwer nie wie, kto ogląda `/`, więc rozróżnienie landing/dashboard dzieje
-      się po stronie klienta (`HomeSwitch.tsx`). Skutek: zalogowany użytkownik widzi
-      na moment landing zamiast dashboardu, zanim `useAuth()` odczyta sesję. Sesja
-      w cookie usunęłaby to mignięcie i otworzyłaby drogę do prawdziwego SSR redirectu.
+- [x] **Mignięcie landingu u zalogowanego — naprawione ciasteczkiem-wskazówką.**
+      (2026-08-04) Serwer wciąż nie ma prawdziwej sesji, ale `lib/auth.tsx` ustawia
+      malutkie ciasteczko `bojo_sess=1` (bez tokenu — patrz `lib/sessionHint.ts`)
+      przy `SIGNED_IN`/`TOKEN_REFRESHED`, kasuje przy `SIGNED_OUT`. `app/page.tsx`
+      czyta je przez `cookies()` i renderuje szkielet dashboardu (`AppHomeSkeleton.tsx`)
+      zamiast landingu, gdy wskazówka mówi „zalogowany". Nieaktualna wskazówka
+      samo-naprawia się przy pierwszym `getSession()`. Prawdziwa sesja serwerowa
+      (`@supabase/ssr` + `middleware.ts`) to wciąż osobny, większy krok — patrz niżej.
+- [ ] **`@supabase/ssr` + `middleware.ts`** — właściwe zamknięcie tematu sesji
+      serwerowej, otwierające drogę do prawdziwego SSR redirectu i serwerowego
+      renderowania danych dashboardu. Odłożone od ciasteczka-wskazówki wyżej, bo
+      dotyka klienta Supabase używanego przez ~44 pliki i może wymusić przepisanie
+      callbacku Google (`app/auth/callback`) na route handler z PKCE — flow logowania
+      to zbyt duże ryzyko, żeby jechało w tym samym PR-ze co UI. Warunek wstępny:
+      `npm run build` w CI (dziś poza pipeline'em — patrz pozycja wyżej) — inaczej
+      błąd w `middleware.ts` wyjdzie dopiero na produkcji (jedno środowisko, każdy
+      merge idzie na żywo).
+- [ ] **`syncReserveClaim` nie ma crona.** Kolejkę ofert dla rezerwowych (`733cf49`,
+      `058_reserve_claim.sql`) rusza wyłącznie wejście na stronę meczu
+      (`/wydarzenia/[id]`) — jeśli nikt nie wejdzie, oferta nie wygasa i miejsce nie
+      trafia do kolejnej osoby. Dashboard świadomie NIE woła tego RPC przy każdym
+      otwarciu `/` (zapis do bazy przy każdej wizycie każdego użytkownika byłby zbyt
+      kosztowny) — liczniki miejsc na kartach dashboardu mogą więc być nieaktualne,
+      dopóki ktoś nie wejdzie w konkretny mecz.
+- [ ] **Potwierdzone na produkcji przez Supabase MCP (2026-08-04):** polityka RLS
+      `Events readable by all` na `events` ma warunek `true` — każdy, także
+      niezalogowany, może odczytać WSZYSTKIE mecze, w tym prywatne. Kod dołączenia
+      (`join_code`) chroni tylko w UI, nie w bazie — potwierdza to punkt „Domknąć
+      reguły dostępu w RLS" wyżej, tym razem z realnym zapytaniem, nie tylko
+      podejrzeniem. `getMyGroupEvents()` (mecze grup, w tym prywatne — `lib/events.ts`)
+      działa dziś **wyłącznie dzięki tej luźnej polityce**: gdy ktoś RLS domknie, ta
+      funkcja po cichu zacznie zwracać mniej wierszy, bez błędu.
 
 ### Bugi UI — zgłoszone z testów na urządzeniu (2026-08-03)
 
@@ -284,11 +311,6 @@ musi wiedzieć, że wchodzi do gry, a nie wskoczyć tam po cichu.
 Zakres: flaga na `events` (np. `signups_open`), zamknięcie przy osiągnięciu kompletu,
 przycisk dla organizatora, komunikat dla wchodzących („zapisy zamknięte — zapytaj
 organizatora"), przemyślenie interakcji z listą rezerwową.
-
-### Propozycje składów przez graczy
-Każdy uczestnik może zaproponować podział na drużyny, reszta lajkuje/głosuje;
-organizator zatwierdza wybrany. Odciąża organizatora i angażuje ekipę.
-Dziś składy ustala wyłącznie organizator (`TeamsPanel`, tryby ręczny/kapitanowie/losowy).
 
 - **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
 - **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy
