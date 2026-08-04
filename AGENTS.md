@@ -176,6 +176,11 @@ ponownie i zacommituj wynik.
 
 ## Konwencje
 
+- **NIE pushuj bezpośrednio na `master`. Każda zmiana idzie przez pull request** —
+  branch → PR → review → merge. Powód: są już prawdziwi użytkownicy, a merge do
+  mastera to deploy na produkcję (jedno środowisko). PR daje preview z Vercela
+  i możliwość podesłania zmiany drugiej osobie przed zatwierdzeniem.
+  Obowiązuje od 2026-08-04; wcześniejsza praktyka „rób i merguj" jest nieaktualna.
 - Commity i wiadomości do użytkownika po polsku.
 - Migracje: kolejny numer + krótka nazwa, np. `058_nazwa_zmiany.sql`, z komentarzem
   **dlaczego** powstała.
