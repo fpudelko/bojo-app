@@ -79,7 +79,7 @@ for (const [i, part] of parts.entries()) {
 // --- Seedy ------------------------------------------------------------------
 // Kolejność ma znaczenie: boiska → konta → wydarzenia (te ostatnie odwołują się
 // do kont po e-mailu i wywalą się z wyjątkiem, jeśli konta nie istnieją).
-const seedFiles = ['seed-orliki.sql', 'seed-test-users.sql', 'seed_test_data.sql', 'seed_test_groups.sql'];
+const seedFiles = ['seed-orliki.sql', 'seed-test-users.sql', 'seed_test_data.sql', 'seed_test_groups.sql', 'seed_test_jan.sql'];
 
 // Konta organizatorów zakładane hasłem, bo świeży projekt nie ma jeszcze
 // skonfigurowanego Google OAuth, a seed_test_data.sql ich wymaga.
@@ -149,6 +149,7 @@ const seedHead = banner('BOJO — seedy (boiska, konta, wydarzenia testowe)', [
   '  3. konta organizatorów (hasło test1234) — tylko dla bazy deweloperskiej',
   '  4. 25 wydarzeń testowych pokrywających przepływy aplikacji',
   '  5. 4 grupy + 11 meczów prywatnych (seed_test_groups.sql)',
+  '  6. 19 wydarzeń dla Jana — wyniki, historia, komentarze (seed_test_jan.sql)',
   '',
   'Bezpieczny do wielokrotnego uruchamiania: istniejące konta są pomijane,',
   'a wydarzenia oznaczone [TEST] kasowane i tworzone od nowa.',

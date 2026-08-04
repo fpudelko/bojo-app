@@ -164,6 +164,12 @@ Uruchamiany ręcznie w SQL Editor, bezpieczny do wielokrotnego użycia (czyści 
 grupowych: mecze ekipy na stronie głównej, zaproszenia, przypinanie meczu do grupy.
 Marker `[TEST-G]`. Wymaga konta `franekks@gmail.com` w `auth.users`.
 
+`supabase/seed_test_jan.sql` — 19 wydarzeń pokrywających obszary, których nie ruszają
+poprzednie seedy: wyniki meczów z golami, mecze z przeszłości i statystyki gracza,
+odwołanie meczu, goście dopisani przez uczestnika, miejsce spoza katalogu, komentarze,
+składy nieopublikowane, 18-osobowy skład. Marker `[TEST-J]`. Wymaga konta
+`j4n.brz0@gmail.com`.
+
 Komplet do postawienia bazy od zera: `supabase/bundles/` (3 paczki migracji + seedy),
 generowane przez `node scripts/build-db-bundles.mjs` — po dodaniu migracji uruchom
 ponownie i zacommituj wynik.
