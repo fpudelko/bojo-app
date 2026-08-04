@@ -246,6 +246,32 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 
 ## 8. Pomysły jeszcze niezbudowane
 
+### Przejęcie profilu gościa (claim) — #1 z rewizji 2026-08 ⭐
+Projekt rozpisany w [docs/rewizja-2026-08.md](./docs/rewizja-2026-08.md) (dlaczego)
+i w rozmowie 2026-08-04 (jak). Skrót mechaniki:
+
+- `event_participants.claim_token` (unikalny, tylko wiersze gości) +
+  `claimed_at`; token generowany przy `addGuest` i backfillem dla istniejących
+- publiczna strona podglądu `/przejmij/[token]` — **bez logowania** pokazuje
+  dorobek gościa (mecze, gole, kto dopisał) przez RPC `guest_claim_preview(token)`
+  (`SECURITY DEFINER`, zwraca agregat, nie wiersze — nie okrąża RLS prywatnych meczów)
+- przejęcie: RPC `claim_guest_profile(token)` — ustawia `user_id = auth.uid()`,
+  `is_guest = false`, `claimed_at = now()`, nadpisuje `name` nazwą profilu;
+  obejmuje CAŁY klaster wierszy `same added_by + lower(name)` (lista pokazana
+  do potwierdzenia na stronie podglądu); wiersz w meczu, w którym przejmujący
+  już ma własny udział, jest pomijany
+- pojemność bez zmian (wiersz już liczony); statystyki zaczynają się liczyć
+  same, bo `get_player_stats` filtruje `is_guest = false`, a `player_goals`
+  idzie po `participant_id`
+- dystrybucja: przycisk „Wyślij mu jego profil" przy wierszu gościa (widzi
+  dopisujący i organizator) + baner po meczu „N gości bez konta"; ŻADNEJ
+  automatycznej wysyłki — link niesie człowiek, który gościa zna
+- miara sukcesu całego produktu: % wierszy gości z `claimed_at` (north star
+  z rewizji — konwersja zaproszony → użytkownik)
+- anty-nadużycia: token = sekret na okaziciela (model jak `join_code`),
+  rate limit na RPC przez `check_rate_limit`; regeneracja tokenu — later
+
+
 ### Zamykanie zapisów po komplecie (decyzja produktowa do wdrożenia)
 Dziś: gdy ktoś się wypisze, miejsce natychmiast wraca do puli i zajmuje je **pierwsza
 osoba, która kliknie „Dołącz"** — również ktoś z zewnątrz, z pominięciem listy rezerwowej.
