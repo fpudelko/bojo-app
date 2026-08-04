@@ -13,6 +13,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Która migracja tworzy tabelę X? Czemu zapis nie działa? | [baza-danych.md](./baza-danych.md) |
 | Ile to kosztuje? Kto co robi? Co jest w której fazie? | [strategia.md](./strategia.md) |
 | Jak opisać Bojo modelowi, który nie ma dostępu do repo? | [llm-context.md](./llm-context.md) |
+| Chcę, żeby model zakwestionował ten produkt — co mu wkleić? | [prompt-rewizja.md](./prompt-rewizja.md) |
 
 ## Hierarchia
 
