@@ -4,7 +4,7 @@
 > baza ~1400 boisk i obiektów sportowych, mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy). Interfejs po polsku. Logowanie przez Google lub e-mail.
 
-**Stan na:** 2026-08-03 · migracja `060` · 30 tabel · 81 testów
+**Stan na:** 2026-08-04 · migracja `060` · 30 tabel · 110 testów
 
 ---
 
@@ -295,6 +295,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-04 — Dashboard zalogowanego przebudowany + koniec mignięcia landingu
+PROBLEM: strona główna zalogowanego wciąż otwierała się marketingowym hero
+(„Znajdź mecz. Albo stwórz własny.") — copy sprzedające produkt komuś, kto już
+go używa. Do tego serwer nie wiedział, kto jest zalogowany, więc zalogowany
+widział na moment landing dla gości, zanim JavaScript zdążył odczytać sesję
+z `localStorage`. Wreszcie: dashboard robił 7–8 zapytań do Supabase na każde
+wejście, z czego trzy sekcje budowały własną, osobną kopię mapy uczestnictwa,
+a mecz z imiennym zaproszeniem do grupy pokazywał się dwa razy (w „Zaproszenia"
+i w „Mecze Twoich ekip").
+ROZWIĄZANIE BOJO: dashboard zaczyna się kompaktowym powitaniem i kartą
+najbliższego meczu (co i kiedy gram), nie hero. Serwer renderuje od razu
+szkielet dashboardu dla zalogowanego dzięki ciasteczku-wskazówce (bez tokenu —
+serwer wciąż nie ma prawdziwej sesji, tylko podpowiedź, którą skorupę
+wyrenderować). Status uczestnictwa `invited` (zarezerwowany w kodzie, ale
+wcześniej niczego nie produkujący) zaczął być realnie zwracany, co usunęło
+duplikat zaproszenia. Na mobile aktywowana dolna nawigacja (wcześniej gotowa,
+ale nieużywana) dla zalogowanych.
+MECHANIKA: `lib/sessionHint.ts` (ciasteczko `bojo_sess`, bez tokenu),
+synchronizacja w `lib/auth.tsx`, `AppHomeSkeleton.tsx`, `app/page.tsx` (odczyt
+`cookies()`). `lib/useDashboardData.ts` — jedno wywołanie `Promise.allSettled`
+zamiast pięciu niezależnych efektów. `lib/myEvents.ts` (`splitMyEvents`,
+`nextMatch` — sortuje samodzielnie, bo `getMyParticipatedEvents()` zwraca dane
+malejąco). `lib/eventDates.ts` (`matchWhenLabel` i przeniesione stąd
+`isUpcoming`/`isEventJoinable`/`timeUntil`). `getMyParticipationMap()`
+w `lib/events.ts` dociąga `event_player_invites` → status `invited`.
+`components/home/dashboard/{GreetingBar,NextMatchCard,DashboardSections}.tsx`,
+`components/layout/{BottomNav,BottomNavGate}.tsx`.
+
 ### 2026-08-04 — Krótszy kreator meczu
 PROBLEM: kreator meczu w Bojo wymagał zbyt wielu decyzji: pusta data, ręczna godzina
 zakończenia, sekcja „Ustawienia zaawansowane" z przełącznikami, których każdy i tak
@@ -321,7 +349,7 @@ zwykłym „Dołączam" / „Obserwuję" albo chowa go przez „Nie tym razem".
 Zaproszenie NIE zajmuje miejsca w składzie i niczego nie przesądza.
 MECHANIKA: tabela `event_player_invites` (migracja `060`), `lib/playerInvites.ts`,
 `components/events/InviteFromGroupDialog.tsx`, sekcja `InvitesSection`
-w `components/home/AppHome.tsx`.
+w `components/home/dashboard/DashboardSections.tsx`.
 
 ### 2026-08-03 — Mecze grupy na stronie głównej członka
 PROBLEM: mecz grupy jest zwykle prywatny, więc jedyną drogą do niego był link
@@ -331,7 +359,8 @@ ROZWIĄZANIE BOJO: zalogowany członek grupy widzi na stronie głównej sekcję
 Sekcja pokazuje tylko te, na które użytkownik jeszcze nie odpowiedział; mecze
 już potwierdzone lub obserwowane zostają w „Twoje najbliższe mecze".
 MECHANIKA: `getMyGroupEvents()` w `lib/events.ts` (członkostwo w `group_members`
-→ `events.group_id`), sekcja `GroupGamesSection` w `components/home/AppHome.tsx`.
+→ `events.group_id`), sekcja `GroupGamesSection`
+w `components/home/dashboard/DashboardSections.tsx`.
 
 ### 2026-08-03 — Przypisanie istniejącego meczu do grupy
 PROBLEM: grupę meczu w Bojo dało się wskazać tylko przy zakładaniu. Mecze założone

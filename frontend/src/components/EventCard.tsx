@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { format, parseISO, isFuture, isToday } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import type { EventItem } from '@/types';
@@ -11,22 +11,11 @@ export const SPORT_EMOJI: Record<string, string> = new Proxy({}, {
   get: (_, sport) => typeof sport === 'string' ? sportEmoji(sport) : '🏅',
 }) as Record<string, string>;
 
-export function isUpcoming(event: EventItem): boolean {
-  try {
-    const [y, m, d] = event.date.split('-').map(Number);
-    const eventDate = new Date(y, m - 1, d);
-    return isFuture(eventDate) || isToday(eventDate);
-  } catch { return false; }
-}
-
-/** True when the event's start time hasn't passed yet (used for open-games listings). */
-export function isEventJoinable(event: EventItem): boolean {
-  try {
-    const [y, m, d] = event.date.split('-').map(Number);
-    const [h, min] = (event.time ?? '23:59').split(':').map(Number);
-    return Date.now() < new Date(y, m - 1, d, h, min).getTime();
-  } catch { return false; }
-}
+// Re-exported for backward compatibility — the implementations now live in
+// lib/eventDates.ts so non-component code (dashboard hooks) can import them
+// without reaching into a component file. Import from '@/lib/eventDates' in
+// new code.
+export { isUpcoming, isEventJoinable } from '@/lib/eventDates';
 
 export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganizer: boolean }) {
   let dayLabel = '';

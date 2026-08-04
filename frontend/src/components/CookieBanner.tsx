@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth';
 
 const KEY = 'bojo_cookie_consent_v1';
 
 export default function CookieBanner() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
   useEffect(() => {
     try { setOpen(!localStorage.getItem(KEY)); } catch {}
   }, []);
@@ -18,7 +20,10 @@ export default function CookieBanner() {
     <div
       role="dialog"
       aria-label="Informacja o cookies"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
+      // BottomNav only exists for signed-in visitors (mobile dashboard) — lift
+      // the banner above it there; signed-out visitors sit flush with the
+      // edge instead of floating over an empty gap.
+      className={`fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.06)] ${user ? 'mb-16 md:mb-0' : ''}`}
     >
       <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 text-sm">
         <p className="flex-1 text-slate-600 leading-snug">
