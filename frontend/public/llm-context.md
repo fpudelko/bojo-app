@@ -295,6 +295,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-04 — Strona meczu: mniej ozdób, więcej odpowiedzi
+PROBLEM: strona meczu w Bojo otwierała się zdjęciem satelitarnym na pół ekranu,
+które nic nie mówiło. Nie było widać, czy się w tym meczu gra ani czy się je
+organizuje — trzeba było rozwinąć skład. Kto kliknął „Obserwuj", tracił przycisk
+„Dołącz". Boisko pojawiało się dwa razy, a jego nazwa (zwykle „Boisko — piłka
+nożna") mówiła mniej niż adres. Powrót ze strony boiska wyrzucał na mapę zamiast
+do meczu, a miejsce wpisane ręcznie w ogóle nie dawało się kliknąć.
+ROZWIĄZANIE BOJO: zdjęcie usunięte, na górze pasek z opisanymi akcjami
+„Udostępnij" i „Kopiuj". Wśród plakietek widać teraz „Organizujesz", „Grasz"
+(z rolą bramkarza) albo „Rezerwa · N." z pozycją w kolejce i „Obserwujesz".
+Organizator zmienia termin i widoczność klikając plakietkę; zmiana terminu przy
+zapisanych graczach wymaga potwierdzenia. Plakietka boiska pokazuje adres i
+prowadzi na stronę obiektu, skąd strzałka wraca do meczu; miejsce spoza katalogu
+otwiera okno z adresem i nawigacją. Wypisanie się ma teraz drugą opcję —
+„Wypisz mnie, ale obserwuj" — oraz krzyżyk do zamknięcia. Dopisując osobę bez
+konta wybiera się rolę (zawodnik z pola albo bramkarz) zamiast samego pola
+wyboru „dodaj jako bramkarza".
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx`, `setEventWhen()`
+w `lib/events.ts` (osobna funkcja, żeby nie nadpisywać reszty pola jak
+`updateEvent`), parametr `?wroc=` na trasie `/boisko/[id]` (tylko ścieżki
+względne).
+
 ### 2026-08-04 — Dashboard zalogowanego przebudowany + koniec mignięcia landingu
 PROBLEM: strona główna zalogowanego wciąż otwierała się marketingowym hero
 („Znajdź mecz. Albo stwórz własny.") — copy sprzedające produkt komuś, kto już
