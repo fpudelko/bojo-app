@@ -7,12 +7,18 @@ w czterech krokach, jeden dokument na wyjściu.
 co zabije projekt, co skasować z backlogu. Porównanie po fakcie jest jedynym sensownym
 sposobem oceny, czy droższy model był wart pieniędzy.
 
-**Co wkleić razem z promptem** (w tej kolejności, każde oznaczone nagłówkiem):
+**Nie chce Ci się zbierać plików?** Uruchom `node scripts/build-rewizja.mjs` —
+skleja prompt z czterema dokumentami w jeden `rewizja-do-wklejenia.txt` (~54 tys.
+znaków). Wklejasz całość jedną wiadomością i tyle.
+
+**Co dokładnie tam wchodzi** (w tej kolejności, każde oznaczone nagłówkiem):
 
 1. `docs/llm-context.md` — pisany dokładnie pod model czytający na zimno
 2. `docs/wizja.md`
 3. `docs/funkcje.md`
 4. `BACKLOG.md`
+
+Po każdej większej zmianie w tych dokumentach uruchom skrypt ponownie.
 
 Wynik zapisz jako `docs/rewizja-RRRR-MM.md` i dopisz link w `docs/README.md`.
 

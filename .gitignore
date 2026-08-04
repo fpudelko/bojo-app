@@ -114,3 +114,4 @@ frontend/tsconfig.tsbuildinfo
 !.claude/settings.json
 !.claude/hooks/
 .claude/settings.local.json
+rewizja-do-wklejenia.txt
