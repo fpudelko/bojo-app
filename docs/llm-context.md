@@ -295,6 +295,21 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-04 — Krótszy kreator meczu
+PROBLEM: kreator meczu w Bojo wymagał zbyt wielu decyzji: pusta data, ręczna godzina
+zakończenia, sekcja „Ustawienia zaawansowane" z przełącznikami, których każdy i tak
+chciał używać, a przycisk „Dalej" był poza pierwszym ekranem telefonu.
+ROZWIĄZANIE BOJO: sport wybiera się z jednej przewijanej linii (plus mały dropdown),
+data domyślnie jutro, zamiast godziny zakończenia jest „Czas gry" (domyślnie 90 min,
+koniec liczy się sam), liczba miejsc domyślnie 12 dla piłki nożnej z informacją,
+że kolejni trafią na rezerwę. Widoczność domyślnie publiczna. Sekcja zaawansowana
+zniknęła: obecność jest zawsze włączona, a mecz z ustawioną kwotą sam włącza
+śledzenie płatności i pokazuje graczom status wpłat. Organizator zapisujący się
+na własny mecz wybiera przy tym rolę: bramkarz lub zawodnik z pola.
+MECHANIKA: `app/wydarzenia/nowe/page.tsx`, parametr `organizerIsGoalkeeper`
+w `createEvent()` (`lib/events.ts`); wiersz organizatora dostaje status
+„potwierdzony" — zapis znaczy „będę", organizator oznacza potem nieobecnych.
+
 ### 2026-08-03 — Imienne zaproszenia na mecz
 PROBLEM: zaproszenie na mecz istniało tylko jako link do wklejenia na czacie.
 Kto go przewinął, nie dowiadywał się o meczu, a organizator nie wiedział, kogo

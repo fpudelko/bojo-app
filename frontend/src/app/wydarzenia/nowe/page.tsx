@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, Globe, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
+import { MapPin, Lock, Globe, ChevronDown, X, Users } from 'lucide-react';
 import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -19,6 +19,21 @@ import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
 const GK_SPORTS = ['piłka nożna', 'futsal'];
+
+/** Tomorrow as YYYY-MM-DD — the default match date; "today" usually means a rush. */
+function tomorrowStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** HH:MM plus N minutes; null when it would roll past midnight (no end time then). */
+function addMinutes(time: string, minutes: number): string | null {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  if (total >= 24 * 60) return null;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 
 /** True when the given date (YYYY-MM-DD) + time (HH:MM) is at or before now. */
 function isPast(date: string, time: string): boolean {
@@ -65,17 +80,21 @@ function NewEventForm() {
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
 
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(tomorrowStr);
   const [time, setTime] = useState('18:00');
-  const [endTime, setEndTime] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState(10);
+  // Match length instead of a free end-time picker — one obvious control,
+  // the end time is derived from it.
+  const [durationMin, setDurationMin] = useState(90);
+  const [maxPlayers, setMaxPlayers] = useState(12);
+  const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<Visibility>('private');
+  const [visibility, setVisibility] = useState<Visibility>('public');
   const [requireApproval, setRequireApproval] = useState(false);
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
+  const [organizerRole, setOrganizerRole] = useState<'field' | 'gk'>('field');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -91,10 +110,6 @@ function NewEventForm() {
     countAlertSeekers(lat, lng, sport, dow).then(setSeekerCount).catch(() => {});
   }, [location.lat, location.lng, sport, date]);
 
-  const [advOpen, setAdvOpen] = useState(false);
-  const [trackAttendance, setTrackAttendance] = useState(false);
-  const [trackPayments, setTrackPayments] = useState(false);
-  const [showPaymentStatus, setShowPaymentStatus] = useState(false);
   const [costPln, setCostPln] = useState('');
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentMethod[]>([]);
   const [blikPhone, setBlikPhone] = useState('');
@@ -209,13 +224,13 @@ function NewEventForm() {
     if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
     if (!date) errs.date = 'Podaj datę meczu.';
     if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
-    if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       // scroll to first error
       setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
+    const endTime = addMinutes(time, durationMin);
 
     const fieldName = location.venue
       ? location.venue.name
@@ -238,17 +253,19 @@ function NewEventForm() {
           description: description || undefined,
           date,
           time,
-          endTime: endTime || undefined,
+          endTime: endTime ?? undefined,
           maxPlayers,
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
           reserveClaimHours,
           visibility,
           requireSmsConfirmation: false,
-          trackAttendance,
+          // No "advanced" section: paid match tracks payments and shows the
+          // status to players; attendance is always on. One decision fewer.
+          trackAttendance: true,
           teamMode: 'brak',
-          trackPayments,
-          showPaymentStatus: trackPayments ? showPaymentStatus : false,
+          trackPayments: hasCost,
+          showPaymentStatus: hasCost,
           trackResults: true,
           confirmationDeadlineH: 24,
           costGrosze: Math.round(parseFloat(costPln || '0') * 100),
@@ -267,11 +284,23 @@ function NewEventForm() {
         user.id,
         displayName(user),
         organizerParticipates,
+        organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && organizerRole === 'gk',
       );
       router.push(`/wydarzenia/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się utworzyć wydarzenia');
       setSubmitting(false);
+    }
+  };
+
+  // Default roster size per sport; applied only until the organizer touches
+  // the stepper, so their explicit choice always wins.
+  const sportDefaultPlayers = (s: string) => (s === 'piłka nożna' || s === 'futsal' ? 12 : 10);
+  const selectSport = (s: string) => {
+    setSport(s);
+    if (!maxPlayersTouched) setMaxPlayers(sportDefaultPlayers(s));
+    if (location.venue && !location.venue.sport.includes(s)) {
+      setLocation(EMPTY_LOCATION);
     }
   };
 
@@ -295,7 +324,6 @@ function NewEventForm() {
     const errs: Record<string, string> = {};
     if (!date) errs.date = 'Podaj datę meczu.';
     if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
-    if (endTime && endTime <= time) errs.endTime = 'Godzina zakończenia musi być późniejsza niż rozpoczęcia.';
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
@@ -329,8 +357,6 @@ function NewEventForm() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Nowe wydarzenie</h1>
-
         {groupName && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm text-primary-800">
             <Users className="w-4 h-4 shrink-0" />
@@ -345,22 +371,17 @@ function NewEventForm() {
           {/* ── STEP 1 ── */}
           {step === 1 && (
             <>
-              {/* Sport chips */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Sport</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {/* Sport — one scrollable row of chips plus a compact dropdown,
+                  so "Dalej" stays above the fold on a phone. */}
+              <div className="flex items-center gap-2">
+                <div className="flex flex-1 gap-2 overflow-x-auto pb-1 -mb-1 [-webkit-overflow-scrolling:touch]">
                   {SPORTS.map((s) => (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => {
-                        setSport(s);
-                        if (location.venue && !location.venue.sport.includes(s)) {
-                          setLocation(EMPTY_LOCATION);
-                        }
-                      }}
+                      onClick={() => selectSport(s)}
                       className={[
-                        'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors',
+                        'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
                         sport === s
                           ? 'bg-primary-700 text-white border-primary-700'
                           : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400',
@@ -370,6 +391,23 @@ function NewEventForm() {
                       <span>{sportLabel(s)}</span>
                     </button>
                   ))}
+                </div>
+                {/* Native select disguised as a small button — opens the system
+                    picker, useful when the wanted sport is scrolled out of view. */}
+                <div className="relative shrink-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500">
+                    <ChevronDown className="h-4 w-4" />
+                  </div>
+                  <select
+                    value={sport}
+                    onChange={(e) => selectSport(e.target.value)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    aria-label="Wybierz sport"
+                  >
+                    {SPORTS.map((s) => (
+                      <option key={s} value={s}>{sportEmoji(s)} {sportLabel(s)}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -386,7 +424,7 @@ function NewEventForm() {
                 <p className="text-xs text-slate-500 mb-2">
                   Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
                 </p>
-                <div className="h-80 rounded-xl overflow-hidden border border-slate-200">
+                <div className="h-64 sm:h-80 rounded-xl overflow-hidden border border-slate-200">
                   <UnifiedLocationPicker
                     sport={sport}
                     value={location}
@@ -470,19 +508,18 @@ function NewEventForm() {
                   <TimeSelect value={time} onChange={setTime} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Zakończenie <span className="text-slate-400 font-normal">(opcjonalnie)</span>
-                  </label>
-                  <TimeSelect
-                    value={endTime}
-                    allowEmpty
-                    onChange={(v) => { setEndTime(v); setFieldErrors((f) => ({ ...f, endTime: '' })); }}
-                    className={fieldErrors.endTime ? 'ring-1 ring-red-400 rounded-xl' : ''}
-                  />
-                  {fieldErrors.endTime && (
-                    <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                      <span aria-hidden>⚠</span> {fieldErrors.endTime}
-                    </p>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Czas gry</label>
+                  <select
+                    value={durationMin}
+                    onChange={(e) => setDurationMin(Number(e.target.value))}
+                    className={inputCls}
+                  >
+                    {[60, 90, 120, 150, 180].map((m) => (
+                      <option key={m} value={m}>{m} min</option>
+                    ))}
+                  </select>
+                  {addMinutes(time, durationMin) && (
+                    <p className="mt-1 text-xs text-slate-500">Koniec o {addMinutes(time, durationMin)}</p>
                   )}
                 </div>
               </div>
@@ -495,7 +532,7 @@ function NewEventForm() {
                 <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
                   <button
                     type="button"
-                    onClick={() => setMaxPlayers((v) => Math.max(2, v - 1))}
+                    onClick={() => { setMaxPlayersTouched(true); setMaxPlayers((v) => Math.max(2, v - 1)); }}
                     className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
                     disabled={maxPlayers <= 2}
                     aria-label="Zmniejsz liczbę miejsc"
@@ -507,7 +544,7 @@ function NewEventForm() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setMaxPlayers((v) => Math.min(30, v + 1))}
+                    onClick={() => { setMaxPlayersTouched(true); setMaxPlayers((v) => Math.min(30, v + 1)); }}
                     className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-40"
                     disabled={maxPlayers >= 30}
                     aria-label="Zwiększ liczbę miejsc"
@@ -515,6 +552,7 @@ function NewEventForm() {
                     +
                   </button>
                 </div>
+                <p className="mt-1.5 text-xs text-slate-500">Kolejni chętni trafią na listę rezerwową.</p>
               </div>
 
               {/* Goalkeeper distinction — sports with a goalkeeper only */}
@@ -522,7 +560,10 @@ function NewEventForm() {
                 <div className="flex items-center justify-between py-2 border-b border-slate-100">
                   <div className="pr-3">
                     <p className="text-sm font-medium text-slate-900">Rozróżniaj bramkarzy</p>
-                    <p className="text-xs text-slate-500">Gracze wybierają bramkarz / zawodnik z pola. Max 2 bramkarzy — kolejni trafią na rezerwę.</p>
+                    <p className="text-xs text-slate-500">
+                      Gracze wybierają: bramkarz lub zawodnik z pola. Max 2 bramkarzy
+                      i {Math.max(0, maxPlayers - 2)} zawodników z pola — kolejni trafią na rezerwę.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -694,20 +735,41 @@ function NewEventForm() {
               )}
 
               {/* Organizer participates */}
-              <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Biorę udział</p>
-                  <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika tej gry</p>
+              <div className="py-2 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Biorę udział</p>
+                    <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika tej gry</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOrganizerParticipates((v) => !v)}
+                    className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                    role="switch"
+                    aria-checked={organizerParticipates}
+                  >
+                    <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOrganizerParticipates((v) => !v)}
-                  className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
-                  role="switch"
-                  aria-checked={organizerParticipates}
-                >
-                  <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-                </button>
+                {organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && (
+                  <div className="mt-2 flex gap-2">
+                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([role, label]) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setOrganizerRole(role)}
+                        className={[
+                          'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                          organizerRole === role
+                            ? 'border-primary-600 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Button type="button" size="lg" className="w-full" onClick={goToStep3}>
@@ -795,29 +857,6 @@ function NewEventForm() {
                   </p>
                 </div>
               )}
-
-              {/* Advanced */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setAdvOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Ustawienia zaawansowane
-                  {advOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                </button>
-                {advOpen && (
-                  <div className="px-4 pb-2 border-t border-slate-100 divide-y divide-slate-100">
-                    <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
-                    <ToggleRow label="Śledzenie płatności" desc="Rejestruj wpłaty uczestników" checked={trackPayments} onChange={setTrackPayments} />
-                    {trackPayments && (
-                      <div className="py-3">
-                        <ToggleRow label="Pokaż status płatności uczestnikom" checked={showPaymentStatus} onChange={setShowPaymentStatus} />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
