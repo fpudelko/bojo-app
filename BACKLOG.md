@@ -143,6 +143,13 @@ Cron analizy satelitarnej zdjęty 2026-08-03 (chodził ~20×/mies. przez OR
 w harmonogramie GitHuba). `fix-coords.yml` do usunięcia — forward-geocoding adresu
 przesunął 59 pinezek nawet o 3 km (`supabase/przywroc-wspolrzedne.sql` cofa).
 
+**Copy landingu i dashboardu (2026-08-04) już mówi o „całej Polsce", z wyprzedzeniem
+względem tego zadania.** Świadoma decyzja: tworzenie meczu z pinezką gdziekolwiek na
+mapie działa już dziś, więc obietnica ma pokrycie — tylko katalog boisk jeszcze nie.
+Jedyne miejsce, które nazywa Poznań wprost, to FAQ (`components/home/landing/content.ts`,
+pytanie „Gdzie działa Bojo?") — do zaktualizowania (albo pozostawienia bez zmian, jeśli
+gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domknie.
+
 - [ ] **Zweryfikować stan migracji na produkcji.** W repo jest 60 migracji; stanu bazy
       nie da się odczytać z repo. Patrz [docs/baza-danych.md](./docs/baza-danych.md).
 - [ ] **Adresy kontaktowe wciąż na `bojo.app`** — `kontakt@bojo.app` w `/regulamin`,

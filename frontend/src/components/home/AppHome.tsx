@@ -11,6 +11,7 @@ import {
   MyGroupsSection,
   OnboardingSection,
 } from './dashboard/DashboardSections';
+import LandingFaq from './landing/LandingFaq';
 import { DashboardContentSkeleton } from './AppHomeSkeleton';
 import { useDashboardData } from '@/lib/useDashboardData';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
@@ -39,8 +40,6 @@ export default function AppHome({ userId }: { userId: string }) {
   const next = nextMatch(data.myEvents);
   const restPlaying = playing.filter(({ event }) => event.id !== next?.event.id);
 
-  const noActivity = data.myEvents.length === 0 && data.groups.length === 0 && data.invites.length === 0;
-
   return (
     <>
       <GreetingBar />
@@ -50,10 +49,11 @@ export default function AppHome({ userId }: { userId: string }) {
         <MyMatchesSection items={restPlaying} />
         <ObservingSection items={observing} />
         <GroupGamesSection events={data.groupEvents} statusFor={data.statusFor} />
-        <OpenGamesSection events={data.openEvents} statusFor={data.statusFor} alert={data.alert} />
         <MyGroupsSection groups={data.groups} />
-        {noActivity && <OnboardingSection />}
+        <OpenGamesSection events={data.openEvents} statusFor={data.statusFor} alert={data.alert} />
+        <OnboardingSection />
       </section>
+      <LandingFaq />
     </>
   );
 }

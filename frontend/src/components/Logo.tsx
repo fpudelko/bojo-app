@@ -55,8 +55,24 @@ export function LogoWordmark({ theme = 'light', className, iconSize = 28 }: Logo
   );
 }
 
+interface LogoPillProps {
+  className?: string;
+  /** 'solid' = zielone tło (domyślne, header na białym); 'onDark' = szklana pigułka do użycia na hero */
+  variant?: 'solid' | 'onDark';
+}
+
 /** Green pill wordmark — used in header (no separate B icon, avoiding visual double-B) */
-export function LogoPill({ className }: { className?: string }) {
+export function LogoPill({ className, variant = 'solid' }: LogoPillProps) {
+  if (variant === 'onDark') {
+    return (
+      <span
+        className={`inline-flex items-center rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 font-display text-xl font-bold tracking-tight text-white backdrop-blur-sm ${className ?? ''}`}
+        style={{ letterSpacing: '-0.03em', lineHeight: 1 }}
+      >
+        bojo
+      </span>
+    );
+  }
   return (
     <span
       className={`inline-flex items-center rounded-xl px-3.5 py-2 font-display text-xl font-bold tracking-tight text-white ${className ?? ''}`}

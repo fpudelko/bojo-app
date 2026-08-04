@@ -37,7 +37,13 @@ function TeamIcon({ className }: { className?: string }) {
   );
 }
 
-export default function Header() {
+interface HeaderProps {
+  /** Przezroczysty pasek nad hero landingu, dopóki nie zescrollujesz i nikt nie jest zalogowany.
+   *  Domyślnie false — bez tego propa zachowanie identyczne jak dziś na wszystkich stronach. */
+  transparentOverHero?: boolean;
+}
+
+export default function Header({ transparentOverHero = false }: HeaderProps = {}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -54,6 +60,17 @@ export default function Header() {
   const loginHref = pathname && pathname !== '/'
     ? `/logowanie?next=${encodeURIComponent(pathname)}`
     : '/logowanie';
+
+  // Transparent-over-hero look: no background/border/shadow, white logo and
+  // icons, until the visitor scrolls or turns out to be logged in. Position
+  // stays `fixed` for the whole time transparentOverHero is on (not just
+  // during the overlay phase) — switching to `sticky` on scroll would make
+  // the header start occupying flow height again and shove hero content down
+  // by another 64px on top of the pt-16 it already reserves, causing a jump
+  // right at the scroll threshold. Staying fixed keeps that offset constant.
+  // `!mobileOpen` too: the mobile menu overlay is a solid white sheet behind
+  // this header, so white-on-transparent logo/icons would vanish onto it.
+  const overlay = transparentOverHero && !scrolled && !user && !mobileOpen;
 
   useEffect(() => {
     if (!user) { setHasVenue(false); return; }
@@ -108,15 +125,19 @@ export default function Header() {
 
   return (
     <>
-      {/* ── Sticky header bar ── */}
+      {/* ── Header bar — fixed+transparent over hero on the landing page, sticky+solid everywhere else ── */}
       <header className={clsx(
-        'bg-white/90 dark:bg-[#0D1117]/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-[#0D1117]/88 border-b border-slate-200/70 dark:border-white/[0.07] sticky top-0 z-[1010] transition-shadow duration-200',
-        scrolled && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
+        'top-0 z-[1010] transition-[background-color,box-shadow,border-color] duration-200',
+        transparentOverHero ? 'fixed w-full' : 'sticky',
+        overlay
+          ? 'bg-transparent border-b border-transparent'
+          : 'bg-white/90 dark:bg-[#0D1117]/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-[#0D1117]/88 border-b border-slate-200/70 dark:border-white/[0.07]',
+        scrolled && !overlay && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
       )}>
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="hover:opacity-90 transition-opacity">
-              <LogoPill />
+              <LogoPill variant={overlay ? 'onDark' : 'solid'} />
             </Link>
 
             <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
@@ -126,9 +147,11 @@ export default function Header() {
                   href={link.href}
                   className={clsx(
                     'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                    pathname === link.href || pathname.startsWith(link.href + '/')
-                      ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
+                    overlay
+                      ? 'text-white/85 hover:text-white hover:bg-white/10'
+                      : (pathname === link.href || pathname.startsWith(link.href + '/')
+                        ? 'bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]'),
                   )}
                 >
                   {link.label}
@@ -243,7 +266,12 @@ export default function Header() {
                   {mounted && (
                     <button
                       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                      className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                      className={clsx(
+                        'p-2 rounded-lg transition-colors',
+                        overlay
+                          ? 'text-white/80 hover:bg-white/10'
+                          : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800',
+                      )}
                       aria-label={resolvedTheme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'}
                       title={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
                     >
@@ -260,15 +288,35 @@ export default function Header() {
               )}
             </div>
 
-            <button
-              className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-              onClick={() => setMobileOpen((o) => !o)}
-              aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
-              aria-expanded={mobileOpen}
-              aria-controls="mobile-nav"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            <div className="flex items-center gap-2 md:hidden">
+              {!loading && !user && (
+                <Link
+                  href={loginHref}
+                  className={clsx(
+                    'inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
+                    overlay
+                      ? 'bg-white/15 text-white border border-white/25 hover:bg-white/25'
+                      : 'bg-primary-700 text-white hover:bg-primary-800',
+                  )}
+                >
+                  Zaloguj się
+                </Link>
+              )}
+              <button
+                className={clsx(
+                  'p-2 rounded-lg transition-colors',
+                  overlay
+                    ? 'text-white hover:bg-white/10'
+                    : 'text-slate-600 hover:bg-slate-100',
+                )}
+                onClick={() => setMobileOpen((o) => !o)}
+                aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-nav"
+              >
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
       </header>

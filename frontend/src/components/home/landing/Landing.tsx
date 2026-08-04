@@ -14,7 +14,7 @@ export default function Landing({ venueCount }: { venueCount: number | null }) {
   return (
     <>
       <div className="pb-24 md:pb-0">
-        <LandingHero venueCount={venueCount} />
+        <LandingHero />
         <LandingStats venueCount={venueCount} />
         <LandingHowItWorks />
         <LandingOpenGames />

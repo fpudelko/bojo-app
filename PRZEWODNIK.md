@@ -1,7 +1,8 @@
 # Bojo — przewodnik dla współpracownika
 
-> **Bojo** (Boiska Poznań) to aplikacja webowa, która pomaga znaleźć boisko w Poznaniu,
-> zorganizować mecz i zebrać skład. Działa w przeglądarce, logowanie przez Google.
+> **Bojo** to aplikacja webowa, która pomaga zorganizować mecz gdziekolwiek w Polsce
+> i zebrać skład — katalog boisk jest dziś najgęstszy w Poznaniu. Działa w przeglądarce,
+> logowanie przez Google.
 
 Ten dokument w 5 minut wprowadza Cię w to, co aplikacja potrafi i jak jest zbudowana.
 
@@ -15,7 +16,7 @@ działa, ale flaga ukryła wejścia w nawigacji — pełna tabela flag w
 
 | Strona | Co robi | Widoczne? |
 |---|---|---|
-| **Start** (`/`) | Niezalogowani: landing (obietnica + „jak to działa" + otwarte mecze + FAQ). Zalogowani: dashboard — zaproszenia, najbliższy mecz, Twoje mecze, mecze Twoich ekip, otwarte mecze, grupy. Na mobile dolna nawigacja z szybkimi akcjami (Gry / Mapa / **+** / Moje / Profil) | tak |
+| **Start** (`/`) | Niezalogowani: landing (obietnica + „jak to działa" + otwarte mecze + FAQ). Zalogowani: dashboard — zaproszenia, najbliższy mecz, Twoje mecze, mecze Twoich ekip, Twoje grupy, otwarte mecze, „jak to działa" i FAQ na dole. Na mobile dolna nawigacja z szybkimi akcjami (Gry / Mapa / **+** / Moje / Grupy) — Profil jest w menu hamburgera | tak |
 | **Mapa** (`/mapa`) | Interaktywna mapa z dwiema zakładkami: **Boiska** i **Mecze**. Filtry po sporcie, dostępności, nawierzchni. Klik w pinezkę → szczegóły | tak |
 | **Boiska wg sportu** (`/boiska/pilka-nozna`) | Lista boisk dla danego sportu (przyjazne adresy pod Google) | tak |
 | **Szczegóły boiska** (`/boisko/...`) | Adres, sporty, zdjęcie, opis, dane kontaktowe, nadchodzące mecze. Strona zoptymalizowana pod wyszukiwarki (JSON-LD) | tak |

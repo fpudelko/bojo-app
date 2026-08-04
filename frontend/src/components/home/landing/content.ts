@@ -2,6 +2,12 @@
 // unit-tested (forbidden phrases, FAQ <-> JSON-LD parity) without rendering
 // any component. Every claim here must be backed by working code — see
 // docs/llm-context.md, section "Czego Bojo NIE robi", before adding a line.
+//
+// Geography: copy speaks about CAPABILITY ("stwórz mecz gdziekolwiek"), not
+// about catalogue density. Placing a pin anywhere on the map already works
+// today, so that promise has coverage even while the venue catalogue is
+// still Poznań-heavy. Only the FAQ names Poznań, and only to disclose that
+// honestly — see landingContent.test.ts, describe("zasięg — …").
 
 export const LANDING_CTA = {
   primary: { label: 'Zorganizuj mecz', href: '/wydarzenia/nowe' },
@@ -9,11 +15,17 @@ export const LANDING_CTA = {
 } as const;
 
 export const LANDING_HERO = {
-  eyebrowFallback: 'Boiska i mecze w Poznaniu',
-  h1: ['Zbierz skład na mecz', 'w dwie minuty'],
+  // Rotates in the hero eyebrow slot (RotatingBadge). First entry is what
+  // server-rendered HTML and reduced-motion visitors see.
+  badges: [
+    'Mecz gdziekolwiek w Polsce',
+    'Skład i rezerwa liczą się same',
+    'Rozliczenie w jednym miejscu',
+  ],
+  h1: ['Zorganizuj mecz', 'w dwie minuty'],
   lead:
     'Stwórz grę i wyślij ekipie jeden link. Brakuje ludzi do składu? ' +
-    'Otwórz mecz publicznie — zobaczą go gracze z Poznania.',
+    'Otwórz mecz publicznie — zobaczą go gracze z okolicy.',
   trust: ['Za darmo', 'Google lub e-mail', 'Bez instalacji'],
 } as const;
 
@@ -34,8 +46,8 @@ export const LANDING_STEPS = [
     icon: 'Users',
     title: 'Brakuje ludzi? Otwórz mecz',
     body:
-      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier w Poznaniu, którą ' +
-      'przegląda cała okolica.',
+      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier w Twojej okolicy, ' +
+      'którą przegląda cała społeczność Bojo.',
   },
 ] as const;
 
@@ -73,7 +85,7 @@ export const LANDING_VALUES = [
     icon: 'MapPin',
     title: 'Boiska w jednym miejscu',
     body:
-      'Nawierzchnia, typ obiektu, dzielnica, zdjęcie i nadchodzące mecze. Bez ' +
+      'Nawierzchnia, typ obiektu, lokalizacja, zdjęcie i nadchodzące mecze. Bez ' +
       'przekopywania stron klubów.',
   },
 ] as const;
@@ -111,9 +123,10 @@ export const LANDING_FAQ: ReadonlyArray<{ q: string; a: string }> = [
       'Rozliczacie się jak dotąd, tylko bez liczenia w pamięci.',
   },
   {
-    q: 'W jakim mieście działa Bojo?',
-    a: 'W Poznaniu i okolicach. Baza boisk obejmuje powiat poznański; poza tym obszarem ' +
-      'Bojo nie ma jeszcze danych o obiektach.',
+    q: 'Gdzie działa Bojo?',
+    a: 'W całej Polsce — mecz stworzysz w dowolnym miejscu, wskazując je na mapie albo ' +
+      'wybierając obiekt z katalogu. Katalog boisk jest dziś najgęstszy w Poznaniu ' +
+      'i rośnie o kolejne miasta, ale samo tworzenie meczu nie jest niczym ograniczone.',
   },
   {
     q: 'Jak zaprosić stałą ekipę?',
@@ -127,11 +140,11 @@ export const LANDING_FINAL_CTA = {
   lead: 'Wrzuć mecz, wyślij link i miej to z głowy.',
 } as const;
 
-export const LANDING_STATS_LABELS = {
+export const LANDING_STATS = {
   venuesFallback: 'Setki',
-  venuesSuffix: 'boisk i obiektów w Poznaniu',
-  sportsValue: '4',
-  sportsLabel: 'dyscypliny — piłka, siatka, plażówka, kosz',
+  venuesSuffix: 'boisk i obiektów na mapie',
+  timeValue: '2 min',
+  timeLabel: 'tyle zajmuje stworzenie meczu',
   priceValue: '0 zł',
   priceLabel: 'Bojo jest darmowe',
 } as const;

@@ -169,6 +169,15 @@ a {
   }
 }
 
+/* RotatingBadge (hero eyebrow) — cross-fade only, no movement. */
+@keyframes badge-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-badge-fade {
+  animation: badge-fade 0.5s ease-out;
+}
+
 /* Mapbox overrides — ensure map fills its container */
 .mapboxgl-map {
   width: 100%;

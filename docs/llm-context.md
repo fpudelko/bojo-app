@@ -1,10 +1,11 @@
 # Bojo — kontekst dla modeli językowych
 
-> Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w Poznaniu:
-> baza ~1400 boisk i obiektów sportowych, mecze publiczne otwarte na dołączenie,
-> stałe ekipy (grupy). Interfejs po polsku. Logowanie przez Google lub e-mail.
+> Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w całej Polsce
+> (katalog boisk dziś najgęstszy w Poznaniu): mecze publiczne otwarte na dołączenie,
+> stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
+> Google lub e-mail.
 
-**Stan na:** 2026-08-04 · migracja `060` · 30 tabel · 110 testów
+**Stan na:** 2026-08-04 · migracja `060` · 30 tabel · 113 testów
 
 ---
 
@@ -45,10 +46,12 @@ mecz w Poznaniu? Jak zorganizować mecz i zebrać skład? Na czym Bojo jest zbud
 
 ## Zasięg i skala
 
-Bojo działa w **Poznaniu i okolicach** — to jedyne miasto w bazie. Katalog obejmuje
-~1400 boisk i obiektów sportowych. Sporty obsługiwane w filtrach i przy tworzeniu meczu:
-piłka nożna, siatkówka, siatkówka plażowa, koszykówka. Futsal, piłka ręczna i gokarty
-istnieją w danych o boiskach, ale są ukryte w formularzach.
+Bojo działa w **całej Polsce** — mecz można stworzyć w dowolnym miejscu, wskazując je na
+mapie albo wybierając obiekt z katalogu; ta zdolność nie jest ograniczona geograficznie.
+Katalog boisk (~1400 obiektów) jest dziś najgęstszy w Poznaniu i rośnie o kolejne miasta.
+Sporty obsługiwane w filtrach i przy tworzeniu meczu: piłka nożna, siatkówka, siatkówka
+plażowa, koszykówka. Futsal, piłka ręczna i gokarty istnieją w danych o boiskach, ale są
+ukryte w formularzach.
 
 Przeglądanie mapy i stron boisk **nie wymaga konta**. Tworzenie meczu, dołączanie do
 składu i zakładanie grup wymagają logowania.
@@ -69,7 +72,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 |---|---|
 | **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, obecność, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
 | **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów |
-| **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności, miasta poza Poznaniem |
+| **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 Flagi ukrywają **wejścia w nawigacji, nie trasy**: adres wpisany ręcznie nadal odpowiada.
@@ -248,16 +251,14 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Publiczna lista graczy** — trasa `/gracze` przekierowuje na listę meczów.
 - **Osobny backend, API ani kontrolery.**
 - **Automatyczne uruchamianie migracji.**
-- **Miasta poza Poznaniem.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
 alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów.
 Kod istnieje, wejścia w nawigacji nie ma. Aktualny stan flag →
 [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
-**Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo działa
-w Warszawie? Czy Bojo obsługuje turnieje? Czy przez Bojo zapłacę za boisko? Czy Bojo
-poleci mi mecz na moim poziomie?
+**Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
+turnieje? Czy przez Bojo zapłacę za boisko? Czy Bojo poleci mi mecz na moim poziomie?
 
 ---
 
@@ -294,6 +295,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-04 — Landing i dashboard: zwrot na organizatora, zasięg ogólnopolski
+PROBLEM: Landing obiecywał „zbierz skład na mecz w dwie minuty" — nierealne dla
+kilkunastoosobowej ekipy — i mówił wyłącznie o Poznaniu, mimo że tworzenie meczu
+z pinezką na mapie działa już w całej Polsce. Górny pasek był zawsze biały i zjadał
+pierwszy ekran telefonu, a „Zaloguj się" było dostępne wyłącznie w menu hamburgera
+na mobile. Dashboard zalogowanego stawiał „Otwarte mecze" (dziś zwykle puste) nad
+„Twoje grupy" (gdzie realnie dzieje się ruch) i nie miał sekcji „Jak to działa" ani FAQ.
+ROZWIĄZANIE BOJO: H1 mówi o czynności, którą Bojo faktycznie dowozi w dwie minuty
+(„Zorganizuj mecz"), a rotujący nagłówek nad H1 pokazuje trzy wartości organizatora
+zamiast liczby boisk w jednym mieście. Górny pasek jest przezroczysty nad hero (z
+widocznym od razu „Zaloguj się" na mobile) i staje się białym paskiem po zescrollowaniu
+albo dla zalogowanych. Sticky CTA na mobile to teraz okrągły przycisk „+" zamiast paska
+na całą szerokość. Pasek cookies pokazuje się dopiero po przewinięciu 300px albo po
+6 sekundach, więc nie zjada pierwszego ekranu. Dolna nawigacja zalogowanego ma „Grupy"
+zamiast „Profil" (profil jest już w menu hamburgera). Dashboard: „Twoje grupy" nad
+„Otwarte mecze", a „Jak to działa" i FAQ pokazują się zawsze na dole, nie tylko przy
+zerowej aktywności.
+MECHANIKA: `components/home/landing/{content,LandingHero,LandingStats,LandingVenues,
+StickyCta,RotatingBadge,PhoneMock}.tsx`, `components/layout/Header.tsx` (prop
+`transparentOverHero`), `components/Logo.tsx` (wariant `onDark` dla `LogoPill`),
+`lib/cookieConsent.ts` (hook `useCookieBannerVisible`, dzielony przez `CookieBanner.tsx`
+i `StickyCta.tsx`), `components/layout/BottomNav.tsx`,
+`components/home/{AppHome,dashboard/DashboardSections}.tsx`,
+`components/layout/SiteFooter.tsx`.
 
 ### 2026-08-04 — Dashboard zalogowanego przebudowany + koniec mignięcia landingu
 PROBLEM: strona główna zalogowanego wciąż otwierała się marketingowym hero

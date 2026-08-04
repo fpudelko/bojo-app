@@ -30,7 +30,7 @@ export default async function HomePage() {
       >
         Przejdź do treści
       </a>
-      <Header />
+      <Header transparentOverHero={!signedInHint} />
 
       <main id="main" className="flex-1">
         <HomeSwitch
