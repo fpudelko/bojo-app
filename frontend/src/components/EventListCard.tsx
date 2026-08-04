@@ -7,6 +7,10 @@ import { Clock, MapPin, Navigation, Users } from 'lucide-react';
 import type { EventItem } from '@/types';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+// Re-exported for backward compatibility — implementation now lives in
+// lib/eventDates.ts. Import from '@/lib/eventDates' in new code.
+import { timeUntil } from '@/lib/eventDates';
+export { timeUntil };
 
 /** How the current user relates to this event — drives the CTA. */
 export type EventRelation = 'organizer' | 'going' | 'reserve';
@@ -30,20 +34,6 @@ function formatSize(max: number): string {
   if (max <= 0) return '';
   if (max % 2 === 0) return ` ${max / 2}v${max / 2}`;
   return ` · ${max} os.`;
-}
-
-/** "za 2 h" / "za 30 min" within 24h, else null */
-export function timeUntil(date: string, time?: string): string | null {
-  if (!time) return null;
-  try {
-    const [y, m, d] = date.split('-').map(Number);
-    const [h, min] = time.split(':').map(Number);
-    const ms = new Date(y, m - 1, d, h, min).getTime() - Date.now();
-    if (ms <= 0 || ms > 24 * 3600_000) return null;
-    const hours = ms / 3600_000;
-    if (hours < 1) return `za ${Math.round(hours * 60)} min`;
-    return `za ${Math.round(hours)} h`;
-  } catch { return null; }
 }
 
 function DistanceBadge({ km }: { km: number }) {

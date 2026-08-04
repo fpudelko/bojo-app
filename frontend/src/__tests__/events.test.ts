@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { createEvent, joinEvent, removeParticipant } from '@/lib/events';
+import { createEvent, joinEvent, removeParticipant, getMyParticipationMap } from '@/lib/events';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -187,5 +187,84 @@ describe('removeParticipant', () => {
     // the reserve has to accept it themselves.
     expect(updateWasCalled).toBe(false);
     expect(mockRpc).toHaveBeenCalledWith('sync_reserve_claim', { p_event_id: 'event-1' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMyParticipationMap — 'invited' status derived from event_player_invites
+// ---------------------------------------------------------------------------
+describe('getMyParticipationMap', () => {
+  it('derives status "invited" for an open invite with no participant row yet', async () => {
+    const { supabase } = await import('@/lib/supabase');
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'event_participants') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        } as unknown as ReturnType<typeof supabase.from>;
+      }
+      // event_player_invites → .select().eq().is()
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({ data: [{ event_id: 'e-invited' }], error: null }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof supabase.from>;
+    });
+
+    const map = await getMyParticipationMap('user-1');
+    expect(map['e-invited']).toBe('invited');
+  });
+
+  it('an existing participant row wins over an open invite for the same event', async () => {
+    const { supabase } = await import('@/lib/supabase');
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'event_participants') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ event_id: 'e1', rsvp: null, is_reserve: false, pending_approval: false }],
+              error: null,
+            }),
+          }),
+        } as unknown as ReturnType<typeof supabase.from>;
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({ data: [{ event_id: 'e1' }], error: null }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof supabase.from>;
+    });
+
+    const map = await getMyParticipationMap('user-1');
+    // Already answered (playing) — the invite is stale context, not the relation.
+    expect(map['e1']).toBe('playing');
+  });
+
+  it('no invites and no participant rows produces an empty map', async () => {
+    const { supabase } = await import('@/lib/supabase');
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'event_participants') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        } as unknown as ReturnType<typeof supabase.from>;
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof supabase.from>;
+    });
+
+    const map = await getMyParticipationMap('user-1');
+    expect(map).toEqual({});
   });
 });

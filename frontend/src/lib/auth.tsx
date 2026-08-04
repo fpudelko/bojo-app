@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { track } from './analytics';
+import { setHintCookie, clearHintCookie } from './sessionHint';
 
 interface AuthContextValue {
   user: User | null;
@@ -52,6 +53,26 @@ export function displayName(user: User | null): string {
   );
 }
 
+/** First name only, for compact greetings ("Cześć, Janek 👋"). Cuts a bare
+ *  e-mail down at the "@" first, so a user with no display name never greets
+ *  themselves by their full address. */
+export function firstName(user: User | null): string {
+  const name = displayName(user);
+  if (!name) return '';
+  const first = name.split('@')[0].trim().split(/\s+/)[0] ?? '';
+  if (!first) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+/** Writes (or clears) the presentational session-hint cookie so the server
+ *  can pick landing vs. dashboard skeleton on the very first response — see
+ *  lib/sessionHint.ts for what this cookie is (and, importantly, isn't). */
+function syncSessionHint(hasSession: boolean) {
+  if (typeof document === 'undefined') return;
+  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  document.cookie = hasSession ? setHintCookie(secure) : clearHintCookie(secure);
+}
+
 /** Translate common Supabase auth errors into friendly Polish copy. */
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
@@ -73,10 +94,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
       setLoading(false);
+      // Self-heals a stale hint too: if the cookie says "signed in" but there
+      // is in fact no session, this clears it on the very next load.
+      syncSessionHint(!!data.session);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      // Covers SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED (session present)
+      // and SIGNED_OUT (session null) alike — keyed off session presence
+      // rather than a fixed event list, so it stays correct if Supabase adds
+      // new event types later.
+      syncSessionHint(!!session);
       // When the user clicks a password-reset email, Supabase fires PASSWORD_RECOVERY
       // on whatever page the redirect_to URL lands on. Redirect to the reset form
       // regardless of which page is currently shown (handles cases where Supabase

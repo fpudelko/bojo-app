@@ -882,5 +882,24 @@ export async function getMyParticipationMap(
   if (error) throw new Error(error.message);
   const out: Record<string, MyEventStatus> = {};
   for (const r of data ?? []) out[r.event_id as string] = statusFromRow(r);
+
+  // A player invite (event_player_invites, migration 060) that hasn't been
+  // dismissed and has no participant row yet means "invited, awaiting my
+  // answer" — the one MyEventStatus this map never produced before that
+  // table existed. Anyone who already answered (joined/observing/reserve/
+  // pending) keeps that status; the invite becomes just context at that
+  // point, not the relation. Queried here rather than via lib/playerInvites.ts
+  // to avoid a circular import (that module imports toEvent from this file).
+  const { data: inviteRows, error: inviteErr } = await supabase
+    .from('event_player_invites')
+    .select('event_id')
+    .eq('user_id', userId)
+    .is('dismissed_at', null);
+  if (inviteErr) throw new Error(inviteErr.message);
+  for (const r of inviteRows ?? []) {
+    const eventId = r.event_id as string;
+    if (!(eventId in out)) out[eventId] = 'invited';
+  }
+
   return out;
 }

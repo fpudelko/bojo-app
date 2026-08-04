@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
 import AnnouncementBar from '@/components/AnnouncementBar';
+import BottomNavGate from '@/components/layout/BottomNavGate';
 import { siteJsonLd } from '@/lib/structuredData';
 
 const inter = Inter({
@@ -93,6 +94,7 @@ export default function RootLayout({
             <ToastProvider>
               <AnnouncementBar />
               {children}
+              <BottomNavGate />
               <CookieBanner />
             </ToastProvider>
           </AuthProvider>
