@@ -98,6 +98,51 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
 
 ## 5. Zadania techniczne
 
+### 5.0 Katalog boisk — naprawa danych, potem cała Polska ⚠️ NASTĘPNY TEMAT
+
+**Stan bazy (audyt 2026-08-03, 1484 obiekty: 723 publiczne, 702 organizer_only,
+59 ukrytych).** Skrypty diagnostyczne i naprawcze: `supabase/audyt/`.
+
+Znalezione, w kolejności ważności:
+
+1. **`sport` skażony sąsiedztwem.** `analyze_venues.py` robi
+   `update["sport"] = merged` — dokleja sporty wykryte przez AI do sportów z OSM.
+   Model dostaje kafelek Mapbox zoom 18 (~150 m boku), czyli cały kompleks, i opisuje
+   wszystko, co widzi. Kort obok boiska do koszykówki wpada do sportów tego boiska.
+   Skutek: filtr „koszykówka" zwraca korty tenisowe. Odwracalne — `name` pochodzi
+   z oryginalnego tagu OSM i nie było nadpisywane (`audyt/11-naprawa-sportow.sql`).
+2. **Kontakty rozdane sąsiadom.** 56 maili na 1484 obiekty, część fałszywa:
+   `osrodekrataje@posir.poznan.pl` siedzi m.in. na boisku w Dopiewie. enrich z web
+   search szukał kontaktu dla obiektu bez nazwy własnej (`audyt/12-naprawa-kontaktow.sql`).
+   Do tego artefakty modelu w bazie: `<cite index=…>`, `[email protected]`, markdown w URL.
+3. **Adresy:** `park owa` (rozbite „Parkowa"), `ul. 187` / `ul. 32` (numery dróg
+   wojewódzkich), samo `Poznań` przy obiekcie pod Środą Wlkp. (`audyt/13-naprawa-adresow.sql`).
+4. **~13% obiektów to nie boiska** — model napisał to w `ai_notes`, ale
+   `_ai_visibility()` chowa tylko przy jawnym `is_verified_venue = false`
+   (`supabase/sprzatanie-boisk.sql`).
+5. **Bramka publikacji za hojna** — `public` wymaga dziś „AI coś napisało", nie
+   „wiemy coś pewnego". Do przepisania po naprawach 1–4.
+6. **Nazwy generyczne** — ~35 z 60 obiektów w próbce to „Boisko sportowe" /
+   „Boisko — piłka nożna". Duplikaty nazwa+adres (12× „ul. Poznańska") to NIE są
+   duplikaty: to różne boiska w różnych gminach. Po współrzędnych klastrów jest tylko 8.
+
+**Cel: cała Polska najniższym kosztem.** Analiza satelitarna AI na ~50 tys. obiektów
+to $150–200 za przebieg i tak czy siak zgadywanka — **nie tędy droga na tym etapie**.
+
+Tańsza ścieżka, do rozpisania:
+- import z **Geofabrik `poland-latest.osm.pbf`** + `pyosmium` zamiast Overpass
+  (Overpass na całą Polskę = timeout albo ban). Koszt: zero, tylko CPU
+- PBF ma **geometrię**, nie sam punkt → wymiary i powierzchnia liczone z poligonu,
+  a nie zgadywane ze zdjęcia; pin w centroidzie boiska
+- nazwa własna, sport, nawierzchnia, oświetlenie, operator — z tagów OSM, za darmo
+- AI **tylko** do jednego pytania („czy to w ogóle boisko"), na nowych obiektach,
+  Haiku, i **bez prawa zapisu** do `sport` / `surface` / `map_visibility`
+- zdjęcia: **Mapillary** (darmowe API, CC-BY-SA) zamiast Google Places Photos
+
+Cron analizy satelitarnej zdjęty 2026-08-03 (chodził ~20×/mies. przez OR
+w harmonogramie GitHuba). `fix-coords.yml` do usunięcia — forward-geocoding adresu
+przesunął 59 pinezek nawet o 3 km (`supabase/przywroc-wspolrzedne.sql` cofa).
+
 - [ ] **Zweryfikować stan migracji na produkcji.** W repo jest 57 migracji; stanu bazy
       nie da się odczytać z repo. Patrz [docs/baza-danych.md](./docs/baza-danych.md).
 - [ ] **Adresy kontaktowe wciąż na `bojo.app`** — `kontakt@bojo.app` w `/regulamin`,

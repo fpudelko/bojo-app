@@ -445,6 +445,9 @@ export default function EventDetailClient() {
   // pitches joining — a squad member, reserve, pending request or observer has
   // nothing to act on when the match fills up.
   const amIInvolved = !!(myConfirmed || myMaybe || myPendingRequest);
+  // Rezerwowy nie ma miejsca w składzie, więc „wypisz się z meczu" myli —
+  // sugeruje, że coś zwalnia. Wypisuje się z kolejki, nie ze składu.
+  const amIReserve = !!myConfirmed?.isReserve;
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer?.claimOfferedAt
@@ -1336,7 +1339,7 @@ export default function EventDetailClient() {
               onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
               className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
             >
-              Wypisz się z meczu
+              {amIReserve ? 'Wypisz się z rezerwy' : 'Wypisz się z meczu'}
             </button>
           </div>
         )}
@@ -2053,12 +2056,14 @@ export default function EventDetailClient() {
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">
-              {myMaybe ? 'Przestać obserwować?' : 'Wypisać się z meczu?'}
+              {myMaybe ? 'Przestać obserwować?' : amIReserve ? 'Wypisać się z rezerwy?' : 'Wypisać się z meczu?'}
             </h3>
             <p className="text-sm text-slate-500 mb-5">
               {myMaybe
                 ? 'Mecz zniknie z Twoich meczów. Możesz zacząć obserwować ponownie.'
-                : 'Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.'}
+                : amIReserve
+                  ? 'Znikniesz z listy rezerwowej i nie dostaniesz propozycji, gdy zwolni się miejsce. Możesz zapisać się ponownie, ale na koniec kolejki.'
+                  : 'Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.'}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setLeaveConfirmOpen(false)} className="flex-1">
