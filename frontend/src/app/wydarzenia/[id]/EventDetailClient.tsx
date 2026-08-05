@@ -9,12 +9,11 @@ import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Phone, Trophy, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
-  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag,
+  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import TimeSelect from '@/components/ui/TimeSelect';
-import CoverUpload from '@/components/ui/CoverUpload';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
@@ -23,11 +22,10 @@ import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
-import { venueThumbnail } from '@/lib/labels';
 import { eventLocation } from '@/lib/utils';
 import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
-  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup,
+  cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim,
 } from '@/lib/events';
@@ -350,6 +348,15 @@ export default function EventDetailClient() {
   // Groups the viewer belongs to — the pool they can file this match under.
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [venueInfoOpen, setVenueInfoOpen] = useState(false);
+  // Rescheduling from the badge. `whenConfirm` is the second gate: moving a
+  // match that people already signed up for needs an explicit yes.
+  const [whenOpen, setWhenOpen] = useState(false);
+  const [whenDate, setWhenDate] = useState('');
+  const [whenTime, setWhenTime] = useState('');
+  const [whenEnd, setWhenEnd] = useState('');
+  const [whenConfirm, setWhenConfirm] = useState(false);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -448,6 +455,12 @@ export default function EventDetailClient() {
   // Rezerwowy nie ma miejsca w składzie, więc „wypisz się z meczu" myli —
   // sugeruje, że coś zwalnia. Wypisuje się z kolejki, nie ze składu.
   const amIReserve = !!myConfirmed?.isReserve;
+  // My place in the reserve queue (1-based). The queue is ordered by signup
+  // time, same as sync_reserve_claim walks it — so this number is what
+  // actually decides who gets the next freed spot.
+  const myReservePosition = amIReserve
+    ? reserves.filter((p) => !p.claimPassed).findIndex((p) => p.id === myConfirmed!.id) + 1 || null
+    : null;
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer?.claimOfferedAt
@@ -456,6 +469,10 @@ export default function EventDetailClient() {
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
   const eventLoc = eventLocation(event);
+  // The venue chip shows the ADDRESS where we have one: catalogue names are
+  // mostly generic ("Boisko — piłka nożna") and a street tells people more.
+  const venueBadgeLabel = eventLoc.secondary || eventLoc.primary;
+
   const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
   // Goalkeeper distinction is an explicit per-event setting now.
@@ -645,6 +662,23 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
+  /** Give up the spot but keep following the match. Two steps rather than one
+   *  RPC: the spot must be freed first (so `sync_reserve_claim` can offer it on)
+   *  before the observing row goes in, or the capacity check would see the old
+   *  row and refuse. */
+  const handleLeaveAndObserve = async (participantId: string) => {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await removeParticipant(participantId);
+      await joinEventMaybe(event.id, user.id, displayName(user));
+      await load();
+      toast('Nie grasz, ale obserwujesz ten mecz');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
   /** Organizer removing someone else — always confirmed, so a misplaced tap in
    *  a dense list never silently kicks a player. Self-leave has its own
    *  confirm dialog already and calls handleRemove directly. */
@@ -773,6 +807,41 @@ export default function EventDetailClient() {
       if (navigator.share) { await navigator.share({ title: event.title || event.sport, url }); }
       else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); toast('Link skopiowany!'); }
     } catch { /* user cancelled */ }
+  };
+
+  const openEditWhen = () => {
+    setWhenDate(event.date);
+    setWhenTime((event.time ?? '18:00').slice(0, 5));
+    setWhenEnd((event.endTime ?? '').slice(0, 5));
+    setWhenConfirm(false);
+    setWhenOpen(true);
+  };
+
+  const handleSaveWhen = async () => {
+    setBusy(true);
+    try {
+      await setEventWhen(
+        event.id, whenDate, whenTime, whenEnd || null,
+        user?.id, displayName(user ?? null),
+      );
+      setWhenOpen(false);
+      await load();
+      toast('Termin zmieniony');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  /** Straight to the clipboard — for people who just want to paste the link
+   *  into a chat and skip the system share sheet. */
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast('Nie udało się skopiować linku', 'error');
+    }
   };
 
   const handleDelete = async () => {
@@ -916,64 +985,37 @@ export default function EventDetailClient() {
       <Header />
       <main className="flex-1 w-full max-w-2xl mx-auto pb-32 space-y-4">
 
-        {/* ── HERO ── */}
-        <div className="relative px-3 pt-3">
-          {/* floating back + share */}
-          <div className="absolute inset-x-0 top-6 z-10 flex items-center justify-between px-6">
+        {/* ── TOP BAR ──
+            Deliberately no cover photo: it was a satellite tile that ate half
+            the first screen and told nobody anything the venue card doesn't.
+            Labelled actions instead of bare icons — "Udostępnij" opens the
+            system share sheet, "Kopiuj" puts the link on the clipboard for
+            people who just want to paste it into a chat. */}
+        <div className="flex items-center justify-between gap-2 px-4 pt-4">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-95"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} /> Wróć
+          </button>
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              aria-label="Wróć"
-              onClick={() => router.back()}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
-            >
-              <ArrowLeft className="h-5 w-5" strokeWidth={2.25} />
-            </button>
-            <button
-              type="button"
-              aria-label="Udostępnij"
               onClick={handleShare}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
             >
-              <Share2 className="h-[18px] w-[18px]" strokeWidth={2.25} />
+              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Udostępnij
             </button>
-          </div>
-
-          <div className="relative h-[200px] overflow-hidden rounded-[20px]">
-            {event.coverImageUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={event.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            ) : venueThumbnail(event.lat, event.lng, 800, 400, 17) ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={venueThumbnail(event.lat, event.lng, 800, 400, 17)!}
-                alt={event.fieldName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="h-full w-full bg-gradient-to-br from-primary-700 to-primary-900" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-primary-950/80 via-primary-900/25 to-primary-900/30" />
-            <div className="absolute bottom-4 left-5">
-              <span className="text-[44px] leading-none opacity-90 drop-shadow-lg" aria-hidden="true">
-                {sportEmoji(event.sport)}
-              </span>
-            </div>
-            {isOwner && (
-              <div className="absolute bottom-3 right-3">
-                <CoverUpload
-                  currentUrl={event.coverImageUrl}
-                  path={`events/${event.id}/cover`}
-                  onSaved={async (url) => {
-                    const { supabase } = await import('@/lib/supabase');
-                    const { error } = await supabase
-                      .from('events')
-                      .update({ cover_image_url: url })
-                      .eq('id', event.id);
-                    if (!error) setEvent((e) => e ? { ...e, coverImageUrl: url ?? undefined } : e);
-                  }}
-                />
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+            >
+              {linkCopied
+                ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
+                : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj</>}
+            </button>
           </div>
         </div>
 
@@ -1005,11 +1047,49 @@ export default function EventDetailClient() {
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
-            {/* date */}
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-              <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
-              <span className="capitalize">{dateShort}</span> · {timeStr}
-            </span>
+            {/* My relation to this match — the two axes (ownership × participation)
+                shown up front, so nobody has to expand the roster to learn
+                whether they're actually in. */}
+            {isOwner && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-700 px-3 py-1.5 text-xs font-bold text-white">
+                <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
+              </span>
+            )}
+            {myConfirmed && !myConfirmed.isReserve && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold text-green-800">
+                <Check className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Grasz{myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
+              </span>
+            )}
+            {myConfirmed?.isReserve && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+                <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Rezerwa{myReservePosition ? ` · ${myReservePosition}.` : ''}
+                {myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
+              </span>
+            )}
+            {myMaybe && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
+                <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
+              </span>
+            )}
+            {/* date — organizer edits it in place */}
+            {isOrganizer && !eventStarted ? (
+              <button
+                type="button"
+                onClick={openEditWhen}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+              >
+                <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
+                <span className="capitalize">{dateShort}</span> · {timeStr}
+                <Pencil className="h-3 w-3 text-slate-400" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
+                <span className="capitalize">{dateShort}</span> · {timeStr}
+              </span>
+            )}
             {/* duration */}
             {event.endTime && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
@@ -1024,26 +1104,30 @@ export default function EventDetailClient() {
                 })()}
               </span>
             )}
-            {/* venue */}
-            {eventLoc.primary && (() => {
-              // Only link to a venue page for real fields (have a fieldId).
-              // Custom addresses have no venue page → linking would 404.
-              const href = event.fieldId ? `/boisko/${event.fieldId}` : null;
-              return href ? (
+            {/* venue — the ADDRESS, not the name: most catalogue names are
+                generic ("Boisko — piłka nożna") and say less than a street.
+                Custom locations have no venue page, so they open a small modal
+                with the address and directions instead of 404-ing. */}
+            {venueBadgeLabel && (
+              event.fieldId ? (
                 <Link
-                  href={href}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                  href={`/boisko/${event.fieldId}?wroc=${encodeURIComponent(`/wydarzenia/${event.id}`)}`}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
                 >
                   <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
-                  {eventLoc.primary}
+                  <span className="truncate">{venueBadgeLabel}</span>
                 </Link>
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setVenueInfoOpen(true)}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                >
                   <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
-                  {eventLoc.primary}
-                </span>
-              );
-            })()}
+                  <span className="truncate">{venueBadgeLabel}</span>
+                </button>
+              )
+            )}
             {/* price */}
             {event.costGrosze > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
@@ -1055,15 +1139,34 @@ export default function EventDetailClient() {
                 <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
               </span>
             )}
-            {/* visibility */}
-            <span className={[
-              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
-              event.visibility === 'public' ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600',
-            ].join(' ')}>
-              {event.visibility === 'public'
-                ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
-                : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
-            </span>
+            {/* visibility — one tap toggles it for the organizer */}
+            {isOrganizer ? (
+              <button
+                type="button"
+                onClick={handleToggleVisibility}
+                disabled={busy}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  event.visibility === 'public'
+                    ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                {event.visibility === 'public'
+                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
+                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
+                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <span className={[
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
+                event.visibility === 'public' ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600',
+              ].join(' ')}>
+                {event.visibility === 'public'
+                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
+                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
+              </span>
+            )}
             {/* group */}
             {groupInfo && (
               <Link
@@ -1266,51 +1369,6 @@ export default function EventDetailClient() {
           </div>
         </div>
 
-        {/* ── BOISKO CARD ── */}
-        {(eventLoc.primary || (event.lat && event.lng)) && (() => {
-          // Real venues (with a fieldId) link to their page; custom addresses
-          // have no page, so we render a plain non-clickable card (no 404).
-          const venueHref = event.fieldId ? `/boisko/${event.fieldId}` : null;
-          return (
-            <div className="px-4">
-              <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Boisko</p>
-              <div
-                className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 ${venueHref ? 'cursor-pointer transition hover:shadow-md hover:ring-primary-200' : ''}`}
-                onClick={() => venueHref && router.push(venueHref)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-ink">{event.fieldName}</p>
-                    {eventLoc.secondary && (
-                      <p className="mt-0.5 text-xs text-slate-500">{eventLoc.secondary}</p>
-                    )}
-                    {event.lat && event.lng && (
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 transition active:scale-95"
-                      >
-                        <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj →
-                      </a>
-                    )}
-                  </div>
-                  {venueThumbnail(event.lat, event.lng, 160, 160) && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={venueThumbnail(event.lat, event.lng, 160, 160)!}
-                      alt="Miniatura boiska"
-                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                    />
-                  )}
-                  {venueHref && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
         {user && myParticipation && (
           <div className="px-4">
@@ -1324,14 +1382,27 @@ export default function EventDetailClient() {
                     className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                    <UserPlus className="w-4 h-4" /> Dopisz
+                    <UserPlus className="w-4 h-4" /> Dodaj
                   </Button>
                 </div>
                 {gkEnabled && (
-                  <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
-                    <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
-                    🧤 Dodaj jako bramkarza
-                  </label>
+                  <div className="mt-2 flex gap-2">
+                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setGuestIsGk(r === 'gk')}
+                        className={[
+                          'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                          (r === 'gk') === guestIsGk
+                            ? 'border-primary-600 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -1399,33 +1470,44 @@ export default function EventDetailClient() {
         {/* ── OBSERVING BANNER — RSVP "maybe": watching, not signed up ── */}
         {user && myMaybe && !eventStarted && (
           <div className="px-4">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Obserwujesz ten mecz</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">Nie masz zajętego miejsca — dołącz, gdy będziesz pewny.</p>
+            {/* Stacked, not side-by-side: on a phone the two buttons next to
+                a two-line paragraph wrapped into a mess. */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4">
+              <div className="flex items-start gap-2.5">
+                <Eye className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.25} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Obserwujesz ten mecz</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Nie masz zajętego miejsca — dołącz, gdy będziesz pewny.
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="mt-3 flex gap-2">
                 <button
                   onClick={handleConfirmMaybe}
                   disabled={busy}
-                  className="rounded-xl bg-primary-700 px-3 py-2 text-xs font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
                 >
                   Dołącz
                 </button>
                 <button
                   onClick={() => { setLeaveConfirmOpen(true); }}
                   disabled={busy}
-                  className="rounded-xl border border-amber-200 dark:border-amber-700 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 transition"
+                  className="rounded-xl border border-amber-300 dark:border-amber-700 px-3 py-2.5 text-sm font-medium text-amber-800 dark:text-amber-400 hover:bg-amber-100 transition"
                 >
-                  Przestań obserwować
+                  Przestań
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── STICKY JOIN BAR — tylko gdy nie jesteś zapisany i mecz się nie zaczął ── */}
-        {!(user && (myParticipation || myPendingRequest || myMaybe)) && !eventStarted && (
+        {/* ── STICKY JOIN BAR ──
+            Stays visible while merely OBSERVING: "Obserwuj" used to swap the
+            whole bar away, so anyone who watched first had to hunt for a way
+            to actually join. Now "Dołącz" holds its place until you're in, and
+            the second button just reports the state you're already in. */}
+        {!(user && (myParticipation || myPendingRequest)) && !eventStarted && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
@@ -1438,18 +1520,34 @@ export default function EventDetailClient() {
               ) : user && !isFull ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
-                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
+                    onClick={() => {
+                      // Already observing = a 'maybe' row exists; joining is a
+                      // conversion of that row, not a second signup.
+                      if (myMaybe) { handleConfirmMaybe(); return; }
+                      setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true);
+                    }}
+                    disabled={busy}
+                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99] disabled:opacity-50"
                   >
                     Dołącz →
                   </button>
-                  <button
-                    onClick={handleMaybe}
-                    disabled={busy}
-                    className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
-                  >
-                    Obserwuj
-                  </button>
+                  {myMaybe ? (
+                    <button
+                      onClick={() => setLeaveConfirmOpen(true)}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-5 text-[14px] font-semibold text-amber-800 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      <Eye className="h-4 w-4" strokeWidth={2.25} /> Obserwujesz
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleMaybe}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      Obserwuj
+                    </button>
+                  )}
                 </div>
               ) : user && isFull ? (
                 <>
@@ -1568,15 +1666,28 @@ export default function EventDetailClient() {
                   placeholder="Imię znajomego"
                   className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()}>
-                  <UserPlus className="w-4 h-4" /> Dopisz do składu
+                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
+                  <UserPlus className="w-4 h-4" /> Dodaj
                 </Button>
               </div>
               {gkEnabled && (
-                <label className="mt-2 flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer">
-                  <input type="checkbox" checked={guestIsGk} onChange={(e) => setGuestIsGk(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
-                  🧤 Dodaj jako bramkarza
-                </label>
+                <div className="mt-2 flex gap-2">
+                  {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setGuestIsGk(r === 'gk')}
+                      className={[
+                        'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                        (r === 'gk') === guestIsGk
+                          ? 'border-primary-600 bg-primary-50 text-primary-700'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                      ].join(' ')}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               )}
               <p className="mt-2 text-[11px] text-slate-400">
                 Dopisujesz gracza ręcznie. Aby ktoś dołączył sam — użyj „Zaproś / wyślij link" niżej.
@@ -2048,14 +2159,126 @@ export default function EventDetailClient() {
         })()}
       </main>
 
+      {/* Reschedule — opened from the date chip. Two gates when people are
+          already signed up: the save button first asks for a tick, because a
+          moved match that nobody noticed is worse than no match. */}
+      {whenOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          onClick={() => setWhenOpen(false)}
+        >
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setWhenOpen(false)}
+              aria-label="Zamknij"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-4 pr-8 font-semibold text-ink">Zmień termin</h3>
+
+            <label className="mb-1 block text-sm font-medium text-slate-700">Data</label>
+            <input
+              type="date"
+              value={whenDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => { setWhenDate(e.target.value); setWhenConfirm(false); }}
+              className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Rozpoczęcie</label>
+                <TimeSelect value={whenTime} onChange={(v) => { setWhenTime(v); setWhenConfirm(false); }} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Zakończenie</label>
+                <TimeSelect value={whenEnd} allowEmpty onChange={setWhenEnd} />
+              </div>
+            </div>
+
+            {confirmed.length > 0 && (
+              <label className="mb-4 flex cursor-pointer select-none items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <input
+                  type="checkbox"
+                  checked={whenConfirm}
+                  onChange={(e) => setWhenConfirm(e.target.checked)}
+                  className="mt-0.5 rounded border-amber-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-xs text-amber-800">
+                  Wiem, że <span className="font-semibold">
+                    {confirmed.length} {confirmed.length === 1 ? 'osoba jest' : 'osób jest'} zapisanych
+                  </span> na stary termin. Muszę im o zmianie powiedzieć — Bojo jeszcze tego nie robi.
+                </span>
+              </label>
+            )}
+
+            <Button
+              onClick={handleSaveWhen}
+              isLoading={busy}
+              disabled={!whenDate || !whenTime || (confirmed.length > 0 && !whenConfirm)}
+              className="w-full"
+            >
+              Zapisz termin
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Venue details for a hand-typed location — it has no venue page, so the
+          address and directions live in a small modal instead of a dead chip. */}
+      {venueInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          onClick={() => setVenueInfoOpen(false)}
+        >
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setVenueInfoOpen(false)}
+              aria-label="Zamknij"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-1 pr-8 font-semibold text-ink">{eventLoc.primary}</h3>
+            {eventLoc.secondary && <p className="text-sm text-slate-500">{eventLoc.secondary}</p>}
+            <p className="mt-3 text-xs text-slate-400">
+              Miejsce wpisane ręcznie przez organizatora — nie ma go w katalogu boisk.
+            </p>
+            {event.lat && event.lng && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition active:scale-95"
+              >
+                <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Leave confirmation */}
       {leaveConfirmOpen && myEntry && (
         <div
           className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
           onClick={() => setLeaveConfirmOpen(false)}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-ink mb-1">
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Explicit close: tapping the backdrop already cancels, but that's
+                invisible — and "Zostań" as the only way out reads like a trap. */}
+            <button
+              type="button"
+              onClick={() => setLeaveConfirmOpen(false)}
+              aria-label="Zamknij"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="font-semibold text-ink mb-1 pr-8">
               {myMaybe ? 'Przestać obserwować?' : amIReserve ? 'Wypisać się z rezerwy?' : 'Wypisać się z meczu?'}
             </h3>
             <p className="text-sm text-slate-500 mb-5">
@@ -2065,17 +2288,27 @@ export default function EventDetailClient() {
                   ? 'Znikniesz z listy rezerwowej i nie dostaniesz propozycji, gdy zwolni się miejsce. Możesz zapisać się ponownie, ale na koniec kolejki.'
                   : 'Twoje miejsce zwolni się i może je zająć ktoś z listy rezerwowej.'}
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setLeaveConfirmOpen(false)} className="flex-1">
-                Zostań
-              </Button>
+            <div className="space-y-2">
               <Button
                 onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id); }}
                 isLoading={busy}
-                className="flex-1 bg-red-600 hover:bg-red-700"
+                className="w-full bg-red-600 hover:bg-red-700"
               >
                 {myMaybe ? 'Przestań obserwować' : 'Wypisz mnie'}
               </Button>
+              {/* Leaving is rarely "I'm out for good" — usually it's "not sure
+                  any more". Observing keeps the match in their list instead of
+                  dropping it out of sight entirely. */}
+              {!myMaybe && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setLeaveConfirmOpen(false); handleLeaveAndObserve(myEntry.id); }}
+                  disabled={busy}
+                  className="w-full"
+                >
+                  <Eye className="h-4 w-4" /> Wypisz mnie, ale obserwuj
+                </Button>
+              )}
             </div>
           </div>
         </div>

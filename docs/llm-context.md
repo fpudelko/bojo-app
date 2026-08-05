@@ -296,6 +296,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-04 — Strona meczu: mniej ozdób, więcej odpowiedzi
+PROBLEM: strona meczu w Bojo otwierała się zdjęciem satelitarnym na pół ekranu,
+które nic nie mówiło. Nie było widać, czy się w tym meczu gra ani czy się je
+organizuje — trzeba było rozwinąć skład. Kto kliknął „Obserwuj", tracił przycisk
+„Dołącz". Boisko pojawiało się dwa razy, a jego nazwa (zwykle „Boisko — piłka
+nożna") mówiła mniej niż adres. Powrót ze strony boiska wyrzucał na mapę zamiast
+do meczu, a miejsce wpisane ręcznie w ogóle nie dawało się kliknąć.
+ROZWIĄZANIE BOJO: zdjęcie usunięte, na górze pasek z opisanymi akcjami
+„Udostępnij" i „Kopiuj". Wśród plakietek widać teraz „Organizujesz", „Grasz"
+(z rolą bramkarza) albo „Rezerwa · N." z pozycją w kolejce i „Obserwujesz".
+Organizator zmienia termin i widoczność klikając plakietkę; zmiana terminu przy
+zapisanych graczach wymaga potwierdzenia. Plakietka boiska pokazuje adres i
+prowadzi na stronę obiektu, skąd strzałka wraca do meczu; miejsce spoza katalogu
+otwiera okno z adresem i nawigacją. Wypisanie się ma teraz drugą opcję —
+„Wypisz mnie, ale obserwuj" — oraz krzyżyk do zamknięcia. Dopisując osobę bez
+konta wybiera się rolę (zawodnik z pola albo bramkarz) zamiast samego pola
+wyboru „dodaj jako bramkarza".
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx`, `setEventWhen()`
+w `lib/events.ts` (osobna funkcja, żeby nie nadpisywać reszty pola jak
+`updateEvent`), parametr `?wroc=` na trasie `/boisko/[id]` (tylko ścieżki
+względne).
+
 ### 2026-08-04 — Landing i dashboard: zwrot na organizatora, zasięg ogólnopolski
 PROBLEM: Landing obiecywał „zbierz skład na mecz w dwie minuty" — nierealne dla
 kilkunastoosobowej ekipy — i mówił wyłącznie o Poznaniu, mimo że tworzenie meczu
@@ -428,10 +450,3 @@ ROZWIĄZANIE BOJO: własne metadata i adres kanoniczny dla każdej strony public
 oraz okruszki nawigacyjne (BreadcrumbList) na stronie boiska.
 MECHANIKA: `app/{mapa,wydarzenia,grupy}/page.tsx` + komponenty `*Client.tsx`,
 `lib/structuredData.ts`, testy w `src/__tests__/structuredData.test.ts`.
-
-### 2026-08-02 — Walidator spójności dokumentacji i CI
-PROBLEM: dokumentacja rozjeżdżała się z kodem po cichu; repozytorium nie miało
-żadnego CI dla aplikacji, a push szedł prosto na produkcję.
-ROZWIĄZANIE BOJO: deterministyczny walidator uruchamiany przy każdym PR obok
-typechecku i testów.
-MECHANIKA: `scripts/check-docs.mjs`, `.github/workflows/ci.yml`.

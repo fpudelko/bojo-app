@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
@@ -63,6 +64,7 @@ export default function VenueDetailClient({
   const id = fieldId;
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
+  const searchParams = useSearchParams();
 
   const [field, setField] = useState<Field | null>(null);
   const [fieldLoading, setFieldLoading] = useState(true);
@@ -199,13 +201,25 @@ export default function VenueDetailClient({
   const thumbnail = fieldPhotoUrl(field, 600, 240);
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
 
+  // Same-origin paths only — an absolute URL here would turn the back arrow
+  // into an open redirect.
+  const wroc = searchParams.get('wroc');
+  const backHref = wroc && wroc.startsWith('/') && !wroc.startsWith('//') ? wroc : '/mapa';
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
         <div className="flex items-center gap-3">
-          <Link href="/mapa" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+          {/* Back goes where the visitor came from. Arriving from a match page
+              (?wroc=…) used to dump people on /mapa, losing the match they
+              were looking at. Only relative paths are honoured, so the param
+              can't be used to bounce anyone off-site. */}
+          <Link
+            href={backHref}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <h1 className="text-xl font-bold text-slate-900 truncate">{field.name}</h1>
