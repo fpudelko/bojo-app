@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, Plus, CalendarDays, User } from 'lucide-react';
+import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 
 function BallIcon({ className }: { className?: string }) {
@@ -22,7 +22,7 @@ const LEFT_ITEMS = [
 
 const RIGHT_ITEMS = [
   { href: '/moje-gry', label: 'Moje',   Icon: CalendarDays },
-  { href: '/profil',   label: 'Profil', Icon: User },
+  { href: '/grupy',    label: 'Grupy',  Icon: UsersIcon },
 ] as const;
 
 export default function BottomNav() {
@@ -52,7 +52,7 @@ export default function BottomNav() {
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 z-[1000] bg-white/95 backdrop-blur-sm border-t border-slate-200/70"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        aria-label="Nawigacja główna"
+        aria-label="Nawigacja dolna"
       >
         <div className="grid grid-cols-5 items-end">
           {LEFT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}

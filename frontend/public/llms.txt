@@ -1,10 +1,10 @@
 # Bojo
 
-> Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w Poznaniu:
-> znajdź boisko, stwórz mecz, zbierz skład. Katalog ~1400 boisk i obiektów sportowych,
-> mecze publiczne otwarte na dołączenie, stałe ekipy (grupy). Sporty: piłka nożna,
-> siatkówka, siatkówka plażowa, koszykówka. Interfejs po polsku.
-> Logowanie: Google lub e-mail. Zasięg: Poznań i okolice.
+> Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w całej Polsce:
+> znajdź boisko, stwórz mecz, zbierz skład. Katalog ~1400 boisk i obiektów sportowych
+> (dziś najgęstszy w Poznaniu), mecze publiczne otwarte na dołączenie, stałe ekipy
+> (grupy). Sporty: piłka nożna, siatkówka, siatkówka plażowa, koszykówka. Interfejs
+> po polsku. Logowanie: Google lub e-mail.
 
 ## Kontekst dla modeli
 
@@ -13,7 +13,7 @@
 
 ## Dla graczy
 
-- [Strona główna](/): jak zorganizować mecz, otwarte gry w Poznaniu, FAQ
+- [Strona główna](/): jak zorganizować mecz gdziekolwiek w Polsce, otwarte gry, FAQ
 - [Mapa boisk i meczów](/mapa): filtry po sporcie, nawierzchni, dzielnicy
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność

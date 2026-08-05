@@ -10,12 +10,12 @@ import StickyCta from './StickyCta';
 
 /** The logged-out landing page. Server-rendered so the marketing copy ships
  *  in the first response — no client JS required to read it. */
-export default function Landing({ venueCount }: { venueCount: number | null }) {
+export default function Landing() {
   return (
     <>
       <div className="pb-24 md:pb-0">
-        <LandingHero venueCount={venueCount} />
-        <LandingStats venueCount={venueCount} />
+        <LandingHero />
+        <LandingStats />
         <LandingHowItWorks />
         <LandingOpenGames />
         <LandingValues />

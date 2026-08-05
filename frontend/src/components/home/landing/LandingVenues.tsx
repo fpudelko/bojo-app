@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, MapPin } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { getFields } from '@/lib/api';
 import { slugify } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
@@ -42,7 +42,7 @@ export default function LandingVenues() {
               Boiska w okolicy
             </span>
             <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-              Boiska, na których gra się w Poznaniu
+              Boiska, na których się gra
             </h2>
           </div>
           <Link
@@ -53,25 +53,23 @@ export default function LandingVenues() {
           </Link>
         </div>
 
-        <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <li key={f.id}>
               <Link
                 href={`/boisko/${slugify(f.name)}`}
-                className="block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover"
+                className="flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card transition-colors duration-200 hover:border-primary-200 hover:shadow-card-hover"
               >
-                <div className="flex aspect-[4/3] items-center justify-center rounded-xl bg-primary-50 text-4xl">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-xl">
                   {sportEmoji(f.sport[0] ?? 'inne')}
-                </div>
-                <h3 className="mt-4 truncate font-semibold text-ink" title={f.name}>{f.name}</h3>
-                {f.district && (
-                  <p className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {f.district}
-                  </p>
-                )}
-                <p className="mt-3 text-xs font-medium text-primary-700">
-                  Zobacz boisko →
-                </p>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-ink" title={f.name}>{f.name}</span>
+                  {f.district && (
+                    <span className="block truncate text-xs text-slate-600">{f.district}</span>
+                  )}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />
               </Link>
             </li>
           ))}

@@ -1,21 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-
-const KEY = 'bojo_cookie_consent_v1';
+import { useCookieBannerVisible, dismissCookieConsent } from '@/lib/cookieConsent';
 
 export default function CookieBanner() {
-  const [open, setOpen] = useState(false);
   const { user } = useAuth();
-  useEffect(() => {
-    try { setOpen(!localStorage.getItem(KEY)); } catch {}
-  }, []);
-  if (!open) return null;
-  const dismiss = () => {
-    try { localStorage.setItem(KEY, '1'); } catch {}
-    setOpen(false);
-  };
+  const visible = useCookieBannerVisible();
+
+  if (!visible) return null;
+
   return (
     <div
       role="dialog"
@@ -33,7 +26,7 @@ export default function CookieBanner() {
           </Link>
         </p>
         <button
-          onClick={dismiss}
+          onClick={dismissCookieConsent}
           className="shrink-0 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95"
         >
           OK, rozumiem

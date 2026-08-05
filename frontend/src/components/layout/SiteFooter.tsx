@@ -7,7 +7,7 @@ export default function SiteFooter() {
     // footer is on screen so it never covers these links.
     <footer id="site-footer" className="bg-slate-900 px-4 py-10 text-slate-400">
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 md:flex-row">
-        <p className="text-sm font-semibold text-white">Bojo · Poznań i okolice</p>
+        <p className="text-sm font-semibold text-white">Bojo · mecze i boiska w całej Polsce</p>
         <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź mecz</Link>
           <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>

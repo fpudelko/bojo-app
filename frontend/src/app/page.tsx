@@ -6,7 +6,6 @@ import HomeSwitch from '@/components/home/HomeSwitch';
 import AppHomeSkeleton from '@/components/home/AppHomeSkeleton';
 import Landing from '@/components/home/landing/Landing';
 import { LANDING_FAQ } from '@/components/home/landing/content';
-import { getPublicVenueCount } from '@/lib/landingStats';
 import { faqJsonLd } from '@/lib/structuredData';
 import { SESSION_HINT_COOKIE } from '@/lib/sessionHint';
 
@@ -16,10 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const venueCount = await getPublicVenueCount();
   // Presentational only — see lib/sessionHint.ts. Reading it here is what
-  // makes "/" a dynamic route; that's intentional, not a regression (this
-  // page already queried Supabase for venueCount on every render).
+  // makes "/" a dynamic route; that's intentional, not a bug.
   const signedInHint = cookies().get(SESSION_HINT_COOKIE)?.value === '1';
 
   return (
@@ -30,12 +27,12 @@ export default async function HomePage() {
       >
         Przejdź do treści
       </a>
-      <Header />
+      <Header transparentOverHero={!signedInHint} />
 
       <main id="main" className="flex-1">
         <HomeSwitch
           hint={signedInHint}
-          landing={<Landing venueCount={venueCount} />}
+          landing={<Landing />}
           skeleton={<AppHomeSkeleton />}
         />
       </main>

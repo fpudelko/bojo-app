@@ -1,12 +1,10 @@
-import { LANDING_STATS_LABELS } from './content';
+import { LANDING_STATS } from './content';
 
-export default function LandingStats({ venueCount }: { venueCount: number | null }) {
-  const venuesValue = venueCount != null ? String(venueCount) : LANDING_STATS_LABELS.venuesFallback;
-
+export default function LandingStats() {
   const stats = [
-    { value: venuesValue, label: LANDING_STATS_LABELS.venuesSuffix },
-    { value: LANDING_STATS_LABELS.sportsValue, label: LANDING_STATS_LABELS.sportsLabel },
-    { value: LANDING_STATS_LABELS.priceValue, label: LANDING_STATS_LABELS.priceLabel },
+    { value: LANDING_STATS.sportsValue, label: LANDING_STATS.sportsLabel },
+    { value: LANDING_STATS.timeValue, label: LANDING_STATS.timeLabel },
+    { value: LANDING_STATS.priceValue, label: LANDING_STATS.priceLabel },
   ];
 
   return (

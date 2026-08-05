@@ -200,12 +200,12 @@ export function OpenGamesSection({ events, statusFor, alert }: {
           {events.length === 0 ? (
             <>
               <p className="mb-1 text-sm font-semibold text-slate-700">Nie ma teraz otwartych gier w okolicy</p>
-              <p className="mb-4 text-sm text-slate-500">Wrzuć własną — zobaczą ją gracze z Poznania.</p>
+              <p className="mb-4 text-sm text-slate-600">Wrzuć własną — zobaczą ją gracze z Twojej okolicy.</p>
             </>
           ) : (
             <>
               <p className="mb-1 text-sm font-semibold text-slate-700">Wszystkie gry w okolicy mają komplet</p>
-              <p className="mb-4 text-sm text-slate-500">Wrzuć własną albo wróć za chwilę.</p>
+              <p className="mb-4 text-sm text-slate-600">Wrzuć własną albo wróć za chwilę.</p>
             </>
           )}
           {SHOW_GAME_ALERTS ? (
@@ -254,7 +254,7 @@ export function MyGroupsSection({ groups }: { groups: Group[] }) {
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-ink truncate">{g.name}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 {g.memberCount ?? 0} {(g.memberCount ?? 0) === 1 ? 'członek' : 'członków'}
                 {g.city && ` · ${g.city}`}
               </p>
@@ -289,7 +289,7 @@ export function OnboardingSection() {
               </div>
               <div>
                 <p className="font-bold text-ink">{step.title}</p>
-                <p className="text-sm leading-relaxed text-slate-500">{step.body}</p>
+                <p className="text-sm leading-relaxed text-slate-600">{step.body}</p>
               </div>
             </li>
           );

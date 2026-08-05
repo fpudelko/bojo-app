@@ -1,62 +1,68 @@
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
-import { LANDING_CTA, LANDING_HERO, LANDING_STATS_LABELS } from './content';
-import PhoneFrame from './PhoneFrame';
+import { ArrowRight } from 'lucide-react';
+import { LANDING_CTA, LANDING_HERO } from './content';
+import RotatingBadge from './RotatingBadge';
+import PhoneMock from './PhoneMock';
+import TrustRow from './TrustRow';
 
-export default function LandingHero({ venueCount }: { venueCount: number | null }) {
-  const eyebrow = venueCount != null
-    ? `${venueCount} ${LANDING_STATS_LABELS.venuesSuffix}`
-    : LANDING_HERO.eyebrowFallback;
-
+export default function LandingHero() {
   return (
-    <section className="hero-surface-deep relative overflow-hidden text-white">
-      <div className="relative mx-auto max-w-6xl px-5 pt-8 pb-0 sm:pt-14 md:pt-20 md:pb-16">
-        <div className="grid md:grid-cols-12 md:items-center md:gap-8">
-          <div className="md:col-span-7">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium backdrop-blur-sm">
-              {eyebrow}
-            </span>
-
-            <h1 className="mt-4 font-display text-[2rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl md:text-[3.5rem]">
-              {LANDING_HERO.h1[0]}<br />{LANDING_HERO.h1[1]}
-            </h1>
-
-            <p className="mt-3.5 max-w-[36ch] text-[15px] leading-relaxed text-white/75 sm:text-lg">
-              {LANDING_HERO.lead}
-            </p>
-
-            <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <Link
-                href={LANDING_CTA.primary.href}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-accent-500 px-6 text-base font-bold text-[#0A2B1A] shadow-lg shadow-black/20 transition-colors hover:bg-accent-400 active:scale-[0.98] motion-reduce:active:scale-100 sm:w-auto"
-              >
-                {LANDING_CTA.primary.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </Link>
-              <Link
-                href={LANDING_CTA.secondary.href}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 underline underline-offset-4 hover:text-white"
-              >
-                {LANDING_CTA.secondary.label} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-            </div>
-
-            <ul className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/55">
-              {LANDING_HERO.trust.map((t) => (
-                <li key={t} className="inline-flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" /> {t}
-                </li>
-              ))}
-            </ul>
+    <section className="hero-surface-deep relative overflow-hidden pt-16 text-white">
+      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-center md:gap-8 md:pb-16 md:pt-20">
+        {/* .hero-first-screen (globals.css) makes this exactly one screen tall
+            on mobile with the content pinned to its bottom — see the comment
+            there. On md+ it collapses back to a plain block. */}
+        <div className="hero-first-screen md:w-7/12">
+          {/* Wrapper keeps the pill hugging its text: as a direct flex child
+              of .hero-first-screen it would stretch to the full column width. */}
+          <div>
+            <RotatingBadge messages={LANDING_HERO.badges} />
           </div>
 
-          <div className="mt-8 md:col-span-5 md:mt-0">
-            <PhoneFrame
-              src="/mockups/screen-1-mecze.png"
-              alt="Lista otwartych meczów w aplikacji Bojo"
-              priority
-              className="mx-auto -mb-16 w-[248px] md:mb-[-4rem] md:w-full md:max-w-[280px] md:rotate-[3deg]"
-            />
+          {/* 3.3rem is the largest size that still wraps to exactly 3 lines
+              (not 4) down to a 360px-wide phone — sized for the narrowest
+              floor, not the reporter's own device, so it can only look
+              MORE generous on wider ones. Growing this only eats into the
+              free space above (.hero-first-screen bottom-aligns the whole
+              column) — everything from the lead paragraph down stays at the
+              exact same pixel position, verified against a pre-change
+              baseline. The `<br>` becomes a real line break only from sm:
+              up, where desktop/tablet keeps its original fixed 2-line
+              layout instead of reflowing. */}
+          <h1 className="mt-4 font-display text-[3.3rem] font-extrabold leading-[1.05] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem]">
+            {LANDING_HERO.h1[0]}{' '}
+            <br className="hidden sm:block" />
+            {LANDING_HERO.h1[1]}
+          </h1>
+
+          <p className="mt-3.5 max-w-[36ch] text-base leading-relaxed text-white/75 sm:text-lg">
+            {LANDING_HERO.lead}
+          </p>
+
+          <div className="mt-6 flex flex-col items-end gap-3 sm:flex-row sm:items-center">
+            <Link
+              href={LANDING_CTA.primary.href}
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-accent-500 px-6 text-base font-bold text-[#0A2B1A] shadow-lg shadow-black/20 transition-colors hover:bg-accent-400 active:scale-[0.98] motion-reduce:active:scale-100 sm:w-auto"
+            >
+              {LANDING_CTA.primary.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <Link
+              href={LANDING_CTA.secondary.href}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 underline underline-offset-4 hover:text-white"
+            >
+              {LANDING_CTA.secondary.label} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
           </div>
+
+          <TrustRow className="mt-5" />
+        </div>
+
+        {/* Phone in normal flow, right after the text block — only its top
+            edge peeks onto the first screen (inviting a scroll); scrolling
+            reveals the whole card naturally, instead of a hard-clipped sliver
+            that never un-clips. */}
+        <div className="mt-6 md:mt-0 md:w-5/12">
+          <PhoneMock className="mx-auto w-[248px] md:w-full md:max-w-[280px] md:rotate-[3deg]" />
         </div>
       </div>
       {/* Sentinel for StickyCta's IntersectionObserver — appears once this

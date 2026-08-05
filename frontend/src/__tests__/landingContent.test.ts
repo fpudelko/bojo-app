@@ -6,6 +6,7 @@ import {
   LANDING_VALUES,
   LANDING_FAQ,
   LANDING_FINAL_CTA,
+  LANDING_STATS,
 } from '@/components/home/landing/content';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -27,15 +28,15 @@ const FORBIDDEN_PHRASES = [
   'automatyczn[iy].*(awans|wskocz)', // no reserve auto-promotion, by design
   'ranking', // does not exist
   'poziom(u|ie)? zaawansowania', // does not exist
-  'warszaw', // Poznań only
-  'krak[oó]w', // Poznań only
+  'warszaw', // not a covered city by name
+  'krak[oó]w', // not a covered city by name
 ] as const;
 
 function allLandingText(): string {
   return [
+    ...LANDING_HERO.badges,
     ...LANDING_HERO.h1,
     LANDING_HERO.lead,
-    LANDING_HERO.eyebrowFallback,
     ...LANDING_HERO.trust,
     ...LANDING_STEPS.flatMap((s) => [s.title, s.body]),
     ...LANDING_VALUES.flatMap((v) => [v.title, v.body]),
@@ -44,6 +45,12 @@ function allLandingText(): string {
     LANDING_FINAL_CTA.lead,
     LANDING_CTA.primary.label,
     LANDING_CTA.secondary.label,
+    LANDING_STATS.sportsValue,
+    LANDING_STATS.sportsLabel,
+    LANDING_STATS.timeValue,
+    LANDING_STATS.timeLabel,
+    LANDING_STATS.priceValue,
+    LANDING_STATS.priceLabel,
   ].join(' \n ').toLowerCase();
 }
 
@@ -62,6 +69,44 @@ describe('landing CTA — jedno główne, jedno poboczne', () => {
     expect(LANDING_CTA.primary.href).toBe('/wydarzenia/nowe');
     expect(LANDING_CTA.secondary.href).toBe('/wydarzenia');
     expect(LANDING_CTA.primary.href).not.toBe(LANDING_CTA.secondary.href);
+  });
+});
+
+describe('landing H1 — obiecuje tylko to, co dowieziemy', () => {
+  it('mówi o organizowaniu meczu, nie o zbieraniu 14 osób w 2 minuty', () => {
+    expect(LANDING_HERO.h1[0]).toBe('Zorganizuj mecz');
+  });
+});
+
+// Geography rule: the SALES copy (hero, steps, values, stats) speaks about
+// capability and stays city-agnostic, because "stwórz mecz gdziekolwiek"
+// already works today regardless of how dense the venue catalogue is in any
+// one place. The venue catalogue's actual density is a separate, honest fact
+// — it belongs only in FAQ, disclosed plainly, not folded into the pitch.
+describe('zasięg — Poznań tylko jako uczciwe ujawnienie w FAQ, nie w ofercie', () => {
+  const salesCopy = [
+    ...LANDING_HERO.badges,
+    ...LANDING_HERO.h1,
+    LANDING_HERO.lead,
+    ...LANDING_HERO.trust,
+    ...LANDING_STEPS.flatMap((s) => [s.title, s.body]),
+    ...LANDING_VALUES.flatMap((v) => [v.title, v.body]),
+    LANDING_FINAL_CTA.h2,
+    LANDING_FINAL_CTA.lead,
+    LANDING_STATS.sportsValue,
+    LANDING_STATS.sportsLabel,
+    LANDING_STATS.timeLabel,
+    LANDING_STATS.priceLabel,
+  ].join(' \n ').toLowerCase();
+
+  it('oferta (hero/kroki/wartości/statystyki) nie wymienia Poznania', () => {
+    expect(salesCopy).not.toMatch(/poznań|poznania|poznaniu/);
+  });
+
+  it('FAQ wciąż uczciwie ujawnia, że katalog jest dziś najgęstszy w Poznaniu', () => {
+    const geoAnswer = LANDING_FAQ.find((f) => /gdzie działa bojo/i.test(f.q));
+    expect(geoAnswer).toBeDefined();
+    expect(geoAnswer!.a.toLowerCase()).toMatch(/poznani/);
   });
 });
 
