@@ -64,20 +64,27 @@ function toField(row: any): Field {
 // heavy columns (description, contact, opening hours, amenities…) are dropped.
 const EXPLORER_COLS =
   'id, name, address, lat, lng, sport, surface, is_indoor, booking_enabled, booking_type, available, website, image_url, photo_url, photo_reference, photo_source, map_visibility, district, venue_type';
-const EXPLORER_BOUNDS = { latMin: 52.05, latMax: 52.70, lngMin: 16.55, lngMax: 17.35 };
 const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna'];
+// Twardy limit transferu. Przy ~3 tys. obiektów jedno zapytanie jest tańsze niż
+// dokładanie stanu i logiki wokół widocznego wycinka mapy. Gdy katalog urośnie
+// do kilkudziesięciu tysięcy, to zapytanie MUSI zacząć zależeć od widoku —
+// patrz BACKLOG §5.0.
+const EXPLORER_LIMIT = 5000;
 
 export async function getExplorerFields(): Promise<Field[]> {
   const { data, error } = await supabase
     .from('fields')
     .select(EXPLORER_COLS)
-    .neq('map_visibility', 'hidden')
-    .gte('lat', EXPLORER_BOUNDS.latMin).lte('lat', EXPLORER_BOUNDS.latMax)
-    .gte('lng', EXPLORER_BOUNDS.lngMin).lte('lng', EXPLORER_BOUNDS.lngMax)
+    // Jedna reguła zamiast dwóch zachodzących na siebie. Wcześniej mapa brała
+    // wszystko poza `hidden`, a potem odsiewała to filtrem „ma telefon albo
+    // stronę albo opis" — proxy jakości z czasów, gdy `map_visibility` ustawiała
+    // analiza satelitarna i nie dało się jej ufać. Import z OSM ustawia je
+    // świadomie (bramka publikacji), więc kolumna wystarcza za całe kryterium.
+    // Bez tej zmiany świeżo zaimportowane boisko nigdy nie trafiłoby na mapę:
+    // z OSM nie przychodzi ani telefon, ani strona, ani opis.
+    .eq('map_visibility', 'public')
     .overlaps('sport', EXPLORER_SPORTS)
-    // "has useful info" — otherwise it's just noise on the map.
-    .or('phone.not.is.null,website.not.is.null,email.not.is.null,description.not.is.null,booking_enabled.is.true,image_url.not.is.null')
-    .limit(5000);
+    .limit(EXPLORER_LIMIT);
   if (error) throw new Error(error.message);
   return (data ?? []).map(toField);
 }

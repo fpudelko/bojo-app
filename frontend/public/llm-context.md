@@ -296,6 +296,20 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-05 — Mapa pokazuje boiska z całej Polski
+PROBLEM: mapa Bojo miała zaszyty prostokąt wokół Poznania i pokazywała tylko to,
+co się w nim mieściło. Obiekty zaimportowane z innych województw nie miały szans
+się pojawić. Drugi filtr wymagał telefonu, strony albo opisu — świeży import
+z OpenStreetMap nie ma żadnej z tych rzeczy, więc odsiewał je nawet w zasięgu.
+ROZWIĄZANIE BOJO: mapa pokazuje obiekty z całego kraju. O tym, co jest widoczne,
+decyduje wyłącznie `map_visibility = 'public'` — jedno kryterium zamiast dwóch
+zachodzących na siebie. Import z OSM ustawia tę kolumnę świadomie, według bramki
+jakości opartej na tagach, więc nie trzeba jej już podpierać filtrem zastępczym.
+MECHANIKA: `getExplorerFields()` w `lib/api.ts` (usunięte `EXPLORER_BOUNDS`
+i filtr „ma kontakt"), punkt zerowy przeplotu Mortona w
+`components/map/VenueExplorer.tsx` przesunięty na 49° N / 14° E — przy starym
+(52° N, 16,5° E) wszystko na południe od Poznania traciło porządek przestrzenny.
+
 ### 2026-08-05 — Domyślny skład zależny od sportu
 PROBLEM: kreator meczu w Bojo proponował 12 miejsc niezależnie od dyscypliny.
 Przy siatkówce plażowej, gdzie gra się 2 na 2, organizator musiał osiem razy
@@ -461,15 +475,4 @@ zwykłym „Dołączam" / „Obserwuję" albo chowa go przez „Nie tym razem".
 Zaproszenie NIE zajmuje miejsca w składzie i niczego nie przesądza.
 MECHANIKA: tabela `event_player_invites` (migracja `060`), `lib/playerInvites.ts`,
 `components/events/InviteFromGroupDialog.tsx`, sekcja `InvitesSection`
-w `components/home/dashboard/DashboardSections.tsx`.
-
-### 2026-08-03 — Mecze grupy na stronie głównej członka
-PROBLEM: mecz grupy jest zwykle prywatny, więc jedyną drogą do niego był link
-zaproszenia wklejony na czacie. Kto go przewinął, nie dowiadywał się, że ekipa gra.
-ROZWIĄZANIE BOJO: zalogowany członek grupy widzi na stronie głównej sekcję
-„Mecze Twoich ekip" — nadchodzące mecze grup, do których należy, także prywatne.
-Sekcja pokazuje tylko te, na które użytkownik jeszcze nie odpowiedział; mecze
-już potwierdzone lub obserwowane zostają w „Twoje najbliższe mecze".
-MECHANIKA: `getMyGroupEvents()` w `lib/events.ts` (członkostwo w `group_members`
-→ `events.group_id`), sekcja `GroupGamesSection`
 w `components/home/dashboard/DashboardSections.tsx`.

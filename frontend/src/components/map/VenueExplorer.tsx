@@ -22,16 +22,21 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 type SelSource = 'map' | 'scroll' | 'init';
 
-// Discovery filtering (powiat bounds, relevant team sports, "has useful info",
-// hidden venues) now runs server-side in getExplorerFields().
+// Discovery filtering (map_visibility = 'public', relevant team sports) runs
+// server-side in getExplorerFields().
 
 function displayName(name: string): string {
   return name.replace(/^boisko\s*[-–—]\s*/i, '').trim() || name;
 }
 
+// Przeplot Mortona — porządkuje karuzelę tak, żeby sąsiednie karty leżały
+// blisko siebie na mapie. Punkt zerowy obejmuje CAŁĄ Polskę: przy poprzednim
+// (52.0 N, 16.5 E, dobranym pod Poznań) wszystko na południe od 52. równoleżnika
+// wpadało w `Math.max(0, …)` i lądowało w jednym punkcie — czyli całe lubelskie
+// miało identyczny klucz i traciło porządek przestrzenny.
 function mortonKey(lat: number, lng: number): number {
-  const x = Math.max(0, Math.round((lng - 16.5) * 1000)) & 0xffff;
-  const y = Math.max(0, Math.round((lat - 52.0) * 1000)) & 0xffff;
+  const x = Math.max(0, Math.round((lng - 14.0) * 1000)) & 0xffff;
+  const y = Math.max(0, Math.round((lat - 49.0) * 1000)) & 0xffff;
   let key = 0;
   for (let i = 0; i < 16; i++) {
     key |= ((x >> i) & 1) << (2 * i);
