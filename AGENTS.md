@@ -186,10 +186,19 @@ ponownie i zacommituj wynik.
 ## Konwencje
 
 - **NIE pushuj bezpośrednio na `master`. Każda zmiana idzie przez pull request** —
-  branch → PR → review → merge. Powód: są już prawdziwi użytkownicy, a merge do
-  mastera to deploy na produkcję (jedno środowisko). PR daje preview z Vercela
-  i możliwość podesłania zmiany drugiej osobie przed zatwierdzeniem.
-  Obowiązuje od 2026-08-04; wcześniejsza praktyka „rób i merguj" jest nieaktualna.
+  branch → PR → **merge przez agenta** → deploy. Powód: PR zostaje jako czytelny
+  zapis zmiany (diff, opis, preview z Vercela), nawet jeśli nikt go nie recenzuje
+  na żywo. Merge do mastera to deploy na produkcję — środowisko jest jedno.
+- **Agent sam mergueje swój PR**, gdy CI jest zielone. Nie czekaj na potwierdzenie
+  właściciela — decyzja z 2026-08-05, gdy aplikacja nie była jeszcze publiczna.
+  Warunki, bez których NIE wolno mergować:
+  - CI zielone (`tsc`, Vitest, `check:docs`),
+  - **wszystkie poprawki dopchnięte PRZED otwarciem PR-a**. Dwa razy zdarzyło się,
+    że PR został zmergowany chwilę przed dosłaniem poprawki — raz kosztowało to
+    zepsuty build produkcyjny (patrz pułapka o `useSearchParams` niżej).
+    Otwieraj PR dopiero, gdy zmiana jest kompletna i sprawdzona.
+  - migracja SQL w PR → napisz WPROST w opisie i w odpowiedzi, że trzeba ją
+    uruchomić ręcznie w Supabase. Merge jej nie uruchamia.
 - Commity i wiadomości do użytkownika po polsku.
 - Migracje: kolejny numer + krótka nazwa, np. `058_nazwa_zmiany.sql`, z komentarzem
   **dlaczego** powstała.
