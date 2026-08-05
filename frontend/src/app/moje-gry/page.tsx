@@ -1,23 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Users, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { InviteList } from '@/components/events/InviteList';
+import { useMyInvites } from '@/lib/useMyInvites';
+import { dismissInvite } from '@/lib/playerInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import type { EventItem } from '@/types';
 
-export default function MojeGryPage() {
+type Tab = 'upcoming' | 'history' | 'invites';
+
+// URL slugs are Polish (matches the app's URL conventions elsewhere), the
+// internal Tab type stays as it always was. An unrecognised ?tab= falls back
+// to 'upcoming' rather than erroring.
+const SLUG_TO_TAB: Record<string, Tab> = { nadchodzace: 'upcoming', historia: 'history', zaproszenia: 'invites' };
+const TAB_TO_SLUG: Record<Tab, string> = { upcoming: 'nadchodzace', history: 'historia', invites: 'zaproszenia' };
+
+function tabButtonCls(active: boolean) {
+  return `pb-2.5 text-sm transition-colors ${
+    active
+      ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
+      : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
+  }`;
+}
+
+function MojeGryContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<{ event: EventItem; relation: MyEventRelation }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming');
+  const [dismissedInviteIds, setDismissedInviteIds] = useState<Set<string>>(new Set());
+
+  // The URL is the only source of truth for the active tab — no useState
+  // alongside it — so the tab survives a refresh and a link from elsewhere
+  // (the invites badge on /wydarzenia) can point straight at it.
+  const tab: Tab = SLUG_TO_TAB[searchParams.get('tab') ?? ''] ?? 'upcoming';
+  const goToTab = (t: Tab) => router.replace(`/moje-gry?tab=${TAB_TO_SLUG[t]}`, { scroll: false });
+
+  const { open: openInvites, statusFor: inviteStatusFor, loading: invitesLoading } = useMyInvites();
+  const visibleInviteCount = openInvites.filter(({ invite }) => !dismissedInviteIds.has(invite.id)).length;
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -81,31 +112,54 @@ export default function MojeGryPage() {
         {/* Tabs */}
         <div className="border-b border-slate-100 dark:border-slate-700">
           <div className="flex gap-6">
-            <button
-              onClick={() => setTab('upcoming')}
-              className={`pb-2.5 text-sm transition-colors ${
-                tab === 'upcoming'
-                  ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
-              }`}
-            >
+            <button onClick={() => goToTab('upcoming')} className={tabButtonCls(tab === 'upcoming')}>
               Nadchodzące
             </button>
-            <button
-              onClick={() => setTab('history')}
-              className={`pb-2.5 text-sm transition-colors ${
-                tab === 'history'
-                  ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
-              }`}
-            >
+            <button onClick={() => goToTab('history')} className={tabButtonCls(tab === 'history')}>
               Historia
+            </button>
+            <button onClick={() => goToTab('invites')} className={`${tabButtonCls(tab === 'invites')} inline-flex items-center gap-1.5`}>
+              Zaproszenia
+              {visibleInviteCount > 0 && (
+                <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
+                  {visibleInviteCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
 
         {/* Tab content */}
-        {loading ? (
+        {tab === 'invites' ? (
+          invitesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-[76px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <section className="space-y-3">
+              <InviteList
+                invites={openInvites}
+                statusFor={inviteStatusFor}
+                dismissedIds={dismissedInviteIds}
+                onDismiss={(inviteId) => {
+                  setDismissedInviteIds((prev) => new Set(prev).add(inviteId));
+                  dismissInvite(inviteId).catch(() => {});
+                }}
+                emptyMessage={
+                  <div className="py-12 text-center">
+                    <p className="text-4xl">✉️</p>
+                    <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak zaproszeń</p>
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      Gdy ktoś zaprosi Cię na mecz, znajdziesz to tutaj.
+                    </p>
+                  </div>
+                }
+              />
+            </section>
+          )
+        ) : loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-[76px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />
@@ -173,5 +227,13 @@ export default function MojeGryPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function MojeGryPage() {
+  return (
+    <Suspense>
+      <MojeGryContent />
+    </Suspense>
   );
 }

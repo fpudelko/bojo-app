@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import AlertSetupDialog from '../AlertSetupDialog';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { InviteList } from '@/components/events/InviteList';
 import { isEventJoinable } from '@/lib/eventDates';
 import { dismissInvite, type InviteWithEvent } from '@/lib/playerInvites';
 import { LANDING_STEPS } from '../landing/content';
@@ -60,25 +61,16 @@ export function InvitesSection({ invites, statusFor }: {
   return (
     <div>
       <SectionHeader title="Zaproszenia" count={open.length} />
-      <div className="space-y-3">
-        {open.slice(0, 3).map(({ invite, event }) => (
-          <div key={invite.id} className="space-y-1.5">
-            <EventBrowseCard event={event} relation={statusFor(event)} />
-            <button
-              onClick={() => {
-                // Optimistic: the invite disappears immediately — dismissing
-                // never breaks anything, so waiting on the network here
-                // would just look like a stall.
-                setDismissed((prev) => new Set(prev).add(invite.id));
-                dismissInvite(invite.id).catch(() => {});
-              }}
-              className="px-1 text-xs font-medium text-slate-400 hover:text-slate-600"
-            >
-              Nie tym razem
-            </button>
-          </div>
-        ))}
-      </div>
+      <InviteList
+        invites={open}
+        statusFor={statusFor}
+        limit={3}
+        dismissedIds={dismissed}
+        onDismiss={(inviteId) => {
+          setDismissed((prev) => new Set(prev).add(inviteId));
+          dismissInvite(inviteId).catch(() => {});
+        }}
+      />
     </div>
   );
 }

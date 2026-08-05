@@ -96,7 +96,7 @@ export default function InviteFromGroupDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4 sm:pb-4">
       <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
           <Users className="h-4 w-4 text-slate-400" />

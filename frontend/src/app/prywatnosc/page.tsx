@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
+import { LegalSection, ContactMail } from '@/components/legal/LegalSection';
+import { LEGAL } from '@/lib/legal';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -8,46 +10,34 @@ export const metadata: Metadata = {
   alternates: { canonical: '/prywatnosc' },
 };
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-8">
-      <h2 className="text-lg font-bold text-slate-900 mb-3">{title}</h2>
-      <div className="text-sm text-slate-700 space-y-2 leading-relaxed">{children}</div>
-    </section>
-  );
-}
-
 export default function PrywatnosePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900">
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
 
-        {/* Legal review notice */}
-        <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-          <strong>Uwaga:</strong> Poniższy dokument to szablon startowy przygotowany na potrzeby
-          prototypu. Przed uruchomieniem produkcyjnym powinien zostać zweryfikowany przez
-          prawnika znającego RODO i polskie prawo ochrony danych.
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">Polityka prywatności</h1>
+        <p className="text-sm text-slate-400 mb-8">Ostatnia aktualizacja: {LEGAL.lastUpdated}</p>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Polityka prywatności</h1>
-        <p className="text-sm text-slate-400 mb-8">Ostatnia aktualizacja: czerwiec 2025</p>
-
-        <Section title="1. Administrator danych">
+        <LegalSection title="1. Administrator danych">
           <p>
-            Administratorem danych osobowych jest operator serwisu <strong>Bojo</strong>
-            (dalej: „Serwis"). Kontakt: <a href="mailto:kontakt@bojo.app" className="text-primary-600 hover:underline">kontakt@bojo.app</a>.
+            Administratorem danych osobowych jest <strong>{LEGAL.operator}</strong>, operator
+            serwisu {LEGAL.siteDomain} (dalej: „Serwis"). Kontakt we wszystkich sprawach
+            dotyczących danych osobowych: <ContactMail />. Nie wyznaczyliśmy inspektora
+            ochrony danych — zgłoszenia trafiają na powyższy adres.
           </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="2. Jakie dane zbieramy">
+        <LegalSection title="2. Jakie dane zbieramy">
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Adres e-mail</strong> — pobierany od Google podczas logowania przez OAuth 2.0.</li>
+            <li><strong>Adres e-mail</strong> — pobierany od Google podczas logowania przez OAuth 2.0 albo podawany bezpośrednio przy logowaniu e-mailem.</li>
             <li><strong>Imię / pseudonim</strong> — podawany przez użytkownika jako wyświetlana nazwa.</li>
             <li><strong>Zdjęcie profilowe</strong> — opcjonalne, wgrywane przez użytkownika.</li>
             <li>
               <strong>Numer telefonu</strong> — opcjonalny, podawany wyłącznie za wyraźną
-              zgodą, wykorzystywany do powiadomień SMS o wydarzeniach.
+              zgodą. Wysyłka SMS nie jest jeszcze uruchomiona — numer jest wyłącznie
+              przechowywany na potrzeby przyszłych powiadomień i możesz go w każdej
+              chwili usunąć w Profilu.
             </li>
             <li>
               <strong>Lokalizacje wydarzeń</strong> — współrzędne lub adresy boisk i miejsc
@@ -62,9 +52,18 @@ export default function PrywatnosePage() {
               dostawcę infrastruktury, Supabase).
             </li>
           </ul>
-        </Section>
+        </LegalSection>
 
-        <Section title="3. Cel przetwarzania danych">
+        <LegalSection title="3. Dobrowolność podania danych">
+          <p>
+            Adres e-mail jest niezbędny do założenia konta — bez niego korzystanie z
+            Serwisu nie jest możliwe. Imię, zdjęcie profilowe i numer telefonu są
+            całkowicie dobrowolne i nie wpływają na dostęp do podstawowych funkcji
+            Serwisu.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="4. Cel przetwarzania danych">
           <ul className="list-disc pl-5 space-y-1">
             <li>Umożliwienie logowania i identyfikacji użytkownika w Serwisie.</li>
             <li>Organizowanie i zarządzanie wydarzeniami sportowymi.</li>
@@ -72,26 +71,26 @@ export default function PrywatnosePage() {
             <li>Prowadzenie statystyk aktywności gracza.</li>
             <li>Zapewnienie bezpieczeństwa Serwisu (rate limiting, logi).</li>
           </ul>
-        </Section>
+        </LegalSection>
 
-        <Section title="4. Podstawa prawna">
+        <LegalSection title="5. Podstawa prawna">
           <ul className="list-disc pl-5 space-y-1">
             <li>Art. 6 ust. 1 lit. b RODO — wykonanie umowy (korzystanie z Serwisu).</li>
             <li>Art. 6 ust. 1 lit. a RODO — zgoda (numer telefonu, powiadomienia).</li>
             <li>Art. 6 ust. 1 lit. f RODO — prawnie uzasadniony interes (bezpieczeństwo).</li>
           </ul>
-        </Section>
+        </LegalSection>
 
-        <Section title="5. Jak długo przechowujemy dane">
+        <LegalSection title="6. Jak długo przechowujemy dane">
           <ul className="list-disc pl-5 space-y-1">
             <li>Dane konta: przez czas istnienia konta + 30 dni po usunięciu konta.</li>
             <li>Dane uczestnictwa (anonimizowane): po usunięciu konta imię zastępowane jest
               ciągiem „Usunięty użytkownik", a identyfikator użytkownika jest usuwany.</li>
             <li>Logi techniczne: zgodnie z polityką Supabase (zazwyczaj 30–90 dni).</li>
           </ul>
-        </Section>
+        </LegalSection>
 
-        <Section title="6. Komu udostępniamy dane">
+        <LegalSection title="7. Komu udostępniamy dane">
           <ul className="list-disc pl-5 space-y-1">
             <li>
               <strong>Supabase Inc.</strong> — dostawca infrastruktury bazy danych
@@ -104,14 +103,25 @@ export default function PrywatnosePage() {
               Google może przetwarzać dane zgodnie z własną polityką prywatności.
             </li>
             <li>
-              <strong>Dostawcy SMS</strong> (SMSAPI / Twilio) — wyłącznie gdy użytkownik
-              wyrazi zgodę na powiadomienia SMS i poda numer telefonu.
+              <strong>Dostawca bramki SMS</strong> — dopiero gdy funkcja powiadomień SMS
+              zostanie uruchomiona i wyłącznie dla użytkowników, którzy wyrażą na to
+              zgodę. Jego nazwa zostanie podana w tej polityce przed pierwszą wysyłką.
             </li>
             <li>Nie sprzedajemy danych osobowych żadnym podmiotom trzecim.</li>
           </ul>
-        </Section>
+        </LegalSection>
 
-        <Section title="7. Prawa użytkownika">
+        <LegalSection title="8. Przekazywanie danych poza EOG">
+          <p>
+            Dane przechowywane u Supabase nie opuszczają Europejskiego Obszaru
+            Gospodarczego (serwery w Frankfurcie). Logowanie przez Google może wiązać
+            się z przetwarzaniem danych przez Google LLC w USA — podstawą takiego
+            transferu są standardowe klauzule umowne oraz przynależność Google do
+            programu Data Privacy Framework UE–USA.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="9. Prawa użytkownika">
           <p>Na podstawie RODO przysługują Ci następujące prawa:</p>
           <ul className="list-disc pl-5 space-y-1 mt-2">
             <li><strong>Dostęp</strong> — prawo uzyskania kopii swoich danych osobowych.</li>
@@ -120,6 +130,10 @@ export default function PrywatnosePage() {
               <strong>Usunięcie</strong> (prawo do bycia zapomnianym) — możliwość usunięcia
               konta i danych w sekcji Profil → „Usuń konto". Skutkuje anonimizacją zapisów
               uczestnictwa i usunięciem konta.
+            </li>
+            <li>
+              <strong>Ograniczenie przetwarzania</strong> — prawo żądania czasowego
+              ograniczenia przetwarzania danych w przypadkach przewidzianych RODO.
             </li>
             <li>
               <strong>Cofnięcie zgody</strong> — możliwość cofnięcia zgody na przetwarzanie
@@ -131,36 +145,64 @@ export default function PrywatnosePage() {
               podstawie prawnie uzasadnionego interesu.</li>
           </ul>
           <p className="mt-3">
-            Aby skorzystać z praw, skontaktuj się pod adresem{' '}
-            <a href="mailto:kontakt@bojo.app" className="text-primary-600 hover:underline">kontakt@bojo.app</a>.
+            Aby skorzystać z praw, skontaktuj się pod adresem <ContactMail />.
             Masz również prawo złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (UODO).
           </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="8. Pliki cookie">
+        <LegalSection title="10. Brak profilowania">
           <p>
-            Serwis używa wyłącznie niezbędnych plików cookie do zarządzania sesją logowania
-            (dostarczanych przez Supabase Auth). Nie używamy plików cookie do śledzenia
-            aktywności ani celów reklamowych.
+            Bojo nie profiluje użytkowników i nie podejmuje wobec nich decyzji w sposób
+            wyłącznie zautomatyzowany (art. 22 RODO).
           </p>
-          <p className="mt-2">
-            Przyszłe funkcje analityczne (o ile zostaną wprowadzone) będą wymagały odrębnej
-            zgody i zostaną opisane w aktualizacji niniejszej polityki.
-          </p>
-        </Section>
+        </LegalSection>
 
-        <Section title="9. Bezpieczeństwo">
+        <LegalSection title="11. Pliki cookie">
+          <p>
+            Serwis używa wyłącznie niezbędnych plików cookie i danych lokalnych:
+          </p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="py-1.5 pr-3 font-semibold">Nazwa</th>
+                  <th className="py-1.5 pr-3 font-semibold">Cel</th>
+                  <th className="py-1.5 font-semibold">Czas życia</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="py-1.5 pr-3 font-mono">sb-*-auth-token</td>
+                  <td className="py-1.5 pr-3">Sesja logowania (Supabase Auth)</td>
+                  <td className="py-1.5">do wylogowania / ok. 1 roku</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5 pr-3 font-mono">bojo_cookie_consent_v1</td>
+                  <td className="py-1.5 pr-3">Zapamiętanie zamknięcia baneru cookies (localStorage)</td>
+                  <td className="py-1.5">bezterminowo</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2">
+            Nie używamy plików cookie do śledzenia aktywności ani celów reklamowych.
+            Przyszłe funkcje analityczne (o ile zostaną wprowadzone) będą wymagały
+            odrębnej zgody i zostaną opisane w aktualizacji niniejszej polityki.
+          </p>
+        </LegalSection>
+
+        <LegalSection title="12. Bezpieczeństwo">
           <p>
             Dane przechowywane są na infrastrukturze Supabase z włączonymi regułami
             Row Level Security (RLS), zapewniającymi, że każdy użytkownik ma dostęp
             wyłącznie do swoich danych. Komunikacja odbywa się przez szyfrowane połączenie HTTPS.
           </p>
-        </Section>
+        </LegalSection>
 
-        <div className="mt-10 pt-6 border-t border-slate-200 text-xs text-slate-400 text-center">
-          <Link href="/" className="hover:text-slate-600">← Wróć do strony głównej</Link>
+        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-400 text-center">
+          <Link href="/" className="hover:text-slate-600 dark:hover:text-slate-300">← Wróć do strony głównej</Link>
           {' · '}
-          <Link href="/regulamin" className="hover:text-slate-600">Regulamin</Link>
+          <Link href="/regulamin" className="hover:text-slate-600 dark:hover:text-slate-300">Regulamin</Link>
         </div>
       </main>
     </div>

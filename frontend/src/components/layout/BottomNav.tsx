@@ -16,8 +16,8 @@ function BallIcon({ className }: { className?: string }) {
 }
 
 const LEFT_ITEMS = [
-  { href: '/wydarzenia', label: 'Gry',   Icon: BallIcon },
-  { href: '/mapa',       label: 'Mapa',  Icon: Map },
+  { href: '/wydarzenia', label: 'Znajdź grę', Icon: BallIcon },
+  { href: '/mapa',       label: 'Mapa',       Icon: Map },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -39,7 +39,7 @@ export default function BottomNav() {
         )}
       >
         <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
       </Link>
     );
   }

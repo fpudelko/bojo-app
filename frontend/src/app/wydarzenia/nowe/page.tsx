@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, Globe, ChevronDown, X, Users } from 'lucide-react';
+import { MapPin, Lock, Globe, ChevronDown, X, Users, Check } from 'lucide-react';
+import { clsx } from 'clsx';
 import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -15,10 +16,14 @@ import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS } from '@/lib/payments';
+import { validateStep1, validateStep2, validateStep } from '@/lib/eventWizard';
+import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
 const GK_SPORTS = ['piłka nożna', 'futsal'];
+
+const STEP_TITLES = ['Co i gdzie', 'Kiedy i ile', 'Opcje'] as const;
 
 /** Tomorrow as YYYY-MM-DD — the default match date; "today" usually means a rush. */
 function tomorrowStr(): string {
@@ -33,15 +38,6 @@ function addMinutes(time: string, minutes: number): string | null {
   const total = h * 60 + m + minutes;
   if (total >= 24 * 60) return null;
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-}
-
-/** True when the given date (YYYY-MM-DD) + time (HH:MM) is at or before now. */
-function isPast(date: string, time: string): boolean {
-  try {
-    const [y, m, d] = date.split('-').map(Number);
-    const [h, min] = (time || '00:00').split(':').map(Number);
-    return new Date(y, m - 1, d, h, min).getTime() <= Date.now();
-  } catch { return false; }
 }
 
 function ToggleRow({ label, desc, checked, onChange }: {
@@ -250,10 +246,7 @@ function NewEventForm() {
     e.preventDefault();
     if (!user) return;
 
-    const errs: Record<string, string> = {};
-    if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
-    if (!date) errs.date = 'Podaj datę meczu.';
-    if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
+    const errs: Record<string, string> = { ...validateStep1(location), ...validateStep2(date, time) };
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       // scroll to first error
@@ -337,55 +330,75 @@ function NewEventForm() {
   const inputCls =
     'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
-  const goToStep2 = () => {
-    const errs: Record<string, string> = {};
-    if (!location.venue && location.lat === null) errs.location = 'Wskaż lokalizację na mapie lub wpisz adres.';
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs);
-      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  /**
+   * Handles both "Dalej" and clicking a step number directly. Going back is
+   * always allowed without validation. Going forward validates every step
+   * between the current one and the target, stopping (and showing the same
+   * inline error as today) at the first one that blocks — so jumping from
+   * step 1 straight to step 3 behaves exactly like clicking "Dalej" twice.
+   */
+  const attemptGoToStep = (target: number) => {
+    if (target === step) return;
+
+    if (target < step) {
+      setFieldErrors({});
+      setStep(target);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    setFieldErrors({});
-    setStep(2);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
-  const goToStep3 = () => {
-    const errs: Record<string, string> = {};
-    if (!date) errs.date = 'Podaj datę meczu.';
-    if (date && isPast(date, time)) errs.date = 'Mecz nie może zaczynać się w przeszłości.';
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs);
-      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-      return;
+    for (let s = step; s < target; s++) {
+      const errs = validateStep(s, { location, date, time });
+      if (Object.keys(errs).length > 0) {
+        setFieldErrors(errs);
+        setStep(s);
+        setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        return;
+      }
     }
     setFieldErrors({});
-    setStep(3);
+    setStep(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const stepIndicator = (
-    <div className="flex items-center gap-2 mb-6">
-      {[1, 2, 3].map((n) => (
-        <div
-          key={n}
-          className={[
-            'flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all',
-            step >= n ? 'bg-primary-700 text-white' : 'bg-slate-100 text-slate-400',
-          ].join(' ')}
-        >
-          {n}
-        </div>
-      ))}
-      <span className="ml-2 text-sm text-slate-500">
-        {step === 1 ? 'Co i gdzie' : step === 2 ? 'Kiedy i ile' : 'Opcje'}
-      </span>
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex flex-col">
+      <HideBottomNav />
       <Header />
+
+      {/* Step indicator — sticky under the header. Numbers are clickable:
+          jumping ahead runs the same validation as "Dalej" and stops on the
+          first step that blocks. */}
+      <div className="sticky top-16 z-[900] border-b border-slate-200 bg-canvas dark:border-slate-700">
+        <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-2.5">
+          {[1, 2, 3].map((n) => {
+            const done = n < step;
+            const current = n === step;
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => attemptGoToStep(n)}
+                aria-current={current ? 'step' : undefined}
+                aria-label={`Krok ${n}: ${STEP_TITLES[n - 1]}`}
+                className={clsx(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all',
+                  'focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2',
+                  (current || done) && 'bg-primary-700 text-white',
+                  current && 'ring-4 ring-primary-100 dark:ring-primary-900',
+                  !current && !done && 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400',
+                )}
+              >
+                {done ? <Check className="h-4 w-4" strokeWidth={3} /> : n}
+              </button>
+            );
+          })}
+          <span className="ml-1 truncate text-sm font-medium text-slate-500 dark:text-slate-400">
+            {STEP_TITLES[step - 1]}
+          </span>
+        </div>
+      </div>
+
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         {groupName && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm text-primary-800">
@@ -393,8 +406,6 @@ function NewEventForm() {
             Mecz w grupie <span className="font-semibold">{groupName}</span>
           </div>
         )}
-
-        {stepIndicator}
 
         <form onSubmit={handleSubmit} className="space-y-5">
 
@@ -507,9 +518,6 @@ function NewEventForm() {
                 )}
               </div>
 
-              <Button type="button" size="lg" className="w-full" onClick={goToStep2}>
-                Dalej →
-              </Button>
             </>
           )}
 
@@ -802,16 +810,6 @@ function NewEventForm() {
                 )}
               </div>
 
-              <Button type="button" size="lg" className="w-full" onClick={goToStep3}>
-                Dalej →
-              </Button>
-              <button
-                type="button"
-                onClick={() => { setStep(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="w-full text-center text-sm text-slate-500 hover:text-ink py-1 transition-colors"
-              >
-                ← Wróć
-              </button>
             </>
           )}
 
@@ -894,18 +892,40 @@ function NewEventForm() {
                 </div>
               )}
 
-              <Button type="submit" size="lg" isLoading={submitting} className="w-full">
-                Opublikuj mecz →
-              </Button>
-              <button
-                type="button"
-                onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="w-full text-center text-sm text-slate-500 hover:text-ink py-1 transition-colors"
-              >
-                ← Wróć
-              </button>
             </>
           )}
+
+          {/* Sticky action bar — replaces the old two-line, per-step button
+              pairs. "Wróć" (left) never validates; "Dalej"/"Opublikuj" (right,
+              flex-1) run the same attemptGoToStep validation as clicking a
+              step number. */}
+          <div
+            className="sticky bottom-0 z-30 -mx-4 mt-2 border-t border-slate-200 bg-canvas px-4 pt-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)] dark:border-slate-700"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+          >
+            <div className="flex items-center gap-3">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="shrink-0"
+                  onClick={() => attemptGoToStep(step - 1)}
+                >
+                  ← Wróć
+                </Button>
+              )}
+              {step < 3 ? (
+                <Button type="button" size="lg" className="flex-1" onClick={() => attemptGoToStep(step + 1)}>
+                  Dalej →
+                </Button>
+              ) : (
+                <Button type="submit" size="lg" isLoading={submitting} className="flex-1">
+                  Opublikuj mecz →
+                </Button>
+              )}
+            </div>
+          </div>
 
         </form>
       </main>

@@ -59,6 +59,50 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 
 ---
 
+## Zaproszenia na mecz
+
+Imienne zaproszenie (`event_player_invites`, migracja `060`, `lib/playerInvites.ts`) —
+organizator albo dowolny potwierdzony uczestnik zaprasza konkretne osoby z ekipy
+(`components/events/InviteFromGroupDialog.tsx`, przycisk „Zaproś z ekipy" na stronie
+meczu). Zaproszenie nie zajmuje miejsca w składzie; odpowiedź to zwykłe „Dołącz" /
+„Obserwuj" na stronie meczu albo „Nie tym razem" (odrzucenie, zapisywane trwale, żeby
+ponowne „zaproś ekipę" nie wskrzeszało odrzuconego zaproszenia).
+
+Gdzie widać otwarte zaproszenia:
+
+| Miejsce | Co pokazuje |
+|---|---|
+| Strona główna (dashboard) | Sekcja „Zaproszenia" — max 3, znika przy zerze |
+| `/moje-gry?tab=zaproszenia` | Pełna lista, bez limitu, z pustym stanem |
+| `/wydarzenia` | Plakietka „Zaproszenia N" obok pola wyszukiwania — **widoczna tylko gdy N > 0**, prowadzi do zakładki wyżej |
+
+Wspólny hook `lib/useMyInvites.ts` (pobiera zaproszenia + mapę uczestnictwa, filtruje do
+statusu `'invited'`) i wspólny komponent listy `components/events/InviteList.tsx` — trzy
+powyższe miejsca renderują ten sam kod, żeby nie rozjeżdżały się przy zmianie.
+
+Nie mylić z `lib/invites.ts` (tabela `event_invites`, migracja `036`) — zaproszenia po
+e-mailu z tokenem, martwy kod, nic go nie importuje.
+
+---
+
+## Dolny panel nawigacji (mobile)
+
+`components/layout/BottomNav.tsx`, montowany globalnie przez `BottomNavGate.tsx`
+(`app/layout.tsx`) dla zalogowanych na mobile. Panel chowa się na dwóch ścieżkach, gdzie
+zasłaniałby ważniejsze CTA:
+
+- **Kreator meczu** (`/wydarzenia/nowe`) — cały czas, żeby nie rozpraszać organizatora
+  i nie zasłaniać przycisku „Dalej".
+- **Strona meczu**, dopóki widoczny jest pasek „Dołącz →" / „Obserwuj" (czyli dopóki
+  użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby). Po dołączeniu panel
+  wraca — to zachęta do kolejnej akcji.
+
+Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
+niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
+montowany warunkowo chowa panel, dopóki jest zamontowany.
+
+---
+
 ## Powiadomienia — co realnie istnieje
 
 Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
