@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-05 · migracja `060` · 30 tabel · 121 testów
+**Stan na:** 2026-08-05 · migracja `061` · 30 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,19 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-05 — Uczestnik znów może zapraszać na mecz
+PROBLEM: „Zaproś z ekipy" działało wyłącznie organizatorowi. Uczestnikowi Bojo
+odpowiadało błędem o naruszeniu zabezpieczeń, mimo że sam zapis był dozwolony.
+Do tego etykieta „już zaproszony" w oknie zapraszania kłamała uczestnikom, bo
+nie widzieli cudzych zaproszeń — dało się wysłać drugie do tej samej osoby.
+ROZWIĄZANIE BOJO: uczestnik meczu może zapraszać tak jak organizator, a lista
+zaproszonych jest widoczna dla wszystkich, którzy na tym meczu grają.
+MECHANIKA: migracja `061` rozszerza politykę SELECT na `event_player_invites`
+o zapraszającego (`invited_by`) i uczestników meczu. Sedno: `invitePlayers()`
+robi `INSERT … RETURNING id`, a Postgres stosuje do RETURNING politykę SELECT —
+brak prawa odczytu przerywał całą operację błędem wyglądającym jak odrzucony
+zapis. Sam warunek INSERT z migracji `060` był poprawny i został bez zmian.
+
 ### 2026-08-05 — Kreator meczu bez rozproszeń, zaproszenia w Moich grach
 PROBLEM: kreator meczu rozpraszał organizatora — numerki kroków 1/2/3 nic nie robiły,
 przycisk „Dalej" na pierwszym kroku był zasłonięty przez dolny panel nawigacji
@@ -460,16 +473,3 @@ prywatny/publiczny. Osobie już zapisanej na komplet Bojo nie proponuje więcej
 MECHANIKA: `setEventGroup()` w `lib/events.ts`, panel w
 `app/wydarzenia/[id]/EventDetailClient.tsx`. Bez migracji — uprawnienie do UPDATE
 na `events` mają organizator i administrator od migracji `005`.
-
-### 2026-08-03 — Landing page mobile-first dla niezalogowanych
-PROBLEM: strona główna była dashboardem pokazywanym też gościom — bez CTA nad
-foldem, z identycznym copy dla zalogowanych i niezalogowanych, i z klientowym
-feedem, który przy pustej bazie renderował „Brak wolnych miejsc".
-ROZWIĄZANIE BOJO: serwerowo renderowany landing dla niezalogowanych (obietnica
-„zbierz skład w dwie minuty", jeden główny CTA, dowód w postaci otwartych gier
-i boisk, FAQ z JSON-LD, sticky CTA na mobile). Zalogowani widzą dotychczasowy
-dashboard bez zmian w zachowaniu.
-MECHANIKA: `components/home/landing/*`, `components/home/{AppHome,HomeSwitch}.tsx`,
-`components/layout/SiteFooter.tsx`, `lib/landingStats.ts` (`getPublicVenueCount`),
-`lib/structuredData.ts` (`faqJsonLd`), `app/page.tsx`.
-
