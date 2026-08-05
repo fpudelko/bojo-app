@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { LANDING_CTA, LANDING_HERO } from './content';
 import RotatingBadge from './RotatingBadge';
 import PhoneMock from './PhoneMock';
+import TrustRow from './TrustRow';
 
 export default function LandingHero() {
   return (
@@ -41,9 +42,7 @@ export default function LandingHero() {
             </Link>
           </div>
 
-          <p className="mt-5 whitespace-nowrap text-[12.5px] text-white/70 sm:text-sm">
-            {LANDING_HERO.trust.join(' · ')}
-          </p>
+          <TrustRow className="mt-5" />
         </div>
 
         {/* Phone in normal flow, right after the text block — only its top

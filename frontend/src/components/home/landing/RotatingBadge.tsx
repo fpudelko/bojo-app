@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const ROTATE_MS = 3500;
+const ROTATE_MS = 1500;
 
 /** Hero eyebrow slot that cycles through a few organizer-value messages.
  *  Fixed min-height keeps the switch from shifting layout; prefers-reduced-motion

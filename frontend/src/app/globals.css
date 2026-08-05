@@ -170,8 +170,8 @@ a {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: calc(100vh - 10rem);
-  min-height: calc(100svh - 10rem);
+  min-height: calc(100vh - 8rem);
+  min-height: calc(100svh - 8rem);
 }
 
 @media (min-width: 768px) {
