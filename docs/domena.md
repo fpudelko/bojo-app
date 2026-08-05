@@ -31,6 +31,13 @@ bez walidacji runtime — Zod jest na liście długu ([strategia.md §5](./strat
 `bojo.pl` (fallback w `layout.tsx`, `robots.ts`, `sitemap.ts` — nowe miejsca używają tej
 samej wartości). Migracje uruchamia się ręcznie → [baza-danych.md](./baza-danych.md).
 
+**Drobne moduły `lib/` bez własnej sekcji tutaj** — po co służą: `lib/legal.ts` (dane
+usługodawcy dla `/prywatnosc` i `/regulamin`, jedno miejsce do uzupełnienia);
+`lib/eventWizard.ts` (walidacja kroków kreatora meczu, wydzielona z
+`app/wydarzenia/nowe/page.tsx` pod testy); `lib/bottomNavVisibility.tsx` (kontekst
+chowający dolny panel nawigacji — patrz [funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile));
+`lib/useMyInvites.ts` (zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz)).
+
 ---
 
 ## Wydarzenie ↔ użytkownik: dwie niezależne osie
@@ -47,7 +54,7 @@ interface MyEventRelation {
 ```ts
 type MyEventStatus =
   | 'none'       // brak relacji — domyślne „Dołącz"
-  | 'invited'    // (przyszłość) ktoś mnie zaprosił, czeka na odpowiedź
+  | 'invited'    // ktoś mnie zaprosił imiennie, czeka na odpowiedź
   | 'pending'    // poprosiłem o dołączenie, organizator jeszcze nie zaakceptował
   | 'observing'  // RSVP „maybe" — obserwuję, nie zajmuję miejsca, nie liczę się do statystyk
   | 'reserve'    // zapisany, czekam na zwolnienie miejsca
@@ -57,7 +64,14 @@ type MyEventStatus =
 **Nie zwijać tego do jednej etykiety.** Można organizować mecz i w nim grać, albo
 organizować bez grania — to dwa różne przypadki i UI musi je rozróżniać.
 
-`'invited'` jest zarezerwowane pod przyszłe zaproszenia — **dziś nic go nie ustawia**.
+`'invited'` pochodzi z tabeli `event_player_invites` (migracja `060`, `lib/playerInvites.ts`)
+— `getMyParticipationMap()` (`lib/events.ts:936-945`) dopisuje ten status, gdy istnieje
+nieodrzucone zaproszenie, a użytkownik nie ma jeszcze żadnego wiersza w
+`event_participants` dla tego meczu. Odpowiedź na zaproszenie to zwykłe dołączenie /
+obserwowanie na stronie meczu — nie ma osobnego „accept" w bazie. Gdzie to widać w UI →
+[funkcje.md § Zaproszenia na mecz](./funkcje.md#zaproszenia-na-mecz).
+Nie mylić z `event_invites` (migracja `036`, `lib/invites.ts`) — zaproszenia po e-mailu
+z tokenem, martwy kod, nic go nie importuje.
 
 ### Skąd bierze się status
 

@@ -2,10 +2,12 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { useCookieBannerVisible, dismissCookieConsent } from '@/lib/cookieConsent';
+import { useBottomNavHidden } from '@/lib/bottomNavVisibility';
 
 export default function CookieBanner() {
   const { user } = useAuth();
   const visible = useCookieBannerVisible();
+  const navHidden = useBottomNavHidden();
 
   if (!visible) return null;
 
@@ -14,9 +16,10 @@ export default function CookieBanner() {
       role="dialog"
       aria-label="Informacja o cookies"
       // BottomNav only exists for signed-in visitors (mobile dashboard) — lift
-      // the banner above it there; signed-out visitors sit flush with the
+      // the banner above it there; signed-out visitors, and anyone on a page
+      // that hides the nav (wizard, event page pre-join), sit flush with the
       // edge instead of floating over an empty gap.
-      className={`fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.06)] ${user ? 'mb-16 md:mb-0' : ''}`}
+      className={`fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.06)] ${user && !navHidden ? 'mb-16 md:mb-0' : ''}`}
     >
       <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 text-sm">
         <p className="flex-1 text-slate-600 leading-snug">

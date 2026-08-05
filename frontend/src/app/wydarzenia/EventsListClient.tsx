@@ -3,14 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { isThisWeek } from 'date-fns';
-import { ArrowLeft, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, MailOpen, Plus, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import { useAuth } from '@/lib/auth';
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { useMyParticipation } from '@/lib/useMyParticipation';
+import { useMyInvites } from '@/lib/useMyInvites';
 import { isEventJoinable } from '@/components/EventCard';
 import { useRouter } from 'next/navigation';
 
@@ -44,8 +44,8 @@ function dateBucket(dateStr: string): DateBucket {
 
 export default function EventsPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const statusFor = useMyParticipation();
+  const { openCount: inviteCount } = useMyInvites();
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sportFilter, setSportFilter] = useState('');
@@ -107,6 +107,19 @@ export default function EventsPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <span className="flex-1 text-base font-bold text-ink">Szukaj meczu</span>
+          {inviteCount > 0 && (
+            <Link
+              href="/moje-gry?tab=zaproszenia"
+              aria-label={`Zaproszenia: ${inviteCount}`}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent-100 px-3 text-xs font-bold text-primary-900 ring-1 ring-accent-200 transition-colors hover:bg-accent-200"
+            >
+              <MailOpen className="h-3.5 w-3.5" strokeWidth={2.25} />
+              Zaproszenia
+              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary-700 px-1 text-[11px] text-white tabular-nums">
+                {inviteCount}
+              </span>
+            </Link>
+          )}
         </div>
 
         {/* Search bar */}
@@ -197,7 +210,7 @@ export default function EventsPage() {
 
         {/* List */}
         {!loading && filtered.length > 0 && (
-          <div className="space-y-3 px-4 pb-24">
+          <div className="space-y-3 px-4 pb-8">
             {filtered.map((event) => (
               <EventBrowseCard key={event.id} event={event} relation={statusFor(event)} />
             ))}
@@ -228,17 +241,6 @@ export default function EventsPage() {
           </div>
         )}
       </main>
-
-      {/* FAB */}
-      {user && filtered.length > 0 && (
-        <Link
-          href="/wydarzenia/nowe"
-          aria-label="Nowy mecz"
-          className="fixed bottom-6 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 text-primary-950 shadow-lg shadow-black/15 transition-transform hover:scale-105 active:scale-95"
-        >
-          <Plus className="h-6 w-6" strokeWidth={2.5} />
-        </Link>
-      )}
     </div>
   );
 }

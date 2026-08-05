@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-04 · migracja `060` · 30 tabel · 113 testów
+**Stan na:** 2026-08-05 · migracja `060` · 30 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,44 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-05 — Kreator meczu bez rozproszeń, zaproszenia w Moich grach
+PROBLEM: kreator meczu rozpraszał organizatora — numerki kroków 1/2/3 nic nie robiły,
+przycisk „Dalej" na pierwszym kroku był zasłonięty przez dolny panel nawigacji
+(„Gry Mapa Nowy Moje Grupy"), a „Dalej"/„Wróć" zajmowały dwie osobne linie. Ten sam
+panel zasłaniał przyciski „Dołącz"/„Obserwuj" na stronie meczu i modal wypisania się.
+Zaproszenia na mecz żyły wyłącznie na stronie głównej — bez znaczka nigdzie indziej,
+łatwo je przegapić.
+ROZWIĄZANIE BOJO: numerki kroków są teraz klikalne i walidują tak samo jak „Dalej" —
+skok na krok, którego wymagania nie są spełnione, zatrzymuje się na pierwszym
+brakującym polu. „Wróć" i „Dalej" siedzą w jednym przyklejonym pasku, w jednej linii.
+Dolny panel chowa się w kreatorze przez cały czas i na stronie meczu, dopóki
+użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby — wraca po dołączeniu.
+Zdublowany przycisk „+" na `/wydarzenia` (chowany za panelem) usunięty. Modale nad
+panelem zamiast pod nim. Zaproszenia dostały zakładkę „Zaproszenia" na `/moje-gry`
+(`?tab=zaproszenia`, przeżywa odświeżenie) i plakietkę z licznikiem obok pola
+wyszukiwania na `/wydarzenia` — widoczną tylko, gdy jest co najmniej jedno zaproszenie.
+MECHANIKA: `lib/eventWizard.ts` (walidacja kroków, wydzielona pod testy),
+`lib/bottomNavVisibility.tsx` (`HideBottomNav`, kontekst z licznikiem),
+`app/wydarzenia/nowe/page.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`
+(`joinBarVisible`), `lib/useMyInvites.ts`, `components/events/InviteList.tsx`,
+`app/moje-gry/page.tsx`, `app/wydarzenia/EventsListClient.tsx`,
+`components/layout/BottomNav.tsx` („Gry" → „Znajdź grę").
+
+### 2026-08-05 — Dokumenty prawne bez zastrzeżenia „to tylko prototyp"
+PROBLEM: `/prywatnosc` i `/regulamin` otwierały się bannerem „Poniższy dokument to
+szablon startowy przygotowany na potrzeby prototypu" — pierwsza rzecz widoczna dla
+kogoś, kto sprawdza, czy może zaufać serwisowi przed założeniem konta. Do tego
+regulamin miał niewypełnione `[nazwa podmiotu]` i `[adres]`, mówił o domenie
+`bojo.app` i „Poznaniu i okolicach" (serwis to `bojo.pl`, zasięg ogólnopolski), a limit
+odpowiedzialności odwoływał się do opłat, mimo że usługa jest bezpłatna.
+ROZWIĄZANIE BOJO: banner usunięty, placeholdery zastąpione realnymi danymi
+kontaktowymi, sprzeczności poprawione. Dokumenty rozszerzone o brakujące elementy:
+ograniczenie przetwarzania i brak profilowania (RODO), transfer danych poza EOG,
+tabela plików cookie, procedura reklamacyjna i odstąpienie od umowy (regulamin).
+MECHANIKA: `lib/legal.ts` (dane usługodawcy w jednym miejscu do uzupełnienia),
+`components/legal/LegalSection.tsx`, `app/prywatnosc/page.tsx`, `app/regulamin/page.tsx`,
+wpis obu stron w `app/sitemap.ts`.
+
 ### 2026-08-04 — Strona meczu: mniej ozdób, więcej odpowiedzi
 PROBLEM: strona meczu w Bojo otwierała się zdjęciem satelitarnym na pół ekranu,
 które nic nie mówiło. Nie było widać, czy się w tym meczu gra ani czy się je
@@ -435,18 +473,3 @@ MECHANIKA: `components/home/landing/*`, `components/home/{AppHome,HomeSwitch}.ts
 `components/layout/SiteFooter.tsx`, `lib/landingStats.ts` (`getPublicVenueCount`),
 `lib/structuredData.ts` (`faqJsonLd`), `app/page.tsx`.
 
-### 2026-08-03 — Kontekst RAG dla modeli językowych
-PROBLEM: modele odpowiadające na pytania o bojo.pl nie miały gęstego, faktograficznego
-opisu produktu; `llms.txt` był indeksem bez pliku szczegółowego, do którego mógłby odesłać.
-ROZWIĄZANIE BOJO: `docs/llm-context.md` (ten plik) plus kopia publiczna serwowana pod
-`bojo.pl/llm-context.md`, linkowana z `llms.txt`.
-MECHANIKA: `docs/llm-context.md`, `frontend/public/llm-context.md`,
-`scripts/sync-llm-context.mjs`, kontrole 7–9 w `scripts/check-docs.mjs`.
-
-### 2026-08-03 — Metadata i canonical dla stron publicznych
-PROBLEM: strony `/mapa`, `/wydarzenia` i `/grupy` dziedziczyły generyczny tytuł
-z layoutu, więc wyszukiwarki widziały trzy różne strony pod jedną nazwą.
-ROZWIĄZANIE BOJO: własne metadata i adres kanoniczny dla każdej strony publicznej
-oraz okruszki nawigacyjne (BreadcrumbList) na stronie boiska.
-MECHANIKA: `app/{mapa,wydarzenia,grupy}/page.tsx` + komponenty `*Client.tsx`,
-`lib/structuredData.ts`, testy w `src/__tests__/structuredData.test.ts`.

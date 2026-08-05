@@ -23,6 +23,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
+import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
@@ -962,6 +963,10 @@ export default function EventDetailClient() {
       return Date.now() >= new Date(y, m - 1, d, h, min).getTime();
     } catch { return true; }
   })();
+  // Drives both the sticky join bar below and hiding the bottom nav while
+  // it's up — the nav would otherwise cover "Dołącz"/"Obserwuj". Stays true
+  // while merely observing (myMaybe), matching the join bar's own comment.
+  const joinBarVisible = !(user && (myParticipation || myPendingRequest)) && !eventStarted;
   // resultsAvailable: event started + 30 min buffer before result form is shown
   const resultsAvailable = (() => {
     try {
@@ -1507,7 +1512,8 @@ export default function EventDetailClient() {
             whole bar away, so anyone who watched first had to hunt for a way
             to actually join. Now "Dołącz" holds its place until you're in, and
             the second button just reports the state you're already in. */}
-        {!(user && (myParticipation || myPendingRequest)) && !eventStarted && (
+        {joinBarVisible && <HideBottomNav />}
+        {joinBarVisible && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
@@ -2264,7 +2270,7 @@ export default function EventDetailClient() {
       {/* Leave confirmation */}
       {leaveConfirmOpen && myEntry && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setLeaveConfirmOpen(false)}
         >
           <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2317,7 +2323,7 @@ export default function EventDetailClient() {
       {/* Join confirmation — role choice + explicit confirm so nobody signs up by accident */}
       {joinDialogOpen && user && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setJoinDialogOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2483,7 +2489,7 @@ export default function EventDetailClient() {
       {/* Repeat game dialog */}
       {repeatOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setRepeatOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2540,7 +2546,7 @@ export default function EventDetailClient() {
       {/* Delete confirmation modal */}
       {deleteConfirmOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setDeleteConfirmOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -2565,7 +2571,7 @@ export default function EventDetailClient() {
       {/* Report modal */}
       {reportTarget && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setReportTarget(null)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

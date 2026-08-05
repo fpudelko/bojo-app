@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
+import { useBottomNavHidden } from '@/lib/bottomNavVisibility';
 import BottomNav from './BottomNav';
 
 /**
@@ -14,9 +15,14 @@ import BottomNav from './BottomNav';
  * Never mounted alongside the landing's StickyCta: that one only renders for
  * signed-out visitors, this one only for signed-in ones. Both use z-[1000]
  * but can't collide.
+ *
+ * Hidden while any <HideBottomNav/> is mounted — e.g. the match wizard (it
+ * distracts the organizer) or the event page before the user has joined (it
+ * would cover the "Dołącz"/"Obserwuj" bar).
  */
 export default function BottomNavGate() {
   const { user, loading } = useAuth();
-  if (loading || !user) return null;
+  const hidden = useBottomNavHidden();
+  if (loading || !user || hidden) return null;
   return <BottomNav />;
 }

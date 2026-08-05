@@ -17,7 +17,7 @@
 - [Mapa boisk i meczów](/mapa): filtry po sporcie, nawierzchni, dzielnicy
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
-- [Moje gry](/moje-gry): mecze organizowane i te, na które jesteś zapisany
+- [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
 - [Grupy](/grupy): stałe ekipy, dołączanie przez link zaproszenia
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
 

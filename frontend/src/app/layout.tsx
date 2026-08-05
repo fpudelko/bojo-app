@@ -7,6 +7,7 @@ import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
 import AnnouncementBar from '@/components/AnnouncementBar';
 import BottomNavGate from '@/components/layout/BottomNavGate';
+import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { siteJsonLd } from '@/lib/structuredData';
 
 const inter = Inter({
@@ -92,10 +93,12 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <ToastProvider>
-              <AnnouncementBar />
-              {children}
-              <BottomNavGate />
-              <CookieBanner />
+              <BottomNavVisibilityProvider>
+                <AnnouncementBar />
+                {children}
+                <BottomNavGate />
+                <CookieBanner />
+              </BottomNavVisibilityProvider>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
