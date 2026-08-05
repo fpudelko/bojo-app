@@ -72,6 +72,15 @@ Realny przypadek: brakowało polityki pozwalającej użytkownikowi zmienić wła
 w `event_participants` (naprawione w `053`). Jeśli zapis „nie działa" bez błędu — najpierw
 sprawdź polityki, nie kod.
 
+**`useSearchParams()` wywala build produkcyjny na trasach prerenderowanych.**
+`/boisko/[id]` ma `generateStaticParams()`, więc Next generuje ~1400 stron przy
+buildzie. `useSearchParams()` w komponencie klienckim wymusza wtedy bail-out do CSR
+i build kończy się błędem `missing-suspense-with-csr-bailout`. **Lokalnie się nie
+powtórzy** — bez prawdziwych kluczy Supabase `generateStaticParams()` zwraca pustą
+listę, więc te strony w ogóle nie powstają i błąd nie ma jak wyjść. Wychodzi dopiero
+na Vercelu. Zamiast hooka czytaj `window.location.search` w `useEffect` po montażu
+(patrz `backHref` w `boisko/[id]/VenueDetailClient.tsx`) albo opakuj w `<Suspense>`.
+
 **`truncate` w kontenerze flex wymaga `min-w-0`.** Bez tego element odmawia się skurczyć
 poniżej szerokości treści i rozpycha całą kartę w bok, zamiast obciąć tekst.
 
