@@ -19,8 +19,20 @@ export default function LandingHero() {
             <RotatingBadge messages={LANDING_HERO.badges} />
           </div>
 
-          <h1 className="mt-4 font-display text-[2rem] font-extrabold leading-[1.08] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem]">
-            {LANDING_HERO.h1[0]}<br />{LANDING_HERO.h1[1]}
+          {/* 3.3rem is the largest size that still wraps to exactly 3 lines
+              (not 4) down to a 360px-wide phone — sized for the narrowest
+              floor, not the reporter's own device, so it can only look
+              MORE generous on wider ones. Growing this only eats into the
+              free space above (.hero-first-screen bottom-aligns the whole
+              column) — everything from the lead paragraph down stays at the
+              exact same pixel position, verified against a pre-change
+              baseline. The `<br>` becomes a real line break only from sm:
+              up, where desktop/tablet keeps its original fixed 2-line
+              layout instead of reflowing. */}
+          <h1 className="mt-4 font-display text-[3.3rem] font-extrabold leading-[1.05] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem]">
+            {LANDING_HERO.h1[0]}{' '}
+            <br className="hidden sm:block" />
+            {LANDING_HERO.h1[1]}
           </h1>
 
           <p className="mt-3.5 max-w-[36ch] text-base leading-relaxed text-white/75 sm:text-lg">
