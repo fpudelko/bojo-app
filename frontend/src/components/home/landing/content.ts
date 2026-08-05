@@ -141,8 +141,8 @@ export const LANDING_FINAL_CTA = {
 } as const;
 
 export const LANDING_STATS = {
-  venuesFallback: 'Setki',
-  venuesSuffix: 'boisk i obiektów na mapie',
+  sportsValue: '4',
+  sportsLabel: 'dyscypliny dziś — będzie więcej',
   timeValue: '2 min',
   timeLabel: 'tyle zajmuje stworzenie meczu',
   priceValue: '0 zł',

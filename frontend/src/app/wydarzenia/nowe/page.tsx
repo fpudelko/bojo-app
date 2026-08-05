@@ -167,7 +167,7 @@ function NewEventForm() {
           <ul className="mt-5 grid gap-2 text-sm text-slate-700">
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Lista zapisów aktualizuje się na żywo</li>
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Skład, rezerwa i podział kosztów liczą się same</li>
-            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Otwórz mecz publicznie, a zobaczą go gracze z Poznania</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Otwórz mecz publicznie, a zobaczą go gracze z okolicy</li>
           </ul>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
@@ -191,20 +191,50 @@ function NewEventForm() {
             </Button>
           </div>
 
-          {/* Preview kreatora pod blurem */}
+          {/* Preview kreatora — prawdziwe etykiety i emoji sportów zamiast
+              generycznych szarych belek, żeby faktycznie było widać, co jest
+              pod blurem. */}
           <div className="relative mt-8 rounded-2xl border border-slate-200 bg-white overflow-hidden select-none pointer-events-none" aria-hidden="true">
-            <div className="p-5 space-y-4 blur-[1.5px] opacity-75">
-              <div className="h-8 w-32 rounded bg-slate-200" />
-              <div className="grid grid-cols-5 gap-2">
-                {[1,2,3,4,5].map(i => <div key={i} className="h-10 rounded-lg bg-slate-100" />)}
+            <div className="p-5 space-y-4 blur-[1.5px] opacity-90">
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">Sport</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {FOCUS_SPORTS.map((s, i) => (
+                    <div
+                      key={s}
+                      className={[
+                        'flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium',
+                        i === 0
+                          ? 'border-primary-700 bg-primary-700 text-white'
+                          : 'border-slate-200 text-slate-600',
+                      ].join(' ')}
+                    >
+                      <span>{sportEmoji(s)}</span>
+                      <span>{sportLabel(s)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="h-32 rounded-xl bg-slate-100" />
+
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">Lokalizacja</p>
+                <div className="relative h-28 overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 via-slate-50 to-primary-50">
+                  <div
+                    className="absolute inset-0 text-slate-400 opacity-40"
+                    style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '14px 14px' }}
+                  />
+                  <MapPin className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-primary-700" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div className="h-10 rounded-lg bg-slate-100" />
-                <div className="h-10 rounded-lg bg-slate-100" />
+                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">Data meczu</div>
+                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">18:00</div>
               </div>
-              <div className="h-20 rounded-lg bg-slate-100" />
-              <div className="h-11 rounded-xl bg-primary-200" />
+
+              <div className="flex h-11 items-center justify-center rounded-xl bg-primary-700 text-sm font-semibold text-white">
+                Dalej →
+              </div>
             </div>
             <div className="absolute inset-0 bg-gradient-to-b from-white/0 via-white/40 to-white/90" />
             <p className="absolute bottom-3 inset-x-0 text-center text-xs text-slate-500 font-medium">

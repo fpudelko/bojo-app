@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { LANDING_CTA, LANDING_HERO } from './content';
 import RotatingBadge from './RotatingBadge';
 import PhoneMock from './PhoneMock';
@@ -7,7 +7,12 @@ import PhoneMock from './PhoneMock';
 export default function LandingHero() {
   return (
     <section className="hero-surface-deep relative flex min-h-screen min-h-[100svh] flex-col overflow-hidden pt-16 text-white">
-      <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-0 pt-8 sm:pt-14 md:flex-row md:items-center md:gap-8 md:pb-16 md:pt-20">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-10 pt-4 md:flex-row md:items-center md:gap-8 md:pb-16 md:pt-20">
+        {/* Pushes the text block toward the bottom of the first screen instead
+            of leaving the gap below the trust row. Collapses on desktop,
+            where the side-by-side layout doesn't need it. */}
+        <div className="flex-1 md:hidden" aria-hidden="true" />
+
         <div className="md:w-7/12">
           <RotatingBadge messages={LANDING_HERO.badges} />
 
@@ -34,19 +39,17 @@ export default function LandingHero() {
             </Link>
           </div>
 
-          <ul className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-white/70">
-            {LANDING_HERO.trust.map((t) => (
-              <li key={t} className="inline-flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" /> {t}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-5 whitespace-nowrap text-[11px] text-white/70 sm:text-[13px]">
+            {LANDING_HERO.trust.join(' · ')}
+          </p>
         </div>
 
-        {/* Phone pinned to the bottom edge, only the top ~130px peeking above
-            the fold — an invitation to scroll, not a competing focal point. */}
-        <div className="relative mt-8 flex flex-1 items-end justify-center overflow-hidden md:mt-0 md:w-5/12 md:items-center md:overflow-visible">
-          <PhoneMock className="w-[248px] translate-y-[calc(100%-130px)] md:w-full md:max-w-[280px] md:translate-y-0 md:rotate-[3deg]" />
+        {/* Phone in normal flow, right after the text block — on a typical
+            phone only its top edge peeks onto the first screen (inviting a
+            scroll); scrolling further reveals the rest of it naturally,
+            instead of a hard-clipped sliver that never un-clips. */}
+        <div className="mt-8 md:mt-0 md:w-5/12">
+          <PhoneMock className="mx-auto w-[248px] md:w-full md:max-w-[280px] md:rotate-[3deg]" />
         </div>
       </div>
       {/* Sentinel for StickyCta's IntersectionObserver — appears once this

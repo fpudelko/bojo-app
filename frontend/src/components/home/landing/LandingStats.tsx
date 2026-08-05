@@ -1,10 +1,8 @@
 import { LANDING_STATS } from './content';
 
-export default function LandingStats({ venueCount }: { venueCount: number | null }) {
-  const venuesValue = venueCount != null ? String(venueCount) : LANDING_STATS.venuesFallback;
-
+export default function LandingStats() {
   const stats = [
-    { value: venuesValue, label: LANDING_STATS.venuesSuffix },
+    { value: LANDING_STATS.sportsValue, label: LANDING_STATS.sportsLabel },
     { value: LANDING_STATS.timeValue, label: LANDING_STATS.timeLabel },
     { value: LANDING_STATS.priceValue, label: LANDING_STATS.priceLabel },
   ];
