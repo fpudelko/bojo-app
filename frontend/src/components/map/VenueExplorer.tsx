@@ -682,9 +682,15 @@ export default function VenueExplorer({
           </div>
         </div>
 
-        {/* Mobile: carousel */}
+        {/* Mobile: carousel.
+            Dolne dopełnienie ustępuje nawigacji: strona mapy jest h-screen
+            i overflow-hidden, więc dystans (h-16) z BottomNav nie działa —
+            pasek (fixed, z-1000) po prostu kładzie się na kartach. */}
         {fields.length > 0 && (
-          <div className="md:hidden absolute inset-x-0 bottom-0 z-[600] pb-4">
+          <div
+            className="md:hidden absolute inset-x-0 bottom-0 z-[600]"
+            style={{ paddingBottom: 'calc(4rem + 0.75rem + env(safe-area-inset-bottom))' }}
+          >
             <div
               ref={scrollRef}
               onScroll={handleScroll}
