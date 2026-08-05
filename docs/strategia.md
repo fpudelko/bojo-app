@@ -7,6 +7,13 @@
 
 ---
 
+## 0. Obecny priorytet - KRÓTKI TERMIN (1–3 msc)
+Strategia. Skupiamy się na pozyskiwaniu organizatorów i szlifowaniu przepływu
+organizacji gry. Baza graczy zbuduje się sama, bo żeby dołączyć do meczu, trzeba założyć konto - organizator przyprowadza 10–14 osób.
+To klasyczne rozwiązanie problemu jajka i kury zwane single-player mode: narzędzie daje wartość jednej stronie rynku, zanim druga w ogóle istnieje.
+Kanoniczny przykład to OpenTable, które zaczęło jako darmowy system rezerwacji dla restauracji, użyteczny w dniu zero, bez ani jednego gościa online.
+Bojo.pl ma więc mówić językiem organizatora, a nie targowiska.
+
 ## 1. Gdzie jesteśmy
 
 **Produkt działa i jest wdrożony.** Aplikacja webowa (Next.js 14 + Supabase, hosting
