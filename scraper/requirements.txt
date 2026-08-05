@@ -2,3 +2,7 @@ httpx>=0.27.0
 python-dotenv>=1.0.1
 supabase>=2.4.6
 tenacity>=8.3.0
+# import_osm_pbf.py — czytanie plików .osm.pbf i złączenie przestrzenne offline.
+# shapely 2.x ma wbudowane STRtree, więc nie potrzeba osobnego pakietu rtree.
+osmium>=3.7.0
+shapely>=2.0.0
