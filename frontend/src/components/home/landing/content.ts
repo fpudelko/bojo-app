@@ -142,7 +142,7 @@ export const LANDING_FINAL_CTA = {
 
 export const LANDING_STATS = {
   sportsValue: '4',
-  sportsLabel: 'dyscypliny dziś — będzie więcej',
+  sportsLabel: 'dyscypliny dziś — piłka, siatka, plażówka, kosz',
   timeValue: '2 min',
   timeLabel: 'tyle zajmuje stworzenie meczu',
   priceValue: '0 zł',

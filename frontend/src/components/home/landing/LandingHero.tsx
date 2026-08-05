@@ -41,7 +41,7 @@ export default function LandingHero() {
             </Link>
           </div>
 
-          <p className="mt-5 whitespace-nowrap text-[11px] text-white/70 sm:text-[13px]">
+          <p className="mt-5 whitespace-nowrap text-[12.5px] text-white/70 sm:text-sm">
             {LANDING_HERO.trust.join(' · ')}
           </p>
         </div>
