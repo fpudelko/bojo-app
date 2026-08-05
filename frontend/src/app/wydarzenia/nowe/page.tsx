@@ -81,7 +81,7 @@ function NewEventForm() {
   // Match length instead of a free end-time picker — one obvious control,
   // the end time is derived from it.
   const [durationMin, setDurationMin] = useState(90);
-  const [maxPlayers, setMaxPlayers] = useState(12);
+  const [maxPlayers, setMaxPlayers] = useState(14);  // domyślny sport to piłka nożna
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
@@ -316,9 +316,18 @@ function NewEventForm() {
     }
   };
 
-  // Default roster size per sport; applied only until the organizer touches
-  // the stepper, so their explicit choice always wins.
-  const sportDefaultPlayers = (s: string) => (s === 'piłka nożna' || s === 'futsal' ? 12 : 10);
+  // Domyślny skład per sport — tyle, ile realnie schodzi na amatorskim meczu
+  // w Polsce, żeby stepper był poprawką, a nie obowiązkowym krokiem.
+  // Stosowane tylko dopóki organizator sam nie ruszy licznika.
+  const SPORT_PLAYERS: Record<string, number> = {
+    'piłka nożna': 14,          // 7v7 — format orlika
+    futsal: 10,                 // 5v5
+    siatkówka: 12,              // 6v6
+    'siatkówka plażowa': 4,     // 2v2
+    koszykówka: 10,             // 5v5
+    'piłka ręczna': 14,         // 7v7
+  };
+  const sportDefaultPlayers = (s: string) => SPORT_PLAYERS[s] ?? 10;
   const selectSport = (s: string) => {
     setSport(s);
     if (!maxPlayersTouched) setMaxPlayers(sportDefaultPlayers(s));

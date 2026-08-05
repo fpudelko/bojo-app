@@ -296,6 +296,19 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-05 — Domyślny skład zależny od sportu
+PROBLEM: kreator meczu w Bojo proponował 12 miejsc niezależnie od dyscypliny.
+Przy siatkówce plażowej, gdzie gra się 2 na 2, organizator musiał osiem razy
+kliknąć minus. Na mapie karta obiektu chowała się pod dolną nawigacją, więc
+adresu nie dało się doczytać.
+ROZWIĄZANIE BOJO: liczba miejsc podpowiada się z dyscypliny — piłka nożna 14
+(7v7), piłka ręczna 14, siatkówka 12 (6v6), futsal 10 (5v5), koszykówka 10
+(5v5), siatkówka plażowa 4 (2v2). Podpowiedź ustępuje, gdy organizator sam
+ruszy licznik. Karuzela obiektów na mapie ma dopełnienie na wysokość paska
+nawigacji.
+MECHANIKA: `SPORT_PLAYERS` w `app/wydarzenia/nowe/page.tsx`, dolne dopełnienie
+karuzeli w `components/map/VenueExplorer.tsx`.
+
 ### 2026-08-05 — Uczestnik znów może zapraszać na mecz
 PROBLEM: „Zaproś z ekipy" działało wyłącznie organizatorowi. Uczestnikowi Bojo
 odpowiadało błędem o naruszeniu zabezpieczeń, mimo że sam zapis był dozwolony.
@@ -460,16 +473,3 @@ już potwierdzone lub obserwowane zostają w „Twoje najbliższe mecze".
 MECHANIKA: `getMyGroupEvents()` w `lib/events.ts` (członkostwo w `group_members`
 → `events.group_id`), sekcja `GroupGamesSection`
 w `components/home/dashboard/DashboardSections.tsx`.
-
-### 2026-08-03 — Przypisanie istniejącego meczu do grupy
-PROBLEM: grupę meczu w Bojo dało się wskazać tylko przy zakładaniu. Mecze założone
-poza grupą nigdy nie trafiały na listę meczów grupy, a jedynym wyjściem było
-utworzenie ich od nowa.
-ROZWIĄZANIE BOJO: w panelu „Zarządzaj wydarzeniem" jest wybór grupy — organizator
-i administrator mogą przypiąć istniejący mecz do grupy albo go odpiąć. Przypisanie
-zmienia wyłącznie listowanie; widoczność meczu nadal wynika z ustawienia
-prywatny/publiczny. Osobie już zapisanej na komplet Bojo nie proponuje więcej
-„dołącz do rezerwy" — widzi sam status „Komplet".
-MECHANIKA: `setEventGroup()` w `lib/events.ts`, panel w
-`app/wydarzenia/[id]/EventDetailClient.tsx`. Bez migracji — uprawnienie do UPDATE
-na `events` mają organizator i administrator od migracji `005`.
