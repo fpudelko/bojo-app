@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
@@ -64,7 +63,18 @@ export default function VenueDetailClient({
   const id = fieldId;
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
-  const searchParams = useSearchParams();
+
+  // Where the back arrow goes. Read from the query string AFTER mount rather
+  // than via useSearchParams(): this route is prerendered for every venue
+  // (generateStaticParams), and that hook forces a client-side bail-out which
+  // fails the production build unless the whole page sits in <Suspense>.
+  // The link only has to be right by the time somebody clicks it.
+  // Same-origin paths only, or the param becomes an open redirect.
+  const [backHref, setBackHref] = useState('/mapa');
+  useEffect(() => {
+    const wroc = new URLSearchParams(window.location.search).get('wroc');
+    if (wroc && wroc.startsWith('/') && !wroc.startsWith('//')) setBackHref(wroc);
+  }, []);
 
   const [field, setField] = useState<Field | null>(null);
   const [fieldLoading, setFieldLoading] = useState(true);
@@ -201,10 +211,7 @@ export default function VenueDetailClient({
   const thumbnail = fieldPhotoUrl(field, 600, 240);
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${field.lat},${field.lng}`;
 
-  // Same-origin paths only — an absolute URL here would turn the back arrow
-  // into an open redirect.
-  const wroc = searchParams.get('wroc');
-  const backHref = wroc && wroc.startsWith('/') && !wroc.startsWith('//') ? wroc : '/mapa';
+
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
