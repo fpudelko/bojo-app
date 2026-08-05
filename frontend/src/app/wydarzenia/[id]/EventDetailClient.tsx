@@ -1385,25 +1385,25 @@ export default function EventDetailClient() {
                     <UserPlus className="w-4 h-4" /> Dodaj
                   </Button>
                 </div>
-              {gkEnabled && (
-                <div className="mt-2 flex gap-2">
-                  {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setGuestIsGk(r === 'gk')}
-                      className={[
-                        'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                        (r === 'gk') === guestIsGk
-                          ? 'border-primary-600 bg-primary-50 text-primary-700'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                      ].join(' ')}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {gkEnabled && (
+                  <div className="mt-2 flex gap-2">
+                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setGuestIsGk(r === 'gk')}
+                        className={[
+                          'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                          (r === 'gk') === guestIsGk
+                            ? 'border-primary-600 bg-primary-50 text-primary-700'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <button
@@ -1670,7 +1670,7 @@ export default function EventDetailClient() {
                   <UserPlus className="w-4 h-4" /> Dodaj
                 </Button>
               </div>
-            {gkEnabled && (
+              {gkEnabled && (
                 <div className="mt-2 flex gap-2">
                   {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
                     <button
