@@ -86,7 +86,10 @@ export function EventBrowseCard({ event, distance, relation }: {
       className={`flex overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 dark:ring-slate-700 transition-shadow active:scale-[0.995] ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
       style={{ borderLeft: `4px solid ${past ? '#94a3b8' : color}` }}
     >
-      <div className="flex-1 p-3">
+      {/* min-w-0: without it this flex item refuses to shrink below its
+          content width, a long title stretches the row and the badges on
+          the right get clipped by the card's overflow-hidden. */}
+      <div className="min-w-0 flex-1 p-3">
         {/* top: icon + title + price */}
         <div className="flex items-start gap-2.5">
           <div
@@ -162,8 +165,8 @@ export function EventBrowseCard({ event, distance, relation }: {
               />
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
-              <div className="flex items-center gap-3">
+              <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
+              <div className="flex shrink-0 items-center gap-3">
                 {full ? (
                   <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
                 ) : (
