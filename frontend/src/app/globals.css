@@ -160,6 +160,27 @@ a {
     linear-gradient(168deg, #0F5537 0%, #0B3E28 52%, #07291A 100%);
 }
 
+/* Hero text block on mobile: exactly one screen tall (minus the fixed header
+   and a strip left for the phone to peek), with its content bottom-aligned.
+   That puts the breathing room ABOVE the badge — between the logo and the
+   headline — instead of stranding it under the trust row. Written as a class
+   rather than Tailwind arbitrary values so the vh → svh fallback order is
+   guaranteed; svh keeps Chrome's collapsing address bar from stealing height. */
+.hero-first-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: calc(100vh - 10rem);
+  min-height: calc(100svh - 10rem);
+}
+
+@media (min-width: 768px) {
+  .hero-first-screen {
+    display: block;
+    min-height: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

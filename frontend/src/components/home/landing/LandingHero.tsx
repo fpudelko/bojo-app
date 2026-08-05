@@ -6,15 +6,17 @@ import PhoneMock from './PhoneMock';
 
 export default function LandingHero() {
   return (
-    <section className="hero-surface-deep relative flex min-h-screen min-h-[100svh] flex-col overflow-hidden pt-16 text-white">
-      <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-10 pt-4 md:flex-row md:items-center md:gap-8 md:pb-16 md:pt-20">
-        {/* Pushes the text block toward the bottom of the first screen instead
-            of leaving the gap below the trust row. Collapses on desktop,
-            where the side-by-side layout doesn't need it. */}
-        <div className="flex-1 md:hidden" aria-hidden="true" />
-
-        <div className="md:w-7/12">
-          <RotatingBadge messages={LANDING_HERO.badges} />
+    <section className="hero-surface-deep relative overflow-hidden pt-16 text-white">
+      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-center md:gap-8 md:pb-16 md:pt-20">
+        {/* .hero-first-screen (globals.css) makes this exactly one screen tall
+            on mobile with the content pinned to its bottom — see the comment
+            there. On md+ it collapses back to a plain block. */}
+        <div className="hero-first-screen md:w-7/12">
+          {/* Wrapper keeps the pill hugging its text: as a direct flex child
+              of .hero-first-screen it would stretch to the full column width. */}
+          <div>
+            <RotatingBadge messages={LANDING_HERO.badges} />
+          </div>
 
           <h1 className="mt-4 font-display text-[2rem] font-extrabold leading-[1.08] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem]">
             {LANDING_HERO.h1[0]}<br />{LANDING_HERO.h1[1]}
@@ -44,11 +46,11 @@ export default function LandingHero() {
           </p>
         </div>
 
-        {/* Phone in normal flow, right after the text block — on a typical
-            phone only its top edge peeks onto the first screen (inviting a
-            scroll); scrolling further reveals the rest of it naturally,
-            instead of a hard-clipped sliver that never un-clips. */}
-        <div className="mt-8 md:mt-0 md:w-5/12">
+        {/* Phone in normal flow, right after the text block — only its top
+            edge peeks onto the first screen (inviting a scroll); scrolling
+            reveals the whole card naturally, instead of a hard-clipped sliver
+            that never un-clips. */}
+        <div className="mt-6 md:mt-0 md:w-5/12">
           <PhoneMock className="mx-auto w-[248px] md:w-full md:max-w-[280px] md:rotate-[3deg]" />
         </div>
       </div>
