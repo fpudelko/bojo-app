@@ -634,6 +634,41 @@ export async function setEventGroup(eventId: string, groupId: string | null): Pr
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Move a match to a new date/time.
+ *
+ * Deliberately separate from `updateEvent()`, which takes a whole `EventCreate`
+ * and would silently reset every field the caller didn't supply — the same trap
+ * that made `setEventGroup()` necessary. Rescheduling from the event page has to
+ * touch three columns and nothing else.
+ */
+export async function setEventWhen(
+  eventId: string,
+  date: string,
+  time: string,
+  endTime: string | null,
+  actorId?: string,
+  actorName?: string,
+): Promise<void> {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = (time || '00:00').split(':').map(Number);
+  if (new Date(y, m - 1, d, h, min).getTime() <= Date.now()) {
+    throw new Error('Mecz nie może zaczynać się w przeszłości.');
+  }
+
+  const { error } = await supabase
+    .from('events')
+    .update({ event_date: date, event_time: time, end_time: endTime })
+    .eq('id', eventId);
+  if (error) throw new Error(error.message);
+
+  if (actorId) {
+    logActivity(eventId, actorId, actorName ?? null, 'event_updated', { date, time }).catch(
+      (e) => console.warn('[ActivityLog] event_updated (reschedule)', e),
+    );
+  }
+}
+
 export async function setVisibility(
   eventId: string,
   visibility: Visibility,
