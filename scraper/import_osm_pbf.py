@@ -180,6 +180,22 @@ def dimensions_m(poly: Polygon, lat: float) -> str | None:
         return None
 
 
+def _stem(word: str) -> str:
+    """Prymitywny rdzeń słowa — do porównywania nazw mimo polskiej odmiany.
+    „Kolonii" i „Kolonia" mają wspólne 6 znaków, „Włodawie" i „Włodawa" też."""
+    return word.lower().strip(" ,.-")[:6]
+
+
+def locality_already_in(base: str, locality: str) -> bool:
+    """Czy miejscowość już siedzi w nazwie — choćby w innym przypadku.
+    Bez tego powstaje „Szkoła Podstawowa w Kolonii Sitno …, Kolonia Sitno"."""
+    base_stems = {_stem(w) for w in base.split() if len(w) >= 4}
+    loc_words = [w for w in locality.split() if len(w) >= 4]
+    if not loc_words:
+        return locality.lower() in base.lower()
+    return all(_stem(w) in base_stems for w in loc_words)
+
+
 def sports_pl(tags: dict[str, str]) -> list[str] | None:
     raw = (tags.get("sport") or "").replace(",", ";").split(";")
     raw = [s.strip().lower() for s in raw if s.strip()]
@@ -194,7 +210,7 @@ def build_name(tags: dict[str, str], sports: list[str] | None,
     """Zwraca (nazwa, źródło_nazwy). Drabinka priorytetów — patrz nagłówek pliku."""
     own = (tags.get("name") or "").strip()
     if own:
-        return (f"{own}, {locality}" if locality and locality.lower() not in own.lower() else own), "wlasna"
+        return (f"{own}, {locality}" if locality and not locality_already_in(own, locality) else own), "wlasna"
 
     noun = SPORT_NOUN.get(sports[0], "Boisko sportowe") if sports else "Boisko sportowe"
 
@@ -203,12 +219,12 @@ def build_name(tags: dict[str, str], sports: list[str] | None,
         # odmiany: „boisko przy Szkoła Podstawowa nr 12" zgrzyta, a odmienianie
         # dowolnych nazw własnych to studnia bez dna.
         base = f"{ctx.tags['name'].strip()} — {noun.lower()}"
-        return (f"{base}, {locality}" if locality and locality.lower() not in base.lower() else base), f"kontekst:{ctx_kind}"
+        return (f"{base}, {locality}" if locality and not locality_already_in(base, locality) else base), f"kontekst:{ctx_kind}"
 
     operator = (tags.get("operator") or "").strip()
     if operator:
         base = f"{noun} — {operator}"
-        return (f"{base}, {locality}" if locality else base), "operator"
+        return (f"{base}, {locality}" if locality and not locality_already_in(base, locality) else base), "operator"
 
     street = (tags.get("addr:street") or "").strip()
     parts = [noun]
@@ -225,6 +241,9 @@ def main() -> int:
     ap.add_argument("--pbf", help="lokalny plik .osm.pbf zamiast pobierania")
     ap.add_argument("--dry-run", action="store_true", help="tylko raport, nic nie zapisuje")
     ap.add_argument("--limit", type=int, default=0, help="maks. obiektów do zapisu (0 = wszystkie)")
+    ap.add_argument("--gate", default="srednia", choices=["waska", "srednia", "szeroka"],
+                    help="jak szeroko publikować: waska (nazwa+nawierzchnia), "
+                         "srednia (nazwa lub nawierzchnia), szeroka (wszystko z miejscowością)")
     ap.add_argument("--visibility", default="organizer_only",
                     choices=["organizer_only", "public"],
                     help="map_visibility dla obiektów, które NIE przejdą bramki jakości")
@@ -347,11 +366,23 @@ def main() -> int:
             v = (p.tags.get(key) or "").strip().lower()
             return True if v in ("yes", "true") else (False if v in ("no", "false") else None)
 
-        # BRAMKA JAKOŚCI: publiczne tylko z nazwą własną albo z pełnym opisem
-        # z tagów. Zero udziału AI w tej decyzji.
-        quality = name_src == "wlasna" or (surface is not None and name_src.startswith("kontekst"))
-        if quality:
-            stats["przejdzie bramkę publikacji"] += 1
+        # BRAMKA PUBLIKACJI. Zero udziału AI — decyduje wyłącznie to, co
+        # realnie wiadomo z tagów OSM. Trzy poziomy do wyboru, bo dopiero
+        # dane z regionu pokazują, gdzie leży sensowna granica.
+        named = name_src == "wlasna" or name_src.startswith("kontekst")
+        gates = {
+            # tylko obiekty z nazwą instytucji I znaną nawierzchnią
+            "waska":   named and surface is not None,
+            # nazwa instytucji ALBO znana nawierzchnia
+            "srednia": named or surface is not None,
+            # wszystko, co ma sport zespołowy i miejscowość — czyli nazwę,
+            # która odróżnia je od innych, oraz zweryfikowaną pozycję
+            "szeroka": locality is not None,
+        }
+        for g, ok in gates.items():
+            if ok:
+                stats[f"bramka {g}"] += 1
+        quality = gates[args.gate]
 
         records.append({
             "name": name[:120],
@@ -377,11 +408,17 @@ def main() -> int:
 
     # --- raport --------------------------------------------------------------
     n = len(records)
+    rejected = stats.pop("odrzucone: brak sportu zespołowego", 0)
     log.info("── RAPORT (%s) ─────────────────────────────", args.region)
-    log.info("   boisk do importu: %d", n)
+    log.info("   obiektów w pliku:      %d", n + rejected)
+    log.info("   odrzucone (sport indywidualny lub brak): %d", rejected)
+    log.info("   boisk do importu:      %d", n)
+    log.info("   ── z tego (%% liczony od importowanych) ──")
     for k in sorted(stats):
         pct = f"{round(100 * stats[k] / n)}%" if n else "—"
         log.info("   %-34s %5d  (%s)", k, stats[k], pct)
+    log.info("   ── wybrana bramka: %s → %d obiektów publicznych ──",
+             args.gate, stats.get(f"bramka {args.gate}", 0))
 
     log.info("── PRÓBKA 15 NAZW ──────────────────────────")
     for r in records[:15]:

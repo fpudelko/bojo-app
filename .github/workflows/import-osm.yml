@@ -33,6 +33,15 @@ on:
         default: '0'
         required: false
         type: string
+      gate:
+        description: 'Jak szeroko publikować na mapie'
+        default: 'srednia'
+        required: false
+        type: choice
+        options:
+          - waska      # nazwa instytucji ORAZ znana nawierzchnia
+          - srednia    # nazwa instytucji ALBO znana nawierzchnia
+          - szeroka    # wszystko, co ma sport zespołowy i miejscowość
 
 jobs:
   import:
@@ -64,4 +73,5 @@ jobs:
           python import_osm_pbf.py \
             --region "${{ inputs.region }}" \
             --limit "${{ inputs.limit }}" \
+            --gate "${{ inputs.gate }}" \
             ${{ inputs.dry_run == true && '--dry-run' || '' }}
