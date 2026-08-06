@@ -35,13 +35,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let fieldPages: MetadataRoute.Sitemap = [];
   try {
-    const { data } = await supabase.from('fields').select('name, id').eq('map_visibility', 'public');
-    fieldPages = (data ?? []).map((field) => ({
-      url: `${base}/boisko/${slugify(field.name)}`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }));
+    // Strona po stronie. PostgREST obcina zbyt długą odpowiedź BEZ błędu, więc
+    // jedno zapytanie po katalogu liczącym tysiące obiektów po cichu gubiło
+    // ogon — te boiska nigdy nie trafiały do mapy witryny.
+    const STRONA = 1000;
+    const wiersze: { id: string; name: string }[] = [];
+    for (let od = 0; ; od += STRONA) {
+      const { data, error } = await supabase
+        .from('fields')
+        .select('name, id')
+        .eq('map_visibility', 'public')
+        .order('id')
+        .range(od, od + STRONA - 1);
+      if (error) throw new Error(error.message);
+      const partia = data ?? [];
+      wiersze.push(...partia);
+      if (partia.length < STRONA) break;
+    }
+    fieldPages = wiersze
+      .filter((field) => field.name)
+      .map((field) => ({
+        url: `${base}/boisko/${slugify(field.name)}`,
+        lastModified: new Date(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      }));
   } catch {
     // sitemap degrades gracefully if DB unavailable
   }
