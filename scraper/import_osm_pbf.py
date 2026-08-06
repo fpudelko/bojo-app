@@ -36,6 +36,7 @@ import argparse
 import logging
 import math
 import os
+import time
 import sys
 from collections import Counter
 from dataclasses import dataclass, field as dc_field
@@ -50,6 +51,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("import-osm")
 
 GEOFABRIK = "https://download.geofabrik.de/europe/poland/{region}-latest.osm.pbf"
+# Zapasowe źródło tych samych wycinków. Geofabrik potrafi oddać 502 na kilka
+# minut i bez tego cały przebieg leci do kosza na pierwszym błędzie.
+LUSTRO_OSMFR = "https://download.openstreetmap.fr/extracts/europe/poland/{region}.osm.pbf"
+PROBY_POBRANIA = 4
 
 # ---------------------------------------------------------------------------
 # Słowniki — te same wartości co w scraper.py, żeby baza była spójna
@@ -252,6 +257,54 @@ def build_name(tags: dict[str, str], sports: list[str] | None,
     return ", ".join(parts), ("ulica" if street else ("miejscowosc" if locality else "brak"))
 
 
+def pobierz(region: str, path: str) -> None:
+    """Ściąga wycinek OSM. Ponawia i sięga po lustro, zamiast padać na pierwszym błędzie.
+
+    Geofabrik bywa chwilowo niedostępny (502/503). Bez ponowienia jeden taki
+    moment kasuje cały przebieg importu — a przebieg dla województwa trwa
+    kilkanaście minut i uruchamia się ręcznie.
+    """
+    zrodla = [
+        ("Geofabrik", GEOFABRIK.format(region=region)),
+        ("lustro openstreetmap.fr", LUSTRO_OSMFR.format(region=region)),
+    ]
+    ostatni_blad: Exception | None = None
+
+    for nazwa, url in zrodla:
+        for proba in range(1, PROBY_POBRANIA + 1):
+            try:
+                log.info("Pobieram %s (%s, próba %d/%d)", url, nazwa, proba, PROBY_POBRANIA)
+                with httpx.stream("GET", url, follow_redirects=True, timeout=600) as r:
+                    r.raise_for_status()
+                    # Zapis do pliku tymczasowego: przerwane pobranie nie może
+                    # zostawić obciętego .pbf, który przy kolejnym uruchomieniu
+                    # zostałby wzięty za gotowy (kod pomija pobieranie, gdy plik
+                    # istnieje).
+                    tmp = path + ".part"
+                    with open(tmp, "wb") as fh:
+                        for chunk in r.iter_bytes(1 << 20):
+                            fh.write(chunk)
+                    os.replace(tmp, path)
+                return
+            except Exception as e:  # noqa: BLE001 — logujemy i próbujemy dalej
+                ostatni_blad = e
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                # 404 na lustrze znaczy „ten region nazywa się tam inaczej" —
+                # ponawianie nic nie da, przechodzimy do następnego źródła.
+                if status == 404:
+                    log.warning("%s: 404 — pomijam to źródło", nazwa)
+                    break
+                czekaj = 5 * 2 ** (proba - 1)
+                log.warning("%s: %s — czekam %ds", nazwa, e, czekaj)
+                if proba < PROBY_POBRANIA:
+                    time.sleep(czekaj)
+
+    raise RuntimeError(
+        f"Nie udało się pobrać wycinka dla regionu {region} z żadnego źródła. "
+        f"Ostatni błąd: {ostatni_blad}"
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Import boisk z pliku .osm.pbf (Geofabrik)")
     ap.add_argument("--region", default="lubelskie", help="region Geofabrik, np. lubelskie")
@@ -271,12 +324,7 @@ def main() -> int:
         url = GEOFABRIK.format(region=args.region)
         path = f"/tmp/{args.region}.osm.pbf"
         if not os.path.exists(path):
-            log.info("Pobieram %s", url)
-            with httpx.stream("GET", url, follow_redirects=True, timeout=600) as r:
-                r.raise_for_status()
-                with open(path, "wb") as fh:
-                    for chunk in r.iter_bytes(1 << 20):
-                        fh.write(chunk)
+            pobierz(args.region, path)
         log.info("Plik: %s (%.0f MB)", path, os.path.getsize(path) / 1e6)
 
     log.info("Czytam plik — jedno przejście…")
