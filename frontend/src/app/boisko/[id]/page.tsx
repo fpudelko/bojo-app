@@ -61,30 +61,61 @@ function toField(row: any): Field {
 const SLUG_INDEX_TTL_MS = 5 * 60 * 1000;
 let slugIndexCache: { at: number; index: Promise<Map<string, string>> } | null = null;
 
+// Strona po strony, nie jednym zapytaniem. PostgREST ma serwerowy limit
+// wierszy na odpowiedź (w Supabase to ustawienie „Max rows"), a przekroczenie
+// go NIE jest błędem — po prostu przychodzi obcięta lista. Przy katalogu, który
+// właśnie przekroczył 4 tysiące obiektów, indeks budowany jednym zapytaniem
+// milcząco gubił ogon: świeżo zaimportowane boisko nie miało swojego sluga,
+// a jego strona zwracała „Nie znaleziono strony".
+const STRONA = 1000;
+
 async function fetchSlugIndex(): Promise<Map<string, string>> {
-  const { data } = await supabase.from('fields').select('id, name');
   const map = new Map<string, string>();
-  for (const row of data ?? []) {
-    const slug = slugify(row.name);
-    // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
-    // tak samo jak wcześniejsze `.find()`.
-    if (!map.has(slug)) map.set(slug, row.id);
+  for (let od = 0; ; od += STRONA) {
+    const { data, error } = await supabase
+      .from('fields')
+      .select('id, name')
+      .order('id')
+      .range(od, od + STRONA - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    for (const row of rows) {
+      if (!row.name) continue;
+      const slug = slugify(row.name);
+      // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
+      // tak samo jak wcześniejsze `.find()`.
+      if (!map.has(slug)) map.set(slug, row.id);
+    }
+    if (rows.length < STRONA) return map;
   }
-  return map;
 }
 
 async function idForSlug(slug: string): Promise<string | null> {
+  const swiezy = async () => {
+    const index = fetchSlugIndex();
+    // Obietnica zapamiętana DOPIERO po sukcesie. Zapamiętana od razu oznaczała,
+    // że jedna nieudana odpowiedź z bazy psuje każdą stronę boiska przez cały
+    // czas życia wpisu w pamięci podręcznej.
+    const gotowy = await index;
+    slugIndexCache = { at: Date.now(), index: Promise.resolve(gotowy) };
+    return gotowy;
+  };
+
   const now = Date.now();
+  let index: Map<string, string>;
   if (!slugIndexCache || now - slugIndexCache.at > SLUG_INDEX_TTL_MS) {
-    slugIndexCache = { at: now, index: fetchSlugIndex() };
+    index = await swiezy();
+  } else {
+    index = await slugIndexCache.index;
   }
-  const hit = (await slugIndexCache.index).get(slug);
+
+  const hit = index.get(slug);
   if (hit) return hit;
+
   // Pudło może znaczyć „obiekt dodany albo przemianowany po zbudowaniu
   // indeksu". Jedno odświeżenie, żeby nowa nazwa nie zwracała 404 do końca
   // życia procesu.
-  slugIndexCache = { at: now, index: fetchSlugIndex() };
-  return (await slugIndexCache.index).get(slug) ?? null;
+  return (await swiezy()).get(slug) ?? null;
 }
 
 async function resolveField(idOrSlug: string): Promise<Field | null> {
@@ -126,15 +157,20 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   if (!field) return { title: 'Boisko nie znalezione | Bojo' };
 
   const sportsStr = field.sport.join(', ');
+  // Miejscowość z adresu zamiast zaszytego „w Poznaniu". Katalog obejmuje dziś
+  // całą Polskę, więc tytuł boiska w Lublinie mówiący „w Poznaniu" był po
+  // prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
+  const miejscowosc = (field.address || '').split(',').map((s) => s.trim()).filter(Boolean).pop();
+  const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
   return {
-    title: `${field.name} — ${sportsStr} w Poznaniu | Bojo`,
+    title: `${field.name} — ${sportsStr}${gdzie} | Bojo`,
     description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Znajdź nadchodzące mecze i zarezerwuj termin na Bojo.`,
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
     alternates: { canonical: `/boisko/${slugify(field.name)}` },
     openGraph: {
       title: `${field.name} | Bojo`,
-      description: `Boisko w Poznaniu: ${field.address}. ${sportsStr}.`,
+      description: `Boisko${gdzie}: ${field.address}. ${sportsStr}.`,
       type: 'website',
     },
   };
