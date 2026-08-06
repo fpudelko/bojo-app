@@ -76,6 +76,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `game_alerts` | `025` | Alerty o grach w okolicy |
 | `notifications` | `025` | Powiadomienia in-app |
 | `event_comments` | `026` | Komentarze pod meczem |
+| `field_comments` | `063` | Komentarze pod obiektem z katalogu boisk — osobne od `event_comments`, bo przeżywają pojedynczy mecz |
 | `event_activity_log` | `026` | Log zdarzeń meczu |
 | `event_invites` | `036` | Zaproszenia na mecz po e-mailu — **martwa**, `lib/invites.ts` nie jest nigdzie importowany |
 | `event_player_invites` | `060`, RLS poprawione w `061` | Imienne zaproszenia użytkowników na mecz |

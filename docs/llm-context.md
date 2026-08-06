@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `062` · 30 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `063` · 31 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Komentarze pod boiskiem i powrót na mapę
+PROBLEM: strona obiektu w katalogu Bojo opisywała fakty z OpenStreetMap —
+sport, nawierzchnię, wymiary — i nic poza tym. Rzeczy, które decydują o tym,
+czy warto tam jechać (bramki bez siatek, brama zamykana po 20, parking),
+wiedzą tylko ci, którzy już tam grali, i nie mieli gdzie tego zapisać. Osobno:
+z opisu boiska nie dało się wrócić na mapę wycelowaną w ten obiekt — mapa
+otwiera się na widoku całego kraju, więc trzeba było szukać go od nowa.
+ROZWIĄZANIE BOJO: pod opisem obiektu są komentarze — czyta każdy, także bez
+konta, pisze zalogowany. Autor może skasować własny wpis, administrator
+dowolny. Przycisk „Zobacz na mapie" otwiera mapę przybliżoną na tym obiekcie
+z jego kartą.
+MECHANIKA: tabela `field_comments` (migracja `063`, osobna od `event_comments`,
+bo komentarz o miejscu przeżywa pojedynczy mecz), `lib/fieldComments.ts`,
+`components/venue/VenueComments.tsx`, parametr `/mapa?boisko=<id>` obsługiwany
+w `components/map/VenueExplorer.tsx`.
+
+### 2026-08-06 — Mapa pokazuje jedną kartę zamiast przewijanej listy
+PROBLEM: pod mapą Bojo stała przewijana w bok lista wszystkich wyników.
+Na telefonie zacinała się: każde przesunięcie palcem liczyło odległość każdej
+karty od środka ekranu, żeby zgadnąć, którą użytkownik ogląda, a taki wybór
+przewijał listę z powrotem — ruch palcem walczył z automatycznym przewijaniem.
+Lista rosła razem z katalogiem, więc problem miał się tylko pogłębiać.
+ROZWIĄZANIE BOJO: na telefonie mapa pokazuje jedną kartę — obiektu, którego
+pinezkę dotknięto. Dopóki nic nie wybrano, widać podpowiedź „Dotknij pinezki".
+Nic nie zaznacza się samo: przy katalogu ogólnopolskim „pierwszy z listy" to
+obiekt oddalony o pół kraju od tego, na co użytkownik patrzy. Na komputerze
+lista w pasku bocznym zostaje bez zmian.
+MECHANIKA: `components/map/VenueExplorer.tsx` — usunięta karuzela wraz
+z obsługą przewijania i źródłem wyboru `scroll`.
+
 ### 2026-08-06 — Zaproszenia wyróżnione, widoczność meczu za oknem wyboru
 PROBLEM: zaproszenie na mecz wyglądało w Bojo tak samo jak mecz, w którym
 użytkownik już gra — ta sama karta, ten sam styl. Czytało się jak zobowiązanie,
@@ -413,48 +443,3 @@ o zapraszającego (`invited_by`) i uczestników meczu. Sedno: `invitePlayers()`
 robi `INSERT … RETURNING id`, a Postgres stosuje do RETURNING politykę SELECT —
 brak prawa odczytu przerywał całą operację błędem wyglądającym jak odrzucony
 zapis. Sam warunek INSERT z migracji `060` był poprawny i został bez zmian.
-
-### 2026-08-05 — Kreator meczu bez rozproszeń, zaproszenia w Moich grach
-PROBLEM: kreator meczu rozpraszał organizatora — numerki kroków 1/2/3 nic nie robiły,
-przycisk „Dalej" na pierwszym kroku był zasłonięty przez dolny panel nawigacji
-(„Gry Mapa Nowy Moje Grupy"), a „Dalej"/„Wróć" zajmowały dwie osobne linie. Ten sam
-panel zasłaniał przyciski „Dołącz"/„Obserwuj" na stronie meczu i modal wypisania się.
-Zaproszenia na mecz żyły wyłącznie na stronie głównej — bez znaczka nigdzie indziej,
-łatwo je przegapić.
-ROZWIĄZANIE BOJO: numerki kroków są teraz klikalne i walidują tak samo jak „Dalej" —
-skok na krok, którego wymagania nie są spełnione, zatrzymuje się na pierwszym
-brakującym polu. „Wróć" i „Dalej" siedzą w jednym przyklejonym pasku, w jednej linii.
-Dolny panel chowa się w kreatorze przez cały czas i na stronie meczu, dopóki
-użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby — wraca po dołączeniu.
-Zdublowany przycisk „+" na `/wydarzenia` (chowany za panelem) usunięty. Modale nad
-panelem zamiast pod nim. Zaproszenia dostały zakładkę „Zaproszenia" na `/moje-gry`
-(`?tab=zaproszenia`, przeżywa odświeżenie) i plakietkę z licznikiem obok pola
-wyszukiwania na `/wydarzenia` — widoczną tylko, gdy jest co najmniej jedno zaproszenie.
-MECHANIKA: `lib/eventWizard.ts` (walidacja kroków, wydzielona pod testy),
-`lib/bottomNavVisibility.tsx` (`HideBottomNav`, kontekst z licznikiem),
-`app/wydarzenia/nowe/page.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`
-(`joinBarVisible`), `lib/useMyInvites.ts`, `components/events/InviteList.tsx`,
-`app/moje-gry/page.tsx`, `app/wydarzenia/EventsListClient.tsx`,
-`components/layout/BottomNav.tsx` („Gry" → „Znajdź grę").
-
-### 2026-08-04 — Strona meczu: mniej ozdób, więcej odpowiedzi
-PROBLEM: strona meczu w Bojo otwierała się zdjęciem satelitarnym na pół ekranu,
-które nic nie mówiło. Nie było widać, czy się w tym meczu gra ani czy się je
-organizuje — trzeba było rozwinąć skład. Kto kliknął „Obserwuj", tracił przycisk
-„Dołącz". Boisko pojawiało się dwa razy, a jego nazwa (zwykle „Boisko — piłka
-nożna") mówiła mniej niż adres. Powrót ze strony boiska wyrzucał na mapę zamiast
-do meczu, a miejsce wpisane ręcznie w ogóle nie dawało się kliknąć.
-ROZWIĄZANIE BOJO: zdjęcie usunięte, na górze pasek z opisanymi akcjami
-„Udostępnij" i „Kopiuj". Wśród plakietek widać teraz „Organizujesz", „Grasz"
-(z rolą bramkarza) albo „Rezerwa · N." z pozycją w kolejce i „Obserwujesz".
-Organizator zmienia termin i widoczność klikając plakietkę; zmiana terminu przy
-zapisanych graczach wymaga potwierdzenia. Plakietka boiska pokazuje adres i
-prowadzi na stronę obiektu, skąd strzałka wraca do meczu; miejsce spoza katalogu
-otwiera okno z adresem i nawigacją. Wypisanie się ma teraz drugą opcję —
-„Wypisz mnie, ale obserwuj" — oraz krzyżyk do zamknięcia. Dopisując osobę bez
-konta wybiera się rolę (zawodnik z pola albo bramkarz) zamiast samego pola
-wyboru „dodaj jako bramkarza".
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx`, `setEventWhen()`
-w `lib/events.ts` (osobna funkcja, żeby nie nadpisywać reszty pola jak
-`updateEvent`), parametr `?wroc=` na trasie `/boisko/[id]` (tylko ścieżki
-względne).
