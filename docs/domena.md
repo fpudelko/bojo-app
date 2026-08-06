@@ -127,6 +127,11 @@ Kolejka rusza się przy **wejściu na stronę meczu** — nie ma backendu ani cr
 `sync_reserve_claim` jest wołane z klienta (`syncReserveClaim` w `lib/events.ts`) i musi
 być idempotentne. Funkcja wygasza przeterminowaną ofertę i przekazuje miejsce dalej.
 
+Od migracji `062` funkcja dopisuje też wpis do `notifications` w momencie ustawienia
+oferty — bez tego rezerwowy dowiadywał się o zwolnionym miejscu wyłącznie wtedy, gdy
+sam odświeżył stronę meczu, co w praktyce marnowało jego okno na decyzję. To wciąż
+tylko powiadomienie w skrzynce w appce (`NotificationBell`), nie push/SMS/e-mail.
+
 Miejsce pod aktywną ofertą **liczy się jako zajęte** — ktoś z zewnątrz nie podbierze go
 rezerwowemu w trakcie jego okna (`joinEvent` dolicza oferty do zajętości).
 

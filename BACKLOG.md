@@ -330,3 +330,30 @@ organizatora"), przemyślenie interakcji z listą rezerwową.
 - **Statystyki sezonowe** dla stałych ekip
 - **Agent kontaktowy** — automat wysyłający maile do obiektów i podpowiadający następny
   ruch w CRM
+
+### Zaproszenia „z ekipy" nie mają doręczenia poza aplikacją
+Organizator klika „Zaproś z ekipy" na stronie meczu (`lib/playerInvites.ts`) i wygląda
+to na wysłane zaproszenie — w rzeczywistości to tylko wiersz w `event_player_invites`,
+widoczny zaproszonemu dopiero, gdy sam otworzy Bojo. Zero SMS-a, e-maila czy pusha.
+Dziś obchodzone przez to, że organizator i tak rozsyła link ręcznie (`navigator.share`),
+ale to znaczy, że „Zaproś z ekipy" nie skraca nic ponad to, co już robi „Udostępnij".
+Realny fix to ten sam kanał, którego brakuje SMS-om i alertom gry (`SHOW_SMS_FEATURES`,
+`SHOW_GAME_ALERTS`) — patrz pozycja „Web-push (PWA)" wyżej.
+
+### Rewizja `SHOW_RECURRING` pod kątem strategii „organizator"
+Mecze cykliczne (`lib/recurring.ts`, `app/cykliczne/*`) są w pełni zbudowane: szablon
+tygodniowy, imienna lista zaproszeń, statystyki niezawodności gracza
+(`getGroupPlayerStats`), wysyłka przez edge function `send-invites`. Ukryte celowo
+(„focus na jednorazowe mecze", `lib/features.ts:24-29`), ale to funkcja, która wprost
+redukuje cotygodniową pracę organizatora — najbliższą kategorię wartości do strategii
+„organizator, nie targowisko" z rewizji 2026-08. Przed odkryciem: zweryfikować, czy
+`send-invites` faktycznie doręcza (nieznany status wdrożenia), potem świadoma decyzja
+o priorytecie, nie cichy flip flagi.
+
+### `docs/wizja.md` sekcja 1 nie odzwierciedla zwrotu na organizatora
+Sekcja 1 (dokument nadrzędny, werbatim) opisuje dwustronny rynek — „organizowanie i
+dołączanie" na równi, plus propozycja wartości czysto graczowa („Znajdź grę w 2 minuty").
+Landing i dashboard już zrobiły zwrot na organizatora (`docs/llm-context.md`, wpis
+2026-08-04 „Landing i dashboard: zwrot na organizatora"), więc kod wyprzedził dokument
+źródłowy. Sekcji 1 nie wolno parafrazować przy okazji innych zmian — to wymaga świadomej
+rewizji przez właściciela produktu, nie automatycznej edycji.
