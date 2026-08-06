@@ -12,7 +12,6 @@ import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
 import { useMyInvites } from '@/lib/useMyInvites';
-import { dismissInvite } from '@/lib/playerInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import type { EventItem } from '@/types';
 
@@ -39,7 +38,6 @@ function MojeGryContent() {
   const [items, setItems] = useState<{ event: EventItem; relation: MyEventRelation }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [dismissedInviteIds, setDismissedInviteIds] = useState<Set<string>>(new Set());
 
   // The URL is the only source of truth for the active tab — no useState
   // alongside it — so the tab survives a refresh and a link from elsewhere
@@ -48,7 +46,7 @@ function MojeGryContent() {
   const goToTab = (t: Tab) => router.replace(`/moje-gry?tab=${TAB_TO_SLUG[t]}`, { scroll: false });
 
   const { open: openInvites, statusFor: inviteStatusFor, loading: invitesLoading } = useMyInvites();
-  const visibleInviteCount = openInvites.filter(({ invite }) => !dismissedInviteIds.has(invite.id)).length;
+  const visibleInviteCount = openInvites.length;
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -142,11 +140,6 @@ function MojeGryContent() {
               <InviteList
                 invites={openInvites}
                 statusFor={inviteStatusFor}
-                dismissedIds={dismissedInviteIds}
-                onDismiss={(inviteId) => {
-                  setDismissedInviteIds((prev) => new Set(prev).add(inviteId));
-                  dismissInvite(inviteId).catch(() => {});
-                }}
                 emptyMessage={
                   <div className="py-12 text-center">
                     <p className="text-4xl">✉️</p>

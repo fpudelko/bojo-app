@@ -10,7 +10,7 @@ import AlertSetupDialog from '../AlertSetupDialog';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
 import { isEventJoinable } from '@/lib/eventDates';
-import { dismissInvite, type InviteWithEvent } from '@/lib/playerInvites';
+import type { InviteWithEvent } from '@/lib/playerInvites';
 import { LANDING_STEPS } from '../landing/content';
 import { sportEmoji } from '@/lib/sports';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
@@ -51,10 +51,9 @@ export function InvitesSection({ invites, statusFor }: {
   invites: InviteWithEvent[];
   statusFor: StatusFor;
 }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const open = invites.filter(
-    ({ invite, event }) => !dismissed.has(invite.id) && statusFor(event).status === 'invited',
+    ({ invite, event }) => statusFor(event).status === 'invited',
   );
   if (open.length === 0) return null;
 
@@ -65,11 +64,6 @@ export function InvitesSection({ invites, statusFor }: {
         invites={open}
         statusFor={statusFor}
         limit={3}
-        dismissedIds={dismissed}
-        onDismiss={(inviteId) => {
-          setDismissed((prev) => new Set(prev).add(inviteId));
-          dismissInvite(inviteId).catch(() => {});
-        }}
       />
     </div>
   );
