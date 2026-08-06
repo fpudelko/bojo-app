@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-05 · migracja `061` · 30 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `062` · 30 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,23 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Rozliczenie po meczu i powiadomienie o zwolnionym miejscu z rezerwy
+PROBLEM: panel „Podział kosztów" (kto zapłacił, ile zebrano) znikał ze strony meczu,
+gdy tylko mecz się zaczynał — dokładnie wtedy, gdy organizator faktycznie rozlicza
+się z ekipą po grze. Osobno: gdy zwalniało się miejsce, oferta trafiała do pierwszego
+rezerwowego po cichu — `sync_reserve_claim` odpalał się tylko przy wejściu na stronę
+meczu, więc rezerwowy dowiadywał się o ofercie jedynie, jeśli sam odświeżył stronę
+w oknie na decyzję. Do tego link z dzwonka powiadomień prowadził na nieistniejącą
+trasę `/wydarzenie/[id]` (liczba pojedyncza) zamiast `/wydarzenia/[id]`.
+ROZWIĄZANIE BOJO: „Podział kosztów" i przełącznik płatności per uczestnik są teraz
+widoczne dla organizatora niezależnie od tego, czy mecz się już zaczął. Oferta
+zwolnionego miejsca z rezerwy generuje wpis w istniejącej skrzynce powiadomień
+w aplikacji (bez auto-awansu — rezerwowy nadal musi sam kliknąć „Wchodzę"). Link
+w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
+kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
+do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
+
 ### 2026-08-06 — Strony boisk generowane na żądanie zamiast przy buildzie
 PROBLEM: każda strona boiska w Bojo była generowana z góry, przy budowaniu
 aplikacji — tyle stron, ile obiektów w katalogu. Dopóki katalog obejmował
@@ -465,19 +482,4 @@ malejąco). `lib/eventDates.ts` (`matchWhenLabel` i przeniesione stąd
 w `lib/events.ts` dociąga `event_player_invites` → status `invited`.
 `components/home/dashboard/{GreetingBar,NextMatchCard,DashboardSections}.tsx`,
 `components/layout/{BottomNav,BottomNavGate}.tsx`.
-
-### 2026-08-04 — Krótszy kreator meczu
-PROBLEM: kreator meczu w Bojo wymagał zbyt wielu decyzji: pusta data, ręczna godzina
-zakończenia, sekcja „Ustawienia zaawansowane" z przełącznikami, których każdy i tak
-chciał używać, a przycisk „Dalej" był poza pierwszym ekranem telefonu.
-ROZWIĄZANIE BOJO: sport wybiera się z jednej przewijanej linii (plus mały dropdown),
-data domyślnie jutro, zamiast godziny zakończenia jest „Czas gry" (domyślnie 90 min,
-koniec liczy się sam), liczba miejsc domyślnie 12 dla piłki nożnej z informacją,
-że kolejni trafią na rezerwę. Widoczność domyślnie publiczna. Sekcja zaawansowana
-zniknęła: obecność jest zawsze włączona, a mecz z ustawioną kwotą sam włącza
-śledzenie płatności i pokazuje graczom status wpłat. Organizator zapisujący się
-na własny mecz wybiera przy tym rolę: bramkarz lub zawodnik z pola.
-MECHANIKA: `app/wydarzenia/nowe/page.tsx`, parametr `organizerIsGoalkeeper`
-w `createEvent()` (`lib/events.ts`); wiersz organizatora dostaje status
-„potwierdzony" — zapis znaczy „będę", organizator oznacza potem nieobecnych.
 

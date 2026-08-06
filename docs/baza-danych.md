@@ -1,6 +1,6 @@
 # Baza danych
 
-60 migracji (`001`–`060`) w `supabase/migrations/`. Modele domenowe →
+62 migracje (`001`–`062`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -108,6 +108,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `053_own_participation_update` | **Polityka RLS na własny wiersz uczestnika** — patrz ostrzeżenie wyżej |
 | `055_stats_exclude_observing` | Obserwujący nie liczą się do statystyk |
 | `056_payment_options` | Metody płatności i karty sportowe |
+| `062_reserve_claim_notification` | `sync_reserve_claim` dopisuje wpis do `notifications`, gdy oferuje zwolnione miejsce — dotąd oferta była widoczna tylko po ręcznym wejściu na stronę meczu |
 
 ---
 
@@ -121,7 +122,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
 | `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | Turniej |
-| `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca (`SECURITY DEFINER`) |
+| `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |
 | `haversine_km` | Odległość geograficzna |
 | `trigger_set_updated_at`, `trigger_set_expires_at` | Triggery czasowe |

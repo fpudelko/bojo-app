@@ -91,7 +91,7 @@ export default function NotificationBell() {
                 <li key={n.id}>
                   {n.eventId ? (
                     <Link
-                      href={`/wydarzenie/${n.eventId}`}
+                      href={`/wydarzenia/${n.eventId}`}
                       onClick={() => setOpen(false)}
                       className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${!n.readAt ? 'bg-primary-50/40' : ''}`}
                     >

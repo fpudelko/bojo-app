@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 20 migracji: 041_join_code.sql → 060_event_player_invites.sql
+-- Zawiera 22 migracji: 041_join_code.sql → 062_reserve_claim_notification.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -982,3 +982,160 @@ CREATE POLICY "Organizer or invitee removes invite" ON event_player_invites FOR 
     OR EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND e.organizer_id = auth.uid())
     OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
   );
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 061_fix_invite_select_policy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 061_fix_invite_select_policy.sql
+--
+-- Naprawa: „new row violates row-level security policy for table
+-- event_player_invites" przy zapraszaniu przez UCZESTNIKA (nie organizatora).
+--
+-- Co się działo. `invitePlayers()` woła
+--     .upsert(rows, …).select('id')
+-- czyli w SQL: INSERT … RETURNING id. Postgres stosuje do wierszy zwracanych
+-- przez RETURNING politykę SELECT — i gdy wiersz jej nie przejdzie, przerywa
+-- całą operację błędem o naruszeniu RLS. Wygląda to na odrzucony zapis, choć
+-- warunek INSERT (WITH CHECK) przeszedł bez zarzutu.
+--
+-- Polityka SELECT z migracji `060` przepuszczała tylko zaproszonego,
+-- organizatora i administratora. Uczestnik zapraszający kolegę nie jest żadnym
+-- z nich: nowy wiersz ma `user_id` = zapraszany, a nie on. Efekt — zaproszenie
+-- powstawało w bazie tylko wtedy, gdy wysyłał je organizator.
+--
+-- Dlatego INSERT nie wymaga zmian; brakowało prawa do odczytu.
+--
+-- Przy okazji druga rzecz z tego samego korzenia: dialog „Zaproś z ekipy"
+-- podpisuje „już zaproszony" na podstawie `getEventPlayerInvites()`. Uczestnik
+-- nie widział cudzych zaproszeń, więc etykieta kłamała i dało się zaprosić
+-- kogoś drugi raz. Uczestnicy meczu widzą teraz jego zaproszenia — to mniejsza
+-- ekspozycja niż sam skład, który jest czytelny dla wszystkich
+-- (`event_participants` ma SELECT USING (true) od migracji `002`).
+
+DROP POLICY IF EXISTS "Invitee and organizer read invites" ON event_player_invites;
+
+CREATE POLICY "Invitee, inviter and participants read invites" ON event_player_invites FOR SELECT
+  USING (
+    -- zaproszony
+    user_id = auth.uid()
+    -- kto wysłał (bez tego INSERT … RETURNING wywala się uczestnikowi)
+    OR invited_by = auth.uid()
+    -- organizator meczu
+    OR EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND e.organizer_id = auth.uid())
+    -- uczestnik tego meczu — żeby „już zaproszony" mówiło prawdę
+    OR EXISTS (
+      SELECT 1 FROM event_participants ep
+      WHERE ep.event_id = event_player_invites.event_id
+        AND ep.user_id = auth.uid()
+        AND ep.pending_approval = false
+    )
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
+  );
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 062_reserve_claim_notification.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 062: Powiadomienie o ofercie zwolnionego miejsca z rezerwy.
+--
+-- sync_reserve_claim (058) ustawia claim_offered_at, ale dotąd nikt się o tym
+-- nie dowiadywał, dopóki rezerwowy sam nie wszedł na stronę meczu — funkcja
+-- jest wołana tylko przy ładowaniu strony, nie ma crona ani pusha. Oferta
+-- regularnie przepadała niezauważona, co podważa obietnicę „znajdź
+-- brakujących graczy i nie odwołuj gry": rezerwowy nie dostawał sygnału.
+--
+-- Ta migracja dopisuje wpis do notifications (już używanej przez alerty gry,
+-- 025_game_alerts.sql) w tym samym momencie, w którym oferta zostaje
+-- ustawiona — bez nowego kanału dostawy, tylko istniejąca skrzynka w appce.
+-- Wstawiane jest tylko w gałęzi, w której v_next_id był dotąd NULL (patrz
+-- WHERE claim_offered_at IS NULL w zapytaniu niżej), więc jedna oferta =
+-- jedno powiadomienie, bez duplikatów przy kolejnych wywołaniach.
+
+CREATE OR REPLACE FUNCTION sync_reserve_claim(p_event_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_max          INT;
+  v_hours        SMALLINT;
+  v_started      BOOLEAN;
+  v_title        TEXT;
+  v_sport        TEXT;
+  v_taken        INT;
+  v_active_offer INT;
+  v_next_id      UUID;
+  v_next_user    UUID;
+BEGIN
+  SELECT max_players,
+         reserve_claim_hours,
+         (event_date + event_time)::timestamp <= now() OR status = 'cancelled',
+         coalesce(title, sport),
+         sport
+    INTO v_max, v_hours, v_started, v_title, v_sport
+    FROM events
+   WHERE id = p_event_id;
+
+  IF v_max IS NULL OR v_started THEN
+    RETURN; -- brak wydarzenia albo już się zaczęło/odwołane — nie ruszamy kolejki
+  END IF;
+
+  -- 1. Wygasłe oferty: przepuszczone, miejsce wraca do puli.
+  UPDATE event_participants
+     SET claim_passed = true,
+         claim_offered_at = NULL
+   WHERE event_id = p_event_id
+     AND claim_offered_at IS NOT NULL
+     AND claim_offered_at + (v_hours || ' hours')::interval <= now();
+
+  -- 2. Ile miejsc realnie zajętych (ta sama definicja co w joinEvent).
+  SELECT count(*) INTO v_taken
+    FROM event_participants
+   WHERE event_id = p_event_id
+     AND is_reserve = false
+     AND pending_approval = false
+     AND rsvp <> 'maybe';
+
+  SELECT count(*) INTO v_active_offer
+    FROM event_participants
+   WHERE event_id = p_event_id
+     AND claim_offered_at IS NOT NULL;
+
+  -- Miejsce pod aktywną ofertą jest zarezerwowane — nie oferujemy go drugi raz.
+  IF v_taken + v_active_offer >= v_max THEN
+    RETURN;
+  END IF;
+
+  -- 3. Zaproponuj miejsce pierwszej osobie w kolejce.
+  SELECT id, user_id INTO v_next_id, v_next_user
+    FROM event_participants
+   WHERE event_id = p_event_id
+     AND is_reserve = true
+     AND claim_passed = false
+     AND claim_offered_at IS NULL
+     AND pending_approval = false
+     AND rsvp <> 'maybe'
+     AND user_id IS NOT NULL   -- gość bez konta nie kliknie „Wchodzę"
+   ORDER BY created_at
+   LIMIT 1;
+
+  IF v_next_id IS NOT NULL THEN
+    UPDATE event_participants
+       SET claim_offered_at = now()
+     WHERE id = v_next_id;
+
+    INSERT INTO notifications (user_id, type, title, body, event_id)
+    VALUES (
+      v_next_user,
+      'reserve_claim_offered',
+      'Zwolniło się miejsce!',
+      'Masz ' || v_hours || ' godz. na potwierdzenie udziału w „' || v_title || '” (' || v_sport || ').',
+      p_event_id
+    );
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;

@@ -1910,8 +1910,10 @@ export default function EventDetailClient() {
         )}
 
 
-        {/* Cost split summary — same automatic rule as the per-participant toggle */}
-        {event.costGrosze > 0 && isOwner && !eventStarted && (
+        {/* Cost split summary — deliberately NOT gated by !eventStarted: rozliczenie
+            kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
+            faktycznie się rozlicza z ekipą, było błędem. */}
+        {event.costGrosze > 0 && isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
               <Banknote className="w-4 h-4" /> Podział kosztów
