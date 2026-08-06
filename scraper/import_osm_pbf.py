@@ -56,6 +56,15 @@ GEOFABRIK = "https://download.geofabrik.de/europe/poland/{region}-latest.osm.pbf
 LUSTRO_OSMFR = "https://download.openstreetmap.fr/extracts/europe/poland/{region}.osm.pbf"
 PROBY_POBRANIA = 4
 
+
+class NieTenPlik(Exception):
+    """Serwer odpowiedział, ale nie plikiem OSM PBF.
+
+    Wydzielone z ogólnych błędów, bo ponawianie nic tu nie da: zła nazwa
+    regionu nie stanie się dobra za piątym pobraniem. Przerywamy dane źródło
+    od razu i przechodzimy do następnego — tak samo jak przy 404.
+    """
+
 # Nazwy wycinków Geofabrik dla polskich województw — bez polskich znaków
 # i bez „województwo". Literówka kończy się 404 po pobraniu 0 bajtów, więc
 # lepiej odrzucić ją od razu, z podpowiedzią.
@@ -337,6 +346,20 @@ def pobierz(region: str, path: str) -> None:
                 log.info("Pobieram %s (%s, próba %d/%d)", url, nazwa, proba, PROBY_POBRANIA)
                 with httpx.stream("GET", url, follow_redirects=True, timeout=600) as r:
                     r.raise_for_status()
+
+                    # Serwer odpowiada 200 także wtedy, gdy adres wskazuje coś
+                    # zupełnie innego niż plik z danymi. Przy złej nazwie regionu
+                    # Geofabrik oddaje listing katalogu w HTML — zapisany jako
+                    # `.pbf` przechodzi dalej i wybucha dopiero w osmium
+                    # komunikatem „invalid BlobHeader size", z którego nie da się
+                    # odczytać, że chodziło o literówkę w nazwie.
+                    typ = (r.headers.get("content-type") or "").lower()
+                    if "html" in typ or "text/" in typ:
+                        raise NieTenPlik(
+                            f"{url} oddał {typ or 'treść tekstową'} zamiast pliku .pbf "
+                            f"— najpewniej zła nazwa regionu"
+                        )
+
                     # Zapis do pliku tymczasowego: przerwane pobranie nie może
                     # zostawić obciętego .pbf, który przy kolejnym uruchomieniu
                     # zostałby wzięty za gotowy (kod pomija pobieranie, gdy plik
@@ -345,6 +368,20 @@ def pobierz(region: str, path: str) -> None:
                     with open(tmp, "wb") as fh:
                         for chunk in r.iter_bytes(1 << 20):
                             fh.write(chunk)
+
+                    # Podpis pliku PBF: pierwszy blok nagłówkowy zawiera
+                    # „OSMHeader" w pierwszych kilkudziesięciu bajtach. Tańsze
+                    # i pewniejsze niż ufanie rozszerzeniu w adresie.
+                    with open(tmp, "rb") as fh:
+                        poczatek = fh.read(64)
+                    if b"OSMHeader" not in poczatek:
+                        rozmiar = os.path.getsize(tmp)
+                        os.remove(tmp)
+                        raise NieTenPlik(
+                            f"{url} nie jest plikiem OSM PBF (pobrano {rozmiar} B, "
+                            f"brak podpisu OSMHeader)"
+                        )
+
                     os.replace(tmp, path)
                 return
             except Exception as e:  # noqa: BLE001 — logujemy i próbujemy dalej
@@ -352,8 +389,9 @@ def pobierz(region: str, path: str) -> None:
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 # 404 na lustrze znaczy „ten region nazywa się tam inaczej" —
                 # ponawianie nic nie da, przechodzimy do następnego źródła.
-                if status == 404:
-                    log.warning("%s: 404 — pomijam to źródło", nazwa)
+                if status == 404 or isinstance(e, NieTenPlik):
+                    log.warning("%s: %s — pomijam to źródło", nazwa,
+                                "404" if status == 404 else e)
                     break
                 czekaj = 5 * 2 ** (proba - 1)
                 log.warning("%s: %s — czekam %ds", nazwa, e, czekaj)
