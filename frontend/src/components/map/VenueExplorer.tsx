@@ -279,11 +279,16 @@ function VenueCard({ field, games, hasGameToday, selected }: {
     : null;
 
   return (
+    // `items-stretch` zamiast `h-full`: karta bierze wysokość z treści, a
+    // miniatura dociąga się do niej sama. Sztywna wysokość znaczyła, że karta
+    // z dwuliniową nazwą wylewała się poza swój kontener i wchodziła pod dolną
+    // nawigację — dopełnienie liczy się od kontenera, nie od tego, co z niego
+    // wystaje.
     <div className={[
-      'flex h-full w-full gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)] transition-shadow',
+      'flex w-full items-stretch gap-3.5 rounded-3xl bg-white p-3.5 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.25)] transition-shadow',
       selected ? 'ring-2 ring-primary-700' : '',
     ].join(' ')}>
-      <div className="relative h-full w-[100px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+      <div className="relative w-[100px] shrink-0 overflow-hidden rounded-2xl bg-slate-100">
         {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
         {field.isIndoor && (
           <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
@@ -644,7 +649,7 @@ export default function VenueExplorer({
               key={f.id}
               ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
               onClick={() => onSelect(f.id, 'map')}
-              className="h-[160px] cursor-pointer"
+              className="cursor-pointer"
             >
               <VenueCard
                 field={f}
@@ -721,9 +726,11 @@ export default function VenueExplorer({
         {selectedField && (
           <div
             className="md:hidden absolute inset-x-0 bottom-0 z-[600] px-3"
-            style={{ paddingBottom: 'calc(4rem + 0.75rem + env(safe-area-inset-bottom))' }}
+            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
+            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
+            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
           >
-            <div className="relative h-[160px]">
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setSelected({ id: null, source: 'map' })}
@@ -746,7 +753,9 @@ export default function VenueExplorer({
         {!selectedField && fields.length > 0 && (
           <div
             className="md:hidden pointer-events-none absolute inset-x-0 bottom-0 z-[600] flex justify-center px-3"
-            style={{ paddingBottom: 'calc(4rem + 0.75rem + env(safe-area-inset-bottom))' }}
+            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
+            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
+            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
           >
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
               Dotknij pinezki, żeby zobaczyć boisko
