@@ -49,7 +49,6 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 |---|---|---|
 | Drużyny | `team_mode`, `teams_published` | Podział składu, kapitanowie, losowanie, publikacja |
 | Wyniki | `track_results` | Wynik meczu + gole i asysty |
-| Obecność | `track_attendance` | Frekwencja → reputacja gracza |
 | Płatności | `track_payments`, `show_payment_status` | Podział kosztów, oznaczanie opłaconych |
 | Bramkarze | `goalkeepers_enabled`, `max_goalkeepers` | Osobny limit; nadmiarowi na rezerwę |
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |

@@ -72,7 +72,6 @@ export default function EditEventPage() {
   // Advanced settings
   const [advOpen, setAdvOpen] = useState(false);
   const [requireSmsConfirmation, setRequireSmsConfirmation] = useState(false);
-  const [trackAttendance, setTrackAttendance] = useState(false);
   const [teamMode, setTeamMode] = useState<TeamMode>('brak');
   const [trackPayments, setTrackPayments] = useState(false);
   const [showPaymentStatus, setShowPaymentStatus] = useState(false);
@@ -106,7 +105,6 @@ export default function EditEventPage() {
         setVisibility(ev.visibility);
         setRequireApproval(ev.requireApproval);
         setRequireSmsConfirmation(ev.requireSmsConfirmation);
-        setTrackAttendance(ev.trackAttendance);
         setTeamMode(ev.teamMode);
         setTrackPayments(ev.trackPayments);
         setShowPaymentStatus(ev.showPaymentStatus);
@@ -119,7 +117,7 @@ export default function EditEventPage() {
         setCardDiscountEnabled((ev.acceptedSportsCards ?? []).length > 0);
         if (ev.sportsCardDiscountGrosze != null) setCardDiscountPln(String(ev.sportsCardDiscountGrosze / 100));
         setSportsCardOtherName(ev.sportsCardOtherName ?? '');
-        if (ev.requireSmsConfirmation || ev.trackAttendance || ev.teamMode !== 'brak' || ev.trackPayments || ev.trackResults) {
+        if (ev.requireSmsConfirmation || ev.teamMode !== 'brak' || ev.trackPayments || ev.trackResults) {
           setAdvOpen(true);
         }
 
@@ -184,7 +182,6 @@ export default function EditEventPage() {
         visibility,
         requireApproval,
         requireSmsConfirmation,
-        trackAttendance,
         teamMode,
         trackPayments,
         showPaymentStatus: trackPayments ? showPaymentStatus : false,
@@ -454,7 +451,6 @@ export default function EditEventPage() {
                       className="w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                 )}
-                <ToggleRow label="Śledzenie obecności" desc="Śledź kto przyszedł, a kto nie" checked={trackAttendance} onChange={setTrackAttendance} />
                 <div className="flex items-start justify-between gap-4 py-3">
                   <div>
                     <p className="text-sm font-medium text-slate-900">Tryb drużyn</p>

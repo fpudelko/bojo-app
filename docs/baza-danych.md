@@ -58,7 +58,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 |---|---|---|
 | `fields` | `001` | Boiska i obiekty (~1400) |
 | `events` | `002` | Mecze |
-| `event_participants` | `002` | Zapisy na mecz |
+| `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp` |
 | `profiles` | `005` | Użytkownicy (+ flaga `is_admin`) |
 | `recurring_events` | `007` | Szablony meczów cyklicznych |
 | `recurring_event_invites` | `007` | Zapraszani do cyklicznych |

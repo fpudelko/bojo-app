@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `063` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `064` · 31 tabel · 121 testów
 
 ---
 
@@ -70,7 +70,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, obecność, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
 | **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
@@ -296,6 +296,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Jedna lista składu, koniec ze statusami uczestnika
+PROBLEM: strona meczu w Bojo pokazywała skład w dwóch miejscach — licznik
+zajętych miejsc z awatarami u góry i osobna karta ze składem niżej — więc
+organizator musiał się domyślać, w której z nich właściwie jest. Osobno: każdy
+uczestnik miał status (zaproszony / potwierdzony / odrzucony / brak odpowiedzi)
+opowiadający tę samą historię co oczekiwanie na akceptację i deklaracja gry,
+tylko własnym słownikiem i bez pilnowania zgodności — gracz mógł być
+„potwierdzony" i jednocześnie czekać na akceptację organizatora.
+ROZWIĄZANIE BOJO: skład jest w jednym miejscu, pod licznikiem miejsc.
+Organizator ma go rozwiniętego od razu, razem z dopisywaniem osób bez konta.
+Statusy uczestnika zniknęły wraz ze śledzeniem obecności, które było ich
+jedynym interfejsem. Relację gracza do meczu opisują wyłącznie dwie rzeczy:
+czy czeka na akceptację i czy gra, czy tylko obserwuje.
+MECHANIKA: migracja `064` kasuje `event_participants.status`,
+`event_participants.confirmed_at` oraz `events.track_attendance`; usunięte
+`updateParticipantStatus()` z `lib/eventFeatures.ts` i obie sekcje
+w `app/wydarzenia/[id]/EventDetailClient.tsx`.
+
 ### 2026-08-06 — Komentarze pod boiskiem i powrót na mapę
 PROBLEM: strona obiektu w katalogu Bojo opisywała fakty z OpenStreetMap —
 sport, nawierzchnię, wymiary — i nic poza tym. Rzeczy, które decydują o tym,
@@ -430,16 +448,3 @@ ruszy licznik. Karuzela obiektów na mapie ma dopełnienie na wysokość paska
 nawigacji.
 MECHANIKA: `SPORT_PLAYERS` w `app/wydarzenia/nowe/page.tsx`, dolne dopełnienie
 karuzeli w `components/map/VenueExplorer.tsx`.
-
-### 2026-08-05 — Uczestnik znów może zapraszać na mecz
-PROBLEM: „Zaproś z ekipy" działało wyłącznie organizatorowi. Uczestnikowi Bojo
-odpowiadało błędem o naruszeniu zabezpieczeń, mimo że sam zapis był dozwolony.
-Do tego etykieta „już zaproszony" w oknie zapraszania kłamała uczestnikom, bo
-nie widzieli cudzych zaproszeń — dało się wysłać drugie do tej samej osoby.
-ROZWIĄZANIE BOJO: uczestnik meczu może zapraszać tak jak organizator, a lista
-zaproszonych jest widoczna dla wszystkich, którzy na tym meczu grają.
-MECHANIKA: migracja `061` rozszerza politykę SELECT na `event_player_invites`
-o zapraszającego (`invited_by`) i uczestników meczu. Sedno: `invitePlayers()`
-robi `INSERT … RETURNING id`, a Postgres stosuje do RETURNING politykę SELECT —
-brak prawa odczytu przerywał całą operację błędem wyglądającym jak odrzucony
-zapis. Sam warunek INSERT z migracji `060` był poprawny i został bez zmian.

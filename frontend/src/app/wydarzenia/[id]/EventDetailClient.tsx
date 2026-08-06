@@ -31,14 +31,14 @@ import {
   syncReserveClaim, acceptReserveClaim, declineReserveClaim,
 } from '@/lib/events';
 import {
-  updateParticipantStatus, updateParticipantTeam, updateParticipantPayment,
+  updateParticipantTeam, updateParticipantPayment,
   sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
   publishTeams, unpublishTeams, saveEventAdvancedSettings,
   TEAM_MODE_LABELS,
 } from '@/lib/eventFeatures';
 import type {
-  EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
+  EventItem, EventParticipant, MatchResult, PlayerGoal, ReportType,
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
@@ -85,18 +85,6 @@ function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
   );
 }
 
-const STATUS_LABELS: Record<ParticipantStatus, string> = {
-  zaproszony: 'Zaproszony',
-  potwierdzony: 'Potwierdzony',
-  odrzucony: 'Odrzucił',
-  brak_odpowiedzi: 'Brak odp.',
-};
-const STATUS_CLS: Record<ParticipantStatus, string> = {
-  zaproszony: 'bg-yellow-100 text-yellow-700',
-  potwierdzony: 'bg-green-100 text-green-700',
-  odrzucony: 'bg-red-100 text-red-700',
-  brak_odpowiedzi: 'bg-slate-100 text-slate-500',
-};
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: 'nie_przyszedl', label: 'Nie przyszedł' },
   { value: 'niesportowe_zachowanie', label: 'Niesportowe zachowanie' },
@@ -476,7 +464,6 @@ export default function EventDetailClient() {
   // mostly generic ("Boisko — piłka nożna") and a street tells people more.
   const venueBadgeLabel = eventLoc.secondary || eventLoc.primary;
 
-  const showStatus = event.trackAttendance || event.requireSmsConfirmation;
   const showTeams = event.teamMode !== 'brak';
   // Goalkeeper distinction is an explicit per-event setting now.
   const gkEnabled = event.goalkeepersEnabled;
@@ -702,16 +689,6 @@ export default function EventDetailClient() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
-  };
-
-  /** Explicit set from a dropdown of named options — no ambiguity about what
-   *  will change (unlike the old click-to-cycle pill). */
-  const handleSetStatus = async (p: EventParticipant, status: ParticipantStatus) => {
-    if (!isOrganizer || status === p.status) return;
-    setBusy(true);
-    try { await updateParticipantStatus(p.id, status); await load(); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
-    finally { setBusy(false); }
   };
 
   const handleSendSms = async (p: EventParticipant) => {
@@ -970,6 +947,11 @@ export default function EventDetailClient() {
       return Date.now() >= new Date(y, m - 1, d, h, min).getTime();
     } catch { return true; }
   })();
+
+  // Organizator widzi listę od razu: to jego narzędzie pracy, a przy pustym
+  // składzie nie ma nawet awatarów, w które można by kliknąć, żeby ją rozwinąć
+  // — i dopisanie gościa stawało się nieosiągalne.
+  const rosterRozwiniety = rosterOpen || (isOwner && !eventStarted);
   // Drives both the sticky join bar below and hiding the bottom nav while
   // it's up — the nav would otherwise cover "Dołącz"/"Obserwuj". Stays true
   // while merely observing (myMaybe), matching the join bar's own comment.
@@ -1312,7 +1294,7 @@ export default function EventDetailClient() {
             )}
 
             {/* Avatar stack — tap to expand. Hidden when roster is open. */}
-            {regulars.length > 0 && !rosterOpen && (
+            {regulars.length > 0 && !rosterRozwiniety && (
               <button
                 type="button"
                 onClick={() => setRosterOpen(true)}
@@ -1358,24 +1340,136 @@ export default function EventDetailClient() {
             )}
 
             {/* Roster — replaces avatar row when open */}
-            {regulars.length > 0 && rosterOpen && (
+            {(regulars.length > 0 || isOwner) && rosterRozwiniety && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {regulars.length} {regulars.length === 1 ? 'gracz' : regulars.length < 5 ? 'gracze' : 'graczy'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setRosterOpen(false)}
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
-                  </button>
+                  {!(isOwner && !eventStarted) && (
+                    <button
+                      type="button"
+                      onClick={() => setRosterOpen(false)}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
+                    </button>
+                  )}
                 </div>
-                <ParticipantsList
-                  regulars={regulars}
-                  reserves={reserves}
-                />
+                {/* Organizator dostaje tu listę z kontrolkami zamiast osobnej
+                    karty „Skład". Dwie sekcje mówiące to samo — licznik na
+                    górze i lista niżej — kazały szukać, w której z nich
+                    właściwie się jest. */}
+                {isOwner && !eventStarted ? (
+                  <>
+              <ul className="divide-y divide-slate-100">
+                {regulars.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 py-2.5">
+                    {/* Avatar */}
+                    {p.avatarUrl
+                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                    }
+
+                    {/* Name + attribution */}
+                    <div className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
+                        {p.userId && !p.isGuest ? (
+                          <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[140px] sm:max-w-[220px] hover:text-primary-700 hover:underline">
+                            {p.name}
+                          </Link>
+                        ) : (
+                          <span className="truncate min-w-0 max-w-[140px] sm:max-w-[220px]">{p.name}</span>
+                        )}
+                        {p.isGuest && (
+                          <span
+                            title="Gość bez konta — dopisany ręcznie"
+                            className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
+                          >
+                            gość
+                          </span>
+                        )}
+                        {gkEnabled && p.isGoalkeeper && (
+                          <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
+                            🧤 BR
+                          </span>
+                        )}
+                        {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
+                        {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                        {showTeams && p.team && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {p.team}
+                          </span>
+                        )}
+                      </span>
+                      {/* "Brought by" line — who added this guest (visible to everyone) */}
+                      {p.isGuest && p.addedBy && (() => {
+                        const adderName = participants.find((x) => x.userId === p.addedBy)?.name
+                          ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
+                          ?? 'innego gracza';
+                        return (
+                          <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                              {adderName.charAt(0).toUpperCase()}
+                            </span>
+                            dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </li>
+                ))}
+                {regulars.length === 0 && (
+                  <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
+                )}
+              </ul>
+
+              {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
+              {isOrganizer && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
+                      placeholder="Imię znajomego"
+                      className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
+                      <UserPlus className="w-4 h-4" /> Dodaj
+                    </Button>
+                  </div>
+                  {gkEnabled && (
+                    <div className="mt-2 flex gap-2">
+                      {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setGuestIsGk(r === 'gk')}
+                          className={[
+                            'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                            (r === 'gk') === guestIsGk
+                              ? 'border-primary-600 bg-primary-50 text-primary-700'
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                          ].join(' ')}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    Dopisujesz gracza ręcznie. Aby ktoś dołączył sam — użyj „Zaproś / wyślij link" niżej.
+                  </p>
+                </div>
+              )}
+                  </>
+                ) : (
+                  <ParticipantsList
+                    regulars={regulars}
+                    reserves={reserves}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -1588,169 +1682,6 @@ export default function EventDetailClient() {
                   ? 'Mecz już się odbył — zapisy zamknięte'
                   : 'Mecz już się rozpoczął — zapisy zamknięte'}
             </div>
-          </div>
-        )}
-
-        {/* ── SKŁAD (organizer only) — kto gra, bez kontrolek zarządzania ── */}
-        {isOwner && !eventStarted && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-ink flex items-center gap-2">
-              <Users className="w-4 h-4 text-slate-400" /> Skład
-            </h2>
-            <span className={[
-              'text-sm font-medium px-2.5 py-1 rounded-full',
-              isFull ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700',
-            ].join(' ')}>
-              {takenSpots} / {event.maxPlayers}
-            </span>
-          </div>
-
-          <ul className="divide-y divide-slate-100">
-            {regulars.map((p) => (
-              <li key={p.id} className="flex items-center gap-2 py-2.5">
-                {/* Avatar */}
-                {p.avatarUrl
-                  ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                  : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
-                }
-
-                {/* Name + attribution */}
-                <div className="flex-1 min-w-0">
-                  <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
-                    {p.userId && !p.isGuest ? (
-                      <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[140px] sm:max-w-[220px] hover:text-primary-700 hover:underline">
-                        {p.name}
-                      </Link>
-                    ) : (
-                      <span className="truncate min-w-0 max-w-[140px] sm:max-w-[220px]">{p.name}</span>
-                    )}
-                    {p.isGuest && (
-                      <span
-                        title="Gość bez konta — dopisany ręcznie"
-                        className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
-                      >
-                        gość
-                      </span>
-                    )}
-                    {gkEnabled && p.isGoalkeeper && (
-                      <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
-                        🧤 BR
-                      </span>
-                    )}
-                    {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
-                    {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
-                    {showTeams && p.team && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {p.team}
-                      </span>
-                    )}
-                  </span>
-                  {/* "Brought by" line — who added this guest (visible to everyone) */}
-                  {p.isGuest && p.addedBy && (() => {
-                    const adderName = participants.find((x) => x.userId === p.addedBy)?.name
-                      ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
-                      ?? 'innego gracza';
-                    return (
-                      <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-                        <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
-                          {adderName.charAt(0).toUpperCase()}
-                        </span>
-                        dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
-                      </span>
-                    );
-                  })()}
-                </div>
-              </li>
-            ))}
-            {regulars.length === 0 && (
-              <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
-            )}
-          </ul>
-
-          {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
-          {isOrganizer && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
-              <div className="flex gap-2">
-                <input
-                  type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                  placeholder="Imię znajomego"
-                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                  <UserPlus className="w-4 h-4" /> Dodaj
-                </Button>
-              </div>
-              {gkEnabled && (
-                <div className="mt-2 flex gap-2">
-                  {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setGuestIsGk(r === 'gk')}
-                      className={[
-                        'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                        (r === 'gk') === guestIsGk
-                          ? 'border-primary-600 bg-primary-50 text-primary-700'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                      ].join(' ')}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 text-[11px] text-slate-400">
-                Dopisujesz gracza ręcznie. Aby ktoś dołączył sam — użyj „Zaproś / wyślij link" niżej.
-              </p>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* ── POTWIERDZENIA (organizer only) — osobno od reszty, bo klik-cykl na
-            pillu nie byl czytelny jako kontrolka. Select = jawny wybor. ── */}
-        {isOwner && !eventStarted && showStatus && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
-              <Check className="w-4 h-4 text-slate-400" /> Potwierdzenia
-            </h2>
-            <ul className="divide-y divide-slate-100">
-              {regulars.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 py-2.5">
-                  {p.avatarUrl
-                    ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
-                  }
-                  <span className="flex-1 min-w-0 text-sm text-ink truncate">{p.name}</span>
-                  {event.requireSmsConfirmation && p.phone && (
-                    <button
-                      onClick={() => handleSendSms(p)}
-                      disabled={smsBusy === p.id}
-                      className="p-1.5 text-slate-400 hover:text-blue-500 rounded shrink-0"
-                      title="Wyślij SMS z potwierdzeniem"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </button>
-                  )}
-                  <select
-                    value={p.status}
-                    onChange={(e) => handleSetStatus(p, e.target.value as ParticipantStatus)}
-                    disabled={busy}
-                    className={`text-xs font-medium rounded-lg border px-2 py-1.5 shrink-0 ${STATUS_CLS[p.status]} border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500`}
-                  >
-                    {(Object.keys(STATUS_LABELS) as ParticipantStatus[]).map((s) => (
-                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                    ))}
-                  </select>
-                </li>
-              ))}
-              {regulars.length === 0 && (
-                <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
-              )}
-            </ul>
           </div>
         )}
 

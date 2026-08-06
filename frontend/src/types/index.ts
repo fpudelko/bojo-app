@@ -125,13 +125,11 @@ export interface TimeSlot {
 export type Visibility = 'private' | 'public';
 export type EventStatus = 'active' | 'cancelled';
 
-export type ParticipantStatus = 'zaproszony' | 'potwierdzony' | 'odrzucony' | 'brak_odpowiedzi';
 export type TeamMode = 'brak' | 'reczne' | 'kapitanowie' | 'losowe';
 export type ReportType = 'niesportowe_zachowanie' | 'nie_przyszedl' | 'inne';
 
 export interface EventAdvancedSettings {
   requireSmsConfirmation: boolean;
-  trackAttendance: boolean;
   teamMode: TeamMode;
   trackPayments: boolean;
   showPaymentStatus: boolean;
@@ -169,7 +167,6 @@ export interface EventItem {
   groupId?: string;      // optional group this event belongs to
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
-  trackAttendance: boolean;
   teamMode: TeamMode;
   trackPayments: boolean;
   showPaymentStatus: boolean;
@@ -212,8 +209,6 @@ export interface EventParticipant {
   createdAt: string;
   avatarUrl?: string;
   // advanced fields
-  status: ParticipantStatus;
-  confirmedAt?: string;
   team?: 'A' | 'B';
   paidAmount: number;
   phone?: string;
@@ -254,7 +249,6 @@ export interface EventCreate {
   customAddress?: string;
   // advanced (optional, default false)
   requireSmsConfirmation?: boolean;
-  trackAttendance?: boolean;
   teamMode?: TeamMode;
   trackPayments?: boolean;
   showPaymentStatus?: boolean;
