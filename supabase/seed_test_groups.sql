@@ -131,11 +131,11 @@ BEGIN
     'Środowe granie na Ratajach',
     '[TEST-G] Mecz Twojej ekipy „Środowa Liga", w którym Cię nie ma. MUSI pojawić się na stronie głównej w „Mecze Twoich ekip" — mimo że jest prywatny. Po dołączeniu ma stamtąd zniknąć i przejść do „Twoje najbliższe mecze".')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t1, t1_name, 'potwierdzony'),
-    (eid, t2, t2_name, 'potwierdzony'),
-    (eid, t3, t3_name, 'potwierdzony'),
-    (eid, t4, t4_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t1, t1_name),
+    (eid, t2, t2_name),
+    (eid, t3, t3_name),
+    (eid, t4, t4_name);
 
   -- ---- 2. Mecz mojej grupy, w którym już gram ------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -144,11 +144,11 @@ BEGIN
     'Siatkówka we czwartek',
     '[TEST-G] Mecz ekipy „Siatka po pracy", jesteś już zapisany. NIE MOŻE dublować się w „Mecze Twoich ekip" — ma być tylko w „Twoje najbliższe mecze".')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t2, t2_name, 'potwierdzony'),
-    (eid, me, me_name, 'potwierdzony'),
-    (eid, t3, t3_name, 'potwierdzony'),
-    (eid, t7, t7_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t2, t2_name),
+    (eid, me, me_name),
+    (eid, t3, t3_name),
+    (eid, t7, t7_name);
 
   -- ---- 3. Mecz mojej grupy, który obserwuję --------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -157,11 +157,11 @@ BEGIN
     'Piłka na Golęcinie',
     '[TEST-G] Mecz Twojej ekipy, który OBSERWUJESZ. Ma być w sekcji „Obserwujesz", a nie w „Mecze Twoich ekip" — obserwowanie to już odpowiedź.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status, rsvp) VALUES
-    (eid, t3, t3_name, 'potwierdzony', 'yes'),
-    (eid, me, me_name, 'potwierdzony', 'maybe'),
-    (eid, t4, t4_name, 'potwierdzony', 'yes'),
-    (eid, t5, t5_name, 'potwierdzony', 'yes');
+  INSERT INTO event_participants (event_id, user_id, name, rsvp) VALUES
+    (eid, t3, t3_name, 'yes'),
+    (eid, me, me_name, 'maybe'),
+    (eid, t4, t4_name, 'yes'),
+    (eid, t5, t5_name, 'yes');
 
   -- ---- 4. Mecz grupy, do której NIE należę — kontrola negatywna ------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -170,10 +170,10 @@ BEGIN
     'Wtorkowa gra na Dębcu',
     '[TEST-G] Mecz ekipy „Ekipa z Dębca", do której NIE należysz. NIE MOŻE pojawić się na Twojej stronie głównej. Jeśli go tam widzisz — to błąd.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t5, t5_name, 'potwierdzony'),
-    (eid, t6, t6_name, 'potwierdzony'),
-    (eid, t7, t7_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t5, t5_name),
+    (eid, t6, t6_name),
+    (eid, t7, t7_name);
 
   -- ---- 5. Komplet, jestem na rezerwie --------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -182,12 +182,12 @@ BEGIN
     'Halówka w Piątkowie',
     '[TEST-G] Komplet, a Ty jesteś na rezerwie. Nagłówek ma pokazać samo „Komplet" — BEZ „dołącz do rezerwy", bo już jesteś zapisany.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, is_reserve, status) VALUES
-    (eid, t1, t1_name, false, 'potwierdzony'),
-    (eid, t2, t2_name, false, 'potwierdzony'),
-    (eid, t3, t3_name, false, 'potwierdzony'),
-    (eid, t4, t4_name, false, 'potwierdzony'),
-    (eid, me, me_name, true,  'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
+    (eid, t1, t1_name, false),
+    (eid, t2, t2_name, false),
+    (eid, t3, t3_name, false),
+    (eid, t4, t4_name, false),
+    (eid, me, me_name, true);
 
   -- ---- 6. Komplet, nie ma mnie w ogóle -------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -196,11 +196,11 @@ BEGIN
     'Kosz w środę po pracy',
     '[TEST-G] Komplet i nie masz z tym meczem nic wspólnego. TU nagłówek MA pokazać „Komplet — dołącz do rezerwy". Porównaj z „Halówka w Piątkowie".')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t2, t2_name, 'potwierdzony'),
-    (eid, t8, t8_name, 'potwierdzony'),
-    (eid, t9, t9_name, 'potwierdzony'),
-    (eid, t10, t10_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t2, t2_name),
+    (eid, t8, t8_name),
+    (eid, t9, t9_name),
+    (eid, t10, t10_name);
 
   -- ---- 7. Mój mecz BEZ grupy — do przypięcia -------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -209,10 +209,10 @@ BEGIN
     'Piątkowe granie na Winogradach',
     '[TEST-G] Twój mecz BEZ grupy. Wejdź w „Zarządzaj wydarzeniem" → Grupa i przypnij go do „Środowa Liga". Po zapisie ma się pojawić na liście meczów tej grupy. Sprawdź też odpięcie („Bez grupy").')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, me, me_name, 'potwierdzony'),
-    (eid, t1, t1_name, 'potwierdzony'),
-    (eid, t8, t8_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, me, me_name),
+    (eid, t1, t1_name),
+    (eid, t8, t8_name);
 
   -- ---- 8. Cudzy mecz bez grupy — test uprawnień admina ---------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -221,9 +221,9 @@ BEGIN
     'Czwartkowa gra na Sołaczu',
     '[TEST-G] CUDZY mecz bez grupy — dokładnie sytuacja kumpla, który założył mecze poza grupą. Jako administrator masz widzieć „Zarządzaj wydarzeniem" i móc przypiąć go do grupy. Bez praw admina panel ma być niewidoczny.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t9, t9_name, 'potwierdzony'),
-    (eid, t10, t10_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t9, t9_name),
+    (eid, t10, t10_name);
 
   -- ---- 9. Mecz, na który jestem zaproszony ---------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -232,9 +232,9 @@ BEGIN
     'Kosz w hali Arena',
     '[TEST-G] Masz na ten mecz IMIENNE ZAPROSZENIE. Ma być na samej górze strony głównej w sekcji „Zaproszenia". Sprawdź „Nie tym razem" — po odrzuceniu ma zniknąć i NIE wrócić po odświeżeniu.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t8, t8_name, 'potwierdzony'),
-    (eid, t9, t9_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t8, t8_name),
+    (eid, t9, t9_name);
   INSERT INTO event_player_invites (event_id, user_id, invited_by, group_id)
   VALUES (eid, me, t8, g_kosz)
   ON CONFLICT DO NOTHING;
@@ -246,9 +246,9 @@ BEGIN
     'Kosz na Ratajach — sobota',
     '[TEST-G] Twój mecz. Kliknij „Zaproś z ekipy": Test 8 jest już zapisany (ma być wyszarzony z podpisem „już zapisany"), Test 9 i Test 10 do zaproszenia. Po wysłaniu wejdź jeszcze raz — mają być podpisani „już zaproszony". Sprawdź też przełączanie między ekipami w liście na górze dialogu.')
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, me, me_name, 'potwierdzony'),
-    (eid, t8, t8_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, me, me_name),
+    (eid, t8, t8_name);
 
   -- ---- 11. Długi tytuł — kontrola layoutu ----------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -258,10 +258,10 @@ BEGIN
     '[TEST-G] Bardzo długi tytuł i długa nazwa obiektu. Karta na stronie głównej i na liście grupy nie ma się rozjeżdżać w bok — tekst ma być ucięty wielokropkiem. Sprawdź na telefonie.',
     2500)
   RETURNING id INTO eid;
-  INSERT INTO event_participants (event_id, user_id, name, status) VALUES
-    (eid, t4, t4_name, 'potwierdzony'),
-    (eid, t5, t5_name, 'potwierdzony'),
-    (eid, t6, t6_name, 'potwierdzony');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, t4, t4_name),
+    (eid, t5, t5_name),
+    (eid, t6, t6_name);
 
   RAISE NOTICE 'Gotowe: 4 grupy, 11 meczów prywatnych. Zaloguj się jako franekks@gmail.com.';
 END $$;

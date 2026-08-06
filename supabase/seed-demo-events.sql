@@ -81,8 +81,8 @@ begin
     v_realcap := least(v_target - 1, n - 1, 3 + floor(random() * 6)::int);  -- 3..8
 
     -- organizer
-    insert into event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper, status)
-    values (v_event, v_org, v_orgname, false, false, false, 'potwierdzony');
+    INSERT INTO event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper)
+    values (v_event, v_org, v_orgname, false, false, false);
     v_cur := 1;
 
     -- real players (offset start by ord for some variety)
@@ -90,8 +90,8 @@ begin
     while i < n and (v_cur - 1) < v_realcap loop
       idx := ((rec.ord + i) % n) + 1;
       if v_users[idx] <> v_org then
-        insert into event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper, status)
-        values (v_event, v_users[idx], v_names[idx], false, false, false, 'potwierdzony');
+        INSERT INTO event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper)
+        values (v_event, v_users[idx], v_names[idx], false, false, false);
         v_cur := v_cur + 1;
       end if;
       i := i + 1;
@@ -100,8 +100,8 @@ begin
     -- guests fill the rest
     gi := 1;
     while v_cur < v_target and gi <= array_length(guests, 1) loop
-      insert into event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper, status)
-      values (v_event, null, guests[gi], true, false, false, 'potwierdzony');
+      INSERT INTO event_participants (event_id, user_id, name, is_guest, is_reserve, is_goalkeeper)
+      values (v_event, null, guests[gi], true, false, false);
       v_cur := v_cur + 1;
       gi := gi + 1;
     end loop;

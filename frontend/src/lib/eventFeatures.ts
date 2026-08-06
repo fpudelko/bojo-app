@@ -5,7 +5,6 @@ import type {
   PlayerGoal,
   PlayerReport,
   PlayerStats,
-  ParticipantStatus,
   ReportType,
   TeamMode,
 } from '@/types';
@@ -20,7 +19,6 @@ export async function saveEventAdvancedSettings(
 ): Promise<void> {
   const patch: Record<string, unknown> = {};
   if (s.requireSmsConfirmation !== undefined) patch.require_sms_confirmation = s.requireSmsConfirmation;
-  if (s.trackAttendance !== undefined) patch.track_attendance = s.trackAttendance;
   if (s.teamMode !== undefined) patch.team_mode = s.teamMode;
   if (s.trackPayments !== undefined) patch.track_payments = s.trackPayments;
   if (s.showPaymentStatus !== undefined) patch.show_payment_status = s.showPaymentStatus;
@@ -52,15 +50,6 @@ export async function unpublishTeams(eventId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function updateParticipantStatus(
-  participantId: string,
-  status: ParticipantStatus,
-): Promise<void> {
-  const patch: Record<string, unknown> = { status };
-  if (status === 'potwierdzony') patch.confirmed_at = new Date().toISOString();
-  const { error } = await supabase.from('event_participants').update(patch).eq('id', participantId);
-  if (error) throw new Error(error.message);
-}
 
 export async function updateParticipantTeam(
   participantId: string,

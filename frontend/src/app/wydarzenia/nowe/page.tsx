@@ -306,7 +306,6 @@ function NewEventForm() {
           requireSmsConfirmation: false,
           // No "advanced" section: paid match tracks payments and shows the
           // status to players; attendance is always on. One decision fewer.
-          trackAttendance: true,
           teamMode: 'brak',
           trackPayments: hasCost,
           showPaymentStatus: hasCost,
