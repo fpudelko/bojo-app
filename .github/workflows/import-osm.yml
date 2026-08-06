@@ -19,10 +19,27 @@ on:
   workflow_dispatch:
     inputs:
       region:
-        description: 'Region Geofabrik (lubelskie, wielkopolskie, mazowieckie…)'
+        description: 'Województwo (nazwy wycinków Geofabrik — bez polskich znaków)'
         default: 'lubelskie'
         required: true
-        type: string
+        type: choice
+        options:
+          - dolnoslaskie
+          - kujawsko-pomorskie
+          - lubelskie
+          - lubuskie
+          - lodzkie
+          - malopolskie
+          - mazowieckie
+          - opolskie
+          - podkarpackie
+          - podlaskie
+          - pomorskie
+          - slaskie
+          - swietokrzyskie
+          - warminsko-mazurskie
+          - wielkopolskie
+          - zachodniopomorskie
       dry_run:
         description: 'Tylko raport — nic nie zapisuje'
         default: true
