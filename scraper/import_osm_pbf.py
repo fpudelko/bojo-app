@@ -370,14 +370,37 @@ def main() -> int:
         if dims:
             stats["ma wymiary z geometrii"] += 1
 
-        street = (p.tags.get("addr:street") or "").strip()
-        house = (p.tags.get("addr:housenumber") or "").strip()
+        # Dziedziczenie po obiekcie nadrzędnym. Samo boisko rzadko ma adres czy
+        # telefon — to prostokąt na trawie. Ma je za to szkoła albo ośrodek,
+        # W KTÓRYM TO BOISKO LEŻY, a ten obiekt już znamy ze złączenia
+        # przestrzennego (`ctx_obj`) i dotąd braliśmy z niego wyłącznie nazwę.
+        #
+        # To NIE jest to samo, co dawne doklejanie kontaktów z „pobliskiego"
+        # obiektu, które psuło dane w Poznaniu. Tam decydowała odległość, więc
+        # boisko dostawało telefon sąsiada zza płotu. Tu warunkiem jest
+        # zawieranie się w wielokącie: telefon do szkoły jest telefonem
+        # w sprawie boiska tej szkoły.
+        def tag(*keys: str) -> str:
+            for src in (p.tags, ctx_obj.tags if ctx_obj else {}):
+                for k in keys:
+                    v = (src.get(k) or "").strip()
+                    if v:
+                        return v
+            return ""
+
+        street = tag("addr:street")
+        house = tag("addr:housenumber")
+        city = tag("addr:city")
         addr_parts = []
         if street:
             addr_parts.append(f"ul. {street} {house}".strip())
-        if locality:
-            addr_parts.append(locality)
+        if city or locality:
+            addr_parts.append(city or locality)
         address = ", ".join(addr_parts) or None
+        if street:
+            stats["ma ulicę"] += 1
+            if house:
+                stats["ma numer domu"] += 1
 
         def yn(key: str) -> bool | None:
             v = (p.tags.get(key) or "").strip().lower()
@@ -410,10 +433,15 @@ def main() -> int:
             "available": True,
             "surface": surface,
             "is_indoor": p.tags.get("leisure") == "sports_hall" or p.tags.get("building") == "sports_hall",
-            "operator": (p.tags.get("operator") or "").strip() or None,
-            "website": (p.tags.get("website") or p.tags.get("contact:website") or "").strip() or None,
-            "opening_hours": (p.tags.get("opening_hours") or "").strip() or None,
-            "postcode": (p.tags.get("addr:postcode") or "").strip() or None,
+            "operator": tag("operator") or None,
+            "website": tag("website", "contact:website") or None,
+            # Telefonu nie zapisywaliśmy w ogóle, choć OSM go ma — przy szkołach
+            # i ośrodkach sportu to najczęściej jedyny sposób, żeby dopytać
+            # o dostępność boiska.
+            "phone": tag("phone", "contact:phone", "contact:mobile") or None,
+            "email": tag("email", "contact:email") or None,
+            "opening_hours": tag("opening_hours") or None,
+            "postcode": tag("addr:postcode") or None,
             "lit": yn("lit"),
             "access": (p.tags.get("access") or "").strip() or None,
             "fee": yn("fee"),

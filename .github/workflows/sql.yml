@@ -58,16 +58,38 @@ jobs:
             exit 1
           fi
 
-          # Hasło musi składać się ze znaków bezpiecznych w URI. Powód nie jest
+          # Sprawdzamy WYŁĄCZNIE hasło, nie cały kształt adresu — connection
+          # string z Supabase bywa z portem, parametrami (`?sslmode=require`)
+          # i bez nich, a zgadywanie pełnego wzorca kończy się odrzucaniem
+          # poprawnych adresów.
+          #
+          # Powód, dla którego hasło musi być URI-bezpieczne, nie jest
           # kosmetyczny: przy `+`, `/` albo `=` psql nie rozpoznaje adresu jako
           # URI, przechodzi na parsowanie „klucz=wartość" i WYPISUJE FRAGMENT
           # HASŁA w komunikacie błędu. Maskowanie sekretów tego nie łapie, bo
           # to część sekretu, nie całość — hasło ląduje w publicznym logu.
           # Zdarzyło się raz; ten warunek jest po to, żeby nie zdarzyło się drugi.
-          if ! printf '%s' "$DB_URL" | grep -qE '^postgres(ql)?://[^:@/]+:[A-Za-z0-9._~-]+@[^/]+/[A-Za-z0-9_-]+$'; then
-            echo "::error::SUPABASE_DB_URL_RO ma nieodpowiedni kształt albo hasło ze znakami wymagającymi kodowania URL (+ / = : @). Wygeneruj hasło przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md"
+          CZYSTY=$(printf '%s' "$DB_URL" | tr -d '[:space:]')
+
+          case "$CZYSTY" in
+            postgres://*|postgresql://*) ;;
+            *) echo "::error::SUPABASE_DB_URL_RO nie zaczyna się od postgres:// ani postgresql://"; exit 1 ;;
+          esac
+
+          HASLO=$(printf '%s' "$CZYSTY" | sed -E 's|^postgres(ql)?://[^:@/]+:([^@]*)@.*$|\2|')
+          if [ "$HASLO" = "$CZYSTY" ] || [ -z "$HASLO" ]; then
+            echo "::error::Nie umiem wyłuskać hasła z SUPABASE_DB_URL_RO — spodziewany kształt to postgresql://uzytkownik:haslo@host:port/baza"
             exit 1
           fi
+          if ! printf '%s' "$HASLO" | grep -qE '^[A-Za-z0-9._~-]+$'; then
+            echo "::error::Hasło w SUPABASE_DB_URL_RO ma znaki wymagające kodowania URL (+ / = : @ itp). Wygeneruj je przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md"
+            exit 1
+          fi
+
+          # Maskowanie samego hasła, niezależnie od maskowania całego sekretu.
+          # Gdyby jakiekolwiek narzędzie wypisało je w błędzie, GitHub zamieni
+          # je na ***. Maska obowiązuje do końca zadania.
+          echo "::add-mask::$HASLO"
 
       - name: Przygotuj zapytanie
         env:
@@ -95,9 +117,14 @@ jobs:
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL_RO }}
         run: |
+          # Białe znaki obcinamy tu jeszcze raz, zamiast przekazywać gotowy adres
+          # przez GITHUB_ENV — connection string z hasłem nie ma powodu podróżować
+          # między krokami.
+          CZYSTY=$(printf '%s' "$DB_URL" | tr -d '[:space:]')
+
           # READ ONLY jako druga linia obrony — rola i tak nie ma prawa zapisu,
           # ale literówka w zapytaniu nie ma prawa niczego ruszyć.
-          psql "$DB_URL" \
+          psql "$CZYSTY" \
             -v ON_ERROR_STOP=1 \
             --single-transaction \
             --pset=pager=off \
