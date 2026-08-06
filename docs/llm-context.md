@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `066` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `066` · 31 tabel · 169 testów
 
 ---
 
@@ -296,6 +296,46 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Telefon do organizatora chowa się do godziny przed meczem, kreator meczu domyślnie liczy koszt obiektu
+PROBLEM: numer telefonu do BLIKA, który organizator podawał przy tworzeniu meczu,
+widniał na publicznej, indeksowalnej stronie meczu dla każdego — także osoby
+niezalogowanej, tygodnie przed grą. Pole nie miało też żadnego ograniczenia długości.
+Osobno: kreator zakładał domyślnie wpisywanie kosztu „od osoby", choć organizator
+zwykle zna najpierw cenę wynajmu całego obiektu i musiał dzielić ją w głowie; zmiana
+liczby miejsc po wpisaniu kwoty nie przeliczała jej na nowo.
+ROZWIĄZANIE BOJO: numer do BLIKA widzi organizator zawsze, a uczestnik ze składu
+dopiero godzinę przed startem meczu — z jednym wyjątkiem: okno „Dołączam” z wyborem
+BLIKA pokazuje numer od razu, bo bez niego nie da się zapłacić przy zapisie. Pole
+przyjmuje wyłącznie 9 cyfr i formatuje je w trójkach podczas pisania; publikacja
+meczu z wybranym BLIKA i niepełnym numerem jest zablokowana, tak samo jak zniżka
+karty sportowej wyższa niż koszt od osoby. Kreator domyślnie wpisuje koszt za cały
+obiekt i przelicza cenę od osoby na bieżąco, także po zmianie liczby miejsc.
+MECHANIKA: `canSeeBlikPhone()`, `formatBlikPhone()`, `BLIK_PHONE_REVEAL_MINUTES = 60`
+oraz `minutesUntilStart()` w `lib/payments.ts`/`lib/eventDates.ts`; `validatePayments()`
+w `lib/eventWizard.ts`, wpięta w krok 2 kreatora i w `app/wydarzenia/[id]/edytuj/page.tsx`.
+Bramka działa wyłącznie w interfejsie — kolumna `blik_phone` nadal przyjeżdża w całym
+wierszu `events` (patrz BACKLOG.md).
+
+### 2026-08-06 — Kreator meczu pamięta szkic przez 12 godzin, telefon dla zalogowanych bez zdublowanej nawigacji
+PROBLEM: opuszczenie kreatora meczu w trakcie (np. żeby sprawdzić godzinę wynajmu)
+zerowało cały formularz — organizator wracał do pustych pól. Osobno: na telefonie
+zalogowany użytkownik widział jednocześnie górny pasek z logo i hamburgerem oraz
+dolną nawigację z tymi samymi skrótami, a każda strona miała pod treścią pas pustego
+tła (dolna nawigacja jest elementem `fixed` montowanym poza kontenerem strony, więc
+dystans, który miał ją kompensować, nie działał). `/moje-gry` powielała przy tym
+własną, osobno utrzymywaną wersję sekcji, które pulpit strony głównej już miał.
+ROZWIĄZANIE BOJO: kreator zapisuje wypełniany formularz w przeglądarce na 12 godzin
+i przywraca go po powrocie, z paskiem „Wróciliśmy do Twojego szkicu” i opcją „Zacznij
+od nowa”. Górny pasek dla zalogowanego na telefonie to dziś dzwonek powiadomień
+i awatar prowadzący do `/profil` — tam trafiły motyw, panel admina i „Moje obiekty”,
+które wcześniej siedziały w hamburgerze. `/moje-gry` renderuje te same sekcje co
+pulpit (Zaproszenia, Najbliższy mecz, Twoje najbliższe mecze, Obserwowane) zamiast
+własnej kopii.
+MECHANIKA: `lib/eventDraft.ts` (TTL `localStorage`), zmienna `--bottom-nav-h`
+w `app/globals.css` sterowana atrybutem z `BottomNavGate.tsx`, `lib/adminLinks.ts`
+i `lib/api.ts#hasManagedVenue` współdzielone przez `Header.tsx` i `app/profil/page.tsx`,
+`components/home/dashboard/DashboardSections.tsx` reużyte w `app/moje-gry/page.tsx`.
+
 ### 2026-08-06 — Gość dopisany ręcznie przejmuje swój wpis po założeniu konta
 PROBLEM: organizator dopisywał do składu osobę bez konta, wpisując samo imię —
 taki wpis nie należał do nikogo. Gdy ta osoba później zakładała konto w Bojo
@@ -429,35 +469,3 @@ w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
 MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
 kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
 do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
-
-### 2026-08-06 — Strony boisk generowane na żądanie zamiast przy buildzie
-PROBLEM: każda strona boiska w Bojo była generowana z góry, przy budowaniu
-aplikacji — tyle stron, ile obiektów w katalogu. Dopóki katalog obejmował
-Poznań, mieściło się to w kilku minutach. Po imporcie z OpenStreetMap urósł
-do ~4600 obiektów i budowanie przestało się kończyć: ponad 40 minut bez
-skutku, więc żadna zmiana nie docierała na produkcję.
-ROZWIĄZANIE BOJO: strona boiska powstaje przy pierwszym wejściu i zostaje
-w pamięci podręcznej na dobę. Czas budowania Bojo nie zależy już od wielkości
-katalogu, co jest warunkiem dojścia do dziesiątek tysięcy obiektów z całej
-Polski. Adresy stron i mapa witryny się nie zmieniły.
-MECHANIKA: `generateStaticParams()` w `app/boisko/[id]/page.tsx` zwraca pustą
-listę, `revalidate = 86400`; `resolveField()` rozwiązuje slug przez wspólny
-indeks slug→id z TTL zamiast pobierać całą tabelę `fields` raz na render.
-
-### 2026-08-06 — Mapa otwiera się na Polsce, nie na Poznaniu
-PROBLEM: mapa Bojo brała już obiekty z całego kraju, ale startowała z widokiem
-ustawionym na Poznań przy dużym przybliżeniu. Po imporcie 1638 boisk
-z lubelskiego użytkownik widział ten sam pusty Poznań i miał prawo sądzić,
-że import nic nie dodał. Osobno: boiska opisane w OpenStreetMap jako
-wielofunkcyjne (`sport=multi`) nie były na liście dyscyplin, które mapa
-przepuszcza — w samym lubelskiem odpadały tak 162 obiekty.
-ROZWIĄZANIE BOJO: mapa otwiera się na całej Polsce. Kto chce swoją okolicę,
-klika przycisk pinezki w prawym dolnym rogu mapy — Bojo pyta wtedy przeglądarkę
-o lokalizację i przeskakuje na nią. Pytanie o zgodę pada dopiero po kliknięciu,
-bo mapa kraju działa i bez niej. Boiska wielofunkcyjne są widoczne na mapie,
-ale nie mają własnego filtra dyscypliny: tag `multi` z OpenStreetMap nie mówi,
-w co konkretnie da się tam zagrać.
-MECHANIKA: `POLSKA` / `POLSKA_ZOOM` w `components/map/mapIcons.ts`, przycisk
-lokalizacji i `locateMe()` w `components/map/VenueExplorer.tsx`,
-`wielofunkcyjne` dopisane do `EXPLORER_SPORTS` w `lib/api.ts` i do
-`SPORT_CONFIG` w `lib/sports.ts`.

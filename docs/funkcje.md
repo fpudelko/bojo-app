@@ -73,12 +73,16 @@ Gdzie widać otwarte zaproszenia:
 | Miejsce | Co pokazuje |
 |---|---|
 | Strona główna (dashboard) | Sekcja „Zaproszenia" — max 3, znika przy zerze |
+| `/moje-gry?tab=nadchodzace` | Ten sam teaser co na dashboardzie — max 3, link „Wszystkie" prowadzi do zakładki niżej |
 | `/moje-gry?tab=zaproszenia` | Pełna lista, bez limitu, z pustym stanem |
 | `/wydarzenia` | Plakietka „Zaproszenia N" obok pola wyszukiwania — **widoczna tylko gdy N > 0**, prowadzi do zakładki wyżej |
 
 Wspólny hook `lib/useMyInvites.ts` (pobiera zaproszenia + mapę uczestnictwa, filtruje do
-statusu `'invited'`) i wspólny komponent listy `components/events/InviteList.tsx` — trzy
+statusu `'invited'`) i wspólny komponent listy `components/events/InviteList.tsx` — cztery
 powyższe miejsca renderują ten sam kod, żeby nie rozjeżdżały się przy zmianie.
+`InvitesSection` (`components/home/dashboard/DashboardSections.tsx`) przyjmuje opcjonalne
+`href`/`dismissedIds`/`onDismiss` właśnie po to, żeby dashboard i `/moje-gry` mogły dzielić
+jeden komponent zamiast dwóch kopii — patrz sekcja „Układ `/moje-gry`" niżej.
 
 Nie mylić z `lib/invites.ts` (tabela `event_invites`, migracja `036`) — zaproszenia po
 e-mailu z tokenem, martwy kod, nic go nie importuje.
@@ -100,6 +104,98 @@ zasłaniałby ważniejsze CTA:
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
+
+**Miejsce pod paskiem — zmienna `--bottom-nav-h`.** Pasek jest `fixed`, więc sam z siebie
+nie rezerwuje miejsca w dokumencie. `BottomNavGate.tsx` ustawia `document.documentElement
+.dataset.bottomNav = '1'`, dopóki pasek faktycznie jest widoczny (zalogowany, mobile, nie
+schowany); `app/globals.css` reaguje na `html[data-bottom-nav='1']` i:
+- dokłada `padding-bottom: var(--bottom-nav-h)` do `<body>`,
+- odejmuje `--bottom-nav-h` od `.min-h-screen` / `.h-screen` (kolejność `vh` → `svh`, jak
+  w `.hero-first-screen` — `svh` ignoruje chowający się pasek adresu).
+
+Od `md:` (768px) `--bottom-nav-h` wraca do `0px` — pasek i tak jest `md:hidden`. Zastąpiło
+to element-dystans (`<div className="h-16" />`), który **nie działał**: `BottomNavGate`
+montuje się w layoucie po `{children}`, więc dystans lądował poza kontenerem strony i tylko
+wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogowanego na mobile
+kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
+musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
+
+---
+
+## Górny pasek nawigacji — inny dla zalogowanych na mobile
+
+Poniżej `md` (768px) zalogowany użytkownik dostaje w `Header.tsx` **inny pasek** niż
+wylogowany i niż desktop: bez logo, `h-12` zamiast `h-16`, po prawej dzwonek powiadomień
+(`NotificationBell`) i awatar linkujący do `/profil` — zamiast logo + hamburgera. Powód:
+wszystko, co było w arkuszu hamburgera dla zalogowanego (Moje mecze, Grupy, Moje obiekty,
+panel admina, profil, motyw, Wyloguj), już jest dostępne w dolnym panelu nawigacji albo na
+`/profil` — drugi zestaw tych samych skrótów tylko zjadał pierwszy ekran.
+
+Skutek uboczny: dzwonek powiadomień, wcześniej wyłącznie w bloku `hidden md:flex`, jest
+teraz dostępny na telefonie.
+
+Hamburger (`Menu`/`X`, arkusz pełnoekranowy) **zostaje wyłącznie dla wylogowanych** —
+zawiera dziś tylko „Stwórz mecz", „Znajdź mecz", „Mapa boisk", baner Cup (za `SHOW_CUP`),
+przełącznik motywu i „Zaloguj się". Desktop (`md:` i wyżej) i landing dla wylogowanych
+bez zmian.
+
+### `/profil` — nowy dom opcji z dawnego hamburgera
+
+Zalogowany na mobile, chcąc przełączyć motyw, wejść do panelu admina albo zobaczyć swoje
+obiekty, robi to na `/profil` (`app/profil/page.tsx`), nie w nagłówku:
+
+| Sekcja | Warunek | Źródło |
+|---|---|---|
+| Moje statystyki | zawsze | link do `/gracz/[id]` |
+| Moje obiekty | `hasManagedVenue(userId)` (`lib/api.ts`) | zarządza ≥1 obiektem |
+| Wygląd (jasny/ciemny) | `next-themes` załadowany | `useTheme()`, ten sam wzorzec co w `Header.tsx` |
+| Panel administratora | `useAdmin()` | lista z `lib/adminLinks.ts` — ta sama, co w `AdminMenu` na desktopie |
+| Wyloguj się | zawsze | istniało już wcześniej |
+
+`lib/adminLinks.ts` i `lib/api.ts#hasManagedVenue` to wspólne źródła prawdy między
+`Header.tsx` (desktop) a `/profil` (mobile) — jedna lista tras, jedno zapytanie.
+
+---
+
+## Szkic kreatora meczu
+
+Kreator (`app/wydarzenia/nowe/page.tsx`) zapamiętuje wypełniany formularz w
+`localStorage` przez **12 godzin** (`lib/eventDraft.ts`, `EVENT_DRAFT_TTL_MS`) — jeśli
+organizator wyjdzie w trakcie (np. sprawdzić godzinę wynajmu) i wróci, formularz stoi tam,
+gdzie go zostawił, zamiast zerować się do stanu początkowego.
+
+- **Odtwarzanie**: raz, przy montowaniu. **Pomijane całkowicie** przy wejściu z `?group=`
+  albo `?fieldId=` — te parametry mają własne efekty prefill i kolidowałyby z odtworzonym
+  szkicem; wejście z linku obiektu/grupy to świadomy start od nowa.
+- **Data w przeszłości**: jeśli odtworzona data blokowałaby krok 2 (`isPast()`), podmieniana
+  jest na jutro — reszta szkicu zostaje.
+- **Pasek informacyjny**: „Wróciliśmy do Twojego szkicu (N minut/godzin temu)" +
+  „Zacznij od nowa" (czyści `localStorage` i resetuje formularz do stanu początkowego).
+- **Kasowanie**: po udanej publikacji meczu, automatycznie.
+
+---
+
+## Układ `/moje-gry`
+
+Zakładka „Nadchodzące" na `/moje-gry` renderuje **te same komponenty co pulpit
+zalogowanego** (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej
+listy: `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NextMatchCard` →
+`MyMatchesSection` → `ObservingSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie**
+są tu powtórzone — mają własne strony (`/grupy`, `/wydarzenia`).
+
+Różnica względem pulpitu: `MyMatchesSection` i `ObservingSection` dostają
+`limit={null} href={null}` — pełna lista bez obcięcia do 2 pozycji i bez linku
+„Wszystkie" wracającego na tę samą stronę. `ObservingSection` dostaje też własny
+`title="Obserwowane"` (na pulpicie: „Obserwujesz") i `subtitle` z wyjaśnieniem, że
+obserwowanie nie rezerwuje miejsca — dokładnie tekst, który wcześniej był tu wpisany
+ręcznie.
+
+Brak osobnego pustego stanu dla zakładki: `NextMatchCard` ma własny („Nie masz
+zaplanowanych gier" + „Stwórz mecz" / „Znajdź grę"), więc pokrywa przypadek zerowej
+aktywności bez drugiej kopii tego ekranu.
+
+Nagłówek „Twoje mecze" i przycisk „+ Nowy mecz" zniknęły ze strony — mecz tworzy się
+z FAB-a (`+`) w dolnej nawigacji, dostępnego z każdego ekranu na mobile.
 
 ---
 
