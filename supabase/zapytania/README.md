@@ -55,7 +55,16 @@ Tyle. Od tej pory workflow działa, a hasło nie pojawia się nigdzie poza sekre
 
 ## Użycie
 
-Actions → *SQL (tylko odczyt)* → Run workflow, i albo `plik`
+**Tryb agenta (bez klikania).** Agent zapisuje zapytanie do `biezace.sql`
+i pushuje na gałąź `claude/sql/<cokolwiek>`. Push sam uruchamia workflow,
+a agent odczytuje wynik z logu. Token agenta nie ma prawa odpalać workflowów
+przez API (`403 Resource not accessible by integration`), więc push jest
+jedynym wyzwalaczem, który agent kontroluje samodzielnie.
+
+Gałąź jest jednorazowa i nie idzie do mastera — historia zostaje czysta,
+a `biezace.sql` to bufor, którego treść nic nie znaczy między uruchomieniami.
+
+**Tryb ręczny.** Actions → *SQL (tylko odczyt)* → Run workflow, i albo `plik`
 (np. `supabase/zapytania/mapa-lejek.sql`), albo `zapytanie` wpisane wprost.
 
 Wynik ląduje w logu kroku „Uruchom".
