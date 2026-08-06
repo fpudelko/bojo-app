@@ -296,6 +296,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Mapa otwiera się na Polsce, nie na Poznaniu
+PROBLEM: mapa Bojo brała już obiekty z całego kraju, ale startowała z widokiem
+ustawionym na Poznań przy dużym przybliżeniu. Po imporcie 1638 boisk
+z lubelskiego użytkownik widział ten sam pusty Poznań i miał prawo sądzić,
+że import nic nie dodał. Osobno: boiska opisane w OpenStreetMap jako
+wielofunkcyjne (`sport=multi`) nie były na liście dyscyplin, które mapa
+przepuszcza — w samym lubelskiem odpadały tak 162 obiekty.
+ROZWIĄZANIE BOJO: mapa otwiera się na całej Polsce. Kto chce swoją okolicę,
+klika przycisk pinezki w prawym dolnym rogu mapy — Bojo pyta wtedy przeglądarkę
+o lokalizację i przeskakuje na nią. Pytanie o zgodę pada dopiero po kliknięciu,
+bo mapa kraju działa i bez niej. Boiska wielofunkcyjne są widoczne na mapie,
+ale nie mają własnego filtra dyscypliny: tag `multi` z OpenStreetMap nie mówi,
+w co konkretnie da się tam zagrać.
+MECHANIKA: `POLSKA` / `POLSKA_ZOOM` w `components/map/mapIcons.ts`, przycisk
+lokalizacji i `locateMe()` w `components/map/VenueExplorer.tsx`,
+`wielofunkcyjne` dopisane do `EXPLORER_SPORTS` w `lib/api.ts` i do
+`SPORT_CONFIG` w `lib/sports.ts`.
+
 ### 2026-08-05 — Mapa pokazuje boiska z całej Polski
 PROBLEM: mapa Bojo miała zaszyty prostokąt wokół Poznania i pokazywała tylko to,
 co się w nim mieściło. Obiekty zaimportowane z innych województw nie miały szans
@@ -464,15 +482,3 @@ MECHANIKA: `app/wydarzenia/nowe/page.tsx`, parametr `organizerIsGoalkeeper`
 w `createEvent()` (`lib/events.ts`); wiersz organizatora dostaje status
 „potwierdzony" — zapis znaczy „będę", organizator oznacza potem nieobecnych.
 
-### 2026-08-03 — Imienne zaproszenia na mecz
-PROBLEM: zaproszenie na mecz istniało tylko jako link do wklejenia na czacie.
-Kto go przewinął, nie dowiadywał się o meczu, a organizator nie wiedział, kogo
-w ogóle zaprosił.
-ROZWIĄZANIE BOJO: na stronie meczu jest „Zaproś z ekipy" — organizator lub
-uczestnik wybiera swoją grupę i zaprasza całą albo zaznaczonych członków.
-Zaproszony widzi mecz w sekcji „Zaproszenia" na stronie głównej Bojo i odpowiada
-zwykłym „Dołączam" / „Obserwuję" albo chowa go przez „Nie tym razem".
-Zaproszenie NIE zajmuje miejsca w składzie i niczego nie przesądza.
-MECHANIKA: tabela `event_player_invites` (migracja `060`), `lib/playerInvites.ts`,
-`components/events/InviteFromGroupDialog.tsx`, sekcja `InvitesSection`
-w `components/home/dashboard/DashboardSections.tsx`.

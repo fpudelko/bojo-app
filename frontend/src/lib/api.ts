@@ -64,7 +64,9 @@ function toField(row: any): Field {
 // heavy columns (description, contact, opening hours, amenities…) are dropped.
 const EXPLORER_COLS =
   'id, name, address, lat, lng, sport, surface, is_indoor, booking_enabled, booking_type, available, website, image_url, photo_url, photo_reference, photo_source, map_visibility, district, venue_type';
-const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna'];
+// `wielofunkcyjne` to import z OSM (`sport=multi`) — 162 obiekty w samym
+// lubelskiem odpadały tu po cichu, mimo że przeszły bramkę publikacji.
+const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna', 'wielofunkcyjne'];
 // Twardy limit transferu. Przy ~3 tys. obiektów jedno zapytanie jest tańsze niż
 // dokładanie stanu i logiki wokół widocznego wycinka mapy. Gdy katalog urośnie
 // do kilkudziesięciu tysięcy, to zapytanie MUSI zacząć zależeć od widoku —

@@ -4,6 +4,13 @@ import { sportEmoji, sportColor, SPORT_CONFIG } from '@/lib/sports';
 
 export const POZNAN: [number, number] = [52.37, 16.97];
 
+// Widok startowy mapy. Dopóki katalog kończył się na powiecie poznańskim,
+// start na Poznaniu przy zoomie 11 był tym, czego użytkownik chciał. Po
+// imporcie z OSM obiekty są w całej Polsce, a start na Poznaniu znaczy tyle,
+// że 1600 boisk lubelskiego leży poza kadrem — wygląda jak pusty import.
+export const POLSKA: [number, number] = [52.0, 19.3];
+export const POLSKA_ZOOM = 6;
+
 // Priority order for selecting the "primary" sport of a multi-sport venue
 export const SPORT_ORDER = Object.keys(SPORT_CONFIG);
 
