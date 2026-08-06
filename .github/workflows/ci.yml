@@ -9,7 +9,19 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    # Gałęzie robocze też, nie tylko master. Zdarzenia `pull_request` potrafią
+    # się nie uruchomić (2026-08-06: kilka PR-ów z rzędu nie dostało żadnego
+    # przebiegu, choć ten sam kod po merge'u przechodził na masterze). Push jest
+    # wyzwalaczem, który zadziałał za każdym razem — a bramka, która czasem
+    # milczy, jest gorsza od jej braku, bo wygląda jak zieleń.
+    #
+    # `claude/sql/**` pominięte: te gałęzie niosą wyłącznie zapytanie do bazy,
+    # kod aplikacji jest na nich identyczny jak na masterze.
+    branches:
+      - master
+      - 'claude/**'
+    paths-ignore:
+      - 'supabase/zapytania/**'
   pull_request:
 
 jobs:
