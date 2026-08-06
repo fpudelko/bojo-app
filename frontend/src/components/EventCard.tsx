@@ -5,6 +5,7 @@ import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import type { EventItem } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+import { eventDisplayTitle } from '@/lib/eventTitle';
 
 /** @deprecated Import sportEmoji from @/lib/sports instead */
 export const SPORT_EMOJI: Record<string, string> = new Proxy({}, {
@@ -48,7 +49,7 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ink truncate">
-            {event.title || event.sport}
+            {eventDisplayTitle(event)}
             {cancelled && <span className="ml-2 text-xs text-red-500 font-normal">Odwołane</span>}
           </p>
           <p className="flex items-center gap-1 mt-0.5 text-xs text-slate-500">

@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { ArrowRight, Crown, MapPin, Share2 } from 'lucide-react';
 import { matchWhenLabel, timeUntil } from '@/lib/eventDates';
-import { sportColor, sportLabel } from '@/lib/sports';
+import { sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+import { eventDisplayTitle } from '@/lib/eventTitle';
 import { useToast } from '@/lib/toast';
 import type { MyEventRow } from '@/lib/myEvents';
 
@@ -42,7 +43,7 @@ export default function NextMatchCard({ row }: { row: MyEventRow | null }) {
 
   const { event, relation } = row;
   const color = sportColor(event.sport);
-  const title = event.title || sportLabel(event.sport);
+  const title = eventDisplayTitle(event);
   const when = matchWhenLabel(event.date, event.time);
   const until = timeUntil(event.date, event.time);
   const location = eventLocation(event).primary;

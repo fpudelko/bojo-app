@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { eventJsonLd } from '@/lib/structuredData';
+import { defaultEventTitle } from '@/lib/eventTitle';
 import EventDetailClient from './EventDetailClient';
 
 // Server wrapper: provides per-event link-preview metadata (Open Graph), then
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const timeStr = ev.time ? ev.time.slice(0, 5) : '';
   const place = ev.field_name || ev.custom_location_name || 'Poznań';
 
-  const name = ev.title || `${ev.sport.charAt(0).toUpperCase()}${ev.sport.slice(1)}`;
+  const name = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
   const title = `${name} — ${whenStr}${timeStr ? ` ${timeStr}` : ''} | Bojo`;
   const description = `${ev.sport} • ${whenStr}${timeStr ? `, ${timeStr}` : ''} • ${place}. Dołącz i zbierz skład na Bojo.`;
 
