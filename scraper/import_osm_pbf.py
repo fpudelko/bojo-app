@@ -56,14 +56,21 @@ GEOFABRIK = "https://download.geofabrik.de/europe/poland/{region}-latest.osm.pbf
 # ---------------------------------------------------------------------------
 
 TEAM_SPORTS = {
-    "soccer", "football", "basketball", "volleyball", "beach_volleyball",
+    # Kanoniczny tag OSM dla plażówki to `beachvolleyball` — JEDNYM SŁOWEM.
+    # Wariant `beach_volleyball` też się w danych zdarza, ale jest rzadszy.
+    # Dopóki lista znała tylko ten drugi, boisko otagowane kanonicznie nie
+    # przechodziło filtru sportów zespołowych i wypadało z importu w całości —
+    # nie „bez etykiety", tylko w ogóle.
+    "soccer", "football", "basketball", "volleyball",
+    "beachvolleyball", "beach_volleyball",
     "futsal", "handball", "team_handball", "rugby", "hockey", "field_hockey",
     "ice_hockey", "american_football", "baseball", "cricket", "multi",
 }
 
 OSM_SPORT_MAP = {
     "soccer": "piłka nożna", "football": "piłka nożna", "basketball": "koszykówka",
-    "volleyball": "siatkówka", "beach_volleyball": "siatkówka plażowa",
+    "volleyball": "siatkówka",
+    "beachvolleyball": "siatkówka plażowa", "beach_volleyball": "siatkówka plażowa",
     "futsal": "futsal", "handball": "piłka ręczna", "team_handball": "piłka ręczna",
     "rugby": "rugby", "hockey": "hokej", "field_hockey": "hokej na trawie",
     "ice_hockey": "hokej", "american_football": "futbol amerykański",
@@ -202,7 +209,17 @@ def sports_pl(tags: dict[str, str]) -> list[str] | None:
     team = [s for s in raw if s in TEAM_SPORTS]
     if not team:
         return None
-    return list(dict.fromkeys(OSM_SPORT_MAP.get(s, "inne") for s in team))
+    out = list(dict.fromkeys(OSM_SPORT_MAP.get(s, "inne") for s in team))
+
+    # `sport=volleyball` + `surface=sand` to w praktyce plażówka. Mapper często
+    # opisuje piach nawierzchnią zamiast osobnym tagiem sportu, a dla gracza
+    # różnica jest zasadnicza: na piachu gra się czwórkami albo dwójkami.
+    # Wnioskujemy tylko z nawierzchni — nic tu nie zgaduje AI.
+    if "siatkówka" in out and "siatkówka plażowa" not in out:
+        if SURFACE_MAP.get((tags.get("surface") or "").strip().lower()) == "sand":
+            out = ["siatkówka plażowa" if s == "siatkówka" else s for s in out]
+
+    return out
 
 
 def build_name(tags: dict[str, str], sports: list[str] | None,
