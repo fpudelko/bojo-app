@@ -1,0 +1,51 @@
+name: Diagnoza mapy (tylko odczyt)
+
+# Odtwarza zapytanie mapy warunek po warunku i wypisuje lejek do logu.
+# Nic nie zapisuje — same GET-y do PostgREST. Dzięki temu diagnostykę bazy
+# da się uruchomić bez przeklejania wyników SQL z Supabase ręcznie.
+#
+# Wymagane sekrety:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      bbox:
+        description: 'Prostokąt lat_min,lat_max,lng_min,lng_max (puste = cała baza)'
+        default: '50.20,52.30,21.50,24.20'
+        required: false
+        type: string
+      source:
+        description: 'Filtr source (osm | manual | puste = dowolny)'
+        default: 'osm'
+        required: false
+        type: string
+
+jobs:
+  diagnoza:
+    name: Diagnoza mapy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install httpx python-dotenv
+
+      - name: Run diagnoza
+        working-directory: scraper
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python diagnoza_mapy.py \
+            --bbox "${{ inputs.bbox }}" \
+            --source "${{ inputs.source }}"
