@@ -1,4 +1,9 @@
 {
   "rootDirectory": "frontend",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": {
+      "claude/sql/*": false
+    }
+  }
 }

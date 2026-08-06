@@ -64,6 +64,13 @@ jedynym wyzwalaczem, który agent kontroluje samodzielnie.
 Gałąź jest jednorazowa i nie idzie do mastera — historia zostaje czysta,
 a `biezace.sql` to bufor, którego treść nic nie znaczy między uruchomieniami.
 
+Co ten push **nie** uruchamia:
+
+- **Vercela** — `vercel.json` wyłącza deploymenty dla wzorca `claude/sql/*`.
+  Bez tego każde zapytanie do bazy kosztowałoby preview build całej aplikacji.
+- **CI** (`ci.yml`) — chodzi na `push` tylko dla `master` oraz na pull requestach,
+  a dla gałęzi z zapytaniami PR-a się nie otwiera.
+
 **Tryb ręczny.** Actions → *SQL (tylko odczyt)* → Run workflow, i albo `plik`
 (np. `supabase/zapytania/mapa-lejek.sql`), albo `zapytanie` wpisane wprost.
 
