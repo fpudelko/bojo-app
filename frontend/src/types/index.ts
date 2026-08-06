@@ -427,6 +427,18 @@ export interface EventComment {
   createdAt: string;
 }
 
+/** Komentarz pod obiektem z katalogu boisk (migracja `063`). Osobny od
+ *  `EventComment`, bo żyje dłużej niż pojedynczy mecz i opisuje miejsce. */
+export interface FieldComment {
+  id: string;
+  fieldId: string;
+  userId: string;
+  userName: string;
+  body: string;
+  deletedAt?: string;
+  createdAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Groups — a recurring crew of players
 // ---------------------------------------------------------------------------

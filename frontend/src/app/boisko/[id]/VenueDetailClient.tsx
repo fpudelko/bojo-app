@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff } from 'lucide-react';
+import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff, Map as MapIcon } from 'lucide-react';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -18,6 +18,7 @@ import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
+import VenueComments from '@/components/venue/VenueComments';
 import type { Field, TimeSlot } from '@/types';
 
 
@@ -641,12 +642,24 @@ export default function VenueDetailClient({
             <p className="text-sm text-slate-400">Brak nadchodzących meczy na tym boisku.</p>
           )}
 
-          <div className="mt-5 pt-4 border-t border-slate-100">
+          <div className="mt-5 space-y-2 pt-4 border-t border-slate-100">
             <Link href={`/wydarzenia/nowe?fieldId=${field.id}`}>
               <Button className="w-full">Stwórz mecz tutaj</Button>
             </Link>
+            {/* Powrót na mapę wycelowaną w TEN obiekt. Bez tego jedyną drogą
+                z opisu boiska do jego okolicy było wejście na mapę i szukanie
+                go od nowa — a mapa otwiera się na widoku całego kraju.
+                Parametr `boisko` obsługuje VenueExplorer. */}
+            <Link href={`/mapa?boisko=${field.id}`}>
+              <Button variant="outline" className="w-full">
+                <MapIcon className="h-4 w-4" />
+                Zobacz na mapie
+              </Button>
+            </Link>
           </div>
         </div>
+
+        <VenueComments fieldId={field.id} />
         {/* Admin: map visibility toggle */}
         {isAdmin && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
