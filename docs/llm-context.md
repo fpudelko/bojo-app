@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `066` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `067` · 31 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,19 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Zaproszenie na mecz trafia do powiadomień
+PROBLEM: imienne zaproszenie na mecz nie tworzyło w Bojo żadnego powiadomienia.
+Dzwonek pokazywał zero, mimo trzech czekających zaproszeń — zaproszony widział
+je wyłącznie po wejściu na stronę główną, czyli dokładnie wtedy, gdy i tak by
+je zauważył. Powiadomienia powstały w Bojo wcześniej niż imienne zaproszenia
+i nikt tych dwóch rzeczy wtedy nie połączył.
+ROZWIĄZANIE BOJO: zaproszenie ląduje w skrzynce razem z nazwą zapraszającego,
+terminem i tytułem meczu. Zaproszenia, które czekały w bazie przed tą zmianą,
+dostały powiadomienia wstecz — ale tylko te nieodrzucone i dotyczące meczu,
+który się jeszcze nie odbył.
+MECHANIKA: migracja `067` — wyzwalacz `powiadom_o_zaproszeniu()`
+na `event_player_invites` oraz jednorazowe uzupełnienie zaległych wpisów.
+
 ### 2026-08-06 — Gość dopisany ręcznie przejmuje swój wpis po założeniu konta
 PROBLEM: organizator dopisywał do składu osobę bez konta, wpisując samo imię —
 taki wpis nie należał do nikogo. Gdy ta osoba później zakładała konto w Bojo
@@ -443,21 +456,3 @@ Polski. Adresy stron i mapa witryny się nie zmieniły.
 MECHANIKA: `generateStaticParams()` w `app/boisko/[id]/page.tsx` zwraca pustą
 listę, `revalidate = 86400`; `resolveField()` rozwiązuje slug przez wspólny
 indeks slug→id z TTL zamiast pobierać całą tabelę `fields` raz na render.
-
-### 2026-08-06 — Mapa otwiera się na Polsce, nie na Poznaniu
-PROBLEM: mapa Bojo brała już obiekty z całego kraju, ale startowała z widokiem
-ustawionym na Poznań przy dużym przybliżeniu. Po imporcie 1638 boisk
-z lubelskiego użytkownik widział ten sam pusty Poznań i miał prawo sądzić,
-że import nic nie dodał. Osobno: boiska opisane w OpenStreetMap jako
-wielofunkcyjne (`sport=multi`) nie były na liście dyscyplin, które mapa
-przepuszcza — w samym lubelskiem odpadały tak 162 obiekty.
-ROZWIĄZANIE BOJO: mapa otwiera się na całej Polsce. Kto chce swoją okolicę,
-klika przycisk pinezki w prawym dolnym rogu mapy — Bojo pyta wtedy przeglądarkę
-o lokalizację i przeskakuje na nią. Pytanie o zgodę pada dopiero po kliknięciu,
-bo mapa kraju działa i bez niej. Boiska wielofunkcyjne są widoczne na mapie,
-ale nie mają własnego filtra dyscypliny: tag `multi` z OpenStreetMap nie mówi,
-w co konkretnie da się tam zagrać.
-MECHANIKA: `POLSKA` / `POLSKA_ZOOM` w `components/map/mapIcons.ts`, przycisk
-lokalizacji i `locateMe()` w `components/map/VenueExplorer.tsx`,
-`wielofunkcyjne` dopisane do `EXPLORER_SPORTS` w `lib/api.ts` i do
-`SPORT_CONFIG` w `lib/sports.ts`.
