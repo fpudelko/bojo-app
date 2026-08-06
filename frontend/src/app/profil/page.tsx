@@ -3,16 +3,27 @@
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2 } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2, Sun, Moon, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
+import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
+import { hasManagedVenue } from '@/lib/api';
+import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { validatePhone, normalizePhone } from '@/lib/validation';
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, signOut, updateDisplayName, uploadAvatar } = useAuth();
+  const isAdmin = useAdmin();
+  const { resolvedTheme, setTheme } = useTheme();
+  // Guard against the server/client theme mismatch on first paint — same
+  // pattern as components/layout/Header.tsx.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const [hasVenue, setHasVenue] = useState(false);
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,6 +60,13 @@ export default function ProfilePage() {
           setPhoneConsent(data.phone_consent ?? false);
         }
       });
+  }, [user]);
+
+  // "Moje obiekty" — przeniesione tu z nagłówka (patrz Header.tsx), bo
+  // hamburger na mobile stracił wszystkie opcje zalogowanego.
+  useEffect(() => {
+    if (!user) { setHasVenue(false); return; }
+    hasManagedVenue(user.id).then(setHasVenue).catch(() => {});
   }, [user]);
 
   if (loading) {
@@ -162,14 +180,30 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Profil</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Profil</h1>
+
+        {/* Nawigacja — dawniej częściowo w hamburgerze (Header.tsx); mobile
+            straciło ten hamburger dla zalogowanych, więc "Moje statystyki"
+            i "Moje obiekty" mają tu swój jedyny dom. */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
           <Link
             href={`/gracz/${user.id}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
           >
-            <BarChart2 className="w-4 h-4" /> Moje statystyki
+            <BarChart2 className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="flex-1 text-sm font-medium text-slate-700">Moje statystyki</span>
+            <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
           </Link>
+          {hasVenue && (
+            <Link
+              href="/obiekt"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
+            >
+              <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="flex-1 text-sm font-medium text-slate-700">Moje obiekty</span>
+              <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+            </Link>
+          )}
         </div>
 
         {/* Identity card */}
@@ -293,6 +327,45 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Wygląd — przeniesione z Header.tsx (mobile straciło hamburger) */}
+        {mounted && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {resolvedTheme === 'dark' ? <Moon className="w-4 h-4 text-slate-400" /> : <Sun className="w-4 h-4 text-slate-400" />}
+                <span className="text-sm font-medium text-slate-700">Wygląd</span>
+              </div>
+              <button
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                {resolvedTheme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
+            hamburger; desktop nadal ma osobne menu z zębatką w Header.tsx) */}
+        {isAdmin && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
+            <div className="px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Panel administratora</p>
+            </div>
+            {ADMIN_LINKS.map(({ href, label, Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
+              >
+                <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="flex-1 text-sm font-medium text-slate-700">{label}</span>
+                <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Sign out */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">

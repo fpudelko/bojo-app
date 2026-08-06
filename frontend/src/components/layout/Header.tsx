@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon, BarChart3, Sun, Moon } from 'lucide-react';
+import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
-import { supabase } from '@/lib/supabase';
+import { hasManagedVenue } from '@/lib/api';
+import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
@@ -74,11 +75,7 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
 
   useEffect(() => {
     if (!user) { setHasVenue(false); return; }
-    supabase
-      .from('fields')
-      .select('id', { count: 'exact', head: true })
-      .eq('manager_id', user.id)
-      .then(({ count }) => setHasVenue((count ?? 0) > 0));
+    hasManagedVenue(user.id).then(setHasVenue).catch(() => {});
   }, [user]);
 
   // Focus trap + scroll lock for mobile menu
@@ -135,8 +132,14 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
         scrolled && !overlay && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
       )}>
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="hover:opacity-90 transition-opacity">
+          {/* Zalogowany na mobile dostaje niższy pasek (h-12) bez logo — dolna
+              nawigacja pokrywa te same skróty, a logo + hamburger tylko
+              dublowały to, co już jest w BottomNav. Desktop bez zmian. */}
+          <div className={clsx('flex items-center justify-between', !loading && user ? 'h-12 md:h-16' : 'h-16')}>
+            <Link
+              href="/"
+              className={clsx('hover:opacity-90 transition-opacity', !loading && user && 'hidden md:block')}
+            >
               <LogoPill variant={overlay ? 'onDark' : 'solid'} />
             </Link>
 
@@ -288,34 +291,55 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
               )}
             </div>
 
-            <div className="flex items-center gap-2 md:hidden">
+            {/* Zalogowany na mobile: dzwonek + awatar zamiast hamburgera —
+                wszystko, co było w arkuszu (Moje mecze, Grupy, profil, motyw,
+                admin, Wyloguj), jest już w dolnej nawigacji albo na /profil.
+                Skutek uboczny: dzwonek powiadomień, wcześniej wyłącznie
+                w bloku `hidden md:flex`, staje się dostępny na telefonie. */}
+            <div className="ml-auto flex items-center gap-1 md:hidden">
               {!loading && !user && (
-                <Link
-                  href={loginHref}
-                  className={clsx(
-                    'inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
-                    overlay
-                      ? 'bg-white/15 text-white border border-white/25 hover:bg-white/25'
-                      : 'bg-primary-700 text-white hover:bg-primary-800',
-                  )}
-                >
-                  Zaloguj się
-                </Link>
+                <>
+                  <Link
+                    href={loginHref}
+                    className={clsx(
+                      'inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
+                      overlay
+                        ? 'bg-white/15 text-white border border-white/25 hover:bg-white/25'
+                        : 'bg-primary-700 text-white hover:bg-primary-800',
+                    )}
+                  >
+                    Zaloguj się
+                  </Link>
+                  <button
+                    className={clsx(
+                      'p-2 rounded-lg transition-colors',
+                      overlay
+                        ? 'text-white hover:bg-white/10'
+                        : 'text-slate-600 hover:bg-slate-100',
+                    )}
+                    onClick={() => setMobileOpen((o) => !o)}
+                    aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
+                    aria-expanded={mobileOpen}
+                    aria-controls="mobile-nav"
+                  >
+                    {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  </button>
+                </>
               )}
-              <button
-                className={clsx(
-                  'p-2 rounded-lg transition-colors',
-                  overlay
-                    ? 'text-white hover:bg-white/10'
-                    : 'text-slate-600 hover:bg-slate-100',
-                )}
-                onClick={() => setMobileOpen((o) => !o)}
-                aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
-                aria-expanded={mobileOpen}
-                aria-controls="mobile-nav"
-              >
-                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+              {!loading && user && (
+                <>
+                  <NotificationBell />
+                  <Link href="/profil" aria-label="Twój profil" className="shrink-0">
+                    {userAvatar ? (
+                      <img src={userAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+                        {displayName(user).charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -326,16 +350,17 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
         <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white dark:bg-[#0D1117] flex flex-col pt-16">
           <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
 
-            {/* Main navigation — uniform rows ("Stwórz mecz" highlighted) */}
+            {/* Main navigation — uniform rows ("Stwórz mecz" highlighted).
+                Ten arkusz otwiera się dziś tylko dla wylogowanych (mobile
+                cluster wyżej daje zalogowanemu dzwonek + awatar zamiast
+                hamburgera) — stąd brak tu pozycji "Moje mecze" / "Grupy" /
+                "Moje obiekty": żyją w dolnej nawigacji i na /profil. */}
             <div className="space-y-1">
               {(() => {
                 const items: { href: string; label: string; Icon: typeof Search; primary?: boolean }[] = [
                   { href: '/wydarzenia/nowe', label: 'Stwórz mecz', Icon: Plus, primary: true },
                   { href: '/wydarzenia', label: 'Znajdź mecz', Icon: Search },
-                  ...(!loading && user ? [{ href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays }] : []),
-                  ...(!loading && user ? [{ href: '/grupy', label: 'Grupy', Icon: UsersIcon }] : []),
                   { href: '/mapa', label: 'Mapa boisk', Icon: Map },
-                  ...(!loading && user && hasVenue ? [{ href: '/obiekt', label: 'Moje obiekty', Icon: Building2 }] : []),
                 ];
                 return items.map(({ href, label, Icon, primary }) => {
                   const active = pathname === href || pathname.startsWith(href + '/');
@@ -383,112 +408,36 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
               </Link>
             )}
 
-            {/* Admin section */}
-            {!loading && user && isAdmin && (
-              <div className="mt-6">
-                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
-                <div className="space-y-1">
-                  {ADMIN_LINKS.map(({ href, label, Icon }) => {
-                    const active = pathname.startsWith(href);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={() => setMobileOpen(false)}
-                        className={clsx(
-                          'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
-                          active ? 'bg-primary-50 dark:bg-primary-950/50' : 'hover:bg-slate-50 dark:hover:bg-white/[0.05]',
-                        )}
-                      >
-                        <span className={clsx(
-                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                          active ? 'bg-primary-100 dark:bg-primary-900 text-primary-700' : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400',
-                        )}>
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <span className={clsx('flex-1 text-[15px] font-semibold', active ? 'text-primary-700' : 'text-ink')}>
-                          {label}
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </nav>
 
+          {/* Stopka arkusza — wyłącznie dla wylogowanych (patrz komentarz przy
+              items wyżej), więc wiersz profilu / motyw dla zalogowanego /
+              Wyloguj stąd zniknęły. Ich nowy dom to /profil. */}
           <div className="border-t border-slate-200/70 dark:border-white/[0.07] px-5 py-5">
-            {!loading && user && (
-              <div className="flex items-center justify-between">
-                <Link
-                  href="/profil"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 min-w-0"
-                >
-                  {userAvatar
-                    ? <img src={userAvatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
-                    : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                        <User className="w-4 h-4 text-primary-700" />
-                      </div>
-                  }
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink truncate">{displayName(user)}</p>
-                    <p className="text-xs text-slate-500">Edytuj profil</p>
-                  </div>
-                </Link>
-                {mounted && (
-                  <button
-                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                    className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
-                  >
-                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </button>
-                )}
+            <div className="flex items-center gap-2">
+              {mounted && (
                 <button
-                  onClick={() => { setMobileOpen(false); signOut(); }}
-                  className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  aria-label="Wyloguj"
+                  onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                  className="shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
                 >
-                  <LogOut className="w-5 h-5" />
+                  {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
-              </div>
-            )}
-            {!loading && !user && (
-              <div className="flex items-center gap-2">
-                {mounted && (
-                  <button
-                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                    className="shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
-                  >
-                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </button>
-                )}
-                <Link
-                  href={loginHref}
-                  onClick={() => setMobileOpen(false)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                >
-                  Zaloguj się
-                </Link>
-              </div>
-            )}
+              )}
+              <Link
+                href={loginHref}
+                onClick={() => setMobileOpen(false)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                Zaloguj się
+              </Link>
+            </div>
           </div>
         </div>
       )}
     </>
   );
 }
-
-const ADMIN_LINKS = [
-  { href: '/admin/analityka', label: 'Analityka',            Icon: BarChart3 },
-  { href: '/admin/przeglad',  label: 'Przegląd boisk',      Icon: Building2 },
-  { href: '/admin/moderacja', label: 'Moderacja boisk',      Icon: Building2 },
-  { href: '/admin/outreach',  label: 'Kontakt z obiektami',  Icon: Building2 },
-  { href: '/admin/uzytkownicy', label: 'Użytkownicy',        Icon: UsersIcon },
-];
 
 /** Admin tools tucked behind a small gear menu so they don't clutter the
  *  main nav (and admins see the same bar a normal user does). */
