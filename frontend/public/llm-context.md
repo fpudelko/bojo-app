@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `067` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `068` · 31 tabel · 121 testów
 
 ---
 
