@@ -96,7 +96,18 @@ jobs:
               HASLO=$(printf '%s' "$CZYSTY" | sed -nE 's|.*password=([^ ]*).*|\1|p')
               ;;
             *)
-              echo "::error::SUPABASE_DB_URL_RO nie wygląda ani na adres postgresql://…, ani na listę host=… user=… password=…. W Supabase: Connect → Session pooler → skopiuj cały adres i podmień użytkownika oraz hasło na rolę claude_ro. Instrukcja: supabase/zapytania/README.md"
+              # Opis KSZTAŁTU sekretu, nigdy jego treści. Bez tego jedyną
+              # informacją jest „nie pasuje", co nie mówi, czy w sekrecie jest
+              # samo hasło, adres z prefiksem `psql `, czy coś zupełnie innego.
+              echo "Sekret nie pasuje do żadnego znanego formatu. Jego kształt:"
+              echo "  długość znaków:        $(printf '%s' "$CZYSTY" | wc -c)"
+              echo "  zaczyna się od postgres: $(case "$CZYSTY" in postgres*) echo tak;; *) echo NIE;; esac)"
+              echo "  zawiera '://':         $(case "$CZYSTY" in *://*) echo tak;; *) echo NIE;; esac)"
+              echo "  zawiera '@':           $(case "$CZYSTY" in *@*) echo tak;; *) echo NIE;; esac)"
+              echo "  zawiera 'host=':       $(case "$CZYSTY" in *host=*) echo tak;; *) echo NIE;; esac)"
+              echo "  zawiera spację:        $(case "$CZYSTY" in *\ *) echo tak;; *) echo NIE;; esac)"
+              echo "  zawiera 'supabase':    $(case "$CZYSTY" in *supabase*) echo tak;; *) echo NIE;; esac)"
+              echo "::error::SUPABASE_DB_URL_RO nie jest rozpoznanym connection stringiem — patrz kształt wyżej. W Supabase: Connect → Session pooler → skopiuj CAŁY adres (od postgresql:// do /postgres) i podmień w nim użytkownika oraz hasło na rolę claude_ro. Instrukcja: supabase/zapytania/README.md"
               exit 1
               ;;
           esac
