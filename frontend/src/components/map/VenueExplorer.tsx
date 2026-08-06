@@ -725,7 +725,11 @@ export default function VenueExplorer({
             pasek (fixed, z-1000) po prostu kładzie się na karcie. */}
         {selectedField && (
           <div
-            className="md:hidden absolute inset-x-0 bottom-0 z-[600] px-3"
+            // `fixed`, nie `absolute`: dolna nawigacja też jest `fixed`, więc
+            // tylko tak obie rzeczy mierzą od tej samej krawędzi. Przy
+            // `absolute` karta trzymała się dołu kontenera mapy, który po
+            // zwinięciu paska przeglądarki nie pokrywa się z dołem ekranu.
+            className="md:hidden fixed inset-x-0 bottom-0 z-[1001] px-3"
             // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
             // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
             style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
@@ -752,7 +756,7 @@ export default function VenueExplorer({
             pusta i nie wiadomo, że pinezki są klikalne. */}
         {!selectedField && fields.length > 0 && (
           <div
-            className="md:hidden pointer-events-none absolute inset-x-0 bottom-0 z-[600] flex justify-center px-3"
+            className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
             // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
             // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
             style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
