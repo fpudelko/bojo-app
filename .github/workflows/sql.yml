@@ -58,6 +58,17 @@ jobs:
             exit 1
           fi
 
+          # Hasło musi składać się ze znaków bezpiecznych w URI. Powód nie jest
+          # kosmetyczny: przy `+`, `/` albo `=` psql nie rozpoznaje adresu jako
+          # URI, przechodzi na parsowanie „klucz=wartość" i WYPISUJE FRAGMENT
+          # HASŁA w komunikacie błędu. Maskowanie sekretów tego nie łapie, bo
+          # to część sekretu, nie całość — hasło ląduje w publicznym logu.
+          # Zdarzyło się raz; ten warunek jest po to, żeby nie zdarzyło się drugi.
+          if ! printf '%s' "$DB_URL" | grep -qE '^postgres(ql)?://[^:@/]+:[A-Za-z0-9._~-]+@[^/]+/[A-Za-z0-9_-]+$'; then
+            echo "::error::SUPABASE_DB_URL_RO ma nieodpowiedni kształt albo hasło ze znakami wymagającymi kodowania URL (+ / = : @). Wygeneruj hasło przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md"
+            exit 1
+          fi
+
       - name: Przygotuj zapytanie
         env:
           ZAPYTANIE: ${{ inputs.zapytanie }}

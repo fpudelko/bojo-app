@@ -14,8 +14,21 @@ przyjmuje albo ścieżkę do pliku, albo zapytanie wpisane wprost.
 
 Supabase → SQL Editor, wklej i uruchom (podstaw własne hasło):
 
+Hasło wygeneruj i **nie wymyślaj własnego** — musi być losowe i złożone
+wyłącznie ze znaków bezpiecznych w adresie URI:
+
+```bash
+openssl rand -hex 32
+```
+
+`openssl rand -base64` **się nie nadaje**: produkuje `+`, `/` i `=`, które
+w `postgresql://…` mają swoje znaczenie. Przy takim haśle psql nie rozpozna
+adresu jako URI, przejdzie na parsowanie „klucz=wartość" i wypisze fragment
+hasła w komunikacie błędu — czyli w publicznym logu Actions. Workflow ma na to
+osobny warunek i odmówi uruchomienia, ale lepiej nie polegać na łapaniu w locie.
+
 ```sql
-CREATE ROLE claude_ro LOGIN PASSWORD 'TUTAJ_DLUGIE_LOSOWE_HASLO';
+CREATE ROLE claude_ro LOGIN PASSWORD 'WKLEJ_WYNIK_openssl_rand_hex_32';
 
 GRANT USAGE ON SCHEMA public TO claude_ro;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO claude_ro;
