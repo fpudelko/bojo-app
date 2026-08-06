@@ -16,7 +16,7 @@ import { getExplorerFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
-import { POZNAN, fieldPin, clusterDivIcon } from './mapIcons';
+import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -456,6 +456,24 @@ export default function VenueExplorer({
   const setVenueTypes    = (v: string[]) => updateParams({ type: v });
   const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
 
+  // Instancja Leafleta wyciągnięta z MapContainera — potrzebna przyciskowi
+  // „moja okolica", który stoi poza mapą i nie ma useMap().
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  const locateMe = useCallback(() => {
+    if (!mapInstance || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        mapInstance.setView([pos.coords.latitude, pos.coords.longitude], 12);
+      },
+      () => setLocating(false),
+      { timeout: 8000, maximumAge: 300_000 },
+    );
+  }, [mapInstance]);
+
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId     = selected.id;
   const selectedSource = selected.source;
@@ -673,11 +691,31 @@ export default function VenueExplorer({
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
       <div className="relative flex-1 min-w-0 min-h-0">
-        <MapContainer center={POZNAN} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+        <MapContainer
+          center={POLSKA}
+          zoom={POLSKA_ZOOM}
+          style={{ height: '100%', width: '100%' }}
+          zoomControl={false}
+          ref={setMapInstance}
+        >
           <MapAttribution />
           {street}
           <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
         </MapContainer>
+
+        {/* Skok do okolicy użytkownika. Świadomie na kliknięcie, nie przy
+            wejściu: pytanie o lokalizację od razu po otwarciu mapy odbija się
+            od ludzi, a mapa Polski działa i bez zgody. */}
+        <button
+          type="button"
+          onClick={locateMe}
+          disabled={locating}
+          title="Pokaż moją okolicę"
+          aria-label="Pokaż moją okolicę"
+          className="absolute right-3 bottom-28 md:bottom-6 z-[600] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md transition-colors hover:bg-slate-50 disabled:opacity-60"
+        >
+          <MapPin className={`h-5 w-5 ${locating ? 'text-slate-300' : 'text-primary-700'}`} />
+        </button>
 
         {/* Mobile: search + filter overlay */}
         <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3 space-y-2">

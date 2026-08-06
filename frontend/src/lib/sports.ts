@@ -11,6 +11,10 @@ export const SPORT_CONFIG = {
   'koszykówka':        { emoji: '🏀', color: '#c2410c', label: 'Koszykówka' },
   // Legacy — shown on map but hidden from filters / creation form
   'piłka ręczna':      { emoji: '🤾', color: '#6b7280', label: 'Piłka ręczna' },
+  // Import z OSM (`sport=multi`) — twarde boisko w typie orlika, na którym gra
+  // się w kilka dyscyplin. Na mapie tak, w filtrach nie: deklaracja „multi"
+  // z OSM nie mówi, w co konkretnie da się zagrać.
+  'wielofunkcyjne':    { emoji: '🏟️', color: '#6b7280', label: 'Wielofunkcyjne' },
   'gokarty':           { emoji: '🏎️', color: '#6b7280', label: 'Gokarty' },
   'inne':              { emoji: '🏟️', color: '#6b7280', label: 'Inne' },
 } as const;
