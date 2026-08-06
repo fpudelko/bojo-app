@@ -25,6 +25,10 @@ const GK_SPORTS = ['piłka nożna', 'futsal'];
 
 const STEP_TITLES = ['Co i gdzie', 'Kiedy i ile', 'Opcje'] as const;
 
+/** Długości meczu do wyboru z listy. Od 30 minut, bo siatkówka plażowa
+ *  i szybkie granie na orliku nie trwają półtorej godziny. */
+const CZASY_GRY = [30, 45, 60, 75, 90, 105, 120, 150, 180];
+
 /** Tomorrow as YYYY-MM-DD — the default match date; "today" usually means a rush. */
 function tomorrowStr(): string {
   const d = new Date();
@@ -81,6 +85,7 @@ function NewEventForm() {
   // Match length instead of a free end-time picker — one obvious control,
   // the end time is derived from it.
   const [durationMin, setDurationMin] = useState(90);
+  const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(14);  // domyślny sport to piłka nożna
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
@@ -107,6 +112,10 @@ function NewEventForm() {
   }, [location.lat, location.lng, sport, date]);
 
   const [costPln, setCostPln] = useState('');
+  // Tryb wpisywania kosztu. W bazie i tak ląduje kwota od osoby — to tylko
+  // wybór, którą liczbę organizator ma pod ręką.
+  const [kosztZaObiekt, setKosztZaObiekt] = useState(false);
+  const [kosztObiektuPln, setKosztObiektuPln] = useState('');
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentMethod[]>([]);
   const [blikPhone, setBlikPhone] = useState('');
   const [cardDiscountEnabled, setCardDiscountEnabled] = useState(false);
@@ -576,15 +585,45 @@ function NewEventForm() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Czas gry</label>
-                  <select
-                    value={durationMin}
-                    onChange={(e) => setDurationMin(Number(e.target.value))}
-                    className={inputCls}
-                  >
-                    {[60, 90, 120, 150, 180].map((m) => (
-                      <option key={m} value={m}>{m} min</option>
-                    ))}
-                  </select>
+                  {/* Lista zaczyna się od 30 minut, bo nie każdy sport gra 90.
+                      Ostatnia pozycja przełącza na wpisywanie wprost — treningi
+                      i turnieje mają czasy, których żadna lista nie odgadnie. */}
+                  {czasWlasny ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={5}
+                        max={600}
+                        step={5}
+                        value={durationMin}
+                        onChange={(e) => setDurationMin(Math.max(5, Number(e.target.value) || 0))}
+                        className={inputCls}
+                        autoFocus
+                      />
+                      <span className="shrink-0 text-sm text-slate-500">min</span>
+                      <button
+                        type="button"
+                        onClick={() => { setCzasWlasny(false); setDurationMin(90); }}
+                        className="shrink-0 text-xs font-medium text-slate-500 underline hover:text-slate-700"
+                      >
+                        z listy
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={CZASY_GRY.includes(durationMin) ? durationMin : 'wlasny'}
+                      onChange={(e) => {
+                        if (e.target.value === 'wlasny') { setCzasWlasny(true); return; }
+                        setDurationMin(Number(e.target.value));
+                      }}
+                      className={inputCls}
+                    >
+                      {CZASY_GRY.map((m) => (
+                        <option key={m} value={m}>{m} min</option>
+                      ))}
+                      <option value="wlasny">Inny — wpisz…</option>
+                    </select>
+                  )}
                   {addMinutes(time, durationMin) && (
                     <p className="mt-1 text-xs text-slate-500">Koniec o {addMinutes(time, durationMin)}</p>
                   )}
@@ -666,20 +705,47 @@ function NewEventForm() {
                 </select>
               </div>
 
-              {/* Cost per player */}
+              {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — tak liczy
+                  `priceForParticipant()` i tak wygląda rozliczenie na meczu.
+                  Ale organizator zna zwykle drugą liczbę: ile kosztuje wynajem
+                  obiektu. Przeliczamy więc przy wpisywaniu, zamiast kazać mu
+                  dzielić w głowie i zaokrąglać. */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Koszt uczestnictwa (zł)
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    {kosztZaObiekt ? 'Koszt wynajmu obiektu (zł)' : 'Koszt od osoby (zł)'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setKosztZaObiekt((v) => !v)}
+                    className="shrink-0 text-xs font-medium text-primary-700 underline hover:text-primary-800"
+                  >
+                    {kosztZaObiekt ? 'wpisz od osoby' : 'wpisz za cały obiekt'}
+                  </button>
+                </div>
                 <input
                   type="number"
                   min={0}
                   step={0.5}
-                  value={costPln}
-                  onChange={(e) => setCostPln(e.target.value)}
+                  value={kosztZaObiekt ? kosztObiektuPln : costPln}
+                  onChange={(e) => {
+                    if (!kosztZaObiekt) { setCostPln(e.target.value); return; }
+                    setKosztObiektuPln(e.target.value);
+                    const calosc = parseFloat(e.target.value || '0');
+                    setCostPln(calosc > 0 && maxPlayers > 0
+                      ? (Math.round((calosc / maxPlayers) * 100) / 100).toFixed(2)
+                      : '');
+                  }}
                   placeholder="0 = za darmo"
                   className={inputCls}
                 />
+                {parseFloat(costPln || '0') > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {kosztZaObiekt
+                      ? <>Przy {maxPlayers} miejscach wychodzi <span className="font-semibold">{costPln} zł od osoby</span>.</>
+                      : <>Przy komplecie ({maxPlayers} os.) to <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span> za cały obiekt.</>}
+                  </p>
+                )}
               </div>
 
               {/* Payment options — only relevant once the match actually costs something */}
@@ -888,7 +954,7 @@ function NewEventForm() {
                     <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                     <span>
                       <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-                      <span className="block text-xs text-slate-500">Tylko przez link — nie pojawia się na liście</span>
+                      <span className="block text-xs text-slate-500">Nie pojawia się na liście. Wchodzą tylko zaproszeni, ekipa i osoby z linkiem</span>
                     </span>
                   </button>
                 </div>
