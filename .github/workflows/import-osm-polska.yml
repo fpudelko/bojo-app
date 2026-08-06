@@ -1,0 +1,117 @@
+name: Import boisk z OSM — CAŁA POLSKA
+
+# Odpala import osobno dla każdego z 16 województw, równolegle.
+#
+# Dlaczego nie jednym plikiem `poland-latest.osm.pbf`. Geofabrik taki wystawia,
+# ale to ~1,7 GB, a `osmium` musi przy czytaniu trzymać w pamięci indeks pozycji
+# węzłów — na runnerze GitHuba (16 GB) to gra o to, czy się zmieści. Do tego
+# jeden błąd w połowie przewala cały przebieg i trzeba zaczynać od nowa.
+#
+# Podział na województwa daje trzy rzeczy: mieści się w pamięci, kończy szybciej
+# (kilka regionów naraz zamiast jednego długiego czytania) i izoluje awarie —
+# jeśli padnie mazowieckie, pozostałe piętnaście i tak wejdzie.
+#
+# ZACZNIJ OD dry_run=true. Dostaniesz 16 raportów bez dotykania bazy.
+#
+# UWAGA co do Poznania: przed importem wielkopolskiego uruchom
+# `supabase/ukryj-stary-poznan.sql`, inaczej na mapie staną dwie pinezki na
+# każdym poznańskim boisku — stary wiersz i nowy z OSM to dla bazy dwa różne
+# obiekty (klucz to `source` + `external_id`).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Tylko raporty — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      gate:
+        description: 'Jak szeroko publikować na mapie'
+        default: 'srednia'
+        required: false
+        type: choice
+        options:
+          - waska      # nazwa instytucji ORAZ znana nawierzchnia
+          - srednia    # nazwa instytucji ALBO znana nawierzchnia
+          - szeroka    # wszystko, co ma sport zespołowy i miejscowość
+      rownolegle:
+        description: 'Ile województw naraz (Geofabrik nie lubi zbyt wielu naraz)'
+        default: '4'
+        required: false
+        type: choice
+        options: ['2', '4', '8']
+
+jobs:
+  import:
+    name: ${{ matrix.region }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      # Jedno padnięte województwo nie zatrzymuje pozostałych.
+      fail-fast: false
+      # Ograniczenie równoległości jest po stronie Geofabrika, nie naszej:
+      # szesnaście jednoczesnych pobrań po 100–200 MB z jednego serwera to
+      # prosta droga do odcięcia.
+      max-parallel: ${{ fromJSON(inputs.rownolegle || '4') }}
+      matrix:
+        region:
+          - dolnoslaskie
+          - kujawsko-pomorskie
+          - lubelskie
+          - lubuskie
+          - lodzkie
+          - malopolskie
+          - mazowieckie
+          - opolskie
+          - podkarpackie
+          - podlaskie
+          - pomorskie
+          - slaskie
+          - swietokrzyskie
+          - warminsko-mazurskie
+          - wielkopolskie
+          - zachodniopomorskie
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Zależności
+        working-directory: scraper
+        run: pip install -r requirements.txt
+
+      - name: Import ${{ matrix.region }}
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python import_osm_pbf.py \
+            --region "${{ matrix.region }}" \
+            --gate "${{ inputs.gate }}" \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }}
+
+  podsumowanie:
+    name: Podsumowanie
+    needs: import
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wynik
+        run: |
+          echo "Import zakończony ze statusem: ${{ needs.import.result }}"
+          echo ""
+          echo "Raporty per województwo są w logach zadań wyżej —"
+          echo "szukaj sekcji RAPORT: liczba boisk, nazwy instytucjonalne,"
+          echo "nawierzchnia, bramka publikacji."
+          if [ "${{ needs.import.result }}" != "success" ]; then
+            echo ""
+            echo "Część województw padła. Nie trzeba powtarzać całości:"
+            echo "uruchom workflow 'Import boisk z OSM' dla pojedynczych regionów."
+          fi
