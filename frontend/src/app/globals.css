@@ -123,6 +123,42 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ── Dolny pasek nawigacji: miejsce dla niego ─────────────────────────────
+   Pasek jest `fixed`, więc sam z siebie nie rezerwuje miejsca. Wcześniej robił
+   to element-dystans w BottomNav.tsx — bezskutecznie, bo BottomNavGate montuje
+   się w app/layout.tsx PO {children}, czyli poza kontenerem `min-h-screen`
+   strony. Dokument miał przez to zawsze 100vh + 64 px i KAŻDA strona
+   przewijała się w pusty pas, nawet gdy treść mieściła się na ekranie.
+
+   Teraz wysokość paska żyje w jednej zmiennej: odejmujemy ją od pełnego ekranu
+   i dokładamy jako dopełnienie <body>. Atrybut na <html> ustawia BottomNavGate
+   — tylko wtedy, gdy pasek faktycznie jest (zalogowany, nie schowany przez
+   <HideBottomNav/>). Wartość musi się zgadzać z `h-14` w BottomNav.tsx.
+
+   Mobile-first: reguła bazowa dotyczy telefonu, bo tam pasek istnieje
+   (`md:hidden`); od 768 px zerujemy ją media query z `min-width`. */
+:root { --bottom-nav-h: 0px; }
+
+html[data-bottom-nav='1'] { --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom)); }
+html[data-bottom-nav='1'] body { padding-bottom: var(--bottom-nav-h); }
+
+/* Kolejność vh → svh jak w .hero-first-screen: svh nie liczy chowającego się
+   paska adresu, więc na telefonie nie zostaje po nim nadmiarowe przewijanie. */
+html[data-bottom-nav='1'] .min-h-screen {
+  min-height: calc(100vh - var(--bottom-nav-h));
+  min-height: calc(100svh - var(--bottom-nav-h));
+}
+html[data-bottom-nav='1'] .h-screen {
+  height: calc(100vh - var(--bottom-nav-h));
+  height: calc(100svh - var(--bottom-nav-h));
+}
+
+@media (min-width: 768px) {
+  html[data-bottom-nav='1'] { --bottom-nav-h: 0px; }
+  html[data-bottom-nav='1'] .min-h-screen { min-height: 100vh; }
+  html[data-bottom-nav='1'] .h-screen { height: 100vh; }
+}
+
 a {
   color: inherit;
   text-decoration: none;

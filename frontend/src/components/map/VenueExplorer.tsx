@@ -720,15 +720,14 @@ export default function VenueExplorer({
             mapie naprawdę: „co to za boisko?". Przeglądanie listą zostaje na
             desktopie, gdzie jest miejsce na pasek boczny.
 
-            Dolne dopełnienie ustępuje nawigacji: strona mapy jest h-screen
-            i overflow-hidden, więc dystans (h-16) z BottomNav nie działa —
-            pasek (fixed, z-1000) po prostu kładzie się na karcie. */}
+            Dolne dopełnienie: strona mapy jest h-screen i overflow-hidden, a
+            --bottom-nav-h (globals.css) odejmuje wysokość dolnej nawigacji od
+            tego h-screen, więc kontener mapy kończy się dokładnie nad paskiem.
+            Zostaje tylko wizualny odstęp, nie kompensacja całej wysokości paska. */}
         {selectedField && (
           <div
             className="md:hidden absolute inset-x-0 bottom-0 z-[600] px-3"
-            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
-            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
-            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
+            style={{ paddingBottom: '1.25rem' }}
           >
             <div className="relative">
               <button
@@ -753,9 +752,9 @@ export default function VenueExplorer({
         {!selectedField && fields.length > 0 && (
           <div
             className="md:hidden pointer-events-none absolute inset-x-0 bottom-0 z-[600] flex justify-center px-3"
-            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
-            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
-            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
+            // Jak wyżej — kontener mapy już kończy się nad dolną nawigacją,
+            // tu zostaje tylko wizualny odstęp.
+            style={{ paddingBottom: '1.25rem' }}
           >
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
               Dotknij pinezki, żeby zobaczyć boisko
