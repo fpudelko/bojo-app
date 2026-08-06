@@ -289,6 +289,11 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
             </div>
 
             <div className="flex items-center gap-2 md:hidden">
+              {/* Dzwonek obok hamburgera, nie w dolnej nawigacji: tam wszystkie
+                  pięć miejsc jest zajętych, a powiadomienia mają być widoczne
+                  na KAŻDYM ekranie, nie tylko na stronie głównej. Nagłówek jest
+                  jedynym elementem obecnym wszędzie. */}
+              {!loading && user && <NotificationBell />}
               {!loading && !user && (
                 <Link
                   href={loginHref}

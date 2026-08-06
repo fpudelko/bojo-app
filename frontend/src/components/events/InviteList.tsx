@@ -50,22 +50,22 @@ export function InviteList({ invites, statusFor, limit, emptyMessage, dismissedI
   return (
     <div className="space-y-3">
       {shown.map(({ invite, event }) => (
-        // Obramowanie i nagłówek „ZAPROSZENIE" zostały cofnięte — wyglądały
-        // ciężko przy trzech zaproszeniach pod rząd. Wyróżnienie zaproszeń
-        // wróci w innej formie; do przemyślenia osobno.
-        <div key={invite.id} className="space-y-2">
+        // Przycisk odrzucania na całą szerokość, w odstępie od karty, czytał się
+        // jak osobny wiersz listy — przy trzech zaproszeniach pod rząd nie było
+        // wiadomo, którego dotyczy. Teraz jest wąski, dosunięty do prawej
+        // krawędzi karty i bez przerwy nad sobą, więc widać, do czego należy.
+        <div key={invite.id}>
           <EventBrowseCard event={event} relation={statusFor(event)} />
-
-          {/* Odrzucanie zostaje jako przycisk: jako szary napis 12 px czytało
-              się jak podpis pod kartą, nie jak akcja. */}
-          <button
-            type="button"
-            onClick={() => dismiss(invite.id)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700"
-          >
-            <X className="h-4 w-4" />
-            Odrzuć zaproszenie
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => dismiss(invite.id)}
+              className="inline-flex items-center gap-1 rounded-b-xl border border-t-0 border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+            >
+              <X className="h-3.5 w-3.5" />
+              Odrzuć
+            </button>
+          </div>
         </div>
       ))}
     </div>
