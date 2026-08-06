@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `064` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `065` · 31 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,25 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Rezerwa mówi, co się musi stać, i daje znać po fakcie
+PROBLEM: gracz na liście rezerwowej Bojo widział tylko etykietę „Rezerwa · 3."
+Nie wiedział, co musi się stać, żeby zagrał, ile ma czasu na przyjęcie
+zwolnionego miejsca ani czy ktokolwiek go o tym powiadomi. Podobnie
+„Oczekujesz na akceptację" nie mówiło, skąd gracz dowie się o decyzji
+organizatora. Zmiana terminu meczu nie docierała do nikogo — zapisani
+dowiadywali się o niej, wchodząc na stronę meczu.
+ROZWIĄZANIE BOJO: rezerwowy widzi panel z regułami: nie ma miejsca w składzie,
+wejdzie gdy ktoś się wypisze, miejsce dostaje pierwsza osoba w kolejce, a na
+jego przyjęcie ma tyle godzin, ile ustawił organizator. Panel mówi wprost, że
+powiadomienia są na razie wyłącznie w aplikacji, pod dzwonkiem — Bojo nie
+wysyła e-maili ani SMS-ów. Do skrzynki trafiają teraz także dwa nowe zdarzenia:
+organizator przyjął zapis oraz mecz zmienił termin.
+MECHANIKA: migracja `065` dodaje wyzwalacze `powiadom_o_akceptacji()`
+(na `event_participants`) i `powiadom_o_zmianie_terminu()` (na `events`).
+Wyzwalacz z SECURITY DEFINER, bo powiadomienie pisze się zawsze komuś innemu
+niż autor akcji, a polityka INSERT na `notifications` dopuszcza wyłącznie
+własne wiersze. Panel rezerwy w `app/wydarzenia/[id]/EventDetailClient.tsx`.
+
 ### 2026-08-06 — Jedna lista składu, koniec ze statusami uczestnika
 PROBLEM: strona meczu w Bojo pokazywała skład w dwóch miejscach — licznik
 zajętych miejsc z awatarami u góry i osobna karta ze składem niżej — więc
@@ -435,16 +454,3 @@ MECHANIKA: `getExplorerFields()` w `lib/api.ts` (usunięte `EXPLORER_BOUNDS`
 i filtr „ma kontakt"), punkt zerowy przeplotu Mortona w
 `components/map/VenueExplorer.tsx` przesunięty na 49° N / 14° E — przy starym
 (52° N, 16,5° E) wszystko na południe od Poznania traciło porządek przestrzenny.
-
-### 2026-08-05 — Domyślny skład zależny od sportu
-PROBLEM: kreator meczu w Bojo proponował 12 miejsc niezależnie od dyscypliny.
-Przy siatkówce plażowej, gdzie gra się 2 na 2, organizator musiał osiem razy
-kliknąć minus. Na mapie karta obiektu chowała się pod dolną nawigacją, więc
-adresu nie dało się doczytać.
-ROZWIĄZANIE BOJO: liczba miejsc podpowiada się z dyscypliny — piłka nożna 14
-(7v7), piłka ręczna 14, siatkówka 12 (6v6), futsal 10 (5v5), koszykówka 10
-(5v5), siatkówka plażowa 4 (2v2). Podpowiedź ustępuje, gdy organizator sam
-ruszy licznik. Karuzela obiektów na mapie ma dopełnienie na wysokość paska
-nawigacji.
-MECHANIKA: `SPORT_PLAYERS` w `app/wydarzenia/nowe/page.tsx`, dolne dopełnienie
-karuzeli w `components/map/VenueExplorer.tsx`.

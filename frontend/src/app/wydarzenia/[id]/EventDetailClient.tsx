@@ -1529,7 +1529,12 @@ export default function EventDetailClient() {
                 <Clock className="w-5 h-5 text-amber-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-amber-800">Oczekujesz na akceptację</p>
-                  <p className="text-xs text-amber-600">Organizator musi zatwierdzić Twoją prośbę o dołączenie.</p>
+                  {/* „Skąd będę wiedział, że zaakceptował?" — bez tego zdania
+                      jedyną odpowiedzią było wchodzenie i sprawdzanie. */}
+                  <p className="text-xs text-amber-600">
+                    Organizator musi zatwierdzić Twoją prośbę o dołączenie. Gdy to zrobi, dostaniesz
+                    powiadomienie w Bojo, pod dzwonkiem.
+                  </p>
                 </div>
                 <button
                   onClick={() => handleReject(myPendingRequest.id)}
@@ -1538,6 +1543,53 @@ export default function EventDetailClient() {
                 >
                   Anuluj
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── JESTEM NA REZERWIE — co to znaczy i co się musi stać ──
+            Sam badge „Rezerwa · 3." mówi, GDZIE jestem, ale nie mówi, czego
+            mam się spodziewać. Bez tego jedyne wyjście to pytać organizatora
+            albo wchodzić i sprawdzać — czyli dokładnie to, co aplikacja miała
+            zdjąć z głowy. */}
+        {amIReserve && !myClaimOffer && !eventStarted && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-2.5">
+                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.25} />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-amber-900">
+                    Jesteś na liście rezerwowej
+                    {myReservePosition ? ` — ${myReservePosition}. w kolejce` : ''}
+                    {myConfirmed?.isGoalkeeper ? ' · jako bramkarz' : ''}
+                  </p>
+                  <ul className="mt-2 space-y-1.5 text-xs text-amber-800">
+                    <li>
+                      <span className="font-semibold">Nie masz miejsca w składzie.</span>{' '}
+                      Wejdziesz, gdy ktoś zapisany się wypisze.
+                    </li>
+                    <li>
+                      Wtedy Bojo{' '}
+                      <span className="font-semibold">
+                        zaproponuje miejsce pierwszej osobie z kolejki
+                      </span>
+                      {myReservePosition && myReservePosition > 1
+                        ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
+                        : ' — czyli Tobie.'}
+                    </li>
+                    <li>
+                      Na przyjęcie miejsca masz{' '}
+                      <span className="font-semibold">{event.reserveClaimHours} h</span>; po tym czasie
+                      przechodzi do kolejnej osoby.
+                    </li>
+                    <li>
+                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem.{' '}
+                      <span className="font-semibold">Nie wysyłamy jeszcze e-maili ani SMS-ów</span> —
+                      warto zajrzeć przed meczem.
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
