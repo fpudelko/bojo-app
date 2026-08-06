@@ -296,6 +296,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Zaproszenia wyróżnione, widoczność meczu za oknem wyboru
+PROBLEM: zaproszenie na mecz wyglądało w Bojo tak samo jak mecz, w którym
+użytkownik już gra — ta sama karta, ten sam styl. Czytało się jak zobowiązanie,
+którego nie ma. Odrzucenie istniało, ale jako szary napis „Nie tym razem"
+wielkości podpisu, więc wyglądało na brak funkcji. Osobno: organizator zmieniał
+widoczność meczu jednym tknięciem etykiety „Publiczne"/„Prywatne", więc
+przypadkowe dotknięcie zdejmowało mecz z publicznej listy bez pytania.
+ROZWIĄZANIE BOJO: zaproszenie ma obwódkę, tło i nagłówek „ZAPROSZENIE",
+a odrzucenie to przycisk „Odrzuć zaproszenie" na całą szerokość karty.
+Odrzucone zaproszenie znika i nie wraca. Widoczność meczu zmienia się przez
+okno z dwiema opcjami i opisem, co każda znaczy; przy meczu publicznym
+z zapisanymi graczami okno mówi wprost, że zmiana na prywatny nikogo nie
+wypisuje — nowi po prostu nie znajdą meczu na liście.
+MECHANIKA: `components/events/InviteList.tsx`, `dismissInvite()`
+w `lib/playerInvites.ts` (kolumna `dismissed_at`, migracja `060`), okno
+widoczności i `handleSetVisibility()` w `app/wydarzenia/[id]/EventDetailClient.tsx`.
+
+### 2026-08-06 — Enter w kreatorze meczu nie publikuje przypadkiem
+PROBLEM: na ostatnim kroku kreatora meczu w Bojo naciśnięcie Enter w polu
+„Tytuł" publikowało mecz natychmiast. Przeglądarka wysyła formularz na Enter,
+gdy ten ma przycisk zatwierdzający — a ostatni krok ma i pola tekstowe,
+i „Opublikuj mecz". Dla organizatora wyglądało to tak, jakby kreator sam
+przeskoczył dalej i utworzył mecz bez pytania.
+ROZWIĄZANIE BOJO: Enter w polu jednoliniowym nie wysyła już formularza. Mecz
+powstaje wyłącznie po kliknięciu „Opublikuj mecz". W polu opisu Enter dalej
+robi nową linię.
+MECHANIKA: `blokujEnter()` oraz warunek na numer kroku w `handleSubmit()`
+w `app/wydarzenia/nowe/page.tsx`.
+
 ### 2026-08-06 — Rozliczenie po meczu i powiadomienie o zwolnionym miejscu z rezerwy
 PROBLEM: panel „Podział kosztów" (kto zapłacił, ile zebrano) znikał ze strony meczu,
 gdy tylko mecz się zaczynał — dokładnie wtedy, gdy organizator faktycznie rozlicza
@@ -429,57 +458,3 @@ MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx`, `setEventWhen()`
 w `lib/events.ts` (osobna funkcja, żeby nie nadpisywać reszty pola jak
 `updateEvent`), parametr `?wroc=` na trasie `/boisko/[id]` (tylko ścieżki
 względne).
-
-### 2026-08-04 — Landing i dashboard: zwrot na organizatora, zasięg ogólnopolski
-PROBLEM: Landing obiecywał „zbierz skład na mecz w dwie minuty" — nierealne dla
-kilkunastoosobowej ekipy — i mówił wyłącznie o Poznaniu, mimo że tworzenie meczu
-z pinezką na mapie działa już w całej Polsce. Górny pasek był zawsze biały i zjadał
-pierwszy ekran telefonu, a „Zaloguj się" było dostępne wyłącznie w menu hamburgera
-na mobile. Dashboard zalogowanego stawiał „Otwarte mecze" (dziś zwykle puste) nad
-„Twoje grupy" (gdzie realnie dzieje się ruch) i nie miał sekcji „Jak to działa" ani FAQ.
-ROZWIĄZANIE BOJO: H1 mówi o czynności, którą Bojo faktycznie dowozi w dwie minuty
-(„Zorganizuj mecz"), a rotujący nagłówek nad H1 pokazuje trzy wartości organizatora
-zamiast liczby boisk w jednym mieście. Górny pasek jest przezroczysty nad hero (z
-widocznym od razu „Zaloguj się" na mobile) i staje się białym paskiem po zescrollowaniu
-albo dla zalogowanych. Sticky CTA na mobile to teraz okrągły przycisk „+" zamiast paska
-na całą szerokość. Pasek cookies pokazuje się dopiero po przewinięciu 300px albo po
-6 sekundach, więc nie zjada pierwszego ekranu. Dolna nawigacja zalogowanego ma „Grupy"
-zamiast „Profil" (profil jest już w menu hamburgera). Dashboard: „Twoje grupy" nad
-„Otwarte mecze", a „Jak to działa" i FAQ pokazują się zawsze na dole, nie tylko przy
-zerowej aktywności.
-MECHANIKA: `components/home/landing/{content,LandingHero,LandingStats,LandingVenues,
-StickyCta,RotatingBadge,PhoneMock}.tsx`, `components/layout/Header.tsx` (prop
-`transparentOverHero`), `components/Logo.tsx` (wariant `onDark` dla `LogoPill`),
-`lib/cookieConsent.ts` (hook `useCookieBannerVisible`, dzielony przez `CookieBanner.tsx`
-i `StickyCta.tsx`), `components/layout/BottomNav.tsx`,
-`components/home/{AppHome,dashboard/DashboardSections}.tsx`,
-`components/layout/SiteFooter.tsx`.
-
-### 2026-08-04 — Dashboard zalogowanego przebudowany + koniec mignięcia landingu
-PROBLEM: strona główna zalogowanego wciąż otwierała się marketingowym hero
-(„Znajdź mecz. Albo stwórz własny.") — copy sprzedające produkt komuś, kto już
-go używa. Do tego serwer nie wiedział, kto jest zalogowany, więc zalogowany
-widział na moment landing dla gości, zanim JavaScript zdążył odczytać sesję
-z `localStorage`. Wreszcie: dashboard robił 7–8 zapytań do Supabase na każde
-wejście, z czego trzy sekcje budowały własną, osobną kopię mapy uczestnictwa,
-a mecz z imiennym zaproszeniem do grupy pokazywał się dwa razy (w „Zaproszenia"
-i w „Mecze Twoich ekip").
-ROZWIĄZANIE BOJO: dashboard zaczyna się kompaktowym powitaniem i kartą
-najbliższego meczu (co i kiedy gram), nie hero. Serwer renderuje od razu
-szkielet dashboardu dla zalogowanego dzięki ciasteczku-wskazówce (bez tokenu —
-serwer wciąż nie ma prawdziwej sesji, tylko podpowiedź, którą skorupę
-wyrenderować). Status uczestnictwa `invited` (zarezerwowany w kodzie, ale
-wcześniej niczego nie produkujący) zaczął być realnie zwracany, co usunęło
-duplikat zaproszenia. Na mobile aktywowana dolna nawigacja (wcześniej gotowa,
-ale nieużywana) dla zalogowanych.
-MECHANIKA: `lib/sessionHint.ts` (ciasteczko `bojo_sess`, bez tokenu),
-synchronizacja w `lib/auth.tsx`, `AppHomeSkeleton.tsx`, `app/page.tsx` (odczyt
-`cookies()`). `lib/useDashboardData.ts` — jedno wywołanie `Promise.allSettled`
-zamiast pięciu niezależnych efektów. `lib/myEvents.ts` (`splitMyEvents`,
-`nextMatch` — sortuje samodzielnie, bo `getMyParticipatedEvents()` zwraca dane
-malejąco). `lib/eventDates.ts` (`matchWhenLabel` i przeniesione stąd
-`isUpcoming`/`isEventJoinable`/`timeUntil`). `getMyParticipationMap()`
-w `lib/events.ts` dociąga `event_player_invites` → status `invited`.
-`components/home/dashboard/{GreetingBar,NextMatchCard,DashboardSections}.tsx`,
-`components/layout/{BottomNav,BottomNavGate}.tsx`.
-
