@@ -2255,7 +2255,7 @@ export default function EventDetailClient() {
                   value: 'private' as const,
                   icon: <Lock className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={2.25} />,
                   label: 'Prywatne',
-                  desc: 'Wejście tylko przez link albo kod. Nie pojawia się na liście.',
+                  desc: 'Nie pojawia się na liście. Wchodzą zaproszeni, ekipa i osoby z linkiem lub kodem.',
                 },
               ]).map((opt) => {
                 const wybrane = event.visibility === opt.value;
