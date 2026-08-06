@@ -260,8 +260,8 @@ function NewEventForm() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!user) return;
     // Druga linia obrony: publikuje wyłącznie krok 3. Gdyby jakakolwiek inna
     // droga wywołała submit, mecz nie powstanie przypadkiem.
@@ -945,12 +945,35 @@ function NewEventForm() {
                   ← Wróć
                 </Button>
               )}
+              {/* Oba przyciski mają `type="button"` i WŁASNY `key`.
+                  Powód, dla którego to nie jest kosmetyka:
+
+                  Kliknięcie to zdarzenie dyskretne, więc React renderuje
+                  synchronicznie JESZCZE PRZED wykonaniem przez przeglądarkę
+                  domyślnej akcji kliknięcia. Gdy oba przyciski stały w tym
+                  samym miejscu drzewa, React nie tworzył nowego elementu —
+                  podmieniał atrybuty istniejącego, w tym `type` z `button`
+                  na `submit`. Przeglądarka wykonywała potem domyślną akcję
+                  na tym samym węźle, który w międzyczasie stał się przyciskiem
+                  zatwierdzającym, i wysyłała formularz. Efekt: „Dalej" z kroku 2
+                  pokazywało krok 3 i natychmiast publikowało mecz.
+
+                  Osobne `key` zmusza React do wymiany węzła, a `type="button"`
+                  odbiera przeglądarce powód, żeby cokolwiek wysyłać. Mecz
+                  powstaje wyłącznie przez jawne wywołanie `handleSubmit`. */}
               {step < 3 ? (
-                <Button type="button" size="lg" className="flex-1" onClick={() => attemptGoToStep(step + 1)}>
+                <Button key="dalej" type="button" size="lg" className="flex-1" onClick={() => attemptGoToStep(step + 1)}>
                   Dalej →
                 </Button>
               ) : (
-                <Button type="submit" size="lg" isLoading={submitting} className="flex-1">
+                <Button
+                  key="opublikuj"
+                  type="button"
+                  size="lg"
+                  isLoading={submitting}
+                  className="flex-1"
+                  onClick={() => handleSubmit()}
+                >
                   Opublikuj mecz →
                 </Button>
               )}

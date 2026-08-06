@@ -34,6 +34,12 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  // HTML domyślnie nadaje przyciskowi `type="submit"`, więc KAŻDY Button
+  // wewnątrz formularza bez jawnego `type` wysyłał ten formularz. W kreatorze
+  // meczu kosztowało to opublikowanie meczu przy kliknięciu „Dalej".
+  // Domyślne `button` odwraca tę zasadę: zatwierdzenie wymaga jawnej deklaracji.
+  // Wszystkie formularze w repo mają dziś swój `type="submit"` wypisany wprost.
+  type = 'button',
   className,
   disabled,
   children,
@@ -41,6 +47,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
+      type={type}
       disabled={disabled || isLoading}
       className={clsx(
         'inline-flex items-center justify-center gap-2 rounded-xl font-medium',
