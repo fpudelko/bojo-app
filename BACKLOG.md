@@ -413,3 +413,33 @@ i udostępnienia bazy pochodnej na tych samych warunkach. Co mamy, a czego nie:
   są znacznie bardziej restrykcyjne niż ODbL i **nie pozwalają na dowolne
   przechowywanie i serwowanie**. Do sprawdzenia przed pokazaniem ich gdziekolwiek
   poza kontekstem, w którym je pobrano.
+
+
+### Odpowiadanie na zaproszenie z listy — do zaprojektowania
+Dziś karta zaproszenia na stronie głównej i w Moich grach jest **samą kartą**,
+bez żadnej akcji. Odpowiada się wchodząc na stronę meczu.
+
+Problem jest prawdziwy i wart rozwiązania: **„tak" kosztuje więcej kliknięć niż
+„nie"** — a raczej kosztowałoby, bo dziś nie ma nawet jak odmówić z listy.
+Przy funkcji, której sensem jest ściągnięcie ludzi na mecz, to odwrócone
+proporcje.
+
+Próbowaliśmy dwóch układów, oba odrzucone jako zbyt ciężkie wizualnie:
+
+1. **Obwódka + nagłówek „ZAPROSZENIE"** nad kartą — przy trzech zaproszeniach
+   pod rząd lista robiła się ścianą ramek.
+2. **Para przycisków „Dołączam" / „Odrzuć"** pod kartą — dokładała dwa duże
+   elementy na każdą pozycję listy.
+
+Kierunki do rozważenia przy następnym podejściu:
+- akcja ukryta do gestu (przesunięcie karty w bok), zamiast stale widocznych
+  przycisków;
+- jedna ikona w rogu karty zamiast dwóch przycisków — ale prawy górny róg jest
+  zajęty przez cenę;
+- odpowiedź nie na liście, tylko w powiadomieniu pod dzwonkiem, gdzie karta
+  jest mniejsza i akcja nie konkuruje z resztą treści;
+- rozróżnienie wizualne kartą samą w sobie (inny odcień tła), bez dokładania
+  elementów.
+
+Kod odpowiedzi (`joinEvent` z listy, `dismissInvite`) jest napisany i działał —
+patrz PR #107. Wróci, gdy będzie wiadomo, jak ma wyglądać.
