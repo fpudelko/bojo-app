@@ -20,7 +20,10 @@ import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-type SelSource = 'map' | 'scroll' | 'init';
+// 'map' — kliknięcie pinezki albo karty na liście; 'init' — stan bez wyboru
+// użytkownika, przy którym mapa NIE przesuwa kadru. Źródło 'scroll' zniknęło
+// razem z karuzelą, która sama zaznaczała kartę najbliższą środka ekranu.
+type SelSource = 'map' | 'init';
 
 // Discovery filtering (map_visibility = 'public', relevant team sports) runs
 // server-side in getExplorerFields().
@@ -183,11 +186,7 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
     const f = fields.find((x) => x.id === selectedId);
     if (!f) return;
     map.stop();
-    if (selectedSource === 'scroll') {
-      map.panTo([f.lat, f.lng], { animate: true, duration: 0.3 });
-    } else {
-      map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 14), { duration: 0.45 });
-    }
+    map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 14), { duration: 0.45 });
   }, [selectedId, selectedSource, fields, map]);
 
   return null;
@@ -435,6 +434,10 @@ export default function VenueExplorer({
   const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
+  // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
+  // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
+  // obiekcie z jego kartą, zamiast na widoku całego kraju.
+  const boiskoZLinku = searchParams.get('boisko');
 
   function updateParams(patch: { sport?: string[]; type?: string[]; today?: boolean }) {
     const p = new URLSearchParams(searchParams.toString());
@@ -478,16 +481,12 @@ export default function VenueExplorer({
   const selectedId     = selected.id;
   const selectedSource = selected.source;
 
-  // Mobile carousel
-  const scrollRef    = useRef<HTMLDivElement>(null);
-  const cardRefs     = useRef<Record<string, HTMLDivElement | null>>({});
   // Desktop sidebar
   const sidebarRef      = useRef<HTMLDivElement>(null);
   const sidebarCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
-  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onSelect = useCallback((id: string, source: SelSource) => {
     setSelected({ id, source });
@@ -549,34 +548,32 @@ export default function VenueExplorer({
 
   const visibleFields = fields.slice(0, visibleCount);
   const hasMore = fields.length > visibleFields.length;
+  const selectedField = selectedId ? fields.find((f) => f.id === selectedId) ?? null : null;
 
   // Clean up stale card refs
   useEffect(() => {
     const ids = new Set(fields.map((f) => f.id));
-    for (const id of Object.keys(cardRefs.current))     { if (!ids.has(id)) delete cardRefs.current[id]; }
     for (const id of Object.keys(sidebarCardRefs.current)) { if (!ids.has(id)) delete sidebarCardRefs.current[id]; }
   }, [fields]);
 
-  // Auto-select first field
+  // Zaznaczenie znika, gdy filtr wyrzuci wybrany obiekt z wyników. Nic nie
+  // zaznacza się samo: na mapie ogólnopolskiej „pierwszy z listy" to obiekt
+  // przypadkowy, oddalony o pół kraju od tego, na co użytkownik patrzy.
   useEffect(() => {
-    if (fields.length === 0) return;
-    if (!selectedIdRef.current || !fields.some((f) => f.id === selectedIdRef.current)) {
-      setSelected({ id: fields[0].id, source: 'init' });
-    }
+    const id = selectedIdRef.current;
+    if (id && !fields.some((f) => f.id === id)) setSelected({ id: null, source: 'init' });
   }, [fields]);
 
-  // Scroll mobile carousel to selected.
-  // `visibleCount` is a dependency on purpose: clicking a pin outside the render
-  // window selects a venue whose card doesn't exist yet, so this effect would
-  // bail out and never re-run. Re-running once the window grows is what makes a
-  // single click work (previously it took two).
+  // Obiekt wskazany w adresie — zaznaczany raz, gdy tylko pojawi się w danych.
+  // Źródło 'map' jest tu celowe: to jedyny przypadek, w którym mapa MA przejechać
+  // do obiektu bez kliknięcia, bo użytkownik sam o to poprosił linkiem.
+  const linkObsluzony = useRef(false);
   useEffect(() => {
-    if (!selectedId || selected.source === 'scroll') return;
-    const el = cardRefs.current[selectedId];
-    const c  = scrollRef.current;
-    if (!el || !c) return;
-    c.scrollTo({ left: el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
-  }, [selectedId, selected.source, visibleCount]);
+    if (linkObsluzony.current || !boiskoZLinku) return;
+    if (!fields.some((f) => f.id === boiskoZLinku)) return;
+    linkObsluzony.current = true;
+    setSelected({ id: boiskoZLinku, source: 'map' });
+  }, [boiskoZLinku, fields]);
 
   // Scroll desktop sidebar to selected (same reasoning for `visibleCount`).
   useEffect(() => {
@@ -588,28 +585,10 @@ export default function VenueExplorer({
     c.scrollTo({ top: targetTop, behavior: 'smooth' });
   }, [selectedId, visibleCount]);
 
-  const handleScroll = useCallback(() => {
-    if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
-    scrollDebounceRef.current = setTimeout(() => {
-      const c = scrollRef.current;
-      if (!c) return;
-      const viewCenter = c.scrollLeft + c.clientWidth / 2;
-      let best: string | null = null; let bestDist = Infinity;
-      for (const [id, el] of Object.entries(cardRefs.current)) {
-        if (!el) continue;
-        const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - viewCenter);
-        if (d < bestDist) { bestDist = d; best = id; }
-      }
-      if (best && best !== selectedIdRef.current) onSelect(best, 'scroll');
-    }, 100);
-  }, [onSelect]);
-
   const filterProps = {
     sports, setSports, venueTypes, setVenueTypes,
     onlyGamesToday, setOnlyGamesToday,
   };
-
-  const CARD_W = 'min(85vw, 360px)';
 
   const searchBox = (
     <div className="relative">
@@ -725,52 +704,53 @@ export default function VenueExplorer({
           </div>
         </div>
 
-        {/* Mobile: carousel.
+        {/* Mobile: jedna karta — ta, której pinezkę kliknięto.
+            Wcześniej stała tu przewijana karuzela wszystkich wyników i to ona
+            mieliła. Każde przesunięcie palcem liczyło odległość każdej karty od
+            środka kadru, żeby zgadnąć, którą właśnie oglądasz, a taki wybór
+            przewijał listę z powrotem — ruch palcem walczył z automatycznym
+            przewijaniem.
+
+            Karta jednego obiektu odpowiada na pytanie, które człowiek ma na
+            mapie naprawdę: „co to za boisko?". Przeglądanie listą zostaje na
+            desktopie, gdzie jest miejsce na pasek boczny.
+
             Dolne dopełnienie ustępuje nawigacji: strona mapy jest h-screen
             i overflow-hidden, więc dystans (h-16) z BottomNav nie działa —
-            pasek (fixed, z-1000) po prostu kładzie się na kartach. */}
-        {fields.length > 0 && (
+            pasek (fixed, z-1000) po prostu kładzie się na karcie. */}
+        {selectedField && (
           <div
-            className="md:hidden absolute inset-x-0 bottom-0 z-[600]"
+            className="md:hidden absolute inset-x-0 bottom-0 z-[600] px-3"
             style={{ paddingBottom: 'calc(4rem + 0.75rem + env(safe-area-inset-bottom))' }}
           >
-            <div
-              ref={scrollRef}
-              onScroll={handleScroll}
-              style={{
-                scrollPaddingLeft:  `calc((100% - ${CARD_W}) / 2)`,
-                scrollPaddingRight: `calc((100% - ${CARD_W}) / 2)`,
-              }}
-              className="flex snap-x snap-mandatory overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
-              {visibleFields.map((f) => (
-                <div
-                  key={f.id}
-                  ref={(el) => { cardRefs.current[f.id] = el; }}
-                  onClick={() => onSelect(f.id, 'map')}
-                  style={{ width: CARD_W }}
-                  className="shrink-0 snap-center px-1.5 h-[160px] cursor-pointer"
-                >
-                  <VenueCard
-                    field={f}
-                    games={fieldStats[f.id]?.count ?? 0}
-                    hasGameToday={fieldStats[f.id]?.today ?? false}
-                  />
-                </div>
-              ))}
-              {hasMore && (
-                <div className="shrink-0 flex items-center px-2" style={{ width: CARD_W }}>
-                  <button
-                    onClick={() => setVisibleCount((c) => c + PAGE)}
-                    className="w-full h-[140px] rounded-2xl border border-dashed border-slate-300 bg-white/80 text-sm font-medium text-slate-600"
-                  >
-                    Pokaż więcej<br />({fields.length - visibleFields.length})
-                  </button>
-                </div>
-              )}
-              <div className="shrink-0" style={{ width: `calc((100% - ${CARD_W}) / 2)` }} />
+            <div className="relative h-[160px]">
+              <button
+                type="button"
+                onClick={() => setSelected({ id: null, source: 'map' })}
+                aria-label="Zamknij kartę boiska"
+                className="absolute -top-2 right-0 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-400 shadow-md transition-colors hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <VenueCard
+                field={selectedField}
+                games={fieldStats[selectedField.id]?.count ?? 0}
+                hasGameToday={fieldStats[selectedField.id]?.today ?? false}
+              />
             </div>
+          </div>
+        )}
+
+        {/* Podpowiedź, dopóki nic nie wybrano — bez niej dolna część mapy jest
+            pusta i nie wiadomo, że pinezki są klikalne. */}
+        {!selectedField && fields.length > 0 && (
+          <div
+            className="md:hidden pointer-events-none absolute inset-x-0 bottom-0 z-[600] flex justify-center px-3"
+            style={{ paddingBottom: 'calc(4rem + 0.75rem + env(safe-area-inset-bottom))' }}
+          >
+            <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
+              Dotknij pinezki, żeby zobaczyć boisko
+            </p>
           </div>
         )}
 
