@@ -5,5 +5,6 @@
     "deploymentEnabled": {
       "claude/sql/*": false
     }
-  }
+  },
+  "ignoreCommand": "bash scripts/vercel-czy-budowac.sh"
 }

@@ -56,6 +56,17 @@ GEOFABRIK = "https://download.geofabrik.de/europe/poland/{region}-latest.osm.pbf
 LUSTRO_OSMFR = "https://download.openstreetmap.fr/extracts/europe/poland/{region}.osm.pbf"
 PROBY_POBRANIA = 4
 
+# Nazwy wycinków Geofabrik dla polskich województw — bez polskich znaków
+# i bez „województwo". Literówka kończy się 404 po pobraniu 0 bajtów, więc
+# lepiej odrzucić ją od razu, z podpowiedzią.
+WOJEWODZTWA = [
+    "dolnoslaskie", "kujawsko-pomorskie", "lubelskie", "lubuskie",
+    "lodzkie", "malopolskie", "mazowieckie", "opolskie",
+    "podkarpackie", "podlaskie", "pomorskie", "slaskie",
+    "swietokrzyskie", "warminsko-mazurskie", "wielkopolskie",
+    "zachodniopomorskie",
+]
+
 # ---------------------------------------------------------------------------
 # Słowniki — te same wartości co w scraper.py, żeby baza była spójna
 # ---------------------------------------------------------------------------
@@ -307,7 +318,8 @@ def pobierz(region: str, path: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Import boisk z pliku .osm.pbf (Geofabrik)")
-    ap.add_argument("--region", default="lubelskie", help="region Geofabrik, np. lubelskie")
+    ap.add_argument("--region", default="lubelskie",
+                    help="województwo, nazwa wycinka Geofabrik: " + ", ".join(WOJEWODZTWA))
     ap.add_argument("--pbf", help="lokalny plik .osm.pbf zamiast pobierania")
     ap.add_argument("--dry-run", action="store_true", help="tylko raport, nic nie zapisuje")
     ap.add_argument("--limit", type=int, default=0, help="maks. obiektów do zapisu (0 = wszystkie)")
@@ -318,6 +330,11 @@ def main() -> int:
                     choices=["organizer_only", "public"],
                     help="map_visibility dla obiektów, które NIE przejdą bramki jakości")
     args = ap.parse_args()
+
+    if not args.pbf and args.region not in WOJEWODZTWA:
+        log.error("Nieznany region: %s", args.region)
+        log.error("Dostępne: %s", ", ".join(WOJEWODZTWA))
+        return 1
 
     path = args.pbf
     if not path:
