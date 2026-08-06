@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,16 @@ import type { AppNotification } from '@/types';
 
 export default function NotificationBell() {
   const { user } = useAuth();
+  // Nazwa kanału musi być unikalna PER INSTANCJA, nie per użytkownik. Dzwonek
+  // renderuje się dwa razy — raz w nagłówku mobilnym, raz w desktopowym —
+  // a Supabase przy powtórzonej nazwie oddaje istniejący kanał zamiast tworzyć
+  // nowy. Drugi komponent trafiał wtedy na kanał już zasubskrybowany i jego
+  // `.on()` kończyło się wyjątkiem „cannot add postgres_changes callbacks
+  // after subscribe()". Widoczny jest zawsze tylko jeden dzwonek, ale
+  // zamontowane są oba.
+  // `useId()` zwraca wartości z dwukropkami (`:r1:`), a nazwa kanału trafia
+  // do topiku Phoenixa — zostawiamy tylko znaki alfanumeryczne.
+  const instancja = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [open,   setOpen]   = useState(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -22,7 +32,7 @@ export default function NotificationBell() {
     getMyNotifications(10).then(setNotifs).catch(() => {});
 
     const ch = supabase
-      .channel(`notifs-${user.id}`)
+      .channel(`notifs-${user.id}-${instancja}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -31,7 +41,7 @@ export default function NotificationBell() {
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [user, instancja]);
 
   // Close on outside click
   useEffect(() => {
