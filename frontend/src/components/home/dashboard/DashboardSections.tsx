@@ -20,24 +20,31 @@ import type { MyEventRow } from '@/lib/myEvents';
 
 type StatusFor = (event: EventItem) => MyEventRelation;
 
-/** Reusable section header with optional "Wszystkie" link — unchanged from
- *  the pre-redesign AppHome.tsx. */
-function SectionHeader({ title, href, count }: { title: string; href?: string; count?: number }) {
+/** Reusable section header with optional "Wszystkie" link and subtitle.
+ *  Exported so /moje-gry — which reuses these sections without truncation —
+ *  can render the same heading style for "Obserwowane" with its explanatory
+ *  subline, instead of a third copy of this markup. */
+export function SectionHeader({ title, href, count, subtitle }: {
+  title: string; href?: string; count?: number; subtitle?: string;
+}) {
   return (
-    <div className="mb-3 flex items-center justify-between">
-      <h2 className="text-base font-bold text-ink">
-        {title}
-        {count != null && count > 0 && (
-          <span className="ml-2 rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
-            {count}
-          </span>
+    <div className="mb-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold text-ink">
+          {title}
+          {count != null && count > 0 && (
+            <span className="ml-2 rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
+              {count}
+            </span>
+          )}
+        </h2>
+        {href && (
+          <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
+            Wszystkie <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         )}
-      </h2>
-      {href && (
-        <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
-          Wszystkie <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      )}
+      </div>
+      {subtitle && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
     </div>
   );
 }
@@ -46,12 +53,25 @@ function SectionHeader({ title, href, count }: { title: string; href?: string; c
  *  answer. A game the user already answered (joined, reserve, observing,
  *  pending) no longer carries status 'invited' — see
  *  lib/events.ts#getMyParticipationMap — so it drops out here on its own
- *  and shows once, in MyMatchesSection / GroupGamesSection instead. */
-export function InvitesSection({ invites, statusFor }: {
+ *  and shows once, in MyMatchesSection / GroupGamesSection instead.
+ *
+ *  Dismissal is uncontrolled by default (own useState, as on the dashboard).
+ *  /moje-gry passes dismissedIds/onDismiss so its own "Zaproszenia" tab badge
+ *  shrinks in step with this teaser instead of tracking two separate sets. */
+export function InvitesSection({ invites, statusFor, href, limit = 3, dismissedIds, onDismiss }: {
   invites: InviteWithEvent[];
   statusFor: StatusFor;
+  href?: string;
+  limit?: number;
+  dismissedIds?: Set<string>;
+  onDismiss?: (inviteId: string) => void;
 }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [localDismissed, setLocalDismissed] = useState<Set<string>>(new Set());
+  const dismissed = dismissedIds ?? localDismissed;
+  const dismiss = onDismiss ?? ((inviteId: string) => {
+    setLocalDismissed((prev) => new Set(prev).add(inviteId));
+    dismissInvite(inviteId).catch(() => {});
+  });
 
   const open = invites.filter(
     ({ invite, event }) => !dismissed.has(invite.id) && statusFor(event).status === 'invited',
@@ -60,30 +80,33 @@ export function InvitesSection({ invites, statusFor }: {
 
   return (
     <div>
-      <SectionHeader title="Zaproszenia" count={open.length} />
+      <SectionHeader title="Zaproszenia" href={href} count={open.length} />
       <InviteList
         invites={open}
         statusFor={statusFor}
-        limit={3}
+        limit={limit}
         dismissedIds={dismissed}
-        onDismiss={(inviteId) => {
-          setDismissed((prev) => new Set(prev).add(inviteId));
-          dismissInvite(inviteId).catch(() => {});
-        }}
+        onDismiss={dismiss}
       />
     </div>
   );
 }
 
 /** "Twoje najbliższe mecze" — everything the user is playing/organizing,
- *  except whichever match NextMatchCard already put front and centre. */
-export function MyMatchesSection({ items }: { items: MyEventRow[] }) {
+ *  except whichever match NextMatchCard already put front and centre.
+ *  `limit`/`href` default to the dashboard's teaser behaviour (2 items +
+ *  link to /moje-gry); /moje-gry itself passes limit={null} href={null} to
+ *  show the full list with no "Wszystkie" link back to itself. */
+export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
+  items: MyEventRow[]; limit?: number | null; href?: string | null;
+}) {
   if (items.length === 0) return null;
+  const shown = limit != null ? items.slice(0, limit) : items;
   return (
     <div>
-      <SectionHeader title="Twoje najbliższe mecze" href="/moje-gry" count={items.length} />
+      <SectionHeader title="Twoje najbliższe mecze" href={href ?? undefined} count={items.length} />
       <div className="space-y-3">
-        {items.slice(0, 2).map(({ event, relation }) => (
+        {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} />
         ))}
       </div>
@@ -92,14 +115,19 @@ export function MyMatchesSection({ items }: { items: MyEventRow[] }) {
 }
 
 /** Kept separate from MyMatchesSection so "Obserwujesz" never reads as
- *  "you're in" — observing holds no spot and counts in no stats. */
-export function ObservingSection({ items }: { items: MyEventRow[] }) {
+ *  "you're in" — observing holds no spot and counts in no stats. Title and
+ *  subtitle are overridable: /moje-gry calls this section "Obserwowane" and
+ *  adds the explanatory subline it already had inline. */
+export function ObservingSection({ items, limit = 2, href = '/moje-gry', title = 'Obserwujesz', subtitle }: {
+  items: MyEventRow[]; limit?: number | null; href?: string | null; title?: string; subtitle?: string;
+}) {
   if (items.length === 0) return null;
+  const shown = limit != null ? items.slice(0, limit) : items;
   return (
     <div>
-      <SectionHeader title="Obserwujesz" href="/moje-gry" count={items.length} />
+      <SectionHeader title={title} href={href ?? undefined} count={items.length} subtitle={subtitle} />
       <div className="space-y-3">
-        {items.slice(0, 2).map(({ event, relation }) => (
+        {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} />
         ))}
       </div>
