@@ -1,0 +1,82 @@
+name: SQL (tylko odczyt)
+
+# Uruchamia zapytanie SQL na produkcyjnej bazie i wypisuje wynik do logu.
+#
+# Po co: agent pracujący w tym repo nie ma sieciowego dostępu do Supabase.
+# Bez tego każda diagnostyka wygląda tak, że agent pisze plik .sql, człowiek
+# wkleja go do SQL Editora i odsyła wynik. Tutaj agent commituje zapytanie
+# i odpala workflow sam.
+#
+# Bezpieczeństwo:
+#   - łączy się rolą TYLKO DO ODCZYTU (sekret SUPABASE_DB_URL_RO),
+#   - transakcja jest dodatkowo wymuszona jako READ ONLY,
+#   - klucz nigdy nie opuszcza sekretów GitHuba.
+# Setup roli i sekretu: supabase/zapytania/README.md
+#
+# Wymagany sekret:
+#   SUPABASE_DB_URL_RO   postgresql://…  (rola bez prawa zapisu)
+
+on:
+  workflow_dispatch:
+    inputs:
+      plik:
+        description: 'Ścieżka do pliku .sql w repo (np. supabase/zapytania/mapa.sql)'
+        required: false
+        type: string
+      zapytanie:
+        description: 'Zapytanie SQL wprost (używane, gdy „plik" jest pusty)'
+        required: false
+        type: string
+
+jobs:
+  sql:
+    name: SQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sprawdź sekret
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_RO }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::Brak sekretu SUPABASE_DB_URL_RO. Instrukcja: supabase/zapytania/README.md"
+            exit 1
+          fi
+
+      - name: Przygotuj zapytanie
+        env:
+          ZAPYTANIE: ${{ inputs.zapytanie }}
+        run: |
+          if [ -n "${{ inputs.plik }}" ]; then
+            if [ ! -f "${{ inputs.plik }}" ]; then
+              echo "::error::Nie ma pliku ${{ inputs.plik }}"
+              exit 1
+            fi
+            cp "${{ inputs.plik }}" /tmp/zapytanie.sql
+          elif [ -n "$ZAPYTANIE" ]; then
+            printf '%s\n' "$ZAPYTANIE" > /tmp/zapytanie.sql
+          else
+            echo "::error::Podaj „plik" albo „zapytanie"."
+            exit 1
+          fi
+          echo "--- treść zapytania ---"
+          cat /tmp/zapytanie.sql
+          echo "-----------------------"
+
+      - name: Uruchom
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL_RO }}
+        run: |
+          # READ ONLY jako druga linia obrony — rola i tak nie ma prawa zapisu,
+          # ale literówka w zapytaniu nie ma prawa niczego ruszyć.
+          psql "$DB_URL" \
+            -v ON_ERROR_STOP=1 \
+            --single-transaction \
+            --pset=pager=off \
+            --pset=footer=on \
+            -c 'SET TRANSACTION READ ONLY' \
+            -f /tmp/zapytanie.sql
