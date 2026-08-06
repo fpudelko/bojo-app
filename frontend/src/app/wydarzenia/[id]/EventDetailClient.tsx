@@ -39,7 +39,7 @@ import {
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal, ParticipantStatus, ReportType,
-  PaymentMethod, SportsCardProvider,
+  PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import {
@@ -358,6 +358,8 @@ export default function EventDetailClient() {
   const [whenTime, setWhenTime] = useState('');
   const [whenEnd, setWhenEnd] = useState('');
   const [whenConfirm, setWhenConfirm] = useState(false);
+  // Wybór widoczności z badge'a — okno zamiast natychmiastowego przełącznika.
+  const [visOpen, setVisOpen] = useState(false);
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
@@ -765,11 +767,16 @@ export default function EventDetailClient() {
     finally { setBusy(false); }
   };
 
-  const handleToggleVisibility = async () => {
+  // Widoczność zmienia się przez okno wyboru, nie jednym tknięciem badge'a.
+  // Przełącznik w miejscu, w którym stoi etykieta, znaczył tyle, że przypadkowe
+  // dotknięcie zdejmowało mecz z publicznej listy — bez pytania i bez śladu,
+  // za to od razu dla wszystkich, którzy go szukali.
+  const handleSetVisibility = async (next: Visibility) => {
+    if (next === event.visibility) { setVisOpen(false); return; }
     setBusy(true);
     try {
-      const next = event.visibility === 'public' ? 'private' : 'public';
       await setVisibility(event.id, next, user?.id, displayName(user ?? null));
+      setVisOpen(false);
       await load();
       toast(next === 'public' ? 'Mecz jest teraz publiczny' : 'Mecz jest teraz prywatny');
     } catch (e) {
@@ -1148,7 +1155,7 @@ export default function EventDetailClient() {
             {isOrganizer ? (
               <button
                 type="button"
-                onClick={handleToggleVisibility}
+                onClick={() => setVisOpen(true)}
                 disabled={busy}
                 className={[
                   'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
@@ -2016,7 +2023,7 @@ export default function EventDetailClient() {
                     desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
                     checked={event.visibility === 'public'}
                     disabled={busy}
-                    onChange={handleToggleVisibility}
+                    onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
                   />
                   <SettingSwitch
                     icon={<UserPlus className="w-4 h-4" />}
@@ -2230,6 +2237,80 @@ export default function EventDetailClient() {
             >
               Zapisz termin
             </Button>
+          </div>
+        </div>
+      )}
+
+      {visOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          onClick={() => setVisOpen(false)}
+        >
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setVisOpen(false)}
+              aria-label="Zamknij"
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-1 pr-8 font-semibold text-ink">Kto widzi ten mecz</h3>
+            <p className="mb-4 text-xs text-slate-500">
+              Zmiana działa od razu — także dla osób, które już mają link.
+            </p>
+
+            <div className="space-y-2">
+              {([
+                {
+                  value: 'public' as const,
+                  icon: <Globe className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={2.25} />,
+                  label: 'Publiczne',
+                  desc: 'Widoczne na liście meczów, każdy zalogowany może dołączyć.',
+                },
+                {
+                  value: 'private' as const,
+                  icon: <Lock className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={2.25} />,
+                  label: 'Prywatne',
+                  desc: 'Wejście tylko przez link albo kod. Nie pojawia się na liście.',
+                },
+              ]).map((opt) => {
+                const wybrane = event.visibility === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleSetVisibility(opt.value)}
+                    disabled={busy}
+                    className={[
+                      'flex w-full items-start gap-2.5 rounded-xl border p-3 text-left transition-colors disabled:opacity-60',
+                      wybrane
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-slate-300 hover:border-slate-400',
+                    ].join(' ')}
+                  >
+                    {opt.icon}
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                        {opt.label}
+                        {wybrane && <Check className="h-3.5 w-3.5 text-primary-600" strokeWidth={3} />}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">{opt.desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {event.visibility === 'public' && confirmed.length > 0 && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                Na mecz zapisało się już{' '}
+                <span className="font-semibold">
+                  {confirmed.length} {confirmed.length === 1 ? 'osoba' : 'osób'}
+                </span>
+                . Zmiana na prywatny nikogo nie wypisuje — po prostu nowi nie znajdą meczu na liście.
+              </p>
+            )}
           </div>
         </div>
       )}
