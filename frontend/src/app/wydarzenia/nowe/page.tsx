@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin, Lock, Globe, ChevronDown, X, Users, Check } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -15,15 +15,31 @@ import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS } from '@/lib/payments';
-import { validateStep1, validateStep2, validateStep } from '@/lib/eventWizard';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS, formatBlikPhone } from '@/lib/payments';
+import { validateStep1, validateStep2, validateStep, validatePayments, isPast } from '@/lib/eventWizard';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
+import { defaultEventTitle } from '@/lib/eventTitle';
+import {
+  loadEventDraft, saveEventDraft, clearEventDraft, draftAgeLabel,
+  type EventDraftValues,
+} from '@/lib/eventDraft';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
 const GK_SPORTS = ['piłka nożna', 'futsal'];
 
 const STEP_TITLES = ['Co i gdzie', 'Kiedy i ile', 'Opcje'] as const;
+
+// Który krok pokazać, gdy walidacja na submit znajdzie błąd w polu spoza
+// bieżącego kroku (np. brak lokalizacji albo zły numer BLIK, gdy organizator
+// stoi już na kroku 3). Bez tego steppera scrollIntoView nie miał do czego
+// skoczyć — błąd renderował się tylko wewnątrz aktywnego kroku.
+const STEP_OF_FIELD: Record<string, number> = {
+  location: 1, date: 2, blikPhone: 2, cardDiscount: 2,
+};
+function stepForErrors(errs: Record<string, string>): number {
+  return Math.min(3, ...Object.keys(errs).map((k) => STEP_OF_FIELD[k] ?? 3));
+}
 
 /** Długości meczu do wyboru z listy. Od 30 minut, bo siatkówka plażowa
  *  i szybkie granie na orliku nie trwają półtorej godziny. */
@@ -100,6 +116,14 @@ function NewEventForm() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Szkic — patrz efekty niżej (po ?group=/?fieldId=). `hydrated` jest stanem,
+  // nie refem: dzięki temu odtworzenie i przełączenie na "gotowe do zapisu"
+  // trafiają do tego samego renderu (React batchuje setState w efekcie), więc
+  // efekt zapisujący nie zdąży nadpisać świeżo wczytanego szkicu domyślnymi
+  // wartościami z pierwszego, jeszcze nieodtworzonego renderu.
+  const [hydrated, setHydrated] = useState(false);
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+
   const [seekerCount, setSeekerCount] = useState(0);
 
   // Count users with matching alerts — shown near visibility picker
@@ -113,8 +137,9 @@ function NewEventForm() {
 
   const [costPln, setCostPln] = useState('');
   // Tryb wpisywania kosztu. W bazie i tak ląduje kwota od osoby — to tylko
-  // wybór, którą liczbę organizator ma pod ręką.
-  const [kosztZaObiekt, setKosztZaObiekt] = useState(false);
+  // wybór, którą liczbę organizator ma pod ręką. Domyślnie "za obiekt", bo
+  // organizator zwykle najpierw zna cenę wynajmu, nie cenę per os.
+  const [kosztZaObiekt, setKosztZaObiekt] = useState(true);
   const [kosztObiektuPln, setKosztObiektuPln] = useState('');
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentMethod[]>([]);
   const [blikPhone, setBlikPhone] = useState('');
@@ -122,6 +147,21 @@ function NewEventForm() {
   const [cardDiscountPln, setCardDiscountPln] = useState('');
   const [acceptedSportsCards, setAcceptedSportsCards] = useState<SportsCardProvider[]>([]);
   const [sportsCardOtherName, setSportsCardOtherName] = useState('');
+  // Opis jest za przełącznikiem (domyślnie wyłączony) — pole tekstowe samo
+  // w sobie sugerowało, że trzeba je wypełnić.
+  const [descriptionEnabled, setDescriptionEnabled] = useState(false);
+
+  // Cena od osoby jest pochodną kosztu obiektu i liczby miejsc. Licząc to
+  // tylko w onChange inputu (jak poprzednio) cena zostawała nieaktualna, gdy
+  // organizator poprawił skład PO wpisaniu kwoty — a to teraz domyślna
+  // ścieżka wpisywania (kosztZaObiekt = true).
+  useEffect(() => {
+    if (!kosztZaObiekt) return;
+    const calosc = parseFloat(kosztObiektuPln || '0');
+    setCostPln(calosc > 0 && maxPlayers > 0
+      ? (Math.round((calosc / maxPlayers) * 100) / 100).toFixed(2)
+      : '');
+  }, [kosztZaObiekt, kosztObiektuPln, maxPlayers]);
 
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
@@ -153,6 +193,105 @@ function NewEventForm() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preFieldId]);
+
+  // Odtwarzanie szkicu — raz, przy montowaniu. Pomijamy całkowicie przy
+  // wejściu z ?group= albo ?fieldId=: te parametry mają własne efekty prefill
+  // wyżej, a kolizja dwóch źródeł prawdy o lokalizacji byłaby nie do
+  // przewidzenia. Wejście z linku obiektu/grupy to świadomy start od nowa.
+  useEffect(() => {
+    if (!groupId && !preFieldId) {
+      const draft = loadEventDraft();
+      if (draft) {
+        const v = draft.values;
+        setSport(v.sport);
+        setLocation(v.location);
+        // Szkic sprzed 11h nie może wracać z datą, która blokuje krok 2.
+        setDate(isPast(v.date, v.time) ? tomorrowStr() : v.date);
+        setTime(v.time);
+        setDurationMin(v.durationMin);
+        setCzasWlasny(v.czasWlasny);
+        setMaxPlayers(v.maxPlayers);
+        setMaxPlayersTouched(v.maxPlayersTouched);
+        setGoalkeepersEnabled(v.goalkeepersEnabled);
+        setReserveClaimHours(v.reserveClaimHours);
+        setTitle(v.title);
+        setDescription(v.description);
+        setDescriptionEnabled(v.descriptionEnabled);
+        setVisibility(v.visibility);
+        setRequireApproval(v.requireApproval);
+        setOrganizerParticipates(v.organizerParticipates);
+        setOrganizerRole(v.organizerRole);
+        setCostPln(v.costPln);
+        setKosztZaObiekt(v.kosztZaObiekt);
+        setKosztObiektuPln(v.kosztObiektuPln);
+        setAcceptedPaymentMethods(v.acceptedPaymentMethods);
+        setBlikPhone(v.blikPhone);
+        setCardDiscountEnabled(v.cardDiscountEnabled);
+        setCardDiscountPln(v.cardDiscountPln);
+        setAcceptedSportsCards(v.acceptedSportsCards);
+        setSportsCardOtherName(v.sportsCardOtherName);
+        setStep(draft.step);
+        setDraftRestoredAt(draft.ts);
+      }
+    }
+    setHydrated(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Zapis szkicu — dopiero PO próbie odtworzenia (inaczej domyślny stan
+  // początkowy nadpisałby zapisany szkic w pierwszym renderze) i nigdy
+  // w trakcie wysyłania formularza.
+  useEffect(() => {
+    if (!hydrated || submitting) return;
+    saveEventDraft(step, {
+      sport, location, date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched,
+      goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled, visibility,
+      requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
+      acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
+      sportsCardOtherName,
+    });
+  }, [
+    hydrated, submitting, step, sport, location, date, time, durationMin, czasWlasny, maxPlayers,
+    maxPlayersTouched, goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled,
+    visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
+    kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
+    acceptedSportsCards, sportsCardOtherName,
+  ]);
+
+  /** "Zacznij od nowa" — czyści szkic i wraca formularz do stanu początkowego. */
+  const resetWizard = () => {
+    clearEventDraft();
+    setStep(1);
+    setSport('piłka nożna');
+    setLocation(EMPTY_LOCATION);
+    setDate(tomorrowStr());
+    setTime('18:00');
+    setDurationMin(90);
+    setCzasWlasny(false);
+    setMaxPlayers(14);
+    setMaxPlayersTouched(false);
+    setGoalkeepersEnabled(true);
+    setReserveClaimHours(3);
+    setTitle('');
+    setDescription('');
+    setDescriptionEnabled(false);
+    setVisibility('public');
+    setRequireApproval(false);
+    setOrganizerParticipates(true);
+    setOrganizerRole('field');
+    setCostPln('');
+    setKosztZaObiekt(true);
+    setKosztObiektuPln('');
+    setAcceptedPaymentMethods([]);
+    setBlikPhone('');
+    setCardDiscountEnabled(false);
+    setCardDiscountPln('');
+    setAcceptedSportsCards([]);
+    setSportsCardOtherName('');
+    setFieldErrors({});
+    setError(null);
+    setDraftRestoredAt(null);
+  };
 
   if (!loading && !user) {
     const loginHref = typeof window !== 'undefined'
@@ -276,9 +415,14 @@ function NewEventForm() {
     // droga wywołała submit, mecz nie powstanie przypadkiem.
     if (step !== 3) return;
 
-    const errs: Record<string, string> = { ...validateStep1(location), ...validateStep2(date, time) };
+    const errs: Record<string, string> = {
+      ...validateStep1(location),
+      ...validateStep2(date, time),
+      ...validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln }),
+    };
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      setStep(stepForErrors(errs));
       // scroll to first error
       setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
@@ -303,7 +447,7 @@ function NewEventForm() {
           customLocationName: location.venue ? undefined : fieldName,
           customAddress: location.venue ? undefined : location.address || undefined,
           title: title || undefined,
-          description: description || undefined,
+          description: descriptionEnabled && description.trim() ? description : undefined,
           date,
           time,
           endTime: endTime ?? undefined,
@@ -338,6 +482,7 @@ function NewEventForm() {
         organizerParticipates,
         organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && organizerRole === 'gk',
       );
+      clearEventDraft();
       router.push(`/wydarzenia/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się utworzyć wydarzenia');
@@ -386,7 +531,9 @@ function NewEventForm() {
     }
 
     for (let s = step; s < target; s++) {
-      const errs = validateStep(s, { location, date, time });
+      const errs = validateStep(s, {
+        location, date, time, costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
+      });
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
         setStep(s);
@@ -407,7 +554,9 @@ function NewEventForm() {
       {/* Step indicator — sticky under the header. Numbers are clickable:
           jumping ahead runs the same validation as "Dalej" and stops on the
           first step that blocks. */}
-      <div className="sticky top-16 z-[900] border-b border-slate-200 bg-canvas dark:border-slate-700">
+      {/* top-12 na mobile: Header dla zalogowanych jest tam h-12, nie h-16 —
+          bez tego zostawałaby 16px szpara nad wskaźnikiem kroków. */}
+      <div className="sticky top-12 z-[900] border-b border-slate-200 bg-canvas dark:border-slate-700 md:top-16">
         <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 py-2.5">
           {[1, 2, 3].map((n) => {
             const done = n < step;
@@ -437,11 +586,27 @@ function NewEventForm() {
         </div>
       </div>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+      {/* pb-0: pasek akcji jest sticky bottom-0 i sam dodaje swój padding
+          (linia niżej z env(safe-area-inset-bottom)) — dawny `py-8` zostawiał
+          pod nim dodatkowe 32 px pustego tła. */}
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-8 pb-0">
         {groupName && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm text-primary-800">
             <Users className="w-4 h-4 shrink-0" />
             Mecz w grupie <span className="font-semibold">{groupName}</span>
+          </div>
+        )}
+
+        {draftRestoredAt && (
+          <div className="mb-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+            <p>Wróciliśmy do Twojego szkicu ({draftAgeLabel(draftRestoredAt)}).</p>
+            <button
+              type="button"
+              onClick={resetWizard}
+              className="shrink-0 self-start font-semibold underline underline-offset-2 sm:self-auto"
+            >
+              Zacznij od nowa
+            </button>
           </div>
         )}
 
@@ -728,14 +893,7 @@ function NewEventForm() {
                   min={0}
                   step={0.5}
                   value={kosztZaObiekt ? kosztObiektuPln : costPln}
-                  onChange={(e) => {
-                    if (!kosztZaObiekt) { setCostPln(e.target.value); return; }
-                    setKosztObiektuPln(e.target.value);
-                    const calosc = parseFloat(e.target.value || '0');
-                    setCostPln(calosc > 0 && maxPlayers > 0
-                      ? (Math.round((calosc / maxPlayers) * 100) / 100).toFixed(2)
-                      : '');
-                  }}
+                  onChange={(e) => (kosztZaObiekt ? setKosztObiektuPln(e.target.value) : setCostPln(e.target.value))}
                   placeholder="0 = za darmo"
                   className={inputCls}
                 />
@@ -782,11 +940,19 @@ function NewEventForm() {
                       </label>
                       <input
                         type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel-national"
+                        maxLength={11}
                         value={blikPhone}
-                        onChange={(e) => setBlikPhone(e.target.value)}
-                        placeholder="np. 600 123 456"
-                        className={inputCls}
+                        onChange={(e) => { setBlikPhone(formatBlikPhone(e.target.value)); setFieldErrors((f) => ({ ...f, blikPhone: '' })); }}
+                        placeholder="600 123 456"
+                        className={[inputCls, fieldErrors.blikPhone ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
                       />
+                      {fieldErrors.blikPhone && (
+                        <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                          <span aria-hidden>⚠</span> {fieldErrors.blikPhone}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -818,14 +984,20 @@ function NewEventForm() {
                           step={0.5}
                           max={costPln || undefined}
                           value={cardDiscountPln}
-                          onChange={(e) => setCardDiscountPln(e.target.value)}
+                          onChange={(e) => { setCardDiscountPln(e.target.value); setFieldErrors((f) => ({ ...f, cardDiscount: '' })); }}
                           placeholder="np. 20"
-                          className={`${inputCls} max-w-[140px]`}
+                          className={[`${inputCls} max-w-[140px]`, fieldErrors.cardDiscount ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
                         />
-                        <p className="mt-1 text-xs text-slate-500">
-                          Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
-                          że karta daje zniżkę, i dopytają Cię o szczegóły.
-                        </p>
+                        {fieldErrors.cardDiscount ? (
+                          <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                            <span aria-hidden>⚠</span> {fieldErrors.cardDiscount}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
+                            że karta daje zniżkę, i dopytają Cię o szczegóły.
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -918,19 +1090,31 @@ function NewEventForm() {
                 </label>
                 <input
                   type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                  placeholder="np. Czwartkowa ligówka" className={inputCls} maxLength={80}
+                  placeholder={defaultEventTitle(sport, maxPlayers)} className={inputCls} maxLength={80}
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  Zostaw puste, a mecz nazwie się{' '}
+                  <span className="font-semibold text-slate-700">{defaultEventTitle(sport, maxPlayers)}</span>.
+                </p>
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Opis <span className="text-slate-400 font-normal">(opcjonalnie)</span>
-                </label>
-                <textarea
-                  value={description} onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
+              {/* Description — behind a toggle: the empty textarea itself read
+                  like something to fill in, when most matches don't need it. */}
+              <div className="rounded-lg border border-slate-200 px-4">
+                <ToggleRow
+                  label="Dodaj opis"
+                  desc="Poziom, zasady, co zabrać — pokaże się na stronie meczu"
+                  checked={descriptionEnabled}
+                  onChange={setDescriptionEnabled}
                 />
+                {descriptionEnabled && (
+                  <div className="pb-3">
+                    <textarea
+                      value={description} onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Visibility — public / private */}

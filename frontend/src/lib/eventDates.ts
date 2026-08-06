@@ -25,6 +25,18 @@ export function isEventJoinable(event: EventItem): boolean {
   } catch { return false; }
 }
 
+/** Minutes until the match starts; negative once it has started. null when the
+ *  date/time can't be parsed. Used to gate BLIK-phone visibility (payments.ts). */
+export function minutesUntilStart(date: string, time?: string): number | null {
+  try {
+    const [y, m, d] = date.split('-').map(Number);
+    const [h, min] = (time ?? '00:00').split(':').map(Number);
+    const ms = new Date(y, m - 1, d, h, min).getTime() - Date.now();
+    if (Number.isNaN(ms)) return null;
+    return Math.round(ms / 60_000);
+  } catch { return null; }
+}
+
 /** "za 2 h" / "za 30 min" within 24h, else null */
 export function timeUntil(date: string, time?: string): string | null {
   if (!time) return null;

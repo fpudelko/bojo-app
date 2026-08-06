@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPast, validateStep1, validateStep2, validateStep } from '@/lib/eventWizard';
+import { isPast, validateStep1, validateStep2, validateStep, validatePayments } from '@/lib/eventWizard';
 
 describe('isPast', () => {
   it('treats a far-future date/time as not past', () => {
@@ -49,6 +49,45 @@ describe('validateStep2 (Kiedy i ile)', () => {
   });
 });
 
+describe('validatePayments', () => {
+  const base = { costPln: '', acceptedPaymentMethods: [] as string[], blikPhone: '', cardDiscountEnabled: false, cardDiscountPln: '' };
+
+  it('has no rules for a free match', () => {
+    expect(validatePayments(base)).toEqual({});
+    expect(validatePayments({ ...base, blikPhone: '' , acceptedPaymentMethods: ['blik']})).toEqual({});
+  });
+
+  it('errors when BLIK is accepted but the phone has no digits', () => {
+    const errs = validatePayments({ ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '' });
+    expect(errs.blikPhone).toBeDefined();
+  });
+
+  it('errors when the BLIK phone has fewer than 9 digits', () => {
+    const errs = validatePayments({ ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '600 123 45' });
+    expect(errs.blikPhone).toBeDefined();
+  });
+
+  it('passes with exactly 9 digits', () => {
+    const errs = validatePayments({ ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '600 123 456' });
+    expect(errs.blikPhone).toBeUndefined();
+  });
+
+  it('errors when the card discount exceeds the cost', () => {
+    const errs = validatePayments({ ...base, costPln: '20', cardDiscountEnabled: true, cardDiscountPln: '25' });
+    expect(errs.cardDiscount).toBeDefined();
+  });
+
+  it('allows a discount exactly equal to the cost', () => {
+    const errs = validatePayments({ ...base, costPln: '20', cardDiscountEnabled: true, cardDiscountPln: '20' });
+    expect(errs.cardDiscount).toBeUndefined();
+  });
+
+  it('allows an empty discount amount — "ask the organizer" is valid', () => {
+    const errs = validatePayments({ ...base, costPln: '20', cardDiscountEnabled: true, cardDiscountPln: '' });
+    expect(errs.cardDiscount).toBeUndefined();
+  });
+});
+
 describe('validateStep (dispatcher used by attemptGoToStep)', () => {
   const base = { location: { venue: null, lat: null }, date: '2099-01-01', time: '18:00' };
 
@@ -62,5 +101,14 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
 
   it('step 3 has no required fields', () => {
     expect(validateStep(3, base)).toEqual({});
+  });
+
+  it('step 2 also surfaces payment errors when payment fields are given', () => {
+    const errs = validateStep(2, { ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '' });
+    expect(errs.blikPhone).toBeDefined();
+  });
+
+  it('step 2 treats missing payment fields as a free match (no payment errors)', () => {
+    expect(validateStep(2, base)).toEqual({});
   });
 });
