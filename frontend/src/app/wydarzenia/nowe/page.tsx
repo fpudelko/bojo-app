@@ -242,9 +242,30 @@ function NewEventForm() {
     );
   }
 
+  /**
+   * Enter w polu tekstowym wysyła formularz — przeglądarka robi to sama, gdy
+   * formularz ma przycisk `type="submit"`. Na kroku 3 są pola „Tytuł" i „Opis"
+   * ORAZ „Opublikuj mecz", więc Enter po wpisaniu tytułu publikował mecz
+   * natychmiast, bez pytania. Z perspektywy organizatora wyglądało to tak,
+   * jakby kreator sam przeskoczył dalej.
+   *
+   * Blokujemy tylko pola jednoliniowe: w `<textarea>` Enter ma robić nową
+   * linię, a przyciski muszą działać z klawiatury (dostępność).
+   */
+  const blokujEnter = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter') return;
+    const el = e.target as HTMLElement;
+    if (el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'submit') {
+      e.preventDefault();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    // Druga linia obrony: publikuje wyłącznie krok 3. Gdyby jakakolwiek inna
+    // droga wywołała submit, mecz nie powstanie przypadkiem.
+    if (step !== 3) return;
 
     const errs: Record<string, string> = { ...validateStep1(location), ...validateStep2(date, time) };
     if (Object.keys(errs).length > 0) {
@@ -416,7 +437,7 @@ function NewEventForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} onKeyDown={blokujEnter} className="space-y-5">
 
           {/* ── STEP 1 ── */}
           {step === 1 && (
