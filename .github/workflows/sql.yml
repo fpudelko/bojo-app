@@ -69,27 +69,42 @@ jobs:
           # HASŁA w komunikacie błędu. Maskowanie sekretów tego nie łapie, bo
           # to część sekretu, nie całość — hasło ląduje w publicznym logu.
           # Zdarzyło się raz; ten warunek jest po to, żeby nie zdarzyło się drugi.
-          CZYSTY=$(printf '%s' "$DB_URL" | tr -d '[:space:]')
+          # Obcinamy TYLKO początek i koniec. `tr -d` zjadłoby spacje
+          # rozdzielające pary w formacie klucz=wartość i rozwaliło adres.
+          CZYSTY=$(printf '%s' "$DB_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
+          # Supabase w panelu Connect podaje adres w kilku formatach. Przyjmujemy
+          # dwa, które psql rozumie:
+          #   1. URI       postgresql://uzytkownik:haslo@host:port/baza
+          #   2. klucz=wartość   host=… port=… user=… password=… dbname=…
+          # Wariant 2 nie przechodzi przez parser URI, więc problem znaków
+          # specjalnych w haśle go nie dotyczy i nie sprawdzamy go dodatkowo.
           case "$CZYSTY" in
-            postgres://*|postgresql://*) ;;
-            *) echo "::error::SUPABASE_DB_URL_RO nie zaczyna się od postgres:// ani postgresql://"; exit 1 ;;
+            postgres://*|postgresql://*)
+              HASLO=$(printf '%s' "$CZYSTY" | sed -E 's|^postgres(ql)?://[^:@/]+:([^@]*)@.*$|\2|')
+              if [ "$HASLO" = "$CZYSTY" ] || [ -z "$HASLO" ]; then
+                echo "::error::Nie umiem wyłuskać hasła z SUPABASE_DB_URL_RO — spodziewany kształt to postgresql://uzytkownik:haslo@host:port/baza"
+                exit 1
+              fi
+              if ! printf '%s' "$HASLO" | grep -qE '^[A-Za-z0-9._~-]+$'; then
+                echo "::error::Hasło w SUPABASE_DB_URL_RO ma znaki wymagające kodowania URL (+ / = : @ itp). Wygeneruj je przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md"
+                exit 1
+              fi
+              ;;
+            *host=*)
+              # Format klucz=wartość — psql bierze go dosłownie, bez parsowania URI.
+              HASLO=$(printf '%s' "$CZYSTY" | sed -nE 's|.*password=([^ ]*).*|\1|p')
+              ;;
+            *)
+              echo "::error::SUPABASE_DB_URL_RO nie wygląda ani na adres postgresql://…, ani na listę host=… user=… password=…. W Supabase: Connect → Session pooler → skopiuj cały adres i podmień użytkownika oraz hasło na rolę claude_ro. Instrukcja: supabase/zapytania/README.md"
+              exit 1
+              ;;
           esac
-
-          HASLO=$(printf '%s' "$CZYSTY" | sed -E 's|^postgres(ql)?://[^:@/]+:([^@]*)@.*$|\2|')
-          if [ "$HASLO" = "$CZYSTY" ] || [ -z "$HASLO" ]; then
-            echo "::error::Nie umiem wyłuskać hasła z SUPABASE_DB_URL_RO — spodziewany kształt to postgresql://uzytkownik:haslo@host:port/baza"
-            exit 1
-          fi
-          if ! printf '%s' "$HASLO" | grep -qE '^[A-Za-z0-9._~-]+$'; then
-            echo "::error::Hasło w SUPABASE_DB_URL_RO ma znaki wymagające kodowania URL (+ / = : @ itp). Wygeneruj je przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md"
-            exit 1
-          fi
 
           # Maskowanie samego hasła, niezależnie od maskowania całego sekretu.
           # Gdyby jakiekolwiek narzędzie wypisało je w błędzie, GitHub zamieni
           # je na ***. Maska obowiązuje do końca zadania.
-          echo "::add-mask::$HASLO"
+          if [ -n "$HASLO" ]; then echo "::add-mask::$HASLO"; fi
 
       - name: Przygotuj zapytanie
         env:
@@ -120,7 +135,9 @@ jobs:
           # Białe znaki obcinamy tu jeszcze raz, zamiast przekazywać gotowy adres
           # przez GITHUB_ENV — connection string z hasłem nie ma powodu podróżować
           # między krokami.
-          CZYSTY=$(printf '%s' "$DB_URL" | tr -d '[:space:]')
+          # Obcinamy TYLKO początek i koniec. `tr -d` zjadłoby spacje
+          # rozdzielające pary w formacie klucz=wartość i rozwaliło adres.
+          CZYSTY=$(printf '%s' "$DB_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
           # READ ONLY jako druga linia obrony — rola i tak nie ma prawa zapisu,
           # ale literówka w zapytaniu nie ma prawa niczego ruszyć.
