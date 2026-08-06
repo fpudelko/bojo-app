@@ -51,26 +51,71 @@ function toField(row: any): Field {
   };
 }
 
-async function resolveField(idOrSlug: string): Promise<Field | null> {
-  if (isUuid(idOrSlug)) {
-    const { data } = await supabase.from('fields').select('*').eq('id', idOrSlug).maybeSingle();
-    return data ? toField(data) : null;
+// Slug nie istnieje w bazie jako kolumna, więc nie da się po nim filtrować
+// w SQL — trzeba pobrać nazwy i policzyć slugi po stronie serwera. Wcześniej
+// robił to `select('*')` na całej tabeli, wykonywany raz na KAŻDE renderowanie
+// strony boiska (a `generateMetadata` i sam komponent to dwa osobne). Przy
+// poznańskim katalogu (~1500 obiektów) to bolało; po imporcie z OSM (~4600)
+// czas builda wystrzelił w dziesiątki minut. Teraz: dwie kolumny zamiast
+// wszystkich i jeden wspólny indeks na proces.
+const SLUG_INDEX_TTL_MS = 5 * 60 * 1000;
+let slugIndexCache: { at: number; index: Promise<Map<string, string>> } | null = null;
+
+async function fetchSlugIndex(): Promise<Map<string, string>> {
+  const { data } = await supabase.from('fields').select('id, name');
+  const map = new Map<string, string>();
+  for (const row of data ?? []) {
+    const slug = slugify(row.name);
+    // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
+    // tak samo jak wcześniejsze `.find()`.
+    if (!map.has(slug)) map.set(slug, row.id);
   }
-  const { data } = await supabase.from('fields').select('*');
-  const match = (data ?? []).find((row) => slugify(row.name) === idOrSlug);
-  return match ? toField(match) : null;
+  return map;
+}
+
+async function idForSlug(slug: string): Promise<string | null> {
+  const now = Date.now();
+  if (!slugIndexCache || now - slugIndexCache.at > SLUG_INDEX_TTL_MS) {
+    slugIndexCache = { at: now, index: fetchSlugIndex() };
+  }
+  const hit = (await slugIndexCache.index).get(slug);
+  if (hit) return hit;
+  // Pudło może znaczyć „obiekt dodany albo przemianowany po zbudowaniu
+  // indeksu". Jedno odświeżenie, żeby nowa nazwa nie zwracała 404 do końca
+  // życia procesu.
+  slugIndexCache = { at: now, index: fetchSlugIndex() };
+  return (await slugIndexCache.index).get(slug) ?? null;
+}
+
+async function resolveField(idOrSlug: string): Promise<Field | null> {
+  const id = isUuid(idOrSlug) ? idOrSlug : await idForSlug(idOrSlug);
+  if (!id) return null;
+  const { data } = await supabase.from('fields').select('*').eq('id', id).maybeSingle();
+  return data ? toField(data) : null;
 }
 
 // ---------------------------------------------------------------------------
-// Static params (pre-render all slug-based URLs)
+// Renderowanie na żądanie zamiast prerenderu całego katalogu
 // ---------------------------------------------------------------------------
+// Do niedawna `generateStaticParams()` zwracało slug KAŻDEGO obiektu, więc
+// build generował tyle stron, ile boisk jest w bazie. Przy Poznaniu (~1500)
+// dawało się to znieść. Po imporcie z OpenStreetMap katalog urósł do ~4600
+// i build przestał się kończyć w rozsądnym czasie — a docelowo mówimy
+// o dziesiątkach tysięcy obiektów z całej Polski. Prerender całości nie
+// skaluje się z założenia.
+//
+// Pusta lista + domyślne `dynamicParams` znaczy: strona boiska powstaje przy
+// pierwszym wejściu i zostaje w cache'u na dobę. Czas builda przestaje zależeć
+// od wielkości katalogu. Adresy i mapa strony (`sitemap.ts`) się nie zmieniają,
+// więc dla wyszukiwarek nic nie znika — pierwsze wejście robota jest tylko
+// odrobinę wolniejsze.
+//
+// Efekt uboczny: znika pułapka `useSearchParams()` w prerenderze — ta trasa
+// nie jest już generowana przy buildzie.
+export const revalidate = 86400;
+
 export async function generateStaticParams() {
-  try {
-      const { data } = await supabase.from('fields').select('id, name');
-    return (data ?? []).map((f) => ({ id: slugify(f.name) }));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 // ---------------------------------------------------------------------------

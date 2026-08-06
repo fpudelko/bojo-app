@@ -72,14 +72,25 @@ Realny przypadek: brakowało polityki pozwalającej użytkownikowi zmienić wła
 w `event_participants` (naprawione w `053`). Jeśli zapis „nie działa" bez błędu — najpierw
 sprawdź polityki, nie kod.
 
+**Nie prerenderuj niczego per obiekt z katalogu boisk.** `/boisko/[id]` miało
+`generateStaticParams()` zwracające slug każdego boiska — build generował tyle stron,
+ile wierszy w `fields`. Do tego `resolveField()` po slugu robiło `select('*')` na całej
+tabeli, raz na `generateMetadata` i raz na komponent. Koszt rósł kwadratowo: przy
+poznańskim katalogu (~1500) build się jeszcze mieścił, po imporcie z OSM (~4600)
+ciągnął się **ponad 40 minut** i nie kończył. Dziś trasa renderuje się na żądanie
+(`generateStaticParams` zwraca `[]`, `revalidate = 86400`), a slug→id rozwiązuje
+wspólny indeks z TTL. Katalog docelowo ma dziesiątki tysięcy obiektów — cokolwiek
+liniowego względem niego przy buildzie jest z góry spalone.
+
 **`useSearchParams()` wywala build produkcyjny na trasach prerenderowanych.**
-`/boisko/[id]` ma `generateStaticParams()`, więc Next generuje ~1400 stron przy
-buildzie. `useSearchParams()` w komponencie klienckim wymusza wtedy bail-out do CSR
-i build kończy się błędem `missing-suspense-with-csr-bailout`. **Lokalnie się nie
-powtórzy** — bez prawdziwych kluczy Supabase `generateStaticParams()` zwraca pustą
-listę, więc te strony w ogóle nie powstają i błąd nie ma jak wyjść. Wychodzi dopiero
-na Vercelu. Zamiast hooka czytaj `window.location.search` w `useEffect` po montażu
-(patrz `backHref` w `boisko/[id]/VenueDetailClient.tsx`) albo opakuj w `<Suspense>`.
+`useSearchParams()` w komponencie klienckim wymusza na trasie prerenderowanej
+bail-out do CSR i build kończy się błędem `missing-suspense-with-csr-bailout`.
+**Lokalnie się nie powtórzy** — bez prawdziwych kluczy Supabase `generateStaticParams()`
+zwraca pustą listę, więc strony w ogóle nie powstają i błąd nie ma jak wyjść. Wychodzi
+dopiero na Vercelu. Zamiast hooka czytaj `window.location.search` w `useEffect` po
+montażu (patrz `backHref` w `boisko/[id]/VenueDetailClient.tsx`) albo opakuj
+w `<Suspense>`. Samo `/boisko/[id]` nie jest już prerenderowane (patrz wyżej), ale
+`/boiska/[sport]` nadal jest.
 
 **`truncate` w kontenerze flex wymaga `min-w-0`.** Bez tego element odmawia się skurczyć
 poniżej szerokości treści i rozpycha całą kartę w bok, zamiast obciąć tekst.

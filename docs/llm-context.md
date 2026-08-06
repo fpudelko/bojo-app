@@ -296,6 +296,20 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Strony boisk generowane na żądanie zamiast przy buildzie
+PROBLEM: każda strona boiska w Bojo była generowana z góry, przy budowaniu
+aplikacji — tyle stron, ile obiektów w katalogu. Dopóki katalog obejmował
+Poznań, mieściło się to w kilku minutach. Po imporcie z OpenStreetMap urósł
+do ~4600 obiektów i budowanie przestało się kończyć: ponad 40 minut bez
+skutku, więc żadna zmiana nie docierała na produkcję.
+ROZWIĄZANIE BOJO: strona boiska powstaje przy pierwszym wejściu i zostaje
+w pamięci podręcznej na dobę. Czas budowania Bojo nie zależy już od wielkości
+katalogu, co jest warunkiem dojścia do dziesiątek tysięcy obiektów z całej
+Polski. Adresy stron i mapa witryny się nie zmieniły.
+MECHANIKA: `generateStaticParams()` w `app/boisko/[id]/page.tsx` zwraca pustą
+listę, `revalidate = 86400`; `resolveField()` rozwiązuje slug przez wspólny
+indeks slug→id z TTL zamiast pobierać całą tabelę `fields` raz na render.
+
 ### 2026-08-06 — Mapa otwiera się na Polsce, nie na Poznaniu
 PROBLEM: mapa Bojo brała już obiekty z całego kraju, ale startowała z widokiem
 ustawionym na Poznań przy dużym przybliżeniu. Po imporcie 1638 boisk
@@ -376,21 +390,6 @@ MECHANIKA: `lib/eventWizard.ts` (walidacja kroków, wydzielona pod testy),
 (`joinBarVisible`), `lib/useMyInvites.ts`, `components/events/InviteList.tsx`,
 `app/moje-gry/page.tsx`, `app/wydarzenia/EventsListClient.tsx`,
 `components/layout/BottomNav.tsx` („Gry" → „Znajdź grę").
-
-### 2026-08-05 — Dokumenty prawne bez zastrzeżenia „to tylko prototyp"
-PROBLEM: `/prywatnosc` i `/regulamin` otwierały się bannerem „Poniższy dokument to
-szablon startowy przygotowany na potrzeby prototypu" — pierwsza rzecz widoczna dla
-kogoś, kto sprawdza, czy może zaufać serwisowi przed założeniem konta. Do tego
-regulamin miał niewypełnione `[nazwa podmiotu]` i `[adres]`, mówił o domenie
-`bojo.app` i „Poznaniu i okolicach" (serwis to `bojo.pl`, zasięg ogólnopolski), a limit
-odpowiedzialności odwoływał się do opłat, mimo że usługa jest bezpłatna.
-ROZWIĄZANIE BOJO: banner usunięty, placeholdery zastąpione realnymi danymi
-kontaktowymi, sprzeczności poprawione. Dokumenty rozszerzone o brakujące elementy:
-ograniczenie przetwarzania i brak profilowania (RODO), transfer danych poza EOG,
-tabela plików cookie, procedura reklamacyjna i odstąpienie od umowy (regulamin).
-MECHANIKA: `lib/legal.ts` (dane usługodawcy w jednym miejscu do uzupełnienia),
-`components/legal/LegalSection.tsx`, `app/prywatnosc/page.tsx`, `app/regulamin/page.tsx`,
-wpis obu stron w `app/sitemap.ts`.
 
 ### 2026-08-04 — Strona meczu: mniej ozdób, więcej odpowiedzi
 PROBLEM: strona meczu w Bojo otwierała się zdjęciem satelitarnym na pół ekranu,
