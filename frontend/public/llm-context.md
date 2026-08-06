@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `065` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `066` · 31 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-06 — Gość dopisany ręcznie przejmuje swój wpis po założeniu konta
+PROBLEM: organizator dopisywał do składu osobę bez konta, wpisując samo imię —
+taki wpis nie należał do nikogo. Gdy ta osoba później zakładała konto w Bojo
+i dołączała do tego samego meczu, w składzie stały dwie pozycje o tym samym
+imieniu, organizator musiał jedną usunąć ręcznie, a historia gier nowego
+użytkownika zaczynała się od zera.
+ROZWIĄZANIE BOJO: przy każdym wpisie gościa organizator ma przycisk „Zaproś do
+Bojo", który kopiuje jednorazowy link. Kto go otworzy, widzi — jeszcze przed
+logowaniem — pod jakim imieniem został dopisany i o który mecz chodzi, a po
+zalogowaniu wiąże ten wpis ze swoim kontem jednym kliknięciem. Miejsce
+w składzie zostaje to samo, mecz trafia do historii gracza.
+Dopasowania po imieniu Bojo NIE robi: imię nie jest tożsamością, a przejęcie
+cudzego wpisu oznaczałoby przejęcie cudzego miejsca w składzie. Link jest
+jednorazowy i wygasa po użyciu; nie da się nim przejąć wpisu w meczu, w którym
+jest się już zapisanym na własnym koncie.
+MECHANIKA: migracja `066` — kolumny `claim_token` i `claimed_at`
+w `event_participants`, wyzwalacz nadający token przy dopisaniu gościa oraz
+funkcje `podejrzyj_wpis_goscia()` i `przejmij_wpis_goscia()` z SECURITY DEFINER
+(wpis gościa nie ma właściciela, więc polityka RLS oparta na tożsamości nie
+mogłaby go przepuścić). Trasa `/gracz/przejmij/[token]`, `lib/guestClaim.ts`.
+
 ### 2026-08-06 — Rezerwa mówi, co się musi stać, i daje znać po fakcie
 PROBLEM: gracz na liście rezerwowej Bojo widział tylko etykietę „Rezerwa · 3."
 Nie wiedział, co musi się stać, żeby zagrał, ile ma czasu na przyjęcie
@@ -440,17 +461,3 @@ MECHANIKA: `POLSKA` / `POLSKA_ZOOM` w `components/map/mapIcons.ts`, przycisk
 lokalizacji i `locateMe()` w `components/map/VenueExplorer.tsx`,
 `wielofunkcyjne` dopisane do `EXPLORER_SPORTS` w `lib/api.ts` i do
 `SPORT_CONFIG` w `lib/sports.ts`.
-
-### 2026-08-05 — Mapa pokazuje boiska z całej Polski
-PROBLEM: mapa Bojo miała zaszyty prostokąt wokół Poznania i pokazywała tylko to,
-co się w nim mieściło. Obiekty zaimportowane z innych województw nie miały szans
-się pojawić. Drugi filtr wymagał telefonu, strony albo opisu — świeży import
-z OpenStreetMap nie ma żadnej z tych rzeczy, więc odsiewał je nawet w zasięgu.
-ROZWIĄZANIE BOJO: mapa pokazuje obiekty z całego kraju. O tym, co jest widoczne,
-decyduje wyłącznie `map_visibility = 'public'` — jedno kryterium zamiast dwóch
-zachodzących na siebie. Import z OSM ustawia tę kolumnę świadomie, według bramki
-jakości opartej na tagach, więc nie trzeba jej już podpierać filtrem zastępczym.
-MECHANIKA: `getExplorerFields()` w `lib/api.ts` (usunięte `EXPLORER_BOUNDS`
-i filtr „ma kontakt"), punkt zerowy przeplotu Mortona w
-`components/map/VenueExplorer.tsx` przesunięty na 49° N / 14° E — przy starym
-(52° N, 16,5° E) wszystko na południe od Poznania traciło porządek przestrzenny.

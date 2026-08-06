@@ -54,6 +54,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
+| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]` |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
 ---

@@ -9,7 +9,7 @@ import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Phone, Trophy, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
-  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye,
+  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye, Link2 as LinkIcon,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -42,6 +42,7 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import { linkPrzejeciaWpisu } from '@/lib/guestClaim';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
@@ -339,6 +340,7 @@ export default function EventDetailClient() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [venueInfoOpen, setVenueInfoOpen] = useState(false);
+  const [skopiowanyToken, setSkopiowanyToken] = useState<string | null>(null);
   // Rescheduling from the badge. `whenConfirm` is the second gate: moving a
   // match that people already signed up for needs an explicit yes.
   const [whenOpen, setWhenOpen] = useState(false);
@@ -784,6 +786,19 @@ export default function EventDetailClient() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
+  };
+
+  /** Kopiuje jednorazowy link, którym gość zwiąże ten wpis ze swoim kontem. */
+  const kopiujLinkPrzejecia = async (p: EventParticipant) => {
+    if (!p.claimToken) return;
+    try {
+      await navigator.clipboard.writeText(linkPrzejeciaWpisu(p.claimToken));
+      setSkopiowanyToken(p.id);
+      setTimeout(() => setSkopiowanyToken(null), 2500);
+      toast('Link skopiowany — wyślij go tej osobie');
+    } catch {
+      toast('Nie udało się skopiować linku', 'error');
+    }
   };
 
   const handleShare = async () => {
@@ -1416,6 +1431,22 @@ export default function EventDetailClient() {
                           </span>
                         );
                       })()}
+                      {/* Gość może przejąć swój wpis po założeniu konta —
+                          link jest jednorazowy i wędruje kanałem, który wybierze
+                          organizator. Dopasowanie po imieniu byłoby fałszywą
+                          tożsamością: na osiedlowym meczu bywa trzech Marków,
+                          a przejęcie cudzego wpisu to cudze miejsce w składzie
+                          i cudza historia gier. */}
+                      {isOrganizer && p.isGuest && p.claimToken && (
+                        <button
+                          type="button"
+                          onClick={() => kopiujLinkPrzejecia(p)}
+                          className="mt-1 inline-flex items-center gap-1 self-start text-[11px] font-medium text-primary-700 hover:underline"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                          {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}

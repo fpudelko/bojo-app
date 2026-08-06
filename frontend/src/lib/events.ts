@@ -76,6 +76,7 @@ function toParticipant(row: any): EventParticipant {
     paidAmount: row.paid_amount ?? 0,
     phone: row.phone ?? undefined,
     isCaptain: row.is_captain ?? false,
+    claimToken: row.claim_token ?? undefined,
     addedBy: row.added_by ?? undefined,
     isGoalkeeper: row.is_goalkeeper ?? false,
     pendingApproval: row.pending_approval ?? false,
