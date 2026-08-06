@@ -225,6 +225,9 @@ export interface EventParticipant {
   /** True once they declined the offer or let the window lapse. Stays on the
    *  reserve list (organizer can still promote by hand) but skipped by the queue. */
   claimPassed: boolean;
+  /** Jednorazowy token, którym osoba dopisana ręcznie zwiąże ten wpis ze swoim
+   *  kontem (migracja `066`). Puste dla wpisów, które już mają właściciela. */
+  claimToken?: string;
   /** How this participant intends to pay (chosen when joining a paid match). */
   paymentMethod?: PaymentMethod;
   /** Whether they hold one of the event's accepted sports cards. */
