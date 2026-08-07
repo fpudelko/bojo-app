@@ -252,11 +252,15 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
             </div>
 
             {/* Klaster mobilny — bez hamburgera w obu stanach.
-                Zalogowany: dzwonek + awatar; wszystko, co było w arkuszu
+
+                Zalogowany: dzwonek + awatar. Wszystko, co było w arkuszu
                 (Moje mecze, Grupy, profil, motyw, admin, Wyloguj), jest już
-                w dolnej nawigacji albo na /profil. Skutek uboczny: dzwonek
-                powiadomień, wcześniej wyłącznie w bloku `hidden md:flex`,
-                stał się dostępny na telefonie.
+                w dolnej nawigacji albo na /profil.
+
+                Dzwonek siedzi tu, a nie w dolnej nawigacji, bo tam wszystkie
+                pięć miejsc jest zajętych, a powiadomienia mają być widoczne na
+                KAŻDYM ekranie — nagłówek jest jedynym elementem obecnym wszędzie.
+
                 Wylogowany: mapa + Dołącz + awatar (logowanie). Pasek jest tu
                 marketingowy, nie nawigacyjny — do /wydarzenia i /wydarzenia/nowe
                 prowadzą CTA w treści landingu, klikalny krok „Stwórz mecz”,

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 26 migracji: 041_join_code.sql → 066_przejecie_wpisu_goscia.sql
+-- Zawiera 29 migracji: 041_join_code.sql → 069_skupiska_na_mapie.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -1490,3 +1490,234 @@ REVOKE ALL ON FUNCTION podejrzyj_wpis_goscia(uuid) FROM public;
 REVOKE ALL ON FUNCTION przejmij_wpis_goscia(uuid, text) FROM public;
 GRANT EXECUTE ON FUNCTION podejrzyj_wpis_goscia(uuid) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION przejmij_wpis_goscia(uuid, text) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 067_powiadomienie_o_zaproszeniu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 067_powiadomienie_o_zaproszeniu.sql
+--
+-- Imienne zaproszenie na mecz nie tworzyło powiadomienia. Zaproszony widział je
+-- wyłącznie wchodząc na stronę główną Bojo — czyli dokładnie wtedy, gdy i tak
+-- by je zobaczył. Dzwonek pokazywał zero, mimo trzech czekających zaproszeń.
+--
+-- Powiadomienia (`025`) powstały wcześniej niż zaproszenia (`060`) i nikt ich
+-- wtedy nie połączył. Ta migracja to naprawia oraz uzupełnia wpisy dla zaproszeń,
+-- które już czekają w bazie — inaczej naprawa działałaby dopiero od następnego
+-- zaproszenia, a te dzisiejsze zostałyby niewidoczne na zawsze.
+
+CREATE OR REPLACE FUNCTION powiadom_o_zaproszeniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul     TEXT;
+  v_data      DATE;
+  v_godzina   TIME;
+  v_kto       TEXT;
+BEGIN
+  SELECT coalesce(e.title, e.sport), e.event_date, e.event_time
+    INTO v_tytul, v_data, v_godzina
+    FROM events e
+   WHERE e.id = NEW.event_id;
+
+  SELECT p.display_name INTO v_kto FROM profiles p WHERE p.id = NEW.invited_by;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  VALUES (
+    NEW.user_id,
+    'zaproszenie_na_mecz',
+    coalesce(v_kto || ' zaprasza Cię na mecz', 'Zaproszenie na mecz'),
+    coalesce(v_tytul, 'Mecz') || ' — ' || to_char(v_data, 'DD.MM')
+      || ', godz. ' || to_char(v_godzina, 'HH24:MI') || '.',
+    NEW.event_id
+  );
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_zaproszeniu ON event_player_invites;
+CREATE TRIGGER trg_powiadom_o_zaproszeniu
+  AFTER INSERT ON event_player_invites
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_zaproszeniu();
+
+-- ---------------------------------------------------------------------------
+-- Uzupełnienie zaległych zaproszeń
+-- ---------------------------------------------------------------------------
+-- Tylko te, które wciąż na coś czekają: nieodrzucone i dotyczące meczu, który
+-- się jeszcze nie odbył. Powiadomienie o zaproszeniu na mecz sprzed tygodnia
+-- byłoby hałasem, nie informacją.
+--
+-- `NOT EXISTS` chroni przed powtórką, gdyby migracja poszła drugi raz.
+INSERT INTO notifications (user_id, type, title, body, event_id, created_at)
+SELECT i.user_id,
+       'zaproszenie_na_mecz',
+       coalesce(p.display_name || ' zaprasza Cię na mecz', 'Zaproszenie na mecz'),
+       coalesce(e.title, e.sport) || ' — ' || to_char(e.event_date, 'DD.MM')
+         || ', godz. ' || to_char(e.event_time, 'HH24:MI') || '.',
+       i.event_id,
+       i.created_at
+  FROM event_player_invites i
+  JOIN events e ON e.id = i.event_id
+  LEFT JOIN profiles p ON p.id = i.invited_by
+ WHERE i.dismissed_at IS NULL
+   AND e.status = 'active'
+   AND (e.event_date + e.event_time)::timestamp > now()
+   AND NOT EXISTS (
+     SELECT 1 FROM notifications n
+      WHERE n.user_id = i.user_id
+        AND n.event_id = i.event_id
+        AND n.type = 'zaproszenie_na_mecz'
+   );
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 068_osm_tagi_i_otoczenie.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 068_osm_tagi_i_otoczenie.sql
+--
+-- Surowe tagi OpenStreetMap, metadane wpisu i otoczenie obiektu.
+--
+-- Dlaczego jedna kolumna JSON zamiast dwudziestu kolumn. Importer czytał
+-- kilkanaście tagów i resztę wyrzucał. Każde późniejsze „dorzućmy jeszcze X"
+-- oznaczało nową kolumnę, nową migrację i PONOWNY IMPORT CAŁEGO KRAJU: pobranie
+-- kilkunastu plików po 100–200 MB i godziny przetwarzania, żeby odzyskać dane,
+-- które już raz mieliśmy w pamięci. `osm_tags` zapisuje komplet raz; decyzję,
+-- co z tego pokazać, podejmujemy potem zwykłym SQL-em.
+--
+-- Kolumny osobne dostają tylko te rzeczy, po których chcemy FILTROWAĆ na mapie
+-- — filtr po polu JSON nie skorzysta z indeksu tak dobrze jak kolumna, a lista
+-- boisk ma być szybka przy dziesiątkach tysięcy wierszy.
+
+ALTER TABLE fields
+  -- Komplet tagów obiektu z OSM, bez interpretacji. Źródło prawdy dla wszystkiego,
+  -- czego jeszcze nie wyciągnęliśmy do osobnej kolumny.
+  ADD COLUMN IF NOT EXISTS osm_tags        JSONB,
+  -- Kiedy ktokolwiek edytował ten obiekt w OSM. UWAGA przy interpretacji: brak
+  -- edycji nie znaczy „nieaktualne". Boisko zmapowane w 2014 i od tego czasu
+  -- nietknięte najczęściej dalej tam jest — po prostu nikt nie miał czego
+  -- poprawiać. Ta data mówi o AKTYWNOŚCI MAPERÓW, nie o stanie boiska.
+  ADD COLUMN IF NOT EXISTS osm_updated_at  TIMESTAMPTZ,
+  -- Ile razy obiekt był edytowany. Wysoka liczba = ktoś go pilnuje.
+  ADD COLUMN IF NOT EXISTS osm_version     INT,
+  -- `check_date` / `survey:date` — jedyny tag, który znaczy „ktoś to sprawdził
+  -- w terenie tego dnia". Rzadki, ale gdy jest, wart więcej niż cała reszta.
+  ADD COLUMN IF NOT EXISTS osm_checked_at  DATE,
+
+  -- --- cechy, po których filtrujemy ---
+  ADD COLUMN IF NOT EXISTS is_covered      BOOLEAN,   -- zadaszone (covered/indoor)
+  ADD COLUMN IF NOT EXISTS reservation     TEXT,      -- required | recommended | no
+  ADD COLUMN IF NOT EXISTS operator_kind   TEXT,      -- public | private | government | community…
+  ADD COLUMN IF NOT EXISTS hoops           INT,       -- liczba koszy
+  ADD COLUMN IF NOT EXISTS seasonal        TEXT,      -- np. winter — lodowiska, plażówki
+  ADD COLUMN IF NOT EXISTS surveillance    BOOLEAN,   -- monitoring
+  ADD COLUMN IF NOT EXISTS wheelchair      TEXT,      -- yes | limited | no
+
+  -- --- otoczenie: liczone złączeniem przestrzennym przy imporcie ---
+  -- Odpowiada na pytania, których gracz nie zada wprost, a które decydują
+  -- o wyborze boiska: gdzie zaparkuję, jak dojadę bez auta.
+  ADD COLUMN IF NOT EXISTS parking_m       INT,       -- odległość do parkingu w metrach
+  ADD COLUMN IF NOT EXISTS transit_m       INT,       -- odległość do przystanku
+  ADD COLUMN IF NOT EXISTS toilets_m       INT,       -- odległość do toalety publicznej
+
+  -- Ile boisk leży w tym samym obiekcie nadrzędnym (szkoła, ośrodek). Pozwala
+  -- powiedzieć „kompleks 3 boisk" zamiast pokazywać trzy osobne pinezki bez
+  -- związku.
+  ADD COLUMN IF NOT EXISTS siblings        INT,
+
+  -- Alternatywne nazwy z OSM. Ludzie szukają „Orlik na Górczynie", a nie nazwy
+  -- z tabliczki przy wejściu.
+  ADD COLUMN IF NOT EXISTS alt_names       TEXT[];
+
+COMMENT ON COLUMN fields.osm_tags       IS 'Surowe tagi OSM. Źródło prawdy dla pól jeszcze nie wyciągniętych do kolumn.';
+COMMENT ON COLUMN fields.osm_updated_at IS 'Ostatnia edycja w OSM. Mówi o aktywności maperów, NIE o aktualności boiska.';
+COMMENT ON COLUMN fields.osm_checked_at IS 'check_date/survey:date — ktoś zweryfikował obiekt w terenie tego dnia.';
+COMMENT ON COLUMN fields.siblings       IS 'Ile boisk w tym samym obiekcie nadrzędnym (kompleks).';
+
+-- Indeksy tylko tam, gdzie filtruje mapa. Częściowe, bo większość obiektów
+-- będzie miała NULL i nie ma sensu ich indeksować.
+CREATE INDEX IF NOT EXISTS idx_fields_covered   ON fields (is_covered)   WHERE is_covered = true;
+CREATE INDEX IF NOT EXISTS idx_fields_operator  ON fields (operator_kind) WHERE operator_kind IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_fields_osm_dates ON fields (osm_updated_at) WHERE osm_updated_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_fields_osm_tags  ON fields USING GIN (osm_tags);
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 069_skupiska_na_mapie.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 069_skupiska_na_mapie.sql
+--
+-- Agregacja obiektów dla oddalonych widoków mapy.
+--
+-- Problem, który to rozwiązuje. Mapa pobiera dziś wszystkie publiczne obiekty
+-- naraz. Przy Poznaniu i lubelskiem to ~2 tys. wierszy i da się z tym żyć.
+-- Po imporcie całego kraju będzie ich kilkadziesiąt tysięcy, a wtedy bolą dwie
+-- rzeczy naraz: transfer oraz to, że Leaflet musi utworzyć w przeglądarce
+-- tyleż obiektów markerów, żeby zaraz zwinąć je w klastry.
+--
+-- Rozwiązanie: przy oddaleniu nie wysyłamy obiektów, tylko LICZBY W SIATCE.
+-- Baza grupuje po komórce, zwraca środek ciężkości i liczność. Zamiast
+-- 40 tysięcy wierszy przychodzi kilkaset, a przeglądarka rysuje z nich kółka
+-- z liczbami — czyli dokładnie to, co i tak zobaczyłby użytkownik.
+--
+-- Dlaczego siatka na szerokości i długości, a nie PostGIS. Nie mamy rozszerzenia
+-- PostGIS, a do zliczania w kwadratach nie jest potrzebne: `floor(lat / krok)`
+-- wystarczy. Zniekształcenie przy dużych szerokościach geograficznych nie ma
+-- znaczenia — Polska mieści się w wąskim pasie, a to i tak tylko wizualne
+-- skupisko, nie pomiar.
+
+CREATE OR REPLACE FUNCTION mapa_skupiska(
+  p_lat_min DOUBLE PRECISION,
+  p_lat_max DOUBLE PRECISION,
+  p_lng_min DOUBLE PRECISION,
+  p_lng_max DOUBLE PRECISION,
+  p_krok    DOUBLE PRECISION,
+  p_sporty  TEXT[] DEFAULT NULL,
+  p_typy    TEXT[] DEFAULT NULL
+)
+RETURNS TABLE (
+  lat    DOUBLE PRECISION,
+  lng    DOUBLE PRECISION,
+  ile    BIGINT,
+  sporty TEXT[]
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT avg(f.lat)::DOUBLE PRECISION,
+         avg(f.lng)::DOUBLE PRECISION,
+         count(*),
+         -- Sporty w komórce — kolor kółka bierze się z tego, co w niej jest.
+         -- Ograniczone do pięciu, bo ikona i tak pokazuje najwyżej kilka.
+         (array_agg(DISTINCT s))[1:5]
+    FROM fields f
+    CROSS JOIN LATERAL unnest(f.sport) AS s
+   WHERE f.map_visibility = 'public'
+     AND f.lat IS NOT NULL AND f.lng IS NOT NULL
+     AND f.lat BETWEEN p_lat_min AND p_lat_max
+     AND f.lng BETWEEN p_lng_min AND p_lng_max
+     AND (p_sporty IS NULL OR f.sport && p_sporty)
+     AND (p_typy   IS NULL OR f.venue_type = ANY(p_typy))
+   GROUP BY floor(f.lat / p_krok), floor(f.lng / p_krok)
+$$;
+
+COMMENT ON FUNCTION mapa_skupiska IS
+  'Liczby obiektów w komórkach siatki dla oddalonych widoków mapy — zamiast tysięcy wierszy.';
+
+-- Indeks pod zapytanie po prostokącie. Częściowy, bo mapa pyta wyłącznie
+-- o obiekty publiczne, a te są mniejszością całego katalogu.
+CREATE INDEX IF NOT EXISTS idx_fields_mapa_bbox
+  ON fields (lat, lng)
+  WHERE map_visibility = 'public';
+
+REVOKE ALL ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
+                                     DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[]) FROM public;
+GRANT EXECUTE ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
+                                        DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[])
+  TO anon, authenticated;

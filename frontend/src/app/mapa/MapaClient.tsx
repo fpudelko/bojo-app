@@ -19,7 +19,12 @@ const VenueExplorer = dynamic(() => import('@/components/map/VenueExplorer'), {
 
 export default function MapaPage() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-white">
+    // `100dvh`, nie `100vh`. Na iOS pasek adresu Safari zwija się przy
+    // przewijaniu i widoczna wysokość okna rośnie — `vh` tego nie zauważa,
+    // więc kontener mapy przestawał się pokrywać z tym, co widać. Dolna
+    // nawigacja jest `fixed`, czyli trzyma się widocznego okna, i po zwinięciu
+    // paska te dwie rzeczy rozjeżdżały się o kilkadziesiąt pikseli.
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-white">
       <Header />
       <Suspense fallback={
         <div className="flex flex-1 items-center justify-center bg-slate-100">

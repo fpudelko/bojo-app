@@ -660,6 +660,32 @@ export default function VenueDetailClient({
         </div>
 
         <VenueComments fieldId={field.id} />
+
+        {/* Atrybucja OpenStreetMap. Nie ozdoba — ODbL wymaga uznania autorstwa
+            wszędzie, gdzie pokazujemy te dane, a nie tylko pod mapą. Ta strona
+            pokazuje nazwę, nawierzchnię, wymiary i udogodnienia pochodzące
+            wprost z OSM. */}
+        <p className="px-1 text-center text-[11px] text-slate-400">
+          Dane o obiekcie pochodzą z{' '}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-slate-600"
+          >
+            OpenStreetMap
+          </a>{' '}
+          — © autorzy OpenStreetMap, licencja ODbL. Coś się nie zgadza?{' '}
+          <a
+            href={`https://www.openstreetmap.org/note/new#map=19/${field.lat}/${field.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-slate-600"
+          >
+            Zgłoś poprawkę
+          </a>
+          .
+        </p>
         {/* Admin: map visibility toggle */}
         {isAdmin && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">

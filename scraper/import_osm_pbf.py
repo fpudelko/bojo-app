@@ -56,6 +56,15 @@ GEOFABRIK = "https://download.geofabrik.de/europe/poland/{region}-latest.osm.pbf
 LUSTRO_OSMFR = "https://download.openstreetmap.fr/extracts/europe/poland/{region}.osm.pbf"
 PROBY_POBRANIA = 4
 
+
+class NieTenPlik(Exception):
+    """Serwer odpowiedział, ale nie plikiem OSM PBF.
+
+    Wydzielone z ogólnych błędów, bo ponawianie nic tu nie da: zła nazwa
+    regionu nie stanie się dobra za piątym pobraniem. Przerywamy dane źródło
+    od razu i przechodzimy do następnego — tak samo jak przy 404.
+    """
+
 # Nazwy wycinków Geofabrik dla polskich województw — bez polskich znaków
 # i bez „województwo". Literówka kończy się 404 po pobraniu 0 bajtów, więc
 # lepiej odrzucić ją od razu, z podpowiedzią.
@@ -131,6 +140,21 @@ class RawObj:
     coords: list[tuple[float, float]] = dc_field(default_factory=list)
     lat: float | None = None
     lng: float | None = None
+    # Metadane wpisu w OSM — nie tagi, tylko właściwości obiektu. Są w pliku
+    # i nic nie kosztują, a mówią o tym, jak pilnowany jest ten wpis.
+    edytowano: str | None = None
+    wersja: int | None = None
+
+
+# Obiekty w otoczeniu, do których liczymy odległość. Promień w metrach dobrany
+# tak, żeby odpowiedź brzmiała „przy boisku", a nie „gdzieś w tej dzielnicy".
+OTOCZENIE = {
+    "parking":  (lambda t: t.get("amenity") == "parking", 250),
+    "przystanek": (lambda t: t.get("highway") == "bus_stop"
+                             or t.get("railway") in ("tram_stop", "station", "halt")
+                             or t.get("public_transport") == "platform", 500),
+    "toaleta":  (lambda t: t.get("amenity") == "toilets", 200),
+}
 
 
 class Collector(osmium.SimpleHandler):
@@ -141,6 +165,8 @@ class Collector(osmium.SimpleHandler):
         self.pitches: list[RawObj] = []
         self.contexts: list[RawObj] = []
         self.places: list[RawObj] = []
+        # rodzaj -> lista (lat, lng)
+        self.otoczenie: dict[str, list[tuple[float, float]]] = {k: [] for k in OTOCZENIE}
 
     def _is_pitch(self, t: dict[str, str]) -> bool:
         return (t.get("leisure") in ("pitch", "sports_centre", "stadium", "sports_hall")
@@ -149,17 +175,39 @@ class Collector(osmium.SimpleHandler):
     def _is_context(self, t: dict[str, str]) -> bool:
         return bool(t.get("name")) and any(pred(t) for _, pred in CONTEXT_KINDS)
 
+    def _zbierz_otoczenie(self, t: dict[str, str], lat: float, lng: float) -> None:
+        for rodzaj, (pasuje, _) in OTOCZENIE.items():
+            if pasuje(t):
+                self.otoczenie[rodzaj].append((lat, lng))
+                return
+
     def node(self, n) -> None:
         t = dict(n.tags)
         if t.get("place") in PLACE_RANK and t.get("name"):
             self.places.append(RawObj(f"node/{n.id}", t, lat=n.location.lat, lng=n.location.lon))
         elif self._is_pitch(t):
-            self.pitches.append(RawObj(f"node/{n.id}", t, lat=n.location.lat, lng=n.location.lon))
+            self.pitches.append(RawObj(
+                f"node/{n.id}", t, lat=n.location.lat, lng=n.location.lon,
+                edytowano=n.timestamp.isoformat() if n.timestamp else None,
+                wersja=n.version,
+            ))
+        else:
+            self._zbierz_otoczenie(t, n.location.lat, n.location.lon)
 
     def way(self, w) -> None:
         t = dict(w.tags)
         is_pitch, is_ctx = self._is_pitch(t), self._is_context(t)
         if not (is_pitch or is_ctx):
+            # Parking bywa rysowany wielokątem, nie punktem — bez tego liczyliby­śmy
+            # odległość tylko do tych nielicznych oznaczonych kropką.
+            if any(pasuje(t) for pasuje, _ in OTOCZENIE.values()):
+                try:
+                    pkt = [(nd.location.lon, nd.location.lat) for nd in w.nodes if nd.location.valid()]
+                except osmium.InvalidLocationError:
+                    return
+                if len(pkt) >= 3:
+                    lat, lng = centroid(pkt)
+                    self._zbierz_otoczenie(t, lat, lng)
             return
         try:
             coords = [(nd.location.lon, nd.location.lat) for nd in w.nodes if nd.location.valid()]
@@ -167,7 +215,11 @@ class Collector(osmium.SimpleHandler):
             return
         if len(coords) < 3:
             return
-        obj = RawObj(f"way/{w.id}", t, coords=coords)
+        obj = RawObj(
+            f"way/{w.id}", t, coords=coords,
+            edytowano=w.timestamp.isoformat() if w.timestamp else None,
+            wersja=w.version,
+        )
         # Kontekst ma pierwszeństwo: kompleks sportowy bywa otagowany jednocześnie
         # jako sports_centre (kontekst) i pitch — wtedy jest nazwą dla boisk w środku.
         (self.contexts if is_ctx else self.pitches).append(obj)
@@ -177,6 +229,13 @@ def centroid(coords: list[tuple[float, float]]) -> tuple[float, float]:
     lon = sum(c[0] for c in coords) / len(coords)
     lat = sum(c[1] for c in coords) / len(coords)
     return lat, lon
+
+
+def odleglosc_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Odległość w metrach między dwoma punktami (lat, lng)."""
+    m_lat = 111_320.0
+    m_lng = m_lat * math.cos(math.radians(a[0]))
+    return math.hypot((a[1] - b[1]) * m_lng, (a[0] - b[0]) * m_lat)
 
 
 def dimensions_m(poly: Polygon, lat: float) -> str | None:
@@ -287,6 +346,20 @@ def pobierz(region: str, path: str) -> None:
                 log.info("Pobieram %s (%s, próba %d/%d)", url, nazwa, proba, PROBY_POBRANIA)
                 with httpx.stream("GET", url, follow_redirects=True, timeout=600) as r:
                     r.raise_for_status()
+
+                    # Serwer odpowiada 200 także wtedy, gdy adres wskazuje coś
+                    # zupełnie innego niż plik z danymi. Przy złej nazwie regionu
+                    # Geofabrik oddaje listing katalogu w HTML — zapisany jako
+                    # `.pbf` przechodzi dalej i wybucha dopiero w osmium
+                    # komunikatem „invalid BlobHeader size", z którego nie da się
+                    # odczytać, że chodziło o literówkę w nazwie.
+                    typ = (r.headers.get("content-type") or "").lower()
+                    if "html" in typ or "text/" in typ:
+                        raise NieTenPlik(
+                            f"{url} oddał {typ or 'treść tekstową'} zamiast pliku .pbf "
+                            f"— najpewniej zła nazwa regionu"
+                        )
+
                     # Zapis do pliku tymczasowego: przerwane pobranie nie może
                     # zostawić obciętego .pbf, który przy kolejnym uruchomieniu
                     # zostałby wzięty za gotowy (kod pomija pobieranie, gdy plik
@@ -295,6 +368,20 @@ def pobierz(region: str, path: str) -> None:
                     with open(tmp, "wb") as fh:
                         for chunk in r.iter_bytes(1 << 20):
                             fh.write(chunk)
+
+                    # Podpis pliku PBF: pierwszy blok nagłówkowy zawiera
+                    # „OSMHeader" w pierwszych kilkudziesięciu bajtach. Tańsze
+                    # i pewniejsze niż ufanie rozszerzeniu w adresie.
+                    with open(tmp, "rb") as fh:
+                        poczatek = fh.read(64)
+                    if b"OSMHeader" not in poczatek:
+                        rozmiar = os.path.getsize(tmp)
+                        os.remove(tmp)
+                        raise NieTenPlik(
+                            f"{url} nie jest plikiem OSM PBF (pobrano {rozmiar} B, "
+                            f"brak podpisu OSMHeader)"
+                        )
+
                     os.replace(tmp, path)
                 return
             except Exception as e:  # noqa: BLE001 — logujemy i próbujemy dalej
@@ -302,8 +389,9 @@ def pobierz(region: str, path: str) -> None:
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 # 404 na lustrze znaczy „ten region nazywa się tam inaczej" —
                 # ponawianie nic nie da, przechodzimy do następnego źródła.
-                if status == 404:
-                    log.warning("%s: 404 — pomijam to źródło", nazwa)
+                if status == 404 or isinstance(e, NieTenPlik):
+                    log.warning("%s: %s — pomijam to źródło", nazwa,
+                                "404" if status == 404 else e)
                     break
                 czekaj = 5 * 2 ** (proba - 1)
                 log.warning("%s: %s — czekam %ds", nazwa, e, czekaj)
@@ -367,6 +455,19 @@ def main() -> int:
         ctx_polys.append(poly)
         ctx_meta.append((c, kind))
     ctx_tree = STRtree(ctx_polys) if ctx_polys else None
+
+    # Indeks otoczenia. Punkty trzymamy w stopniach, więc do wyszukania bierzemy
+    # prostokąt przeliczony ze wskazanego promienia — dokładna odległość liczona
+    # jest dopiero dla trafień, na haversinie.
+    otoczenie_drzewa: dict[str, tuple[STRtree, list[tuple[float, float]], int]] = {}
+    for rodzaj, punkty in col.otoczenie.items():
+        if not punkty:
+            continue
+        promien = OTOCZENIE[rodzaj][1]
+        geom = [Point(lng, lat) for lat, lng in punkty]
+        otoczenie_drzewa[rodzaj] = (STRtree(geom), punkty, promien)
+    log.info("Otoczenie: %s",
+             ", ".join(f"{k}={len(v)}" for k, v in col.otoczenie.items()) or "brak")
     ctx_rank = {k: i for i, (k, _) in enumerate(CONTEXT_KINDS)}
 
     places = [p for p in col.places if p.lat is not None]
@@ -387,6 +488,9 @@ def main() -> int:
         return best.tags["name"] if best else None
 
     records: list[dict[str, Any]] = []
+    # osm_id obiektu nadrzędnego dla każdego rekordu, w tej samej kolejności —
+    # pozwala policzyć „ile boisk w tym kompleksie" po zbudowaniu całej listy.
+    kontekst_rekordu: list[str | None] = []
     stats = Counter()
 
     for p in col.pitches:
@@ -489,6 +593,46 @@ def main() -> int:
                 stats[f"bramka {g}"] += 1
         quality = gates[args.gate]
 
+        # --- otoczenie: najbliższy parking, przystanek, toaleta ---
+        blisko: dict[str, int | None] = {}
+        for rodzaj, (drzewo, punkty, promien) in otoczenie_drzewa.items():
+            # Prostokąt wyszukiwania z promienia — w stopniach, bo taka jest
+            # geometria indeksu.
+            d_lat = promien / 111_320.0
+            d_lng = d_lat / max(0.2, math.cos(math.radians(lat)))
+            trafienia = drzewo.query(
+                Polygon([(lng - d_lng, lat - d_lat), (lng + d_lng, lat - d_lat),
+                         (lng + d_lng, lat + d_lat), (lng - d_lng, lat + d_lat)])
+            )
+            naj = None
+            for idx in trafienia:
+                d = odleglosc_m((lat, lng), punkty[idx])
+                if d <= promien and (naj is None or d < naj):
+                    naj = d
+            blisko[rodzaj] = round(naj) if naj is not None else None
+            if naj is not None:
+                stats[f"ma w pobliżu: {rodzaj}"] += 1
+
+        # --- cechy wyciągnięte do osobnych kolumn (filtrowanie na mapie) ---
+        zadaszone = yn("covered") or (p.tags.get("indoor") == "yes") or None
+        rezerwacja = (p.tags.get("reservation") or "").strip().lower() or None
+        operator_typ = (p.tags.get("operator:type") or "").strip().lower() or None
+        kosze = p.tags.get("hoops")
+        try:
+            kosze_n = int(kosze) if kosze else None
+        except ValueError:
+            kosze_n = None
+        sprawdzone = (p.tags.get("check_date") or p.tags.get("survey:date") or "").strip()[:10] or None
+
+        # Nazwy potoczne — ludzie szukają „Orlik na Górczynie", nie nazwy
+        # z tabliczki. Puste odsiewamy, duplikaty też.
+        alternatywne = []
+        for klucz in ("alt_name", "short_name", "official_name", "loc_name", "name:pl"):
+            v = (p.tags.get(klucz) or "").strip()
+            if v and v != p.tags.get("name") and v not in alternatywne:
+                alternatywne.append(v)
+
+        kontekst_rekordu.append(ctx_obj.osm_id if ctx_obj else None)
         records.append({
             "name": name[:120],
             "address": address,
@@ -514,7 +658,37 @@ def main() -> int:
             "map_visibility": "public" if quality else args.visibility,
             "source": "osm",
             "external_id": f"osm:{p.osm_id}",
+
+            # Komplet tagów bez interpretacji — żeby nigdy więcej nie importować
+            # ponownie całego kraju po to, by dołożyć jedno pole.
+            "osm_tags": p.tags,
+            "osm_updated_at": p.edytowano,
+            "osm_version": p.wersja,
+            "osm_checked_at": sprawdzone,
+
+            "is_covered": zadaszone,
+            "reservation": rezerwacja,
+            "operator_kind": operator_typ,
+            "hoops": kosze_n,
+            "seasonal": (p.tags.get("seasonal") or "").strip().lower() or None,
+            "surveillance": yn("surveillance"),
+            "wheelchair": (p.tags.get("wheelchair") or "").strip().lower() or None,
+
+            "parking_m": blisko.get("parking"),
+            "transit_m": blisko.get("przystanek"),
+            "toilets_m": blisko.get("toaleta"),
+            # Uzupełniane po pętli — dopiero wtedy wiadomo, ile boisk
+            # trafiło do tego samego obiektu nadrzędnego.
+            "siblings": None,
+            "alt_names": alternatywne or None,
         })
+
+    # Ile boisk trafiło do tego samego obiektu nadrzędnego. Szkoła z trzema
+    # boiskami to dziś trzy osobne pinezki bez związku — ta liczba pozwala
+    # powiedzieć „kompleks 3 boisk".
+    licznik_kontekstow = Counter(k for k in kontekst_rekordu if k)
+    for rek, ktx in zip(records, kontekst_rekordu):
+        rek["siblings"] = licznik_kontekstow.get(ktx) if ktx else None
 
     # --- raport --------------------------------------------------------------
     n = len(records)

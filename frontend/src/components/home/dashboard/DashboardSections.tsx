@@ -10,7 +10,7 @@ import AlertSetupDialog from '../AlertSetupDialog';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
 import { isEventJoinable } from '@/lib/eventDates';
-import { dismissInvite, type InviteWithEvent } from '@/lib/playerInvites';
+import type { InviteWithEvent } from '@/lib/playerInvites';
 import { LANDING_STEPS } from '../landing/content';
 import { sportEmoji } from '@/lib/sports';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
@@ -55,27 +55,17 @@ export function SectionHeader({ title, href, count, subtitle }: {
  *  lib/events.ts#getMyParticipationMap — so it drops out here on its own
  *  and shows once, in MyMatchesSection / GroupGamesSection instead.
  *
- *  Dismissal is uncontrolled by default (own useState, as on the dashboard).
- *  /moje-gry passes dismissedIds/onDismiss so its own "Zaproszenia" tab badge
- *  shrinks in step with this teaser instead of tracking two separate sets. */
-export function InvitesSection({ invites, statusFor, href, limit = 3, dismissedIds, onDismiss }: {
+ *  `limit` domyślnie 3 (teaser na pulpicie); /moje-gry podaje własny `href`
+ *  do swojej zakładki „Zaproszenia". Odrzucania nie ma — przyciski odpowiedzi
+ *  na zaproszenie zostały wycofane (PR #110). */
+export function InvitesSection({ invites, statusFor, href, limit = 3 }: {
   invites: InviteWithEvent[];
   statusFor: StatusFor;
   href?: string;
   limit?: number;
-  dismissedIds?: Set<string>;
-  onDismiss?: (inviteId: string) => void;
 }) {
-  const [localDismissed, setLocalDismissed] = useState<Set<string>>(new Set());
-  const dismissed = dismissedIds ?? localDismissed;
-  const dismiss = onDismiss ?? ((inviteId: string) => {
-    setLocalDismissed((prev) => new Set(prev).add(inviteId));
-    dismissInvite(inviteId).catch(() => {});
-  });
 
-  const open = invites.filter(
-    ({ invite, event }) => !dismissed.has(invite.id) && statusFor(event).status === 'invited',
-  );
+  const open = invites.filter(({ event }) => statusFor(event).status === 'invited');
   if (open.length === 0) return null;
 
   return (
@@ -85,8 +75,6 @@ export function InvitesSection({ invites, statusFor, href, limit = 3, dismissedI
         invites={open}
         statusFor={statusFor}
         limit={limit}
-        dismissedIds={dismissed}
-        onDismiss={dismiss}
       />
     </div>
   );

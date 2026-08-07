@@ -286,7 +286,15 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 
 ## 8. Pomysły jeszcze niezbudowane
 
-### Przejęcie profilu gościa (claim) — #1 z rewizji 2026-08 ⭐
+### ~~Przejęcie profilu gościa (claim)~~ — ZROBIONE (PR #104, migracja `066`)
+Zrealizowane inaczej niż w szkicu niżej: token nadaje wyzwalacz w bazie (nie kod
+aplikacji), trasa to `/gracz/przejmij/[token]`, a przejęcie obejmuje JEDEN wiersz,
+nie klaster po `added_by + name`. Klaster zostaje jako możliwe rozszerzenie —
+dziś człowiek dostaje link per mecz. Szkic oryginalny zostawiony niżej jako zapis
+decyzji.
+
+<details><summary>Pierwotny projekt</summary>
+
 Projekt rozpisany w [docs/rewizja-2026-08.md](./docs/rewizja-2026-08.md) (dlaczego)
 i w rozmowie 2026-08-04 (jak). Skrót mechaniki:
 
@@ -310,6 +318,8 @@ i w rozmowie 2026-08-04 (jak). Skrót mechaniki:
   z rewizji — konwersja zaproszony → użytkownik)
 - anty-nadużycia: token = sekret na okaziciela (model jak `join_code`),
   rate limit na RPC przez `check_rate_limit`; regeneracja tokenu — later
+
+</details>
 
 
 ### Zamykanie zapisów po komplecie (decyzja produktowa do wdrożenia)
@@ -363,3 +373,79 @@ Landing i dashboard już zrobiły zwrot na organizatora (`docs/llm-context.md`, 
 2026-08-04 „Landing i dashboard: zwrot na organizatora"), więc kod wyprzedził dokument
 źródłowy. Sekcji 1 nie wolno parafrazować przy okazji innych zmian — to wymaga świadomej
 rewizji przez właściciela produktu, nie automatycznej edycji.
+
+
+### Zgłaszanie błędów: w aplikacji i w danych obiektu
+Dwa różne zgłoszenia, celowo rozdzielone — mają inny odbiorcę i inny cykl życia.
+
+**Błąd w aplikacji.** Coś nie działa, coś się rozjeżdża. Odbiorcą jesteśmy my.
+Minimalna wersja: formularz z opisem + automatycznie doklejony adres strony,
+przeglądarka i id użytkownika. Bez tego zgłoszenia są nie do odtworzenia.
+
+**Błąd w danych obiektu.** „Tu już nie ma bramek", „nawierzchnia jest sztuczna,
+nie trawa", „ten obiekt w ogóle nie istnieje". To jest cenniejsze i trudniejsze,
+bo dotyczy danych, których **nie jesteśmy właścicielem** — pochodzą z OSM na
+licencji ODbL. Do przemyślenia przy projektowaniu:
+
+- czy poprawka nadpisuje wartość z OSM w naszej bazie, czy tylko ją przykrywa
+  (kolumna `override_*` obok oryginału) — druga opcja pozwala ponownie
+  zaimportować region bez kasowania pracy użytkowników;
+- czy i jak oddajemy poprawki do OSM. Zgłoszenie „nawierzchnia jest inna" jest
+  wartościowe dla całego OSM, a odsyłanie ich z powrotem to najtańszy sposób,
+  żeby katalog poprawiał się sam. Najprostsza forma: przycisk otwierający
+  gotową notatkę w OSM (`https://www.openstreetmap.org/note/new`);
+- ile zgłoszeń wystarczy, żeby zmienić dane bez naszej moderacji. Przy jednym
+  zgłoszeniu ktoś złośliwy psuje katalog; przy trzech niezależnych — raczej nie;
+- „obiekt nie istnieje" to osobny przypadek: nie poprawka pola, tylko wniosek
+  o zdjęcie z mapy. Powinien wymagać naszej decyzji.
+
+Wartość: to jedyny mechanizm, który sprawia, że katalog **poprawia się sam**
+w miarę używania, zamiast starzeć się między importami.
+
+### Zgodność z licencją ODbL — dopiąć
+Dane z OpenStreetMap są na licencji ODbL. Wymaga ona uznania autorstwa
+i udostępnienia bazy pochodnej na tych samych warunkach. Co mamy, a czego nie:
+
+- **jest**: atrybucja na mapie (`components/map/MapAttribution.tsx`, standardowa
+  stopka Leafleta);
+- **brakuje**: atrybucji na stronie obiektu, gdzie pokazujemy dane z OSM poza
+  mapą — nazwę, nawierzchnię, wymiary, udogodnienia. Tam też należy się „Dane
+  © autorzy OpenStreetMap";
+- **do decyzji**: w jakiej formie udostępniamy bazę pochodną. Najprostsza droga
+  to publiczny zrzut kolumn pochodzących z OSM (`source = 'osm'`) pod stałym
+  adresem, z informacją o licencji. Nie dotyczy meczów, komentarzy ani kont —
+  te są nasze i nie są bazą pochodną;
+- **osobne ryzyko**: zdjęcia z Google Places zebrane dla Poznania. Ich warunki
+  są znacznie bardziej restrykcyjne niż ODbL i **nie pozwalają na dowolne
+  przechowywanie i serwowanie**. Do sprawdzenia przed pokazaniem ich gdziekolwiek
+  poza kontekstem, w którym je pobrano.
+
+
+### Odpowiadanie na zaproszenie z listy — do zaprojektowania
+Dziś karta zaproszenia na stronie głównej i w Moich grach jest **samą kartą**,
+bez żadnej akcji. Odpowiada się wchodząc na stronę meczu.
+
+Problem jest prawdziwy i wart rozwiązania: **„tak" kosztuje więcej kliknięć niż
+„nie"** — a raczej kosztowałoby, bo dziś nie ma nawet jak odmówić z listy.
+Przy funkcji, której sensem jest ściągnięcie ludzi na mecz, to odwrócone
+proporcje.
+
+Próbowaliśmy dwóch układów, oba odrzucone jako zbyt ciężkie wizualnie:
+
+1. **Obwódka + nagłówek „ZAPROSZENIE"** nad kartą — przy trzech zaproszeniach
+   pod rząd lista robiła się ścianą ramek.
+2. **Para przycisków „Dołączam" / „Odrzuć"** pod kartą — dokładała dwa duże
+   elementy na każdą pozycję listy.
+
+Kierunki do rozważenia przy następnym podejściu:
+- akcja ukryta do gestu (przesunięcie karty w bok), zamiast stale widocznych
+  przycisków;
+- jedna ikona w rogu karty zamiast dwóch przycisków — ale prawy górny róg jest
+  zajęty przez cenę;
+- odpowiedź nie na liście, tylko w powiadomieniu pod dzwonkiem, gdzie karta
+  jest mniejsza i akcja nie konkuruje z resztą treści;
+- rozróżnienie wizualne kartą samą w sobie (inny odcień tła), bez dokładania
+  elementów.
+
+Kod odpowiedzi (`joinEvent` z listy, `dismissInvite`) jest napisany i działał —
+patrz PR #107. Wróci, gdy będzie wiadomo, jak ma wyglądać.
