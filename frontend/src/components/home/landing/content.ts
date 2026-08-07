@@ -33,6 +33,10 @@ export const LANDING_STEPS = [
   {
     icon: 'CalendarPlus',
     title: 'Stwórz mecz',
+    // Jedyny krok z odnośnikiem: to jest ta akcja, do której cała sekcja
+    // prowadzi. Osobny przycisk pod listą był czwartym „Zorganizuj mecz"
+    // na stronie i tylko rozmywał wezwanie z hero.
+    href: '/wydarzenia/nowe',
     body: 'Sport, boisko z mapy, termin i liczba miejsc. Trzy kroki, dwie minuty.',
   },
   {
@@ -134,11 +138,6 @@ export const LANDING_FAQ: ReadonlyArray<{ q: string; a: string }> = [
       'i historię wspólnych składów w jednym miejscu.',
   },
 ];
-
-export const LANDING_FINAL_CTA = {
-  h2: 'Twoja ekipa czeka na termin',
-  lead: 'Wrzuć mecz, wyślij link i miej to z głowy.',
-} as const;
 
 export const LANDING_STATS = {
   sportsValue: '4',
