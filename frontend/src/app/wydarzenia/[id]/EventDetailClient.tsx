@@ -406,7 +406,7 @@ export default function EventDetailClient() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
           <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
         </main>
@@ -416,7 +416,7 @@ export default function EventDetailClient() {
   if (notFound || !event) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 flex items-center justify-center px-4 text-center text-slate-500">
           <div>
             <X className="w-10 h-10 mx-auto mb-3 text-slate-300" />
@@ -993,7 +993,7 @@ export default function EventDetailClient() {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       {/* pb-32 kompensował fixed pasek "Dołącz"/"Obserwuj" — a ten pokazuje
           się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
           pod treścią. */}
