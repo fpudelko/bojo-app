@@ -11,19 +11,23 @@ import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { InvitesSection, MyMatchesSection, ObservingSection } from '@/components/home/dashboard/DashboardSections';
+import { InvitesSection, MyMatchesSection } from '@/components/home/dashboard/DashboardSections';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import type { EventItem } from '@/types';
 
-type Tab = 'upcoming' | 'history' | 'invites';
+type Tab = 'upcoming' | 'history' | 'invites' | 'observing';
 
 // URL slugs are Polish (matches the app's URL conventions elsewhere), the
 // internal Tab type stays as it always was. An unrecognised ?tab= falls back
 // to 'upcoming' rather than erroring.
-const SLUG_TO_TAB: Record<string, Tab> = { nadchodzace: 'upcoming', historia: 'history', zaproszenia: 'invites' };
-const TAB_TO_SLUG: Record<Tab, string> = { upcoming: 'nadchodzace', history: 'historia', invites: 'zaproszenia' };
+const SLUG_TO_TAB: Record<string, Tab> = {
+  nadchodzace: 'upcoming', historia: 'history', zaproszenia: 'invites', obserwowane: 'observing',
+};
+const TAB_TO_SLUG: Record<Tab, string> = {
+  upcoming: 'nadchodzace', history: 'historia', invites: 'zaproszenia', observing: 'obserwowane',
+};
 
 function tabButtonCls(active: boolean) {
   return `pb-2.5 text-sm transition-colors ${
@@ -122,6 +126,14 @@ function MojeGryContent() {
                 </span>
               )}
             </button>
+            <button onClick={() => goToTab('observing')} className={`${tabButtonCls(tab === 'observing')} inline-flex items-center gap-1.5`}>
+              Obserwowane
+              {observing.length > 0 && (
+                <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
+                  {observing.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -167,7 +179,8 @@ function MojeGryContent() {
           // "Twoje grupy" / "Otwarte mecze" — te mają swoje strony (/grupy,
           // /wydarzenia). Zero pustego stanu tutaj: NextMatchCard ma własny
           // ("Nie masz zaplanowanych gier" + CTA), więc pokrywa przypadek
-          // zerowej aktywności bez drugiej kopii tego ekranu.
+          // zerowej aktywności bez drugiej kopii tego ekranu. Obserwowane mają
+          // teraz własną zakładkę — nie dublują się tutaj.
           <div className="space-y-8">
             <InvitesSection
               invites={openInvites}
@@ -180,14 +193,17 @@ function MojeGryContent() {
               limit={null}
               href={null}
             />
-            <ObservingSection
-              items={observing}
-              limit={null}
-              href={null}
-              title="Obserwowane"
-              subtitle="Obserwowane mecze nie rezerwują miejsca — zapisz się, gdy będziesz pewny."
-            />
           </div>
+        ) : tab === 'observing' ? (
+          observing.length === 0 ? (
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Nie obserwujesz żadnych meczów</p>
+          ) : (
+            <div className="space-y-3">
+              {observing.map(({ event, relation }) => (
+                <EventBrowseCard key={event.id} event={event} relation={relation} />
+              ))}
+            </div>
+          )
         ) : (
           history.length === 0 ? (
             <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>

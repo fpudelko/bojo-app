@@ -27,7 +27,7 @@ export default async function HomePage() {
       >
         Przejdź do treści
       </a>
-      <Header transparentOverHero={!signedInHint} />
+      <Header transparentOverHero={!signedInHint} hideMobileBarForUser />
 
       <main id="main" className="flex-1">
         <HomeSwitch

@@ -110,6 +110,14 @@ export function sortEvents(rows: EventRow[], sortBy: SortBy): EventRow[] {
   return out;
 }
 
+/** Zawęża do wierszy z policzoną odległością ≤ promień. Wiersz bez odległości
+ *  (mecz bez współrzędnych albo brak znanej pozycji użytkownika) wypada —
+ *  inaczej promień nic by nie znaczył. */
+export function filterByRadius(rows: EventRow[], radiusKm: number | null): EventRow[] {
+  if (radiusKm == null) return rows;
+  return rows.filter((r) => r.distance != null && r.distance <= radiusKm);
+}
+
 /** Dzieli listę na sekcje dzienne, zachowując kolejność od dziś w przyszłość. */
 export function groupByDay(rows: EventRow[], now = new Date()): { group: DayGroup; rows: EventRow[] }[] {
   const map = new Map<DayGroup, EventRow[]>();

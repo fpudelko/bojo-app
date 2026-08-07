@@ -25,7 +25,7 @@ export default function MapaPage() {
     // nawigacja jest `fixed`, czyli trzyma się widocznego okna, i po zwinięciu
     // paska te dwie rzeczy rozjeżdżały się o kilkadziesiąt pikseli.
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-white">
-      <Header />
+      <Header hideMobileBarForUser />
       <Suspense fallback={
         <div className="flex flex-1 items-center justify-center bg-slate-100">
           <div className="text-center text-slate-400">

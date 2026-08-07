@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  dayGroup, daysFromToday, eventDay, freeSpots, groupByDay,
+  dayGroup, daysFromToday, eventDay, filterByRadius, freeSpots, groupByDay,
   matchesDateFilter, sortEvents, startKey,
   type EventRow,
 } from '@/lib/eventFilters';
@@ -173,6 +173,23 @@ describe('sortEvents — po wolnych miejscach', () => {
       row(ev({ date: '2026-08-07', maxPlayers: 10, participantsCount: 5 })),  // 5
     ];
     expect(sortEvents(rows, 'miejsca').map((r) => freeSpots(r.event))).toEqual([12, 5, 1]);
+  });
+});
+
+describe('filterByRadius', () => {
+  it('bez promienia zwraca wszystko bez zmian', () => {
+    const rows = [row(ev({ date: '2026-08-05' }), 50), row(ev({ date: '2026-08-06' }))];
+    expect(filterByRadius(rows, null)).toEqual(rows);
+  });
+
+  it('wiersz bez dystansu wypada, gdy promień jest ustawiony', () => {
+    const rows = [row(ev({ date: '2026-08-05' })), row(ev({ date: '2026-08-06' }), 3)];
+    expect(filterByRadius(rows, 5).map((r) => r.distance)).toEqual([3]);
+  });
+
+  it('granica jest domknięta — dokładnie na promieniu zostaje', () => {
+    const rows = [row(ev({ date: '2026-08-05' }), 5), row(ev({ date: '2026-08-06' }), 5.1)];
+    expect(filterByRadius(rows, 5).map((r) => r.distance)).toEqual([5]);
   });
 });
 

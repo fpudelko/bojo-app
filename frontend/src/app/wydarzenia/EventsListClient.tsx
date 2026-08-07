@@ -10,7 +10,7 @@ import EventsListView from './EventsListView';
 export default function EventsListClient() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header hideMobileBarForUser />
       <main className="flex-1">
         <EventsListView />
       </main>

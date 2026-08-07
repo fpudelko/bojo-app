@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-07 · migracja `069` · 31 tabel · 238 testów
+**Stan na:** 2026-08-07 · migracja `069` · 31 tabel · 245 testów
 
 ---
 
@@ -295,6 +295,45 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-07 — Mapa szuka w całym katalogu, filtry dopasowane do nowych danych z importu OSM
+PROBLEM: pole szukania na mapie Bojo (`/mapa`) filtrowało wyłącznie to, co było już
+wczytane dla aktualnie widocznego fragmentu mapy — przy oddaleniu ta lista jest pusta,
+więc szukanie nic nie znajdowało, a przy przybliżeniu wpisanie miasta spoza widoku też
+nic nie dawało. Filtr „Typ obiektu" oferował dwanaście szczegółowych kategorii, mimo że
+98,3% publicznych obiektów ma tę kolumnę pustą (import z OpenStreetMap jej nie
+ustawia) — wybranie jakiegokolwiek typu wyglądało jak zepsuta wyszukiwarka. Filtr sportu
+pomijał dwie duże kategorie (wielofunkcyjne, piłka ręczna), które mimo to miały już
+kolorowe pinezki na mapie. Powrót ze strony boiska zawsze lądował na widoku całego
+kraju, gubiąc oglądany wcześniej obiekt.
+ROZWIĄZANIE BOJO: szukanie po tekście przeszukuje teraz cały katalog (nie tylko bieżący
+kadr) i mapa dopasowuje widok do wyników. Filtry sportu i przełączniki „Gry dziś"/
+„Otwarte gry" zostają zawsze widoczne, a Typ obiektu i nowa Nawierzchnia (dane w 37%
+wierszy — trawa, nawierzchnia twarda, piasek, beton, sztuczna trawa, mączka) przenoszą
+się do modala otwieranego przyciskiem „Filtry", w stylu Booking: wybory są szkicem,
+stosują się dopiero po zatwierdzeniu. Sport dostał dwie nowe opcje. Karta „Zobacz
+boisko" zapamiętuje, z którego obiektu wyszła, więc powrót wraca na tę samą pinezkę.
+MECHANIKA: `searchExplorerFields()` z `lib/api.ts` wpięta w `VenueExplorer.tsx`
+(debounce 300 ms, `fitBounds` do wyników); `EXPLORER_COLS` dokłada kolumnę `surface`;
+`MAP_FILTER_SPORTS` w `lib/sports.ts`; `components/ui/FilterSheet.tsx` (modal, wspólny
+z `/wydarzenia`); `VenueCard` prop `backTo` → `?wroc=/mapa?boisko=<id>` na stronie
+boiska.
+
+### 2026-08-07 — Pasek nawigacji znika na telefonie tam, gdzie dubluje treść strony
+PROBLEM: na `/wydarzenia` i `/mapa` zalogowany na telefonie widział osobny górny pasek
+z dzwonkiem i awatarem, mimo że strona głównego pulpitu Bojo od dawna pokazuje to samo
+w swoim własnym wierszu powitania — dwa równoległe miejsca na to samo. Osobno:
+obserwowane mecze pokazywały się wyłącznie jako sekcja pod zakładką „Nadchodzące" na
+`/moje-gry`, bez własnego miejsca do przejrzenia wszystkich naraz.
+ROZWIĄZANIE BOJO: na stronie głównej, `/wydarzenia` i `/mapa` górny pasek znika na
+telefonie dla zalogowanych, a dzwonek i awatar wędrują do wiersza, który strona i tak
+już pokazuje (powitanie / pole szukania / pasek nad mapą). `/moje-gry` i `/grupy`
+zachowują pasek bez zmian. `/moje-gry` dostała czwartą zakładkę „Obserwowane" z pełną
+listą — sekcja pod „Nadchodzące" zniknęła, żeby nie dublować tej samej informacji.
+MECHANIKA: `Header.tsx` prop `hideMobileBarForUser`; nowy
+`components/layout/MobileIdentityRow.tsx` (dzwonek + awatar, reużywany w
+`GreetingBar.tsx`, `EventsListView.tsx`, `VenueExplorer.tsx`); zakładka `observing`
+w `app/moje-gry/page.tsx`.
+
 ### 2026-08-07 — Lista meczów z filtrami i sortowaniem, strona grupy z zaproszeniem
 PROBLEM: lista publicznych meczów w Bojo (`/wydarzenia`) filtrowała sporty samymi
 emoji bez podpisów — na telefonie nie było nawet dymka, który by je wyjaśnił. Nie
@@ -438,43 +477,3 @@ MECHANIKA: `lib/eventDraft.ts` (TTL `localStorage`), zmienna `--bottom-nav-h`
 w `app/globals.css` sterowana atrybutem z `BottomNavGate.tsx`, `lib/adminLinks.ts`
 i `lib/api.ts#hasManagedVenue` współdzielone przez `Header.tsx` i `app/profil/page.tsx`,
 `components/home/dashboard/DashboardSections.tsx` reużyte w `app/moje-gry/page.tsx`.
-
-### 2026-08-06 — Gość dopisany ręcznie przejmuje swój wpis po założeniu konta
-PROBLEM: organizator dopisywał do składu osobę bez konta, wpisując samo imię —
-taki wpis nie należał do nikogo. Gdy ta osoba później zakładała konto w Bojo
-i dołączała do tego samego meczu, w składzie stały dwie pozycje o tym samym
-imieniu, organizator musiał jedną usunąć ręcznie, a historia gier nowego
-użytkownika zaczynała się od zera.
-ROZWIĄZANIE BOJO: przy każdym wpisie gościa organizator ma przycisk „Zaproś do
-Bojo", który kopiuje jednorazowy link. Kto go otworzy, widzi — jeszcze przed
-logowaniem — pod jakim imieniem został dopisany i o który mecz chodzi, a po
-zalogowaniu wiąże ten wpis ze swoim kontem jednym kliknięciem. Miejsce
-w składzie zostaje to samo, mecz trafia do historii gracza.
-Dopasowania po imieniu Bojo NIE robi: imię nie jest tożsamością, a przejęcie
-cudzego wpisu oznaczałoby przejęcie cudzego miejsca w składzie. Link jest
-jednorazowy i wygasa po użyciu; nie da się nim przejąć wpisu w meczu, w którym
-jest się już zapisanym na własnym koncie.
-MECHANIKA: migracja `066` — kolumny `claim_token` i `claimed_at`
-w `event_participants`, wyzwalacz nadający token przy dopisaniu gościa oraz
-funkcje `podejrzyj_wpis_goscia()` i `przejmij_wpis_goscia()` z SECURITY DEFINER
-(wpis gościa nie ma właściciela, więc polityka RLS oparta na tożsamości nie
-mogłaby go przepuścić). Trasa `/gracz/przejmij/[token]`, `lib/guestClaim.ts`.
-
-### 2026-08-06 — Rezerwa mówi, co się musi stać, i daje znać po fakcie
-PROBLEM: gracz na liście rezerwowej Bojo widział tylko etykietę „Rezerwa · 3."
-Nie wiedział, co musi się stać, żeby zagrał, ile ma czasu na przyjęcie
-zwolnionego miejsca ani czy ktokolwiek go o tym powiadomi. Podobnie
-„Oczekujesz na akceptację" nie mówiło, skąd gracz dowie się o decyzji
-organizatora. Zmiana terminu meczu nie docierała do nikogo — zapisani
-dowiadywali się o niej, wchodząc na stronę meczu.
-ROZWIĄZANIE BOJO: rezerwowy widzi panel z regułami: nie ma miejsca w składzie,
-wejdzie gdy ktoś się wypisze, miejsce dostaje pierwsza osoba w kolejce, a na
-jego przyjęcie ma tyle godzin, ile ustawił organizator. Panel mówi wprost, że
-powiadomienia są na razie wyłącznie w aplikacji, pod dzwonkiem — Bojo nie
-wysyła e-maili ani SMS-ów. Do skrzynki trafiają teraz także dwa nowe zdarzenia:
-organizator przyjął zapis oraz mecz zmienił termin.
-MECHANIKA: migracja `065` dodaje wyzwalacze `powiadom_o_akceptacji()`
-(na `event_participants`) i `powiadom_o_zmianie_terminu()` (na `events`).
-Wyzwalacz z SECURITY DEFINER, bo powiadomienie pisze się zawsze komuś innemu
-niż autor akcji, a polityka INSERT na `notifications` dopuszcza wyłącznie
-własne wiersze. Panel rezerwy w `app/wydarzenia/[id]/EventDetailClient.tsx`.

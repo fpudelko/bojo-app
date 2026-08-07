@@ -3,19 +3,28 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { clsx } from 'clsx';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
+import { Check, CalendarCheck, MapPin, Globe, Search, SlidersHorizontal, Unlock, X } from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
+import FilterSheet from '@/components/ui/FilterSheet';
+import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
+import { useAuth } from '@/lib/auth';
 import type { Field, EventItem } from '@/types';
-import { getExplorerFields, getFieldsByIds, getExplorerClusters, type Kadr, type Skupisko } from '@/lib/api';
+import {
+  getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
+  type Kadr, type Skupisko,
+} from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
+import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
+import { MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import KadrObserwator from './KadrObserwator';
 
@@ -103,12 +112,18 @@ const VENUE_TYPE_LABELS: Record<string, string> = {
 
 const VENUE_TYPE_OPTIONS = Object.entries(VENUE_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }));
 
-const SPORT_OPTIONS = [
-  { value: 'piłka nożna',       label: 'Piłka nożna',         emoji: '⚽' },
-  { value: 'siatkówka plażowa', label: 'Siatkówka plażowa',    emoji: '🏖️' },
-  { value: 'siatkówka',         label: 'Siatkówka',            emoji: '🏐' },
-  { value: 'koszykówka',        label: 'Koszykówka',           emoji: '🏀' },
-];
+// Sport na mapie czerpie z lib/sports.ts (MAP_FILTER_SPORTS), nie z osobnej
+// hardkodowanej listy — inaczej pinezka i filtr mogą się rozjechać (dokładnie
+// to była przyczyna „ikonek, które się nie zgadzają": wielofunkcyjne i piłka
+// ręczna miały już kolorowe pinezki, ale nie dało się ich wybrać w filtrze).
+const SPORT_OPTIONS = MAP_FILTER_SPORTS.map((value) => ({ value, label: sportLabel(value), emoji: sportEmoji(value) }));
+
+// Nawierzchnia ma dziś dane w 37% wierszy (reszta katalogu z importu OSM jej
+// nie ma) — dużo bardziej użyteczny facet niż `venue_type` (98,3% NULL).
+// Tylko wartości faktycznie występujące w bazie; etykiety przez surfaceLabel()
+// z lib/labels.ts, bez osobnej tabeli.
+const SURFACE_VALUES = ['grass', 'artificial', 'hardcourt', 'sand', 'concrete', 'clay'];
+const SURFACE_OPTIONS = SURFACE_VALUES.map((value) => ({ value, label: surfaceLabel(value) }));
 
 /** Label for a multi-select pill: "Wszystkie X" / single label / "N wybrane". */
 function multiLabel(selected: string[], allLabel: string, options: { value: string; label: string }[]): string {
@@ -256,8 +271,12 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
 // ---------------------------------------------------------------------------
 // VenueCard
 // ---------------------------------------------------------------------------
-function VenueCard({ field, games, hasGameToday, selected }: {
+function VenueCard({ field, games, hasGameToday, selected, backTo }: {
   field: Field; games: number; hasGameToday: boolean; selected?: boolean;
+  /** Dokąd ma wrócić strzałka „wstecz" na stronie boiska — `/mapa?boisko=<id>`,
+   *  żeby powrót ustawił mapę z powrotem na tym obiekcie zamiast na widoku
+   *  całego kraju. Bez tego VenueDetailClient wraca na goły `/mapa`. */
+  backTo?: string;
 }) {
   const thumb = fieldPhotoUrl(field, 320, 320);
   const slug = slugify(field.name);
@@ -331,7 +350,7 @@ function VenueCard({ field, games, hasGameToday, selected }: {
           )}
         </div>
         <Link
-          href={`/boisko/${slug}`}
+          href={`/boisko/${slug}${backTo ? `?wroc=${encodeURIComponent(backTo)}` : ''}`}
           className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
           onClick={(e) => e.stopPropagation()}
         >
@@ -346,24 +365,29 @@ function VenueCard({ field, games, hasGameToday, selected }: {
 // Shared filter pills — rendered both in sidebar and mobile overlay
 // ---------------------------------------------------------------------------
 function FilterPills({
-  sports, setSports, venueTypes, setVenueTypes,
+  sports, setSports,
   onlyGamesToday, setOnlyGamesToday,
+  onlyOpenGames, setOnlyOpenGames,
+  filtersActive, onOpenFilters,
   wrap,
 }: {
   sports: string[]; setSports: (v: string[]) => void;
-  venueTypes: string[]; setVenueTypes: (v: string[]) => void;
   onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
+  onlyOpenGames: boolean; setOnlyOpenGames: (v: boolean) => void;
+  /** Czy modal Typ obiektu/Nawierzchnia ma dziś jakikolwiek wybór — steruje
+   *  wyglądem przycisku „Filtry" (ten sam język co pigułki obok). */
+  filtersActive: boolean;
+  onOpenFilters: () => void;
   wrap?: boolean;
 }) {
-  const sportLabel = multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS);
-  const typeLabel  = multiLabel(venueTypes, 'Wszystkie typy', VENUE_TYPE_OPTIONS);
+  const sportPillLabel = multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS);
 
   return (
     <div className={wrap
       ? 'flex flex-wrap gap-2'
       : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
     }>
-      <PillDropdown label={sportLabel} active={sports.length > 0}>
+      <PillDropdown label={sportPillLabel} active={sports.length > 0}>
         {() => (
           <>
             <button onClick={() => setSports([])}
@@ -384,27 +408,25 @@ function FilterPills({
         )}
       </PillDropdown>
 
-      <PillDropdown label={typeLabel} active={venueTypes.length > 0}>
-        {() => (
-          <>
-            <button onClick={() => setVenueTypes([])}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
-              <span className="flex-1 text-left">Wszystkie typy</span>
-              {venueTypes.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
-            </button>
-            {VENUE_TYPE_OPTIONS.map((o) => (
-              <button key={o.value} onClick={() => setVenueTypes(toggleInArray(venueTypes, o.value))}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-                <span className="flex-1 text-left">{o.label}</span>
-                {venueTypes.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
-              </button>
-            ))}
-          </>
+      {/* Typ obiektu przeniesiony do modala (D9): venue_type ma dziś 98,3%
+          wierszy NULL, jako zawsze widoczny dropdown wyglądał jak zepsuty
+          filtr. Nawierzchnia (nowa, dane w 37% wierszy) dołącza tam samo. */}
+      <button
+        type="button"
+        onClick={onOpenFilters}
+        aria-haspopup="dialog"
+        className={clsx(
+          'inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+          filtersActive ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
         )}
-      </PillDropdown>
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
+      </button>
 
       <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
         active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
+      <TogglePill label="Otwarte gry" icon={<Unlock className="h-3.5 w-3.5 shrink-0" />}
+        active={onlyOpenGames} onClick={() => setOnlyOpenGames(!onlyOpenGames)} />
     </div>
   );
 }
@@ -417,6 +439,7 @@ export default function VenueExplorer({
 }: { initialFields?: Field[]; initialEvents?: EventItem[]; } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
@@ -428,13 +451,15 @@ export default function VenueExplorer({
   // Filters live in the URL so they survive back-navigation
   const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
+  const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
+  const onlyOpenGames  = searchParams.get('open') === '1';
   // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
   // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
   const boiskoZLinku = searchParams.get('boisko');
 
-  function updateParams(patch: { sport?: string[]; type?: string[]; today?: boolean }) {
+  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; open?: boolean }) {
     const p = new URLSearchParams(searchParams.toString());
     if (patch.sport !== undefined) {
       p.delete('sport');
@@ -444,15 +469,35 @@ export default function VenueExplorer({
       p.delete('type');
       patch.type.forEach((t) => p.append('type', t));
     }
+    if (patch.surface !== undefined) {
+      p.delete('surface');
+      patch.surface.forEach((s) => p.append('surface', s));
+    }
     if (patch.today !== undefined) {
       if (patch.today) p.set('today', '1'); else p.delete('today');
+    }
+    if (patch.open !== undefined) {
+      if (patch.open) p.set('open', '1'); else p.delete('open');
     }
     router.replace(`/mapa?${p.toString()}`, { scroll: false });
   }
 
-  const setSports        = (v: string[]) => updateParams({ sport: v });
-  const setVenueTypes    = (v: string[]) => updateParams({ type: v });
+  const setSports         = (v: string[]) => updateParams({ sport: v });
+  const setVenueTypes     = (v: string[]) => updateParams({ type: v });
+  const setSurfaces       = (v: string[]) => updateParams({ surface: v });
   const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
+  const setOnlyOpenGames  = (v: boolean) => updateParams({ open: v });
+
+  // Modal Typ obiektu/Nawierzchnia — szkic w tym samym stylu co na
+  // /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [draftTypes, setDraftTypes] = useState<string[]>(venueTypes);
+  const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
+  const openSheet = () => {
+    setDraftTypes(venueTypes);
+    setDraftSurfaces(surfaces);
+    setSheetOpen(true);
+  };
 
   // Instancja Leafleta wyciągnięta z MapContainera — potrzebna przyciskowi
   // „moja okolica", który stoi poza mapą i nie ma useMap().
@@ -508,12 +553,44 @@ export default function VenueExplorer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Szukanie po tekście — poza bieżącym kadrem, w całym katalogu.
+  //
+  // Dawniej pole szukania filtrowało wyłącznie `allFields`, czyli to, co i
+  // tak było już wczytane dla bieżącego kadru: przy oddaleniu (tryb skupisk)
+  // ta lista jest pusta, więc szukanie nic nie znajdowało; przy przybliżeniu
+  // ograniczało się do tego, co widać, więc wpisanie miasta spoza widoku też
+  // nic nie dawało. `searchExplorerFields()` już istniała (używają jej
+  // pickery lokalizacji), tylko nigdy nie była tu wpięta.
+  const [searchResults, setSearchResults] = useState<Field[] | null>(null);
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) { setSearchResults(null); return; }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      searchExplorerFields(q, 60)
+        .then((r) => { if (!cancelled) setSearchResults(r); })
+        .catch(() => { if (!cancelled) setSearchResults([]); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [search]);
+
+  // Mapa dopasowuje się do wyników wyszukiwania — inaczej wynik potrafiłby
+  // leżeć całkowicie poza aktualnie widocznym kadrem.
+  useEffect(() => {
+    if (!mapInstance || !searchResults || searchResults.length === 0) return;
+    const bounds = L.latLngBounds(searchResults.map((f) => [f.lat, f.lng] as [number, number]));
+    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+  }, [mapInstance, searchResults]);
+
   // Obiekty albo skupiska — zależnie od przybliżenia i zawsze dla widocznego
   // kadru. Poniżej progu pobieranie pojedynczych obiektów nie ma sensu: przy
   // widoku kraju byłoby ich kilkadziesiąt tysięcy, a i tak zobaczyłbyś z nich
   // kilkanaście kółek z liczbami.
   useEffect(() => {
     if (initialFields || !kadr) return;
+    // Aktywne szukanie ma własne źródło danych (searchExplorerFields) —
+    // pobieranie po kadrze byłoby tu tylko zmarnowanym zapytaniem w tle.
+    if (search.trim().length >= 2) return;
     let cancelled = false;
 
     if (zoom < ZOOM_SKUPISK) {
@@ -529,37 +606,47 @@ export default function VenueExplorer({
         .catch(() => {});
     }
     return () => { cancelled = true; };
-  }, [kadr, zoom, sports, venueTypes, initialFields]);
+  }, [kadr, zoom, sports, venueTypes, initialFields, search]);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const fieldStats = useMemo(() => {
     const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
-    const stats: Record<string, { count: number; today: boolean }> = {};
+    const stats: Record<string, { count: number; today: boolean; open: boolean }> = {};
     for (const e of events) {
       if (!e.fieldId) continue;
       const d = new Date(e.date); d.setHours(0, 0, 0, 0);
       if (d < today || d > weekEnd) continue;
-      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false };
+      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false, open: false };
       stats[e.fieldId].count++;
       if (d.getTime() === today.getTime()) stats[e.fieldId].today = true;
+      // „Otwarte gry": co najmniej jeden mecz, na który da się jeszcze
+      // dołączyć — ta sama definicja „otwarte", co na /wydarzenia.
+      if (e.status !== 'cancelled' && isEventJoinable(e)) stats[e.fieldId].open = true;
     }
     return stats;
   }, [events, today]);
 
   const fields = useMemo(() => {
-    let list = allFields;
+    // Aktywne szukanie podmienia źródło: wyniki z całego katalogu zamiast
+    // tego, co akurat wczytane dla bieżącego kadru (patrz searchResults wyżej).
+    let list = searchResults ?? allFields;
     if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
+    if (surfaces.length > 0)   list = list.filter((f) => surfaces.includes(f.surface ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
+    if (onlyOpenGames)  list = list.filter((f) => fieldStats[f.id]?.open);
+    // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
+    // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
+    // (wtedy `q` filtruje to, co i tak jest w bieżącym kadrze, jak dawniej).
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
-  }, [allFields, sports, venueTypes, onlyGamesToday, fieldStats, search]);
+  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, fieldStats, search]);
 
   // Reset the render window whenever the result set changes (new search/filter).
-  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, onlyGamesToday, search]);
+  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, search]);
 
   // The map plots every field, but the list/carousel render only a window. A pin
   // outside that window would select a venue whose card doesn't exist — the click
@@ -610,7 +697,10 @@ export default function VenueExplorer({
 
   // Przy oddaleniu mapa pokazuje skupiska, nie obiekty — pusta lista nie
   // znaczy wtedy „nic nie znaleziono", tylko „przybliż".
-  const trybSkupisk = zoom < ZOOM_SKUPISK;
+  // Aktywne szukanie zawsze pokazuje konkretne pinezki, niezależnie od
+  // przybliżenia — kółka ze skupiskami nie odpowiadają na pytanie „gdzie jest
+  // to, czego szukam".
+  const trybSkupisk = search.trim().length < 2 && zoom < ZOOM_SKUPISK;
 
   // Ile obiektów widać w tym kadrze. Przy oddaleniu to jedyna liczba, jaką
   // użytkownik może dostać — sumowanie kilkunastu kółek wzrokiem nie jest
@@ -657,10 +747,67 @@ export default function VenueExplorer({
     c.scrollTo({ top: targetTop, behavior: 'smooth' });
   }, [selectedId, visibleCount]);
 
+  // Modal aktywny, gdy Typ obiektu albo Nawierzchnia mają jakikolwiek wybór —
+  // steruje wyglądem przycisku „Filtry" w FilterPills.
+  const modalFiltersActive = venueTypes.length > 0 || surfaces.length > 0;
+  const previewFieldsCount = useMemo(() => {
+    let list = searchResults ?? allFields;
+    if (sports.length > 0) list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
+    if (draftTypes.length > 0) list = list.filter((f) => draftTypes.includes(f.venueType ?? ''));
+    if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
+    return list.length;
+  }, [allFields, searchResults, sports, draftTypes, draftSurfaces]);
+
   const filterProps = {
-    sports, setSports, venueTypes, setVenueTypes,
+    sports, setSports,
     onlyGamesToday, setOnlyGamesToday,
+    onlyOpenGames, setOnlyOpenGames,
+    filtersActive: modalFiltersActive,
+    onOpenFilters: openSheet,
   };
+
+  const filtersModal = (
+    <FilterSheet
+      open={sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      title="Filtry"
+      onApply={() => { setVenueTypes(draftTypes); setSurfaces(draftSurfaces); }}
+      onClear={() => { setDraftTypes([]); setDraftSurfaces([]); }}
+      applyLabel={`Pokaż ${previewFieldsCount} ${boiskoSlowo(previewFieldsCount)}`}
+    >
+      <div className="space-y-6">
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Typ obiektu</h3>
+          {VENUE_TYPE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setDraftTypes(toggleInArray(draftTypes, o.value))}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+            >
+              <span className="flex-1 text-left">{o.label}</span>
+              {draftTypes.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+            </button>
+          ))}
+        </section>
+
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Nawierzchnia</h3>
+          {SURFACE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setDraftSurfaces(toggleInArray(draftSurfaces, o.value))}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+            >
+              <span className="flex-1 text-left">{o.label}</span>
+              {draftSurfaces.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+            </button>
+          ))}
+        </section>
+      </div>
+    </FilterSheet>
+  );
 
   const searchBox = (
     <div className="relative">
@@ -723,6 +870,7 @@ export default function VenueExplorer({
                 games={fieldStats[f.id]?.count ?? 0}
                 hasGameToday={fieldStats[f.id]?.today ?? false}
                 selected={f.id === selectedId}
+                backTo={`/mapa?boisko=${f.id}`}
               />
             </div>
           ))}
@@ -734,7 +882,7 @@ export default function VenueExplorer({
               Pokaż więcej ({fields.length - visibleFields.length})
             </button>
           )}
-          {fields.length === 0 && allFields.length > 0 && (
+          {fields.length === 0 && (searchResults ?? allFields).length > 0 && (
             <p className="text-sm text-slate-400 text-center pt-8">
               {trybSkupisk
                 ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
@@ -743,6 +891,11 @@ export default function VenueExplorer({
           )}
         </div>
       </aside>
+
+      {/* Modal filtrów — jeden na komponent, nie po jednym na FilterPills
+          (sidebar desktopu i overlay mobile), żeby oba przyciski „Filtry"
+          otwierały ten sam, współdzielony stan szkicu. */}
+      {filtersModal}
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
       <div className="relative flex-1 min-w-0 min-h-0">
@@ -774,9 +927,16 @@ export default function VenueExplorer({
           <MapPin className={`h-5 w-5 ${locating ? 'text-slate-300' : 'text-primary-700'}`} />
         </button>
 
-        {/* Mobile: search + filter overlay */}
+        {/* Mobile: search + filter overlay. Zalogowany dostaje tu też
+            dzwonek+awatar — Header chowa dla niego swój pasek na tej trasie
+            (patrz Header.tsx#hideMobileBarForUser), więc tożsamość musi mieć
+            gdzie się pokazać. MobileIdentityRow sam zwraca null dla
+            wylogowanego, więc wiersz wygląda dziś tak samo jak wcześniej. */}
         <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3 space-y-2">
-          <div className="pointer-events-auto">{searchBox}</div>
+          <div className="pointer-events-auto flex items-center gap-2">
+            <div className="min-w-0 flex-1">{searchBox}</div>
+            <MobileIdentityRow />
+          </div>
           <div className="pointer-events-auto">
             <FilterPills {...filterProps} />
           </div>
@@ -824,6 +984,7 @@ export default function VenueExplorer({
                 field={zKarta(selectedField)}
                 games={fieldStats[selectedField.id]?.count ?? 0}
                 hasGameToday={fieldStats[selectedField.id]?.today ?? false}
+                backTo={`/mapa?boisko=${selectedField.id}`}
               />
             </div>
           </div>
@@ -846,7 +1007,7 @@ export default function VenueExplorer({
           </div>
         )}
 
-        {fields.length === 0 && allFields.length > 0 && !trybSkupisk && (
+        {fields.length === 0 && (searchResults ?? allFields).length > 0 && !trybSkupisk && (
           <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
               {trybSkupisk ? 'Przybliż mapę' : 'Brak boisk dla tych filtrów'}
