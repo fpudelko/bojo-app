@@ -47,7 +47,7 @@ export default function GroupsPage() {
   if (!authLoading && !user) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
@@ -66,7 +66,7 @@ export default function GroupsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6">
 
         <div className="flex items-center justify-between">

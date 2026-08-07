@@ -186,7 +186,7 @@ export default function GroupDetailClient() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
           <div className="h-44 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800" />
         </main>
@@ -197,7 +197,7 @@ export default function GroupDetailClient() {
   if (notFound || !group) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex flex-1 items-center justify-center px-4 text-center">
           <div>
             <Users className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-slate-600" />
@@ -214,7 +214,7 @@ export default function GroupDetailClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
         <button
           onClick={() => router.push('/grupy')}

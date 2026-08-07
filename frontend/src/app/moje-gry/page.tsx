@@ -73,7 +73,7 @@ function MojeGryContent() {
   if (!authLoading && !user) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
@@ -92,7 +92,7 @@ function MojeGryContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6">
 
         {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
@@ -109,16 +109,17 @@ function MojeGryContent() {
           </Link>
         )}
 
-        {/* Tabs */}
+        {/* Tabs — poziomy scroll z ukrytym scrollbarem: cztery zakładki +
+            dwie plakietki nie mieszczą się zawsze na 360px. */}
         <div className="border-b border-slate-100 dark:border-slate-700">
-          <div className="flex gap-6">
-            <button onClick={() => goToTab('upcoming')} className={tabButtonCls(tab === 'upcoming')}>
+          <div className="flex gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button onClick={() => goToTab('upcoming')} className={`${tabButtonCls(tab === 'upcoming')} shrink-0 whitespace-nowrap`}>
               Nadchodzące
             </button>
-            <button onClick={() => goToTab('history')} className={tabButtonCls(tab === 'history')}>
+            <button onClick={() => goToTab('history')} className={`${tabButtonCls(tab === 'history')} shrink-0 whitespace-nowrap`}>
               Historia
             </button>
-            <button onClick={() => goToTab('invites')} className={`${tabButtonCls(tab === 'invites')} inline-flex items-center gap-1.5`}>
+            <button onClick={() => goToTab('invites')} className={`${tabButtonCls(tab === 'invites')} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap`}>
               Zaproszenia
               {visibleInviteCount > 0 && (
                 <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
@@ -126,7 +127,7 @@ function MojeGryContent() {
                 </span>
               )}
             </button>
-            <button onClick={() => goToTab('observing')} className={`${tabButtonCls(tab === 'observing')} inline-flex items-center gap-1.5`}>
+            <button onClick={() => goToTab('observing')} className={`${tabButtonCls(tab === 'observing')} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap`}>
               Obserwowane
               {observing.length > 0 && (
                 <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">

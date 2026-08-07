@@ -295,6 +295,41 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-07 — Suwaki filtrów i mapa meczów w /wydarzenia, tryb „Pokaż gry" na /mapa
+PROBLEM: lista meczów Bojo (`/wydarzenia`) na telefonie miała dwa osobne paski kafelków
+(sporty, potem filtry), filtr „Kiedy" był listą opcji, a „Odległość" dyskretnymi
+chipsami — żaden nie dawał precyzyjnej kontroli, i nie było w ogóle filtra ceny ani
+minimalnej liczby wolnych miejsc. Sprawdzenie meczów na mapie wymagało przejścia na
+osobną stronę `/mapa`, która pokazuje wyłącznie boiska, nie mecze, i gubi filtry
+ustawione na liście. Cztery strony (`/moje-gry`, `/grupy`, `/grupy/[id]`, widok
+wydarzenia) zostawiają na telefonie pasek nawigacji z pustym lewym rogiem. Kafelek
+„Najbliższy mecz" na `/moje-gry` miał inny, większy styl niż reszta kart tej strony.
+Baner „Wróciliśmy do Twojego szkicu" w kreatorze meczu pokazywał się nawet po samym
+wejściu na stronę, bez żadnej edycji formularza.
+ROZWIĄZANIE BOJO: jeden pasek kafelków (Sortuj / Filtry / Sport / Wolne miejsca / Za
+darmo) zamiast dwóch — „Sortuj" ma stały napis, nie nazwę aktualnie wybranej opcji, tak
+jak „Filtry" — a w modalu filtrów cztery suwaki (Kiedy, Odległość, Cena, minimalna
+liczba wolnych miejsc). Nowy przycisk obok dzwonka przełącza `/wydarzenia` na
+wewnętrzny widok mapy z pinezkami wszystkich meczów spełniających ustawione filtry —
+bez opuszczania strony. `/mapa` dostała przełącznik „Pokaż gry": zamienia cały pasek
+i pinezki na identyczny tryb (mecze zamiast boisk), bez resetowania pozycji mapy;
+zbędny przełącznik „Otwarte gry" (dublował się z „Gry dziś" i z samym trybem gier)
+zniknął z paska obiektów. Pinezki meczów na obu mapach mają teraz ostylowaną ikonę
+klastra (kolorowe kółko z liczbą, jak przy boiskach) zamiast gołego, nieczytelnego
+numeru, i większe, wyraźniejsze kropki dla pojedynczych meczów.
+`/moje-gry`, `/grupy`, `/grupy/[id]` i widok wydarzenia pokazują na telefonie kompaktowy
+napis „bojo" prowadzący na stronę główną. Kafelek „Najbliższy mecz" ma dziś ten sam styl
+co reszta kart na `/moje-gry`. Baner szkicu kreatora pokazuje się już tylko po realnej
+edycji formularza, mieści się w jednej linii i ma krzyżyk do zamknięcia.
+MECHANIKA: `components/ui/RangeSlider.tsx` (generyczny suwak); `lib/eventFilters.ts`
+(`filterByMaxPrice`, `filterByMinFreeSpots`, `multiLabel`, `toggleInArray`; `DateFilter`
+ma dziś `'miesiac'` zamiast `'weekend'`); `components/map/GamesMarkersLayer.tsx` +
+`GamesMapCanvas.tsx` (klastrowane pinezki meczów, współdzielone przez widok mapy
+w `/wydarzenia` i tryb gier na `/mapa`); `VenueExplorer.tsx` stan `showGames`
+(URL `?gry=1`); `Header.tsx` prop `showMobileWordmark`; `NextMatchCard.tsx` renderuje
+`EventBrowseCard`; `app/wydarzenia/nowe/page.tsx` guard `isFirstSave` przed pierwszym
+zapisem szkicu.
+
 ### 2026-08-07 — Mapa szuka w całym katalogu, filtry dopasowane do nowych danych z importu OSM
 PROBLEM: pole szukania na mapie Bojo (`/mapa`) filtrowało wyłącznie to, co było już
 wczytane dla aktualnie widocznego fragmentu mapy — przy oddaleniu ta lista jest pusta,
@@ -457,23 +492,3 @@ oraz `minutesUntilStart()` w `lib/payments.ts`/`lib/eventDates.ts`; `validatePay
 w `lib/eventWizard.ts`, wpięta w krok 2 kreatora i w `app/wydarzenia/[id]/edytuj/page.tsx`.
 Bramka działa wyłącznie w interfejsie — kolumna `blik_phone` nadal przyjeżdża w całym
 wierszu `events` (patrz BACKLOG.md).
-
-### 2026-08-06 — Kreator meczu pamięta szkic przez 12 godzin, telefon dla zalogowanych bez zdublowanej nawigacji
-PROBLEM: opuszczenie kreatora meczu w trakcie (np. żeby sprawdzić godzinę wynajmu)
-zerowało cały formularz — organizator wracał do pustych pól. Osobno: na telefonie
-zalogowany użytkownik widział jednocześnie górny pasek z logo i hamburgerem oraz
-dolną nawigację z tymi samymi skrótami, a każda strona miała pod treścią pas pustego
-tła (dolna nawigacja jest elementem `fixed` montowanym poza kontenerem strony, więc
-dystans, który miał ją kompensować, nie działał). `/moje-gry` powielała przy tym
-własną, osobno utrzymywaną wersję sekcji, które pulpit strony głównej już miał.
-ROZWIĄZANIE BOJO: kreator zapisuje wypełniany formularz w przeglądarce na 12 godzin
-i przywraca go po powrocie, z paskiem „Wróciliśmy do Twojego szkicu” i opcją „Zacznij
-od nowa”. Górny pasek dla zalogowanego na telefonie to dziś dzwonek powiadomień
-i awatar prowadzący do `/profil` — tam trafiły motyw, panel admina i „Moje obiekty”,
-które wcześniej siedziały w hamburgerze. `/moje-gry` renderuje te same sekcje co
-pulpit (Zaproszenia, Najbliższy mecz, Twoje najbliższe mecze, Obserwowane) zamiast
-własnej kopii.
-MECHANIKA: `lib/eventDraft.ts` (TTL `localStorage`), zmienna `--bottom-nav-h`
-w `app/globals.css` sterowana atrybutem z `BottomNavGate.tsx`, `lib/adminLinks.ts`
-i `lib/api.ts#hasManagedVenue` współdzielone przez `Header.tsx` i `app/profil/page.tsx`,
-`components/home/dashboard/DashboardSections.tsx` reużyte w `app/moje-gry/page.tsx`.

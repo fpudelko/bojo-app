@@ -10,11 +10,16 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { Check, CalendarCheck, MapPin, Globe, Search, SlidersHorizontal, Unlock, X } from 'lucide-react';
+import {
+  Check, CalendarCheck, MapPin, Globe, Navigation, Search, SlidersHorizontal, Ticket,
+  Trophy, Wallet, X,
+} from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
 import FilterSheet from '@/components/ui/FilterSheet';
+import RangeSlider from '@/components/ui/RangeSlider';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
-import { useAuth } from '@/lib/auth';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
+import { useMyInvites } from '@/lib/useMyInvites';
 import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
@@ -24,9 +29,16 @@ import { getPublicEvents } from '@/lib/events';
 import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
-import { MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { plural } from '@/lib/plural';
+import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
+import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import {
+  filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter, multiLabel,
+  sortEvents, toggleInArray, type DateFilter, type EventRow, type SortBy,
+} from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import KadrObserwator from './KadrObserwator';
+import GamesMarkersLayer from './GamesMarkersLayer';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -125,16 +137,27 @@ const SPORT_OPTIONS = MAP_FILTER_SPORTS.map((value) => ({ value, label: sportLab
 const SURFACE_VALUES = ['grass', 'artificial', 'hardcourt', 'sand', 'concrete', 'clay'];
 const SURFACE_OPTIONS = SURFACE_VALUES.map((value) => ({ value, label: surfaceLabel(value) }));
 
-/** Label for a multi-select pill: "Wszystkie X" / single label / "N wybrane". */
-function multiLabel(selected: string[], allLabel: string, options: { value: string; label: string }[]): string {
-  if (selected.length === 0) return allLabel;
-  if (selected.length === 1) return options.find((o) => o.value === selected[0])?.label ?? allLabel;
-  return `${selected.length} wybrane`;
-}
+// Sportowy dropdown w trybie gier używa FOCUS_SPORTS (organizowalne sporty),
+// nie MAP_FILTER_SPORTS (opisy obiektu) — patrz toggleShowGames niżej.
+const GAMES_SPORT_OPTIONS = FOCUS_SPORTS.map((value) => ({ value, label: sportLabel(value), emoji: sportEmoji(value) }));
 
-function toggleInArray(arr: string[], value: string): string[] {
-  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
-}
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: 'termin',    label: 'Najbliższy termin' },
+  { value: 'odleglosc', label: 'Najbliżej mnie' },
+  { value: 'miejsca',   label: 'Najwięcej wolnych miejsc' },
+];
+
+// Te same zakresy suwaków co na /wydarzenia (D3 planu) — jeden zestaw wartości,
+// żeby tryb gier na mapie i lista miały identyczną semantykę filtrów.
+const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
+const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
+const RADIUS_MIN = 1;
+const RADIUS_MAX = 20;
+const PRICE_MIN = 0;
+const PRICE_MAX = 100;
+const PRICE_STEP = 5;
+const MIN_SPOTS_MIN = 0;
+const MIN_SPOTS_MAX = 14;
 
 // ---------------------------------------------------------------------------
 // WarstwaSkupisk — kółka z liczbami dla oddalonych widoków
@@ -365,48 +388,88 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
 // Shared filter pills — rendered both in sidebar and mobile overlay
 // ---------------------------------------------------------------------------
 function FilterPills({
+  showGames, onToggleShowGames,
   sports, setSports,
   onlyGamesToday, setOnlyGamesToday,
-  onlyOpenGames, setOnlyOpenGames,
   filtersActive, onOpenFilters,
+  gamesSortBy, onGamesSortSelect, gamesSortGeoBusy,
+  gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
+  gamesOnlyNoCost, setGamesOnlyNoCost,
   wrap,
 }: {
+  /** „Pokaż gry" (D11) — przełącza cały pasek między trybem obiektów (dzisiejsze
+   *  zachowanie) a trybem gier (identyczny układ co /wydarzenia). */
+  showGames: boolean;
+  onToggleShowGames: () => void;
   sports: string[]; setSports: (v: string[]) => void;
   onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
-  onlyOpenGames: boolean; setOnlyOpenGames: (v: boolean) => void;
-  /** Czy modal Typ obiektu/Nawierzchnia ma dziś jakikolwiek wybór — steruje
-   *  wyglądem przycisku „Filtry" (ten sam język co pigułki obok). */
+  /** Czy modal (Typ+Nawierzchnia w trybie obiektów, suwaki w trybie gier) ma
+   *  dziś jakikolwiek wybór — steruje wyglądem przycisku „Filtry". */
   filtersActive: boolean;
   onOpenFilters: () => void;
+  gamesSortBy: SortBy;
+  onGamesSortSelect: (v: SortBy) => void;
+  gamesSortGeoBusy: boolean;
+  gamesOnlyFreeSpots: boolean; setGamesOnlyFreeSpots: (v: boolean) => void;
+  gamesOnlyNoCost: boolean; setGamesOnlyNoCost: (v: boolean) => void;
   wrap?: boolean;
 }) {
-  const sportPillLabel = multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS);
+  const sportOptions = showGames ? GAMES_SPORT_OPTIONS : SPORT_OPTIONS;
+  const sportPillLabel = multiLabel(sports, 'Wszystkie sporty', sportOptions);
 
   return (
     <div className={wrap
       ? 'flex flex-wrap gap-2'
       : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
     }>
-      <PillDropdown label={sportPillLabel} active={sports.length > 0}>
-        {() => (
-          <>
-            <button onClick={() => setSports([])}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
-              <span className="text-base">🏟️</span>
-              <span className="flex-1 text-left">Wszystkie sporty</span>
-              {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
-            </button>
-            {SPORT_OPTIONS.map((o) => (
-              <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-                <span className="text-base">{o.emoji}</span>
-                <span className="flex-1 text-left">{o.label}</span>
-                {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
+      <TogglePill label="Pokaż gry" icon={<Trophy className="h-3.5 w-3.5 shrink-0" />}
+        active={showGames} onClick={onToggleShowGames} />
+
+      {showGames && (
+        <PillDropdown label="Sortuj" active={gamesSortBy !== 'termin'}>
+          {(close) => (
+            <>
+              {SORT_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => { onGamesSortSelect(o.value); close(); }}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
+                >
+                  {o.value === 'odleglosc' && <Navigation className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+                  <span className="flex-1 text-left">
+                    {gamesSortGeoBusy && o.value === 'odleglosc' ? 'Szukam Cię…' : o.label}
+                  </span>
+                  {gamesSortBy === o.value && <Check className="h-4 w-4 text-primary-700" />}
+                </button>
+              ))}
+            </>
+          )}
+        </PillDropdown>
+      )}
+
+      {!showGames && (
+        <PillDropdown label={sportPillLabel} active={sports.length > 0}>
+          {() => (
+            <>
+              <button onClick={() => setSports([])}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
+                <span className="text-base">🏟️</span>
+                <span className="flex-1 text-left">Wszystkie sporty</span>
+                {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
               </button>
-            ))}
-          </>
-        )}
-      </PillDropdown>
+              {sportOptions.map((o) => (
+                <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+                  <span className="text-base">{o.emoji}</span>
+                  <span className="flex-1 text-left">{o.label}</span>
+                  {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
+                </button>
+              ))}
+            </>
+          )}
+        </PillDropdown>
+      )}
 
       {/* Typ obiektu przeniesiony do modala (D9): venue_type ma dziś 98,3%
           wierszy NULL, jako zawsze widoczny dropdown wyglądał jak zepsuty
@@ -423,10 +486,40 @@ function FilterPills({
         <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
       </button>
 
-      <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
-        active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
-      <TogglePill label="Otwarte gry" icon={<Unlock className="h-3.5 w-3.5 shrink-0" />}
-        active={onlyOpenGames} onClick={() => setOnlyOpenGames(!onlyOpenGames)} />
+      {showGames && (
+        <PillDropdown label={sportPillLabel} active={sports.length > 0}>
+          {() => (
+            <>
+              <button onClick={() => setSports([])}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
+                <span className="text-base">🏟️</span>
+                <span className="flex-1 text-left">Wszystkie sporty</span>
+                {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
+              </button>
+              {sportOptions.map((o) => (
+                <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+                  <span className="text-base">{o.emoji}</span>
+                  <span className="flex-1 text-left">{o.label}</span>
+                  {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
+                </button>
+              ))}
+            </>
+          )}
+        </PillDropdown>
+      )}
+
+      {showGames ? (
+        <>
+          <TogglePill label="Wolne miejsca" icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
+            active={gamesOnlyFreeSpots} onClick={() => setGamesOnlyFreeSpots(!gamesOnlyFreeSpots)} />
+          <TogglePill label="Za darmo" icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
+            active={gamesOnlyNoCost} onClick={() => setGamesOnlyNoCost(!gamesOnlyNoCost)} />
+        </>
+      ) : (
+        <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
+          active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
+      )}
     </div>
   );
 }
@@ -439,7 +532,7 @@ export default function VenueExplorer({
 }: { initialFields?: Field[]; initialEvents?: EventItem[]; } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { statusFor } = useMyInvites();
 
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
@@ -453,13 +546,16 @@ export default function VenueExplorer({
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
-  const onlyOpenGames  = searchParams.get('open') === '1';
+  // „Pokaż gry" (D11/D12) — jedyny stan trybu gier trzymany w URL, tak jak
+  // today. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
+  // z tym, że /wydarzenia też nie trzyma swoich filtrów w URL.
+  const showGames = searchParams.get('gry') === '1';
   // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
   // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
   const boiskoZLinku = searchParams.get('boisko');
 
-  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; open?: boolean }) {
+  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean }) {
     const p = new URLSearchParams(searchParams.toString());
     if (patch.sport !== undefined) {
       p.delete('sport');
@@ -476,8 +572,8 @@ export default function VenueExplorer({
     if (patch.today !== undefined) {
       if (patch.today) p.set('today', '1'); else p.delete('today');
     }
-    if (patch.open !== undefined) {
-      if (patch.open) p.set('open', '1'); else p.delete('open');
+    if (patch.gry !== undefined) {
+      if (patch.gry) p.set('gry', '1'); else p.delete('gry');
     }
     router.replace(`/mapa?${p.toString()}`, { scroll: false });
   }
@@ -486,17 +582,81 @@ export default function VenueExplorer({
   const setVenueTypes     = (v: string[]) => updateParams({ type: v });
   const setSurfaces       = (v: string[]) => updateParams({ surface: v });
   const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
-  const setOnlyOpenGames  = (v: boolean) => updateParams({ open: v });
+
+  // Przełącznik trybu — jeśli w sportach jest wartość spoza FOCUS_SPORTS
+  // (np. „wielofunkcyjne"), włączenie trybu gier czyści ją: żaden mecz nigdy
+  // nie ma takiego sportu, więc bez tego guarda filtr po cichu zerowałby wyniki.
+  function toggleShowGames() {
+    const next = !showGames;
+    if (next && sports.some((s) => !(FOCUS_SPORTS as readonly string[]).includes(s))) {
+      updateParams({ sport: [], gry: true });
+      return;
+    }
+    updateParams({ gry: next });
+  }
 
   // Modal Typ obiektu/Nawierzchnia — szkic w tym samym stylu co na
   // /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draftTypes, setDraftTypes] = useState<string[]>(venueTypes);
   const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
+
+  // Tryb gier (D11/D12) — lokalny stan filtrów, ten sam kształt co na
+  // /wydarzenia (Sortuj natychmiastowy, reszta przez szkic modala).
+  const [gamesSort, setGamesSort] = useState<SortBy>('termin');
+  const [gamesDate, setGamesDate] = useState<DateFilter>('wszystkie');
+  const [gamesRadius, setGamesRadius] = useState<number | null>(null);
+  const [gamesMaxPriceGrosze, setGamesMaxPriceGrosze] = useState<number | null>(null);
+  const [gamesMinFreeSpots, setGamesMinFreeSpots] = useState(0);
+  const [gamesOnlyFreeSpots, setGamesOnlyFreeSpots] = useState(false);
+  const [gamesOnlyNoCost, setGamesOnlyNoCost] = useState(false);
+  const [gamesUserPos, setGamesUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [gamesSortGeoBusy, setGamesSortGeoBusy] = useState(false);
+  const [gamesGeoBusy, setGamesGeoBusy] = useState(false);
+  const [gamesGeoError, setGamesGeoError] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const [draftGamesDate, setDraftGamesDate] = useState<DateFilter>(gamesDate);
+  const [draftGamesRadius, setDraftGamesRadius] = useState<number | null>(gamesRadius);
+  const [draftGamesMaxPricePln, setDraftGamesMaxPricePln] = useState<number | null>(
+    gamesMaxPriceGrosze == null ? null : gamesMaxPriceGrosze / 100,
+  );
+  const [draftGamesMinFreeSpots, setDraftGamesMinFreeSpots] = useState(gamesMinFreeSpots);
+
   const openSheet = () => {
     setDraftTypes(venueTypes);
     setDraftSurfaces(surfaces);
+    setDraftGamesDate(gamesDate);
+    setDraftGamesRadius(gamesRadius);
+    setDraftGamesMaxPricePln(gamesMaxPriceGrosze == null ? null : gamesMaxPriceGrosze / 100);
+    setDraftGamesMinFreeSpots(gamesMinFreeSpots);
     setSheetOpen(true);
+  };
+
+  const applyGamesDraft = async () => {
+    setGamesGeoError(null);
+    setGamesDate(draftGamesDate);
+    setGamesMaxPriceGrosze(draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
+    setGamesMinFreeSpots(draftGamesMinFreeSpots);
+    const needsGeo = draftGamesRadius != null && !gamesUserPos;
+    if (!needsGeo) { setGamesRadius(draftGamesRadius); return; }
+    setGamesGeoBusy(true);
+    const res = await getCurrentLocation();
+    setGamesGeoBusy(false);
+    if (res.ok) {
+      setGamesUserPos({ lat: res.lat, lng: res.lng });
+      setGamesRadius(draftGamesRadius);
+    } else {
+      setGamesGeoError(geoErrorMessage(res.kind));
+      setGamesRadius(null);
+    }
+  };
+
+  const clearGamesDraft = () => {
+    setDraftGamesDate('wszystkie');
+    setDraftGamesRadius(null);
+    setDraftGamesMaxPricePln(null);
+    setDraftGamesMinFreeSpots(0);
   };
 
   // Instancja Leafleta wyciągnięta z MapContainera — potrzebna przyciskowi
@@ -612,17 +772,14 @@ export default function VenueExplorer({
 
   const fieldStats = useMemo(() => {
     const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
-    const stats: Record<string, { count: number; today: boolean; open: boolean }> = {};
+    const stats: Record<string, { count: number; today: boolean }> = {};
     for (const e of events) {
       if (!e.fieldId) continue;
       const d = new Date(e.date); d.setHours(0, 0, 0, 0);
       if (d < today || d > weekEnd) continue;
-      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false, open: false };
+      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false };
       stats[e.fieldId].count++;
       if (d.getTime() === today.getTime()) stats[e.fieldId].today = true;
-      // „Otwarte gry": co najmniej jeden mecz, na który da się jeszcze
-      // dołączyć — ta sama definicja „otwarte", co na /wydarzenia.
-      if (e.status !== 'cancelled' && isEventJoinable(e)) stats[e.fieldId].open = true;
     }
     return stats;
   }, [events, today]);
@@ -635,7 +792,6 @@ export default function VenueExplorer({
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (surfaces.length > 0)   list = list.filter((f) => surfaces.includes(f.surface ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
-    if (onlyOpenGames)  list = list.filter((f) => fieldStats[f.id]?.open);
     // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
     // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
     // (wtedy `q` filtruje to, co i tak jest w bieżącym kadrze, jak dawniej).
@@ -643,10 +799,76 @@ export default function VenueExplorer({
     if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
-  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, fieldStats, search]);
+  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search]);
+
+  // Tryb gier (D11) — reużywa `events`, już pobierane wyżej dla fieldStats,
+  // zero nowego zapytania. Ten sam pipeline co /wydarzenia (matchesDateFilter,
+  // filterByRadius/MaxPrice/MinFreeSpots, sortEvents), z lokalnym stanem gamesX.
+  const gamesBaseFiltered = useMemo(() => {
+    let list = events.filter((e) => e.status !== 'cancelled' && isEventJoinable(e));
+    if (sports.length > 0) {
+      const wanted = sports.includes('piłka nożna') ? [...sports, 'futsal'] : sports;
+      list = list.filter((e) => wanted.includes(e.sport));
+    }
+    if (gamesOnlyFreeSpots) list = list.filter((e) => (e.participantsCount ?? 0) < (e.maxPlayers ?? 0));
+    if (gamesOnlyNoCost) list = list.filter((e) => (e.costGrosze ?? 0) <= 0);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((e) =>
+        e.title?.toLowerCase().includes(q) ||
+        e.fieldName.toLowerCase().includes(q) ||
+        e.district?.toLowerCase().includes(q));
+    }
+    return list;
+  }, [events, sports, gamesOnlyFreeSpots, gamesOnlyNoCost, search]);
+
+  const gamesDateFiltered = useMemo(() => {
+    if (gamesDate === 'wszystkie') return gamesBaseFiltered;
+    return gamesBaseFiltered.filter((e) => matchesDateFilter(e.date, gamesDate));
+  }, [gamesBaseFiltered, gamesDate]);
+
+  const gamesWithDistance = useMemo<EventRow[]>(() => {
+    if (!gamesUserPos) return gamesDateFiltered.map((event) => ({ event }));
+    return gamesDateFiltered.map((event) => ({
+      event,
+      distance: event.lat != null && event.lng != null
+        ? distanceKm(gamesUserPos.lat, gamesUserPos.lng, event.lat, event.lng)
+        : undefined,
+    }));
+  }, [gamesDateFiltered, gamesUserPos]);
+
+  const gamesRadiusFiltered = useMemo(() => filterByRadius(gamesWithDistance, gamesRadius), [gamesWithDistance, gamesRadius]);
+  const gamesPriceFiltered = useMemo(() => filterByMaxPrice(gamesRadiusFiltered, gamesMaxPriceGrosze), [gamesRadiusFiltered, gamesMaxPriceGrosze]);
+  const gamesSpotsFiltered = useMemo(() => filterByMinFreeSpots(gamesPriceFiltered, gamesMinFreeSpots), [gamesPriceFiltered, gamesMinFreeSpots]);
+  const gamesRows = useMemo(() => sortEvents(gamesSpotsFiltered, gamesSort), [gamesSpotsFiltered, gamesSort]);
+
+  const gamesPreviewCount = useMemo(() => {
+    let list = gamesBaseFiltered;
+    if (draftGamesDate !== 'wszystkie') list = list.filter((e) => matchesDateFilter(e.date, draftGamesDate));
+    const withDist = gamesUserPos
+      ? list.map((event) => ({
+          event,
+          distance: event.lat != null && event.lng != null
+            ? distanceKm(gamesUserPos.lat, gamesUserPos.lng, event.lat, event.lng)
+            : undefined,
+        }))
+      : list.map((event) => ({ event }));
+    let rows = filterByRadius(withDist, draftGamesRadius);
+    rows = filterByMaxPrice(rows, draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
+    rows = filterByMinFreeSpots(rows, draftGamesMinFreeSpots);
+    return rows.length;
+  }, [gamesBaseFiltered, draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots, gamesUserPos]);
+
+  const selectedEventRow = selectedEventId ? gamesRows.find((r) => r.event.id === selectedEventId) ?? null : null;
+
+  // Zaznaczone wydarzenie znika, gdy filtr wyrzuci je z wyników (jak przy
+  // boiskach — patrz efekt niżej dla `selectedId`).
+  useEffect(() => {
+    if (selectedEventId && !gamesRows.some((r) => r.event.id === selectedEventId)) setSelectedEventId(null);
+  }, [gamesRows, selectedEventId]);
 
   // Reset the render window whenever the result set changes (new search/filter).
-  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, search]);
+  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, search]);
 
   // The map plots every field, but the list/carousel render only a window. A pin
   // outside that window would select a venue whose card doesn't exist — the click
@@ -747,9 +969,12 @@ export default function VenueExplorer({
     c.scrollTo({ top: targetTop, behavior: 'smooth' });
   }, [selectedId, visibleCount]);
 
-  // Modal aktywny, gdy Typ obiektu albo Nawierzchnia mają jakikolwiek wybór —
+  // Modal aktywny: w trybie obiektów gdy Typ/Nawierzchnia mają wybór, w
+  // trybie gier gdy którykolwiek z suwaków odbiega od wartości domyślnej —
   // steruje wyglądem przycisku „Filtry" w FilterPills.
-  const modalFiltersActive = venueTypes.length > 0 || surfaces.length > 0;
+  const modalFiltersActive = showGames
+    ? (gamesDate !== 'wszystkie' || gamesRadius !== null || gamesMaxPriceGrosze !== null || gamesMinFreeSpots > 0)
+    : (venueTypes.length > 0 || surfaces.length > 0);
   const previewFieldsCount = useMemo(() => {
     let list = searchResults ?? allFields;
     if (sports.length > 0) list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
@@ -758,15 +983,76 @@ export default function VenueExplorer({
     return list.length;
   }, [allFields, searchResults, sports, draftTypes, draftSurfaces]);
 
-  const filterProps = {
-    sports, setSports,
-    onlyGamesToday, setOnlyGamesToday,
-    onlyOpenGames, setOnlyOpenGames,
-    filtersActive: modalFiltersActive,
-    onOpenFilters: openSheet,
+  /** Wybór „Najbliżej mnie" w pigułce Sortuj (tryb gier) pyta o lokalizację
+   *  od razu przy kliknięciu — ten sam wzorzec co na /wydarzenia (D5). */
+  const onGamesSortSelect = async (value: SortBy) => {
+    if (value === 'odleglosc' && !gamesUserPos) {
+      setGamesSortGeoBusy(true);
+      const res = await getCurrentLocation();
+      setGamesSortGeoBusy(false);
+      if (res.ok) { setGamesUserPos({ lat: res.lat, lng: res.lng }); setGamesSort('odleglosc'); }
+      else setGamesGeoError(geoErrorMessage(res.kind));
+      return;
+    }
+    setGamesSort(value);
   };
 
-  const filtersModal = (
+  const filterProps = {
+    showGames, onToggleShowGames: toggleShowGames,
+    sports, setSports,
+    onlyGamesToday, setOnlyGamesToday,
+    filtersActive: modalFiltersActive,
+    onOpenFilters: openSheet,
+    gamesSortBy: gamesSort, onGamesSortSelect, gamesSortGeoBusy,
+    gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
+    gamesOnlyNoCost, setGamesOnlyNoCost,
+  };
+
+  const filtersModal = showGames ? (
+    <FilterSheet
+      open={sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      title="Filtry"
+      onApply={applyGamesDraft}
+      onClear={clearGamesDraft}
+      applyLabel={gamesGeoBusy ? 'Szukam Cię…' : `Pokaż ${gamesPreviewCount} ${plural(gamesPreviewCount, 'mecz', 'mecze', 'meczy')}`}
+    >
+      <div className="space-y-6">
+        <RangeSlider
+          label="Kiedy"
+          min={0} max={4} step={1}
+          value={DATE_SLIDER_VALUES.indexOf(draftGamesDate)}
+          onChange={(i) => setDraftGamesDate(DATE_SLIDER_VALUES[i])}
+          formatValue={(i) => DATE_SLIDER_LABELS[i]}
+          minLabel="Dzisiaj" maxLabel="Wszystko"
+        />
+        <RangeSlider
+          label="Odległość"
+          min={RADIUS_MIN} max={RADIUS_MAX} step={1}
+          value={draftGamesRadius ?? RADIUS_MAX}
+          onChange={(km) => setDraftGamesRadius(km >= RADIUS_MAX ? null : km)}
+          formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
+          minLabel={`${RADIUS_MIN} km`} maxLabel="Bez limitu"
+        />
+        <RangeSlider
+          label="Cena"
+          min={PRICE_MIN} max={PRICE_MAX} step={PRICE_STEP}
+          value={draftGamesMaxPricePln ?? PRICE_MAX}
+          onChange={(pln) => setDraftGamesMaxPricePln(pln >= PRICE_MAX ? null : pln)}
+          formatValue={(pln) => (pln >= PRICE_MAX ? 'Bez limitu' : pln === 0 ? 'Za darmo' : `do ${pln} zł`)}
+          minLabel="Za darmo" maxLabel="Bez limitu"
+        />
+        <RangeSlider
+          label="Wolne miejsca"
+          min={MIN_SPOTS_MIN} max={MIN_SPOTS_MAX} step={1}
+          value={draftGamesMinFreeSpots}
+          onChange={setDraftGamesMinFreeSpots}
+          formatValue={(n) => (n === 0 ? 'Dowolna liczba' : `co najmniej ${n}`)}
+          minLabel="Dowolna liczba" maxLabel="14+"
+        />
+      </div>
+    </FilterSheet>
+  ) : (
     <FilterSheet
       open={sheetOpen}
       onClose={() => setSheetOpen(false)}
@@ -849,47 +1135,65 @@ export default function VenueExplorer({
         <div className="px-3 pt-3 pb-3 border-b border-slate-100 space-y-3">
           {searchBox}
           <FilterPills {...filterProps} wrap />
+          {showGames && gamesGeoError && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{gamesGeoError}</p>
+          )}
         </div>
 
-        {/* Venue count */}
+        {/* Licznik */}
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
-          {fields.length} {fields.length === 1 ? 'boisko' : fields.length < 5 ? 'boiska' : 'boisk'}
+          {showGames
+            ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
+            : `${fields.length} ${boiskoSlowo(fields.length)}`}
         </div>
 
         {/* Scrollable list */}
-        <div ref={sidebarRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
-          {visibleFields.map((f) => (
-            <div
-              key={f.id}
-              ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
-              onClick={() => onSelect(f.id, 'map')}
-              className="cursor-pointer"
-            >
-              <VenueCard
-                field={zKarta(f)}
-                games={fieldStats[f.id]?.count ?? 0}
-                hasGameToday={fieldStats[f.id]?.today ?? false}
-                selected={f.id === selectedId}
-                backTo={`/mapa?boisko=${f.id}`}
-              />
-            </div>
-          ))}
-          {hasMore && (
-            <button
-              onClick={() => setVisibleCount((c) => c + PAGE)}
-              className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Pokaż więcej ({fields.length - visibleFields.length})
-            </button>
-          )}
-          {fields.length === 0 && (searchResults ?? allFields).length > 0 && (
-            <p className="text-sm text-slate-400 text-center pt-8">
-              {trybSkupisk
-                ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
-                : 'Brak boisk dla tych filtrów'}
-            </p>
-          )}
-        </div>
+        {showGames ? (
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            {gamesRows.map(({ event, distance }) => (
+              <div key={event.id} onClick={() => setSelectedEventId(event.id)} className="cursor-pointer">
+                <EventBrowseCard event={event} distance={distance} relation={statusFor(event)} />
+              </div>
+            ))}
+            {gamesRows.length === 0 && (
+              <p className="text-sm text-slate-400 text-center pt-8">Brak meczów dla tych filtrów</p>
+            )}
+          </div>
+        ) : (
+          <div ref={sidebarRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            {visibleFields.map((f) => (
+              <div
+                key={f.id}
+                ref={(el) => { sidebarCardRefs.current[f.id] = el; }}
+                onClick={() => onSelect(f.id, 'map')}
+                className="cursor-pointer"
+              >
+                <VenueCard
+                  field={zKarta(f)}
+                  games={fieldStats[f.id]?.count ?? 0}
+                  hasGameToday={fieldStats[f.id]?.today ?? false}
+                  selected={f.id === selectedId}
+                  backTo={`/mapa?boisko=${f.id}`}
+                />
+              </div>
+            ))}
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount((c) => c + PAGE)}
+                className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Pokaż więcej ({fields.length - visibleFields.length})
+              </button>
+            )}
+            {fields.length === 0 && (searchResults ?? allFields).length > 0 && (
+              <p className="text-sm text-slate-400 text-center pt-8">
+                {trybSkupisk
+                  ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
+                  : 'Brak boisk dla tych filtrów'}
+              </p>
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Modal filtrów — jeden na komponent, nie po jednym na FilterPills
@@ -908,9 +1212,15 @@ export default function VenueExplorer({
         >
           <MapAttribution />
           {street}
-          <KadrObserwator onZmiana={onKadrZmiana} />
-          <WarstwaSkupisk skupiska={skupiska} />
-          <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
+          {showGames ? (
+            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} />
+          ) : (
+            <>
+              <KadrObserwator onZmiana={onKadrZmiana} />
+              <WarstwaSkupisk skupiska={skupiska} />
+              <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
+            </>
+          )}
         </MapContainer>
 
         {/* Skok do okolicy użytkownika. Świadomie na kliknięcie, nie przy
@@ -940,6 +1250,11 @@ export default function VenueExplorer({
           <div className="pointer-events-auto">
             <FilterPills {...filterProps} />
           </div>
+          {showGames && gamesGeoError && (
+            <p className="pointer-events-auto rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-md">
+              {gamesGeoError}
+            </p>
+          )}
         </div>
 
         {/* Mobile: jedna karta — ta, której pinezkę kliknięto.
@@ -958,7 +1273,7 @@ export default function VenueExplorer({
             samego punktu nawet gdy przeglądarka zwija swój pasek adresu.
             Wysokość paska daje --bottom-nav-h (globals.css), która sama zeruje
             się tam, gdzie paska nie ma. */}
-        {selectedField && (
+        {selectedField && !showGames && (
           <div
             // `fixed`, nie `absolute`: dolna nawigacja też jest `fixed`, więc
             // tylko tak obie rzeczy mierzą od tej samej krawędzi. Przy
@@ -990,9 +1305,33 @@ export default function VenueExplorer({
           </div>
         )}
 
+        {/* Tryb gier: ta sama dolna karta, treść EventBrowseCard zamiast VenueCard. */}
+        {selectedEventRow && showGames && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 z-[1001] px-3"
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+          >
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSelectedEventId(null)}
+                aria-label="Zamknij kartę meczu"
+                className="absolute -top-2 right-0 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-400 shadow-md transition-colors hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <EventBrowseCard
+                event={selectedEventRow.event}
+                distance={selectedEventRow.distance}
+                relation={statusFor(selectedEventRow.event)}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Podpowiedź, dopóki nic nie wybrano — bez niej dolna część mapy jest
             pusta i nie wiadomo, że pinezki są klikalne. */}
-        {!selectedField && (fields.length > 0 || trybSkupisk) && (
+        {!showGames && !selectedField && (fields.length > 0 || trybSkupisk) && (
           <div
             className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
             // Jak wyżej: `fixed` mierzy od tej samej krawędzi co pasek, a wysokość
@@ -1007,10 +1346,29 @@ export default function VenueExplorer({
           </div>
         )}
 
-        {fields.length === 0 && (searchResults ?? allFields).length > 0 && !trybSkupisk && (
+        {showGames && !selectedEventRow && gamesRows.length > 0 && (
+          <div
+            className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+          >
+            <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
+              Dotknij pinezki, żeby zobaczyć mecz
+            </p>
+          </div>
+        )}
+
+        {!showGames && fields.length === 0 && (searchResults ?? allFields).length > 0 && !trybSkupisk && (
           <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
-              {trybSkupisk ? 'Przybliż mapę' : 'Brak boisk dla tych filtrów'}
+              Brak boisk dla tych filtrów
+            </div>
+          </div>
+        )}
+
+        {showGames && gamesRows.length === 0 && (
+          <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
+            <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
+              Brak meczów dla tych filtrów
             </div>
           </div>
         )}

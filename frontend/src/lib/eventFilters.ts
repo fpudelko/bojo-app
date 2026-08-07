@@ -4,10 +4,10 @@
 // logika, którą da się pomylić na kilka sposobów (strefy czasowe, granica
 // tygodnia, mecze bez współrzędnych), a w useMemo nie da się jej przetestować.
 
-import { isThisWeek } from 'date-fns';
+import { isThisWeek, isSameMonth } from 'date-fns';
 import type { EventItem } from '@/types';
 
-export type DateFilter = 'wszystkie' | 'dzisiaj' | 'jutro' | 'tydzien' | 'weekend';
+export type DateFilter = 'wszystkie' | 'dzisiaj' | 'jutro' | 'tydzien' | 'miesiac';
 export type SortBy = 'termin' | 'odleglosc' | 'miejsca';
 export type DayGroup = 'dzisiaj' | 'jutro' | 'tydzien' | 'pozniej';
 
@@ -47,12 +47,7 @@ export function matchesDateFilter(dateStr: string, filter: DateFilter, now = new
     case 'dzisiaj': return diff === 0;
     case 'jutro':   return diff === 1;
     case 'tydzien': return diff >= 0 && isThisWeek(dt, { weekStartsOn: 1 });
-    // Weekend to najbliższa sobota i niedziela, nie „dowolny weekend" — kto
-    // filtruje po weekendzie, planuje ten nadchodzący.
-    case 'weekend': {
-      const dow = dt.getDay(); // 0 = niedziela, 6 = sobota
-      return diff >= 0 && diff <= 7 && (dow === 0 || dow === 6);
-    }
+    case 'miesiac': return diff >= 0 && isSameMonth(dt, now);
     default: return true;
   }
 }
@@ -116,6 +111,33 @@ export function sortEvents(rows: EventRow[], sortBy: SortBy): EventRow[] {
 export function filterByRadius(rows: EventRow[], radiusKm: number | null): EventRow[] {
   if (radiusKm == null) return rows;
   return rows.filter((r) => r.distance != null && r.distance <= radiusKm);
+}
+
+/** Cena w groszach; null = bez limitu. */
+export function filterByMaxPrice(rows: EventRow[], maxPriceGrosze: number | null): EventRow[] {
+  if (maxPriceGrosze == null) return rows;
+  return rows.filter((r) => (r.event.costGrosze ?? 0) <= maxPriceGrosze);
+}
+
+/** Minimalna liczba wolnych miejsc; 0 = brak ograniczenia. */
+export function filterByMinFreeSpots(rows: EventRow[], minSpots: number): EventRow[] {
+  if (minSpots <= 0) return rows;
+  return rows.filter((r) => freeSpots(r.event) >= minSpots);
+}
+
+/** 0 → allLabel; 1 → etykieta jedynej wybranej opcji; >1 → „N wybrane". */
+export function multiLabel<T extends string>(
+  selected: T[],
+  allLabel: string,
+  options: { value: T; label: string }[],
+): string {
+  if (selected.length === 0) return allLabel;
+  if (selected.length === 1) return options.find((o) => o.value === selected[0])?.label ?? allLabel;
+  return `${selected.length} wybrane`;
+}
+
+export function toggleInArray<T>(arr: T[], value: T): T[] {
+  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
 
 /** Dzieli listę na sekcje dzienne, zachowując kolejność od dziś w przyszłość. */

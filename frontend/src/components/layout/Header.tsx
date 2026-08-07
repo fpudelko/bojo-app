@@ -30,9 +30,16 @@ interface HeaderProps {
    *  zalogowanych, żeby nie dublować dzwonka/awatara, które strona już
    *  pokazuje we własnej treści. */
   hideMobileBarForUser?: boolean;
+  /** Zalogowany na mobile ma tu dziś pusty slot (LogoPill jest `hidden md:block`)
+   *  — ten prop wypełnia go kompaktowym linkiem tekstowym „bojo" zamiast zostawiać
+   *  pusto. Używane tam, gdzie hideMobileBarForUser NIE jest ustawione (pasek
+   *  Header zostaje widoczny): /moje-gry, /grupy, widok wydarzenia. */
+  showMobileWordmark?: boolean;
 }
 
-export default function Header({ transparentOverHero = false, hideMobileBarForUser = false }: HeaderProps = {}) {
+export default function Header({
+  transparentOverHero = false, hideMobileBarForUser = false, showMobileWordmark = false,
+}: HeaderProps = {}) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -102,6 +109,18 @@ export default function Header({ transparentOverHero = false, hideMobileBarForUs
             >
               <LogoPill variant={overlay ? 'onDark' : 'solid'} />
             </Link>
+            {/* Kompaktowy wordmark dla stron, które zostawiają pasek Header na
+                mobile (nie ma tam MobileIdentityRow) — ten sam pusty slot, zero
+                dodatkowej wysokości. */}
+            {showMobileWordmark && !loading && user && (
+              <Link
+                href="/"
+                className="md:hidden font-display text-lg font-bold tracking-tight text-primary-700"
+                aria-label="Strona główna Bojo"
+              >
+                bojo
+              </Link>
+            )}
 
             <nav className="hidden md:flex items-center gap-1" aria-label="Nawigacja główna">
               {NAV_LINKS.map((link) => (

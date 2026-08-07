@@ -54,7 +54,24 @@ grupy, która wcześniej szła inline w JSX);
 [funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile)); `lib/useMyInvites.ts`
 (zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz));
 `lib/eventFilters.ts#filterByRadius` (filtr promienia na `/wydarzenia` — wiersz bez
-policzonej odległości wypada, bo promień bez tego nic by nie znaczył); `lib/sports.ts
+policzonej odległości wypada, bo promień bez tego nic by nie znaczył);
+`lib/eventFilters.ts#filterByMaxPrice`/`#filterByMinFreeSpots` (suwaki Cena/Wolne miejsca
+w modalu filtrów, `/wydarzenia` i tryb gier na `/mapa` — patrz
+[funkcje.md](./funkcje.md#układ-wydarzenia--filtry-sortowanie-sekcje-dzienne));
+`lib/eventFilters.ts#multiLabel`/`#toggleInArray` (etykieta dropdownu multi-select i
+przełącznik wartości w tablicy — współdzielone przez sportowy dropdown na `/wydarzenia`
+i `/mapa`); `DateFilter` w tym samym pliku ma dziś `'miesiac'` zamiast `'weekend'`
+(`matchesDateFilter` liczy `isSameMonth()` z `date-fns`) — zestaw pozycji suwaka „Kiedy";
+`components/ui/RangeSlider.tsx` (jeden generyczny suwak — etykieta wartości nad nim,
+opisy skrajów pod spodem — reużywany w czterech filtrach na `/wydarzenia` i w trybie gier
+na `/mapa`, wzorowany na suwaku promienia w `AlertSetupDialog`);
+`components/map/GamesMarkersLayer.tsx` (klastrowana warstwa pinezek meczów,
+`L.markerClusterGroup`, dane wchodzą jako prop — bez własnego fetcha viewport-scoped,
+bo zbiór publicznych wydarzeń jest już cały w pamięci; ikona klastra reużywa
+`clusterDivIcon()` z `mapIcons.ts` — ten sam wygląd co klastry boisk, zamiast domyślnej,
+nieostylowanej ikony Leafleta; współdzielona przez widok mapy
+w `/wydarzenia` (`components/map/GamesMapCanvas.tsx`, własny `<MapContainer>`) i tryb
+„Pokaż gry" w `VenueExplorer.tsx` (ten sam `<MapContainer>` co boiska)); `lib/sports.ts
 #MAP_FILTER_SPORTS` (sporty jako filtr facylitów na mapie, szerszy niż `FOCUS_SPORTS` —
 dokłada `wielofunkcyjne`/`piłka ręczna`, które mają pinezki na `/mapa`, ale nie były
 wcześniej filtrowalne); `lib/api.ts#EXPLORER_COLS` (okrojone kolumny pobierane dla
