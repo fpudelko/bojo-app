@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LANDING_CTA, LANDING_HERO } from './content';
 import RotatingBadge from './RotatingBadge';
-import PhoneMock from './PhoneMock';
+import PhoneCarousel from './PhoneCarousel';
 import TrustRow from './TrustRow';
 
 export default function LandingHero() {
@@ -52,12 +52,15 @@ export default function LandingHero() {
           <TrustRow className="mt-5" />
         </div>
 
-        {/* Phone in normal flow, right after the text block — only its top
-            edge peeks onto the first screen (inviting a scroll); scrolling
-            reveals the whole card naturally, instead of a hard-clipped sliver
-            that never un-clips. */}
+        {/* Telefon w normalnym przepływie, zaraz za blokiem tekstu — na pierwszy
+            ekran wystaje tylko jego górna krawędź (zachęta do przewinięcia),
+            a przewinięcie odsłania całość.
+
+            Bez `rotate`: makieta jest teraz karuzelą przewijaną w poziomie,
+            a obrócony kontener przewijany w bok to mylące trafienia palcem
+            i przekrzywione kropki nawigacji. */}
         <div className="mt-6 md:mt-0 md:w-5/12">
-          <PhoneMock className="mx-auto w-[248px] md:w-full md:max-w-[280px] md:rotate-[3deg]" />
+          <PhoneCarousel className="mx-auto w-[248px] md:w-full md:max-w-[280px]" />
         </div>
       </div>
       {/* Sentinel for StickyCta's IntersectionObserver — appears once this
