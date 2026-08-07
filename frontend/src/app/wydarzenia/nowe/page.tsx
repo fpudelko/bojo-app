@@ -123,6 +123,13 @@ function NewEventForm() {
   // wartościami z pierwszego, jeszcze nieodtworzonego renderu.
   const [hydrated, setHydrated] = useState(false);
   const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  // Efekt zapisujący szkic (patrz niżej) odpala się też przy pierwszym
+  // renderze po hydratacji — bez tego guarda zapisywał czyste wartości
+  // domyślne, zanim użytkownik cokolwiek zmienił, i kolejne wejście na tę
+  // stronę pokazywało baner "Wróciliśmy do Twojego szkicu" mimo braku
+  // realnej edycji.
+  const isFirstSave = useRef(true);
 
   const [seekerCount, setSeekerCount] = useState(0);
 
@@ -243,6 +250,7 @@ function NewEventForm() {
   // w trakcie wysyłania formularza.
   useEffect(() => {
     if (!hydrated || submitting) return;
+    if (isFirstSave.current) { isFirstSave.current = false; return; }
     saveEventDraft(step, {
       sport, location, date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched,
       goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled, visibility,
@@ -597,15 +605,21 @@ function NewEventForm() {
           </div>
         )}
 
-        {draftRestoredAt && (
-          <div className="mb-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-            <p>Wróciliśmy do Twojego szkicu ({draftAgeLabel(draftRestoredAt)}).</p>
+        {draftRestoredAt && !bannerDismissed && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+            <p className="min-w-0 flex-1 truncate">
+              Wróciliśmy do Twojego szkicu ({draftAgeLabel(draftRestoredAt)}).{' '}
+              <button type="button" onClick={resetWizard} className="font-semibold underline underline-offset-2">
+                Zacznij od nowa
+              </button>
+            </p>
             <button
               type="button"
-              onClick={resetWizard}
-              className="shrink-0 self-start font-semibold underline underline-offset-2 sm:self-auto"
+              onClick={() => setBannerDismissed(true)}
+              aria-label="Zamknij"
+              className="shrink-0 rounded-lg p-1 text-amber-700 hover:bg-amber-100"
             >
-              Zacznij od nowa
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -618,7 +632,7 @@ function NewEventForm() {
               {/* Sport — one scrollable row of chips plus a compact dropdown,
                   so "Dalej" stays above the fold on a phone. */}
               <div className="flex items-center gap-2">
-                <div className="flex flex-1 gap-2 overflow-x-auto pb-1 -mb-1 [-webkit-overflow-scrolling:touch]">
+                <div className="flex flex-1 gap-2 overflow-x-auto pb-1 -mb-1 [-webkit-overflow-scrolling:touch] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {SPORTS.map((s) => (
                     <button
                       key={s}
