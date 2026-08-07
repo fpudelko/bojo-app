@@ -12,13 +12,24 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
-import { getExplorerFields } from '@/lib/api';
+import { getExplorerFields, getFieldsByIds, getExplorerClusters, type Kadr, type Skupisko } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+// Od tego przybliżenia pobieramy konkretne obiekty. Niżej — same liczby
+// w siatce. Próg dobrany na oko powiatu: przy 11 widać jedno miasto, więc
+// liczba obiektów w kadrze jest już policzalna dla przeglądarki.
+const ZOOM_SKUPISK = 11;
+
+// Rozmiar komórki siatki w stopniach, dla przybliżeń poniżej progu. Im dalej,
+// tym grubszy kwadrat — inaczej przy widoku kraju wróciłyby tysiące kółek.
+const KROK_SIATKI: Record<number, number> = {
+  5: 1.0, 6: 0.7, 7: 0.45, 8: 0.25, 9: 0.12, 10: 0.06,
+};
 
 // 'map' — kliknięcie pinezki albo karty na liście; 'init' — stan bez wyboru
 // użytkownika, przy którym mapa NIE przesuwa kadru. Źródło 'scroll' zniknęło
@@ -88,6 +99,77 @@ function multiLabel(selected: string[], allLabel: string, options: { value: stri
 
 function toggleInArray(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
+
+// ---------------------------------------------------------------------------
+// KadrObserwator — melduje rodzicowi, co widać
+// ---------------------------------------------------------------------------
+/**
+ * Zgłasza prostokąt widoku i przybliżenie po każdym ruchu mapy, z opóźnieniem.
+ * Bez opóźnienia jedno przeciągnięcie palcem to kilkadziesiąt zapytań do bazy;
+ * z opóźnieniem — jedno, po tym jak ręka się zatrzyma.
+ */
+function KadrObserwator({ onZmiana }: { onZmiana: (kadr: Kadr, zoom: number) => void }) {
+  const map = useMap();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const zglos = () => {
+      const b = map.getBounds();
+      onZmiana(
+        {
+          latMin: b.getSouth(), latMax: b.getNorth(),
+          lngMin: b.getWest(),  lngMax: b.getEast(),
+        },
+        map.getZoom(),
+      );
+    };
+    const opozniony = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(zglos, 350);
+    };
+
+    zglos();                       // pierwszy kadr od razu, bez czekania
+    map.on('moveend', opozniony);
+    map.on('zoomend', opozniony);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      map.off('moveend', opozniony);
+      map.off('zoomend', opozniony);
+    };
+  }, [map, onZmiana]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// WarstwaSkupisk — kółka z liczbami dla oddalonych widoków
+// ---------------------------------------------------------------------------
+function WarstwaSkupisk({ skupiska }: { skupiska: Skupisko[] }) {
+  const map = useMap();
+  const warstwaRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    const grupa = L.layerGroup().addTo(map);
+    warstwaRef.current = grupa;
+    return () => { map.removeLayer(grupa); warstwaRef.current = null; };
+  }, [map]);
+
+  useEffect(() => {
+    const grupa = warstwaRef.current;
+    if (!grupa) return;
+    grupa.clearLayers();
+    for (const s of skupiska) {
+      const znacznik = L.marker([s.lat, s.lng], { icon: clusterDivIcon(s.ile, s.sporty) });
+      // Kliknięcie skupiska przybliża do niego — tak samo, jak zachowuje się
+      // klaster liczony po stronie przeglądarki. Użytkownik nie ma powodu
+      // wiedzieć, że to dwie różne rzeczy.
+      znacznik.on('click', () => map.flyTo([s.lat, s.lng], Math.min(map.getZoom() + 3, 14), { duration: 0.5 }));
+      grupa.addLayer(znacznik);
+    }
+  }, [skupiska, map]);
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +564,12 @@ export default function VenueExplorer({
     );
   }, [mapInstance]);
 
+  // Kadr i przybliżenie mapy. Od nich zależy, CO w ogóle pobieramy: przy
+  // oddaleniu same liczby w siatce, przy przybliżeniu konkretne obiekty.
+  const [kadr, setKadr] = useState<Kadr | null>(null);
+  const [zoom, setZoom] = useState(POLSKA_ZOOM);
+  const [skupiska, setSkupiska] = useState<Skupisko[]>([]);
+
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId     = selected.id;
   const selectedSource = selected.source;
@@ -497,20 +585,43 @@ export default function VenueExplorer({
     setSelected({ id, source });
   }, []);
 
+  const onKadrZmiana = useCallback((k: Kadr, z: number) => {
+    setKadr(k);
+    setZoom(z);
+  }, []);
+
   useEffect(() => {
     if (initialFields || initialEvents) return;
     let cancelled = false;
-    // Filtering (powiat bbox, relevant sport, "has info", not hidden) happens
-    // server-side now — only the venues we'd show are transferred.
-    getExplorerFields()
-      .then((fields) => { if (!cancelled) setAllFields(fields); })
-      .catch(() => {});
     getPublicEvents()
       .then((evs) => { if (!cancelled) setEvents(evs.filter((e) => e.status !== 'cancelled')); })
       .catch(() => {});
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Obiekty albo skupiska — zależnie od przybliżenia i zawsze dla widocznego
+  // kadru. Poniżej progu pobieranie pojedynczych obiektów nie ma sensu: przy
+  // widoku kraju byłoby ich kilkadziesiąt tysięcy, a i tak zobaczyłbyś z nich
+  // kilkanaście kółek z liczbami.
+  useEffect(() => {
+    if (initialFields || !kadr) return;
+    let cancelled = false;
+
+    if (zoom < ZOOM_SKUPISK) {
+      // Krok siatki maleje z przybliżeniem: przy widoku kraju grube kwadraty,
+      // przy widoku województwa drobniejsze.
+      const krok = KROK_SIATKI[Math.min(zoom, ZOOM_SKUPISK - 1)] ?? 0.5;
+      getExplorerClusters(kadr, krok, sports, venueTypes)
+        .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
+        .catch(() => {});
+    } else {
+      getExplorerFields(kadr)
+        .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [kadr, zoom, sports, venueTypes, initialFields]);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
@@ -553,6 +664,46 @@ export default function VenueExplorer({
 
   const visibleFields = fields.slice(0, visibleCount);
   const hasMore = fields.length > visibleFields.length;
+  // Szczegóły kart, które są na ekranie: zdjęcie, nawierzchnia, strona.
+  // Pinezki przychodzą okrojone (siedem kolumn zamiast dziewiętnastu), więc
+  // resztę dociągamy dla garstki widocznych obiektów, nie dla całego kraju.
+  const [szczegoly, setSzczegoly] = useState<Record<string, Field>>({});
+  const idsWidoczne = useMemo(() => {
+    const lista = fields.slice(0, visibleCount).map((f) => f.id);
+    if (selectedId && !lista.includes(selectedId)) lista.push(selectedId);
+    return lista;
+  }, [fields, visibleCount, selectedId]);
+
+  useEffect(() => {
+    const brakujace = idsWidoczne.filter((id) => !szczegoly[id]);
+    if (brakujace.length === 0) return;
+    let anulowane = false;
+    getFieldsByIds(brakujace)
+      .then((pelne) => {
+        if (anulowane) return;
+        setSzczegoly((prev) => {
+          const next = { ...prev };
+          for (const f of pelne) next[f.id] = f;
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => { anulowane = true; };
+    // `szczegoly` celowo poza zależnościami: efekt sam je uzupełnia i
+    // dopisanie ich tutaj zapętliłoby go na każdej odpowiedzi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsWidoczne]);
+
+  /** Pinezka wzbogacona o szczegóły, jeśli już przyszły. */
+  const zKarta = useCallback(
+    (f: Field): Field => (szczegoly[f.id] ? { ...f, ...szczegoly[f.id] } : f),
+    [szczegoly],
+  );
+
+  // Przy oddaleniu mapa pokazuje skupiska, nie obiekty — pusta lista nie
+  // znaczy wtedy „nic nie znaleziono", tylko „przybliż".
+  const trybSkupisk = zoom < ZOOM_SKUPISK;
+
   const selectedField = selectedId ? fields.find((f) => f.id === selectedId) ?? null : null;
 
   // Clean up stale card refs
@@ -652,7 +803,7 @@ export default function VenueExplorer({
               className="cursor-pointer"
             >
               <VenueCard
-                field={f}
+                field={zKarta(f)}
                 games={fieldStats[f.id]?.count ?? 0}
                 hasGameToday={fieldStats[f.id]?.today ?? false}
                 selected={f.id === selectedId}
@@ -668,7 +819,11 @@ export default function VenueExplorer({
             </button>
           )}
           {fields.length === 0 && allFields.length > 0 && (
-            <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
+            <p className="text-sm text-slate-400 text-center pt-8">
+              {trybSkupisk
+                ? 'Przybliż mapę, żeby zobaczyć pojedyncze boiska'
+                : 'Brak boisk dla tych filtrów'}
+            </p>
           )}
         </div>
       </aside>
@@ -684,6 +839,8 @@ export default function VenueExplorer({
         >
           <MapAttribution />
           {street}
+          <KadrObserwator onZmiana={onKadrZmiana} />
+          <WarstwaSkupisk skupiska={skupiska} />
           <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
         </MapContainer>
 
@@ -744,7 +901,7 @@ export default function VenueExplorer({
                 <X className="h-4 w-4" />
               </button>
               <VenueCard
-                field={selectedField}
+                field={zKarta(selectedField)}
                 games={fieldStats[selectedField.id]?.count ?? 0}
                 hasGameToday={fieldStats[selectedField.id]?.today ?? false}
               />
@@ -754,7 +911,7 @@ export default function VenueExplorer({
 
         {/* Podpowiedź, dopóki nic nie wybrano — bez niej dolna część mapy jest
             pusta i nie wiadomo, że pinezki są klikalne. */}
-        {!selectedField && fields.length > 0 && (
+        {!selectedField && (fields.length > 0 || trybSkupisk) && (
           <div
             className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
             // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
@@ -762,15 +919,15 @@ export default function VenueExplorer({
             style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
           >
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
-              Dotknij pinezki, żeby zobaczyć boisko
+              {trybSkupisk ? 'Przybliż, żeby zobaczyć pojedyncze boiska' : 'Dotknij pinezki, żeby zobaczyć boisko'}
             </p>
           </div>
         )}
 
-        {fields.length === 0 && allFields.length > 0 && (
+        {fields.length === 0 && allFields.length > 0 && !trybSkupisk && (
           <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
-              Brak boisk dla tych filtrów
+              {trybSkupisk ? 'Przybliż mapę' : 'Brak boisk dla tych filtrów'}
             </div>
           </div>
         )}

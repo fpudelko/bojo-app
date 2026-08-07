@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `068` · 31 tabel · 121 testów
+**Stan na:** 2026-08-06 · migracja `069` · 31 tabel · 121 testów
 
 ---
 
@@ -296,6 +296,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-07 — Mapa pobiera tylko to, co widać
+PROBLEM: mapa Bojo pobierała wszystkie publiczne obiekty naraz, z pełnym
+zestawem kolumn — łącznie z adresami zdjęć i danymi rezerwacji — po czym
+renderowała z tego jedną kartę. Przy katalogu poznańsko-lubelskim (~2 tys.)
+dało się z tym żyć. Przy ogólnopolskim bolałyby dwie rzeczy naraz: transfer
+oraz to, że przeglądarka musi utworzyć kilkadziesiąt tysięcy obiektów mapy,
+żeby zaraz zwinąć je w kilkanaście kółek.
+ROZWIĄZANIE BOJO: mapa pobiera wyłącznie wycinek, który widać, i tylko tyle
+danych, ile potrzebuje pinezka. Przy oddaleniu nie pobiera obiektów w ogóle —
+baza zwraca liczby w komórkach siatki, a mapa rysuje z nich kółka. Po
+przybliżeniu poniżej powiatu przychodzą konkretne obiekty. Szczegóły karty
+(zdjęcie, nawierzchnia, strona) dociągane są dla kart faktycznie widocznych.
+MECHANIKA: migracja `069` — funkcja `mapa_skupiska()` grupująca po siatce
+szerokość/długość plus indeks częściowy na `(lat, lng)` dla obiektów
+publicznych. `getExplorerFields(kadr)`, `getExplorerClusters()`
+i `getFieldsByIds()` w `lib/api.ts`; `KadrObserwator` i `WarstwaSkupisk`
+w `components/map/VenueExplorer.tsx`.
+
 ### 2026-08-06 — Zaproszenie na mecz trafia do powiadomień
 PROBLEM: imienne zaproszenie na mecz nie tworzyło w Bojo żadnego powiadomienia.
 Dzwonek pokazywał zero, mimo trzech czekających zaproszeń — zaproszony widział
@@ -442,17 +460,3 @@ w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
 MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
 kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
 do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
-
-### 2026-08-06 — Strony boisk generowane na żądanie zamiast przy buildzie
-PROBLEM: każda strona boiska w Bojo była generowana z góry, przy budowaniu
-aplikacji — tyle stron, ile obiektów w katalogu. Dopóki katalog obejmował
-Poznań, mieściło się to w kilku minutach. Po imporcie z OpenStreetMap urósł
-do ~4600 obiektów i budowanie przestało się kończyć: ponad 40 minut bez
-skutku, więc żadna zmiana nie docierała na produkcję.
-ROZWIĄZANIE BOJO: strona boiska powstaje przy pierwszym wejściu i zostaje
-w pamięci podręcznej na dobę. Czas budowania Bojo nie zależy już od wielkości
-katalogu, co jest warunkiem dojścia do dziesiątek tysięcy obiektów z całej
-Polski. Adresy stron i mapa witryny się nie zmieniły.
-MECHANIKA: `generateStaticParams()` w `app/boisko/[id]/page.tsx` zwraca pustą
-listę, `revalidate = 86400`; `resolveField()` rozwiązuje slug przez wspólny
-indeks slug→id z TTL zamiast pobierać całą tabelę `fields` raz na render.
