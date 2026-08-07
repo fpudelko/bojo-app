@@ -16,7 +16,11 @@ function toField(row: any): Field {
     lat: Number(row.lat),
     lng: Number(row.lng),
     sport: row.sport ?? [],
-    available: row.available,
+    // `?? true` nie jest kosmetyką: zapytanie mapy pobiera okrojony zestaw
+    // kolumn i `available` go NIE zawiera. Bez wartości domyślnej każda pinezka
+    // wychodziła jako niedostępna — szara, z ikoną stadionu zamiast piłki,
+    // niezależnie od sportu. Kolumna pobrana wprost nadal decyduje.
+    available: row.available ?? true,
     surface: row.surface ?? '',
     isIndoor: row.is_indoor,
     isBookable: bookingType === 'internal',

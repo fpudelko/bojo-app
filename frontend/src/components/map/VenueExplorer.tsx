@@ -278,14 +278,28 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
     prevSelectedRef.current = selectedId;
   }, [selectedId, fields]);
 
+  // Przelot do zaznaczonego obiektu — DOKŁADNIE RAZ na zaznaczenie.
+  //
+  // `fields` było wcześniej w zależnościach i to zapętlało mapę: przelot kończy
+  // się zdarzeniem `moveend`, obserwator kadru zgłasza nowy prostokąt, przychodzi
+  // świeża lista obiektów (nowa tablica, choćby o tej samej treści), efekt rusza
+  // ponownie i leci jeszcze raz w to samo miejsce. Z zewnątrz wyglądało to jak
+  // drganie całej mapy po kliknięciu pinezki.
+  const ostatniPrzelot = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedId) return;
-    // On first load ('init') keep the wide powiat view — don't zoom to a venue.
+    if (!selectedId) { ostatniPrzelot.current = null; return; }
+    // Przy pierwszym wejściu ('init') zostaje szeroki widok — nie przybliżamy.
     if (selectedSource === 'init') return;
+    if (ostatniPrzelot.current === selectedId) return;
+
     const f = fields.find((x) => x.id === selectedId);
-    if (!f) return;
+    if (!f) return;                      // obiekt jeszcze nie dojechał
+    ostatniPrzelot.current = selectedId;
     map.stop();
     map.flyTo([f.lat, f.lng], Math.max(map.getZoom(), 14), { duration: 0.45 });
+    // `fields` zostaje w zależnościach, bo przy wejściu z linku `?boisko=`
+    // obiekt dociera dopiero po pierwszym pobraniu. Pętli już nie ma —
+    // pilnuje jej `ostatniPrzelot`.
   }, [selectedId, selectedSource, fields, map]);
 
   return null;
