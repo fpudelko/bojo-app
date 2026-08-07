@@ -5,8 +5,7 @@ import { Bell, Check, ChevronRight, Clock, MapPin, MessageCircle, Plus, Share2, 
  *
  * Dlaczego rysowane w JSX, a nie zrzuty ekranu: zrzut miękczeje powyżej 2x DPI,
  * waży kilkadziesiąt kB i rozjeżdża się z aplikacją przy pierwszej zmianie
- * wyglądu — pliki w public/mockups/ mają dziś stare logo i widoczne szkielety
- * ładowania zamiast treści. Makieta w JSX używa tych samych tokenów kolorów
+ * wyglądu. Makieta w JSX używa tych samych tokenów kolorów
  * (bg-canvas, text-ink, primary-700, accent-500), więc idzie za motywem sama.
  *
  * Zasada treści: każdy element musi mieć odpowiednik w działającym kodzie.

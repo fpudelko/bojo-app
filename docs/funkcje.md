@@ -336,7 +336,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 | `components/map/EventsMapImpl.tsx` | nic nie importuje |
 | `components/home/NearbyGames.tsx` | kompletny, nigdzie nie renderowany |
 | `components/home/landing/PhoneFrame.tsx` | ramka telefonu wokół zrzutu ekranu; podgląd na landingu rysuje dziś makiety w JSX (`PhoneCarousel`), więc nikt tego nie importuje |
-| `frontend/public/mockups/*.png` | ~7,5 MB zrzutów ekranu, do których nie prowadzi żaden import. **Są nieaktualne**: stare logo „BOJO" zamiast pigułki, a na dwóch widać szkielety ładowania zamiast treści — nie nadają się do użycia bez ponownego zrobienia |
 | tabela `games` | zastąpiona przez `events` w `002` |
 
 **Aktywna mapa to `VenueExplorer.tsx`** (strona `/mapa`) oraz pickery lokalizacji.
