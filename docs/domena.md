@@ -67,11 +67,22 @@ opisy skrajów pod spodem — reużywany w czterech filtrach na `/wydarzenia` i 
 na `/mapa`, wzorowany na suwaku promienia w `AlertSetupDialog`);
 `components/map/GamesMarkersLayer.tsx` (klastrowana warstwa pinezek meczów,
 `L.markerClusterGroup`, dane wchodzą jako prop — bez własnego fetcha viewport-scoped,
-bo zbiór publicznych wydarzeń jest już cały w pamięci; ikona klastra reużywa
-`clusterDivIcon()` z `mapIcons.ts` — ten sam wygląd co klastry boisk, zamiast domyślnej,
-nieostylowanej ikony Leafleta; współdzielona przez widok mapy
+bo zbiór publicznych wydarzeń jest już cały w pamięci; pinezka pojedynczego meczu ma
+emoji sportu (`sportEmoji()`) i etykietę „kiedy" (`matchWhenLabel()` z `lib/eventDates.ts`,
+bez godziny); ikona klastra reużywa `clusterDivIcon()` z `mapIcons.ts` — ten sam wygląd
+co klastry boisk, zamiast domyślnej, nieostylowanej ikony Leafleta; kliknięcie mapy poza
+pinezką (`map.on('click', …)`, marker nie propaguje własnego kliknięcia do mapy) zamyka
+zaznaczenie — `onSelect` przyjmuje `null`; współdzielona przez widok mapy
 w `/wydarzenia` (`components/map/GamesMapCanvas.tsx`, własny `<MapContainer>`) i tryb
-„Pokaż gry" w `VenueExplorer.tsx` (ten sam `<MapContainer>` co boiska)); `lib/sports.ts
+„Pokaż gry" w `VenueExplorer.tsx` (ten sam `<MapContainer>` co boiska));
+`lib/eventFilters.ts#swipeEventId` (który mecz pokazać po swipe w panelu — ta sama
+kolejność co pinezki, zawija się na końcach) razem z `lib/useSwipe.ts` (wykrywanie
+poziomego gestu touchstart→touchend, próg 50px, ignoruje ruch bardziej pionowy niż
+poziomy, żeby nie kolidować ze scrollem); `components/map/LocateMeButton.tsx` (przycisk
+„pokaż moją okolicę", ikona `LocateFixed` — wcześniej `MapPin`, mylące dla tej akcji —
+wspólny dla `/mapa` i widoku mapy w `/wydarzenia`, pozycja sterowana propem `className`,
+bo kontekst pełnoekranowej mapy i mapy osadzonej w karcie mają różne bezpieczne
+odstępy); `lib/sports.ts
 #MAP_FILTER_SPORTS` (sporty jako filtr facylitów na mapie, szerszy niż `FOCUS_SPORTS` —
 dokłada `wielofunkcyjne`/`piłka ręczna`, które mają pinezki na `/mapa`, ale nie były
 wcześniej filtrowalne); `lib/api.ts#EXPLORER_COLS` (okrojone kolumny pobierane dla

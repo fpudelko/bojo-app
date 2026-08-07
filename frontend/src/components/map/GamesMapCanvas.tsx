@@ -5,12 +5,15 @@ import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
+import type L from 'leaflet';
 import MapAttribution from './MapAttribution';
 import GamesMarkersLayer from './GamesMarkersLayer';
+import LocateMeButton from './LocateMeButton';
 import { POLSKA, POLSKA_ZOOM } from './mapIcons';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { plural } from '@/lib/plural';
-import type { EventRow } from '@/lib/eventFilters';
+import { swipeEventId, type EventRow } from '@/lib/eventFilters';
+import { useSwipe } from '@/lib/useSwipe';
 import type { MyEventRelation } from '@/lib/events';
 import type { EventItem } from '@/types';
 
@@ -29,8 +32,16 @@ export default function GamesMapCanvas({
   rows: EventRow[];
   statusFor?: (event: EventItem) => MyEventRelation | undefined;
 }) {
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRow = rows.find((r) => r.event.id === selectedId) ?? null;
+
+  // Swipe w panelu przełącza na kolejny/poprzedni mecz w tej samej kolejności
+  // co pinezki na mapie (ta sama tablica `rows`).
+  const swipe = useSwipe(
+    () => selectedRow && setSelectedId(swipeEventId(rows, selectedRow.event.id, 1)),
+    () => selectedRow && setSelectedId(swipeEventId(rows, selectedRow.event.id, -1)),
+  );
 
   const street = MAPBOX_TOKEN ? (
     <TileLayer
@@ -44,7 +55,7 @@ export default function GamesMapCanvas({
 
   return (
     <div className="relative mx-4 mt-3 h-[65vh] min-h-[420px] overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-      <MapContainer center={POLSKA} zoom={POLSKA_ZOOM} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={POLSKA} zoom={POLSKA_ZOOM} zoomControl={false} style={{ height: '100%', width: '100%' }} ref={setMapInstance}>
         <MapAttribution />
         {street}
         <GamesMarkersLayer rows={rows} selectedId={selectedId} onSelect={setSelectedId} />
@@ -54,8 +65,10 @@ export default function GamesMapCanvas({
         {rows.length} {plural(rows.length, 'mecz', 'mecze', 'meczy')} na mapie
       </div>
 
+      <LocateMeButton map={mapInstance} className="absolute right-3 bottom-3 z-[600]" />
+
       {selectedRow && (
-        <div className="absolute inset-x-0 bottom-0 z-[700] p-3">
+        <div className="absolute inset-x-0 bottom-0 z-[700] p-3" {...swipe}>
           <EventBrowseCard
             event={selectedRow.event}
             distance={selectedRow.distance}

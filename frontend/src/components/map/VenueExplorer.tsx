@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
-  Check, CalendarCheck, MapPin, Globe, Navigation, Search, SlidersHorizontal, Ticket,
+  Check, CalendarCheck, MapPin, Globe, Search, SlidersHorizontal, Ticket,
   Trophy, Wallet, X,
 } from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
@@ -34,11 +34,13 @@ import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import {
   filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter, multiLabel,
-  sortEvents, toggleInArray, type DateFilter, type EventRow, type SortBy,
+  sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
+import LocateMeButton from './LocateMeButton';
+import { useSwipe } from '@/lib/useSwipe';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -140,12 +142,6 @@ const SURFACE_OPTIONS = SURFACE_VALUES.map((value) => ({ value, label: surfaceLa
 // Sportowy dropdown w trybie gier używa FOCUS_SPORTS (organizowalne sporty),
 // nie MAP_FILTER_SPORTS (opisy obiektu) — patrz toggleShowGames niżej.
 const GAMES_SPORT_OPTIONS = FOCUS_SPORTS.map((value) => ({ value, label: sportLabel(value), emoji: sportEmoji(value) }));
-
-const SORT_OPTIONS: { value: SortBy; label: string }[] = [
-  { value: 'termin',    label: 'Najbliższy termin' },
-  { value: 'odleglosc', label: 'Najbliżej mnie' },
-  { value: 'miejsca',   label: 'Najwięcej wolnych miejsc' },
-];
 
 // Te same zakresy suwaków co na /wydarzenia (D3 planu) — jeden zestaw wartości,
 // żeby tryb gier na mapie i lista miały identyczną semantykę filtrów.
@@ -392,7 +388,6 @@ function FilterPills({
   sports, setSports,
   onlyGamesToday, setOnlyGamesToday,
   filtersActive, onOpenFilters,
-  gamesSortBy, onGamesSortSelect, gamesSortGeoBusy,
   gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
   gamesOnlyNoCost, setGamesOnlyNoCost,
   wrap,
@@ -407,9 +402,6 @@ function FilterPills({
    *  dziś jakikolwiek wybór — steruje wyglądem przycisku „Filtry". */
   filtersActive: boolean;
   onOpenFilters: () => void;
-  gamesSortBy: SortBy;
-  onGamesSortSelect: (v: SortBy) => void;
-  gamesSortGeoBusy: boolean;
   gamesOnlyFreeSpots: boolean; setGamesOnlyFreeSpots: (v: boolean) => void;
   gamesOnlyNoCost: boolean; setGamesOnlyNoCost: (v: boolean) => void;
   wrap?: boolean;
@@ -425,28 +417,9 @@ function FilterPills({
       <TogglePill label="Pokaż gry" icon={<Trophy className="h-3.5 w-3.5 shrink-0" />}
         active={showGames} onClick={onToggleShowGames} />
 
-      {showGames && (
-        <PillDropdown label="Sortuj" active={gamesSortBy !== 'termin'}>
-          {(close) => (
-            <>
-              {SORT_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => { onGamesSortSelect(o.value); close(); }}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-                >
-                  {o.value === 'odleglosc' && <Navigation className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
-                  <span className="flex-1 text-left">
-                    {gamesSortGeoBusy && o.value === 'odleglosc' ? 'Szukam Cię…' : o.label}
-                  </span>
-                  {gamesSortBy === o.value && <Check className="h-4 w-4 text-primary-700" />}
-                </button>
-              ))}
-            </>
-          )}
-        </PillDropdown>
-      )}
+      {/* Sortuj nie pojawia się w trybie gier — /mapa jest zawsze widokiem
+          mapy (w odróżnieniu od /wydarzenia, gdzie sortowanie ma sens na
+          liście), więc kolejność pinezek nie jest tu czymś do wyboru. */}
 
       {!showGames && (
         <PillDropdown label={sportPillLabel} active={sports.length > 0}>
@@ -602,8 +575,9 @@ export default function VenueExplorer({
   const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
 
   // Tryb gier (D11/D12) — lokalny stan filtrów, ten sam kształt co na
-  // /wydarzenia (Sortuj natychmiastowy, reszta przez szkic modala).
-  const [gamesSort, setGamesSort] = useState<SortBy>('termin');
+  // /wydarzenia, minus Sortuj: /mapa jest zawsze mapą, więc kolejność
+  // pinezek/listy sidebara zostaje chronologiczna na stałe, bez UI do zmiany.
+  const gamesSort: SortBy = 'termin';
   const [gamesDate, setGamesDate] = useState<DateFilter>('wszystkie');
   const [gamesRadius, setGamesRadius] = useState<number | null>(null);
   const [gamesMaxPriceGrosze, setGamesMaxPriceGrosze] = useState<number | null>(null);
@@ -611,7 +585,6 @@ export default function VenueExplorer({
   const [gamesOnlyFreeSpots, setGamesOnlyFreeSpots] = useState(false);
   const [gamesOnlyNoCost, setGamesOnlyNoCost] = useState(false);
   const [gamesUserPos, setGamesUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [gamesSortGeoBusy, setGamesSortGeoBusy] = useState(false);
   const [gamesGeoBusy, setGamesGeoBusy] = useState(false);
   const [gamesGeoError, setGamesGeoError] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -659,23 +632,9 @@ export default function VenueExplorer({
     setDraftGamesMinFreeSpots(0);
   };
 
-  // Instancja Leafleta wyciągnięta z MapContainera — potrzebna przyciskowi
-  // „moja okolica", który stoi poza mapą i nie ma useMap().
+  // Instancja Leafleta wyciągnięta z MapContainera — potrzebna
+  // LocateMeButton, który stoi poza mapą i nie ma useMap().
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
-  const [locating, setLocating] = useState(false);
-
-  const locateMe = useCallback(() => {
-    if (!mapInstance || typeof navigator === 'undefined' || !navigator.geolocation) return;
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        mapInstance.setView([pos.coords.latitude, pos.coords.longitude], 12);
-      },
-      () => setLocating(false),
-      { timeout: 8000, maximumAge: 300_000 },
-    );
-  }, [mapInstance]);
 
   // Kadr i przybliżenie mapy. Od nich zależy, CO w ogóle pobieramy: przy
   // oddaleniu same liczby w siatce, przy przybliżeniu konkretne obiekty.
@@ -867,6 +826,13 @@ export default function VenueExplorer({
     if (selectedEventId && !gamesRows.some((r) => r.event.id === selectedEventId)) setSelectedEventId(null);
   }, [gamesRows, selectedEventId]);
 
+  // Swipe w panelu meczu przełącza na kolejny/poprzedni w tej samej
+  // kolejności co pinezki (gamesRows) — ten sam wzorzec co GamesMapCanvas.
+  const gamesCardSwipe = useSwipe(
+    () => selectedEventRow && setSelectedEventId(swipeEventId(gamesRows, selectedEventRow.event.id, 1)),
+    () => selectedEventRow && setSelectedEventId(swipeEventId(gamesRows, selectedEventRow.event.id, -1)),
+  );
+
   // Reset the render window whenever the result set changes (new search/filter).
   useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, search]);
 
@@ -983,27 +949,12 @@ export default function VenueExplorer({
     return list.length;
   }, [allFields, searchResults, sports, draftTypes, draftSurfaces]);
 
-  /** Wybór „Najbliżej mnie" w pigułce Sortuj (tryb gier) pyta o lokalizację
-   *  od razu przy kliknięciu — ten sam wzorzec co na /wydarzenia (D5). */
-  const onGamesSortSelect = async (value: SortBy) => {
-    if (value === 'odleglosc' && !gamesUserPos) {
-      setGamesSortGeoBusy(true);
-      const res = await getCurrentLocation();
-      setGamesSortGeoBusy(false);
-      if (res.ok) { setGamesUserPos({ lat: res.lat, lng: res.lng }); setGamesSort('odleglosc'); }
-      else setGamesGeoError(geoErrorMessage(res.kind));
-      return;
-    }
-    setGamesSort(value);
-  };
-
   const filterProps = {
     showGames, onToggleShowGames: toggleShowGames,
     sports, setSports,
     onlyGamesToday, setOnlyGamesToday,
     filtersActive: modalFiltersActive,
     onOpenFilters: openSheet,
-    gamesSortBy: gamesSort, onGamesSortSelect, gamesSortGeoBusy,
     gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
     gamesOnlyNoCost, setGamesOnlyNoCost,
   };
@@ -1226,16 +1177,7 @@ export default function VenueExplorer({
         {/* Skok do okolicy użytkownika. Świadomie na kliknięcie, nie przy
             wejściu: pytanie o lokalizację od razu po otwarciu mapy odbija się
             od ludzi, a mapa Polski działa i bez zgody. */}
-        <button
-          type="button"
-          onClick={locateMe}
-          disabled={locating}
-          title="Pokaż moją okolicę"
-          aria-label="Pokaż moją okolicę"
-          className="absolute right-3 bottom-28 md:bottom-6 z-[600] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md transition-colors hover:bg-slate-50 disabled:opacity-60"
-        >
-          <MapPin className={`h-5 w-5 ${locating ? 'text-slate-300' : 'text-primary-700'}`} />
-        </button>
+        <LocateMeButton map={mapInstance} className="absolute right-3 bottom-28 md:bottom-6 z-[600]" />
 
         {/* Mobile: search + filter overlay. Zalogowany dostaje tu też
             dzwonek+awatar — Header chowa dla niego swój pasek na tej trasie
@@ -1310,6 +1252,7 @@ export default function VenueExplorer({
           <div
             className="md:hidden fixed inset-x-0 bottom-0 z-[1001] px-3"
             style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+            {...gamesCardSwipe}
           >
             <div className="relative">
               <button
