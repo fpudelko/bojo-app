@@ -134,10 +134,22 @@ panel admina, profil, motyw, Wyloguj), już jest dostępne w dolnym panelu nawig
 Skutek uboczny: dzwonek powiadomień, wcześniej wyłącznie w bloku `hidden md:flex`, jest
 teraz dostępny na telefonie.
 
-Hamburger (`Menu`/`X`, arkusz pełnoekranowy) **zostaje wyłącznie dla wylogowanych** —
-zawiera dziś tylko „Stwórz mecz", „Znajdź mecz", „Mapa boisk", baner Cup (za `SHOW_CUP`),
-przełącznik motywu i „Zaloguj się". Desktop (`md:` i wyżej) i landing dla wylogowanych
-bez zmian.
+**Hamburgera nie ma już w ogóle** — ani dla zalogowanych, ani dla wylogowanych. Arkusz
+pełnoekranowy, pułapka focusa i blokada przewijania zostały usunięte z `Header.tsx`.
+
+Wylogowany na mobile dostaje po prawej trzy elementy: **ikonę mapy** (`/mapa`), zielony
+przycisk **„Dołącz"** i **ikonę awatara** (logowanie). „Dołącz" prowadzi na
+`/logowanie?mode=rejestracja` i otwiera formularz od razu na zakładaniu konta —
+`AuthForm` przyjmuje prop `initialMode`, domyślnie `'signin'`, więc pozostałe ~20 wejść
+na `/logowanie` zachowuje się bez zmian.
+
+Konsekwencja świadoma: **pasek przestał być nawigacją dla wylogowanego.** Do
+`/wydarzenia` i `/wydarzenia/nowe` prowadzą CTA w hero landingu, klikalny krok
+„Stwórz mecz" w sekcji „Jak to działa", kafelek w „Co dostajesz", pływający przycisk `+`
+(`StickyCta`) oraz linki w stopce.
+
+Desktop (`md:` i wyżej) ma na to miejsce, więc pokazuje oba wejścia z nazwami:
+tekstowe „Zaloguj się" i zielone „Dołącz".
 
 ### `/profil` — nowy dom opcji z dawnego hamburgera
 
@@ -199,6 +211,80 @@ z FAB-a (`+`) w dolnej nawigacji, dostępnego z każdego ekranu na mobile.
 
 ---
 
+## Układ `/wydarzenia` — filtry, sortowanie, sekcje dzienne
+
+Widok jest rozdzielony na dwie warstwy: **`EventsListView.tsx`** (sama treść) i
+**`EventsListClient.tsx`** (`<Header/>` + widok). Podział jest po to, żeby ten sam widok
+mógł posłużyć za tło ekranu logowania — patrz niżej.
+
+| Element | Zachowanie |
+|---|---|
+| Chipsy sportu | emoji **+ nazwa**, źródłem `FOCUS_SPORTS`; „piłka nożna" łapie też `futsal` |
+| „Kiedy" | Kiedykolwiek / Dzisiaj / Jutro / Ten tydzień / **Weekend** (najbliższa sobota i niedziela) |
+| „Sortuj" | Najbliższy termin *(domyślnie)* / **Najbliżej mnie** / Najwięcej wolnych miejsc |
+| Przełączniki | „Wolne miejsca" (odsiewa komplety), „Za darmo" (`costGrosze === 0`) |
+| Szukanie | po tytule, sporcie, boisku i **dzielnicy**, przez `foldText` — „pilka" znajduje „piłka" |
+| Sekcje dzienne | Dzisiaj / Jutro / W tym tygodniu / Później — **tylko** przy sortowaniu po terminie |
+| Stronicowanie | 20 pozycji + „Pokaż więcej"; licznik resetuje się przy zmianie filtrów |
+
+„Najbliżej mnie" pyta o zgodę na lokalizację przez `getCurrentLocation()`; przy odmowie
+pokazuje komunikat z `geoErrorMessage()` i **wraca do sortowania po terminie**, żeby lista
+nie została bez porządku. Mecz bez współrzędnych ląduje na końcu, ale nie wypada z wyników.
+
+Sekcje dzienne wyłączają się przy sortowaniu po odległości i po liczbie miejsc: dwa
+porządki naraz („po czasie" w nagłówkach, „po dystansie" w treści) wprowadzałyby w błąd.
+
+Logika filtrowania, grupowania i sortowania żyje w `lib/eventFilters.ts` — w komponencie
+nie dałoby się jej przetestować.
+
+**Pigułki filtrów** (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) są
+wspólne z mapą boisk (`VenueExplorer.tsx`), skąd zostały wyciągnięte. Panel rozwijany
+renderuje się przez portal do `<body>`, bo pasek filtrów bywa `overflow-x-auto`
+i przyciąłby menu.
+
+### `/logowanie` na tle listy meczów
+
+`app/logowanie/page.tsx` renderuje pod kartą formularza **prawdziwy** `EventsListView`
+(`components/auth/LoginBackdrop.tsx`), przykryty mgiełką `bg-black/20` + delikatnym
+rozmyciem. `/logowanie` **zostaje zwykłą trasą**, nie modalem przechwytującym: większość
+wejść na ten ekran to twarde `window.location.href`, których intercepting route i tak by
+nie złapał, a trasa musi działać po odświeżeniu i z linku w mailu.
+
+Tło jest dekoracją i jest całkowicie bierne: `pointer-events-none`, `overflow-hidden`,
+`aria-hidden` **oraz `inert`**. Samo `aria-hidden` nad kontenerem pełnym odnośników
+byłoby błędem dostępności — czytnik ekranu ich nie widzi, ale Tab dalej w nie wchodzi.
+React 18 nie zna propa `inert` (doszedł w 19), więc atrybut ustawiany jest przez `ref`.
+
+---
+
+## Układ `/grupy/[id]`
+
+Trasa jest rozdzielona na serwerowy `page.tsx` (z `generateMetadata`) i
+`GroupDetailClient.tsx`. Metadane są tu istotne, bo **strona grupy jest celem linku
+zaproszenia** `/g/[kod]` — bez nich każde udostępnienie pokazywało generyczny tytuł
+całej aplikacji.
+
+Układ od góry: hero z okładką (nazwa + plakietki sport / miasto / liczba członków) →
+„Najbliższy mecz" (dla członka) → zakładki **Mecze / Skład** → przyklejony pasek z jedną
+główną akcją („Dołącz do grupy" albo „Stwórz mecz w grupie"), odsunięty od dolnej
+nawigacji przez `var(--bottom-nav-h)`.
+
+**Wejście z linku zaproszenia.** `/g/[kod]` przekierowuje na `/grupy/[id]?join=1` i tak
+było od zawsze — ale nikt tego parametru nie czytał. Teraz, gdy `?join=1` jest w adresie
+**i** użytkownik nie należy do grupy, nad wszystkim pojawia się baner „Masz zaproszenie
+do *nazwa*" z przyciskiem dołączenia; pasek na dole wtedy się nie dubluje.
+
+Zakładka trzyma stan w URL (`?tab=sklad`), ale przez `window.history.replaceState`,
+**nie** `router.replace` jak na `/moje-gry`. Powód: `/moje-gry` jest trasą statyczną
+i nawigacja nic nie kosztuje, a `/grupy/[id]` jest dynamiczna — każde `router.replace`
+byłoby round-tripem po dane z serwera (łącznie z `generateMetadata`), przez co adres
+w praktyce w ogóle się nie zmieniał.
+
+Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
+gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
+
+---
+
 ## Powiadomienia — co realnie istnieje
 
 Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
@@ -249,6 +335,8 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 | `components/map/EventsMapView.tsx` | nic nie importuje |
 | `components/map/EventsMapImpl.tsx` | nic nie importuje |
 | `components/home/NearbyGames.tsx` | kompletny, nigdzie nie renderowany |
+| `components/home/landing/PhoneFrame.tsx` | ramka telefonu wokół zrzutu ekranu; podgląd na landingu rysuje dziś makiety w JSX (`PhoneCarousel`), więc nikt tego nie importuje |
+| `frontend/public/mockups/*.png` | ~7,5 MB zrzutów ekranu, do których nie prowadzi żaden import. **Są nieaktualne**: stare logo „BOJO" zamiast pigułki, a na dwóch widać szkielety ładowania zamiast treści — nie nadają się do użycia bez ponownego zrobienia |
 | tabela `games` | zastąpiona przez `events` w `002` |
 
 **Aktywna mapa to `VenueExplorer.tsx`** (strona `/mapa`) oraz pickery lokalizacji.

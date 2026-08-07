@@ -42,6 +42,14 @@ które liczy domyślną nazwę meczu, gdy tytuł jest pusty — `defaultEventTit
 `lib/adminLinks.ts` (lista tras panelu admina, współdzielona przez `AdminMenu`
 w `Header.tsx` i sekcję „Panel administratora” na `/profil`); `lib/api.ts#hasManagedVenue`
 (czy użytkownik zarządza obiektem — steruje „Moje obiekty” w headerze i na `/profil`);
+`lib/eventFilters.ts` (filtrowanie, grupowanie i sortowanie listy `/wydarzenia` —
+zakres dat, sekcje dzienne, kolejność po realnym starcie meczu; wydzielone z komponentu
+pod testy, tak jak `eventWizard.ts`); `lib/plural.ts` (polska odmiana przez liczbę —
+zastąpiła regułę `n < 5`, która myliła się na 12–14); `lib/searchText.ts` (`foldText`
+składa polskie znaki, żeby „pilka" znajdowało „piłka"); `lib/geo.ts#distanceKm`
+(odległość haversine, wspólna dla sortowania „najbliżej mnie" i wykrywania duplikatów
+w panelu admina); `lib/groups.ts#setGroupCover` (zapis okładki grupy — jedyna mutacja
+grupy, która wcześniej szła inline w JSX);
 `lib/bottomNavVisibility.tsx` (kontekst chowający dolny panel nawigacji — patrz
 [funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile)); `lib/useMyInvites.ts`
 (zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz)).
