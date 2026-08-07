@@ -12,7 +12,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
 import type { Field, EventItem } from '@/types';
-import { getExplorerFields } from '@/lib/api';
+import { getExplorerFields, getFieldsByIds } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
@@ -553,6 +553,42 @@ export default function VenueExplorer({
 
   const visibleFields = fields.slice(0, visibleCount);
   const hasMore = fields.length > visibleFields.length;
+  // Szczegóły kart, które są na ekranie: zdjęcie, nawierzchnia, strona.
+  // Pinezki przychodzą okrojone (siedem kolumn zamiast dziewiętnastu), więc
+  // resztę dociągamy dla garstki widocznych obiektów, nie dla całego kraju.
+  const [szczegoly, setSzczegoly] = useState<Record<string, Field>>({});
+  const idsWidoczne = useMemo(() => {
+    const lista = fields.slice(0, visibleCount).map((f) => f.id);
+    if (selectedId && !lista.includes(selectedId)) lista.push(selectedId);
+    return lista;
+  }, [fields, visibleCount, selectedId]);
+
+  useEffect(() => {
+    const brakujace = idsWidoczne.filter((id) => !szczegoly[id]);
+    if (brakujace.length === 0) return;
+    let anulowane = false;
+    getFieldsByIds(brakujace)
+      .then((pelne) => {
+        if (anulowane) return;
+        setSzczegoly((prev) => {
+          const next = { ...prev };
+          for (const f of pelne) next[f.id] = f;
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => { anulowane = true; };
+    // `szczegoly` celowo poza zależnościami: efekt sam je uzupełnia i
+    // dopisanie ich tutaj zapętliłoby go na każdej odpowiedzi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsWidoczne]);
+
+  /** Pinezka wzbogacona o szczegóły, jeśli już przyszły. */
+  const zKarta = useCallback(
+    (f: Field): Field => (szczegoly[f.id] ? { ...f, ...szczegoly[f.id] } : f),
+    [szczegoly],
+  );
+
   const selectedField = selectedId ? fields.find((f) => f.id === selectedId) ?? null : null;
 
   // Clean up stale card refs
@@ -652,7 +688,7 @@ export default function VenueExplorer({
               className="cursor-pointer"
             >
               <VenueCard
-                field={f}
+                field={zKarta(f)}
                 games={fieldStats[f.id]?.count ?? 0}
                 hasGameToday={fieldStats[f.id]?.today ?? false}
                 selected={f.id === selectedId}
@@ -744,7 +780,7 @@ export default function VenueExplorer({
                 <X className="h-4 w-4" />
               </button>
               <VenueCard
-                field={selectedField}
+                field={zKarta(selectedField)}
                 games={fieldStats[selectedField.id]?.count ?? 0}
                 hasGameToday={fieldStats[selectedField.id]?.today ?? false}
               />

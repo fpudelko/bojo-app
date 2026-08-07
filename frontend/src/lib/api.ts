@@ -62,8 +62,15 @@ function toField(row: any): Field {
 // Lean column set + server-side filtering for the map/list explorer. Cuts
 // egress hard: only venues that actually show up are transferred, and the
 // heavy columns (description, contact, opening hours, amenities…) are dropped.
-const EXPLORER_COLS =
-  'id, name, address, lat, lng, sport, surface, is_indoor, booking_enabled, booking_type, available, website, image_url, photo_url, photo_reference, photo_source, map_visibility, district, venue_type';
+// Kolumny potrzebne PINEZCE i filtrom, nic więcej. Wcześniej było ich
+// dziewiętnaście — łącznie z `photo_reference` (często 200+ znaków), adresami
+// zdjęć, stroną i danymi rezerwacji. Pobieraliśmy pełną kartę dla każdego
+// obiektu w kraju, żeby wyrenderować jedną: tę klikniętą.
+//
+// `name` i `address` zostają, bo po nich filtruje wyszukiwarka; `venue_type`,
+// bo po nim filtruje lista typów. Reszta dociągana jest dla widocznych kart
+// przez `getFieldsByIds()`.
+const EXPLORER_COLS = 'id, name, address, lat, lng, sport, venue_type';
 // `wielofunkcyjne` to import z OSM (`sport=multi`) — 162 obiekty w samym
 // lubelskiem odpadały tu po cichu, mimo że przeszły bramkę publikacji.
 const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna', 'wielofunkcyjne'];
@@ -175,6 +182,24 @@ export async function updateFieldBookingSettings(
     })
     .eq('id', fieldId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Pełne dane kilku obiektów naraz — dla kart, które właśnie są na ekranie.
+ *
+ * Mapa pobiera pinezki w okrojonej postaci (`EXPLORER_COLS`), więc karta
+ * potrzebuje reszty: zdjęcia, nawierzchni, strony. Zapytanie idzie partiami
+ * po `id`, bo widoczna jest zawsze garstka kart — jedna na telefonie, jedna
+ * strona listy na komputerze.
+ */
+export async function getFieldsByIds(ids: string[]): Promise<Field[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('fields')
+    .select('*')
+    .in('id', ids);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toField);
 }
 
 export async function getField(fieldId: string): Promise<Field> {
