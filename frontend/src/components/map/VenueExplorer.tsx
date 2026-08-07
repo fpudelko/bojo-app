@@ -26,11 +26,22 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 // liczba obiektów w kadrze jest już policzalna dla przeglądarki.
 const ZOOM_SKUPISK = 11;
 
-// Rozmiar komórki siatki w stopniach, dla przybliżeń poniżej progu. Im dalej,
-// tym grubszy kwadrat — inaczej przy widoku kraju wróciłyby tysiące kółek.
-const KROK_SIATKI: Record<number, number> = {
-  5: 1.0, 6: 0.7, 7: 0.45, 8: 0.25, 9: 0.12, 10: 0.06,
-};
+/**
+ * Rozmiar komórki siatki w stopniach, liczony z przybliżenia.
+ *
+ * Tabela ze sztywnymi wartościami była zła w obie strony: przy widoku kraju
+ * dawała ponad sto komórek, które nachodziły na siebie tak, że nie dało się
+ * odczytać żadnej liczby. Wzór trzyma komórkę w stałym rozmiarze NA EKRANIE
+ * (~120 px) niezależnie od przybliżenia, więc kółek jest zawsze tyle, ile
+ * mieści się wygodnie w kadrze.
+ *
+ * 256 to rozmiar kafla, 360 to obwód świata w stopniach — czyli tyle stopni
+ * przypada na piksel przy danym przybliżeniu.
+ */
+function krokSiatki(zoom: number): number {
+  const PIKSELE_NA_KOMORKE = 120;
+  return (PIKSELE_NA_KOMORKE * 360) / (256 * Math.pow(2, zoom));
+}
 
 // 'map' — kliknięcie pinezki albo karty na liście; 'init' — stan bez wyboru
 // użytkownika, przy którym mapa NIE przesuwa kadru. Źródło 'scroll' zniknęło
@@ -58,6 +69,14 @@ function mortonKey(lat: number, lng: number): number {
     key |= ((y >> i) & 1) << (2 * i + 1);
   }
   return key;
+}
+
+/** „boisko / boiska / boisk" — polska odmiana po liczbie. */
+function boiskoSlowo(n: number): string {
+  if (n === 1) return 'boisko';
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'boiska';
+  return 'boisk';
 }
 
 function gamesWord(n: number): string {
@@ -571,7 +590,7 @@ export default function VenueExplorer({
     if (zoom < ZOOM_SKUPISK) {
       // Krok siatki maleje z przybliżeniem: przy widoku kraju grube kwadraty,
       // przy widoku województwa drobniejsze.
-      const krok = KROK_SIATKI[Math.min(zoom, ZOOM_SKUPISK - 1)] ?? 0.5;
+      const krok = krokSiatki(zoom);
       getExplorerClusters(kadr, krok, sports, venueTypes)
         .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
         .catch(() => {});
@@ -663,6 +682,14 @@ export default function VenueExplorer({
   // Przy oddaleniu mapa pokazuje skupiska, nie obiekty — pusta lista nie
   // znaczy wtedy „nic nie znaleziono", tylko „przybliż".
   const trybSkupisk = zoom < ZOOM_SKUPISK;
+
+  // Ile obiektów widać w tym kadrze. Przy oddaleniu to jedyna liczba, jaką
+  // użytkownik może dostać — sumowanie kilkunastu kółek wzrokiem nie jest
+  // odpowiedzią na pytanie „ile ich w ogóle jest".
+  const wKadrze = useMemo(
+    () => (trybSkupisk ? skupiska.reduce((suma, s) => suma + s.ile, 0) : fields.length),
+    [trybSkupisk, skupiska, fields.length],
+  );
 
   const selectedField = selectedId ? fields.find((f) => f.id === selectedId) ?? null : null;
 
@@ -781,7 +808,7 @@ export default function VenueExplorer({
           {fields.length === 0 && allFields.length > 0 && (
             <p className="text-sm text-slate-400 text-center pt-8">
               {trybSkupisk
-                ? 'Przybliż mapę, żeby zobaczyć pojedyncze boiska'
+                ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
                 : 'Brak boisk dla tych filtrów'}
             </p>
           )}
@@ -879,7 +906,9 @@ export default function VenueExplorer({
             style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
           >
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
-              {trybSkupisk ? 'Przybliż, żeby zobaczyć pojedyncze boiska' : 'Dotknij pinezki, żeby zobaczyć boisko'}
+              {trybSkupisk
+                ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku · przybliż, żeby zobaczyć pojedyncze`
+                : 'Dotknij pinezki, żeby zobaczyć boisko'}
             </p>
           </div>
         )}
