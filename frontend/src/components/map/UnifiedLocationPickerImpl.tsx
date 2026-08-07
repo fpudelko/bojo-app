@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
 import ClusteredFieldMarkers from './ClusteredFieldMarkers';
@@ -8,7 +8,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Loader2 } from 'lucide-react';
 import type { Field } from '@/types';
-import { getExplorerFields } from '@/lib/api';
+import { getExplorerFields, searchExplorerFields, type Kadr } from '@/lib/api';
+import KadrObserwator from './KadrObserwator';
 import { POZNAN } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -75,22 +76,42 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   const [geocoding, setGeocoding] = useState(false);
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number } | null>(null);
 
+  const [kadr, setKadr] = useState<Kadr | null>(null);
+  const [znalezione, setZnalezione] = useState<Field[] | null>(null);
+
+  // Obiekty z widocznego wycinka mapy.
   useEffect(() => {
+    if (!kadr) return;
     let cancelled = false;
-    getExplorerFields().then((fs) => { if (!cancelled) setFields(fs); }).catch(() => {});
+    getExplorerFields(kadr).then((fs) => { if (!cancelled) setFields(fs); }).catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [kadr]);
+
+  const onKadr = useCallback((k: Kadr) => setKadr(k), []);
+
+  // Szukanie po nazwie idzie do bazy, nie po pobranej liście: obiekt, którego
+  // szukasz, najczęściej leży POZA aktualnym kadrem — i o to właśnie chodzi,
+  // gdy ktoś wpisuje nazwę zamiast przesuwać mapę.
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) { setZnalezione(null); return; }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchExplorerFields(q)
+        .then((fs) => { if (!cancelled) setZnalezione(fs); })
+        .catch(() => {});
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [search]);
 
   // Live client-side filtering as you type — same behaviour as the general
   // /mapa search (instant, no network round-trip). The magnifying-glass
   // button below is a separate, explicit action for addresses that aren't
   // one of our known venues (geocoded via Nominatim on click/Enter).
   const visible = useMemo(() => {
-    let list = sport ? fields.filter((f) => f.sport.includes(sport)) : fields;
-    const q = search.trim().toLowerCase();
-    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
-    return list;
-  }, [fields, sport, search]);
+    const zrodlo = znalezione ?? fields;
+    return sport ? zrodlo.filter((f) => f.sport.includes(sport)) : zrodlo;
+  }, [fields, znalezione, sport]);
 
   async function handleGeocode() {
     const q = search.trim();
@@ -151,6 +172,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
         zoomControl={false}
       >
         <MapAttribution />
+        <KadrObserwator onZmiana={onKadr} />
         {MAPBOX_TOKEN ? (
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
 import ClusteredFieldMarkers from './ClusteredFieldMarkers';
 import 'leaflet/dist/leaflet.css';
 import type { Field } from '@/types';
-import { getExplorerFields } from '@/lib/api';
+import { getExplorerFields, type Kadr } from '@/lib/api';
+import KadrObserwator from './KadrObserwator';
 import { POZNAN } from './mapIcons';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -28,14 +29,21 @@ interface Props {
 
 export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
+  const [kadr, setKadr] = useState<Kadr | null>(null);
 
+  // Obiekty z widocznego wycinka, nie z całego kraju. Picker pokazuje mapę
+  // wielkości jednego miasta, więc pobieranie reszty Polski było pracą, której
+  // nikt nie oglądał.
   useEffect(() => {
+    if (!kadr) return;
     let cancelled = false;
-    getExplorerFields()
+    getExplorerFields(kadr)
       .then((fs) => { if (!cancelled) setFields(fs); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [kadr]);
+
+  const onKadr = useCallback((k: Kadr) => setKadr(k), []);
 
   // Memoised so the marker layer isn't handed a new array on every render.
   const visible = useMemo(
@@ -52,6 +60,7 @@ export default function VenuePickerImpl({ selectedId, onSelect, sport }: Props) 
       zoomControl={false}
     >
       <MapAttribution />
+      <KadrObserwator onZmiana={onKadr} />
       {MAPBOX_TOKEN ? (
         <TileLayer
           attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
