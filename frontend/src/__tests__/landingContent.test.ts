@@ -5,7 +5,6 @@ import {
   LANDING_STEPS,
   LANDING_VALUES,
   LANDING_FAQ,
-  LANDING_FINAL_CTA,
   LANDING_STATS,
 } from '@/components/home/landing/content';
 import { faqJsonLd } from '@/lib/structuredData';
@@ -41,8 +40,6 @@ function allLandingText(): string {
     ...LANDING_STEPS.flatMap((s) => [s.title, s.body]),
     ...LANDING_VALUES.flatMap((v) => [v.title, v.body]),
     ...LANDING_FAQ.flatMap((f) => [f.q, f.a]),
-    LANDING_FINAL_CTA.h2,
-    LANDING_FINAL_CTA.lead,
     LANDING_CTA.primary.label,
     LANDING_CTA.secondary.label,
     LANDING_STATS.sportsValue,
@@ -72,6 +69,23 @@ describe('landing CTA — jedno główne, jedno poboczne', () => {
   });
 });
 
+describe('landing „Jak to działa" — pierwszy krok jest wejściem do kreatora', () => {
+  // Sekcja straciła własny przycisk „Zorganizuj mecz" (był czwartym takim
+  // na stronie). Zamiast niego klikalny jest pierwszy krok — jeśli ktoś
+  // usunie `href`, sekcja zostanie bez żadnej drogi dalej.
+  it('krok „Stwórz mecz" prowadzi do /wydarzenia/nowe', () => {
+    const first = LANDING_STEPS[0];
+    expect(first.title).toBe('Stwórz mecz');
+    expect('href' in first && first.href).toBe('/wydarzenia/nowe');
+  });
+
+  it('pozostałe kroki są opisem, nie odnośnikiem', () => {
+    for (const step of LANDING_STEPS.slice(1)) {
+      expect('href' in step).toBe(false);
+    }
+  });
+});
+
 describe('landing H1 — obiecuje tylko to, co dowieziemy', () => {
   it('mówi o organizowaniu meczu, nie o zbieraniu 14 osób w 2 minuty', () => {
     expect(LANDING_HERO.h1[0]).toBe('Zorganizuj mecz');
@@ -91,8 +105,6 @@ describe('zasięg — Poznań tylko jako uczciwe ujawnienie w FAQ, nie w ofercie
     ...LANDING_HERO.trust,
     ...LANDING_STEPS.flatMap((s) => [s.title, s.body]),
     ...LANDING_VALUES.flatMap((v) => [v.title, v.body]),
-    LANDING_FINAL_CTA.h2,
-    LANDING_FINAL_CTA.lead,
     LANDING_STATS.sportsValue,
     LANDING_STATS.sportsLabel,
     LANDING_STATS.timeLabel,

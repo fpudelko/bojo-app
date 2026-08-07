@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useBottomNavHidden } from '@/lib/bottomNavVisibility';
 import BottomNav from './BottomNav';
@@ -23,6 +24,18 @@ import BottomNav from './BottomNav';
 export default function BottomNavGate() {
   const { user, loading } = useAuth();
   const hidden = useBottomNavHidden();
-  if (loading || !user || hidden) return null;
+  const visible = !loading && !!user && !hidden;
+
+  // Zaznaczamy obecność paska na <html>, żeby CSS mógł odjąć jego wysokość od
+  // pełnego ekranu (--bottom-nav-h w globals.css). Element-dystans tego nie
+  // załatwiał: gate montuje się w layoucie PO {children}, więc dystans lądował
+  // poza kontenerem `min-h-screen` strony i tylko wydłużał dokument.
+  useEffect(() => {
+    if (!visible) return;
+    document.documentElement.dataset.bottomNav = '1';
+    return () => { delete document.documentElement.dataset.bottomNav; };
+  }, [visible]);
+
+  if (!visible) return null;
   return <BottomNav />;
 }

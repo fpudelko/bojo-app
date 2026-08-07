@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel } from '@/lib/eventDates';
+import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart } from '@/lib/eventDates';
 import type { EventItem } from '@/types';
 
 function fakeEvent(overrides: Partial<EventItem> = {}): EventItem {
@@ -59,6 +59,23 @@ describe('timeUntil', () => {
   });
   it('zwraca null bez godziny', () => {
     expect(timeUntil(ymd(addDays(0)))).toBeNull();
+  });
+});
+
+describe('minutesUntilStart', () => {
+  it('positive minutes for a future match', () => {
+    const inTwoHours = new Date(Date.now() + 2 * 3600_000);
+    const minutes = minutesUntilStart(ymd(inTwoHours), `${String(inTwoHours.getHours()).padStart(2, '0')}:${String(inTwoHours.getMinutes()).padStart(2, '0')}`);
+    expect(minutes).toBeGreaterThan(110);
+    expect(minutes).toBeLessThanOrEqual(120);
+  });
+
+  it('negative minutes once the match has started', () => {
+    expect(minutesUntilStart(ymd(addDays(-1)), '18:00')).toBeLessThan(0);
+  });
+
+  it('returns null on malformed input instead of throwing', () => {
+    expect(minutesUntilStart('', '')).toBeNull();
   });
 });
 

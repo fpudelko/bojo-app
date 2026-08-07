@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
@@ -10,7 +9,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
+import { Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
+import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
 import type { Field, EventItem } from '@/types';
 import { getExplorerFields, getFieldsByIds, getExplorerClusters, type Kadr, type Skupisko } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -251,77 +251,6 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
   }, [selectedId, selectedSource, fields, map]);
 
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// PillDropdown — portal escapes overflow-x-auto clipping
-// ---------------------------------------------------------------------------
-function PillDropdown({ label, active, children }: {
-  label: string; active: boolean;
-  children: (close: () => void) => React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  function toggle() {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, left: r.left });
-    }
-    setOpen((o) => !o);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node)) return;
-      if (panelRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
-
-  return (
-    <div className="shrink-0">
-      <button ref={btnRef} onClick={toggle}
-        className={[
-          'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-          active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
-        ].join(' ')}
-      >
-        {label}<ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      </button>
-      {open && mounted && createPortal(
-        <div ref={panelRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
-        >
-          {children(() => setOpen(false))}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
-function TogglePill({ label, icon, active, loading, onClick }: {
-  label: string; icon: React.ReactNode; active: boolean; loading?: boolean; onClick: () => void;
-}) {
-  return (
-    <button onClick={onClick}
-      className={[
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-        active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
-      ].join(' ')}
-    >
-      <span className={loading ? 'animate-pulse' : ''}>{icon}</span>{label}
-    </button>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -864,9 +793,11 @@ export default function VenueExplorer({
             mapie naprawdę: „co to za boisko?". Przeglądanie listą zostaje na
             desktopie, gdzie jest miejsce na pasek boczny.
 
-            Dolne dopełnienie ustępuje nawigacji: strona mapy jest h-screen
-            i overflow-hidden, więc dystans (h-16) z BottomNav nie działa —
-            pasek (fixed, z-1000) po prostu kładzie się na karcie. */}
+            Dolne dopełnienie liczy się od krawędzi EKRANU, nie kontenera mapy:
+            karta jest `fixed`, tak jak dolna nawigacja, więc obie mierzą od tego
+            samego punktu nawet gdy przeglądarka zwija swój pasek adresu.
+            Wysokość paska daje --bottom-nav-h (globals.css), która sama zeruje
+            się tam, gdzie paska nie ma. */}
         {selectedField && (
           <div
             // `fixed`, nie `absolute`: dolna nawigacja też jest `fixed`, więc
@@ -874,9 +805,11 @@ export default function VenueExplorer({
             // `absolute` karta trzymała się dołu kontenera mapy, który po
             // zwinięciu paska przeglądarki nie pokrywa się z dołem ekranu.
             className="md:hidden fixed inset-x-0 bottom-0 z-[1001] px-3"
-            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
-            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
-            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
+            // Wysokość paska bierzemy ze zmiennej --bottom-nav-h (globals.css),
+            // a nie z zaszytego 4rem: zmienna zeruje się, gdy paska nie ma
+            // (wylogowany, `md:` i wyżej), więc karta nie zostawia wtedy pustego
+            // odstępu pod sobą. Zawiera już env(safe-area-inset-bottom).
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
           >
             <div className="relative">
               <button
@@ -901,9 +834,9 @@ export default function VenueExplorer({
         {!selectedField && (fields.length > 0 || trybSkupisk) && (
           <div
             className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
-            // 4rem to wysokość dolnej nawigacji, 1.25rem to odstęp — bez niego
-            // karta ociera się o pasek i wygląda, jakby spod niego wystawała.
-            style={{ paddingBottom: 'calc(4rem + 1.25rem + env(safe-area-inset-bottom))' }}
+            // Jak wyżej: `fixed` mierzy od tej samej krawędzi co pasek, a wysokość
+            // paska bierzemy ze zmiennej zamiast z zaszytego 4rem.
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
           >
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
               {trybSkupisk

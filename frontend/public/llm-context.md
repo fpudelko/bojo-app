@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-06 · migracja `069` · 31 tabel · 121 testów
+**Stan na:** 2026-08-07 · migracja `069` · 31 tabel · 238 testów
 
 ---
 
@@ -295,6 +295,49 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-07 — Lista meczów z filtrami i sortowaniem, strona grupy z zaproszeniem
+PROBLEM: lista publicznych meczów w Bojo (`/wydarzenia`) filtrowała sporty samymi
+emoji bez podpisów — na telefonie nie było nawet dymka, który by je wyjaśnił. Nie
+dało się posortować listy w żaden sposób, a mecze tego samego dnia wracały
+w przypadkowej kolejności, bo baza sortowała samą datą bez godziny. Błąd sieci
+wyglądał identycznie jak brak meczów. Wyszukiwarka nie składała polskich znaków,
+więc „pilka" nie znajdowało „piłka nożna". Osobno: na stronie grupy nadchodzące
+mecze wyświetlały się w odwrotnej kolejności (najdalszy pierwszy), a osoba wchodząca
+z linku zaproszenia `/g/[kod]` lądowała na zwykłej stronie i musiała sama szukać
+przycisku dołączenia.
+ROZWIĄZANIE BOJO: lista meczów ma filtry z nazwami sportów, wybór zakresu dat
+(dzisiaj / jutro / ten tydzień / weekend), sortowanie (najbliższy termin, najbliżej
+mnie, najwięcej wolnych miejsc), przełączniki „wolne miejsca" i „za darmo" oraz
+podział na sekcje dzienne. Sortowanie po odległości pyta o zgodę na lokalizację
+i przy odmowie wraca do sortowania po terminie. Wyszukiwarka ignoruje polskie znaki
+i obejmuje też dzielnicę. Awaria pobierania danych ma własny ekran z ponowieniem.
+Strona grupy pokazuje najbliższy mecz na górze, dzieli treść na zakładki Mecze
+i Skład, a zaproszony z linku widzi baner „Masz zaproszenie" z przyciskiem
+dołączenia. Ekran logowania pokazuje pod formularzem prawdziwą listę meczów.
+MECHANIKA: `app/wydarzenia/EventsListView.tsx` (wydzielone z `EventsListClient.tsx`),
+`lib/eventFilters.ts` (filtrowanie, grupowanie, sortowanie — pod testami),
+`lib/searchText.ts` (`foldText`), `lib/plural.ts`, `lib/geo.ts#distanceKm`,
+`components/ui/FilterPill.tsx` (wspólne z mapą boisk),
+`app/grupy/[id]/page.tsx` + `GroupDetailClient.tsx` (metadane strony grupy,
+odczyt `?join=1`, `isGroupMember` jako osobne zapytanie),
+`lib/groups.ts#setGroupCover`, `components/auth/LoginBackdrop.tsx`.
+
+### 2026-08-07 — Landing pokazuje trzy ekrany aplikacji, pasek dla niezalogowanych bez menu
+PROBLEM: podgląd aplikacji na stronie głównej Bojo pokazywał jeden ekran, i to
+niepełny — ramka telefonu brała wysokość ze swojej zawartości, a zawartości była
+jedna karta, więc wyglądało to na ścinek zrzutu. Osobno: strona główna miała cztery
+identyczne przyciski „Zorganizuj mecz", co rozmywało jedno wezwanie do działania
+w cztery słabe.
+ROZWIĄZANIE BOJO: podgląd to teraz karuzela trzech pełnych ekranów telefonu, którą
+przewija się palcem: „Twoje mecze", tworzenie meczu i strona meczu. Przyciski
+„Zorganizuj mecz" zostały dwa — w nagłówku strony i w sekcji „Co dostajesz";
+w sekcji „Jak to działa" klikalny jest pierwszy krok, a pas pod pytaniami zniknął.
+Pasek dla niezalogowanego na telefonie ma ikonę mapy, przycisk „Dołącz" (otwiera
+zakładanie konta) i ikonę logowania — bez menu pod hamburgerem.
+MECHANIKA: `components/home/landing/PhoneCarousel.tsx`, `PhoneShell.tsx`
+(proporcja `aspect-[9/19]` wymusza pełny ekran), `mockScreens.tsx`;
+`LANDING_STEPS[0].href` w `landing/content.ts`; usunięty `LandingFinalCta.tsx`;
+`Header.tsx` (klaster mobilny, kasacja arkusza menu), `AuthForm` prop `initialMode`.
 
 ### 2026-08-07 — Mapa pobiera tylko to, co widać
 PROBLEM: mapa Bojo pobierała wszystkie publiczne obiekty naraz, z pełnym
@@ -326,6 +369,75 @@ dostały powiadomienia wstecz — ale tylko te nieodrzucone i dotyczące meczu,
 który się jeszcze nie odbył.
 MECHANIKA: migracja `067` — wyzwalacz `powiadom_o_zaproszeniu()`
 na `event_player_invites` oraz jednorazowe uzupełnienie zaległych wpisów.
+
+### 2026-08-06 — Enter w kreatorze meczu nie publikuje przypadkiem
+PROBLEM: na ostatnim kroku kreatora meczu w Bojo naciśnięcie Enter w polu
+„Tytuł" publikowało mecz natychmiast. Przeglądarka wysyła formularz na Enter,
+gdy ten ma przycisk zatwierdzający — a ostatni krok ma i pola tekstowe,
+i „Opublikuj mecz". Dla organizatora wyglądało to tak, jakby kreator sam
+przeskoczył dalej i utworzył mecz bez pytania.
+ROZWIĄZANIE BOJO: Enter w polu jednoliniowym nie wysyła już formularza. Mecz
+powstaje wyłącznie po kliknięciu „Opublikuj mecz". W polu opisu Enter dalej
+robi nową linię.
+MECHANIKA: `blokujEnter()` oraz warunek na numer kroku w `handleSubmit()`
+w `app/wydarzenia/nowe/page.tsx`.
+
+### 2026-08-06 — Rozliczenie po meczu i powiadomienie o zwolnionym miejscu z rezerwy
+PROBLEM: panel „Podział kosztów" (kto zapłacił, ile zebrano) znikał ze strony meczu,
+gdy tylko mecz się zaczynał — dokładnie wtedy, gdy organizator faktycznie rozlicza
+się z ekipą po grze. Osobno: gdy zwalniało się miejsce, oferta trafiała do pierwszego
+rezerwowego po cichu — `sync_reserve_claim` odpalał się tylko przy wejściu na stronę
+meczu, więc rezerwowy dowiadywał się o ofercie jedynie, jeśli sam odświeżył stronę
+w oknie na decyzję. Do tego link z dzwonka powiadomień prowadził na nieistniejącą
+trasę `/wydarzenie/[id]` (liczba pojedyncza) zamiast `/wydarzenia/[id]`.
+ROZWIĄZANIE BOJO: „Podział kosztów" i przełącznik płatności per uczestnik są teraz
+widoczne dla organizatora niezależnie od tego, czy mecz się już zaczął. Oferta
+zwolnionego miejsca z rezerwy generuje wpis w istniejącej skrzynce powiadomień
+w aplikacji (bez auto-awansu — rezerwowy nadal musi sam kliknąć „Wchodzę"). Link
+w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
+kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
+do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
+
+### 2026-08-06 — Telefon do organizatora chowa się do godziny przed meczem, kreator meczu domyślnie liczy koszt obiektu
+PROBLEM: numer telefonu do BLIKA, który organizator podawał przy tworzeniu meczu,
+widniał na publicznej, indeksowalnej stronie meczu dla każdego — także osoby
+niezalogowanej, tygodnie przed grą. Pole nie miało też żadnego ograniczenia długości.
+Osobno: kreator zakładał domyślnie wpisywanie kosztu „od osoby", choć organizator
+zwykle zna najpierw cenę wynajmu całego obiektu i musiał dzielić ją w głowie; zmiana
+liczby miejsc po wpisaniu kwoty nie przeliczała jej na nowo.
+ROZWIĄZANIE BOJO: numer do BLIKA widzi organizator zawsze, a uczestnik ze składu
+dopiero godzinę przed startem meczu — z jednym wyjątkiem: okno „Dołączam” z wyborem
+BLIKA pokazuje numer od razu, bo bez niego nie da się zapłacić przy zapisie. Pole
+przyjmuje wyłącznie 9 cyfr i formatuje je w trójkach podczas pisania; publikacja
+meczu z wybranym BLIKA i niepełnym numerem jest zablokowana, tak samo jak zniżka
+karty sportowej wyższa niż koszt od osoby. Kreator domyślnie wpisuje koszt za cały
+obiekt i przelicza cenę od osoby na bieżąco, także po zmianie liczby miejsc.
+MECHANIKA: `canSeeBlikPhone()`, `formatBlikPhone()`, `BLIK_PHONE_REVEAL_MINUTES = 60`
+oraz `minutesUntilStart()` w `lib/payments.ts`/`lib/eventDates.ts`; `validatePayments()`
+w `lib/eventWizard.ts`, wpięta w krok 2 kreatora i w `app/wydarzenia/[id]/edytuj/page.tsx`.
+Bramka działa wyłącznie w interfejsie — kolumna `blik_phone` nadal przyjeżdża w całym
+wierszu `events` (patrz BACKLOG.md).
+
+### 2026-08-06 — Kreator meczu pamięta szkic przez 12 godzin, telefon dla zalogowanych bez zdublowanej nawigacji
+PROBLEM: opuszczenie kreatora meczu w trakcie (np. żeby sprawdzić godzinę wynajmu)
+zerowało cały formularz — organizator wracał do pustych pól. Osobno: na telefonie
+zalogowany użytkownik widział jednocześnie górny pasek z logo i hamburgerem oraz
+dolną nawigację z tymi samymi skrótami, a każda strona miała pod treścią pas pustego
+tła (dolna nawigacja jest elementem `fixed` montowanym poza kontenerem strony, więc
+dystans, który miał ją kompensować, nie działał). `/moje-gry` powielała przy tym
+własną, osobno utrzymywaną wersję sekcji, które pulpit strony głównej już miał.
+ROZWIĄZANIE BOJO: kreator zapisuje wypełniany formularz w przeglądarce na 12 godzin
+i przywraca go po powrocie, z paskiem „Wróciliśmy do Twojego szkicu” i opcją „Zacznij
+od nowa”. Górny pasek dla zalogowanego na telefonie to dziś dzwonek powiadomień
+i awatar prowadzący do `/profil` — tam trafiły motyw, panel admina i „Moje obiekty”,
+które wcześniej siedziały w hamburgerze. `/moje-gry` renderuje te same sekcje co
+pulpit (Zaproszenia, Najbliższy mecz, Twoje najbliższe mecze, Obserwowane) zamiast
+własnej kopii.
+MECHANIKA: `lib/eventDraft.ts` (TTL `localStorage`), zmienna `--bottom-nav-h`
+w `app/globals.css` sterowana atrybutem z `BottomNavGate.tsx`, `lib/adminLinks.ts`
+i `lib/api.ts#hasManagedVenue` współdzielone przez `Header.tsx` i `app/profil/page.tsx`,
+`components/home/dashboard/DashboardSections.tsx` reużyte w `app/moje-gry/page.tsx`.
 
 ### 2026-08-06 — Gość dopisany ręcznie przejmuje swój wpis po założeniu konta
 PROBLEM: organizator dopisywał do składu osobę bez konta, wpisując samo imię —
@@ -366,97 +478,3 @@ MECHANIKA: migracja `065` dodaje wyzwalacze `powiadom_o_akceptacji()`
 Wyzwalacz z SECURITY DEFINER, bo powiadomienie pisze się zawsze komuś innemu
 niż autor akcji, a polityka INSERT na `notifications` dopuszcza wyłącznie
 własne wiersze. Panel rezerwy w `app/wydarzenia/[id]/EventDetailClient.tsx`.
-
-### 2026-08-06 — Jedna lista składu, koniec ze statusami uczestnika
-PROBLEM: strona meczu w Bojo pokazywała skład w dwóch miejscach — licznik
-zajętych miejsc z awatarami u góry i osobna karta ze składem niżej — więc
-organizator musiał się domyślać, w której z nich właściwie jest. Osobno: każdy
-uczestnik miał status (zaproszony / potwierdzony / odrzucony / brak odpowiedzi)
-opowiadający tę samą historię co oczekiwanie na akceptację i deklaracja gry,
-tylko własnym słownikiem i bez pilnowania zgodności — gracz mógł być
-„potwierdzony" i jednocześnie czekać na akceptację organizatora.
-ROZWIĄZANIE BOJO: skład jest w jednym miejscu, pod licznikiem miejsc.
-Organizator ma go rozwiniętego od razu, razem z dopisywaniem osób bez konta.
-Statusy uczestnika zniknęły wraz ze śledzeniem obecności, które było ich
-jedynym interfejsem. Relację gracza do meczu opisują wyłącznie dwie rzeczy:
-czy czeka na akceptację i czy gra, czy tylko obserwuje.
-MECHANIKA: migracja `064` kasuje `event_participants.status`,
-`event_participants.confirmed_at` oraz `events.track_attendance`; usunięte
-`updateParticipantStatus()` z `lib/eventFeatures.ts` i obie sekcje
-w `app/wydarzenia/[id]/EventDetailClient.tsx`.
-
-### 2026-08-06 — Komentarze pod boiskiem i powrót na mapę
-PROBLEM: strona obiektu w katalogu Bojo opisywała fakty z OpenStreetMap —
-sport, nawierzchnię, wymiary — i nic poza tym. Rzeczy, które decydują o tym,
-czy warto tam jechać (bramki bez siatek, brama zamykana po 20, parking),
-wiedzą tylko ci, którzy już tam grali, i nie mieli gdzie tego zapisać. Osobno:
-z opisu boiska nie dało się wrócić na mapę wycelowaną w ten obiekt — mapa
-otwiera się na widoku całego kraju, więc trzeba było szukać go od nowa.
-ROZWIĄZANIE BOJO: pod opisem obiektu są komentarze — czyta każdy, także bez
-konta, pisze zalogowany. Autor może skasować własny wpis, administrator
-dowolny. Przycisk „Zobacz na mapie" otwiera mapę przybliżoną na tym obiekcie
-z jego kartą.
-MECHANIKA: tabela `field_comments` (migracja `063`, osobna od `event_comments`,
-bo komentarz o miejscu przeżywa pojedynczy mecz), `lib/fieldComments.ts`,
-`components/venue/VenueComments.tsx`, parametr `/mapa?boisko=<id>` obsługiwany
-w `components/map/VenueExplorer.tsx`.
-
-### 2026-08-06 — Mapa pokazuje jedną kartę zamiast przewijanej listy
-PROBLEM: pod mapą Bojo stała przewijana w bok lista wszystkich wyników.
-Na telefonie zacinała się: każde przesunięcie palcem liczyło odległość każdej
-karty od środka ekranu, żeby zgadnąć, którą użytkownik ogląda, a taki wybór
-przewijał listę z powrotem — ruch palcem walczył z automatycznym przewijaniem.
-Lista rosła razem z katalogiem, więc problem miał się tylko pogłębiać.
-ROZWIĄZANIE BOJO: na telefonie mapa pokazuje jedną kartę — obiektu, którego
-pinezkę dotknięto. Dopóki nic nie wybrano, widać podpowiedź „Dotknij pinezki".
-Nic nie zaznacza się samo: przy katalogu ogólnopolskim „pierwszy z listy" to
-obiekt oddalony o pół kraju od tego, na co użytkownik patrzy. Na komputerze
-lista w pasku bocznym zostaje bez zmian.
-MECHANIKA: `components/map/VenueExplorer.tsx` — usunięta karuzela wraz
-z obsługą przewijania i źródłem wyboru `scroll`.
-
-### 2026-08-06 — Zaproszenia wyróżnione, widoczność meczu za oknem wyboru
-PROBLEM: zaproszenie na mecz wyglądało w Bojo tak samo jak mecz, w którym
-użytkownik już gra — ta sama karta, ten sam styl. Czytało się jak zobowiązanie,
-którego nie ma. Odrzucenie istniało, ale jako szary napis „Nie tym razem"
-wielkości podpisu, więc wyglądało na brak funkcji. Osobno: organizator zmieniał
-widoczność meczu jednym tknięciem etykiety „Publiczne"/„Prywatne", więc
-przypadkowe dotknięcie zdejmowało mecz z publicznej listy bez pytania.
-ROZWIĄZANIE BOJO: zaproszenie ma obwódkę, tło i nagłówek „ZAPROSZENIE",
-a odrzucenie to przycisk „Odrzuć zaproszenie" na całą szerokość karty.
-Odrzucone zaproszenie znika i nie wraca. Widoczność meczu zmienia się przez
-okno z dwiema opcjami i opisem, co każda znaczy; przy meczu publicznym
-z zapisanymi graczami okno mówi wprost, że zmiana na prywatny nikogo nie
-wypisuje — nowi po prostu nie znajdą meczu na liście.
-MECHANIKA: `components/events/InviteList.tsx`, `dismissInvite()`
-w `lib/playerInvites.ts` (kolumna `dismissed_at`, migracja `060`), okno
-widoczności i `handleSetVisibility()` w `app/wydarzenia/[id]/EventDetailClient.tsx`.
-
-### 2026-08-06 — Enter w kreatorze meczu nie publikuje przypadkiem
-PROBLEM: na ostatnim kroku kreatora meczu w Bojo naciśnięcie Enter w polu
-„Tytuł" publikowało mecz natychmiast. Przeglądarka wysyła formularz na Enter,
-gdy ten ma przycisk zatwierdzający — a ostatni krok ma i pola tekstowe,
-i „Opublikuj mecz". Dla organizatora wyglądało to tak, jakby kreator sam
-przeskoczył dalej i utworzył mecz bez pytania.
-ROZWIĄZANIE BOJO: Enter w polu jednoliniowym nie wysyła już formularza. Mecz
-powstaje wyłącznie po kliknięciu „Opublikuj mecz". W polu opisu Enter dalej
-robi nową linię.
-MECHANIKA: `blokujEnter()` oraz warunek na numer kroku w `handleSubmit()`
-w `app/wydarzenia/nowe/page.tsx`.
-
-### 2026-08-06 — Rozliczenie po meczu i powiadomienie o zwolnionym miejscu z rezerwy
-PROBLEM: panel „Podział kosztów" (kto zapłacił, ile zebrano) znikał ze strony meczu,
-gdy tylko mecz się zaczynał — dokładnie wtedy, gdy organizator faktycznie rozlicza
-się z ekipą po grze. Osobno: gdy zwalniało się miejsce, oferta trafiała do pierwszego
-rezerwowego po cichu — `sync_reserve_claim` odpalał się tylko przy wejściu na stronę
-meczu, więc rezerwowy dowiadywał się o ofercie jedynie, jeśli sam odświeżył stronę
-w oknie na decyzję. Do tego link z dzwonka powiadomień prowadził na nieistniejącą
-trasę `/wydarzenie/[id]` (liczba pojedyncza) zamiast `/wydarzenia/[id]`.
-ROZWIĄZANIE BOJO: „Podział kosztów" i przełącznik płatności per uczestnik są teraz
-widoczne dla organizatora niezależnie od tego, czy mecz się już zaczął. Oferta
-zwolnionego miejsca z rezerwy generuje wpis w istniejącej skrzynce powiadomień
-w aplikacji (bez auto-awansu — rezerwowy nadal musi sam kliknąć „Wchodzę"). Link
-w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
-kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
-do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).

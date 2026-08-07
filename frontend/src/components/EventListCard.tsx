@@ -7,6 +7,7 @@ import { Clock, MapPin, Navigation, Users } from 'lucide-react';
 import type { EventItem } from '@/types';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+import { squadSuffix } from '@/lib/eventTitle';
 // Re-exported for backward compatibility — implementation now lives in
 // lib/eventDates.ts. Import from '@/lib/eventDates' in new code.
 import { timeUntil } from '@/lib/eventDates';
@@ -27,13 +28,6 @@ export function formatLabel(sport: string, max: number): string {
   const short = SPORT_SHORT[sport] ?? sport;
   if (max > 0 && max % 2 === 0) return `${short} ${max / 2}v${max / 2}`;
   return max > 0 ? `${short} · ${max} os.` : short;
-}
-
-/** Just the size suffix — "6v6", "· 10 os." — no sport name prefix */
-function formatSize(max: number): string {
-  if (max <= 0) return '';
-  if (max % 2 === 0) return ` ${max / 2}v${max / 2}`;
-  return ` · ${max} os.`;
 }
 
 function DistanceBadge({ km }: { km: number }) {
@@ -99,7 +93,7 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
           {/* Row 1: title + price */}
           <div className="flex items-start gap-2">
             <p className="min-w-0 flex-1 truncate font-bold text-ink leading-snug">
-              {event.title || `${event.sport}${formatSize(max)}`}
+              {event.title || `${event.sport}${squadSuffix(max)}`}
             </p>
             <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${priceClass}`}>
               {priceLabel}

@@ -196,6 +196,20 @@ export async function deleteGroup(groupId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Zapisuje adres okładki grupy.
+ *
+ *  Wcześniej strona grupy robiła to inline w JSX: dynamiczny import klienta
+ *  Supabase i surowy `update` w środku komponentu — jedyna mutacja grupy poza
+ *  lib/. RLS („Creator updates group") i tak przepuści to wyłącznie
+ *  założycielowi, ale interfejs też powinien pytać o to w jednym miejscu. */
+export async function setGroupCover(groupId: string, url: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('groups')
+    .update({ cover_image_url: url })
+    .eq('id', groupId);
+  if (error) throw new Error(error.message);
+}
+
 /** Events attached to a group, newest first. */
 export async function getGroupEvents(groupId: string): Promise<EventItem[]> {
   return getEventsByGroup(groupId);

@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, LogOut, User, ChevronRight, Search, RefreshCw, Map, Trophy, Settings, Building2, CalendarDays, Users as UsersIcon, BarChart3, Sun, Moon } from 'lucide-react';
+import { Plus, LogOut, User, UserCircle, RefreshCw, Map, Trophy, Settings, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
-import { supabase } from '@/lib/supabase';
+import { hasManagedVenue } from '@/lib/api';
+import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
@@ -19,24 +20,6 @@ const NAV_LINKS = [
   { href: '/mapa', label: 'Mapa boisk' },
 ];
 
-/** Team-sports icon: 3 player dots in triangle formation connected by pass lines. */
-function TeamIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 30" fill="none" className={className} aria-hidden="true">
-      {/* Players */}
-      <circle cx="16" cy="3.5" r="3.5" fill="currentColor" />
-      <circle cx="4"  cy="25"  r="3.5" fill="currentColor" />
-      <circle cx="28" cy="25"  r="3.5" fill="currentColor" />
-      {/* Pass lines */}
-      <line x1="13.5" y1="6.5"  x2="6.5"  y2="22"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
-      <line x1="18.5" y1="6.5"  x2="25.5" y2="22"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
-      <line x1="7.5"  y1="25"   x2="24.5" y2="25"   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="2.5 2.5" />
-      {/* Ball */}
-      <circle cx="16" cy="15" r="2.5" fill="currentColor" opacity="0.45" />
-    </svg>
-  );
-}
-
 interface HeaderProps {
   /** Przezroczysty pasek nad hero landingu, dopóki nie zescrollujesz i nikt nie jest zalogowany.
    *  Domyślnie false — bez tego propa zachowanie identyczne jak dziś na wszystkich stronach. */
@@ -45,9 +28,7 @@ interface HeaderProps {
 
 export default function Header({ transparentOverHero = false }: HeaderProps = {}) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { user, loading, signOut } = useAuth();
   const isAdmin = useAdmin();
   const userAvatar = avatarUrl(user);
@@ -61,6 +42,11 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
     ? `/logowanie?next=${encodeURIComponent(pathname)}`
     : '/logowanie';
 
+  // „Dołącz" prowadzi na ten sam ekran co logowanie, ale otwiera go od razu
+  // w trybie zakładania konta — inaczej przycisk obiecuje rejestrację,
+  // a pokazuje formularz logowania.
+  const registerHref = `${loginHref}${loginHref.includes('?') ? '&' : '?'}mode=rejestracja`;
+
   // Transparent-over-hero look: no background/border/shadow, white logo and
   // icons, until the visitor scrolls or turns out to be logged in. Position
   // stays `fixed` for the whole time transparentOverHero is on (not just
@@ -68,54 +54,12 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
   // the header start occupying flow height again and shove hero content down
   // by another 64px on top of the pt-16 it already reserves, causing a jump
   // right at the scroll threshold. Staying fixed keeps that offset constant.
-  // `!mobileOpen` too: the mobile menu overlay is a solid white sheet behind
-  // this header, so white-on-transparent logo/icons would vanish onto it.
-  const overlay = transparentOverHero && !scrolled && !user && !mobileOpen;
+  const overlay = transparentOverHero && !scrolled && !user;
 
   useEffect(() => {
     if (!user) { setHasVenue(false); return; }
-    supabase
-      .from('fields')
-      .select('id', { count: 'exact', head: true })
-      .eq('manager_id', user.id)
-      .then(({ count }) => setHasVenue((count ?? 0) > 0));
+    hasManagedVenue(user.id).then(setHasVenue).catch(() => {});
   }, [user]);
-
-  // Focus trap + scroll lock for mobile menu
-  useEffect(() => {
-    if (!mobileOpen) return;
-
-    document.body.style.overflow = 'hidden';
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setMobileOpen(false); return; }
-      if (e.key !== 'Tab') return;
-
-      const el = mobileMenuRef.current;
-      if (!el) return;
-      const focusable = Array.from(
-        el.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((n) => !n.closest('[hidden]'));
-
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [mobileOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -135,8 +79,14 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
         scrolled && !overlay && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
       )}>
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="hover:opacity-90 transition-opacity">
+          {/* Zalogowany na mobile dostaje niższy pasek (h-12) bez logo — dolna
+              nawigacja pokrywa te same skróty, a logo + hamburger tylko
+              dublowały to, co już jest w BottomNav. Desktop bez zmian. */}
+          <div className={clsx('flex items-center justify-between', !loading && user ? 'h-12 md:h-16' : 'h-16')}>
+            <Link
+              href="/"
+              className={clsx('hover:opacity-90 transition-opacity', !loading && user && 'hidden md:block')}
+            >
               <LogoPill variant={overlay ? 'onDark' : 'solid'} />
             </Link>
 
@@ -278,222 +228,100 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
                       {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                     </button>
                   )}
+                  {/* Na desktopie jest miejsce na oba wejścia z nazwami, więc
+                      nie chowamy logowania pod ikonę tak jak na telefonie. */}
                   <Link
                     href={loginHref}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary-700 text-white hover:bg-primary-800 transition-colors"
+                    className={clsx(
+                      'px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
+                      overlay
+                        ? 'text-white/85 hover:text-white hover:bg-white/10'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06]',
+                    )}
                   >
                     Zaloguj się
+                  </Link>
+                  <Link
+                    href={registerHref}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-primary-700 text-white hover:bg-primary-800 transition-colors"
+                  >
+                    Dołącz
                   </Link>
                 </>
               )}
             </div>
 
-            <div className="flex items-center gap-2 md:hidden">
-              {/* Dzwonek obok hamburgera, nie w dolnej nawigacji: tam wszystkie
-                  pięć miejsc jest zajętych, a powiadomienia mają być widoczne
-                  na KAŻDYM ekranie, nie tylko na stronie głównej. Nagłówek jest
-                  jedynym elementem obecnym wszędzie. */}
-              {!loading && user && <NotificationBell />}
+            {/* Klaster mobilny — bez hamburgera w obu stanach.
+
+                Zalogowany: dzwonek + awatar. Wszystko, co było w arkuszu
+                (Moje mecze, Grupy, profil, motyw, admin, Wyloguj), jest już
+                w dolnej nawigacji albo na /profil.
+
+                Dzwonek siedzi tu, a nie w dolnej nawigacji, bo tam wszystkie
+                pięć miejsc jest zajętych, a powiadomienia mają być widoczne na
+                KAŻDYM ekranie — nagłówek jest jedynym elementem obecnym wszędzie.
+
+                Wylogowany: mapa + Dołącz + awatar (logowanie). Pasek jest tu
+                marketingowy, nie nawigacyjny — do /wydarzenia i /wydarzenia/nowe
+                prowadzą CTA w treści landingu, klikalny krok „Stwórz mecz”,
+                pływający przycisk + oraz linki w stopce. */}
+            <div className="ml-auto flex items-center gap-1 md:hidden">
               {!loading && !user && (
-                <Link
-                  href={loginHref}
-                  className={clsx(
-                    'inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
-                    overlay
-                      ? 'bg-white/15 text-white border border-white/25 hover:bg-white/25'
-                      : 'bg-primary-700 text-white hover:bg-primary-800',
-                  )}
-                >
-                  Zaloguj się
-                </Link>
+                <>
+                  <Link
+                    href="/mapa"
+                    aria-label="Mapa boisk"
+                    className={clsx(
+                      'p-2 rounded-lg transition-colors',
+                      overlay ? 'text-white hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100',
+                    )}
+                  >
+                    <Map className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    href={registerHref}
+                    className={clsx(
+                      'inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
+                      overlay
+                        ? 'bg-white/15 text-white border border-white/25 hover:bg-white/25'
+                        : 'bg-primary-700 text-white hover:bg-primary-800',
+                    )}
+                  >
+                    Dołącz
+                  </Link>
+                  <Link
+                    href={loginHref}
+                    aria-label="Zaloguj się"
+                    className={clsx(
+                      'p-2 rounded-lg transition-colors',
+                      overlay ? 'text-white hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100',
+                    )}
+                  >
+                    <UserCircle className="w-6 h-6" />
+                  </Link>
+                </>
               )}
-              <button
-                className={clsx(
-                  'p-2 rounded-lg transition-colors',
-                  overlay
-                    ? 'text-white hover:bg-white/10'
-                    : 'text-slate-600 hover:bg-slate-100',
-                )}
-                onClick={() => setMobileOpen((o) => !o)}
-                aria-label={mobileOpen ? 'Zamknij menu' : 'Otwórz menu'}
-                aria-expanded={mobileOpen}
-                aria-controls="mobile-nav"
-              >
-                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+              {!loading && user && (
+                <>
+                  <NotificationBell />
+                  <Link href="/profil" aria-label="Twój profil" className="shrink-0">
+                    {userAvatar ? (
+                      <img src={userAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+                        {displayName(user).charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
       </header>
-
-      {/* ── Mobile menu overlay — OUTSIDE header to avoid backdrop-filter stacking context ── */}
-      {mobileOpen && (
-        <div id="mobile-nav" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu nawigacji" className="md:hidden fixed inset-0 z-[1009] bg-white dark:bg-[#0D1117] flex flex-col pt-16">
-          <nav className="flex-1 overflow-y-auto px-4 pt-4 pb-4" aria-label="Nawigacja mobilna">
-
-            {/* Main navigation — uniform rows ("Stwórz mecz" highlighted) */}
-            <div className="space-y-1">
-              {(() => {
-                const items: { href: string; label: string; Icon: typeof Search; primary?: boolean }[] = [
-                  { href: '/wydarzenia/nowe', label: 'Stwórz mecz', Icon: Plus, primary: true },
-                  { href: '/wydarzenia', label: 'Znajdź mecz', Icon: Search },
-                  ...(!loading && user ? [{ href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays }] : []),
-                  ...(!loading && user ? [{ href: '/grupy', label: 'Grupy', Icon: UsersIcon }] : []),
-                  { href: '/mapa', label: 'Mapa boisk', Icon: Map },
-                  ...(!loading && user && hasVenue ? [{ href: '/obiekt', label: 'Moje obiekty', Icon: Building2 }] : []),
-                ];
-                return items.map(({ href, label, Icon, primary }) => {
-                  const active = pathname === href || pathname.startsWith(href + '/');
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setMobileOpen(false)}
-                      className={clsx(
-                        'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
-                        active ? 'bg-primary-50 dark:bg-primary-950' : 'hover:bg-slate-50 dark:hover:bg-slate-800',
-                      )}
-                    >
-                      <span className={clsx(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                        primary ? 'bg-primary-700 text-white' : active ? 'bg-primary-100 dark:bg-primary-900 text-primary-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
-                      )}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className={clsx('flex-1 text-[15px] font-semibold', primary || active ? 'text-primary-700' : 'text-ink')}>
-                        {label}
-                      </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
-                    </Link>
-                  );
-                });
-              })()}
-            </div>
-
-            {/* BOJO Cup highlight */}
-            {SHOW_CUP && (
-              <Link
-                href="/turniej"
-                onClick={() => setMobileOpen(false)}
-                className="mt-5 flex items-center justify-between rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 px-4 py-4 text-white shadow-md active:scale-[0.98] transition-transform"
-              >
-                <span className="flex items-center gap-3">
-                  <Trophy className="h-6 w-6 text-accent-400" />
-                  <span>
-                    <span className="block text-sm font-bold">BOJO Community Cup</span>
-                    <span className="block text-xs text-white/70">Zgłoś drużynę do turnieju</span>
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 text-white/60" />
-              </Link>
-            )}
-
-            {/* Admin section */}
-            {!loading && user && isAdmin && (
-              <div className="mt-6">
-                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Admin</p>
-                <div className="space-y-1">
-                  {ADMIN_LINKS.map(({ href, label, Icon }) => {
-                    const active = pathname.startsWith(href);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={() => setMobileOpen(false)}
-                        className={clsx(
-                          'flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors active:scale-[0.99]',
-                          active ? 'bg-primary-50 dark:bg-primary-950/50' : 'hover:bg-slate-50 dark:hover:bg-white/[0.05]',
-                        )}
-                      >
-                        <span className={clsx(
-                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                          active ? 'bg-primary-100 dark:bg-primary-900 text-primary-700' : 'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400',
-                        )}>
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <span className={clsx('flex-1 text-[15px] font-semibold', active ? 'text-primary-700' : 'text-ink')}>
-                          {label}
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </nav>
-
-          <div className="border-t border-slate-200/70 dark:border-white/[0.07] px-5 py-5">
-            {!loading && user && (
-              <div className="flex items-center justify-between">
-                <Link
-                  href="/profil"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 min-w-0"
-                >
-                  {userAvatar
-                    ? <img src={userAvatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
-                    : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                        <User className="w-4 h-4 text-primary-700" />
-                      </div>
-                  }
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink truncate">{displayName(user)}</p>
-                    <p className="text-xs text-slate-500">Edytuj profil</p>
-                  </div>
-                </Link>
-                {mounted && (
-                  <button
-                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                    className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
-                  >
-                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setMobileOpen(false); signOut(); }}
-                  className="ml-1 shrink-0 rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  aria-label="Wyloguj"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </div>
-            )}
-            {!loading && !user && (
-              <div className="flex items-center gap-2">
-                {mounted && (
-                  <button
-                    onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                    className="shrink-0 rounded-xl p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    aria-label={resolvedTheme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
-                  >
-                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </button>
-                )}
-                <Link
-                  href={loginHref}
-                  onClick={() => setMobileOpen(false)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                >
-                  Zaloguj się
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }
-
-const ADMIN_LINKS = [
-  { href: '/admin/analityka', label: 'Analityka',            Icon: BarChart3 },
-  { href: '/admin/przeglad',  label: 'Przegląd boisk',      Icon: Building2 },
-  { href: '/admin/moderacja', label: 'Moderacja boisk',      Icon: Building2 },
-  { href: '/admin/outreach',  label: 'Kontakt z obiektami',  Icon: Building2 },
-  { href: '/admin/uzytkownicy', label: 'Użytkownicy',        Icon: UsersIcon },
-];
 
 /** Admin tools tucked behind a small gear menu so they don't clutter the
  *  main nav (and admins see the same bar a normal user does). */

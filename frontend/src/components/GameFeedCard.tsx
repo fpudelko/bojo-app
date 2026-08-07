@@ -5,16 +5,10 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock, MapPin, ArrowRight } from 'lucide-react';
 import type { EventItem } from '@/types';
-import { sportEmoji, sportColor, sportLabel } from '@/lib/sports';
+import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
-
-/** "6v6" / "· 10 os." size suffix for an untitled game. */
-function sizeSuffix(max: number): string {
-  if (max <= 0) return '';
-  if (max % 2 === 0) return ` ${max / 2}v${max / 2}`;
-  return ` · ${max} os.`;
-}
 
 /** Rich, conversion-focused game card for the public feed.
  *  Player count is the visual hero; a prominent "Dołącz" CTA drives joins. */
@@ -44,7 +38,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
   const until = timeUntil(event.date, event.time ?? undefined);
 
   const location = eventLocation(event).primary;
-  const title = event.title || `${sportLabel(event.sport)}${sizeSuffix(max)}`;
+  const title = eventDisplayTitle(event);
 
   const costGrosze = event.costGrosze ?? 0;
   const free = costGrosze <= 0;

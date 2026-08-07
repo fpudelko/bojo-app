@@ -52,3 +52,39 @@ export function priceForParticipant(
   }
   return { priceGrosze: Math.max(0, costGrosze - discountGrosze), discountApplied: true, discountUnspecified: false };
 }
+
+/** Keeps only the 9 digits of a Polish mobile number and groups them 3-3-3
+ *  while typing. A leading "48" is stripped only when what remains after it
+ *  is still a sensible length, so a number that genuinely starts with "48"
+ *  (not a +48 prefix) isn't eaten. */
+export function formatBlikPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.length > 9 && digits.startsWith('48')) digits = digits.slice(2);
+  digits = digits.slice(0, 9);
+  return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+}
+
+/** Just the digits, no spaces — for length checks and storage. */
+export function blikPhoneDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+/** Number of minutes before kickoff at which a squad member can see the
+ *  organizer's BLIK phone number on the match page. */
+export const BLIK_PHONE_REVEAL_MINUTES = 60;
+
+/** The BLIK number is the organizer's personal phone. On the match page the
+ *  organizer always sees it; a squad member sees it only within an hour of
+ *  kickoff, when it's actually needed to settle up — the public, indexable
+ *  match page doesn't hand the number to just anyone. The join dialog is the
+ *  one deliberate exception: it shows the number right away, because without
+ *  it there's no way to pay at sign-up time. */
+export function canSeeBlikPhone(opts: {
+  isOrganizer: boolean;
+  isInSquad: boolean;
+  minutesToStart: number | null;
+}): boolean {
+  if (opts.isOrganizer) return true;
+  if (!opts.isInSquad || opts.minutesToStart == null) return false;
+  return opts.minutesToStart <= BLIK_PHONE_REVEAL_MINUTES;
+}

@@ -43,12 +43,14 @@ import type {
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { linkPrzejeciaWpisu } from '@/lib/guestClaim';
+import { eventDisplayTitle } from '@/lib/eventTitle';
+import { minutesUntilStart } from '@/lib/eventDates';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
   type TeamProposal,
 } from '@/lib/teamProposals';
-import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant } from '@/lib/payments';
+import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -804,7 +806,7 @@ export default function EventDetailClient() {
   const handleShare = async () => {
     const url = window.location.href;
     try {
-      if (navigator.share) { await navigator.share({ title: event.title || event.sport, url }); }
+      if (navigator.share) { await navigator.share({ title: eventDisplayTitle(event), url }); }
       else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); toast('Link skopiowany!'); }
     } catch { /* user cancelled */ }
   };
@@ -992,7 +994,10 @@ export default function EventDetailClient() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
-      <main className="flex-1 w-full max-w-2xl mx-auto pb-32 space-y-4">
+      {/* pb-32 kompensował fixed pasek "Dołącz"/"Obserwuj" — a ten pokazuje
+          się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
+          pod treścią. */}
+      <main className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${joinBarVisible ? 'pb-32' : 'pb-8'}`}>
 
         {/* ── TOP BAR ──
             Deliberately no cover photo: it was a satellite tile that ate half
@@ -1048,7 +1053,7 @@ export default function EventDetailClient() {
         {/* ── HEADER: title + meta chips ── */}
         <div className="px-4">
           <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            {event.title || event.sport}
+            {eventDisplayTitle(event)}
           </h1>
           {event.description && (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
@@ -1194,7 +1199,15 @@ export default function EventDetailClient() {
                 <span>
                   Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
                   {event.acceptedPaymentMethods.includes('blik') && event.blikPhone && (
-                    <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
+                    canSeeBlikPhone({
+                      isOrganizer: isOwner,
+                      isInSquad: !!myParticipation,
+                      minutesToStart: minutesUntilStart(event.date, event.time),
+                    }) ? (
+                      <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
+                    ) : (
+                      <> — numer do BLIKA zobaczysz jako uczestnik, na godzinę przed meczem</>
+                    )
                   )}
                 </span>
               )}
@@ -2428,7 +2441,7 @@ export default function EventDetailClient() {
               {joinAsReserve ? 'Zapisać się na listę rezerwową?' : 'Zapisać się na mecz?'}
             </h3>
             <p className="text-sm text-slate-500 mb-4">
-              {sportEmoji(event.sport)} {event.title || event.sport}
+              {sportEmoji(event.sport)} {eventDisplayTitle(event)}
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 

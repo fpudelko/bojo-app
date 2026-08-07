@@ -8,9 +8,11 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
-import { splitMyEvents } from '@/lib/myEvents';
+import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
+import { InvitesSection, MyMatchesSection, ObservingSection } from '@/components/home/dashboard/DashboardSections';
+import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import type { EventItem } from '@/types';
@@ -61,7 +63,8 @@ function MojeGryContent() {
   // calendar only shows games that are actually happening. Observing is split
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
   // playing stay together in one list — both are "your match".
-  const { upcoming, history, playing, observing } = splitMyEvents(items);
+  const { history, playing, observing } = splitMyEvents(items);
+  const next = nextMatch(items);
 
   if (!authLoading && !user) {
     return (
@@ -88,13 +91,8 @@ function MojeGryContent() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6">
 
-        {/* Header row */}
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Twoje mecze</h1>
-          <Link href="/wydarzenia/nowe">
-            <Button size="sm">+ Nowy mecz</Button>
-          </Link>
-        </div>
+        {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
+            tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}
 
         {/* Stałe gierki link */}
         {SHOW_RECURRING && (
@@ -165,47 +163,31 @@ function MojeGryContent() {
             <button onClick={() => { setLoading(true); setLoadError(false); getMyParticipatedEvents(user!.id).then(setItems).catch(() => setLoadError(true)).finally(() => setLoading(false)); }} className="text-sm font-semibold text-primary-700 hover:text-primary-800">Spróbuj ponownie</button>
           </div>
         ) : tab === 'upcoming' ? (
-          upcoming.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-              <span className="text-5xl">⚽</span>
-              <p className="text-base font-semibold text-ink">Brak meczy w kalendarzu</p>
-              <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                <Link href="/wydarzenia">
-                  <Button size="sm">Znajdź grę dziś</Button>
-                </Link>
-                <Link href="/wydarzenia/nowe">
-                  <Button size="sm" variant="outline">Stwórz mecz</Button>
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Twoje mecze — organizing and playing live together here; each
-                  card's own tag/chip (Organizujesz, Grasz ✓, Rezerwa) says which. */}
-              {playing.length > 0 && (
-                <section className="space-y-3">
-                  {playing.map(({ event, relation }) => (
-                    <EventBrowseCard key={event.id} event={event} relation={relation} />
-                  ))}
-                </section>
-              )}
-
-              {/* Observing — deliberately separate so it never reads as "signed up" */}
-              {observing.length > 0 && (
-                <section className="space-y-3">
-                  <div>
-                    <h2 className="text-sm font-semibold text-ink">Obserwowane</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Obserwowane mecze nie rezerwują miejsca — zapisz się, gdy będziesz pewny.
-                    </p>
-                  </div>
-                  {observing.map(({ event, relation }) => (
-                    <EventBrowseCard key={event.id} event={event} relation={relation} />
-                  ))}
-                </section>
-              )}
-            </div>
-          )
+          // Ten sam układ co pulpit dla zalogowanych (AppHome), bez sekcji
+          // "Twoje grupy" / "Otwarte mecze" — te mają swoje strony (/grupy,
+          // /wydarzenia). Zero pustego stanu tutaj: NextMatchCard ma własny
+          // ("Nie masz zaplanowanych gier" + CTA), więc pokrywa przypadek
+          // zerowej aktywności bez drugiej kopii tego ekranu.
+          <div className="space-y-8">
+            <InvitesSection
+              invites={openInvites}
+              statusFor={inviteStatusFor}
+              href="/moje-gry?tab=zaproszenia"
+            />
+            <NextMatchCard row={next} />
+            <MyMatchesSection
+              items={playing.filter(({ event }) => event.id !== next?.event.id)}
+              limit={null}
+              href={null}
+            />
+            <ObservingSection
+              items={observing}
+              limit={null}
+              href={null}
+              title="Obserwowane"
+              subtitle="Obserwowane mecze nie rezerwują miejsca — zapisz się, gdy będziesz pewny."
+            />
+          </div>
         ) : (
           history.length === 0 ? (
             <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>

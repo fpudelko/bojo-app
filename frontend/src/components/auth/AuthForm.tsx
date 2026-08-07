@@ -89,13 +89,17 @@ const TITLES: Record<Mode, string> = {
 interface Props {
   next?: string;
   onSuccess?: () => void;
+  /** Ekran otwierany na starcie. Przycisk „Dołącz" w nagłówku obiecuje
+   *  rejestrację, więc musi pokazać formularz zakładania konta, a nie
+   *  logowania. Bez tego obietnica z paska rozjeżdża się z tym, co widać. */
+  initialMode?: Mode;
 }
 
-export default function AuthForm({ next, onSuccess }: Props) {
+export default function AuthForm({ next, onSuccess, initialMode }: Props) {
   const router = useRouter();
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, sendMagicLink, sendPasswordReset } = useAuth();
 
-  const [mode, setMode] = useState<Mode>('signin');
+  const [mode, setMode] = useState<Mode>(initialMode ?? 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');

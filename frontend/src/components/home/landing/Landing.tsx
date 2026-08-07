@@ -5,7 +5,6 @@ import LandingOpenGames from './LandingOpenGames';
 import LandingValues from './LandingValues';
 import LandingVenues from './LandingVenues';
 import LandingFaq from './LandingFaq';
-import LandingFinalCta from './LandingFinalCta';
 import StickyCta from './StickyCta';
 
 /** The logged-out landing page. Server-rendered so the marketing copy ships
@@ -21,7 +20,6 @@ export default function Landing() {
         <LandingValues />
         <LandingVenues />
         <LandingFaq />
-        <LandingFinalCta />
       </div>
       <StickyCta />
     </>

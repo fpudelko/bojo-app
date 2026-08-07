@@ -12,8 +12,8 @@ import { useCookieBannerVisible } from '@/lib/cookieConsent';
 // It also has to get out of the way at the bottom. `Landing` pads its own
 // sections (`pb-24`), but the footer is a sibling of <main> in app/page.tsx —
 // outside that padding — so a bar pinned to the viewport bottom covered the
-// footer links. By the time the footer is on screen the page has already shown
-// LandingFinalCta, so hiding the sticky bar there costs nothing.
+// footer links. Hiding it once the footer is on screen costs nothing: the
+// footer carries its own "Zorganizuj mecz" link.
 export default function StickyCta() {
   const [pastHero, setPastHero] = useState(false);
   const [atFooter, setAtFooter] = useState(false);

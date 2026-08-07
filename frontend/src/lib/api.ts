@@ -292,6 +292,17 @@ export async function getField(fieldId: string): Promise<Field> {
   return toField(data);
 }
 
+/** True when the user manages at least one venue — drives "Moje obiekty" in
+ *  the header (desktop) and on /profil (mobile). Was a Supabase query inline
+ *  in Header.tsx, in violation of "components don't bypass lib/". */
+export async function hasManagedVenue(userId: string): Promise<boolean> {
+  const { count } = await supabase
+    .from('fields')
+    .select('id', { count: 'exact', head: true })
+    .eq('manager_id', userId);
+  return (count ?? 0) > 0;
+}
+
 export async function getFieldBySlug(slug: string): Promise<Field | null> {
   const { data } = await supabase.from('fields').select('*');
   const match = (data ?? []).find((row) => slugify(row.name) === slug);

@@ -8,14 +8,9 @@ import type { EventItem } from '@/types';
 import type { MyEventStatus, MyEventRelation } from '@/lib/events';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
+import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
-
-function sizeSuffix(max: number): string {
-  if (max <= 0) return '';
-  if (max % 2 === 0) return ` ${max / 2}v${max / 2}`;
-  return ` · ${max} os.`;
-}
 
 /**
  * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
@@ -73,7 +68,7 @@ export function EventBrowseCard({ event, distance, relation }: {
   const statusChip = relation ? (past ? PAST_STATUS_CHIP : STATUS_CHIP)[relation.status] : undefined;
 
   const location = eventLocation(event).primary;
-  const title = event.title || `${event.sport}${sizeSuffix(max)}`;
+  const title = eventDisplayTitle(event);
   const costGrosze = event.costGrosze ?? 0;
   const free = costGrosze <= 0;
   const priceLabel = free

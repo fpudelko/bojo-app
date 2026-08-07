@@ -14,7 +14,8 @@ import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS } from '@/lib/payments';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS, formatBlikPhone } from '@/lib/payments';
+import { validatePayments } from '@/lib/eventWizard';
 import type { Field, Visibility, TeamMode, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
@@ -68,6 +69,7 @@ export default function EditEventPage() {
   const [requireApproval, setRequireApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Advanced settings
   const [advOpen, setAdvOpen] = useState(false);
@@ -158,6 +160,12 @@ export default function EditEventPage() {
       setError('Godzina zakończenia musi być późniejsza niż rozpoczęcia.');
       return;
     }
+    const payErrs = validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln });
+    if (Object.keys(payErrs).length > 0) {
+      setFieldErrors(payErrs);
+      return;
+    }
+    setFieldErrors({});
 
     const hasCost = parseFloat(costPln || '0') > 0;
 
@@ -508,11 +516,22 @@ export default function EditEventPage() {
                             </label>
                             <input
                               type="tel"
+                              inputMode="numeric"
+                              autoComplete="tel-national"
+                              maxLength={11}
                               value={blikPhone}
-                              onChange={(e) => setBlikPhone(e.target.value)}
-                              placeholder="np. 600 123 456"
-                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              onChange={(e) => { setBlikPhone(formatBlikPhone(e.target.value)); setFieldErrors((f) => ({ ...f, blikPhone: '' })); }}
+                              placeholder="600 123 456"
+                              className={[
+                                'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500',
+                                fieldErrors.blikPhone ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300',
+                              ].join(' ')}
                             />
+                            {fieldErrors.blikPhone && (
+                              <p className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                                <span aria-hidden>⚠</span> {fieldErrors.blikPhone}
+                              </p>
+                            )}
                           </div>
                         )}
 
@@ -544,14 +563,23 @@ export default function EditEventPage() {
                                 step={0.5}
                                 max={costPln || undefined}
                                 value={cardDiscountPln}
-                                onChange={(e) => setCardDiscountPln(e.target.value)}
+                                onChange={(e) => { setCardDiscountPln(e.target.value); setFieldErrors((f) => ({ ...f, cardDiscount: '' })); }}
                                 placeholder="np. 20"
-                                className="w-28 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className={[
+                                  'w-28 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500',
+                                  fieldErrors.cardDiscount ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300',
+                                ].join(' ')}
                               />
-                              <p className="mt-1 text-xs text-slate-500">
-                                Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
-                                że karta daje zniżkę, i dopytają Cię o szczegóły.
-                              </p>
+                              {fieldErrors.cardDiscount ? (
+                                <p className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                                  <span aria-hidden>⚠</span> {fieldErrors.cardDiscount}
+                                </p>
+                              ) : (
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
+                                  że karta daje zniżkę, i dopytają Cię o szczegóły.
+                                </p>
+                              )}
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-slate-600 mb-2">

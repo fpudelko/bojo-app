@@ -161,6 +161,12 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
 - [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki.
+- [ ] **Numer do BLIKA nadal przyjeżdża w całym wierszu `events`.** `canSeeBlikPhone()`
+      (`lib/payments.ts`) chowa numer w UI (organizator zawsze, uczestnik dopiero
+      godzinę przed meczem), ale `toEvent()` robi `select('*')`, a RLS na `events` jest
+      wierszowe — numer da się odczytać z ruchu sieciowego mimo że interfejs go nie
+      pokazuje. Twarde odcięcie wymaga osobnego widoku bez `blik_phone` albo uprawnień
+      kolumnowych, i przepisania selectów, które dziś czytają cały wiersz.
 - [ ] **Build w CI** — po dodaniu sekretów `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` do
       repo dołożyć `npm run build` do `.github/workflows/ci.yml` (dziś build wymaga
       kluczy i dlatego jest poza CI).

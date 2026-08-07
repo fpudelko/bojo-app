@@ -33,10 +33,26 @@ samej wartości). Migracje uruchamia się ręcznie → [baza-danych.md](./baza-d
 
 **Drobne moduły `lib/` bez własnej sekcji tutaj** — po co służą: `lib/legal.ts` (dane
 usługodawcy dla `/prywatnosc` i `/regulamin`, jedno miejsce do uzupełnienia);
-`lib/eventWizard.ts` (walidacja kroków kreatora meczu, wydzielona z
-`app/wydarzenia/nowe/page.tsx` pod testy); `lib/bottomNavVisibility.tsx` (kontekst
-chowający dolny panel nawigacji — patrz [funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile));
-`lib/useMyInvites.ts` (zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz)).
+`lib/eventWizard.ts` (walidacja kroków kreatora meczu, w tym `validatePayments` —
+numer BLIK i zniżka karty sportowej — wydzielona z `app/wydarzenia/nowe/page.tsx`
+pod testy); `lib/eventDraft.ts` (szkic kreatora w `localStorage`, TTL 12 h — patrz
+[funkcje.md](./funkcje.md#szkic-kreatora-meczu)); `lib/eventTitle.ts` (jedyne miejsce,
+które liczy domyślną nazwę meczu, gdy tytuł jest pusty — `defaultEventTitle` /
+`eventDisplayTitle`, zastąpiło pięć niezależnych kopii tej samej logiki);
+`lib/adminLinks.ts` (lista tras panelu admina, współdzielona przez `AdminMenu`
+w `Header.tsx` i sekcję „Panel administratora” na `/profil`); `lib/api.ts#hasManagedVenue`
+(czy użytkownik zarządza obiektem — steruje „Moje obiekty” w headerze i na `/profil`);
+`lib/eventFilters.ts` (filtrowanie, grupowanie i sortowanie listy `/wydarzenia` —
+zakres dat, sekcje dzienne, kolejność po realnym starcie meczu; wydzielone z komponentu
+pod testy, tak jak `eventWizard.ts`); `lib/plural.ts` (polska odmiana przez liczbę —
+zastąpiła regułę `n < 5`, która myliła się na 12–14); `lib/searchText.ts` (`foldText`
+składa polskie znaki, żeby „pilka" znajdowało „piłka"); `lib/geo.ts#distanceKm`
+(odległość haversine, wspólna dla sortowania „najbliżej mnie" i wykrywania duplikatów
+w panelu admina); `lib/groups.ts#setGroupCover` (zapis okładki grupy — jedyna mutacja
+grupy, która wcześniej szła inline w JSX);
+`lib/bottomNavVisibility.tsx` (kontekst chowający dolny panel nawigacji — patrz
+[funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile)); `lib/useMyInvites.ts`
+(zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz)).
 
 ---
 
@@ -212,6 +228,27 @@ zwraca trzy pola i wszystkie trzy trzeba obsłużyć w UI:
 
 ⚠️ **Pułapka nazw:** kolumny to `cost_grosz` i `sports_card_discount_grosz` (bez „e"),
 pola TS to `costGrosze` i `sportsCardDiscountGrosze`.
+
+**Numer do BLIKA — kto go widzi.** `canSeeBlikPhone()` (`lib/payments.ts`): organizator
+widzi go zawsze, uczestnik ze składu dopiero `BLIK_PHONE_REVEAL_MINUTES` (60) przed
+startem meczu — nagłówek strony meczu jest publiczny i indeksowalny, więc numer
+prywatnego telefonu nie wystawia się komukolwiek od razu. **Jeden świadomy wyjątek:**
+okno „Dołączam” z wyborem metody BLIK pokazuje numer natychmiast, niezależnie od czasu
+do meczu — bez niego nie da się zapłacić przy zapisie. `minutesUntilStart()`
+(`lib/eventDates.ts`) liczy dystans czasowy; ujemna wartość (mecz już trwa) też
+odsłania numer.
+
+⚠️ **To bramka wyłącznie w interfejsie.** Kolumna `events.blik_phone` przyjeżdża
+w całym wierszu `events` (RLS jest wierszowe, `toEvent` robi `select('*')`), więc numer
+da się odczytać z ruchu sieciowego, mimo że UI go nie renderuje. Twarde odcięcie
+wymaga widoku albo uprawnień kolumnowych — zadanie w [BACKLOG.md](../BACKLOG.md).
+
+Format wpisywania: `formatBlikPhone()` przycina do 9 cyfr polskiego numeru i grupuje
+je 3-3-3 w trakcie pisania (obcina też prefiks `+48`/`48`, gdy zostaje sensowna
+długość). `validatePayments()` (`lib/eventWizard.ts`) blokuje publikację/zapis meczu,
+gdy: wybrano BLIK, a numer ma inną liczbę cyfr niż 9, albo zniżka karty jest wyższa
+niż koszt od osoby. Reguły działają tylko dla płatnego meczu (`costPln > 0`) — darmowy
+mecz nie ma żadnych ograniczeń płatności do sprawdzenia.
 
 ---
 

@@ -2,6 +2,8 @@
 // rules — above all "never emit a private event" — can be unit-tested without
 // standing up Supabase.
 
+import { defaultEventTitle } from './eventTitle';
+
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
 /** Site identity, emitted once in the root layout. */
@@ -59,7 +61,7 @@ export function eventJsonLd(
 ): Record<string, unknown> | null {
   if (ev.visibility !== 'public') return null;
 
-  const name = ev.title || `${ev.sport.charAt(0).toUpperCase()}${ev.sport.slice(1)}`;
+  const name = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
   const placeName = ev.field_name || ev.custom_location_name;
   const url = `${base}/wydarzenia/${id}`;
 

@@ -1,358 +1,51 @@
-'use client';
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { createClient } from '@supabase/supabase-js';
+import GroupDetailClient from './GroupDetailClient';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import {
-  Users, ArrowLeft, Share2, Copy, Check, Plus, LogOut, Trash2,
-  User as UserIcon, Loader2, Crown, ChevronRight, Calendar, Pencil, MapPin,
-} from 'lucide-react';
-import Header from '@/components/layout/Header';
-import Button from '@/components/ui/Button';
-import CoverUpload from '@/components/ui/CoverUpload';
-import { EventBrowseCard } from '@/components/EventBrowseCard';
-import { useMyParticipation } from '@/lib/useMyParticipation';
-import { isUpcoming } from '@/components/EventCard';
-import { useAuth } from '@/lib/auth';
-import { useToast } from '@/lib/toast';
-import {
-  getGroup, getGroupMembers, getGroupEvents, isGroupMember,
-  joinGroup, leaveGroup, removeMember, deleteGroup,
-} from '@/lib/groups';
-import { sportEmoji, sportLabel } from '@/lib/sports';
-import type { Group, GroupMember, EventItem } from '@/types';
+/** Ten sam wzorzec co /g/[code]: klient serwerowy z kluczem anon. Tabela
+ *  `groups` jest publicznie czytelna przez RLS („Groups are readable"), więc
+ *  do tytułu strony nie potrzeba uprawnień. */
+const supabasePublic = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+/** Strona grupy jest celem linku zaproszenia — bez metadanych każde
+ *  udostępnienie na Messengerze pokazywało generyczny tytuł całej aplikacji. */
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  try {
+    const { data } = await supabasePublic
+      .from('groups')
+      .select('name, description, sport, city')
+      .eq('id', params.id)
+      .maybeSingle();
+
+    if (!data) return { title: 'Grupa — Bojo' };
+
+    const detale = [data.sport, data.city].filter(Boolean).join(' · ');
+    const description = data.description?.trim()
+      || (detale ? `Stała ekipa w Bojo — ${detale}.` : 'Stała ekipa w Bojo: mecze, skład i historia w jednym miejscu.');
+
+    return {
+      title: `${data.name} — grupa w Bojo`,
+      description,
+      alternates: { canonical: `/grupy/${params.id}` },
+      openGraph: { title: `${data.name} — grupa w Bojo`, description },
+    };
+  } catch {
+    // Brak sieci przy budowaniu metadanych nie może wywrócić całej strony.
+    return { title: 'Grupa — Bojo' };
+  }
+}
 
 export default function GroupDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const statusFor = useMyParticipation();
-
-  const [group, setGroup] = useState<Group | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [member, setMember] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const load = useCallback(async () => {
-    // Only a missing/unreadable group means "not found". Failures loading the
-    // secondary data (members, events) must NOT hide the whole group page.
-    let g: Group | null = null;
-    try {
-      g = await getGroup(id);
-    } catch {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
-    if (!g) { setNotFound(true); setLoading(false); return; }
-    setGroup(g);
-
-    try {
-      const [m, ev] = await Promise.all([getGroupMembers(id), getGroupEvents(id)]);
-      setMembers(m);
-      setEvents(ev);
-      setMember(user ? m.some((x) => x.userId === user.id) : false);
-    } catch (e) {
-      // Group still renders; just log the partial-load failure.
-      console.warn('[group] secondary data load failed', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, user]);
-
-  useEffect(() => { if (!authLoading) load(); }, [load, authLoading]);
-
-  const isOwner = !!user && !!group && group.createdBy === user.id;
-
-  // Short invite link — opens straight into the group with a "join" action.
-  const inviteLink = group && typeof window !== 'undefined'
-    ? `${window.location.origin}/g/${group.joinCode}`
-    : '';
-
-  const copyLink = async () => {
-    if (!inviteLink) return;
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
-  };
-
-  const share = async () => {
-    if (!group) return;
-    const text = `Dołącz do mojej grupy "${group.name}" w Bojo ⚽`;
-    if (navigator.share) {
-      await navigator.share({ title: group.name, text, url: inviteLink }).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(`${text}\n${inviteLink}`).catch(() => {});
-      toast('Skopiowano link z zaproszeniem');
-    }
-  };
-
-  const handleJoin = async () => {
-    if (!user) { window.location.href = `/logowanie?next=${encodeURIComponent(`/grupy/${id}`)}`; return; }
-    setBusy(true);
-    try { await joinGroup(id, user.id); await load(); toast('Dołączyłeś do grupy!'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
-    finally { setBusy(false); }
-  };
-
-  const handleLeave = async () => {
-    if (!user) return;
-    if (!confirm('Na pewno opuścić grupę?')) return;
-    setBusy(true);
-    try { await leaveGroup(id, user.id); toast('Opuściłeś grupę'); router.push('/grupy'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
-  };
-
-  const handleRemove = async (userId: string) => {
-    if (!confirm('Usunąć tego gracza z grupy?')) return;
-    setBusy(true);
-    try { await removeMember(id, userId); await load(); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
-    finally { setBusy(false); }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm('Na pewno usunąć grupę? Tej operacji nie można cofnąć.')) return;
-    setBusy(true);
-    try { await deleteGroup(id); toast('Grupa usunięta'); router.push('/grupy'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-canvas">
-        <Header />
-        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-          <div className="h-40 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 animate-pulse" />
-        </main>
-      </div>
-    );
-  }
-
-  if (notFound || !group) {
-    return (
-      <div className="min-h-screen flex flex-col bg-canvas">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-4 text-center">
-          <div>
-            <Users className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
-            <p className="font-medium text-slate-500 dark:text-slate-400 mb-3">Nie znaleziono grupy</p>
-            <Link href="/grupy" className="text-primary-700 text-sm font-medium hover:underline">Wróć do grup</Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  const upcoming = events.filter((e) => e.status !== 'cancelled' && isUpcoming(e));
-  const past = events.filter((e) => e.status === 'cancelled' || !isUpcoming(e));
-
+  // GroupDetailClient czyta ?join=1 przez useSearchParams, a to na trasie
+  // prerenderowanej wymaga granicy <Suspense> — patrz pułapka
+  // „missing-suspense-with-csr-bailout" w AGENTS.md.
   return (
-    <div className="min-h-screen flex flex-col bg-canvas">
-      <Header />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
-
-        <button onClick={() => router.push('/grupy')} className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-ink transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Grupy
-        </button>
-
-        {/* Header card */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
-          {/* Cover image */}
-          <div className="relative h-36 bg-gradient-to-br from-primary-700 to-primary-900">
-            {group.coverImageUrl && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-            <span className="absolute bottom-3 left-4 text-3xl drop-shadow-md">
-              {group.sport ? sportEmoji(group.sport) : '👥'}
-            </span>
-            {isOwner && (
-              <div className="absolute bottom-3 right-3">
-                <CoverUpload
-                  currentUrl={group.coverImageUrl}
-                  path={`groups/${group.id}/cover`}
-                  onSaved={async (url) => {
-                    const { supabase } = await import('@/lib/supabase');
-                    const { error } = await supabase
-                      .from('groups')
-                      .update({ cover_image_url: url })
-                      .eq('id', group.id);
-                    if (!error) setGroup((g) => g ? { ...g, coverImageUrl: url ?? undefined } : g);
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-ink">{group.name}</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  {members.length} {members.length === 1 ? 'członek' : 'członków'}
-                  {group.sport && ` · ${sportLabel(group.sport)}`}
-                  {group.city && ` · ${group.city}`}
-                </p>
-                {group.fieldName && (
-                  group.fieldId ? (
-                    <Link href={`/boisko/${group.fieldId}`} className="mt-1 inline-flex items-center gap-1 text-sm text-primary-700 hover:underline">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {group.fieldName}
-                    </Link>
-                  ) : (
-                    <span className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {group.fieldName}
-                    </span>
-                  )
-                )}
-              </div>
-              {isOwner && (
-                <Link
-                  href={`/grupy/${group.id}/edytuj`}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95"
-                >
-                  <Pencil className="w-3.5 h-3.5" /> Edytuj
-                </Link>
-              )}
-            </div>
-            {group.description && (
-              <p className="mt-4 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{group.description}</p>
-            )}
-
-            {/* Membership actions */}
-            <div className="mt-5">
-              {!member ? (
-                <Button onClick={handleJoin} disabled={busy} className="w-full inline-flex items-center justify-center gap-2">
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Dołącz do grupy</>}
-                </Button>
-              ) : (
-                <Link href={`/wydarzenia/nowe?group=${group.id}`}>
-                  <Button className="w-full inline-flex items-center justify-center gap-2">
-                    <Plus className="w-4 h-4" /> Stwórz mecz w grupie
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Events */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-            <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Mecze grupy
-          </h2>
-          {events.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400 py-2">Brak meczów. {member && 'Stwórz pierwszy!'}</p>
-          ) : (
-            <div className="space-y-4">
-              {upcoming.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</p>
-                  {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
-                </div>
-              )}
-              {past.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</p>
-                  {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Members */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-            <Users className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Członkowie
-            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{members.length}</span>
-          </h2>
-          <ul className="divide-y divide-slate-50 dark:divide-slate-700">
-            {members.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 py-2.5">
-                <Link href={`/gracz/${m.userId}`} className="flex items-center gap-3 flex-1 min-w-0 group">
-                  {m.avatarUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={m.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                      <UserIcon className="w-4 h-4" />
-                    </span>
-                  )}
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-ink truncate group-hover:text-primary-700 transition-colors">{m.name}</span>
-                    {m.role === 'admin' && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 font-medium">
-                        <Crown className="w-3 h-3" /> Założyciel
-                      </span>
-                    )}
-                  </span>
-                  <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
-                </Link>
-                {isOwner && m.userId !== user?.id && (
-                  <button onClick={() => handleRemove(m.userId)} disabled={busy} className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-500 rounded shrink-0" title="Usuń z grupy">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Invite */}
-        {member && (
-          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">Zaproś do grupy</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-              Wyślij link — po kliknięciu znajomy od razu dołączy do grupy.
-            </p>
-
-            {/* Buttons: equal width, wrap on narrow screens so they never overflow */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={share}
-                className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95"
-              >
-                <Share2 className="w-4 h-4" /> Udostępnij link
-              </button>
-              <button
-                onClick={copyLink}
-                className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95"
-              >
-                {copied ? <><Check className="w-4 h-4 text-green-600" /> Skopiowano</> : <><Copy className="w-4 h-4" /> Kopiuj link</>}
-              </button>
-            </div>
-
-            {/* Code fallback for manual entry */}
-            <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-              lub podaj kod: <span className="font-mono font-bold tracking-widest text-primary-700">{group.joinCode}</span>
-            </p>
-          </div>
-        )}
-
-        {/* Danger zone — celowo dyskretne, by nie kusiło do przypadkowego kliknięcia */}
-        {member && (
-          <div className="flex justify-center pt-4 pb-2">
-            {isOwner ? (
-              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors">
-                <Trash2 className="w-3.5 h-3.5" /> Usuń grupę
-              </button>
-            ) : (
-              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors">
-                <LogOut className="w-3.5 h-3.5" /> Opuść grupę
-              </button>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+    <Suspense>
+      <GroupDetailClient />
+    </Suspense>
   );
 }
