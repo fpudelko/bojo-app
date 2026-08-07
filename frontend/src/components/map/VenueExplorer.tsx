@@ -17,6 +17,7 @@ import { getPublicEvents } from '@/lib/events';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
+import KadrObserwator from './KadrObserwator';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -99,47 +100,6 @@ function multiLabel(selected: string[], allLabel: string, options: { value: stri
 
 function toggleInArray(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
-}
-
-// ---------------------------------------------------------------------------
-// KadrObserwator — melduje rodzicowi, co widać
-// ---------------------------------------------------------------------------
-/**
- * Zgłasza prostokąt widoku i przybliżenie po każdym ruchu mapy, z opóźnieniem.
- * Bez opóźnienia jedno przeciągnięcie palcem to kilkadziesiąt zapytań do bazy;
- * z opóźnieniem — jedno, po tym jak ręka się zatrzyma.
- */
-function KadrObserwator({ onZmiana }: { onZmiana: (kadr: Kadr, zoom: number) => void }) {
-  const map = useMap();
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const zglos = () => {
-      const b = map.getBounds();
-      onZmiana(
-        {
-          latMin: b.getSouth(), latMax: b.getNorth(),
-          lngMin: b.getWest(),  lngMax: b.getEast(),
-        },
-        map.getZoom(),
-      );
-    };
-    const opozniony = () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(zglos, 350);
-    };
-
-    zglos();                       // pierwszy kadr od razu, bez czekania
-    map.on('moveend', opozniony);
-    map.on('zoomend', opozniony);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      map.off('moveend', opozniony);
-      map.off('zoomend', opozniony);
-    };
-  }, [map, onZmiana]);
-
-  return null;
 }
 
 // ---------------------------------------------------------------------------

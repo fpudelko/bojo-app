@@ -74,11 +74,6 @@ const EXPLORER_COLS = 'id, name, address, lat, lng, sport, venue_type';
 // `wielofunkcyjne` to import z OSM (`sport=multi`) — 162 obiekty w samym
 // lubelskiem odpadały tu po cichu, mimo że przeszły bramkę publikacji.
 const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna', 'wielofunkcyjne'];
-// Twardy limit transferu. Przy ~3 tys. obiektów jedno zapytanie jest tańsze niż
-// dokładanie stanu i logiki wokół widocznego wycinka mapy. Gdy katalog urośnie
-// do kilkudziesięciu tysięcy, to zapytanie MUSI zacząć zależeć od widoku —
-// patrz BACKLOG §5.0.
-const EXPLORER_LIMIT = 5000;
 
 /** Prostokąt widoku mapy. */
 export interface Kadr {
@@ -129,7 +124,16 @@ export async function getExplorerClusters(
   }));
 }
 
-export async function getExplorerFields(kadr?: Kadr): Promise<Field[]> {
+/**
+ * Obiekty w zadanym wycinku mapy.
+ *
+ * `kadr` jest WYMAGANY i to jest zabezpieczenie zamiast dawnego limitu 5000
+ * wierszy. Limit liczbowy był arbitralny — przy katalogu poznańskim za wysoki,
+ * żeby cokolwiek chronić, a przy ogólnopolskim za niski, żeby pokazać miasto.
+ * Prostokąt widoku ogranicza zapytanie tym, co użytkownik faktycznie ogląda,
+ * więc rozmiar odpowiedzi zależy od gęstości okolicy, a nie od wielkości bazy.
+ */
+export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
   let zapytanie = supabase
     .from('fields')
     .select(EXPLORER_COLS)
@@ -143,16 +147,32 @@ export async function getExplorerFields(kadr?: Kadr): Promise<Field[]> {
     .eq('map_visibility', 'public')
     .overlaps('sport', EXPLORER_SPORTS);
 
-  // Wycinek widoku. Bez niego każde wejście na mapę ciągnie cały kraj —
-  // przy katalogu ogólnopolskim to dziesiątki tysięcy wierszy, z których
-  // użytkownik ogląda kilkadziesiąt.
-  if (kadr) {
-    zapytanie = zapytanie
-      .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
-      .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
-  }
+  zapytanie = zapytanie
+    .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
+    .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
 
-  const { data, error } = await zapytanie.limit(EXPLORER_LIMIT);
+  const { data, error } = await zapytanie;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toField);
+}
+
+/**
+ * Wyszukiwanie obiektu po nazwie lub adresie — po stronie bazy.
+ *
+ * Pickery lokalizacji filtrowały wcześniej listę pobraną w całości, co działało
+ * dopóki „w całości" znaczyło Poznań. Przy katalogu ogólnopolskim wpisanie
+ * nazwy musi być zapytaniem, a nie przeszukiwaniem tablicy w przeglądarce.
+ */
+export async function searchExplorerFields(term: string, limit = 30): Promise<Field[]> {
+  const szukane = term.trim();
+  if (szukane.length < 2) return [];
+  const { data, error } = await supabase
+    .from('fields')
+    .select(EXPLORER_COLS)
+    .eq('map_visibility', 'public')
+    .overlaps('sport', EXPLORER_SPORTS)
+    .or(`name.ilike.%${szukane}%,address.ilike.%${szukane}%`)
+    .limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []).map(toField);
 }
