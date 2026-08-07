@@ -353,6 +353,10 @@ listą a mapą — **to nie jest nawigacja na `/mapa`**, tylko stan komponentu
 (`viewMode: 'lista' | 'mapa'`) w tym samym `EventsListView`. Desktop zawsze pokazuje
 listę (ma już osobny link „Mapa boisk" w nawigacji) — przełącznik jest `md:hidden`.
 
+Pigułka „Sortuj" **nie pokazuje się** w tym widoku — na mapie nie ma listy do
+sortowania, chowa się razem z przełączeniem na `viewMode === 'mapa'` (`sortBy` samo
+w sobie zostaje bez zmian, po prostu nie jest tu eksponowane w UI).
+
 Mapa (`components/map/GamesMapCanvas.tsx`, ładowany przez `next/dynamic({ ssr: false })`)
 renderuje pinezki dla **całego już przefiltrowanego zbioru** (`sorted` z pipeline'u
 strony) — bez własnego zapytania ograniczonego do widocznego kadru: zbiór publicznych
@@ -360,8 +364,27 @@ wydarzeń jest już w całości w pamięci (`getPublicEvents()`, bez limitu). Kl
 przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 `components/map/GamesMarkersLayer.tsx` — ten sam komponent montowany też wewnątrz
 `VenueExplorer.tsx` w trybie „Pokaż gry", patrz „Układ `/mapa`" niżej. Mapa robi
-`fitBounds` na cały zbiór przy każdej zmianie filtrów; dotknięcie pinezki pokazuje dolną
-kartę `EventBrowseCard` (ten sam komponent co lista), bez natywnych popupów Leaflet.
+`fitBounds` na cały zbiór przy każdej zmianie filtrów.
+
+**Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
+sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
+„kiedy" pod spodem (`matchWhenLabel()`: dziś / jutro / w piątek / 12 wrz, ten sam format
+co gdzie indziej w apce, np. `NextMatchCard`). Cena i reszta szczegółów zostają
+w panelu po dotknięciu — na samej pinezce więcej tekstu byłoby nieczytelne. Klaster
+(kilka meczów blisko siebie) pokazuje kolorowe kółko z liczbą, tym samym
+`clusterDivIcon()` co klastry boisk na `/mapa`.
+
+Dotknięcie pinezki otwiera dolną kartę `EventBrowseCard` (ten sam komponent co lista),
+bez natywnych popupów Leaflet:
+- **Swipe w lewo/prawo** na karcie przełącza na kolejny/poprzedni mecz w tej samej
+  kolejności co pinezki (`swipeEventId()` w `lib/eventFilters.ts` — indeks w `rows`,
+  zawija się na końcach listy). Wykrywanie gestu: `lib/useSwipe.ts` (próg 50px, wymaga
+  wyraźnej przewagi ruchu poziomego nad pionowym, żeby nie kolidować ze scrollem).
+- **Dotknięcie mapy poza pinezką zamyka kartę** — `GamesMarkersLayer` nasłuchuje
+  `map.on('click', …)` i czyści zaznaczenie; kliknięcie samej pinezki nie dociera do
+  tego listenera, bo Leaflet nie propaguje kliknięcia markera do mapy.
+- **Przycisk „Zlokalizuj mnie"** (prawy dolny róg) — `components/map/LocateMeButton.tsx`,
+  wspólny z `/mapa` (patrz niżej), ikona `LocateFixed` (celownik), nie pinezka.
 
 ### `/logowanie` na tle listy meczów
 
@@ -464,6 +487,10 @@ zmiany funkcji.
 `MobileIdentityRow` (dzwonek + awatar) — Header na tej trasie chowa swój pasek, patrz
 „Górny pasek nawigacji" wyżej.
 
+**Przycisk „Zlokalizuj mnie"** (prawy dolny róg) ma ikonę `LocateFixed` (celownik) —
+wcześniej był tu `MapPin` (pinezka), myląca ikona dla akcji „pokaż moją okolicę".
+Wspólny komponent `components/map/LocateMeButton.tsx`, patrz niżej.
+
 ### Tryb „Pokaż gry"
 
 Nowy `TogglePill` „Pokaż gry" na początku paska przełącza **cały** pasek i **cały**
@@ -472,11 +499,17 @@ tylko podmieniają się warstwy pinezek):
 
 | | Wyłączony (domyślnie) | Włączony |
 |---|---|---|
-| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Sortuj / Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo — **identyczny układ co `/wydarzenia`** |
-| Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej) |
+| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo |
+| Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej — emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
 | Karta wyniku (mobile/sidebar) | `VenueCard` | `EventBrowseCard` |
 | Modal „Filtry" | Typ obiektu + Nawierzchnia (bez zmian) | Kiedy / Odległość / Cena / Wolne miejsca (te same suwaki co `/wydarzenia`) |
+
+**Sortuj nie pojawia się w tym trybie** — `/mapa` jest zawsze widokiem mapy (w
+odróżnieniu od `/wydarzenia`, gdzie ta sama pigułka ma sens na liście), więc kolejność
+pinezek/karty sidebara zostaje na stałe chronologiczna (`gamesSort` to dziś stała
+`'termin'`, bez UI do zmiany) — nie warto było duplikować UI, którego i tak nie ma gdzie
+sensownie użyć na mapie.
 
 Stan trybu gier (`gamesSort`, `gamesDate`, `gamesRadius`, `gamesMaxPriceGrosze`,
 `gamesMinFreeSpots`, `gamesOnlyFreeSpots`, `gamesOnlyNoCost`) jest **lokalny**, nie w URL

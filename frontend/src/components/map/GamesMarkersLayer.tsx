@@ -4,20 +4,32 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { EventRow } from '@/lib/eventFilters';
-import { sportColor } from '@/lib/sports';
+import { sportColor, sportEmoji } from '@/lib/sports';
+import { matchWhenLabel } from '@/lib/eventDates';
 import { clusterDivIcon } from './mapIcons';
 
-/** Pinezka pojedynczego meczu — pełne kółko w kolorze sportu z białą obwódką
- *  i cieniem, wyraźnie większe niż domyślny marker Leafleta, żeby było je
- *  widać na tle mapy z daleka (dawniej 16px ginęło w tle). */
-function eventIcon(sport: string, selected: boolean): L.DivIcon {
-  const color = selected ? '#1e40af' : sportColor(sport);
-  const size = selected ? 30 : 24;
+/** Pinezka pojedynczego meczu — kółko w kolorze sportu z emoji sportu w
+ *  środku (odpowiada na „jaki sport") i etykietą „kiedy" pod spodem (dziś /
+ *  jutro / w piątek / 12 wrz — ten sam format co `matchWhenLabel` gdzie
+ *  indziej w apce). Cena i reszta szczegółów zostają w panelu po dotknięciu —
+ *  na samej pinezce więcej tekstu byłoby nieczytelne. */
+function eventIcon(row: EventRow, selected: boolean): L.DivIcon {
+  const { event } = row;
+  const color = selected ? '#1e40af' : sportColor(event.sport);
+  const circle = selected ? 34 : 28;
+  const width = 76;
+  const emoji = sportEmoji(event.sport);
+  const when = matchWhenLabel(event.date);
   return L.divIcon({
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,
+    html: `<div style="display:flex;flex-direction:column;align-items:center;width:${width}px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">
+      <div style="width:${circle}px;height:${circle}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2.5px solid white;flex-shrink:0">
+        <span style="font-size:${selected ? 16 : 13}px;line-height:1">${emoji}</span>
+      </div>
+      <span style="margin-top:2px;padding:1px 6px;border-radius:8px;background:white;font-size:10px;font-weight:700;color:#334155;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.22)">${when}</span>
+    </div>`,
     className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [width, circle + 20],
+    iconAnchor: [width / 2, circle / 2],
   });
 }
 
@@ -37,7 +49,8 @@ export default function GamesMarkersLayer({
 }: {
   rows: EventRow[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  /** `null` zamyka panel — wołane też przy kliknięciu mapy poza pinezką. */
+  onSelect: (id: string | null) => void;
 }) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -65,7 +78,13 @@ export default function GamesMarkersLayer({
     });
     clusterRef.current = cluster;
     map.addLayer(cluster);
+    // Dotknięcie mapy poza pinezką zamyka otwarty panel — markery zatrzymują
+    // własne kliknięcie (Leaflet nie propaguje go do mapy), więc ten listener
+    // odpala się wyłącznie na pustym tle.
+    const onMapClick = () => onSelectRef.current(null);
+    map.on('click', onMapClick);
     return () => {
+      map.off('click', onMapClick);
       map.removeLayer(cluster);
       clusterRef.current = null;
       markersRef.current = {};
@@ -86,7 +105,7 @@ export default function GamesMarkersLayer({
       rowsRef.current[event.id] = r;
       let marker = markersRef.current[event.id];
       if (!marker) {
-        const m = L.marker([event.lat, event.lng], { icon: eventIcon(event.sport, false) }) as L.Marker & { _sports?: string[] };
+        const m = L.marker([event.lat, event.lng], { icon: eventIcon(r, false) }) as L.Marker & { _sports?: string[] };
         m._sports = [event.sport];
         m.on('click', () => onSelectRef.current(event.id));
         marker = m;
@@ -109,11 +128,11 @@ export default function GamesMarkersLayer({
     const prev = prevSelectedRef.current;
     if (prev && markersRef.current[prev]) {
       const r = rowsRef.current[prev];
-      if (r) markersRef.current[prev].setIcon(eventIcon(r.event.sport, false));
+      if (r) markersRef.current[prev].setIcon(eventIcon(r, false));
     }
     if (selectedId && markersRef.current[selectedId]) {
       const r = rowsRef.current[selectedId];
-      if (r) markersRef.current[selectedId].setIcon(eventIcon(r.event.sport, true));
+      if (r) markersRef.current[selectedId].setIcon(eventIcon(r, true));
     }
     prevSelectedRef.current = selectedId;
   }, [selectedId]);

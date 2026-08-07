@@ -149,3 +149,14 @@ export function groupByDay(rows: EventRow[], now = new Date()): { group: DayGrou
   }
   return DAY_GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({ group: g, rows: map.get(g)! }));
 }
+
+/** Który mecz pokazać po swipe w panelu szczegółów na mapie — ta sama
+ *  kolejność co pinezki (`rows`), zawija się na końcach listy. `null`, gdy
+ *  bieżący mecz już nie jest w zbiorze (np. filtr go wyrzucił). */
+export function swipeEventId(rows: EventRow[], currentId: string, direction: 1 | -1): string | null {
+  if (rows.length === 0) return null;
+  const idx = rows.findIndex((r) => r.event.id === currentId);
+  if (idx === -1) return null;
+  const next = (idx + direction + rows.length) % rows.length;
+  return rows[next].event.id;
+}

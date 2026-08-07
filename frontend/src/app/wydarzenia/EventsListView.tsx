@@ -451,6 +451,11 @@ export default function EventsListView() {
       {/* Jeden pasek kafelków: Sortuj / Filtry / Sport / Wolne miejsca / Za darmo
           (D7 planu) — scrolluje się w bok, gdy nie mieści się w jednej linii. */}
       <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Na widoku mapy nie ma czego sortować — pigułka chowa się razem
+            z przełączeniem viewMode, sortBy zostaje bez zmian (pinezki i
+            tak korzystają z `sorted`, kolejność po prostu nie jest wtedy
+            eksponowana w UI). */}
+        {viewMode !== 'mapa' && (
         <PillDropdown label="Sortuj" active={sortBy !== 'termin'}>
           {(close) => (
             <>
@@ -487,6 +492,7 @@ export default function EventsListView() {
             </>
           )}
         </PillDropdown>
+        )}
 
         <button
           type="button"

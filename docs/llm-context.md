@@ -295,6 +295,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-07 — Mapa meczów: emoji sportu i „kiedy" na pinezce, swipe w panelu, zamykanie dotknięciem mapy
+PROBLEM: pinezki meczów na mapie (widok mapy w `/wydarzenia` i tryb „Pokaż gry" na
+`/mapa`) nie różniły się niczym poza kolorem — nie było widać, jaki to sport ani kiedy
+jest mecz, bez dotknięcia każdej z osobna. Pigułka „Sortuj" pokazywała się też na
+samej mapie, mimo że tam nie ma listy do sortowania. Panel szczegółów po dotknięciu
+pinezki nie miał sposobu na przejście do sąsiedniego meczu bez zamykania go i szukania
+kolejnej pinezki, a dotknięcie mapy w pustym miejscu nie zamykało otwartego panelu.
+Widok mapy w `/wydarzenia` nie miał przycisku „zlokalizuj mnie", a na `/mapa` ten
+przycisk miał ikonę pinezki zamiast celownika.
+ROZWIĄZANIE BOJO: pinezka pojedynczego meczu to teraz kółko w kolorze sportu z emoji
+sportu w środku i etykietą „dziś"/„jutro"/„w piątek"/„12 wrz" pod spodem — cena i reszta
+zostają w panelu, żeby nie przeładować samej pinezki. Klaster kilku meczów blisko
+siebie ma ten sam, stylowany wygląd co klastry boisk (kolorowe kółko z liczbą). Panel
+szczegółów: swipe w lewo/prawo przełącza na kolejny/poprzedni mecz w tej samej
+kolejności co pinezki, a dotknięcie mapy poza pinezką zamyka otwarty panel. Pigułka
+„Sortuj" zniknęła z obu widoków mapy (na `/wydarzenia` chowa się tylko w widoku mapy,
+zostaje na liście; na `/mapa` w trybie gier zniknęła całkowicie, bo tam nie ma innego
+trybu). Widok mapy w `/wydarzenia` dostał przycisk „zlokalizuj mnie" (wcześniej go nie
+miał), a ikona na obu mapach to teraz celownik zamiast pinezki.
+MECHANIKA: `components/map/GamesMarkersLayer.tsx` (emoji przez `sportEmoji()`, etykieta
+przez `matchWhenLabel()` z `lib/eventDates.ts`, `map.on('click', …)` zamykający panel);
+`lib/eventFilters.ts#swipeEventId` + `lib/useSwipe.ts` (wykrywanie gestu); nowy wspólny
+`components/map/LocateMeButton.tsx` (ikona `LocateFixed`), używany w `VenueExplorer.tsx`
+i nowo w `components/map/GamesMapCanvas.tsx`.
+
 ### 2026-08-07 — Suwaki filtrów i mapa meczów w /wydarzenia, tryb „Pokaż gry" na /mapa
 PROBLEM: lista meczów Bojo (`/wydarzenia`) na telefonie miała dwa osobne paski kafelków
 (sporty, potem filtry), filtr „Kiedy" był listą opcji, a „Odległość" dyskretnymi
@@ -473,22 +498,4 @@ MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności pan
 kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
 do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
 
-### 2026-08-06 — Telefon do organizatora chowa się do godziny przed meczem, kreator meczu domyślnie liczy koszt obiektu
-PROBLEM: numer telefonu do BLIKA, który organizator podawał przy tworzeniu meczu,
-widniał na publicznej, indeksowalnej stronie meczu dla każdego — także osoby
-niezalogowanej, tygodnie przed grą. Pole nie miało też żadnego ograniczenia długości.
-Osobno: kreator zakładał domyślnie wpisywanie kosztu „od osoby", choć organizator
-zwykle zna najpierw cenę wynajmu całego obiektu i musiał dzielić ją w głowie; zmiana
-liczby miejsc po wpisaniu kwoty nie przeliczała jej na nowo.
-ROZWIĄZANIE BOJO: numer do BLIKA widzi organizator zawsze, a uczestnik ze składu
-dopiero godzinę przed startem meczu — z jednym wyjątkiem: okno „Dołączam” z wyborem
-BLIKA pokazuje numer od razu, bo bez niego nie da się zapłacić przy zapisie. Pole
-przyjmuje wyłącznie 9 cyfr i formatuje je w trójkach podczas pisania; publikacja
-meczu z wybranym BLIKA i niepełnym numerem jest zablokowana, tak samo jak zniżka
-karty sportowej wyższa niż koszt od osoby. Kreator domyślnie wpisuje koszt za cały
-obiekt i przelicza cenę od osoby na bieżąco, także po zmianie liczby miejsc.
-MECHANIKA: `canSeeBlikPhone()`, `formatBlikPhone()`, `BLIK_PHONE_REVEAL_MINUTES = 60`
-oraz `minutesUntilStart()` w `lib/payments.ts`/`lib/eventDates.ts`; `validatePayments()`
-w `lib/eventWizard.ts`, wpięta w krok 2 kreatora i w `app/wydarzenia/[id]/edytuj/page.tsx`.
-Bramka działa wyłącznie w interfejsie — kolumna `blik_phone` nadal przyjeżdża w całym
-wierszu `events` (patrz BACKLOG.md).
+
