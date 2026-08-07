@@ -13,6 +13,9 @@ function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || undefined;
+  // ?mode=rejestracja przychodzi z przycisku „Dołącz" w nagłówku — otwiera
+  // od razu zakładanie konta zamiast logowania.
+  const initialMode = params.get('mode') === 'rejestracja' ? 'signup' : 'signin';
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -34,7 +37,7 @@ function LoginInner() {
           <Link href="/"><LogoPill /></Link>
         </div>
         <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-card-hover sm:p-8">
-          <AuthForm next={next} />
+          <AuthForm next={next} initialMode={initialMode} />
         </div>
         <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
           Logując się akceptujesz{' '}
