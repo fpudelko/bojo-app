@@ -368,8 +368,9 @@ przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
 sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
-„kiedy" pod spodem (`matchWhenLabel()`: dziś / jutro / w piątek / 12 wrz, ten sam format
-co gdzie indziej w apce, np. `NextMatchCard`). Cena i reszta szczegółów zostają
+„kiedy + godzina" pod spodem (`matchWhenLabel(date, time)`: dziś · 18:00 / jutro · 18:00
+/ w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np.
+`NextMatchCard`). Cena i reszta szczegółów zostają
 w panelu po dotknięciu — na samej pinezce więcej tekstu byłoby nieczytelne. Klaster
 (kilka meczów blisko siebie) pokazuje kolorowe kółko z liczbą, tym samym
 `clusterDivIcon()` co klastry boisk na `/mapa`.
@@ -475,6 +476,14 @@ Modal ma tę samą mechanikę szkicu co na `/wydarzenia`: wybory w „Typ obiekt
 „Nawierzchnia" aplikują się dopiero po „Pokaż N obiektów", „Wyczyść" resetuje szkic bez
 zamykania. Renderowany **raz** na komponent (nie raz na sidebar desktopu i raz na
 mobilny overlay) — oba przyciski „Filtry" otwierają ten sam, współdzielony stan.
+
+**Licznik „Pokaż N obiektów" w trybie skupisk** (domyślny widok całej Polski, mapa
+oddalona) liczy się z `wKadrze` (suma z kółek skupisk, uwzględnia już filtr sportu),
+nie z `allFields` — w tym trybie `allFields` jest zawsze pustą tablicą (obiekty
+pobiera się dopiero po przybliżeniu, patrz niżej), więc liczenie z niej dawało zawsze
+„Pokaż 0 obiektów" niezależnie od tego, ile realnie było w kadrze. Typ obiektu
+i Nawierzchnia i tak nie mają w tym trybie efektu (brak per-obiektowego rozbicia
+w danych ze skupisk), więc podgląd pokazuje to, co faktycznie widać na mapie.
 
 Filtr nawierzchni działa **tylko w trybie pojedynczych obiektów** (przybliżenie ≥ próg
 skupisk) — w trybie skupisk (oddalona mapa) nie jest przekazywany do

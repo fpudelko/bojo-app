@@ -295,6 +295,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-07 — Rozwijane pigułki filtrów w pełni widoczne, godzina na pinezce meczu, naprawiony licznik "0 obiektów"
+PROBLEM: rozwijane pigułki filtrów (Sortuj, Sport) na `/wydarzenia` i `/mapa`
+wyrównywały panel do lewej krawędzi przycisku — dla przycisku blisko prawej krawędzi
+telefonu panel wyjeżdżał poza ekran i obcinał kolumnę z ptaszkami przy wybranych
+opcjach, więc nie było widać, co jest zaznaczone. Etykieta „kiedy" na pinezkach meczów
+(dodana w poprzedniej rundzie) pokazywała tylko dzień („jutro", „w piątek"), bez
+godziny, więc trzeba było dotknąć pinezki, żeby w ogóle zorientować się, o której mecz
+się zaczyna. Modal filtrów na `/mapa` (Typ obiektu, Nawierzchnia) przy domyślnym,
+oddalonym widoku całej Polski zawsze pokazywał „Pokaż 0 obiektów" — licznik liczył się
+z listy, która w tym trybie mapy jest zawsze pusta, niezależnie od tego, ile obiektów
+realnie było w kadrze.
+ROZWIĄZANIE BOJO: panel rozwijanej pigułki dosuwa się teraz do prawej krawędzi ekranu
+zamiast wyjeżdżać poza nią, gdy przycisk stoi blisko brzegu — cała lista z ptaszkami
+jest zawsze w pełni widoczna. Etykieta na pinezce meczu pokazuje teraz dzień i godzinę
+razem (np. „jutro · 18:00", „w piątek · 20:30"). Licznik w modalu filtrów na `/mapa`
+w oddalonym widoku pokazuje realną liczbę obiektów w kadrze zamiast zawsze zera.
+MECHANIKA: `components/ui/FilterPill.tsx#PillDropdown` (stała szerokość panelu +
+przeliczenie pozycji względem prawej krawędzi ekranu); `components/map/GamesMarkersLayer.tsx`
+(`matchWhenLabel(date, time)` zamiast `matchWhenLabel(date)`); `VenueExplorer.tsx#previewFieldsCount`
+(w trybie skupisk liczy z `wKadrze` zamiast z pustego `allFields`).
+
 ### 2026-08-07 — Mapa meczów: emoji sportu i „kiedy" na pinezce, swipe w panelu, zamykanie dotknięciem mapy
 PROBLEM: pinezki meczów na mapie (widok mapy w `/wydarzenia` i tryb „Pokaż gry" na
 `/mapa`) nie różniły się niczym poza kolorem — nie było widać, jaki to sport ani kiedy
@@ -480,22 +501,5 @@ powstaje wyłącznie po kliknięciu „Opublikuj mecz". W polu opisu Enter dalej
 robi nową linię.
 MECHANIKA: `blokujEnter()` oraz warunek na numer kroku w `handleSubmit()`
 w `app/wydarzenia/nowe/page.tsx`.
-
-### 2026-08-06 — Rozliczenie po meczu i powiadomienie o zwolnionym miejscu z rezerwy
-PROBLEM: panel „Podział kosztów" (kto zapłacił, ile zebrano) znikał ze strony meczu,
-gdy tylko mecz się zaczynał — dokładnie wtedy, gdy organizator faktycznie rozlicza
-się z ekipą po grze. Osobno: gdy zwalniało się miejsce, oferta trafiała do pierwszego
-rezerwowego po cichu — `sync_reserve_claim` odpalał się tylko przy wejściu na stronę
-meczu, więc rezerwowy dowiadywał się o ofercie jedynie, jeśli sam odświeżył stronę
-w oknie na decyzję. Do tego link z dzwonka powiadomień prowadził na nieistniejącą
-trasę `/wydarzenie/[id]` (liczba pojedyncza) zamiast `/wydarzenia/[id]`.
-ROZWIĄZANIE BOJO: „Podział kosztów" i przełącznik płatności per uczestnik są teraz
-widoczne dla organizatora niezależnie od tego, czy mecz się już zaczął. Oferta
-zwolnionego miejsca z rezerwy generuje wpis w istniejącej skrzynce powiadomień
-w aplikacji (bez auto-awansu — rezerwowy nadal musi sam kliknąć „Wchodzę"). Link
-w dzwonku powiadomień prowadzi już na właściwą stronę meczu.
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (warunek widoczności panelu
-kosztów odczepiony od `eventStarted`), `sync_reserve_claim` w migracji `062` (insert
-do `notifications`), `components/layout/NotificationBell.tsx` (poprawiony href).
 
 

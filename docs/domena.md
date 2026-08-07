@@ -90,6 +90,12 @@ pinezek `/mapa` — dołączono `surface`, żeby dało się po niej filtrować, 
 [funkcje.md](./funkcje.md#układ-mapa--szukanie-filtry-powrót-z-boiska));
 `components/ui/FilterSheet.tsx` (modal filtrów w stylu Booking, wspólny dla
 `/wydarzenia` i `/mapa` — portal do `<body>`, bottom sheet na mobile);
+`components/ui/FilterPill.tsx#PillDropdown` (rozwijana pigułka — Sortuj, Sport na obu
+stronach) ma stałą szerokość panelu (`PANEL_WIDTH = 240`), żeby dało się policzyć
+bezpieczną pozycję **przed** wyrenderowaniem: przycisk blisko prawej krawędzi ekranu
+wcześniej wyrównywał panel do swojej lewej krawędzi, co wypychało kolumnę z ptaszkami
+wyboru poza widoczny obszar — teraz panel dosuwa się do prawej krawędzi ekranu
+z marginesem zamiast do lewej krawędzi przycisku;
 `components/layout/MobileIdentityRow.tsx` (dzwonek + awatar w jednym wierszu, zastępuje
 pasek `Header` tam, gdzie strona sama go chowa na mobile dla zalogowanych — patrz
 [funkcje.md](./funkcje.md#górny-pasek-nawigacji--inny-dla-zalogowanych-na-mobile)).

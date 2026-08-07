@@ -955,13 +955,21 @@ export default function VenueExplorer({
   const modalFiltersActive = showGames
     ? (gamesDate !== 'wszystkie' || gamesRadius !== null || gamesMaxPriceGrosze !== null || gamesMinFreeSpots > 0)
     : (venueTypes.length > 0 || surfaces.length > 0);
+  // W trybie skupisk (oddalona mapa) `allFields` jest zawsze puste — obiekty
+  // pobiera się dopiero po przybliżeniu (patrz komentarz przy `trybSkupisk`).
+  // Liczenie z pustej tablicy dawało zawsze „Pokaż 0 boisk", nawet gdy w
+  // kadrze realnie było ich tysiące. Typ obiektu/Nawierzchnia i tak nie mają
+  // efektu w tym trybie (nie ma per-obiektowego rozbicia w danych ze skupisk),
+  // więc podgląd pokazuje `wKadrze` — sumę z kółek, uwzględniającą już sport
+  // (jedyny filtr, który RPC `mapa_skupiska` faktycznie stosuje).
   const previewFieldsCount = useMemo(() => {
+    if (trybSkupisk) return wKadrze;
     let list = searchResults ?? allFields;
     if (sports.length > 0) list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
     if (draftTypes.length > 0) list = list.filter((f) => draftTypes.includes(f.venueType ?? ''));
     if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
     return list.length;
-  }, [allFields, searchResults, sports, draftTypes, draftSurfaces]);
+  }, [trybSkupisk, wKadrze, allFields, searchResults, sports, draftTypes, draftSurfaces]);
 
   const filterProps = {
     showGames, onToggleShowGames: toggleShowGames,

@@ -15,6 +15,11 @@ import { ChevronDown } from 'lucide-react';
  * filtrów bywa `overflow-x-auto`, co przycięłoby rozwinięte menu. Pozycja
  * liczona z getBoundingClientRect w momencie otwarcia.
  */
+// Stała szerokość zamiast min-w: pozwala policzyć bezpieczną pozycję (patrz
+// toggle() niżej) zanim panel się w ogóle wyrenderuje — z samym min-w nie da
+// się z góry przewidzieć, ile miejsca panel faktycznie zajmie.
+const PANEL_WIDTH = 240;
+
 export function PillDropdown({ label, active, children }: {
   label: string;
   active: boolean;
@@ -30,7 +35,13 @@ export function PillDropdown({ label, active, children }: {
   function toggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, left: r.left });
+      // Panel ma stałą szerokość (patrz PANEL_WIDTH niżej) — jeśli przycisk
+      // stoi blisko prawej krawędzi, wyrównanie do jego lewej krawędzi
+      // wypychało panel poza ekran i obcinało kolumnę z ptaszkami wyboru.
+      // Zamiast tego panel dosuwa się do prawej krawędzi ekranu z marginesem.
+      const margin = 8;
+      const left = Math.min(r.left, window.innerWidth - PANEL_WIDTH - margin);
+      setPos({ top: r.bottom + 6, left: Math.max(margin, left) });
     }
     setOpen((o) => !o);
   }
@@ -63,8 +74,8 @@ export function PillDropdown({ label, active, children }: {
       {open && mounted && createPortal(
         <div
           ref={panelRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: PANEL_WIDTH, zIndex: 9999 }}
+          className="max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
         >
           {children(() => setOpen(false))}
         </div>,

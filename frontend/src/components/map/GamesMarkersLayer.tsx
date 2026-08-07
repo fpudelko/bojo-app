@@ -9,17 +9,18 @@ import { matchWhenLabel } from '@/lib/eventDates';
 import { clusterDivIcon } from './mapIcons';
 
 /** Pinezka pojedynczego meczu — kółko w kolorze sportu z emoji sportu w
- *  środku (odpowiada na „jaki sport") i etykietą „kiedy" pod spodem (dziś /
- *  jutro / w piątek / 12 wrz — ten sam format co `matchWhenLabel` gdzie
- *  indziej w apce). Cena i reszta szczegółów zostają w panelu po dotknięciu —
- *  na samej pinezce więcej tekstu byłoby nieczytelne. */
+ *  środku (odpowiada na „jaki sport") i etykietą „kiedy + która godzina" pod
+ *  spodem (dziś · 18:00 / jutro · 18:00 / w piątek · 20:30 / 12 wrz · 18:00 —
+ *  ten sam format co `matchWhenLabel` gdzie indziej w apce, np. NextMatchCard).
+ *  Cena i reszta szczegółów zostają w panelu po dotknięciu — na samej pinezce
+ *  więcej tekstu byłoby nieczytelne. */
 function eventIcon(row: EventRow, selected: boolean): L.DivIcon {
   const { event } = row;
   const color = selected ? '#1e40af' : sportColor(event.sport);
   const circle = selected ? 34 : 28;
-  const width = 76;
+  const width = 92;
   const emoji = sportEmoji(event.sport);
-  const when = matchWhenLabel(event.date);
+  const when = matchWhenLabel(event.date, event.time);
   return L.divIcon({
     html: `<div style="display:flex;flex-direction:column;align-items:center;width:${width}px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">
       <div style="width:${circle}px;height:${circle}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2.5px solid white;flex-shrink:0">
