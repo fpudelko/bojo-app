@@ -451,7 +451,7 @@ export default function EventsListView() {
       {/* Jeden pasek kafelków: Sortuj / Filtry / Sport / Wolne miejsca / Za darmo
           (D7 planu) — scrolluje się w bok, gdy nie mieści się w jednej linii. */}
       <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <PillDropdown label={SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? ''} active={sortBy !== 'termin'}>
+        <PillDropdown label="Sortuj" active={sortBy !== 'termin'}>
           {(close) => (
             <>
               {SORT_OPTIONS.map((o) => (

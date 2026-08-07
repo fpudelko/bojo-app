@@ -12,7 +12,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
   Check, CalendarCheck, MapPin, Globe, Navigation, Search, SlidersHorizontal, Ticket,
-  Trophy, Unlock, Wallet, X,
+  Trophy, Wallet, X,
 } from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
 import FilterSheet from '@/components/ui/FilterSheet';
@@ -391,7 +391,6 @@ function FilterPills({
   showGames, onToggleShowGames,
   sports, setSports,
   onlyGamesToday, setOnlyGamesToday,
-  onlyOpenGames, setOnlyOpenGames,
   filtersActive, onOpenFilters,
   gamesSortBy, onGamesSortSelect, gamesSortGeoBusy,
   gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
@@ -404,7 +403,6 @@ function FilterPills({
   onToggleShowGames: () => void;
   sports: string[]; setSports: (v: string[]) => void;
   onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
-  onlyOpenGames: boolean; setOnlyOpenGames: (v: boolean) => void;
   /** Czy modal (Typ+Nawierzchnia w trybie obiektów, suwaki w trybie gier) ma
    *  dziś jakikolwiek wybór — steruje wyglądem przycisku „Filtry". */
   filtersActive: boolean;
@@ -428,7 +426,7 @@ function FilterPills({
         active={showGames} onClick={onToggleShowGames} />
 
       {showGames && (
-        <PillDropdown label={SORT_OPTIONS.find((o) => o.value === gamesSortBy)?.label ?? ''} active={gamesSortBy !== 'termin'}>
+        <PillDropdown label="Sortuj" active={gamesSortBy !== 'termin'}>
           {(close) => (
             <>
               {SORT_OPTIONS.map((o) => (
@@ -519,12 +517,8 @@ function FilterPills({
             active={gamesOnlyNoCost} onClick={() => setGamesOnlyNoCost(!gamesOnlyNoCost)} />
         </>
       ) : (
-        <>
-          <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
-            active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
-          <TogglePill label="Otwarte gry" icon={<Unlock className="h-3.5 w-3.5 shrink-0" />}
-            active={onlyOpenGames} onClick={() => setOnlyOpenGames(!onlyOpenGames)} />
-        </>
+        <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
+          active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
       )}
     </div>
   );
@@ -552,9 +546,8 @@ export default function VenueExplorer({
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
-  const onlyOpenGames  = searchParams.get('open') === '1';
   // „Pokaż gry" (D11/D12) — jedyny stan trybu gier trzymany w URL, tak jak
-  // today/open. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
+  // today. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
   // z tym, że /wydarzenia też nie trzyma swoich filtrów w URL.
   const showGames = searchParams.get('gry') === '1';
   // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
@@ -562,7 +555,7 @@ export default function VenueExplorer({
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
   const boiskoZLinku = searchParams.get('boisko');
 
-  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; open?: boolean; gry?: boolean }) {
+  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean }) {
     const p = new URLSearchParams(searchParams.toString());
     if (patch.sport !== undefined) {
       p.delete('sport');
@@ -579,9 +572,6 @@ export default function VenueExplorer({
     if (patch.today !== undefined) {
       if (patch.today) p.set('today', '1'); else p.delete('today');
     }
-    if (patch.open !== undefined) {
-      if (patch.open) p.set('open', '1'); else p.delete('open');
-    }
     if (patch.gry !== undefined) {
       if (patch.gry) p.set('gry', '1'); else p.delete('gry');
     }
@@ -592,7 +582,6 @@ export default function VenueExplorer({
   const setVenueTypes     = (v: string[]) => updateParams({ type: v });
   const setSurfaces       = (v: string[]) => updateParams({ surface: v });
   const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
-  const setOnlyOpenGames  = (v: boolean) => updateParams({ open: v });
 
   // Przełącznik trybu — jeśli w sportach jest wartość spoza FOCUS_SPORTS
   // (np. „wielofunkcyjne"), włączenie trybu gier czyści ją: żaden mecz nigdy
@@ -783,17 +772,14 @@ export default function VenueExplorer({
 
   const fieldStats = useMemo(() => {
     const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
-    const stats: Record<string, { count: number; today: boolean; open: boolean }> = {};
+    const stats: Record<string, { count: number; today: boolean }> = {};
     for (const e of events) {
       if (!e.fieldId) continue;
       const d = new Date(e.date); d.setHours(0, 0, 0, 0);
       if (d < today || d > weekEnd) continue;
-      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false, open: false };
+      if (!stats[e.fieldId]) stats[e.fieldId] = { count: 0, today: false };
       stats[e.fieldId].count++;
       if (d.getTime() === today.getTime()) stats[e.fieldId].today = true;
-      // „Otwarte gry": co najmniej jeden mecz, na który da się jeszcze
-      // dołączyć — ta sama definicja „otwarte", co na /wydarzenia.
-      if (e.status !== 'cancelled' && isEventJoinable(e)) stats[e.fieldId].open = true;
     }
     return stats;
   }, [events, today]);
@@ -806,7 +792,6 @@ export default function VenueExplorer({
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (surfaces.length > 0)   list = list.filter((f) => surfaces.includes(f.surface ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
-    if (onlyOpenGames)  list = list.filter((f) => fieldStats[f.id]?.open);
     // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
     // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
     // (wtedy `q` filtruje to, co i tak jest w bieżącym kadrze, jak dawniej).
@@ -814,7 +799,7 @@ export default function VenueExplorer({
     if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
-  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, fieldStats, search]);
+  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search]);
 
   // Tryb gier (D11) — reużywa `events`, już pobierane wyżej dla fieldStats,
   // zero nowego zapytania. Ten sam pipeline co /wydarzenia (matchesDateFilter,
@@ -883,7 +868,7 @@ export default function VenueExplorer({
   }, [gamesRows, selectedEventId]);
 
   // Reset the render window whenever the result set changes (new search/filter).
-  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, onlyOpenGames, search]);
+  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, search]);
 
   // The map plots every field, but the list/carousel render only a window. A pin
   // outside that window would select a venue whose card doesn't exist — the click
@@ -1016,7 +1001,6 @@ export default function VenueExplorer({
     showGames, onToggleShowGames: toggleShowGames,
     sports, setSports,
     onlyGamesToday, setOnlyGamesToday,
-    onlyOpenGames, setOnlyOpenGames,
     filtersActive: modalFiltersActive,
     onOpenFilters: openSheet,
     gamesSortBy: gamesSort, onGamesSortSelect, gamesSortGeoBusy,

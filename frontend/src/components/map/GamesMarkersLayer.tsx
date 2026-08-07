@@ -5,12 +5,16 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { EventRow } from '@/lib/eventFilters';
 import { sportColor } from '@/lib/sports';
+import { clusterDivIcon } from './mapIcons';
 
+/** Pinezka pojedynczego meczu — pełne kółko w kolorze sportu z białą obwódką
+ *  i cieniem, wyraźnie większe niż domyślny marker Leafleta, żeby było je
+ *  widać na tle mapy z daleka (dawniej 16px ginęło w tle). */
 function eventIcon(sport: string, selected: boolean): L.DivIcon {
   const color = selected ? '#1e40af' : sportColor(sport);
-  const size = selected ? 20 : 16;
+  const size = selected ? 30 : 24;
   return L.divIcon({
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,
     className: '',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -46,6 +50,13 @@ export default function GamesMarkersLayer({
     const cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
       maxClusterRadius: 50,
+      // Bez tego klaster renderował domyślną, nieostylowaną ikonę Leafleta —
+      // sam numer bez tła/obwódki, prawie niewidoczny na mapie. clusterDivIcon
+      // to ten sam wygląd co klastry boisk na /mapa (kolorowe kółko z liczbą).
+      iconCreateFunction: (c) => {
+        const ms = c.getAllChildMarkers() as Array<L.Marker & { _sports?: string[] }>;
+        return clusterDivIcon(c.getChildCount(), ms.flatMap((m) => m._sports ?? []));
+      },
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 16,
       animate: true,
@@ -75,8 +86,10 @@ export default function GamesMarkersLayer({
       rowsRef.current[event.id] = r;
       let marker = markersRef.current[event.id];
       if (!marker) {
-        marker = L.marker([event.lat, event.lng], { icon: eventIcon(event.sport, false) });
-        marker.on('click', () => onSelectRef.current(event.id));
+        const m = L.marker([event.lat, event.lng], { icon: eventIcon(event.sport, false) }) as L.Marker & { _sports?: string[] };
+        m._sports = [event.sport];
+        m.on('click', () => onSelectRef.current(event.id));
+        marker = m;
         markersRef.current[event.id] = marker;
         cluster.addLayer(marker);
       }

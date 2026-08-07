@@ -423,18 +423,21 @@ linkuje teraz z `?wroc=/mapa?boisko=<id>` zamiast gołego `/boisko/<slug>`. Stro
 `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku (`boiskoZLinku`) —
 brakowało tylko połączenia obu gotowych mechanizmów.
 
-**Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i dwa przełączniki
-(„Gry dziś", „Otwarte gry") zostają zawsze widoczne; Typ obiektu i Nawierzchnia
-przenoszą się do `FilterSheet` (ten sam współdzielony komponent, patrz „Układ
-`/wydarzenia`"), bo są drugorzędne i rzadziej dotykane:
+**Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i przełącznik
+„Gry dziś" zostają zawsze widoczne; Typ obiektu i Nawierzchnia przenoszą się do
+`FilterSheet` (ten sam współdzielony komponent, patrz „Układ `/wydarzenia`"), bo są
+drugorzędne i rzadziej dotykane:
 
 | Filtr | Gdzie | Uwaga |
 |---|---|---|
 | Sport | inline, dropdown | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
 | „Gry dziś" | inline, przełącznik | bez zmian |
-| „Otwarte gry" *(nowość)* | inline, przełącznik | obiekt ma co najmniej jeden mecz spełniający `isEventJoinable()` i nieodwołany — ta sama definicja „otwarte", co na `/wydarzenia` |
 | Typ obiektu | w modalu | lista bez zmian, tylko przeniesiona z zawsze-widocznego dropdownu |
 | Nawierzchnia *(nowość)* | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
+
+„Otwarte gry" (obiekt ma co najmniej jeden mecz, na który da się jeszcze dołączyć) było
+tu przez chwilę jako osobny przełącznik — usunięte jako zbędne obok „Gry dziś" i trybu
+„Pokaż gry" (patrz niżej), który pokazuje realnie otwarte mecze wprost jako pinezki.
 
 **Dlaczego Typ obiektu przestał być zawsze widoczny, a Nawierzchnia się pojawiła:**
 `venue_type` ma dziś **98,3%** publicznych obiektów jako `NULL` (import z OSM go nie
@@ -450,10 +453,10 @@ Modal ma tę samą mechanikę szkicu co na `/wydarzenia`: wybory w „Typ obiekt
 zamykania. Renderowany **raz** na komponent (nie raz na sidebar desktopu i raz na
 mobilny overlay) — oba przyciski „Filtry" otwierają ten sam, współdzielony stan.
 
-Filtr nawierzchni i przełącznik „Otwarte gry" działają **tylko w trybie pojedynczych
-obiektów** (przybliżenie ≥ próg skupisk) — w trybie skupisk (oddalona mapa) nie są
-przekazywane do `getExplorerClusters()`, dokładnie tak jak już wcześniej działało
-„Gry dziś". Sport i Typ obiektu działają w obu trybach — RPC `mapa_skupiska` przyjmuje
+Filtr nawierzchni działa **tylko w trybie pojedynczych obiektów** (przybliżenie ≥ próg
+skupisk) — w trybie skupisk (oddalona mapa) nie jest przekazywany do
+`getExplorerClusters()`, dokładnie tak jak już wcześniej działało „Gry dziś". Sport
+i Typ obiektu działają w obu trybach — RPC `mapa_skupiska` przyjmuje
 generyczne tablice `p_sporty`/`p_typy`, więc nowe wartości sportu przechodzą bez żadnej
 zmiany funkcji.
 
@@ -469,7 +472,7 @@ tylko podmieniają się warstwy pinezek):
 
 | | Wyłączony (domyślnie) | Włączony |
 |---|---|---|
-| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś / Otwarte gry — bez zmian | Sortuj / Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo — **identyczny układ co `/wydarzenia`** |
+| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Sortuj / Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo — **identyczny układ co `/wydarzenia`** |
 | Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
 | Karta wyniku (mobile/sidebar) | `VenueCard` | `EventBrowseCard` |

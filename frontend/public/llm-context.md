@@ -307,11 +307,16 @@ wydarzenia) zostawiają na telefonie pasek nawigacji z pustym lewym rogiem. Kafe
 Baner „Wróciliśmy do Twojego szkicu" w kreatorze meczu pokazywał się nawet po samym
 wejściu na stronę, bez żadnej edycji formularza.
 ROZWIĄZANIE BOJO: jeden pasek kafelków (Sortuj / Filtry / Sport / Wolne miejsca / Za
-darmo) zamiast dwóch, a w modalu filtrów cztery suwaki (Kiedy, Odległość, Cena,
-minimalna liczba wolnych miejsc). Nowy przycisk obok dzwonka przełącza `/wydarzenia`
-na wewnętrzny widok mapy z pinezkami wszystkich meczów spełniających ustawione filtry
-— bez opuszczania strony. `/mapa` dostała przełącznik „Pokaż gry": zamienia cały pasek
-i pinezki na identyczny tryb (mecze zamiast boisk), bez resetowania pozycji mapy.
+darmo) zamiast dwóch — „Sortuj" ma stały napis, nie nazwę aktualnie wybranej opcji, tak
+jak „Filtry" — a w modalu filtrów cztery suwaki (Kiedy, Odległość, Cena, minimalna
+liczba wolnych miejsc). Nowy przycisk obok dzwonka przełącza `/wydarzenia` na
+wewnętrzny widok mapy z pinezkami wszystkich meczów spełniających ustawione filtry —
+bez opuszczania strony. `/mapa` dostała przełącznik „Pokaż gry": zamienia cały pasek
+i pinezki na identyczny tryb (mecze zamiast boisk), bez resetowania pozycji mapy;
+zbędny przełącznik „Otwarte gry" (dublował się z „Gry dziś" i z samym trybem gier)
+zniknął z paska obiektów. Pinezki meczów na obu mapach mają teraz ostylowaną ikonę
+klastra (kolorowe kółko z liczbą, jak przy boiskach) zamiast gołego, nieczytelnego
+numeru, i większe, wyraźniejsze kropki dla pojedynczych meczów.
 `/moje-gry`, `/grupy`, `/grupy/[id]` i widok wydarzenia pokazują na telefonie kompaktowy
 napis „bojo" prowadzący na stronę główną. Kafelek „Najbliższy mecz" ma dziś ten sam styl
 co reszta kart na `/moje-gry`. Baner szkicu kreatora pokazuje się już tylko po realnej
