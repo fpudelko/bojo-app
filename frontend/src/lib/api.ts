@@ -80,8 +80,57 @@ const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka pl
 // patrz BACKLOG §5.0.
 const EXPLORER_LIMIT = 5000;
 
-export async function getExplorerFields(): Promise<Field[]> {
-  const { data, error } = await supabase
+/** Prostokąt widoku mapy. */
+export interface Kadr {
+  latMin: number;
+  latMax: number;
+  lngMin: number;
+  lngMax: number;
+}
+
+/** Skupisko obiektów w komórce siatki — dla oddalonych widoków. */
+export interface Skupisko {
+  lat: number;
+  lng: number;
+  ile: number;
+  sporty: string[];
+}
+
+/**
+ * Liczby obiektów w siatce zamiast samych obiektów (migracja `069`).
+ *
+ * Przy widoku całego kraju pobranie kilkudziesięciu tysięcy wierszy tylko po
+ * to, żeby przeglądarka zwinęła je w kilkanaście kółek, jest pracą wykonaną
+ * dwa razy — raz w sieci, raz w Leaflecie. Baza grupuje po komórce i oddaje
+ * gotowe liczby.
+ */
+export async function getExplorerClusters(
+  kadr: Kadr,
+  krok: number,
+  sporty?: string[],
+  typy?: string[],
+): Promise<Skupisko[]> {
+  const { data, error } = await supabase.rpc('mapa_skupiska', {
+    p_lat_min: kadr.latMin,
+    p_lat_max: kadr.latMax,
+    p_lng_min: kadr.lngMin,
+    p_lng_max: kadr.lngMax,
+    p_krok: krok,
+    p_sporty: sporty?.length ? sporty : null,
+    p_typy: typy?.length ? typy : null,
+  });
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    lat: Number(r.lat),
+    lng: Number(r.lng),
+    ile: Number(r.ile),
+    sporty: r.sporty ?? [],
+  }));
+}
+
+export async function getExplorerFields(kadr?: Kadr): Promise<Field[]> {
+  let zapytanie = supabase
     .from('fields')
     .select(EXPLORER_COLS)
     // Jedna reguła zamiast dwóch zachodzących na siebie. Wcześniej mapa brała
@@ -92,8 +141,18 @@ export async function getExplorerFields(): Promise<Field[]> {
     // Bez tej zmiany świeżo zaimportowane boisko nigdy nie trafiłoby na mapę:
     // z OSM nie przychodzi ani telefon, ani strona, ani opis.
     .eq('map_visibility', 'public')
-    .overlaps('sport', EXPLORER_SPORTS)
-    .limit(EXPLORER_LIMIT);
+    .overlaps('sport', EXPLORER_SPORTS);
+
+  // Wycinek widoku. Bez niego każde wejście na mapę ciągnie cały kraj —
+  // przy katalogu ogólnopolskim to dziesiątki tysięcy wierszy, z których
+  // użytkownik ogląda kilkadziesiąt.
+  if (kadr) {
+    zapytanie = zapytanie
+      .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
+      .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
+  }
+
+  const { data, error } = await zapytanie.limit(EXPLORER_LIMIT);
   if (error) throw new Error(error.message);
   return (data ?? []).map(toField);
 }
