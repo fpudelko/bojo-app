@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  dayGroup, daysFromToday, eventDay, filterByRadius, freeSpots, groupByDay,
-  matchesDateFilter, sortEvents, startKey,
+  dayGroup, daysFromToday, eventDay, filterByRadius, filterByMaxPrice, filterByMinFreeSpots,
+  freeSpots, groupByDay, matchesDateFilter, multiLabel, sortEvents, startKey, toggleInArray,
   type EventRow,
 } from '@/lib/eventFilters';
 import type { EventItem } from '@/types';
@@ -68,11 +68,12 @@ describe('matchesDateFilter', () => {
     expect(matchesDateFilter('2026-08-10', 'tydzien', SRODA)).toBe(false); // następny tydzień
   });
 
-  it('„weekend" bierze najbliższą sobotę i niedzielę, nie każdą', () => {
-    expect(matchesDateFilter('2026-08-08', 'weekend', SRODA)).toBe(true);  // sobota
-    expect(matchesDateFilter('2026-08-09', 'weekend', SRODA)).toBe(true);  // niedziela
-    expect(matchesDateFilter('2026-08-07', 'weekend', SRODA)).toBe(false); // piątek
-    expect(matchesDateFilter('2026-08-15', 'weekend', SRODA)).toBe(false); // sobota za dwa tygodnie
+  it('„ten miesiąc" obejmuje resztę bieżącego miesiąca, ale nie przeszłość ani inny miesiąc', () => {
+    expect(matchesDateFilter('2026-08-05', 'miesiac', SRODA)).toBe(true);  // dziś
+    expect(matchesDateFilter('2026-08-31', 'miesiac', SRODA)).toBe(true);  // koniec miesiąca
+    expect(matchesDateFilter('2026-08-01', 'miesiac', SRODA)).toBe(false); // ten sam miesiąc, ale przeszłość
+    expect(matchesDateFilter('2026-09-01', 'miesiac', SRODA)).toBe(false); // kolejny miesiąc
+    expect(matchesDateFilter('2026-07-31', 'miesiac', SRODA)).toBe(false); // poprzedni miesiąc
   });
 
   it('odrzuca niepoprawną datę przy każdym filtrze innym niż „wszystkie"', () => {
@@ -217,5 +218,72 @@ describe('groupByDay', () => {
 
   it('pusta lista daje zero sekcji', () => {
     expect(groupByDay([], SRODA)).toEqual([]);
+  });
+});
+
+describe('filterByMaxPrice', () => {
+  it('bez limitu zwraca wszystko bez zmian', () => {
+    const rows = [row(ev({ date: '2026-08-05', costGrosze: 5000 }))];
+    expect(filterByMaxPrice(rows, null)).toEqual(rows);
+  });
+
+  it('granica jest domknięta — dokładnie na limicie zostaje', () => {
+    const rows = [
+      row(ev({ date: '2026-08-05', costGrosze: 1000 })),
+      row(ev({ date: '2026-08-06', costGrosze: 1001 })),
+    ];
+    expect(filterByMaxPrice(rows, 1000).map((r) => r.event.costGrosze)).toEqual([1000]);
+  });
+
+  it('mecz za darmo przechodzi limit 0', () => {
+    const rows = [
+      row(ev({ date: '2026-08-05', costGrosze: 0 })),
+      row(ev({ date: '2026-08-06', costGrosze: 1 })),
+    ];
+    expect(filterByMaxPrice(rows, 0).map((r) => r.event.costGrosze)).toEqual([0]);
+  });
+});
+
+describe('filterByMinFreeSpots', () => {
+  it('0 (dowolna liczba) zwraca wszystko bez zmian', () => {
+    const rows = [row(ev({ date: '2026-08-05', maxPlayers: 14, participantsCount: 14 }))];
+    expect(filterByMinFreeSpots(rows, 0)).toEqual(rows);
+  });
+
+  it('granica jest domknięta — dokładnie na progu zostaje', () => {
+    const rows = [
+      row(ev({ date: '2026-08-05', maxPlayers: 14, participantsCount: 9 })),  // 5 wolnych
+      row(ev({ date: '2026-08-06', maxPlayers: 14, participantsCount: 10 })), // 4 wolne
+    ];
+    expect(filterByMinFreeSpots(rows, 5).map((r) => freeSpots(r.event))).toEqual([5]);
+  });
+});
+
+describe('multiLabel', () => {
+  const options = [
+    { value: 'pilka-nozna', label: 'Piłka nożna' },
+    { value: 'siatkowka', label: 'Siatkówka' },
+  ];
+
+  it('brak wyboru → etykieta zbiorcza', () => {
+    expect(multiLabel([], 'Wszystkie sporty', options)).toBe('Wszystkie sporty');
+  });
+
+  it('jeden wybór → etykieta tej opcji', () => {
+    expect(multiLabel(['siatkowka'], 'Wszystkie sporty', options)).toBe('Siatkówka');
+  });
+
+  it('kilka wyborów → licznik', () => {
+    expect(multiLabel(['pilka-nozna', 'siatkowka'], 'Wszystkie sporty', options)).toBe('2 wybrane');
+  });
+});
+
+describe('toggleInArray', () => {
+  it('dodaje brakującą wartość', () => {
+    expect(toggleInArray(['a'], 'b')).toEqual(['a', 'b']);
+  });
+
+  it('usuwa istniejącą wartość', () => {
+    expect(toggleInArray(['a', 'b'], 'a')).toEqual(['b']);
   });
 });
