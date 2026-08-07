@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth, avatarUrl, firstName } from '@/lib/auth';
+import NotificationBell from '@/components/layout/NotificationBell';
 
 /** Compact greeting that replaces the old marketing hero on the dashboard —
  *  a signed-in visitor already knows what Bojo is, so the top of the page
@@ -17,15 +18,18 @@ export default function GreetingBar() {
       <p className="font-display text-xl font-bold text-ink sm:text-2xl">
         {name ? `Cześć, ${name} 👋` : 'Cześć! 👋'}
       </p>
-      <Link href="/profil" aria-label="Twój profil" className="shrink-0">
-        {avatar ? (
-          <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
-            {initial}
-          </span>
-        )}
-      </Link>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <NotificationBell />
+        <Link href="/profil" aria-label="Twój profil" className="shrink-0">
+          {avatar ? (
+            <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+              {initial}
+            </span>
+          )}
+        </Link>
+      </div>
     </div>
   );
 }

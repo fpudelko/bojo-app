@@ -52,7 +52,19 @@ w panelu admina); `lib/groups.ts#setGroupCover` (zapis okładki grupy — jedyna
 grupy, która wcześniej szła inline w JSX);
 `lib/bottomNavVisibility.tsx` (kontekst chowający dolny panel nawigacji — patrz
 [funkcje.md](./funkcje.md#dolny-panel-nawigacji-mobile)); `lib/useMyInvites.ts`
-(zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz)).
+(zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz));
+`lib/eventFilters.ts#filterByRadius` (filtr promienia na `/wydarzenia` — wiersz bez
+policzonej odległości wypada, bo promień bez tego nic by nie znaczył); `lib/sports.ts
+#MAP_FILTER_SPORTS` (sporty jako filtr facylitów na mapie, szerszy niż `FOCUS_SPORTS` —
+dokłada `wielofunkcyjne`/`piłka ręczna`, które mają pinezki na `/mapa`, ale nie były
+wcześniej filtrowalne); `lib/api.ts#EXPLORER_COLS` (okrojone kolumny pobierane dla
+pinezek `/mapa` — dołączono `surface`, żeby dało się po niej filtrować, patrz
+[funkcje.md](./funkcje.md#układ-mapa--szukanie-filtry-powrót-z-boiska));
+`components/ui/FilterSheet.tsx` (modal filtrów w stylu Booking, wspólny dla
+`/wydarzenia` i `/mapa` — portal do `<body>`, bottom sheet na mobile);
+`components/layout/MobileIdentityRow.tsx` (dzwonek + awatar w jednym wierszu, zastępuje
+pasek `Header` tam, gdzie strona sama go chowa na mobile dla zalogowanych — patrz
+[funkcje.md](./funkcje.md#górny-pasek-nawigacji--inny-dla-zalogowanych-na-mobile)).
 
 ---
 

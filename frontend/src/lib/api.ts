@@ -67,10 +67,10 @@ function toField(row: any): Field {
 // zdjęć, stroną i danymi rezerwacji. Pobieraliśmy pełną kartę dla każdego
 // obiektu w kraju, żeby wyrenderować jedną: tę klikniętą.
 //
-// `name` i `address` zostają, bo po nich filtruje wyszukiwarka; `venue_type`,
-// bo po nim filtruje lista typów. Reszta dociągana jest dla widocznych kart
-// przez `getFieldsByIds()`.
-const EXPLORER_COLS = 'id, name, address, lat, lng, sport, venue_type';
+// `name` i `address` zostają, bo po nich filtruje wyszukiwarka; `venue_type`
+// i `surface`, bo po nich filtruje modal filtrów mapy. Reszta dociągana jest
+// dla widocznych kart przez `getFieldsByIds()`.
+const EXPLORER_COLS = 'id, name, address, lat, lng, sport, venue_type, surface';
 // `wielofunkcyjne` to import z OSM (`sport=multi`) — 162 obiekty w samym
 // lubelskiem odpadały tu po cichu, mimo że przeszły bramkę publikacji.
 const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna', 'wielofunkcyjne'];

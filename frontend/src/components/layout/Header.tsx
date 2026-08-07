@@ -24,9 +24,15 @@ interface HeaderProps {
   /** Przezroczysty pasek nad hero landingu, dopóki nie zescrollujesz i nikt nie jest zalogowany.
    *  Domyślnie false — bez tego propa zachowanie identyczne jak dziś na wszystkich stronach. */
   transparentOverHero?: boolean;
+  /** Zalogowany na telefonie widzi zamiast tego własny wiersz strony
+   *  (MobileIdentityRow) — patrz /, /wydarzenia, /mapa. Wylogowanych i desktop
+   *  nie dotyczy nigdy: pasek chowa się wyłącznie na mobile i wyłącznie dla
+   *  zalogowanych, żeby nie dublować dzwonka/awatara, które strona już
+   *  pokazuje we własnej treści. */
+  hideMobileBarForUser?: boolean;
 }
 
-export default function Header({ transparentOverHero = false }: HeaderProps = {}) {
+export default function Header({ transparentOverHero = false, hideMobileBarForUser = false }: HeaderProps = {}) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -56,6 +62,12 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
   // right at the scroll threshold. Staying fixed keeps that offset constant.
   const overlay = transparentOverHero && !scrolled && !user;
 
+  // Strona sama pokazuje dzwonek+awatar w swoim własnym wierszu (MobileIdentityRow)
+  // — ten pasek staje się na mobile zbędnym duplikatem. Nigdy nie dotyczy
+  // wylogowanych (pasek tam jest marketingowy, nie tożsamościowy) ani desktopu
+  // (tam nikt nie prosił o zmianę).
+  const suppressMobileBar = hideMobileBarForUser && !loading && !!user;
+
   useEffect(() => {
     if (!user) { setHasVenue(false); return; }
     hasManagedVenue(user.id).then(setHasVenue).catch(() => {});
@@ -77,6 +89,7 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
           ? 'bg-transparent border-b border-transparent'
           : 'bg-white/90 dark:bg-[#0D1117]/95 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-[#0D1117]/88 border-b border-slate-200/70 dark:border-white/[0.07]',
         scrolled && !overlay && 'shadow-[0_2px_16px_0_rgba(0,0,0,0.08)]',
+        suppressMobileBar && 'hidden md:block',
       )}>
         <div className="max-w-6xl mx-auto px-4">
           {/* Zalogowany na mobile dostaje niższy pasek (h-12) bez logo — dolna
@@ -301,7 +314,7 @@ export default function Header({ transparentOverHero = false }: HeaderProps = {}
                   </Link>
                 </>
               )}
-              {!loading && user && (
+              {!loading && user && !suppressMobileBar && (
                 <>
                   <NotificationBell />
                   <Link href="/profil" aria-label="Twój profil" className="shrink-0">

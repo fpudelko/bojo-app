@@ -28,6 +28,20 @@ export const FOCUS_SPORTS = [
   'koszykówka',
 ] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
 
+/** Sporty jako filtr FACYLITÓW na mapie — szerszy niż FOCUS_SPORTS (ten dotyczy
+ *  sportów, w które da się zorganizować mecz). `wielofunkcyjne` i `piłka ręczna`
+ *  mają po kilkaset/kilka tysięcy pinezek na mapie (import OSM), a nie dało się
+ *  ich dotąd wybrać w filtrze — miały kolorową pinezkę, ale żadnej nazwy do
+ *  kliknięcia. */
+export const MAP_FILTER_SPORTS = [
+  'piłka nożna',
+  'siatkówka',
+  'siatkówka plażowa',
+  'koszykówka',
+  'wielofunkcyjne',
+  'piłka ręczna',
+] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
+
 export type SportKey = keyof typeof SPORT_CONFIG;
 
 const _cfg = SPORT_CONFIG as Record<string, { emoji: string; color: string; label: string }>;

@@ -134,6 +134,31 @@ panel admina, profil, motyw, Wyloguj), już jest dostępne w dolnym panelu nawig
 Skutek uboczny: dzwonek powiadomień, wcześniej wyłącznie w bloku `hidden md:flex`, jest
 teraz dostępny na telefonie.
 
+### Pasek znika całkiem na `/`, `/wydarzenia`, `/mapa`
+
+Na tych trzech trasach zalogowany na mobile **w ogóle nie widzi paska Header** — dzwonek
+i awatar wędrują do własnego wiersza strony, wzorem tego, jak od dawna robi to pulpit
+(`GreetingBar`: powitanie + awatar w jednym wierszu). Mechanizm: `Header` dostaje prop
+`hideMobileBarForUser` — gdy jest `true` **i** ktoś jest zalogowany, cały `<header>`
+dostaje `hidden md:block` (znika na mobile, wraca od `md:`), a jego własny mobilny
+dzwonek/awatar w ogóle się nie montuje (żeby nie było trzeciego, niewidocznego kanału
+realtime obok tego w treści strony).
+
+Zastępczy wiersz to nowy, współdzielony komponent `components/layout/MobileIdentityRow.tsx`
+(dzwonek + awatar, markup 1:1 z mobilnego klastra `Header`) — sam sprawdza `useAuth()`
+i zwraca `null` dla wylogowanego, więc wywołujący wstawia go bezwarunkowo:
+
+| Trasa | Gdzie wiersz siedzi |
+|---|---|
+| `/` | `GreetingBar` — dzwonek obok istniejącego awatara `h-10 w-10` |
+| `/wydarzenia` | `EventsListView` — jeden wiersz z polem szukania (`flex-1`) + `MobileIdentityRow` |
+| `/mapa` | `VenueExplorer` — ten sam wiersz obok pływającego pola szukania nad mapą |
+
+`/moje-gry` i `/grupy` **zachowują pełny pasek Header bez zmian** — `hideMobileBarForUser`
+się tam nie przekazuje. Wylogowanych i desktop `hideMobileBarForUser` nie dotyczy nigdy:
+wylogowany na tych trasach nadal widzi marketingowy pasek (mapa/Dołącz/awatar) opisany
+niżej, a desktop ma pełny pasek jak zawsze.
+
 **Hamburgera nie ma już w ogóle** — ani dla zalogowanych, ani dla wylogowanych. Arkusz
 pełnoekranowy, pułapka focusa i blokada przewijania zostały usunięte z `Header.tsx`.
 
@@ -189,20 +214,26 @@ gdzie go zostawił, zamiast zerować się do stanu początkowego.
 
 ## Układ `/moje-gry`
 
-Zakładka „Nadchodzące" na `/moje-gry` renderuje **te same komponenty co pulpit
-zalogowanego** (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej
-listy: `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NextMatchCard` →
-`MyMatchesSection` → `ObservingSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie**
-są tu powtórzone — mają własne strony (`/grupy`, `/wydarzenia`).
+Cztery zakładki w URL (`?tab=`): **Nadchodzące** (`nadchodzace`) / **Historia**
+(`historia`) / **Zaproszenia** (`zaproszenia`) / **Obserwowane** (`obserwowane`).
+`SLUG_TO_TAB`/`TAB_TO_SLUG` w `app/moje-gry/page.tsx` — nieznany `?tab=` cicho wraca do
+„Nadchodzące", nie rzuca błędem.
 
-Różnica względem pulpitu: `MyMatchesSection` i `ObservingSection` dostają
-`limit={null} href={null}` — pełna lista bez obcięcia do 2 pozycji i bez linku
-„Wszystkie" wracającego na tę samą stronę. `ObservingSection` dostaje też własny
-`title="Obserwowane"` (na pulpicie: „Obserwujesz") i `subtitle` z wyjaśnieniem, że
-obserwowanie nie rezerwuje miejsca — dokładnie tekst, który wcześniej był tu wpisany
-ręcznie.
+Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego**
+(`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
+`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NextMatchCard` →
+`MyMatchesSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie** są tu powtórzone —
+mają własne strony (`/grupy`, `/wydarzenia`).
 
-Brak osobnego pustego stanu dla zakładki: `NextMatchCard` ma własny („Nie masz
+**Zakładka „Obserwowane"** to osobna lista `EventBrowseCard` (wzorem „Historii"), nie
+sekcja pulpitu — obserwowane mecze mają teraz **jedno** miejsce, nie dwa: wcześniej
+`ObservingSection` renderowała się też inline pod „Nadchodzące", co dublowało tę samą
+informację w dwóch miejscach tej samej strony.
+
+Różnica względem pulpitu: `MyMatchesSection` dostaje `limit={null} href={null}` — pełna
+lista bez obcięcia do 2 pozycji i bez linku „Wszystkie" wracającego na tę samą stronę.
+
+Brak osobnego pustego stanu dla „Nadchodzące": `NextMatchCard` ma własny („Nie masz
 zaplanowanych gier" + „Stwórz mecz" / „Znajdź grę"), więc pokrywa przypadek zerowej
 aktywności bez drugiej kopii tego ekranu.
 
@@ -217,30 +248,49 @@ Widok jest rozdzielony na dwie warstwy: **`EventsListView.tsx`** (sama treść) 
 **`EventsListClient.tsx`** (`<Header/>` + widok). Podział jest po to, żeby ten sam widok
 mógł posłużyć za tło ekranu logowania — patrz niżej.
 
+**Nagłówek zależy od tego, kto patrzy.** Zalogowany na mobile (Header ma tu schowany
+pasek, patrz wyżej) dostaje jeden wiersz: pole szukania (placeholder **„Znajdź grę"**,
+bez osobnego `<h1>`) + `MobileIdentityRow` (dzwonek, awatar); plakietka „Zaproszenia N"
+schodzi pod spód, bo na 360px szerokości cała czwórka nie mieści się bezpiecznie w
+jednej linii. Wylogowany (dowolna szerokość) i zalogowany na desktopie widzą klasyczny
+układ: `<h1>Znajdź grę</h1>` + plakietka, potem osobny wiersz szukania z placeholderem
+„Nazwa, boisko albo dzielnica…". Oba warianty pola szukania są osobnymi blokami JSX
+(nie jednym elementem sterowanym media query) — dokładnie ten sam wzorzec, co mobile/
+desktop gałęzie w `Header.tsx`.
+
 | Element | Zachowanie |
 |---|---|
-| Chipsy sportu | emoji **+ nazwa**, źródłem `FOCUS_SPORTS`; „piłka nożna" łapie też `futsal` |
-| „Kiedy" | Kiedykolwiek / Dzisiaj / Jutro / Ten tydzień / **Weekend** (najbliższa sobota i niedziela) |
-| „Sortuj" | Najbliższy termin *(domyślnie)* / **Najbliżej mnie** / Najwięcej wolnych miejsc |
-| Przełączniki | „Wolne miejsca" (odsiewa komplety), „Za darmo" (`costGrosze === 0`) |
+| Chipsy sportu | emoji **+ nazwa**, źródłem `FOCUS_SPORTS`; „piłka nożna" łapie też `futsal`; zostają zawsze widoczne, poza modalem |
+| Przycisk **„Filtry"** | otwiera `FilterSheet` (modal w stylu Booking) z sekcjami Kiedy / Sortuj / Odległość |
+| Przełączniki inline | „Wolne miejsca" (odsiewa komplety), „Za darmo" (`costGrosze === 0`) — zostają obok przycisku „Filtry", nie w modalu |
+| „Kiedy" *(w modalu)* | Kiedykolwiek / Dzisiaj / Jutro / Ten tydzień / **Weekend** (najbliższa sobota i niedziela) |
+| „Sortuj" *(w modalu)* | Najbliższy termin *(domyślnie)* / **Najbliżej mnie** / Najwięcej wolnych miejsc |
+| „Odległość" *(w modalu, nowość)* | chipsy `< 1 km` / `< 2` / `< 5` / `< 10` / `< 15`, pojedynczy wybór |
 | Szukanie | po tytule, sporcie, boisku i **dzielnicy**, przez `foldText` — „pilka" znajduje „piłka" |
 | Sekcje dzienne | Dzisiaj / Jutro / W tym tygodniu / Później — **tylko** przy sortowaniu po terminie |
 | Stronicowanie | 20 pozycji + „Pokaż więcej"; licznik resetuje się przy zmianie filtrów |
 
-„Najbliżej mnie" pyta o zgodę na lokalizację przez `getCurrentLocation()`; przy odmowie
-pokazuje komunikat z `geoErrorMessage()` i **wraca do sortowania po terminie**, żeby lista
-nie została bez porządku. Mecz bez współrzędnych ląduje na końcu, ale nie wypada z wyników.
+**Modal filtrów działa na szkicu, nie na żywym stanie** (styl Booking: wybierz kilka
+rzeczy, potem zatwierdź). Otwarcie kopiuje bieżące `dateFilter`/`sortBy`/`radiusKm` do
+`draftDate`/`draftSort`/`draftRadius`; dotykanie opcji w modalu zmienia wyłącznie szkic.
+Przycisk zatwierdzenia pokazuje na żywo `Pokaż N meczów` (licznik z draftu, promień
+pomijany w podglądzie, dopóki nie jest znana pozycja użytkownika) i dopiero jego
+kliknięcie commituje szkic do prawdziwego stanu — wtedy, jeśli trzeba, pyta raz o zgodę
+na lokalizację (ten sam `getCurrentLocation()`/`geoErrorMessage()` co dawniej przy
+bezpośrednim „Sortuj → Najbliżej mnie"; przy odmowie sortowanie i promień wracają do
+wartości domyślnych). „Wyczyść" resetuje szkic bez zamykania modala; zamknięcie przez
+tło/X/Escape odrzuca szkic bez dotykania prawdziwych filtrów.
 
 Sekcje dzienne wyłączają się przy sortowaniu po odległości i po liczbie miejsc: dwa
 porządki naraz („po czasie" w nagłówkach, „po dystansie" w treści) wprowadzałyby w błąd.
 
-Logika filtrowania, grupowania i sortowania żyje w `lib/eventFilters.ts` — w komponencie
-nie dałoby się jej przetestować.
+Logika filtrowania, grupowania, sortowania i promienia (`filterByRadius`) żyje w
+`lib/eventFilters.ts` — w komponencie nie dałoby się jej przetestować.
 
-**Pigułki filtrów** (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) są
-wspólne z mapą boisk (`VenueExplorer.tsx`), skąd zostały wyciągnięte. Panel rozwijany
-renderuje się przez portal do `<body>`, bo pasek filtrów bywa `overflow-x-auto`
-i przyciąłby menu.
+**Modal filtrów** (`components/ui/FilterSheet.tsx`) jest wspólny z mapą boisk
+(`VenueExplorer.tsx`) — jedna powłoka (portal do `<body>`, bottom sheet na mobile,
+wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
+(`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
 
 ### `/logowanie` na tle listy meczów
 
@@ -282,6 +332,63 @@ w praktyce w ogóle się nie zmieniał.
 
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
+
+---
+
+## Układ `/mapa` — szukanie, filtry, powrót z boiska
+
+**Szukanie po tekście działa poza bieżącym kadrem.** Wcześniej pole szukania filtrowało
+wyłącznie `allFields` — to, co i tak było już wczytane dla widocznego fragmentu mapy: przy
+oddaleniu (tryb skupisk) ta lista jest pusta, więc szukanie nic nie znajdowało; przy
+przybliżeniu ograniczało się do tego, co widać, więc wpisanie miasta spoza kadru też nic
+nie dawało. Od dwóch znaków zapytania (debounce 300 ms) `VenueExplorer` woła
+`searchExplorerFields()` z `lib/api.ts` — funkcję, która już istniała (używają jej
+pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBounds` do
+wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
+
+**Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
+linkuje teraz z `?wroc=/mapa?boisko=<id>` zamiast gołego `/boisko/<slug>`. Strona boiska
+(`VenueDetailClient.tsx`) już umiała wrócić pod dowolny adres z parametru `wroc`, a
+`VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku (`boiskoZLinku`) —
+brakowało tylko połączenia obu gotowych mechanizmów.
+
+**Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i dwa przełączniki
+(„Gry dziś", „Otwarte gry") zostają zawsze widoczne; Typ obiektu i Nawierzchnia
+przenoszą się do `FilterSheet` (ten sam współdzielony komponent, patrz „Układ
+`/wydarzenia`"), bo są drugorzędne i rzadziej dotykane:
+
+| Filtr | Gdzie | Uwaga |
+|---|---|---|
+| Sport | inline, dropdown | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
+| „Gry dziś" | inline, przełącznik | bez zmian |
+| „Otwarte gry" *(nowość)* | inline, przełącznik | obiekt ma co najmniej jeden mecz spełniający `isEventJoinable()` i nieodwołany — ta sama definicja „otwarte", co na `/wydarzenia` |
+| Typ obiektu | w modalu | lista bez zmian, tylko przeniesiona z zawsze-widocznego dropdownu |
+| Nawierzchnia *(nowość)* | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
+
+**Dlaczego Typ obiektu przestał być zawsze widoczny, a Nawierzchnia się pojawiła:**
+`venue_type` ma dziś **98,3%** publicznych obiektów jako `NULL` (import z OSM go nie
+ustawia) — wybranie jakiegokolwiek konkretnego typu wyglądało jak zepsuta wyszukiwarka,
+bo odsiewało niemal cały katalog. `surface` ma dane w **37%** wierszy z realnym
+zróżnicowaniem (trawa, nawierzchnia twarda, piasek, beton, sztuczna trawa, mączka) — to
+jest facet, który realnie coś filtruje, mimo że wcześniej nie dało się po nim szukać.
+Kolumna `surface` dołączona do okrojonego `EXPLORER_COLS` w `lib/api.ts` (istniała w
+tabeli, po prostu nie była pobierana) — zero migracji.
+
+Modal ma tę samą mechanikę szkicu co na `/wydarzenia`: wybory w „Typ obiektu"/
+„Nawierzchnia" aplikują się dopiero po „Pokaż N obiektów", „Wyczyść" resetuje szkic bez
+zamykania. Renderowany **raz** na komponent (nie raz na sidebar desktopu i raz na
+mobilny overlay) — oba przyciski „Filtry" otwierają ten sam, współdzielony stan.
+
+Filtr nawierzchni i przełącznik „Otwarte gry" działają **tylko w trybie pojedynczych
+obiektów** (przybliżenie ≥ próg skupisk) — w trybie skupisk (oddalona mapa) nie są
+przekazywane do `getExplorerClusters()`, dokładnie tak jak już wcześniej działało
+„Gry dziś". Sport i Typ obiektu działają w obu trybach — RPC `mapa_skupiska` przyjmuje
+generyczne tablice `p_sporty`/`p_typy`, więc nowe wartości sportu przechodzą bez żadnej
+zmiany funkcji.
+
+**Zalogowany na mobile** dostaje w tym samym pływającym wierszu co pole szukania również
+`MobileIdentityRow` (dzwonek + awatar) — Header na tej trasie chowa swój pasek, patrz
+„Górny pasek nawigacji" wyżej.
 
 ---
 
