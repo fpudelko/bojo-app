@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
@@ -10,7 +9,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { ChevronDown, Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
+import { Check, CalendarCheck, MapPin, Globe, Search, X } from 'lucide-react';
+import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
 import type { Field, EventItem } from '@/types';
 import { getExplorerFields } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
@@ -190,77 +190,6 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
   }, [selectedId, selectedSource, fields, map]);
 
   return null;
-}
-
-// ---------------------------------------------------------------------------
-// PillDropdown — portal escapes overflow-x-auto clipping
-// ---------------------------------------------------------------------------
-function PillDropdown({ label, active, children }: {
-  label: string; active: boolean;
-  children: (close: () => void) => React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  function toggle() {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, left: r.left });
-    }
-    setOpen((o) => !o);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node)) return;
-      if (panelRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
-
-  return (
-    <div className="shrink-0">
-      <button ref={btnRef} onClick={toggle}
-        className={[
-          'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-          active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
-        ].join(' ')}
-      >
-        {label}<ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-      </button>
-      {open && mounted && createPortal(
-        <div ref={panelRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[200px] max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1.5 shadow-xl"
-        >
-          {children(() => setOpen(false))}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
-function TogglePill({ label, icon, active, loading, onClick }: {
-  label: string; icon: React.ReactNode; active: boolean; loading?: boolean; onClick: () => void;
-}) {
-  return (
-    <button onClick={onClick}
-      className={[
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-        active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
-      ].join(' ')}
-    >
-      <span className={loading ? 'animate-pulse' : ''}>{icon}</span>{label}
-    </button>
-  );
 }
 
 // ---------------------------------------------------------------------------

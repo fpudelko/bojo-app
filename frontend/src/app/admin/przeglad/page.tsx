@@ -6,6 +6,7 @@ import { Lock, X, Check, MapPin, Phone, Globe, Mail, Clock, ChevronLeft, Trash2,
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { sportEmoji } from '@/lib/sports';
+import { distanceKm } from '@/lib/geo';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 
 // ---------------------------------------------------------------------------
@@ -51,15 +52,8 @@ const VENUE_TYPE_LABELS: Record<string, string> = {
 // Geo helpers
 // ---------------------------------------------------------------------------
 
-function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+/** Dwa obiekty bliżej niż tyle uznajemy za kandydatów na duplikat. */
+const DUPLICATE_RADIUS_KM = 0.15;
 
 function nameSimilar(a: string, b: string): boolean {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -71,8 +65,7 @@ function nameSimilar(a: string, b: string): boolean {
 function findDuplicates(current: VenueRow, all: VenueRow[]): VenueRow[] {
   return all.filter((v) => {
     if (v.id === current.id) return false;
-    const dist = haversineM(current.lat, current.lng, v.lat, v.lng);
-    const nearby = dist < 150;
+    const nearby = distanceKm(current.lat, current.lng, v.lat, v.lng) < DUPLICATE_RADIUS_KM;
     const sameName = nameSimilar(current.name, v.name);
     return nearby || sameName;
   });
