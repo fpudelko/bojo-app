@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { clsx } from 'clsx';
 import { Zap, ListChecks, UsersRound, Wallet, MapPin, ArrowRight, type LucideIcon } from 'lucide-react';
 import { LANDING_CTA, LANDING_VALUES } from './content';
+import WczesnyEtapBadge from './WczesnyEtapBadge';
 
 const ICONS: Record<string, LucideIcon> = { Zap, ListChecks, UsersRound, Wallet, MapPin };
 
@@ -20,12 +22,25 @@ export default function LandingValues() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LANDING_VALUES.map((v) => {
             const Icon = ICONS[v.icon];
+            // Wyciszenie zamiast wyszarzenia do nieczytelności: kafelek ma dalej
+            // sprzedawać funkcję, tylko bez obietnicy pełnej gotowości.
+            const wczesny = 'wczesnyEtap' in v && v.wczesnyEtap;
             return (
-              <div key={v.title} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+              <div
+                key={v.title}
+                className={clsx(
+                  'rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card',
+                  wczesny && 'opacity-80',
+                )}
+              >
+                <div className={clsx(
+                  'flex h-11 w-11 items-center justify-center rounded-xl',
+                  wczesny ? 'bg-slate-100 text-slate-400' : 'bg-primary-50 text-primary-700',
+                )}>
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <h3 className="mt-4 font-display text-lg font-bold tracking-tight text-ink">{v.title}</h3>
+                {wczesny && <WczesnyEtapBadge />}
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{v.body}</p>
               </div>
             );

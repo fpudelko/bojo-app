@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { clsx } from 'clsx';
 import {
   ArrowRight, Bell, BellRing, CalendarPlus, Plus, Share2, Users,
   type LucideIcon,
@@ -12,6 +13,7 @@ import { InviteList } from '@/components/events/InviteList';
 import { isEventJoinable } from '@/lib/eventDates';
 import type { InviteWithEvent } from '@/lib/playerInvites';
 import { LANDING_STEPS } from '../landing/content';
+import WczesnyEtapBadge from '../landing/WczesnyEtapBadge';
 import { sportEmoji } from '@/lib/sports';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import type { EventItem, GameAlert, Group } from '@/types';
@@ -330,9 +332,21 @@ export function OnboardingSection() {
       <ol className="flex flex-col gap-3">
         {LANDING_STEPS.map((step, i) => {
           const Icon = ONBOARDING_ICONS[step.icon];
+          // Pulpit renderuje te same kroki własnym markupem, więc plakietkę
+          // wczesnego etapu trzeba postawić i tu — dane są wspólne, widok nie.
+          const wczesny = 'wczesnyEtap' in step && step.wczesnyEtap;
           return (
-            <li key={step.title} className="flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-sm">
-              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+            <li
+              key={step.title}
+              className={clsx(
+                'flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-sm',
+                wczesny && 'opacity-80',
+              )}
+            >
+              <div className={clsx(
+                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+                wczesny ? 'bg-slate-100 text-slate-400' : 'bg-primary-50 text-primary-700',
+              )}>
                 <Icon className="h-5 w-5" aria-hidden="true" />
                 <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-primary-950 ring-2 ring-canvas">
                   {i + 1}
@@ -340,6 +354,7 @@ export function OnboardingSection() {
               </div>
               <div>
                 <p className="font-bold text-ink">{step.title}</p>
+                {wczesny && <WczesnyEtapBadge />}
                 <p className="text-sm leading-relaxed text-slate-600">{step.body}</p>
               </div>
             </li>
