@@ -11,7 +11,7 @@ interface AuthContextValue {
   loading: boolean;
   signInWithGoogle: (next?: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ needsConfirmation: boolean }>;
+  signUpWithEmail: (email: string, password: string, name?: string, next?: string) => Promise<{ needsConfirmation: boolean }>;
   sendMagicLink: (email: string, next?: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -151,13 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(mapAuthError(error.message));
   };
 
-  const signUpWithEmail = async (email: string, password: string, name?: string) => {
+  // `next` musi dojechać aż do linku potwierdzającego w mailu. Bez tego
+  // organizator, który zakładał konto w trakcie tworzenia meczu, po kliknięciu
+  // w mail lądował na stronie głównej zamiast wracać do kreatora — w odróżnieniu
+  // od Google i magic linku, które `next` przekazywały od zawsze.
+  const signUpWithEmail = async (email: string, password: string, name?: string, next?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: name?.trim() ? { display_name: name.trim() } : undefined,
-        emailRedirectTo: callbackUrl(),
+        emailRedirectTo: callbackUrl(next),
       },
     });
     if (error) throw new Error(mapAuthError(error.message));

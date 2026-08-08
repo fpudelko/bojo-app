@@ -302,9 +302,15 @@ function NewEventForm() {
   };
 
   if (!loading && !user) {
-    const loginHref = typeof window !== 'undefined'
-      ? `/logowanie?next=${encodeURIComponent(window.location.pathname)}`
-      : '/logowanie?next=/wydarzenia/nowe';
+    // Cel powrotu liczymy w handlerze, nie w renderze: musi zawierać ZAPYTANIE
+    // (`?fieldId=`, `?group=`), a nie samą ścieżkę. Bez tego wejście „Zorganizuj
+    // tu mecz" ze strony boiska i „Stwórz mecz w grupie" wracały po zalogowaniu
+    // na goły /wydarzenia/nowe — bez boiska i bez grupy, czyli do formularza,
+    // który wyglądał jak zaczęty od zera.
+    const przejdzDoLogowania = () => {
+      const cel = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/logowanie?next=${encodeURIComponent(cel)}`;
+    };
     return (
       <div className="min-h-screen flex flex-col bg-canvas">
         <Header />
@@ -337,7 +343,7 @@ function NewEventForm() {
             <Button
               size="lg"
               className="w-full mt-4"
-              onClick={() => { window.location.href = loginHref; }}
+              onClick={przejdzDoLogowania}
             >
               Zaloguj się i kontynuuj
             </Button>

@@ -134,7 +134,7 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
         router.refresh();
       } else if (mode === 'signup') {
         if (password.length < 6) { setError('Hasło musi mieć co najmniej 6 znaków.'); return; }
-        const { needsConfirmation } = await signUpWithEmail(email, password, name);
+        const { needsConfirmation } = await signUpWithEmail(email, password, name, next);
         if (needsConfirmation) {
           setInfo('Konto utworzone! Wysłaliśmy link potwierdzający na Twój e-mail — kliknij go, aby się zalogować.');
         } else { onSuccess?.(); router.push(dest); router.refresh(); }
