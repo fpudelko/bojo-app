@@ -1041,7 +1041,10 @@ export default function EventDetailClient() {
         <div className="flex items-center justify-between gap-2 px-4 pt-4">
           <button
             type="button"
-            onClick={() => router.back()}
+            // Prosto z kreatora „wstecz" wracałoby do wypełnionego formularza —
+            // najgorsze możliwe miejsce tuż po opublikowaniu meczu. `replace`,
+            // a nie `push`, żeby kreator zniknął też z historii przeglądarki.
+            onClick={() => { if (swiezoUtworzony) router.replace('/moje-gry'); else router.back(); }}
             className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={2.25} /> Wróć

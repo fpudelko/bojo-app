@@ -206,9 +206,14 @@ export default function InviteFromGroupDialog({
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {/* Zaproszenie całej ekipy jednym dotknięciem działa od początku
+                (wszyscy zapraszalni są domyślnie zaznaczeni), ale przycisk
+                mówił tylko „Zaproś 8 osób" — nie widać było, że to komplet. */}
             {selected.size === 0
               ? 'Wybierz kogo zaprosić'
-              : `Zaproś ${selected.size} ${selected.size === 1 ? 'osobę' : selected.size < 5 ? 'osoby' : 'osób'}`}
+              : invitable.length > 1 && selected.size === invitable.length
+                ? `Zaproś całą ekipę (${selected.size})`
+                : `Zaproś ${selected.size} ${selected.size === 1 ? 'osobę' : selected.size < 5 ? 'osoby' : 'osób'}`}
           </button>
         </div>
       </div>
