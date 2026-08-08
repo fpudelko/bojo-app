@@ -16,6 +16,7 @@ import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
+import UzupelnijProfilBanner from '@/components/home/dashboard/UzupelnijProfilBanner';
 import { useAuth } from '@/lib/auth';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { isEventJoinable } from '@/lib/eventDates';
@@ -466,6 +467,13 @@ export default function EventsListView() {
       </div>
       <div className={clsx('px-4 pt-3', user && 'hidden md:block')}>
         {searchInput('Nazwa, boisko albo dzielnica…', 'classic')}
+      </div>
+
+      {/* Logowanie kieruje domyślnie tutaj, a nie na pulpit — baner musi więc
+          stać i tu, inaczej konto bez imienia (typowo Google) nie zobaczyłoby
+          go nigdy. Komponent sam zwraca null, gdy nie ma czego uzupełniać. */}
+      <div className="px-4 pt-3 empty:hidden">
+        <UzupelnijProfilBanner />
       </div>
 
       {/* Jeden pasek kafelków: Sortuj / Filtry / Sport / Wolne miejsca / Za darmo
