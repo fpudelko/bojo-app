@@ -478,10 +478,21 @@ export async function joinEventMaybe(eventId: string, userId: string, name: stri
   if (error && !error.message.toLowerCase().includes('duplicate')) throw new Error(error.message);
 }
 
-/** Switch an existing "maybe" to a confirmed join (takes a capacity spot). */
-export async function confirmFromMaybe(participantId: string, eventId: string): Promise<void> {
+/** Switch an existing "maybe" to a confirmed join (takes a capacity spot).
+ *
+ *  Rola i płatność są tu tak samo obowiązkowe jak przy zwykłym „Dołącz":
+ *  obserwujący, który się decyduje, podejmuje dokładnie te same decyzje co
+ *  ktoś wchodzący prosto ze składu. Wcześniej ta ścieżka ustawiała wyłącznie
+ *  `rsvp` i `is_reserve`, więc gracz lądował w składzie bez pozycji i bez
+ *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć. */
+export async function confirmFromMaybe(
+  participantId: string,
+  eventId: string,
+  asGoalkeeper = false,
+  payment?: JoinPaymentChoice,
+): Promise<void> {
   const [{ data: ev }, { count }] = await Promise.all([
-    supabase.from('events').select('max_players').eq('id', eventId).single(),
+    supabase.from('events').select('max_players, max_goalkeepers').eq('id', eventId).single(),
     supabase
       .from('event_participants')
       .select('id', { count: 'exact', head: true })
@@ -490,10 +501,31 @@ export async function confirmFromMaybe(participantId: string, eventId: string): 
       .eq('rsvp', 'yes'),
   ]);
   const taken = count ?? 0;
-  const isReserve = taken >= (ev?.max_players ?? 999);
+  let isReserve = taken >= (ev?.max_players ?? 999);
+
+  // Limit bramkarzy — ta sama reguła co w joinEvent: nadmiarowy bramkarz
+  // trafia na rezerwę zamiast rozpychać skład.
+  if (asGoalkeeper && !isReserve) {
+    const { count: gkCount } = await supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('is_reserve', false)
+      .eq('rsvp', 'yes')
+      .eq('is_goalkeeper', true);
+    if ((gkCount ?? 0) >= (ev?.max_goalkeepers ?? 2)) isReserve = true;
+  }
+
   const { error } = await supabase
     .from('event_participants')
-    .update({ rsvp: 'yes', is_reserve: isReserve })
+    .update({
+      rsvp: 'yes',
+      is_reserve: isReserve,
+      is_goalkeeper: asGoalkeeper,
+      payment_method: payment?.method ?? null,
+      has_sports_card: payment?.hasSportsCard ?? false,
+      sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
+    })
     .eq('id', participantId);
   if (error) throw new Error(error.message);
 }
