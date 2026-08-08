@@ -12,9 +12,10 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
   Check, CalendarCheck, MapPin, Globe, Search, SlidersHorizontal, Ticket,
-  Trophy, Wallet, X,
+  Wallet, X,
 } from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
+import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
@@ -406,8 +407,8 @@ function FilterPills({
   gamesOnlyNoCost, setGamesOnlyNoCost,
   wrap,
 }: {
-  /** „Pokaż gry" (D11) — przełącza cały pasek między trybem obiektów (dzisiejsze
-   *  zachowanie) a trybem gier (identyczny układ co /wydarzenia). */
+  /** Przełącznik „Gry | Obiekty" — przełącza cały pasek między trybem obiektów
+   *  (dzisiejsze zachowanie) a trybem gier (identyczny układ co /wydarzenia). */
   showGames: boolean;
   onToggleShowGames: () => void;
   sports: string[]; setSports: (v: string[]) => void;
@@ -428,8 +429,15 @@ function FilterPills({
       ? 'flex flex-wrap gap-2'
       : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
     }>
-      <TogglePill label="Pokaż gry" icon={<Trophy className="h-3.5 w-3.5 shrink-0" />}
-        active={showGames} onClick={onToggleShowGames} />
+      {/* Dwa tryby mapy są równorzędne — przełącznik pokazuje oba naraz zamiast
+          chować „obiekty" za wyłączonym pillem „Pokaż gry". Semantyka i URL
+          (`?gry=1`) bez zmian: „Gry" to dotychczasowe `showGames === true`. */}
+      <SegmentedToggle
+        ariaLabel="Co pokazać na mapie"
+        value={showGames ? 'gry' : 'obiekty'}
+        onChange={(v) => { if ((v === 'gry') !== showGames) onToggleShowGames(); }}
+        options={[{ value: 'gry', label: 'Gry' }, { value: 'obiekty', label: 'Obiekty' }] as const}
+      />
 
       {/* Sortuj nie pojawia się w trybie gier — /mapa jest zawsze widokiem
           mapy (w odróżnieniu od /wydarzenia, gdzie sortowanie ma sens na
