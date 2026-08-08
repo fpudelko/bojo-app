@@ -102,6 +102,49 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
   );
 }
 
+/** „Na który z moich meczów nie zbiera się skład" — pytanie, na które
+ *  organizator dotąd nie miał gdzie odpowiedzieć. `/moje-gry` miesza
+ *  organizowanie i granie celowo w jednej liście (`splitMyEvents` obok),
+ *  więc to osobna, DODATKOWA sekcja, nie zamiana tamtej. Dane są już
+ *  pobrane przez `getMyParticipatedEvents()` — `participantsCount` liczy
+ *  `toEvent()` z dołączonego `event_participants`, zero nowego zapytania.
+ *
+ *  Sortowanie po dacie ROSNĄCO niezależnie od kolejności wejściowej: `items`
+ *  bywa przekazywane w kolejności `getMyParticipatedEvents()`, która sortuje
+ *  malejąco (ten sam powód, dla którego `nextMatch()` w `lib/myEvents.ts`
+ *  sortuje samodzielnie zamiast ufać porządkowi wejścia). */
+export function NeedsPlayersSection({ items, limit = 3, href }: {
+  items: MyEventRow[]; limit?: number | null; href?: string;
+}) {
+  const needing = items
+    .filter(({ event, relation }) =>
+      relation.isOrganizer
+      && (event.maxPlayers ?? 0) > 0
+      && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0))
+    .sort((a, b) => {
+      const ka = `${a.event.date}T${a.event.time || '23:59'}`;
+      const kb = `${b.event.date}T${b.event.time || '23:59'}`;
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+  if (needing.length === 0) return null;
+  const shown = limit != null ? needing.slice(0, limit) : needing;
+  return (
+    <div>
+      <SectionHeader
+        title="Brakuje graczy"
+        href={href}
+        count={needing.length}
+        subtitle="Twoje mecze, które jeszcze nie mają kompletu"
+      />
+      <div className="space-y-3">
+        {shown.map(({ event, relation }) => (
+          <EventBrowseCard key={event.id} event={event} relation={relation} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Kept separate from MyMatchesSection so "Obserwujesz" never reads as
  *  "you're in" — observing holds no spot and counts in no stats. Title and
  *  subtitle are overridable: /moje-gry calls this section "Obserwowane" and

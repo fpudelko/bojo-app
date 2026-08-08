@@ -72,6 +72,48 @@ export async function getEventPlayerInvites(eventId: string): Promise<PlayerInvi
   return (data ?? []).map(toPlayerInvite);
 }
 
+export interface InviteWithName extends PlayerInvite {
+  name: string;
+  avatarUrl?: string;
+}
+
+/**
+ * Zaproszenia na mecz razem z nazwą i awatarem zaproszonego — dla widoku
+ * organizatora „kogo zaprosiłem, kto odpowiedział". Bez tego `dismissed_at`
+ * istniał w bazie od migracji 060, ale nigdzie się go nie pokazywało.
+ *
+ * Dwa zapytania, nie jeden `select` z zagnieżdżeniem: `event_player_invites`
+ * ma klucz obcy do `auth.users`, nie do `profiles`, więc PostgREST nie potrafi
+ * tego wbudować jednym joinem. `profiles` jest publicznie czytelne (migracja
+ * `005`), więc drugie zapytanie nie wymaga żadnych dodatkowych uprawnień.
+ *
+ * Widoczność jest i tak ograniczona politykami RLS z migracji `060` — SELECT
+ * na `event_player_invites` widzi tylko sam zaproszony, organizator meczu
+ * i admin, więc funkcja zwraca pełną listę wyłącznie tym, komu wolno ją
+ * zobaczyć.
+ */
+export async function getEventInvitesWithNames(eventId: string): Promise<InviteWithName[]> {
+  const invites = await getEventPlayerInvites(eventId);
+  if (invites.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url')
+    .in('id', invites.map((i) => i.userId));
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const byId = new Map((data ?? []).map((p: any) => [p.id as string, p]));
+
+  return invites.map((inv) => {
+    const p = byId.get(inv.userId);
+    return {
+      ...inv,
+      name: (p?.display_name as string | undefined)?.trim() || 'Gracz',
+      avatarUrl: (p?.avatar_url as string | undefined) ?? undefined,
+    };
+  });
+}
+
 /**
  * Zaprasza wskazane osoby i zwraca liczbę faktycznie dodanych zaproszeń.
  *

@@ -47,7 +47,12 @@ tekst udostępnienia dla całej aplikacji, patrz
 [funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link));
 `lib/eventSummary.ts` (`zbudujPodsumowanie` — wiersze karty „Tak zobaczą to gracze"
 na ostatnim kroku kreatora, patrz
-[funkcje.md](./funkcje.md#podsumowanie-przed-publikacją)); `lib/eventTitle.ts` (jedyne miejsce,
+[funkcje.md](./funkcje.md#podsumowanie-przed-publikacją));
+`lib/inviteStatus.ts` (`inviteStatus`/`compareByInviteStatus` — status imiennego
+zaproszenia na mecz: uczestnictwo bije wcześniejszą odmowę, czyli `dismissed_at`
+sprawdza się dopiero, gdy zaproszonego nie ma w `event_participants`; wydzielone
+z komponentu po tym, jak przegląd kodu złapał tu odwróconą kolejność, patrz
+[funkcje.md](./funkcje.md#zaproszenia-na-mecz)); `lib/eventTitle.ts` (jedyne miejsce,
 które liczy domyślną nazwę meczu, gdy tytuł jest pusty — `defaultEventTitle` /
 `eventDisplayTitle`, zastąpiło pięć niezależnych kopii tej samej logiki);
 `lib/adminLinks.ts` (lista tras panelu admina, współdzielona przez `AdminMenu`

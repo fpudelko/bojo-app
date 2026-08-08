@@ -18,14 +18,14 @@ Pełny audyt (26 ustaleń `O-1`…`O-26`, wraz z rozdziałem „co zostaje bez z
 → [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md). Tutaj wyłącznie to,
 czego jeszcze nie zrobiono — bez kopiowania treści, żeby obie listy się nie rozjechały.
 
+`O-20`, `O-23`, `O-24`, `O-25` zrobione w drugiej rundzie (duplikat „Zaproś z ekipy"
+usunięty, karta „Twoja płatność" dla uczestnika, sekcja „Brakuje graczy" na `/moje-gry`,
+karta „Zaproszeni" ze statusem odpowiedzi). Zostają:
+
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
-| **O-20** | „Zaproś z ekipy" **dubluje się** na stronie meczu (dwa przyciski, różne ikony, różne warunki widoczności). Ślepy zaułek dialogu bez grupy już naprawiony | `EventDetailClient.tsx` |
-| **O-23** | Uczestnik nie widzi, ile ma zapłacić — `showPaymentStatus` zapisywane i nigdy nieodczytywane. **To ta sama luka co §1.4 niżej**, widziana od strony uczestnika | `EventDetailClient.tsx`, `edytuj/page.tsx` |
-| **O-24** | Organizator nie ma widoku „gdzie brakuje ludzi". `getMyEvents()` zwraca dokładnie te dane wraz z `participantsCount` i nie jest używane przez żadną stronę | `lib/events.ts` |
-| **O-25** | Nie widać, kogo się zaprosiło i kto odpowiedział — `event_player_invites.dismissed_at` istnieje, ale nigdzie się go nie pokazuje | `lib/playerInvites.ts` |
-| **O-26** | Martwy kod na ścieżce organizatora: nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + `smsBusy` bez użycia, `lib/invites.ts` (86 linii) bez ani jednego importu | jw. |
+| **O-26** | Martwy kod na ścieżce organizatora: nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + `smsBusy` bez użycia, `lib/invites.ts` (86 linii) bez ani jednego importu | `EventDetailClient.tsx`, `lib/invites.ts` |
 
 Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1), powiadomienie
 dla grupy o nowej grze (§1.2), odmrażanie flag (§2).
@@ -62,17 +62,16 @@ Kod jest kompletny (`lib/recurring.ts`, trasy `/cykliczne/*`, migracja `007`), a
 
 Decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
 
-### 1.4 Rozliczenie po meczu — połowa naprawiona
-Propozycja brzmi „Rozliczysz ekipę w minutę". Z dwóch problemów, które ten wpis opisywał,
-został jeden:
+### 1.4 Rozliczenie po meczu — ZROBIONE
+Propozycja brzmi „Rozliczysz ekipę w minutę". Wpis opisywał dwa problemy, oba naprawione:
 
-- ~~po zakończeniu meczu panel „Podział kosztów" znikał~~ — **nieaktualne**. Warunek
-  `!eventStarted` został zdjęty; panel renderuje się dziś przy `costGrosze > 0 && isOwner`,
-  z komentarzem wyjaśniającym dlaczego (`EventDetailClient.tsx`).
-- **uczestnik nadal nie widzi, ile ma zapłacić** — widzi to wyłącznie organizator.
-  Flaga `showPaymentStatus` („Pokaż status płatności uczestnikom") jest zapisywana przez
-  formularz edycji i **nigdzie nie odczytywana**. To ustalenie `O-23` z audytu ścieżki
-  organizatora — jedno zadanie, nie dwa.
+- ~~po zakończeniu meczu panel „Podział kosztów" znikał~~ — warunek `!eventStarted`
+  został zdjęty; panel renderuje się dziś przy `costGrosze > 0 && isOwner`
+  (`EventDetailClient.tsx`).
+- ~~uczestnik nie widział, ile ma zapłacić~~ — nowa karta „Twoja płatność" (kwota po
+  uwzględnieniu zniżki kartowej przez `priceForParticipant()`, sposób płatności, status
+  opłacone/nieopłacone), gated przez `event.showPaymentStatus` — pierwsze miejsce, które tę
+  flagę odczytuje. To było ustalenie `O-23` z [audytu ścieżki organizatora](./docs/przeplyw-organizatora.md).
 
 ---
 
@@ -383,10 +382,11 @@ ale to znaczy, że „Zaproś z ekipy" nie skraca nic ponad to, co już robi „
 Realny fix to ten sam kanał, którego brakuje SMS-om i alertom gry (`SHOW_SMS_FEATURES`,
 `SHOW_GAME_ALERTS`) — patrz pozycja „Web-push (PWA)" wyżej.
 
-Osobno, tańszy do naprawienia: sam przycisk **dubluje się na stronie meczu** (`O-20`
+Osobno, już naprawione: sam przycisk **dublował się na stronie meczu** (`O-20`
 w [audycie ścieżki organizatora](./docs/przeplyw-organizatora.md)) — dwa wejścia, różne
-ikony, różne warunki widoczności. Ślepy zaułek dialogu przy braku jakiejkolwiek grupy
-(tekst „załóż grupę" bez linku) został już naprawiony.
+ikony, różne warunki widoczności. Zostaje jeden, przy liczniku wolnych miejsc. Ślepy
+zaułek dialogu przy braku jakiejkolwiek grupy (tekst „załóż grupę" bez linku) też
+naprawiony wcześniej.
 
 ### Rewizja `SHOW_RECURRING` pod kątem strategii „organizator"
 Mecze cykliczne (`lib/recurring.ts`, `app/cykliczne/*`) są w pełni zbudowane: szablon
