@@ -8,6 +8,19 @@ import { getMyNotifications, markRead, toNotif } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
 import type { AppNotification } from '@/types';
 
+/** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
+ *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
+ *  wiersz — czyli mówiło „zrób coś" i nie dawało jak. */
+const TYP_NA_TRASE: Record<string, string> = {
+  uzupelnij_profil: '/profil',
+};
+
+/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd. */
+function celPowiadomienia(n: AppNotification): string | null {
+  if (n.eventId) return `/wydarzenia/${n.eventId}`;
+  return TYP_NA_TRASE[n.type] ?? null;
+}
+
 export default function NotificationBell() {
   const { user } = useAuth();
   // Nazwa kanału musi być unikalna PER INSTANCJA, nie per użytkownik. Dzwonek
@@ -99,9 +112,9 @@ export default function NotificationBell() {
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">
               {notifs.map((n) => (
                 <li key={n.id}>
-                  {n.eventId ? (
+                  {celPowiadomienia(n) ? (
                     <Link
-                      href={`/wydarzenia/${n.eventId}`}
+                      href={celPowiadomienia(n)!}
                       onClick={() => setOpen(false)}
                       className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${!n.readAt ? 'bg-primary-50/40' : ''}`}
                     >

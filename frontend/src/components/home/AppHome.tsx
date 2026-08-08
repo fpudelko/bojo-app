@@ -2,6 +2,7 @@
 
 import GreetingBar from './dashboard/GreetingBar';
 import NextMatchCard from './dashboard/NextMatchCard';
+import UzupelnijProfilBanner from './dashboard/UzupelnijProfilBanner';
 import {
   InvitesSection,
   MyMatchesSection,
@@ -44,6 +45,9 @@ export default function AppHome({ userId }: { userId: string }) {
     <>
       <GreetingBar />
       <section className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-2">
+        {/* Pierwsza rzecz pod powitaniem — i sam się chowa, gdy konto ma nazwę
+            albo gdy baner został zamknięty. */}
+        <UzupelnijProfilBanner />
         <InvitesSection invites={data.invites} statusFor={data.statusFor} />
         <NextMatchCard row={next} />
         <MyMatchesSection items={restPlaying} />
