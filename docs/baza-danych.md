@@ -1,6 +1,6 @@
 # Baza danych
 
-62 migracje (`001`–`062`) w `supabase/migrations/`. Modele domenowe →
+70 migracji (`001`–`070`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -110,6 +110,14 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `055_stats_exclude_observing` | Obserwujący nie liczą się do statystyk |
 | `056_payment_options` | Metody płatności i karty sportowe |
 | `062_reserve_claim_notification` | `sync_reserve_claim` dopisuje wpis do `notifications`, gdy oferuje zwolnione miejsce — dotąd oferta była widoczna tylko po ręcznym wejściu na stronę meczu |
+| `065_powiadomienia_akceptacja_termin` | Wyzwalacze: akceptacja zapisu i zmiana terminu meczu |
+| `067_powiadomienie_o_zaproszeniu` | Wyzwalacz na `event_player_invites` + uzupełnienie zaległych zaproszeń |
+| `070_powiadomienia_odwolanie_i_profil` | Wyzwalacze: **odwołanie meczu** (dotąd ciche — uczestnik dowiadywał się wyłącznie wchodząc na stronę) oraz **nowe konto bez imienia** (kieruje do `/profil`) |
+
+**Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
+polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka
+nie zapisze powiadomienia nawet sobie. Każde nowe powiadomienie to funkcja
+`SECURITY DEFINER` z `SET search_path = public`, wzorowana na `065`.
 
 ---
 

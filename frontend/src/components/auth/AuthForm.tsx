@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Mail, Lock, User as UserIcon, ArrowLeft, CheckCircle2, Copy, Check, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { isPelneImie } from '@/lib/profileName';
 
 function GoogleIcon() {
   return (
@@ -125,6 +126,14 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
     setError(null);
     setInfo(null);
     if (!email.trim()) { setError('Podaj adres e-mail.'); return; }
+    // Imię i nazwisko sprawdzamy PRZED `setBusy`, żeby nie trzeba było go
+    // odkręcać przy wyjściu. Wymóg jest tu, a nie tylko w atrybucie `required`,
+    // bo przeglądarka przepuściłaby jednoczłonowe „Jan" — a nazwa idzie na
+    // publiczną stronę meczu i ma mówić, kto go organizuje.
+    if (mode === 'signup' && !isPelneImie(name)) {
+      setError('Podaj imię i nazwisko — tak zobaczą Cię gracze na meczu.');
+      return;
+    }
     setBusy(true);
     try {
       if (mode === 'signin') {
@@ -134,7 +143,7 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
         router.refresh();
       } else if (mode === 'signup') {
         if (password.length < 6) { setError('Hasło musi mieć co najmniej 6 znaków.'); return; }
-        const { needsConfirmation } = await signUpWithEmail(email, password, name);
+        const { needsConfirmation } = await signUpWithEmail(email, password, name, next);
         if (needsConfirmation) {
           setInfo('Konto utworzone! Wysłaliśmy link potwierdzający na Twój e-mail — kliknij go, aby się zalogować.');
         } else { onSuccess?.(); router.push(dest); router.refresh(); }
@@ -197,9 +206,12 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {mode === 'signup' && (
-          <div className="relative">
-            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Imię lub pseudonim (opcjonalnie)" autoComplete="name" maxLength={40} className={inputCls} />
+          <div>
+            <div className="relative">
+              <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Imię i nazwisko" autoComplete="name" required maxLength={40} className={inputCls} />
+            </div>
+            <p className="mt-1 pl-1 text-xs text-slate-500">Widoczne dla graczy na Twoich meczach.</p>
           </div>
         )}
         <div className="relative">

@@ -226,6 +226,53 @@ gdzie go zostawił, zamiast zerować się do stanu początkowego.
   jeśli szkic wciąż jest ważny.
 - **Kasowanie**: po udanej publikacji meczu, automatycznie.
 
+Pole `nazwaWlasnaMiejsca` (nazwa dla pinezki spoza katalogu) jest w `EventDraftValues`
+**opcjonalne**, a wersja schematu została na `v: 1`. To celowe: `loadEventDraft` odrzuca
+szkic przy `parsed.v !== 1`, więc podbicie wersji unieważniłoby każdy formularz wypełniany
+w chwili wdrożenia. Odczyt robi `?? ''`. Pokryte testem w `eventDraft.test.ts`.
+
+---
+
+## Podsumowanie przed publikacją
+
+Ostatni krok kreatora kończy się kartą **„Tak zobaczą to gracze"**
+(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`). Powód:
+przycisk „Opublikuj mecz" stoi na kroku 3, a data, miejsce, skład i cena były ustawiane na
+krokach 1–2 i w chwili publikacji nie były widoczne.
+
+Sześć wierszy — Co / Kiedy / Gdzie / Skład / Koszt / Kto widzi — każdy z przyciskiem
+„Zmień" wołającym `attemptGoToStep`. Cofanie nigdy nie waliduje, więc skok jest bezpieczny
+z każdego wiersza. Siódmy wiersz to **organizator**: „Wyświetlasz się jako X" z edycją
+inline przez `updateDisplayName`; gdy konto nie ma żadnej nazwy własnej, pole startuje
+rozwinięte.
+
+Trzy ostrzeżenia, które **nie blokują** publikacji (krok 3 celowo nie ma pól wymaganych —
+`validateStep3` zwraca `{}`): mecz jest dzisiaj, miejsce zostało bez nazwy (same
+współrzędne po nieudanym reverse geocodingu), cena bez wybranej metody płatności.
+
+---
+
+## Po publikacji: „Mecz gotowy — wyślij link"
+
+Kreator przekierowuje na `/wydarzenia/{id}?utworzono=1`, a strona meczu pokazuje
+organizatorowi odrzucalny panel: „Wyślij link ekipie" (pełna szerokość), pod nim „Kopiuj
+link" i „Zaproś z ekipy", na dole jedno zdanie o konsekwencji wybranej widoczności.
+
+Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
+`useSearchParams()` — ten hak wymusza na trasie prerenderowanej bail-out do CSR i wywala
+produkcyjny build (pułapka opisana w `AGENTS.md`). Zaraz po odczycie parametr znika
+z adresu przez `history.replaceState`, więc odświeżenie nie pokazuje panelu drugi raz.
+
+**Jeden link i jeden tekst dla całej aplikacji** — `lib/eventShare.ts`. `eventUrl()` zwraca
+adres kanoniczny `/wydarzenia/{id}`, a nie krótki `/d/{kod}`: `robots.ts` trzyma `/d/` poza
+indeksowaniem, więc crawlery Facebooka i WhatsAppa nie pobiorą Open Graph i taki link leci
+na czat bez podglądu. `eventShareText()` składa cztery linie (sport i tytuł / dzień, data,
+zakres godzin / miejsce z adresem / liczba miejsc i cena), a `shareEvent()` przekazuje je
+do arkusza systemowego razem z adresem — osobno od tekstu, żeby podgląd linku działał.
+
+Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
+konkurencyjny przycisk „Udostępnij" na tej samej stronie.
+
 ---
 
 ## Układ `/moje-gry`
@@ -544,6 +591,16 @@ Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
 | E-mail | Edge function `notify-game-alert` → Resend |
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
 | Zaproszenia cykliczne | Edge function `send-invites` |
+
+Wpisy do `notifications` powstają wyłącznie z wyzwalaczy w bazie — tabela ma polityki
+SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT**, więc przeglądarka nie
+może wpisać powiadomienia nawet sobie. Dziś jest ich pięć: oferta zwolnionego miejsca
+(`062`), akceptacja zapisu i zmiana terminu (`065`), imienne zaproszenie (`067`) oraz
+**odwołanie meczu i konto bez nazwy** (`070`).
+
+`NotificationBell` linkuje powiadomienie do meczu przez `event_id`, a te bez `event_id` —
+przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` → `/profil`). Bez niej renderowały się
+jako martwy, nieklikalny wiersz.
 
 Czego brakuje: **wyzwalacza przy utworzeniu gry w grupie**. Jedyna ścieżka powiadomienia
 o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą

@@ -11,7 +11,7 @@ interface AuthContextValue {
   loading: boolean;
   signInWithGoogle: (next?: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ needsConfirmation: boolean }>;
+  signUpWithEmail: (email: string, password: string, name?: string, next?: string) => Promise<{ needsConfirmation: boolean }>;
   sendMagicLink: (email: string, next?: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -36,33 +36,11 @@ const AuthContext = createContext<AuthContextValue>({
   uploadAvatar: noop,
 });
 
-/** Returns the avatar URL stored in user metadata, or null. */
-export function avatarUrl(user: User | null): string | null {
-  return user?.user_metadata?.avatar_url ?? null;
-}
-
-/** Preferred display name: custom → Google full name → email → fallback. */
-export function displayName(user: User | null): string {
-  if (!user) return '';
-  return (
-    (user.user_metadata?.display_name as string | undefined) ||
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.name as string | undefined) ||
-    user.email ||
-    'Gracz'
-  );
-}
-
-/** First name only, for compact greetings ("Cześć, Janek 👋"). Cuts a bare
- *  e-mail down at the "@" first, so a user with no display name never greets
- *  themselves by their full address. */
-export function firstName(user: User | null): string {
-  const name = displayName(user);
-  if (!name) return '';
-  const first = name.split('@')[0].trim().split(/\s+/)[0] ?? '';
-  if (!first) return '';
-  return first.charAt(0).toUpperCase() + first.slice(1);
-}
+// Selektory nazwy i awatara mieszkają w `lib/profileName.ts` — czystym module
+// `.ts`, który Vitest potrafi zaimportować (tego pliku, z JSX i `jsx: preserve`
+// w tsconfig, nie potrafi). Re-eksport jest tu po to, żeby ~40 istniejących
+// importów `from '@/lib/auth'` działało bez zmian.
+export { avatarUrl, displayName, firstName } from './profileName';
 
 /** Writes (or clears) the presentational session-hint cookie so the server
  *  can pick landing vs. dashboard skeleton on the very first response — see
@@ -151,13 +129,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(mapAuthError(error.message));
   };
 
-  const signUpWithEmail = async (email: string, password: string, name?: string) => {
+  // `next` musi dojechać aż do linku potwierdzającego w mailu. Bez tego
+  // organizator, który zakładał konto w trakcie tworzenia meczu, po kliknięciu
+  // w mail lądował na stronie głównej zamiast wracać do kreatora — w odróżnieniu
+  // od Google i magic linku, które `next` przekazywały od zawsze.
+  const signUpWithEmail = async (email: string, password: string, name?: string, next?: string) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: name?.trim() ? { display_name: name.trim() } : undefined,
-        emailRedirectTo: callbackUrl(),
+        emailRedirectTo: callbackUrl(next),
       },
     });
     if (error) throw new Error(mapAuthError(error.message));
@@ -196,6 +178,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw new Error(error.message);
     setUser(data.user);
+
+    // `profiles.display_name` (migracja 022) to osobna kopia, zakładana przy
+    // rejestracji wyzwalaczem `handle_new_user`. Czytają ją panel admina oraz
+    // wyzwalacz powiadomienia „X zaprasza Cię na mecz" (migracja 067) — bez
+    // tego zapisu zostawała przy nazwie sprzed zmiany albo pusta.
+    // Metadane `auth.users` pozostają źródłem prawdy dla interfejsu, więc błąd
+    // tej aktualizacji nie może wywrócić zapisu, który już się udał.
+    if (data.user) {
+      await supabase
+        .from('profiles')
+        .update({ display_name: name.trim() })
+        .eq('id', data.user.id);
+    }
   };
 
   const uploadAvatar = async (file: File) => {

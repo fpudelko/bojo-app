@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import MapAttribution from './MapAttribution';
 import ClusteredFieldMarkers from './ClusteredFieldMarkers';
+import LocateMeButton from './LocateMeButton';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, Loader2 } from 'lucide-react';
 import type { Field } from '@/types';
 import { getExplorerFields, searchExplorerFields, type Kadr } from '@/lib/api';
+import { sportLabel } from '@/lib/sports';
 import KadrObserwator from './KadrObserwator';
 import { POZNAN } from './mapIcons';
 
@@ -48,6 +50,28 @@ function CustomPin({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
+/** Wypuszcza instancję mapy na zewnątrz `<MapContainer>` — `LocateMeButton`
+ *  dostaje ją propem, a musi stać poza kontenerem mapy. */
+function ChwytMapy({ onMapa }: { onMapa: (m: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => { onMapa(map); }, [map, onMapa]);
+  return null;
+}
+
+/** Dosuwa widok do wyników szukania.
+ *
+ *  Bez tego wpisanie nazwy boiska spoza kadru wyglądało jak brak reakcji:
+ *  zbiór pinezek się podmieniał, ale mapa stała w miejscu, więc na ekranie nic
+ *  się nie zmieniało. `/mapa` robi to od dawna, picker nie robił. */
+function DopasujDoWynikow({ punkty }: { punkty: Array<[number, number]> }) {
+  const map = useMap();
+  useEffect(() => {
+    if (punkty.length === 0) return;
+    map.fitBounds(L.latLngBounds(punkty), { padding: [40, 40], maxZoom: 15 });
+  }, [map, punkty]);
+  return null;
+}
+
 function FlyTo({ lat, lng }: { lat: number; lng: number }) {
   const map = useMapEvents({});
   useEffect(() => {
@@ -78,6 +102,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
 
   const [kadr, setKadr] = useState<Kadr | null>(null);
   const [znalezione, setZnalezione] = useState<Field[] | null>(null);
+  const [mapa, setMapa] = useState<L.Map | null>(null);
 
   // Obiekty z widocznego wycinka mapy.
   useEffect(() => {
@@ -108,10 +133,25 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   // /mapa search (instant, no network round-trip). The magnifying-glass
   // button below is a separate, explicit action for addresses that aren't
   // one of our known venues (geocoded via Nominatim on click/Enter).
-  const visible = useMemo(() => {
-    const zrodlo = znalezione ?? fields;
-    return sport ? zrodlo.filter((f) => f.sport.includes(sport)) : zrodlo;
-  }, [fields, znalezione, sport]);
+  const zrodlo = znalezione ?? fields;
+  const wSporcie = useMemo(
+    () => (sport ? zrodlo.filter((f) => f.sport.includes(sport)) : zrodlo),
+    [zrodlo, sport],
+  );
+
+  // Filtr sportu potrafił wyzerować wyniki BEZ SŁOWA wyjaśnienia — a przy
+  // danych sportów zanieczyszczonych sąsiedztwem (import z OSM) trafia to też
+  // w prawidłowe boiska. Gdy coś znaleziono, ale filtr wyciął wszystko,
+  // pokazujemy komplet i mówimy o tym wprost, zamiast udawać brak wyników.
+  const filtrOdsial = znalezione !== null && znalezione.length > 0 && wSporcie.length === 0;
+  const visible = filtrOdsial ? znalezione : wSporcie;
+
+  // fitBounds tylko dla wyników szukania: liczenie go z `fields` kazałoby mapie
+  // skakać przy każdym przesunięciu kadru.
+  const punktyWynikow = useMemo<Array<[number, number]>>(
+    () => (znalezione === null ? [] : znalezione.map((f) => [f.lat, f.lng] as [number, number])),
+    [znalezione],
+  );
 
   async function handleGeocode() {
     const q = search.trim();
@@ -159,11 +199,24 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
           type="button"
           onClick={handleGeocode}
           disabled={geocoding}
+          aria-label="Szukaj adresu"
+          title="Szukaj adresu"
           className="px-3 py-2 rounded-lg bg-white/95 backdrop-blur-sm border border-slate-200 shadow text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors flex items-center"
         >
           {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Komunikat o wynikach. Do tej pory szukanie bez trafienia wyglądało
+          identycznie jak szukanie, które jeszcze nie ruszyło — a przycisk lupy
+          (geokoder) był ukrytą afordancją, o której nic nie mówiło. */}
+      {(filtrOdsial || (znalezione !== null && znalezione.length === 0)) && (
+        <div className="absolute top-14 left-2 right-2 z-[1001] rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-600 shadow backdrop-blur-sm">
+          {filtrOdsial
+            ? `Żadne ze znalezionych miejsc nie ma w opisie sportu „${sportLabel(sport ?? '')}" — pokazujemy wszystkie.`
+            : 'Nie znaleziono takiego miejsca. Naciśnij lupę, żeby wyszukać adres, albo dotknij mapy w wybranym punkcie.'}
+        </div>
+      )}
 
       <MapContainer
         center={POZNAN}
@@ -173,6 +226,8 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
       >
         <MapAttribution />
         <KadrObserwator onZmiana={onKadr} />
+        <ChwytMapy onMapa={setMapa} />
+        <DopasujDoWynikow punkty={punktyWynikow} />
         {MAPBOX_TOKEN ? (
           <TileLayer
             attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -205,6 +260,12 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
           <CustomPin lat={value.lat} lng={value.lng} />
         )}
       </MapContainer>
+
+      {/* „Pokaż moją okolicę". Mapa startuje na sztywno w Poznaniu, mimo że
+          mecz da się stworzyć gdziekolwiek w Polsce — organizator z innego
+          miasta zaczynał od przewijania cudzego. Lewy dolny róg, bo prawy
+          zajmuje ZoomControl. */}
+      <LocateMeButton map={mapa} className="absolute bottom-3 left-3 z-[1001]" />
     </div>
   );
 }
