@@ -116,9 +116,6 @@ function NewEventForm() {
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
-  // Rozwinięcie sekcji „Więcej opcji" na kroku 2 — stan widoku, nie danych,
-  // więc świadomie NIE trafia do szkicu w localStorage.
-  const [wiecejOpcji, setWiecejOpcji] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -348,7 +345,7 @@ function NewEventForm() {
     };
     return (
       <div className="min-h-screen flex flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-ink">
             Zorganizuj mecz
@@ -609,7 +606,7 @@ function NewEventForm() {
   return (
     <div className="min-h-screen flex flex-col">
       <HideBottomNav />
-      <Header />
+      <Header showMobileWordmark />
 
       {/* Step indicator — sticky under the header. Numbers are clickable:
           jumping ahead runs the same validation as "Dalej" and stops on the
@@ -918,6 +915,39 @@ function NewEventForm() {
                   </button>
                 </div>
                 <p className="mt-1.5 text-xs text-slate-500">Kolejni chętni trafią na listę rezerwową.</p>
+                {/* Najczęstsze pytanie organizatora w tym miejscu: „a jak
+                    zaklepać miejsce komuś, kogo już mam?". Odpowiedź jest
+                    o jeden ekran dalej, więc mówimy ją tutaj. */}
+                <p className="mt-1 text-xs text-slate-500">
+                  Masz już graczy? Dopiszesz ich zaraz po utworzeniu — na stronie meczu, też bez konta.
+                </p>
+              </div>
+
+              {/* Czas na decyzję z rezerwy — widoczny wprost, nie pod „Więcej
+                  opcji". Zjazd pod collapse (ustalenie O-11 audytu) został
+                  cofnięty decyzją właściciela produktu 2026-08-08: to ustawienie
+                  reguły, wedle której Bojo rozdaje zwolnione miejsca, więc
+                  organizator ma je widzieć, gdy ustala skład. */}
+              <div>
+                <label htmlFor="czas-rezerwy" className="block text-sm font-medium text-slate-700 mb-1">
+                  Czas na decyzję z rezerwy
+                </label>
+                <p className="mb-2 text-xs text-slate-500">
+                  Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma na
+                  kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
+                </p>
+                <select
+                  id="czas-rezerwy"
+                  value={reserveClaimHours}
+                  onChange={(e) => setReserveClaimHours(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value={1}>1 godzina</option>
+                  <option value={3}>3 godziny</option>
+                  <option value={6}>6 godzin</option>
+                  <option value={12}>12 godzin</option>
+                  <option value={24}>24 godziny</option>
+                </select>
               </div>
 
               {/* Goalkeeper distinction — sports with a goalkeeper only */}
@@ -1159,46 +1189,6 @@ function NewEventForm() {
                         {label}
                       </button>
                     ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Więcej opcji — jedno ustawienie, którego pierwszy organizator
-                  nie ma jak sensownie podjąć: dotyczy listy rezerwowej, która
-                  jeszcze nie istnieje, a stało na kroku obiecującym dwie minuty.
-                  Domyślne 3 h jest dobre; kto chce inaczej, rozwija sekcję.
-                  `wiecejOpcji` to stan WIDOKU, nie danych — nie trafia do szkicu. */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setWiecejOpcji((v) => !v)}
-                  aria-expanded={wiecejOpcji}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  Więcej opcji
-                  <ChevronDown className={clsx('h-4 w-4 transition-transform', wiecejOpcji && 'rotate-180')} />
-                </button>
-
-                {wiecejOpcji && (
-                  <div className="mt-3 rounded-xl border border-slate-200 px-4 py-3">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Czas na decyzję z rezerwy
-                    </label>
-                    <p className="text-xs text-slate-500 mb-2">
-                      Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma
-                      na kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
-                    </p>
-                    <select
-                      value={reserveClaimHours}
-                      onChange={(e) => setReserveClaimHours(Number(e.target.value))}
-                      className={`${inputCls} max-w-[160px]`}
-                    >
-                      <option value={1}>1 godzina</option>
-                      <option value={3}>3 godziny</option>
-                      <option value={6}>6 godzin</option>
-                      <option value={12}>12 godzin</option>
-                      <option value={24}>24 godziny</option>
-                    </select>
                   </div>
                 )}
               </div>
