@@ -11,7 +11,7 @@ import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { InvitesSection, MyMatchesSection } from '@/components/home/dashboard/DashboardSections';
+import { InvitesSection, MyMatchesSection, NeedsPlayersSection } from '@/components/home/dashboard/DashboardSections';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -67,7 +67,7 @@ function MojeGryContent() {
   // calendar only shows games that are actually happening. Observing is split
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
   // playing stay together in one list — both are "your match".
-  const { history, playing, observing } = splitMyEvents(items);
+  const { upcoming, history, playing, observing } = splitMyEvents(items);
   const next = nextMatch(items);
 
   if (!authLoading && !user) {
@@ -188,6 +188,7 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
+            <NeedsPlayersSection items={upcoming} limit={null} />
             <NextMatchCard row={next} />
             <MyMatchesSection
               items={playing.filter(({ event }) => event.id !== next?.event.id)}

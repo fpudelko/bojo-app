@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 322 testy
+**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 330 testów
 
 ---
 
@@ -295,6 +295,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-08 — Widoczność płatności i zaproszeń dla uczestnika, „Brakuje graczy" na /moje-gry
+PROBLEM: uczestnik płatnego meczu nigdy nie widział, ile ma zapłacić — kwotę
+po zniżce z karty sportowej i status opłacone/nieopłacone widział wyłącznie
+organizator. Organizator nie miał gdzie sprawdzić, na który z jego meczów
+nie zbiera się skład — `/moje-gry` świadomie miesza organizowanie i granie
+w jednej liście. Nie było też widać, kogo organizator zaprosił imiennie i kto
+odpowiedział — `dismissed_at` istniał w bazie od dawna, ale nigdzie się go nie
+pokazywało. Osobno: przycisk „Zaproś z ekipy" dublował się na stronie meczu,
+z dwiema różnymi ikonami i różnymi warunkami widoczności.
+ROZWIĄZANIE BOJO: nowa karta „Twoja płatność" na stronie meczu pokazuje
+uczestnikowi dokładną kwotę, sposób płatności i status. Nowa sekcja „Brakuje
+graczy" na `/moje-gry` (zakładka „Nadchodzące") wypisuje organizowane mecze
+bez kompletu, od najbliższego terminu — obok, nie zamiast, dotychczasowej
+wspólnej listy. Nowa karta „Zaproszeni" na stronie meczu (tylko organizator)
+pokazuje imię, awatar i status każdej zaproszonej osoby: Czeka / Dołączył(a)
+/ Nie tym razem. Przycisk „Zaproś z ekipy" został jeden, przy liczniku
+wolnych miejsc.
+MECHANIKA: `priceForParticipant()` (`lib/payments.ts`) użyty też po stronie
+uczestnika w `EventDetailClient.tsx`, gated przez `event.showPaymentStatus`;
+`NeedsPlayersSection` w `components/home/dashboard/DashboardSections.tsx`
+filtruje dane już pobrane przez `getMyParticipatedEvents()` — zero nowego
+zapytania; `components/events/EventInvitesStatus.tsx` +
+`getEventInvitesWithNames()` (`lib/playerInvites.ts`, drugie zapytanie do
+`profiles` — brak klucza obcego z `event_player_invites` do tej tabeli) +
+`lib/inviteStatus.ts` (reguła „uczestnictwo bije wcześniejszą odmowę", pod
+testem po tym, jak przegląd kodu złapał tu odwróconą kolejność).
+
 ### 2026-08-08 — Przepływ organizatora: podsumowanie przed publikacją, wysyłka linku, powiadomienie o odwołaniu meczu
 PROBLEM: organizator Bojo publikował mecz na ślepo — przycisk „Opublikuj mecz" stoi na
 trzecim kroku kreatora, a data, miejsce, skład i cena były ustawiane na krokach 1–2
@@ -504,18 +531,5 @@ szerokość/długość plus indeks częściowy na `(lat, lng)` dla obiektów
 publicznych. `getExplorerFields(kadr)`, `getExplorerClusters()`
 i `getFieldsByIds()` w `lib/api.ts`; `KadrObserwator` i `WarstwaSkupisk`
 w `components/map/VenueExplorer.tsx`.
-
-### 2026-08-06 — Zaproszenie na mecz trafia do powiadomień
-PROBLEM: imienne zaproszenie na mecz nie tworzyło w Bojo żadnego powiadomienia.
-Dzwonek pokazywał zero, mimo trzech czekających zaproszeń — zaproszony widział
-je wyłącznie po wejściu na stronę główną, czyli dokładnie wtedy, gdy i tak by
-je zauważył. Powiadomienia powstały w Bojo wcześniej niż imienne zaproszenia
-i nikt tych dwóch rzeczy wtedy nie połączył.
-ROZWIĄZANIE BOJO: zaproszenie ląduje w skrzynce razem z nazwą zapraszającego,
-terminem i tytułem meczu. Zaproszenia, które czekały w bazie przed tą zmianą,
-dostały powiadomienia wstecz — ale tylko te nieodrzucone i dotyczące meczu,
-który się jeszcze nie odbył.
-MECHANIKA: migracja `067` — wyzwalacz `powiadom_o_zaproszeniu()`
-na `event_player_invites` oraz jednorazowe uzupełnienie zaległych wpisów.
 
 

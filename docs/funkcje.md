@@ -49,13 +49,21 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 |---|---|---|
 | Drużyny | `team_mode`, `teams_published` | Podział składu, kapitanowie, losowanie, publikacja |
 | Wyniki | `track_results` | Wynik meczu + gole i asysty |
-| Płatności | `track_payments`, `show_payment_status` | Podział kosztów, oznaczanie opłaconych |
+| Płatności | `track_payments`, `show_payment_status` | Podział kosztów (organizator), karta „Twoja płatność" (uczestnik) |
 | Bramkarze | `goalkeepers_enabled`, `max_goalkeepers` | Osobny limit; nadmiarowi na rezerwę |
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
 | Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]` |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
+
+**„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
+uwzględnieniu zniżki kartowej i status opłacone/nieopłacone widział wyłącznie
+organizator w panelu „Podział kosztów". Karta na stronie meczu
+(`EventDetailClient.tsx`, `costGrosze > 0 && !isOwner && event.showPaymentStatus &&
+myConfirmed && !myConfirmed.isReserve`) liczy cenę przez `priceForParticipant()` —
+ten sam wzorzec co panel organizatora, jedno źródło prawdy. Rezerwowy nie widzi tej
+karty: jeszcze nie ma za co płacić, dopóki nie wejdzie do składu.
 
 ---
 
@@ -86,6 +94,21 @@ jeden komponent zamiast dwóch kopii — patrz sekcja „Układ `/moje-gry`" ni�
 
 Nie mylić z `lib/invites.ts` (tabela `event_invites`, migracja `036`) — zaproszenia po
 e-mailu z tokenem, martwy kod, nic go nie importuje.
+
+**Jeden przycisk „Zaproś z ekipy" na stronie, nie dwa.** Do niedawna były dwa — przy
+liczniku wolnych miejsc i osobno w sekcji „Zaproś znajomych" — z różnymi ikonami i różnymi
+warunkami widoczności. Zostaje wyłącznie ten przy liczniku (`!isFull`, ikona `Users`);
+sekcja niżej na stronie ma dziś tylko udostępnianie linku.
+
+**Kto zaprosił, kto odpowiedział — widok organizatora.**
+`components/events/EventInvitesStatus.tsx`, tylko `isOwner` (RLS na
+`event_player_invites` i tak nie przepuści reszty — SELECT widzi zaproszony, organizator
+i admin). Lista imion z awatarami i statusem: Czeka / Dołączył(a) / Nie tym razem. Nazwy
+dociąga `getEventInvitesWithNames()` (`lib/playerInvites.ts`) drugim zapytaniem do
+`profiles` — `event_player_invites` ma klucz obcy do `auth.users`, nie do `profiles`, więc
+PostgREST nie potrafi tego wbudować jednym joinem. Reguła „uczestnictwo bije wcześniejszą
+odmowę" (`lib/inviteStatus.ts`, pod testem) — ktoś mógł kliknąć „Nie tym razem" i mimo to
+dołączyć innym kanałem; `dismissed_at` sprawdza się dopiero, gdy w składzie go nie ma.
 
 ---
 
@@ -286,9 +309,18 @@ liczników nie mieściły się zawsze na 360px.
 
 Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego**
 (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
-`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NextMatchCard` →
-`MyMatchesSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie** są tu powtórzone —
-mają własne strony (`/grupy`, `/wydarzenia`).
+`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NeedsPlayersSection` →
+`NextMatchCard` → `MyMatchesSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie** są tu
+powtórzone — mają własne strony (`/grupy`, `/wydarzenia`).
+
+**„Brakuje graczy"** (`NeedsPlayersSection`, `components/home/dashboard/DashboardSections.tsx`)
+— organizowane, nadchodzące mecze, które jeszcze nie mają kompletu, sortowane od
+najbliższego terminu. Odpowiada na pytanie, na które `/moje-gry` dotąd nie miało jak
+odpowiedzieć: „na który z moich meczów nie zbiera się skład". Dane są już pobrane przez
+`getMyParticipatedEvents()` (`participantsCount` liczy `toEvent()` z dołączonego
+`event_participants`) — zero nowego zapytania. Renderuje `EventBrowseCard`, tak jak
+`MyMatchesSection` niżej — to osobna, DODATKOWA sekcja, nie zamiana świadomie
+scalonej listy „organizujesz + grasz" (patrz komentarz w `lib/myEvents.ts`).
 
 **Zakładka „Obserwowane"** to osobna lista `EventBrowseCard` (wzorem „Historii"), nie
 sekcja pulpitu — obserwowane mecze mają teraz **jedno** miejsce, nie dwa: wcześniej

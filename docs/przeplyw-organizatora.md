@@ -126,7 +126,7 @@ Największa dziura w całym przepływie i jednocześnie największa dźwignia wz
 | **O-17** | **Dwa różne linki pod tą samą etykietą „Udostępnij".** Pasek górny wysyłał `window.location.href`, panel „Zaproś znajomych" — `/d/{kod}`. Ten sam mecz, dwa adresy, dwa przyciski o tej samej nazwie na jednej stronie. | zrobione |
 | **O-18** | **`navigator.share` dostawał sam link, bez tekstu.** Na czacie lądował goły odnośnik — gorzej niż post na grupie, który ma datę, miejsce i cenę. Bojo umiało to lepiej w grupach. | zrobione |
 | **O-19** | **Podpowiedź cytowała przycisk, którego nie ma** („użyj «Zaproś / wyślij link» niżej"). | zrobione |
-| **O-20** | **„Zaproś z ekipy" dubluje się** na jednej stronie, z różnymi ikonami i warunkami widoczności. Ślepy zaułek dialogu bez grupy **naprawiony** (przycisk do `/grupy/nowe`), bo panel po publikacji eksponuje tę akcję mocniej — ale sam duplikat przycisku zostaje. | częściowo |
+| **O-20** | **„Zaproś z ekipy" dublował się** na jednej stronie, z różnymi ikonami i warunkami widoczności. Ślepy zaułek dialogu bez grupy naprawiony (przycisk do `/grupy/nowe`); drugi, redundantny przycisk usunięty — jedyny stały punkt imiennego zaproszenia jest teraz przy liczniku wolnych miejsc, ikona ujednolicona na `Users` wszędzie. | zrobione |
 
 ---
 
@@ -140,10 +140,10 @@ dla organizatora, panel „Podział kosztów" liczący zniżki kartowe.
 |---|---|---|
 | **O-21** | **Odwołanie meczu było CICHE.** `cancelEvent()` zmieniało `status` i logowało aktywność; uczestnik dowiadywał się wyłącznie wchodząc na stronę meczu. Kto nie wszedł — przyjeżdżał na boisko. To jedyne miejsce, w którym Bojo było obiektywnie gorsze od zwykłej wiadomości na czacie. | zrobione (migracja `070`) |
 | **O-22** | **Interfejs kłamał w drugą stronę:** checkbox przy zmianie terminu twierdził „Bojo jeszcze tego nie robi", podczas gdy migracja `065` powiadomienie wysyła. | zrobione |
-| **O-23** | **Uczestnik nie widzi, ile ma zapłacić.** `showPaymentStatus` jest zapisywane przez formularz edycji i **nigdzie nie odczytywane**. To ta sama luka co [BACKLOG §1.4](../BACKLOG.md), widziana od strony uczestnika. | w backlogu |
-| **O-24** | **Organizator nie ma widoku „gdzie brakuje ludzi".** `/moje-gry` jest widokiem gracza — mecze organizowane i grane leżą świadomie w jednej liście. `getMyEvents()` zwraca dokładnie te dane wraz z `participantsCount` i nie jest używane przez żadną stronę. | w backlogu |
-| **O-25** | **Nie widać, kogo się zaprosiło i kto odpowiedział.** `event_player_invites` ma `dismissed_at`, ale `getEventPlayerInvites` służy wyłącznie do wyszarzania już zaproszonych w dialogu. | w backlogu |
-| **O-26** | **Martwy kod na ścieżce organizatora:** nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + stan `smsBusy` zdefiniowane i nieużywane, `lib/invites.ts` (86 linii, gotowy polski szablon zaproszenia mailem) bez ani jednego importu. | w backlogu |
+| **O-23** | **Uczestnik nie widział, ile ma zapłacić.** `showPaymentStatus` było zapisywane przez formularz edycji i **nigdzie nieodczytywane**. Nowa karta „Twoja płatność" (kwota po uwzględnieniu zniżki kartowej, sposób płatności, status opłacone/nieopłacone) — pierwsze miejsce, które tę flagę respektuje. To ta sama luka co [BACKLOG §1.4](../BACKLOG.md), teraz zamknięta z obu stron. | zrobione |
+| **O-24** | **Organizator nie miał widoku „gdzie brakuje ludzi".** Nowa sekcja „Brakuje graczy" na `/moje-gry` (zakładka „Nadchodzące") — organizowane, niepełne mecze, sortowane od najbliższego terminu. Dane już były pobierane przez `getMyParticipatedEvents()` (`participantsCount` liczone przez `toEvent()`), więc zero nowego zapytania. Merge organizowanie+granie w `MyMatchesSection` zostaje nietknięty — to osobna, dodatkowa sekcja. | zrobione |
+| **O-25** | **Nie było widać, kogo się zaprosiło i kto odpowiedział.** Nowa karta „Zaproszeni" na stronie meczu (tylko organizator — RLS na `event_player_invites` i tak nie przepuści reszty): imię, awatar i status Czeka / Dołączył(a) / Nie tym razem. Reguła „uczestnictwo bije wcześniejszą odmowę" wydzielona do `lib/inviteStatus.ts` pod testem — pierwsza wersja tej logiki inline w komponencie miała to odwrócone. | zrobione |
+| **O-26** | **Martwy kod na ścieżce organizatora:** nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + stan `smsBusy` zdefiniowane i nieużywane, `lib/invites.ts` (86 linii, gotowy polski szablon zaproszenia mailem) bez ani jednego importu. Świadomie poza zakresem — usuwanie kodu to osobna decyzja, nie skutek uboczny audytu UX. | w backlogu |
 
 ---
 

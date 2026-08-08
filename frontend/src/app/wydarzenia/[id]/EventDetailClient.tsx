@@ -19,6 +19,7 @@ import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
 import EventComments from '@/components/events/EventComments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
+import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { useToast } from '@/lib/toast';
@@ -1395,13 +1396,19 @@ export default function EventDetailClient() {
             {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
                 człowiek orientuje się, że brakuje ludzi. Panel z linkiem jest
                 na samym dole strony — zanim ktoś tam dojedzie, zdąży wyjść
-                i wkleić link z Messengera. */}
+                i wkleić link z Messengera.
+
+                To jest teraz JEDYNY stały przycisk „Zaproś z ekipy" na stronie —
+                dolna sekcja „Zaproś znajomych" miała kiedyś własny, drugi
+                przycisk o tej samej nazwie, innej ikonie i innym warunku
+                widoczności (bez `!isFull`). Ikona ujednolicona na `Users`,
+                bo tej samej używa panel „Mecz gotowy" tuż po publikacji. */}
             {user && !eventStarted && !isFull && (myParticipation || isOwner) && (
               <button
                 onClick={() => setInviteOpen(true)}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
               >
-                <UserPlus className="h-4 w-4" /> Zaproś z ekipy
+                <Users className="h-4 w-4" /> Zaproś z ekipy
               </button>
             )}
 
@@ -2103,6 +2110,51 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        {/* Uczestnik nigdy nie widział, ile ma zapłacić — widział to tylko
+            organizator w „Podziale kosztów" wyżej. `showPaymentStatus`
+            („Pokaż status płatności uczestnikom") było od dawna zapisywane
+            przez formularz edycji i nigdzie nieodczytywane; to pierwsze
+            miejsce, które je respektuje. Rezerwowy nie widzi tej karty —
+            jeszcze nie ma za co płacić, dopóki nie wejdzie do składu. */}
+        {event.costGrosze > 0 && !isOwner && event.showPaymentStatus
+          && myConfirmed && !myConfirmed.isReserve && (() => {
+            const price = priceForParticipant(
+              event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
+            );
+            return (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+                  <Banknote className="w-4 h-4" /> Twoja płatność
+                </h2>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Do zapłaty</span>
+                  <span className="font-semibold text-ink">
+                    {price.discountUnspecified
+                      ? 'Zniżka z karty — ustal kwotę z organizatorem'
+                      : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                  </span>
+                </div>
+                {myConfirmed.paymentMethod && (
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Sposób</span>
+                    <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
+                  </div>
+                )}
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  {myConfirmed.hasPaid ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                      <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                      <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
         {/* Comments — only for participants */}
         {myParticipation && <EventComments eventId={event.id} />}
 
@@ -2218,20 +2270,31 @@ export default function EventDetailClient() {
 
         {/* ── Zaproś znajomych — tylko dla uczestników ──
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
-            więc panel ma sens także przy meczach sprzed migracji 041. */}
+            więc panel ma sens także przy meczach sprzed migracji 041.
+
+            Sekcja miała kiedyś WŁASNY przycisk „Zaproś z ekipy" nad panelem
+            linku — drugi na tej samej stronie, z inną ikoną i innym warunkiem
+            widoczności niż ten przy liczniku wolnych miejsc (`O-20` w audycie
+            ścieżki organizatora). Jedyny stały punkt imiennego zaproszenia
+            jest teraz tam, tuż pod licznikiem — tutaj zostaje wyłącznie
+            udostępnianie linku. */}
         {!isCancelled && (myParticipation || isOwner) && (
-          <div className="space-y-3 px-4">
-            {/* Imienne zaproszenie z ekipy. Nad linkiem, bo trafia prosto do
-                aplikacji zapraszanego — link wklejony na czacie ginie. */}
-            {user && !eventStarted && (
-              <button
-                onClick={() => setInviteOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-semibold text-primary-800 hover:bg-primary-100"
-              >
-                <Users className="h-4 w-4" /> Zaproś z ekipy
-              </button>
-            )}
+          <div className="px-4">
             <ZaprosZnajomychPanel event={event} />
+          </div>
+        )}
+
+        {/* Kogo zaprosiłem, kto odpowiedział — dotąd nigdzie tego nie było
+            widać, mimo że `dismissed_at` istnieje w bazie od migracji 060.
+            Tylko organizator: RLS na `event_player_invites` i tak nie
+            przepuści reszty. `joinedUserIds` liczone z uczestnictwa, które
+            strona ma już wczytane — zero dodatkowego zapytania o skład. */}
+        {isOwner && (
+          <div className="px-4">
+            <EventInvitesStatus
+              eventId={event.id}
+              joinedUserIds={new Set(participants.map((p) => p.userId).filter((id): id is string => !!id))}
+            />
           </div>
         )}
 
