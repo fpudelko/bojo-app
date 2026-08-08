@@ -76,6 +76,27 @@ describe('saveEventDraft / loadEventDraft', () => {
     expect(loadEventDraft()).not.toBeNull();
   });
 
+  it('wczytuje szkic zapisany PRZED dodaniem nazwy własnej miejsca', () => {
+    // Pole `nazwaWlasnaMiejsca` doszło później i jest opcjonalne właśnie po to,
+    // żeby nie unieważniać szkiców w toku. Gdyby wersję `v` podbito zamiast tego,
+    // każdy formularz wypełniany w chwili wdrożenia poszedłby do kosza.
+    const { nazwaWlasnaMiejsca, ...stareValues } = { ...VALUES, nazwaWlasnaMiejsca: 'x' };
+    void nazwaWlasnaMiejsca;
+    localStorage.setItem(
+      'bojo_event_draft_v1',
+      JSON.stringify({ v: 1, ts: Date.now(), step: 2, values: stareValues }),
+    );
+    const draft = loadEventDraft();
+    expect(draft).not.toBeNull();
+    expect(draft!.values.nazwaWlasnaMiejsca).toBeUndefined();
+    expect(draft!.step).toBe(2);
+  });
+
+  it('zapisuje i odtwarza nazwę własną miejsca', () => {
+    saveEventDraft(1, { ...VALUES, nazwaWlasnaMiejsca: 'Boisko przy szkole' });
+    expect(loadEventDraft()!.values.nazwaWlasnaMiejsca).toBe('Boisko przy szkole');
+  });
+
   it('does not throw when localStorage.setItem fails (e.g. private mode)', () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
     expect(() => saveEventDraft(1, VALUES)).not.toThrow();

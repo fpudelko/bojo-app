@@ -365,6 +365,26 @@ export default function EventsListView() {
               Pokaż więcej ({sorted.length - visibleCount})
             </button>
           )}
+
+          {/* Wylogowany nie ma dolnej nawigacji (BottomNavGate), a pływające „+"
+              żyje tylko na stronie głównej — więc oglądając NIEPUSTĄ listę cudzych
+              meczów nie miał stąd żadnego wejścia do kreatora. Pusty stan niżej
+              ma swoje CTA od dawna; brakowało go dokładnie w tym przypadku.
+              Mobile-first: przycisk pełnej szerokości, w rzędzie dopiero od sm:. */}
+          {!user && (
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+              <p className="font-semibold text-ink">Nie ma Twojej gry?</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                Wystaw własną — kreator ma trzy kroki i zajmuje dwie minuty.
+              </p>
+              <Link
+                href="/wydarzenia/nowe"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950 sm:w-auto"
+              >
+                <Plus className="h-4 w-4" /> Zorganizuj mecz
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

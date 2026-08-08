@@ -98,6 +98,13 @@ function NewEventForm() {
 
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
+  // Wybrane boisko odpadło, bo nie obsługuje nowo wybranego sportu — komunikat
+  // znika, gdy organizator wskaże miejsce ponownie.
+  const [sportZmienilMiejsce, setSportZmienilMiejsce] = useState(false);
+  // Nazwa dla pinezki spoza katalogu. Bez niej mecz brał za nazwę pierwszy
+  // segment adresu z Nominatim, a gdy reverse geocoding padł — same
+  // współrzędne, czyli mecz „52.40123".
+  const [nazwaWlasnaMiejsca, setNazwaWlasnaMiejsca] = useState('');
 
   const [date, setDate] = useState(tomorrowStr);
   const [time, setTime] = useState('18:00');
@@ -109,6 +116,9 @@ function NewEventForm() {
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
+  // Rozwinięcie sekcji „Więcej opcji" na kroku 2 — stan widoku, nie danych,
+  // więc świadomie NIE trafia do szkicu w localStorage.
+  const [wiecejOpcji, setWiecejOpcji] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -173,6 +183,19 @@ function NewEventForm() {
       : '');
   }, [kosztZaObiekt, kosztObiektuPln, maxPlayers]);
 
+  // Płatny mecz bez ANI JEDNEJ metody płatności przechodził walidację:
+  // `validatePayments` sprawdza tylko numer BLIK i wysokość zniżki, a chipsy
+  // startują puste. Gracz widział cenę i nie wiedział, jak ją uregulować.
+  // Gotówka jest sensownym domyślnym wyborem — i jednorazowym: `useRef`
+  // pilnuje, żeby świadome odznaczenie wszystkiego nie zostało nadpisane.
+  const domyslnaMetodaUstawiona = useRef(false);
+  useEffect(() => {
+    if (domyslnaMetodaUstawiona.current) return;
+    if (!(parseFloat(costPln || '0') > 0)) return;
+    domyslnaMetodaUstawiona.current = true;
+    setAcceptedPaymentMethods((cur) => (cur.length ? cur : ['gotowka']));
+  }, [costPln]);
+
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
@@ -215,6 +238,7 @@ function NewEventForm() {
         const v = draft.values;
         setSport(v.sport);
         setLocation(v.location);
+        setNazwaWlasnaMiejsca(v.nazwaWlasnaMiejsca ?? '');
         // Szkic sprzed 11h nie może wracać z datą, która blokuje krok 2.
         setDate(isPast(v.date, v.time) ? tomorrowStr() : v.date);
         setTime(v.time);
@@ -235,6 +259,10 @@ function NewEventForm() {
         setKosztZaObiekt(v.kosztZaObiekt);
         setKosztObiektuPln(v.kosztObiektuPln);
         setAcceptedPaymentMethods(v.acceptedPaymentMethods);
+        // Szkic płatnego meczu niesie już decyzję organizatora o metodach —
+        // także tę, żeby nie wybrać żadnej. Domyślna „Gotówka" nie ma prawa
+        // jej nadpisać po odtworzeniu.
+        if (parseFloat(v.costPln || '0') > 0) domyslnaMetodaUstawiona.current = true;
         setBlikPhone(v.blikPhone);
         setCardDiscountEnabled(v.cardDiscountEnabled);
         setCardDiscountPln(v.cardDiscountPln);
@@ -255,14 +283,16 @@ function NewEventForm() {
     if (!hydrated || submitting) return;
     if (isFirstSave.current) { isFirstSave.current = false; return; }
     saveEventDraft(step, {
-      sport, location, date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched,
+      sport, location, nazwaWlasnaMiejsca,
+      date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched,
       goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled, visibility,
       requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
       acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
       sportsCardOtherName,
     });
   }, [
-    hydrated, submitting, step, sport, location, date, time, durationMin, czasWlasny, maxPlayers,
+    hydrated, submitting, step, sport, location, nazwaWlasnaMiejsca,
+    date, time, durationMin, czasWlasny, maxPlayers,
     maxPlayersTouched, goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled,
     visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
     kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
@@ -275,6 +305,8 @@ function NewEventForm() {
     setStep(1);
     setSport('piłka nożna');
     setLocation(EMPTY_LOCATION);
+    setNazwaWlasnaMiejsca('');
+    setSportZmienilMiejsce(false);
     setDate(tomorrowStr());
     setTime('18:00');
     setDurationMin(90);
@@ -446,9 +478,14 @@ function NewEventForm() {
     }
     const endTime = addMinutes(time, durationMin);
 
+    // Nazwa własna wpisana przez organizatora bije pierwszy segment adresu
+    // z Nominatim — ten bywa numerem domu albo (gdy reverse geocoding padł)
+    // parą współrzędnych.
     const fieldName = location.venue
       ? location.venue.name
-      : (location.address.split(',')[0].trim() || 'Nieznana lokalizacja');
+      : (nazwaWlasnaMiejsca.trim()
+        || location.address.split(',')[0].trim()
+        || 'Nieznana lokalizacja');
     const hasCost = parseFloat(costPln || '0') > 0;
 
     setSubmitting(true);
@@ -526,7 +563,10 @@ function NewEventForm() {
     setSport(s);
     if (!maxPlayersTouched) setMaxPlayers(sportDefaultPlayers(s));
     if (location.venue && !location.venue.sport.includes(s)) {
+      // Kasowanie wybranego boiska po cichu wyglądało jak zgubienie danych:
+      // organizator wracał na krok 1 i zastawał pustą mapę bez wyjaśnienia.
       setLocation(EMPTY_LOCATION);
+      setSportZmienilMiejsce(true);
     }
   };
 
@@ -691,6 +731,11 @@ function NewEventForm() {
                     <span aria-hidden>⚠</span> {fieldErrors.location}
                   </p>
                 )}
+                {sportZmienilMiejsce && (
+                  <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                    Poprzednie boisko nie obsługuje sportu {sportLabel(sport)} — wybierz miejsce ponownie.
+                  </p>
+                )}
                 <p className="text-xs text-slate-500 mb-2">
                   Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
                 </p>
@@ -698,7 +743,11 @@ function NewEventForm() {
                   <UnifiedLocationPicker
                     sport={sport}
                     value={location}
-                    onChange={(v) => { setLocation(v); setFieldErrors((f) => ({ ...f, location: '' })); }}
+                    onChange={(v) => {
+                      setLocation(v);
+                      setFieldErrors((f) => ({ ...f, location: '' }));
+                      setSportZmienilMiejsce(false);
+                    }}
                   />
                 </div>
 
@@ -733,17 +782,36 @@ function NewEventForm() {
                   </div>
                 )}
                 {!location.venue && location.lat !== null && (
-                  <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 shrink-0" />
-                    {location.address || `${location.lat?.toFixed(5)}, ${location.lng?.toFixed(5)}`}
-                    <button
-                      type="button"
-                      onClick={() => setLocation(EMPTY_LOCATION)}
-                      className="ml-1 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </p>
+                  <>
+                    <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      {location.address || `${location.lat?.toFixed(5)}, ${location.lng?.toFixed(5)}`}
+                      <button
+                        type="button"
+                        onClick={() => setLocation(EMPTY_LOCATION)}
+                        className="ml-1 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </p>
+                    {/* Pinezka spoza katalogu nie ma nazwy własnej: mecz brał
+                        pierwszy segment adresu z Nominatim, a gdy reverse
+                        geocoding padł — same współrzędne. Pole pokazuje się
+                        wyłącznie na tej ścieżce i jest opcjonalne. */}
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Nazwa miejsca <span className="font-normal text-slate-400">(opcjonalnie)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={nazwaWlasnaMiejsca}
+                        onChange={(e) => setNazwaWlasnaMiejsca(e.target.value)}
+                        placeholder="np. Boisko przy szkole"
+                        maxLength={100}
+                        className={inputCls}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -874,28 +942,6 @@ function NewEventForm() {
                 </div>
               )}
 
-              {/* Ile czasu ma rezerwowy na przyjęcie zwolnionego miejsca */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Czas na decyzję z rezerwy
-                </label>
-                <p className="text-xs text-slate-500 mb-2">
-                  Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma
-                  na kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
-                </p>
-                <select
-                  value={reserveClaimHours}
-                  onChange={(e) => setReserveClaimHours(Number(e.target.value))}
-                  className={`${inputCls} max-w-[160px]`}
-                >
-                  <option value={1}>1 godzina</option>
-                  <option value={3}>3 godziny</option>
-                  <option value={6}>6 godzin</option>
-                  <option value={12}>12 godzin</option>
-                  <option value={24}>24 godziny</option>
-                </select>
-              </div>
-
               {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — tak liczy
                   `priceForParticipant()` i tak wygląda rozliczenie na meczu.
                   Ale organizator zna zwykle drugą liczbę: ile kosztuje wynajem
@@ -957,6 +1003,13 @@ function NewEventForm() {
                         </button>
                       ))}
                     </div>
+                    {/* Ostrzeżenie, nie blokada — organizator może świadomie
+                        ustalić płatność poza aplikacją. */}
+                    {acceptedPaymentMethods.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-700">
+                        Bez wybranej metody gracze zobaczą cenę, ale nie dowiedzą się, jak Ci zapłacić.
+                      </p>
+                    )}
                   </div>
 
                   {acceptedPaymentMethods.includes('blik') && (
@@ -974,9 +1027,16 @@ function NewEventForm() {
                         placeholder="600 123 456"
                         className={[inputCls, fieldErrors.blikPhone ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
                       />
-                      {fieldErrors.blikPhone && (
+                      {fieldErrors.blikPhone ? (
                         <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
                           <span aria-hidden>⚠</span> {fieldErrors.blikPhone}
+                        </p>
+                      ) : (
+                        // Fakt z `canSeeBlikPhone()` — organizator oddaje tu
+                        // swój prywatny numer i zasługuje, żeby wiedzieć, komu
+                        // i kiedy się pokaże. Formularz milczał o tym zupełnie.
+                        <p className="mt-1 text-xs text-slate-500">
+                          Numer zobaczą tylko zapisani gracze i dopiero godzinę przed meczem.
                         </p>
                       )}
                     </div>
@@ -1103,6 +1163,46 @@ function NewEventForm() {
                 )}
               </div>
 
+              {/* Więcej opcji — jedno ustawienie, którego pierwszy organizator
+                  nie ma jak sensownie podjąć: dotyczy listy rezerwowej, która
+                  jeszcze nie istnieje, a stało na kroku obiecującym dwie minuty.
+                  Domyślne 3 h jest dobre; kto chce inaczej, rozwija sekcję.
+                  `wiecejOpcji` to stan WIDOKU, nie danych — nie trafia do szkicu. */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setWiecejOpcji((v) => !v)}
+                  aria-expanded={wiecejOpcji}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  Więcej opcji
+                  <ChevronDown className={clsx('h-4 w-4 transition-transform', wiecejOpcji && 'rotate-180')} />
+                </button>
+
+                {wiecejOpcji && (
+                  <div className="mt-3 rounded-xl border border-slate-200 px-4 py-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Czas na decyzję z rezerwy
+                    </label>
+                    <p className="text-xs text-slate-500 mb-2">
+                      Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma
+                      na kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
+                    </p>
+                    <select
+                      value={reserveClaimHours}
+                      onChange={(e) => setReserveClaimHours(Number(e.target.value))}
+                      className={`${inputCls} max-w-[160px]`}
+                    >
+                      <option value={1}>1 godzina</option>
+                      <option value={3}>3 godziny</option>
+                      <option value={6}>6 godzin</option>
+                      <option value={12}>12 godzin</option>
+                      <option value={24}>24 godziny</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
             </>
           )}
 
@@ -1198,7 +1298,7 @@ function NewEventForm() {
                 wiersze={zbudujPodsumowanie({
                   sport,
                   title,
-                  miejsceNazwa: location.venue?.name ?? null,
+                  miejsceNazwa: location.venue?.name ?? (nazwaWlasnaMiejsca.trim() || null),
                   miejsceAdres: location.venue?.address ?? location.address ?? null,
                   date,
                   time,

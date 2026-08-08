@@ -17,6 +17,11 @@ export const EVENT_DRAFT_TTL_MS = 12 * 60 * 60 * 1000;
 export interface EventDraftValues {
   sport: string;
   location: LocationResult;
+  /** Nazwa dla pinezki spoza katalogu. Opcjonalna CELOWO, mimo że reszta pól
+   *  jest wymagana: szkice zapisane przed jej dodaniem mają być nadal ważne,
+   *  a `v` zostaje na `1` — odczyt robi `?? ''`, więc stary szkic wczytuje się
+   *  bez zmian zamiast wylecieć jako „inna wersja schematu". */
+  nazwaWlasnaMiejsca?: string;
   date: string;
   time: string;
   durationMin: number;
