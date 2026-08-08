@@ -282,10 +282,16 @@ na jego stronie, także bez konta.
 
 **Krok 3 — mecz w ramach ekipy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
-wyśrodkowana karta od `sm:`) z listą `getMyGroups()`, a przy braku grup — CTA „Załóż
-ekipę" → `/grupy/nowe`. Wybór trafia do `createEvent` jako `groupId`. Wiersz jest
-**osobny od widoczności**, bo przypisanie do ekipy jest wobec niej ortogonalne: mecz
-grupy bywa publiczny. Wejście `?group=` preselekcjonuje ten sam stan.
+wyśrodkowana karta od `sm:`) z listą `getMyGroups()`. Wybór trafia do `createEvent`
+jako `groupId`. Wiersz jest **osobny od widoczności**, bo przypisanie do ekipy jest
+wobec niej ortogonalne: mecz grupy bywa publiczny. Wejście `?group=` preselekcjonuje
+ten sam stan.
+
+„Załóż ekipę"/„Załóż nową ekipę" **nie prowadzi na `/grupy/nowe`** — otwiera drugi tryb
+tego samego dialogu, okrojony formularz (nazwa + sport) w tym samym oknie. Nawigacja na
+osobną trasę wyrzucała organizatora z kreatora w połowie wypełniania; po `createGroup()`
++ `getGroup()` dialog wywołuje ten sam `onWybierz(grupa)` co wybór z listy — zamyka się
+i wraca dokładnie na krok 3, z nowo założoną ekipą już wybraną.
 
 **Powrót po publikacji.** „← Wróć" na stronie świeżo utworzonego meczu (`?utworzono=1`)
 prowadzi na `/moje-gry`, nie `router.back()` — cofanie wracało do wypełnionego kreatora.
