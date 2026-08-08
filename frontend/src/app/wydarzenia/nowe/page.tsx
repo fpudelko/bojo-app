@@ -500,7 +500,10 @@ function NewEventForm() {
         organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && organizerRole === 'gk',
       );
       clearEventDraft();
-      router.push(`/wydarzenia/${id}`);
+      // `?utworzono=1` włącza na stronie meczu panel „Mecz gotowy — wyślij link".
+      // Strona sama zdejmuje ten parametr z adresu zaraz po odczycie, więc nie
+      // trafi do linku, który organizator za chwilę wyśle ekipie.
+      router.push(`/wydarzenia/${id}?utworzono=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się utworzyć wydarzenia');
       setSubmitting(false);

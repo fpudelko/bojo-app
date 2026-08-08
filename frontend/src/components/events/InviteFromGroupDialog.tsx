@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { X, Users, Check, Loader2 } from 'lucide-react';
 import { getMyGroups, getGroupMembers } from '@/lib/groups';
 import { getEventPlayerInvites, invitePlayers } from '@/lib/playerInvites';
@@ -112,9 +113,22 @@ export default function InviteFromGroupDialog({
               {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100" />)}
             </div>
           ) : groups.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-500">
-              Nie należysz jeszcze do żadnej ekipy. Załóż grupę, a potem zaprosisz ją na mecz jednym kliknięciem.
-            </p>
+            // Ślepy zaułek bez wyjścia: tekst kazał założyć grupę i nie dawał
+            // jak. Boli tym bardziej, odkąd „Zaproś z ekipy" stoi w panelu tuż
+            // po publikacji — a świeży organizator z definicji nie ma jeszcze
+            // ekipy.
+            <div className="py-6 text-center">
+              <p className="text-sm text-slate-500">
+                Nie należysz jeszcze do żadnej ekipy. Załóż grupę, a potem zaprosisz ją na mecz
+                jednym kliknięciem.
+              </p>
+              <Link
+                href="/grupy/nowe"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
+              >
+                <Users className="h-4 w-4" /> Załóż ekipę
+              </Link>
+            </div>
           ) : (
             <>
               {groups.length > 1 && (

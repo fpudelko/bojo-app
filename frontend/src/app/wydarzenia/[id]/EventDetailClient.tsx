@@ -349,6 +349,8 @@ export default function EventDetailClient() {
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
+  const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
   const [venueInfoOpen, setVenueInfoOpen] = useState(false);
   const [skopiowanyToken, setSkopiowanyToken] = useState<string | null>(null);
   // Rescheduling from the badge. `whenConfirm` is the second gate: moving a
@@ -399,6 +401,27 @@ export default function EventDetailClient() {
   }, [id, loadMatchData, user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Kreator przekierowuje tu z `?utworzono=1`, żeby pokazać panel „Mecz gotowy".
+  //
+  // Parametr czytamy z `window.location`, a NIE przez `useSearchParams()`: ten
+  // hak wymusza na trasie prerenderowanej bail-out do CSR i wywala produkcyjny
+  // build błędem `missing-suspense-with-csr-bailout`. Lokalnie się to nie
+  // powtórzy — wychodzi dopiero na Vercelu (patrz AGENTS.md).
+  //
+  // Zaraz po odczycie zdejmujemy parametr z adresu. Dwa powody: odświeżenie
+  // strony nie pokaże panelu drugi raz, a „Kopiuj link" nie złapie go do
+  // schowka — choć ten drugi jest już zabezpieczony osobno, bo kopiuje
+  // `eventUrl()`, nie `window.location.href`.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('utworzono') !== '1') return;
+    setSwiezoUtworzony(true);
+    p.delete('utworzono');
+    const q = p.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
+  }, []);
 
   // Only needed by the organizer/admin settings panel, so it's fetched lazily
   // rather than on every visitor's page load.
@@ -1060,6 +1083,54 @@ export default function EventDetailClient() {
                 <RotateCcw className="w-3.5 h-3.5" /> Przywróć
               </Button>
             )}
+          </div>
+        )}
+
+        {/* ── MECZ GOTOWY — pierwsza minuta po publikacji ──
+            Kreator kończył się przekierowaniem na tę stronę i niczym więcej:
+            organizator lądował na widoku identycznym z tym, który widzi każdy
+            inny, i sam musiał znaleźć, co dalej. A cała obietnica produktu
+            brzmi „stwórz grę i wyślij ekipie jeden link" — to jest ten moment.
+
+            Układ mobile-first: główna akcja pełnej szerokości, dwie poboczne
+            w siatce 2×1, która mieści się już na 320 px. */}
+        {swiezoUtworzony && isOwner && !isCancelled && (
+          <div className="mx-4 rounded-2xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-950">
+            <div className="flex items-start gap-2">
+              <p className="min-w-0 flex-1 font-semibold text-ink">Mecz gotowy</p>
+              <button
+                type="button"
+                onClick={() => setSwiezoUtworzony(false)}
+                aria-label="Ukryj"
+                className="-mr-1 -mt-1 shrink-0 rounded-lg p-1 text-slate-500 transition hover:bg-white/60"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+              Wyślij link ekipie — to wszystko, czego trzeba, żeby się zapisali.
+            </p>
+
+            <Button size="lg" className="mt-3 w-full" onClick={handleShare}>
+              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Wyślij link ekipie
+            </Button>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={handleCopyLink}>
+                {linkCopied
+                  ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
+                  : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj link</>}
+              </Button>
+              <Button variant="outline" onClick={() => setInviteOpen(true)}>
+                <Users className="h-4 w-4" strokeWidth={2.25} /> Zaproś z ekipy
+              </Button>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
+              {event.visibility === 'public'
+                ? 'Mecz jest publiczny: zobaczą go też gracze z okolicy na liście otwartych gier.'
+                : 'Mecz jest prywatny: wejdą tylko osoby z tym linkiem.'}
+            </p>
           </div>
         )}
 
