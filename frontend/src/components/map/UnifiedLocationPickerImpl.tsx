@@ -184,7 +184,11 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   const showFly = flyTarget;
 
   return (
-    <div className="relative w-full h-full min-h-[300px]">
+    // `min-h` niższe niż najniższy kontener, który tego pickera używa (kreator
+    // daje `h-64`, czyli 256 px). Przy 300 px dziecko przerastało rodzica
+    // o 44 px, a `overflow-hidden` ucinało dokładnie ten pas — razem
+    // z przyciskiem „pokaż moją okolicę", sterowaniem zoomu i atrybucją.
+    <div className="relative w-full h-full min-h-[240px]">
       {/* Address search overlay */}
       <div className="absolute top-2 left-2 right-2 z-[1001] flex gap-1.5">
         <input
@@ -221,7 +225,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
       <MapContainer
         center={POZNAN}
         zoom={11}
-        style={{ height: '100%', width: '100%', minHeight: '300px' }}
+        style={{ height: '100%', width: '100%', minHeight: '240px' }}
         zoomControl={false}
       >
         <MapAttribution />

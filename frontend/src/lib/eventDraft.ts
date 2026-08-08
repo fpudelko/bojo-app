@@ -46,6 +46,9 @@ export interface EventDraftValues {
   cardDiscountPln: string;
   acceptedSportsCards: SportsCardProvider[];
   sportsCardOtherName: string;
+  /** Ekipa wybrana w kroku 3. Opcjonalne, bo szkice zapisane przed dodaniem
+   *  tego pola wczytują się dalej — brak wartości znaczy „bez ekipy". */
+  grupaId?: string;
 }
 
 export interface EventDraft {

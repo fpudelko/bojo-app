@@ -48,10 +48,14 @@ export const LANDING_STEPS = [
   },
   {
     icon: 'Users',
+    // Bojo jest na wczesnym etapie: otwartych gier bywa mało, więc obietnica
+    // „społeczność dobierze skład" nie ma jeszcze pokrycia. Karta renderuje
+    // się wyciszona, z plakietką — sprzedaje dalej, ale nie kłamie.
+    wczesnyEtap: true,
     title: 'Brakuje ludzi? Otwórz mecz',
     body:
-      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier w Twojej okolicy, ' +
-      'którą przegląda cała społeczność Bojo.',
+      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier. Graczy szukających ' +
+      'gry wciąż przybywa — na razie najpewniejszy skład zbierzesz linkiem do znajomych.',
   },
 ] as const;
 
@@ -87,10 +91,14 @@ export const LANDING_VALUES = [
   },
   {
     icon: 'MapPin',
+    // Katalog ma lokalizacje kompletne, ale szczegóły nie: nawierzchnia jest
+    // wypełniona w ok. 37% wierszy, typ obiektu w niecałych 2%. Obiecywanie
+    // kompletu opisów spala zaufanie przy pierwszym otwartym boisku.
+    wczesnyEtap: true,
     title: 'Boiska w jednym miejscu',
     body:
-      'Nawierzchnia, typ obiektu, lokalizacja, zdjęcie i nadchodzące mecze. Bez ' +
-      'przekopywania stron klubów.',
+      'Dziesiątki tysięcy obiektów na mapie: lokalizacja, dojazd i nadchodzące mecze. ' +
+      'Szczegóły — nawierzchnię, typ i zdjęcia — uzupełniamy obiekt po obiekcie.',
   },
 ] as const;
 

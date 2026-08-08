@@ -252,7 +252,44 @@ gdzie go zostawił, zamiast zerować się do stanu początkowego.
 Pole `nazwaWlasnaMiejsca` (nazwa dla pinezki spoza katalogu) jest w `EventDraftValues`
 **opcjonalne**, a wersja schematu została na `v: 1`. To celowe: `loadEventDraft` odrzuca
 szkic przy `parsed.v !== 1`, więc podbicie wersji unieważniłoby każdy formularz wypełniany
-w chwili wdrożenia. Odczyt robi `?? ''`. Pokryte testem w `eventDraft.test.ts`.
+w chwili wdrożenia. Odczyt robi `?? ''`. Pokryte testem w `eventDraft.test.ts`. Tak samo
+opcjonalne — i z tego samego powodu — jest `grupaId` (ekipa wybrana w kroku 3).
+
+---
+
+## Kreator meczu — co widać na którym kroku
+
+**Wordmark „bojo" w pasku.** Kreator montuje `<HideBottomNav />`, więc bez wordmarku
+zalogowany na telefonie nie miał stamtąd żadnego wyjścia „do domu". Oba `<Header />`
+w `app/wydarzenia/nowe/page.tsx` (brama logowania i właściwy kreator) dostają
+`showMobileWordmark` — ten sam prop co `/moje-gry`, `/grupy`, `/wydarzenia/[id]`.
+Wysokość paska bez zmian (`h-12`, sticky stepper na `top-12`).
+
+**Krok 1 — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
+wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
+guardowany `try/catch` jak `eventDraft.ts`). Zapis następuje po udanej publikacji,
+**przed** `clearEventDraft()`, i tylko gdy miejsce pochodziło z katalogu — pinezka własna
+nie ma `id`. Odczyt pokazuje chip „Ostatnio: «nazwa» — Użyj", widoczny wyłącznie gdy
+miejsce nie jest jeszcze wybrane. To **propozycja, nie autowybór**: ciche ustawienie
+miejsca meczu jest najgorszą możliwą pomyłką do przeoczenia.
+
+**Krok 2 — „Czas na decyzję z rezerwy" bez chowania.** Pole stoi na stałe pod „Liczbą
+miejsc" (opcje 1/3/6/12/24 h, domyślnie 3). Wcześniej siedziało pod rozwijanym „Więcej
+opcji" — sekcja została w kodzie, ale nie ma dziś czego pokazać i się nie renderuje.
+Odwrócenie ustalenia O-11 audytu, patrz [przeplyw-organizatora.md](./przeplyw-organizatora.md).
+Obok steppera liczby miejsc stoi podpowiedź, że graczy dopisuje się po utworzeniu meczu,
+na jego stronie, także bez konta.
+
+**Krok 3 — mecz w ramach ekipy.** Wiersz pod kartami widoczności otwiera
+`components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
+wyśrodkowana karta od `sm:`) z listą `getMyGroups()`, a przy braku grup — CTA „Załóż
+ekipę" → `/grupy/nowe`. Wybór trafia do `createEvent` jako `groupId`. Wiersz jest
+**osobny od widoczności**, bo przypisanie do ekipy jest wobec niej ortogonalne: mecz
+grupy bywa publiczny. Wejście `?group=` preselekcjonuje ten sam stan.
+
+**Powrót po publikacji.** „← Wróć" na stronie świeżo utworzonego meczu (`?utworzono=1`)
+prowadzi na `/moje-gry`, nie `router.back()` — cofanie wracało do wypełnionego kreatora.
+Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 
 ---
 
@@ -442,7 +479,7 @@ strony) — bez własnego zapytania ograniczonego do widocznego kadru: zbiór pu
 wydarzeń jest już w całości w pamięci (`getPublicEvents()`, bez limitu). Klastrowanie
 przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 `components/map/GamesMarkersLayer.tsx` — ten sam komponent montowany też wewnątrz
-`VenueExplorer.tsx` w trybie „Pokaż gry", patrz „Układ `/mapa`" niżej. Mapa robi
+`VenueExplorer.tsx` w trybie „Gry", patrz „Układ `/mapa`" niżej. Mapa robi
 `fitBounds` na cały zbiór przy każdej zmianie filtrów.
 
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
@@ -478,6 +515,19 @@ Tło jest dekoracją i jest całkowicie bierne: `pointer-events-none`, `overflow
 `aria-hidden` **oraz `inert`**. Samo `aria-hidden` nad kontenerem pełnym odnośników
 byłoby błędem dostępności — czytnik ekranu ich nie widzi, ale Tab dalej w nie wchodzi.
 React 18 nie zna propa `inert` (doszedł w 19), więc atrybut ustawiany jest przez `ref`.
+
+### Gdzie ląduje zalogowany
+
+Domyślny cel po zalogowaniu to **`/wydarzenia`** — lista meczów, czyli to, po co
+użytkownik przyszedł. `?next=` (brama kreatora, strona boiska, grupa) ma pierwszeństwo.
+`AuthForm.tsx` deklarował ten cel od dawna, ale logowanie Google idzie przez
+`app/auth/callback/page.tsx`, który jako jedyny domyślał `/` — stąd rozjazd.
+
+Konsekwencja: baner „Gracze zobaczą Cię jako…" (`UzupelnijProfilBanner`) renderuje się
+**także na `/wydarzenia`**, nie tylko na pulpicie. Bez tego konto bez imienia — typowo
+Google bez `full_name` — nie zobaczyłoby go nigdy. Powiadomienie z migracji `070` tej
+luki nie zamyka: wyzwalacz jest `AFTER INSERT ON auth.users`, więc dotyczy wyłącznie
+nowych kont, a migracja świadomie nie uzupełnia wstecz.
 
 ---
 
@@ -540,7 +590,7 @@ drugorzędne i rzadziej dotykane:
 
 „Otwarte gry" (obiekt ma co najmniej jeden mecz, na który da się jeszcze dołączyć) było
 tu przez chwilę jako osobny przełącznik — usunięte jako zbędne obok „Gry dziś" i trybu
-„Pokaż gry" (patrz niżej), który pokazuje realnie otwarte mecze wprost jako pinezki.
+„Gry | Obiekty" (patrz niżej), którego tryb „Gry" pokazuje realnie otwarte mecze wprost jako pinezki.
 
 **Dlaczego Typ obiektu przestał być zawsze widoczny, a Nawierzchnia się pojawiła:**
 `venue_type` ma dziś **98,3%** publicznych obiektów jako `NULL` (import z OSM go nie
@@ -579,13 +629,21 @@ zmiany funkcji.
 wcześniej był tu `MapPin` (pinezka), myląca ikona dla akcji „pokaż moją okolicę".
 Wspólny komponent `components/map/LocateMeButton.tsx`, patrz niżej.
 
-### Tryb „Pokaż gry"
+### Tryb gier — przełącznik „Gry | Obiekty"
 
-Nowy `TogglePill` „Pokaż gry" na początku paska przełącza **cały** pasek i **cały**
-`<MapContainer>` między dwoma trybami, bez remontowania mapy (zoom/pan usera zostaje,
-tylko podmieniają się warstwy pinezek):
+Segmentowany przełącznik (`components/ui/SegmentedToggle.tsx`) na początku paska
+przełącza **cały** pasek i **cały** `<MapContainer>` między dwoma trybami, bez
+remontowania mapy (zoom/pan usera zostaje, tylko podmieniają się warstwy pinezek).
 
-| | Wyłączony (domyślnie) | Włączony |
+Wcześniej był to `TogglePill` „Pokaż gry" — wyłączony pill nie mówił, w jakim trybie
+mapa jest teraz, tylko czego brakuje. Oba tryby są równorzędne, więc widać oba naraz;
+semantyka i URL bez zmian („Gry" = dotychczasowe `?gry=1`).
+
+`SegmentedToggle` jest generyczny (dwie opcje `{ value, label }`, `role="radiogroup"`),
+z kontenerem `grid grid-cols-2` — wskaźnik ma stałą szerokość połowy kontenera, więc
+przy `flex` szerszy tekst przesunąłby podświetlenie obok przycisku, który podświetla.
+
+| | „Obiekty" (domyślnie) | „Gry" |
 |---|---|---|
 | Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo |
 | Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej — emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
@@ -605,7 +663,7 @@ Stan trybu gier (`gamesSort`, `gamesDate`, `gamesRadius`, `gamesMaxPriceGrosze`,
 trybu w URL to sam przełącznik: `?gry=1`, ten sam wzorzec co `today`/`open`.
 
 Filtr `sports` jest **współdzielony** między oboma trybami (ten sam parametr URL
-`?sport=`). Włączenie „Pokaż gry" ma guard: jeśli w `sports` jest wartość spoza
+`?sport=`). Przełączenie na „Gry" ma guard: jeśli w `sports` jest wartość spoza
 `FOCUS_SPORTS` (np. `wielofunkcyjne` — sensowna tylko jako opis obiektu, żaden mecz nigdy
 nie ma takiego sportu), filtr się czyści zamiast po cichu zerować wyniki.
 
@@ -637,6 +695,30 @@ jako martwy, nieklikalny wiersz.
 Czego brakuje: **wyzwalacza przy utworzeniu gry w grupie**. Jedyna ścieżka powiadomienia
 o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą
 `SHOW_GAME_ALERTS`. To [luka 2 wobec wizji](./wizja.md#3-luki).
+
+---
+
+## Plakietka „Wczesny etap" na landingu
+
+Pozycje w `components/home/landing/content.ts` mogą mieć opcjonalne pole
+`wczesnyEtap: true`. Karta renderuje się wtedy wyciszona (`opacity-80`, ikona
+`bg-slate-100 text-slate-400`) i dostaje plakietkę `WczesnyEtapBadge` pod tytułem.
+To **nie jest** `disabled` ani wyszarzenie do nieczytelności — funkcja działa, tylko nie
+w pełnej skali, a karta ma dalej sprzedawać.
+
+Dziś oznaczone są dwie:
+
+| Pozycja | Dlaczego |
+|---|---|
+| `LANDING_STEPS[2]` „Brakuje ludzi? Otwórz mecz" | otwartych gier bywa mało — obietnica „społeczność dobierze skład" nie ma jeszcze pokrycia |
+| `LANDING_VALUES[4]` „Boiska w jednym miejscu" | lokalizacje są kompletne, ale nawierzchnia i typ obiektu wypełnione w mniejszości wierszy |
+
+`LANDING_STEPS` renderuje się w **dwóch** miejscach: `LandingHowItWorks.tsx` (landing)
+i `OnboardingSection` w `DashboardSections.tsx` (pulpit przy zerowej aktywności). Dane są
+wspólne, markup nie — plakietkę trzeba postawić w obu, dlatego jest osobnym komponentem.
+
+Pusty stan `NextMatchCard` uprzedza tym samym tonem, że otwartych gier bywa mało
+i szybszą drogą jest własny mecz plus link do ekipy.
 
 ---
 

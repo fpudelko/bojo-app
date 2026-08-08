@@ -531,18 +531,6 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleConfirmMaybe = async () => {
-    if (!user || !myMaybe) return;
-    setBusy(true);
-    try {
-      await confirmFromMaybe(myMaybe.id, event.id);
-      await load();
-      toast('Potwierdzono udział!');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    } finally { setBusy(false); }
-  };
-
   const handleAcceptClaim = async () => {
     if (!myClaimOffer) return;
     setBusy(true);
@@ -625,11 +613,19 @@ export default function EventDetailClient() {
     if (!user) return;
     setBusy(true);
     try {
-      await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, {
+      const platnosc = {
         method: joinPaymentMethod,
         hasSportsCard: joinHasSportsCard,
         sportsCardProvider: joinSportsCardProvider,
-      });
+      };
+      // Obserwujący ma już wiersz w `event_participants` — dosłowny `joinEvent`
+      // wywaliłby się na unikalności. Przełączamy istniejący wpis, przekazując
+      // te same decyzje (pozycja, płatność), które właśnie podjął w dialogu.
+      if (myMaybe) {
+        await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc);
+      } else {
+        await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc);
+      }
       await load();
       if (event.requireApproval) {
         toast('Wysłano prośbę o dołączenie — czekaj na akceptację organizatora');
@@ -1045,7 +1041,10 @@ export default function EventDetailClient() {
         <div className="flex items-center justify-between gap-2 px-4 pt-4">
           <button
             type="button"
-            onClick={() => router.back()}
+            // Prosto z kreatora „wstecz" wracałoby do wypełnionego formularza —
+            // najgorsze możliwe miejsce tuż po opublikowaniu meczu. `replace`,
+            // a nie `push`, żeby kreator zniknął też z historii przeglądarki.
+            onClick={() => { if (swiezoUtworzony) router.replace('/moje-gry'); else router.back(); }}
             className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-95"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={2.25} /> Wróć
@@ -1778,7 +1777,7 @@ export default function EventDetailClient() {
               </div>
               <div className="mt-3 flex gap-2">
                 <button
-                  onClick={handleConfirmMaybe}
+                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
                   disabled={busy}
                   className="flex-1 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
                 >
@@ -1815,12 +1814,7 @@ export default function EventDetailClient() {
               ) : user && !isFull ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      // Already observing = a 'maybe' row exists; joining is a
-                      // conversion of that row, not a second signup.
-                      if (myMaybe) { handleConfirmMaybe(); return; }
-                      setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true);
-                    }}
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
                     disabled={busy}
                     className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99] disabled:opacity-50"
                   >

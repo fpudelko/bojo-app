@@ -255,7 +255,23 @@ W bazie to `rsvp = 'maybe'` (`049_participant_rsvp.sql`). Znaczenie:
 - nie trafia do historii meczów.
 
 Przejście z obserwowania w granie: `confirmFromMaybe()` — i dopiero ono sprawdza
-pojemność.
+pojemność. Funkcja przyjmuje te same decyzje co zwykłe dołączanie: rolę
+(`asGoalkeeper`, z osobnym limitem bramkarzy) i sposób płatności (`payment_method`,
+`has_sports_card`, `sports_card_provider`). Bez tego obserwujący, który klikał
+„Dołącz", trafiał do składu jako gracz w polu i bez deklaracji płatności —
+z pominięciem pytań, które dostaje każdy inny uczestnik.
+
+### Kolumny skasowane migracją `064` — nie wstawiaj ich z powrotem
+
+`064_usun_statusy_uczestnika.sql` usunęła z `event_participants` kolumny `status`
+i `confirmed_at`. Kod jeszcze przez chwilę je wstawiał, przez co PostgREST odrzucał
+**każdy** insert (`PGRST204`): organizator nie trafiał do własnego składu, „Dołącz"
+i „Dopisz osobę bez konta" nie działały. Awaria była cicha, bo insert organizatora
+w `createEvent` ignorował `error`.
+
+Strażnikiem jest `__tests__/eventsSchema.test.ts` — czyta źródło `lib/events.ts`
+i przewraca się, gdy któryś insert do `event_participants` znów ustawi skasowaną
+kolumnę. TypeScript tego nie złapie: obiekt insertu nie jest typowany schematem bazy.
 
 ---
 

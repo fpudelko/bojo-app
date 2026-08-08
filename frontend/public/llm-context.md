@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 330 testów
+**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 335 testów
 
 ---
 
@@ -295,6 +295,38 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-08 — Naprawa dołączania do składu, ekipa i ostatnie boisko w kreatorze, uczciwe komunikaty o wczesnym etapie
+PROBLEM: dołączanie do składu w Bojo było zepsute. Organizator zaznaczający „Biorę
+udział" nie trafiał do własnego składu, przycisk „Dołącz" na cudzym meczu nie zapisywał,
+„Dopisz osobę bez konta" nie działało — wszystko bez jednego komunikatu o błędzie.
+Działało wyłącznie obejście: „Obserwuj", a potem „Dołącz" — ale ta ścieżka nie pytała
+ani o pozycję (pole/bramka), ani o sposób płatności. W kreatorze meczu „Czas na decyzję
+z rezerwy" był schowany pod „Więcej opcji", przycisk „zlokalizuj mnie" był przycięty poza
+widok, nie dało się przypisać meczu do ekipy inaczej niż wchodząc ze strony grupy, a każde
+kolejne wydarzenie wymagało szukania tego samego boiska od zera. Po utworzeniu meczu
+„Wróć" cofało do wypełnionego kreatora. Logowanie Google kierowało na pulpit zamiast na
+listę meczów, przez co konto bez imienia nie widziało prośby o uzupełnienie profilu.
+Landing obiecywał społeczność dobierającą skład i komplet opisów boisk — obie rzeczy
+wyprzedzały stan Bojo.
+ROZWIĄZANIE BOJO: zapisy do składu działają wszystkimi ścieżkami, a przejście
+z obserwowania w granie pyta o pozycję i płatność tak samo jak zwykłe dołączanie.
+Kreator pokazuje czas na decyzję z rezerwy bez rozwijania, ma widoczny przycisk lokalizacji,
+pozwala wybrać ekipę w kroku 3 (z możliwością założenia nowej na miejscu) i proponuje
+ostatnio używane boisko jednym dotknięciem. Po publikacji „Wróć" prowadzi na „Moje gry".
+Zalogowany ląduje na liście meczów, a baner z prośbą o imię stoi właśnie tam. Mapa ma
+przełącznik „Gry | Obiekty" zamiast pojedynczego pilla. Karty opisujące otwieranie meczu
+dla nieznajomych i katalog boisk są oznaczone jako wczesny etap i mówią, co faktycznie
+działa dzisiaj.
+MECHANIKA: usunięta kolumna `status` z trzech insertów do `event_participants`
+w `lib/events.ts` (skasowana migracją `064`, PostgREST odrzucał każdy taki insert)
++ sprawdzanie błędu w `createEvent` + test-strażnik `__tests__/eventsSchema.test.ts`;
+`confirmFromMaybe()` przyjmuje rolę i płatność, wywoływane z `JoinDialog`
+w `EventDetailClient.tsx`; `lib/lastVenue.ts` (localStorage, TTL 60 dni),
+`components/events/WybierzGrupeDialog.tsx`, pole `grupaId` w `lib/eventDraft.ts`;
+`components/ui/SegmentedToggle.tsx` w `components/map/VenueExplorer.tsx`; domyślny cel
+w `app/auth/callback/page.tsx` i `UzupelnijProfilBanner` w `app/wydarzenia/EventsListView.tsx`;
+pole `wczesnyEtap` w `components/home/landing/content.ts`.
+
 ### 2026-08-08 — Widoczność płatności i zaproszeń dla uczestnika, „Brakuje graczy" na /moje-gry
 PROBLEM: uczestnik płatnego meczu nigdy nie widział, ile ma zapłacić — kwotę
 po zniżce z karty sportowej i status opłacone/nieopłacone widział wyłącznie
@@ -513,23 +545,3 @@ MECHANIKA: `components/home/landing/PhoneCarousel.tsx`, `PhoneShell.tsx`
 (proporcja `aspect-[9/19]` wymusza pełny ekran), `mockScreens.tsx`;
 `LANDING_STEPS[0].href` w `landing/content.ts`; usunięty `LandingFinalCta.tsx`;
 `Header.tsx` (klaster mobilny, kasacja arkusza menu), `AuthForm` prop `initialMode`.
-
-### 2026-08-07 — Mapa pobiera tylko to, co widać
-PROBLEM: mapa Bojo pobierała wszystkie publiczne obiekty naraz, z pełnym
-zestawem kolumn — łącznie z adresami zdjęć i danymi rezerwacji — po czym
-renderowała z tego jedną kartę. Przy katalogu poznańsko-lubelskim (~2 tys.)
-dało się z tym żyć. Przy ogólnopolskim bolałyby dwie rzeczy naraz: transfer
-oraz to, że przeglądarka musi utworzyć kilkadziesiąt tysięcy obiektów mapy,
-żeby zaraz zwinąć je w kilkanaście kółek.
-ROZWIĄZANIE BOJO: mapa pobiera wyłącznie wycinek, który widać, i tylko tyle
-danych, ile potrzebuje pinezka. Przy oddaleniu nie pobiera obiektów w ogóle —
-baza zwraca liczby w komórkach siatki, a mapa rysuje z nich kółka. Po
-przybliżeniu poniżej powiatu przychodzą konkretne obiekty. Szczegóły karty
-(zdjęcie, nawierzchnia, strona) dociągane są dla kart faktycznie widocznych.
-MECHANIKA: migracja `069` — funkcja `mapa_skupiska()` grupująca po siatce
-szerokość/długość plus indeks częściowy na `(lat, lng)` dla obiektów
-publicznych. `getExplorerFields(kadr)`, `getExplorerClusters()`
-i `getFieldsByIds()` w `lib/api.ts`; `KadrObserwator` i `WarstwaSkupisk`
-w `components/map/VenueExplorer.tsx`.
-
-

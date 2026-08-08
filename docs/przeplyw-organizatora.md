@@ -88,7 +88,7 @@ zdejmuje z organizatora jedną decyzję.
 | # | Ustalenie | Stan |
 |---|---|---|
 | **O-10** | **Krok jest przeładowany** — do 15 kontrolek przy 2 na kroku 1 i 4 na kroku 3. Wskaźnik kroków sugeruje równy podział, którego nie ma. Rozwiązywane częściowo przez O-11; osobnej przebudowy kroku 2 świadomie nie zakładamy. | częściowo |
-| **O-11** | **„Czas na decyzję z rezerwy" to decyzja, której pierwszy organizator nie ma jak podjąć** — dotyczy listy rezerwowej, która jeszcze nie istnieje, a stała na kroku obiecującym dwie minuty. Schodzi pod „Więcej opcji"; domyślne 3 h bez zmian. | zrobione |
+| **O-11** | **„Czas na decyzję z rezerwy" to decyzja, której pierwszy organizator nie ma jak podjąć** — dotyczy listy rezerwowej, która jeszcze nie istnieje, a stała na kroku obiecującym dwie minuty. Schodzi pod „Więcej opcji"; domyślne 3 h bez zmian. | **odwrócone 2026-08-08** |
 | **O-12** | **Płatny mecz bez żadnej metody płatności przechodził walidację.** Gracz widział cenę i nie wiedział, jak ją uregulować. Gotówka jest teraz domyślna (jednorazowo), a pusty zestaw daje ostrzeżenie — nie blokadę, bo płatność można ustalić poza aplikacją. | zrobione |
 | **O-13** | **Przy numerze BLIK nie padało to, co organizatora uspokaja.** `canSeeBlikPhone()` odsłania numer uczestnikowi dopiero 60 minut przed meczem, a formularz o tym milczał. | zrobione |
 
@@ -169,11 +169,27 @@ Ta lista chroni przed „poprawkami", które przepływ by pogorszyły.
 12. **Ekran-brama jako strona sprzedażowa** z rozmytym podglądem kreatora.
 13. **Trasa `/d/[code]`** — żywa, żeby rozesłane linki działały.
 
+### Odwrócone po audycie (2026-08-08)
+
+Dwa ustalenia zostały cofnięte decyzją właściciela produktu po ręcznym przejściu
+kreatora na telefonie. Zapisane tu, żeby dokument nie opisywał stanu, którego
+w kodzie nie ma.
+
+- **O-11 — „Czas na decyzję z rezerwy" wraca na stały widok kroku 2**, pod „Liczbę
+  miejsc". Argument za odwróceniem: chowanie pola przed organizatorem, który go
+  szuka, kosztuje więcej niż jedna kontrolka więcej na kroku. Sekcja „Więcej opcji"
+  została w kodzie, ale po tej zmianie nie ma czego pokazać i się nie renderuje.
+- **Selektor grupy wchodzi do kroku 3** (patrz niżej, pozycja skreślona w „Rozważone
+  i odrzucone"). Wejście `?group=` pokrywało tylko organizatora, który zaczyna ze
+  strony grupy — kto wchodzi z „Zorganizuj mecz", nie miał żadnego sposobu przypisać
+  meczu do ekipy bez wracania do panelu po publikacji. Wiersz „Mecz w ramach ekipy"
+  stoi pod kartami widoczności, nie jest trzecią kartą: przypisanie do grupy jest
+  **ortogonalne** do public/private — mecz ekipy bywa publiczny.
+
 ### Rozważone i odrzucone
 
 - **Czwarty krok kreatora na płatności** — rozbija „trzy kroki, dwie minuty".
-- **Selektor grupy wewnątrz kreatora** — wejście `?group=` ze strony grupy pokrywa
-  przypadek, a przypisanie po fakcie jest w panelu „Zarządzaj wydarzeniem".
+- ~~**Selektor grupy wewnątrz kreatora**~~ — odwrócone 2026-08-08, patrz sekcja wyżej.
 - **Automatyczne dopisywanie członków grupy do składu** — łamie regułę „nikt nie trafia do
   składu po cichu".
 - **Trzeci poziom widoczności („widoczne dla grupy")** — istniejąca
