@@ -26,6 +26,9 @@ import {
   loadEventDraft, saveEventDraft, clearEventDraft, draftAgeLabel,
   type EventDraftValues,
 } from '@/lib/eventDraft';
+import { wczytajOstatnieBoisko, zapiszOstatnieBoisko, type OstatnieBoisko } from '@/lib/lastVenue';
+import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
+import type { Group } from '@/types';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 
 // Sports where a goalkeeper / field-player distinction makes sense.
@@ -197,6 +200,10 @@ function NewEventForm() {
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
   const [groupName, setGroupName] = useState<string | null>(null);
+  // Ekipa meczu — wejście `?group=` tylko ją preselekcjonuje; od kroku 3 da się
+  // ją wybrać albo zdjąć ręcznie, więc to musi być stan, nie sam parametr URL.
+  const [grupaId, setGrupaId] = useState<string | undefined>(groupId);
+  const [wyborGrupyOtwarty, setWyborGrupyOtwarty] = useState(false);
   useEffect(() => {
     if (!groupId) return;
     import('@/lib/groups').then(({ getGroup }) =>
@@ -223,6 +230,43 @@ function NewEventForm() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preFieldId]);
+
+  // Nazwa ekipy dla wyboru, który nie przyszedł z `?group=` — czyli po
+  // odtworzeniu szkicu albo po wskazaniu ekipy w dialogu, gdy strona zdążyła
+  // się przeładować. Bez tego wiersz w kroku 3 pokazywałby sam placeholder.
+  useEffect(() => {
+    if (!grupaId || groupName) return;
+    import('@/lib/groups').then(({ getGroup }) =>
+      getGroup(grupaId).then((g) => { if (g) setGroupName(g.name); }).catch(() => {}),
+    );
+  }, [grupaId, groupName]);
+
+  // Ostatnio użyte boisko — PROPOZYCJA, nie autowybór. Miejsce meczu wstawione
+  // po cichu to najgorsza pomyłka do przeoczenia, więc kosztuje jedno
+  // dotknięcie. Nie pokazujemy przy wejściu z `?group=`/`?fieldId=` — te mają
+  // własny prefill i konkurowałyby o to samo pole.
+  const [propozycjaBoiska, setPropozycjaBoiska] = useState<OstatnieBoisko | null>(null);
+  useEffect(() => {
+    if (groupId || preFieldId) return;
+    setPropozycjaBoiska(wczytajOstatnieBoisko());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const uzyjPropozycji = () => {
+    if (!propozycjaBoiska) return;
+    // Dociągamy pełny wiersz boiska, żeby karta pod mapą miała komplet danych
+    // (tak samo jak prefill z `?fieldId=`). Gdy się nie uda, zostają
+    // współrzędne i adres — mecz nadal da się utworzyć.
+    getField(propozycjaBoiska.id)
+      .then((f) => setLocation({ venue: f, lat: f.lat, lng: f.lng, address: f.address }))
+      .catch(() => setLocation({
+        venue: null,
+        lat: propozycjaBoiska.lat,
+        lng: propozycjaBoiska.lng,
+        address: propozycjaBoiska.address,
+      }));
+    setPropozycjaBoiska(null);
+  };
 
   // Odtwarzanie szkicu — raz, przy montowaniu. Pomijamy całkowicie przy
   // wejściu z ?group= albo ?fieldId=: te parametry mają własne efekty prefill
@@ -265,6 +309,9 @@ function NewEventForm() {
         setCardDiscountPln(v.cardDiscountPln);
         setAcceptedSportsCards(v.acceptedSportsCards);
         setSportsCardOtherName(v.sportsCardOtherName);
+        // Nazwę ekipy dociąga efekt po `grupaId` — w szkicu trzymamy samo id,
+        // żeby nie zapisywać danych, które mogły się w międzyczasie zmienić.
+        setGrupaId(v.grupaId);
         setStep(draft.step);
         setDraftRestoredAt(draft.ts);
       }
@@ -285,7 +332,7 @@ function NewEventForm() {
       goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled, visibility,
       requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
       acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
-      sportsCardOtherName,
+      sportsCardOtherName, grupaId,
     });
   }, [
     hydrated, submitting, step, sport, location, nazwaWlasnaMiejsca,
@@ -293,7 +340,7 @@ function NewEventForm() {
     maxPlayersTouched, goalkeepersEnabled, reserveClaimHours, title, description, descriptionEnabled,
     visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
     kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
-    acceptedSportsCards, sportsCardOtherName,
+    acceptedSportsCards, sportsCardOtherName, grupaId,
   ]);
 
   /** "Zacznij od nowa" — czyści szkic i wraca formularz do stanu początkowego. */
@@ -328,6 +375,10 @@ function NewEventForm() {
     setCardDiscountPln('');
     setAcceptedSportsCards([]);
     setSportsCardOtherName('');
+    // Wejście z `?group=` zostaje — „Zacznij od nowa" czyści szkic, a nie
+    // kontekst, z którego organizator tu przyszedł.
+    setGrupaId(groupId);
+    if (!groupId) setGroupName(null);
     setFieldErrors({});
     setError(null);
     setDraftRestoredAt(null);
@@ -526,13 +577,25 @@ function NewEventForm() {
             ? sportsCardOtherName
             : undefined,
           requireApproval,
-          groupId,
+          groupId: grupaId,
         },
         user.id,
         displayName(user),
         organizerParticipates,
         organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && organizerRole === 'gk',
       );
+      // Zapis PRZED czyszczeniem szkicu — po `clearEventDraft()` nie ma już
+      // czego zapamiętać. Tylko boiska z katalogu: pinezka postawiona ręcznie
+      // nie ma `id`, więc nie dałoby się jej później odtworzyć.
+      if (location.venue) {
+        zapiszOstatnieBoisko({
+          id: location.venue.id,
+          name: location.venue.name,
+          lat: location.venue.lat,
+          lng: location.venue.lng,
+          address: location.venue.address,
+        });
+      }
       clearEventDraft();
       // `?utworzono=1` włącza na stronie meczu panel „Mecz gotowy — wyślij link".
       // Strona sama zdejmuje ten parametr z adresu zaraz po odczycie, więc nie
@@ -736,6 +799,23 @@ function NewEventForm() {
                 <p className="text-xs text-slate-500 mb-2">
                   Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
                 </p>
+
+                {/* Ostatnio używane boisko — jedno dotknięcie zamiast szukania
+                    po mapie. Znika, gdy miejsce jest już wybrane. */}
+                {propozycjaBoiska && !location.venue && location.lat === null && (
+                  <button
+                    type="button"
+                    onClick={uzyjPropozycji}
+                    className="mb-2 flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm transition-colors hover:border-primary-300 hover:bg-primary-50"
+                  >
+                    <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
+                    <span className="min-w-0 flex-1 truncate text-slate-600">
+                      Ostatnio: <span className="font-medium text-ink">{propozycjaBoiska.name}</span>
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-primary-700">Użyj</span>
+                  </button>
+                )}
+
                 <div className="h-64 sm:h-80 rounded-xl overflow-hidden border border-slate-200">
                   <UnifiedLocationPicker
                     sport={sport}
@@ -1270,6 +1350,52 @@ function NewEventForm() {
                 </div>
               </div>
 
+              {/* Ekipa — osobny wiersz, NIE trzecia karta widoczności:
+                  przypisanie do grupy jest ortogonalne do public/private
+                  (mecz ekipy bywa publiczny). Wejście `?group=` ustawia to
+                  samo pole, więc oba źródła się nie biją. */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Mecz w ramach ekipy <span className="font-normal text-slate-400">— opcjonalnie</span>
+                </label>
+                {grupaId ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-primary-500 bg-primary-50 px-3 py-2.5">
+                    <Users className="h-4 w-4 shrink-0 text-primary-700" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                      {groupName ?? 'Wybrana ekipa'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setWyborGrupyOtwarty(true)}
+                      className="shrink-0 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                    >
+                      Zmień
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setGrupaId(undefined); setGroupName(null); }}
+                      className="shrink-0 text-slate-400 hover:text-slate-600"
+                      aria-label="Nie przypisuj do ekipy"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setWyborGrupyOtwarty(true)}
+                    className="flex w-full items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5 text-left text-sm transition-colors hover:border-slate-400"
+                  >
+                    <Users className="h-4 w-4 shrink-0 text-slate-400" />
+                    <span className="flex-1 text-slate-500">Wybierz ekipę</span>
+                    <span className="shrink-0 text-slate-400" aria-hidden="true">›</span>
+                  </button>
+                )}
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Mecz trafi do historii ekipy i zobaczą go wszyscy jej członkowie.
+                </p>
+              </div>
+
               {/* Seeker count nudge — appears when we have location + date */}
               {seekerCount >= 2 && (
                 <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
@@ -1377,6 +1503,22 @@ function NewEventForm() {
 
         </form>
       </main>
+
+      {/* Poza <form>: dialog ma własne przyciski, a każdy `<button>` wewnątrz
+          formularza to kolejna okazja do przypadkowej publikacji meczu
+          (patrz komentarz przy „Dalej"/„Opublikuj"). */}
+      {wyborGrupyOtwarty && user && (
+        <WybierzGrupeDialog
+          userId={user.id}
+          wybranaId={grupaId}
+          onClose={() => setWyborGrupyOtwarty(false)}
+          onWybierz={(g: Group | null) => {
+            setGrupaId(g?.id);
+            setGroupName(g?.name ?? null);
+            setWyborGrupyOtwarty(false);
+          }}
+        />
+      )}
     </div>
   );
 }

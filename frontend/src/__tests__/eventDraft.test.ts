@@ -112,6 +112,22 @@ describe('clearEventDraft', () => {
   });
 });
 
+describe('grupaId — ekipa wybrana w kroku 3', () => {
+  it('przeżywa zapis i odczyt szkicu', () => {
+    saveEventDraft(3, { ...VALUES, grupaId: 'grupa-123' });
+    expect(loadEventDraft()?.values.grupaId).toBe('grupa-123');
+  });
+
+  it('szkic zapisany przed dodaniem pola wczytuje się dalej', () => {
+    // Pole doszło później, więc jest opcjonalne — starszy szkic w localStorage
+    // nie może przez to przepaść (użytkownik straciłby wypełniony formularz).
+    saveEventDraft(2, VALUES);
+    const wczytany = loadEventDraft();
+    expect(wczytany).not.toBeNull();
+    expect(wczytany?.values.grupaId).toBeUndefined();
+  });
+});
+
 describe('draftAgeLabel', () => {
   it('reads "przed chwilą" for under a minute', () => {
     expect(draftAgeLabel(Date.now() - 5_000)).toBe('przed chwilą');
