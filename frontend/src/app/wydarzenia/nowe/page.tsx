@@ -11,6 +11,9 @@ import TimeSelect from '@/components/ui/TimeSelect';
 import UnifiedLocationPicker from '@/components/map/UnifiedLocationPicker';
 import type { LocationResult } from '@/components/map/UnifiedLocationPicker';
 import { useAuth, displayName } from '@/lib/auth';
+import { brakNazwy } from '@/lib/profileName';
+import { zbudujPodsumowanie } from '@/lib/eventSummary';
+import PodsumowanieMeczu from './PodsumowanieMeczu';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
@@ -89,7 +92,7 @@ const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, addr
 function NewEventForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading } = useAuth();
+  const { user, loading, updateDisplayName } = useAuth();
 
   const [step, setStep] = useState(1);
 
@@ -1184,6 +1187,36 @@ function NewEventForm() {
                   </p>
                 </div>
               )}
+
+              {/* Ostatnia rzecz przed „Opublikuj mecz": data, miejsce, skład,
+                  cena i widoczność w jednym miejscu. Do tej pory organizator
+                  publikował, nie widząc niczego, co ustawił na krokach 1–2. */}
+              <PodsumowanieMeczu
+                wiersze={zbudujPodsumowanie({
+                  sport,
+                  title,
+                  miejsceNazwa: location.venue?.name ?? null,
+                  miejsceAdres: location.venue?.address ?? location.address ?? null,
+                  date,
+                  time,
+                  durationMin,
+                  maxPlayers,
+                  goalkeepersEnabled: GK_SPORTS.includes(sport) && goalkeepersEnabled,
+                  maxGoalkeepers: 2,
+                  organizerParticipates,
+                  costPln,
+                  acceptedPaymentMethods,
+                  cardDiscountEnabled,
+                  cardDiscountPln,
+                  acceptedSportsCards,
+                  visibility,
+                  requireApproval,
+                })}
+                naKrok={attemptGoToStep}
+                nazwaOrganizatora={displayName(user)}
+                brakujeNazwy={brakNazwy(user?.user_metadata)}
+                onZmienNazwe={updateDisplayName}
+              />
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
