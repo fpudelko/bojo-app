@@ -36,7 +36,18 @@ usługodawcy dla `/prywatnosc` i `/regulamin`, jedno miejsce do uzupełnienia);
 `lib/eventWizard.ts` (walidacja kroków kreatora meczu, w tym `validatePayments` —
 numer BLIK i zniżka karty sportowej — wydzielona z `app/wydarzenia/nowe/page.tsx`
 pod testy); `lib/eventDraft.ts` (szkic kreatora w `localStorage`, TTL 12 h — patrz
-[funkcje.md](./funkcje.md#szkic-kreatora-meczu)); `lib/eventTitle.ts` (jedyne miejsce,
+[funkcje.md](./funkcje.md#szkic-kreatora-meczu));
+`lib/profileName.ts` (nazwa, pod którą użytkownik pokazuje się innym: `displayName`,
+`firstName`, `avatarUrl`, `nazwaZEmaila`, `brakNazwy`, `isPelneImie` — mieszkają tu, a nie
+w `auth.tsx`, bo Vitest nie transformuje `.tsx` przy `jsx: preserve`, a to właśnie te
+funkcje decydują, co zobaczy obcy człowiek na stronie meczu; `auth.tsx` je re-eksportuje,
+więc importy `from '@/lib/auth'` działają bez zmian);
+`lib/eventShare.ts` (`eventUrl` + `eventShareText` + `shareEvent` — jeden adres i jeden
+tekst udostępnienia dla całej aplikacji, patrz
+[funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link));
+`lib/eventSummary.ts` (`zbudujPodsumowanie` — wiersze karty „Tak zobaczą to gracze"
+na ostatnim kroku kreatora, patrz
+[funkcje.md](./funkcje.md#podsumowanie-przed-publikacją)); `lib/eventTitle.ts` (jedyne miejsce,
 które liczy domyślną nazwę meczu, gdy tytuł jest pusty — `defaultEventTitle` /
 `eventDisplayTitle`, zastąpiło pięć niezależnych kopii tej samej logiki);
 `lib/adminLinks.ts` (lista tras panelu admina, współdzielona przez `AdminMenu`
@@ -257,6 +268,12 @@ i akceptowane karty sportowe (`multisport`, `fitprofit`, `medicover`, `inne`).
 
 Powód: zniżki z kart w realnym świecie są zbyt różne (procent, dzienne limity, zależność
 od obiektu), żeby wymuszać jedną liczbę.
+
+Przy pierwszym wpisaniu kosztu większego od zera kreator zaznacza **Gotówkę**, jeśli żadna
+metoda nie jest jeszcze wybrana (jednorazowo — świadome odznaczenie wszystkiego zostaje).
+Powód: `validatePayments()` nie wymaga ani jednej metody, więc dało się opublikować mecz
+z ceną i bez informacji, jak ją uregulować. Pusty zestaw daje ostrzeżenie, nie blokadę —
+płatność można ustalić poza aplikacją.
 
 **Zawsze licz cenę przez `priceForParticipant()`** — nigdy nie odejmuj ręcznie. Funkcja
 zwraca trzy pola i wszystkie trzy trzeba obsłużyć w UI:

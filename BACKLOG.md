@@ -6,8 +6,29 @@ jeszcze niezrobione.
 - Kierunek produktu: [docs/wizja.md](./docs/wizja.md) — **dokument nadrzędny**
 - Stan implementacji: [docs/funkcje.md](./docs/funkcje.md)
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
+- Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-04_
+_Ostatnia aktualizacja: 2026-08-08_
+
+---
+
+## 0. Przepływ organizatora — co zostało po audycie 2026-08-08
+
+Pełny audyt (26 ustaleń `O-1`…`O-26`, wraz z rozdziałem „co zostaje bez zmian i dlaczego")
+→ [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md). Tutaj wyłącznie to,
+czego jeszcze nie zrobiono — bez kopiowania treści, żeby obie listy się nie rozjechały.
+
+| # | Co zostało | Gdzie |
+|---|---|---|
+| **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
+| **O-20** | „Zaproś z ekipy" **dubluje się** na stronie meczu (dwa przyciski, różne ikony, różne warunki widoczności). Ślepy zaułek dialogu bez grupy już naprawiony | `EventDetailClient.tsx` |
+| **O-23** | Uczestnik nie widzi, ile ma zapłacić — `showPaymentStatus` zapisywane i nigdy nieodczytywane. **To ta sama luka co §1.4 niżej**, widziana od strony uczestnika | `EventDetailClient.tsx`, `edytuj/page.tsx` |
+| **O-24** | Organizator nie ma widoku „gdzie brakuje ludzi". `getMyEvents()` zwraca dokładnie te dane wraz z `participantsCount` i nie jest używane przez żadną stronę | `lib/events.ts` |
+| **O-25** | Nie widać, kogo się zaprosiło i kto odpowiedział — `event_player_invites.dismissed_at` istnieje, ale nigdzie się go nie pokazuje | `lib/playerInvites.ts` |
+| **O-26** | Martwy kod na ścieżce organizatora: nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + `smsBusy` bez użycia, `lib/invites.ts` (86 linii) bez ani jednego importu | jw. |
+
+Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1), powiadomienie
+dla grupy o nowej grze (§1.2), odmrażanie flag (§2).
 
 ---
 
@@ -41,11 +62,17 @@ Kod jest kompletny (`lib/recurring.ts`, trasy `/cykliczne/*`, migracja `007`), a
 
 Decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
 
-### 1.4 Rozliczenie po meczu
-Propozycja brzmi „Rozliczysz ekipę w minutę", a panel „Podział kosztów" renderuje się
-pod warunkiem `isOwner && !eventStarted` (`EventDetailClient.tsx`). Czyli:
-- po zakończeniu meczu panel znika — a wtedy właśnie się rozlicza,
-- uczestnik nigdy nie widzi, ile ma zapłacić; widzi to tylko organizator.
+### 1.4 Rozliczenie po meczu — połowa naprawiona
+Propozycja brzmi „Rozliczysz ekipę w minutę". Z dwóch problemów, które ten wpis opisywał,
+został jeden:
+
+- ~~po zakończeniu meczu panel „Podział kosztów" znikał~~ — **nieaktualne**. Warunek
+  `!eventStarted` został zdjęty; panel renderuje się dziś przy `costGrosze > 0 && isOwner`,
+  z komentarzem wyjaśniającym dlaczego (`EventDetailClient.tsx`).
+- **uczestnik nadal nie widzi, ile ma zapłacić** — widzi to wyłącznie organizator.
+  Flaga `showPaymentStatus` („Pokaż status płatności uczestnikom") jest zapisywana przez
+  formularz edycji i **nigdzie nie odczytywana**. To ustalenie `O-23` z audytu ścieżki
+  organizatora — jedno zadanie, nie dwa.
 
 ---
 
@@ -355,6 +382,11 @@ Dziś obchodzone przez to, że organizator i tak rozsyła link ręcznie (`naviga
 ale to znaczy, że „Zaproś z ekipy" nie skraca nic ponad to, co już robi „Udostępnij".
 Realny fix to ten sam kanał, którego brakuje SMS-om i alertom gry (`SHOW_SMS_FEATURES`,
 `SHOW_GAME_ALERTS`) — patrz pozycja „Web-push (PWA)" wyżej.
+
+Osobno, tańszy do naprawienia: sam przycisk **dubluje się na stronie meczu** (`O-20`
+w [audycie ścieżki organizatora](./docs/przeplyw-organizatora.md)) — dwa wejścia, różne
+ikony, różne warunki widoczności. Ślepy zaułek dialogu przy braku jakiejkolwiek grupy
+(tekst „załóż grupę" bez linku) został już naprawiony.
 
 ### Rewizja `SHOW_RECURRING` pod kątem strategii „organizator"
 Mecze cykliczne (`lib/recurring.ts`, `app/cykliczne/*`) są w pełni zbudowane: szablon

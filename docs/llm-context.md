@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-07 · migracja `069` · 31 tabel · 245 testów
+**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 322 testy
 
 ---
 
@@ -295,6 +295,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-08 — Przepływ organizatora: podsumowanie przed publikacją, wysyłka linku, powiadomienie o odwołaniu meczu
+PROBLEM: organizator Bojo publikował mecz na ślepo — przycisk „Opublikuj mecz" stoi na
+trzecim kroku kreatora, a data, miejsce, skład i cena były ustawiane na krokach 1–2
+i w chwili publikacji nie były widoczne. Po publikacji nic go nie prowadziło: kreator
+kończył się przekierowaniem na zwykłą stronę meczu, a strona miała DWA różne linki pod
+przyciskami o tej samej nazwie „Udostępnij" i wysyłała goły adres bez daty, miejsca
+i ceny — czyli mniej niż post na czacie. Odwołanie meczu było ciche: uczestnik dowiadywał
+się o nim wyłącznie wchodząc na stronę meczu, więc kto nie wszedł, przyjeżdżał na boisko.
+Konto założone e-mailem bez podania imienia publikowało mecz pod pełnym adresem e-mail
+organizatora, na publicznej i indeksowanej stronie. Wejście „Zorganizuj tu mecz" ze strony
+boiska i „Stwórz mecz w grupie" gubiły po zalogowaniu wybrane boisko oraz grupę.
+ROZWIĄZANIE BOJO: ostatni krok kreatora pokazuje kartę „Tak zobaczą to gracze" — data,
+miejsce, skład, koszt i widoczność, każde z przyciskiem cofającym na właściwy krok, plus
+nazwa, pod którą organizator się pojawi, z edycją na miejscu. Po publikacji strona meczu
+wita organizatora panelem „Mecz gotowy" z jedną główną akcją: wysłaniem linku. Link jest
+jeden dla całej aplikacji, a wraz z nim idzie gotowy czterowierszowy tekst (sport, termin,
+miejsce, liczba miejsc i cena) do wklejenia na czat. Odwołanie meczu trafia do skrzynki
+powiadomień wszystkich zapisanych. Rejestracja e-mailem wymaga imienia i nazwiska, a konto
+bez nazwy dostaje powiadomienie i baner kierujące do profilu. Mapa wyboru miejsca ma
+przycisk „pokaż moją okolicę" i dojeżdża do wyników wyszukiwania.
+MECHANIKA: `lib/eventSummary.ts` + `app/wydarzenia/nowe/PodsumowanieMeczu.tsx`;
+`lib/eventShare.ts` (`eventUrl`, `eventShareText`, `shareEvent`) używane przez pasek górny
+i panel „Zaproś znajomych" w `EventDetailClient.tsx`; `lib/profileName.ts` (przeniesione
+tam `displayName`/`firstName`/`avatarUrl` + `isPelneImie`, `brakNazwy`); migracja `070`
+(wyzwalacze `powiadom_o_odwolaniu` na `events` i `powiadom_o_braku_nazwy` na `auth.users`);
+`components/home/dashboard/UzupelnijProfilBanner.tsx`; `LocateMeButton` i `fitBounds`
+w `components/map/UnifiedLocationPickerImpl.tsx`.
+
 ### 2026-08-07 — Rozwijane pigułki filtrów w pełni widoczne, godzina na pinezce meczu, naprawiony licznik "0 obiektów"
 PROBLEM: rozwijane pigułki filtrów (Sortuj, Sport) na `/wydarzenia` i `/mapa`
 wyrównywały panel do lewej krawędzi przycisku — dla przycisku blisko prawej krawędzi
@@ -489,17 +517,5 @@ dostały powiadomienia wstecz — ale tylko te nieodrzucone i dotyczące meczu,
 który się jeszcze nie odbył.
 MECHANIKA: migracja `067` — wyzwalacz `powiadom_o_zaproszeniu()`
 na `event_player_invites` oraz jednorazowe uzupełnienie zaległych wpisów.
-
-### 2026-08-06 — Enter w kreatorze meczu nie publikuje przypadkiem
-PROBLEM: na ostatnim kroku kreatora meczu w Bojo naciśnięcie Enter w polu
-„Tytuł" publikowało mecz natychmiast. Przeglądarka wysyła formularz na Enter,
-gdy ten ma przycisk zatwierdzający — a ostatni krok ma i pola tekstowe,
-i „Opublikuj mecz". Dla organizatora wyglądało to tak, jakby kreator sam
-przeskoczył dalej i utworzył mecz bez pytania.
-ROZWIĄZANIE BOJO: Enter w polu jednoliniowym nie wysyła już formularza. Mecz
-powstaje wyłącznie po kliknięciu „Opublikuj mecz". W polu opisu Enter dalej
-robi nową linię.
-MECHANIKA: `blokujEnter()` oraz warunek na numer kroku w `handleSubmit()`
-w `app/wydarzenia/nowe/page.tsx`.
 
 

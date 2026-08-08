@@ -21,7 +21,7 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 ```bash
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
-npm test               # Vitest, 58 testów
+npm test               # Vitest, 322 testy
 ```
 
 `npm run lint` **nie działa** bez interaktywnej konfiguracji ESLint — pomijaj.
