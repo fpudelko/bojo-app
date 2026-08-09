@@ -99,7 +99,7 @@ describe('landing H1 — obiecuje tylko to, co dowieziemy', () => {
 // already works today regardless of how dense the venue catalogue is in any
 // one place. The venue catalogue's actual density is a separate, honest fact
 // — it belongs only in FAQ, disclosed plainly, not folded into the pitch.
-describe('zasięg — Poznań tylko jako uczciwe ujawnienie w FAQ, nie w ofercie', () => {
+describe('zasięg — katalog jest ogólnopolski, więc nazwa miasta nie pada nigdzie', () => {
   const salesCopy = [
     ...LANDING_HERO.badges,
     ...LANDING_HERO.h1,
@@ -117,10 +117,14 @@ describe('zasięg — Poznań tylko jako uczciwe ujawnienie w FAQ, nie w ofercie
     expect(salesCopy).not.toMatch(/poznań|poznania|poznaniu/);
   });
 
-  it('FAQ wciąż uczciwie ujawnia, że katalog jest dziś najgęstszy w Poznaniu', () => {
+  // Do 2026-08 FAQ ujawniało, że katalog jest najgęstszy w Poznaniu — i było to
+  // uczciwe, dopóki prawdziwe. Po imporcie z OSM katalog obejmuje cały kraj,
+  // więc ta sama informacja stała się nieaktualna i zawężała ofertę bez powodu.
+  it('FAQ o zasięgu mówi o całej Polsce, bez nazwy miasta', () => {
     const geoAnswer = LANDING_FAQ.find((f) => /gdzie działa bojo/i.test(f.q));
     expect(geoAnswer).toBeDefined();
-    expect(geoAnswer!.a.toLowerCase()).toMatch(/poznani/);
+    expect(geoAnswer!.a.toLowerCase()).toMatch(/całej polsce/);
+    expect(geoAnswer!.a.toLowerCase()).not.toMatch(/poznani/);
   });
 });
 

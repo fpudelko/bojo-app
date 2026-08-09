@@ -96,7 +96,7 @@ export default function Image() {
               fontWeight: '500',
             }}
           >
-            Boiska i mecze w Poznaniu i okolicach
+            Boiska i mecze w całej Polsce
           </p>
         </div>
 

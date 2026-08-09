@@ -42,24 +42,24 @@ export const metadata: Metadata = {
   // telling crawlers they are duplicates of the home page. Canonicals live on
   // the individual public pages instead.
   title: {
-    default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Poznaniu',
+    default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Polsce',
     template: '%s | Bojo',
   },
   description:
-    'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Piłka nożna, koszykówka, siatkówka i więcej — bez szukania po grupach na Facebooku.',
-  keywords: ['organizuj mecz Poznań', 'szukam graczy Poznań', 'boiska sportowe Poznań', 'piłka nożna', 'koszykówka'],
+    'Znajdź boisko, zbierz skład i zagraj. Piłka nożna, koszykówka, siatkówka i więcej — w całej Polsce, bez szukania po grupach na Facebooku.',
+  keywords: ['organizuj mecz', 'szukam graczy', 'boiska sportowe', 'piłka nożna', 'koszykówka', 'siatkówka'],
   authors: [{ name: 'Bojo' }],
   openGraph: {
     title: 'Bojo — zbierz ekipę, zagraj dziś',
-    description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
+    description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
-    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Bojo — boiska i mecze w Poznaniu' }],
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Bojo — boiska i mecze w Polsce' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Bojo — zbierz ekipę, zagraj dziś',
-    description: 'Znajdź boisko, zbierz skład i zagraj w Poznaniu. Bez szukania po grupach na Facebooku.',
+    description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     images: [OG_IMAGE],
   },
   // Favicon is inlined as a data-URI <link> in <head> below, so we don't

@@ -136,9 +136,8 @@ export const LANDING_FAQ: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: 'Gdzie działa Bojo?',
-    a: 'W całej Polsce — mecz stworzysz w dowolnym miejscu, wskazując je na mapie albo ' +
-      'wybierając obiekt z katalogu. Katalog boisk jest dziś najgęstszy w Poznaniu ' +
-      'i rośnie o kolejne miasta, ale samo tworzenie meczu nie jest niczym ograniczone.',
+    a: 'W całej Polsce. Mecz stworzysz w dowolnym miejscu — wskazując je na mapie albo ' +
+      'wybierając obiekt z katalogu, który obejmuje boiska z całego kraju.',
   },
   {
     q: 'Jak zaprosić stałą ekipę?',

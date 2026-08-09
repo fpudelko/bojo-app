@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     whenStr = format(d, 'EEEE d MMMM', { locale: pl });
   } catch { whenStr = ev.date; }
   const timeStr = ev.time ? ev.time.slice(0, 5) : '';
-  const place = ev.field_name || ev.custom_location_name || 'Poznań';
+  const place = ev.field_name || ev.custom_location_name || 'Boisko';
 
   const name = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
   const title = `${name} — ${whenStr}${timeStr ? ` ${timeStr}` : ''} | Bojo`;

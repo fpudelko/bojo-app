@@ -118,6 +118,25 @@ async function idForSlug(slug: string): Promise<string | null> {
   return (await swiezy()).get(slug) ?? null;
 }
 
+/**
+ * Miejscowość z adresu — ostatni człon po przecinku, tak jak układa go import
+ * z OSM („ul. Szkolna 4, Włodawa").
+ *
+ * Używana i w tytule strony, i w danych strukturalnych. Wcześniej jedno i drugie
+ * miało zaszyty Poznań, więc boisko w Lublinie przedstawiało się wyszukiwarkom
+ * jako poznańskie — a to nie jest kwestia stylu, tylko nieprawdziwy adres
+ * w `schema.org`.
+ */
+function miejscowoscZAdresu(address?: string): string | undefined {
+  const czesci = (address || '').split(',').map((c) => c.trim()).filter(Boolean);
+  if (czesci.length === 0) return undefined;
+  if (czesci.length > 1) return czesci[czesci.length - 1];
+  // Jeden człon bywa jednym albo drugim: import z OSM zapisuje samą
+  // miejscowość, gdy boisko nie ma ulicy („Kozanów"), ale bywa też sam adres
+  // („ul. Szkolna 4"). Rozróżnia je przedrostek.
+  return /^(ul\.|al\.|pl\.|os\.)/i.test(czesci[0]) ? undefined : czesci[0];
+}
+
 async function resolveField(idOrSlug: string): Promise<Field | null> {
   const id = isUuid(idOrSlug) ? idOrSlug : await idForSlug(idOrSlug);
   if (!id) return null;
@@ -160,7 +179,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   // Miejscowość z adresu zamiast zaszytego „w Poznaniu". Katalog obejmuje dziś
   // całą Polskę, więc tytuł boiska w Lublinie mówiący „w Poznaniu" był po
   // prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
-  const miejscowosc = (field.address || '').split(',').map((s) => s.trim()).filter(Boolean).pop();
+  const miejscowosc = miejscowoscZAdresu(field.address);
   const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
   return {
     title: `${field.name} — ${sportsStr}${gdzie} | Bojo`,
@@ -234,15 +253,17 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = slugify(field.name);
 
+  const miasto = miejscowoscZAdresu(field.address);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: field.name,
-    description: `Boisko sportowe w Poznaniu. Sporty: ${field.sport.join(', ')}.`,
+    description: `Boisko sportowe${miasto ? ` w ${miasto}` : ''}. Sporty: ${field.sport.join(', ')}.`,
     address: {
       '@type': 'PostalAddress',
       streetAddress: field.address,
-      addressLocality: 'Poznań',
+      // Miejscowość z adresu obiektu, nie zaszyta. Katalog obejmuje całą Polskę.
+      ...(miasto ? { addressLocality: miasto } : {}),
       addressCountry: 'PL',
     },
     geo: {
