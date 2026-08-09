@@ -45,7 +45,6 @@ export async function getPlayerStats(userId: string): Promise<PlayerAggregateSta
     eventsOrganized: row?.events_organized ?? 0,
     matchesPlayed: row?.matches_played ?? 0,
     goalsTotal: row?.goals_total ?? 0,
-    attended: row?.attended ?? 0,
     noShows: row?.no_shows ?? 0,
   };
 }

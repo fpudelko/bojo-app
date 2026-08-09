@@ -13,7 +13,7 @@ import { getMyGroups } from '@/lib/groups';
 import { getMyInvites, type InviteWithEvent } from '@/lib/playerInvites';
 import { getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
-import { isUpcoming } from '@/lib/eventDates';
+import { isEventJoinable, isUpcoming } from '@/lib/eventDates';
 import type { EventItem, GameAlert, Group } from '@/types';
 import type { MyEventRow } from '@/lib/myEvents';
 
@@ -73,7 +73,11 @@ export function useDashboardData(userId: string): DashboardData {
       if (cancelled) return;
 
       const invites = invitesR.status === 'fulfilled'
-        ? invitesR.value.filter(({ event }) => isUpcoming(event))
+        // `isEventJoinable`, nie `isUpcoming`: to drugie porównuje samą datę,
+        // więc mecz dzisiejszy o 8:00 pozostawał „nadchodzący" jeszcze o 22:00
+        // i wisiał w zaproszeniach po fakcie. Zaproszenie na mecz, który się
+        // zaczął, nie jest już pytaniem, na które da się odpowiedzieć.
+        ? invitesR.value.filter(({ event }) => isEventJoinable(event))
         : [];
       const myEvents = myEventsR.status === 'fulfilled' ? myEventsR.value : [];
       const groupEvents = groupEventsR.status === 'fulfilled'

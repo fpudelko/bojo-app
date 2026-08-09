@@ -484,7 +484,6 @@ export interface PlayerAggregateStats {
   eventsOrganized: number;
   matchesPlayed: number;
   goalsTotal: number;
-  attended: number;
   noShows: number;
 }
 
