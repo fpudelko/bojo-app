@@ -455,7 +455,10 @@ export default function RecurringEventDetailPage() {
             <PlayCircle className="w-4 h-4" /> Utwórz nową edycję
           </h2>
           <p className="text-xs text-slate-400 mb-4">
-            Tworzy jednorazowe wydarzenie na podstawie tego szablonu.
+            Kolejne terminy Bojo tworzy samo, {event.notifyDaysBefore}{' '}
+            {event.notifyDaysBefore === 1 ? 'dzień' : 'dni'} przed datą meczu. Tutaj dodasz termin
+            wcześniej albo poza kolejnością — ustawienia (cena, płatności, bramkarze) nowy termin
+            dziedziczy po poprzednim.
           </p>
 
           <div className="mb-4">
@@ -484,7 +487,7 @@ export default function RecurringEventDetailPage() {
               className="flex-1"
             >
               <PlayCircle className="w-4 h-4" />
-              Utwórz bez powiadomień
+              Utwórz termin
             </Button>
             <Button
               onClick={() => handleSpawn(true)}

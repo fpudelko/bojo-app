@@ -19,12 +19,17 @@ import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
+import {
+  getSeriesEvents, updateSeriesEvents, updateSeriesTemplate,
+  terminyWZakresie, patchDlaPozostalych, type ZakresEdycji,
+} from '@/lib/series';
+import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import { validatePayments } from '@/lib/eventWizard';
 import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
-import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider } from '@/types';
+import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate } from '@/types';
 
 const SPORTS = FOCUS_SPORTS;
 const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, address: '' };
@@ -58,6 +63,11 @@ export default function EditEventPage() {
   const [requireApproval, setRequireApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Seria (stała gierka), do której należy ten termin — decyduje o tym, czy
+  // przy zapisie pytamy o zakres zmiany.
+  const [recurringEventId, setRecurringEventId] = useState<string | undefined>();
+  const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
+  const [zakresOtwarty, setZakresOtwarty] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [costPln, setCostPln] = useState('');
@@ -88,6 +98,14 @@ export default function EditEventPage() {
 
         setSport(ev.sport);
         setDate(ev.date);
+        setRecurringEventId(ev.recurringEventId);
+        if (ev.recurringEventId) {
+          // Cicho — brak listy terminów oznacza tylko tyle, że nie pytamy
+          // o zakres. Nie jest powodem, żeby zablokować edycję meczu.
+          getSeriesEvents(ev.recurringEventId)
+            .then((terminy) => setSeriaTerminy(terminy.map((t) => ({ id: t.id, date: t.date }))))
+            .catch(() => {});
+        }
         const evTime = ev.time?.slice(0, 5) ?? '18:00';
         setTime(evTime);
         const evEndTime = ev.endTime?.slice(0, 5);
@@ -158,6 +176,82 @@ export default function EditEventPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
+  /** Formularz → payload dla `updateEvent`. Wydzielone, bo ten sam payload
+   *  idzie do jednego meczu i (przy serii) do pozostałych terminów. */
+  const zbudujPayload = (): EventCreate => {
+    const endTime = addMinutes(time, durationMin);
+    const fieldName = location.venue
+      ? location.venue.name
+      : (nazwaWlasnaMiejsca.trim()
+        || location.address.split(',')[0].trim()
+        || 'Nieznana lokalizacja');
+    const hasCost = parseFloat(costPln || '0') > 0;
+
+    return {
+      sport,
+      fieldId: location.venue?.id,
+      fieldName,
+      lat: location.lat ?? undefined,
+      lng: location.lng ?? undefined,
+      customLocationName: location.venue ? undefined : fieldName,
+      customAddress: location.venue ? undefined : location.address || undefined,
+      title: title || undefined,
+      description: descriptionEnabled && description.trim() ? description : undefined,
+      date,
+      time,
+      endTime: endTime ?? undefined,
+      maxPlayers,
+      maxGoalkeepers: 2,
+      goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+      reserveClaimHours,
+      visibility,
+      requireApproval,
+      requireSmsConfirmation,
+      teamMode,
+      trackPayments: hasCost,
+      showPaymentStatus: hasCost ? showPaymentStatus : false,
+      trackResults,
+      confirmationDeadlineH,
+      costGrosze: Math.round(parseFloat(costPln || '0') * 100),
+      acceptedPaymentMethods: hasCost ? acceptedPaymentMethods : [],
+      blikPhone: hasCost && acceptedPaymentMethods.includes('blik') ? blikPhone : undefined,
+      acceptedSportsCards: hasCost && cardDiscountEnabled ? acceptedSportsCards : [],
+      sportsCardDiscountGrosze: hasCost && cardDiscountEnabled && cardDiscountPln
+        ? Math.round(parseFloat(cardDiscountPln) * 100)
+        : null,
+      sportsCardOtherName: hasCost && cardDiscountEnabled && acceptedSportsCards.includes('inne')
+        ? sportsCardOtherName
+        : undefined,
+    };
+  };
+
+  const zapisz = async (zakres: ZakresEdycji) => {
+    const payload = zbudujPayload();
+    setZakresOtwarty(false);
+    setSubmitting(true);
+    setError(null);
+    try {
+      // Edytowany termin zawsze zapisuje się w całości — z własną datą.
+      await updateEvent(id, payload);
+
+      if (zakres !== 'ten' && recurringEventId) {
+        const dzis = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD, lokalnie
+        const objete = terminyWZakresie(seriaTerminy, id, zakres, dzis)
+          .filter((t) => t.id !== id);
+        // `patchDlaPozostalych` zdejmuje `date` — inaczej wszystkie terminy serii
+        // wylądowałyby tego samego dnia.
+        await updateSeriesEvents(objete.map((t) => t.id), patchDlaPozostalych(payload) as EventCreate);
+        // Szablon też, inaczej KOLEJNE terminy wracałyby do starych ustawień.
+        await updateSeriesTemplate(recurringEventId, payload);
+      }
+
+      router.push(`/wydarzenia/${id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian');
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.venue && location.lat === null) { setError('Wybierz boisko na mapie.'); return; }
@@ -169,58 +263,14 @@ export default function EditEventPage() {
     }
     setFieldErrors({});
 
-    const endTime = addMinutes(time, durationMin);
-    const fieldName = location.venue
-      ? location.venue.name
-      : (nazwaWlasnaMiejsca.trim()
-        || location.address.split(',')[0].trim()
-        || 'Nieznana lokalizacja');
-    const hasCost = parseFloat(costPln || '0') > 0;
-
-    setSubmitting(true);
-    setError(null);
-    try {
-      await updateEvent(id, {
-        sport,
-        fieldId: location.venue?.id,
-        fieldName,
-        lat: location.lat ?? undefined,
-        lng: location.lng ?? undefined,
-        customLocationName: location.venue ? undefined : fieldName,
-        customAddress: location.venue ? undefined : location.address || undefined,
-        title: title || undefined,
-        description: descriptionEnabled && description.trim() ? description : undefined,
-        date,
-        time,
-        endTime: endTime ?? undefined,
-        maxPlayers,
-        maxGoalkeepers: 2,
-        goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
-        reserveClaimHours,
-        visibility,
-        requireApproval,
-        requireSmsConfirmation,
-        teamMode,
-        trackPayments: hasCost,
-        showPaymentStatus: hasCost ? showPaymentStatus : false,
-        trackResults,
-        confirmationDeadlineH,
-        costGrosze: Math.round(parseFloat(costPln || '0') * 100),
-        acceptedPaymentMethods: hasCost ? acceptedPaymentMethods : [],
-        blikPhone: hasCost && acceptedPaymentMethods.includes('blik') ? blikPhone : undefined,
-        acceptedSportsCards: hasCost && cardDiscountEnabled ? acceptedSportsCards : [],
-        sportsCardDiscountGrosze: hasCost && cardDiscountEnabled && cardDiscountPln
-          ? Math.round(parseFloat(cardDiscountPln) * 100)
-          : null,
-        sportsCardOtherName: hasCost && cardDiscountEnabled && acceptedSportsCards.includes('inne')
-          ? sportsCardOtherName
-          : undefined,
-      });
-      router.push(`/wydarzenia/${id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian');
-      setSubmitting(false);
+    // Przy serii dłuższej niż jeden termin pytamy o zakres. Przy jednym terminie
+    // wszystkie trzy odpowiedzi znaczą to samo — pytanie byłoby kliknięciem
+    // bez treści.
+    if (recurringEventId && seriaTerminy.length > 1) {
+      setZakresOtwarty(true);
+      return;
     }
+    await zapisz('ten');
   };
 
   const inputCls =
@@ -508,6 +558,19 @@ export default function EditEventPage() {
         {/* Reminders — standalone section, saves independently from the main form */}
         {SHOW_SMS_FEATURES && <RemindersSection eventId={id} />}
       </main>
+
+      {/* Poza <form>: klik w przycisk wewnątrz formularza wywołałby submit. */}
+      {zakresOtwarty && (
+        <ZakresEdycjiSerii
+          liczbaTerminow={seriaTerminy.length}
+          liczbaPrzyszlych={
+            terminyWZakresie(seriaTerminy, id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
+          }
+          busy={submitting}
+          onWybierz={zapisz}
+          onClose={() => setZakresOtwarty(false)}
+        />
+      )}
     </div>
   );
 }

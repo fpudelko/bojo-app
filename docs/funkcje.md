@@ -15,7 +15,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
 | `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
-| `SHOW_RECURRING` | `false` | Gry cykliczne | `Header.tsx`, `app/page.tsx`, `app/moje-gry/page.tsx` |
+| `SHOW_RECURRING` | `true` | — (włączona od migracji `073`) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
 Cztery pierwsze: `frontend/src/lib/features.ts` (stałe w kodzie).
@@ -25,10 +25,10 @@ Piąta: `frontend/src/config/features.ts` (zmienna środowiskowa).
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
 Czyli rezerwacje można włączyć pojedynczemu boisku bez odmrażania całej funkcji.
 
-**Flagi ukrywają wejścia, nie trasy.** Trasa `/cykliczne` odpowiada normalnie, jeśli ktoś
-wpisze adres ręcznie — flaga usuwa tylko linki w nawigacji. Dlatego trasy za flagami nie
-trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś,
-czego użytkownik nie znajdzie w interfejsie.
+**Flagi ukrywają wejścia, nie trasy.** Trasa `/turniej` odpowiada normalnie, jeśli ktoś
+wpisze adres ręcznie — flaga (`SHOW_CUP`) usuwa tylko linki w nawigacji. Dlatego trasy za
+flagami nie trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce
+obiecuje coś, czego użytkownik nie znajdzie w interfejsie.
 
 ---
 
@@ -70,11 +70,11 @@ karty: jeszcze nie ma za co płacić, dopóki nie wejdzie do składu.
 ## Zaproszenia na mecz
 
 Imienne zaproszenie (`event_player_invites`, migracja `060`, `lib/playerInvites.ts`) —
-organizator albo dowolny potwierdzony uczestnik zaprasza konkretne osoby z ekipy
-(`components/events/InviteFromGroupDialog.tsx`, przycisk „Zaproś z ekipy" na stronie
+organizator albo dowolny potwierdzony uczestnik zaprasza konkretne osoby z grupy
+(`components/events/InviteFromGroupDialog.tsx`, przycisk „Zaproś z grupy" na stronie
 meczu). Zaproszenie nie zajmuje miejsca w składzie; odpowiedź to zwykłe „Dołącz" /
 „Obserwuj" na stronie meczu albo „Nie tym razem" (odrzucenie, zapisywane trwale, żeby
-ponowne „zaproś ekipę" nie wskrzeszało odrzuconego zaproszenia).
+ponowne „zaproś grupę" nie wskrzeszało odrzuconego zaproszenia).
 
 Gdzie widać otwarte zaproszenia:
 
@@ -95,7 +95,7 @@ jeden komponent zamiast dwóch kopii — patrz sekcja „Układ `/moje-gry`" ni�
 Nie mylić z `lib/invites.ts` (tabela `event_invites`, migracja `036`) — zaproszenia po
 e-mailu z tokenem, martwy kod, nic go nie importuje.
 
-**Jeden przycisk „Zaproś z ekipy" na stronie, nie dwa.** Do niedawna były dwa — przy
+**Jeden przycisk „Zaproś z grupy" na stronie, nie dwa.** Do niedawna były dwa — przy
 liczniku wolnych miejsc i osobno w sekcji „Zaproś znajomych" — z różnymi ikonami i różnymi
 warunkami widoczności. Zostaje wyłącznie ten przy liczniku (`!isFull`, ikona `Users`);
 sekcja niżej na stronie ma dziś tylko udostępnianie linku.
@@ -253,7 +253,7 @@ Pole `nazwaWlasnaMiejsca` (nazwa dla pinezki spoza katalogu) jest w `EventDraftV
 **opcjonalne**, a wersja schematu została na `v: 1`. To celowe: `loadEventDraft` odrzuca
 szkic przy `parsed.v !== 1`, więc podbicie wersji unieważniłoby każdy formularz wypełniany
 w chwili wdrożenia. Odczyt robi `?? ''`. Pokryte testem w `eventDraft.test.ts`. Tak samo
-opcjonalne — i z tego samego powodu — jest `grupaId` (ekipa wybrana w kroku 3).
+opcjonalne — i z tego samego powodu — jest `grupaId` (grupa wybrana w kroku 3).
 
 ---
 
@@ -282,28 +282,30 @@ na jego stronie, także bez konta.
 
 **Krok 2 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
 `components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej
-daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „powiadamiaj X dni wcześniej".
+daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „otwieraj zapisy X dni przed
+terminem" (dawniej „powiadamiaj" — od migracji `073` ta wartość steruje AUTOMATYCZNYM
+tworzeniem kolejnego terminu, nie tylko treścią przypomnienia, więc minimum to 1, nie 0).
 Kliknięcie aktywnego kafelka wyłącza cykliczność, ikona ołówka na aktywnym kafelku
 ponownie otwiera modal. Ustawienia żyją wyłącznie w stanie kreatora — dopiero publikacja
-meczu tworzy **niezależny** szablon w `recurring_events` (`createRecurringEvent`), bez
-próby powiązania z konkretnym jednorazowym meczem, bo kolumna `events.recurring_event_id`
-nie istnieje w schemacie. Po publikacji strona meczu pokazuje jednorazowy link do panelu
-serii (`/cykliczne/{id}`) przez `?cykliczne=<id>` — ta trasa działa mimo że nawigacja do
-`/cykliczne` jest schowana za `SHOW_RECURRING` (flagi chowają wejścia, nie trasy).
-Zakres świadomie minimalny — patrz „Czego NIE ma" niżej.
+meczu tworzy szablon w `recurring_events` (`createRecurringEvent`) i wiąże z nim ten
+pierwszy mecz przez `events.recurring_event_id`. Po publikacji strona meczu pokazuje
+jednorazowy link do panelu serii (`/cykliczne/{id}`) przez `?cykliczne=<id>`, a stały badge
+„Stała gierka" (organizator, w pasku u góry strony meczu) prowadzi tam samo z powrotem.
+Patrz „Serie wydarzeń cyklicznych" niżej.
 
-**Krok 3 — mecz w ramach ekipy.** Wiersz pod kartami widoczności otwiera
+**Krok 3 — mecz w ramach grupy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
 wyśrodkowana karta od `sm:`) z listą `getMyGroups()`. Wybór trafia do `createEvent`
-jako `groupId`. Wiersz jest **osobny od widoczności**, bo przypisanie do ekipy jest
+jako `groupId`. Wiersz jest **osobny od widoczności**, bo przypisanie do grupy jest
 wobec niej ortogonalne: mecz grupy bywa publiczny. Wejście `?group=` preselekcjonuje
-ten sam stan.
+ten sam stan. Ten sam dialog reużyty jest na stronie meczu (badge grupy w pasku u góry,
+tylko dla organizatora) — patrz sekcja „Strona meczu" niżej.
 
-„Załóż ekipę"/„Załóż nową ekipę" **nie prowadzi na `/grupy/nowe`** — otwiera drugi tryb
+„Załóż grupę"/„Załóż nową grupę" **nie prowadzi na `/grupy/nowe`** — otwiera drugi tryb
 tego samego dialogu, okrojony formularz (nazwa + sport) w tym samym oknie. Nawigacja na
 osobną trasę wyrzucała organizatora z kreatora w połowie wypełniania; po `createGroup()`
 + `getGroup()` dialog wywołuje ten sam `onWybierz(grupa)` co wybór z listy — zamyka się
-i wraca dokładnie na krok 3, z nowo założoną ekipą już wybraną.
+i wraca dokładnie na krok 3, z nowo założoną grupą już wybraną.
 
 **Powrót po publikacji.** „← Wróć" na stronie świeżo utworzonego meczu (`?utworzono=1`)
 prowadzi na `/moje-gry`, nie `router.back()` — cofanie wracało do wypełnionego kreatora.
@@ -334,8 +336,10 @@ współrzędne po nieudanym reverse geocodingu), cena bez wybranej metody płatn
 ## Po publikacji: „Mecz gotowy — wyślij link"
 
 Kreator przekierowuje na `/wydarzenia/{id}?utworzono=1`, a strona meczu pokazuje
-organizatorowi odrzucalny panel: „Wyślij link ekipie" (pełna szerokość), pod nim „Kopiuj
-link" i „Zaproś z ekipy", na dole jedno zdanie o konsekwencji wybranej widoczności.
+organizatorowi odrzucalny panel: „Wyślij link znajomym" (pełna szerokość, systemowy
+share sheet — nie ogranicza się do członków żadnej grupy), pod nim „Kopiuj link" i „Zaproś
+z grupy" (to już konkretnie funkcja Grupy — `InviteFromGroupDialog`), na dole jedno zdanie
+o konsekwencji wybranej widoczności.
 
 Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
 `useSearchParams()` — ten hak wymusza na trasie prerenderowanej bail-out do CSR i wywala
@@ -356,6 +360,47 @@ do arkusza systemowego razem z adresem — osobno od tekstu, żeby podgląd link
 
 Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
 konkurencyjny przycisk „Udostępnij" na tej samej stronie.
+
+---
+
+## Serie wydarzeń cyklicznych
+
+Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii
+(`SHOW_RECURRING` włączona, moduł widoczny w nawigacji). Model, żeby nie duplikować
+schematu `events` w `recurring_events` — pełny opis w [domena.md](./domena.md):
+
+- **szablon** (`recurring_events`) niesie regułę powtarzania: dzień tygodnia, godzina,
+  miejsce, limit miejsc, widoczność i wyprzedzenie (`notify_days_before`),
+- **ostatni termin serii** jest żywym wzorcem reszty ustawień (cena, metody płatności,
+  bramkarze, akceptacja zapisów, grupa) — nowy termin dziedziczy je z niego, nie z ubogiego
+  szablonu. To naprawia dawny błąd, w którym płatna gierka odradzała się jako darmowa.
+
+**Auto-tworzenie.** `pg_cron` (jeśli włączony w Supabase) odpala co godzinę
+`utworz_nalezne_terminy_serii()`, która dla każdego aktywnego szablonu tworzy należny
+termin — gdy jest w zasięgu `notify_days_before` i jeszcze nie istnieje. Bez `pg_cron`
+funkcja działa tylko wywołana ręcznie z SQL Editora albo przez przycisk „Utwórz termin"
+na `/cykliczne/[id]` (`spawnEventInstance()` w `lib/recurring.ts` woła to samo RPC —
+`utworz_termin_serii` — więc ręczne i automatyczne tworzenie dają identyczny wynik).
+Uczestnicy poprzedniego terminu dostają wtedy powiadomienie „Nowy termin stałej gierki".
+
+**Edycja jednego meczu z serii.** Zmiana godziny w modalu „Zmień termin" albo zapis
+formularza edycji (gdy seria ma więcej niż jeden termin) pyta o zakres —
+`components/events/ZakresEdycjiSerii.tsx`, logika w `lib/series.ts`:
+
+| Zakres | Co obejmuje |
+|---|---|
+| Tylko to wydarzenie | sam edytowany termin |
+| To i przyszłe | ten termin + terminy z datą ≥ dzisiaj + szablon (żeby kolejne dziedziczyły) |
+| Cała seria | wszystkie terminy, także rozegrane, + szablon |
+
+**Data nigdy nie idzie zbiorczo** (`lib/series.ts#POLA_POZA_ZAKRESEM`) — niezależnie od
+zakresu zmienia się wyłącznie w edytowanym terminie. Przesunięcie całej gierki na inny
+dzień tygodnia to zmiana reguły, czyli edycja szablonu, nie zbiorcza zmiana terminów.
+
+**Edycja szablonu** — `/cykliczne/[id]/edytuj` (dawniej zaślepka „w przygotowaniu").
+Pola pokrywają się z `/cykliczne/nowe`: sport, miejsce, dzień tygodnia, godzina, limit,
+tytuł/opis, widoczność, wyprzedzenie — bo szablon opisuje regułę, nie komplet ustawień
+meczu (cena i płatności edytuje się na konkretnym terminie, z pytaniem o zakres wyżej).
 
 ---
 
@@ -742,7 +787,7 @@ i `OnboardingSection` w `DashboardSections.tsx` (pulpit przy zerowej aktywności
 wspólne, markup nie — plakietkę trzeba postawić w obu, dlatego jest osobnym komponentem.
 
 Pusty stan `NextMatchCard` uprzedza tym samym tonem, że otwartych gier bywa mało
-i szybszą drogą jest własny mecz plus link do ekipy.
+i szybszą drogą jest własny mecz plus link do znajomych.
 
 ---
 
@@ -767,11 +812,13 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Lista graczy pod `/gracze`** — to redirect.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
 - **Automatyczne uruchamianie migracji.**
-- **Pełna integracja cyklicznych wydarzeń z kreatorem jednorazowych meczów.** Kafelek
-  „Wydarzenie cykliczne" na kroku 2 tworzy niezależny szablon w `recurring_events` —
-  bez trwałego linku do konkretnego jednorazowego meczu (`events.recurring_event_id`
-  nie istnieje w schemacie) i bez realnego ekranu edycji szablonu (`/cykliczne/[id]/edytuj`
-  to zaślepka „w przygotowaniu"). Zadanie w [BACKLOG.md](../BACKLOG.md).
+- **Powiadomienia o nowym terminie serii przez e-mail/SMS.** Auto-tworzenie terminów
+  (migracja `073`) powiadamia wyłącznie w aplikacji (dzwonek) — `recurring_event_invites`
+  (kontakty e-mail/telefon, dodawane ręcznie na `/cykliczne/[id]`) nie dostają nic przy
+  automatycznym tworzeniu, tylko przy ręcznym „Utwórz i wyślij zaproszenia". Wymagałoby
+  wywołania Edge Function `send-invites` z poziomu Postgresa (`pg_net`). Zadanie
+  w [BACKLOG.md](../BACKLOG.md).
+- **Reguły powtarzania inne niż cotygodniowa** — co dwa tygodnie, co miesiąc.
 
 ### Martwy kod
 

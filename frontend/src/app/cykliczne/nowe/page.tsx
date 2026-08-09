@@ -99,12 +99,11 @@ function NewRecurringForm() {
   const inputCls =
     'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
+  // Od migracji `073` ta wartość steruje AUTOMATYCZNYM tworzeniem kolejnego
+  // terminu, nie tylko wysyłką przypomnień — stąd zmiana etykiety i minimum 1.
   const notifyLabel =
-    notifyDaysBefore === 0
-      ? 'Nie wysyłaj przypomnień'
-      : notifyDaysBefore === 1
-      ? 'Wyślij zaproszenia 1 dzień przed wydarzeniem'
-      : `Wyślij zaproszenia ${notifyDaysBefore} dni przed wydarzeniem`;
+    'Bojo samo utworzy kolejny termin z tym wyprzedzeniem, a gracze z poprzedniego meczu '
+    + 'dostaną powiadomienie, że zapisy są otwarte.';
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -279,13 +278,15 @@ function NewRecurringForm() {
           {/* Notify days before */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Powiadamiaj graczy:{' '}
-              <span className="text-primary-600 font-semibold">{notifyDaysBefore} dni wcześniej</span>
+              Otwieraj zapisy:{' '}
+              <span className="text-primary-600 font-semibold">
+                {notifyDaysBefore === 1 ? '1 dzień' : `${notifyDaysBefore} dni`} przed terminem
+              </span>
             </label>
             <input
               type="range"
-              min={0}
-              max={7}
+              min={1}
+              max={14}
               value={notifyDaysBefore}
               onChange={(e) => setNotifyDaysBefore(Number(e.target.value))}
               className="w-full accent-primary-600"

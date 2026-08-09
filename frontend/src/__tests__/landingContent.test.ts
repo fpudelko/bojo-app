@@ -14,8 +14,10 @@ import { faqJsonLd } from '@/lib/structuredData';
 // legitimately needs to appear (e.g. a feature ships and a flag flips to
 // true), update this list in the same commit as a deliberate decision.
 const FORBIDDEN_PHRASES = [
-  'cykliczn', // SHOW_RECURRING = false
-  'stał[ae] gierk', // same feature, marketing name
+  // 'cykliczn' i 'stał[ae] gierk' — usunięte świadomie razem z włączeniem
+  // SHOW_RECURRING (migracja 073): funkcja jest już dostępna w nawigacji, więc
+  // wzmianka o niej na landingu przestała być obietnicą bez pokrycia. Sama treść
+  // landingu jej nie reklamuje — to osobna, marketingowa decyzja.
   'turniej', // SHOW_CUP = false
   'sms', // SHOW_SMS_FEATURES = false
   'przypomnien', // no scheduler exists

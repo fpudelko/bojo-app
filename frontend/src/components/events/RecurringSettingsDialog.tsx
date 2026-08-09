@@ -27,14 +27,10 @@ export default function RecurringSettingsDialog({
   onSave: (notifyDaysBefore: number) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState(notifyDaysBefore);
-
-  const notifyLabel =
-    draft === 0
-      ? 'Nie wysyłaj przypomnień'
-      : draft === 1
-      ? 'Wyślij zaproszenia 1 dzień przed wydarzeniem'
-      : `Wyślij zaproszenia ${draft} dni przed wydarzeniem`;
+  // Minimum 1: od migracji `073` ta wartość steruje AUTOMATYCZNYM tworzeniem
+  // kolejnego terminu, a 0 znaczyłoby „utwórz mecz w dniu meczu" — za późno,
+  // żeby ktokolwiek zdążył się zapisać.
+  const [draft, setDraft] = useState(Math.max(1, notifyDaysBefore));
 
   return (
     <div
@@ -65,22 +61,22 @@ export default function RecurringSettingsDialog({
 
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Powiadamiaj graczy: <span className="font-semibold text-primary-600">{draft} {draft === 1 ? 'dzień' : 'dni'} wcześniej</span>
+              Otwieraj zapisy: <span className="font-semibold text-primary-600">{draft} {draft === 1 ? 'dzień' : 'dni'} przed terminem</span>
             </label>
             <input
               type="range"
-              min={0}
-              max={7}
+              min={1}
+              max={14}
               value={draft}
               onChange={(e) => setDraft(Number(e.target.value))}
               className="w-full accent-primary-600"
             />
-            <p className="mt-1 text-xs text-slate-500">{notifyLabel}</p>
           </div>
 
           <p className="mt-4 text-xs text-slate-500">
-            Gracze nie dostaną zaproszeń automatycznie — kolejne terminy tworzysz i wysyłasz
-            ręcznie z panelu serii, do którego dasz się przekierować zaraz po utworzeniu tego meczu.
+            Kolejne terminy Bojo tworzy samo, z tym wyprzedzeniem. Gracze z poprzedniego meczu
+            dostaną wtedy powiadomienie, że zapisy są otwarte — ustawienia (cena, płatności,
+            bramkarze) każdy nowy termin dziedziczy po poprzednim.
           </p>
         </div>
 

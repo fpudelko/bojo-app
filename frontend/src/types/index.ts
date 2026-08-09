@@ -165,6 +165,11 @@ export interface EventItem {
   fieldAddress?: string; // address fetched from fields table (when field_id is set)
   district?: string;     // dzielnica from the linked field (when field_id is set)
   groupId?: string;      // optional group this event belongs to
+  /** Seria, do której należy ten termin (`recurring_events.id`). Ustawiona, gdy
+   *  mecz powstał z szablonu cyklicznego — ręcznie albo automatycznie. Obecność
+   *  tej wartości włącza pytanie o zakres przy edycji (to / to i przyszłe /
+   *  cała seria). Patrz docs/domena.md. */
+  recurringEventId?: string;
   // advanced features (always present, default false/0/'brak')
   requireSmsConfirmation: boolean;
   teamMode: TeamMode;
@@ -260,6 +265,8 @@ export interface EventCreate {
   costGrosze?: number;
   requireApproval?: boolean;
   groupId?: string;
+  /** Seria, do której należy tworzony termin — patrz `EventItem.recurringEventId`. */
+  recurringEventId?: string;
   maxGoalkeepers?: number;
   goalkeepersEnabled?: boolean;
   reserveClaimHours?: number;
