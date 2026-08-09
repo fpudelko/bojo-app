@@ -2,6 +2,30 @@ import { supabase } from './supabase';
 import { createEvent } from './events';
 import type { RecurringEvent, RecurringEventInvite, Visibility } from '@/types';
 
+export const DAY_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: 'Poniedziałek' },
+  { value: 2, label: 'Wtorek' },
+  { value: 3, label: 'Środa' },
+  { value: 4, label: 'Czwartek' },
+  { value: 5, label: 'Piątek' },
+  { value: 6, label: 'Sobota' },
+  { value: 7, label: 'Niedziela' },
+];
+
+/** 1=Poniedziałek…7=Niedziela, liczone od stringa 'YYYY-MM-DD' (lokalna
+ *  północ, bez przesunięć strefy — inaczej niż `new Date(date)` samo w sobie,
+ *  które parsuje jako UTC i potrafi zjechać o dzień w zależności od strefy
+ *  przeglądarki). */
+export function dayOfWeekFromDate(date: string): number {
+  const jsDay = new Date(`${date}T00:00:00`).getDay(); // 0=Niedz…6=Sob
+  return jsDay === 0 ? 7 : jsDay;
+}
+
+export function dayOfWeekLabelFromDate(date: string): string {
+  const n = dayOfWeekFromDate(date);
+  return DAY_OPTIONS.find((d) => d.value === n)!.label.toLowerCase();
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toRecurringEvent(row: any): RecurringEvent {
   return {

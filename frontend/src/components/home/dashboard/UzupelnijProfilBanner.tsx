@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { UserCog, X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
-import { brakNazwy } from '@/lib/profileName';
+import { isPelneImie } from '@/lib/profileName';
 
 const KLUCZ = 'bojo_baner_nazwa_v1';
 
@@ -37,7 +37,10 @@ export default function UzupelnijProfilBanner() {
     try { localStorage.setItem(KLUCZ, '1'); } catch { /* nie szkodzi */ }
   };
 
-  if (!user || odrzucony || !brakNazwy(user.user_metadata)) return null;
+  // `isPelneImie` (nie samo "czy jakieś pole nie jest puste") — Google OAuth
+  // zawsze wypełnia `full_name`, więc słabszy check nigdy by tu nie zadziałał
+  // dla kont z Google. Patrz `lib/profileName.ts`.
+  if (!user || odrzucony || isPelneImie(displayName(user))) return null;
 
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">

@@ -16,7 +16,7 @@ function BallIcon({ className }: { className?: string }) {
 }
 
 const LEFT_ITEMS = [
-  { href: '/wydarzenia', label: 'Znajdź grę', Icon: BallIcon },
+  { href: '/wydarzenia', label: 'Znajdź grę', Icon: BallIcon, earlyStage: true },
   { href: '/mapa',       label: 'Mapa',       Icon: Map },
 ] as const;
 
@@ -28,17 +28,28 @@ const RIGHT_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  function NavLink({ href, label, Icon }: { href: string; label: string; Icon: React.ComponentType<{ className?: string }> }) {
+  function NavLink({
+    href, label, Icon, earlyStage,
+  }: { href: string; label: string; Icon: React.ComponentType<{ className?: string }>; earlyStage?: boolean }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     return (
       <Link
         href={href}
+        aria-label={earlyStage ? `${label} — wczesny etap aplikacji` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
           active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
         )}
       >
-        <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
+        <span className="relative">
+          <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
+          {/* Kropka zamiast pełnej plakietki „Wczesny etap” — kolumna w gridzie
+              dolnej nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
+              niesie tę samą informację dla czytników ekranu. */}
+          {earlyStage && (
+            <span className="absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+          )}
+        </span>
         <span className="whitespace-nowrap">{label}</span>
       </Link>
     );

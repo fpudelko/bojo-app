@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nazwaZEmaila, brakNazwy, isPelneImie, displayName, firstName, avatarUrl,
+  nazwaZEmaila, isPelneImie, displayName, firstName, avatarUrl,
 } from '@/lib/profileName';
 import type { User } from '@supabase/supabase-js';
 
@@ -30,29 +30,6 @@ describe('nazwaZEmaila', () => {
   });
 });
 
-describe('brakNazwy', () => {
-  it('wykrywa brak metadanych w ogóle', () => {
-    expect(brakNazwy(null)).toBe(true);
-    expect(brakNazwy(undefined)).toBe(true);
-    expect(brakNazwy({})).toBe(true);
-  });
-
-  it('same spacje to nadal brak nazwy', () => {
-    expect(brakNazwy({ display_name: '   ' })).toBe(true);
-    expect(brakNazwy({ full_name: '' })).toBe(true);
-  });
-
-  it('dowolne z trzech pól wystarczy', () => {
-    expect(brakNazwy({ display_name: 'Jan' })).toBe(false);
-    expect(brakNazwy({ full_name: 'Jan Kowalski' })).toBe(false);
-    expect(brakNazwy({ name: 'Janek' })).toBe(false);
-  });
-
-  it('ignoruje wartości, które nie są tekstem', () => {
-    expect(brakNazwy({ display_name: 42 })).toBe(true);
-    expect(brakNazwy({ full_name: {} })).toBe(true);
-  });
-});
 
 describe('isPelneImie', () => {
   it('przyjmuje imię i nazwisko', () => {

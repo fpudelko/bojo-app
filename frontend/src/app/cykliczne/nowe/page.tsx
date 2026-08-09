@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth, displayName } from '@/lib/auth';
-import { createRecurringEvent } from '@/lib/recurring';
+import { createRecurringEvent, DAY_OPTIONS } from '@/lib/recurring';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import type { Field, Visibility } from '@/types';
 
@@ -19,16 +19,6 @@ const SPORTS = [
   'siatkówka plażowa',
   'piłka ręczna',
   'inne',
-];
-
-const DAY_OPTIONS: { value: number; label: string }[] = [
-  { value: 1, label: 'Poniedziałek' },
-  { value: 2, label: 'Wtorek' },
-  { value: 3, label: 'Środa' },
-  { value: 4, label: 'Czwartek' },
-  { value: 5, label: 'Piątek' },
-  { value: 6, label: 'Sobota' },
-  { value: 7, label: 'Niedziela' },
 ];
 
 function NewRecurringForm() {
