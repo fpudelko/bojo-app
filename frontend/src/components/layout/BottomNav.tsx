@@ -19,7 +19,7 @@ function BallIcon({ className }: { className?: string }) {
 }
 
 const LEFT_ITEMS = [
-  { href: '/wydarzenia', label: 'Znajdź grę', Icon: BallIcon, earlyStage: true },
+  { href: '/wydarzenia', label: 'Znajdź grę', Icon: BallIcon },
   { href: '/mapa',       label: 'Mapa',       Icon: Map },
 ] as const;
 
@@ -41,17 +41,16 @@ export default function BottomNav() {
   }, [user, pathname]);
 
   function NavLink({
-    href, label, Icon, earlyStage, dot,
+    href, label, Icon, dot,
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
-    earlyStage?: boolean;
-    /** Druga, niezależna kropka — dziś tylko "Moje" przy oczekujących prośbach
-        o dołączenie. Niebieski, bo to jedyny kolor, który w apce znaczy
-        wyłącznie "wymaga akceptacji" (patrz sekcja 5 planu). */
+    /** Kropka — dziś tylko "Moje" przy oczekujących prośbach o dołączenie.
+        Niebieski, bo to jedyny kolor, który w apce znaczy wyłącznie
+        "wymaga akceptacji" (patrz sekcja 5 planu). */
     dot?: { color: string; label: string };
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
-    const ariaSuffix = earlyStage ? ' — wczesny etap aplikacji' : dot ? ` — ${dot.label}` : '';
+    const ariaSuffix = dot ? ` — ${dot.label}` : '';
     return (
       <Link
         href={href}
@@ -66,9 +65,6 @@ export default function BottomNav() {
           {/* Kropka zamiast pełnej plakietki — kolumna w gridzie dolnej
               nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
               niesie tę samą informację dla czytników ekranu. */}
-          {earlyStage && (
-            <span className="absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
-          )}
           {dot && (
             <span className={clsx('absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full', dot.color)} aria-hidden="true" />
           )}
@@ -86,7 +82,7 @@ export default function BottomNav() {
     // zmienna --bottom-nav-h w globals.css; jej wartość musi się zgadzać
     // z `h-14` niżej.
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-[1000] bg-white/95 backdrop-blur-sm border-t border-slate-200/70"
+      className="md:hidden fixed bottom-0 inset-x-0 z-[1200] bg-white/95 backdrop-blur-sm border-t border-slate-200/70"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Nawigacja dolna"
     >

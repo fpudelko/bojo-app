@@ -157,6 +157,7 @@ export interface EventItem {
   endTime?: string;
   maxPlayers: number;
   participantsCount?: number; // non-reserve app participants (populated in list queries)
+  pendingApprovalCount?: number; // awaiting organizer approval (requireApproval matches)
   visibility: Visibility;
   createdAt: string;
   status: EventStatus;

@@ -73,7 +73,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8">
           <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
         </main>
@@ -84,7 +84,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header />
+        <Header showMobileWordmark />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
             <User className="w-10 h-10 mx-auto mb-4 text-slate-300" />
