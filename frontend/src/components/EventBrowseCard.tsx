@@ -126,14 +126,22 @@ export function EventBrowseCard({ event, distance, relation }: {
                 {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
                 {until && ` · ${until}`}
               </span>
+              {/* Nazwa obiektu bierze całą wolną szerokość wiersza, w którym
+                  wylądowała. Wcześniej miała `max-w-[120px]` — sztywny limit,
+                  który obcinał „Zespół Szkół Ogólno…" nawet wtedy, gdy chip
+                  zawinął się do własnego wiersza i miał do dyspozycji całą
+                  kartę. Kropki stały w połowie szerokości bez powodu.
+                  `min-w-0` na obu poziomach, bo bez tego element w kontenerze
+                  flex nie skurczy się poniżej swojej treści i zamiast obciąć
+                  tekst rozepchnie wiersz. */}
               {location && (
-                <span className="flex items-center gap-1 text-slate-500">
+                <span className="flex min-w-0 flex-1 items-center gap-1 text-slate-500">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate max-w-[120px]">{location}</span>
+                  <span className="min-w-0 truncate">{location}</span>
                 </span>
               )}
               {distance !== undefined && (
-                <span className="text-primary-700 font-medium">
+                <span className="shrink-0 text-primary-700 font-medium">
                   {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
                 </span>
               )}
