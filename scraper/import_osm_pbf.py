@@ -12,8 +12,10 @@ Co ten import robi lepiej niż `scraper.py`:
      „Boisko — piłka nożna" i mapa robiła się nieczytelna. Tutaj nazwa bierze się
      ze ZŁĄCZENIA PRZESTRZENNEGO: sprawdzamy, w czym boisko leży (ośrodek sportu,
      szkoła, klub) i budujemy nazwę z kontekstu — „SP nr 12 — boisko piłkarskie, Świdnik".
-  2. MIEJSCOWOŚĆ w nazwie i adresie. Bez niej „ul. Szkolna" powtarza się w każdej
-     gminie i wygląda jak duplikat (patrz audyt: 12× „ul. Poznańska").
+  2. MIEJSCOWOŚĆ w adresie. Bez niej „ul. Szkolna" powtarza się w każdej gminie
+     i wygląda jak duplikat (patrz audyt: 12× „ul. Poznańska"). W NAZWIE jej nie
+     ma — karta obiektu pokazuje nazwę i adres pod sobą, więc miejscowość
+     w obu dawała to samo słowo dwa razy.
   3. WYMIARY z geometrii poligonu — mierzone, nie zgadywane ze zdjęcia.
   4. ZERO AI. Sport i nawierzchnia pochodzą z tagów OSM albo ich nie ma.
 
@@ -299,10 +301,21 @@ def sports_pl(tags: dict[str, str]) -> list[str] | None:
 
 def build_name(tags: dict[str, str], sports: list[str] | None,
                ctx: RawObj | None, ctx_kind: str | None, locality: str | None) -> tuple[str, str]:
-    """Zwraca (nazwa, źródło_nazwy). Drabinka priorytetów — patrz nagłówek pliku."""
+    """Zwraca (nazwa, źródło_nazwy). Drabinka priorytetów — patrz nagłówek pliku.
+
+    MIEJSCOWOŚĆ NIE WCHODZI DO NAZWY. Wchodziła do 2026-08, żeby „Boisko
+    piłkarskie" nie powtarzało się w każdej gminie — ale w interfejsie karta
+    obiektu pokazuje nazwę I adres, a adres zaczyna się właśnie od miejscowości.
+    Wychodziło „Boisko do siatkówki, Kozanów" nad „Kozanów", czyli to samo słowo
+    dwa razy pod sobą. Rozróżnianie obiektów zostaje przy adresie, gdzie i tak
+    było.
+
+    `locality` zostaje w sygnaturze, bo nadal decyduje o bramce publikacji
+    („szeroka" wymaga miejscowości) i o adresie.
+    """
     own = (tags.get("name") or "").strip()
     if own:
-        return (f"{own}, {locality}" if locality and not locality_already_in(own, locality) else own), "wlasna"
+        return own, "wlasna"
 
     noun = SPORT_NOUN.get(sports[0], "Boisko sportowe") if sports else "Boisko sportowe"
 
@@ -310,21 +323,16 @@ def build_name(tags: dict[str, str], sports: list[str] | None,
         # Wszędzie ten sam wzorzec „Nazwa — rzeczownik", bo polski wymagałby
         # odmiany: „boisko przy Szkoła Podstawowa nr 12" zgrzyta, a odmienianie
         # dowolnych nazw własnych to studnia bez dna.
-        base = f"{ctx.tags['name'].strip()} — {noun.lower()}"
-        return (f"{base}, {locality}" if locality and not locality_already_in(base, locality) else base), f"kontekst:{ctx_kind}"
+        return f"{ctx.tags['name'].strip()} — {noun.lower()}", f"kontekst:{ctx_kind}"
 
     operator = (tags.get("operator") or "").strip()
     if operator:
-        base = f"{noun} — {operator}"
-        return (f"{base}, {locality}" if locality and not locality_already_in(base, locality) else base), "operator"
+        return f"{noun} — {operator}", "operator"
 
     street = (tags.get("addr:street") or "").strip()
-    parts = [noun]
     if street:
-        parts.append(f"ul. {street}")
-    if locality:
-        parts.append(locality)
-    return ", ".join(parts), ("ulica" if street else ("miejscowosc" if locality else "brak"))
+        return f"{noun}, ul. {street}", "ulica"
+    return noun, ("miejscowosc" if locality else "brak")
 
 
 def pobierz(region: str, path: str) -> None:
