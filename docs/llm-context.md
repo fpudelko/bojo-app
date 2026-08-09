@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-09 · migracja `074` · 31 tabel · 344 testy
+**Stan na:** 2026-08-09 · migracja `076` · 31 tabel · 344 testy
 
 ---
 
@@ -295,7 +295,54 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
-### 2026-08-09 — Wydarzenia cykliczne jako prawdziwa seria: auto-tworzenie terminów, zbiorcza edycja, dziedziczenie ustawień
+
+### 2026-08-09 — Rezerwa i bramkarze osobnymi kolejkami, treść powiadomień z datami, wizualne ulepszenia interfejsu
+
+PROBLEM: limit miejsc dla zawodników z pola w Bojo nigdy nie zadziałał — zawodnik
+dołączał do składu, gdy `taken < maxPlayers`, bez względu na to, czy miejsca dla
+bramkarzy wyczerpały już całą pulę (`maxPlayers=2, maxGoalkeepers=2` oznaczał 0
+miejsc w polu, a każdy zawodnik i tak wchodził do drużyny). Powiadomienia o nowych
+prośbach o dołączenie nie miały daty i godziny meczu — tylko nazwę i sport.
+Przycisk „Dodaj do grupy" na stronie meczu był schowany, szukanie go wśród opcji
+zajmowało czas. Panel dolnej nawigacji na mapie (`/mapa`) był czasem nieobserwowalny
+— karty gier mogły go przysłonić. Na `/profil` mobile nie widać było wordmarku
+„bojo" jak na reszcie stron, czego też szukano. Baner z prośbą o imię na `/wydarzenia`
+schował się za logowaniem, nowy użytkownik Google nie wiedział, co uzupełnić. Kreator
+meczu jednorazowego nie miał opcji na utworzenie cyklicznego powtarzania w tym samym
+przepływie.
+
+ROZWIĄZANIE BOJO: rezerwa teraz pojawia się **osobno dla każdej roli** — zawodnicy
+z pola konkurrują o `maxPlayers - maxGoalkeepers` miejsc, bramkarze o `maxGoalkeepers`.
+Gdy bramkarze są wyłączeni (`goalkeepers_enabled = false`), cała pula `maxPlayers` idzie
+na pole, zachowując stare zachowanie. Powiadomienia o nowych prośbach, zaakceptowanych
+zapisach i nowych terminach serii zawierają datę i godzinę meczu (format: `DD.MM, godz.
+HH:MM`). Nowe powiadomienie o odrzuceniu prośby o dołączenie informuje, że organizator
+nie przyjął wpisu. Badge „Dodaj do grupy" stoi na górze strony meczu jako klikalny
+element (dla organizatora edytowalny). Dolna nawigacja podniosła się w widoku (`z-[1200]`)
+— karty nigdy jej nie przysłonią. `/profil` renderuje wordmark „bojo" po lewej w górnym
+pasku na mobile. Panel powiadomień na telefonie renderuje się w viewporcie zamiast
+względem przycisku dzwonka — zawsze w pełni widoczny. Przycisk „Wiesz, że możesz
+zrobić to cyklicznie?" w kroku 2 kreatora otwiera modal i tworzy szablon w tle,
+organizator widzi link do serii po publikacji. Krok 3 kreatora ma teraz grupę na
+górze, gdzie należy — przed innymi ustawieniami.
+
+MECHANIKA: migracja `075` (`sync_reserve_claim()` liczy i oferuje miejsca osobno
+per rola); migracja `076` (daty/godziny w `powiadom_o_akceptacji` i
+`powiadom_o_prosbie_o_dolaczenie`, nowy trigger `powiadom_o_odrzuceniu_prosby`);
+`lib/events.ts` (nowe helpery `confirmedCounts()` i `decydujCzyRezerwa()` zastępujące
+cztery kopie logiki, `createEvent()` używa decyduj… przy auto-dołączeniu organizatora);
+`lib/recurring.ts` (`nextOccurrence()` scalone z lokalnej kopii, wzorowana na SQL
+cronie); `EventBrowseCard.tsx` (badge „Wymaga akceptacji" w niebieskim `blue-50`);
+`NotificationBell.tsx` (checkmark dla przeczytanych, `WYMAGA_AKCJI` Set dla dwóch
+typów — `prosba_o_dolaczenie`, `reserve_claim_offered`, niebieskie vs. primary
+zależnie od akcji); `BottomNav.tsx` (z-index z `z-[1000]` na `z-[1200]`, usunięta
+pomarańczowa kropka „wczesny etap" dla `/wydarzenia`); `profil/page.tsx` (
+`showMobileWordmark` na wszystkich renderach `<Header />`); `EventDateTimeField.tsx`
+(opcjonalny prop `extraSlot` dla kafelka cyklicznego); `wydarzenia/nowe/page.tsx`
+(grupa na górę kroku 3, cykliczny kafelek obok daty w kroku 2); `api.ts` w
+`notify-game-alert/` (formatowanie dat w treści powiadomienia).
+
+### 2026-08-09 — wydarzenia cykliczne jako prawdziwa seria: auto-tworzenie terminów, zbiorcza edycja, dziedziczenie ustawień
 PROBLEM: cykliczny mecz w Bojo był tylko szablonem, który nikogo do niczego nie
 zobowiązywał. `events.recurring_event_id` nie istniało w schemacie, mimo że kod je
 odpytywał — zapytanie cicho zwracało pustkę, więc panel serii zawsze pokazywał „Brak
@@ -575,27 +622,3 @@ w `/wydarzenia` i tryb gier na `/mapa`); `VenueExplorer.tsx` stan `showGames`
 (URL `?gry=1`); `Header.tsx` prop `showMobileWordmark`; `NextMatchCard.tsx` renderuje
 `EventBrowseCard`; `app/wydarzenia/nowe/page.tsx` guard `isFirstSave` przed pierwszym
 zapisem szkicu.
-
-### 2026-08-07 — Mapa szuka w całym katalogu, filtry dopasowane do nowych danych z importu OSM
-PROBLEM: pole szukania na mapie Bojo (`/mapa`) filtrowało wyłącznie to, co było już
-wczytane dla aktualnie widocznego fragmentu mapy — przy oddaleniu ta lista jest pusta,
-więc szukanie nic nie znajdowało, a przy przybliżeniu wpisanie miasta spoza widoku też
-nic nie dawało. Filtr „Typ obiektu" oferował dwanaście szczegółowych kategorii, mimo że
-98,3% publicznych obiektów ma tę kolumnę pustą (import z OpenStreetMap jej nie
-ustawia) — wybranie jakiegokolwiek typu wyglądało jak zepsuta wyszukiwarka. Filtr sportu
-pomijał dwie duże kategorie (wielofunkcyjne, piłka ręczna), które mimo to miały już
-kolorowe pinezki na mapie. Powrót ze strony boiska zawsze lądował na widoku całego
-kraju, gubiąc oglądany wcześniej obiekt.
-ROZWIĄZANIE BOJO: szukanie po tekście przeszukuje teraz cały katalog (nie tylko bieżący
-kadr) i mapa dopasowuje widok do wyników. Filtry sportu i przełączniki „Gry dziś"/
-„Otwarte gry" zostają zawsze widoczne, a Typ obiektu i nowa Nawierzchnia (dane w 37%
-wierszy — trawa, nawierzchnia twarda, piasek, beton, sztuczna trawa, mączka) przenoszą
-się do modala otwieranego przyciskiem „Filtry", w stylu Booking: wybory są szkicem,
-stosują się dopiero po zatwierdzeniu. Sport dostał dwie nowe opcje. Karta „Zobacz
-boisko" zapamiętuje, z którego obiektu wyszła, więc powrót wraca na tę samą pinezkę.
-MECHANIKA: `searchExplorerFields()` z `lib/api.ts` wpięta w `VenueExplorer.tsx`
-(debounce 300 ms, `fitBounds` do wyników); `EXPLORER_COLS` dokłada kolumnę `surface`;
-`MAP_FILTER_SPORTS` w `lib/sports.ts`; `components/ui/FilterSheet.tsx` (modal, wspólny
-z `/wydarzenia`); `VenueCard` prop `backTo` → `?wroc=/mapa?boisko=<id>` na stronie
-boiska.
-

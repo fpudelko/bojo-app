@@ -98,11 +98,18 @@ export function EventBrowseCard({ event, distance, relation }: {
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{title}</h3>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                {priceLabel}
-              </span>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {priceLabel}
+                </span>
+                {event.requireApproval && (
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                    Wymaga akceptacji
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">

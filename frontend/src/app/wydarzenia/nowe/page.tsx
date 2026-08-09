@@ -901,7 +901,7 @@ function NewEventForm() {
           {/* ── STEP 2 ── */}
           {step === 2 && (
             <>
-              {/* Date / time */}
+              {/* Date / time + Recurring tile */}
               <EventDateTimeField
                 date={date}
                 setDate={(v) => { setDate(v); setFieldErrors((f) => ({ ...f, date: '' })); }}
@@ -913,46 +913,46 @@ function NewEventForm() {
                 setCzasWlasny={setCzasWlasny}
                 dateError={fieldErrors.date}
                 inputCls={inputCls}
-              />
-
-              {/* Kafelek „Wydarzenie cykliczne" — kliknięcie otwiera modal
-                  z ustawieniami; gdy aktywny, kliknięcie samego kafelka go
-                  wyłącza, a ikona ołówka wraca do modala bez wyłączania. */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (recurringEnabled) { setRecurringEnabled(false); return; }
-                  setRecurringModalOpen(true);
-                }}
-                className={[
-                  'flex w-full items-center justify-between gap-2 rounded-lg border p-3 text-left transition-colors',
-                  recurringEnabled ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
-                ].join(' ')}
-              >
-                <span className="flex items-center gap-2">
-                  <Repeat className="w-4 h-4 text-slate-600 shrink-0" />
-                  <span>
-                    <span className="block text-sm font-medium text-slate-900">Wydarzenie cykliczne</span>
-                    <span className="block text-xs text-slate-500">
-                      {recurringEnabled
-                        ? `Co tydzień, przypomnienie ${recurringNotifyDaysBefore} ${recurringNotifyDaysBefore === 1 ? 'dzień' : 'dni'} wcześniej`
-                        : 'Powtarzaj ten mecz co tydzień'}
-                    </span>
-                  </span>
-                </span>
-                {recurringEnabled && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setRecurringModalOpen(true); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setRecurringModalOpen(true); } }}
-                    aria-label="Edytuj ustawienia cyklicznego wydarzenia"
-                    className="shrink-0 rounded-lg p-1.5 text-primary-700 hover:bg-primary-100"
+                extraSlot={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (recurringEnabled) { setRecurringEnabled(false); return; }
+                      setRecurringModalOpen(true);
+                    }}
+                    className={[
+                      'flex h-full w-full flex-col items-start justify-between gap-2 rounded-lg border p-3 text-left transition-colors',
+                      recurringEnabled ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
+                    ].join(' ')}
                   >
-                    <Pencil className="w-4 h-4" />
-                  </span>
-                )}
-              </button>
+                    <span className="flex w-full items-start justify-between gap-2">
+                      <span className="flex items-start gap-2">
+                        <Repeat className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+                        <span>
+                          <span className="block text-sm font-medium text-slate-900">Wydarzenie cykliczne</span>
+                          <span className="block text-xs text-slate-500">
+                            {recurringEnabled
+                              ? `Co tydzień, przypomnienie ${recurringNotifyDaysBefore} ${recurringNotifyDaysBefore === 1 ? 'dzień' : 'dni'} wcześniej`
+                              : 'Powtarzaj ten mecz co tydzień'}
+                          </span>
+                        </span>
+                      </span>
+                      {recurringEnabled && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); setRecurringModalOpen(true); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setRecurringModalOpen(true); } }}
+                          aria-label="Edytuj ustawienia cyklicznego wydarzenia"
+                          className="shrink-0 rounded-lg p-1.5 text-primary-700 hover:bg-primary-100"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                }
+              />
 
               <EventCapacityFields
                 sport={sport}
@@ -1064,26 +1064,6 @@ function NewEventForm() {
           {/* ── STEP 3 ── */}
           {step === 3 && (
             <>
-              {/* Title + description */}
-              <EventTitleDescriptionField
-                title={title}
-                setTitle={setTitle}
-                placeholderTitle={defaultEventTitle(sport, maxPlayers)}
-                description={description}
-                setDescription={setDescription}
-                descriptionEnabled={descriptionEnabled}
-                setDescriptionEnabled={setDescriptionEnabled}
-                inputCls={inputCls}
-              />
-
-              {/* Visibility — public / private */}
-              <EventVisibilityFields
-                visibility={visibility}
-                setVisibility={setVisibility}
-                requireApproval={requireApproval}
-                setRequireApproval={setRequireApproval}
-              />
-
               {/* Grupa — osobny wiersz, NIE trzecia karta widoczności:
                   przypisanie do grupy jest ortogonalne do public/private
                   (mecz grupy bywa publiczny). Wejście `?group=` ustawia to
@@ -1129,6 +1109,26 @@ function NewEventForm() {
                   Mecz trafi do historii grupy i zobaczą go wszyscy jej członkowie.
                 </p>
               </div>
+
+              {/* Title + description */}
+              <EventTitleDescriptionField
+                title={title}
+                setTitle={setTitle}
+                placeholderTitle={defaultEventTitle(sport, maxPlayers)}
+                description={description}
+                setDescription={setDescription}
+                descriptionEnabled={descriptionEnabled}
+                setDescriptionEnabled={setDescriptionEnabled}
+                inputCls={inputCls}
+              />
+
+              {/* Visibility — public / private */}
+              <EventVisibilityFields
+                visibility={visibility}
+                setVisibility={setVisibility}
+                requireApproval={requireApproval}
+                setRequireApproval={setRequireApproval}
+              />
 
               {/* Seeker count nudge — appears when we have location + date */}
               {seekerCount >= 2 && (

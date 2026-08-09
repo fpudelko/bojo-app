@@ -26,6 +26,7 @@ export default function EventDateTimeField({
   czasWlasny, setCzasWlasny,
   dateError,
   inputCls,
+  extraSlot,
 }: {
   date: string;
   setDate: (v: string) => void;
@@ -37,10 +38,11 @@ export default function EventDateTimeField({
   setCzasWlasny: (v: boolean) => void;
   dateError?: string;
   inputCls: string;
+  extraSlot?: React.ReactNode;
 }) {
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div className="col-span-2 sm:col-span-1">
+      <div className={extraSlot ? 'col-span-1' : 'col-span-2 sm:col-span-1'}>
         <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
         <input
           type="date"
@@ -55,6 +57,7 @@ export default function EventDateTimeField({
           </p>
         )}
       </div>
+      {extraSlot && <div className="col-span-1">{extraSlot}</div>}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
         <TimeSelect value={time} onChange={setTime} />

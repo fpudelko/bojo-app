@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
-import { Bell } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMyNotifications, markRead, toNotif } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
 import type { AppNotification } from '@/types';
+
+/** Powiadomienia wymagające działania od użytkownika — inne kolory. */
+const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered']);
 
 /** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
  *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
@@ -110,31 +113,44 @@ export default function NotificationBell() {
             </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">
-              {notifs.map((n) => (
-                <li key={n.id}>
-                  {celPowiadomienia(n) ? (
-                    <Link
-                      href={celPowiadomienia(n)!}
-                      onClick={() => setOpen(false)}
-                      className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${!n.readAt ? 'bg-primary-50/40' : ''}`}
-                    >
-                      {!n.readAt && (
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-600 mb-1" />
-                      )}
-                      <p className="text-sm font-medium text-ink leading-tight">{n.title}</p>
-                      {n.body && <p className="text-xs text-slate-500 mt-0.5">{n.body}</p>}
-                      <p className="text-xs text-slate-400 mt-1">
-                        {new Date(n.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </Link>
-                  ) : (
-                    <div className={`px-4 py-3 ${!n.readAt ? 'bg-primary-50/40' : ''}`}>
-                      <p className="text-sm font-medium text-ink">{n.title}</p>
-                      {n.body && <p className="text-xs text-slate-500 mt-0.5">{n.body}</p>}
-                    </div>
-                  )}
-                </li>
-              ))}
+              {notifs.map((n) => {
+                const akcent = WYMAGA_AKCJI.has(n.type) ? 'blue' : 'primary';
+                const bgClass = !n.readAt
+                  ? (akcent === 'blue' ? 'bg-blue-50/60' : 'bg-primary-50/40')
+                  : 'opacity-60';
+                return (
+                  <li key={n.id}>
+                    {celPowiadomienia(n) ? (
+                      <Link
+                        href={celPowiadomienia(n)!}
+                        onClick={() => setOpen(false)}
+                        className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${bgClass}`}
+                      >
+                        {!n.readAt ? (
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${akcent === 'blue' ? 'bg-blue-600' : 'bg-primary-600'}`} />
+                        ) : (
+                          <Check className="inline-block w-3.5 h-3.5 text-slate-400 mb-1" strokeWidth={2.5} />
+                        )}
+                        <p className={`text-sm leading-tight ${!n.readAt ? 'font-medium text-ink' : 'font-normal text-slate-500'}`}>{n.title}</p>
+                        {n.body && <p className={`text-xs mt-0.5 ${!n.readAt ? 'text-slate-600' : 'text-slate-400'}`}>{n.body}</p>}
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(n.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </Link>
+                    ) : (
+                      <div className={`px-4 py-3 ${bgClass}`}>
+                        {!n.readAt ? (
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${akcent === 'blue' ? 'bg-blue-600' : 'bg-primary-600'}`} />
+                        ) : (
+                          <Check className="inline-block w-3.5 h-3.5 text-slate-400 mb-1" strokeWidth={2.5} />
+                        )}
+                        <p className={`text-sm leading-tight ${!n.readAt ? 'font-medium text-ink' : 'font-normal text-slate-500'}`}>{n.title}</p>
+                        {n.body && <p className={`text-xs mt-0.5 ${!n.readAt ? 'text-slate-600' : 'text-slate-400'}`}>{n.body}</p>}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

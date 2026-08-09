@@ -1363,7 +1363,7 @@ export default function EventDetailClient() {
                   groupInfo ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
                 ].join(' ')}
               >
-                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo ? groupInfo.name : 'Bez grupy'}
+                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo ? groupInfo.name : 'Dodaj do grupy'}
                 <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
               </button>
             ) : (
