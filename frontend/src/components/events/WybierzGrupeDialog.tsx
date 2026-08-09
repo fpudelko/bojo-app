@@ -7,21 +7,26 @@ import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import type { Group } from '@/types';
 
 /**
- * Wybór ekipy, do której należy tworzony mecz (krok 3 kreatora).
+ * Wybór grupy, do której należy tworzony mecz (krok 3 kreatora; reużywany
+ * też na stronie meczu — badge grupy w pasku, tylko dla organizatora).
  *
- * Przypisanie do ekipy jest ORTOGONALNE do widoczności — mecz grupy może być
+ * Przypisanie do grupy jest ORTOGONALNE do widoczności — mecz grupy może być
  * publiczny — więc jest osobnym wierszem, nie trzecią kartą przy „Publiczne /
  * Prywatne".
  *
  * Układ i pobieranie grup jak w `InviteFromGroupDialog`: bottom sheet od
  * najmniejszych ekranów, wyśrodkowana karta od `sm:`.
  *
- * Zakładanie nowej ekipy dzieje się TUTAJ, jako drugi tryb tego samego
+ * Zakładanie nowej grupy dzieje się TUTAJ, jako drugi tryb tego samego
  * dialogu — nie przez `<Link href="/grupy/nowe">`. Nawigacja na osobną trasę
  * wyrzucała organizatora z kreatora meczu w połowie wypełniania (i to nawet
  * gdy szkic w localStorage przeżywał, powrót przez „Wstecz" przeglądarki był
  * zaskoczeniem). Formularz jest tu celowo okrojony do nazwy i sportu — reszta
- * pól `/grupy/nowe` (miasto, boisko, opis) poczeka do edycji ekipy później.
+ * pól `/grupy/nowe` (miasto, boisko, opis) poczeka do edycji grupy później.
+ *
+ * Nazewnictwo ujednolicone na „grupa" — dawniej ten dialog i przyciski wokół
+ * niego mówiły „ekipa", co obok badge'a „Grupa" na stronie meczu wyglądało
+ * jak dwie różne, niedokończone funkcje zamiast jednej.
  */
 export default function WybierzGrupeDialog({
   userId,
@@ -47,11 +52,11 @@ export default function WybierzGrupeDialog({
   useEffect(() => {
     getMyGroups(userId)
       .then(setGroups)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać ekip'))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać grup'))
       .finally(() => setLoading(false));
   }, [userId]);
 
-  const zalozEkipe = async () => {
+  const zalozGrupe = async () => {
     const trimmed = nazwaNowej.trim();
     if (trimmed.length < 2) {
       setBladNowej('Nazwa musi mieć co najmniej 2 znaki');
@@ -62,10 +67,10 @@ export default function WybierzGrupeDialog({
     try {
       const id = await createGroup({ name: trimmed, sport: sportNowej || undefined }, userId);
       const grupa = await getGroup(id);
-      if (!grupa) throw new Error('Ekipa została utworzona, ale nie udało się jej wczytać');
+      if (!grupa) throw new Error('Grupa została utworzona, ale nie udało się jej wczytać');
       onWybierz(grupa);
     } catch (e) {
-      setBladNowej(e instanceof Error ? e.message : 'Nie udało się utworzyć ekipy');
+      setBladNowej(e instanceof Error ? e.message : 'Nie udało się utworzyć grupy');
       setTworzenie(false);
     }
   };
@@ -79,14 +84,14 @@ export default function WybierzGrupeDialog({
               type="button"
               onClick={() => setTryb('lista')}
               className="-ml-1 text-slate-400 hover:text-slate-600"
-              aria-label="Wróć do listy ekip"
+              aria-label="Wróć do listy grup"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           ) : (
             <Users className="h-4 w-4 text-slate-400" />
           )}
-          <h2 className="font-semibold text-ink">{tryb === 'nowa' ? 'Nowa ekipa' : 'Mecz w ramach ekipy'}</h2>
+          <h2 className="font-semibold text-ink">{tryb === 'nowa' ? 'Nowa grupa' : 'Mecz w ramach grupy'}</h2>
           <button onClick={onClose} className="ml-auto text-slate-400 hover:text-slate-600" aria-label="Zamknij">
             <X className="h-5 w-5" />
           </button>
@@ -96,11 +101,11 @@ export default function WybierzGrupeDialog({
           {tryb === 'nowa' ? (
             <div className="space-y-4">
               <div>
-                <label htmlFor="nazwa-nowej-ekipy" className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Nazwa ekipy
+                <label htmlFor="nazwa-nowej-grupy" className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Nazwa grupy
                 </label>
                 <input
-                  id="nazwa-nowej-ekipy"
+                  id="nazwa-nowej-grupy"
                   value={nazwaNowej}
                   onChange={(e) => setNazwaNowej(e.target.value)}
                   placeholder="np. Czwartkowa gierka"
@@ -136,7 +141,7 @@ export default function WybierzGrupeDialog({
 
               <button
                 type="button"
-                onClick={zalozEkipe}
+                onClick={zalozGrupe}
                 disabled={nazwaNowej.trim().length < 2 || tworzenie}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 disabled:opacity-50"
               >
@@ -153,7 +158,7 @@ export default function WybierzGrupeDialog({
           ) : groups.length === 0 ? (
             <div className="py-6 text-center">
               <p className="text-sm text-slate-500">
-                Nie należysz jeszcze do żadnej ekipy. Załóż grupę, a mecz trafi do jej
+                Nie należysz jeszcze do żadnej grupy. Załóż ją, a mecz trafi do jej
                 historii i zobaczą go wszyscy członkowie.
               </p>
               <button
@@ -161,7 +166,7 @@ export default function WybierzGrupeDialog({
                 onClick={() => setTryb('nowa')}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
               >
-                <Users className="h-4 w-4" /> Załóż ekipę
+                <Users className="h-4 w-4" /> Załóż grupę
               </button>
             </div>
           ) : (
@@ -192,7 +197,7 @@ export default function WybierzGrupeDialog({
                 onClick={() => setTryb('nowa')}
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
               >
-                <Users className="h-4 w-4" /> Załóż nową ekipę
+                <Users className="h-4 w-4" /> Załóż nową grupę
               </button>
             </>
           )}
@@ -205,7 +210,7 @@ export default function WybierzGrupeDialog({
               onClick={() => onWybierz(null)}
               className="text-sm font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
-              Nie przypisuj do ekipy
+              Nie przypisuj do grupy
             </button>
           </div>
         )}

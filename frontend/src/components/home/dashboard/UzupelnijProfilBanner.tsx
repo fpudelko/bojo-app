@@ -6,7 +6,7 @@ import { UserCog, X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { isPelneImie } from '@/lib/profileName';
 
-const KLUCZ = 'bojo_baner_nazwa_v1';
+const KLUCZ_PREFIX = 'bojo_baner_nazwa_v1_';
 
 /**
  * „Gracze zobaczą Cię jako X — uzupełnij imię".
@@ -23,18 +23,22 @@ export default function UzupelnijProfilBanner() {
   const [odrzucony, setOdrzucony] = useState(true);
 
   useEffect(() => {
+    // Bez `user` nie ma czyjego klucza czytać — zostajemy przy "odrzucony",
+    // baner i tak nie renderuje się bez zalogowanego użytkownika (patrz niżej).
+    if (!user) return;
     // Guarded storage — w trybie prywatnym dostęp potrafi rzucić wyjątkiem,
     // a to nie może wywrócić całego pulpitu (wzorzec z lib/eventDraft.ts).
     try {
-      setOdrzucony(localStorage.getItem(KLUCZ) === '1');
+      setOdrzucony(localStorage.getItem(KLUCZ_PREFIX + user.id) === '1');
     } catch {
       setOdrzucony(false);
     }
-  }, []);
+  }, [user]);
 
   const odrzuc = () => {
     setOdrzucony(true);
-    try { localStorage.setItem(KLUCZ, '1'); } catch { /* nie szkodzi */ }
+    if (!user) return;
+    try { localStorage.setItem(KLUCZ_PREFIX + user.id, '1'); } catch { /* nie szkodzi */ }
   };
 
   // `isPelneImie` (nie samo "czy jakieś pole nie jest puste") — Google OAuth

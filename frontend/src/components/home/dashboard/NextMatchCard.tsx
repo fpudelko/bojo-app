@@ -41,7 +41,7 @@ export default function NextMatchCard({ row }: { row: MyEventRow | null }) {
             Bojo dopiero się rozkręca, i pokazać szybszą ścieżkę. */}
         <p className="mt-3 text-xs text-slate-400">
           Bojo dopiero się rozkręca — otwartych gier bywa mało. Najszybciej zagrasz,
-          tworząc mecz i wysyłając link ekipie.
+          tworząc mecz i wysyłając link znajomym.
         </p>
       </div>
     );

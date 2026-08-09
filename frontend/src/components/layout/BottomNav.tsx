@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from '@/lib/auth';
+import { hasPendingApprovalRequests } from '@/lib/events';
 
 function BallIcon({ className }: { className?: string }) {
   return (
@@ -27,15 +30,32 @@ const RIGHT_ITEMS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Leniwie przy każdej zmianie trasy — ten sam wzorzec "leniwego" odpalania
+  // co reszta powiadomień w repo, bez kanału realtime dla zwykłej kropki.
+  const [pendingApproval, setPendingApproval] = useState(false);
+  useEffect(() => {
+    if (!user) { setPendingApproval(false); return; }
+    hasPendingApprovalRequests(user.id).then(setPendingApproval).catch(() => {});
+  }, [user, pathname]);
 
   function NavLink({
-    href, label, Icon, earlyStage,
-  }: { href: string; label: string; Icon: React.ComponentType<{ className?: string }>; earlyStage?: boolean }) {
+    href, label, Icon, earlyStage, dot,
+  }: {
+    href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
+    earlyStage?: boolean;
+    /** Druga, niezależna kropka — dziś tylko "Moje" przy oczekujących prośbach
+        o dołączenie. Niebieski, bo to jedyny kolor, który w apce znaczy
+        wyłącznie "wymaga akceptacji" (patrz sekcja 5 planu). */
+    dot?: { color: string; label: string };
+  }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
+    const ariaSuffix = earlyStage ? ' — wczesny etap aplikacji' : dot ? ` — ${dot.label}` : '';
     return (
       <Link
         href={href}
-        aria-label={earlyStage ? `${label} — wczesny etap aplikacji` : undefined}
+        aria-label={ariaSuffix ? `${label}${ariaSuffix}` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
           active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
@@ -43,11 +63,14 @@ export default function BottomNav() {
       >
         <span className="relative">
           <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
-          {/* Kropka zamiast pełnej plakietki „Wczesny etap” — kolumna w gridzie
-              dolnej nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
+          {/* Kropka zamiast pełnej plakietki — kolumna w gridzie dolnej
+              nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
               niesie tę samą informację dla czytników ekranu. */}
           {earlyStage && (
             <span className="absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+          )}
+          {dot && (
+            <span className={clsx('absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full', dot.color)} aria-hidden="true" />
           )}
         </span>
         <span className="whitespace-nowrap">{label}</span>
@@ -82,7 +105,15 @@ export default function BottomNav() {
           <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
         </Link>
 
-        {RIGHT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}
+        {RIGHT_ITEMS.map((item) => (
+          <NavLink
+            key={item.href}
+            {...item}
+            dot={item.href === '/moje-gry' && pendingApproval
+              ? { color: 'bg-blue-500', label: 'nowe prośby o dołączenie' }
+              : undefined}
+          />
+        ))}
       </div>
     </nav>
   );

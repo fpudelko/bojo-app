@@ -1084,19 +1084,19 @@ function NewEventForm() {
                 setRequireApproval={setRequireApproval}
               />
 
-              {/* Ekipa — osobny wiersz, NIE trzecia karta widoczności:
+              {/* Grupa — osobny wiersz, NIE trzecia karta widoczności:
                   przypisanie do grupy jest ortogonalne do public/private
-                  (mecz ekipy bywa publiczny). Wejście `?group=` ustawia to
+                  (mecz grupy bywa publiczny). Wejście `?group=` ustawia to
                   samo pole, więc oba źródła się nie biją. */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Mecz w ramach ekipy <span className="font-normal text-slate-400">— opcjonalnie</span>
+                  Mecz w ramach grupy <span className="font-normal text-slate-400">— opcjonalnie</span>
                 </label>
                 {grupaId ? (
                   <div className="flex items-center gap-2 rounded-xl border border-primary-500 bg-primary-50 px-3 py-2.5">
                     <Users className="h-4 w-4 shrink-0 text-primary-700" />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                      {groupName ?? 'Wybrana ekipa'}
+                      {groupName ?? 'Wybrana grupa'}
                     </span>
                     <button
                       type="button"
@@ -1109,7 +1109,7 @@ function NewEventForm() {
                       type="button"
                       onClick={() => { setGrupaId(undefined); setGroupName(null); }}
                       className="shrink-0 text-slate-400 hover:text-slate-600"
-                      aria-label="Nie przypisuj do ekipy"
+                      aria-label="Nie przypisuj do grupy"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1121,12 +1121,12 @@ function NewEventForm() {
                     className="flex w-full items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5 text-left text-sm transition-colors hover:border-slate-400"
                   >
                     <Users className="h-4 w-4 shrink-0 text-slate-400" />
-                    <span className="flex-1 text-slate-500">Wybierz ekipę</span>
+                    <span className="flex-1 text-slate-500">Wybierz grupę</span>
                     <span className="shrink-0 text-slate-400" aria-hidden="true">›</span>
                   </button>
                 )}
                 <p className="mt-1.5 text-xs text-slate-500">
-                  Mecz trafi do historii ekipy i zobaczą go wszyscy jej członkowie.
+                  Mecz trafi do historii grupy i zobaczą go wszyscy jej członkowie.
                 </p>
               </div>
 
