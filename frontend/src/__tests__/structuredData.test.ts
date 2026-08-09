@@ -91,7 +91,21 @@ describe('eventJsonLd — pola', () => {
     )!;
     expect(withCustom.location).toMatchObject({
       name: 'Boisko za blokiem',
-      address: { streetAddress: 'ul. Kwiatowa 3', addressLocality: 'Poznań' },
+      address: { streetAddress: 'ul. Kwiatowa 3' },
+    });
+    // Sam adres bez przecinka nie niesie miejscowości — i lepiej jej wtedy
+    // NIE podawać, niż zgadywać. Wcześniej wstawiany był tu na sztywno Poznań,
+    // co przy meczu pod Lublinem trafiało do wyszukiwarek jako fakt.
+    expect(withCustom.location as { address?: Record<string, unknown> })
+      .not.toHaveProperty('address.addressLocality');
+
+    const zMiastem = eventJsonLd(
+      'a',
+      publicEvent({ custom_location_name: 'Orlik', custom_address: 'ul. Kwiatowa 3, Świdnik' }),
+      BASE,
+    )!;
+    expect(zMiastem.location).toMatchObject({
+      address: { addressLocality: 'Świdnik' },
     });
   });
 

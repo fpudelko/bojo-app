@@ -390,33 +390,41 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Danger zone — delete account */}
-        <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-5">
-          <h2 className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> Strefa niebezpieczna
-          </h2>
-          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-            Usunięcie konta jest nieodwracalne. Twoje dane osobowe zostaną zanonimizowane
-            lub usunięte zgodnie z{' '}
-            <a href="/prywatnosc" className="text-primary-600 hover:underline">Polityką prywatności</a>.
-            Zapisane mecze pozostaną widoczne jako „Usunięty użytkownik".
-          </p>
-
+        {/* Usuwanie konta — celowo dyskretne, ten sam wzorzec co na stronie
+            grupy (`GroupDetailClient`). Czerwona ramka z nagłówkiem „Strefa
+            niebezpieczna" na stałe w widoku czytała się jak zaproszenie:
+            największy kontrast na całej stronie miała akcja, której nikt nie
+            szuka przypadkiem. Kto chce usunąć konto, rozwinie; reszta nie musi
+            tego oglądać przy każdej wizycie w profilu. */}
+        <div className="pb-2 pt-6">
           {!deleteConfirm ? (
-            <button
-              onClick={() => setDeleteConfirm(true)}
-              className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg px-3 py-2 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" /> Usuń konto
-            </button>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Usuń konto
+              </button>
+            </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-red-700">Na pewno chcesz usunąć konto?</p>
+            /* Po rozwinięciu skutki są opisane WPROST, zanim pojawi się
+               przycisk potwierdzenia — dyskretne wejście nie może znaczyć
+               „łatwiej zrobić to nieświadomie". */
+            <div className="rounded-2xl border border-red-100 bg-white p-5 dark:border-red-900/40 dark:bg-slate-800">
+              <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-red-700">
+                <AlertTriangle className="h-4 w-4" /> Usunięcie konta
+              </h2>
+              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                Tej operacji nie da się cofnąć. Twoje dane osobowe zostaną zanonimizowane
+                lub usunięte zgodnie z{' '}
+                <a href="/prywatnosc" className="text-primary-600 hover:underline">Polityką prywatności</a>.
+                Zapisane mecze pozostaną widoczne jako „Usunięty użytkownik".
+              </p>
               <div className="flex gap-2">
                 <Button
                   onClick={handleDelete}
                   isLoading={deleting}
-                  className="flex-1 bg-red-600 hover:bg-red-700 focus:ring-red-500 border-transparent text-white"
+                  className="flex-1 border-transparent bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
                   size="sm"
                 >
                   Tak, usuń bezpowrotnie

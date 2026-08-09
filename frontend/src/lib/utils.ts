@@ -50,9 +50,12 @@ export function eventLocation(e: LocationFields): { primary: string; secondary: 
   const custom  = e.customLocationName?.trim() || null;
   const addr    = e.fieldAddress?.trim() || e.customAddress?.trim() || null;
   const cleanAddr = addr && !isBareNumber(addr) ? addr : null;
-  const district = e.district ? `${e.district}, Poznań` : null;
+  // `district` bywa wypełniona tylko dla starszych, poznańskich wpisów —
+  // doklejanie miasta zaszytego w kodzie dawało „Grunwald, Poznań" przy
+  // obiekcie spod Lublina. Sama dzielnica jest prawdziwa zawsze.
+  const district = e.district || null;
 
-  const primary = name || custom || cleanAddr || district || 'Lokalizacja w Poznaniu';
+  const primary = name || custom || cleanAddr || district || 'Lokalizacja na mapie';
 
   let secondary: string | null = null;
   if (cleanAddr && cleanAddr !== primary) secondary = cleanAddr;

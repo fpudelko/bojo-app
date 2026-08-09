@@ -1,7 +1,7 @@
 # Bojo — przewodnik dla współpracownika
 
 > **Bojo** to aplikacja webowa, która pomaga zorganizować mecz gdziekolwiek w Polsce
-> i zebrać skład — katalog boisk jest dziś najgęstszy w Poznaniu. Działa w przeglądarce,
+> i zebrać skład — katalog boisk obejmuje całą Polskę. Działa w przeglądarce,
 > logowanie przez Google.
 
 Ten dokument w 5 minut wprowadza Cię w to, co aplikacja potrafi i jak jest zbudowana.

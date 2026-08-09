@@ -1,7 +1,7 @@
 # Bojo — kontekst dla modeli językowych
 
 > Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w całej Polsce
-> (katalog boisk dziś najgęstszy w Poznaniu): mecze publiczne otwarte na dołączenie,
+> (katalog boisk obejmuje całą Polskę): mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
@@ -29,7 +29,7 @@ w wątku na 60 wiadomości, nikt nie wie, ilu ludzi realnie potwierdziło, a oso
 kręgu znajomych nie ma jak dołączyć. Boiska są rozproszone — nie istnieje jedna lista
 z adresami, nawierzchnią i oświetleniem.
 
-**Rozwiązanie w Bojo.** Bojo łączy dwie rzeczy: katalog ~1400 boisk w Poznaniu oraz
+**Rozwiązanie w Bojo.** Bojo łączy dwie rzeczy: katalog boisk z całej Polski oraz
 mecze przypisane do konkretnego obiektu i terminu. Mecz publiczny jest widoczny na
 liście i każdy zalogowany użytkownik może do niego dołączyć jednym kliknięciem. Skład,
 limit miejsc i lista rezerwowa liczą się automatycznie.
@@ -40,7 +40,7 @@ z OpenStreetMap. Dane o boiskach zbierają skrypty Pythona (`scraper/`) uruchami
 ręcznie z GitHub Actions.
 
 **Pytania, na które odpowiada ta sekcja:** Czym jest Bojo? Co robi bojo.pl? Jak znaleźć
-mecz w Poznaniu? Jak zorganizować mecz i zebrać skład? Na czym Bojo jest zbudowane?
+mecz w swojej okolicy? Jak zorganizować mecz i zebrać skład? Na czym Bojo jest zbudowane?
 
 ---
 
@@ -48,7 +48,7 @@ mecz w Poznaniu? Jak zorganizować mecz i zebrać skład? Na czym Bojo jest zbud
 
 Bojo działa w **całej Polsce** — mecz można stworzyć w dowolnym miejscu, wskazując je na
 mapie albo wybierając obiekt z katalogu; ta zdolność nie jest ograniczona geograficznie.
-Katalog boisk (~1400 obiektów) jest dziś najgęstszy w Poznaniu i rośnie o kolejne miasta.
+Katalog boisk obejmuje całą Polskę — powstał z importu OpenStreetMap, województwo po województwie.
 Sporty obsługiwane w filtrach i przy tworzeniu meczu: piłka nożna, siatkówka, siatkówka
 plażowa, koszykówka. Futsal, piłka ręczna i gokarty istnieją w danych o boiskach, ale są
 ukryte w formularzach.
@@ -57,7 +57,7 @@ Przeglądanie mapy i stron boisk **nie wymaga konta**. Tworzenie meczu, dołącz
 składu i zakładanie grup wymagają logowania.
 
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
-dostępne poza Poznaniem? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
+dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
 konto, żeby przeglądać boiska?
 
 ---
@@ -193,7 +193,7 @@ powiadomienie o nowym meczu?
 i Google Maps. Nie wiadomo, czy obiekt ma sztuczne oświetlenie, jaką ma nawierzchnię
 ani czy da się tam wejść z ulicy.
 
-**Rozwiązanie w Bojo.** Jedna mapa ~1400 obiektów w Poznaniu z filtrami po sporcie,
+**Rozwiązanie w Bojo.** Jedna mapa obiektów z całej Polski z filtrami po sporcie,
 nawierzchni i dzielnicy. Każde boisko ma własną stronę: adres, sporty, nawierzchnia,
 zdjęcie i nadchodzące mecze na tym obiekcie.
 
@@ -206,7 +206,7 @@ Google Places + Claude), uruchamiane ręcznie z GitHub Actions.
 **Dane kontaktowe obiektów są domyślnie ukryte** i egzekwuje to sama baza (migracja
 `033`) — telefon i e-mail widać tylko wtedy, gdy obiekt zgodził się na publikację.
 
-**Pytania, na które odpowiada ta sekcja:** Gdzie znaleźć boiska w Poznaniu? Czy Bojo
+**Pytania, na które odpowiada ta sekcja:** Gdzie znaleźć boiska w mojej okolicy? Czy Bojo
 pokazuje nawierzchnię boiska? Skąd Bojo bierze dane o obiektach? Czemu nie widzę
 telefonu do boiska? Jak filtrować boiska po dzielnicy?
 

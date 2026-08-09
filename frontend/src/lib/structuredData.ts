@@ -17,8 +17,8 @@ export function siteJsonLd(base: string = SITE_URL) {
         name: 'Bojo',
         url: base,
         description:
-          'Platforma do organizowania amatorskich meczów sportowych i baza boisk w Poznaniu.',
-        areaServed: { '@type': 'City', name: 'Poznań', addressCountry: 'PL' },
+          'Platforma do organizowania amatorskich meczów sportowych i baza boisk w Polsce.',
+        areaServed: { '@type': 'Country', name: 'Polska', addressCountry: 'PL' },
       },
       {
         '@type': 'WebSite',
@@ -86,7 +86,15 @@ export function eventJsonLd(
             address: {
               '@type': 'PostalAddress',
               ...(ev.custom_address ? { streetAddress: ev.custom_address } : {}),
-              addressLocality: 'Poznań',
+              // Miejscowość z adresu, nie zaszyta. Mecze powstają w całej
+              // Polsce, więc „Poznań" w danych strukturalnych każdego meczu
+              // był po prostu nieprawdą podawaną wyszukiwarkom.
+              ...(() => {
+                // Dopiero DRUGI człon jest miejscowością: „ul. Kwiatowa 3"
+                // bez przecinka to sama ulica, a nie miasto o tej nazwie.
+                const czesci = (ev.custom_address || '').split(',').map((c) => c.trim()).filter(Boolean);
+                return czesci.length > 1 ? { addressLocality: czesci[czesci.length - 1] } : {};
+              })(),
               addressCountry: 'PL',
             },
           },

@@ -5,9 +5,9 @@ import MapaClient from './MapaClient';
 // but the route needs its own metadata — without this it inherits the generic
 // site title from the root layout.
 export const metadata: Metadata = {
-  title: 'Mapa boisk i meczów w Poznaniu',
+  title: 'Mapa boisk i meczów w Polsce',
   description:
-    'Interaktywna mapa ~1400 boisk i obiektów sportowych w Poznaniu z aktywnymi meczami. Filtry po sporcie, nawierzchni i dzielnicy.',
+    'Interaktywna mapa boisk i obiektów sportowych w całej Polsce, z aktywnymi meczami. Filtry po sporcie, typie obiektu i nawierzchni.',
   alternates: { canonical: '/mapa' },
 };
 

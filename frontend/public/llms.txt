@@ -2,7 +2,7 @@
 
 > Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w całej Polsce:
 > znajdź boisko, stwórz mecz, zbierz skład. Katalog ~1400 boisk i obiektów sportowych
-> (dziś najgęstszy w Poznaniu), mecze publiczne otwarte na dołączenie, stałe ekipy
+> (obejmujący całą Polskę), mecze publiczne otwarte na dołączenie, stałe ekipy
 > (grupy). Sporty: piłka nożna, siatkówka, siatkówka plażowa, koszykówka. Interfejs
 > po polsku. Logowanie: Google lub e-mail.
 
