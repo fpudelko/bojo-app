@@ -1,6 +1,6 @@
 # Baza danych
 
-72 migracje (`001`–`072`) w `supabase/migrations/`. Modele domenowe →
+73 migracje (`001`–`073`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -57,10 +57,10 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | Tabela | Powstała w | Rola |
 |---|---|---|
 | `fields` | `001` | Boiska i obiekty (~1400) |
-| `events` | `002` | Mecze |
+| `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta |
 | `profiles` | `005` | Użytkownicy (+ flaga `is_admin`) |
-| `recurring_events` | `007` | Szablony meczów cyklicznych |
+| `recurring_events` | `007` | Szablony meczów cyklicznych — reguła powtarzania (dzień, godzina, wyprzedzenie), nie komplet ustawień meczu |
 | `recurring_event_invites` | `007` | Zapraszani do cyklicznych |
 | `bookings` | `008` | Rezerwacje terminów |
 | `venue_schedules` | `008` | Godziny otwarcia obiektu |
@@ -115,6 +115,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `070_powiadomienia_odwolanie_i_profil` | Wyzwalacze: **odwołanie meczu** (dotąd ciche — uczestnik dowiadywał się wyłącznie wchodząc na stronę) oraz **nowe konto bez imienia** (kieruje do `/profil`) |
 | `071_wymagaj_pelnej_nazwy_w_powiadomieniu` | Zaostrza wyzwalacz z `070` na "nowe konto bez imienia" — wymaga co najmniej dwóch członów nazwy (imię i nazwisko), nie tylko dowolnej niepustej wartości. Google OAuth zawsze wypełnia `full_name`, więc słabszy check praktycznie nigdy nie wykrywał braku |
 | `072_brakujace_powiadomienia` | Wyzwalacze: **organizator** dostaje powiadomienie o nowej prośbie o dołączenie (`event_participants.pending_approval`), **członkowie grupy** dostają powiadomienie o nowym meczu w grupie (`events.group_id`) |
+| `073_serie_wydarzen_cyklicznych` | `events.recurring_event_id` — termin cykliczny staje się prawdziwą **serią**, nie zbiorem niepowiązanych kopii. Funkcja `utworz_termin_serii()` (RPC dla przeglądarki i crona) kopiuje pełne ustawienia z ostatniego terminu, nie z ubogiego szablonu — wcześniej `spawnEventInstance()` gubił cenę, płatności i bramkarzy. Cron co godzinę (`pg_cron`, jeśli włączony) tworzy należne terminy z wyprzedzeniem `notify_days_before`; wyzwalacz powiadamia o nowym terminie uczestników poprzedniego |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
 polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka
@@ -137,6 +138,14 @@ nie zapisze powiadomienia nawet sobie. Każde nowe powiadomienie to funkcja
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |
 | `haversine_km` | Odległość geograficzna |
 | `trigger_set_updated_at`, `trigger_set_expires_at` | Triggery czasowe |
+| `utworz_termin_serii(szablon_id, data)` | Tworzy jeden termin serii, kopiując ustawienia z ostatniego terminu. Wołana przez `supabase.rpc()` (przycisk „Utwórz termin” na `/cykliczne/[id]`) i przez `utworz_nalezne_terminy_serii()` — **to samo wejście dla ręcznego i automatycznego tworzenia**, żeby oba dawały identyczny wynik (`073`, `SECURITY DEFINER`, kontrola „tylko organizator” w środku) |
+| `utworz_nalezne_terminy_serii` | Pętla po aktywnych szablonach, woła `utworz_termin_serii` dla każdego terminu w zasięgu `notify_days_before`. Cel zadania `pg_cron` (`073`) — działa też wywołana ręcznie, gdy `pg_cron` nie jest włączony |
+
+**`pg_cron` wymaga jednorazowego włączenia** (Supabase → Database → Extensions)
+— migracja `073` sprawdza jego obecność i pomija harmonogram, jeśli go nie ma
+(`RAISE NOTICE`, migracja się nie wywraca). Bez `pg_cron` terminy serii trzeba
+tworzyć ręcznie z `/cykliczne/[id]`, albo uruchomić
+`SELECT utworz_nalezne_terminy_serii();` z SQL Editora.
 
 ---
 

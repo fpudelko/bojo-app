@@ -236,37 +236,38 @@ export async function deleteRecurringEvent(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Tworzy jeden termin serii na wskazaną datę.
+ *
+ * Wywołanie idzie do funkcji `utworz_termin_serii` w bazie (migracja `073`) —
+ * tej samej, której używa cron. To nie jest obejście, tylko warunek poprawności:
+ * termin utworzony ręcznie musi być identyczny z utworzonym automatycznie, więc
+ * logika kopiowania ustawień może istnieć TYLKO w jednym miejscu.
+ *
+ * Wcześniej ta funkcja składała wydarzenie sama, z samego szablonu — a szablon
+ * nie zna ceny, metod płatności, bramkarzy ani akceptacji zapisów. Płatna gierka
+ * odradzała się jako DARMOWA. Dziś ustawienia dziedziczy z ostatniego terminu serii.
+ *
+ * Uprawnienia pilnuje funkcja w bazie (tylko organizator serii); `SECURITY
+ * DEFINER` jest tam po to, żeby ten sam kod mógł odpalić cron, który nie działa
+ * w niczyim imieniu.
+ *
+ * @returns id nowego wydarzenia
+ * @throws gdy termin na tę datę już istnieje
+ */
 export async function spawnEventInstance(
   recurringEventId: string,
   targetDate: string,
 ): Promise<string> {
-  const { data: row, error } = await supabase
-    .from('recurring_events')
-    .select('*')
-    .eq('id', recurringEventId)
-    .single();
+  const { data, error } = await supabase.rpc('utworz_termin_serii', {
+    p_szablon_id: recurringEventId,
+    p_data: targetDate,
+  });
   if (error) throw new Error(error.message);
-
-  const eventId = await createEvent(
-    {
-      sport: row.sport,
-      fieldId: row.field_id ?? undefined,
-      fieldName: row.field_name,
-      lat: row.lat != null ? Number(row.lat) : undefined,
-      lng: row.lng != null ? Number(row.lng) : undefined,
-      title: row.title ?? undefined,
-      description: row.description ?? undefined,
-      date: targetDate,
-      time: row.event_time,
-      endTime: row.end_time ?? undefined,
-      maxPlayers: row.max_players,
-      visibility: row.visibility,
-    },
-    row.organizer_id,
-    row.organizer_name,
-  );
-
-  return eventId;
+  // NULL = termin na tę datę już istniał. Cichy sukces byłby mylący: organizator
+  // zobaczyłby „utworzono" i przekierowanie na cudzy/stary termin.
+  if (!data) throw new Error('Termin na ten dzień już istnieje w tej serii.');
+  return data as string;
 }
 
 export async function sendInvites(

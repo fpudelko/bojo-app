@@ -20,6 +20,11 @@ import TeamProposals from '@/components/events/TeamProposals';
 import EventComments from '@/components/events/EventComments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
+import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
+import {
+  getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
+  terminyWZakresie, type ZakresEdycji,
+} from '@/lib/series';
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -358,6 +363,10 @@ export default function EventDetailClient() {
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  // Terminy stałej gierki, do której należy ten mecz — puste, gdy mecz nie jest
+  // częścią serii. Decyduje o tym, czy „Zmień termin" pyta o zakres.
+  const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
+  const [zakresTerminuOtwarty, setZakresTerminuOtwarty] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
@@ -405,6 +414,14 @@ export default function EventDetailClient() {
         );
       } else {
         setGroupInfo(null);
+      }
+      if (ev.recurringEventId) {
+        // Cicho — brak listy terminów znaczy tylko tyle, że nie pytamy o zakres.
+        getSeriesEvents(ev.recurringEventId)
+          .then((t) => setSeriaTerminy(t.map((x) => ({ id: x.id, date: x.date }))))
+          .catch(() => {});
+      } else {
+        setSeriaTerminy([]);
       }
     } catch {
       setNotFound(true);
@@ -860,19 +877,46 @@ export default function EventDetailClient() {
     setWhenOpen(true);
   };
 
-  const handleSaveWhen = async () => {
+  const zapiszTermin = async (zakres: ZakresEdycji) => {
+    setZakresTerminuOtwarty(false);
     setBusy(true);
     try {
+      // Data zawsze dotyczy wyłącznie tego terminu — wspólna data absolutna dla
+      // całej serii oznaczałaby wszystkie mecze tego samego dnia.
       await setEventWhen(
         event.id, whenDate, whenTime, whenEnd || null,
         user?.id, displayName(user ?? null),
       );
+
+      if (zakres !== 'ten' && event.recurringEventId) {
+        const dzis = new Date().toLocaleDateString('sv-SE');
+        const objete = terminyWZakresie(seriaTerminy, event.id, zakres, dzis)
+          .filter((t) => t.id !== event.id);
+        await setSeriesTime(objete.map((t) => t.id), whenTime, whenEnd || null);
+        // Szablon też — inaczej kolejne terminy wracałyby do starej godziny.
+        await setSeriesTemplateTime(event.recurringEventId, whenTime, whenEnd || null);
+      }
+
       setWhenOpen(false);
       await load();
-      toast('Termin zmieniony');
+      toast(zakres === 'ten' ? 'Termin zmieniony' : 'Godzina zmieniona w serii');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
+  };
+
+  const handleSaveWhen = async () => {
+    // O zakres pytamy tylko, gdy zmieniła się GODZINA. Sama zmiana daty dotyczy
+    // z definicji jednego terminu, więc pytanie byłoby zbędnym kliknięciem.
+    const godzinaZmieniona =
+      whenTime !== (event.time ?? '').slice(0, 5)
+      || (whenEnd || '') !== (event.endTime ?? '').slice(0, 5);
+
+    if (godzinaZmieniona && event.recurringEventId && seriaTerminy.length > 1) {
+      setZakresTerminuOtwarty(true);
+      return;
+    }
+    await zapiszTermin('ten');
   };
 
   /** Straight to the clipboard — for people who just want to paste the link
@@ -1292,6 +1336,18 @@ export default function EventDetailClient() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
               </span>
+            )}
+            {/* stała gierka — jedyne przejście z meczu do panelu serii. Bez tego
+                organizator, który wszedł na termin z listy, nie ma jak trafić
+                do ustawień powtarzania. Tylko dla organizatora: `/cykliczne/[id]`
+                i tak wpuszcza wyłącznie właściciela szablonu. */}
+            {event.recurringEventId && isOwner && (
+              <Link
+                href={`/cykliczne/${event.recurringEventId}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+              >
+                <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
+              </Link>
             )}
             {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
                 w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
@@ -2333,6 +2389,18 @@ export default function EventDetailClient() {
             wybranaId={groupInfo?.id}
             onWybierz={(g) => { setGroupPickerOpen(false); handleSetGroup(g?.id ?? ''); }}
             onClose={() => setGroupPickerOpen(false)}
+          />
+        )}
+
+        {zakresTerminuOtwarty && (
+          <ZakresEdycjiSerii
+            liczbaTerminow={seriaTerminy.length}
+            liczbaPrzyszlych={
+              terminyWZakresie(seriaTerminy, event.id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
+            }
+            busy={busy}
+            onWybierz={zapiszTermin}
+            onClose={() => setZakresTerminuOtwarty(false)}
           />
         )}
 

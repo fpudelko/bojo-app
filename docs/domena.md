@@ -31,6 +31,14 @@ bez walidacji runtime — Zod jest na liście długu ([strategia.md §5](./strat
 `bojo.pl` (fallback w `layout.tsx`, `robots.ts`, `sitemap.ts` — nowe miejsca używają tej
 samej wartości). Migracje uruchamia się ręcznie → [baza-danych.md](./baza-danych.md).
 
+**Pierwsze zadanie cykliczne w repo: `pg_cron`, migracja `073`.** Do tej pory wszystko
+działo się z klienta albo z wyzwalacza SQL — nic nie odpalało się samo, bez niczyjej
+wizyty. Auto-tworzenie terminów serii (patrz „Serie wydarzeń cyklicznych" niżej) wymaga
+działania bez organizatora w pobliżu, bo RLS na `events` przepuszcza INSERT tylko jako
+`auth.uid() = organizer_id`. `pg_cron` bywa niewłączony na danym projekcie Supabase —
+migracja to sprawdza i pomija harmonogram zamiast się wywrócić, więc funkcja degraduje
+się do ręcznego wywołania, nie przestaje istnieć.
+
 **Drobne moduły `lib/` bez własnej sekcji tutaj** — po co służą: `lib/legal.ts` (dane
 usługodawcy dla `/prywatnosc` i `/regulamin`, jedno miejsce do uzupełnienia);
 `lib/eventWizard.ts` (walidacja kroków kreatora meczu, w tym `validatePayments` —
@@ -345,6 +353,50 @@ Dołączanie przez link zaproszenia `/g/[code]`.
 sprawia, że pojawia się on na liście meczów grupy — ale widoczność meczu nadal wynika
 wyłącznie z `events.visibility` (`private` / `public`). Trzeciego poziomu widoczności
 nie ma — to [luka wobec wizji](./wizja.md#3-luki).
+
+---
+
+## Serie wydarzeń cyklicznych
+
+`lib/recurring.ts`, `lib/series.ts`. Od migracji `073` (`events.recurring_event_id →
+recurring_events.id`) termin cykliczny jest prawdziwą serią, nie niezależną kopią.
+
+**Podział ról — dlaczego dwie tabele, nie jedna z flagą.** Duplikowanie całego schematu
+`events` w `recurring_events` byłoby jednym źródłem prawdy o dwie kolumny za dużo:
+
+- **szablon** (`recurring_events`) jest właścicielem WYŁĄCZNIE reguły powtarzania: dzień
+  tygodnia, godzina, miejsce, limit miejsc, widoczność, wyprzedzenie
+  (`notify_days_before`). Edycja szablonu (`/cykliczne/[id]/edytuj`) zmienia tylko te pola.
+- **ostatni termin serii** (`events` z najpóźniejszym `event_date` przy danym
+  `recurring_event_id`) jest żywym wzorcem WSZYSTKIEGO INNEGO: ceny, metod płatności,
+  bramkarzy, akceptacji zapisów, grupy. Nowy termin — ręczny czy automatyczny — dziedziczy
+  stamtąd, nie z szablonu.
+
+Konsekwencja, którą łatwo przeoczyć: **szablon sam w sobie nigdy nie mówi, ile kosztuje
+gierka.** Pierwszy termin serii (bez poprzednika) startuje z domyślnych `createEvent()` —
+darmowy, bez metod płatności. Cena wchodzi do serii dopiero, gdy ktoś ją ustawi NA
+TERMINIE i wybierze zakres „to i przyszłe"/„cała seria" (patrz niżej) — to wtedy trafia
+też do organizatora patrzącego tylko na `/cykliczne/[id]`, który sam z siebie ceny nie
+pokazuje (bo jej nie ma — to własność terminu, nie szablonu).
+
+**Auto-tworzenie.** Funkcja SQL `utworz_nalezne_terminy_serii()` (migracja `073`,
+`SECURITY DEFINER`) sprawdza co godzinę (`pg_cron`, jeśli włączony w Supabase) każdy
+aktywny szablon: liczy najbliższe wystąpienie `day_of_week`, i jeśli mieści się
+w `notify_days_before` i jeszcze nie istnieje — tworzy je przez `utworz_termin_serii()`.
+To samo RPC woła `spawnEventInstance()` z przeglądarki (przycisk „Utwórz termin" na
+`/cykliczne/[id]`) — ręczne i automatyczne tworzenie idą jedną ścieżką, więc nie mogą się
+rozjechać. Bez `pg_cron` seria żyje wyłącznie z ręcznych kliknięć — degradacja,
+nie awaria.
+
+**`event_date` nigdy nie jest własnością serii.** Nawet przy zbiorczej edycji (zakres „to
+i przyszłe" / „cała seria" — `components/events/ZakresEdycjiSerii.tsx`,
+`lib/series.ts#terminyWZakresie`) data zmienia się wyłącznie na edytowanym terminie.
+Wspólna data absolutna dla wielu terminów jest sprzeczna sama w sobie; przesunięcie całej
+gierki na inny dzień tygodnia to zmiana REGUŁY (szablon), nie zbiorcza zmiana dat.
+
+**„Przyszłe" liczy się po dacie terminu, nie po kolejności wstawiania** — terminy można
+dopisać ręcznie poza kolejnością (dowolna data na `/cykliczne/[id]`), więc pozycja w tabeli
+nic nie mówi o tym, czy mecz jeszcze się nie odbył.
 
 ---
 

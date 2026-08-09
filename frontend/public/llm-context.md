@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-09 · migracja `072` · 31 tabel · 331 testów
+**Stan na:** 2026-08-09 · migracja `073` · 31 tabel · 344 testy
 
 ---
 
@@ -295,6 +295,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-09 — Wydarzenia cykliczne jako prawdziwa seria: auto-tworzenie terminów, zbiorcza edycja, dziedziczenie ustawień
+PROBLEM: cykliczny mecz w Bojo był tylko szablonem, który nikogo do niczego nie
+zobowiązywał. `events.recurring_event_id` nie istniało w schemacie, mimo że kod je
+odpytywał — zapytanie cicho zwracało pustkę, więc panel serii zawsze pokazywał „Brak
+terminu". Kolejny termin trzeba było klikać ręcznie co tydzień — dokładnie tę pracę,
+którą Bojo miało zdjąć z głowy. Gdy ktoś jednak kliknął, ustawienia i tak się gubiły:
+szablon niósł tylko sport, miejsce, dzień i godzinę — płatna gierka odradzała się jako
+darmowa, bez metod płatności i bez akceptacji zapisów. Edycja szablonu
+(`/cykliczne/[id]/edytuj`) była czystą zaślepką „w przygotowaniu" — dnia tygodnia
+i wyprzedzenia nie dało się zmienić po utworzeniu serii. Moduł był z tego powodu
+świadomie schowany za `SHOW_RECURRING`.
+ROZWIĄZANIE BOJO: cykliczny mecz jest teraz serią. Kolejny termin tworzy się sam — co
+godzinę, z wyprzedzeniem ustawionym w szablonie — i dziedziczy PEŁNE ustawienia
+z ostatniego rozegranego terminu (cenę, płatności, bramkarzy, akceptację zapisów,
+grupę), nie z ubogiego szablonu. Gracze z poprzedniego meczu dostają powiadomienie, że
+nowy termin czeka. Edycja meczu należącego do serii pyta, czy zmiana ma objąć tylko ten
+termin, ten i przyszłe, czy całą serię — data zawsze zostaje przy jednym terminie,
+niezależnie od wyboru. Szablon ma wreszcie prawdziwy ekran edycji (dzień tygodnia,
+godzina, wyprzedzenie). Moduł „Stałe gierki" jest teraz widoczny w nawigacji.
+MECHANIKA: migracja `073` — kolumna `events.recurring_event_id`, funkcje SQL
+`utworz_termin_serii()` (RPC, wołane i przez `pg_cron`, i przez przycisk w aplikacji —
+jedna ścieżka dla obu) i `utworz_nalezne_terminy_serii()` (pętla crona), wyzwalacz
+`powiadom_o_nowym_terminie_serii`; `lib/series.ts` (`terminyWZakresie`,
+`patchDlaPozostalych`, `updateSeriesEvents`, `updateSeriesTemplate`) pod testami
+w `__tests__/series.test.ts`; `components/events/ZakresEdycjiSerii.tsx` wpięty w
+`wydarzenia/[id]/edytuj/page.tsx` i modal „Zmień termin" w `EventDetailClient.tsx`;
+`app/cykliczne/[id]/edytuj/page.tsx` (realny ekran zamiast zaślepki); `SHOW_RECURRING =
+true` w `lib/features.ts`.
+
 ### 2026-08-09 — Kolor i powiadomienia „Wymagaj akceptacji", grupa zamiast „ekipy", naprawiony panel powiadomień i baner profilu
 PROBLEM: kilka niezależnych usterek zebranych z żywej instancji. Panel powiadomień
 (dzwonek) ucinał się przy lewej krawędzi ekranu na telefonie — nie dało się przewinąć
@@ -569,20 +598,4 @@ MECHANIKA: `searchExplorerFields()` z `lib/api.ts` wpięta w `VenueExplorer.tsx`
 `MAP_FILTER_SPORTS` w `lib/sports.ts`; `components/ui/FilterSheet.tsx` (modal, wspólny
 z `/wydarzenia`); `VenueCard` prop `backTo` → `?wroc=/mapa?boisko=<id>` na stronie
 boiska.
-
-### 2026-08-07 — Pasek nawigacji znika na telefonie tam, gdzie dubluje treść strony
-PROBLEM: na `/wydarzenia` i `/mapa` zalogowany na telefonie widział osobny górny pasek
-z dzwonkiem i awatarem, mimo że strona głównego pulpitu Bojo od dawna pokazuje to samo
-w swoim własnym wierszu powitania — dwa równoległe miejsca na to samo. Osobno:
-obserwowane mecze pokazywały się wyłącznie jako sekcja pod zakładką „Nadchodzące" na
-`/moje-gry`, bez własnego miejsca do przejrzenia wszystkich naraz.
-ROZWIĄZANIE BOJO: na stronie głównej, `/wydarzenia` i `/mapa` górny pasek znika na
-telefonie dla zalogowanych, a dzwonek i awatar wędrują do wiersza, który strona i tak
-już pokazuje (powitanie / pole szukania / pasek nad mapą). `/moje-gry` i `/grupy`
-zachowują pasek bez zmian. `/moje-gry` dostała czwartą zakładkę „Obserwowane" z pełną
-listą — sekcja pod „Nadchodzące" zniknęła, żeby nie dublować tej samej informacji.
-MECHANIKA: `Header.tsx` prop `hideMobileBarForUser`; nowy
-`components/layout/MobileIdentityRow.tsx` (dzwonek + awatar, reużywany w
-`GreetingBar.tsx`, `EventsListView.tsx`, `VenueExplorer.tsx`); zakładka `observing`
-w `app/moje-gry/page.tsx`.
 

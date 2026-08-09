@@ -23,7 +23,12 @@ export const SHOW_SMS_FEATURES = false;
 
 /**
  * Recurring games ("Stałe gierki") — fixed weekly pickup games with a saved
- * roster. Hidden from nav for now while we focus on one-off matches.
- * Code lives in /app/cykliczne/* and lib/recurring.ts.
+ * roster. Code lives in /app/cykliczne/* and lib/recurring.ts.
+ *
+ * Enabled with migration `073`: until then a "series" was a template nothing
+ * ever spawned from, `events.recurring_event_id` did not exist, and a paid game
+ * respawned as free — so hiding it was the honest call. Now the next date is
+ * created automatically, inherits the previous one's settings, and edits can
+ * span the series.
  */
-export const SHOW_RECURRING = false;
+export const SHOW_RECURRING = true;

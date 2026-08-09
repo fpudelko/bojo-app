@@ -19,6 +19,7 @@
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
 - [Grupy](/grupy): stałe ekipy, dołączanie przez link zaproszenia
+- [Stałe gierki](/cykliczne): mecze powtarzane co tydzień; kolejny termin powstaje sam
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
 
 ## Boiska

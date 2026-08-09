@@ -56,6 +56,7 @@ export function toEvent(row: any): EventItem {
     fieldAddress: row.field_address ?? undefined,
     district: row.field_district ?? undefined,
     groupId: row.group_id ?? undefined,
+    recurringEventId: row.recurring_event_id ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
   };
 }
@@ -161,6 +162,7 @@ export async function createEvent(
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       sports_card_other_name: data.sportsCardOtherName?.trim() || null,
       group_id: data.groupId ?? null,
+      recurring_event_id: data.recurringEventId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
     })
@@ -865,6 +867,11 @@ export async function repeatEvent(
       sportsCardOtherName: source.sportsCardOtherName,
       customLocationName: source.customLocationName,
       customAddress: source.customAddress,
+      // Powtórka meczu z serii ZOSTAJE w serii — inaczej „Powtórz mecz" po cichu
+      // wypinałoby termin ze stałej gierki i psuło zarówno edycję zbiorczą, jak
+      // i dziedziczenie ustawień przez kolejne terminy. Powtórka zwykłego meczu
+      // pozostaje zwykłym meczem (`undefined`).
+      recurringEventId: source.recurringEventId,
     },
     organizerId,
     organizerName,
