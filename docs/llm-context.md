@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-09 · migracja `071` · 31 tabel · 331 testów
+**Stan na:** 2026-08-09 · migracja `072` · 31 tabel · 331 testów
 
 ---
 
@@ -295,6 +295,44 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-09 — Kolor i powiadomienia „Wymagaj akceptacji", grupa zamiast „ekipy", naprawiony panel powiadomień i baner profilu
+PROBLEM: kilka niezależnych usterek zebranych z żywej instancji. Panel powiadomień
+(dzwonek) ucinał się przy lewej krawędzi ekranu na telefonie — nie dało się przewinąć
+do treści wychodzącej poza viewport. Organizator nie dostawał żadnego powiadomienia,
+gdy ktoś złożył prośbę o dołączenie do meczu z włączonym „Wymagaj akceptacji" —
+jedynym sposobem, by się dowiedzieć, było wejście na stronę meczu. To samo dotyczyło
+członków grupy przy nowym meczu w grupie. „Wymagaj akceptacji" dzieliło kolor
+(bursztyn) z zupełnie innymi stanami (rezerwa, obserwowanie), więc nic nie mówiło
+jednoznacznie „to wymaga Twojej akcji". Przypisanie meczu do grupy było schowane
+w panelu „Zarządzaj wydarzeniem", a UI naprzemiennie nazywało tę samą funkcję
+„ekipą" i „grupą" — sprawiało to wrażenie dwóch różnych, niedokończonych funkcji.
+Baner „Uzupełnij profil" chował się za kluczem localStorage wspólnym dla całej
+przeglądarki, nie per konto — odrzucenie go na jednym koncie wyciszało go na zawsze
+na każdym koncie w tej samej przeglądarce. Komunikat o widoczności numeru BLIK był
+identyczny niezależnie od tego, czy ktoś w ogóle był zapisany na mecz.
+ROZWIĄZANIE BOJO: panel powiadomień na telefonie renderuje się teraz jako
+zakotwiczony w viewporcie, nie względem przycisku dzwonka. Organizator dostaje
+powiadomienie przy każdej nowej prośbie o dołączenie, a członkowie grupy — przy
+każdym nowym meczu w grupie. „Wymaga akceptacji" ma teraz własny, wyłączny kolor
+(niebieski) na badge'u meczu, karcie na liście, panelu próśb i w dialogu dołączania —
+bursztyn został przy rezerwie i obserwowaniu. Przypisanie do grupy to teraz klikalny
+badge na górze strony meczu (widoczny i edytowalny dla organizatora, informacyjny dla
+reszty), otwierający ten sam dialog wyboru/zakładania grupy co kreator. Cały interfejs
+mówi teraz „grupa", nie „ekipa". Baner profilu pamięta odrzucenie osobno dla każdego
+konta. Komunikat o BLIK-u rozróżnia „nie jesteś zapisany" od „jesteś zapisany, jeszcze
+za wcześnie". Zakładka „Moje" w dolnej nawigacji dostała niebieską kropkę, gdy
+organizator ma choć jedną nierozpatrzoną prośbę o dołączenie w dowolnym swoim meczu.
+MECHANIKA: `components/layout/NotificationBell.tsx` (`fixed` na mobile, `absolute`
+od `sm:`); migracja `072` (triggery `powiadom_o_prosbie_o_dolaczenie`,
+`powiadom_o_nowym_meczu_w_grupie`); `EventDetailClient.tsx` (`blue-*` w panelu
+„Prośby o dołączenie" i „Oczekujesz na akceptację", nowy badge „Wymaga akceptacji",
+badge grupy zamiast selecta w panelu zarządzania, `WybierzGrupeDialog` reużyty na
+stronie meczu); `EventBrowseCard.tsx` (`STATUS_CHIP.pending` niebieski);
+`components/events/WybierzGrupeDialog.tsx` i `InviteFromGroupDialog.tsx`
+(nazewnictwo „grupa"); `UzupelnijProfilBanner.tsx` (klucz localStorage z `user.id`);
+`lib/events.ts#hasPendingApprovalRequests`; `components/layout/BottomNav.tsx`
+(druga, niezależna kropka).
+
 ### 2026-08-09 — Szlif przepływu organizatora: kafelek cykliczny w kreatorze, panel zarządzania tylko dla organizatora, edycja ujednolicona z kreatorem, naprawa banera o brakującym imieniu
 PROBLEM: kilka drobnych, ale realnych usterek w przepływie organizacji meczu. Panel
 „Zarządzaj wydarzeniem" (edycja, powtórz mecz, usuń) był widoczny nie tylko dla
@@ -548,29 +586,3 @@ MECHANIKA: `Header.tsx` prop `hideMobileBarForUser`; nowy
 `GreetingBar.tsx`, `EventsListView.tsx`, `VenueExplorer.tsx`); zakładka `observing`
 w `app/moje-gry/page.tsx`.
 
-### 2026-08-07 — Lista meczów z filtrami i sortowaniem, strona grupy z zaproszeniem
-PROBLEM: lista publicznych meczów w Bojo (`/wydarzenia`) filtrowała sporty samymi
-emoji bez podpisów — na telefonie nie było nawet dymka, który by je wyjaśnił. Nie
-dało się posortować listy w żaden sposób, a mecze tego samego dnia wracały
-w przypadkowej kolejności, bo baza sortowała samą datą bez godziny. Błąd sieci
-wyglądał identycznie jak brak meczów. Wyszukiwarka nie składała polskich znaków,
-więc „pilka" nie znajdowało „piłka nożna". Osobno: na stronie grupy nadchodzące
-mecze wyświetlały się w odwrotnej kolejności (najdalszy pierwszy), a osoba wchodząca
-z linku zaproszenia `/g/[kod]` lądowała na zwykłej stronie i musiała sama szukać
-przycisku dołączenia.
-ROZWIĄZANIE BOJO: lista meczów ma filtry z nazwami sportów, wybór zakresu dat
-(dzisiaj / jutro / ten tydzień / weekend), sortowanie (najbliższy termin, najbliżej
-mnie, najwięcej wolnych miejsc), przełączniki „wolne miejsca" i „za darmo" oraz
-podział na sekcje dzienne. Sortowanie po odległości pyta o zgodę na lokalizację
-i przy odmowie wraca do sortowania po terminie. Wyszukiwarka ignoruje polskie znaki
-i obejmuje też dzielnicę. Awaria pobierania danych ma własny ekran z ponowieniem.
-Strona grupy pokazuje najbliższy mecz na górze, dzieli treść na zakładki Mecze
-i Skład, a zaproszony z linku widzi baner „Masz zaproszenie" z przyciskiem
-dołączenia. Ekran logowania pokazuje pod formularzem prawdziwą listę meczów.
-MECHANIKA: `app/wydarzenia/EventsListView.tsx` (wydzielone z `EventsListClient.tsx`),
-`lib/eventFilters.ts` (filtrowanie, grupowanie, sortowanie — pod testami),
-`lib/searchText.ts` (`foldText`), `lib/plural.ts`, `lib/geo.ts#distanceKm`,
-`components/ui/FilterPill.tsx` (wspólne z mapą boisk),
-`app/grupy/[id]/page.tsx` + `GroupDetailClient.tsx` (metadane strony grupy,
-odczyt `?join=1`, `isGroupMember` jako osobne zapytanie),
-`lib/groups.ts#setGroupCover`, `components/auth/LoginBackdrop.tsx`.

@@ -187,7 +187,7 @@ export function GroupGamesSection({ events, statusFor }: {
 
   return (
     <div>
-      <SectionHeader title="Mecze Twoich ekip" href="/grupy" count={fresh.length} />
+      <SectionHeader title="Mecze Twoich grup" href="/grupy" count={fresh.length} />
       <div className="space-y-3">
         {fresh.slice(0, 3).map((e) => (
           <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />

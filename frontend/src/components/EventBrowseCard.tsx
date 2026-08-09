@@ -23,7 +23,7 @@ const STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>
   playing:   { label: 'Grasz ✓',              cls: 'bg-green-50 text-green-700 border-green-200' },
   reserve:   { label: 'Rezerwa',              cls: 'bg-slate-100 text-slate-600 border-slate-200' },
   observing: { label: 'Obserwujesz',          cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  pending:   { label: 'Czeka na akceptację',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  pending:   { label: 'Czeka na akceptację',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
   invited:   { label: 'Zaproszenie →',        cls: 'bg-accent-100 text-primary-900 border-accent-200' },
 };
 

@@ -8,9 +8,9 @@ import { getEventPlayerInvites, invitePlayers } from '@/lib/playerInvites';
 import type { Group, GroupMember } from '@/types';
 
 /**
- * Zaproszenie na mecz ekipy albo wybranych jej graczy.
+ * Zaproszenie na mecz grupy albo wybranych jej graczy.
  *
- * Domyślnie zaznaczeni są wszyscy, których da się zaprosić — bo „zaproś ekipę"
+ * Domyślnie zaznaczeni są wszyscy, których da się zaprosić — bo „zaproś grupę"
  * to najczęstszy przypadek, a odznaczenie kilku osób jest szybsze niż
  * zaznaczanie dziesięciu. Osoby już zapisane na mecz albo już zaproszone
  * zostają na liście, ale jako nieaktywne z podpisem, żeby było widać,
@@ -46,7 +46,7 @@ export default function InviteFromGroupDialog({
         setInvitedIds(new Set(invites.map((i) => i.userId)));
         if (gs.length > 0) setGroupId(gs[0].id);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać ekip'))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Nie udało się wczytać grup'))
       .finally(() => setLoading(false));
   }, [userId, eventId]);
 
@@ -101,7 +101,7 @@ export default function InviteFromGroupDialog({
       <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
           <Users className="h-4 w-4 text-slate-400" />
-          <h2 className="font-semibold text-ink">Zaproś z ekipy</h2>
+          <h2 className="font-semibold text-ink">Zaproś z grupy</h2>
           <button onClick={onClose} className="ml-auto text-slate-400 hover:text-slate-600" aria-label="Zamknij">
             <X className="h-5 w-5" />
           </button>
@@ -114,19 +114,19 @@ export default function InviteFromGroupDialog({
             </div>
           ) : groups.length === 0 ? (
             // Ślepy zaułek bez wyjścia: tekst kazał założyć grupę i nie dawał
-            // jak. Boli tym bardziej, odkąd „Zaproś z ekipy" stoi w panelu tuż
+            // jak. Boli tym bardziej, odkąd „Zaproś z grupy" stoi w panelu tuż
             // po publikacji — a świeży organizator z definicji nie ma jeszcze
-            // ekipy.
+            // grupy.
             <div className="py-6 text-center">
               <p className="text-sm text-slate-500">
-                Nie należysz jeszcze do żadnej ekipy. Załóż grupę, a potem zaprosisz ją na mecz
+                Nie należysz jeszcze do żadnej grupy. Załóż ją, a potem zaprosisz ją na mecz
                 jednym kliknięciem.
               </p>
               <Link
                 href="/grupy/nowe"
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
               >
-                <Users className="h-4 w-4" /> Załóż ekipę
+                <Users className="h-4 w-4" /> Załóż grupę
               </Link>
             </div>
           ) : (
@@ -190,7 +190,7 @@ export default function InviteFromGroupDialog({
 
               {members.length > 0 && invitable.length === 0 && (
                 <p className="pt-3 text-center text-sm text-slate-500">
-                  Cała ekipa jest już zapisana albo zaproszona.
+                  Cała grupa jest już zapisana albo zaproszona.
                 </p>
               )}
             </>
@@ -206,13 +206,13 @@ export default function InviteFromGroupDialog({
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {/* Zaproszenie całej ekipy jednym dotknięciem działa od początku
+            {/* Zaproszenie całej grupy jednym dotknięciem działa od początku
                 (wszyscy zapraszalni są domyślnie zaznaczeni), ale przycisk
                 mówił tylko „Zaproś 8 osób" — nie widać było, że to komplet. */}
             {selected.size === 0
               ? 'Wybierz kogo zaprosić'
               : invitable.length > 1 && selected.size === invitable.length
-                ? `Zaproś całą ekipę (${selected.size})`
+                ? `Zaproś całą grupę (${selected.size})`
                 : `Zaproś ${selected.size} ${selected.size === 1 ? 'osobę' : selected.size < 5 ? 'osoby' : 'osób'}`}
           </button>
         </div>

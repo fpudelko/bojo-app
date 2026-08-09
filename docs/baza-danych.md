@@ -1,6 +1,6 @@
 # Baza danych
 
-70 migracji (`001`–`070`) w `supabase/migrations/`. Modele domenowe →
+72 migracje (`001`–`072`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -114,6 +114,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `067_powiadomienie_o_zaproszeniu` | Wyzwalacz na `event_player_invites` + uzupełnienie zaległych zaproszeń |
 | `070_powiadomienia_odwolanie_i_profil` | Wyzwalacze: **odwołanie meczu** (dotąd ciche — uczestnik dowiadywał się wyłącznie wchodząc na stronę) oraz **nowe konto bez imienia** (kieruje do `/profil`) |
 | `071_wymagaj_pelnej_nazwy_w_powiadomieniu` | Zaostrza wyzwalacz z `070` na "nowe konto bez imienia" — wymaga co najmniej dwóch członów nazwy (imię i nazwisko), nie tylko dowolnej niepustej wartości. Google OAuth zawsze wypełnia `full_name`, więc słabszy check praktycznie nigdy nie wykrywał braku |
+| `072_brakujace_powiadomienia` | Wyzwalacze: **organizator** dostaje powiadomienie o nowej prośbie o dołączenie (`event_participants.pending_approval`), **członkowie grupy** dostają powiadomienie o nowym meczu w grupie (`events.group_id`) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
 polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka

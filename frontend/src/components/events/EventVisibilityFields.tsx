@@ -38,7 +38,7 @@ export default function EventVisibilityFields({
           <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
           <span>
             <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-            <span className="block text-xs text-slate-500">Nie pojawia się na liście. Wchodzą tylko zaproszeni, ekipa i osoby z linkiem</span>
+            <span className="block text-xs text-slate-500">Nie pojawia się na liście. Wchodzą tylko zaproszeni, grupa i osoby z linkiem</span>
           </span>
         </button>
       </div>

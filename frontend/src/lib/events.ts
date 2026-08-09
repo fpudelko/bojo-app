@@ -759,6 +759,19 @@ export async function approveParticipant(participantId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Czy organizator ma choć jedną nierozpatrzoną prośbę o dołączenie —
+ *  w dowolnym ze swoich meczów, nie tylko na aktualnie oglądanej stronie.
+ *  Zasila kropkę na zakładce "Moje" w dolnej nawigacji. */
+export async function hasPendingApprovalRequests(userId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('event_participants')
+    .select('id, events!inner(organizer_id)', { count: 'exact', head: true })
+    .eq('pending_approval', true)
+    .eq('events.organizer_id', userId);
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
+}
+
 /** Reject (delete) a pending join request. */
 export async function rejectParticipant(participantId: string): Promise<void> {
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);

@@ -19,6 +19,7 @@ import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
 import EventComments from '@/components/events/EventComments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
+import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
@@ -355,9 +356,8 @@ export default function EventDetailClient() {
   const [editMode, setEditMode] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
-  // Groups the viewer belongs to — the pool they can file this match under.
-  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
@@ -438,17 +438,6 @@ export default function EventDetailClient() {
     const q = p.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, []);
-
-  // Only needed by the organizer/admin settings panel, so it's fetched lazily
-  // rather than on every visitor's page load.
-  useEffect(() => {
-    if (!user) { setMyGroups([]); return; }
-    import('@/lib/groups').then(({ getMyGroups }) =>
-      getMyGroups(user.id)
-        .then((gs) => setMyGroups(gs.map((g) => ({ id: g.id, name: g.name }))))
-        .catch(() => {}),
-    );
-  }, [user]);
 
   if (loading) {
     return (
@@ -858,7 +847,7 @@ export default function EventDetailClient() {
     if (wynik === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast('Skopiowano — wklej na czacie ekipy');
+      toast('Skopiowano — wklej na czacie ze znajomymi');
     }
     // 'failed' obejmuje anulowanie arkusza przez użytkownika, więc milczymy.
   };
@@ -1112,7 +1101,7 @@ export default function EventDetailClient() {
             Kreator kończył się przekierowaniem na tę stronę i niczym więcej:
             organizator lądował na widoku identycznym z tym, który widzi każdy
             inny, i sam musiał znaleźć, co dalej. A cała obietnica produktu
-            brzmi „stwórz grę i wyślij ekipie jeden link" — to jest ten moment.
+            brzmi „stwórz grę i wyślij znajomym jeden link" — to jest ten moment.
 
             Układ mobile-first: główna akcja pełnej szerokości, dwie poboczne
             w siatce 2×1, która mieści się już na 320 px. */}
@@ -1130,11 +1119,11 @@ export default function EventDetailClient() {
               </button>
             </div>
             <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-              Wyślij link ekipie — to wszystko, czego trzeba, żeby się zapisali.
+              Wyślij link znajomym — to wszystko, czego trzeba, żeby się zapisali.
             </p>
 
             <Button size="lg" className="mt-3 w-full" onClick={handleShare}>
-              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Wyślij link ekipie
+              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Wyślij link znajomym
             </Button>
 
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1144,7 +1133,7 @@ export default function EventDetailClient() {
                   : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj link</>}
               </Button>
               <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                <Users className="h-4 w-4" strokeWidth={2.25} /> Zaproś z ekipy
+                <Users className="h-4 w-4" strokeWidth={2.25} /> Zaproś z grupy
               </Button>
             </div>
 
@@ -1296,14 +1285,40 @@ export default function EventDetailClient() {
                   : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
               </span>
             )}
-            {/* group */}
-            {groupInfo && (
-              <Link
-                href={`/grupy/${groupInfo.id}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+            {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia,
+                patrz sekcja 5 planu: bursztyn jest już zajęty przez rezerwę
+                i obserwowanie, więc to jedyny kolor, który tu nic innego nie znaczy */}
+            {event.requireApproval && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+                <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
+              </span>
+            )}
+            {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
+                w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
+                WybierzGrupeDialog; patrz sekcja 6a planu). Dla pozostałych:
+                widoczne tylko gdy grupa jest przypisana, sam link do niej. */}
+            {isOwner ? (
+              <button
+                type="button"
+                onClick={() => setGroupPickerOpen(true)}
+                disabled={busy}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  groupInfo ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
               >
-                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
-              </Link>
+                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo ? groupInfo.name : 'Bez grupy'}
+                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
+              </button>
+            ) : (
+              groupInfo && (
+                <Link
+                  href={`/grupy/${groupInfo.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+                >
+                  <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
+                </Link>
+              )
             )}
           </div>
           {/* Payment info — how to pay + sports-card discount, at a glance. Shown
@@ -1320,8 +1335,10 @@ export default function EventDetailClient() {
                       minutesToStart: minutesUntilStart(event.date, event.time),
                     }) ? (
                       <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
+                    ) : myParticipation ? (
+                      <> — numer do BLIKA zobaczysz na godzinę przed meczem</>
                     ) : (
-                      <> — numer do BLIKA zobaczysz jako uczestnik, na godzinę przed meczem</>
+                      <> — numer do BLIKA zobaczysz, jeśli dołączysz do składu</>
                     )
                   )}
                 </span>
@@ -1343,22 +1360,22 @@ export default function EventDetailClient() {
             rather than the whole card vanishing (which read as "broken/missing"). */}
         {isOwner && event.requireApproval && (
           <div className="px-4">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
-                <UserPlus className="w-4 h-4 text-amber-600" />
-                <p className="text-sm font-semibold text-amber-800">
+                <UserPlus className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-semibold text-blue-800">
                   Prośby o dołączenie
                   {pendingRequests.length > 0 && (
-                    <span className="ml-1.5 rounded-full bg-amber-200 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">{pendingRequests.length}</span>
+                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
                   )}
                 </p>
               </div>
               {pendingRequests.length === 0 && (
-                <p className="text-sm text-amber-700/80">Na razie nikt nie czeka na akceptację.</p>
+                <p className="text-sm text-blue-700/80">Na razie nikt nie czeka na akceptację.</p>
               )}
               <ul className="space-y-2">
                 {pendingRequests.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-amber-100">
+                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
                     {p.avatarUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
@@ -1428,7 +1445,7 @@ export default function EventDetailClient() {
                 na samym dole strony — zanim ktoś tam dojedzie, zdąży wyjść
                 i wkleić link z Messengera.
 
-                To jest teraz JEDYNY stały przycisk „Zaproś z ekipy" na stronie —
+                To jest teraz JEDYNY stały przycisk „Zaproś z grupy" na stronie —
                 dolna sekcja „Zaproś znajomych" miała kiedyś własny, drugi
                 przycisk o tej samej nazwie, innej ikonie i innym warunku
                 widoczności (bez `!isFull`). Ikona ujednolicona na `Users`,
@@ -1438,7 +1455,7 @@ export default function EventDetailClient() {
                 onClick={() => setInviteOpen(true)}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
               >
-                <Users className="h-4 w-4" /> Zaproś z ekipy
+                <Users className="h-4 w-4" /> Zaproś z grupy
               </button>
             )}
 
@@ -1690,14 +1707,14 @@ export default function EventDetailClient() {
         {/* ── OCZEKUJESZ NA AKCEPTACJĘ — gdy wysłałeś prośbę o dołączenie ── */}
         {user && myPendingRequest && !eventStarted && (
           <div className="px-4">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3.5">
               <div className="flex items-center gap-2.5">
-                <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                <Clock className="w-5 h-5 text-blue-600 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-amber-800">Oczekujesz na akceptację</p>
+                  <p className="text-sm font-semibold text-blue-800">Oczekujesz na akceptację</p>
                   {/* „Skąd będę wiedział, że zaakceptował?" — bez tego zdania
                       jedyną odpowiedzią było wchodzenie i sprawdzanie. */}
-                  <p className="text-xs text-amber-600">
+                  <p className="text-xs text-blue-600">
                     Organizator musi zatwierdzić Twoją prośbę o dołączenie. Gdy to zrobi, dostaniesz
                     powiadomienie w Bojo, pod dzwonkiem.
                   </p>
@@ -1705,7 +1722,7 @@ export default function EventDetailClient() {
                 <button
                   onClick={() => handleReject(myPendingRequest.id)}
                   disabled={busy}
-                  className="shrink-0 rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                  className="shrink-0 rounded-xl border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
                 >
                   Anuluj
                 </button>
@@ -2226,34 +2243,6 @@ export default function EventDetailClient() {
                   />
                 </div>
 
-                {/* Filing under a group. The current group is added to the list
-                    explicitly — an admin fixing someone else's match usually
-                    isn't a member of it and would otherwise see a blank select. */}
-                {(myGroups.length > 0 || groupInfo) && (
-                  <label className="block rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
-                    <span className="flex items-center gap-2 text-sm text-slate-700">
-                      <Users className="w-4 h-4 text-slate-400" /> Grupa
-                    </span>
-                    <select
-                      value={event.groupId ?? ''}
-                      disabled={busy}
-                      onChange={(e) => handleSetGroup(e.target.value)}
-                      className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink"
-                    >
-                      <option value="">Bez grupy</option>
-                      {[
-                        ...myGroups,
-                        ...(groupInfo && !myGroups.some((g) => g.id === groupInfo.id) ? [groupInfo] : []),
-                      ].map((g) => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </select>
-                    <span className="mt-1.5 block text-xs text-slate-500">
-                      Mecz pojawi się na liście meczów grupy. Nie zmienia to, kto może go zobaczyć.
-                    </span>
-                  </label>
-                )}
-
                 {/* Edit event details (separate form page) */}
                 <Link
                   href={`/wydarzenia/${event.id}/edytuj`}
@@ -2299,7 +2288,7 @@ export default function EventDetailClient() {
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
             więc panel ma sens także przy meczach sprzed migracji 041.
 
-            Sekcja miała kiedyś WŁASNY przycisk „Zaproś z ekipy" nad panelem
+            Sekcja miała kiedyś WŁASNY przycisk „Zaproś z grupy" nad panelem
             linku — drugi na tej samej stronie, z inną ikoną i innym warunkiem
             widoczności niż ten przy liczniku wolnych miejsc (`O-20` w audycie
             ścieżki organizatora). Jedyny stały punkt imiennego zaproszenia
@@ -2335,6 +2324,15 @@ export default function EventDetailClient() {
               setInviteOpen(false);
               toast(count === 0 ? 'Wszyscy wybrani mieli już zaproszenie' : `Zaproszono ${count}`);
             }}
+          />
+        )}
+
+        {groupPickerOpen && user && (
+          <WybierzGrupeDialog
+            userId={user.id}
+            wybranaId={groupInfo?.id}
+            onWybierz={(g) => { setGroupPickerOpen(false); handleSetGroup(g?.id ?? ''); }}
+            onClose={() => setGroupPickerOpen(false)}
           />
         )}
 
@@ -2491,7 +2489,7 @@ export default function EventDetailClient() {
                   value: 'private' as const,
                   icon: <Lock className="h-4 w-4 shrink-0 text-slate-600" strokeWidth={2.25} />,
                   label: 'Prywatne',
-                  desc: 'Nie pojawia się na liście. Wchodzą zaproszeni, ekipa i osoby z linkiem lub kodem.',
+                  desc: 'Nie pojawia się na liście. Wchodzą zaproszeni, grupa i osoby z linkiem lub kodem.',
                 },
               ]).map((opt) => {
                 const wybrane = event.visibility === opt.value;
@@ -2636,6 +2634,12 @@ export default function EventDetailClient() {
               {sportEmoji(event.sport)} {eventDisplayTitle(event)}
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
+
+            {event.requireApproval && !joinAsReserve && (
+              <p className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-medium text-blue-700">
+                Organizator musi zaakceptować Twoją prośbę, zanim wejdziesz do składu.
+              </p>
+            )}
 
             {/* Role chooser — only when the event distinguishes goalkeepers */}
             {gkEnabled && (

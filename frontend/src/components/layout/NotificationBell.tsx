@@ -94,7 +94,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-slate-200 bg-white shadow-xl z-[1010] overflow-hidden">
+        <div className="fixed inset-x-3 top-14 z-[1010] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <div className="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
             <p className="text-sm font-semibold text-ink">Powiadomienia</p>
             {notifs.length > 0 && (
