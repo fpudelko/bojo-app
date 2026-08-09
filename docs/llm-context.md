@@ -326,8 +326,8 @@ zrobić to cyklicznie?" w kroku 2 kreatora otwiera modal i tworzy szablon w tle,
 organizator widzi link do serii po publikacji. Krok 3 kreatora ma teraz grupę na
 górze, gdzie należy — przed innymi ustawieniami.
 
-MECHANIKA: migracja `074` (`sync_reserve_claim()` liczy i oferuje miejsca osobno
-per rola); migracja `075` (daty/godziny w `powiadom_o_akceptacji` i
+MECHANIKA: migracja `075` (`sync_reserve_claim()` liczy i oferuje miejsca osobno
+per rola); migracja `076` (daty/godziny w `powiadom_o_akceptacji` i
 `powiadom_o_prosbie_o_dolaczenie`, nowy trigger `powiadom_o_odrzuceniu_prosby`);
 `lib/events.ts` (nowe helpery `confirmedCounts()` i `decydujCzyRezerwa()` zastępujące
 cztery kopie logiki, `createEvent()` używa decyduj… przy auto-dołączeniu organizatora);
