@@ -35,6 +35,7 @@ import EventDateTimeField, { addMinutes } from '@/components/events/EventDateTim
 import { createRecurringEvent, dayOfWeekFromDate, dayOfWeekLabelFromDate } from '@/lib/recurring';
 import type { Group } from '@/types';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
+import { withCount } from '@/lib/plural';
 
 const STEP_TITLES = ['Co i gdzie', 'Kiedy i ile', 'Opcje'] as const;
 
@@ -1135,7 +1136,7 @@ function NewEventForm() {
                 <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
                   <Users className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-sm text-amber-800">
-                    <span className="font-semibold">{seekerCount} {seekerCount === 1 ? 'osoba szuka' : seekerCount < 5 ? 'osoby szukają' : 'osób szuka'}</span>
+                    <span className="font-semibold">{withCount(seekerCount, 'osoba szuka', 'osoby szukają', 'osób szuka')}</span>
                     {' '}podobnej gry w tym rejonie — rozważ otwarcie zapisów publicznie!
                   </p>
                 </div>

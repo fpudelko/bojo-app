@@ -21,6 +21,7 @@ import {
 } from '@/lib/recurring';
 import type { RecurringEvent, RecurringEventInvite } from '@/types';
 import { sportEmoji } from '@/lib/sports';
+import { withCount } from '@/lib/plural';
 
 
 const DAY_NAMES: Record<number, string> = {
@@ -219,7 +220,7 @@ export default function RecurringEventDetailPage() {
           const eventUrl = `${window.location.origin}/wydarzenia/${eventId}`;
           const result = await sendInvites(event.id, eventId, spawnDate, eventUrl);
           const parts: string[] = [];
-          if (result.emailsSent > 0) parts.push(`${result.emailsSent} email${result.emailsSent === 1 ? '' : 'i'}`);
+          if (result.emailsSent > 0) parts.push(withCount(result.emailsSent, 'email', 'emaile', 'emaili'));
           if (result.smsSent > 0) parts.push(`${result.smsSent} SMS`);
           const summary = parts.length > 0 ? `Wysłano ${parts.join(', ')}` : 'Brak kontaktów do powiadomienia';
           addToast(summary, 'success');

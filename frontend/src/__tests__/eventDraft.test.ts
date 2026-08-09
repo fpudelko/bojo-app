@@ -140,4 +140,11 @@ describe('draftAgeLabel', () => {
   it('reads hours past an hour', () => {
     expect(draftAgeLabel(Date.now() - 3 * 3600_000)).toBe('3 godziny temu');
   });
+
+  // Reguła `n < 5` dawała tu "13 minuty" i "22 minut" — nastolatki biorą formę
+  // dopełniaczową mimo końcówki 2/3/4, a liczby po 20 wracają do "minuty".
+  it('declines teens and post-twenty counts the Polish way', () => {
+    expect(draftAgeLabel(Date.now() - 13 * 60_000)).toBe('13 minut temu');
+    expect(draftAgeLabel(Date.now() - 22 * 60_000)).toBe('22 minuty temu');
+  });
 });

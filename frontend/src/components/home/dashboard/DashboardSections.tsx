@@ -19,6 +19,7 @@ import { SHOW_GAME_ALERTS } from '@/lib/features';
 import type { EventItem, GameAlert, Group } from '@/types';
 import type { MyEventRelation } from '@/lib/events';
 import type { MyEventRow } from '@/lib/myEvents';
+import { withCount } from '@/lib/plural';
 
 type StatusFor = (event: EventItem) => MyEventRelation;
 
@@ -308,7 +309,7 @@ export function MyGroupsSection({ groups }: { groups: Group[] }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-ink truncate">{g.name}</p>
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                {g.memberCount ?? 0} {(g.memberCount ?? 0) === 1 ? 'członek' : 'członków'}
+                {withCount(g.memberCount ?? 0, 'członek', 'członkowie', 'członków')}
                 {g.city && ` · ${g.city}`}
               </p>
             </div>
