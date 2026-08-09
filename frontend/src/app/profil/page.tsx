@@ -8,6 +8,7 @@ import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
+import { isPelneImie } from '@/lib/profileName';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { hasManagedVenue } from '@/lib/api';
@@ -118,7 +119,15 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     const trimmed = name.trim();
-    if (!trimmed) { setError('Podaj imię lub pseudonim.'); return; }
+    // Ta sama reguła, której pilnuje baner „Uzupełnij imię i nazwisko"
+    // i rejestracja e-mailem. Wcześniej pole przyjmowało cokolwiek niepustego,
+    // więc dało się zapisać „Franek", baner dalej wisiał, a nic nie mówiło,
+    // czego właściwie brakuje.
+    if (!trimmed) { setError('Podaj imię i nazwisko.'); return; }
+    if (!isPelneImie(trimmed)) {
+      setError('Podaj imię i nazwisko — dwa człony, same litery. Tak zobaczą Cię gracze na meczu.');
+      return;
+    }
     if (trimmed === currentName) { setEditing(false); return; }
     setSaving(true);
     setError(null);
@@ -238,14 +247,18 @@ export default function ProfilePage() {
 
           {/* Display name */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Wyświetlana nazwa</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Imię i nazwisko</label>
             {editing ? (
               <div className="space-y-2">
                 <input
                   type="text" value={name} onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  placeholder="Imię lub pseudonim" className={inputCls} maxLength={40} autoFocus
+                  placeholder="np. Jan Kowalski" className={inputCls} maxLength={40} autoFocus
                 />
+                <p className="text-xs text-slate-500">
+                  Pod tą nazwą widzą Cię gracze na stronie meczu — dlatego prosimy o imię
+                  i nazwisko, nie pseudonim.
+                </p>
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex gap-2">
                   <Button onClick={handleSave} isLoading={saving} className="flex-1">Zapisz</Button>

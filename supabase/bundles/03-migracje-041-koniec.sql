@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 29 migracji: 041_join_code.sql → 069_skupiska_na_mapie.sql
+-- Zawiera 34 migracji: 041_join_code.sql → 074_statystyki_bez_usunietego_statusu.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -1721,3 +1721,696 @@ REVOKE ALL ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE 
 GRANT EXECUTE ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
                                         DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[])
   TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 070_powiadomienia_odwolanie_i_profil.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 070_powiadomienia_odwolanie_i_profil.sql
+--
+-- Dwa zdarzenia, o których użytkownik dotąd nie miał jak się dowiedzieć.
+--
+-- 1. ODWOŁANIE MECZU BYŁO CICHE. `cancelEvent()` (lib/events.ts) zmieniało
+--    `status` i logowało aktywność — i tyle. Uczestnik dowiadywał się o tym
+--    WYŁĄCZNIE wchodząc na stronę meczu i widząc czerwony baner. Kto nie wszedł,
+--    przyjeżdżał na boisko. To jedyne miejsce, w którym Bojo było obiektywnie
+--    gorsze od zwykłej wiadomości na czacie — i najgorsze możliwe, bo dotyczy
+--    zaufania do narzędzia („czy oni w ogóle będą wiedzieć?").
+--
+-- 2. KONTO BEZ NAZWY publikuje mecz pod nazwą wyprowadzoną z adresu e-mail.
+--    Rejestracja e-mailem wymaga już imienia i nazwiska (walidacja w AuthForm),
+--    ale konto z Google, którego profil nie niesie `full_name`, wciąż wpada
+--    w ten przypadek. Powiadomienie kieruje takiego człowieka do /profil.
+--
+-- Dlaczego wyzwalacze, a nie kod aplikacji — powód identyczny jak w migracji
+-- `065`: tabela `notifications` (migracja `025`) ma politykę SELECT i UPDATE dla
+-- własnych wierszy i NIE MA ŻADNEJ polityki INSERT. Przeglądarka nie może więc
+-- wpisać powiadomienia nikomu, nawet sobie. Funkcja `SECURITY DEFINER` jest
+-- jedynym miejscem, w którym da się to zrobić bez otwierania tabeli na oścież.
+-- Przy okazji działa niezależnie od tego, którędy przyszła zmiana — z aplikacji,
+-- z panelu Supabase czy ze skryptu.
+--
+-- Kanał: skrzynka w aplikacji (dzwonek), ta sama co `025`, `062`, `065` i `067`.
+
+-- ---------------------------------------------------------------------------
+-- 1. Organizator odwołał mecz
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION powiadom_o_odwolaniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul TEXT;
+BEGIN
+  -- Wyłącznie przejście „cokolwiek innego" → „odwołany". Przywrócenie meczu
+  -- (`cancelled` → `active`) nie wysyła nic: to nie jest zła wiadomość, a przy
+  -- okazji ratuje przed dublem, gdyby organizator odwołał i przywrócił dwa razy.
+  IF NEW.status <> 'cancelled' OR OLD.status IS NOT DISTINCT FROM 'cancelled' THEN
+    RETURN NEW;
+  END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+
+  -- Dostają wszyscy związani z meczem, także rezerwowi i obserwujący —
+  -- odwołanie unieważnia ich plany dokładnie tak samo jak plany grających.
+  -- Organizator nie, bo to on je wprowadził. Goście bez konta odpadają sami
+  -- (`user_id IS NULL`); ich powiadomi ten, kto ich dopisał.
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT p.user_id,
+         'mecz_odwolany',
+         'Mecz odwołany',
+         coalesce(v_tytul, 'Mecz') || ' — ' || to_char(NEW.event_date, 'DD.MM')
+           || ', godz. ' || to_char(NEW.event_time, 'HH24:MI')
+           || '. Organizator odwołał ten mecz.',
+         NEW.id
+    FROM event_participants p
+   WHERE p.event_id = NEW.id
+     AND p.user_id IS NOT NULL
+     AND p.user_id <> NEW.organizer_id;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_odwolaniu ON events;
+CREATE TRIGGER trg_powiadom_o_odwolaniu
+  AFTER UPDATE ON events
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_odwolaniu();
+
+-- ---------------------------------------------------------------------------
+-- 2. Nowe konto bez imienia i nazwiska
+-- ---------------------------------------------------------------------------
+-- Kolejność względem `on_auth_user_created` (migracja `022`, zakłada wiersz
+-- w `profiles`): PostgreSQL odpala wyzwalacze tego samego zdarzenia w kolejności
+-- alfabetycznej nazw, a `on_auth_user_created` < `trg_powiadom_o_braku_nazwy`,
+-- więc profil powstaje pierwszy. Nie zależymy od tego — piszemy tylko do
+-- `notifications` — ale zapisujemy, żeby nikt nie musiał tego wyprowadzać.
+--
+-- Klucz obcy `notifications.user_id → auth.users` jest spełniony, bo wyzwalacz
+-- jest AFTER INSERT na tym samym wierszu.
+CREATE OR REPLACE FUNCTION powiadom_o_braku_nazwy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF btrim(coalesce(
+       NEW.raw_user_meta_data ->> 'display_name',
+       NEW.raw_user_meta_data ->> 'full_name',
+       NEW.raw_user_meta_data ->> 'name',
+       '')) <> '' THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body)
+  VALUES (
+    NEW.id,
+    'uzupelnij_profil',
+    'Uzupełnij swoje imię',
+    'Gracze zobaczą Cię pod nazwą wyprowadzoną z adresu e-mail. Wpisz imię i nazwisko w profilu.'
+  );
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_braku_nazwy ON auth.users;
+CREATE TRIGGER trg_powiadom_o_braku_nazwy
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_braku_nazwy();
+
+-- ŚWIADOMIE BEZ UZUPEŁNIANIA WSTECZ. Konta, które już istnieją, obsługuje baner
+-- na pulpicie (`components/home/dashboard/UzupelnijProfilBanner.tsx`) — pokazuje
+-- się każdemu bez nazwy, nie tylko nowym. Wysłanie powiadomienia wszystkim
+-- zaległym kontom naraz byłoby hałasem w skrzynce, nie informacją.
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 071_wymagaj_pelnej_nazwy_w_powiadomieniu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 071_wymagaj_pelnej_nazwy_w_powiadomieniu.sql
+--
+-- `powiadom_o_braku_nazwy()` (migracja 070) sprawdzał, czy KTÓREKOLWIEK z pól
+-- display_name/full_name/name jest niepuste. Google OAuth zawsze wypełnia
+-- full_name/name danymi z profilu Google, więc ten check praktycznie nigdy nie
+-- wykrywał braku — powiadomienie „Uzupełnij swoje imię” nie odpalało się dla
+-- kont z Google. Front-end ma już dokładnie ten sam problem naprawiony w
+-- `profileName.ts` (`isPelneImie()` zamiast usuniętego `brakNazwy()`) — to jest
+-- odpowiednik tej naprawy po stronie wyzwalacza, żeby oba mechanizmy (baner na
+-- pulpicie i powiadomienie w dzwonku) mierzyły tym samym miernikiem: co
+-- najmniej dwa człony nazwy, każdy ≥2 znaki. Bez pełnej parzystości z regexem
+-- TS (klasy liter Unicode) — to wystarczające przybliżenie dla jednorazowego
+-- powiadomienia przy rejestracji.
+CREATE OR REPLACE FUNCTION powiadom_o_braku_nazwy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_nazwa TEXT;
+  v_czlony TEXT[];
+BEGIN
+  v_nazwa := btrim(coalesce(
+    NEW.raw_user_meta_data ->> 'display_name',
+    NEW.raw_user_meta_data ->> 'full_name',
+    NEW.raw_user_meta_data ->> 'name',
+    ''
+  ));
+  v_czlony := array_remove(regexp_split_to_array(v_nazwa, '\s+'), '');
+
+  IF array_length(v_czlony, 1) >= 2
+     AND (SELECT bool_and(char_length(c) >= 2) FROM unnest(v_czlony) c) THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body)
+  VALUES (
+    NEW.id,
+    'uzupelnij_profil',
+    'Uzupełnij swoje imię',
+    'Gracze zobaczą Cię pod nazwą wyprowadzoną z adresu e-mail. Wpisz imię i nazwisko w profilu.'
+  );
+
+  RETURN NEW;
+END;
+$$;
+
+-- Wyzwalacz już istnieje z migracji 070 i wskazuje na tę samą nazwę funkcji —
+-- CREATE OR REPLACE wystarczy, nie trzeba go przetwarzać ponownie.
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 072_brakujace_powiadomienia.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 072_brakujace_powiadomienia.sql
+--
+-- Dwie luki potwierdzone czytaniem kodu, nie tylko zgłoszeniem: zdarzenia,
+-- o których zainteresowany dotąd nie miał jak się dowiedzieć bez wejścia na
+-- stronę meczu/grupy na chybił trafił.
+--
+-- 1. ORGANIZATOR NIE WIDZIAŁ, ŻE KTOŚ CZEKA NA AKCEPTACJĘ. Włączenie
+--    "Wymagaj akceptacji" (`events.require_approval`) sprawia, że zapis
+--    (`event_participants.pending_approval = true`) nie wchodzi do składu
+--    automatycznie — ale nic nie mówiło organizatorowi, że w ogóle ktoś
+--    czeka. Jedyny sposób, żeby się dowiedzieć: wejść na stronę meczu i
+--    sprawdzić panel "Prośby o dołączenie".
+--
+-- 2. CZŁONKOWIE GRUPY NIE WIDZIELI NOWEGO MECZU W GRUPIE. Dodanie meczu do
+--    grupy (`events.group_id`) nie powiadamiało nikogo poza samym faktem,
+--    że mecz pojawi się na stronie grupy — trzeba było na nią wejść, żeby
+--    się dowiedzieć.
+--
+-- Wyzwalacze, nie kod aplikacji — ten sam powód co w migracjach `065`/`070`:
+-- `notifications` nie ma polityki INSERT dla użytkownika, bo powiadomienie
+-- zawsze pisze się KOMU INNEMU niż ten, kto wywołał akcję. Funkcja
+-- `SECURITY DEFINER` jest jedynym miejscem, w którym da się to zrobić bez
+-- otwierania tabeli na oścież.
+--
+-- Kanał: skrzynka w aplikacji (dzwonek), ta sama co `025`, `062`, `065`, `067`, `070`.
+
+-- ---------------------------------------------------------------------------
+-- 1. Organizator: ktoś prosi o dołączenie
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION powiadom_o_prosbie_o_dolaczenie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_organizer_id UUID;
+  v_tytul        TEXT;
+BEGIN
+  IF NEW.pending_approval IS NOT TRUE THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT organizer_id, coalesce(title, sport)
+    INTO v_organizer_id, v_tytul
+    FROM events
+   WHERE id = NEW.event_id;
+
+  -- Organizator prosi sam siebie o dołączenie? Nie zdarza się w praktyce
+  -- (własny zapis organizatora nigdy nie ma pending_approval), ale strzeżemy
+  -- się dubla ze zdrowym rozsądkiem, jak w `065`/`070`.
+  IF v_organizer_id IS NULL OR v_organizer_id = NEW.user_id THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  VALUES (
+    v_organizer_id,
+    'prosba_o_dolaczenie',
+    'Nowa prośba o dołączenie',
+    coalesce(NEW.name, 'Gracz') || ' chce dołączyć do meczu: ' || coalesce(v_tytul, 'mecz') || '.',
+    NEW.event_id
+  );
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_prosbie_o_dolaczenie ON event_participants;
+CREATE TRIGGER trg_powiadom_o_prosbie_o_dolaczenie
+  AFTER INSERT ON event_participants
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_prosbie_o_dolaczenie();
+
+-- ---------------------------------------------------------------------------
+-- 2. Członkowie grupy: nowy mecz w grupie
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION powiadom_o_nowym_meczu_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul TEXT;
+BEGIN
+  IF NEW.group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT gm.user_id,
+         'nowy_mecz_w_grupie',
+         'Nowy mecz w grupie',
+         coalesce(v_tytul, 'Mecz') || ' — ' || to_char(NEW.event_date, 'DD.MM')
+           || ', godz. ' || to_char(NEW.event_time, 'HH24:MI') || '.',
+         NEW.id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.organizer_id;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_nowym_meczu_w_grupie ON events;
+CREATE TRIGGER trg_powiadom_o_nowym_meczu_w_grupie
+  AFTER INSERT ON events
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_nowym_meczu_w_grupie();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 073_serie_wydarzen_cyklicznych.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 073_serie_wydarzen_cyklicznych.sql
+--
+-- Wydarzenia cykliczne przestają być zbiorem niepowiązanych kopii i stają się
+-- SERIĄ: kolejne terminy tworzą się same, dziedziczą pełne ustawienia i dają
+-- się edytować zbiorczo.
+--
+-- 1. BRAKUJĄCA KOLUMNA, KTÓREJ KOD JUŻ SZUKAŁ. `getNextEventsForRecurring()`
+--    (`lib/recurring.ts`) odpytuje `events.recurring_event_id` od dawna, ale
+--    kolumna nigdy nie powstała. Zapytanie połyka błąd (`if (error) return {}`),
+--    więc `/cykliczne` pokazywało „Brak terminu" ZAWSZE, niezależnie od stanu
+--    faktycznego. To nie był brak funkcji, tylko cicha awaria.
+--
+-- 2. KOLEJNY TERMIN TRZEBA BYŁO KLIKAĆ RĘCZNIE. Szablon istniał, ale nikt nie
+--    tworzył z niego wydarzeń — organizator musiał wejść na `/cykliczne/[id]`
+--    i nacisnąć „Utwórz nową edycję". Gierka co tydzień oznaczała klikanie co
+--    tydzień, czyli dokładnie tę pracę, którą Bojo miało zdjąć z głowy.
+--
+-- 3. SPAWN GUBIŁ USTAWIENIA. Szablon `recurring_events` niesie tylko sport,
+--    miejsce, dzień, godzinę, limit i widoczność. Reszta szła z domyślnych:
+--    cena 0, brak metod płatności, bramkarze wyłączeni, brak akceptacji zapisów.
+--    PŁATNA GIERKA ODRADZAŁA SIĘ JAKO DARMOWA — realny błąd, nie brak funkcji.
+--
+-- PODZIAŁ RÓL, żeby nie duplikować schematu `events` w `recurring_events`:
+--   szablon             = reguła powtarzania (dzień, godzina, miejsce, limit,
+--                         widoczność, wyprzedzenie, aktywność),
+--   ostatni termin serii = żywy wzorzec reszty ustawień (cena, płatności,
+--                         bramkarze, grupa, akceptacja, czas na decyzję…).
+-- Dzięki temu „popraw ten i przyszłe" działa bez osobnego magazynu ustawień:
+-- poprawiasz jeden termin, kolejny się tym żywi.
+--
+-- WYPRZEDZENIE reużywa `notify_days_before` zamiast nowej kolumny — utworzenie
+-- terminu JEST momentem powiadomienia (wyzwalacz na końcu tego pliku), więc dwa
+-- osobne ustawienia byłyby tym samym pytaniem zadanym dwa razy.
+
+-- ---------------------------------------------------------------------------
+-- 1. Tożsamość serii
+-- ---------------------------------------------------------------------------
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS recurring_event_id UUID
+    REFERENCES recurring_events(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_events_recurring ON events (recurring_event_id);
+
+-- SET NULL, nie CASCADE: skasowanie szablonu nie może zabrać ze sobą rozegranych
+-- meczów razem ze składami, wynikami i rozliczeniami. Mecz traci przynależność
+-- do serii, ale zostaje.
+
+-- Twarda gwarancja przeciw dublom. Funkcja niżej i tak sprawdza istnienie
+-- terminu, ale przy cronie co godzinę dwa przebiegi mogą się nałożyć —
+-- wtedy sprawdzenie w jednej transakcji nie widzi wstawki z drugiej.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_events_seria_termin
+  ON events (recurring_event_id, event_date)
+  WHERE recurring_event_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- 2a. Jeden termin serii — wspólne źródło prawdy
+-- ---------------------------------------------------------------------------
+-- Tę samą funkcję wołają OBA wejścia: cron (niżej) i przycisk „Utwórz nową
+-- edycję" na `/cykliczne/[id]` (przez `supabase.rpc`). Dzięki temu termin
+-- utworzony ręcznie i automatycznie jest identyczny — gdyby logika kopiowania
+-- ustawień żyła osobno w TypeScripcie, obie ścieżki rozjechałyby się przy
+-- pierwszej zmianie.
+--
+-- SECURITY DEFINER, bo RLS na `events` przepuszcza INSERT wyłącznie jako
+-- `auth.uid() = organizer_id` — cron nie działa w niczyim imieniu. Stąd jawna
+-- kontrola uprawnień w środku: wywołanie z przeglądarki (auth.uid() nie-NULL)
+-- musi pochodzić od organizatora serii.
+--
+-- Zwraca id nowego wydarzenia albo NULL, gdy termin już istniał.
+CREATE OR REPLACE FUNCTION utworz_termin_serii(p_szablon_id UUID, p_data DATE)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_szablon  recurring_events%ROWTYPE;
+  v_wzor     events%ROWTYPE;
+  v_wzor_id  UUID;
+  v_ma_wzor  BOOLEAN;
+  v_nowy_id  UUID;
+  v_bramkarz BOOLEAN;
+  v_gra      BOOLEAN;
+BEGIN
+  SELECT * INTO v_szablon FROM recurring_events WHERE id = p_szablon_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie ma takiej serii: %', p_szablon_id;
+  END IF;
+
+  IF auth.uid() IS NOT NULL AND auth.uid() <> v_szablon.organizer_id THEN
+    RAISE EXCEPTION 'Tylko organizator może tworzyć terminy tej serii';
+  END IF;
+
+  -- Termin już istnieje (ręcznie albo z poprzedniego przebiegu crona).
+  IF EXISTS (
+    SELECT 1 FROM events
+     WHERE recurring_event_id = p_szablon_id AND event_date = p_data
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  -- Ostatni termin serii jako wzorzec ustawień.
+  SELECT * INTO v_wzor
+    FROM events
+   WHERE recurring_event_id = p_szablon_id
+   ORDER BY event_date DESC
+   LIMIT 1;
+  v_ma_wzor := FOUND;
+  v_wzor_id := v_wzor.id;  -- id POPRZEDNIEGO terminu; niżej v_wzor.id nadpisujemy
+
+  IF v_ma_wzor THEN
+    -- Kopia całego wiersza: każda kolumna `events` — także te dodane przyszłymi
+    -- migracjami — jedzie automatycznie. Niżej zerujemy tylko to, co jest
+    -- własnością POJEDYNCZEGO terminu, nie serii.
+    v_wzor.id                 := gen_random_uuid();
+    v_wzor.event_date         := p_data;
+    v_wzor.created_at         := now();
+    v_wzor.status             := 'active';
+    v_wzor.join_code          := generate_join_code();  -- kolumna UNIQUE
+    v_wzor.teams_published    := false;                 -- składy są per termin
+    v_wzor.recurring_event_id := p_szablon_id;
+
+    -- Pola, których właścicielem jest szablon (reguła powtarzania). Nadpisują
+    -- wzorzec, żeby edycja szablonu realnie wpływała na kolejne terminy.
+    v_wzor.sport        := v_szablon.sport;
+    v_wzor.field_id     := v_szablon.field_id;
+    v_wzor.field_name   := v_szablon.field_name;
+    v_wzor.lat          := v_szablon.lat;
+    v_wzor.lng          := v_szablon.lng;
+    v_wzor.title        := v_szablon.title;
+    v_wzor.description  := v_szablon.description;
+    v_wzor.event_time   := v_szablon.event_time;
+    v_wzor.end_time     := v_szablon.end_time;
+    v_wzor.max_players  := v_szablon.max_players;
+    v_wzor.visibility   := v_szablon.visibility;
+
+    INSERT INTO events VALUES (v_wzor.*) RETURNING id INTO v_nowy_id;
+  ELSE
+    -- Pierwszy termin serii — nie ma z czego dziedziczyć, biorą domyślne bazy.
+    INSERT INTO events (
+      organizer_id, organizer_name, sport, field_id, field_name, lat, lng,
+      title, description, event_date, event_time, end_time, max_players,
+      visibility, recurring_event_id
+    ) VALUES (
+      v_szablon.organizer_id, v_szablon.organizer_name, v_szablon.sport,
+      v_szablon.field_id, v_szablon.field_name, v_szablon.lat, v_szablon.lng,
+      v_szablon.title, v_szablon.description, p_data, v_szablon.event_time,
+      v_szablon.end_time, v_szablon.max_players, v_szablon.visibility,
+      p_szablon_id
+    ) RETURNING id INTO v_nowy_id;
+  END IF;
+
+  -- Czy organizator gra? Idzie za poprzednim terminem — organizator, który
+  -- tylko prowadzi gierkę i sam nie wchodzi na boisko, nie ma powodu co
+  -- tydzień wypisywać się ze składu. Bez wzorca: gra (domyślne `createEvent`).
+  IF v_ma_wzor THEN
+    SELECT coalesce(p.is_goalkeeper, false)
+      INTO v_bramkarz
+      FROM event_participants p
+     WHERE p.event_id = v_wzor_id
+       AND p.user_id = v_szablon.organizer_id
+       AND p.is_guest = false
+     LIMIT 1;
+    v_gra := FOUND;
+  ELSE
+    v_gra := true;
+    v_bramkarz := false;
+  END IF;
+
+  IF v_gra THEN
+    INSERT INTO event_participants (event_id, user_id, name, is_guest, is_goalkeeper)
+    VALUES (v_nowy_id, v_szablon.organizer_id, v_szablon.organizer_name,
+            false, coalesce(v_bramkarz, false));
+  END IF;
+
+  RETURN v_nowy_id;
+END;
+$$;
+
+-- Przeglądarka woła to przez `supabase.rpc('utworz_termin_serii', …)`;
+-- kontrola „tylko organizator" siedzi w środku funkcji.
+GRANT EXECUTE ON FUNCTION utworz_termin_serii(UUID, DATE) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2b. Które terminy są już należne — pętla dla crona
+-- ---------------------------------------------------------------------------
+-- Czas liczony w strefie 'Europe/Warsaw', nie w UTC bazy: przy meczu o 20:00
+-- i bazie w UTC różnica 1–2 h potrafi przesunąć „dzisiaj" na sąsiedni dzień
+-- i wyliczyć zły termin.
+CREATE OR REPLACE FUNCTION utworz_nalezne_terminy_serii()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_teraz     TIMESTAMP := now() AT TIME ZONE 'Europe/Warsaw';
+  v_dzis      DATE      := (now() AT TIME ZONE 'Europe/Warsaw')::date;
+  v_szablon   RECORD;
+  v_termin    DATE;
+  v_odstep    INT;
+  v_utworzone INTEGER := 0;
+BEGIN
+  FOR v_szablon IN SELECT * FROM recurring_events WHERE is_active LOOP
+    -- Najbliższe wystąpienie dnia tygodnia (1=Pon…7=Niedz, ISO).
+    v_odstep := (v_szablon.day_of_week - EXTRACT(ISODOW FROM v_dzis)::INT + 7) % 7;
+    v_termin := v_dzis + v_odstep;
+
+    -- Dzisiaj, ale godzina już minęła → termin był, następny za tydzień.
+    -- Bez tego cron tworzyłby mecz kilka godzin po jego zakończeniu.
+    IF v_odstep = 0 AND v_szablon.event_time <= v_teraz::time THEN
+      v_termin := v_termin + 7;
+    END IF;
+
+    -- Jeszcze za wcześnie, żeby otwierać zapisy.
+    CONTINUE WHEN (v_termin - v_dzis) > v_szablon.notify_days_before;
+
+    IF utworz_termin_serii(v_szablon.id, v_termin) IS NOT NULL THEN
+      v_utworzone := v_utworzone + 1;
+    END IF;
+  END LOOP;
+
+  RETURN v_utworzone;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Harmonogram — co godzinę
+-- ---------------------------------------------------------------------------
+-- Owinięte w DO, bo `pg_cron` bywa niewłączony, a wtedy samo `cron.schedule`
+-- wywróciłoby CAŁĄ migrację — łącznie z kolumną i funkcją wyżej, które są
+-- wartościowe niezależnie od harmonogramu. Bez crona funkcja działa z ręki:
+--   SELECT utworz_nalezne_terminy_serii();
+-- Włączenie: Supabase → Database → Extensions → pg_cron, potem ponownie ten blok.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'bojo-terminy-serii';
+    -- Minuta 7, nie 0: pełna godzina to najbardziej zatłoczony moment na
+    -- współdzielonej instancji.
+    PERFORM cron.schedule(
+      'bojo-terminy-serii', '7 * * * *',
+      $cron$SELECT utworz_nalezne_terminy_serii()$cron$
+    );
+  ELSE
+    RAISE NOTICE 'pg_cron niewłączony — terminy serii nie będą powstawać automatycznie. Włącz rozszerzenie i uruchom ten blok ponownie.';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 4. Powiadomienie o nowym terminie serii
+-- ---------------------------------------------------------------------------
+-- Termin, który powstaje po cichu, nie rozwiązuje niczego — gracze i tak muszą
+-- wejść i sprawdzić, czyli dokładnie to, co miało zniknąć. Dostają go uczestnicy
+-- POPRZEDNIEGO terminu tej serii: to oni grają w tę gierkę.
+--
+-- Bez organizatora (sam ją prowadzi), bez gości bez konta (`user_id IS NULL`)
+-- i bez członków grupy meczu — tym `powiadom_o_nowym_meczu_w_grupie` (migracja
+-- `072`) wysyła już własne powiadomienie o tym samym meczu.
+CREATE OR REPLACE FUNCTION powiadom_o_nowym_terminie_serii()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul     TEXT;
+  v_poprzedni UUID;
+BEGIN
+  IF NEW.recurring_event_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT id INTO v_poprzedni
+    FROM events
+   WHERE recurring_event_id = NEW.recurring_event_id
+     AND event_date < NEW.event_date
+   ORDER BY event_date DESC
+   LIMIT 1;
+
+  -- Pierwszy termin serii — nie ma jeszcze komu powiedzieć.
+  IF v_poprzedni IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT p.user_id,
+         'nowy_termin_serii',
+         'Nowy termin stałej gierki',
+         coalesce(v_tytul, 'Mecz') || ' — ' || to_char(NEW.event_date, 'DD.MM')
+           || ', godz. ' || to_char(NEW.event_time, 'HH24:MI') || '. Zapisy otwarte.',
+         NEW.id
+    FROM event_participants p
+   WHERE p.event_id = v_poprzedni
+     AND p.user_id IS NOT NULL
+     AND p.user_id <> NEW.organizer_id
+     AND (
+       NEW.group_id IS NULL
+       OR NOT EXISTS (
+         SELECT 1 FROM group_members gm
+          WHERE gm.group_id = NEW.group_id AND gm.user_id = p.user_id
+       )
+     );
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_nowym_terminie_serii ON events;
+CREATE TRIGGER trg_powiadom_o_nowym_terminie_serii
+  AFTER INSERT ON events
+  FOR EACH ROW
+  EXECUTE FUNCTION powiadom_o_nowym_terminie_serii();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 074_statystyki_bez_usunietego_statusu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 074_statystyki_bez_usunietego_statusu.sql
+--
+-- NAPRAWA REGRESJI. Migracja `064` skasowała `event_participants.status` razem
+-- ze śledzeniem obecności, ale nie ruszyła funkcji `get_player_stats()`, która
+-- tej kolumny używała (`ep.status = 'potwierdzony'`, migracja `055`).
+--
+-- Skutek na produkcji: funkcja przestała się wykonywać, a strona gracza łapie
+-- każdy wyjątek jednym `catch` i pokazuje „Nie znaleziono gracza". Czyli awaria
+-- jednej statystyki udawała nieistniejące konto — także własne, wejściem
+-- „Moje statystyki" z profilu.
+--
+-- Pole `attended` znika z wyniku, a nie dostaje zastępczej definicji. Liczyło
+-- potwierdzenia obecności, a obecności w Bojo już nie ma; utrzymywanie kolumny
+-- zwracającej zawsze zero to obietnica funkcji, której nie ma. Aplikacja nigdzie
+-- tej wartości nie pokazywała — mapowanie w `lib/players.ts` było jedynym
+-- miejscem, w którym w ogóle występowała.
+--
+-- Zmiana kształtu wyniku wymaga DROP przed CREATE: `CREATE OR REPLACE` nie
+-- pozwala zmienić listy zwracanych kolumn.
+
+DROP FUNCTION IF EXISTS get_player_stats(UUID);
+
+CREATE FUNCTION get_player_stats(p_user_id UUID)
+RETURNS TABLE (
+  events_joined     INT,
+  events_organized  INT,
+  matches_played    INT,
+  goals_total       INT,
+  no_shows          INT
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT
+    -- Mecze, na które gracz się realnie zapisał. „Obserwuję" (rsvp = 'maybe')
+    -- nie zajmuje miejsca, więc nie jest udziałem.
+    (SELECT count(DISTINCT ep.event_id)::int
+       FROM event_participants ep
+      WHERE ep.user_id = p_user_id
+        AND ep.is_guest = false
+        AND ep.rsvp <> 'maybe'),
+
+    (SELECT count(*)::int
+       FROM events e
+      WHERE e.organizer_id = p_user_id),
+
+    -- Rozegrane: w składzie (nie na rezerwie), mecz się odbył i nie został odwołany.
+    (SELECT count(DISTINCT ep.event_id)::int
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+      WHERE ep.user_id    = p_user_id
+        AND ep.is_guest   = false
+        AND ep.is_reserve = false
+        AND ep.rsvp      <> 'maybe'
+        AND e.status      != 'cancelled'
+        AND (e.event_date + e.event_time)::timestamp <= now()),
+
+    (SELECT COALESCE(sum(pg.goals), 0)::int
+       FROM player_goals pg
+       JOIN event_participants ep ON ep.id = pg.participant_id
+      WHERE ep.user_id = p_user_id),
+
+    (SELECT count(*)::int
+       FROM player_reports pr
+       JOIN event_participants ep ON ep.id = pr.reported_participant_id
+      WHERE ep.user_id = p_user_id AND pr.report_type = 'nie_przyszedl')
+$$;

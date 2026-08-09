@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
 import { getMyInvites, type InviteWithEvent } from './playerInvites';
 import { getMyParticipationMap, type MyEventRelation, type MyEventStatus } from './events';
-import { isUpcoming } from './eventDates';
+import { isEventJoinable } from './eventDates';
 import type { EventItem } from '@/types';
 
 export interface UseMyInvitesResult {
@@ -36,7 +36,9 @@ export function useMyInvites(): UseMyInvitesResult {
     setLoading(true);
     Promise.allSettled([getMyInvites(user.id), getMyParticipationMap(user.id)]).then(([invitesR, mapR]) => {
       if (cancelled) return;
-      setInvites(invitesR.status === 'fulfilled' ? invitesR.value.filter(({ event }) => isUpcoming(event)) : []);
+      // `isEventJoinable` porównuje datę I godzinę — `isUpcoming` zostawiało
+      // w zaproszeniach mecze, które dziś już się odbyły.
+      setInvites(invitesR.status === 'fulfilled' ? invitesR.value.filter(({ event }) => isEventJoinable(event)) : []);
       setParticipationMap(mapR.status === 'fulfilled' ? mapR.value : {});
       setLoading(false);
     });

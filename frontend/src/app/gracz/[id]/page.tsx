@@ -25,9 +25,17 @@ export default function PublicPlayerPage() {
         const p = await getPublicPlayer(id);
         if (!p) { setNotFound(true); return; }
         setProfile(p);
-        const [s, h] = await Promise.all([getPlayerStats(id), getPlayerHistory(id)]);
-        setStats(s);
-        setHistory(h);
+
+        // Statystyki i historia dociągane OSOBNO od profilu i osobno od siebie.
+        // Wcześniej wszystko siedziało pod jednym `catch`, więc awaria funkcji
+        // liczącej statystyki pokazywała „Nie znaleziono gracza" — także przy
+        // wejściu na własny profil, który przecież istnieje. Błąd jednej liczby
+        // nie może udawać nieistniejącego konta.
+        const [s, h] = await Promise.allSettled([getPlayerStats(id), getPlayerHistory(id)]);
+        if (s.status === 'fulfilled') setStats(s.value);
+        else console.error('[PublicProfile] statystyki', s.reason);
+        if (h.status === 'fulfilled') setHistory(h.value);
+        else console.error('[PublicProfile] historia', h.reason);
       } catch (e) {
         console.error('[PublicProfile]', e);
         setNotFound(true);
