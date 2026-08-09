@@ -9,7 +9,7 @@ import {
   Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
   Check, X, Pencil, Banknote, Phone, Trophy, Star,
   BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
-  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye, Link2 as LinkIcon,
+  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye, Link2 as LinkIcon, Repeat,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -53,6 +53,14 @@ import {
   type TeamProposal,
 } from '@/lib/teamProposals';
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+function fromMinutes(total: number): string {
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -343,6 +351,7 @@ export default function EventDetailClient() {
   const [repeatTime, setRepeatTime] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [repeatJoin, setRepeatJoin] = useState(true);
+  const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
   const [editMode, setEditMode] = useState(false);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
@@ -352,6 +361,9 @@ export default function EventDetailClient() {
   const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
+  // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
+  // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
+  const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
   const [venueInfoOpen, setVenueInfoOpen] = useState(false);
   const [skopiowanyToken, setSkopiowanyToken] = useState<string | null>(null);
   // Rescheduling from the badge. `whenConfirm` is the second gate: moving a
@@ -417,9 +429,12 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const p = new URLSearchParams(window.location.search);
-    if (p.get('utworzono') !== '1') return;
+    const cid = p.get('cykliczne');
+    if (cid) setCyklicznyId(cid);
+    if (p.get('utworzono') !== '1' && !cid) return;
     setSwiezoUtworzony(true);
     p.delete('utworzono');
+    p.delete('cykliczne');
     const q = p.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, []);
@@ -459,6 +474,10 @@ export default function EventDetailClient() {
     );
   }
 
+  // Deliberately broader than `isOwner` — drives support/moderation affordances
+  // (guest management, entering the match result), not the management panel.
+  // The "Zarządzaj wydarzeniem" panel below is gated on `isOwner`, so an admin
+  // never gets a shortcut into someone else's match from there.
   const isOrganizer = !!user && (user.id === event.organizerId || isAdmin);
   // Strict ownership — only the actual creator, never admins. Drives the inline
   // "Edytuj" link so admins don't see an edit shortcut on other people's events.
@@ -934,7 +953,10 @@ export default function EventDetailClient() {
     if (!user || !repeatDate || !repeatTime) return;
     setRepeatBusy(true);
     try {
-      const newId = await repeatEvent(event, repeatDate, repeatTime, user.id, displayName(user), repeatJoin);
+      const newId = await repeatEvent(
+        event, repeatDate, repeatTime, user.id, displayName(user),
+        repeatJoin, repeatJoin && repeatRole === 'goalkeeper',
+      );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
       router.push(`/wydarzenia/${newId}`);
@@ -1131,6 +1153,15 @@ export default function EventDetailClient() {
                 ? 'Mecz jest publiczny: zobaczą go też gracze z okolicy na liście otwartych gier.'
                 : 'Mecz jest prywatny: wejdą tylko osoby z tym linkiem.'}
             </p>
+
+            {cyklicznyId && (
+              <Link
+                href={`/cykliczne/${cyklicznyId}`}
+                className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
+              >
+                <Repeat className="h-4 w-4" /> Ustawiłeś powtarzanie co tydzień — zarządzaj serią
+              </Link>
+            )}
           </div>
         )}
 
@@ -2153,8 +2184,10 @@ export default function EventDetailClient() {
         {myParticipation && <EventComments eventId={event.id} />}
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
-            page or invite accidental clicks on cancel/delete. */}
-        {isOrganizer && (
+            page or invite accidental clicks on cancel/delete. `isOwner`, NOT
+            `isOrganizer` — an admin looking at someone else's match must not
+            see a shortcut into managing/deleting it. */}
+        {isOwner && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -2350,7 +2383,7 @@ export default function EventDetailClient() {
           moved match that nobody noticed is worse than no match. */}
       {whenOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setWhenOpen(false)}
         >
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -2376,7 +2409,22 @@ export default function EventDetailClient() {
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Rozpoczęcie</label>
-                <TimeSelect value={whenTime} onChange={(v) => { setWhenTime(v); setWhenConfirm(false); }} />
+                <TimeSelect
+                  value={whenTime}
+                  onChange={(v) => {
+                    // Przesuwamy koniec o tę samą deltę, żeby czas gry się nie
+                    // zmienił — TYLKO gdy koniec jest w ogóle ustawiony. Zmiana
+                    // końca (pole obok) nigdy nie rusza początku — jednokierunkowe
+                    // celowo.
+                    if (whenEnd) {
+                      const diff = toMinutes(v) - toMinutes(whenTime);
+                      const nowyKoniec = toMinutes(whenEnd) + diff;
+                      if (nowyKoniec >= 0 && nowyKoniec < 24 * 60) setWhenEnd(fromMinutes(nowyKoniec));
+                    }
+                    setWhenTime(v);
+                    setWhenConfirm(false);
+                  }}
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Zakończenie</label>
@@ -2414,7 +2462,7 @@ export default function EventDetailClient() {
 
       {visOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onClick={() => setVisOpen(false)}
         >
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -2749,7 +2797,8 @@ export default function EventDetailClient() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Powtórz mecz</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę.
+              Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę —
+              resztę, np. cenę czy widoczność, zmienisz później na nowo utworzonym wydarzeniu.
             </p>
             <div className="space-y-3 mb-5">
               <div>
@@ -2781,6 +2830,37 @@ export default function EventDetailClient() {
                   <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', repeatJoin ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
                 </button>
               </div>
+              {gkEnabled && repeatJoin && (
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1">Twoja rola</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRepeatRole('player')}
+                      className={[
+                        'h-10 rounded-xl border text-sm font-semibold transition-colors',
+                        repeatRole === 'player'
+                          ? 'border-primary-600 bg-primary-50 text-primary-700'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                      ].join(' ')}
+                    >
+                      ⚽ Zawodnik
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRepeatRole('goalkeeper')}
+                      className={[
+                        'h-10 rounded-xl border text-sm font-semibold transition-colors',
+                        repeatRole === 'goalkeeper'
+                          ? 'border-primary-600 bg-primary-50 text-primary-700'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300',
+                      ].join(' ')}
+                    >
+                      🧤 Bramkarz
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setRepeatOpen(false)} className="flex-1">Anuluj</Button>

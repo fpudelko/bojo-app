@@ -12,11 +12,12 @@ import { hasManagedVenue } from '@/lib/api';
 import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
+import WczesnyEtapBadge from '@/components/home/landing/WczesnyEtapBadge';
 import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
 
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
-  { href: '/wydarzenia', label: 'Znajdź grę' },
+  { href: '/wydarzenia', label: 'Znajdź grę', earlyStage: true },
   { href: '/mapa', label: 'Mapa boisk' },
 ];
 
@@ -128,7 +129,7 @@ export default function Header({
                   key={link.href}
                   href={link.href}
                   className={clsx(
-                    'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
+                    'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
                     overlay
                       ? 'text-white/85 hover:text-white hover:bg-white/10'
                       : (pathname === link.href || pathname.startsWith(link.href + '/')
@@ -137,6 +138,7 @@ export default function Header({
                   )}
                 >
                   {link.label}
+                  {link.earlyStage && <WczesnyEtapBadge />}
                 </Link>
               ))}
               {SHOW_CUP && (

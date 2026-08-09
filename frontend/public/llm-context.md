@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-08 · migracja `070` · 31 tabel · 335 testów
+**Stan na:** 2026-08-09 · migracja `071` · 31 tabel · 331 testów
 
 ---
 
@@ -295,6 +295,52 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+### 2026-08-09 — Szlif przepływu organizatora: kafelek cykliczny w kreatorze, panel zarządzania tylko dla organizatora, edycja ujednolicona z kreatorem, naprawa banera o brakującym imieniu
+PROBLEM: kilka drobnych, ale realnych usterek w przepływie organizacji meczu. Panel
+„Zarządzaj wydarzeniem" (edycja, powtórz mecz, usuń) był widoczny nie tylko dla
+organizatora, ale i dla adminów przeglądających cudzy mecz. Modale „Zmień termin"
+i „Kto widzi ten mecz" miały przycisk potwierdzający częściowo zasłonięty przez dolną
+nawigację na telefonie, a zmiana godziny rozpoczęcia nie przesuwała automatycznie
+godziny zakończenia (dało się ustawić koniec przed początkiem). Strona edycji wydarzenia
+miała stary układ pól, niezależny od kreatora — brakowało tam m.in. informacji, że numer
+BLIK gracze zobaczą dopiero godzinę przed meczem. „Powtórz mecz" nie pytało o rolę
+(bramkarz/zawodnik) mimo że kopiowany mecz rozróżniał bramkarzy. Po zalogowaniu Google
+bez pełnego imienia i nazwiska w profilu (Google zawsze wypełnia jakieś pole nazwy) baner
+i powiadomienie „Uzupełnij imię" nigdy się nie pojawiały — sprawdzały tylko, czy
+JAKAKOLWIEK nazwa istnieje, nie czy jest pełna. Kreator meczu jednorazowego nie miał
+opcji ustawienia cyklicznego powtarzania, mimo że silnik cyklicznych wydarzeń (dziś
+schowany za flagą) już istnieje.
+ROZWIĄZANIE BOJO: krok 2 kreatora ma kafelek „Wydarzenie cykliczne" — otwiera modal
+z dniem tygodnia wyliczonym z wybranej daty i suwakiem przypomnień, po zapisaniu tworzy
+niezależny szablon w tle i po publikacji meczu pokazuje link do panelu serii. Panel
+zarządzania wydarzeniem widzi wyłącznie faktyczny organizator. Oba modale (termin,
+widoczność) są w pełni klikalne nad dolną nawigacją, a przesunięcie godziny rozpoczęcia
+automatycznie przesuwa koniec o tę samą deltę (zmiana końca nie rusza początku). Strona
+edycji wygląda i działa jak kreator — te same komponenty pól (sport, lokalizacja, data
+i czas trwania, liczba miejsc, płatności, widoczność, tytuł/opis), więc notatka o BLIK-u
+i inne poprawki w kreatorze automatycznie trafiają też do edycji. „Powtórz mecz" pyta
+o rolę, gdy kopiowany mecz rozróżnia bramkarzy, i informuje, że resztę ustawień zmienisz
+na nowo utworzonym meczu. Baner i powiadomienie o brakującym imieniu sprawdzają teraz
+pełną nazwę (imię i nazwisko, nie dowolny fragment) — działają też dla kont z Google.
+Landing i przyciski „Znajdź grę" mają plakietkę/wskaźnik „wczesny etap".
+MECHANIKA: `components/events/RecurringSettingsDialog.tsx`, `lib/recurring.ts`
+(`dayOfWeekFromDate`, `dayOfWeekLabelFromDate`), zapis w `handleSubmit`
+w `wydarzenia/nowe/page.tsx` (`createRecurringEvent`, cichy fallback przy błędzie),
+odczyt `?cykliczne=<id>` w `EventDetailClient.tsx`; `isOwner` zamiast `isOrganizer`
+przy renderze sekcji „Zarządzaj wydarzeniem"; `z-[1100]` zamiast `z-50` na modalach
+terminu i widoczności; nowe komponenty w `components/events/`
+(`EventSportField`-owy inline w edycji, `EventLocationField`-owy inline,
+`EventDateTimeField`, `EventCapacityFields`, `EventTitleDescriptionField`,
+`EventVisibilityFields`, `EventPaymentFields`) i `components/ui/ToggleRow.tsx`,
+współdzielone przez `wydarzenia/nowe/page.tsx` i `wydarzenia/[id]/edytuj/page.tsx`;
+`GK_SPORTS` przeniesione do `lib/sports.ts`; `repeatEvent()` w `lib/events.ts`
+(parametr `organizerIsGoalkeeper`, już istniał, dopiero teraz podłączony w UI);
+`isPelneImie()` zamiast usuniętego `brakNazwy()` w `lib/profileName.ts`,
+`UzupelnijProfilBanner.tsx` i `wydarzenia/nowe/page.tsx`; migracja `071` (ten sam
+warunek „pełna nazwa" w wyzwalaczu `powiadom_o_braku_nazwy()`); `WczesnyEtapBadge`
+w `Header.tsx`, `BottomNav.tsx` (kropka zamiast pełnego badge'a), `LandingHero.tsx`,
+`NextMatchCard.tsx`.
+
 ### 2026-08-08 — Naprawa dołączania do składu, ekipa i ostatnie boisko w kreatorze, uczciwe komunikaty o wczesnym etapie
 PROBLEM: dołączanie do składu w Bojo było zepsute. Organizator zaznaczający „Biorę
 udział" nie trafiał do własnego składu, przycisk „Dołącz" na cudzym meczu nie zapisywał,
@@ -528,20 +574,3 @@ MECHANIKA: `app/wydarzenia/EventsListView.tsx` (wydzielone z `EventsListClient.t
 `app/grupy/[id]/page.tsx` + `GroupDetailClient.tsx` (metadane strony grupy,
 odczyt `?join=1`, `isGroupMember` jako osobne zapytanie),
 `lib/groups.ts#setGroupCover`, `components/auth/LoginBackdrop.tsx`.
-
-### 2026-08-07 — Landing pokazuje trzy ekrany aplikacji, pasek dla niezalogowanych bez menu
-PROBLEM: podgląd aplikacji na stronie głównej Bojo pokazywał jeden ekran, i to
-niepełny — ramka telefonu brała wysokość ze swojej zawartości, a zawartości była
-jedna karta, więc wyglądało to na ścinek zrzutu. Osobno: strona główna miała cztery
-identyczne przyciski „Zorganizuj mecz", co rozmywało jedno wezwanie do działania
-w cztery słabe.
-ROZWIĄZANIE BOJO: podgląd to teraz karuzela trzech pełnych ekranów telefonu, którą
-przewija się palcem: „Twoje mecze", tworzenie meczu i strona meczu. Przyciski
-„Zorganizuj mecz" zostały dwa — w nagłówku strony i w sekcji „Co dostajesz";
-w sekcji „Jak to działa" klikalny jest pierwszy krok, a pas pod pytaniami zniknął.
-Pasek dla niezalogowanego na telefonie ma ikonę mapy, przycisk „Dołącz" (otwiera
-zakładanie konta) i ikonę logowania — bez menu pod hamburgerem.
-MECHANIKA: `components/home/landing/PhoneCarousel.tsx`, `PhoneShell.tsx`
-(proporcja `aspect-[9/19]` wymusza pełny ekran), `mockScreens.tsx`;
-`LANDING_STEPS[0].href` w `landing/content.ts`; usunięty `LandingFinalCta.tsx`;
-`Header.tsx` (klaster mobilny, kasacja arkusza menu), `AuthForm` prop `initialMode`.

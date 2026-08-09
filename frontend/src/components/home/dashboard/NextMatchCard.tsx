@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import WczesnyEtapBadge from '../landing/WczesnyEtapBadge';
 import type { MyEventRow } from '@/lib/myEvents';
 
 /** The dashboard's hero slot: the single match the user is actually playing
@@ -32,7 +33,7 @@ export default function NextMatchCard({ row }: { row: MyEventRow | null }) {
             href="/wydarzenia"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            Znajdź grę
+            Znajdź grę <WczesnyEtapBadge />
           </Link>
         </div>
         {/* Uprzedzenie zamiast rozczarowania: kto kliknie „Znajdź grę" i trafi

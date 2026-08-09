@@ -280,6 +280,18 @@ Odwrócenie ustalenia O-11 audytu, patrz [przeplyw-organizatora.md](./przeplyw-o
 Obok steppera liczby miejsc stoi podpowiedź, że graczy dopisuje się po utworzeniu meczu,
 na jego stronie, także bez konta.
 
+**Krok 2 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
+`components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej
+daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „powiadamiaj X dni wcześniej".
+Kliknięcie aktywnego kafelka wyłącza cykliczność, ikona ołówka na aktywnym kafelku
+ponownie otwiera modal. Ustawienia żyją wyłącznie w stanie kreatora — dopiero publikacja
+meczu tworzy **niezależny** szablon w `recurring_events` (`createRecurringEvent`), bez
+próby powiązania z konkretnym jednorazowym meczem, bo kolumna `events.recurring_event_id`
+nie istnieje w schemacie. Po publikacji strona meczu pokazuje jednorazowy link do panelu
+serii (`/cykliczne/{id}`) przez `?cykliczne=<id>` — ta trasa działa mimo że nawigacja do
+`/cykliczne` jest schowana za `SHOW_RECURRING` (flagi chowają wejścia, nie trasy).
+Zakres świadomie minimalny — patrz „Czego NIE ma" niżej.
+
 **Krok 3 — mecz w ramach ekipy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
 wyśrodkowana karta od `sm:`) z listą `getMyGroups()`. Wybór trafia do `createEvent`
@@ -309,8 +321,9 @@ krokach 1–2 i w chwili publikacji nie były widoczne.
 Sześć wierszy — Co / Kiedy / Gdzie / Skład / Koszt / Kto widzi — każdy z przyciskiem
 „Zmień" wołającym `attemptGoToStep`. Cofanie nigdy nie waliduje, więc skok jest bezpieczny
 z każdego wiersza. Siódmy wiersz to **organizator**: „Wyświetlasz się jako X" z edycją
-inline przez `updateDisplayName`; gdy konto nie ma żadnej nazwy własnej, pole startuje
-rozwinięte.
+inline przez `updateDisplayName`; gdy konto nie ma **pełnej** nazwy własnej (imię
+i nazwisko — `lib/profileName.ts#isPelneImie`, nie tylko dowolnie niepuste pole), pole
+startuje rozwinięte.
 
 Trzy ostrzeżenia, które **nie blokują** publikacji (krok 3 celowo nie ma pól wymaganych —
 `validateStep3` zwraca `{}`): mecz jest dzisiaj, miejsce zostało bez nazwy (same
@@ -328,6 +341,11 @@ Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
 `useSearchParams()` — ten hak wymusza na trasie prerenderowanej bail-out do CSR i wywala
 produkcyjny build (pułapka opisana w `AGENTS.md`). Zaraz po odczycie parametr znika
 z adresu przez `history.replaceState`, więc odświeżenie nie pokazuje panelu drugi raz.
+
+Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 2), doszedł
+`?cykliczne=<id>` — czytany tym samym `useEffect` i zdejmowany tak samo. Panel dostaje
+wtedy dodatkowy link „Ustawiłeś powtarzanie co tydzień — zarządzaj serią" do
+`/cykliczne/{id}`.
 
 **Jeden link i jeden tekst dla całej aplikacji** — `lib/eventShare.ts`. `eventUrl()` zwraca
 adres kanoniczny `/wydarzenia/{id}`, a nie krótki `/d/{kod}`: `robots.ts` trzyma `/d/` poza
@@ -749,6 +767,11 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Lista graczy pod `/gracze`** — to redirect.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
 - **Automatyczne uruchamianie migracji.**
+- **Pełna integracja cyklicznych wydarzeń z kreatorem jednorazowych meczów.** Kafelek
+  „Wydarzenie cykliczne" na kroku 2 tworzy niezależny szablon w `recurring_events` —
+  bez trwałego linku do konkretnego jednorazowego meczu (`events.recurring_event_id`
+  nie istnieje w schemacie) i bez realnego ekranu edycji szablonu (`/cykliczne/[id]/edytuj`
+  to zaślepka „w przygotowaniu"). Zadanie w [BACKLOG.md](../BACKLOG.md).
 
 ### Martwy kod
 

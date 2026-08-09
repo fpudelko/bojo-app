@@ -8,7 +8,7 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-08_
+_Ostatnia aktualizacja: 2026-08-09_
 
 ---
 
@@ -57,10 +57,25 @@ o lokalizację, nie o członkostwo, i dodatkowo ukryta flagą `SHOW_GAME_ALERTS`
 
 ### 1.3 Gry cykliczne ukryte flagą
 Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi.
-Kod jest kompletny (`lib/recurring.ts`, trasy `/cykliczne/*`, migracja `007`), ale
-`SHOW_RECURRING = false` ukrywa wejścia w `Header.tsx`, `app/page.tsx`, `app/moje-gry`.
+`SHOW_RECURRING = false` nadal ukrywa wejścia w `Header.tsx`, `app/page.tsx`,
+`app/moje-gry` — decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
 
-Decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
+Kod **nie jest już kompletny w takim stopniu, jak wcześniej zapisano tutaj**: kreator
+jednorazowego meczu (`app/wydarzenia/nowe/page.tsx`, krok 2) ma dziś kafelek „Wydarzenie
+cykliczne" (`components/events/RecurringSettingsDialog.tsx`), który tworzy szablon
+w `recurring_events` niezależnie od jednorazowego meczu — celowo minimalny zakres, patrz
+[docs/funkcje.md#czego-nie-ma](./docs/funkcje.md#czego-nie-ma). Brakuje:
+
+- kolumny `events.recurring_event_id` i realnego linkowania „następnego wydarzenia"
+  (`lib/recurring.ts#getNextEventsForRecurring` dziś cicho zwraca puste — kolumna,
+  której szuka to zapytanie, nigdy nie powstała w żadnej migracji),
+- realnego ekranu `/cykliczne/[id]/edytuj` — dziś zaślepka „Ta funkcja jest jeszcze
+  w przygotowaniu".
+
+Zakres pełnej integracji: migracja dodająca `events.recurring_event_id`, naprawa
+`spawnEventInstance()` żeby faktycznie linkowała, realny formularz edycji szablonu
+(mógłby ponownie użyć komponentów pól z `components/events/`, tak jak dziś robią to
+kreator i edycja jednorazowego meczu).
 
 ### 1.4 Rozliczenie po meczu — ZROBIONE
 Propozycja brzmi „Rozliczysz ekipę w minutę". Wpis opisywał dwa problemy, oba naprawione:

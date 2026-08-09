@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LANDING_CTA, LANDING_HERO } from './content';
 import RotatingBadge from './RotatingBadge';
+import WczesnyEtapBadge from './WczesnyEtapBadge';
 import PhoneCarousel from './PhoneCarousel';
 import TrustRow from './TrustRow';
 
@@ -41,12 +42,15 @@ export default function LandingHero() {
             >
               {LANDING_CTA.primary.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <Link
-              href={LANDING_CTA.secondary.href}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 underline underline-offset-4 hover:text-white"
-            >
-              {LANDING_CTA.secondary.label} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={LANDING_CTA.secondary.href}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 underline underline-offset-4 hover:text-white"
+              >
+                {LANDING_CTA.secondary.label} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+              <WczesnyEtapBadge />
+            </div>
           </div>
 
           <TrustRow className="mt-5" />

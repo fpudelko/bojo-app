@@ -44,6 +44,13 @@ export const MAP_FILTER_SPORTS = [
 
 export type SportKey = keyof typeof SPORT_CONFIG;
 
+/** Sports where a goalkeeper / field-player distinction makes sense. Used by
+ *  both the event creation wizard and the event edit page — dawniej
+ *  zdublowane, po jednej kopii w każdym pliku. Plain `string[]` (nie
+ *  `as const`) — wywołania `.includes(sport)` porównują z dowolnym stringiem
+ *  wybranego sportu, nie tylko literałami z tej listy. */
+export const GK_SPORTS: string[] = ['piłka nożna', 'futsal'];
+
 const _cfg = SPORT_CONFIG as Record<string, { emoji: string; color: string; label: string }>;
 
 export function sportEmoji(sport: string): string {

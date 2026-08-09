@@ -22,16 +22,6 @@ export function nazwaZEmaila(email: string | null | undefined): string {
   return email.split('@')[0]?.trim() ?? '';
 }
 
-/** Czy metadane konta niosą jakąkolwiek nazwę własną. Puste ciągi i same spacje
- *  liczą się jako brak — inaczej „ " przechodziłoby jako imię. */
-export function brakNazwy(
-  meta: { display_name?: unknown; full_name?: unknown; name?: unknown } | null | undefined,
-): boolean {
-  if (!meta) return true;
-  const kandydaci = [meta.display_name, meta.full_name, meta.name];
-  return !kandydaci.some((v) => typeof v === 'string' && v.trim().length > 0);
-}
-
 // Litery, myślnik i apostrof — nic więcej. Cyfry i znaki specjalne odpadają,
 // bo to ma być imię i nazwisko, nie pseudonim z forum.
 //
