@@ -417,12 +417,11 @@ async function confirmedCounts(eventId: string): Promise<{
 }> {
   const { data } = await supabase
     .from('event_participants')
-    .select('is_goalkeeper, claim_offered_at')
+    .select('is_goalkeeper, claim_offered_at, rsvp')
     .eq('event_id', eventId)
     .eq('is_reserve', false)
-    .eq('pending_approval', false)
-    .neq('rsvp', 'maybe');
-  const rows = data ?? [];
+    .eq('pending_approval', false);
+  const rows = (data ?? []).filter((r) => r.rsvp !== 'maybe');
   const confirmed = {
     field: rows.filter((r) => !r.is_goalkeeper && !r.claim_offered_at).length,
     goalkeeper: rows.filter((r) => r.is_goalkeeper && !r.claim_offered_at).length,

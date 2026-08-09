@@ -103,30 +103,38 @@ describe('joinEvent', () => {
     const { supabase } = await import('@/lib/supabase');
 
     // joinEvent queries:
-    //   events            → .select().eq().single() → { max_players: 10 }
-    //   event_participants → taken count:  .select({count}).eq().eq().eq()
-    //   event_participants → held count:   .select({count}).eq().not()
-    //   event_participants → .insert()
+    //   events            → .select().eq().single() → { max_players: 10, max_goalkeepers, goalkeepers_enabled }
+    //   event_participants (confirmedCounts) → .select().eq().eq().eq() → participant rows
+    //   event_participants (.insert)
+    let queryCount = 0;
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'events') {
         return {
           ...mockChain,
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: { max_players: 10 }, error: null }),
+              single: vi.fn().mockResolvedValue({
+                data: { max_players: 10, max_goalkeepers: 2, goalkeepers_enabled: false },
+                error: null,
+              }),
             }),
           }),
         } as unknown as ReturnType<typeof supabase.from>;
       }
-      // The taken-count query chains three .eq() filters (event_id, is_reserve,
-      // pending_approval). The held-count query chains .eq() then .not() for
-      // spots currently offered to someone on the reserve — none here.
-      const thirdEq = vi.fn().mockResolvedValue({ count: 5, error: null });
-      const secondEq = vi.fn().mockReturnValue({ eq: thirdEq });
-      const firstEq = vi.fn().mockReturnValue({
-        eq: secondEq,
-        not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+      // event_participants: confirmedCounts() chains .select('is_goalkeeper, claim_offered_at, rsvp').eq().eq().eq()
+      // Returns mock participant rows (5 non-reserve confirmed participants, no held offers).
+      const thirdEq = vi.fn().mockResolvedValue({
+        data: [
+          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
+          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
+          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
+          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
+          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
+        ],
+        error: null,
       });
+      const secondEq = vi.fn().mockReturnValue({ eq: thirdEq });
+      const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
       return {
         ...mockChain,
         select: vi.fn().mockReturnValue({ eq: firstEq }),
