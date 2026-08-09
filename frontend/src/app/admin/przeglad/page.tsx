@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { sportEmoji } from '@/lib/sports';
 import { distanceKm } from '@/lib/geo';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
+import { plural } from '@/lib/plural';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -241,7 +242,7 @@ function VenueCard({
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-700">
               <AlertTriangle className="w-3.5 h-3.5" />
-              {duplicates.length === 1 ? 'Możliwy duplikat' : `${duplicates.length} możliwe duplikaty`}
+              {plural(duplicates.length, 'Możliwy duplikat', `${duplicates.length} możliwe duplikaty`, `${duplicates.length} możliwych duplikatów`)}
             </p>
             {duplicates.map((d) => (
               <DuplicateRow key={d.id} v={d} onDelete={onDeleteDuplicate} />

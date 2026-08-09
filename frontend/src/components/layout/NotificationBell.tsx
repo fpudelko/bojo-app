@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
-import { Bell, Check } from 'lucide-react';
+import { Bell, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMyNotifications, markRead, toNotif } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
@@ -22,6 +22,42 @@ const TYP_NA_TRASE: Record<string, string> = {
 function celPowiadomienia(n: AppNotification): string | null {
   if (n.eventId) return `/wydarzenia/${n.eventId}`;
   return TYP_NA_TRASE[n.type] ?? null;
+}
+
+/** Treść wiersza — identyczna w wariancie klikalnym i nieklikalnym.
+ *
+ *  Rozróżnienie, o które chodzi: PRZECZYTANE ≠ ZAŁATWIONE. Otwarcie dzwonka
+ *  oznacza wszystko jako przeczytane, a wcześniej wiersz dostawał wtedy zieloną
+ *  fajkę i wyszarzenie — czyli prośba o dołączenie, której nikt jeszcze nie
+ *  rozpatrzył, wyglądała na obsłużoną. Fajki nie ma już wcale, a powiadomienia
+ *  wymagające działania nie blakną po przeczytaniu — zostają czytelne i dostają
+ *  znacznik „Sprawdź".
+ *
+ *  Znacznik celowo mówi „sprawdź", a nie „do zrobienia": dzwonek nie wie, czy
+ *  prośba została już rozpatrzona (stan siedzi przy meczu, nie przy
+ *  powiadomieniu), więc każde twierdzenie o stanie byłoby zgadywaniem — raz
+ *  w jedną, raz w drugą stronę. Zachęta do wejścia jest prawdziwa zawsze. */
+function TrescPowiadomienia({ n, wymagaAkcji }: { n: AppNotification; wymagaAkcji: boolean }) {
+  const wygaszone = !!n.readAt && !wymagaAkcji;
+  return (
+    <>
+      {!n.readAt && (
+        <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${wymagaAkcji ? 'bg-blue-600' : 'bg-primary-600'}`} />
+      )}
+      <p className={`text-sm leading-tight ${wygaszone ? 'font-normal text-slate-500' : 'font-medium text-ink'}`}>{n.title}</p>
+      {n.body && <p className={`text-xs mt-0.5 ${wygaszone ? 'text-slate-400' : 'text-slate-600'}`}>{n.body}</p>}
+      <div className="mt-1 flex items-center gap-2">
+        <p className="text-xs text-slate-400">
+          {new Date(n.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </p>
+        {wymagaAkcji && (
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+            Sprawdź <ChevronRight className="h-3 w-3" />
+          </span>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default function NotificationBell() {
@@ -114,38 +150,24 @@ export default function NotificationBell() {
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">
               {notifs.map((n) => {
-                const akcent = WYMAGA_AKCJI.has(n.type) ? 'blue' : 'primary';
+                const wymagaAkcji = WYMAGA_AKCJI.has(n.type);
                 const bgClass = !n.readAt
-                  ? (akcent === 'blue' ? 'bg-blue-50/60' : 'bg-primary-50/40')
-                  : 'opacity-60';
+                  ? (wymagaAkcji ? 'bg-blue-50/60' : 'bg-primary-50/40')
+                  : wymagaAkcji ? 'bg-blue-50/30' : 'opacity-60';
+                const cel = celPowiadomienia(n);
                 return (
                   <li key={n.id}>
-                    {celPowiadomienia(n) ? (
+                    {cel ? (
                       <Link
-                        href={celPowiadomienia(n)!}
+                        href={cel}
                         onClick={() => setOpen(false)}
                         className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${bgClass}`}
                       >
-                        {!n.readAt ? (
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${akcent === 'blue' ? 'bg-blue-600' : 'bg-primary-600'}`} />
-                        ) : (
-                          <Check className="inline-block w-3.5 h-3.5 text-slate-400 mb-1" strokeWidth={2.5} />
-                        )}
-                        <p className={`text-sm leading-tight ${!n.readAt ? 'font-medium text-ink' : 'font-normal text-slate-500'}`}>{n.title}</p>
-                        {n.body && <p className={`text-xs mt-0.5 ${!n.readAt ? 'text-slate-600' : 'text-slate-400'}`}>{n.body}</p>}
-                        <p className="text-xs text-slate-400 mt-1">
-                          {new Date(n.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} />
                       </Link>
                     ) : (
                       <div className={`px-4 py-3 ${bgClass}`}>
-                        {!n.readAt ? (
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${akcent === 'blue' ? 'bg-blue-600' : 'bg-primary-600'}`} />
-                        ) : (
-                          <Check className="inline-block w-3.5 h-3.5 text-slate-400 mb-1" strokeWidth={2.5} />
-                        )}
-                        <p className={`text-sm leading-tight ${!n.readAt ? 'font-medium text-ink' : 'font-normal text-slate-500'}`}>{n.title}</p>
-                        {n.body && <p className={`text-xs mt-0.5 ${!n.readAt ? 'text-slate-600' : 'text-slate-400'}`}>{n.body}</p>}
+                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} />
                       </div>
                     )}
                   </li>

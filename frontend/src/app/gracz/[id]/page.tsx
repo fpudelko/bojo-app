@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } from '@/lib/players';
 import { sportEmoji } from '@/lib/sports';
 import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
+import { withCount } from '@/lib/plural';
 
 export default function PublicPlayerPage() {
   const { id } = useParams<{ id: string }>();
@@ -175,7 +176,7 @@ export default function PublicPlayerPage() {
                         </div>
                         {h.goals > 0 && (
                           <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950 rounded-full px-2 py-0.5">
-                            {h.goals} {h.goals === 1 ? 'gol' : 'gole'}
+                            {withCount(h.goals, 'gol', 'gole', 'goli')}
                           </span>
                         )}
                         <ChevronRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600" />

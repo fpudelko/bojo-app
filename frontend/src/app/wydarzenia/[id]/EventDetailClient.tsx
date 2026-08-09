@@ -59,6 +59,7 @@ import {
   type TeamProposal,
 } from '@/lib/teamProposals';
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+import { withCount } from '@/lib/plural';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -1493,7 +1494,7 @@ export default function EventDetailClient() {
                 // it — a player already signed up (squad, reserve, pending or
                 // observing) is told the match is full, not invited to join again.
                 ? (amIInvolved ? 'Komplet' : 'Komplet — dołącz do rezerwy')
-                : `Zostało ${freeSpots} ${freeSpots === 1 ? 'wolne miejsce' : freeSpots < 5 ? 'wolne miejsca' : 'wolnych miejsc'}`}
+                : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
 
             {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
@@ -1515,7 +1516,20 @@ export default function EventDetailClient() {
               </button>
             )}
 
-            {/* Avatar stack — tap to expand. Hidden when roster is open. */}
+            {/* Avatar stack — tap to expand. Hidden when roster is open.
+                Rezerwa też otwiera listę: przy pustym składzie i kimś w kolejce
+                (np. mecz 1v1, do którego organizator zapisał się na rezerwę)
+                nie było czego kliknąć, więc rezerwowi byli niewidoczni. */}
+            {regulars.length === 0 && reserves.length > 0 && !rosterRozwiniety && (
+              <button
+                type="button"
+                onClick={() => setRosterOpen(true)}
+                className="mt-5 flex w-full items-center justify-center gap-1.5 text-sm text-slate-500"
+              >
+                Nikt nie ma jeszcze miejsca w składzie · {withCount(reserves.length, 'osoba', 'osoby', 'osób')} na rezerwie
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              </button>
+            )}
             {regulars.length > 0 && !rosterRozwiniety && (
               <button
                 type="button"
@@ -1557,16 +1571,17 @@ export default function EventDetailClient() {
                 <ChevronDown className="h-4 w-4 text-slate-400" />
               </button>
             )}
-            {regulars.length === 0 && (
+            {regulars.length === 0 && reserves.length === 0 && (
               <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
             )}
 
             {/* Roster — replaces avatar row when open */}
-            {(regulars.length > 0 || isOwner) && rosterRozwiniety && (
+            {(regulars.length > 0 || reserves.length > 0 || isOwner) && rosterRozwiniety && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    {regulars.length} {regulars.length === 1 ? 'gracz' : regulars.length < 5 ? 'gracze' : 'graczy'}
+                    {withCount(regulars.length, 'gracz', 'gracze', 'graczy')}
+                    {reserves.length > 0 && ` · ${reserves.length} na rezerwie`}
                   </span>
                   {!(isOwner && !eventStarted) && (
                     <button
@@ -1658,9 +1673,54 @@ export default function EventDetailClient() {
                   </li>
                 ))}
                 {regulars.length === 0 && (
-                  <li className="py-4 text-sm text-slate-400 text-center">Nikt jeszcze nie dołączył</li>
+                  <li className="py-4 text-sm text-slate-400 text-center">
+                    {reserves.length > 0 ? 'Nikt nie ma jeszcze miejsca w składzie' : 'Nikt jeszcze nie dołączył'}
+                  </li>
                 )}
               </ul>
+
+              {/* Rezerwa siedzi w tej samej liście co skład, a nie w osobnej
+                  karcie na dole strony. Przy pustym składzie osobna karta dawała
+                  sprzeczny obraz: „nikt jeszcze nie dołączył" tuż nad listą osób,
+                  które dołączyły. Numer to pozycja w kolejce — ta sama, którą
+                  `sync_reserve_claim` obchodzi przy zwolnionym miejscu. */}
+              {reserves.length > 0 && (
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Rezerwa — kolejka do zwolnionego miejsca
+                  </p>
+                  <ul className="divide-y divide-slate-100">
+                    {reserves.map((p, i) => (
+                      <li key={p.id} className="flex items-center justify-between gap-2 py-2.5">
+                        <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{i + 1}</span>
+                          <span className="min-w-0 truncate">{p.name}</span>
+                          {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
+                          {p.claimOfferedAt && (
+                            <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                              czeka na decyzję
+                            </span>
+                          )}
+                          {p.claimPassed && !p.claimOfferedAt && (
+                            <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              przepuścił(a)
+                            </span>
+                          )}
+                        </span>
+                        {p.userId === user?.id ? (
+                          <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : isOrganizer && (
+                          <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Usuń z rezerwy">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
               {isOrganizer && (
@@ -2000,47 +2060,6 @@ export default function EventDetailClient() {
               {regulars.filter((p) => p.userId !== event.organizerId).length === 0 && (
                 <li className="py-4 text-sm text-slate-400 text-center">Nikt poza Tobą jeszcze nie dołączył</li>
               )}
-            </ul>
-          </div>
-        )}
-
-        {/* Reserve list — organizer only (squad info is private) */}
-        {reserves.length > 0 && isOwner && !eventStarted && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
-              <Users className="w-4 h-4 text-slate-400" />
-              Lista rezerwowa
-              <span className="text-xs font-normal text-slate-400 ml-1">{reserves.length} os.</span>
-            </h2>
-            <ul className="divide-y divide-slate-100">
-              {reserves.map((p, i) => (
-                <li key={p.id} className="flex items-center justify-between py-2.5">
-                  <span className="flex items-center gap-2 text-sm text-slate-600">
-                    <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-medium shrink-0">{i + 1}</span>
-                    <span className="truncate max-w-[160px]">{p.name}</span>
-                    {p.isGuest && <span className="text-xs text-slate-400 shrink-0">(gość)</span>}
-                    {p.claimOfferedAt && (
-                      <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-                        czeka na decyzję
-                      </span>
-                    )}
-                    {p.claimPassed && !p.claimOfferedAt && (
-                      <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                        przepuścił(a)
-                      </span>
-                    )}
-                  </span>
-                  {p.userId === user?.id ? (
-                    <button onClick={() => handleRemove(p.id)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Zrezygnuj z rezerwy">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  ) : isOrganizer && (
-                    <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Usuń z rezerwy">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </li>
-              ))}
             </ul>
           </div>
         )}
@@ -2508,7 +2527,7 @@ export default function EventDetailClient() {
                 />
                 <span className="text-xs text-amber-800">
                   Wiem, że <span className="font-semibold">
-                    {confirmed.length} {confirmed.length === 1 ? 'osoba jest' : 'osób jest'} zapisanych
+                    {withCount(confirmed.length, 'osoba jest zapisana', 'osoby są zapisane', 'osób jest zapisanych')}
                   </span> na stary termin. Dostaną powiadomienie o zmianie.
                 </span>
               </label>
@@ -2591,7 +2610,7 @@ export default function EventDetailClient() {
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                 Na mecz zapisało się już{' '}
                 <span className="font-semibold">
-                  {confirmed.length} {confirmed.length === 1 ? 'osoba' : 'osób'}
+                  {withCount(confirmed.length, 'osoba', 'osoby', 'osób')}
                 </span>
                 . Zmiana na prywatny nikogo nie wypisuje — po prostu nowi nie znajdą meczu na liście.
               </p>

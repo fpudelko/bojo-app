@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Repeat, X } from 'lucide-react';
 import { ETYKIETY_ZAKRESU, type ZakresEdycji } from '@/lib/series';
+import { withCount } from '@/lib/plural';
 
 /**
  * „Której daty dotyczy ta zmiana?" — pytanie zadawane przy zapisie edycji meczu
@@ -90,7 +91,7 @@ export default function ZakresEdycjiSerii({
                         {ETYKIETY_ZAKRESU[opcja].tytul}
                       </span>
                       <span className="shrink-0 text-xs text-slate-400 tabular-nums">
-                        {licznik[opcja] === 1 ? '1 mecz' : `${licznik[opcja]} meczów`}
+                        {withCount(licznik[opcja], 'mecz', 'mecze', 'meczów')}
                       </span>
                     </span>
                     <span className="mt-0.5 block text-xs text-slate-500">

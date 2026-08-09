@@ -11,6 +11,7 @@ import { getMyGroups, getGroupByCode, joinGroup } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
 import { sportEmoji } from '@/lib/sports';
 import type { Group } from '@/types';
+import { withCount } from '@/lib/plural';
 
 export default function GroupsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -126,7 +127,7 @@ export default function GroupsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-ink truncate">{g.name}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {g.memberCount ?? 0} {g.memberCount === 1 ? 'członek' : (g.memberCount ?? 0) < 5 ? 'członków' : 'członków'}
+                    {withCount(g.memberCount ?? 0, 'członek', 'członkowie', 'członków')}
                     {g.city && ` · ${g.city}`}
                   </p>
                 </div>

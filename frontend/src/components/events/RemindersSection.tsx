@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Bell, Trash2, Plus, Clock } from 'lucide-react';
 import { getEventReminders, addReminder, deleteReminder } from '@/lib/reminders';
 import type { EventReminder, ReminderChannel } from '@/types';
+import { withCount } from '@/lib/plural';
 
 const MAX_REMINDERS = 5;
 
@@ -26,7 +27,7 @@ const CHANNEL_OPTIONS: { value: ReminderChannel; label: string }[] = [
 function offsetLabel(minutes: number): string {
   if (minutes >= 24 * 60 && minutes % (24 * 60) === 0) {
     const d = minutes / (24 * 60);
-    return `${d} ${d === 1 ? 'dzień' : 'dni'} przed`;
+    return `${withCount(d, 'dzień', 'dni', 'dni')} przed`;
   }
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

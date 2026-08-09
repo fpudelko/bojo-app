@@ -15,6 +15,7 @@ const POZNAN: [number, number] = [52.37, 16.97];
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 import { sportEmoji, sportColor } from '@/lib/sports';
+import { withCount } from '@/lib/plural';
 
 function eventIcon(event: EventItem): L.DivIcon {
   const emoji = sportEmoji(event.sport);
@@ -140,7 +141,7 @@ export default function EventsMapImpl({ className, sports, dateFrom, dateTo }: E
 
       {allEvents.length > 0 && (
         <div className="absolute top-2 left-2 z-[1000] bg-white/90 backdrop-blur-sm text-xs text-slate-600 px-2.5 py-1 rounded-full shadow-sm border border-slate-100">
-          {displayed.length} {displayed.length === 1 ? 'wydarzenie' : displayed.length < 5 ? 'wydarzenia' : 'wydarzeń'} z lokalizacją
+          {withCount(displayed.length, 'wydarzenie', 'wydarzenia', 'wydarzeń')} z lokalizacją
         </div>
       )}
 

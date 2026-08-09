@@ -296,6 +296,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-09 — Rezerwa widoczna w składzie, powiadomienia bez fałszywej fajki, poprawna odmiana liczebników
+
+PROBLEM: strona meczu w Bojo pokazywała „Nikt jeszcze nie dołączył" nawet wtedy, gdy
+ktoś stał w kolejce rezerwowej — lista rezerwowa mieszkała w osobnej karcie niżej,
+widocznej tylko dla organizatora, więc przy pustym składzie ekran zaprzeczał sam sobie.
+Przy zerowym składzie i niepustej rezerwie (np. mecz 1v1, na który organizator zapisał
+się jako rezerwowy) rezerwowych nie było widać w ogóle. Panel powiadomień oznaczał
+przeczytane wpisy zieloną fajką i wyszarzeniem, przez co nierozpatrzona prośba
+o dołączenie wyglądała na załatwioną — a otwarcie dzwonka oznacza jako przeczytane
+wszystko naraz. Liczebniki odmieniały się regułą `n < 5`, poprawną tylko dla 1–9:
+stąd „0 gracze", „13 minuty temu", „22 minut temu".
+
+ROZWIĄZANIE BOJO: kolejka rezerwowa jest częścią listy składu na stronie meczu —
+z numerem pozycji w kolejce, znacznikiem „czeka na decyzję" / „przepuścił(a)"
+i przyciskiem usunięcia. Osobna karta „Lista rezerwowa" zniknęła. Nagłówek listy podaje
+liczbę graczy i liczbę osób na rezerwie; „Nikt jeszcze nie dołączył" pokazuje się
+wyłącznie wtedy, gdy nie ma nikogo ani w składzie, ani w rezerwie. Powiadomienia nie
+dostają już fajki po przeczytaniu; te wymagające działania (prośba o dołączenie,
+zaproponowane zwolnione miejsce) nie blakną i mają znacznik „Sprawdź" — dzwonek nie
+twierdzi, czy sprawa jest załatwiona, bo tego stanu nie zna. Liczebniki w całej
+aplikacji odmieniają się według reguły polskiej (1 / 2–4 / 5+ z wyjątkiem 12–14).
+
+MECHANIKA: `wydarzenia/[id]/EventDetailClient.tsx` (rezerwa w liście składu, usunięta
+osobna karta, warunki pustych stanów uwzględniają `reserves`);
+`components/layout/NotificationBell.tsx` (wspólny `TrescPowiadomienia`, brak ikony
+`Check`, znacznik „Sprawdź" dla typów z `WYMAGA_AKCJI`); `lib/plural.ts` (`plural`,
+`withCount`) użyte w 13 plikach zamiast ręcznego `n < 5` — m.in. `EventBrowseCard.tsx`,
+`InviteFromGroupDialog.tsx`, `DashboardSections.tsx`, `GroupsClient.tsx`,
+`gracz/[id]/page.tsx`, `lib/eventDraft.ts`.
+
 ### 2026-08-09 — Rezerwa i bramkarze osobnymi kolejkami, treść powiadomień z datami, wizualne ulepszenia interfejsu
 
 PROBLEM: limit miejsc dla zawodników z pola w Bojo nigdy nie zadziałał — zawodnik
@@ -587,38 +617,3 @@ przez `matchWhenLabel()` z `lib/eventDates.ts`, `map.on('click', …)` zamykają
 `lib/eventFilters.ts#swipeEventId` + `lib/useSwipe.ts` (wykrywanie gestu); nowy wspólny
 `components/map/LocateMeButton.tsx` (ikona `LocateFixed`), używany w `VenueExplorer.tsx`
 i nowo w `components/map/GamesMapCanvas.tsx`.
-
-### 2026-08-07 — Suwaki filtrów i mapa meczów w /wydarzenia, tryb „Pokaż gry" na /mapa
-PROBLEM: lista meczów Bojo (`/wydarzenia`) na telefonie miała dwa osobne paski kafelków
-(sporty, potem filtry), filtr „Kiedy" był listą opcji, a „Odległość" dyskretnymi
-chipsami — żaden nie dawał precyzyjnej kontroli, i nie było w ogóle filtra ceny ani
-minimalnej liczby wolnych miejsc. Sprawdzenie meczów na mapie wymagało przejścia na
-osobną stronę `/mapa`, która pokazuje wyłącznie boiska, nie mecze, i gubi filtry
-ustawione na liście. Cztery strony (`/moje-gry`, `/grupy`, `/grupy/[id]`, widok
-wydarzenia) zostawiają na telefonie pasek nawigacji z pustym lewym rogiem. Kafelek
-„Najbliższy mecz" na `/moje-gry` miał inny, większy styl niż reszta kart tej strony.
-Baner „Wróciliśmy do Twojego szkicu" w kreatorze meczu pokazywał się nawet po samym
-wejściu na stronę, bez żadnej edycji formularza.
-ROZWIĄZANIE BOJO: jeden pasek kafelków (Sortuj / Filtry / Sport / Wolne miejsca / Za
-darmo) zamiast dwóch — „Sortuj" ma stały napis, nie nazwę aktualnie wybranej opcji, tak
-jak „Filtry" — a w modalu filtrów cztery suwaki (Kiedy, Odległość, Cena, minimalna
-liczba wolnych miejsc). Nowy przycisk obok dzwonka przełącza `/wydarzenia` na
-wewnętrzny widok mapy z pinezkami wszystkich meczów spełniających ustawione filtry —
-bez opuszczania strony. `/mapa` dostała przełącznik „Pokaż gry": zamienia cały pasek
-i pinezki na identyczny tryb (mecze zamiast boisk), bez resetowania pozycji mapy;
-zbędny przełącznik „Otwarte gry" (dublował się z „Gry dziś" i z samym trybem gier)
-zniknął z paska obiektów. Pinezki meczów na obu mapach mają teraz ostylowaną ikonę
-klastra (kolorowe kółko z liczbą, jak przy boiskach) zamiast gołego, nieczytelnego
-numeru, i większe, wyraźniejsze kropki dla pojedynczych meczów.
-`/moje-gry`, `/grupy`, `/grupy/[id]` i widok wydarzenia pokazują na telefonie kompaktowy
-napis „bojo" prowadzący na stronę główną. Kafelek „Najbliższy mecz" ma dziś ten sam styl
-co reszta kart na `/moje-gry`. Baner szkicu kreatora pokazuje się już tylko po realnej
-edycji formularza, mieści się w jednej linii i ma krzyżyk do zamknięcia.
-MECHANIKA: `components/ui/RangeSlider.tsx` (generyczny suwak); `lib/eventFilters.ts`
-(`filterByMaxPrice`, `filterByMinFreeSpots`, `multiLabel`, `toggleInArray`; `DateFilter`
-ma dziś `'miesiac'` zamiast `'weekend'`); `components/map/GamesMarkersLayer.tsx` +
-`GamesMapCanvas.tsx` (klastrowane pinezki meczów, współdzielone przez widok mapy
-w `/wydarzenia` i tryb gier na `/mapa`); `VenueExplorer.tsx` stan `showGames`
-(URL `?gry=1`); `Header.tsx` prop `showMobileWordmark`; `NextMatchCard.tsx` renderuje
-`EventBrowseCard`; `app/wydarzenia/nowe/page.tsx` guard `isFirstSave` przed pierwszym
-zapisem szkicu.

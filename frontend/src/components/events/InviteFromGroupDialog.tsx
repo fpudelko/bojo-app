@@ -6,6 +6,7 @@ import { X, Users, Check, Loader2 } from 'lucide-react';
 import { getMyGroups, getGroupMembers } from '@/lib/groups';
 import { getEventPlayerInvites, invitePlayers } from '@/lib/playerInvites';
 import type { Group, GroupMember } from '@/types';
+import { withCount } from '@/lib/plural';
 
 /**
  * Zaproszenie na mecz grupy albo wybranych jej graczy.
@@ -213,7 +214,7 @@ export default function InviteFromGroupDialog({
               ? 'Wybierz kogo zaprosić'
               : invitable.length > 1 && selected.size === invitable.length
                 ? `Zaproś całą grupę (${selected.size})`
-                : `Zaproś ${selected.size} ${selected.size === 1 ? 'osobę' : selected.size < 5 ? 'osoby' : 'osób'}`}
+                : `Zaproś ${withCount(selected.size, 'osobę', 'osoby', 'osób')}`}
           </button>
         </div>
       </div>

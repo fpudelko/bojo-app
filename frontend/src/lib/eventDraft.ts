@@ -4,6 +4,7 @@
 // idiom from lib/cookieConsent.ts (try/catch around every access) with a TTL
 // like the one in components/home/NearbyGames.tsx — that file is dead code with
 // an explicit "do not copy" notice, so this is a fresh, tested implementation.
+import { withCount } from '@/lib/plural';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 import type { LocationResult } from '@/components/map/UnifiedLocationPicker';
 
@@ -93,7 +94,7 @@ export function clearEventDraft(): void {
 export function draftAgeLabel(ts: number): string {
   const minutes = Math.floor((Date.now() - ts) / 60_000);
   if (minutes < 1) return 'przed chwilą';
-  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minutę' : minutes < 5 ? 'minuty' : 'minut'} temu`;
+  if (minutes < 60) return `${withCount(minutes, 'minutę', 'minuty', 'minut')} temu`;
   const hours = Math.floor(minutes / 60);
-  return `${hours} ${hours === 1 ? 'godzinę' : hours < 5 ? 'godziny' : 'godzin'} temu`;
+  return `${withCount(hours, 'godzinę', 'godziny', 'godzin')} temu`;
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { withCount } from '@/lib/plural';
 
 /**
  * Ustawienia cyklicznego powtarzania, otwierane z kafelka „Wydarzenie
@@ -61,7 +62,7 @@ export default function RecurringSettingsDialog({
 
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Otwieraj zapisy: <span className="font-semibold text-primary-600">{draft} {draft === 1 ? 'dzień' : 'dni'} przed terminem</span>
+              Otwieraj zapisy: <span className="font-semibold text-primary-600">{withCount(draft, 'dzień', 'dni', 'dni')} przed terminem</span>
             </label>
             <input
               type="range"

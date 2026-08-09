@@ -11,6 +11,7 @@ import { eventLocation } from '@/lib/utils';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
+import { withCount } from '@/lib/plural';
 
 /**
  * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
@@ -181,7 +182,7 @@ export function EventBrowseCard({ event, distance, relation }: {
                   <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
                 ) : (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
-                    {left === 1 ? '1 wolne miejsce' : left < 5 ? `${left} wolne miejsca` : `${left} wolnych miejsc`}
+                    {withCount(left, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}
                   </span>
                 )}
                 {statusChip ? (
