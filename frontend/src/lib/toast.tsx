@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useCallback, useState, type ReactNode } from 'react';
 import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { WARSTWA } from '@/lib/warstwy';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -38,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toasts.length > 0 && (
         <div
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none"
+          className={`fixed bottom-5 left-1/2 -translate-x-1/2 ${WARSTWA.toast} flex flex-col gap-2 items-center pointer-events-none`}
           aria-live="polite"
           aria-label="Powiadomienia"
         >

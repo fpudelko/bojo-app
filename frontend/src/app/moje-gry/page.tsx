@@ -11,7 +11,7 @@ import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { InvitesSection, MyMatchesSection, NeedsPlayersSection } from '@/components/home/dashboard/DashboardSections';
+import { InvitesSection, MyMatchesSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -188,6 +188,7 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
+            <PendingRequestsSection items={upcoming} />
             <NeedsPlayersSection items={upcoming} limit={null} />
             <NextMatchCard row={next} />
             <MyMatchesSection

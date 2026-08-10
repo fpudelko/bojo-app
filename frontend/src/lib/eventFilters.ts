@@ -4,7 +4,7 @@
 // logika, którą da się pomylić na kilka sposobów (strefy czasowe, granica
 // tygodnia, mecze bez współrzędnych), a w useMemo nie da się jej przetestować.
 
-import { isThisWeek, isSameMonth } from 'date-fns';
+import { isSameWeek, isSameMonth } from 'date-fns';
 import type { EventItem } from '@/types';
 
 export type DateFilter = 'wszystkie' | 'dzisiaj' | 'jutro' | 'tydzien' | 'miesiac';
@@ -46,19 +46,27 @@ export function matchesDateFilter(dateStr: string, filter: DateFilter, now = new
   switch (filter) {
     case 'dzisiaj': return diff === 0;
     case 'jutro':   return diff === 1;
-    case 'tydzien': return diff >= 0 && isThisWeek(dt, { weekStartsOn: 1 });
+    case 'tydzien': return diff >= 0 && isSameWeek(dt, now, { weekStartsOn: 1 });
     case 'miesiac': return diff >= 0 && isSameMonth(dt, now);
     default: return true;
   }
 }
 
+/** `isSameWeek(dt, now, …)`, nie `isThisWeek(dt, …)`.
+ *
+ *  `isThisWeek` porównuje z PRAWDZIWĄ dzisiejszą datą i ignoruje `now`, które
+ *  te funkcje przyjmują właśnie po to, żeby dało się je wywołać dla dowolnego
+ *  punktu w czasie. W produkcji różnicy nie widać (tam `now` to i tak dziś),
+ *  ale test na ustalonej środzie 2026-08-05 zaczął padać sam z siebie, gdy ta
+ *  środa minęła — i taki sam rozjazd wyszedłby wszędzie, gdzie chcielibyśmy
+ *  filtrować względem innej daty niż bieżąca. */
 export function dayGroup(dateStr: string, now = new Date()): DayGroup {
   const dt = eventDay(dateStr);
   if (!dt) return 'pozniej';
   const diff = daysFromToday(dt, now);
   if (diff === 0) return 'dzisiaj';
   if (diff === 1) return 'jutro';
-  if (isThisWeek(dt, { weekStartsOn: 1 })) return 'tydzien';
+  if (isSameWeek(dt, now, { weekStartsOn: 1 })) return 'tydzien';
   return 'pozniej';
 }
 

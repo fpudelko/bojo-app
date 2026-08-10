@@ -7,6 +7,7 @@ import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { hasPendingApprovalRequests } from '@/lib/events';
+import { WARSTWA } from '@/lib/warstwy';
 
 function BallIcon({ className }: { className?: string }) {
   return (
@@ -82,7 +83,7 @@ export default function BottomNav() {
     // zmienna --bottom-nav-h w globals.css; jej wartość musi się zgadzać
     // z `h-14` niżej.
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-[1200] bg-white/95 backdrop-blur-sm border-t border-slate-200/70"
+      className={`md:hidden fixed bottom-0 inset-x-0 ${WARSTWA.nawigacjaDolna} bg-white/95 backdrop-blur-sm border-t border-slate-200/70`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Nawigacja dolna"
     >

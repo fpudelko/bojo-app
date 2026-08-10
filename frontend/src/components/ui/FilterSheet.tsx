@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { WARSTWA } from '@/lib/warstwy';
 
 /**
  * Powłoka modala filtrów w stylu Booking: przycisk „Filtry" otwiera to, treść
@@ -42,15 +43,15 @@ export default function FilterSheet({
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9998]">
+    <div className={`fixed inset-0 ${WARSTWA.modal}`}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed inset-x-0 bottom-0 z-[9999] flex max-h-[85vh] flex-col rounded-t-3xl bg-white shadow-xl dark:bg-slate-800
-                   md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[80vh] md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl"
+        className={`fixed inset-x-0 bottom-0 ${WARSTWA.modalPanel} flex max-h-[85vh] flex-col rounded-t-3xl bg-white shadow-xl dark:bg-slate-800
+                   md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[80vh] md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl`}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-700">
           <h2 id={titleId} className="text-base font-bold text-ink">{title}</h2>
