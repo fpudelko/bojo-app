@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isPast, validateStep1, validateStep2, validateStep, validatePayments } from '@/lib/eventWizard';
+import { isPast, validateStep1, validateStep2, validateStep, validatePayments, validateGoalkeepers
+} from '@/lib/eventWizard';
 
 describe('isPast', () => {
   it('treats a far-future date/time as not past', () => {
@@ -110,5 +111,34 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
 
   it('step 2 treats missing payment fields as a free match (no payment errors)', () => {
     expect(validateStep(2, base)).toEqual({});
+  });
+});
+
+describe('validateGoalkeepers', () => {
+  it('sport bez bramkarza nie pyta o nic', () => {
+    expect(validateGoalkeepers({ sportMaBramkarza: false, goalkeepersEnabled: null })).toEqual({});
+  });
+
+  // Ustawienie było domyślnie włączone, więc organizator, który go nie
+  // zauważył, tworzył mecz z pulą rozbitą na role — i przy grze bez stałego
+  // bramkarza kolejni zawodnicy z pola lądowali na rezerwie mimo wolnych
+  // miejsc „dla bramkarzy". Wychodziło to dopiero na graczach.
+  it('sport z bramkarzem wymaga decyzji', () => {
+    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: null }))
+      .toHaveProperty('goalkeepers');
+  });
+
+  it('każda świadoma odpowiedź przechodzi', () => {
+    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: true })).toEqual({});
+    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: false })).toEqual({});
+  });
+
+  it('krok 2 blokuje przejście dalej bez decyzji', () => {
+    const errs = validateStep(2, {
+      location: { venue: {}, lat: 52, lng: 17 } as never,
+      date: '2099-01-01', time: '18:00',
+      sportMaBramkarza: true, goalkeepersEnabled: null,
+    });
+    expect(errs).toHaveProperty('goalkeepers');
   });
 });

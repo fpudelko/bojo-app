@@ -296,6 +296,38 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-10 — Rezerwa mówi wprost, że jest rezerwą; role bramkarzy jako świadomy wybór
+
+PROBLEM: gracz zapisujący się na mecz w Bojo z rozróżnieniem bramkarzy widział „zostały
+2 wolne miejsca", wybierał zawodnika z pola, dostawał zielony komunikat „Dołączyłeś do
+meczu!" — i był na liście rezerwowej, bo wolne były wyłącznie miejsca dla bramkarzy.
+Dowiadywał się o tym dopiero po zjechaniu na dół strony. Rozróżnianie bramkarzy było
+domyślnie WŁĄCZONE, więc organizator grający bez stałego bramkarza rozbijał pulę miejsc
+na role, nie wiedząc o tym. Obserwujący („może") jest zapisywany z `is_reserve = true`,
+żeby nie zajmować miejsca w składzie, i przez to trafiał do kolejki rezerwowej — kto
+kliknął „Obserwuj", widział siebie jako rezerwowego. Płatny mecz pozwalał dołączyć bez
+wskazania sposobu płatności. Organizator meczu wymagającego akceptacji wisiał we własnej
+kolejce próśb.
+
+ROZWIĄZANIE BOJO: licznik miejsc podaje rozbicie na role („8 w polu · 1 dla bramkarza"),
+okno zapisu ostrzega przed kliknięciem, że w wybranej roli jest komplet i który będzie
+to numer w kolejce, a komunikat po zapisie mówi „jesteś na liście rezerwowej" zamiast
+„dołączyłeś do meczu". Rezerwa ma jeden kolor w całej aplikacji — szary; bursztyn został
+przy obserwowaniu, niebieski przy oczekiwaniu na akceptację. Kreator nie zakłada
+odpowiedzi na pytanie o bramkarzy: dla sportów, które mają bramkarza, wybór Tak/Nie jest
+obowiązkowy i bez niego krok 2 nie przepuszcza dalej. Obserwujący nie pojawia się już na
+liście rezerwowej. Płatny mecz z listą akceptowanych metod wymaga wskazania sposobu
+płatności. Organizator dołącza do własnego meczu bez akceptacji.
+
+MECHANIKA: `lib/events.ts` (`joinEvent`/`confirmFromMaybe` zwracają `WynikZapisu`
+z `isReserve` i `pending`; `joinEvent` przyjmuje `jestemOrganizatorem`; nowa czysta
+funkcja `wolneMiejscaWgRol()`); `lib/eventWizard.ts` (`validateGoalkeepers()` wpięte
+w `validateStep(2, …)`); `EventCapacityFields.tsx` (Tak/Nie zamiast przełącznika,
+dopóki wartość to `null`); `wydarzenia/nowe/page.tsx` (`goalkeepersEnabled` startuje
+jako `null`); `lib/eventDraft.ts` (szkic potrafi zapamiętać brak decyzji);
+`EventDetailClient.tsx` (filtr `rsvp !== 'maybe'` na liście rezerwowej, rozbicie
+licznika, ostrzeżenie w oknie zapisu, wymuszony wybór płatności, szara kolorystyka).
+
 ### 2026-08-10 — Argument w zaproszeniu do przejęcia wpisu gościa, sprzątanie martwego kodu na stronie meczu
 
 PROBLEM: przycisk „Zaproś do Bojo" przy wierszu gościa kopiował do schowka sam adres
@@ -604,30 +636,3 @@ w `EventDetailClient.tsx`; `lib/lastVenue.ts` (localStorage, TTL 60 dni),
 `components/ui/SegmentedToggle.tsx` w `components/map/VenueExplorer.tsx`; domyślny cel
 w `app/auth/callback/page.tsx` i `UzupelnijProfilBanner` w `app/wydarzenia/EventsListView.tsx`;
 pole `wczesnyEtap` w `components/home/landing/content.ts`.
-
-### 2026-08-08 — Widoczność płatności i zaproszeń dla uczestnika, „Brakuje graczy" na /moje-gry
-PROBLEM: uczestnik płatnego meczu nigdy nie widział, ile ma zapłacić — kwotę
-po zniżce z karty sportowej i status opłacone/nieopłacone widział wyłącznie
-organizator. Organizator nie miał gdzie sprawdzić, na który z jego meczów
-nie zbiera się skład — `/moje-gry` świadomie miesza organizowanie i granie
-w jednej liście. Nie było też widać, kogo organizator zaprosił imiennie i kto
-odpowiedział — `dismissed_at` istniał w bazie od dawna, ale nigdzie się go nie
-pokazywało. Osobno: przycisk „Zaproś z ekipy" dublował się na stronie meczu,
-z dwiema różnymi ikonami i różnymi warunkami widoczności.
-ROZWIĄZANIE BOJO: nowa karta „Twoja płatność" na stronie meczu pokazuje
-uczestnikowi dokładną kwotę, sposób płatności i status. Nowa sekcja „Brakuje
-graczy" na `/moje-gry` (zakładka „Nadchodzące") wypisuje organizowane mecze
-bez kompletu, od najbliższego terminu — obok, nie zamiast, dotychczasowej
-wspólnej listy. Nowa karta „Zaproszeni" na stronie meczu (tylko organizator)
-pokazuje imię, awatar i status każdej zaproszonej osoby: Czeka / Dołączył(a)
-/ Nie tym razem. Przycisk „Zaproś z ekipy" został jeden, przy liczniku
-wolnych miejsc.
-MECHANIKA: `priceForParticipant()` (`lib/payments.ts`) użyty też po stronie
-uczestnika w `EventDetailClient.tsx`, gated przez `event.showPaymentStatus`;
-`NeedsPlayersSection` w `components/home/dashboard/DashboardSections.tsx`
-filtruje dane już pobrane przez `getMyParticipatedEvents()` — zero nowego
-zapytania; `components/events/EventInvitesStatus.tsx` +
-`getEventInvitesWithNames()` (`lib/playerInvites.ts`, drugie zapytanie do
-`profiles` — brak klucza obcego z `event_player_invites` do tej tabeli) +
-`lib/inviteStatus.ts` (reguła „uczestnictwo bije wcześniejszą odmowę", pod
-testem po tym, jak przegląd kodu złapał tu odwróconą kolejność).

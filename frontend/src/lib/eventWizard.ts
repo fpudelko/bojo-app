@@ -25,6 +25,28 @@ export function validateStep2(date: string, time: string): FieldErrors {
   return {};
 }
 
+/**
+ * Rozróżnianie bramkarzy to wybór, nie ustawienie domyślne.
+ *
+ * Domyślnie było WŁĄCZONE. Organizator, który tego nie zauważył, dostawał mecz
+ * z pulą miejsc rozbitą na role — a przy grze bez stałego bramkarza to znaczy,
+ * że po zapełnieniu pola kolejni zawodnicy lądują na rezerwie, mimo wolnych
+ * miejsc „dla bramkarzy". Wychodziło to dopiero przy zapisach, na graczach.
+ *
+ * `null` = jeszcze nie zdecydowano. Dotyczy wyłącznie sportów z bramkarzem;
+ * dla pozostałych pytanie nie ma sensu i nie jest zadawane.
+ */
+export function validateGoalkeepers(v: {
+  sportMaBramkarza: boolean;
+  goalkeepersEnabled: boolean | null;
+}): FieldErrors {
+  if (!v.sportMaBramkarza) return {};
+  if (v.goalkeepersEnabled === null) {
+    return { goalkeepers: 'Zdecyduj, czy mecz rozróżnia bramkarzy.' };
+  }
+  return {};
+}
+
 /** Step 3 (Opcje) has no required fields. */
 export function validateStep3(): FieldErrors {
   return {};
@@ -71,6 +93,8 @@ export function validateStep(
     blikPhone?: string;
     cardDiscountEnabled?: boolean;
     cardDiscountPln?: string;
+    sportMaBramkarza?: boolean;
+    goalkeepersEnabled?: boolean | null;
   },
 ): FieldErrors {
   if (n === 1) return validateStep1(v.location);
@@ -83,6 +107,10 @@ export function validateStep(
         blikPhone: v.blikPhone ?? '',
         cardDiscountEnabled: v.cardDiscountEnabled ?? false,
         cardDiscountPln: v.cardDiscountPln ?? '',
+      }),
+      ...validateGoalkeepers({
+        sportMaBramkarza: v.sportMaBramkarza ?? false,
+        goalkeepersEnabled: v.goalkeepersEnabled ?? null,
       }),
     };
   }

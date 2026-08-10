@@ -36,7 +36,7 @@ import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
-  syncReserveClaim, acceptReserveClaim, declineReserveClaim,
+  syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment,
@@ -545,7 +545,11 @@ export default function EventDetailClient() {
   const confirmed = participants.filter((p) => !p.pendingApproval);
   const pendingRequests = participants.filter((p) => p.pendingApproval);
   const regulars = confirmed.filter((p) => !p.isReserve);
-  const reserves = confirmed.filter((p) => p.isReserve);
+  // Obserwujący („może") siedzi w bazie z `is_reserve = true` — to sztuczka,
+  // żeby nie zajmował miejsca w składzie, a nie deklaracja gry. Bez tego filtru
+  // wpadał do kolejki rezerwowej i człowiek, który kliknął „Obserwuj",
+  // widział siebie jako rezerwowego.
+  const reserves = confirmed.filter((p) => p.isReserve && p.rsvp !== 'maybe');
   // Gość przejmuje wpis, dopóki ma token — po przejęciu `is_guest` przechodzi
   // na false (migracja 066), więc licznik sam się zeruje bez dodatkowego stanu.
   const niePrzejeciGoscie = [...regulars, ...reserves].filter((p) => p.isGuest && p.claimToken);
@@ -708,14 +712,21 @@ export default function EventDetailClient() {
       // Obserwujący ma już wiersz w `event_participants` — dosłowny `joinEvent`
       // wywaliłby się na unikalności. Przełączamy istniejący wpis, przekazując
       // te same decyzje (pozycja, płatność), które właśnie podjął w dialogu.
-      if (myMaybe) {
-        await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc);
-      } else {
-        await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc);
-      }
+      const wynik = myMaybe
+        ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc)
+        : await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc, isOwner);
       await load();
-      if (event.requireApproval) {
+      // Komunikat bierze się z TEGO, CO SIĘ STAŁO, nie z ustawień meczu.
+      // Wcześniej zawsze mówił „Dołączyłeś do meczu!" — także wtedy, gdy zapis
+      // wylądował na rezerwie, bo w wybranej roli był już komplet. Człowiek
+      // wychodził przekonany, że gra, a jedynym śladem był przycisk „wypisz się
+      // z rezerwy" gdzieś niżej na stronie.
+      if (wynik.pending) {
         toast('Wysłano prośbę o dołączenie — czekaj na akceptację organizatora');
+      } else if (wynik.isReserve) {
+        toast(asGoalkeeper
+          ? 'Komplet bramkarzy — jesteś na liście rezerwowej'
+          : 'Komplet w polu — jesteś na liście rezerwowej');
       } else {
         toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
       }
@@ -1133,6 +1144,22 @@ export default function EventDetailClient() {
   }
 
   const freeSpots = event.maxPlayers - takenSpots;
+  const wolne = wolneMiejscaWgRol(regulars, event);
+  // Czy rola wybrana w oknie dołączania jest już pełna — i którym z kolei
+  // będzie ten zapis. Liczone z tych samych danych, z których liczy je
+  // `decydujCzyRezerwa()` po stronie zapisu, żeby zapowiedź zgadzała się
+  // z tym, co faktycznie się stanie.
+  const rolaPelna = joinAsReserve || (gkEnabled
+    ? (joinRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
+    : wolne.razem === 0);
+  // Płatny mecz z listą akceptowanych metod wymaga deklaracji „jak zapłacę".
+  // Bez tego wpis lądował w bazie z `payment_method = null` i organizator nie
+  // miał czego rozliczyć — pole było widoczne, ale nic nie wymuszało wyboru.
+  const brakWyboruPlatnosci = event.costGrosze > 0
+    && event.acceptedPaymentMethods.length > 0
+    && !joinPaymentMethod;
+  const pozycjaWKolejce = reserves.filter((p) => !p.claimPassed
+    && (!gkEnabled || !!p.isGoalkeeper === (joinRole === 'goalkeeper'))).length + 1;
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -1279,14 +1306,22 @@ export default function EventDetailClient() {
               </span>
             )}
             {myConfirmed?.isReserve && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+              // Szary, nie bursztyn: bursztyn znaczy w tej apce „uwaga, coś się
+              // dzieje" (obserwowanie, ostrzeżenia), a niebieski — „wymaga
+              // akceptacji". Rezerwa to stan bierny: masz miejsce w kolejce,
+              // nie w składzie. Jeden kolor dla wszystkich komunikatów o rezerwie
+              // sprawia, że po kilku meczach sam kolor niesie informację.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
                 <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
                 Rezerwa{myReservePosition ? ` · ${myReservePosition}.` : ''}
                 {myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
               </span>
             )}
             {myMaybe && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
+              // Bursztyn — tak jak baner „Obserwujesz ten mecz" i przycisk
+              // w dolnym pasku. Szary zwolnił się dla rezerwy, a obserwowanie
+              // miało już swój kolor w dwóch innych miejscach tej samej strony.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
                 <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
               </span>
             )}
@@ -1550,6 +1585,20 @@ export default function EventDetailClient() {
                 ? (amIInvolved ? 'Komplet' : 'Komplet — dołącz do rezerwy')
                 : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
+
+            {/* Rozbicie na role. Sam licznik zbiorczy kłamał przez przemilczenie:
+                „zostały 2 wolne miejsca" przy komplecie w polu znaczyło
+                „2 miejsca dla bramkarzy", a zawodnik z pola i tak lądował na
+                rezerwie — dowiadując się o tym dopiero po zapisaniu się. */}
+            {wolne.rozdzielone && !isFull && (
+              <p className="mt-1 text-center text-xs text-slate-500">
+                {wolne.pole > 0 ? `${wolne.pole} w polu` : 'pole: komplet'}
+                {' · '}
+                {wolne.bramkarze > 0
+                  ? `${wolne.bramkarze} dla ${wolne.bramkarze === 1 ? 'bramkarza' : 'bramkarzy'}`
+                  : 'bramkarze: komplet'}
+              </p>
+            )}
 
             {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
                 człowiek orientuje się, że brakuje ludzi. Panel z linkiem jest
@@ -1921,16 +1970,16 @@ export default function EventDetailClient() {
             zdjąć z głowy. */}
         {amIReserve && !myClaimOffer && !eventStarted && (
           <div className="px-4">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="rounded-2xl border border-slate-300 bg-slate-100 p-4">
               <div className="flex items-start gap-2.5">
-                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.25} />
+                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" strokeWidth={2.25} />
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-amber-900">
+                  <p className="text-sm font-bold text-slate-800">
                     Jesteś na liście rezerwowej
                     {myReservePosition ? ` — ${myReservePosition}. w kolejce` : ''}
                     {myConfirmed?.isGoalkeeper ? ' · jako bramkarz' : ''}
                   </p>
-                  <ul className="mt-2 space-y-1.5 text-xs text-amber-800">
+                  <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                     <li>
                       <span className="font-semibold">Nie masz miejsca w składzie.</span>{' '}
                       Wejdziesz, gdy ktoś zapisany się wypisze.
@@ -2789,9 +2838,23 @@ export default function EventDetailClient() {
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 
-            {event.requireApproval && !joinAsReserve && (
+            {event.requireApproval && !joinAsReserve && !isOwner && (
               <p className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-medium text-blue-700">
                 Organizator musi zaakceptować Twoją prośbę, zanim wejdziesz do składu.
+              </p>
+            )}
+
+            {/* Komplet w WYBRANEJ roli — zanim ktoś kliknie „Zapisz mnie".
+                Bez tego jedyną informacją o rezerwie był komunikat po zapisie,
+                a przy meczu z bramkarzami licznik „zostały 2 miejsca" mógł
+                dotyczyć wyłącznie drugiej roli. */}
+            {!event.requireApproval && rolaPelna && (
+              <p className="mb-4 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">
+                {joinRole === 'goalkeeper'
+                  ? 'Bramkarze mają już komplet.'
+                  : gkEnabled ? 'W polu jest już komplet.' : 'Mecz ma już komplet.'}
+                {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
+                <span className="font-bold">{pozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
               </p>
             )}
 
@@ -2930,6 +2993,12 @@ export default function EventDetailClient() {
               );
             })()}
 
+            {brakWyboruPlatnosci && (
+              <p className="mb-2 text-center text-xs font-medium text-slate-500">
+                Wybierz sposób płatności, żeby się zapisać.
+              </p>
+            )}
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setJoinDialogOpen(false)} className="flex-1">
                 Anuluj
@@ -2937,6 +3006,7 @@ export default function EventDetailClient() {
               <Button
                 onClick={() => { setJoinDialogOpen(false); handleJoin(joinRole === 'goalkeeper'); }}
                 isLoading={busy}
+                disabled={brakWyboruPlatnosci}
                 className="flex-1 bg-primary-700 hover:bg-primary-800"
               >
                 Zapisz mnie
