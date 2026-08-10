@@ -926,35 +926,33 @@ function NewEventForm() {
                       setRecurringModalOpen(true);
                     }}
                     className={[
-                      'flex h-full w-full flex-col items-start justify-between gap-2 rounded-lg border p-3 text-left transition-colors',
+                      'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
                       recurringEnabled ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
                     ].join(' ')}
                   >
-                    <span className="flex w-full items-start justify-between gap-2">
-                      <span className="flex items-start gap-2">
-                        <Repeat className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
-                        <span>
-                          <span className="block text-sm font-medium text-slate-900">Wydarzenie cykliczne</span>
-                          <span className="block text-xs text-slate-500">
-                            {recurringEnabled
-                              ? `Co tydzień, przypomnienie ${recurringNotifyDaysBefore} ${recurringNotifyDaysBefore === 1 ? 'dzień' : 'dni'} wcześniej`
-                              : 'Powtarzaj ten mecz co tydzień'}
-                          </span>
-                        </span>
+                    <Repeat className={`h-5 w-5 shrink-0 ${recurringEnabled ? 'text-primary-700' : 'text-slate-500'}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-slate-900">Wydarzenie cykliczne</span>
+                      <span className="block text-xs text-slate-500">
+                        {recurringEnabled
+                          ? `Co tydzień, przypomnienie ${withCount(recurringNotifyDaysBefore, 'dzień', 'dni', 'dni')} wcześniej`
+                          : 'Powtarzaj ten mecz co tydzień'}
                       </span>
-                      {recurringEnabled && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => { e.stopPropagation(); setRecurringModalOpen(true); }}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setRecurringModalOpen(true); } }}
-                          aria-label="Edytuj ustawienia cyklicznego wydarzenia"
-                          className="shrink-0 rounded-lg p-1.5 text-primary-700 hover:bg-primary-100"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </span>
-                      )}
                     </span>
+                    {recurringEnabled ? (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); setRecurringModalOpen(true); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setRecurringModalOpen(true); } }}
+                        aria-label="Edytuj ustawienia cyklicznego wydarzenia"
+                        className="shrink-0 rounded-lg p-1.5 text-primary-700 hover:bg-primary-100"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-xs font-semibold text-primary-700">Włącz</span>
+                    )}
                   </button>
                 }
               />

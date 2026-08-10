@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
 import {
-  ArrowRight, Bell, BellRing, CalendarPlus, Plus, Share2, Users,
+  ArrowRight, Bell, BellRing, CalendarPlus, Plus, Repeat, Share2, Users,
   type LucideIcon,
 } from 'lucide-react';
 import AlertSetupDialog from '../AlertSetupDialog';
@@ -116,6 +116,57 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
  *  bywa przekazywane w kolejności `getMyParticipatedEvents()`, która sortuje
  *  malejąco (ten sam powód, dla którego `nextMatch()` w `lib/myEvents.ts`
  *  sortuje samodzielnie zamiast ufać porządkowi wejścia). */
+/** Kolejna edycja stałej gierki, która jeszcze nie powstała.
+ *
+ *  Termin serii tworzy się sam, `notifyDaysBefore` dni przed datą meczu — do
+ *  tego czasu organizator nie widział po sobie żadnego śladu i nie miał jak
+ *  odróżnić „jeszcze za wcześnie" od „mechanizm nie zadziałał". Karta jest
+ *  celowo WIDMEM: liczymy ją z szablonu serii, w bazie nie powstaje żaden
+ *  wiersz. Tworzenie meczu wcześniej tylko po to, żeby go pokazać, wysłałoby
+ *  powiadomienia przed czasem i zaśmiecało listy odwołanymi terminami.
+ *
+ *  Data liczona jest tą samą regułą co `utworz_nalezne_terminy_serii()`
+ *  w migracji `073`, więc karta pokazuje dokładnie ten termin, który powstanie. */
+export function NastepneEdycjeSection({ pozycje }: {
+  pozycje: { serieId: string; nazwa: string; data: string; godzina: string; zaIle: number; powstanieZa: number }[];
+}) {
+  if (pozycje.length === 0) return null;
+  return (
+    <div>
+      <SectionHeader
+        title="Kolejne stałe gierki"
+        subtitle="Terminy, które powstaną same — jeszcze ich nie ma"
+      />
+      <div className="space-y-3">
+        {pozycje.map((p) => (
+          <Link
+            key={p.serieId}
+            href={`/cykliczne/${p.serieId}`}
+            className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3.5 transition-colors hover:border-slate-400 dark:border-slate-600 dark:bg-slate-800/40"
+          >
+            <Repeat className="h-4 w-4 shrink-0 text-slate-400" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-500 dark:text-slate-400">{p.nazwa}</p>
+              <p className="text-xs text-slate-400">
+                {formatujTermin(p.data)} · {p.godzina.slice(0, 5)}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-800">
+              {p.powstanieZa <= 0 ? 'powinien już istnieć' : `powstanie za ${withCount(p.powstanieZa, 'dzień', 'dni', 'dni')}`}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** „niedz. 16 sie" — ten sam skrót co na kartach meczów. */
+function formatujTermin(data: string): string {
+  const [y, m, d] = data.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 /** Prośby o dołączenie czekające na decyzję organizatora.
  *
  *  Stoi NAD „Brakuje graczy", bo to jedyna sekcja, w której ktoś czeka na

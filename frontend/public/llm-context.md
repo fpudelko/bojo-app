@@ -296,6 +296,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-10 — Powiadomienia gasną po załatwieniu sprawy, zapowiedź kolejnej stałej gierki, krok 2 kreatora na telefonie
+
+PROBLEM: powiadomienie o prośbie o dołączenie zostawało w Bojo oznaczone jako wymagające
+działania także po tym, jak organizator prośbę przyjął — dzwonek zna tylko fakt
+przeczytania, a stan sprawy siedzi przy meczu. Kolejny termin stałej gierki powstaje sam
+dopiero `notify_days_before` dni przed datą meczu i do tego momentu organizator nie
+widział po nim żadnego śladu: nie dało się odróżnić „jeszcze za wcześnie" od „mechanizm
+nie zadziałał". Krok 2 kreatora meczu na telefonie ściskał kafelek „Wydarzenie cykliczne"
+do połowy szerokości ekranu (opis łamał się na pięć linijek), a teksty pomocnicze przy
+liczbie miejsc i czasie na decyzję z rezerwy stały w wąskiej kolumnie obok kontrolek.
+
+ROZWIĄZANIE BOJO: dzwonek sprawdza rzeczywisty stan sprawy — czy mecz ma jeszcze wpis
+czekający na akceptację i czy oferta zwolnionego miejsca jest nadal aktywna. Załatwione
+powiadomienie gaśnie jak każdy przeczytany wpis; nierozstrzygnięte zostaje czytelne ze
+znacznikiem „Sprawdź". Gdy zapytanie o stan się nie powiedzie, wygląd zostaje bez zmian.
+`/moje-gry` pokazuje sekcję „Kolejne stałe gierki": kreskowana karta z datą i godziną
+terminu, który dopiero powstanie, oraz informacją, za ile dni to nastąpi. Karta jest
+liczona z szablonu serii — żaden mecz nie powstaje w bazie wcześniej. Krok 2 kreatora
+układa kafelek cykliczności w osobnym wierszu pod datą i godziną, a teksty pomocnicze
+schodzą pod kontrolki poniżej progu `sm`.
+
+MECHANIKA: `lib/notifications.ts` (`otwarteSprawy()` i `WYMAGA_AKCJI` przeniesione tu
+z komponentu; dwa zapytania do `event_participants` — `pending_approval` oraz własne
+`claim_offered_at`); `NotificationBell.tsx` (stan spraw dociągany przy każdym otwarciu
+panelu); `lib/recurring.ts` (`nastepnyTermin()` powtarza regułę SQL z migracji `073`
+łącznie z warunkiem „dziś, ale godzina minęła", plus `dniDo()`);
+`DashboardSections.tsx` (`NastepneEdycjeSection`); `moje-gry/page.tsx` (dociąga szablony
+serii i już utworzone terminy); `EventDateTimeField.tsx` (`extraSlot` na pełną
+szerokość pod wierszami); `EventCapacityFields.tsx` (`flex-col` do `sm:`).
+
 ### 2026-08-10 — Prośby o dołączenie na /moje-gry, poprawna kolejność meczów, modale nad nawigacją
 
 PROBLEM: organizator w Bojo nie miał gdzie zobaczyć, KTÓRY mecz czeka na jego decyzję —
@@ -602,24 +632,3 @@ tam `displayName`/`firstName`/`avatarUrl` + `isPelneImie`, `brakNazwy`); migracj
 (wyzwalacze `powiadom_o_odwolaniu` na `events` i `powiadom_o_braku_nazwy` na `auth.users`);
 `components/home/dashboard/UzupelnijProfilBanner.tsx`; `LocateMeButton` i `fitBounds`
 w `components/map/UnifiedLocationPickerImpl.tsx`.
-
-### 2026-08-07 — Rozwijane pigułki filtrów w pełni widoczne, godzina na pinezce meczu, naprawiony licznik "0 obiektów"
-PROBLEM: rozwijane pigułki filtrów (Sortuj, Sport) na `/wydarzenia` i `/mapa`
-wyrównywały panel do lewej krawędzi przycisku — dla przycisku blisko prawej krawędzi
-telefonu panel wyjeżdżał poza ekran i obcinał kolumnę z ptaszkami przy wybranych
-opcjach, więc nie było widać, co jest zaznaczone. Etykieta „kiedy" na pinezkach meczów
-(dodana w poprzedniej rundzie) pokazywała tylko dzień („jutro", „w piątek"), bez
-godziny, więc trzeba było dotknąć pinezki, żeby w ogóle zorientować się, o której mecz
-się zaczyna. Modal filtrów na `/mapa` (Typ obiektu, Nawierzchnia) przy domyślnym,
-oddalonym widoku całej Polski zawsze pokazywał „Pokaż 0 obiektów" — licznik liczył się
-z listy, która w tym trybie mapy jest zawsze pusta, niezależnie od tego, ile obiektów
-realnie było w kadrze.
-ROZWIĄZANIE BOJO: panel rozwijanej pigułki dosuwa się teraz do prawej krawędzi ekranu
-zamiast wyjeżdżać poza nią, gdy przycisk stoi blisko brzegu — cała lista z ptaszkami
-jest zawsze w pełni widoczna. Etykieta na pinezce meczu pokazuje teraz dzień i godzinę
-razem (np. „jutro · 18:00", „w piątek · 20:30"). Licznik w modalu filtrów na `/mapa`
-w oddalonym widoku pokazuje realną liczbę obiektów w kadrze zamiast zawsze zera.
-MECHANIKA: `components/ui/FilterPill.tsx#PillDropdown` (stała szerokość panelu +
-przeliczenie pozycji względem prawej krawędzi ekranu); `components/map/GamesMarkersLayer.tsx`
-(`matchWhenLabel(date, time)` zamiast `matchWhenLabel(date)`); `VenueExplorer.tsx#previewFieldsCount`
-(w trybie skupisk liczy z `wKadrze` zamiast z pustego `allFields`).

@@ -11,7 +11,8 @@ import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { InvitesSection, MyMatchesSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
+import { InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
+import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -61,6 +62,42 @@ function MojeGryContent() {
       .then(setItems)
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
+  }, [user]);
+
+  // Kolejne terminy serii, których jeszcze nie ma w bazie. Osobno od
+  // `getMyParticipatedEvents`, bo to nie są mecze — to szablony. Cicha porażka
+  // jest tu w porządku: brak tej sekcji nie psuje strony.
+  const [nastepneEdycje, setNastepneEdycje] = useState<
+    { serieId: string; nazwa: string; data: string; godzina: string; zaIle: number; powstanieZa: number }[]
+  >([]);
+  useEffect(() => {
+    if (!user) { setNastepneEdycje([]); return; }
+    let aktualne = true;
+    (async () => {
+      const serie = (await getMyRecurringEvents(user.id)).filter((s) => s.isActive);
+      if (serie.length === 0) { if (aktualne) setNastepneEdycje([]); return; }
+      const utworzone = await getNextEventsForRecurring(serie.map((s) => s.id));
+      const pozycje = serie
+        .map((s) => {
+          const data = nastepnyTermin(s.dayOfWeek, s.eventTime);
+          // Termin już istnieje → nie ma czego zapowiadać, mecz jest na liście
+          // wyżej jak każdy inny.
+          if (utworzone[s.id]?.date === data) return null;
+          const zaIle = dniDo(data);
+          return {
+            serieId: s.id,
+            nazwa: s.title || `${s.sport} — ${s.fieldName}`,
+            data,
+            godzina: s.eventTime,
+            zaIle,
+            powstanieZa: zaIle - s.notifyDaysBefore,
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .sort((a, b) => a.data.localeCompare(b.data));
+      if (aktualne) setNastepneEdycje(pozycje);
+    })().catch(() => {});
+    return () => { aktualne = false; };
   }, [user]);
 
   // Cancelled games never count as "upcoming" — they drop into History so the
@@ -196,6 +233,7 @@ function MojeGryContent() {
               limit={null}
               href={null}
             />
+            <NastepneEdycjeSection pozycje={nastepneEdycje} />
           </div>
         ) : tab === 'observing' ? (
           observing.length === 0 ? (
