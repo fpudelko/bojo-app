@@ -2,6 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { supabase } from './supabase';
 import { eventDisplayTitle } from './eventTitle';
+import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import type { DaneDoUdostepnienia } from './eventShare';
 
 /**
@@ -54,11 +55,17 @@ export async function przejmijWpisGoscia(token: string, nazwa: string): Promise<
 }
 
 /** Link do wysłania gościowi. Domena z `NEXT_PUBLIC_SITE_URL`, tak jak reszta
- *  linków w aplikacji — `bojo.pl` jako wartość zapasowa. */
+ *  linków w aplikacji — `bojo.pl` jako wartość zapasowa.
+ *
+ *  Origin przepuszczamy przez `kanonicznyOrigin()`: organizator na
+ *  `www.bojo.pl` wysyłał dotąd link z `www.`, a logowanie z takiego adresu
+ *  startuje z innego origin niż ten wpisany na listę dozwolonych w Supabase —
+ *  i przekierowanie po zalogowaniu lądowało na stronie głównej zamiast na
+ *  stronie przejęcia wpisu. */
 export function linkPrzejeciaWpisu(token: string): string {
   const baza =
     typeof window !== 'undefined'
-      ? window.location.origin
+      ? kanonicznyOrigin(window.location.origin)
       : process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';
   return `${baza}/gracz/przejmij/${token}`;
 }

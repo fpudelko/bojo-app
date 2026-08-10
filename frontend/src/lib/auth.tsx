@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { track } from './analytics';
+import { zapamietajPowrot, odbierzPowrot } from './powrotPoLogowaniu';
 import { setHintCookie, clearHintCookie } from './sessionHint';
 
 interface AuthContextValue {
@@ -96,6 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Track a login once per browser session (SIGNED_IN also fires on tab
       // refocus / token refresh, so dedupe with a sessionStorage flag).
+      // Supabase odsyła na Site URL, gdy nasz `redirectTo` nie jest na liście
+      // dozwolonych adresów — wtedy `/auth/callback` w ogóle się nie wykonuje
+      // i cały `?next=` przepada. Rozpoznajemy to po tym, że po zalogowaniu
+      // stoimy na stronie głównej, i dokańczamy podróż z zapamiętanego celu.
+      if (event === 'SIGNED_IN' && session && typeof window !== 'undefined'
+          && window.location.pathname === '/') {
+        const cel = odbierzPowrot();
+        if (cel) { window.location.replace(cel); return; }
+      }
       if (event === 'SIGNED_IN' && session?.user) {
         const key = `bojo:login-tracked:${session.user.id}`;
         if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
@@ -115,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async (next?: string) => {
+    zapamietajPowrot(next);
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: callbackUrl(next) },
@@ -134,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // w mail lądował na stronie głównej zamiast wracać do kreatora — w odróżnieniu
   // od Google i magic linku, które `next` przekazywały od zawsze.
   const signUpWithEmail = async (email: string, password: string, name?: string, next?: string) => {
+    zapamietajPowrot(next);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -148,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const sendMagicLink = async (email: string, next?: string) => {
+    zapamietajPowrot(next);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: callbackUrl(next) },
