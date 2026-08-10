@@ -6,8 +6,9 @@
  * ginąć w linku wklejonym na czacie. Odpowiedź to zwykłe „Dołączam"
  * / „Obserwuję" / „Odrzucam" na stronie meczu.
  *
- * Nie mylić z `lib/invites.ts` — tamto obsługuje zaproszenia po adresie e-mail
- * z tokenem (tabela `event_invites`, migracja 036) i nie jest dziś używane.
+ * Nie mylić z tabelą `event_invites` (migracja 036, zaproszenia po adresie
+ * e-mail z tokenem) — ten model danych zostaje niewykorzystany, kod, który go
+ * obsługiwał (`lib/invites.ts`), usunięto jako martwy (audyt O-26).
  */
 
 import { supabase } from './supabase';

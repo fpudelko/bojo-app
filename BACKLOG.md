@@ -20,15 +20,21 @@ czego jeszcze nie zrobiono — bez kopiowania treści, żeby obie listy się nie
 
 `O-20`, `O-23`, `O-24`, `O-25` zrobione w drugiej rundzie (duplikat „Zaproś z ekipy"
 usunięty, karta „Twoja płatność" dla uczestnika, sekcja „Brakuje graczy" na `/moje-gry`,
-karta „Zaproszeni" ze statusem odpowiedzi). Zostają:
+karta „Zaproszeni" ze statusem odpowiedzi). `O-26` zrobione trzecią rundą (2026-08-10):
+usunięto nieosiągalny modal „Zgłoś uczestnika" (`submitReport`/`getEventReports`,
+typy `ReportType`/`PlayerReport`), martwe `handleSendSms`/`smsBusy` w
+`EventDetailClient.tsx` i cały plik `lib/invites.ts` (zero importów). Ta sama runda
+naprawiła też goły link w zaproszeniu do przejęcia wpisu gościa — `kopiujLinkPrzejecia`
+kopiował sam URL bez argumentu, ten sam błąd co `O-18`, tu nienaprawiony do teraz —
+i dodała sygnał „N gości bez konta" nad składem oraz przycisk „Zaproś do Bojo" w
+widoku po starcie meczu (`ParticipantsList`), gdzie wcześniej znikał całkowicie. Zostaje:
 
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
-| **O-26** | Martwy kod na ścieżce organizatora: nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + `smsBusy` bez użycia, `lib/invites.ts` (86 linii) bez ani jednego importu | `EventDetailClient.tsx`, `lib/invites.ts` |
 
-Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1), powiadomienie
-dla grupy o nowej grze (§1.2), odmrażanie flag (§2).
+Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1),
+odmrażanie flag (§2).
 
 ---
 
@@ -47,13 +53,18 @@ tylko przez kod.
 
 Zakres: migracja rozszerzająca CHECK + polityka RLS + opcja w kreatorze meczu i edycji.
 
-### 1.2 Powiadomienie dla członków grupy o utworzeniu gry
+### 1.2 Powiadomienie dla członków grupy o utworzeniu gry — ZROBIONE
 Wizja stawia to jako część propozycji „Grupy — zastąpienie facebook/whatsapp". Bez
 powiadomienia grupa nie zastępuje czatu, bo nikt nie wie, że gra powstała.
 
-Kanał powiadomień **istnieje** (patrz §3) — brakuje wyzwalacza przy `createEvent`
-z `group_id`. Jedyna dzisiejsza ścieżka to `game_alerts` (promień + sport), oparta
-o lokalizację, nie o członkostwo, i dodatkowo ukryta flagą `SHOW_GAME_ALERTS`.
+~~Kanał powiadomień istnieje — brakuje wyzwalacza przy `createEvent` z `group_id`~~
+— migracja `072` (2026-08-09) dodała trigger `powiadom_o_nowym_meczu_w_grupie`:
+każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
+wszystkim członkom grupy poza organizatorem. Ten sam mechanizm (`SECURITY
+DEFINER`, patrz `065`/`070`) powiadamia też organizatora o nowej prośbie o
+dołączenie. Zostaje jako otwarte tylko to, co dokument opisywał osobno:
+`game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) wciąż
+za flagą `SHOW_GAME_ALERTS` — to inna funkcja, nie ta sama luka.
 
 ### 1.3 Gry cykliczne ukryte flagą
 Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi.
