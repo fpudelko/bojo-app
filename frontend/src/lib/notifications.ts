@@ -25,6 +25,68 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
   return (data ?? []).map(toNotif);
 }
 
+/** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered']);
+
+/**
+ * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
+ *
+ * Powiadomienie samo w sobie nie wie, czy sprawa została załatwiona — niesie
+ * tylko fakt „coś się wydarzyło". Dzwonek oznacza wszystko jako przeczytane
+ * przy otwarciu, więc bez tego zapytania każdy stan wizualny jest zgadywaniem:
+ * albo prośba rozpatrzona wygląda na czekającą, albo czekająca na rozpatrzoną.
+ * Oba warianty już się w tej apce zdarzyły.
+ *
+ * Stan bierzemy stamtąd, gdzie naprawdę jest:
+ *   - `prosba_o_dolaczenie` — czy w tym meczu wisi jeszcze jakiś wpis
+ *     `pending_approval` (RLS pokazuje je organizatorowi),
+ *   - `reserve_claim_offered` — czy MÓJ wpis w tym meczu ma nadal aktywną
+ *     ofertę zwolnionego miejsca.
+ *
+ * Zwraca zbiór identyfikatorów powiadomień, które są nadal otwarte. Błąd
+ * zapytania oznacza `null` — wywołujący ma wtedy zostawić dotychczasowy
+ * wygląd, a nie zgadywać w drugą stronę.
+ */
+export async function otwarteSprawy(
+  userId: string,
+  powiadomienia: AppNotification[],
+): Promise<Set<string> | null> {
+  const doSprawdzenia = powiadomienia.filter((n) => WYMAGA_AKCJI.has(n.type) && n.eventId);
+  if (doSprawdzenia.length === 0) return new Set();
+
+  const meczeProsb = Array.from(new Set(
+    doSprawdzenia.filter((n) => n.type === 'prosba_o_dolaczenie').map((n) => n.eventId!),
+  ));
+  const meczeOfert = Array.from(new Set(
+    doSprawdzenia.filter((n) => n.type === 'reserve_claim_offered').map((n) => n.eventId!),
+  ));
+
+  try {
+    const [prosby, oferty] = await Promise.all([
+      meczeProsb.length
+        ? supabase.from('event_participants').select('event_id')
+            .eq('pending_approval', true).in('event_id', meczeProsb)
+        : Promise.resolve({ data: [], error: null }),
+      meczeOfert.length
+        ? supabase.from('event_participants').select('event_id')
+            .eq('user_id', userId).not('claim_offered_at', 'is', null).in('event_id', meczeOfert)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (prosby.error || oferty.error) return null;
+
+    const zProsbami = new Set((prosby.data ?? []).map((r: any) => r.event_id as string));
+    const zOfertami = new Set((oferty.data ?? []).map((r: any) => r.event_id as string));
+
+    return new Set(
+      doSprawdzenia
+        .filter((n) => (n.type === 'prosba_o_dolaczenie' ? zProsbami : zOfertami).has(n.eventId!))
+        .map((n) => n.id),
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function markRead(ids: string[]): Promise<void> {
   if (!ids.length) return;
   await supabase

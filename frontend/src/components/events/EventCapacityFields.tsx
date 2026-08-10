@@ -23,15 +23,16 @@ export default function EventCapacityFields({
 }) {
   return (
     <>
-      {/* Max players stepper — stepper po lewej, dopisek „masz już graczy"
-          OBOK niego (nie pod), w tym samym wierszu co stepper: ten sam
-          wzorzec `justify-between` co `ToggleRow` (opis po lewej / kontrolka
-          po prawej, tu odwrotnie). */}
+      {/* Stepper po lewej, dopisek „masz już graczy" obok — ale OBOK dopiero
+          od `sm:`. Na 360-pikselowym telefonie ten sam układ zostawiał tekstowi
+          połowę szerokości: zdanie łamało się na sześć poszarpanych linijek
+          wyższych niż sam stepper. Poniżej `sm` idzie pod spód, gdzie ma całą
+          szerokość. */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Liczba miejsc
         </label>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="shrink-0">
             <div className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
               <button
@@ -58,7 +59,7 @@ export default function EventCapacityFields({
             </div>
             <p className="mt-1.5 text-xs text-slate-500">Kolejni chętni trafią na listę rezerwową.</p>
           </div>
-          <p className="min-w-0 flex-1 text-xs text-slate-500">
+          <p className="min-w-0 text-xs text-slate-500 sm:flex-1 sm:text-right">
             Masz już graczy? Dopiszesz ich zaraz po utworzeniu — na stronie meczu, też bez konta.
           </p>
         </div>
@@ -73,8 +74,8 @@ export default function EventCapacityFields({
         <label htmlFor="czas-rezerwy" className="block text-sm font-medium text-slate-700 mb-2">
           Czas na decyzję z rezerwy
         </label>
-        <div className="flex items-start justify-between gap-4">
-          <p className="min-w-0 flex-1 text-xs text-slate-500">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <p className="min-w-0 text-xs text-slate-500 sm:flex-1">
             Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma na
             kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
           </p>
@@ -82,7 +83,7 @@ export default function EventCapacityFields({
             id="czas-rezerwy"
             value={reserveClaimHours}
             onChange={(e) => setReserveClaimHours(Number(e.target.value))}
-            className="w-32 shrink-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full shrink-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-32"
           >
             <option value={1}>1 godzina</option>
             <option value={3}>3 godziny</option>

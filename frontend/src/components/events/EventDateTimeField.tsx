@@ -42,7 +42,12 @@ export default function EventDateTimeField({
 }) {
   return (
     <div className="grid grid-cols-2 gap-4">
-      <div className={extraSlot ? 'col-span-1' : 'col-span-2 sm:col-span-1'}>
+      {/* Data zajmuje pełną szerokość na telefonie, a `extraSlot` (kafelek
+          cykliczności) stoi POD wierszami, nie obok daty. Wciśnięty w połowę
+          360-pikselowego ekranu łamał swój opis na pięć linijek i rozpychał
+          wiersz w pionie — tekst reklamował funkcję szerszą niż miejsce, które
+          mu daliśmy. */}
+      <div className="col-span-2 sm:col-span-1">
         <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
         <input
           type="date"
@@ -57,7 +62,6 @@ export default function EventDateTimeField({
           </p>
         )}
       </div>
-      {extraSlot && <div className="col-span-1">{extraSlot}</div>}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>
         <TimeSelect value={time} onChange={setTime} />
@@ -107,6 +111,7 @@ export default function EventDateTimeField({
           <p className="mt-1 text-xs text-slate-500">Koniec o {addMinutes(time, durationMin)}</p>
         )}
       </div>
+      {extraSlot && <div className="col-span-2">{extraSlot}</div>}
     </div>
   );
 }

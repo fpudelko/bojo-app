@@ -4,12 +4,9 @@ import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import { Bell, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMyNotifications, markRead, toNotif } from '@/lib/notifications';
+import { getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
 import type { AppNotification } from '@/types';
-
-/** Powiadomienia wymagające działania od użytkownika — inne kolory. */
-const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered']);
 
 /** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
  *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
@@ -33,10 +30,11 @@ function celPowiadomienia(n: AppNotification): string | null {
  *  wymagające działania nie blakną po przeczytaniu — zostają czytelne i dostają
  *  znacznik „Sprawdź".
  *
- *  Znacznik celowo mówi „sprawdź", a nie „do zrobienia": dzwonek nie wie, czy
- *  prośba została już rozpatrzona (stan siedzi przy meczu, nie przy
- *  powiadomieniu), więc każde twierdzenie o stanie byłoby zgadywaniem — raz
- *  w jedną, raz w drugą stronę. Zachęta do wejścia jest prawdziwa zawsze. */
+ *  „Wymaga działania" nie jest już cechą TYPU powiadomienia, tylko jego
+ *  aktualnego stanu: `otwarteSprawy()` sprawdza w bazie, czy prośba nadal
+ *  czeka na decyzję i czy oferta miejsca nadal jest aktywna. Prośba rozpatrzona
+ *  gaśnie jak każdy inny przeczytany wpis — bez tego wisiała ze znacznikiem
+ *  „Sprawdź" bez końca, mimo że nie było już czego sprawdzać. */
 function TrescPowiadomienia({ n, wymagaAkcji }: { n: AppNotification; wymagaAkcji: boolean }) {
   const wygaszone = !!n.readAt && !wymagaAkcji;
   return (
@@ -74,6 +72,10 @@ export default function NotificationBell() {
   const instancja = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [open,   setOpen]   = useState(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
+  // `null` = jeszcze nie wiemy (albo zapytanie padło). Wtedy zostaje
+  // dotychczasowy wygląd — lepiej pokazać „Sprawdź" o jeden raz za dużo niż
+  // wygasić prośbę, która naprawdę czeka.
+  const [otwarte, setOtwarte] = useState<Set<string> | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const unread = notifs.filter((n) => !n.readAt).length;
@@ -94,6 +96,24 @@ export default function NotificationBell() {
 
     return () => { supabase.removeChannel(ch); };
   }, [user, instancja]);
+
+  // Stan spraw dociągamy przy KAŻDYM otwarciu panelu, nie raz przy montażu:
+  // organizator akceptuje prośbę na stronie meczu i wraca do dzwonka: wpis ma
+  // wtedy zniknąć ze „Sprawdź", a nic go o tej akceptacji nie powiadomi.
+  useEffect(() => {
+    if (!user || !open) return;
+    const doSprawdzenia = notifs.filter((n) => WYMAGA_AKCJI.has(n.type));
+    if (doSprawdzenia.length === 0) { setOtwarte(new Set()); return; }
+    let aktualne = true;
+    otwarteSprawy(user.id, notifs)
+      .then((zbior) => { if (aktualne) setOtwarte(zbior); })
+      .catch(() => {});
+    return () => { aktualne = false; };
+    // `notifs.length` zamiast całej tablicy: `markRead` podmienia obiekty
+    // wpisów (nowe `readAt`), co przy zależności od tablicy odpalałoby
+    // zapytanie drugi raz zaraz po otwarciu panelu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, open, notifs.length]);
 
   // Close on outside click
   useEffect(() => {
@@ -150,7 +170,10 @@ export default function NotificationBell() {
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">
               {notifs.map((n) => {
-                const wymagaAkcji = WYMAGA_AKCJI.has(n.type);
+                // Dopóki stanu nie znamy (`otwarte === null`), zachowujemy się
+                // jak dotąd: typ decyduje. Gdy znamy — decyduje sprawa.
+                const wymagaAkcji = WYMAGA_AKCJI.has(n.type)
+                  && (otwarte === null || otwarte.has(n.id));
                 const bgClass = !n.readAt
                   ? (wymagaAkcji ? 'bg-blue-50/60' : 'bg-primary-50/40')
                   : wymagaAkcji ? 'bg-blue-50/30' : 'opacity-60';
