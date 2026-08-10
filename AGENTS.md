@@ -52,9 +52,9 @@ i `npm run check:docs` przy każdym PR i push na master):
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
 
 Najczęstsze nieporozumienie w tym repo: funkcja jest zbudowana, ale schowana.
-`SHOW_RECURRING`, `SHOW_CUP`, `SHOW_GAME_ALERTS`, `SHOW_SMS_FEATURES`
-(`frontend/src/lib/features.ts`) oraz `FEATURE_RESERVATIONS`
-(`frontend/src/config/features.ts`) — wszystkie są dziś wyłączone.
+`SHOW_CUP`, `SHOW_GAME_ALERTS`, `SHOW_SMS_FEATURES` (`frontend/src/lib/features.ts`)
+oraz `FEATURE_RESERVATIONS` (`frontend/src/config/features.ts`) są dziś wyłączone.
+`SHOW_RECURRING` jest **włączona** od migracji `073` — gry cykliczne działają.
 
 Flagi ukrywają **wejścia w nawigacji**, nie trasy. Pełna tabela z miejscami użycia →
 [docs/funkcje.md](./docs/funkcje.md#flagi-funkcji).

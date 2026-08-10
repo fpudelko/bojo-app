@@ -40,17 +40,17 @@ import {
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment,
-  sendConfirmationSms, assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
-  getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals, submitReport,
+  assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
+  getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals,
   publishTeams, unpublishTeams, saveEventAdvancedSettings,
   TEAM_MODE_LABELS,
 } from '@/lib/eventFeatures';
 import type {
-  EventItem, EventParticipant, MatchResult, PlayerGoal, ReportType,
+  EventItem, EventParticipant, MatchResult, PlayerGoal,
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { linkPrzejeciaWpisu } from '@/lib/guestClaim';
+import { linkPrzejeciaWpisu, tekstZaproszeniaGoscia } from '@/lib/guestClaim';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart } from '@/lib/eventDates';
 import {
@@ -106,12 +106,6 @@ function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
   );
 }
 
-const REPORT_TYPES: { value: ReportType; label: string }[] = [
-  { value: 'nie_przyszedl', label: 'Nie przyszedł' },
-  { value: 'niesportowe_zachowanie', label: 'Niesportowe zachowanie' },
-  { value: 'inne', label: 'Inne' },
-];
-
 /** Player avatar — real photo when available, initials otherwise. */
 function PlayerAvatar({ p }: { p: EventParticipant }) {
   return p.avatarUrl ? (
@@ -158,23 +152,43 @@ function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; warian
 }
 
 /** Inline roster — rendered INSIDE the player-count card when the avatar stack
- *  is expanded. Always shows flat lists: regulars then reserves. */
+ *  is expanded. Always shows flat lists: regulars then reserves.
+ *
+ *  To jedyny widok składu po starcie meczu (kontrolki organizatora znikają —
+ *  patrz `eventStarted` w komponencie nadrzędnym), więc przycisk „Zaproś do
+ *  Bojo" musi tu żyć osobno, inaczej znika dokładnie wtedy, gdy organizator
+ *  naturalnie wraca na stronę wpisać wynik i konwersja gościa jest najłatwiejsza. */
 function ParticipantsList({
-  regulars, reserves, gkEnabled,
+  regulars, reserves, gkEnabled, isOrganizer, skopiowanyToken, onZaprosDoBojo,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
   gkEnabled: boolean;
+  isOrganizer: boolean;
+  skopiowanyToken: string | null;
+  onZaprosDoBojo: (p: EventParticipant) => void;
 }) {
   return (
     <div className="space-y-3 text-left">
       <div className="divide-y divide-slate-50 dark:divide-slate-700">
         {regulars.map((p) => (
-          <PlayerLink key={p.id} p={p} className="flex items-center gap-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            <PlayerAvatar p={p} />
-            <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
-            {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
-          </PlayerLink>
+          <div key={p.id} className="py-2">
+            <PlayerLink p={p} className="flex items-center gap-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <PlayerAvatar p={p} />
+              <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
+              {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
+            </PlayerLink>
+            {isOrganizer && p.isGuest && p.claimToken && (
+              <button
+                type="button"
+                onClick={() => onZaprosDoBojo(p)}
+                className="ml-11 mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary-700 hover:underline"
+              >
+                <LinkIcon className="h-3 w-3" />
+                {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
@@ -187,15 +201,27 @@ function ParticipantsList({
           </div>
           <div className="divide-y divide-slate-50 dark:divide-slate-700">
             {reserves.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 py-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
-                  {i + 1}
-                </span>
-                <span className="flex-1 min-w-0 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
-                {/* Rola także na rezerwie: od migracji `075` kolejka biegnie
-                    osobno dla bramkarzy i zawodników z pola, więc sam numer
-                    w kolejce nie mówi, na co ta osoba właściwie czeka. */}
-                {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
+              <div key={p.id} className="py-2">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 min-w-0 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
+                  {/* Rola także na rezerwie: od migracji `075` kolejka biegnie
+                      osobno dla bramkarzy i zawodników z pola, więc sam numer
+                      w kolejce nie mówi, na co ta osoba właściwie czeka. */}
+                  {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
+                </div>
+                {isOrganizer && p.isGuest && p.claimToken && (
+                  <button
+                    type="button"
+                    onClick={() => onZaprosDoBojo(p)}
+                    className="ml-11 mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary-700 hover:underline"
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -351,7 +377,6 @@ export default function EventDetailClient() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [smsBusy, setSmsBusy] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [guestIsGk, setGuestIsGk] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -370,11 +395,6 @@ export default function EventDetailClient() {
   const [scoreA, setScoreA] = useState('');
   const [scoreB, setScoreB] = useState('');
   const [savingResult, setSavingResult] = useState(false);
-  // Report
-  const [reportTarget, setReportTarget] = useState<EventParticipant | null>(null);
-  const [reportType, setReportType] = useState<ReportType>('nie_przyszedl');
-  const [reportComment, setReportComment] = useState('');
-  const [reportBusy, setReportBusy] = useState(false);
   // Repeat game dialog
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
@@ -518,6 +538,9 @@ export default function EventDetailClient() {
   const pendingRequests = participants.filter((p) => p.pendingApproval);
   const regulars = confirmed.filter((p) => !p.isReserve);
   const reserves = confirmed.filter((p) => p.isReserve);
+  // Gość przejmuje wpis, dopóki ma token — po przejęciu `is_guest` przechodzi
+  // na false (migracja 066), więc licznik sam się zeruje bez dodatkowego stanu.
+  const niePrzejeciGoscie = [...regulars, ...reserves].filter((p) => p.isGuest && p.claimToken);
   const myConfirmed = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp !== 'maybe');
   const myMaybe = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp === 'maybe');
   const myPendingRequest = pendingRequests.find((p) => p.userId && p.userId === user?.id);
@@ -773,13 +796,6 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleSendSms = async (p: EventParticipant) => {
-    setSmsBusy(p.id);
-    try { await sendConfirmationSms(event.id, p.id); toast(`SMS wysłany do ${p.name}`); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd SMS', 'error'); }
-    finally { setSmsBusy(null); }
-  };
-
   const handleAssignTeam = async (participantId: string, team: 'A' | 'B' | null) => {
     setBusy(true);
     try { await updateParticipantTeam(participantId, team); await load(); }
@@ -868,14 +884,27 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  /** Kopiuje jednorazowy link, którym gość zwiąże ten wpis ze swoim kontem. */
+  /** Udostępnia jednorazowy link, którym gość zwiąże ten wpis ze swoim kontem —
+   *  razem z argumentem, nie samym adresem (patrz `tekstZaproszeniaGoscia`). */
   const kopiujLinkPrzejecia = async (p: EventParticipant) => {
     if (!p.claimToken) return;
+    const url = linkPrzejeciaWpisu(p.claimToken);
+    const text = tekstZaproszeniaGoscia(p.name, event);
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Zaproszenie do Bojo', text, url });
+        return;
+      } catch {
+        return; // anulowane przez użytkownika — nic nie pokazujemy, jak w shareEvent()
+      }
+    }
+
     try {
-      await navigator.clipboard.writeText(linkPrzejeciaWpisu(p.claimToken));
+      await navigator.clipboard.writeText(`${text}\n${url}`);
       setSkopiowanyToken(p.id);
       setTimeout(() => setSkopiowanyToken(null), 2500);
-      toast('Link skopiowany — wyślij go tej osobie');
+      toast('Wiadomość skopiowana — wyślij ją tej osobie');
     } catch {
       toast('Nie udało się skopiować linku', 'error');
     }
@@ -1051,19 +1080,6 @@ export default function EventDetailClient() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     }
-  };
-
-  const handleSubmitReport = async () => {
-    if (!reportTarget) return;
-    setReportBusy(true);
-    try {
-      await submitReport(event.id, reportTarget.id, reportType, user?.id, reportComment || undefined);
-      setReportTarget(null);
-      setReportComment('');
-      toast('Zgłoszenie wysłane');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    } finally { setReportBusy(false); }
   };
 
   const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
@@ -1617,6 +1633,18 @@ export default function EventDetailClient() {
                     </button>
                   )}
                 </div>
+                {/* Sygnał do organizatora: skoro przycisk „Zaproś do Bojo" żyje
+                    przy pojedynczym wierszu gościa, łatwo go nie zauważyć,
+                    zwłaszcza po meczu, gdy skład jest zwinięty do samej listy
+                    (`ParticipantsList` niżej). Jedna linia nad składem, licząca
+                    i skład, i rezerwę — gość na rezerwie też może przejąć wpis. */}
+                {isOrganizer && niePrzejeciGoscie.length > 0 && (
+                  <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
+                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie —
+                    kliknij „Zaproś do Bojo" przy imieniu, każdy zobaczy swój udział i statystyki po
+                    założeniu konta.
+                  </p>
+                )}
                 {/* Organizator dostaje tu listę z kontrolkami zamiast osobnej
                     karty „Skład". Dwie sekcje mówiące to samo — licznik na
                     górze i lista niżej — kazały szukać, w której z nich
@@ -1789,6 +1817,9 @@ export default function EventDetailClient() {
                     regulars={regulars}
                     reserves={reserves}
                     gkEnabled={gkEnabled}
+                    isOrganizer={isOrganizer}
+                    skopiowanyToken={skopiowanyToken}
+                    onZaprosDoBojo={kopiujLinkPrzejecia}
                   />
                 )}
               </div>
@@ -3010,46 +3041,6 @@ export default function EventDetailClient() {
               >
                 Usuń na stałe
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report modal */}
-      {reportTarget && (
-        <div
-          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
-          onClick={() => setReportTarget(null)}
-        >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-ink mb-1">Zgłoś uczestnika</h3>
-            <p className="text-sm text-slate-500 mb-4">{reportTarget.name}</p>
-            <div className="space-y-2 mb-4">
-              {REPORT_TYPES.map((rt) => (
-                <button
-                  key={rt.value}
-                  onClick={() => setReportType(rt.value)}
-                  className={[
-                    'w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors',
-                    reportType === rt.value
-                      ? 'border-primary-500 bg-primary-50 text-primary-700'
-                      : 'border-slate-200 text-slate-700 hover:border-slate-300',
-                  ].join(' ')}
-                >
-                  {rt.label}
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={reportComment}
-              onChange={(e) => setReportComment(e.target.value)}
-              placeholder="Opcjonalny komentarz…"
-              rows={2}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
-            />
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setReportTarget(null)} className="flex-1">Anuluj</Button>
-              <Button onClick={handleSubmitReport} isLoading={reportBusy} className="flex-1">Wyślij zgłoszenie</Button>
             </div>
           </div>
         </div>

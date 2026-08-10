@@ -126,7 +126,6 @@ export type Visibility = 'private' | 'public';
 export type EventStatus = 'active' | 'cancelled';
 
 export type TeamMode = 'brak' | 'reczne' | 'kapitanowie' | 'losowe';
-export type ReportType = 'niesportowe_zachowanie' | 'nie_przyszedl' | 'inne';
 
 export interface EventAdvancedSettings {
   requireSmsConfirmation: boolean;
@@ -354,17 +353,6 @@ export interface PlayerStats {
   goalsTotal: number;
   matchesPlayed: number;
   updatedAt: string;
-}
-
-export interface PlayerReport {
-  id: string;
-  eventId: string;
-  reportedParticipantId: string;
-  reportedName?: string;
-  reporterId?: string;
-  reportType: ReportType;
-  comment?: string;
-  createdAt: string;
 }
 
 export interface RecurringEvent {

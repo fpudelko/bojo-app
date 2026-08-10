@@ -5,8 +5,8 @@
 > zarządzanie meczem. Powstało pod priorytet z [strategia.md §0](./strategia.md)
 > („pozyskiwanie organizatorów i szlifowanie przepływu organizacji gry").
 >
-> **Stan: 2026-08-08.** Wnioski są czytaniem kodu, nie obserwacją użytkowników — patrz
-> „Czego ten audyt nie sprawdził" na końcu.
+> **Stan: 2026-08-08, `O-26`/`O-27` dopisane 2026-08-10.** Wnioski są czytaniem kodu,
+> nie obserwacją użytkowników — patrz „Czego ten audyt nie sprawdził" na końcu.
 
 Ustalenia mają numery `O-n`; [BACKLOG.md](../BACKLOG.md) odwołuje się do tych samych.
 Kolumna **stan** mówi, czy rzecz została zrobiona, czy czeka.
@@ -143,7 +143,8 @@ dla organizatora, panel „Podział kosztów" liczący zniżki kartowe.
 | **O-23** | **Uczestnik nie widział, ile ma zapłacić.** `showPaymentStatus` było zapisywane przez formularz edycji i **nigdzie nieodczytywane**. Nowa karta „Twoja płatność" (kwota po uwzględnieniu zniżki kartowej, sposób płatności, status opłacone/nieopłacone) — pierwsze miejsce, które tę flagę respektuje. To ta sama luka co [BACKLOG §1.4](../BACKLOG.md), teraz zamknięta z obu stron. | zrobione |
 | **O-24** | **Organizator nie miał widoku „gdzie brakuje ludzi".** Nowa sekcja „Brakuje graczy" na `/moje-gry` (zakładka „Nadchodzące") — organizowane, niepełne mecze, sortowane od najbliższego terminu. Dane już były pobierane przez `getMyParticipatedEvents()` (`participantsCount` liczone przez `toEvent()`), więc zero nowego zapytania. Merge organizowanie+granie w `MyMatchesSection` zostaje nietknięty — to osobna, dodatkowa sekcja. | zrobione |
 | **O-25** | **Nie było widać, kogo się zaprosiło i kto odpowiedział.** Nowa karta „Zaproszeni" na stronie meczu (tylko organizator — RLS na `event_player_invites` i tak nie przepuści reszty): imię, awatar i status Czeka / Dołączył(a) / Nie tym razem. Reguła „uczestnictwo bije wcześniejszą odmowę" wydzielona do `lib/inviteStatus.ts` pod testem — pierwsza wersja tej logiki inline w komponencie miała to odwrócone. | zrobione |
-| **O-26** | **Martwy kod na ścieżce organizatora:** nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + stan `smsBusy` zdefiniowane i nieużywane, `lib/invites.ts` (86 linii, gotowy polski szablon zaproszenia mailem) bez ani jednego importu. Świadomie poza zakresem — usuwanie kodu to osobna decyzja, nie skutek uboczny audytu UX. | w backlogu |
+| **O-26** | **Martwy kod na ścieżce organizatora:** nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + stan `smsBusy` zdefiniowane i nieużywane, `lib/invites.ts` (86 linii, gotowy polski szablon zaproszenia mailem) bez ani jednego importu. Usunięto wraz z całym rurociągiem (`submitReport`, `getEventReports`, typy `ReportType`/`PlayerReport`) — nic innego tego nie czytało. | zrobione |
+| **O-27** | **Zaproszenie do przejęcia wpisu gościa (`066`) niosło goły link** — `kopiujLinkPrzejecia` kopiował sam URL, bez tekstu tłumaczącego, po co go kliknąć. Ten sam błąd co `O-18`, tu nienaprawiony do 2026-08-10. Naprawione wzorem `eventShareText`/`shareEvent`: `tekstZaproszeniaGoscia()` w `lib/guestClaim.ts`, `navigator.share` z fallbackiem do schowka. Dodatkowo: przycisk „Zaproś do Bojo" żył wyłącznie w edytowalnym składzie przed startem meczu — po starcie meczu organizator przechodzi na widok `ParticipantsList` i przycisk znikał całkowicie, dokładnie w momencie, gdy naturalnie wraca wpisać wynik. Dodano tam ten sam przycisk oraz zbiorczy sygnał „N gości bez konta" nad składem (widoczny w obu widokach). | zrobione |
 
 ---
 

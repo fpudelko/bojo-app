@@ -3,9 +3,7 @@ import type {
   EventAdvancedSettings,
   MatchResult,
   PlayerGoal,
-  PlayerReport,
   PlayerStats,
-  ReportType,
   TeamMode,
 } from '@/types';
 
@@ -282,51 +280,6 @@ export async function getGroupPlayerStats(
 export function reliabilityPct(stats: PlayerStats): number {
   if (stats.invitedCount === 0) return 100;
   return Math.round(((stats.confirmedCount - stats.noShowCount) / stats.invitedCount) * 100);
-}
-
-// ---------------------------------------------------------------------------
-// Player reports
-// ---------------------------------------------------------------------------
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toPlayerReport(row: any): PlayerReport {
-  return {
-    id: row.id,
-    eventId: row.event_id,
-    reportedParticipantId: row.reported_participant_id,
-    reportedName: row.event_participants?.name ?? undefined,
-    reporterId: row.reporter_id ?? undefined,
-    reportType: row.report_type,
-    comment: row.comment ?? undefined,
-    createdAt: row.created_at,
-  };
-}
-
-export async function getEventReports(eventId: string): Promise<PlayerReport[]> {
-  const { data, error } = await supabase
-    .from('player_reports')
-    .select('*, event_participants(name)')
-    .eq('event_id', eventId)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toPlayerReport);
-}
-
-export async function submitReport(
-  eventId: string,
-  reportedParticipantId: string,
-  reportType: ReportType,
-  reporterId?: string,
-  comment?: string,
-): Promise<void> {
-  const { error } = await supabase.from('player_reports').insert({
-    event_id: eventId,
-    reported_participant_id: reportedParticipantId,
-    reporter_id: reporterId ?? null,
-    report_type: reportType,
-    comment: comment ?? null,
-  });
-  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------------------

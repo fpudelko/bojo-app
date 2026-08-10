@@ -296,6 +296,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-10 — Argument w zaproszeniu do przejęcia wpisu gościa, sprzątanie martwego kodu na stronie meczu
+
+PROBLEM: przycisk „Zaproś do Bojo" przy wierszu gościa kopiował do schowka sam adres
+linku, bez słowa wyjaśnienia, po co go kliknąć — ten sam błąd co przy głównym
+udostępnianiu meczu, tu nienaprawiony. Przycisk działał też wyłącznie w edytowalnym
+składzie przed startem meczu; po starcie meczu organizator przechodzi na uproszczony
+widok listy i przycisk znikał całkowicie — dokładnie w momencie, gdy organizator
+naturalnie wraca na stronę wpisać wynik i najłatwiej namówić kolegów bez konta do
+założenia go. Na stronie meczu żył też w pełni zbudowany, ale nieosiągalny z UI modal
+„Zgłoś uczestnika" — nic nigdy go nie otwierało.
+
+ROZWIĄZANIE BOJO: „Zaproś do Bojo" otwiera teraz systemowy arkusz udostępniania (albo
+kopiuje do schowka, gdy przeglądarka go nie ma) z gotowym tekstem tłumaczącym, po co
+założyć konto — zobaczenie swojego udziału, statystyk i historii gier. Przycisk działa
+też w widoku po starcie meczu. Nad składem pojawia się dla organizatora jedna linia —
+„N gości bez konta w składzie" — gdy jest kogo zaprosić. Usunięto martwy modal zgłoszeń
+uczestnika oraz nieużywany kod SMS-owy i plik obsługujący zaproszenia e-mailem, których
+nic w aplikacji nie wołało.
+
+MECHANIKA: `tekstZaproszeniaGoscia()` w `lib/guestClaim.ts` (wzorem `eventShareText`);
+`kopiujLinkPrzejecia()` w `EventDetailClient.tsx` woła `navigator.share` z fallbackiem
+do schowka; `ParticipantsList` (ten sam plik) dostał propsy
+`isOrganizer`/`skopiowanyToken`/`onZaprosDoBojo`, żeby przycisk i licznik gości działały
+też po starcie meczu; usunięte: `submitReport`/`getEventReports`
+(`lib/eventFeatures.ts`), typy `ReportType`/`PlayerReport` (`types/index.ts`), plik
+`lib/invites.ts`.
+
 ### 2026-08-10 — Powiadomienia gasną po załatwieniu sprawy, zapowiedź kolejnej stałej gierki, krok 2 kreatora na telefonie
 
 PROBLEM: powiadomienie o prośbie o dołączenie zostawało w Bojo oznaczone jako wymagające
@@ -604,31 +631,3 @@ zapytania; `components/events/EventInvitesStatus.tsx` +
 `profiles` — brak klucza obcego z `event_player_invites` do tej tabeli) +
 `lib/inviteStatus.ts` (reguła „uczestnictwo bije wcześniejszą odmowę", pod
 testem po tym, jak przegląd kodu złapał tu odwróconą kolejność).
-
-### 2026-08-08 — Przepływ organizatora: podsumowanie przed publikacją, wysyłka linku, powiadomienie o odwołaniu meczu
-PROBLEM: organizator Bojo publikował mecz na ślepo — przycisk „Opublikuj mecz" stoi na
-trzecim kroku kreatora, a data, miejsce, skład i cena były ustawiane na krokach 1–2
-i w chwili publikacji nie były widoczne. Po publikacji nic go nie prowadziło: kreator
-kończył się przekierowaniem na zwykłą stronę meczu, a strona miała DWA różne linki pod
-przyciskami o tej samej nazwie „Udostępnij" i wysyłała goły adres bez daty, miejsca
-i ceny — czyli mniej niż post na czacie. Odwołanie meczu było ciche: uczestnik dowiadywał
-się o nim wyłącznie wchodząc na stronę meczu, więc kto nie wszedł, przyjeżdżał na boisko.
-Konto założone e-mailem bez podania imienia publikowało mecz pod pełnym adresem e-mail
-organizatora, na publicznej i indeksowanej stronie. Wejście „Zorganizuj tu mecz" ze strony
-boiska i „Stwórz mecz w grupie" gubiły po zalogowaniu wybrane boisko oraz grupę.
-ROZWIĄZANIE BOJO: ostatni krok kreatora pokazuje kartę „Tak zobaczą to gracze" — data,
-miejsce, skład, koszt i widoczność, każde z przyciskiem cofającym na właściwy krok, plus
-nazwa, pod którą organizator się pojawi, z edycją na miejscu. Po publikacji strona meczu
-wita organizatora panelem „Mecz gotowy" z jedną główną akcją: wysłaniem linku. Link jest
-jeden dla całej aplikacji, a wraz z nim idzie gotowy czterowierszowy tekst (sport, termin,
-miejsce, liczba miejsc i cena) do wklejenia na czat. Odwołanie meczu trafia do skrzynki
-powiadomień wszystkich zapisanych. Rejestracja e-mailem wymaga imienia i nazwiska, a konto
-bez nazwy dostaje powiadomienie i baner kierujące do profilu. Mapa wyboru miejsca ma
-przycisk „pokaż moją okolicę" i dojeżdża do wyników wyszukiwania.
-MECHANIKA: `lib/eventSummary.ts` + `app/wydarzenia/nowe/PodsumowanieMeczu.tsx`;
-`lib/eventShare.ts` (`eventUrl`, `eventShareText`, `shareEvent`) używane przez pasek górny
-i panel „Zaproś znajomych" w `EventDetailClient.tsx`; `lib/profileName.ts` (przeniesione
-tam `displayName`/`firstName`/`avatarUrl` + `isPelneImie`, `brakNazwy`); migracja `070`
-(wyzwalacze `powiadom_o_odwolaniu` na `events` i `powiadom_o_braku_nazwy` na `auth.users`);
-`components/home/dashboard/UzupelnijProfilBanner.tsx`; `LocateMeButton` i `fitBounds`
-w `components/map/UnifiedLocationPickerImpl.tsx`.

@@ -1,4 +1,8 @@
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import { supabase } from './supabase';
+import { eventDisplayTitle } from './eventTitle';
+import type { DaneDoUdostepnienia } from './eventShare';
 
 /**
  * Przejęcie wpisu gościa (migracja `066`).
@@ -57,4 +61,24 @@ export function linkPrzejeciaWpisu(token: string): string {
       ? window.location.origin
       : process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';
   return `${baza}/gracz/przejmij/${token}`;
+}
+
+/**
+ * Tekst do wysłania RAZEM z linkiem przejęcia wpisu.
+ *
+ * Bez tego link trafiał na czat jako goły adres — dokładnie ten sam błąd, który
+ * już raz naprawiono w głównym udostępnianiu meczu (patrz `eventShareText` w
+ * `lib/eventShare.ts`). Tu ta naprawa po prostu nie dotarła.
+ */
+export function tekstZaproszeniaGoscia(imieGoscia: string, e: DaneDoUdostepnienia): string {
+  const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
+  let kiedy: string;
+  try {
+    kiedy = format(parseISO(e.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {
+    kiedy = e.date;
+  }
+  return `Cześć ${imieGoscia}! Zagraliście razem w „${tytul}" (${kiedy}) przez Bojo.\n`
+    + `Załóż konto (Google albo e-mail, 30 sekund) i przejmij swój wpis — zobaczysz `
+    + `swój udział, statystyki i historię gier:`;
 }
