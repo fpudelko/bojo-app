@@ -577,9 +577,15 @@ export default function EventDetailClient() {
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
   const eventLoc = eventLocation(event);
-  // The venue chip shows the ADDRESS where we have one: catalogue names are
-  // mostly generic ("Boisko — piłka nożna") and a street tells people more.
-  const venueBadgeLabel = eventLoc.secondary || eventLoc.primary;
+  // Kafelek pokazuje NAZWĘ obiektu, adres dopiero w jej braku.
+  //
+  // Było odwrotnie, z uzasadnieniem „nazwy z katalogu są generyczne (»Boisko —
+  // piłka nożna«), a ulica mówi więcej". Po imporcie z OSM to już nieprawda:
+  // obiekty mają własne nazwy („Szkoła Podstawowa nr 5 — boisko piłkarskie"),
+  // a miejscowość zniknęła z nazwy, więc nie dubluje adresu. Przy okazji
+  // znikła sprzeczność: nagłówek mówił „ul. Pawia", a okno zapisu na ten sam
+  // mecz — pełną nazwę szkoły.
+  const venueBadgeLabel = eventLoc.primary || eventLoc.secondary;
 
   const showTeams = event.teamMode !== 'brak';
   // Goalkeeper distinction is an explicit per-event setting now.
