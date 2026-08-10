@@ -6,7 +6,19 @@ const config: Config = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // `src/lib` też trzyma nazwy klas: skalę warstw (`lib/warstwy.ts`) i toasty
+    // (`lib/toast.tsx`). Bez tej ścieżki Tailwind ich nie widzi i po prostu NIE
+    // GENERUJE — komponent dostaje nazwę klasy, której nie ma w CSS, więc
+    // element zostaje bez z-indexu. Tak zniknęły wszystkie modale pod paskiem
+    // „Dołącz" (`z-30`), a toast `z-[9999]` nie działał już wcześniej.
+    './src/lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+
+  // Warstwy trzymamy dodatkowo tutaj. Skanowanie plików to heurystyka po
+  // tekście — wystarczy, że ktoś złoży nazwę klasy ze zmiennej albo zawęzi
+  // `content`, i cała kolejność nakładania znika bez jednego błędu w konsoli.
+  // Te cztery klasy są zbyt tanie i zbyt krytyczne, żeby na tym polegać.
+  safelist: ['z-[1100]', 'z-[1200]', 'z-[1300]', 'z-[1301]', 'z-[9999]'],
   theme: {
     extend: {
       colors: {

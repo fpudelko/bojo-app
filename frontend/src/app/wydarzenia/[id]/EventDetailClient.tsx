@@ -61,6 +61,7 @@ import {
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
 import { withCount } from '@/lib/plural';
 import { WARSTWA } from '@/lib/warstwy';
+import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -429,6 +430,13 @@ export default function EventDetailClient() {
   const [whenConfirm, setWhenConfirm] = useState(false);
   // Wybór widoczności z badge'a — okno zamiast natychmiastowego przełącznika.
   const [visOpen, setVisOpen] = useState(false);
+
+  // Jedno wywołanie dla wszystkich okien tej strony — hook musi lecieć
+  // bezwarunkowo, więc stan „czy cokolwiek jest otwarte" liczymy tutaj.
+  useBlokadaPrzewijania(
+    joinDialogOpen || leaveConfirmOpen || deleteConfirmOpen || venueInfoOpen
+    || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen,
+  );
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
