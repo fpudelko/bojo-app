@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import type { Field, FieldFilters, FieldsResponse, BookingType, MapVisibility } from '@/types';
-import { slugify } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Row mappers  (DB snake_case → TS camelCase)
@@ -307,16 +306,17 @@ export async function hasManagedVenue(userId: string): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-export async function getFieldBySlug(slug: string): Promise<Field | null> {
-  const { data } = await supabase.from('fields').select('*');
-  const match = (data ?? []).find((row) => slugify(row.name) === slug);
-  return match ? toField(match) : null;
-}
-
-export async function getAllFieldSlugs(): Promise<{ slug: string; id: string }[]> {
-  const { data } = await supabase.from('fields').select('id, name');
-  return (data ?? []).map((row) => ({ slug: slugify(row.name), id: row.id }));
-}
+// Były tu `getFieldBySlug()` i `getAllFieldSlugs()` — obie bez ani jednego
+// wywołania w całym repo. Pierwsza robiła `select('*')` na CAŁEJ tabeli
+// `fields` i wyszukiwała jeden wiersz w JavaScripcie; po migracji `068`
+// dochodzą do tego tagi OSM w jsonb, więc byłby to najcięższy możliwy sposób
+// rozwiązania jednego sluga. Druga ciągnęła całą tabelę bez stronicowania,
+// czyli po cichu gubiłaby ogon (PostgREST obcina długą odpowiedź BEZ błędu).
+//
+// Rozwiązywaniem slug → id zajmuje się `idForSlug()` w `app/boisko/[id]/page.tsx`:
+// stronicowany indeks trzymany w pamięci procesu. Martwy kod tej klasy zostaje
+// usunięty, a nie „poprawiony", bo jedyne, co robił, to czekał, aż ktoś go
+// zawoła i wyśle katalog przez sieć.
 
 export async function updateField(
   fieldId: string,
