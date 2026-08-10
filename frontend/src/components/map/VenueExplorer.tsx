@@ -1331,7 +1331,13 @@ export default function VenueExplorer({
         )}
 
         {!showGames && fields.length === 0 && (searchResults ?? allFields).length > 0 && !trybSkupisk && (
-          <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
+          <div
+            className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
+            // Nad paskiem nawigacji, nie pod nim: `absolute bottom-6` mierzyło
+            // od dołu kontenera mapy (`h-[100dvh]`), czyli od dołu ekranu —
+            // dokładnie tam, gdzie stoi pasek `z-[1200]`, który to przykrywał.
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+          >
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
               Brak boisk dla tych filtrów
             </div>
@@ -1339,7 +1345,13 @@ export default function VenueExplorer({
         )}
 
         {showGames && gamesRows.length === 0 && (
-          <div className="md:hidden absolute inset-x-0 bottom-6 z-[1100] flex justify-center">
+          <div
+            className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
+            // Nad paskiem nawigacji, nie pod nim: `absolute bottom-6` mierzyło
+            // od dołu kontenera mapy (`h-[100dvh]`), czyli od dołu ekranu —
+            // dokładnie tam, gdzie stoi pasek `z-[1200]`, który to przykrywał.
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+          >
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
               Brak meczów dla tych filtrów
             </div>
