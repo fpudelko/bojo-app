@@ -12,14 +12,17 @@ export default function EventCapacityFields({
   maxPlayers, onMaxPlayersChange,
   goalkeepersEnabled, setGoalkeepersEnabled,
   reserveClaimHours, setReserveClaimHours,
+  blad,
 }: {
   sport: string;
   maxPlayers: number;
   onMaxPlayersChange: (v: number) => void;
-  goalkeepersEnabled: boolean;
+  /** `null` = organizator jeszcze nie zdecydował (tylko kreator). */
+  goalkeepersEnabled: boolean | null;
   setGoalkeepersEnabled: (v: boolean) => void;
   reserveClaimHours: number;
   setReserveClaimHours: (v: number) => void;
+  blad?: string;
 }) {
   return (
     <>
@@ -94,25 +97,55 @@ export default function EventCapacityFields({
         </div>
       </div>
 
-      {/* Goalkeeper distinction — sports with a goalkeeper only */}
+      {/* Rozróżnianie bramkarzy — tylko sporty, które mają bramkarza.
+          Dwa przyciski zamiast przełącznika, gdy wartość to jeszcze `null`:
+          przełącznik ZAWSZE pokazuje jakiś stan, więc ustawienie włączone
+          domyślnie wyglądało na świadomą decyzję organizatora, choć nią nie
+          było. Skutek widzieli dopiero gracze: pula miejsc rozbita na role,
+          komplet w polu i rezerwa mimo wolnych miejsc „dla bramkarzy". */}
       {GK_SPORTS.includes(sport) && (
-        <div className="flex items-center justify-between py-2 border-b border-slate-100">
-          <div className="pr-3">
-            <p className="text-sm font-medium text-slate-900">Rozróżniaj bramkarzy</p>
-            <p className="text-xs text-slate-500">
-              Gracze wybierają: bramkarz lub zawodnik z pola. Max 2 bramkarzy
-              i {Math.max(0, maxPlayers - 2)} zawodników z pola — kolejni trafią na rezerwę.
-            </p>
+        <div className="border-b border-slate-100 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900">
+                Rozróżniaj bramkarzy
+                {goalkeepersEnabled === null && <span className="ml-1 text-red-600">*</span>}
+              </p>
+              <p className="text-xs text-slate-500">
+                Gracze wybierają: bramkarz lub zawodnik z pola. Max 2 bramkarzy
+                i {Math.max(0, maxPlayers - 2)} zawodników z pola — kolejni trafią na rezerwę.
+              </p>
+            </div>
+            {goalkeepersEnabled === null ? (
+              <div className="flex shrink-0 gap-2">
+                {([[true, 'Tak'], [false, 'Nie']] as const).map(([v, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setGoalkeepersEnabled(v)}
+                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-primary-500 hover:bg-primary-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setGoalkeepersEnabled(!goalkeepersEnabled)}
+                className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', goalkeepersEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                role="switch"
+                aria-checked={goalkeepersEnabled}
+              >
+                <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', goalkeepersEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setGoalkeepersEnabled(!goalkeepersEnabled)}
-            className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', goalkeepersEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
-            role="switch"
-            aria-checked={goalkeepersEnabled}
-          >
-            <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', goalkeepersEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-          </button>
+          {blad && (
+            <p data-field-error className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+              <span aria-hidden>⚠</span> {blad}
+            </p>
+          )}
         </div>
       )}
     </>

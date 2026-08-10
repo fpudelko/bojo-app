@@ -456,13 +456,57 @@ function decydujCzyRezerwa(
   return confirmed.field + held.field >= fieldCap;
 }
 
+/** Wynik zapisu — wywołujący musi wiedzieć, CZY wszedł do składu.
+ *
+ *  Dotąd `joinEvent` nie zwracało nic, więc strona meczu pokazywała zawsze
+ *  „Dołączyłeś do meczu!", także wtedy, gdy zapis wylądował na rezerwie.
+ *  Człowiek wychodził przekonany, że gra. */
+export interface WynikZapisu {
+  isReserve: boolean;
+  pending: boolean;
+}
+
+/** Wolne miejsca w rozbiciu na role.
+ *
+ *  Licznik „Zostało X wolnych miejsc" sumował obie pule, więc przy meczu
+ *  z rozróżnieniem bramkarzy potrafił obiecywać miejsca, których dla danej roli
+ *  już nie było: „zostały 2 miejsca" znaczyło w rzeczywistości „2 miejsca dla
+ *  bramkarzy", a zawodnik z pola i tak lądował na rezerwie.
+ *
+ *  Czysta funkcja — liczy z listy zawodników w składzie, bez zapytań, więc da
+ *  się ją przetestować i wywołać przy każdym renderze. */
+export function wolneMiejscaWgRol(
+  skladWSkladzie: { isGoalkeeper?: boolean }[],
+  event: { maxPlayers: number; maxGoalkeepers?: number; goalkeepersEnabled?: boolean },
+): { pole: number; bramkarze: number; razem: number; rozdzielone: boolean } {
+  const zajete = skladWSkladzie.length;
+  const razem = Math.max(0, event.maxPlayers - zajete);
+
+  if (!event.goalkeepersEnabled) {
+    return { pole: razem, bramkarze: 0, razem, rozdzielone: false };
+  }
+
+  const limitBramkarzy = event.maxGoalkeepers ?? 2;
+  const limitPola = Math.max(0, event.maxPlayers - limitBramkarzy);
+  const bramkarzeWSkladzie = skladWSkladzie.filter((p) => p.isGoalkeeper).length;
+  const poleWSkladzie = zajete - bramkarzeWSkladzie;
+
+  return {
+    pole: Math.max(0, limitPola - poleWSkladzie),
+    bramkarze: Math.max(0, limitBramkarzy - bramkarzeWSkladzie),
+    razem,
+    rozdzielone: true,
+  };
+}
+
 export async function joinEvent(
   eventId: string,
   userId: string,
   name: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-): Promise<void> {
+  jestemOrganizatorem = false,
+): Promise<WynikZapisu> {
   // Rate limit: max 20 joins per hour
   const { data: allowed } = await supabase.rpc('check_rate_limit', {
     p_action: 'join_event',
@@ -482,7 +526,10 @@ export async function joinEvent(
     .eq('id', eventId)
     .single();
 
-  const needsApproval = ev?.require_approval ?? false;
+  // Organizator nie akceptuje sam siebie. „Wymaga akceptacji" znaczy „wymaga
+  // akceptacji ORGANIZATORA" — jego własny zapis nie ma kogo pytać o zgodę,
+  // a wisiał we własnej kolejce próśb jak każdy inny.
+  const needsApproval = (ev?.require_approval ?? false) && !jestemOrganizatorem;
   let isReserve = false;
 
   if (!needsApproval) {
@@ -515,6 +562,7 @@ export async function joinEvent(
     (e) => console.warn('[ActivityLog] participant_joined', e),
   );
   track('event_joined', { eventId, isReserve, pending: needsApproval });
+  return { isReserve, pending: needsApproval };
 }
 
 /** Mark event as "maybe" — adds user to participants without taking a capacity slot. */
@@ -543,7 +591,7 @@ export async function confirmFromMaybe(
   eventId: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-): Promise<void> {
+): Promise<WynikZapisu> {
   const { data: ev } = await supabase
     .from('events')
     .select('max_players, max_goalkeepers, goalkeepers_enabled')
@@ -572,6 +620,7 @@ export async function confirmFromMaybe(
     })
     .eq('id', participantId);
   if (error) throw new Error(error.message);
+  return { isReserve, pending: false };
 }
 
 /** Adds a guest (no account) to the roster. When the event is full, the guest

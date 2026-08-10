@@ -45,7 +45,8 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { createEvent, joinEvent, removeParticipant, getMyParticipationMap } from '@/lib/events';
+import { createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol
+} from '@/lib/events';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -142,7 +143,10 @@ describe('joinEvent', () => {
       } as unknown as ReturnType<typeof supabase.from>;
     });
 
-    await expect(joinEvent('event-1', 'user-1', 'Test User')).resolves.toBeUndefined();
+    // `joinEvent` oddaje dziś, GDZIE wylądował zapis — strona meczu potrzebuje
+    // tego, żeby nie mówić „Dołączyłeś do meczu!" komuś, kto trafił na rezerwę.
+    await expect(joinEvent('event-1', 'user-1', 'Test User'))
+      .resolves.toEqual({ isReserve: false, pending: false });
   });
 
   it('throws when the rate limit is exceeded', async () => {
@@ -274,5 +278,51 @@ describe('getMyParticipationMap', () => {
 
     const map = await getMyParticipationMap('user-1');
     expect(map).toEqual({});
+  });
+});
+
+describe('wolneMiejscaWgRol', () => {
+  const skladPolowy = (pole: number, bramkarze: number) => [
+    ...Array.from({ length: pole }, () => ({ isGoalkeeper: false })),
+    ...Array.from({ length: bramkarze }, () => ({ isGoalkeeper: true })),
+  ];
+
+  it('bez rozróżniania ról oddaje jedną pulę', () => {
+    const w = wolneMiejscaWgRol(skladPolowy(3, 0), { maxPlayers: 14, goalkeepersEnabled: false });
+    expect(w).toEqual({ pole: 11, bramkarze: 0, razem: 11, rozdzielone: false });
+  });
+
+  // Sedno zgłoszenia: „zostały 2 wolne miejsca" przy komplecie w polu znaczyło
+  // w rzeczywistości „2 miejsca dla bramkarzy", a zawodnik z pola i tak lądował
+  // na rezerwie — dowiadując się o tym dopiero po zapisaniu się.
+  it('rozdziela pulę: komplet w polu przy wolnych miejscach dla bramkarzy', () => {
+    const w = wolneMiejscaWgRol(skladPolowy(12, 0), {
+      maxPlayers: 14, maxGoalkeepers: 2, goalkeepersEnabled: true,
+    });
+    expect(w.pole).toBe(0);
+    expect(w.bramkarze).toBe(2);
+    expect(w.razem).toBe(2);
+    expect(w.rozdzielone).toBe(true);
+  });
+
+  it('liczy obie role osobno', () => {
+    const w = wolneMiejscaWgRol(skladPolowy(10, 1), {
+      maxPlayers: 14, maxGoalkeepers: 2, goalkeepersEnabled: true,
+    });
+    expect(w.pole).toBe(2);
+    expect(w.bramkarze).toBe(1);
+  });
+
+  it('nie schodzi poniżej zera przy nadkomplecie', () => {
+    const w = wolneMiejscaWgRol(skladPolowy(0, 3), {
+      maxPlayers: 14, maxGoalkeepers: 2, goalkeepersEnabled: true,
+    });
+    expect(w.bramkarze).toBe(0);
+  });
+
+  it('pusty skład oddaje pełne limity', () => {
+    const w = wolneMiejscaWgRol([], { maxPlayers: 14, maxGoalkeepers: 2, goalkeepersEnabled: true });
+    expect(w.pole).toBe(12);
+    expect(w.bramkarze).toBe(2);
   });
 });

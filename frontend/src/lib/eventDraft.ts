@@ -29,7 +29,9 @@ export interface EventDraftValues {
   czasWlasny: boolean;
   maxPlayers: number;
   maxPlayersTouched: boolean;
-  goalkeepersEnabled: boolean;
+  /** `null` = organizator jeszcze nie zdecydował. Szkic musi umieć oddać brak
+   *  decyzji, inaczej samo odtworzenie szkicu decydowałoby za niego. */
+  goalkeepersEnabled: boolean | null;
   reserveClaimHours: number;
   title: string;
   description: string;

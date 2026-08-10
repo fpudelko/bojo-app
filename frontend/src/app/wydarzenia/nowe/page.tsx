@@ -86,7 +86,9 @@ function NewEventForm() {
   const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(14);  // domyślny sport to piłka nożna
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
-  const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
+  // `null`, nie `true`: patrz komentarz przy `validateGoalkeepers()`. Włączone
+  // domyślnie rozbijało pulę miejsc na role bez wiedzy organizatora.
+  const [goalkeepersEnabled, setGoalkeepersEnabled] = useState<boolean | null>(null);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
   const [recurringEnabled, setRecurringEnabled] = useState(false);
   const [recurringNotifyDaysBefore, setRecurringNotifyDaysBefore] = useState(3);
@@ -527,7 +529,7 @@ function NewEventForm() {
           endTime: endTime ?? undefined,
           maxPlayers,
           maxGoalkeepers: 2,
-          goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+          goalkeepersEnabled: GK_SPORTS.includes(sport) ? (goalkeepersEnabled ?? false) : false,
           reserveClaimHours,
           visibility,
           requireSmsConfirmation: false,
@@ -554,7 +556,7 @@ function NewEventForm() {
         user.id,
         displayName(user),
         organizerParticipates,
-        organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && organizerRole === 'gk',
+        organizerParticipates && GK_SPORTS.includes(sport) && !!goalkeepersEnabled && organizerRole === 'gk',
       );
       // Zapis PRZED czyszczeniem szkicu — po `clearEventDraft()` nie ma już
       // czego zapamiętać. Tylko boiska z katalogu: pinezka postawiona ręcznie
@@ -657,6 +659,7 @@ function NewEventForm() {
     for (let s = step; s < target; s++) {
       const errs = validateStep(s, {
         location, date, time, costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
+        sportMaBramkarza: GK_SPORTS.includes(sport), goalkeepersEnabled,
       });
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
@@ -958,6 +961,7 @@ function NewEventForm() {
               />
 
               <EventCapacityFields
+                blad={fieldErrors.goalkeepers}
                 sport={sport}
                 maxPlayers={maxPlayers}
                 onMaxPlayersChange={(v) => { setMaxPlayersTouched(true); setMaxPlayers(v); }}
@@ -1157,7 +1161,7 @@ function NewEventForm() {
                   time,
                   durationMin,
                   maxPlayers,
-                  goalkeepersEnabled: GK_SPORTS.includes(sport) && goalkeepersEnabled,
+                  goalkeepersEnabled: GK_SPORTS.includes(sport) && !!goalkeepersEnabled,
                   maxGoalkeepers: 2,
                   organizerParticipates,
                   costPln,
