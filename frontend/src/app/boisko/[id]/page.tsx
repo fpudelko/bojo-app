@@ -58,7 +58,16 @@ function toField(row: any): Field {
 // poznańskim katalogu (~1500 obiektów) to bolało; po imporcie z OSM (~4600)
 // czas builda wystrzelił w dziesiątki minut. Teraz: dwie kolumny zamiast
 // wszystkich i jeden wspólny indeks na proces.
-const SLUG_INDEX_TTL_MS = 5 * 60 * 1000;
+// Godzina, nie pięć minut. Indeks to pełny przemiał kolumn `(id, name)` po
+// całym katalogu, a pamięć podręczna żyje w PROCESIE — każda instancja funkcji
+// serverless buduje własną. Przy pięciu minutach ten sam katalog jechał przez
+// sieć kilkanaście razy na godzinę na każdą żywą instancję, wyłącznie po to,
+// żeby rozwiązać slug na identyfikator.
+//
+// Wydłużenie jest bezpieczne, bo pudło i tak wymusza odświeżenie (patrz
+// `idForSlug()` niżej): świeżo zaimportowany obiekt nie czeka na wygaśnięcie
+// wpisu, tylko przebudowuje indeks przy pierwszym wejściu na swoją stronę.
+const SLUG_INDEX_TTL_MS = 60 * 60 * 1000;
 let slugIndexCache: { at: number; index: Promise<Map<string, string>> } | null = null;
 
 // Strona po strony, nie jednym zapytaniem. PostgREST ma serwerowy limit
