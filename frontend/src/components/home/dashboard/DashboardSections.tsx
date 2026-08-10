@@ -116,6 +116,50 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
  *  bywa przekazywane w kolejności `getMyParticipatedEvents()`, która sortuje
  *  malejąco (ten sam powód, dla którego `nextMatch()` w `lib/myEvents.ts`
  *  sortuje samodzielnie zamiast ufać porządkowi wejścia). */
+/** Prośby o dołączenie czekające na decyzję organizatora.
+ *
+ *  Stoi NAD „Brakuje graczy", bo to jedyna sekcja, w której ktoś czeka na
+ *  odpowiedź — mecz bez kompletu poczeka, człowiek z prośbą niekoniecznie.
+ *  Dotąd jedynym śladem była niebieska kropka przy „Moje" w dolnej nawigacji
+ *  i wpis w dzwonku; żeby dowiedzieć się, KTÓRY mecz czeka, trzeba było
+ *  otwierać mecze po kolei.
+ *
+ *  Bez przycisków akceptuj/odrzuć w kafelku — decyzja zapada na stronie meczu,
+ *  gdzie widać skład, rezerwę i kto właściwie prosi. Przyciski odpowiedzi
+ *  wprost na liście zostały już raz wycofane z zaproszeń (PR #110). */
+export function PendingRequestsSection({ items, href }: {
+  items: MyEventRow[]; href?: string;
+}) {
+  const czekajace = items
+    .filter(({ event, relation }) => relation.isOrganizer && (event.pendingApprovalCount ?? 0) > 0)
+    .sort((a, b) => `${a.event.date}T${a.event.time || '23:59'}`
+      .localeCompare(`${b.event.date}T${b.event.time || '23:59'}`));
+  if (czekajace.length === 0) return null;
+
+  const razem = czekajace.reduce((suma, { event }) => suma + (event.pendingApprovalCount ?? 0), 0);
+
+  return (
+    <div>
+      <SectionHeader
+        title="Czekają na Twoją decyzję"
+        href={href}
+        count={razem}
+        subtitle={`${withCount(razem, 'prośba', 'prośby', 'próśb')} o dołączenie do Twoich meczów`}
+      />
+      <div className="space-y-3">
+        {czekajace.map(({ event, relation }) => (
+          <div key={event.id} className="rounded-2xl border border-blue-200 bg-blue-50/40 p-1">
+            <EventBrowseCard event={event} relation={relation} />
+            <p className="px-3 pb-1.5 pt-1 text-xs font-semibold text-blue-700">
+              {withCount(event.pendingApprovalCount ?? 0, 'osoba czeka', 'osoby czekają', 'osób czeka')} na akceptację
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function NeedsPlayersSection({ items, limit = 3, href }: {
   items: MyEventRow[]; limit?: number | null; href?: string;
 }) {

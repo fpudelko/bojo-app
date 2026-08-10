@@ -88,7 +88,40 @@ describe('splitMyEvents', () => {
       row({ id: 'c', date: ymd(addDays(-1)) }, { status: 'playing' }),
       row({ id: 'd', date: ymd(addDays(5)), status: 'cancelled' }, { status: 'playing' }),
     ];
-    expect(splitMyEvents(items)).toEqual(legacyFilters(items));
+    // Porównanie po zbiorze identyfikatorów, nie po kolejności: przydział
+    // wierszy do kubełków ma zostać taki jak był, a kolejność w kubełku
+    // zmieniła się celowo (patrz test niżej).
+    const ids = (rows: MyEventRow[]) => rows.map((r) => r.event.id).sort();
+    const teraz = splitMyEvents(items);
+    const kiedys = legacyFilters(items);
+    expect(ids(teraz.upcoming)).toEqual(ids(kiedys.upcoming));
+    expect(ids(teraz.history)).toEqual(ids(kiedys.history));
+    expect(ids(teraz.playing)).toEqual(ids(kiedys.playing));
+    expect(ids(teraz.observing)).toEqual(ids(kiedys.observing));
+  });
+
+  // Wejście przychodzi z bazy malejąco — bez sortowania listy „Twoje najbliższe
+  // mecze" zaczynały się od terminu najdalszego w przyszłości.
+  it('sortuje nadchodzące rosnąco, a historię malejąco', () => {
+    const items = [
+      row({ id: 'daleki',  date: ymd(addDays(10)) }),
+      row({ id: 'bliski',  date: ymd(addDays(1)) }),
+      row({ id: 'sredni',  date: ymd(addDays(4)) }),
+      row({ id: 'dawny',   date: ymd(addDays(-9)) }),
+      row({ id: 'wczoraj', date: ymd(addDays(-1)) }),
+    ];
+    const { upcoming, history } = splitMyEvents(items);
+    expect(upcoming.map((r) => r.event.id)).toEqual(['bliski', 'sredni', 'daleki']);
+    expect(history.map((r) => r.event.id)).toEqual(['wczoraj', 'dawny']);
+  });
+
+  it('tego samego dnia decyduje godzina', () => {
+    const dzien = ymd(addDays(2));
+    const items = [
+      row({ id: 'wieczor', date: dzien, time: '21:00' }),
+      row({ id: 'rano',    date: dzien, time: '08:00' }),
+    ];
+    expect(splitMyEvents(items).upcoming.map((r) => r.event.id)).toEqual(['rano', 'wieczor']);
   });
 });
 

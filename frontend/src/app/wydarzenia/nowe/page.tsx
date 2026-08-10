@@ -714,7 +714,11 @@ function NewEventForm() {
           (linia niżej z env(safe-area-inset-bottom)) — dawny `py-8` zostawiał
           pod nim dodatkowe 32 px pustego tła. */}
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-8 pb-0">
-        {groupName && (
+        {/* Pasek z grupą znika na kroku 3 — tam stoi pełny wybór grupy
+            („Mecz w ramach grupy" z przyciskiem Zmień), więc pasek mówił
+            dokładnie to samo dwa razy, jeden pod drugim. Na krokach 1–2 zostaje:
+            tam nic innego o grupie nie informuje. */}
+        {groupName && step < 3 && (
           <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm text-primary-800">
             <Users className="w-4 h-4 shrink-0" />
             Mecz w grupie <span className="font-semibold">{groupName}</span>

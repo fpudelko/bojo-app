@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { withCount } from '@/lib/plural';
+import { WARSTWA } from '@/lib/warstwy';
 
 /**
  * Ustawienia cyklicznego powtarzania, otwierane z kafelka „Wydarzenie
@@ -35,7 +36,7 @@ export default function RecurringSettingsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4 sm:pb-4"
+      className={`fixed inset-0 ${WARSTWA.modal} flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4 sm:pb-4`}
       onClick={onClose}
     >
       <div

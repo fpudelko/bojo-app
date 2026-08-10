@@ -6,6 +6,7 @@ import { getMyAlert, saveAlert, deleteMyAlert, geocodeCity, type AlertInput } fr
 import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
 import type { GameAlert } from '@/types';
+import { WARSTWA } from '@/lib/warstwy';
 
 const SPORTS = [
   { value: '',              label: 'Dowolny sport' },
@@ -126,7 +127,7 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className={`fixed inset-0 ${WARSTWA.modal} flex items-end sm:items-center justify-center p-0 sm:p-4`}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 

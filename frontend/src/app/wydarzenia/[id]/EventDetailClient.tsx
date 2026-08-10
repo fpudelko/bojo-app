@@ -60,6 +60,7 @@ import {
 } from '@/lib/teamProposals';
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
 import { withCount } from '@/lib/plural';
+import { WARSTWA } from '@/lib/warstwy';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -138,13 +139,32 @@ function PlayerLink({ p, className, children }: {
   return <div className={className}>{children}</div>;
 }
 
+/** Rola gracza w składzie — plakietka.
+ *
+ *  Bramkarz miał „🧤 BR", zawodnik z pola nie miał nic, więc jego rola czytała
+ *  się jako „brak informacji", a nie jako decyzja. Obie role wyglądają teraz
+ *  symetrycznie. Pokazujemy je wyłącznie, gdy mecz w ogóle rozróżnia bramkarzy
+ *  (`goalkeepersEnabled`) — inaczej wszyscy mieliby tę samą plakietkę i byłaby
+ *  ona czystym szumem. */
+function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; wariant?: 'pelny' | 'maly' }) {
+  const wspolne = wariant === 'maly'
+    ? 'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold'
+    : 'shrink-0 rounded-full border px-1.5 py-0.5 text-xs font-semibold';
+  return bramkarz ? (
+    <span title="Bramkarz" className={`${wspolne} border-primary-100 bg-primary-50 text-primary-700`}>🧤 BR</span>
+  ) : (
+    <span title="Zawodnik z pola" className={`${wspolne} border-slate-200 bg-slate-50 text-slate-500`}>⚽ POLE</span>
+  );
+}
+
 /** Inline roster — rendered INSIDE the player-count card when the avatar stack
  *  is expanded. Always shows flat lists: regulars then reserves. */
 function ParticipantsList({
-  regulars, reserves,
+  regulars, reserves, gkEnabled,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
+  gkEnabled: boolean;
 }) {
   return (
     <div className="space-y-3 text-left">
@@ -152,8 +172,8 @@ function ParticipantsList({
         {regulars.map((p) => (
           <PlayerLink key={p.id} p={p} className="flex items-center gap-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
             <PlayerAvatar p={p} />
-            <span className="flex-1 text-sm font-medium text-ink truncate">{p.name}</span>
-            {p.isGoalkeeper && <span className="text-xs text-primary-600 font-semibold">🧤 BR</span>}
+            <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
+            {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
           </PlayerLink>
         ))}
       </div>
@@ -171,7 +191,11 @@ function ParticipantsList({
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
                   {i + 1}
                 </span>
-                <span className="flex-1 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
+                <span className="flex-1 min-w-0 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
+                {/* Rola także na rezerwie: od migracji `075` kolejka biegnie
+                    osobno dla bramkarzy i zawodników z pola, więc sam numer
+                    w kolejce nie mówi, na co ta osoba właściwie czeka. */}
+                {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
               </div>
             ))}
           </div>
@@ -1626,11 +1650,7 @@ export default function EventDetailClient() {
                             gość
                           </span>
                         )}
-                        {gkEnabled && p.isGoalkeeper && (
-                          <span title="Bramkarz" className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-1.5 py-0.5 shrink-0">
-                            🧤 BR
-                          </span>
-                        )}
+                        {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
                         {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
                         {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                         {showTeams && p.team && (
@@ -1695,6 +1715,7 @@ export default function EventDetailClient() {
                         <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{i + 1}</span>
                           <span className="min-w-0 truncate">{p.name}</span>
+                          {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                           {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
                           {p.claimOfferedAt && (
                             <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
@@ -1767,6 +1788,7 @@ export default function EventDetailClient() {
                   <ParticipantsList
                     regulars={regulars}
                     reserves={reserves}
+                    gkEnabled={gkEnabled}
                   />
                 )}
               </div>
@@ -2468,7 +2490,7 @@ export default function EventDetailClient() {
           moved match that nobody noticed is worse than no match. */}
       {whenOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setWhenOpen(false)}
         >
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -2547,7 +2569,7 @@ export default function EventDetailClient() {
 
       {visOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setVisOpen(false)}
         >
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -2623,7 +2645,7 @@ export default function EventDetailClient() {
           address and directions live in a small modal instead of a dead chip. */}
       {venueInfoOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          className={`fixed inset-0 ${WARSTWA.modal} flex items-end justify-center bg-black/50 p-4 sm:items-center`}
           onClick={() => setVenueInfoOpen(false)}
         >
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -2657,7 +2679,7 @@ export default function EventDetailClient() {
       {/* Leave confirmation */}
       {leaveConfirmOpen && myEntry && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setLeaveConfirmOpen(false)}
         >
           <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2710,7 +2732,7 @@ export default function EventDetailClient() {
       {/* Join confirmation — role choice + explicit confirm so nobody signs up by accident */}
       {joinDialogOpen && user && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setJoinDialogOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2882,7 +2904,7 @@ export default function EventDetailClient() {
       {/* Repeat game dialog */}
       {repeatOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setRepeatOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2971,7 +2993,7 @@ export default function EventDetailClient() {
       {/* Delete confirmation modal */}
       {deleteConfirmOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setDeleteConfirmOpen(false)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -2996,7 +3018,7 @@ export default function EventDetailClient() {
       {/* Report modal */}
       {reportTarget && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[1100] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setReportTarget(null)}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

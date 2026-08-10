@@ -296,6 +296,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-10 — Prośby o dołączenie na /moje-gry, poprawna kolejność meczów, modale nad nawigacją
+
+PROBLEM: organizator w Bojo nie miał gdzie zobaczyć, KTÓRY mecz czeka na jego decyzję —
+prośby o dołączenie sygnalizowała tylko kropka przy „Moje" w dolnej nawigacji i wpis
+w dzwonku, więc trzeba było otwierać mecze po kolei. Listy na `/moje-gry` szły od meczu
+najdalszego w przyszłości: dane z bazy przychodzą malejąco, a `splitMyEvents()` tylko
+filtrowało. Dolna nawigacja, podniesiona wcześniej nad karty mapy, zasłaniała okna
+potwierdzeń (np. „Wypisać się z meczu?"). Kreator meczu pokazywał na kroku 3 pasek
+„Mecz w grupie X" tuż nad pełnym wyborem grupy — ta sama informacja dwa razy. W liście
+składu bramkarz miał plakietkę „🧤 BR", a zawodnik z pola nie miał nic, więc jego rola
+czytała się jak brak danych. Filtr „ten tydzień" liczył tydzień względem prawdziwej
+daty bieżącej zamiast względem daty podanej w argumencie.
+
+ROZWIĄZANIE BOJO: `/moje-gry` w zakładce „Nadchodzące" ma nad sekcją „Brakuje graczy"
+nową sekcję „Czekają na Twoją decyzję" — kafelek meczu z liczbą osób czekających na
+akceptację, prowadzący na stronę meczu (bez przycisków akceptuj/odrzuć w kafelku).
+Mecze nadchodzące sortują się od najbliższego, historia od ostatnio rozegranego.
+Modale są nad dolną nawigacją; kolejność warstw opisuje jeden plik `lib/warstwy.ts`
+zamiast liczb wpisywanych w kilkunastu komponentach. Pasek z grupą w kreatorze znika
+na kroku 3. Zawodnik z pola ma plakietkę „⚽ POLE" symetryczną do „🧤 BR" — w składzie
+i na liście rezerwowej, pokazywaną tylko w meczach rozróżniających bramkarzy.
+
+MECHANIKA: `components/home/dashboard/DashboardSections.tsx` (`PendingRequestsSection`,
+czyta `pendingApprovalCount` z `EventItem`); `lib/myEvents.ts` (sortowanie w
+`splitMyEvents`, `nextMatch` to dziś pierwszy wiersz); nowy `lib/warstwy.ts`
+(`WARSTWA.nakladkaMapy` < `nawigacjaDolna` < `modal` < `toast`) użyty w `BottomNav`,
+`FilterSheet`, `toast.tsx`, `EventDetailClient` i czterech dialogach;
+`EventDetailClient.tsx` (`RolaGracza`); `wydarzenia/nowe/page.tsx` (pasek grupy tylko
+na krokach 1–2); `lib/eventFilters.ts` (`isSameWeek(dt, now, …)` zamiast
+`isThisWeek(dt, …)` — poprzednia wersja ignorowała podane `now`).
+
 ### 2026-08-09 — Rezerwa widoczna w składzie, powiadomienia bez fałszywej fajki, poprawna odmiana liczebników
 
 PROBLEM: strona meczu w Bojo pokazywała „Nikt jeszcze nie dołączył" nawet wtedy, gdy
@@ -592,28 +623,3 @@ MECHANIKA: `components/ui/FilterPill.tsx#PillDropdown` (stała szerokość panel
 przeliczenie pozycji względem prawej krawędzi ekranu); `components/map/GamesMarkersLayer.tsx`
 (`matchWhenLabel(date, time)` zamiast `matchWhenLabel(date)`); `VenueExplorer.tsx#previewFieldsCount`
 (w trybie skupisk liczy z `wKadrze` zamiast z pustego `allFields`).
-
-### 2026-08-07 — Mapa meczów: emoji sportu i „kiedy" na pinezce, swipe w panelu, zamykanie dotknięciem mapy
-PROBLEM: pinezki meczów na mapie (widok mapy w `/wydarzenia` i tryb „Pokaż gry" na
-`/mapa`) nie różniły się niczym poza kolorem — nie było widać, jaki to sport ani kiedy
-jest mecz, bez dotknięcia każdej z osobna. Pigułka „Sortuj" pokazywała się też na
-samej mapie, mimo że tam nie ma listy do sortowania. Panel szczegółów po dotknięciu
-pinezki nie miał sposobu na przejście do sąsiedniego meczu bez zamykania go i szukania
-kolejnej pinezki, a dotknięcie mapy w pustym miejscu nie zamykało otwartego panelu.
-Widok mapy w `/wydarzenia` nie miał przycisku „zlokalizuj mnie", a na `/mapa` ten
-przycisk miał ikonę pinezki zamiast celownika.
-ROZWIĄZANIE BOJO: pinezka pojedynczego meczu to teraz kółko w kolorze sportu z emoji
-sportu w środku i etykietą „dziś"/„jutro"/„w piątek"/„12 wrz" pod spodem — cena i reszta
-zostają w panelu, żeby nie przeładować samej pinezki. Klaster kilku meczów blisko
-siebie ma ten sam, stylowany wygląd co klastry boisk (kolorowe kółko z liczbą). Panel
-szczegółów: swipe w lewo/prawo przełącza na kolejny/poprzedni mecz w tej samej
-kolejności co pinezki, a dotknięcie mapy poza pinezką zamyka otwarty panel. Pigułka
-„Sortuj" zniknęła z obu widoków mapy (na `/wydarzenia` chowa się tylko w widoku mapy,
-zostaje na liście; na `/mapa` w trybie gier zniknęła całkowicie, bo tam nie ma innego
-trybu). Widok mapy w `/wydarzenia` dostał przycisk „zlokalizuj mnie" (wcześniej go nie
-miał), a ikona na obu mapach to teraz celownik zamiast pinezki.
-MECHANIKA: `components/map/GamesMarkersLayer.tsx` (emoji przez `sportEmoji()`, etykieta
-przez `matchWhenLabel()` z `lib/eventDates.ts`, `map.on('click', …)` zamykający panel);
-`lib/eventFilters.ts#swipeEventId` + `lib/useSwipe.ts` (wykrywanie gestu); nowy wspólny
-`components/map/LocateMeButton.tsx` (ikona `LocateFixed`), używany w `VenueExplorer.tsx`
-i nowo w `components/map/GamesMapCanvas.tsx`.

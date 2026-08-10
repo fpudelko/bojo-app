@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Loader2, Users, X } from 'lucide-react';
 import { createGroup, getGroup, getMyGroups } from '@/lib/groups';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import type { Group } from '@/types';
+import { WARSTWA } from '@/lib/warstwy';
 
 /**
  * Wybór grupy, do której należy tworzony mecz (krok 3 kreatora; reużywany
@@ -76,7 +77,7 @@ export default function WybierzGrupeDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4 sm:pb-4">
+    <div className={`fixed inset-0 ${WARSTWA.modal} flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4 sm:pb-4`}>
       <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
           {tryb === 'nowa' ? (
