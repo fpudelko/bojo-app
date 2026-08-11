@@ -1,15 +1,6 @@
 import { supabase } from './supabase';
 import type {
-  Tournament,
-  TournamentTeam,
-  TournamentTeamMember,
-  TournamentGroup,
-  TournamentMatch,
-  TournamentStanding,
-  TournamentVenue,
-  TournamentVenueSlot,
-  PlayerPosition,
-  TeamStatus,
+  Tournament, TournamentTeam, TournamentTeamMember, TournamentGroup, TournamentMatch, TournamentStanding, TournamentVenue, TournamentVenueSlot, PlayerPosition,
 } from '@/types';
 
 // ---------------------------------------------------------------------------

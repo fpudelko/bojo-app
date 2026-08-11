@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Lock, Search, Shield, ShieldCheck, User } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 interface Profile {

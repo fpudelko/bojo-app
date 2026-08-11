@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  Trophy, ChevronLeft, Users, ListOrdered, GitBranch, Loader2, Goal,
+  ChevronLeft, Users, ListOrdered, GitBranch, Loader2, Goal,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';

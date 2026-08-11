@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { createEvent } from './events';
 import type { RecurringEvent, RecurringEventInvite, Visibility } from '@/types';
 
 export const DAY_OPTIONS: { value: number; label: string }[] = [

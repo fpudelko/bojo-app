@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
 import { track } from './analytics';
+import { zaktualizujJedenWiersz } from './zapytania';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus, PaymentMethod, SportsCardProvider } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -740,11 +741,11 @@ export async function syncReserveClaim(eventId: string): Promise<void> {
 
 /** Reserve accepts the offered spot and joins the squad. */
 export async function acceptReserveClaim(participantId: string): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ is_reserve: false, claim_offered_at: null, claim_passed: false })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  await zaktualizujJedenWiersz(
+    'event_participants', participantId,
+    { is_reserve: false, claim_offered_at: null, claim_passed: false },
+    'Nie udało się przyjąć zwolnionego miejsca',
+  );
 }
 
 /** Reserve passes on the offered spot. They stay on the list (the organizer can
@@ -778,11 +779,11 @@ export async function declineReserveClaim(participantId: string, eventId: string
  * blokowałby ją, gdyby kiedyś wróciła na rezerwę.
  */
 export async function awansujZRezerwy(participantId: string, eventId: string): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ is_reserve: false, claim_offered_at: null, claim_passed: false })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  await zaktualizujJedenWiersz(
+    'event_participants', participantId,
+    { is_reserve: false, claim_offered_at: null, claim_passed: false },
+    'Nie udało się przenieść gracza do składu',
+  );
   // Kolejka mogła właśnie stracić osobę, której trzymała ofertę — niech
   // przeliczy się od razu, zamiast czekać na czyjeś wejście na stronę.
   await runSyncReserveClaim(eventId);
@@ -793,20 +794,19 @@ export async function awansujZRezerwy(participantId: string, eventId: string): P
  *  Odwrotność `awansujZRezerwy()`. Bez tego jedyną drogą było usunięcie
  *  gracza — a to co innego niż „nie tym razem, ale trzymam Cię w kolejce". */
 export async function cofnijNaRezerwe(participantId: string, eventId: string): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ is_reserve: true, claim_offered_at: null, claim_passed: false })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  await zaktualizujJedenWiersz(
+    'event_participants', participantId,
+    { is_reserve: true, claim_offered_at: null, claim_passed: false },
+    'Nie udało się przenieść gracza na rezerwę',
+  );
   await runSyncReserveClaim(eventId);
 }
 
 export async function togglePayment(participantId: string, hasPaid: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ has_paid: hasPaid })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  await zaktualizujJedenWiersz(
+    'event_participants', participantId, { has_paid: hasPaid },
+    'Nie udało się zmienić statusu płatności',
+  );
 }
 
 /** Attach an existing match to a group, or detach it (`null`).

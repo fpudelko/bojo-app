@@ -6,10 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2,
-  Check, X, Pencil, Banknote, Phone, Trophy, Star,
-  BanIcon, RotateCcw, AlertTriangle, Copy, ArrowRight, ChevronDown, ChevronRight, Settings,
-  ArrowLeft, Navigation, RefreshCw, TrendingUp, Tag, Eye, Link2 as LinkIcon, Repeat,
+  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -42,9 +39,8 @@ import {
 import {
   updateParticipantTeam, updateParticipantPayment,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
-  getMatchResult, saveMatchResult, getPlayerGoals, setPlayerGoals as savePlayerGoals,
+  getMatchResult, getPlayerGoals,
   publishTeams, unpublishTeams, saveEventAdvancedSettings,
-  TEAM_MODE_LABELS,
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
@@ -381,7 +377,9 @@ export default function EventDetailClient() {
   const [busy, setBusy] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestIsGk, setGuestIsGk] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
+  // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
+  const [, setCopied] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -394,9 +392,6 @@ export default function EventDetailClient() {
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [playerGoals, setPlayerGoals] = useState<PlayerGoal[]>([]);
-  const [scoreA, setScoreA] = useState('');
-  const [scoreB, setScoreB] = useState('');
-  const [savingResult, setSavingResult] = useState(false);
   // Repeat game dialog
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
@@ -442,7 +437,6 @@ export default function EventDetailClient() {
     if (!ev.trackResults) return;
     const [result, goals] = await Promise.all([getMatchResult(ev.id), getPlayerGoals(ev.id)]);
     setMatchResult(result);
-    if (result) { setScoreA(String(result.scoreA)); setScoreB(String(result.scoreB)); }
     setPlayerGoals(goals);
   }, []);
 
@@ -920,7 +914,6 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-
   const handleToggleAllowGuestAdds = async () => {
     setBusy(true);
     try {
@@ -1119,37 +1112,10 @@ export default function EventDetailClient() {
     } finally { setRepeatBusy(false); }
   };
 
-  const handleSaveResult = async () => {
-    if (!user) return;
-    const a = parseInt(scoreA, 10);
-    const b = parseInt(scoreB, 10);
-    if (isNaN(a) || isNaN(b) || a < 0 || b < 0) return;
-    setSavingResult(true);
-    try {
-      await saveMatchResult(event.id, a, b, user.id);
-      await loadMatchData(event);
-      toast('Wynik zapisany');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    } finally { setSavingResult(false); }
-  };
-
-  const handleSetGoals = async (participantId: string, goals: number) => {
-    const g = Math.max(0, goals);
-    try {
-      await savePlayerGoals(event.id, participantId, g);
-      setPlayerGoals((prev) => {
-        if (g <= 0) return prev.filter((x) => x.participantId !== participantId);
-        const existing = prev.find((x) => x.participantId === participantId);
-        if (existing) return prev.map((x) => x.participantId === participantId ? { ...x, goals: g } : x);
-        return [...prev, { id: '', eventId: event.id, participantId, participantName: '', goals: g }];
-      });
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Błąd', 'error');
-    }
-  };
-
-  const canManualAssign = ['reczne', 'kapitanowie'].includes(event.teamMode);
+  // Zapisywanie wyniku i goli przeniosło się do `MatchResultForm` (ma własny
+  // stan i `onSaved`), a `canManualAssign` do `TeamsPanel`. Osierocone kopie
+  // zostały tu po refaktorze — nic ich nie wołało. Wykrył je dopiero ESLint
+  // uruchomiony po raz pierwszy w tym repo.
 
   const isCancelled = event.status === 'cancelled';
   // eventStarted: event time has passed
@@ -2352,7 +2318,6 @@ export default function EventDetailClient() {
             onSaved={(result) => setMatchResult(result)}
           />
         )}
-
 
         {/* Cost split summary — deliberately NOT gated by !eventStarted: rozliczenie
             kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator

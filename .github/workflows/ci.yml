@@ -2,9 +2,13 @@
 # Deterministyczna bramka: agent (i człowiek) dostaje pass/fail zamiast
 # polegać na pamiętaniu o uruchomieniu testów przed pushem na produkcję.
 #
-# `npm run build` celowo NIE wchodzi do CI: wymaga kluczy Supabase
-# (NEXT_PUBLIC_SUPABASE_URL/ANON_KEY) — do dodania po skonfigurowaniu
-# sekretów repo, patrz BACKLOG.
+# `npm run build` JEST w CI. Przez długi czas stało tu, że nie może być, bo
+# wymaga kluczy Supabase — nieprawda: klient ma wartości zapasowe, a build
+# potrzebuje tylko, żeby zmienne w ogóle istniały. Dwie atrapy wystarczą.
+#
+# To nie jest bramka dla ozdoby: `useSearchParams()` w komponencie klienckim
+# wywraca WYŁĄCZNIE build produkcyjny (`missing-suspense-with-csr-bailout`),
+# lokalnie i w testach przechodzi. Ta pułapka raz już zepsuła produkcję.
 name: CI
 
 on:
@@ -44,9 +48,64 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
+      - name: Lint (ESLint)
+        working-directory: frontend
+        # Ostrzeżenia dopuszczone, błędy nie. Reguły i powody: frontend/.eslintrc.js
+        run: npx next lint --dir src
+
       - name: Testy (Vitest)
         working-directory: frontend
         run: npm test
 
+      - name: Build produkcyjny
+        working-directory: frontend
+        env:
+          # Atrapy — build nie łączy się z bazą, sprawdza kompilację i prerender.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: npm run build
+
       - name: Spójność dokumentacji
         run: node scripts/check-docs.mjs
+
+  # Osobne zadanie, nie krok w `test`: przeglądarka i jej zależności systemowe
+  # kosztują ~1,5 min instalacji, a bramka `test` ma zostać szybka. Oba zadania
+  # biegną równolegle i oba muszą być zielone.
+  e2e:
+    name: Klikalność (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Zależności
+        working-directory: frontend
+        run: npm ci
+
+      - name: Przeglądarka
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build produkcyjny
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: npm run build
+
+      - name: Testy klikalności
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Ślady po nieudanych testach
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

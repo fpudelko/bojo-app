@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Trophy, ChevronLeft, ChevronRight, Shield, CalendarDays,
@@ -19,7 +18,6 @@ const STEPS = ['Drużyna', 'Dostępność'] as const;
 
 export default function TeamRegistrationPage() {
   const { user, loading } = useAuth();
-  const router = useRouter();
   const { toast } = useToast();
 
   const [t, setT] = useState<Tournament | null>(null);
