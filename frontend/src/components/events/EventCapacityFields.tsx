@@ -2,6 +2,42 @@
 
 import { GK_SPORTS } from '@/lib/sports';
 
+/** Ilu bramkarzy naraz. Stała, nie ustawienie — dwie drużyny, dwie bramki. */
+const LIMIT_BRAMKARZY = 2;
+
+/** Trzy sposoby na podział miejsc. Opis liczy się z realnej liczby miejsc,
+ *  bo „12 w polu + 2 dla bramkarzy" mówi więcej niż zdanie o regule. */
+const TRYBY = [
+  {
+    id: 'bez-rozroznienia',
+    gk: false,
+    zarezerwowane: false,
+    tytul: 'Bez podziału na role',
+    opis: (miejsca: number) =>
+      `Wszystkie ${miejsca} miejsc jest wspólnych. Nikt nie deklaruje, czy stoi na bramce.`,
+  },
+  {
+    id: 'wspolna-pula',
+    gk: true,
+    zarezerwowane: false,
+    tytul: 'Rozróżniaj, ale nie rezerwuj miejsc',
+    opis: (miejsca: number, bramkarze: number) =>
+      `Gracze wybierają rolę, ale o ${miejsca} miejsc konkurują wszyscy — kto pierwszy, `
+      + `ten w składzie. Bramkarzy nie wejdzie więcej niż ${bramkarze}. `
+      + `Może się zdarzyć komplet bez bramkarza.`,
+  },
+  {
+    id: 'rezerwacja',
+    gk: true,
+    zarezerwowane: true,
+    tytul: 'Rezerwuj miejsca dla bramkarzy',
+    opis: (miejsca: number, bramkarze: number) =>
+      `${miejsca} miejsc = ${Math.max(0, miejsca - bramkarze)} w polu + ${bramkarze} dla bramkarzy. `
+      + `Miejsca bramkarzy czekają na nich do końca — kolejny zawodnik z pola trafi na rezerwę, `
+      + `nawet jeśli bramkarz się nie zapisze.`,
+  },
+] as const;
+
 /**
  * Liczba miejsc (stepper +/−) + „Rozróżniaj bramkarzy” + „Czas na decyzję z
  * rezerwy”. Wspólne dla kreatora (`wydarzenia/nowe`) i edycji wydarzenia —
@@ -12,6 +48,7 @@ export default function EventCapacityFields({
   maxPlayers, onMaxPlayersChange,
   goalkeepersEnabled, setGoalkeepersEnabled,
   reserveClaimHours, setReserveClaimHours,
+  slotyZarezerwowane = true, setSlotyZarezerwowane,
   blad,
 }: {
   sport: string;
@@ -22,6 +59,9 @@ export default function EventCapacityFields({
   setGoalkeepersEnabled: (v: boolean) => void;
   reserveClaimHours: number;
   setReserveClaimHours: (v: number) => void;
+  /** Czy miejsca dla bramkarzy są zarezerwowane (migracja `077`). */
+  slotyZarezerwowane?: boolean;
+  setSlotyZarezerwowane?: (v: boolean) => void;
   blad?: string;
 }) {
   return (
@@ -97,50 +137,58 @@ export default function EventCapacityFields({
         </div>
       </div>
 
-      {/* Rozróżnianie bramkarzy — tylko sporty, które mają bramkarza.
-          Dwa przyciski zamiast przełącznika, gdy wartość to jeszcze `null`:
-          przełącznik ZAWSZE pokazuje jakiś stan, więc ustawienie włączone
-          domyślnie wyglądało na świadomą decyzję organizatora, choć nią nie
-          było. Skutek widzieli dopiero gracze: pula miejsc rozbita na role,
-          komplet w polu i rezerwa mimo wolnych miejsc „dla bramkarzy". */}
+      {/* Bramkarze — trzy stany, nie przełącznik.
+          Przełącznik odpowiadał wyłącznie na pytanie „rozróżniać?", a to za mało:
+          organizator, który rozróżnia, musi jeszcze zdecydować, CZY miejsca dla
+          bramkarzy mają czekać. Przy 14 miejscach i 2 bramkarzach domyślne
+          „czekają" oznaczało, że trzynasty zawodnik z pola ląduje na rezerwie,
+          choć dwa miejsca stoją puste — i nikt go o tym nie uprzedził. */}
       {GK_SPORTS.includes(sport) && (
         <div className="border-b border-slate-100 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900">
-                Rozróżniaj bramkarzy
-                {goalkeepersEnabled === null && <span className="ml-1 text-red-600">*</span>}
-              </p>
-              <p className="text-xs text-slate-500">
-                Gracze wybierają: bramkarz lub zawodnik z pola. Max 2 bramkarzy
-                i {Math.max(0, maxPlayers - 2)} zawodników z pola — kolejni trafią na rezerwę.
-              </p>
-            </div>
-            {goalkeepersEnabled === null ? (
-              <div className="flex shrink-0 gap-2">
-                {([[true, 'Tak'], [false, 'Nie']] as const).map(([v, label]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setGoalkeepersEnabled(v)}
-                    className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-primary-500 hover:bg-primary-50"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setGoalkeepersEnabled(!goalkeepersEnabled)}
-                className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', goalkeepersEnabled ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
-                role="switch"
-                aria-checked={goalkeepersEnabled}
-              >
-                <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', goalkeepersEnabled ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-              </button>
-            )}
+          <p className="text-sm font-medium text-slate-900">
+            Bramkarze
+            {goalkeepersEnabled === null && <span className="ml-1 text-red-600">*</span>}
+          </p>
+          <p className="mb-2 text-xs text-slate-500">
+            Zdecyduj, jak Bojo ma dzielić {maxPlayers} miejsc.
+          </p>
+
+          <div className="space-y-2">
+            {TRYBY.map((tryb) => {
+              const wybrany = tryb.gk === goalkeepersEnabled
+                && (tryb.gk === false || tryb.zarezerwowane === slotyZarezerwowane);
+              return (
+                <button
+                  key={tryb.id}
+                  type="button"
+                  onClick={() => {
+                    setGoalkeepersEnabled(tryb.gk);
+                    if (tryb.gk) setSlotyZarezerwowane?.(tryb.zarezerwowane);
+                  }}
+                  className={[
+                    'w-full rounded-xl border p-3 text-left transition-colors',
+                    wybrany
+                      ? 'border-primary-600 bg-primary-50'
+                      : 'border-slate-200 hover:border-slate-300',
+                  ].join(' ')}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={[
+                      'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
+                      wybrany ? 'border-primary-600' : 'border-slate-300',
+                    ].join(' ')}>
+                      {wybrany && <span className="h-2 w-2 rounded-full bg-primary-600" />}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-900">{tryb.tytul}</span>
+                  </span>
+                  <span className="mt-1 block pl-6 text-xs text-slate-500">
+                    {tryb.opis(maxPlayers, LIMIT_BRAMKARZY)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+
           {blad && (
             <p data-field-error className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
               <span aria-hidden>⚠</span> {blad}

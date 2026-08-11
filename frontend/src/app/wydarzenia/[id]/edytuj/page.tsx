@@ -55,6 +55,9 @@ export default function EditEventPage() {
   const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
+  // Tryb miejsc dla bramkarzy (migracja `077`) — w edycji zawsze znamy
+  // wartość z bazy, więc bez stanu „nie zdecydowano".
+  const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
   const [reserveClaimHours, setReserveClaimHours] = useState(3);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -117,6 +120,7 @@ export default function EditEventPage() {
         }
         setMaxPlayers(ev.maxPlayers);
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
+        setSlotyZarezerwowane(ev.goalkeeperSlotsReserved ?? true);
         setReserveClaimHours(ev.reserveClaimHours ?? 3);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
@@ -203,6 +207,7 @@ export default function EditEventPage() {
       maxPlayers,
       maxGoalkeepers: 2,
       goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
+      goalkeeperSlotsReserved: slotyZarezerwowane,
       reserveClaimHours,
       visibility,
       requireApproval,
@@ -429,6 +434,8 @@ export default function EditEventPage() {
             maxPlayers={maxPlayers}
             onMaxPlayersChange={setMaxPlayers}
             goalkeepersEnabled={goalkeepersEnabled}
+            slotyZarezerwowane={slotyZarezerwowane}
+            setSlotyZarezerwowane={setSlotyZarezerwowane}
             setGoalkeepersEnabled={setGoalkeepersEnabled}
             reserveClaimHours={reserveClaimHours}
             setReserveClaimHours={setReserveClaimHours}

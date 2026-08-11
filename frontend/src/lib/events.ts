@@ -47,6 +47,7 @@ export function toEvent(row: any): EventItem {
     joinCode: row.join_code ?? '',
     requireApproval: row.require_approval ?? false,
     maxGoalkeepers: row.max_goalkeepers ?? 2,
+    goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
     reserveClaimHours: row.reserve_claim_hours ?? 3,
     acceptedPaymentMethods: row.accepted_payment_methods ?? [],
@@ -158,6 +159,7 @@ export async function createEvent(
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
+      goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_hours: data.reserveClaimHours ?? 3,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
@@ -192,6 +194,7 @@ export async function createEvent(
       data.maxPlayers,
       data.maxGoalkeepers ?? 2,
       data.goalkeepersEnabled ?? false,
+      data.goalkeeperSlotsReserved ?? true,
     );
     const { error: bladUczestnika } = await supabase.from('event_participants').insert({
       event_id: row.id,
@@ -254,6 +257,7 @@ export async function updateEvent(
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
+      goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_hours: data.reserveClaimHours ?? 3,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
@@ -444,16 +448,26 @@ function decydujCzyRezerwa(
   maxPlayers: number,
   maxGoalkeepers: number,
   goalkeepersEnabled: boolean,
+  // `true` = miejsca bramkarzy zarezerwowane (dotychczasowe zachowanie).
+  // Musi zgadzać się z `sync_reserve_claim` z migracji `077`: gdyby te dwa
+  // liczenia się rozjechały, gracz wchodziłby do składu, a kolejka i tak
+  // trzymałaby go w rezerwie.
+  slotyBramkarzyZarezerwowane = true,
 ): boolean {
-  if (!goalkeepersEnabled) {
-    const total = confirmed.field + confirmed.goalkeeper + held.field + held.goalkeeper;
-    return total >= maxPlayers;
+  const zajete = confirmed.field + confirmed.goalkeeper + held.field + held.goalkeeper;
+
+  if (!goalkeepersEnabled) return zajete >= maxPlayers;
+
+  if (slotyBramkarzyZarezerwowane) {
+    if (asGoalkeeper) return confirmed.goalkeeper + held.goalkeeper >= maxGoalkeepers;
+    return confirmed.field + held.field >= Math.max(0, maxPlayers - maxGoalkeepers);
   }
-  if (asGoalkeeper) {
-    return confirmed.goalkeeper + held.goalkeeper >= maxGoalkeepers;
-  }
-  const fieldCap = Math.max(0, maxPlayers - maxGoalkeepers);
-  return confirmed.field + held.field >= fieldCap;
+
+  // Wspólna pula: o miejsce konkurują wszyscy, bramkarze mają dodatkowo własny
+  // sufit. Skutek: komplet zawodników z pola jest możliwy, ale trzynasty chętny
+  // nie czeka za pustym miejscem, którego nikt nie zajmie.
+  if (zajete >= maxPlayers) return true;
+  return asGoalkeeper && confirmed.goalkeeper + held.goalkeeper >= maxGoalkeepers;
 }
 
 /** Wynik zapisu — wywołujący musi wiedzieć, CZY wszedł do składu.
@@ -477,7 +491,10 @@ export interface WynikZapisu {
  *  się ją przetestować i wywołać przy każdym renderze. */
 export function wolneMiejscaWgRol(
   skladWSkladzie: { isGoalkeeper?: boolean }[],
-  event: { maxPlayers: number; maxGoalkeepers?: number; goalkeepersEnabled?: boolean },
+  event: {
+    maxPlayers: number; maxGoalkeepers?: number;
+    goalkeepersEnabled?: boolean; goalkeeperSlotsReserved?: boolean;
+  },
 ): { pole: number; bramkarze: number; razem: number; rozdzielone: boolean } {
   const zajete = skladWSkladzie.length;
   const razem = Math.max(0, event.maxPlayers - zajete);
@@ -487,13 +504,26 @@ export function wolneMiejscaWgRol(
   }
 
   const limitBramkarzy = event.maxGoalkeepers ?? 2;
-  const limitPola = Math.max(0, event.maxPlayers - limitBramkarzy);
   const bramkarzeWSkladzie = skladWSkladzie.filter((p) => p.isGoalkeeper).length;
   const poleWSkladzie = zajete - bramkarzeWSkladzie;
+  const wolneDlaBramkarzy = Math.max(0, limitBramkarzy - bramkarzeWSkladzie);
 
+  // Wspólna pula: wolne miejsce jest jedno i to samo dla obu ról — bramkarz
+  // dodatkowo nie przekroczy własnego limitu. Nie ma tu czego „rozdzielać",
+  // więc licznik nie udaje, że pule są osobne.
+  if (event.goalkeeperSlotsReserved === false) {
+    return {
+      pole: razem,
+      bramkarze: Math.min(razem, wolneDlaBramkarzy),
+      razem,
+      rozdzielone: false,
+    };
+  }
+
+  const limitPola = Math.max(0, event.maxPlayers - limitBramkarzy);
   return {
     pole: Math.max(0, limitPola - poleWSkladzie),
-    bramkarze: Math.max(0, limitBramkarzy - bramkarzeWSkladzie),
+    bramkarze: wolneDlaBramkarzy,
     razem,
     rozdzielone: true,
   };
@@ -522,7 +552,7 @@ export async function joinEvent(
 
   const { data: ev } = await supabase
     .from('events')
-    .select('max_players, require_approval, max_goalkeepers, goalkeepers_enabled')
+    .select('max_players, require_approval, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
     .eq('id', eventId)
     .single();
 
@@ -541,6 +571,7 @@ export async function joinEvent(
       ev?.max_players ?? 999,
       ev?.max_goalkeepers ?? 2,
       ev?.goalkeepers_enabled ?? false,
+      ev?.goalkeeper_slots_reserved ?? true,
     );
   }
 
@@ -594,7 +625,7 @@ export async function confirmFromMaybe(
 ): Promise<WynikZapisu> {
   const { data: ev } = await supabase
     .from('events')
-    .select('max_players, max_goalkeepers, goalkeepers_enabled')
+    .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
     .eq('id', eventId)
     .single();
 
@@ -606,6 +637,7 @@ export async function confirmFromMaybe(
     ev?.max_players ?? 999,
     ev?.max_goalkeepers ?? 2,
     ev?.goalkeepers_enabled ?? false,
+    ev?.goalkeeper_slots_reserved ?? true,
   );
 
   const { error } = await supabase
@@ -641,7 +673,7 @@ export async function addGuest(
   if (!reserve) {
     const { data: ev } = await supabase
       .from('events')
-      .select('max_players, max_goalkeepers, goalkeepers_enabled')
+      .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
       .eq('id', eventId)
       .single();
 
@@ -653,6 +685,7 @@ export async function addGuest(
       ev?.max_players ?? 999,
       ev?.max_goalkeepers ?? 2,
       ev?.goalkeepers_enabled ?? false,
+      ev?.goalkeeper_slots_reserved ?? true,
     );
   }
 
@@ -871,7 +904,7 @@ export async function approveParticipant(participantId: string): Promise<void> {
 
   const { data: ev } = await supabase
     .from('events')
-    .select('max_players, max_goalkeepers, goalkeepers_enabled')
+    .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
     .eq('id', eventId)
     .single();
 
@@ -883,6 +916,7 @@ export async function approveParticipant(participantId: string): Promise<void> {
     ev?.max_players ?? 999,
     ev?.max_goalkeepers ?? 2,
     ev?.goalkeepers_enabled ?? false,
+    ev?.goalkeeper_slots_reserved ?? true,
   );
 
   const { error } = await supabase

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-09 · migracja `076` · 31 tabel · 344 testy
+**Stan na:** 2026-08-11 · migracja `077` · 31 tabel · 397 testów
 
 ---
 
@@ -296,6 +296,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-11 — Miejsca dla bramkarzy: rezerwacja albo wspólna pula, do wyboru
+
+PROBLEM: mecz w Bojo z rozróżnieniem bramkarzy dzielił pulę na sztywno — przy 14 miejscach
+i 2 bramkarzach zawodnicy z pola konkurowali o 12, więc trzynasty chętny lądował na
+rezerwie, podczas gdy dwa miejsca dla bramkarzy stały puste i nikt ich nie zajmował.
+Liczba wpisana przez organizatora jako „liczba miejsc" nie była liczbą osób, które mogą
+dołączyć, a nic o tym nie mówiło. Rezerwacja bywa jednak dokładnie tym, czego organizator
+chce — bez niej można skończyć z kompletem zawodników z pola i zerem bramkarzy.
+
+ROZWIĄZANIE BOJO: podział miejsc jest wyborem organizatora, z opisem skutków liczonym
+z realnej liczby miejsc. Trzy tryby: bez podziału na role (wszystkie miejsca wspólne),
+rozróżnianie bez rezerwacji (wspólna pula, bramkarzy nie wejdzie więcej niż limit, może
+zdarzyć się komplet bez bramkarza) oraz rezerwacja (14 miejsc = 12 w polu + 2 dla
+bramkarzy, miejsca bramkarzy czekają do końca). Licznik na stronie meczu mówi to samo
+językiem gracza: przy rezerwacji rozbija miejsca na role, przy wspólnej puli podaje
+liczbę wspólną z dopiskiem, ilu bramkarzy jeszcze wejdzie.
+
+MECHANIKA: migracja `077` (kolumna `events.goalkeeper_slots_reserved`, domyślnie `true`,
+oraz `sync_reserve_claim()` respektujące tryb — bez tego kolejka rezerwowa liczyłaby
+pojemność inaczej niż aplikacja przy zapisie); `lib/events.ts` (`decydujCzyRezerwa()`
+i `wolneMiejscaWgRol()` z tym samym podziałem); `EventCapacityFields.tsx` (trzy opcje
+z opisem zamiast przełącznika); `wydarzenia/nowe` i `wydarzenia/[id]/edytuj` (stan trybu);
+`lib/eventDraft.ts` (szkic pamięta tryb).
+
 ### 2026-08-11 — Organizator przesuwa graczy między składem a rezerwą
 
 PROBLEM: kolejka rezerwowa w Bojo rozdaje zwolnione miejsca sama, ale tylko wtedy, gdy
@@ -581,49 +605,3 @@ stronie meczu); `EventBrowseCard.tsx` (`STATUS_CHIP.pending` niebieski);
 (nazewnictwo „grupa"); `UzupelnijProfilBanner.tsx` (klucz localStorage z `user.id`);
 `lib/events.ts#hasPendingApprovalRequests`; `components/layout/BottomNav.tsx`
 (druga, niezależna kropka).
-
-### 2026-08-09 — Szlif przepływu organizatora: kafelek cykliczny w kreatorze, panel zarządzania tylko dla organizatora, edycja ujednolicona z kreatorem, naprawa banera o brakującym imieniu
-PROBLEM: kilka drobnych, ale realnych usterek w przepływie organizacji meczu. Panel
-„Zarządzaj wydarzeniem" (edycja, powtórz mecz, usuń) był widoczny nie tylko dla
-organizatora, ale i dla adminów przeglądających cudzy mecz. Modale „Zmień termin"
-i „Kto widzi ten mecz" miały przycisk potwierdzający częściowo zasłonięty przez dolną
-nawigację na telefonie, a zmiana godziny rozpoczęcia nie przesuwała automatycznie
-godziny zakończenia (dało się ustawić koniec przed początkiem). Strona edycji wydarzenia
-miała stary układ pól, niezależny od kreatora — brakowało tam m.in. informacji, że numer
-BLIK gracze zobaczą dopiero godzinę przed meczem. „Powtórz mecz" nie pytało o rolę
-(bramkarz/zawodnik) mimo że kopiowany mecz rozróżniał bramkarzy. Po zalogowaniu Google
-bez pełnego imienia i nazwiska w profilu (Google zawsze wypełnia jakieś pole nazwy) baner
-i powiadomienie „Uzupełnij imię" nigdy się nie pojawiały — sprawdzały tylko, czy
-JAKAKOLWIEK nazwa istnieje, nie czy jest pełna. Kreator meczu jednorazowego nie miał
-opcji ustawienia cyklicznego powtarzania, mimo że silnik cyklicznych wydarzeń (dziś
-schowany za flagą) już istnieje.
-ROZWIĄZANIE BOJO: krok 2 kreatora ma kafelek „Wydarzenie cykliczne" — otwiera modal
-z dniem tygodnia wyliczonym z wybranej daty i suwakiem przypomnień, po zapisaniu tworzy
-niezależny szablon w tle i po publikacji meczu pokazuje link do panelu serii. Panel
-zarządzania wydarzeniem widzi wyłącznie faktyczny organizator. Oba modale (termin,
-widoczność) są w pełni klikalne nad dolną nawigacją, a przesunięcie godziny rozpoczęcia
-automatycznie przesuwa koniec o tę samą deltę (zmiana końca nie rusza początku). Strona
-edycji wygląda i działa jak kreator — te same komponenty pól (sport, lokalizacja, data
-i czas trwania, liczba miejsc, płatności, widoczność, tytuł/opis), więc notatka o BLIK-u
-i inne poprawki w kreatorze automatycznie trafiają też do edycji. „Powtórz mecz" pyta
-o rolę, gdy kopiowany mecz rozróżnia bramkarzy, i informuje, że resztę ustawień zmienisz
-na nowo utworzonym meczu. Baner i powiadomienie o brakującym imieniu sprawdzają teraz
-pełną nazwę (imię i nazwisko, nie dowolny fragment) — działają też dla kont z Google.
-Landing i przyciski „Znajdź grę" mają plakietkę/wskaźnik „wczesny etap".
-MECHANIKA: `components/events/RecurringSettingsDialog.tsx`, `lib/recurring.ts`
-(`dayOfWeekFromDate`, `dayOfWeekLabelFromDate`), zapis w `handleSubmit`
-w `wydarzenia/nowe/page.tsx` (`createRecurringEvent`, cichy fallback przy błędzie),
-odczyt `?cykliczne=<id>` w `EventDetailClient.tsx`; `isOwner` zamiast `isOrganizer`
-przy renderze sekcji „Zarządzaj wydarzeniem"; `z-[1100]` zamiast `z-50` na modalach
-terminu i widoczności; nowe komponenty w `components/events/`
-(`EventSportField`-owy inline w edycji, `EventLocationField`-owy inline,
-`EventDateTimeField`, `EventCapacityFields`, `EventTitleDescriptionField`,
-`EventVisibilityFields`, `EventPaymentFields`) i `components/ui/ToggleRow.tsx`,
-współdzielone przez `wydarzenia/nowe/page.tsx` i `wydarzenia/[id]/edytuj/page.tsx`;
-`GK_SPORTS` przeniesione do `lib/sports.ts`; `repeatEvent()` w `lib/events.ts`
-(parametr `organizerIsGoalkeeper`, już istniał, dopiero teraz podłączony w UI);
-`isPelneImie()` zamiast usuniętego `brakNazwy()` w `lib/profileName.ts`,
-`UzupelnijProfilBanner.tsx` i `wydarzenia/nowe/page.tsx`; migracja `071` (ten sam
-warunek „pełna nazwa" w wyzwalaczu `powiadom_o_braku_nazwy()`); `WczesnyEtapBadge`
-w `Header.tsx`, `BottomNav.tsx` (kropka zamiast pełnego badge'a), `LandingHero.tsx`,
-`NextMatchCard.tsx`.
