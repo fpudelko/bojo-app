@@ -39,7 +39,9 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol
+import { supabase } from '@/lib/supabase';
+import {
+  createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol,
 } from '@/lib/events';
 
 beforeEach(() => {
@@ -93,65 +95,102 @@ describe('createEvent', () => {
 // ---------------------------------------------------------------------------
 // joinEvent
 // ---------------------------------------------------------------------------
-describe('joinEvent', () => {
-  it('adds participant as non-reserve when slots available', async () => {
-    const { supabase } = await import('@/lib/supabase');
+describe('joinEvent — kontrakt z bazą', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+    vi.mocked(supabase.from).mockReset();
+  });
 
-    // joinEvent queries:
-    //   events            → .select().eq().single() → { max_players: 10, max_goalkeepers, goalkeepers_enabled }
-    //   event_participants (confirmedCounts) → .select().eq().eq().eq() → participant rows
-    //   event_participants (.insert)
-
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
-      if (table === 'events') {
-        return {
-          ...mockChain,
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({
-                data: { max_players: 10, max_goalkeepers: 2, goalkeepers_enabled: false },
-                error: null,
-              }),
-            }),
-          }),
-        } as unknown as ReturnType<typeof supabase.from>;
-      }
-      // event_participants: confirmedCounts() chains .select('is_goalkeeper, claim_offered_at, rsvp').eq().eq().eq()
-      // Returns mock participant rows (5 non-reserve confirmed participants, no held offers).
-      const thirdEq = vi.fn().mockResolvedValue({
-        data: [
-          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
-          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
-          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
-          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
-          { is_goalkeeper: false, claim_offered_at: null, rsvp: 'yes' },
-        ],
-        error: null,
-      });
-      const secondEq = vi.fn().mockReturnValue({ eq: thirdEq });
-      const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
-      return {
-        ...mockChain,
-        select: vi.fn().mockReturnValue({ eq: firstEq }),
-        insert: vi.fn().mockResolvedValue({ error: null }),
-      } as unknown as ReturnType<typeof supabase.from>;
+  /** `check_rate_limit` przepuszcza, `dolacz_do_meczu` oddaje podany wynik. */
+  function bazaOddaje(wynik: { is_reserve: boolean; pending: boolean }) {
+    mockRpc.mockImplementation((nazwa: string) => {
+      if (nazwa === 'check_rate_limit') return Promise.resolve({ data: true, error: null });
+      if (nazwa === 'dolacz_do_meczu') return Promise.resolve({ data: [wynik], error: null });
+      return Promise.resolve({ data: null, error: null });
     });
+  }
 
-    // `joinEvent` oddaje dziś, GDZIE wylądował zapis — strona meczu potrzebuje
-    // tego, żeby nie mówić „Dołączyłeś do meczu!" komuś, kto trafił na rezerwę.
+  // Sedno etapu 3: decyzja „skład czy rezerwa" NIE jest już liczona
+  // w przeglądarce. Gdyby ktoś ją tu przywrócił, ten test nadal by przechodził
+  // — ale kolejny (poniżej) już nie.
+  it('oddaje to, co zdecydowała baza — skład', async () => {
+    bazaOddaje({ is_reserve: false, pending: false });
     await expect(joinEvent('event-1', 'user-1', 'Test User'))
       .resolves.toEqual({ isReserve: false, pending: false });
   });
 
-  it('throws when the rate limit is exceeded', async () => {
+  it('oddaje to, co zdecydowała baza — rezerwa', async () => {
+    bazaOddaje({ is_reserve: true, pending: false });
+    await expect(joinEvent('event-1', 'user-1', 'Test User'))
+      .resolves.toEqual({ isReserve: true, pending: false });
+  });
+
+  it('oddaje to, co zdecydowała baza — prośba do akceptacji', async () => {
+    bazaOddaje({ is_reserve: false, pending: true });
+    await expect(joinEvent('event-1', 'user-1', 'Test User'))
+      .resolves.toEqual({ isReserve: false, pending: true });
+  });
+
+  // Ten test jest właściwym strażnikiem: zapis to JEDNO wywołanie funkcji
+  // bazodanowej, a nie sekwencja „wczytaj ustawienia → policz → wstaw".
+  // Tamta sekwencja pozwalała dwóm graczom dostać to samo ostatnie miejsce.
+  it('nie czyta ustawień meczu ani nie liczy pojemności w przeglądarce', async () => {
+    bazaOddaje({ is_reserve: false, pending: false });
+    await joinEvent('event-1', 'user-1', 'Test User');
+
+    // `from` bywa wołane przez dziennik aktywności — chodzi o to, żeby NIE
+    // czytało ustawień meczu ani wpisów uczestników, bo to znaczyłoby, że
+    // pojemność znów liczy się w przeglądarce.
+    expect(supabase.from).not.toHaveBeenCalledWith('events');
+    expect(supabase.from).not.toHaveBeenCalledWith('event_participants');
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu', expect.objectContaining({
+      p_event_id: 'event-1',
+      p_nazwa: 'Test User',
+      p_bramkarz: false,
+    }));
+  });
+
+  it('przekazuje rolę i deklarację płatności', async () => {
+    bazaOddaje({ is_reserve: false, pending: false });
+    await joinEvent('event-1', 'user-1', 'Test User', true, {
+      method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport',
+    });
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu', expect.objectContaining({
+      p_bramkarz: true,
+      p_metoda_platnosci: 'blik',
+      p_karta_sportowa: true,
+      p_dostawca_karty: 'multisport',
+    }));
+  });
+
+  // Bez karty sportowej dostawca nie ma prawa jechać do bazy — inaczej wpis
+  // deklarowałby zniżkę, której nikt nie zgłosił.
+  it('nie wysyła dostawcy karty, gdy karty nie ma', async () => {
+    bazaOddaje({ is_reserve: false, pending: false });
+    await joinEvent('event-1', 'user-1', 'Test User', false, {
+      method: 'gotowka', hasSportsCard: false, sportsCardProvider: 'multisport',
+    });
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu', expect.objectContaining({
+      p_dostawca_karty: null,
+    }));
+  });
+
+  it('przenosi błąd z bazy bez podmiany treści', async () => {
+    mockRpc.mockImplementation((nazwa: string) => {
+      if (nazwa === 'check_rate_limit') return Promise.resolve({ data: true, error: null });
+      return Promise.resolve({ data: null, error: { message: 'Jesteś już zapisany na ten mecz' } });
+    });
+    await expect(joinEvent('event-1', 'user-1', 'Test User'))
+      .rejects.toThrow('Jesteś już zapisany na ten mecz');
+  });
+
+  it('zatrzymuje się na limicie prób, zanim ruszy bazę', async () => {
     mockRpc.mockResolvedValue({ data: false, error: null });
     await expect(joinEvent('event-1', 'user-1', 'Test User')).rejects.toThrow(/Zbyt wiele/);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 });
 
-// ---------------------------------------------------------------------------
-// removeParticipant
-// ---------------------------------------------------------------------------
 describe('removeParticipant', () => {
   // removeParticipant: reads event_id, deletes the row, then nudges the reserve
   // queue so the freed spot gets offered to the next person.

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-11 · migracja `077` · 31 tabel · 397 testów
+**Stan na:** 2026-08-11 · migracja `078` · 31 tabel · 413 testów
 
 ---
 
@@ -296,6 +296,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-11 — Refaktor: bramki w CI, koniec cichych porażek, reguła składu tylko w bazie
+
+PROBLEM: Bojo miało trzy klasy błędów, których żadne narzędzie w repo nie widziało.
+Build produkcyjny nie był uruchamiany w CI (rzekomo wymagał kluczy Supabase), więc błędy
+prerenderu wychodziły dopiero na Vercelu. ESLint nie działał (rzekomo wymagał
+interaktywnej konfiguracji), więc martwy kod i braki w zależnościach hooków przechodziły
+bez echa. Nic nie sprawdzało, czy przycisk da się KLIKNĄĆ — modal przykryty paskiem
+nawigacji przechodził typecheck i wszystkie testy. Do tego dwie pułapki, które nie dają
+błędu, tylko fałszywy sukces: RLS aktualizujące zero wierszy i PostgREST obcinający
+odpowiedź. Reguła „skład czy rezerwa" istniała w dwóch równoległych implementacjach —
+w TypeScripcie i w SQL — a ich rozjazd oznaczał, że gracz wchodzi do składu, podczas gdy
+kolejka rezerwowa nadal go w niej trzyma.
+
+ROZWIĄZANIE BOJO: CI uruchamia teraz lint, build produkcyjny (na atrapach kluczy) oraz
+testy klikalności w Playwrighcie, obok typechecku i testów jednostkowych. Dwa helpery
+w `lib/zapytania.ts` zamieniają ciszę w wyjątek: `zaktualizujJedenWiersz()` sprawdza, czy
+UPDATE trafił w wiersz, a `pobierzWszystkie()` stronicuje odczyty dużych tabel.
+Dołączanie do meczu jest jedną operacją bazodanową — funkcja `dolacz_do_meczu()` decyduje
+i wstawia wpis w jednej transakcji, więc dwóch graczy nie dostanie już tego samego
+ostatniego miejsca. Regułę pojemności zna wyłącznie funkcja `czy_na_rezerwe()`.
+
+MECHANIKA: migracja `078` (`czy_na_rezerwe()` jako jedyne miejsce z regułą,
+`dolacz_do_meczu()` rozpoznające organizatora po `auth.uid()`, `sync_reserve_claim()`
+pytające tej samej funkcji); `lib/events.ts` (usunięte `decydujCzyRezerwa()`
+i `confirmedCounts()`; `joinEvent()` woła RPC, `approveParticipant()`, `addGuest()`
+i `confirmFromMaybe()` pytają `czy_na_rezerwe()`); nowy `lib/zapytania.ts`;
+`frontend/.eslintrc.js`, `playwright.config.ts` i `e2e/klikalnosc.spec.ts`;
+`.github/workflows/ci.yml` (kroki lint i build, osobne zadanie `e2e`).
+
 ### 2026-08-11 — Miejsca dla bramkarzy: rezerwacja albo wspólna pula, do wyboru
 
 PROBLEM: mecz w Bojo z rozróżnieniem bramkarzy dzielił pulę na sztywno — przy 14 miejscach
@@ -567,41 +596,3 @@ w `__tests__/series.test.ts`; `components/events/ZakresEdycjiSerii.tsx` wpięty 
 `wydarzenia/[id]/edytuj/page.tsx` i modal „Zmień termin" w `EventDetailClient.tsx`;
 `app/cykliczne/[id]/edytuj/page.tsx` (realny ekran zamiast zaślepki); `SHOW_RECURRING =
 true` w `lib/features.ts`.
-
-### 2026-08-09 — Kolor i powiadomienia „Wymagaj akceptacji", grupa zamiast „ekipy", naprawiony panel powiadomień i baner profilu
-PROBLEM: kilka niezależnych usterek zebranych z żywej instancji. Panel powiadomień
-(dzwonek) ucinał się przy lewej krawędzi ekranu na telefonie — nie dało się przewinąć
-do treści wychodzącej poza viewport. Organizator nie dostawał żadnego powiadomienia,
-gdy ktoś złożył prośbę o dołączenie do meczu z włączonym „Wymagaj akceptacji" —
-jedynym sposobem, by się dowiedzieć, było wejście na stronę meczu. To samo dotyczyło
-członków grupy przy nowym meczu w grupie. „Wymagaj akceptacji" dzieliło kolor
-(bursztyn) z zupełnie innymi stanami (rezerwa, obserwowanie), więc nic nie mówiło
-jednoznacznie „to wymaga Twojej akcji". Przypisanie meczu do grupy było schowane
-w panelu „Zarządzaj wydarzeniem", a UI naprzemiennie nazywało tę samą funkcję
-„ekipą" i „grupą" — sprawiało to wrażenie dwóch różnych, niedokończonych funkcji.
-Baner „Uzupełnij profil" chował się za kluczem localStorage wspólnym dla całej
-przeglądarki, nie per konto — odrzucenie go na jednym koncie wyciszało go na zawsze
-na każdym koncie w tej samej przeglądarce. Komunikat o widoczności numeru BLIK był
-identyczny niezależnie od tego, czy ktoś w ogóle był zapisany na mecz.
-ROZWIĄZANIE BOJO: panel powiadomień na telefonie renderuje się teraz jako
-zakotwiczony w viewporcie, nie względem przycisku dzwonka. Organizator dostaje
-powiadomienie przy każdej nowej prośbie o dołączenie, a członkowie grupy — przy
-każdym nowym meczu w grupie. „Wymaga akceptacji" ma teraz własny, wyłączny kolor
-(niebieski) na badge'u meczu, karcie na liście, panelu próśb i w dialogu dołączania —
-bursztyn został przy rezerwie i obserwowaniu. Przypisanie do grupy to teraz klikalny
-badge na górze strony meczu (widoczny i edytowalny dla organizatora, informacyjny dla
-reszty), otwierający ten sam dialog wyboru/zakładania grupy co kreator. Cały interfejs
-mówi teraz „grupa", nie „ekipa". Baner profilu pamięta odrzucenie osobno dla każdego
-konta. Komunikat o BLIK-u rozróżnia „nie jesteś zapisany" od „jesteś zapisany, jeszcze
-za wcześnie". Zakładka „Moje" w dolnej nawigacji dostała niebieską kropkę, gdy
-organizator ma choć jedną nierozpatrzoną prośbę o dołączenie w dowolnym swoim meczu.
-MECHANIKA: `components/layout/NotificationBell.tsx` (`fixed` na mobile, `absolute`
-od `sm:`); migracja `072` (triggery `powiadom_o_prosbie_o_dolaczenie`,
-`powiadom_o_nowym_meczu_w_grupie`); `EventDetailClient.tsx` (`blue-*` w panelu
-„Prośby o dołączenie" i „Oczekujesz na akceptację", nowy badge „Wymaga akceptacji",
-badge grupy zamiast selecta w panelu zarządzania, `WybierzGrupeDialog` reużyty na
-stronie meczu); `EventBrowseCard.tsx` (`STATUS_CHIP.pending` niebieski);
-`components/events/WybierzGrupeDialog.tsx` i `InviteFromGroupDialog.tsx`
-(nazewnictwo „grupa"); `UzupelnijProfilBanner.tsx` (klucz localStorage z `user.id`);
-`lib/events.ts#hasPendingApprovalRequests`; `components/layout/BottomNav.tsx`
-(druga, niezależna kropka).

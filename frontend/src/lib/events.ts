@@ -183,20 +183,19 @@ export async function createEvent(
     // próżnię i awaria była całkowicie cicha: mecz powstawał, organizator nie
     // trafiał do składu, nikt nie widział dlaczego. Dokładnie tak objawiła się
     // regresja po migracji `064` (wysyłana kolumna `status` już nie istniała).
-    // W wyniku każdy organizator trafia do składu (first participant, always has room),
-    // ale logika rezerwacji jest dla konsystencji — przy degenerate configu
-    // (`maxPlayers=2, maxGoalkeepers=2`) organizator jako zawodnik z pola
-    // mógłby teoretycznie wylądować na rezerwie. Czysty TypeScript bez SQL tutaj,
-    // bo participants table jest jeszcze pusta.
-    const organiserReserve = decydujCzyRezerwa(
-      organizerIsGoalkeeper,
-      { field: 0, goalkeeper: 0 },
-      { field: 0, goalkeeper: 0 },
-      data.maxPlayers,
-      data.maxGoalkeepers ?? 2,
-      data.goalkeepersEnabled ?? false,
-      data.goalkeeperSlotsReserved ?? true,
-    );
+    //
+    // Skład jest tu jeszcze PUSTY, więc reguła z `czy_na_rezerwe()` sprowadza
+    // się do jednego pytania: czy limit miejsc w tej roli w ogóle jest
+    // większy od zera. Pytanie bazy o pustą tabelę byłoby zapytaniem po nic —
+    // ale warunek musi zgadzać się z regułą, więc trzyma się jej wprost.
+    const limitRoli = !(data.goalkeepersEnabled ?? false)
+      ? data.maxPlayers
+      : organizerIsGoalkeeper
+        ? (data.maxGoalkeepers ?? 2)
+        : (data.goalkeeperSlotsReserved ?? true)
+          ? Math.max(0, data.maxPlayers - (data.maxGoalkeepers ?? 2))
+          : data.maxPlayers;
+    const organiserReserve = limitRoli <= 0;
     const { error: bladUczestnika } = await supabase.from('event_participants').insert({
       event_id: row.id,
       user_id: organizerId,
@@ -412,74 +411,25 @@ export interface JoinPaymentChoice {
   sportsCardProvider?: SportsCardProvider;
 }
 
-/** Ile miejsc w polu i ile dla bramkarzy jest confirmed (nie rezerwa, nie
- *  pending, nie „może"), plus ile jest ofert (held = actywna oferta rezerwowego
- *  czekającego na potwierdzenie). Gdy bramkarze wyłączeni, cała pula jest „polem" —
- *  zachowuje to dotychczasowe zachowanie meczów bez podziału. */
-async function confirmedCounts(eventId: string): Promise<{
-  confirmed: { field: number; goalkeeper: number };
-  held: { field: number; goalkeeper: number };
-}> {
-  const { data } = await supabase
-    .from('event_participants')
-    .select('is_goalkeeper, claim_offered_at, rsvp')
-    .eq('event_id', eventId)
-    .eq('is_reserve', false)
-    .eq('pending_approval', false);
-  const rows = (data ?? []).filter((r) => r.rsvp !== 'maybe');
-  const confirmed = {
-    field: rows.filter((r) => !r.is_goalkeeper && !r.claim_offered_at).length,
-    goalkeeper: rows.filter((r) => r.is_goalkeeper && !r.claim_offered_at).length,
-  };
-  const held = {
-    field: rows.filter((r) => !r.is_goalkeeper && r.claim_offered_at).length,
-    goalkeeper: rows.filter((r) => r.is_goalkeeper && r.claim_offered_at).length,
-  };
-  return { confirmed, held };
-}
-
-/** Czy dołączenie/zatwierdzenie w danej roli trafia na rezerwę.
- *  `maxPlayers - maxGoalkeepers` to limit miejsc w polu — TU był brakujący
- *  krok: dotąd zawodnik z pola konkurował tylko o `maxPlayers` w całości,
- *  nigdy o pulę pomniejszoną o miejsca zarezerwowane dla bramkarzy. */
-function decydujCzyRezerwa(
-  asGoalkeeper: boolean,
-  confirmed: { field: number; goalkeeper: number },
-  held: { field: number; goalkeeper: number },
-  maxPlayers: number,
-  maxGoalkeepers: number,
-  goalkeepersEnabled: boolean,
-  // `true` = miejsca bramkarzy zarezerwowane (dotychczasowe zachowanie).
-  // Musi zgadzać się z `sync_reserve_claim` z migracji `077`: gdyby te dwa
-  // liczenia się rozjechały, gracz wchodziłby do składu, a kolejka i tak
-  // trzymałaby go w rezerwie.
-  slotyBramkarzyZarezerwowane = true,
-): boolean {
-  const zajete = confirmed.field + confirmed.goalkeeper + held.field + held.goalkeeper;
-
-  if (!goalkeepersEnabled) return zajete >= maxPlayers;
-
-  if (slotyBramkarzyZarezerwowane) {
-    if (asGoalkeeper) return confirmed.goalkeeper + held.goalkeeper >= maxGoalkeepers;
-    return confirmed.field + held.field >= Math.max(0, maxPlayers - maxGoalkeepers);
-  }
-
-  // Wspólna pula: o miejsce konkurują wszyscy, bramkarze mają dodatkowo własny
-  // sufit. Skutek: komplet zawodników z pola jest możliwy, ale trzynasty chętny
-  // nie czeka za pustym miejscem, którego nikt nie zajmie.
-  if (zajete >= maxPlayers) return true;
-  return asGoalkeeper && confirmed.goalkeeper + held.goalkeeper >= maxGoalkeepers;
-}
-
 /** Wynik zapisu — wywołujący musi wiedzieć, CZY wszedł do składu.
  *
- *  Dotąd `joinEvent` nie zwracało nic, więc strona meczu pokazywała zawsze
- *  „Dołączyłeś do meczu!", także wtedy, gdy zapis wylądował na rezerwie.
- *  Człowiek wychodził przekonany, że gra. */
+ *  Bez tego strona meczu pokazywała zawsze „Dołączyłeś do meczu!", także
+ *  wtedy, gdy zapis wylądował na rezerwie. */
 export interface WynikZapisu {
   isReserve: boolean;
   pending: boolean;
 }
+
+// Były tu `confirmedCounts()` i `decydujCzyRezerwa()` — druga, równoległa
+// implementacja reguły „skład czy rezerwa", obok tej w `sync_reserve_claim()`.
+// Rozjazd między nimi nie dawał błędu, tylko niespójność: gracz wchodził do
+// składu, a kolejka i tak trzymała go w rezerwie. Przy każdej zmianie zasad
+// (limit bramkarzy w `075`, tryb rezerwacji w `077`) trzeba było pamiętać
+// o obu miejscach.
+//
+// Od migracji `078` regułę zna wyłącznie SQL: `czy_na_rezerwe()`. TypeScript
+// pyta o nią przez `czyNaRezerwe()` albo woła `dolacz_do_meczu()`, które
+// decyduje i wstawia wiersz w jednej transakcji.
 
 /** Wolne miejsca w rozbiciu na role.
  *
@@ -530,13 +480,27 @@ export function wolneMiejscaWgRol(
   };
 }
 
+/** Pyta bazę, czy zapis w tej roli trafiłby teraz na rezerwę.
+ *
+ *  Reguła ma jedną implementację — `czy_na_rezerwe()` z migracji `078`. Ten
+ *  helper istnieje po to, żeby ścieżki, które NIE przechodzą przez
+ *  `dolacz_do_meczu()` (akceptacja prośby, dopisanie gościa bez konta), też
+ *  z niej korzystały, zamiast liczyć po swojemu. */
+async function czyNaRezerwe(eventId: string, asGoalkeeper: boolean): Promise<boolean> {
+  const { data, error } = await supabase.rpc('czy_na_rezerwe', {
+    p_event_id: eventId,
+    p_bramkarz: asGoalkeeper,
+  });
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
 export async function joinEvent(
   eventId: string,
   userId: string,
   name: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-  jestemOrganizatorem = false,
 ): Promise<WynikZapisu> {
   // Rate limit: max 20 joins per hour
   const { data: allowed } = await supabase.rpc('check_rate_limit', {
@@ -547,54 +511,38 @@ export async function joinEvent(
 
   const safeName = validateName(name, 'Imię', 80);
 
-  // Make sure any expired reserve offer has lapsed before we measure capacity,
-  // otherwise a stale hold would push a new joiner onto the reserve for nothing.
-  await runSyncReserveClaim(eventId);
-
-  const { data: ev } = await supabase
-    .from('events')
-    .select('max_players, require_approval, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
-    .eq('id', eventId)
-    .single();
-
-  // Organizator nie akceptuje sam siebie. „Wymaga akceptacji" znaczy „wymaga
-  // akceptacji ORGANIZATORA" — jego własny zapis nie ma kogo pytać o zgodę,
-  // a wisiał we własnej kolejce próśb jak każdy inny.
-  const needsApproval = (ev?.require_approval ?? false) && !jestemOrganizatorem;
-  let isReserve = false;
-
-  if (!needsApproval) {
-    const counts = await confirmedCounts(eventId);
-    isReserve = decydujCzyRezerwa(
-      asGoalkeeper,
-      counts.confirmed,
-      counts.held,
-      ev?.max_players ?? 999,
-      ev?.max_goalkeepers ?? 2,
-      ev?.goalkeepers_enabled ?? false,
-      ev?.goalkeeper_slots_reserved ?? true,
-    );
-  }
-
-  const { error } = await supabase.from('event_participants').insert({
-    event_id: eventId,
-    user_id: userId,
-    name: safeName,
-    is_guest: false,
-    is_reserve: isReserve,
-    is_goalkeeper: asGoalkeeper,
-    pending_approval: needsApproval,
-    payment_method: payment?.method ?? null,
-    has_sports_card: payment?.hasSportsCard ?? false,
-    sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
+  // Cała decyzja „skład czy rezerwa" siedzi w `dolacz_do_meczu()` (migracja
+  // `078`). Wcześniej zapis był sekwencją czterech kroków po stronie
+  // przeglądarki — odśwież kolejkę, wczytaj ustawienia, policz pojemność,
+  // wstaw wiersz — a reguła istniała RÓWNOLEGLE w TypeScripcie i w SQL.
+  // Rozjazd między nimi nie dawał błędu, tylko niespójność. Do tego między
+  // liczeniem a wstawianiem mogło wejść dwóch graczy naraz i obaj dostawali
+  // to samo ostatnie miejsce; teraz to jedna transakcja.
+  //
+  // Organizatora funkcja rozpoznaje sama po `auth.uid()`, więc znikł też
+  // argument `jestemOrganizatorem` — przeglądarka nie może już skłamać.
+  const { data, error } = await supabase.rpc('dolacz_do_meczu', {
+    p_event_id: eventId,
+    p_nazwa: safeName,
+    p_bramkarz: asGoalkeeper,
+    p_metoda_platnosci: payment?.method ?? null,
+    p_karta_sportowa: payment?.hasSportsCard ?? false,
+    p_dostawca_karty: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
   });
   if (error) throw new Error(error.message);
 
-  logActivity(eventId, userId, safeName, 'participant_joined', { is_reserve: isReserve, pending: needsApproval }).catch(
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  const wynik: WynikZapisu = {
+    isReserve: !!wiersz?.is_reserve,
+    pending: !!wiersz?.pending,
+  };
+
+  logActivity(eventId, userId, safeName, 'participant_joined',
+    { is_reserve: wynik.isReserve, pending: wynik.pending }).catch(
     (e) => console.warn('[ActivityLog] participant_joined', e),
   );
-  track('event_joined', { eventId, isReserve, pending: needsApproval });
-  return { isReserve, pending: needsApproval };
+  track('event_joined', { eventId, ...wynik });
+  return wynik;
 }
 
 /** Mark event as "maybe" — adds user to participants without taking a capacity slot. */
@@ -624,35 +572,18 @@ export async function confirmFromMaybe(
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
 ): Promise<WynikZapisu> {
-  const { data: ev } = await supabase
-    .from('events')
-    .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
-    .eq('id', eventId)
-    .single();
+  await runSyncReserveClaim(eventId);
+  const isReserve = await czyNaRezerwe(eventId, asGoalkeeper);
 
-  const counts = await confirmedCounts(eventId);
-  const isReserve = decydujCzyRezerwa(
-    asGoalkeeper,
-    counts.confirmed,
-    counts.held,
-    ev?.max_players ?? 999,
-    ev?.max_goalkeepers ?? 2,
-    ev?.goalkeepers_enabled ?? false,
-    ev?.goalkeeper_slots_reserved ?? true,
-  );
+  await zaktualizujJedenWiersz('event_participants', participantId, {
+    rsvp: 'yes',
+    is_reserve: isReserve,
+    is_goalkeeper: asGoalkeeper,
+    payment_method: payment?.method ?? null,
+    has_sports_card: payment?.hasSportsCard ?? false,
+    sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
+  }, 'Nie udało się potwierdzić udziału');
 
-  const { error } = await supabase
-    .from('event_participants')
-    .update({
-      rsvp: 'yes',
-      is_reserve: isReserve,
-      is_goalkeeper: asGoalkeeper,
-      payment_method: payment?.method ?? null,
-      has_sports_card: payment?.hasSportsCard ?? false,
-      sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
-    })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
   return { isReserve, pending: false };
 }
 
@@ -672,22 +603,7 @@ export async function addGuest(
   // when the event is full (mirrors joinEvent so the roster never exceeds limit).
   let reserve = isReserve;
   if (!reserve) {
-    const { data: ev } = await supabase
-      .from('events')
-      .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
-      .eq('id', eventId)
-      .single();
-
-    const counts = await confirmedCounts(eventId);
-    reserve = decydujCzyRezerwa(
-      asGoalkeeper,
-      counts.confirmed,
-      counts.held,
-      ev?.max_players ?? 999,
-      ev?.max_goalkeepers ?? 2,
-      ev?.goalkeepers_enabled ?? false,
-      ev?.goalkeeper_slots_reserved ?? true,
-    );
+    reserve = await czyNaRezerwe(eventId, asGoalkeeper);
   }
 
   const { error } = await supabase.from('event_participants').insert({
@@ -902,22 +818,7 @@ export async function approveParticipant(participantId: string): Promise<void> {
   const eventId = part.event_id as string;
   const asGoalkeeper = part.is_goalkeeper ?? false;
 
-  const { data: ev } = await supabase
-    .from('events')
-    .select('max_players, max_goalkeepers, goalkeepers_enabled, goalkeeper_slots_reserved')
-    .eq('id', eventId)
-    .single();
-
-  const counts = await confirmedCounts(eventId);
-  const isReserve = decydujCzyRezerwa(
-    asGoalkeeper,
-    counts.confirmed,
-    counts.held,
-    ev?.max_players ?? 999,
-    ev?.max_goalkeepers ?? 2,
-    ev?.goalkeepers_enabled ?? false,
-    ev?.goalkeeper_slots_reserved ?? true,
-  );
+  const isReserve = await czyNaRezerwe(eventId, asGoalkeeper);
 
   const { error } = await supabase
     .from('event_participants')
