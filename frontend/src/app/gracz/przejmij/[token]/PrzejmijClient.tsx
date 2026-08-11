@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Calendar, MapPin, UserCheck, Loader2 } from 'lucide-react';
+import { Calendar, Check, MapPin, UserCheck, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -101,10 +101,15 @@ export default function PrzejmijClient({ token }: { token: string }) {
       </div>
 
       <h1 className="mt-2 font-display text-xl font-bold text-ink">
-        Organizator dopisał Cię jako „{podglad.imie}"
+        Masz miejsce w składzie jako „{podglad.imie}"
       </h1>
+      {/* „Przejmij ten wpis" nikomu nic nie mówiło: „wpis" to słowo z naszej
+          bazy danych, nie z języka gracza. Chodzi o jedno — potwierdzić, że ten
+          ktoś w składzie to Ty. Bez podpowiedzi „bez zapisywania się drugi raz",
+          bo sugerowała, że drugi zapis jest alternatywą; nie jest, zrobiłby
+          w składzie dwie pozycje o tym samym imieniu. */}
       <p className="mt-1 text-sm text-slate-600">
-        Przejmij ten wpis, a mecz trafi do Twoich gier — bez zapisywania się drugi raz.
+        Potwierdź, że to Ty — mecz trafi wtedy na Twoją listę gier.
       </p>
 
       <div className="mt-4 space-y-1.5 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
@@ -132,18 +137,42 @@ export default function PrzejmijClient({ token }: { token: string }) {
 
       {user ? (
         <Button onClick={przejmij} isLoading={zajete} className="mt-5 w-full" size="lg">
-          To ja — przejmij wpis
+          To ja — potwierdzam
         </Button>
       ) : (
         <>
           {/* Po zalogowaniu wracamy dokładnie tutaj: bez tego człowiek ląduje
               na stronie głównej i musi szukać linku w wiadomościach. */}
           <Link href={`/logowanie?next=${encodeURIComponent(`/gracz/przejmij/${token}`)}`}>
-            <Button className="mt-5 w-full" size="lg">Zaloguj się i przejmij wpis</Button>
+            <Button className="mt-5 w-full" size="lg">Zaloguj się i potwierdź</Button>
           </Link>
           <p className="mt-2 text-center text-xs text-slate-500">
             Nie masz konta? Załóż je w tym samym kroku — wrócisz tu automatycznie.
           </p>
+
+          {/* Po co komu konto. Poprzednia wersja obiecywała „swój udział,
+              statystyki i historię gier" — a skład tego meczu widać bez
+              logowania, więc pierwsza z tych rzeczy nie była żadną zachętą.
+              Tu stoją rzeczy, których bez konta nie ma. */}
+          <ul className="mt-4 space-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-600">
+            <li className="flex gap-2">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />
+              Dołączysz do ekipy i dostaniesz powiadomienie o kolejnych meczach
+            </li>
+            <li className="flex gap-2">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />
+              Założysz własny mecz i zbierzesz skład jednym linkiem
+            </li>
+            <li className="flex gap-2">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />
+              <span>
+                Przejrzysz otwarte gry w okolicy i dołączysz do nich
+                <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                  wczesny etap
+                </span>
+              </span>
+            </li>
+          </ul>
         </>
       )}
     </div>,

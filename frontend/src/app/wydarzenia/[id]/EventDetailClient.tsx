@@ -914,7 +914,13 @@ export default function EventDetailClient() {
   const kopiujLinkPrzejecia = async (p: EventParticipant) => {
     if (!p.claimToken) return;
     const url = linkPrzejeciaWpisu(p.claimToken);
-    const text = tekstZaproszeniaGoscia(p.name, event);
+    // Kto zaprasza: osoba, która ten wpis dopisała. Nie zawsze organizator —
+    // przy `allowGuestAdds` robi to kolega z drużyny, a wiadomość podpisana
+    // cudzym nazwiskiem myli bardziej niż brak podpisu.
+    const zapraszajacy = participants.find((x) => x.userId === p.addedBy)?.name
+      ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
+      ?? event.organizerName;
+    const text = tekstZaproszeniaGoscia(p.name, event, zapraszajacy);
 
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
@@ -1704,8 +1710,8 @@ export default function EventDetailClient() {
                 {isOrganizer && niePrzejeciGoscie.length > 0 && (
                   <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
                     {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie —
-                    kliknij „Zaproś do Bojo" przy imieniu, każdy zobaczy swój udział i statystyki po
-                    założeniu konta.
+                    kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
+                    i dostaną powiadomienie o kolejnym meczu.
                   </p>
                 )}
                 {/* Organizator dostaje tu listę z kontrolkami zamiast osobnej

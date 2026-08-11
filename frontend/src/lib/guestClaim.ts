@@ -76,8 +76,26 @@ export function linkPrzejeciaWpisu(token: string): string {
  * Bez tego link trafiał na czat jako goły adres — dokładnie ten sam błąd, który
  * już raz naprawiono w głównym udostępnianiu meczu (patrz `eventShareText` w
  * `lib/eventShare.ts`). Tu ta naprawa po prostu nie dotarła.
+ *
+ * Trzy rzeczy, które ta treść musi robić dobrze — każda była zgłoszona jako
+ * błąd poprzedniej wersji:
+ *
+ * 1. MÓWI, KTO ZAPRASZA. „Organizator dopisał Cię" to nikt konkretny; wiadomość
+ *    od nieznajomego z linkiem wygląda jak spam. Dopisujący nie zawsze jest
+ *    organizatorem — gdy mecz pozwala uczestnikom dopisywać znajomych, robi to
+ *    kolega z drużyny.
+ * 2. JEST W CZASIE PRZYSZŁYM. Poprzednia wersja mówiła „Zagraliście razem",
+ *    a wpis gościa powstaje przed meczem, nie po nim — zaproszenie na przyszłą
+ *    grę brzmiało jak podsumowanie rozegranej.
+ * 3. OBIECUJE TO, CO MA WARTOŚĆ. „Zobaczysz swój udział" nie jest zachętą:
+ *    skład widać bez konta, wystarczy otworzyć link do meczu. Konto daje
+ *    grupę, powiadomienia o kolejnych meczach i własne gry.
  */
-export function tekstZaproszeniaGoscia(imieGoscia: string, e: DaneDoUdostepnienia): string {
+export function tekstZaproszeniaGoscia(
+  imieGoscia: string,
+  e: DaneDoUdostepnienia,
+  ktoZaprasza?: string,
+): string {
   const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
   let kiedy: string;
   try {
@@ -85,7 +103,17 @@ export function tekstZaproszeniaGoscia(imieGoscia: string, e: DaneDoUdostepnieni
   } catch {
     kiedy = e.date;
   }
-  return `Cześć ${imieGoscia}! Zagraliście razem w „${tytul}" (${kiedy}) przez Bojo.\n`
-    + `Załóż konto (Google albo e-mail, 30 sekund) i przejmij swój wpis — zobaczysz `
-    + `swój udział, statystyki i historię gier:`;
+
+  const zapraszajacy = ktoZaprasza?.trim();
+  const wstep = zapraszajacy
+    ? `Cześć ${imieGoscia}! ${zapraszajacy} zapisał(a) Cię na mecz`
+    : `Cześć ${imieGoscia}! Ktoś zapisał Cię na mecz`;
+
+  return `${wstep} „${tytul}" (${kiedy}) w Bojo.\n`
+    + `Masz miejsce w składzie — potwierdź, że to Ty, żeby mecz trafił na Twoją listę gier.\n`
+    + `Przy okazji odblokujesz:\n`
+    + `• dołączanie do ekipy i powiadomienia o kolejnych meczach,\n`
+    + `• zakładanie własnych gier,\n`
+    + `• przeglądanie otwartych gier w okolicy (tych wciąż przybywa).\n`
+    + `Konto zakładasz Google'em albo e-mailem, zajmuje 30 sekund:`;
 }

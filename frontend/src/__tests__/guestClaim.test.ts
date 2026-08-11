@@ -28,8 +28,32 @@ describe('tekstZaproszeniaGoscia', () => {
 
   it('tłumaczy, po co kliknąć — nie jest gołym wezwaniem do akcji', () => {
     const t = tekstZaproszeniaGoscia('Marek', bazowy);
-    expect(t).toContain('Załóż konto');
-    expect(t).toContain('statystyki');
+    expect(t).toContain('Konto zakładasz');
+    expect(t).toContain('powiadomienia o kolejnych meczach');
+  });
+
+  it('podpisuje się osobą, która zaprasza', () => {
+    expect(tekstZaproszeniaGoscia('Marek', bazowy, 'Jan Brzos')).toContain('Jan Brzos');
+  });
+
+  it('bez podanego zapraszającego nie udaje, że go zna', () => {
+    const t = tekstZaproszeniaGoscia('Marek', bazowy);
+    expect(t).toContain('Ktoś zapisał Cię');
+    expect(t).not.toContain('undefined');
+  });
+
+  // Wpis gościa powstaje PRZED meczem — poprzednia wersja mówiła „Zagraliście
+  // razem", czyli zapraszała na przyszłą grę w czasie przeszłym.
+  it('mówi o meczu w czasie przyszłym', () => {
+    const t = tekstZaproszeniaGoscia('Marek', bazowy, 'Jan');
+    expect(t).not.toMatch(/Zagrali|zagraliście/i);
+    expect(t).toContain('zapisał(a) Cię na mecz');
+  });
+
+  // „Zobaczysz swój udział" nie jest zachętą: skład widać bez konta.
+  it('nie obiecuje rzeczy dostępnych bez konta', () => {
+    const t = tekstZaproszeniaGoscia('Marek', bazowy, 'Jan');
+    expect(t).not.toContain('swój udział');
   });
 
   it('nie zawiera samego linku — link dokłada się osobno, jak w eventShareText', () => {
