@@ -3,10 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 // Hoist mock variables so vi.mock factory can reference them
 // ---------------------------------------------------------------------------
-const {
-  mockInsert, mockSelect, mockSingle, mockDelete, mockUpdate,
-  mockEq, mockOrder, mockLimit, mockMaybeSingle, mockRpc, mockChain,
-} = vi.hoisted(() => {
+const { mockSingle, mockDelete, mockUpdate, mockRpc, mockChain } = vi.hoisted(() => {
   const mockInsert = vi.fn();
   const mockSelect = vi.fn();
   const mockSingle = vi.fn();
@@ -32,10 +29,7 @@ const {
     }
   });
 
-  return {
-    mockInsert, mockSelect, mockSingle, mockDelete, mockUpdate,
-    mockEq, mockOrder, mockLimit, mockMaybeSingle, mockRpc, mockChain,
-  };
+  return { mockSingle, mockDelete, mockUpdate, mockRpc, mockChain };
 });
 
 vi.mock('@/lib/supabase', () => ({
@@ -107,7 +101,7 @@ describe('joinEvent', () => {
     //   events            → .select().eq().single() → { max_players: 10, max_goalkeepers, goalkeepers_enabled }
     //   event_participants (confirmedCounts) → .select().eq().eq().eq() → participant rows
     //   event_participants (.insert)
-    let queryCount = 0;
+
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'events') {
         return {

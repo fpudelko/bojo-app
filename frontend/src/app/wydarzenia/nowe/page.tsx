@@ -22,7 +22,6 @@ import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import {
   loadEventDraft, saveEventDraft, clearEventDraft, draftAgeLabel,
-  type EventDraftValues,
 } from '@/lib/eventDraft';
 import { wczytajOstatnieBoisko, zapiszOstatnieBoisko, type OstatnieBoisko } from '@/lib/lastVenue';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';

@@ -4,13 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Trophy, ChevronLeft, MapPin, Phone, Star, Shield, CalendarDays,
-  Loader2, Clock, Check, X, Send, Goal, AlertCircle, Crown,
+  Trophy, ChevronLeft, MapPin, Star, Shield, CalendarDays, Loader2, Clock, Check, X, Send, Goal, AlertCircle, Crown,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
-import { useToast } from '@/lib/toast';
 import {
   getActiveTournament, getTeam, getTeams, getMatches, getSharedDays,
   proposeMatchSlot, acceptMatchSlot, reportResult, confirmResult,
@@ -19,6 +17,7 @@ import {
   POSITION_LABELS, POSITION_TONE, POSITION_SHORT, TEAM_STATUS_LABELS,
   STAGE_LABELS, DAY_NAMES, formatDays,
 } from '@/lib/tournamentLabels';
+import { useToast } from '@/lib/toast';
 import type {
   Tournament, TournamentTeam, TournamentMatch, PlayerPosition,
 } from '@/types';
@@ -28,7 +27,6 @@ const POSITION_ORDER: PlayerPosition[] = ['bramkarz', 'obrońca', 'pomocnik', 'n
 export default function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const [t, setT] = useState<Tournament | null>(null);
   const [team, setTeam] = useState<TournamentTeam | null>(null);

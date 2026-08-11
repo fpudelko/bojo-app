@@ -1,30 +1,15 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { Calendar, MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
-import Header from '@/components/layout/Header';
-import Button from '@/components/ui/Button';
+
+
 import { supabase } from '@/lib/supabase';
 import { slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd } from '@/lib/structuredData';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
+import { pobierzWszystkie } from '@/lib/zapytania';
 
-// ---------------------------------------------------------------------------
-// Sport icons (lucide-react, no emoji)
-// ---------------------------------------------------------------------------
-const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'piłka nożna': Target,
-  koszykówka: Circle,
-  siatkówka: Trophy,
-  'siatkówka plażowa': Sun,
-  futsal: Zap,
-  'piłka ręczna': Dumbbell,
-  inne: Activity,
-};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toField(row: any): Field {
@@ -76,27 +61,19 @@ let slugIndexCache: { at: number; index: Promise<Map<string, string>> } | null =
 // właśnie przekroczył 4 tysiące obiektów, indeks budowany jednym zapytaniem
 // milcząco gubił ogon: świeżo zaimportowane boisko nie miało swojego sluga,
 // a jego strona zwracała „Nie znaleziono strony".
-const STRONA = 1000;
-
 async function fetchSlugIndex(): Promise<Map<string, string>> {
+  const rows = await pobierzWszystkie<{ id: string; name: string | null }>((od, doIdx) =>
+    supabase.from('fields').select('id, name').order('id').range(od, doIdx));
+
   const map = new Map<string, string>();
-  for (let od = 0; ; od += STRONA) {
-    const { data, error } = await supabase
-      .from('fields')
-      .select('id, name')
-      .order('id')
-      .range(od, od + STRONA - 1);
-    if (error) throw new Error(error.message);
-    const rows = data ?? [];
-    for (const row of rows) {
-      if (!row.name) continue;
-      const slug = slugify(row.name);
-      // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
-      // tak samo jak wcześniejsze `.find()`.
-      if (!map.has(slug)) map.set(slug, row.id);
-    }
-    if (rows.length < STRONA) return map;
+  for (const row of rows) {
+    if (!row.name) continue;
+    const slug = slugify(row.name);
+    // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
+    // tak samo jak wcześniejsze `.find()`.
+    if (!map.has(slug)) map.set(slug, row.id);
   }
+  return map;
 }
 
 async function idForSlug(slug: string): Promise<string | null> {

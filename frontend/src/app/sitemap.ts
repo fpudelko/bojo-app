@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
+import { pobierzWszystkie } from '@/lib/zapytania';
 
 const SPORT_SLUGS = [
   'pilka-nozna',
@@ -35,23 +36,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let fieldPages: MetadataRoute.Sitemap = [];
   try {
-    // Strona po stronie. PostgREST obcina zbyt długą odpowiedź BEZ błędu, więc
-    // jedno zapytanie po katalogu liczącym tysiące obiektów po cichu gubiło
-    // ogon — te boiska nigdy nie trafiały do mapy witryny.
-    const STRONA = 1000;
-    const wiersze: { id: string; name: string }[] = [];
-    for (let od = 0; ; od += STRONA) {
-      const { data, error } = await supabase
+    // Stronicowanie przez `pobierzWszystkie()`: PostgREST obcina zbyt długą
+    // odpowiedź BEZ błędu, więc jedno zapytanie po katalogu liczącym tysiące
+    // obiektów po cichu gubiło ogon. Pętla mieszkała tu we własnej kopii —
+    // druga stała w indeksie slugów, co znaczyło dwa miejsca do poprawienia
+    // przy każdej zmianie i dwa miejsca do zapomnienia.
+    const wiersze = await pobierzWszystkie<{ id: string; name: string }>((od, doIdx) =>
+      supabase
         .from('fields')
         .select('name, id')
         .eq('map_visibility', 'public')
         .order('id')
-        .range(od, od + STRONA - 1);
-      if (error) throw new Error(error.message);
-      const partia = data ?? [];
-      wiersze.push(...partia);
-      if (partia.length < STRONA) break;
-    }
+        .range(od, doIdx));
     fieldPages = wiersze
       .filter((field) => field.name)
       .map((field) => ({

@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Trophy, Users, MapPin, CalendarDays, ChevronRight, Star, Loader2,
-  UserPlus, ShieldCheck, Crown,
+  Users, MapPin, CalendarDays, ChevronRight, Star, Loader2, UserPlus, ShieldCheck, Crown,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';

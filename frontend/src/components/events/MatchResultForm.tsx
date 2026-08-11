@@ -112,7 +112,10 @@ interface Props {
 // Main form component
 // ---------------------------------------------------------------------------
 export default function MatchResultForm({
-  sport, eventId, organizerId, currentUserId, isOrganizer,
+  // `organizerId` przyjmowane, ale nieużywane: o prawie do zapisu decyduje
+  // `isOrganizer`, wyliczane przez wywołującego. Zostaje w typie, bo strona
+  // meczu je podaje — podkreślnik mówi wprost, że to świadomie martwy prop.
+  sport, eventId, organizerId: _organizerId, currentUserId, isOrganizer,
   participants, initialResult, initialGoals, onSaved,
 }: Props) {
   const family = sportFamily(sport);

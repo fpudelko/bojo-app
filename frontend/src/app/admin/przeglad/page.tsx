@@ -86,8 +86,6 @@ function DuplicateRow({ v, onDelete }: { v: VenueRow; onDelete: (id: string) => 
     onDelete(v.id);
     setBusy(false);
   }
-
-  const dist = ''; // computed by parent, passed if needed
   const statusCls =
     v.moderation_status === 'approved' ? 'text-green-600' :
     v.moderation_status === 'hidden'   ? 'text-red-500'   : 'text-amber-500';

@@ -115,3 +115,7 @@ frontend/tsconfig.tsbuildinfo
 !.claude/hooks/
 .claude/settings.local.json
 rewizja-do-wklejenia.txt
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

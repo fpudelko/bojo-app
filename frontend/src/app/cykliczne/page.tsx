@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { Plus, RepeatIcon, Lock, ChevronRight, Bell } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import { useAuth, displayName } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { getMyRecurringEvents, getNextEventsForRecurring } from '@/lib/recurring';
 import type { RecurringEvent } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-
 
 const DAY_SHORT: Record<number, string> = {
   1: 'Pon', 2: 'Wt', 3: 'Śr', 4: 'Czw', 5: 'Pt', 6: 'Sob', 7: 'Nd',

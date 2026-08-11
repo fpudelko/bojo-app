@@ -21,10 +21,35 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 ```bash
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
-npm test               # Vitest, 330 testów
+npm run lint           # ESLint — błędy blokują CI, ostrzeżenia nie
+npm test               # Vitest, 407 testów
+npm run build          # build produkcyjny (potrzebuje tylko atrap kluczy, patrz niżej)
 ```
 
-`npm run lint` **nie działa** bez interaktywnej konfiguracji ESLint — pomijaj.
+**`npm run lint` DZIAŁA** — konfiguracja jest w `frontend/.eslintrc.js`. Wcześniej stało
+tu, że wymaga interaktywnej konfiguracji; brakowało wyłącznie tego pliku i wtyczki
+`@typescript-eslint`. Pierwsze uruchomienie znalazło 39 miejsc z martwym kodem.
+
+**Build da się uruchomić bez prawdziwych kluczy Supabase** — wystarczą atrapy:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key npm run build
+```
+
+To ważne, bo `useSearchParams()` na trasie prerenderowanej wywraca **wyłącznie** build
+produkcyjny — `tsc` i Vitest tego nie widzą.
+
+**Testy klikalności (Playwright):**
+
+```bash
+cd frontend && npm run build && npm run e2e
+```
+
+W tym środowisku przeglądarka jest już w obrazie, więc:
+`PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run e2e`.
+Sprawdzają jedno: **czy da się kliknąć**. Modal przykryty paskiem nawigacji nie jest
+widoczny dla żadnego innego narzędzia w repo — Playwright zgłasza go wprost.
 
 ## Architektura w skrócie
 
@@ -65,6 +90,11 @@ Flagi ukrywają **wejścia w nawigacji**, nie trasy. Pełna tabela z miejscami u
 trzeba wkleić do Supabase → SQL Editor. Nic nie robi tego automatycznie. Dodanie kolumny
 w migracji ≠ kolumna istnieje w bazie — jeśli apka rzuca błędem o nieznanej kolumnie,
 najpewniej migracja nie została puszczona.
+
+**Do UPDATE-ów używaj `zaktualizujJedenWiersz()`, do dużych list `pobierzWszystkie()`**
+(`frontend/src/lib/zapytania.ts`). Oba istnieją po to, żeby cisza opisana w dwóch
+pułapkach niżej zamieniła się w wyjątek. Nowy kod, który omija te helpery, odtwarza
+dokładnie te same błędy.
 
 **RLS po cichu unieważnia UPDATE.** Gdy polityka RLS nie pasuje, Postgres nie zgłasza
 błędu — po prostu aktualizuje 0 wierszy i zwraca sukces. Objaw: „przycisk nic nie robi".
