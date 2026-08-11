@@ -709,7 +709,7 @@ export default function EventDetailClient() {
       // te same decyzje (pozycja, płatność), które właśnie podjął w dialogu.
       const wynik = myMaybe
         ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc)
-        : await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc, isOwner);
+        : await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc);
       await load();
       // Komunikat bierze się z TEGO, CO SIĘ STAŁO, nie z ustawień meczu.
       // Wcześniej zawsze mówił „Dołączyłeś do meczu!" — także wtedy, gdy zapis

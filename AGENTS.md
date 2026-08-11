@@ -214,6 +214,13 @@ Uruchamiany ręcznie w SQL Editor, bezpieczny do wielokrotnego użycia (czyści 
 grupowych: mecze ekipy na stronie głównej, zaproszenia, przypinanie meczu do grupy.
 Marker `[TEST-G]`. Wymaga konta `franekks@gmail.com` w `auth.users`.
 
+`supabase/seed_regresja.sql` — **43 scenariusze regresyjne** po refaktorze (etapy 1–3):
+dołączanie, kolejka rezerwowa, trzy tryby miejsc dla bramkarzy, prośby o akceptację,
+płatności, goście, warstwy okien, sortowanie list. Każdy mecz sprawdza jedną rzecz,
+tytuł niesie numer (`R01`…`R43`), a opis zaczyna się od „SPRAWDŹ:" i kończy oczekiwanym
+wynikiem. Marker `[REG]`. Na końcu pliku zapytanie, które wypisuje całość jako listę
+kontrolną z adresami.
+
 `supabase/seed_test_jan.sql` — 19 wydarzeń pokrywających obszary, których nie ruszają
 poprzednie seedy: wyniki meczów z golami, mecze z przeszłości i statystyki gracza,
 odwołanie meczu, goście dopisani przez uczestnika, miejsce spoza katalogu, komentarze,
