@@ -326,3 +326,41 @@ describe('wolneMiejscaWgRol', () => {
     expect(w.bramkarze).toBe(2);
   });
 });
+
+// Tryb wspólnej puli (migracja `077`). Sedno zgłoszenia: przy 14 miejscach
+// i 2 bramkarzach trzynasty zawodnik z pola lądował na rezerwie, choć dwa
+// miejsca stały puste i nikt ich nie zajmował.
+describe('wolneMiejscaWgRol — tryb wspólnej puli', () => {
+  const sklad = (pole: number, bramkarze: number) => [
+    ...Array.from({ length: pole }, () => ({ isGoalkeeper: false })),
+    ...Array.from({ length: bramkarze }, () => ({ isGoalkeeper: true })),
+  ];
+  const wspolna = {
+    maxPlayers: 14, maxGoalkeepers: 2,
+    goalkeepersEnabled: true, goalkeeperSlotsReserved: false,
+  };
+  const zarezerwowane = { ...wspolna, goalkeeperSlotsReserved: true };
+
+  it('dwunastu w polu: rezerwacja blokuje, wspólna pula nie', () => {
+    expect(wolneMiejscaWgRol(sklad(12, 0), zarezerwowane).pole).toBe(0);
+    expect(wolneMiejscaWgRol(sklad(12, 0), wspolna).pole).toBe(2);
+  });
+
+  it('wspólna pula nie udaje, że pule są osobne', () => {
+    expect(wolneMiejscaWgRol(sklad(5, 0), wspolna).rozdzielone).toBe(false);
+  });
+
+  it('sufit bramkarzy obowiązuje mimo wolnych miejsc', () => {
+    const w = wolneMiejscaWgRol(sklad(5, 2), wspolna);
+    expect(w.razem).toBe(7);
+    expect(w.pole).toBe(7);
+    expect(w.bramkarze).toBe(0);
+  });
+
+  it('wolne miejsca dla bramkarzy nie przekraczają tego, co zostało w ogóle', () => {
+    // Jedno wolne miejsce w sumie, sufit bramkarzy pozwoliłby na dwa.
+    const w = wolneMiejscaWgRol(sklad(13, 0), wspolna);
+    expect(w.razem).toBe(1);
+    expect(w.bramkarze).toBe(1);
+  });
+});

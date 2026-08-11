@@ -185,6 +185,9 @@ export interface EventItem {
   coverImageUrl?: string;
   /** Max goalkeepers before extras overflow to reserve (football). Default 2. */
   maxGoalkeepers: number;
+  /** `true` = miejsca dla bramkarzy zarezerwowane (pole ma `maxPlayers - maxGoalkeepers`).
+   *  `false` = wspólna pula, bramkarze tylko ograniczeni liczbowo. Migracja `077`. */
+  goalkeeperSlotsReserved: boolean;
   /** Whether the goalkeeper / field-player distinction is used at all. */
   goalkeepersEnabled: boolean;
   /** How long a reserve has to accept a freed spot before it passes on. */
@@ -268,6 +271,7 @@ export interface EventCreate {
   /** Seria, do której należy tworzony termin — patrz `EventItem.recurringEventId`. */
   recurringEventId?: string;
   maxGoalkeepers?: number;
+  goalkeeperSlotsReserved?: boolean;
   goalkeepersEnabled?: boolean;
   reserveClaimHours?: number;
   acceptedPaymentMethods?: PaymentMethod[];

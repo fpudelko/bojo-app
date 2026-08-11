@@ -1632,13 +1632,21 @@ export default function EventDetailClient() {
                 „zostały 2 wolne miejsca" przy komplecie w polu znaczyło
                 „2 miejsca dla bramkarzy", a zawodnik z pola i tak lądował na
                 rezerwie — dowiadując się o tym dopiero po zapisaniu się. */}
-            {wolne.rozdzielone && !isFull && (
+            {gkEnabled && !isFull && (
               <p className="mt-1 text-center text-xs text-slate-500">
-                {wolne.pole > 0 ? `${wolne.pole} w polu` : 'pole: komplet'}
-                {' · '}
-                {wolne.bramkarze > 0
-                  ? `${wolne.bramkarze} dla ${wolne.bramkarze === 1 ? 'bramkarza' : 'bramkarzy'}`
-                  : 'bramkarze: komplet'}
+                {wolne.rozdzielone
+                  ? <>
+                      {wolne.pole > 0 ? `${wolne.pole} w polu` : 'pole: komplet'}
+                      {' · '}
+                      {wolne.bramkarze > 0
+                        ? `${wolne.bramkarze} dla ${wolne.bramkarze === 1 ? 'bramkarza' : 'bramkarzy'}`
+                        : 'bramkarze: komplet'}
+                    </>
+                  // Wspólna pula — miejsca nie są podzielone, więc licznik nie
+                  // może ich rozdzielać. Jedyne ograniczenie to sufit bramkarzy.
+                  : wolne.bramkarze > 0
+                    ? `dla wszystkich ról, w tym do ${wolne.bramkarze} dla ${wolne.bramkarze === 1 ? 'bramkarza' : 'bramkarzy'}`
+                    : 'bramkarze: komplet, miejsca tylko w polu'}
               </p>
             )}
 

@@ -32,6 +32,8 @@ export interface EventDraftValues {
   /** `null` = organizator jeszcze nie zdecydował. Szkic musi umieć oddać brak
    *  decyzji, inaczej samo odtworzenie szkicu decydowałoby za niego. */
   goalkeepersEnabled: boolean | null;
+  /** Tryb miejsc dla bramkarzy — patrz migracja `077`. */
+  slotyZarezerwowane?: boolean;
   reserveClaimHours: number;
   title: string;
   description: string;
