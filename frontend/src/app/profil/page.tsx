@@ -125,7 +125,7 @@ export default function ProfilePage() {
     // czego właściwie brakuje.
     if (!trimmed) { setError('Podaj imię i nazwisko.'); return; }
     if (!isPelneImie(trimmed)) {
-      setError('Podaj imię i nazwisko — dwa człony, same litery. Tak zobaczą Cię gracze na meczu.');
+      setError('Podaj imię i nazwisko — nazwisko może być samym inicjałem, np. „Krzysiek W”.');
       return;
     }
     if (trimmed === currentName) { setEditing(false); return; }

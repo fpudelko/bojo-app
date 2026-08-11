@@ -50,9 +50,26 @@ describe('isPelneImie', () => {
     expect(isPelneImie('Jan')).toBe(false);
   });
 
-  it('odrzuca inicjały — człon musi mieć co najmniej dwa znaki', () => {
+  // Skrócenie NAZWISKA do inicjału to normalny, świadomy wybór — sama
+  // aplikacja pokazuje graczy w formie „Imię N.". Odrzucanie takiego zapisu
+  // blokowało zakładanie konta („Krzysiek W").
+  it('przyjmuje nazwisko skrócone do inicjału', () => {
+    expect(isPelneImie('Krzysiek W')).toBe(true);
+    expect(isPelneImie('Krzysiek W.')).toBe(true);
+    expect(isPelneImie('Anna Maria K.')).toBe(true);
+  });
+
+  // Odwrotnie się nie da: po inicjale imienia nie wiadomo, jak się do kogoś
+  // zwrócić, a to imię widnieje potem w powitaniach i na liście składu.
+  it('odrzuca inicjał zamiast imienia', () => {
     expect(isPelneImie('J Kowalski')).toBe(false);
+    expect(isPelneImie('J. Kowalski')).toBe(false);
     expect(isPelneImie('J K')).toBe(false);
+  });
+
+  it('kropka nie zastępuje liter', () => {
+    expect(isPelneImie('Jan .')).toBe(false);
+    expect(isPelneImie('. Kowalski')).toBe(false);
   });
 
   it('odrzuca cyfry i znaki specjalne', () => {

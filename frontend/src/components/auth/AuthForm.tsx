@@ -131,7 +131,7 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
     // bo przeglądarka przepuściłaby jednoczłonowe „Jan" — a nazwa idzie na
     // publiczną stronę meczu i ma mówić, kto go organizuje.
     if (mode === 'signup' && !isPelneImie(name)) {
-      setError('Podaj imię i nazwisko — tak zobaczą Cię gracze na meczu.');
+      setError('Podaj imię i nazwisko — nazwisko może być samym inicjałem, np. „Krzysiek W”.');
       return;
     }
     setBusy(true);
@@ -211,7 +211,12 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
               <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Imię i nazwisko" autoComplete="name" required maxLength={40} className={inputCls} />
             </div>
-            <p className="mt-1 pl-1 text-xs text-slate-500">Widoczne dla graczy na Twoich meczach.</p>
+            {/* Podpowiedź mówi WPROST, że inicjał wystarczy. Bez tego pole
+                wyglądało na wymagające pełnego nazwiska i człowiek wpisujący
+                „Krzysiek W" dostawał odmowę bez wskazówki, co poprawić. */}
+            <p className="mt-1 pl-1 text-xs text-slate-500">
+              Widoczne dla graczy na Twoich meczach. Nazwisko może być samym inicjałem — „Krzysiek W”.
+            </p>
           </div>
         )}
         <div className="relative">
