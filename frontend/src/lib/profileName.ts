@@ -30,15 +30,33 @@ export function nazwaZEmaila(email: string | null | undefined): string {
 // À-Ö, Ø-ö, ø-ÿ to litery Latin-1 (m.in. ó, ü, é), Ā-ſ to Latin Extended-A
 // (ą, ć, ę, ł, ń, ś, ź, ż oraz reszta alfabetów środkowoeuropejskich).
 const LITERY = "A-Za-zÀ-ÖØ-öø-ÿĀ-ſ";
-const CZLON = new RegExp(`^[${LITERY}][${LITERY}'-]*$`);
+// Człon nazwiska może kończyć się kropką — „Kowalski" i „K." są równie
+// prawdziwe. Kropka tylko na końcu, bo „K.owalski" to literówka, nie zapis.
+const CZLON = new RegExp(`^[${LITERY}][${LITERY}'-]*\\.?$`);
 
-/** Imię i nazwisko: co najmniej dwa człony po ≥2 znaki.
- *  Odrzuca „Jan", „J K", „   ", „Jan 2000". */
+/**
+ * Imię i nazwisko: co najmniej dwa człony, pierwszy pełny (≥2 znaki),
+ * kolejne mogą być inicjałem.
+ *
+ * Wcześniej KAŻDY człon musiał mieć ≥2 znaki, więc „Krzysiek W" było
+ * odrzucane i nie dało się założyć konta — mimo że skrócenie nazwiska do
+ * inicjału to normalny, świadomy wybór, a nie próba obejścia. Sama aplikacja
+ * pokazuje zresztą graczy w formie „Imię N.", więc odrzucanie takiego zapisu
+ * przy rejestracji było sprzeczne z tym, co potem wyświetlamy.
+ *
+ * Co nadal odpada: jeden człon („Jan"), inicjał zamiast imienia („J Kowalski"
+ * — nie wiadomo, jak się do kogoś zwrócić), cyfry i znaki specjalne.
+ */
 export function isPelneImie(v: string | null | undefined): boolean {
   if (!v) return false;
   const czlony = v.trim().split(/\s+/).filter(Boolean);
   if (czlony.length < 2) return false;
-  return czlony.every((c) => c.length >= 2 && CZLON.test(c));
+  if (!czlony.every((c) => CZLON.test(c))) return false;
+
+  const [imie, ...reszta] = czlony;
+  // Kropka nie liczy się do długości: „J." to wciąż jeden znak imienia.
+  const dlugosc = (c: string) => c.replace(/\.$/, '').length;
+  return dlugosc(imie) >= 2 && reszta.every((c) => dlugosc(c) >= 1);
 }
 
 /** Returns the avatar URL stored in user metadata, or null. */
