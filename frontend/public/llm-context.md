@@ -296,6 +296,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-11 — Organizator przesuwa graczy między składem a rezerwą
+
+PROBLEM: kolejka rezerwowa w Bojo rozdaje zwolnione miejsca sama, ale tylko wtedy, gdy
+miejsce faktycznie się zwolniło, i tylko pierwszej osobie w kolejce. Organizator nie miał
+żadnego sposobu, żeby wziąć kogoś z rezerwy poza kolejnością — a powody bywają poza
+zasięgiem bazy: ktoś przepuścił swoją kolej i wrócił, ktoś dogadał się poza aplikacją,
+brakuje bramkarza, a w kolejce stoi jedyny chętny. Jedynym wyjściem było usunięcie wpisu
+i dopisanie tej samej osoby od nowa, co gubi powiązanie z jej kontem, historię gier
+i zadeklarowany sposób płatności. W drugą stronę było tak samo: żeby zwolnić miejsce
+w składzie, trzeba było gracza usunąć z meczu.
+
+ROZWIĄZANIE BOJO: przy każdej osobie na liście rezerwowej organizator ma przycisk
+„Do składu", a przy graczu w składzie — „Na rezerwę". Awans poza kolejnością do roli,
+w której nie ma już miejsca, prosi o potwierdzenie i pozwala świadomie przekroczyć limit
+(licznik pokaże wtedy np. 15/14). Oba ruchy zachowują wpis gracza wraz z kontem,
+historią i deklaracją płatności; po każdym kolejka rezerwowa przelicza się od razu.
+
+MECHANIKA: `lib/events.ts` (`awansujZRezerwy()`, `cofnijNaRezerwe()` — obie czyszczą
+`claim_offered_at` i `claim_passed`, po czym wołają `sync_reserve_claim`);
+`EventDetailClient.tsx` (przyciski w liście rezerwowej i w sekcji „Zarządzanie
+graczami"). Bez migracji — polityka „Organizer updates participants" z migracji `004`
+dawała to uprawnienie od zawsze, brakowało wyłącznie wywołania.
+
 ### 2026-08-10 — Rezerwa mówi wprost, że jest rezerwą; role bramkarzy jako świadomy wybór
 
 PROBLEM: gracz zapisujący się na mecz w Bojo z rozróżnieniem bramkarzy widział „zostały
@@ -604,35 +627,3 @@ współdzielone przez `wydarzenia/nowe/page.tsx` i `wydarzenia/[id]/edytuj/page.
 warunek „pełna nazwa" w wyzwalaczu `powiadom_o_braku_nazwy()`); `WczesnyEtapBadge`
 w `Header.tsx`, `BottomNav.tsx` (kropka zamiast pełnego badge'a), `LandingHero.tsx`,
 `NextMatchCard.tsx`.
-
-### 2026-08-08 — Naprawa dołączania do składu, ekipa i ostatnie boisko w kreatorze, uczciwe komunikaty o wczesnym etapie
-PROBLEM: dołączanie do składu w Bojo było zepsute. Organizator zaznaczający „Biorę
-udział" nie trafiał do własnego składu, przycisk „Dołącz" na cudzym meczu nie zapisywał,
-„Dopisz osobę bez konta" nie działało — wszystko bez jednego komunikatu o błędzie.
-Działało wyłącznie obejście: „Obserwuj", a potem „Dołącz" — ale ta ścieżka nie pytała
-ani o pozycję (pole/bramka), ani o sposób płatności. W kreatorze meczu „Czas na decyzję
-z rezerwy" był schowany pod „Więcej opcji", przycisk „zlokalizuj mnie" był przycięty poza
-widok, nie dało się przypisać meczu do ekipy inaczej niż wchodząc ze strony grupy, a każde
-kolejne wydarzenie wymagało szukania tego samego boiska od zera. Po utworzeniu meczu
-„Wróć" cofało do wypełnionego kreatora. Logowanie Google kierowało na pulpit zamiast na
-listę meczów, przez co konto bez imienia nie widziało prośby o uzupełnienie profilu.
-Landing obiecywał społeczność dobierającą skład i komplet opisów boisk — obie rzeczy
-wyprzedzały stan Bojo.
-ROZWIĄZANIE BOJO: zapisy do składu działają wszystkimi ścieżkami, a przejście
-z obserwowania w granie pyta o pozycję i płatność tak samo jak zwykłe dołączanie.
-Kreator pokazuje czas na decyzję z rezerwy bez rozwijania, ma widoczny przycisk lokalizacji,
-pozwala wybrać ekipę w kroku 3 (z możliwością założenia nowej na miejscu) i proponuje
-ostatnio używane boisko jednym dotknięciem. Po publikacji „Wróć" prowadzi na „Moje gry".
-Zalogowany ląduje na liście meczów, a baner z prośbą o imię stoi właśnie tam. Mapa ma
-przełącznik „Gry | Obiekty" zamiast pojedynczego pilla. Karty opisujące otwieranie meczu
-dla nieznajomych i katalog boisk są oznaczone jako wczesny etap i mówią, co faktycznie
-działa dzisiaj.
-MECHANIKA: usunięta kolumna `status` z trzech insertów do `event_participants`
-w `lib/events.ts` (skasowana migracją `064`, PostgREST odrzucał każdy taki insert)
-+ sprawdzanie błędu w `createEvent` + test-strażnik `__tests__/eventsSchema.test.ts`;
-`confirmFromMaybe()` przyjmuje rolę i płatność, wywoływane z `JoinDialog`
-w `EventDetailClient.tsx`; `lib/lastVenue.ts` (localStorage, TTL 60 dni),
-`components/events/WybierzGrupeDialog.tsx`, pole `grupaId` w `lib/eventDraft.ts`;
-`components/ui/SegmentedToggle.tsx` w `components/map/VenueExplorer.tsx`; domyślny cel
-w `app/auth/callback/page.tsx` i `UzupelnijProfilBanner` w `app/wydarzenia/EventsListView.tsx`;
-pole `wczesnyEtap` w `components/home/landing/content.ts`.

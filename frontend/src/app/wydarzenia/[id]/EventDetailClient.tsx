@@ -37,6 +37,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
+  awansujZRezerwy, cofnijNaRezerwe,
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment,
@@ -730,6 +731,41 @@ export default function EventDetailClient() {
       } else {
         toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
       }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  /** Ręczny awans z rezerwy. Gdy w roli tej osoby nie ma już miejsca, pytamy —
+   *  organizator może świadomie przekroczyć limit (dogadał się z obiektem,
+   *  ktoś odpadnie w ostatniej chwili), ale nie powinien zrobić tego przez
+   *  przypadek, bo licznik „14/14" zamieni się w „15/14". */
+  const handleAwans = async (p: EventParticipant) => {
+    const wolneWRoli = gkEnabled
+      ? (p.isGoalkeeper ? wolne.bramkarze : wolne.pole)
+      : wolne.razem;
+    if (wolneWRoli <= 0) {
+      const rola = !gkEnabled ? 'Skład' : p.isGoalkeeper ? 'Miejsca dla bramkarzy' : 'Miejsca w polu';
+      if (!confirm(`${rola} są już zajęte. Dodać ${p.name} do składu mimo to?`)) return;
+    }
+    setBusy(true);
+    try {
+      await awansujZRezerwy(p.id, event.id);
+      await load();
+      toast(`${p.name} — w składzie`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  /** Odwrotność awansu — na koniec kolejki, zamiast usuwania z meczu. */
+  const handleCofnijNaRezerwe = async (p: EventParticipant) => {
+    if (!confirm(`Przenieść ${p.name} do rezerwy? Zwolni miejsce w składzie.`)) return;
+    setBusy(true);
+    try {
+      await cofnijNaRezerwe(p.id, event.id);
+      await load();
+      toast(`${p.name} — na liście rezerwowej`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1825,15 +1861,32 @@ export default function EventDetailClient() {
                             </span>
                           )}
                         </span>
-                        {p.userId === user?.id ? (
-                          <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        ) : isOrganizer && (
-                          <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Usuń z rezerwy">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <span className="flex shrink-0 items-center gap-1">
+                          {/* Ręczny awans — poza kolejnością i niezależnie od
+                              tego, czy miejsce się zwolniło. Bez tego jedyną
+                              drogą było usunięcie wpisu i dopisanie tej samej
+                              osoby od nowa, co gubi jej konto, historię
+                              i deklarację płatności. */}
+                          {isOrganizer && !eventStarted && (
+                            <button
+                              onClick={() => handleAwans(p)}
+                              disabled={busy}
+                              className="shrink-0 rounded-lg border border-primary-200 bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-800 transition-colors hover:bg-primary-100 disabled:opacity-50"
+                              title="Przenieś do składu"
+                            >
+                              Do składu
+                            </button>
+                          )}
+                          {p.userId === user?.id ? (
+                            <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : isOrganizer && (
+                            <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Usuń z rezerwy">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -2161,21 +2214,39 @@ export default function EventDetailClient() {
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
               <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
             </h2>
-            <p className="text-xs text-slate-500 mb-3">Usuwanie zawsze wymaga potwierdzenia.</p>
+            <p className="text-xs text-slate-500 mb-3">
+              „Na rezerwę" zostawia gracza w meczu, bez miejsca w składzie. Usuwanie zawsze
+              wymaga potwierdzenia.
+            </p>
             <ul className="divide-y divide-slate-100">
               {regulars.filter((p) => p.userId !== event.organizerId).map((p) => (
-                <li key={p.id} className="flex items-center gap-3 py-3">
+                <li key={p.id} className="flex flex-wrap items-center gap-2 py-3 sm:flex-nowrap sm:gap-3">
                   {p.avatarUrl
                     ? <img src={p.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     : <span className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                   }
-                  <span className="flex-1 min-w-0 text-sm text-ink truncate">{p.name}</span>
+                  {/* `basis-0 grow` z `min-w-0`: imię ma oddać szerokość
+                      przyciskom, a na wąskim ekranie zepchnąć je do drugiego
+                      wiersza zamiast rozpychać kartę. */}
+                  <span className="min-w-0 flex-1 basis-0 truncate text-sm text-ink">{p.name}</span>
                   <button
                     onClick={() => handleRemovePlayer(p)}
                     disabled={busy}
                     className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Usuń
+                  </button>
+                  {/* „Na rezerwę" zamiast usuwania: gracz zostaje w meczu,
+                      tylko bez miejsca w składzie. Usunięcie to koniec —
+                      musiałby zapisać się od nowa i wylądować na końcu
+                      kolejki, tracąc deklarację płatności. */}
+                  <button
+                    onClick={() => handleCofnijNaRezerwe(p)}
+                    disabled={busy}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+                    title="Przenieś na listę rezerwową"
+                  >
+                    <Clock className="w-3.5 h-3.5" /> Na rezerwę
                   </button>
                 </li>
               ))}

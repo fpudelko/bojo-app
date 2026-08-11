@@ -725,6 +725,49 @@ export async function declineReserveClaim(participantId: string, eventId: string
   await runSyncReserveClaim(eventId);
 }
 
+/**
+ * Organizator przesuwa kogoś z rezerwy do składu — ręcznie, poza kolejnością.
+ *
+ * Kolejka rezerwowa rozdaje zwolnione miejsca sama (`sync_reserve_claim`), ale
+ * tylko wtedy, gdy miejsce faktycznie się zwolniło i tylko pierwszej osobie
+ * w kolejce. Organizator ma powody, których baza nie zna: ktoś przepuścił swoją
+ * kolej i wrócił, ktoś dogadał się poza aplikacją, brakuje bramkarza,
+ * a w kolejce stoi jedyny chętny. Bez tej ścieżki jedynym wyjściem było
+ * usunięcie wpisu i dopisanie tej samej osoby od nowa — co gubi jej konto,
+ * historię i deklarację płatności.
+ *
+ * Uprawnienie jest po stronie bazy od migracji `004` („Organizer updates
+ * participants"), więc nie trzeba tu nic dokładać — brakowało wyłącznie
+ * wywołania.
+ *
+ * Czyścimy przy okazji ślady po ofercie (`claim_offered_at`, `claim_passed`):
+ * osoba w składzie nie może mieć wiszącej oferty miejsca, a `claim_passed`
+ * blokowałby ją, gdyby kiedyś wróciła na rezerwę.
+ */
+export async function awansujZRezerwy(participantId: string, eventId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ is_reserve: false, claim_offered_at: null, claim_passed: false })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
+  // Kolejka mogła właśnie stracić osobę, której trzymała ofertę — niech
+  // przeliczy się od razu, zamiast czekać na czyjeś wejście na stronę.
+  await runSyncReserveClaim(eventId);
+}
+
+/** Organizator odsyła kogoś ze składu na koniec kolejki rezerwowej.
+ *
+ *  Odwrotność `awansujZRezerwy()`. Bez tego jedyną drogą było usunięcie
+ *  gracza — a to co innego niż „nie tym razem, ale trzymam Cię w kolejce". */
+export async function cofnijNaRezerwe(participantId: string, eventId: string): Promise<void> {
+  const { error } = await supabase
+    .from('event_participants')
+    .update({ is_reserve: true, claim_offered_at: null, claim_passed: false })
+    .eq('id', participantId);
+  if (error) throw new Error(error.message);
+  await runSyncReserveClaim(eventId);
+}
+
 export async function togglePayment(participantId: string, hasPaid: boolean): Promise<void> {
   const { error } = await supabase
     .from('event_participants')
