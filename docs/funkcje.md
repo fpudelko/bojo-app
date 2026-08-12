@@ -116,7 +116,9 @@ go nie zobaczy — np. wpis dodał organizator ręcznie), a e-mail pasuje do ist
 lub przyszłego konta, właściciel tego konta dostanie **powiadomienie** z gotowym
 linkiem do przejęcia przy najbliższej okazji (patrz niżej) — nic nie ginie w milczeniu.
 Anonimowy zapis **nie wymaga logowania ani wymyślania po stronie organizatora** —
-link do dołączenia to ten sam link, co do każdego innego meczu.
+link do dołączenia to ten sam link, co do każdego innego meczu. Ten sam e-mail nie
+zapisze się dwa razy na ten sam mecz — druga próba zwraca istniejący wpis (albo,
+jeśli już przejęty, jasny komunikat „Jesteś już zapisany na ten mecz.").
 
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
@@ -144,6 +146,19 @@ z kolumną `notifications.claim_token`; `NotificationBell.tsx` kieruje kliknięc
 `/gracz/przejmij/[token]` zamiast na stronę meczu. **Żaden z wyzwalaczy nie ustawia
 `user_id` sam** — samo powiadomienie niczego nie przejmuje, to nadal wymaga
 świadomego kliknięcia i `auth.uid()` po stronie `przejmij_wpis_goscia()` (migracja `066`).
+
+Migracja `085` dodaje na starcie `dolacz_do_meczu_jako_goscie()` sprawdzenie
+duplikatu: wpis z tym e-mailem już w tym meczu (nieprzejęty gość → zwraca istniejący
+`claim_token` zamiast tworzyć drugi wiersz; przejęty → wyjątek) albo e-mail pasuje do
+konta już będącego uczestnikiem przez normalne, zalogowane dołączenie (JOIN
+`auth.users`→`event_participants.user_id`) → wyjątek. Sprawdzenie idzie przed
+`sync_reserve_claim()`/`czy_na_rezerwe()`, żeby odrzucone żądanie nie ruszało kolejki
+rezerwowych. `signUpWithEmail()` w `lib/auth.tsx` dostała drugi sposób wykrycia
+„e-mail już ma konto" — `data.user.identities.length === 0` — bo gdy w projekcie
+włączona jest ochrona przed enumeracją e-maili, Supabase dla istniejącego adresu nie
+rzuca błędu, tylko zwraca fałszywy sukces bez sesji; bez tej dodatkowej detekcji
+`handleCreateAccountFromGuest()` nigdy by nie przełączył się na logowanie w tym
+trybie. Naprawia to też tę samą lukę w zwykłej rejestracji przez `/logowanie`.
 
 **Pytania, na które odpowiada ta sekcja:** Czy mogę dołączyć do meczu bez konta w Bojo?
 Jak niezalogowany gracz może się zapisać na mecz? Czy gość bez konta zajmuje miejsce
