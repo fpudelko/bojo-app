@@ -109,8 +109,14 @@ z tymi samymi regułami pojemności; ekran po zapisie pokazuje faktyczny status
 („Jesteś w składzie" albo „Jesteś na liście rezerwowej") nad już zaktualizowaną listą
 uczestników. Może dokończyć profil bez ponownego wpisywania imienia/maila — hasłem
 albo przez Google — i od razu ląduje na stronie meczu, bez dodatkowego ekranu
-potwierdzenia „to ja". Anonimowy zapis **nie wymaga logowania ani wymyślania
-po stronie organizatora** — link do dołączenia to ten sam link, co do każdego innego meczu.
+potwierdzenia „to ja". Gdy podany e-mail ma już konto w Bojo, to samo pole hasła
+przełącza się z rejestracji na logowanie — po zalogowaniu wpis przejmowany jest
+tak samo od razu. Nawet jeśli gość zamknie ten ekran bez logowania (albo w ogóle
+go nie zobaczy — np. wpis dodał organizator ręcznie), a e-mail pasuje do istniejącego
+lub przyszłego konta, właściciel tego konta dostanie **powiadomienie** z gotowym
+linkiem do przejęcia przy najbliższej okazji (patrz niżej) — nic nie ginie w milczeniu.
+Anonimowy zapis **nie wymaga logowania ani wymyślania po stronie organizatora** —
+link do dołączenia to ten sam link, co do każdego innego meczu.
 
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
@@ -122,14 +128,27 @@ gościa w `EventDetailClient.tsx` liczy zapowiedź rezerwy z `wolneMiejscaWgRol(
 (bez zapytania do bazy); `handleJoinAsGuest()` woła `load()` po udanym zapisie, żeby
 lista uczestników była aktualna, zanim pokaże się ekran zachęty. Tam
 `handleCreateAccountFromGuest()` woła `signUpWithEmail()` i — gdy sesja jest aktywna
-od razu — `przejmij_wpis_goscia()` wprost, bez przejścia przez `/logowanie`. Przycisk
-Google woła `signInWithGoogle()` z `next=/gracz/przejmij/[token]?auto=1` — parametr
-`auto=1` na tej stronie (`PrzejmijClient.tsx`) każe przejąć wpis automatycznie, gdy
-user jest już zalogowany, zamiast czekać na klik „To ja — potwierdzam".
+od razu — `przejmij_wpis_goscia()` wprost, bez przejścia przez `/logowanie`. Gdy
+`signUpWithEmail()` rzuci błąd „już istnieje", `handleSignInFromGuest()` woła
+`signInWithEmail()` na tym samym polu hasła i przejmuje wpis po udanym logowaniu.
+Przycisk Google woła `signInWithGoogle()` z `next=/gracz/przejmij/[token]?auto=1` —
+parametr `auto=1` na tej stronie (`PrzejmijClient.tsx`) każe przejąć wpis automatycznie,
+gdy user jest już zalogowany, zamiast czekać na klik „To ja — potwierdzam".
+
+Migracja `084` dodaje dwa wyzwalacze SQL, które kojarzą wpis gościa z kontem po
+e-mailu w tle, niezależnie od tego, czy gość w ogóle przeszedł przez ekran zachęty:
+`event_participants` → `auth.users` (nowy wpis, e-mail pasuje do istniejącego konta)
+i `auth.users` → `event_participants` (nowe konto, e-mail pasuje do wcześniejszych
+nieprzejętych wpisów). Oba wstawiają powiadomienie typu `niepotwierdzony_wpis_goscia`
+z kolumną `notifications.claim_token`; `NotificationBell.tsx` kieruje kliknięcie na
+`/gracz/przejmij/[token]` zamiast na stronę meczu. **Żaden z wyzwalaczy nie ustawia
+`user_id` sam** — samo powiadomienie niczego nie przejmuje, to nadal wymaga
+świadomego kliknięcia i `auth.uid()` po stronie `przejmij_wpis_goscia()` (migracja `066`).
 
 **Pytania, na które odpowiada ta sekcja:** Czy mogę dołączyć do meczu bez konta w Bojo?
 Jak niezalogowany gracz może się zapisać na mecz? Czy gość bez konta zajmuje miejsce
-w składzie? Jak przejąć wpis gościa po założeniu konta?
+w składzie? Jak przejąć wpis gościa po założeniu konta? Co się stanie, jeśli zapiszę
+się jako gość na e-mail, który ma już konto w Bojo?
 
 ---
 

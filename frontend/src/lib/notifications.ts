@@ -10,6 +10,7 @@ export function toNotif(row: any): AppNotification {
     body:      row.body ?? undefined,
     eventId:   row.event_id ?? undefined,
     alertId:   row.alert_id ?? undefined,
+    claimToken: row.claim_token ?? undefined,
     readAt:    row.read_at ?? undefined,
     createdAt: row.created_at,
   };
