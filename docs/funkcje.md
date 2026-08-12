@@ -52,9 +52,9 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Płatności | `track_payments`, `show_payment_status` | Podział kosztów (organizator), karta „Twoja płatność" (uczestnik) |
 | Bramkarze | `goalkeepers_enabled`, `max_goalkeepers` | Osobny limit; nadmiarowi na rezerwę |
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
-| Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości |
+| Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
-| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx` |
+| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token` |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
 **„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
@@ -72,6 +72,27 @@ zebrano z ile oczekiwanych, lista zaległości z kwotami (uwzględniają zniżk�
 i numer BLIK, gdy organizator akceptuje tę metodę płatności. Bez tego organizator
 przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zobaczyć
 swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
+
+**Po starcie meczu cena ustępuje miejsca rozliczeniu.** Chip ceny w nagłówku strony
+meczu i badge na karcie `EventBrowseCard` (zakładka „Historia") pokazują przed
+meczem cenę i „Wymaga akceptacji"; po starcie meczu (`eventStarted`) — organizator
+widzi „Rozliczono" albo „X osób nie zapłaciło" (`event.unpaidCount`, liczone z już
+pobranego `event_participants` w `getMyParticipatedEvents()`), gracz widzi „Zapłacono"
+albo „Zapłać" (`relation.hasPaid`). „Wymaga akceptacji" znika po starcie — bez
+znaczenia po fakcie. Sekcje „Podział kosztów"/„Twoja płatność" na stronie meczu
+renderują się nad „Składy"/„Wynik meczu" po starcie meczu (przed startem — odwrotnie);
+treść sekcji się nie zmienia, tylko kolejność (`skladWynikSection`/`platnosciSection`
+w `EventDetailClient.tsx`).
+
+**Nazwy drużyn są jednym słownikiem.** `lib/teamLabels.ts` (`TEAM_LABELS`,
+`TEAM_LETTERS`, `TEAM_COLOR_CLASSES`) — „Niebiescy"/„Czerwoni" + litery N/C wszędzie,
+w składzie (`TeamsPanel`, `PublishedTeamsCard`) i w wyniku (`MatchResultForm`). Dane
+w bazie zostają literami A/B, zmieniła się wyłącznie warstwa etykiet.
+
+**Strzelcy nie mogą przebić wyniku końcowego.** `MatchResultForm` blokuje zapis
+(i disabluje przycisk), gdy suma goli albo asyst u strzelców przekracza
+`scoreA + scoreB` — dotyczy wyłącznie `family === 'goals'` (piłka nożna/futsal/piłka
+ręczna), bo tylko tam jest sekcja „Strzelcy".
 
 ---
 

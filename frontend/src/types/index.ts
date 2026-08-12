@@ -157,6 +157,9 @@ export interface EventItem {
   maxPlayers: number;
   participantsCount?: number; // non-reserve app participants (populated in list queries)
   pendingApprovalCount?: number; // awaiting organizer approval (requireApproval matches)
+  /** Regulars (not reserve, not pending) without has_paid — populated in list
+   *  queries alongside participantsCount. Undefined where not fetched. */
+  unpaidCount?: number;
   visibility: Visibility;
   createdAt: string;
   status: EventStatus;

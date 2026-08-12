@@ -187,7 +187,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-      <Header />
+      <Header showMobileWordmark />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Profil</h1>
 

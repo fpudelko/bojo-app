@@ -296,6 +296,52 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
+
+PROBLEM: przycisk „Zaproś do Bojo" (przejęcie wpisu gościa) działał tylko dla gości
+w głównym składzie — gość na rezerwie nie miał jak przejąć swojego wpisu, mimo że
+backend to wspierał. Formularz „Dopisz osobę bez konta" mimo włączonej opcji
+„Uczestnicy mogą dodawać gości" renderował się wyłącznie organizatorowi — zwykły
+uczestnik miał inny, ukryty formularz z dodatkowymi ograniczeniami bez pokrycia
+w regułach dostępu. Po zakończonym meczu dało się dalej kliknąć „Wypisz się z meczu",
+sekcja płatności chowała się pod składem zamiast być na wierzchu, a wynik meczu i skład
+używały dwóch różnych nazw drużyn („Drużyna A/B" w wyniku, „Niebiescy/Czerwoni"
+w składzie). Formularz wyniku pozwalał wpisać strzelcom więcej goli niż wynik końcowy.
+Karty meczów w zakładce „Historia" pokazywały cenę i „Wymaga akceptacji" — bezużyteczne
+po fakcie. Na `/profil` brakowało linku „bojo" w górnym pasku na telefonie.
+
+ROZWIĄZANIE BOJO: przycisk zaproszenia i informacja „dodał(a)" są teraz identyczne
+w składzie i na rezerwie. Formularz dopisywania gościa jest jeden wzorzec dla
+organizatora i uczestnika, widoczny każdemu potwierdzonemu uczestnikowi (także
+rezerwowemu) do startu meczu. Po starcie meczu znika „Wypisz się z meczu", a sekcje
+„Podział kosztów"/„Twoja płatność" przenoszą się nad „Składy"/„Wynik meczu" — treść
+się nie zmienia, tylko kolejność. Cena i „Wymaga akceptacji" w nagłówku meczu i na
+kartach w Historii ustępują po starcie meczu miejsca statusowi rozliczenia
+(„Rozliczono"/„X nie zapłaciło" dla organizatora, „Zapłacono"/„Zapłać" dla gracza).
+Nazwy drużyn („Niebiescy"/„Czerwoni" + litery N/C) są teraz jednym słownikiem
+używanym identycznie w składzie i w wyniku. Formularz wyniku blokuje zapis, gdy suma
+goli albo asyst u strzelców przekracza wynik końcowy. Gol przy nazwisku pojawia się
+w składzie, jeśli gracz strzelił więcej niż 0. Baner „Wróciliśmy do Twojego szkicu"
+w kreatorze wydarzenia miał przycisk „Zacznij od nowa" ucinany przez `truncate` na
+wąskich ekranach — teraz jest osobnym, zawsze widocznym przyciskiem.
+
+MECHANIKA: `EventDetailClient.tsx` — pętla `reserves.map` w torze organizatora
+dostała ten sam blok `mozeZaprosic()`/`kopiujLinkPrzejecia()` co `regulars.map`
+i `ParticipantsList`; formularz gościa dla uczestnika stracił warunek
+`!myParticipation.isReserve`; blok „WYPISZ SIĘ" gated dodatkowo `!eventStarted`;
+`skladWynikSection`/`platnosciSection` — dwie zmienne JSX renderowane w kolejności
+zależnej od `eventStarted`; `golyMap` (z `matchResult.resultData.scorers`) przekazywany
+do `ParticipantsList`/`PublishedTeamsCard`. Nowy plik `lib/teamLabels.ts`
+(`TEAM_LABELS`, `TEAM_LETTERS`, `TEAM_COLOR_CLASSES`) używany w `TeamsPanel.tsx`,
+`MatchResultForm.tsx` i `EventDetailClient.tsx`. `MatchResultForm.tsx` — walidacja
+`enteredGoals`/`enteredAssists` vs `scoreA + scoreB` w `family === 'goals'`.
+`lib/events.ts` — `has_paid` dołączony do zapytań `getMyParticipatedEvents()`,
+nowe pola `EventItem.unpaidCount` i `MyEventRelation.hasPaid`. `EventBrowseCard.tsx`
+— `paymentBadge` zastępuje cenę/„Wymaga akceptacji" dla `past` kart. `profil/page.tsx`
+— `<Header showMobileWordmark />` na głównym renderze zalogowanego użytkownika.
+`wydarzenia/nowe/page.tsx` — baner szkicu bez `truncate`, „Zacznij od nowa" jako
+osobny przycisk.
+
 ### 2026-08-12 — Komplet i zwolnione miejsce pod dzwonkiem, rozliczenie do wysłania, powrót z logowania kończy zapis, zaproszenie gościa też dla tego, kto go dopisał
 
 PROBLEM: organizator nie dowiadywał się, gdy skład meczu przechodził w komplet albo
@@ -552,49 +598,3 @@ osobna karta, warunki pustych stanów uwzględniają `reserves`);
 `withCount`) użyte w 13 plikach zamiast ręcznego `n < 5` — m.in. `EventBrowseCard.tsx`,
 `InviteFromGroupDialog.tsx`, `DashboardSections.tsx`, `GroupsClient.tsx`,
 `gracz/[id]/page.tsx`, `lib/eventDraft.ts`.
-
-### 2026-08-09 — Rezerwa i bramkarze osobnymi kolejkami, treść powiadomień z datami, wizualne ulepszenia interfejsu
-
-PROBLEM: limit miejsc dla zawodników z pola w Bojo nigdy nie zadziałał — zawodnik
-dołączał do składu, gdy `taken < maxPlayers`, bez względu na to, czy miejsca dla
-bramkarzy wyczerpały już całą pulę (`maxPlayers=2, maxGoalkeepers=2` oznaczał 0
-miejsc w polu, a każdy zawodnik i tak wchodził do drużyny). Powiadomienia o nowych
-prośbach o dołączenie nie miały daty i godziny meczu — tylko nazwę i sport.
-Przycisk „Dodaj do grupy" na stronie meczu był schowany, szukanie go wśród opcji
-zajmowało czas. Panel dolnej nawigacji na mapie (`/mapa`) był czasem nieobserwowalny
-— karty gier mogły go przysłonić. Na `/profil` mobile nie widać było wordmarku
-„bojo" jak na reszcie stron, czego też szukano. Baner z prośbą o imię na `/wydarzenia`
-schował się za logowaniem, nowy użytkownik Google nie wiedział, co uzupełnić. Kreator
-meczu jednorazowego nie miał opcji na utworzenie cyklicznego powtarzania w tym samym
-przepływie.
-
-ROZWIĄZANIE BOJO: rezerwa teraz pojawia się **osobno dla każdej roli** — zawodnicy
-z pola konkurrują o `maxPlayers - maxGoalkeepers` miejsc, bramkarze o `maxGoalkeepers`.
-Gdy bramkarze są wyłączeni (`goalkeepers_enabled = false`), cała pula `maxPlayers` idzie
-na pole, zachowując stare zachowanie. Powiadomienia o nowych prośbach, zaakceptowanych
-zapisach i nowych terminach serii zawierają datę i godzinę meczu (format: `DD.MM, godz.
-HH:MM`). Nowe powiadomienie o odrzuceniu prośby o dołączenie informuje, że organizator
-nie przyjął wpisu. Badge „Dodaj do grupy" stoi na górze strony meczu jako klikalny
-element (dla organizatora edytowalny). Dolna nawigacja podniosła się w widoku (`z-[1200]`)
-— karty nigdy jej nie przysłonią. `/profil` renderuje wordmark „bojo" po lewej w górnym
-pasku na mobile. Panel powiadomień na telefonie renderuje się w viewporcie zamiast
-względem przycisku dzwonka — zawsze w pełni widoczny. Przycisk „Wiesz, że możesz
-zrobić to cyklicznie?" w kroku 2 kreatora otwiera modal i tworzy szablon w tle,
-organizator widzi link do serii po publikacji. Krok 3 kreatora ma teraz grupę na
-górze, gdzie należy — przed innymi ustawieniami.
-
-MECHANIKA: migracja `075` (`sync_reserve_claim()` liczy i oferuje miejsca osobno
-per rola); migracja `076` (daty/godziny w `powiadom_o_akceptacji` i
-`powiadom_o_prosbie_o_dolaczenie`, nowy trigger `powiadom_o_odrzuceniu_prosby`);
-`lib/events.ts` (nowe helpery `confirmedCounts()` i `decydujCzyRezerwa()` zastępujące
-cztery kopie logiki, `createEvent()` używa decyduj… przy auto-dołączeniu organizatora);
-`lib/recurring.ts` (`nextOccurrence()` scalone z lokalnej kopii, wzorowana na SQL
-cronie); `EventBrowseCard.tsx` (badge „Wymaga akceptacji" w niebieskim `blue-50`);
-`NotificationBell.tsx` (checkmark dla przeczytanych, `WYMAGA_AKCJI` Set dla dwóch
-typów — `prosba_o_dolaczenie`, `reserve_claim_offered`, niebieskie vs. primary
-zależnie od akcji); `BottomNav.tsx` (z-index z `z-[1000]` na `z-[1200]`, usunięta
-pomarańczowa kropka „wczesny etap" dla `/wydarzenia`); `profil/page.tsx` (
-`showMobileWordmark` na wszystkich renderach `<Header />`); `EventDateTimeField.tsx`
-(opcjonalny prop `extraSlot` dla kafelka cyklicznego); `wydarzenia/nowe/page.tsx`
-(grupa na górę kroku 3, cykliczny kafelek obok daty w kroku 2); `api.ts` w
-`notify-game-alert/` (formatowanie dat w treści powiadomienia).
