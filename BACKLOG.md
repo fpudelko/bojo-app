@@ -8,7 +8,7 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-09_
+_Ostatnia aktualizacja: 2026-08-12_
 
 ---
 
@@ -27,14 +27,22 @@ typy `ReportType`/`PlayerReport`), martwe `handleSendSms`/`smsBusy` w
 naprawiła też goły link w zaproszeniu do przejęcia wpisu gościa — `kopiujLinkPrzejecia`
 kopiował sam URL bez argumentu, ten sam błąd co `O-18`, tu nienaprawiony do teraz —
 i dodała sygnał „N gości bez konta" nad składem oraz przycisk „Zaproś do Bojo" w
-widoku po starcie meczu (`ParticipantsList`), gdzie wcześniej znikał całkowicie. Zostaje:
+widoku po starcie meczu (`ParticipantsList`), gdzie wcześniej znikał całkowicie.
+`O-28`…`O-31` zrobione czwartą rundą (2026-08-12): wyzwalacz powiadamiający organizatora
+o zmianie stanu kompletu składu (migracja `079`), przycisk „Wyślij rozliczenie ekipie"
+w panelu kosztów, powrót z logowania na stronę meczu otwiera od razu okno zapisu
+(`?dolacz=1`), a zaproszenie do przejęcia wpisu gościa może wysłać też ten, kto
+konkretnego gościa dopisał, nie tylko organizator. Zostaje:
 
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
 
 Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1),
-odmrażanie flag (§2).
+odmrażanie flag (§2), doręczanie powiadomień poza aplikacją (e-mail/push — wymaga
+weryfikacji domeny `bojo.pl` w Resend, poza repo), cron dla wygasania oferty
+zwolnionego miejsca (nie da się z repo sprawdzić, czy `pg_cron` jest włączony na
+produkcji), domknięcie RLS na `events` (patrz §5 niżej).
 
 ---
 
@@ -213,6 +221,10 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
 - [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki.
+      **Kolejność ma znaczenie:** naprawić `getMyGroupEvents()` PRZED dociągnięciem
+      polityki na `events` (patrz ustalenie z 2026-08-04 niżej) — funkcja dziś zależy
+      wyłącznie od luźnego warunku `true`, więc domknięcie RLS bez jednoczesnej
+      przebudowy tej funkcji po cichu urwie mecze grupowe z list, bez błędu.
 - [ ] **Numer do BLIKA nadal przyjeżdża w całym wierszu `events`.** `canSeeBlikPhone()`
       (`lib/payments.ts`) chowa numer w UI (organizator zawsze, uczestnik dopiero
       godzinę przed meczem), ale `toEvent()` robi `select('*')`, a RLS na `events` jest
@@ -254,6 +266,13 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       podejrzeniem. `getMyGroupEvents()` (mecze grup, w tym prywatne — `lib/events.ts`)
       działa dziś **wyłącznie dzięki tej luźnej polityce**: gdy ktoś RLS domknie, ta
       funkcja po cichu zacznie zwracać mniej wierszy, bez błędu.
+- [ ] **`event_participants.claim_token` jest czytelny dla każdego.** Polityka
+      `Participants readable by all` ma warunek `USING (true)`, więc token przejęcia
+      wpisu gościa (migracja `066`) da się odczytać z ruchu sieciowego dla dowolnego
+      meczu, nie tylko przez link, który wysłał dopisujący. Token jest projektowany
+      jako sekret na okaziciela — jak `join_code` — więc samo to nie jest regresją, ale
+      warto to uwzględnić przy domykaniu RLS na `event_participants` (spójne z pozycją
+      o `events` wyżej).
 
 ### Bugi UI — zgłoszone z testów na urządzeniu (2026-08-03)
 

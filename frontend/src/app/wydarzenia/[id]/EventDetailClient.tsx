@@ -48,6 +48,7 @@ import type {
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
 import { linkPrzejeciaWpisu, tekstZaproszeniaGoscia } from '@/lib/guestClaim';
+import { tekstRozliczenia } from '@/lib/settlementShare';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart } from '@/lib/eventDates';
 import {
@@ -157,12 +158,12 @@ function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; warian
  *  Bojo" musi tu żyć osobno, inaczej znika dokładnie wtedy, gdy organizator
  *  naturalnie wraca na stronę wpisać wynik i konwersja gościa jest najłatwiejsza. */
 function ParticipantsList({
-  regulars, reserves, gkEnabled, isOrganizer, skopiowanyToken, onZaprosDoBojo,
+  regulars, reserves, gkEnabled, mozeZaprosic, skopiowanyToken, onZaprosDoBojo,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
   gkEnabled: boolean;
-  isOrganizer: boolean;
+  mozeZaprosic: (p: EventParticipant) => boolean;
   skopiowanyToken: string | null;
   onZaprosDoBojo: (p: EventParticipant) => void;
 }) {
@@ -176,7 +177,7 @@ function ParticipantsList({
               <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
               {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
             </PlayerLink>
-            {isOrganizer && p.isGuest && p.claimToken && (
+            {mozeZaprosic(p) && p.isGuest && p.claimToken && (
               <button
                 type="button"
                 onClick={() => onZaprosDoBojo(p)}
@@ -210,7 +211,7 @@ function ParticipantsList({
                       w kolejce nie mówi, na co ta osoba właściwie czeka. */}
                   {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                 </div>
-                {isOrganizer && p.isGuest && p.claimToken && (
+                {mozeZaprosic(p) && p.isGuest && p.claimToken && (
                   <button
                     type="button"
                     onClick={() => onZaprosDoBojo(p)}
@@ -415,8 +416,13 @@ export default function EventDetailClient() {
   // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
   // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
   const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
+  // Wylogowany kliknął „Zaloguj się, aby dołączyć" (?dolacz=1) — po powrocie
+  // z logowania otwieramy okno zapisu automatycznie zamiast zostawiać go na
+  // widoku identycznym z tym sprzed logowania.
+  const [chceDolaczyc, setChceDolaczyc] = useState(false);
   const [venueInfoOpen, setVenueInfoOpen] = useState(false);
   const [skopiowanyToken, setSkopiowanyToken] = useState<string | null>(null);
+  const [rozliczenieSkopiowane, setRozliczenieSkopiowane] = useState(false);
   // Rescheduling from the badge. `whenConfirm` is the second gate: moving a
   // match that people already signed up for needs an explicit yes.
   const [whenOpen, setWhenOpen] = useState(false);
@@ -496,13 +502,49 @@ export default function EventDetailClient() {
     const p = new URLSearchParams(window.location.search);
     const cid = p.get('cykliczne');
     if (cid) setCyklicznyId(cid);
-    if (p.get('utworzono') !== '1' && !cid) return;
-    setSwiezoUtworzony(true);
+    // Wylogowany klika „Zaloguj się, aby dołączyć" i wraca na tę samą stronę
+    // po zalogowaniu — dotąd lądował na widoku identycznym z tym sprzed
+    // logowania i musiał od nowa znaleźć przycisk „Dołącz". `?dolacz=1` niesie
+    // tę intencję przez logowanie, tym samym wzorem co `?utworzono=1`.
+    const dolacz = p.get('dolacz') === '1';
+    if (dolacz) setChceDolaczyc(true);
+    if (p.get('utworzono') !== '1' && !cid && !dolacz) return;
+    if (p.get('utworzono') === '1' || cid) setSwiezoUtworzony(true);
     p.delete('utworzono');
     p.delete('cykliczne');
+    p.delete('dolacz');
     const q = p.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, []);
+
+  // Otwarcie okna zapisu po powrocie z logowania — osobny efekt, bo musi
+  // poczekać, aż skończy się `authLoading` i wczyta mecz. Nie zapisujemy
+  // nikogo automatycznie: to łamałoby regułę „nikt nie trafia do składu po
+  // cichu" (docs/domena.md) i przy meczu płatnym pominęłoby wybór sposobu
+  // płatności.
+  //
+  // `eventStarted`/`regulars` są liczone niżej w komponencie (po early
+  // returnach dla `loading`/`notFound`), więc ten efekt — hook, musi stać
+  // przed nimi — liczy to samo inline z `event`/`participants`, żeby nie
+  // odwoływać się do stałych `const`, które w tym miejscu pliku jeszcze
+  // nie istnieją.
+  useEffect(() => {
+    if (!chceDolaczyc || authLoading || loading || !user || !event) return;
+    setChceDolaczyc(false);
+    if (event.status === 'cancelled') return;
+    let started = true;
+    try {
+      const [y, m, d] = event.date.split('-').map(Number);
+      const [h, min] = (event.time ?? '00:00').split(':').map(Number);
+      started = Date.now() >= new Date(y, m - 1, d, h, min).getTime();
+    } catch { /* started zostaje true — bezpieczniej nie otwierać okna */ }
+    if (started) return;
+    if (participants.some((p) => p.userId === user.id)) return; // już zapisany
+    const takenSpots = participants.filter((p) => !p.pendingApproval && !p.isReserve).length;
+    setJoinRole('player');
+    setJoinAsReserve(takenSpots >= event.maxPlayers);
+    setJoinDialogOpen(true);
+  }, [chceDolaczyc, authLoading, loading, user, event, participants]);
 
   if (loading) {
     return (
@@ -536,6 +578,11 @@ export default function EventDetailClient() {
   // Strict ownership — only the actual creator, never admins. Drives the inline
   // "Edytuj" link so admins don't see an edit shortcut on other people's events.
   const isOwner = !!user && user.id === event.organizerId;
+  // Gościa dopisuje często uczestnik, nie organizator (`allowGuestAdds`
+  // pozwala każdemu) — i to właśnie ten, kto go przyprowadził, ma z nim
+  // kontakt. Dotąd link przejęcia wpisu mógł wysłać wyłącznie organizator,
+  // czyli najczęściej osoba, która gościa w ogóle nie zna.
+  const mozeZaprosic = (p: EventParticipant) => isOrganizer || (!!user && p.addedBy === user.id);
   // Pending requests don't count toward the roster or capacity.
   const confirmed = participants.filter((p) => !p.pendingApproval);
   const pendingRequests = participants.filter((p) => p.pendingApproval);
@@ -967,6 +1014,30 @@ export default function EventDetailClient() {
       toast('Wiadomość skopiowana — wyślij ją tej osobie');
     } catch {
       toast('Nie udało się skopiować linku', 'error');
+    }
+  };
+
+  /** Rozliczenie kończyło się na ekranie organizatora: żeby powiedzieć ekipie,
+   *  kto jeszcze nie oddał, trzeba było przepisać to ręcznie na czat. Goście
+   *  bez konta w ogóle nie mają jak tego zobaczyć w samym Bojo. Bez `url`
+   *  w `navigator.share` — to wiadomość do ludzi, którzy już są w meczu,
+   *  a przy gościach bez konta link i tak nie pokazałby im nic nowego. */
+  const handleWyslijRozliczenie = async () => {
+    const text = tekstRozliczenia(event, regulars);
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Rozliczenie', text });
+      } catch {
+        // anulowane przez użytkownika — nic nie pokazujemy, jak w shareEvent()
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setRozliczenieSkopiowane(true);
+      setTimeout(() => setRozliczenieSkopiowane(false), 2500);
+    } catch {
+      toast('Nie udało się skopiować', 'error');
     }
   };
 
@@ -1782,11 +1853,16 @@ export default function EventDetailClient() {
                       })()}
                       {/* Gość może przejąć swój wpis po założeniu konta —
                           link jest jednorazowy i wędruje kanałem, który wybierze
-                          organizator. Dopasowanie po imieniu byłoby fałszywą
+                          wysyłający. Dopasowanie po imieniu byłoby fałszywą
                           tożsamością: na osiedlowym meczu bywa trzech Marków,
                           a przejęcie cudzego wpisu to cudze miejsce w składzie
-                          i cudza historia gier. */}
-                      {isOrganizer && p.isGuest && p.claimToken && (
+                          i cudza historia gier.
+
+                          Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`
+                          pozwala każdemu uczestnikowi), nie tylko organizator —
+                          to on zna gościa i ma z nim kontakt, organizator często
+                          nie. */}
+                      {mozeZaprosic(p) && p.isGuest && p.claimToken && (
                         <button
                           type="button"
                           onClick={() => kopiujLinkPrzejecia(p)}
@@ -1913,7 +1989,7 @@ export default function EventDetailClient() {
                     regulars={regulars}
                     reserves={reserves}
                     gkEnabled={gkEnabled}
-                    isOrganizer={isOrganizer}
+                    mozeZaprosic={mozeZaprosic}
                     skopiowanyToken={skopiowanyToken}
                     onZaprosDoBojo={kopiujLinkPrzejecia}
                   />
@@ -2119,7 +2195,10 @@ export default function EventDetailClient() {
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
                 <button
-                  onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname + window.location.search)}`; }}
+                  onClick={() => {
+                    const powrot = `${window.location.pathname}?dolacz=1`;
+                    window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
+                  }}
                   className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                 >
                   Zaloguj się, aby dołączyć
@@ -2389,6 +2468,19 @@ export default function EventDetailClient() {
                   );
                 })}
               </ul>
+            </div>
+            {/* Rozliczenie kończyło się na ekranie: żeby powiedzieć ekipie,
+                kto jeszcze nie oddał, organizator przepisywał to ręcznie na
+                czat. Goście bez konta w ogóle nie mają jak tego zobaczyć
+                w Bojo. */}
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Button variant="outline" className="w-full" onClick={handleWyslijRozliczenie}>
+                <Share2 className="h-4 w-4" strokeWidth={2.25} />
+                {rozliczenieSkopiowane ? 'Skopiowano' : 'Wyślij rozliczenie ekipie'}
+              </Button>
+              <p className="mt-2 text-[11px] text-slate-400">
+                Gotowa wiadomość z kwotą, listą zaległości i numerem BLIK — do wklejenia na czat.
+              </p>
             </div>
           </div>
         )}

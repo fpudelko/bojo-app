@@ -54,7 +54,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
-| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu |
+| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx` |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
 **„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
@@ -64,6 +64,14 @@ organizator w panelu „Podział kosztów". Karta na stronie meczu
 myConfirmed && !myConfirmed.isReserve`) liczy cenę przez `priceForParticipant()` —
 ten sam wzorzec co panel organizatora, jedno źródło prawdy. Rezerwowy nie widzi tej
 karty: jeszcze nie ma za co płacić, dopóki nie wejdzie do składu.
+
+**„Wyślij rozliczenie ekipie" — rozliczenie da się wysłać, nie tylko obejrzeć.**
+Przycisk w panelu „Podział kosztów" (`lib/settlementShare.ts`, `tekstRozliczenia()`)
+otwiera systemowy arkusz udostępniania z gotową wiadomością: kwota od osoby, ile
+zebrano z ile oczekiwanych, lista zaległości z kwotami (uwzględniają zniżkę kartową)
+i numer BLIK, gdy organizator akceptuje tę metodę płatności. Bez tego organizator
+przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zobaczyć
+swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
 
 ---
 
@@ -764,6 +772,13 @@ jako martwy, nieklikalny wiersz.
 Czego brakuje: **wyzwalacza przy utworzeniu gry w grupie**. Jedyna ścieżka powiadomienia
 o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą
 `SHOW_GAME_ALERTS`. To [luka 2 wobec wizji](./wizja.md#3-luki).
+
+**Komplet i zwolnione miejsce (migracja `079`).** Organizator nie dowiadywał się
+o zmianie stanu składu — jedyny wyzwalacz na `DELETE` z `event_participants`
+powiadamiał odrzuconego gracza, nie jego. Nowy wyzwalacz na `event_participants`
+(INSERT/UPDATE/DELETE) wysyła `komplet_skladu`, gdy skład przechodzi z niekompletnego
+w pełny, i `zwolnilo_sie_miejsce`, gdy komplet się rozpada — w obie strony wyłącznie
+przy zmianie STANU, nie przy każdym zapisie z osobna.
 
 ---
 
