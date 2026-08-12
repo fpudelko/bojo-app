@@ -76,6 +76,24 @@ export function EventBrowseCard({ event, distance, relation }: {
     ? 'Za darmo'
     : `${(costGrosze / 100).toLocaleString('pl-PL', { maximumFractionDigits: 2 })} zł`;
 
+  // Po meczu cena traci znaczenie — liczy się rozliczenie. Organizator widzi ile
+  // osób jeszcze nie zapłaciło, gracz widzi swój własny status.
+  const paymentBadge = (() => {
+    if (cancelled || costGrosze <= 0) return null;
+    if (relation?.isOrganizer) {
+      const unpaid = event.unpaidCount ?? 0;
+      return unpaid === 0
+        ? { label: 'Rozliczono', cls: 'bg-green-50 text-green-700' }
+        : { label: withCount(unpaid, 'osoba nie zapłaciła', 'osoby nie zapłaciły', 'osób nie zapłaciło'), cls: 'bg-amber-100 text-amber-700' };
+    }
+    if (relation?.status === 'playing') {
+      return relation.hasPaid
+        ? { label: 'Zapłacono', cls: 'bg-green-50 text-green-700' }
+        : { label: 'Zapłać', cls: 'bg-amber-100 text-amber-700' };
+    }
+    return null;
+  })();
+
   return (
     <Link
       href={`/wydarzenia/${event.id}`}
@@ -100,15 +118,25 @@ export function EventBrowseCard({ event, distance, relation }: {
             <div className="flex items-start justify-between gap-2">
               <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{title}</h3>
               <div className="shrink-0 flex items-center gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {priceLabel}
-                </span>
-                {event.requireApproval && (
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-                    Wymaga akceptacji
-                  </span>
+                {!past ? (
+                  <>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {priceLabel}
+                    </span>
+                    {event.requireApproval && (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                        Wymaga akceptacji
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  paymentBadge && (
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paymentBadge.cls}`}>
+                      {paymentBadge.label}
+                    </span>
+                  )
                 )}
               </div>
             </div>

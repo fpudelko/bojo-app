@@ -34,6 +34,10 @@ export function toEvent(row: any): EventItem {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (row.event_participants as any[]).filter((p) => p.pending_approval).length
       : undefined,
+    unpaidCount: Array.isArray(row.event_participants)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (row.event_participants as any[]).filter((p) => !p.is_reserve && !p.pending_approval && !p.has_paid).length
+      : undefined,
     visibility: row.visibility,
     createdAt: row.created_at,
     requireSmsConfirmation: row.require_sms_confirmation ?? false,
@@ -970,6 +974,8 @@ export type MyEventStatus =
 export interface MyEventRelation {
   isOrganizer: boolean;
   status: MyEventStatus;
+  /** Własny status opłacenia (gdy dotyczy) — populowane w getMyParticipatedEvents. */
+  hasPaid?: boolean;
 }
 
 /** Derive the participation status from a participant row. */
@@ -984,7 +990,7 @@ export async function getMyParticipatedEvents(
 ): Promise<{ event: EventItem; relation: MyEventRelation }[]> {
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
-    .select('event_id, rsvp, is_reserve, pending_approval')
+    .select('event_id, rsvp, is_reserve, pending_approval, has_paid')
     .eq('user_id', userId);
   if (pErr) throw new Error(pErr.message);
 
@@ -1007,7 +1013,7 @@ export async function getMyParticipatedEvents(
 
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_participants(id, is_reserve, pending_approval)')
+    .select('*, event_participants(id, is_reserve, pending_approval, has_paid)')
     .in('id', eventIds)
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);
@@ -1019,6 +1025,7 @@ export async function getMyParticipatedEvents(
       relation: {
         isOrganizer: row.organizer_id === userId,
         status: mine ? statusFromRow(mine) : 'none',
+        hasPaid: mine?.has_paid ?? false,
       },
     };
   });

@@ -16,10 +16,11 @@ import { Shuffle, Star, X, Eye, EyeOff, GripVertical } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import type { EventParticipant, TeamMode } from '@/types';
 import { TEAM_MODE_LABELS } from '@/lib/eventFeatures';
+import { TEAM_LABELS } from '@/lib/teamLabels';
 
 const TEAMS = {
   A: {
-    label: 'Niebiescy',
+    label: TEAM_LABELS.A,
     bg: 'bg-blue-50',
     border: 'border-blue-200',
     borderDrop: 'border-blue-400',
@@ -31,7 +32,7 @@ const TEAMS = {
     pill: 'bg-blue-100 text-blue-700',
   },
   B: {
-    label: 'Czerwoni',
+    label: TEAM_LABELS.B,
     bg: 'bg-red-50',
     border: 'border-red-200',
     borderDrop: 'border-red-400',

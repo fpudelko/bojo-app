@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Trophy, Plus, Minus, Medal } from 'lucide-react';
 import { saveMatchResult } from '@/lib/eventFeatures';
+import { TEAM_LABELS } from '@/lib/teamLabels';
 import type {
   MatchResult, EventParticipant, MatchResultData,
   GoalsScorerStat, VolleyballSet, BasketballPlayerStat, RacingRank,
@@ -31,7 +32,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
     return (
       <div className="text-center py-2 mb-4">
         <p className="text-3xl font-bold text-slate-900 tracking-tight">{result.scoreA} — {result.scoreB}</p>
-        <p className="text-xs text-slate-400 mt-1">Drużyna A · Drużyna B</p>
+        <p className="text-xs text-slate-400 mt-1">{TEAM_LABELS.A} · {TEAM_LABELS.B}</p>
       </div>
     );
   }
@@ -39,7 +40,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
     return (
       <div className="text-center py-2 mb-4">
         <p className="text-3xl font-bold text-slate-900 tracking-tight">{rd.scoreA} — {rd.scoreB}</p>
-        <p className="text-xs text-slate-400 mt-1">Drużyna A · Drużyna B</p>
+        <p className="text-xs text-slate-400 mt-1">{TEAM_LABELS.A} · {TEAM_LABELS.B}</p>
         {rd.scorers && rd.scorers.length > 0 && (
           <p className="text-xs text-slate-500 mt-1">{rd.scorers.length} bramka{rd.scorers.length > 1 ? 'rzy' : 'rz'}</p>
         )}
@@ -86,7 +87,11 @@ function ResultSummary({ result }: { result: MatchResult }) {
     return (
       <div className="py-2 mb-4 text-center">
         <p className="text-lg font-semibold text-slate-900">{rd.text}</p>
-        {rd.winner && <p className="text-xs text-slate-500 mt-1">Zwycięzca: Drużyna {rd.winner}</p>}
+        {rd.winner && (
+          <p className="text-xs text-slate-500 mt-1">
+            Zwycięzca: {rd.winner === 'remis' ? 'Remis' : TEAM_LABELS[rd.winner]}
+          </p>
+        )}
       </div>
     );
   }
@@ -154,6 +159,15 @@ export default function MatchResultForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Strzelcy nie mogą mieć więcej goli/asyst niż wynik końcowy. Asysty
+  //     limitowane liczbą goli w meczu (nie ma per-drużynowego przypisania
+  //     strzelców, więc dokładniejsza walidacja per-drużyna nie jest możliwa). ---
+  const totalGoals = (parseInt(scoreA, 10) || 0) + (parseInt(scoreB, 10) || 0);
+  const enteredGoals = scorers.reduce((s, x) => s + x.goals, 0);
+  const enteredAssists = scorers.reduce((s, x) => s + (x.assists ?? 0), 0);
+  const golePrzekroczone = family === 'goals' && enteredGoals > totalGoals;
+  const asystyPrzekroczone = family === 'goals' && enteredAssists > totalGoals;
+
   // --- Helper: stepper ---
   function Stepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
     return (
@@ -183,6 +197,13 @@ export default function MatchResultForm({
       if (family === 'goals') {
         sa = parseInt(scoreA, 10) || 0;
         sb = parseInt(scoreB, 10) || 0;
+        const golePrzekroczoneNow = scorers.reduce((s, x) => s + x.goals, 0) > sa + sb;
+        const asystyPrzekroczoneNow = scorers.reduce((s, x) => s + (x.assists ?? 0), 0) > sa + sb;
+        if (golePrzekroczoneNow || asystyPrzekroczoneNow) {
+          setError('Popraw liczbę goli/asyst u strzelców — suma przekracza wynik końcowy.');
+          setSaving(false);
+          return;
+        }
         winner = sa > sb ? 'A' : sb > sa ? 'B' : 'remis';
         rd = { type: 'goals', scoreA: sa, scoreB: sb, scorers: scorers.filter((s) => s.goals > 0) };
       } else if (family === 'volleyball') {
@@ -251,16 +272,23 @@ export default function MatchResultForm({
                 <p className="text-sm font-medium text-slate-700 mb-2">Wynik końcowy</p>
                 <div className="flex items-center gap-3">
                   <input type="number" min={0} max={99} value={scoreA} onChange={(e) => setScoreA(e.target.value)}
-                    className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="A" />
+                    className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="N" />
                   <span className="text-slate-400 font-bold text-xl">—</span>
                   <input type="number" min={0} max={99} value={scoreB} onChange={(e) => setScoreB(e.target.value)}
-                    className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="B" />
+                    className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="C" />
                 </div>
               </div>
 
               {regulars.length > 0 && (
                 <div>
                   <p className="text-sm font-medium text-slate-700 mb-2">Strzelcy (gole + asysty)</p>
+                  {(golePrzekroczone || asystyPrzekroczone) && (
+                    <p className="text-xs text-red-600 mb-2">
+                      {golePrzekroczone && `Suma goli u strzelców (${enteredGoals}) przekracza wynik końcowy (${totalGoals}).`}
+                      {golePrzekroczone && asystyPrzekroczone && ' '}
+                      {asystyPrzekroczone && `Suma asyst (${enteredAssists}) nie może przekraczać liczby goli w meczu (${totalGoals}).`}
+                    </p>
+                  )}
                   <ul className="space-y-2">
                     {regulars.map((p) => {
                       const s = scorers.find((x) => x.participantId === p.id) ?? { participantId: p.id, goals: 0, assists: 0 };
@@ -418,7 +446,7 @@ export default function MatchResultForm({
                       className={['px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
                         genericWinner === w ? 'bg-green-700 text-white border-green-700' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                       ].join(' ')}>
-                      {w === 'remis' ? 'Remis' : `Drużyna ${w}`}
+                      {w === 'remis' ? 'Remis' : TEAM_LABELS[w]}
                     </button>
                   ))}
                 </div>
@@ -428,7 +456,7 @@ export default function MatchResultForm({
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 
-          <button type="button" onClick={handleSave} disabled={saving}
+          <button type="button" onClick={handleSave} disabled={saving || golePrzekroczone || asystyPrzekroczone}
             className="w-full py-2.5 rounded-xl bg-green-700 text-white text-sm font-semibold hover:bg-green-800 disabled:opacity-50 transition-colors">
             {saving ? 'Zapisuję…' : (initialResult ? 'Zaktualizuj wynik' : 'Zapisz wynik')}
           </button>

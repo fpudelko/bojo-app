@@ -58,6 +58,7 @@ import {
 } from '@/lib/teamProposals';
 import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
 import { withCount } from '@/lib/plural';
+import { TEAM_LABELS, TEAM_LETTERS, TEAM_COLOR_CLASSES } from '@/lib/teamLabels';
 import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 
@@ -158,7 +159,7 @@ function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; warian
  *  Bojo" musi tu żyć osobno, inaczej znika dokładnie wtedy, gdy organizator
  *  naturalnie wraca na stronę wpisać wynik i konwersja gościa jest najłatwiejsza. */
 function ParticipantsList({
-  regulars, reserves, gkEnabled, mozeZaprosic, skopiowanyToken, onZaprosDoBojo,
+  regulars, reserves, gkEnabled, mozeZaprosic, skopiowanyToken, onZaprosDoBojo, golyMap,
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
@@ -166,6 +167,7 @@ function ParticipantsList({
   mozeZaprosic: (p: EventParticipant) => boolean;
   skopiowanyToken: string | null;
   onZaprosDoBojo: (p: EventParticipant) => void;
+  golyMap: Record<string, number>;
 }) {
   return (
     <div className="space-y-3 text-left">
@@ -175,6 +177,9 @@ function ParticipantsList({
             <PlayerLink p={p} className="flex items-center gap-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <PlayerAvatar p={p} />
               <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
+              {golyMap[p.id] > 0 && (
+                <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
+              )}
               {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
             </PlayerLink>
             {mozeZaprosic(p) && p.isGuest && p.claimToken && (
@@ -206,6 +211,9 @@ function ParticipantsList({
                     {i + 1}
                   </span>
                   <span className="flex-1 min-w-0 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
+                  {golyMap[p.id] > 0 && (
+                    <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
+                  )}
                   {/* Rola także na rezerwie: od migracji `075` kolejka biegnie
                       osobno dla bramkarzy i zawodników z pola, więc sam numer
                       w kolejce nie mówi, na co ta osoba właściwie czeka. */}
@@ -232,22 +240,23 @@ function ParticipantsList({
 
 /** Public read-only teams view — shown when teams are published, separate from the participant list. */
 function PublishedTeamsCard({
-  teamA, teamB, unassigned,
+  teamA, teamB, unassigned, golyMap,
 }: {
   teamA: EventParticipant[];
   teamB: EventParticipant[];
   unassigned: EventParticipant[];
+  golyMap: Record<string, number>;
 }) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Składy</p>
       <div className="grid grid-cols-2 gap-4">
-        {[{ label: 'Niebiescy', players: teamA, color: 'bg-blue-100 text-blue-700' },
-          { label: 'Czerwoni',  players: teamB, color: 'bg-red-100 text-red-700'  }]
-          .map(({ label, players, color }) => (
-            <div key={label}>
-              <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${color}`}>
-                {label} · {players.length}
+        {[{ key: 'A' as const, players: teamA },
+          { key: 'B' as const, players: teamB }]
+          .map(({ key, players }) => (
+            <div key={key}>
+              <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${TEAM_COLOR_CLASSES[key].pill}`}>
+                {TEAM_LABELS[key]} ({TEAM_LETTERS[key]}) · {players.length}
               </p>
               <div className="space-y-1.5">
                 {players.length === 0
@@ -256,6 +265,7 @@ function PublishedTeamsCard({
                     <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                       <PlayerAvatar p={p} />
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
+                      {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">⚽{golyMap[p.id]}</span>}
                       {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
                       {p.isCaptain && <span className="text-[10px]">⭐</span>}
                     </PlayerLink>
@@ -644,6 +654,15 @@ export default function EventDetailClient() {
   const teamA = regulars.filter((p) => p.team === 'A');
   const teamB = regulars.filter((p) => p.team === 'B');
   const unassigned = regulars.filter((p) => !p.team);
+
+  // Gole przy nazwisku w składzie — jedyne aktywnie zapisywane źródło jest
+  // `match_results.result_data.scorers` (tabela `player_goals` to martwy duplikat).
+  const golyMap: Record<string, number> = {};
+  if (matchResult?.resultData?.type === 'goals') {
+    for (const s of matchResult.resultData.scorers ?? []) {
+      if (s.goals > 0) golyMap[s.participantId] = s.goals;
+    }
+  }
 
   let dateShort = event.date;
   try {
@@ -1240,6 +1259,242 @@ export default function EventDetailClient() {
   const pozycjaWKolejce = reserves.filter((p) => !p.claimPassed
     && (!gkEnabled || !!p.isGoalkeeper === (joinRole === 'goalkeeper'))).length + 1;
 
+  // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
+  // organizator/gracz faktycznie tego szukają. Treść sekcji bez zmian,
+  // zmienia się wyłącznie kolejność (patrz `eventStarted` niżej w JSX).
+  const skladWynikSection = (
+    <>
+      {/* Published teams — visible to all participants (separate from roster) */}
+      {showTeams && event.teamsPublished && !isOwner && (
+        <div className="px-4">
+          <PublishedTeamsCard teamA={teamA} teamB={teamB} unassigned={unassigned} golyMap={golyMap} />
+        </div>
+      )}
+
+      {/* Quick enable teams for organizer */}
+      {!showTeams && isOwner && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
+            <p className="text-xs text-slate-500 mt-0.5">Niebiescy vs Czerwoni — przypisz graczy ręcznie lub losuj</p>
+          </div>
+          <button
+            onClick={handleEnableTeams}
+            disabled={busy}
+            className="shrink-0 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-60"
+          >
+            Utwórz skład
+          </button>
+        </div>
+      )}
+
+      {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
+      {showTeams && isOwner && (
+        <TeamsPanel
+          teamMode={event.teamMode}
+          teamA={teamA}
+          teamB={teamB}
+          unassigned={unassigned}
+          isOrganizer={isOwner}
+          teamsPublished={event.teamsPublished}
+          busy={busy}
+          onAssignTeam={handleAssignTeam}
+          onAssignRandom={handleAssignRandom}
+          onClearTeams={handleClearTeams}
+          onToggleCaptain={handleToggleCaptain}
+          onPublishTeams={handlePublishTeams}
+          onUnpublishTeams={handleUnpublishTeams}
+          onDisableTeams={handleDisableTeams}
+        />
+      )}
+
+      {/* Propozycje składów. Organizator ustawia drużyny wprost w panelu wyżej,
+          więc sam nie proponuje — widzi tylko cudze propozycje i „Zatwierdź".
+          Uczestnik odwrotnie: może zaproponować i poprzeć, ale nie tknie
+          realnego składu. Po opublikowaniu składów temat jest zamknięty. */}
+      {showTeams && !eventStarted && (
+        <div className="px-4">
+          <TeamProposals
+            proposals={proposals}
+            participants={regulars}
+            teamMode={event.teamMode}
+            isOrganizer={isOwner}
+            canPropose={!!user && !!myParticipation && !isOwner && !event.teamsPublished}
+            currentUserId={user?.id}
+            busy={busy}
+            onSubmit={handleProposeTeams}
+            onVote={handleVoteProposal}
+            onUnvote={handleUnvoteProposal}
+            onAccept={handleAcceptProposal}
+            onDelete={handleDeleteProposal}
+          />
+        </div>
+      )}
+
+      {/* Pre-match "result coming" note — only the organizer enters results */}
+      {isOwner && event.trackResults && !resultsAvailable && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+          <Trophy className="w-4 h-4 shrink-0" />
+          Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
+        </div>
+      )}
+      {isOwner && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
+        </p>
+      )}
+      {myParticipation && event.trackResults && resultsAvailable && (
+        <MatchResultForm
+          sport={event.sport}
+          eventId={event.id}
+          organizerId={event.organizerId}
+          currentUserId={user?.id ?? ''}
+          isOrganizer={isOrganizer}
+          participants={participants}
+          initialResult={matchResult}
+          initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
+          onSaved={(result) => setMatchResult(result)}
+        />
+      )}
+    </>
+  );
+
+  const platnosciSection = (
+    <>
+      {/* Cost split summary — deliberately NOT gated by !eventStarted: rozliczenie
+          kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
+          faktycznie się rozlicza z ekipą, było błędem. */}
+      {event.costGrosze > 0 && isOwner && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
+            <Banknote className="w-4 h-4" /> Podział kosztów
+          </h2>
+          <div className="flex items-center justify-between text-sm mb-3">
+            <span className="text-slate-500">Koszt / os.</span>
+            <span className="font-semibold text-ink">{(event.costGrosze / 100).toFixed(2)} PLN</span>
+          </div>
+          <div className="flex items-center justify-between text-sm mb-3">
+            <span className="text-slate-500">Opłaconych</span>
+            <span className="font-semibold text-green-700">
+              {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
+            </span>
+          </div>
+          {(() => {
+            // Sports-card discounts mean not everyone owes the same amount.
+            const owed = (p: EventParticipant) =>
+              priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
+            const collected = regulars.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
+            const expected = regulars.reduce((sum, p) => sum + owed(p), 0);
+            return (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Zebrano</span>
+                <span className="font-semibold text-ink">
+                  {(collected / 100).toFixed(2)} PLN
+                  {' '}<span className="text-slate-400 font-normal">z {(expected / 100).toFixed(2)} PLN</span>
+                </span>
+              </div>
+            );
+          })()}
+          {/* Per-participant toggle — a real switch, not a colored pill, so
+              it's unmistakable that clicking it changes something. */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <ul className="divide-y divide-slate-100">
+              {regulars.map((p) => {
+                const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
+                return (
+                  <li key={p.id} className="flex items-center gap-2.5 py-2.5">
+                    {p.avatarUrl
+                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm text-ink">
+                        <span className="truncate">{p.name}</span>
+                        {p.hasSportsCard && (
+                          <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
+                        )}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {price.discountUnspecified
+                          ? 'Zniżka z karty — ustal kwotę'
+                          : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                        {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={p.hasPaid}
+                      onChange={() => handleTogglePayment(p)}
+                      disabled={busy}
+                      label={p.hasPaid ? `Oznacz ${p.name} jako nieopłacone` : `Oznacz ${p.name} jako opłacone`}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          {/* Rozliczenie kończyło się na ekranie: żeby powiedzieć ekipie,
+              kto jeszcze nie oddał, organizator przepisywał to ręcznie na
+              czat. Goście bez konta w ogóle nie mają jak tego zobaczyć
+              w Bojo. */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <Button variant="outline" className="w-full" onClick={handleWyslijRozliczenie}>
+              <Share2 className="h-4 w-4" strokeWidth={2.25} />
+              {rozliczenieSkopiowane ? 'Skopiowano' : 'Wyślij rozliczenie ekipie'}
+            </Button>
+            <p className="mt-2 text-[11px] text-slate-400">
+              Gotowa wiadomość z kwotą, listą zaległości i numerem BLIK — do wklejenia na czat.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Uczestnik nigdy nie widział, ile ma zapłacić — widział to tylko
+          organizator w „Podziale kosztów" wyżej. `showPaymentStatus`
+          („Pokaż status płatności uczestnikom") było od dawna zapisywane
+          przez formularz edycji i nigdzie nieodczytywane; to pierwsze
+          miejsce, które je respektuje. Rezerwowy nie widzi tej karty —
+          jeszcze nie ma za co płacić, dopóki nie wejdzie do składu. */}
+      {event.costGrosze > 0 && !isOwner && event.showPaymentStatus
+        && myConfirmed && !myConfirmed.isReserve && (() => {
+          const price = priceForParticipant(
+            event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
+          );
+          return (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+                <Banknote className="w-4 h-4" /> Twoja płatność
+              </h2>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Do zapłaty</span>
+                <span className="font-semibold text-ink">
+                  {price.discountUnspecified
+                    ? 'Zniżka z karty — ustal kwotę z organizatorem'
+                    : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                </span>
+              </div>
+              {myConfirmed.paymentMethod && (
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Sposób</span>
+                  <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                {myConfirmed.hasPaid ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                    <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                    <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+    </>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header showMobileWordmark />
@@ -1459,17 +1714,43 @@ export default function EventDetailClient() {
                 </button>
               )
             )}
-            {/* price */}
-            {event.costGrosze > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                <Tag className="h-3.5 w-3.5" strokeWidth={2.25} />
-                {(event.costGrosze / 100).toFixed(0)} zł / os.
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
-              </span>
-            )}
+            {/* price — po starcie meczu ustępuje miejsca statusowi rozliczenia:
+                cena "ile trzeba zapłacić" traci sens, gdy już się zapłaciło albo nie */}
+            {!eventStarted ? (
+              event.costGrosze > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  {(event.costGrosze / 100).toFixed(0)} zł / os.
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
+                </span>
+              )
+            ) : event.costGrosze > 0 ? (
+              isOwner ? (() => {
+                const unpaid = regulars.filter((p) => !p.hasPaid).length;
+                return unpaid === 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                    <Banknote className="h-3.5 w-3.5" strokeWidth={2.25} /> {withCount(unpaid, 'osoba nie zapłaciła', 'osoby nie zapłaciły', 'osób nie zapłaciło')}
+                  </span>
+                );
+              })() : myConfirmed && !myConfirmed.isReserve ? (
+                myConfirmed.hasPaid ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłacono
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                    <Clock className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłać
+                  </span>
+                )
+              ) : null
+            ) : null}
             {/* visibility — one tap toggles it for the organizer */}
             {isOrganizer ? (
               <button
@@ -1501,7 +1782,7 @@ export default function EventDetailClient() {
             {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia,
                 patrz sekcja 5 planu: bursztyn jest już zajęty przez rezerwę
                 i obserwowanie, więc to jedyny kolor, który tu nic innego nie znaczy */}
-            {event.requireApproval && (
+            {!eventStarted && event.requireApproval && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
               </span>
@@ -1832,9 +2113,12 @@ export default function EventDetailClient() {
                         {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
                         {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                         {showTeams && p.team && (
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${p.team === 'A' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {p.team}
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${TEAM_COLOR_CLASSES[p.team].pill}`}>
+                            {TEAM_LETTERS[p.team]}
                           </span>
+                        )}
+                        {golyMap[p.id] > 0 && (
+                          <span className="text-xs font-semibold text-slate-500 shrink-0">⚽ {golyMap[p.id]}</span>
                         )}
                       </span>
                       {/* "Brought by" line — who added this guest (visible to everyone) */}
@@ -1894,23 +2178,51 @@ export default function EventDetailClient() {
                   </p>
                   <ul className="divide-y divide-slate-100">
                     {reserves.map((p, i) => (
-                      <li key={p.id} className="flex items-center justify-between gap-2 py-2.5">
-                        <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{i + 1}</span>
-                          <span className="min-w-0 truncate">{p.name}</span>
-                          {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
-                          {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
-                          {p.claimOfferedAt && (
-                            <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-                              czeka na decyzję
-                            </span>
+                      <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{i + 1}</span>
+                            <span className="min-w-0 truncate">{p.name}</span>
+                            {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
+                            {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
+                            {p.claimOfferedAt && (
+                              <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                                czeka na decyzję
+                              </span>
+                            )}
+                            {p.claimPassed && !p.claimOfferedAt && (
+                              <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                przepuścił(a)
+                              </span>
+                            )}
+                          </span>
+                          {/* Ta sama atrybucja i przycisk co przy graczach w składzie
+                              (patrz regulars.map wyżej) — gość na rezerwie też ma kogoś,
+                              kto go dodał, i też może przejąć swój wpis. */}
+                          {p.isGuest && p.addedBy && (() => {
+                            const adderName = participants.find((x) => x.userId === p.addedBy)?.name
+                              ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
+                              ?? 'innego gracza';
+                            return (
+                              <span className="ml-9 mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                                  {adderName.charAt(0).toUpperCase()}
+                                </span>
+                                dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
+                              </span>
+                            );
+                          })()}
+                          {mozeZaprosic(p) && p.isGuest && p.claimToken && (
+                            <button
+                              type="button"
+                              onClick={() => kopiujLinkPrzejecia(p)}
+                              className="ml-9 mt-1 inline-flex items-center gap-1 self-start text-[11px] font-medium text-primary-700 hover:underline"
+                            >
+                              <LinkIcon className="h-3 w-3" />
+                              {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+                            </button>
                           )}
-                          {p.claimPassed && !p.claimOfferedAt && (
-                            <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                              przepuścił(a)
-                            </span>
-                          )}
-                        </span>
+                        </div>
                         <span className="flex shrink-0 items-center gap-1">
                           {/* Ręczny awans — poza kolejnością i niezależnie od
                               tego, czy miejsce się zwolniło. Bez tego jedyną
@@ -1992,6 +2304,7 @@ export default function EventDetailClient() {
                     mozeZaprosic={mozeZaprosic}
                     skopiowanyToken={skopiowanyToken}
                     onZaprosDoBojo={kopiujLinkPrzejecia}
+                    golyMap={golyMap}
                   />
                 )}
               </div>
@@ -2000,15 +2313,16 @@ export default function EventDetailClient() {
         </div>
 
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
-        {user && myParticipation && (
+        {user && myParticipation && !eventStarted && (
           <div className="px-4">
-            {!isOrganizer && !myParticipation.isReserve && event.allowGuestAdds && (
+            {!isOrganizer && event.allowGuestAdds && (
               <div className="mb-3">
+                <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
                 <div className="flex gap-2">
                   <input
                     type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                    placeholder="Dopisz znajomego bez konta…"
+                    placeholder="Imię znajomego"
                     className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
@@ -2034,6 +2348,10 @@ export default function EventDetailClient() {
                     ))}
                   </div>
                 )}
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
+                  przyciskiem „Udostępnij" na górze strony.
+                </p>
               </div>
             )}
             <button
@@ -2310,225 +2628,14 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* Published teams — visible to all participants (separate from roster) */}
-        {showTeams && event.teamsPublished && !isOwner && (
-          <div className="px-4">
-            <PublishedTeamsCard teamA={teamA} teamB={teamB} unassigned={unassigned} />
-          </div>
+        {/* Po starcie meczu rozliczenie idzie nad składem/wynikiem — treść
+            obu sekcji zdefiniowana wyżej (skladWynikSection/platnosciSection),
+            tu zmienia się wyłącznie kolejność. */}
+        {eventStarted ? (
+          <>{platnosciSection}{skladWynikSection}</>
+        ) : (
+          <>{skladWynikSection}{platnosciSection}</>
         )}
-
-        {/* Quick enable teams for organizer */}
-        {!showTeams && isOwner && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
-              <p className="text-xs text-slate-500 mt-0.5">Niebiescy vs Czerwoni — przypisz graczy ręcznie lub losuj</p>
-            </div>
-            <button
-              onClick={handleEnableTeams}
-              disabled={busy}
-              className="shrink-0 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-60"
-            >
-              Utwórz skład
-            </button>
-          </div>
-        )}
-
-        {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
-        {showTeams && isOwner && (
-          <TeamsPanel
-            teamMode={event.teamMode}
-            teamA={teamA}
-            teamB={teamB}
-            unassigned={unassigned}
-            isOrganizer={isOwner}
-            teamsPublished={event.teamsPublished}
-            busy={busy}
-            onAssignTeam={handleAssignTeam}
-            onAssignRandom={handleAssignRandom}
-            onClearTeams={handleClearTeams}
-            onToggleCaptain={handleToggleCaptain}
-            onPublishTeams={handlePublishTeams}
-            onUnpublishTeams={handleUnpublishTeams}
-            onDisableTeams={handleDisableTeams}
-          />
-        )}
-
-        {/* Propozycje składów. Organizator ustawia drużyny wprost w panelu wyżej,
-            więc sam nie proponuje — widzi tylko cudze propozycje i „Zatwierdź".
-            Uczestnik odwrotnie: może zaproponować i poprzeć, ale nie tknie
-            realnego składu. Po opublikowaniu składów temat jest zamknięty. */}
-        {showTeams && !eventStarted && (
-          <div className="px-4">
-            <TeamProposals
-              proposals={proposals}
-              participants={regulars}
-              teamMode={event.teamMode}
-              isOrganizer={isOwner}
-              canPropose={!!user && !!myParticipation && !isOwner && !event.teamsPublished}
-              currentUserId={user?.id}
-              busy={busy}
-              onSubmit={handleProposeTeams}
-              onVote={handleVoteProposal}
-              onUnvote={handleUnvoteProposal}
-              onAccept={handleAcceptProposal}
-              onDelete={handleDeleteProposal}
-            />
-          </div>
-        )}
-
-        {/* Pre-match "result coming" note — only the organizer enters results */}
-        {isOwner && event.trackResults && !resultsAvailable && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
-            <Trophy className="w-4 h-4 shrink-0" />
-            Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
-          </div>
-        )}
-        {myParticipation && event.trackResults && resultsAvailable && (
-          <MatchResultForm
-            sport={event.sport}
-            eventId={event.id}
-            organizerId={event.organizerId}
-            currentUserId={user?.id ?? ''}
-            isOrganizer={isOrganizer}
-            participants={participants}
-            initialResult={matchResult}
-            initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
-            onSaved={(result) => setMatchResult(result)}
-          />
-        )}
-
-        {/* Cost split summary — deliberately NOT gated by !eventStarted: rozliczenie
-            kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
-            faktycznie się rozlicza z ekipą, było błędem. */}
-        {event.costGrosze > 0 && isOwner && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
-              <Banknote className="w-4 h-4" /> Podział kosztów
-            </h2>
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-slate-500">Koszt / os.</span>
-              <span className="font-semibold text-ink">{(event.costGrosze / 100).toFixed(2)} PLN</span>
-            </div>
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-slate-500">Opłaconych</span>
-              <span className="font-semibold text-green-700">
-                {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
-              </span>
-            </div>
-            {(() => {
-              // Sports-card discounts mean not everyone owes the same amount.
-              const owed = (p: EventParticipant) =>
-                priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
-              const collected = regulars.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
-              const expected = regulars.reduce((sum, p) => sum + owed(p), 0);
-              return (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Zebrano</span>
-                  <span className="font-semibold text-ink">
-                    {(collected / 100).toFixed(2)} PLN
-                    {' '}<span className="text-slate-400 font-normal">z {(expected / 100).toFixed(2)} PLN</span>
-                  </span>
-                </div>
-              );
-            })()}
-            {/* Per-participant toggle — a real switch, not a colored pill, so
-                it's unmistakable that clicking it changes something. */}
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <ul className="divide-y divide-slate-100">
-                {regulars.map((p) => {
-                  const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
-                  return (
-                    <li key={p.id} className="flex items-center gap-2.5 py-2.5">
-                      {p.avatarUrl
-                        ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                        : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
-                      }
-                      <div className="flex-1 min-w-0">
-                        <span className="flex items-center gap-1.5 text-sm text-ink">
-                          <span className="truncate">{p.name}</span>
-                          {p.hasSportsCard && (
-                            <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
-                          )}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {price.discountUnspecified
-                            ? 'Zniżka z karty — ustal kwotę'
-                            : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
-                          {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
-                        </span>
-                      </div>
-                      <Switch
-                        checked={p.hasPaid}
-                        onChange={() => handleTogglePayment(p)}
-                        disabled={busy}
-                        label={p.hasPaid ? `Oznacz ${p.name} jako nieopłacone` : `Oznacz ${p.name} jako opłacone`}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            {/* Rozliczenie kończyło się na ekranie: żeby powiedzieć ekipie,
-                kto jeszcze nie oddał, organizator przepisywał to ręcznie na
-                czat. Goście bez konta w ogóle nie mają jak tego zobaczyć
-                w Bojo. */}
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <Button variant="outline" className="w-full" onClick={handleWyslijRozliczenie}>
-                <Share2 className="h-4 w-4" strokeWidth={2.25} />
-                {rozliczenieSkopiowane ? 'Skopiowano' : 'Wyślij rozliczenie ekipie'}
-              </Button>
-              <p className="mt-2 text-[11px] text-slate-400">
-                Gotowa wiadomość z kwotą, listą zaległości i numerem BLIK — do wklejenia na czat.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Uczestnik nigdy nie widział, ile ma zapłacić — widział to tylko
-            organizator w „Podziale kosztów" wyżej. `showPaymentStatus`
-            („Pokaż status płatności uczestnikom") było od dawna zapisywane
-            przez formularz edycji i nigdzie nieodczytywane; to pierwsze
-            miejsce, które je respektuje. Rezerwowy nie widzi tej karty —
-            jeszcze nie ma za co płacić, dopóki nie wejdzie do składu. */}
-        {event.costGrosze > 0 && !isOwner && event.showPaymentStatus
-          && myConfirmed && !myConfirmed.isReserve && (() => {
-            const price = priceForParticipant(
-              event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
-            );
-            return (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
-                  <Banknote className="w-4 h-4" /> Twoja płatność
-                </h2>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Do zapłaty</span>
-                  <span className="font-semibold text-ink">
-                    {price.discountUnspecified
-                      ? 'Zniżka z karty — ustal kwotę z organizatorem'
-                      : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
-                  </span>
-                </div>
-                {myConfirmed.paymentMethod && (
-                  <div className="mt-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Sposób</span>
-                    <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
-                  </div>
-                )}
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  {myConfirmed.hasPaid ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                      <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                      <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
 
         {/* Comments — only for participants */}
         {myParticipation && <EventComments eventId={event.id} />}

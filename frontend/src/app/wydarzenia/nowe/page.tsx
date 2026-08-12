@@ -733,20 +733,26 @@ function NewEventForm() {
         )}
 
         {draftRestoredAt && !bannerDismissed && (
-          <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
-            <p className="min-w-0 flex-1 truncate">
-              Wróciliśmy do Twojego szkicu ({draftAgeLabel(draftRestoredAt)}).{' '}
-              <button type="button" onClick={resetWizard} className="font-semibold underline underline-offset-2">
-                Zacznij od nowa
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
+            <div className="flex items-start gap-3">
+              <p className="min-w-0 flex-1">
+                Wróciliśmy do Twojego szkicu ({draftAgeLabel(draftRestoredAt)}).
+              </p>
+              <button
+                type="button"
+                onClick={() => setBannerDismissed(true)}
+                aria-label="Zamknij"
+                className="shrink-0 rounded-lg p-1 text-amber-700 hover:bg-amber-100"
+              >
+                <X className="h-4 w-4" />
               </button>
-            </p>
+            </div>
             <button
               type="button"
-              onClick={() => setBannerDismissed(true)}
-              aria-label="Zamknij"
-              className="shrink-0 rounded-lg p-1 text-amber-700 hover:bg-amber-100"
+              onClick={resetWizard}
+              className="mt-2 inline-flex items-center rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
             >
-              <X className="h-4 w-4" />
+              Zacznij od nowa
             </button>
           </div>
         )}

@@ -342,6 +342,15 @@ gdy: wybrano BLIK, a numer ma inną liczbę cyfr niż 9, albo zniżka karty jest
 niż koszt od osoby. Reguły działają tylko dla płatnego meczu (`costPln > 0`) — darmowy
 mecz nie ma żadnych ograniczeń płatności do sprawdzenia.
 
+**Agregaty do badge'a rozliczenia na liście i w nagłówku meczu.**
+`EventItem.unpaidCount` (liczone w `toEvent()` z już pobranego, zagnieżdżonego
+`event_participants(..., has_paid)` — zero nowego zapytania) i
+`MyEventRelation.hasPaid` (własny wiersz uczestnictwa w `getMyParticipatedEvents()`)
+zasilają badge „Rozliczono"/„X nie zapłaciło" (organizator) i „Zapłacono"/„Zapłać"
+(gracz) na `EventBrowseCard` i w nagłówku `EventDetailClient.tsx` — widoczne tylko
+dla wydarzeń, które już się rozpoczęły (`eventStarted`); wcześniej w tym samym miejscu
+jest cena.
+
 ---
 
 ## Grupy
@@ -405,6 +414,23 @@ nic nie mówi o tym, czy mecz jeszcze się nie odbył.
 `match_results` + `player_goals` (gole i asysty per gracz) + RPC `get_player_stats`.
 `MatchResultData` obsługuje trzy kształty wyniku: bramki, sety siatkarskie, statystyki
 koszykarskie.
+
+⚠️ **`player_goals` jest martwym duplikatem** — `EventDetailClient.tsx` z niej czyta
+(fallback `initialGoals` dla `MatchResultForm`), ale nic dziś do niej nie zapisuje.
+Jedyne aktywnie zapisywane źródło goli/asyst jest `match_results.result_data.scorers`
+(`type: 'goals'`) — stamtąd liczy się też gol przy nazwisku w składzie (`golyMap`
+w `EventDetailClient.tsx`).
+
+**Suma goli/asyst u strzelców nie może przekroczyć wyniku końcowego.**
+`MatchResultForm` (`family === 'goals'`) blokuje zapis, gdy `Σ scorers.goals >
+scoreA + scoreB` albo `Σ scorers.assists > scoreA + scoreB` — górna granica asyst to
+łączna liczba goli w meczu, bo strzelcy nie mają przypisania do drużyny (walidacja
+per-drużyna nie jest możliwa przy obecnym modelu danych).
+
+**Nazwy drużyn: A/B w bazie, „Niebiescy"/„Czerwoni" + N/C w UI** — `lib/teamLabels.ts`
+jest jedynym źródłem etykiet, używanym identycznie w składzie (`TeamsPanel`,
+`PublishedTeamsCard`) i w wyniku (`MatchResultForm`). Dane w `event_participants.team`
+i `match_results.score_a/score_b` zostają literami.
 
 Reputacja: `reliabilityPct()` (`lib/eventFeatures.ts`) liczy frekwencję. Znaczek
 „rzetelny gracz" wymaga ≥5 rozegranych gier i 0 nieobecności (`app/gracz/[id]/page.tsx`).
