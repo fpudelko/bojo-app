@@ -155,6 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) throw new Error(mapAuthError(error.message));
+    // Ochrona przed enumeracją e-maili (ustawienie w Supabase Dashboard) sprawia,
+    // że signUp() dla JUŻ ISTNIEJĄCEGO e-maila nie rzuca błędu — zwraca fałszywy
+    // sukces z pustą tablicą `identities` (i bez sesji). Bez tego sprawdzenia
+    // kod szedł ścieżką „sprawdź e-mail, żeby potwierdzić konto" zamiast
+    // rozpoznać, że to konto już istnieje.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      throw new Error('Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.');
+    }
     // When e-mail confirmation is enabled, no session is returned yet.
     return { needsConfirmation: !data.session };
   };

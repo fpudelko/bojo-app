@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `084` · 31 tabel · 420 testów
+**Stan na:** 2026-08-12 · migracja `085` · 31 tabel · 420 testów
 
 ---
 
@@ -336,7 +336,13 @@ w `lib/validation.ts`. Migracja `084`: dwa wyzwalacze SQL kojarzą wpis gościa
 z kontem po e-mailu (`event_participants`→`auth.users` i odwrotnie) i wstawiają
 powiadomienie typu `niepotwierdzony_wpis_goscia` (kolumna `notifications.claim_token`,
 `NotificationBell.tsx` kieruje je na `/gracz/przejmij/[token]`) — bez samodzielnego
-przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`.
+przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`. Migracja
+`085` naprawia znaleziony na produkcji duplikat: ten sam e-mail mógł zapisać się jako
+gość kilka razy na jeden mecz, bo `dolacz_do_meczu_jako_goscie()` tego nie sprawdzała
+— teraz na starcie odrzuca powtórkę (albo zwraca istniejący `claim_token`
+idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail już ma konto"
+(`identities.length === 0`) — dla trybu ochrony przed enumeracją e-maili w Supabase,
+gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces.
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 
