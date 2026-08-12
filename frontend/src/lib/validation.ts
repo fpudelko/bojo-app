@@ -47,3 +47,17 @@ export function normalizePhone(raw: string): string {
   if (cleaned.startsWith('+48')) return cleaned;
   return `+48${cleaned}`;
 }
+
+/**
+ * Validate and normalize an email address.
+ * Checks for basic format (contains @ and .), but full validation happens
+ * on the server (Supabase Auth). Throws a user-friendly error.
+ */
+export function validateEmail(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error('Podaj adres e-mail.');
+  if (!trimmed.includes('@')) throw new Error('Adres musi zawierać @.');
+  if (!trimmed.includes('.')) throw new Error('Adres musi zawierać kropkę.');
+  if (trimmed.length > 100) throw new Error('Adres e-mail jest za długi.');
+  return trimmed;
+}
