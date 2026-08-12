@@ -386,8 +386,6 @@ export default function EventDetailClient() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [guestName, setGuestName] = useState('');
-  const [guestIsGk, setGuestIsGk] = useState(false);
   // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
   // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
   const [, setCopied] = useState(false);
