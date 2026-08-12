@@ -102,21 +102,30 @@ ręczna), bo tylko tam jest sekcja „Strzelcy".
 dać im możliwość szybkiego dołączenia, bez wymuszania logowania — wystarczy imię i e-mail.
 
 **Rozwiązanie w Bojo.** Osoba bez konta może dołączyć do meczu, podając imię i e-mail
-(dokładnie tak samo jak uczestnik zalogowany). Zapisuje się na główny skład lub rezerwę
-zgodnie z tymi samymi regułami pojemności. Po zapisie widzisz ekran z trzema wartościami
-(powiadomienia o kolejnych meczach, własne mecze, odkrywanie gier) i możliwością założenia
-konta przez Google lub e-mail. Później możesz przejąć ten wpis linkiem (`/gracz/przejmij/[token]`),
-łącząc go ze swoim nowym kontem. Anonimowy zapis **nie wymaga logowania ani wymyślania
+(dokładnie tak samo jak uczestnik zalogowany). Zanim kliknie „Zapisz się", widzi tę
+samą zapowiedź rezerwy co zalogowany („Mecz ma już komplet — zapiszesz się na listę
+rezerwową jako 2. w kolejce"). Zapisuje się na główny skład lub rezerwę zgodnie
+z tymi samymi regułami pojemności; ekran po zapisie pokazuje faktyczny status
+(„Jesteś w składzie" albo „Jesteś na liście rezerwowej") nad już zaktualizowaną listą
+uczestników. Może dokończyć profil bez ponownego wpisywania imienia/maila — hasłem
+albo przez Google — i od razu ląduje na stronie meczu, bez dodatkowego ekranu
+potwierdzenia „to ja". Anonimowy zapis **nie wymaga logowania ani wymyślania
 po stronie organizatora** — link do dołączenia to ten sam link, co do każdego innego meczu.
 
-**Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`) w Supabase,
-wołana z `frontend/src/lib/events.ts` (`joinEventAsGuest()`). Wpis gościa to wiersz
-`event_participants` z kolumnami `user_id = NULL`, `is_guest = true`, `guest_email`,
-`is_reserve` (liczony przez tę samą logikę co zalogowani). Trigger `nadaj_token_gosciowi`
-(migracja `066`) generuje unikalny `claim_token` (UUID). Po zapisie komponent
-`EventDetailClient.tsx` pokazuje modal zachęty z linkami do założenia konta
-(`signInWithGoogle` albo `/rejestracja`), zawsze z parametrem `next=/gracz/przejmij/[token]`.
-Strona `/gracz/przejmij/[token]` (istniejąca) robi przejęcie wpisu.
+**Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
+migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
+`frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`).
+Wpis gościa to wiersz `event_participants` z kolumnami `user_id = NULL`, `is_guest = true`,
+`guest_email`, `is_reserve` (liczony przez tę samą logikę co zalogowani). Trigger
+`nadaj_token_gosciowi` (migracja `066`) generuje unikalny `claim_token` (UUID). Dialog
+gościa w `EventDetailClient.tsx` liczy zapowiedź rezerwy z `wolneMiejscaWgRol()`
+(bez zapytania do bazy); `handleJoinAsGuest()` woła `load()` po udanym zapisie, żeby
+lista uczestników była aktualna, zanim pokaże się ekran zachęty. Tam
+`handleCreateAccountFromGuest()` woła `signUpWithEmail()` i — gdy sesja jest aktywna
+od razu — `przejmij_wpis_goscia()` wprost, bez przejścia przez `/logowanie`. Przycisk
+Google woła `signInWithGoogle()` z `next=/gracz/przejmij/[token]?auto=1` — parametr
+`auto=1` na tej stronie (`PrzejmijClient.tsx`) każe przejąć wpis automatycznie, gdy
+user jest już zalogowany, zamiast czekać na klik „To ja — potwierdzam".
 
 **Pytania, na które odpowiada ta sekcja:** Czy mogę dołączyć do meczu bez konta w Bojo?
 Jak niezalogowany gracz może się zapisać na mecz? Czy gość bez konta zajmuje miejsce

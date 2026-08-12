@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `082` · 31 tabel · 420 testów
+**Stan na:** 2026-08-12 · migracja `083` · 31 tabel · 420 testów
 
 ---
 
@@ -300,19 +300,33 @@ Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
 PROBLEM: bariera założenia konta zniechęca nowych graczy. Organizator chce dać im
 możliwość szybkiego dołączenia do meczu (wystarczy imię i e-mail), bez wymuszania
-logowania ani dpisywania ich ręcznie z panelu.
+logowania ani dopisywania ich ręcznie z panelu. Pierwsza wersja miała błąd SQL
+blokujący zapis (`claim_token` niejednoznaczne w `RETURNING`), nie pokazywała info
+o rezerwie przed zapisem, nie odświeżała listy uczestników po zapisie (gość „znikał"
+po zamknięciu ekranu zachęty, mimo że wpis w bazie istniał) i wymagała dwóch
+dodatkowych kliknięć (logowanie/rejestracja + „To ja — potwierdzam") zanim gość
+faktycznie zobaczył siebie w składzie.
 
-ROZWIĄZANIE BOJO: niezalogowany gracz może dołączyć do meczu w sticky pasku („Dołącz bez konta")
-wpisując imię i e-mail. Zapisuje się na główny skład lub rezerwę jak każdy inny. Po zapisie
-widzi ekran zachęty z trzema wartościami i przyciskami logowania (Google / e-mail + next=/gracz/przejmij/[token]).
-Później przejmuje wpis linkiem, łącząc go z nowym kontem.
+ROZWIĄZANIE BOJO: niezalogowany gracz dołącza do meczu w sticky pasku („Dołącz bez
+konta"), wpisując imię i e-mail — widzi z góry, czy trafi do składu czy na rezerwę
+(ta sama predykcja co w dialogu dla zalogowanych). Po zapisie ekran zachęty pokazuje
+faktyczny status („Jesteś w składzie" / „Jesteś na liście rezerwowej") nad już
+zaktualizowaną listą uczestników. Profil można dokończyć bez ponownego wpisywania
+imienia/maila — hasłem (dane już zna z formularza zapisu) albo przez Google — oba
+automatycznie przejmują wpis gościa i lądują wprost na stronie meczu, bez dodatkowego
+ekranu potwierdzenia.
 
 MECHANIKA: migracja `082` z funkcją `dolacz_do_meczu_jako_goscie()` (SECURITY DEFINER,
-bez wymogów RLS, zwraca `claim_token`). Kolumny `guest_email`, `guest_phone` w `event_participants`.
-Frontend: `EventDetailClient.tsx` — 10 nowych stań + modal dołączenia gościa + modal zachęty.
-Wrapper `joinEventAsGuest()` w `lib/events.ts`. Walidacja e-maila w `lib/validation.ts`.
-Przepływ: organizator dzieli link (jeden dla wszystkich) → gość wpisuje dane → zapisuje się → widzi zachętę
-→ loguje się → ląduje na `/gracz/przejmij/[token]` → przejmuje wpis.
+zwraca `claim_token`+`is_reserve`), poprawiona migracją `083` (INSERT…RETURNING
+z jawnym prefiksem tabeli — naprawia „ambiguous column reference"). Kolumny
+`guest_email`, `guest_phone` w `event_participants`. Frontend: `EventDetailClient.tsx`
+— dialog gościa pokazuje predykcję rezerwy z `wolneMiejscaWgRol()` (bez dodatkowego
+zapytania); `handleJoinAsGuest` woła `load()` po zapisie i używa `result.isReserve`
+w komunikacie; `handleCreateAccountFromGuest` woła `signUpWithEmail()` +
+`przejmijWpisGoscia()` wprost, bez przejścia przez `/logowanie`. `PrzejmijClient.tsx`
+(`/gracz/przejmij/[token]`) auto-przejmuje wpis, gdy link niesie `?auto=1` i user jest
+już zalogowany — bez klikania „To ja — potwierdzam". Wrapper `joinEventAsGuest()`
+w `lib/events.ts`. Walidacja e-maila w `lib/validation.ts`.
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 
