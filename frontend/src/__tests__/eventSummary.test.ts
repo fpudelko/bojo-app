@@ -57,12 +57,12 @@ describe('wiersz „Co"', () => {
 
 describe('wiersz „Kiedy"', () => {
   it('pokazuje dzień tygodnia, datę i zakres godzin', () => {
-    expect(w({}, 'kiedy').wartosc).toBe('środa, 12 sierpnia · 18:00–19:30');
+    expect(w({}, 'kiedy').wartosc).toBe('czwartek, 31 grudnia · 18:00–19:30');
   });
 
   it('bez godziny końca (mecz przez północ) pokazuje samą godzinę startu', () => {
     expect(w({ time: '23:30', durationMin: 90 }, 'kiedy').wartosc)
-      .toBe('środa, 12 sierpnia · 23:30');
+      .toBe('czwartek, 31 grudnia · 23:30');
   });
 
   it('ostrzega, gdy mecz jest dzisiaj', () => {
