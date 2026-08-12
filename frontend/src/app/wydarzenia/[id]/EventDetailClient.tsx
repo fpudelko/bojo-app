@@ -402,8 +402,6 @@ export default function EventDetailClient() {
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestRole, setGuestRole] = useState<'player' | 'goalkeeper'>('player');
-  const [guestHasSportsCard, setGuestHasSportsCard] = useState(false);
-  const [guestSportsCardProvider, setGuestSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
   const [guestPaymentMethod, setGuestPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const [guestBusy, setGuestBusy] = useState(false);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
