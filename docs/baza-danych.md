@@ -1,6 +1,6 @@
 # Baza danych
 
-73 migracje (`001`–`073`) w `supabase/migrations/`. Modele domenowe →
+79 migracji (`001`–`079`) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -116,6 +116,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `071_wymagaj_pelnej_nazwy_w_powiadomieniu` | Zaostrza wyzwalacz z `070` na "nowe konto bez imienia" — wymaga co najmniej dwóch członów nazwy (imię i nazwisko), nie tylko dowolnej niepustej wartości. Google OAuth zawsze wypełnia `full_name`, więc słabszy check praktycznie nigdy nie wykrywał braku |
 | `072_brakujace_powiadomienia` | Wyzwalacze: **organizator** dostaje powiadomienie o nowej prośbie o dołączenie (`event_participants.pending_approval`), **członkowie grupy** dostają powiadomienie o nowym meczu w grupie (`events.group_id`) |
 | `073_serie_wydarzen_cyklicznych` | `events.recurring_event_id` — termin cykliczny staje się prawdziwą **serią**, nie zbiorem niepowiązanych kopii. Funkcja `utworz_termin_serii()` (RPC dla przeglądarki i crona) kopiuje pełne ustawienia z ostatniego terminu, nie z ubogiego szablonu — wcześniej `spawnEventInstance()` gubił cenę, płatności i bramkarzy. Cron co godzinę (`pg_cron`, jeśli włączony) tworzy należne terminy z wyprzedzeniem `notify_days_before`; wyzwalacz powiadamia o nowym terminie uczestników poprzedniego |
+| `079_powiadom_o_zmianie_kompletu` | Wyzwalacz na `event_participants` (INSERT/UPDATE/DELETE): powiadamia organizatora, gdy skład **przechodzi** ze stanu niekompletnego w komplet albo z kompletu z powrotem w niekompletny (kogoś zabrakło). Nie powiadamia o każdym pojedynczym zapisie — tylko o zmianie stanu, żeby nie zagłuszyć dwóch naprawdę ważnych momentów kilkunastoma wpisami na jeden mecz |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
 polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka

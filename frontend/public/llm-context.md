@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-11 · migracja `078` · 31 tabel · 413 testów
+**Stan na:** 2026-08-12 · migracja `079` · 31 tabel · 420 testów
 
 ---
 
@@ -296,6 +296,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-12 — Komplet i zwolnione miejsce pod dzwonkiem, rozliczenie do wysłania, powrót z logowania kończy zapis, zaproszenie gościa też dla tego, kto go dopisał
+
+PROBLEM: organizator nie dowiadywał się, gdy skład meczu przechodził w komplet albo
+gdy ktoś się wypisał i komplet się rozpadł — cisza aż do wejścia na stronę meczu,
+podczas gdy na czacie WhatsApp „sorry, wypadam" jest widoczną wiadomością. Panel
+„Podział kosztów" liczył wszystko poprawnie, ale kończył się na ekranie: żeby
+powiedzieć ekipie, kto jeszcze nie oddał, organizator przepisywał to ręcznie na czat
+— goście bez konta w ogóle nie mają jak zobaczyć swojej kwoty w Bojo. Wylogowany,
+który kliknął „Zaloguj się, aby dołączyć", po zalogowaniu wracał na widok identyczny
+z tym sprzed logowania i musiał od nowa znaleźć przycisk „Dołącz". Przycisk „Zaproś do
+Bojo" (zaproszenie do przejęcia wpisu gościa) mógł kliknąć tylko organizator, mimo że
+gościa dopisuje często uczestnik (`allowGuestAdds`) — czyli osoba, która go zna
+i ma z nim kontakt, nie organizator.
+
+ROZWIĄZANIE BOJO: nowy wyzwalacz w bazie powiadamia organizatora o zmianie stanu
+kompletu w obie strony (nie o każdym zapisie z osobna, żeby nie zagłuszyć tych dwóch
+istotnych momentów kilkunastoma wpisami). Przycisk „Wyślij rozliczenie ekipie" otwiera
+systemowy arkusz udostępniania z gotową wiadomością: kwota, zebrane z oczekiwanych,
+lista zaległości z kwotami i numer BLIK. Kliknięcie „Zaloguj się, aby dołączyć" niesie
+przez logowanie intencję zapisu — po powrocie okno zapisu otwiera się samo. Zaproszenie
+do przejęcia wpisu gościa może wysłać też ten, kto konkretnego gościa dopisał, nie
+tylko organizator.
+
+MECHANIKA: migracja `079` — wyzwalacz `powiadom_o_zmianie_kompletu` na
+`event_participants` (INSERT/UPDATE/DELETE), typy `komplet_skladu` i
+`zwolnilo_sie_miejsce`; `lib/settlementShare.ts` (`tekstRozliczenia()`, wzorem
+`eventShareText`) i przycisk w panelu kosztów `EventDetailClient.tsx`; `?dolacz=1`
+w adresie powrotu z `/logowanie` (ten sam wzorzec co `?utworzono=1`) i efekt otwierający
+`joinDialogOpen`; `mozeZaprosic()` w `EventDetailClient.tsx` zastępuje warunek
+`isOrganizer` przy przycisku „Zaproś do Bojo" (`isOrganizer || p.addedBy === user.id`).
+
 ### 2026-08-11 — Refaktor: bramki w CI, koniec cichych porażek, reguła składu tylko w bazie
 
 PROBLEM: Bojo miało trzy klasy błędów, których żadne narzędzie w repo nie widziało.
@@ -567,32 +598,3 @@ pomarańczowa kropka „wczesny etap" dla `/wydarzenia`); `profil/page.tsx` (
 (opcjonalny prop `extraSlot` dla kafelka cyklicznego); `wydarzenia/nowe/page.tsx`
 (grupa na górę kroku 3, cykliczny kafelek obok daty w kroku 2); `api.ts` w
 `notify-game-alert/` (formatowanie dat w treści powiadomienia).
-
-### 2026-08-09 — wydarzenia cykliczne jako prawdziwa seria: auto-tworzenie terminów, zbiorcza edycja, dziedziczenie ustawień
-PROBLEM: cykliczny mecz w Bojo był tylko szablonem, który nikogo do niczego nie
-zobowiązywał. `events.recurring_event_id` nie istniało w schemacie, mimo że kod je
-odpytywał — zapytanie cicho zwracało pustkę, więc panel serii zawsze pokazywał „Brak
-terminu". Kolejny termin trzeba było klikać ręcznie co tydzień — dokładnie tę pracę,
-którą Bojo miało zdjąć z głowy. Gdy ktoś jednak kliknął, ustawienia i tak się gubiły:
-szablon niósł tylko sport, miejsce, dzień i godzinę — płatna gierka odradzała się jako
-darmowa, bez metod płatności i bez akceptacji zapisów. Edycja szablonu
-(`/cykliczne/[id]/edytuj`) była czystą zaślepką „w przygotowaniu" — dnia tygodnia
-i wyprzedzenia nie dało się zmienić po utworzeniu serii. Moduł był z tego powodu
-świadomie schowany za `SHOW_RECURRING`.
-ROZWIĄZANIE BOJO: cykliczny mecz jest teraz serią. Kolejny termin tworzy się sam — co
-godzinę, z wyprzedzeniem ustawionym w szablonie — i dziedziczy PEŁNE ustawienia
-z ostatniego rozegranego terminu (cenę, płatności, bramkarzy, akceptację zapisów,
-grupę), nie z ubogiego szablonu. Gracze z poprzedniego meczu dostają powiadomienie, że
-nowy termin czeka. Edycja meczu należącego do serii pyta, czy zmiana ma objąć tylko ten
-termin, ten i przyszłe, czy całą serię — data zawsze zostaje przy jednym terminie,
-niezależnie od wyboru. Szablon ma wreszcie prawdziwy ekran edycji (dzień tygodnia,
-godzina, wyprzedzenie). Moduł „Stałe gierki" jest teraz widoczny w nawigacji.
-MECHANIKA: migracja `073` — kolumna `events.recurring_event_id`, funkcje SQL
-`utworz_termin_serii()` (RPC, wołane i przez `pg_cron`, i przez przycisk w aplikacji —
-jedna ścieżka dla obu) i `utworz_nalezne_terminy_serii()` (pętla crona), wyzwalacz
-`powiadom_o_nowym_terminie_serii`; `lib/series.ts` (`terminyWZakresie`,
-`patchDlaPozostalych`, `updateSeriesEvents`, `updateSeriesTemplate`) pod testami
-w `__tests__/series.test.ts`; `components/events/ZakresEdycjiSerii.tsx` wpięty w
-`wydarzenia/[id]/edytuj/page.tsx` i modal „Zmień termin" w `EventDetailClient.tsx`;
-`app/cykliczne/[id]/edytuj/page.tsx` (realny ekran zamiast zaślepki); `SHOW_RECURRING =
-true` w `lib/features.ts`.
