@@ -623,6 +623,45 @@ export async function addGuest(
   return { isReserve: reserve };
 }
 
+/** Guest self-signup without an account: collect name, email, and optional role/payment.
+ *  Returns claim_token (for later account linkage) and whether guest landed on reserve. */
+export async function joinEventAsGuest(
+  eventId: string,
+  name: string,
+  email: string,
+  asGoalkeeper = false,
+  payment?: JoinPaymentChoice,
+): Promise<{ claimToken: string; isReserve: boolean }> {
+  const { validateEmail } = await import('./validation');
+  const safeName = validateName(name, 'Imię i nazwisko', 80);
+  const safeEmail = validateEmail(email);
+
+  const { data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', {
+    p_event_id: eventId,
+    p_imie: safeName,
+    p_email: safeEmail,
+    p_bramkarz: asGoalkeeper,
+    p_metoda_platnosci: payment?.method ?? null,
+    p_karta_sportowa: payment?.hasSportsCard ?? false,
+  });
+
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+
+  // Determine if guest landed on reserve by checking the database
+  // (we could add it to the RPC return, but for now query it)
+  const { data: participant } = await supabase
+    .from('event_participants')
+    .select('is_reserve')
+    .eq('claim_token', row.claim_token)
+    .single();
+
+  return {
+    claimToken: row.claim_token,
+    isReserve: participant?.is_reserve ?? false,
+  };
+}
+
 /** Best-effort queue upkeep. Never let a failure here break the caller's main
  *  action — the next page load will retry it anyway. */
 async function runSyncReserveClaim(eventId: string): Promise<void> {
