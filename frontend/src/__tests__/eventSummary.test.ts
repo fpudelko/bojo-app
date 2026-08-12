@@ -6,7 +6,7 @@ const bazowe: DanePodsumowania = {
   title: '',
   miejsceNazwa: 'Orlik Sołacz',
   miejsceAdres: 'ul. Niestachowska 8',
-  date: '2026-08-12',      // środa
+  date: '2026-12-31',      // przyszłość
   time: '18:00',
   durationMin: 90,
   maxPlayers: 14,
