@@ -72,7 +72,14 @@ describe('wiersz „Kiedy"', () => {
   });
 
   it('nie ostrzega dla daty w przyszłości', () => {
-    expect(w({}, 'kiedy').ostrzezenie).toBeUndefined();
+    // `bazowe.date` to stały fixture (2026-08-12) używany też do sprawdzania
+    // treści jak "środa, 12 sierpnia" w innych testach — z czasem sam
+    // przechodzi z przyszłości w "dziś", więc ten test liczy własną,
+    // faktycznie przyszłą datę zamiast polegać na fixture.
+    const zaRok = new Date();
+    zaRok.setFullYear(zaRok.getFullYear() + 1);
+    const iso = `${zaRok.getFullYear()}-${String(zaRok.getMonth() + 1).padStart(2, '0')}-${String(zaRok.getDate()).padStart(2, '0')}`;
+    expect(w({ date: iso }, 'kiedy').ostrzezenie).toBeUndefined();
   });
 });
 
