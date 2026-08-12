@@ -809,11 +809,9 @@ export default function EventDetailClient() {
     setGuestBusy(true);
     try {
       const { joinEventAsGuest } = await import('@/lib/events');
-      const payment = {
+      const payment = guestPaymentMethod ? {
         method: guestPaymentMethod,
-        hasSportsCard: guestHasSportsCard,
-        sportsCardProvider: guestSportsCardProvider,
-      };
+      } : undefined;
       const result = await joinEventAsGuest(
         event.id,
         guestName,
