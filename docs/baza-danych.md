@@ -1,6 +1,6 @@
 # Baza danych
 
-83 migracje (`001`–`085`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
+84 migracje (`001`–`086`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -121,6 +121,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `083_fix_guest_signup_claim_token` | Poprawka `082` — `INSERT…RETURNING` z jawnym prefiksem tabeli, naprawia „ambiguous column reference" w `claim_token` |
 | `084_powiadomienie_o_koncie_z_wpisem_goscia` | Dwa wyzwalacze po obu stronach skojarzenia po e-mailu: nowy wpis gościa → istniejące konto z tym e-mailem dostaje powiadomienie od razu; nowe konto → dostaje powiadomienie o już istniejących nieprzejętych wpisach gościa z tym e-mailem. Kolumna `notifications.claim_token`, indeks na `event_participants (lower(guest_email))`. Świadomie bez automatycznego przejęcia — tylko powiadomienie z linkiem, przejęcie nadal wymaga `auth.uid()` |
 | `085_zapobiegaj_duplikatom_wpisu_goscia` | `dolacz_do_meczu_jako_goscie()` (`082`/`083`) sprawdza na starcie, czy ten sam e-mail już ma wpis w TYM meczu (nieprzejęty gość → zwraca istniejący `claim_token` zamiast duplikatu; przejęty → odrzuca) albo pasuje do konta już uczestniczącego przez normalne dołączenie. Naprawia realny przypadek z produkcji — ten sam e-mail zapisywał się jako gość wielokrotnie na jeden mecz |
+| `086_juz_dolaczony_flaga` | `dolacz_do_meczu_jako_goscie()` zwraca dodatkową kolumnę `already_joined` (true przy idempotentnym zwrocie istniejącego `claim_token`, false przy świeżym zapisie) — frontend rozróżnia po niej ekran „Zapisano!" od „Wcześniej dołączyłeś do tej gry.". Zmiana `RETURNS TABLE` wymagała `DROP FUNCTION` + `CREATE` (nie `CREATE OR REPLACE`) i ponownego `GRANT` |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
 polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka

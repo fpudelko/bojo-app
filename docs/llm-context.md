@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `085` · 31 tabel · 420 testów
+**Stan na:** 2026-08-12 · migracja `086` · 31 tabel · 420 testów
 
 ---
 
@@ -342,7 +342,14 @@ gość kilka razy na jeden mecz, bo `dolacz_do_meczu_jako_goscie()` tego nie spr
 — teraz na starcie odrzuca powtórkę (albo zwraca istniejący `claim_token`
 idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail już ma konto"
 (`identities.length === 0`) — dla trybu ochrony przed enumeracją e-maili w Supabase,
-gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces.
+gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces. Migracja
+`086` dodaje do `dolacz_do_meczu_jako_goscie()` kolumnę `already_joined` (true przy
+idempotentnym zwrocie tokenu z `085`), żeby frontend odróżnił świeży zapis od powtórki —
+ekran zachęty po powtórnym zapisie tym samym mailem bez konta pokazuje „Wcześniej
+dołączyłeś do tej gry." zamiast „Zapisano!"; gdy `085` odrzuci zapis wyjątkiem (e-mail ma
+już konto uczestniczące w tym meczu), `EventDetailClient.tsx` łapie ten komunikat
+w `handleJoinAsGuest` i pokazuje osobny, uproszczony ekran z przyciskiem „Zaloguj się"
+(zamiast listy korzyści i formularza zakładania konta) oraz linkiem „Pomiń, zobacz skład".
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 

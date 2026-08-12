@@ -624,14 +624,16 @@ export async function addGuest(
 }
 
 /** Guest self-signup without an account: collect name, email, and optional role/payment.
- *  Returns claim_token (for later account linkage) and whether guest landed on reserve. */
+ *  Returns claim_token (for later account linkage), whether guest landed on reserve, and
+ *  whether this was an idempotent repeat (same e-mail already had an unclaimed entry in
+ *  this event, per migration 086) rather than a fresh insert. */
 export async function joinEventAsGuest(
   eventId: string,
   name: string,
   email: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-): Promise<{ claimToken: string; isReserve: boolean }> {
+): Promise<{ claimToken: string; isReserve: boolean; alreadyJoined: boolean }> {
   const { validateEmail } = await import('./validation');
   const safeName = validateName(name, 'Imię i nazwisko', 80);
   const safeEmail = validateEmail(email);
@@ -659,6 +661,7 @@ export async function joinEventAsGuest(
   return {
     claimToken: row.claim_token,
     isReserve: participant?.is_reserve ?? false,
+    alreadyJoined: row.already_joined ?? false,
   };
 }
 
