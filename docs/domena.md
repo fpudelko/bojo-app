@@ -226,6 +226,27 @@ ręcznie), ale nie blokuje kolejki. Goście bez konta są pomijani — nie mają
 
 ---
 
+## Self-service zapis gościa bez konta
+
+Niezalogowany gracz może zapisać się na mecz bez zakładania konta, podając imię i e-mail.
+Tworzy to wpis gościa (`is_guest = true`, `user_id = NULL`, `guest_email = ...`) z losowym
+`claim_token` wygenerowanym triggerem `nadaj_token_gosciowi()` (migracja `066`).
+
+**Reguły pojemności** — gość liczy się normalnie do limitu miejsc (`is_reserve = false AND pending_approval = false`),
+wyląduje na rezerwie jeśli mecz pełny, identycznie jak zalogowany gracz.
+
+**Przejęcie wpisu** — gracz otrzymuje link `/gracz/przejmij/[token]`, gdzie może:
+- Zalogować się (Google albo e-mail)
+- Rejestracja przekieruje go z powrotem na `/gracz/przejmij/[token]`
+- Tam funkcja `przejmij_wpisu_goscia()` (migracja `066`) podłącza `user_id` do istniejącego wpisu
+
+**Rate limiting** — brak je na MVP. Jeśli spam, dodać captchę (reCAPTCHA v3) do formularza,
+albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
+
+Migracja: `082_guest_self_signup.sql`.
+
+---
+
 ## Propozycje składów
 
 Uczestnik może zaproponować podział na drużyny, reszta go popiera (👍), a organizator

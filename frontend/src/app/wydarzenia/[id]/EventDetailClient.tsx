@@ -377,7 +377,7 @@ function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const isAdmin = useAdmin();
   const { toast } = useToast();
 
@@ -386,19 +386,27 @@ export default function EventDetailClient() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [guestName, setGuestName] = useState('');
-  const [guestIsGk, setGuestIsGk] = useState(false);
   // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
   // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
   const [, setCopied] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [joinAsGuestDialogOpen, setJoinAsGuestDialogOpen] = useState(false);
   const [joinAsReserve, setJoinAsReserve] = useState(false);
   const [joinRole, setJoinRole] = useState<'player' | 'goalkeeper'>('player');
   const [joinHasSportsCard, setJoinHasSportsCard] = useState(false);
   const [joinSportsCardProvider, setJoinSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
   const [joinPaymentMethod, setJoinPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  // Guest self-signup
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestRole, setGuestRole] = useState<'player' | 'goalkeeper'>('player');
+  const [guestPaymentMethod, setGuestPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  const [guestBusy, setGuestBusy] = useState(false);
+  const [showAccountPrompt, setShowAccountPrompt] = useState(false);
+  const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
+  const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
   // Legacy client-side teams (teamMode === 'brak' only)
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -446,8 +454,8 @@ export default function EventDetailClient() {
   // Jedno wywołanie dla wszystkich okien tej strony — hook musi lecieć
   // bezwarunkowo, więc stan „czy cokolwiek jest otwarte" liczymy tutaj.
   useBlokadaPrzewijania(
-    joinDialogOpen || leaveConfirmOpen || deleteConfirmOpen || venueInfoOpen
-    || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen,
+    joinDialogOpen || joinAsGuestDialogOpen || leaveConfirmOpen || deleteConfirmOpen || venueInfoOpen
+    || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen || showAccountPrompt,
   );
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
@@ -796,6 +804,34 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
+  const handleJoinAsGuest = async () => {
+    if (!event) return;
+    setGuestBusy(true);
+    try {
+      const { joinEventAsGuest } = await import('@/lib/events');
+      const payment = guestPaymentMethod ? {
+        method: guestPaymentMethod,
+      } : undefined;
+      const result = await joinEventAsGuest(
+        event.id,
+        guestName,
+        guestEmail,
+        guestRole === 'goalkeeper',
+        payment,
+      );
+      // Zamknij dialog zapisu, pokaż ekran zachęty do założenia konta
+      setJoinAsGuestDialogOpen(false);
+      setNewUserClaimToken(result.claimToken);
+      setNewUserEmail(guestEmail);
+      setShowAccountPrompt(true);
+      toast('Jesteś w składzie! Teraz załóż konto, żeby nie przegapić powiadomień.');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać', 'error');
+    } finally {
+      setGuestBusy(false);
+    }
+  };
+
   /** Ręczny awans z rezerwy. Gdy w roli tej osoby nie ma już miejsca, pytamy —
    *  organizator może świadomie przekroczyć limit (dogadał się z obiektem,
    *  ktoś odpadnie w ostatniej chwili), ale nie powinien zrobić tego przez
@@ -857,9 +893,9 @@ export default function EventDetailClient() {
     if (!guestName.trim()) return;
     setBusy(true);
     try {
-      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestIsGk);
+      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestRole === 'goalkeeper');
       setGuestName('');
-      setGuestIsGk(false);
+      setGuestRole('player');
       await load();
       toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
     } catch (e) {
@@ -2276,10 +2312,10 @@ export default function EventDetailClient() {
                         <button
                           key={r}
                           type="button"
-                          onClick={() => setGuestIsGk(r === 'gk')}
+                          onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
                           className={[
                             'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                            (r === 'gk') === guestIsGk
+                            (r === 'gk') === (guestRole === 'goalkeeper')
                               ? 'border-primary-600 bg-primary-50 text-primary-700'
                               : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                           ].join(' ')}
@@ -2335,10 +2371,10 @@ export default function EventDetailClient() {
                       <button
                         key={r}
                         type="button"
-                        onClick={() => setGuestIsGk(r === 'gk')}
+                        onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
                         className={[
                           'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                          (r === 'gk') === guestIsGk
+                          (r === 'gk') === (guestRole === 'goalkeeper')
                             ? 'border-primary-600 bg-primary-50 text-primary-700'
                             : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                         ].join(' ')}
@@ -2512,15 +2548,23 @@ export default function EventDetailClient() {
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
-                <button
-                  onClick={() => {
-                    const powrot = `${window.location.pathname}?dolacz=1`;
-                    window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
-                  }}
-                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
-                >
-                  Zaloguj się, aby dołączyć
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setJoinAsGuestDialogOpen(true)}
+                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
+                  >
+                    Dołącz bez konta →
+                  </button>
+                  <button
+                    onClick={() => {
+                      const powrot = `${window.location.pathname}?dolacz=1`;
+                      window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
+                    }}
+                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-700 text-[15px] font-bold text-white transition active:scale-[0.99] px-4"
+                  >
+                    Zaloguj się
+                  </button>
+                </div>
               ) : user && !isFull ? (
                 <div className="flex gap-2">
                   <button
@@ -3261,6 +3305,210 @@ export default function EventDetailClient() {
                 Zapisz mnie
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guest self-signup dialog */}
+      {joinAsGuestDialogOpen && (
+        <div
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
+          onClick={() => setJoinAsGuestDialogOpen(false)}
+        >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">
+              Dołącz do meczu bez logowania
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              {sportEmoji(event.sport)} {eventDisplayTitle(event)}
+              {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
+            </p>
+
+            {/* Imię i e-mail */}
+            <div className="mb-4 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
+                  Imię i nazwisko
+                </label>
+                <input
+                  type="text"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="np. Jan Kowalski"
+                  className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
+                  disabled={guestBusy}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder="twój@email.com"
+                  className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
+                  disabled={guestBusy}
+                />
+              </div>
+            </div>
+
+            {/* Role — tylko gdy `gkEnabled` */}
+            {gkEnabled && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Twoja rola</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setGuestRole('player')}
+                    disabled={guestBusy}
+                    className={[
+                      'h-10 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-50',
+                      guestRole === 'player'
+                        ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    ⚽ Zawodnik
+                  </button>
+                  <button
+                    onClick={() => setGuestRole('goalkeeper')}
+                    disabled={guestBusy}
+                    className={[
+                      'h-10 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-50',
+                      guestRole === 'goalkeeper'
+                        ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    🧤 Bramkarz
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Metoda płatności — tylko gdy `costGrosze > 0` */}
+            {event.costGrosze > 0 && event.acceptedPaymentMethods.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Jak zapłacisz?</p>
+                <div className="flex flex-wrap gap-2">
+                  {event.acceptedPaymentMethods.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setGuestPaymentMethod(m)}
+                      disabled={guestBusy}
+                      className={[
+                        'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
+                        guestPaymentMethod === m
+                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                          : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
+                      ].join(' ')}
+                    >
+                      {PAYMENT_METHOD_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+                {guestPaymentMethod === 'blik' && event.blikPhone && (
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setJoinAsGuestDialogOpen(false)}
+                className="flex-1"
+                disabled={guestBusy}
+              >
+                Anuluj
+              </Button>
+              <Button
+                onClick={handleJoinAsGuest}
+                isLoading={guestBusy}
+                disabled={!guestName.trim() || !guestEmail.trim() || (event.costGrosze > 0 && !guestPaymentMethod)}
+                className="flex-1 bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
+              >
+                Zapisz się
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account prompt after guest join */}
+      {showAccountPrompt && newUserClaimToken && (
+        <div
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
+          onClick={() => setShowAccountPrompt(false)}
+        >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-xl font-bold text-ink">Świetnie! Jesteś w składzie.</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Załóż konto teraz, żeby nie przeglądnąć powiadomienia o kolejnych meczach.
+            </p>
+
+            {/* Trzy wartości */}
+            <ul className="mt-4 space-y-2.5 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-700 dark:text-slate-300">
+              <li className="flex gap-2">
+                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                <span>Dołączysz do ekipy i dostaniesz powiadomienia o kolejnych meczach</span>
+              </li>
+              <li className="flex gap-2">
+                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                <span>Założysz własny mecz i zbierzesz skład jednym linkiem</span>
+              </li>
+              <li className="flex gap-2">
+                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                <span>Przejrzysz otwarte gry w okolicy</span>
+              </li>
+            </ul>
+
+            {/* Opcje logowania */}
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={() => {
+                  signInWithGoogle(`/gracz/przejmij/${newUserClaimToken}`);
+                  setShowAccountPrompt(false);
+                }}
+                className="w-full h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-ink font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-600"
+              >
+                Zaloguj się przez Google
+              </button>
+              <button
+                onClick={() => {
+                  router.push(
+                    `/logowanie?email=${encodeURIComponent(newUserEmail || '')}&next=${encodeURIComponent(`/gracz/przejmij/${newUserClaimToken}`)}&tab=signup`,
+                  );
+                  setShowAccountPrompt(false);
+                }}
+                className="w-full h-11 rounded-xl bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700 text-white font-semibold transition"
+              >
+                Załóż konto e-mailem
+              </button>
+            </div>
+
+            {/* Odrzucenie */}
+            <button
+              onClick={() => setShowAccountPrompt(false)}
+              className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              Pomiń, przejdę później
+            </button>
+
+            {/* Fallback link */}
+            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 text-center">
+              Lub{' '}
+              <a
+                href={`/gracz/przejmij/${newUserClaimToken}`}
+                className="text-primary-600 dark:text-primary-400 underline hover:text-primary-700"
+              >
+                potwierdź tutaj
+              </a>
+            </p>
           </div>
         </div>
       )}
