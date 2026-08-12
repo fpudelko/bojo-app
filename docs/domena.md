@@ -235,15 +235,29 @@ Tworzy to wpis gościa (`is_guest = true`, `user_id = NULL`, `guest_email = ...`
 **Reguły pojemności** — gość liczy się normalnie do limitu miejsc (`is_reserve = false AND pending_approval = false`),
 wyląduje na rezerwie jeśli mecz pełny, identycznie jak zalogowany gracz.
 
-**Przejęcie wpisu** — gracz otrzymuje link `/gracz/przejmij/[token]`, gdzie może:
-- Zalogować się (Google albo e-mail)
-- Rejestracja przekieruje go z powrotem na `/gracz/przejmij/[token]`
-- Tam funkcja `przejmij_wpisu_goscia()` (migracja `066`) podłącza `user_id` do istniejącego wpisu
+**Przejęcie wpisu** — zaraz po zapisie ekran zachęty (`EventDetailClient.tsx`) oferuje
+dwie ścieżki, obie bez ponownego wpisywania imienia/maila i bez dodatkowego kliku
+potwierdzenia:
+- **Hasło** — `handleCreateAccountFromGuest()` woła `signUpWithEmail()` (imię i e-mail
+  z formularza zapisu), a gdy sesja jest od razu aktywna (bez wymogu potwierdzenia
+  e-maila), od razu też `przejmij_wpis_goscia()` — user ląduje wprost na stronie meczu.
+- **Google** — `signInWithGoogle()` z `next=/gracz/przejmij/[token]?auto=1`.
+
+Parametr `?auto=1` na `/gracz/przejmij/[token]` (`PrzejmijClient.tsx`) każe stronie
+przejąć wpis automatycznie, gdy user jest już zalogowany — zamiast czekać na klik
+„To ja — potwierdzam". Bez `?auto=1` (np. link wysłany SMS-em przez organizatora)
+strona zachowuje się jak dotąd — wymaga świadomego potwierdzenia tożsamości.
+
+Gdy Supabase wymaga potwierdzenia e-maila (`needsConfirmation = true`), przejęcie nie
+może nastąpić od razu — `auth.uid()` jeszcze nie istnieje. User zostaje na stronie
+meczu (wpis gościa już tam jest, widoczny bez konta), a link w mailu potwierdzającym
+(niesie ten sam `?auto=1`) dokańcza przejęcie po kliknięciu.
 
 **Rate limiting** — brak je na MVP. Jeśli spam, dodać captchę (reCAPTCHA v3) do formularza,
 albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
 
-Migracja: `082_guest_self_signup.sql`.
+Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (naprawia
+„ambiguous column reference" w `RETURNING`).
 
 ---
 

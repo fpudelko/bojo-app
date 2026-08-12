@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -36,7 +36,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
     return () => { anulowane = true; };
   }, [token]);
 
-  const przejmij = async () => {
+  const przejmij = useCallback(async () => {
     if (!user) return;
     setZajete(true);
     setBlad(null);
@@ -47,7 +47,24 @@ export default function PrzejmijClient({ token }: { token: string }) {
       setBlad(e instanceof Error ? e.message : 'Nie udało się przejąć wpisu.');
       setZajete(false);
     }
-  };
+  }, [user, token, router]);
+
+  // Auto-przejęcie: gdy link niesie `?auto=1` (wraca z zapisu jako gość na
+  // Google/hasło z EventDetailClient), nie ma po co pytać jeszcze raz „czy to
+  // Ty" — użytkownik przed chwilą sam wpisał swoje imię i e-mail w tym samym
+  // oknie przeglądarki. Inne wejścia na tę stronę (np. link wysłany SMS-em
+  // przez organizatora) nie mają `?auto=1` i nadal wymagają świadomego kliku.
+  const autoProbowane = useRef(false);
+  useEffect(() => {
+    if (autoProbowane.current) return;
+    if (ladowanie || authLoading) return;
+    if (!podglad || podglad.juzPrzejety) return;
+    if (!user) return;
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('auto') !== '1') return;
+    autoProbowane.current = true;
+    przejmij();
+  }, [ladowanie, authLoading, podglad, user, przejmij]);
 
   const ramka = (tresc: React.ReactNode) => (
     <div className="min-h-screen flex flex-col bg-canvas">

@@ -47,7 +47,7 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { linkPrzejeciaWpisu, tekstZaproszeniaGoscia } from '@/lib/guestClaim';
+import { linkPrzejeciaWpisu, tekstZaproszeniaGoscia, przejmijWpisGoscia } from '@/lib/guestClaim';
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart } from '@/lib/eventDates';
@@ -377,7 +377,7 @@ function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signUpWithEmail } = useAuth();
   const isAdmin = useAdmin();
   const { toast } = useToast();
 
@@ -407,6 +407,10 @@ export default function EventDetailClient() {
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
   const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
+  const [newUserIsReserve, setNewUserIsReserve] = useState(false);
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
   // Legacy client-side teams (teamMode === 'brak' only)
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -819,16 +823,58 @@ export default function EventDetailClient() {
         guestRole === 'goalkeeper',
         payment,
       );
-      // Zamknij dialog zapisu, pokaż ekran zachęty do założenia konta
+      // Odśwież listę uczestników PRZED pokazaniem ekranu zachęty — bez tego
+      // wpis w bazie się udawał, ale lokalny stan komponentu go nie widział,
+      // więc gość znikał z listy po zamknięciu modala.
+      await load();
       setJoinAsGuestDialogOpen(false);
       setNewUserClaimToken(result.claimToken);
       setNewUserEmail(guestEmail);
+      setNewUserIsReserve(result.isReserve);
+      setAccountPassword('');
+      setAccountError(null);
       setShowAccountPrompt(true);
-      toast('Jesteś w składzie! Teraz załóż konto, żeby nie przegapić powiadomień.');
+      toast(result.isReserve
+        ? 'Komplet — jesteś na liście rezerwowej'
+        : 'Dołączyłeś do meczu!');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać', 'error');
     } finally {
       setGuestBusy(false);
+    }
+  };
+
+  /** Zakładanie konta hasłem tuż po zapisie jako gość — imię i e-mail mamy już
+   *  z formularza zapisu, więc user podaje tylko hasło. Gdy Supabase wymaga
+   *  potwierdzenia e-maila, `auth.uid()` jeszcze nie istnieje i przejęcia nie
+   *  da się dokonać od razu — link w mailu (z `?auto=1`) dokończy to później. */
+  const handleCreateAccountFromGuest = async () => {
+    if (!newUserClaimToken || !newUserEmail || !event) return;
+    if (accountPassword.length < 6) {
+      setAccountError('Hasło musi mieć co najmniej 6 znaków.');
+      return;
+    }
+    setAccountBusy(true);
+    setAccountError(null);
+    try {
+      const { needsConfirmation } = await signUpWithEmail(
+        newUserEmail,
+        accountPassword,
+        guestName,
+        `/gracz/przejmij/${newUserClaimToken}?auto=1`,
+      );
+      if (!needsConfirmation) {
+        await przejmijWpisGoscia(newUserClaimToken, guestName);
+        setShowAccountPrompt(false);
+        router.push(`/wydarzenia/${event.id}`);
+      } else {
+        setShowAccountPrompt(false);
+        toast('Sprawdź e-mail, żeby potwierdzić konto — Twoje miejsce w składzie już czeka.');
+      }
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : 'Nie udało się założyć konta.');
+    } finally {
+      setAccountBusy(false);
     }
   };
 
@@ -1294,6 +1340,13 @@ export default function EventDetailClient() {
     && !joinPaymentMethod;
   const pozycjaWKolejce = reserves.filter((p) => !p.claimPassed
     && (!gkEnabled || !!p.isGoalkeeper === (joinRole === 'goalkeeper'))).length + 1;
+  // To samo dla dialogu gościa bez konta — osobna rola (`guestRole`), bo dialog
+  // gościa nie ma przełącznika „zapisz mnie od razu na rezerwę".
+  const guestRolaPelna = gkEnabled
+    ? (guestRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
+    : wolne.razem === 0;
+  const guestPozycjaWKolejce = reserves.filter((p) => !p.claimPassed
+    && (!gkEnabled || !!p.isGoalkeeper === (guestRole === 'goalkeeper'))).length + 1;
 
   // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
   // organizator/gracz faktycznie tego szukają. Treść sekcji bez zmian,
@@ -3354,6 +3407,18 @@ export default function EventDetailClient() {
               </div>
             </div>
 
+            {/* Komplet w wybranej roli — ta sama zapowiedź co w dialogu dla
+                zalogowanych (linie ok. 3140–3151), tylko liczona z `guestRole`. */}
+            {guestRolaPelna && (
+              <p className="mb-4 rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-700 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                {guestRole === 'goalkeeper'
+                  ? 'Bramkarze mają już komplet.'
+                  : gkEnabled ? 'W polu jest już komplet.' : 'Mecz ma już komplet.'}
+                {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
+                <span className="font-bold">{guestPozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+              </p>
+            )}
+
             {/* Role — tylko gdy `gkEnabled` */}
             {gkEnabled && (
               <div className="mb-4">
@@ -3384,6 +3449,11 @@ export default function EventDetailClient() {
                     🧤 Bramkarz
                   </button>
                 </div>
+                {guestRole === 'goalkeeper' && gkFull && (
+                  <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Jest już {gkCount} bramkarzy — dołączysz jako rezerwa.
+                  </p>
+                )}
               </div>
             )}
 
@@ -3446,9 +3516,11 @@ export default function EventDetailClient() {
           onClick={() => setShowAccountPrompt(false)}
         >
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-display text-xl font-bold text-ink">Świetnie! Jesteś w składzie.</h2>
+            <h2 className="font-display text-xl font-bold text-ink">
+              {newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
+            </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Załóż konto teraz, żeby nie przeglądnąć powiadomienia o kolejnych meczach.
+              Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.
             </p>
 
             {/* Trzy wartości */}
@@ -3467,36 +3539,54 @@ export default function EventDetailClient() {
               </li>
             </ul>
 
-            {/* Opcje logowania */}
+            {/* Potwierdzenie przez Google — natychmiastowe, jeden klik */}
             <div className="mt-5 space-y-2">
               <button
                 onClick={() => {
-                  signInWithGoogle(`/gracz/przejmij/${newUserClaimToken}`);
+                  signInWithGoogle(`/gracz/przejmij/${newUserClaimToken}?auto=1`);
                   setShowAccountPrompt(false);
                 }}
-                className="w-full h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-ink font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-600"
+                disabled={accountBusy}
+                className="w-full h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-ink font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50"
               >
-                Zaloguj się przez Google
+                Potwierdź profil przez Google
               </button>
+
+              <div className="flex items-center gap-2 py-1">
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-600" />
+                <span className="text-[11px] uppercase tracking-wide text-slate-400">lub</span>
+                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-600" />
+              </div>
+
+              {/* Hasło wystarczy — imię i e-mail mamy już z formularza zapisu */}
+              <input
+                type="password"
+                value={accountPassword}
+                onChange={(e) => { setAccountPassword(e.target.value); setAccountError(null); }}
+                placeholder="Hasło (min. 6 znaków)"
+                autoComplete="new-password"
+                disabled={accountBusy}
+                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
+              />
+              {accountError && (
+                <p className="text-xs text-red-600 dark:text-red-400">{accountError}</p>
+              )}
               <button
-                onClick={() => {
-                  router.push(
-                    `/logowanie?email=${encodeURIComponent(newUserEmail || '')}&next=${encodeURIComponent(`/gracz/przejmij/${newUserClaimToken}`)}&tab=signup`,
-                  );
-                  setShowAccountPrompt(false);
-                }}
-                className="w-full h-11 rounded-xl bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700 text-white font-semibold transition"
+                onClick={handleCreateAccountFromGuest}
+                disabled={accountBusy || accountPassword.length < 6}
+                className="w-full h-11 rounded-xl bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700 text-white font-semibold transition disabled:opacity-50"
               >
-                Załóż konto e-mailem
+                {accountBusy ? 'Tworzę profil…' : 'Utwórz profil gracza'}
               </button>
             </div>
 
             {/* Odrzucenie */}
             <button
               onClick={() => setShowAccountPrompt(false)}
-              className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              disabled={accountBusy}
+              className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-50"
             >
-              Pomiń, przejdę później
+              Pomijam, potwierdzę później
             </button>
 
             {/* Fallback link */}
