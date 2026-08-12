@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `079` · 31 tabel · 420 testów
+**Stan na:** 2026-08-12 · migracja `082` · 31 tabel · 420 testów
 
 ---
 
@@ -296,6 +296,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-12 — Zapis na mecz bez logowania (self-service dla gościa)
+
+PROBLEM: bariera założenia konta zniechęca nowych graczy. Organizator chce dać im
+możliwość szybkiego dołączenia do meczu (wystarczy imię i e-mail), bez wymuszania
+logowania ani dpisywania ich ręcznie z panelu.
+
+ROZWIĄZANIE BOJO: niezalogowany gracz może dołączyć do meczu w sticky pasku („Dołącz bez konta")
+wpisując imię i e-mail. Zapisuje się na główny skład lub rezerwę jak każdy inny. Po zapisie
+widzi ekran zachęty z trzema wartościami i przyciskami logowania (Google / e-mail + next=/gracz/przejmij/[token]).
+Później przejmuje wpis linkiem, łącząc go z nowym kontem.
+
+MECHANIKA: migracja `082` z funkcją `dolacz_do_meczu_jako_goscie()` (SECURITY DEFINER,
+bez wymogów RLS, zwraca `claim_token`). Kolumny `guest_email`, `guest_phone` w `event_participants`.
+Frontend: `EventDetailClient.tsx` — 10 nowych stań + modal dołączenia gościa + modal zachęty.
+Wrapper `joinEventAsGuest()` w `lib/events.ts`. Walidacja e-maila w `lib/validation.ts`.
+Przepływ: organizator dzieli link (jeden dla wszystkich) → gość wpisuje dane → zapisuje się → widzi zachętę
+→ loguje się → ląduje na `/gracz/przejmij/[token]` → przejmuje wpis.
+
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 
 PROBLEM: przycisk „Zaproś do Bojo" (przejęcie wpisu gościa) działał tylko dla gości
@@ -568,33 +586,3 @@ czyta `pendingApprovalCount` z `EventItem`); `lib/myEvents.ts` (sortowanie w
 `EventDetailClient.tsx` (`RolaGracza`); `wydarzenia/nowe/page.tsx` (pasek grupy tylko
 na krokach 1–2); `lib/eventFilters.ts` (`isSameWeek(dt, now, …)` zamiast
 `isThisWeek(dt, …)` — poprzednia wersja ignorowała podane `now`).
-
-### 2026-08-09 — Rezerwa widoczna w składzie, powiadomienia bez fałszywej fajki, poprawna odmiana liczebników
-
-PROBLEM: strona meczu w Bojo pokazywała „Nikt jeszcze nie dołączył" nawet wtedy, gdy
-ktoś stał w kolejce rezerwowej — lista rezerwowa mieszkała w osobnej karcie niżej,
-widocznej tylko dla organizatora, więc przy pustym składzie ekran zaprzeczał sam sobie.
-Przy zerowym składzie i niepustej rezerwie (np. mecz 1v1, na który organizator zapisał
-się jako rezerwowy) rezerwowych nie było widać w ogóle. Panel powiadomień oznaczał
-przeczytane wpisy zieloną fajką i wyszarzeniem, przez co nierozpatrzona prośba
-o dołączenie wyglądała na załatwioną — a otwarcie dzwonka oznacza jako przeczytane
-wszystko naraz. Liczebniki odmieniały się regułą `n < 5`, poprawną tylko dla 1–9:
-stąd „0 gracze", „13 minuty temu", „22 minut temu".
-
-ROZWIĄZANIE BOJO: kolejka rezerwowa jest częścią listy składu na stronie meczu —
-z numerem pozycji w kolejce, znacznikiem „czeka na decyzję" / „przepuścił(a)"
-i przyciskiem usunięcia. Osobna karta „Lista rezerwowa" zniknęła. Nagłówek listy podaje
-liczbę graczy i liczbę osób na rezerwie; „Nikt jeszcze nie dołączył" pokazuje się
-wyłącznie wtedy, gdy nie ma nikogo ani w składzie, ani w rezerwie. Powiadomienia nie
-dostają już fajki po przeczytaniu; te wymagające działania (prośba o dołączenie,
-zaproponowane zwolnione miejsce) nie blakną i mają znacznik „Sprawdź" — dzwonek nie
-twierdzi, czy sprawa jest załatwiona, bo tego stanu nie zna. Liczebniki w całej
-aplikacji odmieniają się według reguły polskiej (1 / 2–4 / 5+ z wyjątkiem 12–14).
-
-MECHANIKA: `wydarzenia/[id]/EventDetailClient.tsx` (rezerwa w liście składu, usunięta
-osobna karta, warunki pustych stanów uwzględniają `reserves`);
-`components/layout/NotificationBell.tsx` (wspólny `TrescPowiadomienia`, brak ikony
-`Check`, znacznik „Sprawdź" dla typów z `WYMAGA_AKCJI`); `lib/plural.ts` (`plural`,
-`withCount`) użyte w 13 plikach zamiast ręcznego `n < 5` — m.in. `EventBrowseCard.tsx`,
-`InviteFromGroupDialog.tsx`, `DashboardSections.tsx`, `GroupsClient.tsx`,
-`gracz/[id]/page.tsx`, `lib/eventDraft.ts`.
