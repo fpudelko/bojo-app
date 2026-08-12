@@ -15,8 +15,15 @@ const TYP_NA_TRASE: Record<string, string> = {
   uzupelnij_profil: '/profil',
 };
 
-/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd. */
+/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd.
+ *
+ *  `niepotwierdzony_wpis_goscia` niesie `event_id` (do treści: „mecz X"), ale
+ *  kliknięcie ma prowadzić do przejęcia wpisu, nie od razu na stronę meczu —
+ *  inaczej kliknięcie nie robiłoby tego, co obiecuje treść („Potwierdź"). */
 function celPowiadomienia(n: AppNotification): string | null {
+  if (n.type === 'niepotwierdzony_wpis_goscia' && n.claimToken) {
+    return `/gracz/przejmij/${n.claimToken}`;
+  }
   if (n.eventId) return `/wydarzenia/${n.eventId}`;
   return TYP_NA_TRASE[n.type] ?? null;
 }

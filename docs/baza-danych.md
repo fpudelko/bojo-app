@@ -1,6 +1,6 @@
 # Baza danych
 
-79 migracji (`001`–`079`) w `supabase/migrations/`. Modele domenowe →
+82 migracje (`001`–`084`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -74,7 +74,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `rate_limits` | `016` | Limity (m.in. usuwanie konta) |
 | `field_outreach` | `020` | CRM kontaktu z obiektami |
 | `game_alerts` | `025` | Alerty o grach w okolicy |
-| `notifications` | `025` | Powiadomienia in-app |
+| `notifications` | `025` | Powiadomienia in-app. `claim_token` (`084`) — dla typu `niepotwierdzony_wpis_goscia`, link do przejęcia wpisu |
 | `event_comments` | `026` | Komentarze pod meczem |
 | `field_comments` | `063` | Komentarze pod obiektem z katalogu boisk — osobne od `event_comments`, bo przeżywają pojedynczy mecz |
 | `event_activity_log` | `026` | Log zdarzeń meczu |
@@ -117,6 +117,9 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `072_brakujace_powiadomienia` | Wyzwalacze: **organizator** dostaje powiadomienie o nowej prośbie o dołączenie (`event_participants.pending_approval`), **członkowie grupy** dostają powiadomienie o nowym meczu w grupie (`events.group_id`) |
 | `073_serie_wydarzen_cyklicznych` | `events.recurring_event_id` — termin cykliczny staje się prawdziwą **serią**, nie zbiorem niepowiązanych kopii. Funkcja `utworz_termin_serii()` (RPC dla przeglądarki i crona) kopiuje pełne ustawienia z ostatniego terminu, nie z ubogiego szablonu — wcześniej `spawnEventInstance()` gubił cenę, płatności i bramkarzy. Cron co godzinę (`pg_cron`, jeśli włączony) tworzy należne terminy z wyprzedzeniem `notify_days_before`; wyzwalacz powiadamia o nowym terminie uczestników poprzedniego |
 | `079_powiadom_o_zmianie_kompletu` | Wyzwalacz na `event_participants` (INSERT/UPDATE/DELETE): powiadamia organizatora, gdy skład **przechodzi** ze stanu niekompletnego w komplet albo z kompletu z powrotem w niekompletny (kogoś zabrakło). Nie powiadamia o każdym pojedynczym zapisie — tylko o zmianie stanu, żeby nie zagłuszyć dwóch naprawdę ważnych momentów kilkunastoma wpisami na jeden mecz |
+| `082_guest_self_signup` | RPC `dolacz_do_meczu_jako_goscie()` — zapis na mecz bez konta (imię + e-mail), kolumny `guest_email`/`guest_phone` w `event_participants` |
+| `083_fix_guest_signup_claim_token` | Poprawka `082` — `INSERT…RETURNING` z jawnym prefiksem tabeli, naprawia „ambiguous column reference" w `claim_token` |
+| `084_powiadomienie_o_koncie_z_wpisem_goscia` | Dwa wyzwalacze po obu stronach skojarzenia po e-mailu: nowy wpis gościa → istniejące konto z tym e-mailem dostaje powiadomienie od razu; nowe konto → dostaje powiadomienie o już istniejących nieprzejętych wpisach gościa z tym e-mailem. Kolumna `notifications.claim_token`, indeks na `event_participants (lower(guest_email))`. Świadomie bez automatycznego przejęcia — tylko powiadomienie z linkiem, przejęcie nadal wymaga `auth.uid()` |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
 polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka

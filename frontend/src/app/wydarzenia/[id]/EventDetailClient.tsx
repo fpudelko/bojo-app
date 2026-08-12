@@ -377,7 +377,7 @@ function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle, signUpWithEmail } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const isAdmin = useAdmin();
   const { toast } = useToast();
 
@@ -411,6 +411,10 @@ export default function EventDetailClient() {
   const [accountPassword, setAccountPassword] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  // Gdy signUpWithEmail zwróci „konto już istnieje" — przełącz to samo pole
+  // hasła z rejestracji na logowanie, zamiast tylko pokazać czerwony błąd
+  // i zostawić gościa bez dalszego kroku.
+  const [accountEmailTaken, setAccountEmailTaken] = useState(false);
   // Legacy client-side teams (teamMode === 'brak' only)
   // Match data
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -833,6 +837,7 @@ export default function EventDetailClient() {
       setNewUserIsReserve(result.isReserve);
       setAccountPassword('');
       setAccountError(null);
+      setAccountEmailTaken(false);
       setShowAccountPrompt(true);
       toast(result.isReserve
         ? 'Komplet — jesteś na liście rezerwowej'
@@ -872,7 +877,35 @@ export default function EventDetailClient() {
         toast('Sprawdź e-mail, żeby potwierdzić konto — Twoje miejsce w składzie już czeka.');
       }
     } catch (e) {
-      setAccountError(e instanceof Error ? e.message : 'Nie udało się założyć konta.');
+      const msg = e instanceof Error ? e.message : 'Nie udało się założyć konta.';
+      // `mapAuthError()` w lib/auth.tsx tłumaczy Supabase „user already
+      // registered" na ten dokładnie polski tekst — rozpoznajemy go po
+      // fragmencie, żeby przełączyć formularz na logowanie zamiast tylko
+      // pokazać czerwony błąd i zostawić gościa bez dalszego kroku.
+      if (msg.includes('już istnieje')) {
+        setAccountEmailTaken(true);
+      } else {
+        setAccountError(msg);
+      }
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  /** Ten sam e-mail ma już konto (wykryte w handleCreateAccountFromGuest) —
+   *  zamiast rejestracji logujemy się na istniejące konto i od razu
+   *  przejmujemy wpis gościa, bez żądania ponownego podania danych. */
+  const handleSignInFromGuest = async () => {
+    if (!newUserClaimToken || !newUserEmail || !event) return;
+    setAccountBusy(true);
+    setAccountError(null);
+    try {
+      await signInWithEmail(newUserEmail, accountPassword);
+      await przejmijWpisGoscia(newUserClaimToken, guestName);
+      setShowAccountPrompt(false);
+      router.push(`/wydarzenia/${event.id}`);
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : 'Nie udało się zalogować.');
     } finally {
       setAccountBusy(false);
     }
@@ -3558,13 +3591,20 @@ export default function EventDetailClient() {
                 <div className="h-px flex-1 bg-slate-200 dark:bg-slate-600" />
               </div>
 
-              {/* Hasło wystarczy — imię i e-mail mamy już z formularza zapisu */}
+              {/* Hasło wystarczy — imię i e-mail mamy już z formularza zapisu.
+                  Gdy signUpWithEmail wykryje, że ten e-mail ma już konto,
+                  to samo pole przełącza się na logowanie zamiast rejestracji. */}
+              {accountEmailTaken && (
+                <p className="rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-700 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Ten e-mail ma już konto w Bojo — podaj hasło, żeby się zalogować i przypisać ten zapis do siebie.
+                </p>
+              )}
               <input
                 type="password"
                 value={accountPassword}
                 onChange={(e) => { setAccountPassword(e.target.value); setAccountError(null); }}
                 placeholder="Hasło (min. 6 znaków)"
-                autoComplete="new-password"
+                autoComplete={accountEmailTaken ? 'current-password' : 'new-password'}
                 disabled={accountBusy}
                 className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none disabled:opacity-50"
               />
@@ -3572,11 +3612,13 @@ export default function EventDetailClient() {
                 <p className="text-xs text-red-600 dark:text-red-400">{accountError}</p>
               )}
               <button
-                onClick={handleCreateAccountFromGuest}
+                onClick={accountEmailTaken ? handleSignInFromGuest : handleCreateAccountFromGuest}
                 disabled={accountBusy || accountPassword.length < 6}
                 className="w-full h-11 rounded-xl bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700 text-white font-semibold transition disabled:opacity-50"
               >
-                {accountBusy ? 'Tworzę profil…' : 'Utwórz profil gracza'}
+                {accountEmailTaken
+                  ? (accountBusy ? 'Loguję…' : 'Zaloguj się i przypisz zapis')
+                  : (accountBusy ? 'Tworzę profil…' : 'Utwórz profil gracza')}
               </button>
             </div>
 

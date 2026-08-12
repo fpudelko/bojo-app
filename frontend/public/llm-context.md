@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `083` · 31 tabel · 420 testów
+**Stan na:** 2026-08-12 · migracja `084` · 31 tabel · 420 testów
 
 ---
 
@@ -314,7 +314,11 @@ faktyczny status („Jesteś w składzie" / „Jesteś na liście rezerwowej") n
 zaktualizowaną listą uczestników. Profil można dokończyć bez ponownego wpisywania
 imienia/maila — hasłem (dane już zna z formularza zapisu) albo przez Google — oba
 automatycznie przejmują wpis gościa i lądują wprost na stronie meczu, bez dodatkowego
-ekranu potwierdzenia.
+ekranu potwierdzenia. Gdy podany e-mail ma już konto, to samo pole hasła przełącza
+się z rejestracji na logowanie zamiast tylko pokazać błąd. Nawet gdy gość zamknie
+ekran bez logowania — albo wpis dodał organizator ręcznie, bez udziału gościa —
+właściciel pasującego konta i tak dostanie powiadomienie z gotowym linkiem
+przejęcia, przy najbliższej okazji (nowe konto z tym e-mailem albo kolejne logowanie).
 
 MECHANIKA: migracja `082` z funkcją `dolacz_do_meczu_jako_goscie()` (SECURITY DEFINER,
 zwraca `claim_token`+`is_reserve`), poprawiona migracją `083` (INSERT…RETURNING
@@ -323,10 +327,16 @@ z jawnym prefiksem tabeli — naprawia „ambiguous column reference"). Kolumny
 — dialog gościa pokazuje predykcję rezerwy z `wolneMiejscaWgRol()` (bez dodatkowego
 zapytania); `handleJoinAsGuest` woła `load()` po zapisie i używa `result.isReserve`
 w komunikacie; `handleCreateAccountFromGuest` woła `signUpWithEmail()` +
-`przejmijWpisGoscia()` wprost, bez przejścia przez `/logowanie`. `PrzejmijClient.tsx`
-(`/gracz/przejmij/[token]`) auto-przejmuje wpis, gdy link niesie `?auto=1` i user jest
-już zalogowany — bez klikania „To ja — potwierdzam". Wrapper `joinEventAsGuest()`
-w `lib/events.ts`. Walidacja e-maila w `lib/validation.ts`.
+`przejmijWpisGoscia()` wprost, bez przejścia przez `/logowanie`; gdy `signUpWithEmail`
+rzuci błąd „już istnieje", `handleSignInFromGuest` woła `signInWithEmail()` na tym
+samym polu hasła. `PrzejmijClient.tsx` (`/gracz/przejmij/[token]`) auto-przejmuje
+wpis, gdy link niesie `?auto=1` i user jest już zalogowany — bez klikania „To ja —
+potwierdzam". Wrapper `joinEventAsGuest()` w `lib/events.ts`. Walidacja e-maila
+w `lib/validation.ts`. Migracja `084`: dwa wyzwalacze SQL kojarzą wpis gościa
+z kontem po e-mailu (`event_participants`→`auth.users` i odwrotnie) i wstawiają
+powiadomienie typu `niepotwierdzony_wpis_goscia` (kolumna `notifications.claim_token`,
+`NotificationBell.tsx` kieruje je na `/gracz/przejmij/[token]`) — bez samodzielnego
+przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`.
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 

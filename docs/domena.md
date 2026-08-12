@@ -253,11 +253,31 @@ może nastąpić od razu — `auth.uid()` jeszcze nie istnieje. User zostaje na 
 meczu (wpis gościa już tam jest, widoczny bez konta), a link w mailu potwierdzającym
 (niesie ten sam `?auto=1`) dokańcza przejęcie po kliknięciu.
 
+**Gdy podany e-mail ma już konto** — `signUpWithEmail()` rzuca błąd „już istnieje"
+(`mapAuthError()` w `lib/auth.tsx`). Ekran zachęty przełącza wtedy to samo pole hasła
+z rejestracji na logowanie (`handleSignInFromGuest()`): po udanym `signInWithEmail()`
+przejęcie następuje od razu, tak samo jak przy rejestracji.
+
+**Gdy gość zamknie ekran bez logowania (albo w ogóle nie doszedł do tego kroku)** —
+wpis zostaje jako gość, ale migracja `084` po cichu kojarzy go z kontem po e-mailu
+i wysyła powiadomienie (typ `niepotwierdzony_wpis_goscia`, dzwonek w `Header`) z
+gotowym linkiem `/gracz/przejmij/[token]`. Dwa wyzwalacze pokrywają obie kolejności:
+- `event_participants` → `auth.users`: nowy wpis gościa, e-mail pasuje do JUŻ
+  istniejącego konta — powiadomienie trafia od razu.
+- `auth.users` → `event_participants`: nowe konto, e-mail pasuje do wcześniej
+  zapisanych nieprzejętych wpisów gościa — powiadomienie(a) trafiają po rejestracji.
+
+Świadomie **bez automatycznego przejęcia** — sam SQL nigdy nie ustawia `user_id` bez
+`auth.uid()`. Inaczej ktokolwiek wpisujący cudzy e-mail w formularzu gościa mógłby
+podpiąć dowolny mecz pod nieswoje konto bez zgody jego właściciela. Powiadomienie
+tylko *proponuje* — klik w link i świadome potwierdzenie na `/gracz/przejmij/[token]`
+(albo `?auto=1`, patrz wyżej) nadal robią całą pracę.
+
 **Rate limiting** — brak je na MVP. Jeśli spam, dodać captchę (reCAPTCHA v3) do formularza,
 albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
 
 Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (naprawia
-„ambiguous column reference" w `RETURNING`).
+„ambiguous column reference" w `RETURNING`), `084_powiadomienie_o_koncie_z_wpisem_goscia.sql`.
 
 ---
 

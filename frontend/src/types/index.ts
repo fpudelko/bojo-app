@@ -413,6 +413,7 @@ export interface AppNotification {
   body?: string;
   eventId?: string;
   alertId?: string;
+  claimToken?: string;
   readAt?: string;
   createdAt: string;
 }
