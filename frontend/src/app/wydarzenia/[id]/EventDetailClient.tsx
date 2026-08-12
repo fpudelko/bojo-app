@@ -897,9 +897,9 @@ export default function EventDetailClient() {
     if (!guestName.trim()) return;
     setBusy(true);
     try {
-      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestIsGk);
+      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestRole === 'goalkeeper');
       setGuestName('');
-      setGuestIsGk(false);
+      setGuestRole('player');
       await load();
       toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
     } catch (e) {
@@ -2316,10 +2316,10 @@ export default function EventDetailClient() {
                         <button
                           key={r}
                           type="button"
-                          onClick={() => setGuestIsGk(r === 'gk')}
+                          onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
                           className={[
                             'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                            (r === 'gk') === guestIsGk
+                            (r === 'gk') === (guestRole === 'goalkeeper')
                               ? 'border-primary-600 bg-primary-50 text-primary-700'
                               : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                           ].join(' ')}
@@ -2375,10 +2375,10 @@ export default function EventDetailClient() {
                       <button
                         key={r}
                         type="button"
-                        onClick={() => setGuestIsGk(r === 'gk')}
+                        onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
                         className={[
                           'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                          (r === 'gk') === guestIsGk
+                          (r === 'gk') === (guestRole === 'goalkeeper')
                             ? 'border-primary-600 bg-primary-50 text-primary-700'
                             : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                         ].join(' ')}
