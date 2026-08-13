@@ -254,9 +254,21 @@ meczu (wpis gościa już tam jest, widoczny bez konta), a link w mailu potwierdz
 (niesie ten sam `?auto=1`) dokańcza przejęcie po kliknięciu.
 
 **Gdy podany e-mail ma już konto** — `signUpWithEmail()` rzuca błąd „już istnieje"
-(`mapAuthError()` w `lib/auth.tsx`). Ekran zachęty przełącza wtedy to samo pole hasła
-z rejestracji na logowanie (`handleSignInFromGuest()`): po udanym `signInWithEmail()`
-przejęcie następuje od razu, tak samo jak przy rejestracji.
+(`mapAuthError()` w `lib/auth.tsx`). Rzuca go w dwóch przypadkach: klasyczny błąd
+Supabase „already registered", oraz — gdy w projekcie włączona jest ochrona przed
+enumeracją e-maili (ustawienie w Dashboardzie, `signUp()` wtedy nie rzuca błędu, tylko
+zwraca fałszywy sukces z pustą tablicą `identities`) — wykryte po `data.user.identities
+.length === 0` (migracja `085`, ta sama zmiana naprawia to samo w zwykłej rejestracji
+przez `/logowanie`). Ekran zachęty przełącza wtedy to samo pole hasła z rejestracji na
+logowanie (`handleSignInFromGuest()`): po udanym `signInWithEmail()` przejęcie następuje
+od razu, tak samo jak przy rejestracji.
+
+**Ten sam e-mail nie może zapisać się dwa razy na ten sam mecz** — `dolacz_do_meczu_
+jako_goscie()` (migracja `085`) sprawdza to na starcie, przed liczeniem pojemności:
+nieprzejęty wpis z tym e-mailem w tym meczu → zwraca jego istniejący `claim_token`
+zamiast tworzyć duplikat (idempotentnie, pokrywa też podwójny klik przy słabym
+połączeniu); już przejęty wpis, albo konto z tym e-mailem dołączone normalnie
+(zalogowane) → `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'`.
 
 **Gdy gość zamknie ekran bez logowania (albo w ogóle nie doszedł do tego kroku)** —
 wpis zostaje jako gość, ale migracja `084` po cichu kojarzy go z kontem po e-mailu
@@ -277,7 +289,8 @@ tylko *proponuje* — klik w link i świadome potwierdzenie na `/gracz/przejmij/
 albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
 
 Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (naprawia
-„ambiguous column reference" w `RETURNING`), `084_powiadomienie_o_koncie_z_wpisem_goscia.sql`.
+„ambiguous column reference" w `RETURNING`), `084_powiadomienie_o_koncie_z_wpisem_goscia.sql`,
+`085_zapobiegaj_duplikatom_wpisu_goscia.sql`.
 
 ---
 
