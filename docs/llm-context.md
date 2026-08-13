@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `085` · 31 tabel · 422 testy
+**Stan na:** 2026-08-13 · migracja `086` · 31 tabel · 422 testy
 
 ---
 
@@ -319,7 +319,7 @@ nie miała już konkretnego celu (dołączenie do meczu, przejęcie wpisu gości
 modal z dwoma ścieżkami: „Jestem organizatorem" (prosto do założenia grupy) albo „Jestem
 graczem" (grupa albo przeglądanie meczów).
 
-MECHANIKA: migracja `085` — RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`,
+MECHANIKA: migracja `086` — RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`,
 `NOT EXISTS` chroni przed duplikatem, gdyby wyzwalacz z `070`/`071` jednak zadziałał);
 wołane z `lib/auth.tsx` w `onAuthStateChange` przy `SIGNED_IN`. `lib/events.ts` —
 `addGuest()` zwraca teraz też `id`/`claimToken` (insert z `.select().single()`), nie

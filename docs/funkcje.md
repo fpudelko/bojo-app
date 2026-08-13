@@ -681,7 +681,7 @@ Konsekwencja: baner „Gracze zobaczą Cię jako…" (`UzupelnijProfilBanner`) r
 **także na `/wydarzenia`**, nie tylko na pulpicie. Bez tego konto bez imienia — typowo
 Google bez `full_name` — nie zobaczyłoby go nigdy. Powiadomienie z migracji `070`/`071`
 tej luki nie zamykało (wyzwalacz w praktyce nigdy nie wstawiał wiersza — patrz sekcja
-„Powiadomienia — co realnie istnieje" niżej); od migracji `085` RPC wołane z
+„Powiadomienia — co realnie istnieje" niżej); od migracji `086` RPC wołane z
 `lib/auth.tsx` robi to niezawodnie dla świeżych kont.
 
 **Modal wyboru roli po rejestracji** (`components/onboarding/PostSignupRoleModal.tsx`,
@@ -856,7 +856,7 @@ zaproszenie (`067`) oraz **odwołanie meczu i konto bez nazwy** (`070`).
 
 **Konto bez nazwy — wyzwalacz z `070`/`071` w praktyce nigdy nie zadziałał.**
 Potwierdzone zapytaniem po danych produkcyjnych: zero wierszy typu `uzupelnij_profil`
-mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `085` dodaje RPC
+mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `086` dodaje RPC
 `zglos_brak_pelnej_nazwy()`, wołaną z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont
 (< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie
 (`UzupelnijProfilBanner.tsx`) — niezawodny odpowiednik po stronie klienta. Wyzwalacz
