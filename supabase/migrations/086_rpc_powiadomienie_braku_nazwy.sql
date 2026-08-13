@@ -1,4 +1,4 @@
--- 085_rpc_powiadomienie_braku_nazwy.sql
+-- 086_rpc_powiadomienie_braku_nazwy.sql
 --
 -- Trigger `powiadom_o_braku_nazwy` (070, poprawiony w 071) jest poprawnie
 -- zdefiniowany i włączony na `auth.users`, ale w produkcyjnej bazie NIGDY nie
