@@ -1,6 +1,6 @@
 # Baza danych
 
-83 migracje (`001`–`085`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
+83 migracje (`001`–`086`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -120,11 +120,13 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `082_guest_self_signup` | RPC `dolacz_do_meczu_jako_goscie()` — zapis na mecz bez konta (imię + e-mail), kolumny `guest_email`/`guest_phone` w `event_participants` |
 | `083_fix_guest_signup_claim_token` | Poprawka `082` — `INSERT…RETURNING` z jawnym prefiksem tabeli, naprawia „ambiguous column reference" w `claim_token` |
 | `084_powiadomienie_o_koncie_z_wpisem_goscia` | Dwa wyzwalacze po obu stronach skojarzenia po e-mailu: nowy wpis gościa → istniejące konto z tym e-mailem dostaje powiadomienie od razu; nowe konto → dostaje powiadomienie o już istniejących nieprzejętych wpisach gościa z tym e-mailem. Kolumna `notifications.claim_token`, indeks na `event_participants (lower(guest_email))`. Świadomie bez automatycznego przejęcia — tylko powiadomienie z linkiem, przejęcie nadal wymaga `auth.uid()` |
-| `085_zapobiegaj_duplikatom_wpisu_goscia` | `dolacz_do_meczu_jako_goscie()` (`082`/`083`) sprawdza na starcie, czy ten sam e-mail już ma wpis w TYM meczu (nieprzejęty gość → zwraca istniejący `claim_token` zamiast duplikatu; przejęty → odrzuca) albo pasuje do konta już uczestniczącego przez normalne dołączenie. Naprawia realny przypadek z produkcji — ten sam e-mail zapisywał się jako gość wielokrotnie na jeden mecz |
+| `086_rpc_powiadomienie_braku_nazwy` | Wyzwalacz z `070`/`071` na `auth.users` jest poprawnie zdefiniowany, ale w produkcji **nigdy nie wstawił ani jednego powiadomienia** `uzupelnij_profil` — potwierdzone zapytaniem po danych produkcyjnych (dziesiątki kont z niepełną nazwą, zero wierszy tego typu w `notifications`), przyczyna nieznana. RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) to niezawodny odpowiednik po stronie klienta — wołany z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont (< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie. Wyzwalacz zostaje — `NOT EXISTS` w RPC chroni przed duplikatem, gdyby jednak zadziałał |
 
-**Powiadomienia mogą powstawać wyłącznie z wyzwalaczy.** Tabela `notifications` (`025`) ma
-polityki SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT** — przeglądarka
-nie zapisze powiadomienia nawet sobie. Każde nowe powiadomienie to funkcja
+**Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
+funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
+z przeglądarki. Tabela `notifications` (`025`) ma polityki SELECT i UPDATE dla
+własnych wierszy i **żadnej polityki INSERT** — przeglądarka nie zapisze
+powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 `SECURITY DEFINER` z `SET search_path = public`, wzorowana na `065`.
 
 ---
@@ -140,6 +142,7 @@ nie zapisze powiadomienia nawet sobie. Każde nowe powiadomienie to funkcja
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
 | `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | Turniej |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
+| `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |
 | `haversine_km` | Odległość geograficzna |
 | `trigger_set_updated_at`, `trigger_set_expires_at` | Triggery czasowe |

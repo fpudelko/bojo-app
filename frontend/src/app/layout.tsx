@@ -7,6 +7,7 @@ import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
 import AnnouncementBar from '@/components/AnnouncementBar';
 import BottomNavGate from '@/components/layout/BottomNavGate';
+import PostSignupRoleModal from '@/components/onboarding/PostSignupRoleModal';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { siteJsonLd } from '@/lib/structuredData';
 
@@ -98,6 +99,7 @@ export default function RootLayout({
                 {children}
                 <BottomNavGate />
                 <CookieBanner />
+                <PostSignupRoleModal />
               </BottomNavVisibilityProvider>
             </ToastProvider>
           </AuthProvider>

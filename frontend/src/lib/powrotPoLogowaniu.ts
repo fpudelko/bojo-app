@@ -63,6 +63,22 @@ export function odbierzPowrot(): string | null {
   }
 }
 
+/** Jak `odbierzPowrot`, ale nie kasuje wpisu — do samego PODEJRZENIA celu,
+ *  bez konsumowania go (np. żeby zdecydować, czy pokazać modal onboardingowy,
+ *  nie zakłócając jednocześnie mechanizmu awaryjnego powrotu). */
+export function ostatniZamierzonyCel(): string | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const surowe = sessionStorage.getItem(KLUCZ);
+    if (!surowe) return null;
+    const { cel, o } = JSON.parse(surowe) as { cel?: string; o?: number };
+    if (typeof o !== 'number' || Date.now() - o > WAZNOSC_MS) return null;
+    return bezpiecznyCel(cel) ? cel : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Adres witryny bez `www.`.
  *

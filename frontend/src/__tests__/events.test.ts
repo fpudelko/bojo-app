@@ -41,7 +41,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import { supabase } from '@/lib/supabase';
 import {
-  createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol,
+  createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol, addGuest,
 } from '@/lib/events';
 
 beforeEach(() => {
@@ -89,6 +89,30 @@ describe('createEvent', () => {
     await expect(
       createEvent({ sport: 'futsal', fieldName: 'X', date: '2099-01-01', time: '10:00', maxPlayers: 5, visibility: 'private' }, 'u', 'U'),
     ).rejects.toThrow('DB error');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addGuest — zwraca id i claim_token, żeby wywołujący mógł od razu zaproponować
+// wysłanie zaproszenia (GuestInviteNudge.tsx) bez dodatkowego zapytania.
+// ---------------------------------------------------------------------------
+describe('addGuest', () => {
+  it('zwraca id i claimToken nowego wiersza, obok isReserve', async () => {
+    mockSingle.mockResolvedValue({
+      data: { id: 'participant-uuid-1', claim_token: 'token-abc' },
+      error: null,
+    });
+
+    const wynik = await addGuest('event-1', 'Marek Nowak', true);
+
+    expect(wynik).toEqual({ id: 'participant-uuid-1', claimToken: 'token-abc', isReserve: true });
+    const { supabase } = await import('@/lib/supabase');
+    expect(supabase.from).toHaveBeenCalledWith('event_participants');
+  });
+
+  it('throws when Supabase returns an error', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'DB error' } });
+    await expect(addGuest('event-1', 'Marek Nowak', true)).rejects.toThrow('DB error');
   });
 });
 

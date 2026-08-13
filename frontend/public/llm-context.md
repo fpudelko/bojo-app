@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-12 · migracja `085` · 31 tabel · 420 testów
+**Stan na:** 2026-08-13 · migracja `086` · 31 tabel · 422 testy
 
 ---
 
@@ -296,6 +296,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-12 — Powiadomienie o niepełnej nazwie naprawione, proaktywne zaproszenie gościa, wybór roli po rejestracji
+
+PROBLEM: powiadomienie w dzwonku „Uzupełnij swoje imię" (migracja `070`/`071`) nigdy
+nie zadziałało w produkcji — potwierdzone zapytaniem po danych: zero wierszy typu
+`uzupelnij_profil` mimo dziesiątek kont z niepełną nazwą założonych już po naprawie w
+`071`, przyczyna nieznana. Osobno: organizator dopisujący gościa bez konta miał tylko
+mały, łatwy do przeoczenia link „Zaproś do Bojo" przy jego imieniu w składzie — żadnej
+proaktywnej zachęty ani argumentacji, dlaczego to się organizatorowi opłaca. I: świeżo
+zarejestrowany użytkownik nie miał żadnej podpowiedzi, czy jest organizatorem (założyć
+grupę) czy graczem (dołączyć do swojej albo przeglądać otwarte mecze).
+
+ROZWIĄZANIE BOJO: nowe RPC `zglos_brak_pelnej_nazwy()` wołane z przeglądarki zaraz po
+zalogowaniu, dla świeżych kont (< 10 minut) bez pełnego imienia i nazwiska — tym samym
+warunkiem, którego już używa baner na pulpicie, więc oba mechanizmy mierzą jednym
+miernikiem. Zaraz po dodaniu gościa bez konta (przez organizatora albo, gdy włączone,
+przez uczestnika) otwiera się modal z trzema konkretnymi argumentami („dostanie
+powiadomienie o odwołaniu meczu", „zostanie w Twojej bazie graczy", „sam potwierdzi
+udział") i gotowym przyciskiem wysyłki zaproszenia — raz na wydarzenie, żeby dopisanie
+kilkunastu osób pod rząd nie zasypało modalami. Świeżo zarejestrowany, o ile rejestracja
+nie miała już konkretnego celu (dołączenie do meczu, przejęcie wpisu gościa), widzi
+modal z dwoma ścieżkami: „Jestem organizatorem" (prosto do założenia grupy) albo „Jestem
+graczem" (grupa albo przeglądanie meczów).
+
+MECHANIKA: migracja `086` — RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`,
+`NOT EXISTS` chroni przed duplikatem, gdyby wyzwalacz z `070`/`071` jednak zadziałał);
+wołane z `lib/auth.tsx` w `onAuthStateChange` przy `SIGNED_IN`. `lib/events.ts` —
+`addGuest()` zwraca teraz też `id`/`claimToken` (insert z `.select().single()`), nie
+tylko `isReserve`. `lib/guestClaim.ts` — nowa `udostepnijZaproszenieGoscia()` (Web Share
+z fallbackiem do schowka), współdzielona przez istniejący przycisk „Zaproś do Bojo" i
+nowy modal `components/events/GuestInviteNudge.tsx`. `lib/powrotPoLogowaniu.ts` — nowa
+`ostatniZamierzonyCel()` (jak `odbierzPowrot()`, ale nie kasuje wpisu). Nowy
+`components/onboarding/PostSignupRoleModal.tsx`, montowany globalnie w `layout.tsx`.
+
 ### 2026-08-12 — Zapis na mecz bez logowania (self-service dla gościa)
 
 PROBLEM: bariera założenia konta zniechęca nowych graczy. Organizator chce dać im
@@ -336,13 +369,7 @@ w `lib/validation.ts`. Migracja `084`: dwa wyzwalacze SQL kojarzą wpis gościa
 z kontem po e-mailu (`event_participants`→`auth.users` i odwrotnie) i wstawiają
 powiadomienie typu `niepotwierdzony_wpis_goscia` (kolumna `notifications.claim_token`,
 `NotificationBell.tsx` kieruje je na `/gracz/przejmij/[token]`) — bez samodzielnego
-przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`. Migracja
-`085` naprawia znaleziony na produkcji duplikat: ten sam e-mail mógł zapisać się jako
-gość kilka razy na jeden mecz, bo `dolacz_do_meczu_jako_goscie()` tego nie sprawdzała
-— teraz na starcie odrzuca powtórkę (albo zwraca istniejący `claim_token`
-idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail już ma konto"
-(`identities.length === 0`) — dla trybu ochrony przed enumeracją e-maili w Supabase,
-gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces.
+przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`.
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 
@@ -585,34 +612,3 @@ panelu); `lib/recurring.ts` (`nastepnyTermin()` powtarza regułę SQL z migracji
 `DashboardSections.tsx` (`NastepneEdycjeSection`); `moje-gry/page.tsx` (dociąga szablony
 serii i już utworzone terminy); `EventDateTimeField.tsx` (`extraSlot` na pełną
 szerokość pod wierszami); `EventCapacityFields.tsx` (`flex-col` do `sm:`).
-
-### 2026-08-10 — Prośby o dołączenie na /moje-gry, poprawna kolejność meczów, modale nad nawigacją
-
-PROBLEM: organizator w Bojo nie miał gdzie zobaczyć, KTÓRY mecz czeka na jego decyzję —
-prośby o dołączenie sygnalizowała tylko kropka przy „Moje" w dolnej nawigacji i wpis
-w dzwonku, więc trzeba było otwierać mecze po kolei. Listy na `/moje-gry` szły od meczu
-najdalszego w przyszłości: dane z bazy przychodzą malejąco, a `splitMyEvents()` tylko
-filtrowało. Dolna nawigacja, podniesiona wcześniej nad karty mapy, zasłaniała okna
-potwierdzeń (np. „Wypisać się z meczu?"). Kreator meczu pokazywał na kroku 3 pasek
-„Mecz w grupie X" tuż nad pełnym wyborem grupy — ta sama informacja dwa razy. W liście
-składu bramkarz miał plakietkę „🧤 BR", a zawodnik z pola nie miał nic, więc jego rola
-czytała się jak brak danych. Filtr „ten tydzień" liczył tydzień względem prawdziwej
-daty bieżącej zamiast względem daty podanej w argumencie.
-
-ROZWIĄZANIE BOJO: `/moje-gry` w zakładce „Nadchodzące" ma nad sekcją „Brakuje graczy"
-nową sekcję „Czekają na Twoją decyzję" — kafelek meczu z liczbą osób czekających na
-akceptację, prowadzący na stronę meczu (bez przycisków akceptuj/odrzuć w kafelku).
-Mecze nadchodzące sortują się od najbliższego, historia od ostatnio rozegranego.
-Modale są nad dolną nawigacją; kolejność warstw opisuje jeden plik `lib/warstwy.ts`
-zamiast liczb wpisywanych w kilkunastu komponentach. Pasek z grupą w kreatorze znika
-na kroku 3. Zawodnik z pola ma plakietkę „⚽ POLE" symetryczną do „🧤 BR" — w składzie
-i na liście rezerwowej, pokazywaną tylko w meczach rozróżniających bramkarzy.
-
-MECHANIKA: `components/home/dashboard/DashboardSections.tsx` (`PendingRequestsSection`,
-czyta `pendingApprovalCount` z `EventItem`); `lib/myEvents.ts` (sortowanie w
-`splitMyEvents`, `nextMatch` to dziś pierwszy wiersz); nowy `lib/warstwy.ts`
-(`WARSTWA.nakladkaMapy` < `nawigacjaDolna` < `modal` < `toast`) użyty w `BottomNav`,
-`FilterSheet`, `toast.tsx`, `EventDetailClient` i czterech dialogach;
-`EventDetailClient.tsx` (`RolaGracza`); `wydarzenia/nowe/page.tsx` (pasek grupy tylko
-na krokach 1–2); `lib/eventFilters.ts` (`isSameWeek(dt, now, …)` zamiast
-`isThisWeek(dt, …)` — poprzednia wersja ignorowała podane `now`).
