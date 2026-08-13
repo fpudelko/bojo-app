@@ -40,6 +40,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key npm run build
 To ważne, bo `useSearchParams()` na trasie prerenderowanej wywraca **wyłącznie** build
 produkcyjny — `tsc` i Vitest tego nie widzą.
 
+**Baza testowa lokalnie** — migracje od zera na gołym Postgresie:
+
+```bash
+./scripts/baza-testowa.sh          # postaw, zwaliduj, posprzątaj
+./scripts/baza-testowa.sh --zostaw # zostaw działającą bazę na porcie 55432
+```
+
+Sprawdza to, czego nie widać na działającej bazie: czy migracje aplikują się
+**od zera**. Pierwsze uruchomienie znalazło `005`, która tworzyła politykę
+istniejącą już od `001` — na świeżej bazie odtworzenie schematu było niemożliwe.
+Atrapy Supabase (schemat `auth`, `storage`, pgcrypto) siedzą w `supabase/test/shim.sql`.
+
+**Regresja wizualna (zrzuty ekranu):**
+
+```bash
+cd frontend && npm run build
+npm run zrzuty          # porównaj ze wzorcami
+npm run zrzuty:akceptuj # nadpisz wzorce świadomie
+```
+
+Wzorce leżą w `frontend/e2e/wzorce/` i idą do repo, więc zmiana widoku pokazuje
+się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blokuje**
+merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
+nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
+
 **Testy klikalności (Playwright):**
 
 ```bash
