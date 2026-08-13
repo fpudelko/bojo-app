@@ -84,8 +84,21 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key',
+      // PRZEPUSZCZAMY prawdziwe wartości, gdy są. Wcześniej stały tu atrapy na
+      // sztywno — i to wystarczyło, żeby wszystkie scenariusze za logowaniem
+      // pokazywały puste strony.
+      //
+      // Powód: `/wydarzenia/[id]/page.tsx` to komponent SERWEROWY (buduje
+      // metadane Open Graph i JSON-LD), więc czyta bazę po stronie Node.
+      // Klient dostawał poprawny adres — wartości `NEXT_PUBLIC_*` są wstawiane
+      // do paczki przy buildzie — ale serwer renderował stronę bez danych.
+      //
+      // Atrapy zostają jako wartość zapasowa: testy klikalności i zrzuty
+      // widoków publicznych mają działać BEZ żadnej bazy.
+      NEXT_PUBLIC_SUPABASE_URL:
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key',
     },
   },
 });
