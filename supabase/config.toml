@@ -22,6 +22,12 @@ max_rows = 1000
 port = 54322
 major_version = 15
 
+[db.seed]
+# `supabase/seed.sql` to katalog boisk dla dewelopera — kilka tysięcy wierszy,
+# których testy nie potrzebują, a które wydłużają start i wprowadzają dane
+# zależne od importów. Zrzuty mają stać na `seed_wizualne.sql` i tylko na nim.
+enabled = false
+
 [studio]
 enabled = false
 
