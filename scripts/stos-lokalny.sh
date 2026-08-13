@@ -42,6 +42,22 @@ psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f supabase/seed-test-users.sql
 echo "→ Dane do zrzutów (daty na sztywno)…"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f supabase/seed_wizualne.sql
 
+# Diagnostyka. Poprzedni przebieg padał na „nie ma przycisku Dołącz" i nie
+# dawało się odróżnić dwóch zupełnie innych przyczyn: brak danych w bazie
+# kontra aplikacja, która ich nie widzi. Te trzy liczby rozstrzygają to
+# w logu, bez zgadywania.
+echo "→ Co jest w bazie:"
+psql "$DB_URL" -c "SELECT
+  (SELECT count(*) FROM auth.users)                        AS konta,
+  (SELECT count(*) FROM events WHERE description LIKE '[WIZ]%') AS mecze_wiz,
+  (SELECT count(*) FROM event_participants)                AS uczestnicy;"
+
+# Czy PostgREST oddaje mecz anonimowi (czyli czy RLS przepuszcza odczyt).
+echo "→ Czy API oddaje mecz publiczny:"
+curl -s "$API_URL/rest/v1/events?id=eq.11111111-1111-4111-8111-111111111111&select=id,title" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON" | head -c 300
+echo
+
 # Zmienne dla builda i testów.
 {
   echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
