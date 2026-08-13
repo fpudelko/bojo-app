@@ -100,7 +100,11 @@ jobs:
 
       - name: Testy klikalności
         working-directory: frontend
-        run: npx playwright test
+        # Tylko projekty klikalności. Zrzuty ekranu mają własny workflow
+        # (`wizualne.yml`) i CELOWO nie blokują tej bramki: zmiana wyglądu
+        # bywa zamierzona, a wtedy czerwone CI zmusza do „naprawiania" czegoś,
+        # co jest w porządku.
+        run: npx playwright test --project=telefon --project=komputer
 
       - name: Ślady po nieudanych testach
         if: failure()
@@ -109,3 +113,16 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+  # Migracje od zera. Tanie (~30 s, bez Dockera) i łapie klasę, która dwa razy
+  # wywróciła produkcję: migracja odwołująca się do rzeczy, którą wcześniejsza
+  # usunęła, albo tworząca obiekt istniejący już od poprzedniej. Na działającej
+  # bazie tego nie widać — wychodzi dopiero przy odtwarzaniu schematu od nowa.
+  schemat:
+    name: Migracje od zera
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migracje, konta testowe i seed regresyjny
+        run: ./scripts/baza-testowa.sh
