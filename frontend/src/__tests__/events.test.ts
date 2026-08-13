@@ -41,7 +41,8 @@ vi.mock('@/lib/supabase', () => ({
 
 import { supabase } from '@/lib/supabase';
 import {
-  createEvent, joinEvent, removeParticipant, getMyParticipationMap, wolneMiejscaWgRol, addGuest,
+  createEvent, joinEvent, joinEventAsGuest, removeParticipant, getMyParticipationMap,
+  wolneMiejscaWgRol, addGuest,
 } from '@/lib/events';
 
 beforeEach(() => {
@@ -212,6 +213,85 @@ describe('joinEvent — kontrakt z bazą', () => {
     mockRpc.mockResolvedValue({ data: false, error: null });
     await expect(joinEvent('event-1', 'user-1', 'Test User')).rejects.toThrow(/Zbyt wiele/);
     expect(mockRpc).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// joinEventAsGuest — zapis bez logowania. Kształt wyniku decyduje o tym, KTÓRY
+// ekran zobaczy gość (zachęta do konta / „wcześniej dołączyłeś" / logowanie),
+// więc mapowanie kolumn RPC jest tu kontraktem, nie szczegółem.
+// ---------------------------------------------------------------------------
+describe('joinEventAsGuest — kontrakt z bazą', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+    vi.mocked(supabase.from).mockReset();
+    vi.mocked(supabase.from).mockReturnValue(mockChain as never);
+    mockSingle.mockResolvedValue({ data: { is_reserve: false }, error: null });
+  });
+
+  function bazaOddaje(wiersz: Record<string, unknown>) {
+    mockRpc.mockImplementation((nazwa: string) => {
+      if (nazwa === 'dolacz_do_meczu_jako_goscie') {
+        return Promise.resolve({ data: [wiersz], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+  }
+
+  it('świeży zapis bez konta — token, brak powtórki, brak konta', async () => {
+    bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: false, has_account: false });
+
+    await expect(joinEventAsGuest('e1', 'Jan Kowalski', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false });
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu_jako_goscie', expect.objectContaining({
+      p_event_id: 'e1',
+      p_imie: 'Jan Kowalski',
+      p_email: 'jan@example.com',
+      p_bramkarz: false,
+    }));
+  });
+
+  // Sedno migracji 088: e-mail z kontem dostaje ekran namawiający na LOGOWANIE,
+  // a nie na zakładanie drugiego konta. Bez tej flagi frontend nie ma tej wiedzy.
+  it('świeży zapis e-mailem, który ma już konto — hasAccount true', async () => {
+    bazaOddaje({ claim_token: 'tok-2', event_id: 'e1', already_joined: false, has_account: true });
+    mockSingle.mockResolvedValue({ data: { is_reserve: true }, error: null });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: 'tok-2', isReserve: true, alreadyJoined: false, hasAccount: true });
+  });
+
+  it('powtórka tym samym mailem bez konta — ten sam token, alreadyJoined', async () => {
+    bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: true, has_account: false });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: true, hasAccount: false });
+  });
+
+  // Wpis ma już właściciela: pusty token to sygnał „nie ma czego przejmować,
+  // pokaż ekran logowania". Wcześniej baza rzucała w tym miejscu wyjątkiem,
+  // a frontend rozpoznawał go po treści komunikatu.
+  it('wpis z właścicielem — pusty token zamiast wyjątku, bez dopytywania o rezerwę', async () => {
+    bazaOddaje({ claim_token: null, event_id: 'e1', already_joined: true, has_account: true });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: null, isReserve: false, alreadyJoined: true, hasAccount: true });
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  // Migracje odpalane są ręcznie, więc między mergem a wklejeniem 088 w Supabase
+  // RPC zwraca stary, trzykolumnowy kształt. Musi działać, nie wywracać się.
+  it('stary kształt sprzed 088 (bez has_account) — hasAccount false, bez wyjątku', async () => {
+    bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: false });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false });
+  });
+
+  it('przenosi błąd z bazy bez podmiany treści', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'Mecz został odwołany' } });
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .rejects.toThrow('Mecz został odwołany');
   });
 });
 

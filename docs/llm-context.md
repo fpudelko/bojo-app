@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-13 · migracja `087` · 31 tabel · 422 testy
+**Stan na:** 2026-08-13 · migracja `088` · 31 tabel · 428 testów
 
 ---
 
@@ -296,6 +296,42 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-13 — Powtórny zapis tym samym e-mailem: osobny ekran dla osoby z kontem i bez konta
+
+PROBLEM: druga próba zapisu bez logowania tym samym adresem kończyła się czerwonym
+komunikatem „Jesteś już zapisany na ten mecz.", który znikał po chwili — bez ekranu,
+bez wyjaśnienia, co dalej. Osoba, która MA konto w Bojo, była dodatkowo namawiana na
+założenie drugiego; dowiadywała się o istniejącym koncie dopiero po wpisaniu hasła
+i nieudanej rejestracji. Baza nie miała czym odpowiedzieć na pytanie „czy ten e-mail
+ma konto", a wybór ekranu przy wpisach zduplikowanych przed migracją `085` był
+losowy — zapytanie brało `LIMIT 1` bez `ORDER BY`.
+
+ROZWIĄZANIE BOJO: powtórny zapis tym samym e-mailem nigdy nie tworzy drugiego wiersza
+w składzie i nie kończy się błędem, tylko ekranem dopasowanym do sytuacji. Bez konta:
+ten sam ekran co po zapisie, z nagłówkiem „Wcześniej dołączyłeś do tej gry." i zachętą
+do założenia profilu. Z kontem: ten sam nagłówek, ale ekran skrócony — „Zaloguj się,
+żeby zobaczyć więcej szczegółów", pole hasła od razu w trybie logowania (nie
+rejestracji), przycisk „Zaloguj przez Google" i małe „Pomiń i zobacz skład bez
+logowania"; bez listy korzyści, bo właściciela konta nie ma po co przekonywać do
+czegoś, co już ma. Gdy wpis ma już właściciela, zostaje samo logowanie — nie ma czego
+przejmować. Osoba z kontem zapisująca się po raz PIERWSZY też dostaje wariant
+logowania, a jej miejsce (albo pozycja w kolejce rezerwowej) jest zaklepane od razu.
+
+MECHANIKA: migracja `088_konto_i_zamek_na_duplikaty.sql`. RPC
+`dolacz_do_meczu_jako_goscie()` zwraca czwartą kolumnę `has_account` (`EXISTS` na
+`auth.users` po `lower(email)`, pytanie globalne — nie „czy jest w tym meczu"), a
+zamiast `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'` oddaje zwykły wiersz
+z `claim_token = NULL`; frontend wybiera ekran po kształcie wyniku, nie po treści
+komunikatu. Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token IS NULL) DESC,
+created_at`. Unikalny indeks `idx_participants_unique_guest_email` na
+`(event_id, lower(guest_email))` zamyka wyścig równoległych zapisów — migracja najpierw
+kasuje duplikaty sprzed `085`, bo inaczej indeks się nie zakłada. Frontend:
+`joinEventAsGuest()` w `lib/events.ts` (`claimToken: string | null`, `hasAccount`,
+`has_account ?? false` dla starego kształtu RPC sprzed ręcznego wgrania migracji),
+`handleJoinAsGuest()` i stan `newUserHasAccount` / `showAlreadyJoinedPrompt`
+w `EventDetailClient.tsx`. Testy: `frontend/src/__tests__/events.test.ts`,
+`describe('joinEventAsGuest — kontrakt z bazą')`.
+
 ### 2026-08-12 — Powiadomienie o niepełnej nazwie naprawione, proaktywne zaproszenie gościa, wybór roli po rejestracji
 
 PROBLEM: powiadomienie w dzwonku „Uzupełnij swoje imię" (migracja `070`/`071`) nigdy
@@ -378,11 +414,10 @@ idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail ju�
 gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces. Migracja
 `087` dodaje do `dolacz_do_meczu_jako_goscie()` kolumnę `already_joined` (true przy
 idempotentnym zwrocie tokenu z `085`), żeby frontend odróżnił świeży zapis od powtórki —
-ekran zachęty po powtórnym zapisie tym samym mailem bez konta pokazuje „Wcześniej
-dołączyłeś do tej gry." zamiast „Zapisano!"; gdy `085` odrzuci zapis wyjątkiem (e-mail ma
-już konto uczestniczące w tym meczu), `EventDetailClient.tsx` łapie ten komunikat
-w `handleJoinAsGuest` i pokazuje osobny, uproszczony ekran z przyciskiem „Zaloguj się"
-(zamiast listy korzyści i formularza zakładania konta) oraz linkiem „Pomiń, zobacz skład".
+ekran po powtórnym zapisie tym samym mailem pokazuje „Wcześniej dołączyłeś do tej gry."
+zamiast „Zapisano!". Migracja `088` dokłada kolumnę `has_account` i zamienia wyjątek na
+zwykły wynik — pełny opis czterech wariantów ekranu w sekcji „Powtórny zapis tym samym
+e-mailem" niżej.
 
 ### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
 
@@ -596,32 +631,3 @@ też po starcie meczu; usunięte: `submitReport`/`getEventReports`
 (`lib/eventFeatures.ts`), typy `ReportType`/`PlayerReport` (`types/index.ts`), plik
 `lib/invites.ts`.
 
-### 2026-08-10 — Powiadomienia gasną po załatwieniu sprawy, zapowiedź kolejnej stałej gierki, krok 2 kreatora na telefonie
-
-PROBLEM: powiadomienie o prośbie o dołączenie zostawało w Bojo oznaczone jako wymagające
-działania także po tym, jak organizator prośbę przyjął — dzwonek zna tylko fakt
-przeczytania, a stan sprawy siedzi przy meczu. Kolejny termin stałej gierki powstaje sam
-dopiero `notify_days_before` dni przed datą meczu i do tego momentu organizator nie
-widział po nim żadnego śladu: nie dało się odróżnić „jeszcze za wcześnie" od „mechanizm
-nie zadziałał". Krok 2 kreatora meczu na telefonie ściskał kafelek „Wydarzenie cykliczne"
-do połowy szerokości ekranu (opis łamał się na pięć linijek), a teksty pomocnicze przy
-liczbie miejsc i czasie na decyzję z rezerwy stały w wąskiej kolumnie obok kontrolek.
-
-ROZWIĄZANIE BOJO: dzwonek sprawdza rzeczywisty stan sprawy — czy mecz ma jeszcze wpis
-czekający na akceptację i czy oferta zwolnionego miejsca jest nadal aktywna. Załatwione
-powiadomienie gaśnie jak każdy przeczytany wpis; nierozstrzygnięte zostaje czytelne ze
-znacznikiem „Sprawdź". Gdy zapytanie o stan się nie powiedzie, wygląd zostaje bez zmian.
-`/moje-gry` pokazuje sekcję „Kolejne stałe gierki": kreskowana karta z datą i godziną
-terminu, który dopiero powstanie, oraz informacją, za ile dni to nastąpi. Karta jest
-liczona z szablonu serii — żaden mecz nie powstaje w bazie wcześniej. Krok 2 kreatora
-układa kafelek cykliczności w osobnym wierszu pod datą i godziną, a teksty pomocnicze
-schodzą pod kontrolki poniżej progu `sm`.
-
-MECHANIKA: `lib/notifications.ts` (`otwarteSprawy()` i `WYMAGA_AKCJI` przeniesione tu
-z komponentu; dwa zapytania do `event_participants` — `pending_approval` oraz własne
-`claim_offered_at`); `NotificationBell.tsx` (stan spraw dociągany przy każdym otwarciu
-panelu); `lib/recurring.ts` (`nastepnyTermin()` powtarza regułę SQL z migracji `073`
-łącznie z warunkiem „dziś, ale godzina minęła", plus `dniDo()`);
-`DashboardSections.tsx` (`NastepneEdycjeSection`); `moje-gry/page.tsx` (dociąga szablony
-serii i już utworzone terminy); `EventDateTimeField.tsx` (`extraSlot` na pełną
-szerokość pod wierszami); `EventCapacityFields.tsx` (`flex-col` do `sm:`).
