@@ -117,8 +117,12 @@ lub przyszłego konta, właściciel tego konta dostanie **powiadomienie** z goto
 linkiem do przejęcia przy najbliższej okazji (patrz niżej) — nic nie ginie w milczeniu.
 Anonimowy zapis **nie wymaga logowania ani wymyślania po stronie organizatora** —
 link do dołączenia to ten sam link, co do każdego innego meczu. Ten sam e-mail nie
-zapisze się dwa razy na ten sam mecz — druga próba zwraca istniejący wpis (albo,
-jeśli już przejęty, jasny komunikat „Jesteś już zapisany na ten mecz.").
+zapisze się dwa razy na ten sam mecz. Gdy to wciąż e-mail bez konta (nieprzejęty
+wpis-gość), druga próba pokazuje ten sam ekran zachęty, tylko z nagłówkiem
+„Wcześniej dołączyłeś do tej gry." zamiast „Zapisano!". Gdy e-mail ma już konto
+uczestniczące w tym meczu, zamiast tego pokazuje się uproszczony ekran — bez
+zachęty do zakładania konta, tylko przycisk „Zaloguj się" i link „Pomiń, zobacz
+skład".
 
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
@@ -159,6 +163,16 @@ włączona jest ochrona przed enumeracją e-maili, Supabase dla istniejącego ad
 rzuca błędu, tylko zwraca fałszywy sukces bez sesji; bez tej dodatkowej detekcji
 `handleCreateAccountFromGuest()` nigdy by nie przełączył się na logowanie w tym
 trybie. Naprawia to też tę samą lukę w zwykłej rejestracji przez `/logowanie`.
+
+Migracja `087` dodaje do wyniku `dolacz_do_meczu_jako_goscie()` kolumnę
+`already_joined` (zmiana `RETURNS TABLE` — wymagała `DROP FUNCTION` + `CREATE`,
+`CREATE OR REPLACE` nie pozwala zmienić typu zwracanego, i ponownego `GRANT EXECUTE`).
+`joinEventAsGuest()` w `lib/events.ts` przekazuje ją dalej jako `alreadyJoined`.
+`handleJoinAsGuest()` w `EventDetailClient.tsx` używa jej do nagłówka ekranu zachęty
+(„Wcześniej dołączyłeś" zamiast „Zapisano!"); gdy zamiast tego złapie wyjątek
+`'Jesteś już zapisany na ten mecz.'` z `085` — co zawsze oznacza istniejące konto,
+bo obie gałęzie SQL, które go rzucają, wymagają wcześniejszego `auth.uid()` — otwiera
+osobny stan `showAlreadyJoinedPrompt` zamiast `showAccountPrompt`.
 
 **Pytania, na które odpowiada ta sekcja:** Czy mogę dołączyć do meczu bez konta w Bojo?
 Jak niezalogowany gracz może się zapisać na mecz? Czy gość bez konta zajmuje miejsce

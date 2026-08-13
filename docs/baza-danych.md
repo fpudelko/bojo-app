@@ -1,6 +1,6 @@
 # Baza danych
 
-83 migracje (`001`–`086`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
+85 migracji (`001`–`087`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -120,7 +120,9 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `082_guest_self_signup` | RPC `dolacz_do_meczu_jako_goscie()` — zapis na mecz bez konta (imię + e-mail), kolumny `guest_email`/`guest_phone` w `event_participants` |
 | `083_fix_guest_signup_claim_token` | Poprawka `082` — `INSERT…RETURNING` z jawnym prefiksem tabeli, naprawia „ambiguous column reference" w `claim_token` |
 | `084_powiadomienie_o_koncie_z_wpisem_goscia` | Dwa wyzwalacze po obu stronach skojarzenia po e-mailu: nowy wpis gościa → istniejące konto z tym e-mailem dostaje powiadomienie od razu; nowe konto → dostaje powiadomienie o już istniejących nieprzejętych wpisach gościa z tym e-mailem. Kolumna `notifications.claim_token`, indeks na `event_participants (lower(guest_email))`. Świadomie bez automatycznego przejęcia — tylko powiadomienie z linkiem, przejęcie nadal wymaga `auth.uid()` |
+| `085_zapobiegaj_duplikatom_wpisu_goscia` | `dolacz_do_meczu_jako_goscie()` (`082`/`083`) sprawdza na starcie, czy ten sam e-mail już ma wpis w TYM meczu (nieprzejęty gość → zwraca istniejący `claim_token` zamiast duplikatu; przejęty → odrzuca) albo pasuje do konta już uczestniczącego przez normalne dołączenie. Naprawia realny przypadek z produkcji — ten sam e-mail zapisywał się jako gość wielokrotnie na jeden mecz |
 | `086_rpc_powiadomienie_braku_nazwy` | Wyzwalacz z `070`/`071` na `auth.users` jest poprawnie zdefiniowany, ale w produkcji **nigdy nie wstawił ani jednego powiadomienia** `uzupelnij_profil` — potwierdzone zapytaniem po danych produkcyjnych (dziesiątki kont z niepełną nazwą, zero wierszy tego typu w `notifications`), przyczyna nieznana. RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) to niezawodny odpowiednik po stronie klienta — wołany z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont (< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie. Wyzwalacz zostaje — `NOT EXISTS` w RPC chroni przed duplikatem, gdyby jednak zadziałał |
+| `087_juz_dolaczony_flaga` | `dolacz_do_meczu_jako_goscie()` zwraca dodatkową kolumnę `already_joined` (true przy idempotentnym zwrocie istniejącego `claim_token`, false przy świeżym zapisie) — frontend rozróżnia po niej ekran „Zapisano!" od „Wcześniej dołączyłeś do tej gry.". Zmiana `RETURNS TABLE` wymagała `DROP FUNCTION` + `CREATE` (nie `CREATE OR REPLACE`) i ponownego `GRANT` |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

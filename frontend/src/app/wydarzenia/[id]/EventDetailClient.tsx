@@ -412,6 +412,13 @@ export default function EventDetailClient() {
   const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
   const [newUserIsReserve, setNewUserIsReserve] = useState(false);
+  // Ten sam e-mail miał już nieprzejęty wpis w tym meczu (087 zwróciła istniejący
+  // token zamiast duplikatu) — nagłówek ekranu zachęty mówi „wcześniej dołączyłeś",
+  // nie „zapisano".
+  const [newUserAlreadyJoined, setNewUserAlreadyJoined] = useState(false);
+  // Ten sam e-mail ma już KONTO uczestniczące w tym meczu (087 rzuciła wyjątek) —
+  // osobny, uproszczony ekran zamiast zachęty do zakładania konta.
+  const [showAlreadyJoinedPrompt, setShowAlreadyJoinedPrompt] = useState(false);
   const [accountPassword, setAccountPassword] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -467,7 +474,8 @@ export default function EventDetailClient() {
   // bezwarunkowo, więc stan „czy cokolwiek jest otwarte" liczymy tutaj.
   useBlokadaPrzewijania(
     joinDialogOpen || joinAsGuestDialogOpen || leaveConfirmOpen || deleteConfirmOpen || venueInfoOpen
-    || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen || showAccountPrompt,
+    || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen || showAccountPrompt
+    || showAlreadyJoinedPrompt,
   );
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
@@ -839,6 +847,7 @@ export default function EventDetailClient() {
       setNewUserClaimToken(result.claimToken);
       setNewUserEmail(guestEmail);
       setNewUserIsReserve(result.isReserve);
+      setNewUserAlreadyJoined(result.alreadyJoined);
       setAccountPassword('');
       setAccountError(null);
       setAccountEmailTaken(false);
@@ -847,7 +856,16 @@ export default function EventDetailClient() {
         ? 'Komplet — jesteś na liście rezerwowej'
         : 'Dołączyłeś do meczu!');
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Nie udało się zapisać', 'error');
+      const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
+      // Migracja 085: ten wyjątek oznacza, że e-mail ma już KONTO uczestniczące
+      // w tym meczu (przejęty gość albo zwykłe zalogowane dołączenie) — zamiast
+      // zostawić samego czerwonego toasta, pokazujemy ekran z linkiem do logowania.
+      if (msg.includes('już zapisany na ten mecz')) {
+        setJoinAsGuestDialogOpen(false);
+        setNewUserEmail(guestEmail);
+        setShowAlreadyJoinedPrompt(true);
+      }
+      toast(msg, 'error');
     } finally {
       setGuestBusy(false);
     }
@@ -3555,7 +3573,9 @@ export default function EventDetailClient() {
         >
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-display text-xl font-bold text-ink">
-              {newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
+              {newUserAlreadyJoined
+                ? 'Wcześniej dołączyłeś do tej gry.'
+                : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.
@@ -3646,6 +3666,42 @@ export default function EventDetailClient() {
                 potwierdź tutaj
               </a>
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Ten sam e-mail ma już konto uczestniczące w tym meczu (085 rzuciła
+          wyjątek w handleJoinAsGuest) — bez listy korzyści i formularza
+          zakładania konta, samo zaloguj się albo pomiń. */}
+      {showAlreadyJoinedPrompt && (
+        <div
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
+          onClick={() => setShowAlreadyJoinedPrompt(false)}
+        >
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-display text-xl font-bold text-ink">
+              Wcześniej dołączyłeś do tej gry.
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Zaloguj się, żeby zobaczyć szczegóły swojego zapisu.
+            </p>
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={() => {
+                  const powrot = window.location.pathname;
+                  window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
+                }}
+                className="w-full h-11 rounded-xl bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700 text-white font-semibold transition"
+              >
+                Zaloguj się
+              </button>
+            </div>
+            <button
+              onClick={() => setShowAlreadyJoinedPrompt(false)}
+              className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              Pomiń, zobacz skład
+            </button>
           </div>
         </div>
       )}
