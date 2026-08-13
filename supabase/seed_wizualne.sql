@@ -1,15 +1,18 @@
 -- ============================================================
 -- Bojo — dane dla testów wizualnych
 -- ============================================================
--- Osobny seed od `seed_regresja.sql` z jednego powodu: TU DATY SĄ NA SZTYWNO.
+-- Osobny seed od `seed_regresja.sql`: tam mecze są rozrzucone po kalendarzu,
+-- żeby dało się klikać ręką, tu mają stałe ODSTĘPY od dnia uruchomienia.
 --
--- Tamten używa `CURRENT_DATE + 3`, żeby mecze zawsze były w przyszłości —
--- świetne do klikania ręką, bezużyteczne przy porównywaniu zrzutów ekranu.
--- Napis „śr. 14 sie" zmieniałby się codziennie i każdy zrzut różniłby się od
--- wzorca bez żadnej zmiany w kodzie.
+-- DLACZEGO NIE DATY NA SZTYWNO: pierwsza wersja miała `2030-06-20` i zamrożony
+-- zegar przeglądarki (`page.clock`). Efekt: GoTrue wystawia token ważny godzinę
+-- od PRAWDZIWEGO „teraz", a przeglądarka z zegarem w 2030 uznaje go za dawno
+-- wygasły i wylogowuje użytkownika. Wszystkie 17 scenariuszy padło na tym,
+-- że po zalogowaniu nie było żadnych przycisków.
 --
--- Zegar przeglądarki w testach jest zamrożony (`page.clock`), więc etykiety
--- względne („Dzisiaj", „za 2 dni") też wychodzą powtarzalnie.
+-- Odstępy są stałe, więc etykiety względne („za 3 dni") wychodzą identycznie
+-- przy każdym przebiegu. Same daty się zmieniają — dlatego zrzuty obejmują
+-- FRAGMENTY bez daty, nie całą stronę.
 --
 -- Marker: [WIZ]. Uruchamiany automatycznie przez `scripts/stos-lokalny.sh`.
 -- ============================================================
@@ -41,7 +44,7 @@ BEGIN
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description, goalkeepers_enabled)
   VALUES ('11111111-1111-4111-8111-111111111111', org, n1, 'piłka nożna', 'Orlik Rataje',
-    '2030-06-20', '18:00', '19:30', 10, 'public',
+    CURRENT_DATE + 3, '18:00', '19:30', 10, 'public',
     'Czwartkowa gierka',
     '[WIZ] Mecz z wolnymi miejscami — zrzut stanu wyjściowego i po dołączeniu.', false)
   RETURNING id INTO eid;
@@ -51,7 +54,7 @@ BEGIN
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description, goalkeepers_enabled)
   VALUES ('22222222-2222-4222-8222-222222222222', org, n1, 'piłka nożna', 'Boisko Malta',
-    '2030-06-21', '19:00', '20:30', 3, 'public',
+    CURRENT_DATE + 4, '19:00', '20:30', 3, 'public',
     'Piątkowy komplet',
     '[WIZ] Skład pełny — sprawdza komunikat o rezerwie i szarą kolorystykę.', false)
   RETURNING id INTO eid;
@@ -63,7 +66,7 @@ BEGIN
                       end_time, max_players, visibility, title, description,
                       goalkeepers_enabled, max_goalkeepers, goalkeeper_slots_reserved)
   VALUES ('33333333-3333-4333-8333-333333333333', org, n1, 'piłka nożna', 'Orlik Winogrady',
-    '2030-06-22', '20:00', '21:30', 14, 'public',
+    CURRENT_DATE + 5, '20:00', '21:30', 14, 'public',
     'Sobota — rezerwacja dla bramkarzy',
     '[WIZ] 12 w polu, wolne tylko miejsca dla bramkarzy. Licznik ma to rozbić na role.',
     true, 2, true)
@@ -79,7 +82,7 @@ BEGIN
                       end_time, max_players, visibility, title, description,
                       goalkeepers_enabled, max_goalkeepers, goalkeeper_slots_reserved)
   VALUES ('44444444-4444-4444-8444-444444444444', org, n1, 'piłka nożna', 'Orlik Winogrady',
-    '2030-06-23', '20:00', '21:30', 14, 'public',
+    CURRENT_DATE + 6, '20:00', '21:30', 14, 'public',
     'Niedziela — wspólna pula',
     '[WIZ] Ustawienie jak W03, ale bez rezerwacji miejsc. Licznik ma mówić co innego.',
     true, 2, false)
@@ -94,7 +97,7 @@ BEGIN
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description, require_approval)
   VALUES ('55555555-5555-4555-8555-555555555555', org, n1, 'piłka nożna', 'Orlik Rataje',
-    '2030-06-24', '18:00', '19:30', 10, 'public',
+    CURRENT_DATE + 7, '18:00', '19:30', 10, 'public',
     'Poniedziałek — wymaga akceptacji',
     '[WIZ] Dwie prośby czekają na decyzję organizatora.', true)
   RETURNING id INTO eid;
@@ -106,22 +109,22 @@ BEGIN
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description)
   VALUES ('66666666-6666-4666-8666-666666666666', org, n1, 'piłka nożna', 'Boisko Malta',
-    '2030-06-25', '19:00', '20:30', 3, 'public',
+    CURRENT_DATE + 8, '19:00', '20:30', 3, 'public',
     'Wtorek — kolejka rezerwowa',
     '[WIZ] Skład pełny, w kolejce dwie osoby — widok organizatora z przyciskiem „Do składu".')
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name)
   VALUES (eid, org, n1), (eid, g2, n2), (eid, g3, n3);
   INSERT INTO event_participants (event_id, user_id, name, is_reserve, created_at)
-  VALUES (eid, g4, n4, true, '2030-06-01 10:00:00+00'),
-         (eid, g5, n5, true, '2030-06-01 11:00:00+00');
+  VALUES (eid, g4, n4, true, now() - interval '2 hours'),
+         (eid, g5, n5, true, now() - interval '1 hour');
 
   -- W07 — mecz płatny ---------------------------------------------------
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description,
                       cost_grosz, accepted_payment_methods, blik_phone)
   VALUES ('77777777-7777-4777-8777-777777777777', org, n1, 'piłka nożna', 'Orlik Rataje',
-    '2030-06-26', '18:00', '19:30', 10, 'public',
+    CURRENT_DATE + 9, '18:00', '19:30', 10, 'public',
     'Środa — płatny',
     '[WIZ] Mecz płatny z dwiema metodami — okno dołączania wymaga wyboru.',
     1500, ARRAY['gotowka','blik']::text[], '555111222')

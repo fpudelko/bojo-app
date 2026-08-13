@@ -9,13 +9,18 @@ import { test, expect, type Page } from '@playwright/test';
 // trzynasty gracz odbijający się od zarezerwowanych miejsc — mieszkały
 // dokładnie tutaj i żaden test jednostkowy nie miał jak ich zobaczyć.
 //
-// Dane pochodzą z `supabase/seed_wizualne.sql` i mają DATY NA SZTYWNO,
-// a zegar przeglądarki jest zamrożony (niżej) — bez tego etykiety „Dzisiaj"
-// i „za 2 dni" zmieniałyby zrzuty każdego dnia.
-
-/** Punkt w czasie, wobec którego liczą się wszystkie etykiety względne.
- *  Przed datami meczów z seeda (2030-06-20 …), więc są „nadchodzące". */
-const ZAMROZONY_CZAS = new Date('2030-06-18T09:00:00.000Z');
+// Dane pochodzą z `supabase/seed_wizualne.sql` i mają stałe ODSTĘPY od dnia
+// uruchomienia (dziś + 3, + 4 …), więc etykiety względne wychodzą powtarzalnie.
+//
+// Zegara NIE zamrażamy. Pierwsza wersja robiła to przez `page.clock` przy
+// datach na sztywno w 2030 roku — i wszystkie 17 scenariuszy padło, bo GoTrue
+// wystawia token ważny godzinę od PRAWDZIWEGO „teraz", a przeglądarka z zegarem
+// w 2030 uznawała go za wygasły i wylogowywała użytkownika.
+//
+// Skutek uboczny: same daty w interfejsie zmieniają się z dnia na dzień.
+// Dlatego zrzuty obejmują FRAGMENTY bez daty (licznik, okno zapisu, kolejka),
+// a nie całą stronę. Ochrona przed regresją siedzi w asercjach zachowania —
+// zrzut dokłada do tego układ i kolory.
 
 const KONTA = {
   organizator: { email: 'test1@example.com', haslo: 'test1234' },
@@ -53,11 +58,14 @@ async function zaloguj(page: Page, konto: { email: string; haslo: string }) {
   await page.locator('input[type="password"]').first().fill(konto.haslo);
   await page.getByRole('button', { name: /zaloguj/i }).first().click();
   await page.waitForURL((url) => !url.pathname.startsWith('/logowanie'), { timeout: 20_000 });
-}
 
-test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(ZAMROZONY_CZAS);
-});
+  // Sama zmiana adresu nie dowodzi, że sesja żyje — dzwonek powiadomień
+  // renderuje się WYŁĄCZNIE zalogowanemu. Bez tego sprawdzenia zepsute
+  // logowanie objawiało się dopiero jako „nie ma przycisku Dołącz" kilka
+  // linijek dalej, w zupełnie niewinnym teście.
+  await expect(page.getByRole('button', { name: /powiadomienia/i }).first())
+    .toBeVisible({ timeout: 15_000 });
+}
 
 test.describe('dołączanie do meczu', () => {
   test('wolne miejsca — wchodzi do składu i komunikat to potwierdza', async ({ page }) => {
@@ -65,8 +73,9 @@ test.describe('dołączanie do meczu', () => {
     await page.goto(`/wydarzenia/${MECZ.wolneMiejsca}`);
     await uspokoj(page);
 
-    await expect(page.getByText('2 / 10')).toBeVisible();
-    await expect(page).toHaveScreenshot('mecz-przed-dolaczeniem.png', { fullPage: true });
+    const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(licznik).toBeVisible();
+    await expect(licznik).toHaveScreenshot('licznik-przed-dolaczeniem.png');
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await page.getByRole('button', { name: /zapisz mnie/i }).click();
@@ -75,7 +84,8 @@ test.describe('dołączanie do meczu', () => {
     await expect(page.getByText(/dołączyłeś do meczu/i)).toBeVisible();
     await expect(page.getByText('3 / 10')).toBeVisible();
     await uspokoj(page);
-    await expect(page).toHaveScreenshot('mecz-po-dolaczeniu.png', { fullPage: true });
+    const po = page.getByText('3 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png');
   });
 
   test('komplet — komunikat mówi WPROST o rezerwie', async ({ page }) => {
@@ -88,9 +98,11 @@ test.describe('dołączanie do meczu', () => {
 
     // Regresja z tej sesji: mówiło „Dołączyłeś do meczu!" komuś na rezerwie.
     await expect(page.getByText(/jesteś na liście rezerwowej/i)).toBeVisible();
+    const karta = page.getByText(/jesteś na liście rezerwowej/i)
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(page.getByText(/nie masz miejsca w składzie/i)).toBeVisible();
     await uspokoj(page);
-    await expect(page).toHaveScreenshot('mecz-rezerwa.png', { fullPage: true });
+    await expect(karta).toHaveScreenshot('karta-rezerwy.png');
   });
 });
 
@@ -102,8 +114,10 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await page.goto(`/wydarzenia/${MECZ.rezerwacjaBr}`);
     await uspokoj(page);
 
-    await expect(page.getByText(/pole: komplet/i)).toBeVisible();
-    await expect(page).toHaveScreenshot('bramkarze-rezerwacja-licznik.png');
+    const licznik = page.getByText(/pole: komplet/i)
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(licznik).toBeVisible();
+    await expect(licznik).toHaveScreenshot('bramkarze-rezerwacja-licznik.png');
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await expect(page.getByText(/w polu jest już komplet/i)).toBeVisible();
@@ -118,8 +132,10 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await page.goto(`/wydarzenia/${MECZ.wspolnaPula}`);
     await uspokoj(page);
 
-    await expect(page.getByText(/dla wszystkich ról/i)).toBeVisible();
-    await expect(page).toHaveScreenshot('bramkarze-wspolna-licznik.png');
+    const licznik = page.getByText(/dla wszystkich ról/i)
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(licznik).toBeVisible();
+    await expect(licznik).toHaveScreenshot('bramkarze-wspolna-licznik.png');
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await expect(page.getByText(/w polu jest już komplet/i)).toHaveCount(0);
@@ -133,11 +149,13 @@ test.describe('organizator', () => {
     await page.goto('/moje-gry');
     await uspokoj(page);
     await expect(page.getByText(/czekają na twoją decyzję/i)).toBeVisible();
-    await expect(page).toHaveScreenshot('moje-gry-prosby.png', { fullPage: true });
 
     await page.goto(`/wydarzenia/${MECZ.doAkceptacji}`);
     await uspokoj(page);
-    await expect(page).toHaveScreenshot('mecz-prosby-organizator.png', { fullPage: true });
+    // Sekcja próśb — bez dat, więc nadaje się na wzorzec.
+    const prosby = page.getByText(/czeka na akceptację|prośby o dołączenie/i).first()
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(prosby).toHaveScreenshot('prosby-organizator.png');
   });
 
   test('kolejka rezerwowa z przyciskiem „Do składu"', async ({ page }) => {
@@ -147,7 +165,9 @@ test.describe('organizator', () => {
 
     await expect(page.getByText(/rezerwa — kolejka/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /do składu/i }).first()).toBeVisible();
-    await expect(page).toHaveScreenshot('mecz-kolejka-organizator.png', { fullPage: true });
+    const kolejka = page.getByText(/rezerwa — kolejka/i)
+      .locator('xpath=ancestor::div[1]');
+    await expect(kolejka).toHaveScreenshot('kolejka-organizator.png');
   });
 });
 
@@ -179,8 +199,6 @@ test.describe('obserwowanie', () => {
     // Regresja z tej sesji: obserwujący siedzi w bazie z `is_reserve = true`
     // i przez to pokazywał się w kolejce rezerwowej.
     await expect(page.getByText(/rezerwa — kolejka/i)).toHaveCount(0);
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('mecz-obserwuje.png', { fullPage: true });
   });
 });
 
@@ -197,6 +215,10 @@ test.describe('okna na telefonie', () => {
     // events" właśnie tutaj — to jest test na tę konkretną regresję.
     const potwierdz = page.getByRole('button', { name: /wypisz mnie/i });
     await expect(potwierdz).toBeVisible();
-    await expect(page).toHaveScreenshot('okno-wypisania-telefon.png');
+    // Klikalność potwierdzenia to sedno tej regresji: gdyby okno siedziało pod
+    // paskiem nawigacji, Playwright zgłosiłby „intercepts pointer events".
+    await expect(potwierdz).toBeEnabled();
+    const okno = potwierdz.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(okno).toHaveScreenshot('okno-wypisania-telefon.png');
   });
 });
