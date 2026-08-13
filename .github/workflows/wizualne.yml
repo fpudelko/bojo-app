@@ -174,3 +174,85 @@ jobs:
                 issue_number: context.issue.number, body: tresc,
               });
             }
+
+  scenariusze:
+    name: Scenariusze za logowaniem
+    runs-on: ubuntu-latest
+    # Tak samo nieblokujące jak zrzuty widoków publicznych.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Stos Supabase, migracje i dane
+        # Skrypt dopisuje NEXT_PUBLIC_SUPABASE_* do GITHUB_ENV, więc build
+        # i testy niżej dostają adres oraz klucz lokalnej instancji.
+        run: ./scripts/stos-lokalny.sh
+
+      - name: Zależności
+        working-directory: frontend
+        run: npm ci
+
+      - name: Przeglądarka
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build produkcyjny
+        working-directory: frontend
+        run: npm run build
+
+      - name: Czy akceptujemy zmiany
+        id: tryb
+        run: |
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'zrzuty:zaakceptuj') }}" == "true" ]]; then
+            echo "akceptuj=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "akceptuj=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scenariusze
+        id: test
+        working-directory: frontend
+        run: |
+          if [[ "${{ steps.tryb.outputs.akceptuj }}" == "1" ]]; then
+            npm run scenariusze:akceptuj
+          else
+            npm run scenariusze
+          fi
+
+      - name: Raport i różnice
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenariusze-raport
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 14
+
+      - name: Dopisz nowe wzorce do gałęzi
+        if: steps.tryb.outputs.akceptuj == '1'
+        working-directory: frontend
+        run: |
+          if [[ -z "$(git status --porcelain e2e/wzorce)" ]]; then
+            echo "Wzorce bez zmian."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin ${{ github.head_ref }} || true
+          git add e2e/wzorce
+          git commit -m "test: zaakceptowane wzorce scenariuszy"
+          git push origin HEAD:${{ github.head_ref }}

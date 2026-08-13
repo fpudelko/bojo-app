@@ -49,8 +49,9 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'telefon', use: { ...devices['Pixel 7'] }, testIgnore: /wizualne\.spec\.ts/ },
-    { name: 'komputer', use: { ...devices['Desktop Chrome'] }, testIgnore: /wizualne\.spec\.ts/ },
+    // Klikalność: bez bazy, bez wzorców — najtańsza bramka, wchodzi do CI.
+    { name: 'telefon', use: { ...devices['Pixel 7'] }, testMatch: /klikalnosc\.spec\.ts/ },
+    { name: 'komputer', use: { ...devices['Desktop Chrome'] }, testMatch: /klikalnosc\.spec\.ts/ },
     // Zrzuty osobno: tylko one potrzebują wzorców i tylko one mają sens
     // w dwóch stałych rozmiarach okna.
     {
@@ -62,6 +63,18 @@ export default defineConfig({
       name: 'zrzuty-komputer',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
       testMatch: /wizualne\.spec\.ts/,
+    },
+    // Scenariusze za logowaniem — wymagają lokalnego stosu Supabase, więc
+    // uruchamiane osobno (`npm run scenariusze`, workflow `wizualne.yml`).
+    {
+      name: 'scenariusze-telefon',
+      use: { ...devices['Pixel 7'] },
+      testMatch: /scenariusze\.spec\.ts/,
+    },
+    {
+      name: 'scenariusze-komputer',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
+      testMatch: /scenariusze\.spec\.ts/,
     },
   ],
 
