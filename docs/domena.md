@@ -264,11 +264,43 @@ logowanie (`handleSignInFromGuest()`): po udanym `signInWithEmail()` przejęcie 
 od razu, tak samo jak przy rejestracji.
 
 **Ten sam e-mail nie może zapisać się dwa razy na ten sam mecz** — `dolacz_do_meczu_
-jako_goscie()` (migracja `085`) sprawdza to na starcie, przed liczeniem pojemności:
-nieprzejęty wpis z tym e-mailem w tym meczu → zwraca jego istniejący `claim_token`
-zamiast tworzyć duplikat (idempotentnie, pokrywa też podwójny klik przy słabym
-połączeniu); już przejęty wpis, albo konto z tym e-mailem dołączone normalnie
-(zalogowane) → `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'`.
+jako_goscie()` (migracja `085`) sprawdza to na starcie, przed liczeniem pojemności, żeby
+odrzucone żądanie nie ruszało kolejki rezerwowych. Od migracji `088` pilnuje tego również
+unikalny indeks `idx_participants_unique_guest_email` na `(event_id, lower(guest_email))`
+— sprawdzenie w funkcji obsługuje przypadek po ludzku, indeks zamyka wyścig dwóch
+równoległych zapisów. Ta sama migracja skasowała duplikaty, które zdążyły powstać przed
+`085`, bo bez tego indeks nie miał prawa się założyć.
+
+**Wynik zapisu gościa ma cztery warianty, nie dwa.** Migracja `088` przestawiła RPC
+z „wyjątek jako komunikat" na strukturalny wynik: `claim_token`, `already_joined`
+(powtórka, nie świeży wiersz) i `has_account` (ten e-mail ma konto w Bojo — pytanie
+GLOBALNE, nie „czy jest w tym meczu"). Wyjątki zostały wyłącznie dla realnych błędów
+(walidacja, brak meczu, mecz odwołany).
+
+| `claim_token` | `already_joined` | `has_account` | co widzi gość |
+|---|---|---|---|
+| nowy | `false` | `false` | „Świetnie! Jesteś w składzie." / „Zapisano! Jesteś na liście rezerwowej." + zachęta do konta |
+| nowy | `false` | `true` | ten sam nagłówek, ale ekran skrócony do logowania |
+| istniejący | `true` | `false` | „Wcześniej dołączyłeś do tej gry." + zachęta do konta |
+| istniejący | `true` | `true` | „Wcześniej dołączyłeś do tej gry." + ekran skrócony do logowania |
+| `NULL` | `true` | — | osobny ekran: sam przycisk „Zaloguj się" i „Pomiń i zobacz skład bez logowania" |
+
+Pusty `claim_token` to sygnał **„wpis ma już właściciela, nie ma czego przejmować"** —
+wiersz przejęty przez konto albo konto uczestniczące w meczu przez zwykłe, zalogowane
+dołączenie. `handleJoinAsGuest()` w `EventDetailClient.tsx` wybiera ekran po KSZTAŁCIE
+wyniku; wcześniej rozpoznawał tę sytuację po treści wyjątku (`msg.includes('już zapisany
+na ten mecz')`), co było kruche — ten sam tekst rzucają `066` i `078` dla ścieżki
+zalogowanej, a zmiana copy w SQL po cichu psuła UI. Dopasowanie po treści zostało jako
+furtka zgodności na czas, zanim `088` zostanie wgrana ręcznie.
+
+Ekran skrócony do logowania (`has_account = true`) nie pokazuje listy trzech korzyści ani
+linku „potwierdź tutaj", a to samo pole hasła startuje od razu w trybie logowania
+(`accountEmailTaken` ustawiane z `has_account`, nie dopiero po nieudanej rejestracji).
+
+`has_account` jest oracle'em na istnienie konta dla niezalogowanego — koszt świadomy.
+Sygnał wraca dopiero PO zapisie, każda próba zostawia widoczny wiersz uczestnika i odpala
+powiadomienie z `084` do właściciela konta. Ten sam sygnał i tak wyciekał wcześniej,
+ciszej, przez nieudane `signUpWithEmail()`.
 
 **Gdy gość zamknie ekran bez logowania (albo w ogóle nie doszedł do tego kroku)** —
 wpis zostaje jako gość, ale migracja `084` po cichu kojarzy go z kontem po e-mailu
@@ -290,7 +322,9 @@ albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
 
 Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (naprawia
 „ambiguous column reference" w `RETURNING`), `084_powiadomienie_o_koncie_z_wpisem_goscia.sql`,
-`085_zapobiegaj_duplikatom_wpisu_goscia.sql`.
+`085_zapobiegaj_duplikatom_wpisu_goscia.sql`, `087_juz_dolaczony_flaga.sql` (kolumna
+`already_joined` w wyniku RPC), `088_konto_i_zamek_na_duplikaty.sql` (kolumna
+`has_account`, wynik zamiast wyjątku, unikalny indeks na `(event_id, lower(guest_email))`).
 
 ---
 

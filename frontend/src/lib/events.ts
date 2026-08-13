@@ -630,14 +630,24 @@ export async function addGuest(
 }
 
 /** Guest self-signup without an account: collect name, email, and optional role/payment.
- *  Returns claim_token (for later account linkage) and whether guest landed on reserve. */
+ *  Returns (migration 088):
+ *  - `claimToken` — token for later account linkage, or `null` when the entry already has
+ *    an owner, so there is nothing left to claim and the caller should offer sign-in;
+ *  - `isReserve` — whether the guest landed on the reserve list;
+ *  - `alreadyJoined` — this was a repeat of an existing entry, not a fresh insert;
+ *  - `hasAccount` — that e-mail already has a Bojo account, so the follow-up screen should
+ *    push sign-in instead of sign-up.
+ *
+ *  Migrations run by hand in this repo, so the pre-088 shape (three columns, an exception
+ *  instead of the owned-entry row) must keep working: `has_account` falls back to false and
+ *  the thrown message is still handled by the caller. */
 export async function joinEventAsGuest(
   eventId: string,
   name: string,
   email: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-): Promise<{ claimToken: string; isReserve: boolean }> {
+): Promise<{ claimToken: string | null; isReserve: boolean; alreadyJoined: boolean; hasAccount: boolean }> {
   const { validateEmail } = await import('./validation');
   const safeName = validateName(name, 'Imię i nazwisko', 80);
   const safeEmail = validateEmail(email);
@@ -653,18 +663,27 @@ export async function joinEventAsGuest(
 
   if (error) throw new Error(error.message);
   const row = Array.isArray(data) ? data[0] : data;
+  const claimToken: string | null = row.claim_token ?? null;
 
   // Determine if guest landed on reserve by checking the database
-  // (we could add it to the RPC return, but for now query it)
-  const { data: participant } = await supabase
-    .from('event_participants')
-    .select('is_reserve')
-    .eq('claim_token', row.claim_token)
-    .single();
+  // (we could add it to the RPC return, but for now query it). Skipped when the entry
+  // already has an owner — there is no token to look it up by, and the sign-in screen
+  // shown in that case does not mention the reserve list anyway.
+  let isReserve = false;
+  if (claimToken) {
+    const { data: participant } = await supabase
+      .from('event_participants')
+      .select('is_reserve')
+      .eq('claim_token', claimToken)
+      .single();
+    isReserve = participant?.is_reserve ?? false;
+  }
 
   return {
-    claimToken: row.claim_token,
-    isReserve: participant?.is_reserve ?? false,
+    claimToken,
+    isReserve,
+    alreadyJoined: row.already_joined ?? false,
+    hasAccount: row.has_account ?? false,
   };
 }
 

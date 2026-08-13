@@ -33,9 +33,36 @@ export default defineConfig({
       : undefined,
   },
 
+  // Wzorce zrzutów leżą obok testów i idą do repo — dzięki temu zmiana widoku
+  // pokazuje się w PR-ze jako różnica obrazków, z suwakiem „przed/po".
+  snapshotPathTemplate: '{testDir}/wzorce/{projectName}/{arg}{ext}',
+  expect: {
+    toHaveScreenshot: {
+      // Kompresja PNG i podpikselowe różnice renderowania czcionek potrafią
+      // ruszyć pojedyncze piksele bez żadnej zmiany w kodzie. Próg dobrany
+      // tak, żeby przepuszczał szum, a łapał zmianę układu albo koloru.
+      maxDiffPixelRatio: 0.01,
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
+  },
+
   projects: [
-    { name: 'telefon', use: { ...devices['Pixel 7'] } },
-    { name: 'komputer', use: { ...devices['Desktop Chrome'] } },
+    { name: 'telefon', use: { ...devices['Pixel 7'] }, testIgnore: /wizualne\.spec\.ts/ },
+    { name: 'komputer', use: { ...devices['Desktop Chrome'] }, testIgnore: /wizualne\.spec\.ts/ },
+    // Zrzuty osobno: tylko one potrzebują wzorców i tylko one mają sens
+    // w dwóch stałych rozmiarach okna.
+    {
+      name: 'zrzuty-telefon',
+      use: { ...devices['Pixel 7'] },
+      testMatch: /wizualne\.spec\.ts/,
+    },
+    {
+      name: 'zrzuty-komputer',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
+      testMatch: /wizualne\.spec\.ts/,
+    },
   ],
 
   webServer: {
