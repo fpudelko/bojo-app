@@ -8,30 +8,13 @@ import {
   LANDING_STATS,
 } from '@/components/home/landing/content';
 import { faqJsonLd } from '@/lib/structuredData';
+import { ZAKAZANE_NA_LANDINGU as FORBIDDEN_PHRASES } from '@/content/zakazaneFrazy';
 
-// Every phrase here maps to a feature that is flag-gated or absent — see
-// docs/llm-context.md, section "Czego Bojo NIE robi". If one of these words
-// legitimately needs to appear (e.g. a feature ships and a flag flips to
-// true), update this list in the same commit as a deliberate decision.
-const FORBIDDEN_PHRASES = [
-  // 'cykliczn' i 'stał[ae] gierk' — usunięte świadomie razem z włączeniem
-  // SHOW_RECURRING (migracja 073): funkcja jest już dostępna w nawigacji, więc
-  // wzmianka o niej na landingu przestała być obietnicą bez pokrycia. Sama treść
-  // landingu jej nie reklamuje — to osobna, marketingowa decyzja.
-  'turniej', // SHOW_CUP = false
-  'sms', // SHOW_SMS_FEATURES = false
-  'przypomnien', // no scheduler exists
-  'powiadom', // no event triggers notifications today
-  'alert', // SHOW_GAME_ALERTS = false
-  'rezerwacj[aeę] boisk', // FEATURE_RESERVATIONS = false
-  'blik', // no payment integration
-  'zapłać przez', // no payment integration
-  'automatyczn[iy].*(awans|wskocz)', // no reserve auto-promotion, by design
-  'ranking', // does not exist
-  'poziom(u|ie)? zaawansowania', // does not exist
-  'warszaw', // not a covered city by name
-  'krak[oó]w', // not a covered city by name
-] as const;
+// Lista fraz przeniesiona do `src/content/zakazaneFrazy.ts` (współdzielona ze
+// stronami treści — `/faq`, `/jak-dziala-bojo`, `/dlaczego-bojo`), sam test
+// zostaje tutaj bez zmian. Każda fraza mapuje na funkcję, która jest
+// flagowana albo nie istnieje — see docs/llm-context.md, sekcja
+// "Czego Bojo NIE robi".
 
 function allLandingText(): string {
   return [

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { LANDING_FAQ } from './content';
 
@@ -30,6 +31,12 @@ export default function LandingFaq() {
             </details>
           ))}
         </div>
+
+        <p className="mt-6 text-center text-sm">
+          <Link href="/faq" className="font-semibold text-primary-700 hover:text-primary-800">
+            Wszystkie pytania i odpowiedzi →
+          </Link>
+        </p>
       </div>
     </section>
   );
