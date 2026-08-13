@@ -229,7 +229,11 @@ jobs:
           if [[ "${{ steps.tryb.outputs.akceptuj }}" == "1" ]]; then
             npm run scenariusze:akceptuj
           else
-            npm run scenariusze
+            # `--max-failures=1` nie jest oszczędnością czasu, tylko warunkiem
+            # czytelności: przy 17 błędach Playwright kończy log listą nazw,
+            # a treści pierwszego błędu (z tekstem strony) nie da się wtedy
+            # odczytać z końcówki logu. Jeden błąd = jego pełna treść na końcu.
+            npm run scenariusze -- --max-failures=1
           fi
 
       - name: Raport i różnice
