@@ -98,15 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Track a login once per browser session (SIGNED_IN also fires on tab
       // refocus / token refresh, so dedupe with a sessionStorage flag).
-      // Supabase odsyła na Site URL, gdy nasz `redirectTo` nie jest na liście
-      // dozwolonych adresów — wtedy `/auth/callback` w ogóle się nie wykonuje
-      // i cały `?next=` przepada. Rozpoznajemy to po tym, że po zalogowaniu
-      // stoimy na stronie głównej, i dokańczamy podróż z zapamiętanego celu.
-      if (event === 'SIGNED_IN' && session && typeof window !== 'undefined'
-          && window.location.pathname === '/') {
-        const cel = odbierzPowrot();
-        if (cel) { window.location.replace(cel); return; }
-      }
+      // Zalogowanie się zakończyło powodzeniem — odpalij globalne eventy tracking
+      // i RPC, zanim cokolwiek innego (patrz uwaga poniżej).
       if (event === 'SIGNED_IN' && session?.user) {
         const key = `bojo:login-tracked:${session.user.id}`;
         if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
@@ -117,14 +110,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fresh account (utworzone w ciągu ostatnich 10 minut) bez pełnego
         // imienia — zgłoś do dzwonka powiadomień. Nie dotyczy starych kont:
         // trigger 070/071 miał to obsłużyć przy rejestracji, ale w praktyce
-        // nigdy nie zadziałał (patrz migracja 085) — to jest niezawodny
+        // nigdy nie zadziałał (patrz migracja 086) — to jest niezawodny
         // odpowiednik po stronie klienta, celowo ograniczony do świeżych
         // kont, żeby nie zalać powiadomieniami wszystkich dotychczasowych
         // użytkowników z niepełną nazwą.
         const wiekKontaMs = Date.now() - new Date(session.user.created_at).getTime();
         if (wiekKontaMs < 10 * 60 * 1000 && !isPelneImie(displayName(session.user))) {
-          supabase.rpc('zglos_brak_pelnej_nazwy').then(() => {});
+          supabase.rpc('zglos_brak_pelnej_nazwy').then(({ error }) => {
+            if (error) console.error('[zglos_brak_pelnej_nazwy] RPC failed:', error.message);
+          });
         }
+      }
+
+      // Supabase odsyła na Site URL, gdy nasz `redirectTo` nie jest na liście
+      // dozwolonych adresów — wtedy `/auth/callback` w ogóle się nie wykonuje
+      // i cały `?next=` przepada. Rozpoznajemy to po tym, że po zalogowaniu
+      // stoimy na stronie głównej, i dokańczamy podróż z zapamiętanego celu.
+      // UWAGA: to musi być JEŻELI, NIE JEŚLI-ZARAZ-PO — tracking i RPC
+      // powyżej muszą się zawsze wykonać, niezależnie od tego, czy tu zrobimy
+      // redirect, bo PostSignupRoleModal efekt polega na nich.
+      if (event === 'SIGNED_IN' && session && typeof window !== 'undefined'
+          && window.location.pathname === '/') {
+        const cel = odbierzPowrot();
+        if (cel) { window.location.replace(cel); return; }
       }
     });
 

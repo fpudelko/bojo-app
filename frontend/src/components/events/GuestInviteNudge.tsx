@@ -58,20 +58,17 @@ export default function GuestInviteNudge({
 
         <div className="space-y-3 px-5 py-4">
           <p className="text-sm font-medium text-slate-700">
-            Zaproś {guestName} do Bojo — zyskujesz na tym Ty, nie tylko on(a):
+            Zaproś go do Bojo i zautomatyzuj zarządzanie:
           </p>
           <ul className="space-y-2 text-sm text-slate-600">
             <li>
-              • Dostanie powiadomienie, jeśli zmienisz termin albo odwołasz mecz — gość
-              bez konta o tym nie wie, musiałbyś go informować sam.
+              • Powiadomienia o zmianach terminu i odwołaniu meczu
             </li>
             <li>
-              • Zostanie w Twojej bazie graczy — następnym razem zaprosisz go jednym
-              kliknięciem, zamiast dopisywać ręcznie za każdym razem.
+              • Zapisy go w bazie graczy — następny raz jednym kliknięciem
             </li>
             <li>
-              • Sam potwierdzi udział albo się wypisze, jeśli coś mu wypadnie — nie
-              musisz robić tego za niego.
+              • Sam potwierdzi lub się wypisze
             </li>
           </ul>
 

@@ -67,14 +67,26 @@ export function odbierzPowrot(): string | null {
  *  bez konsumowania go (np. żeby zdecydować, czy pokazać modal onboardingowy,
  *  nie zakłócając jednocześnie mechanizmu awaryjnego powrotu). */
 export function ostatniZamierzonyCel(): string | null {
-  if (typeof sessionStorage === 'undefined') return null;
+  if (typeof sessionStorage === 'undefined') {
+    console.debug('[ostatniZamierzonyCel] sessionStorage unavailable');
+    return null;
+  }
   try {
     const surowe = sessionStorage.getItem(KLUCZ);
-    if (!surowe) return null;
+    if (!surowe) {
+      console.debug('[ostatniZamierzonyCel] No goal stored');
+      return null;
+    }
     const { cel, o } = JSON.parse(surowe) as { cel?: string; o?: number };
-    if (typeof o !== 'number' || Date.now() - o > WAZNOSC_MS) return null;
-    return bezpiecznyCel(cel) ? cel : null;
-  } catch {
+    if (typeof o !== 'number' || Date.now() - o > WAZNOSC_MS) {
+      console.debug('[ostatniZamierzonyCel] Goal expired:', Math.round((Date.now() - (o || 0)) / 1000), 'seconds old');
+      return null;
+    }
+    const wynik = bezpiecznyCel(cel) ? cel : null;
+    console.debug('[ostatniZamierzonyCel] Goal found:', wynik);
+    return wynik;
+  } catch (err) {
+    console.debug('[ostatniZamierzonyCel] Parse error:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }

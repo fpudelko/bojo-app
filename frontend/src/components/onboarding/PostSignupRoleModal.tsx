@@ -33,17 +33,34 @@ export default function PostSignupRoleModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    if (typeof localStorage === 'undefined') return;
-    if (localStorage.getItem(kluczWidziano(user.id))) return;
+    if (!user) {
+      console.debug('[PostSignupRoleModal] No user');
+      return;
+    }
+    if (typeof localStorage === 'undefined') {
+      console.debug('[PostSignupRoleModal] localStorage unavailable');
+      return;
+    }
+    const seenKey = kluczWidziano(user.id);
+    if (localStorage.getItem(seenKey)) {
+      console.debug('[PostSignupRoleModal] Already seen by user', user.id);
+      return;
+    }
 
     const wiekMs = Date.now() - new Date(user.created_at).getTime();
-    if (wiekMs >= SWIEZOSC_MS) return;
+    if (wiekMs >= SWIEZOSC_MS) {
+      console.debug('[PostSignupRoleModal] Account too old:', Math.round(wiekMs / 1000), 'seconds (limit: 10min)');
+      return;
+    }
 
     const cel = ostatniZamierzonyCel();
     const neutralny = cel === null || CELE_NEUTRALNE.has(cel);
-    if (!neutralny) return;
+    if (!neutralny) {
+      console.debug('[PostSignupRoleModal] Goal not neutral:', cel);
+      return;
+    }
 
+    console.debug('[PostSignupRoleModal] Showing modal for', displayName(user));
     setOpen(true);
   }, [user]);
 
