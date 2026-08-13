@@ -183,6 +183,34 @@ else if (parseInt(statedMigration, 10) !== maxMigration)
 else console.log(`  migracja ${statedMigration} zgodna ze stanem repo`);
 
 // ---------------------------------------------------------------------------
+section('10. mobile-first: brak breakpointów max-width w frontend/src');
+// AGENTS.md, "Konwencje": style bazowe są dla najmniejszego telefonu, rozszerzanie
+// wyłącznie przez min-width (`sm:`/`md:`/`lg:` Tailwinda). `max-*:` i
+// `@media (max-width: …)` odwracają tę zasadę — łapane tu, zanim wejdą do repo.
+function* walk(dir) {
+  for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+    const rel = join(dir, entry.name);
+    if (entry.isDirectory()) yield* walk(rel);
+    else if (/\.(tsx?|css)$/.test(entry.name)) yield rel;
+  }
+}
+const MAX_WIDTH_TAILWIND = /(?:^|["'`\s(])max-(?:sm|md|lg|xl|2xl):/;
+const MAX_WIDTH_MEDIA = /@media[^)]*\(\s*max-width/;
+let mobileFirstViolations = 0;
+let mobileFirstFilesScanned = 0;
+for (const rel of walk('frontend/src')) {
+  mobileFirstFilesScanned++;
+  const text = read(rel);
+  text.split('\n').forEach((line, i) => {
+    if (MAX_WIDTH_TAILWIND.test(line) || MAX_WIDTH_MEDIA.test(line)) {
+      mobileFirstViolations++;
+      fail(`${rel}:${i + 1}: breakpoint max-width w nowym kodzie — użyj min-width (mobile-first)`);
+    }
+  });
+}
+if (mobileFirstViolations === 0) console.log(`  sprawdzono ${mobileFirstFilesScanned} plików, zero breakpointów max-width`);
+
+// ---------------------------------------------------------------------------
 console.log('');
 if (failures) {
   console.error(`check-docs: ${failures} problem(ów). Dokumentacja rozjechała się z kodem.`);

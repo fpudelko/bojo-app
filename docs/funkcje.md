@@ -579,6 +579,92 @@ zmian, to nie on był „za duży".
 Nagłówek „Twoje mecze" i przycisk „+ Nowy mecz" zniknęły ze strony — mecz tworzy się
 z FAB-a (`+`) w dolnej nawigacji, dostępnego z każdego ekranu na mobile.
 
+**Zakładka „Historia" ma na górze sekcję „Do rozliczenia"** (`DoRozliczeniaSection`,
+`components/home/dashboard/DashboardSections.tsx`) — rozegrane, płatne mecze organizatora,
+w których ktoś ze składu nie oddał pieniędzy. Selektor `doRozliczenia()`
+(`lib/myEvents.ts`) filtruje i sortuje od najświeższego dane, które `getMyParticipatedEvents()`
+już zwraca (`unpaidCount` liczony przez `toEvent()`) — zero nowego zapytania. Bez tej
+sekcji zakładka Historia nie odróżniała meczu w pełni rozliczonego od meczu z zaległością —
+oba wyglądały identycznie na płaskiej liście.
+
+---
+
+## Karta „Po meczu"
+
+**Problem.** Po starcie meczu + 30 minut (`resultsAvailable`) strona meczu pokazywała
+organizatorowi wyłącznie jedną bursztynową linijkę „wpisz wynik". Nic nie przypominało
+o rozliczeniu ani o zaproszeniu gości bez konta do Bojo — organizator musiał sam
+wywnioskować, co jeszcze zostało. Skutek widoczny w danych: większość rozegranych meczów
+nie ma wpisanego wyniku, sporo nie ma domkniętego rozliczenia, a wpisy gości prawie nigdy
+nie są przejmowane.
+
+**Rozwiązanie.** `components/events/PoMeczuCard.tsx`, renderowana w `EventDetailClient.tsx`
+pod warunkiem `isOwner && resultsAvailable && !isCancelled`, między banerem odwołania a
+banerem „Mecz gotowy". Zbiera do trzech zadań — każde renderowane tylko, gdy dotyczy tego
+meczu:
+
+| Zadanie | Warunek renderowania | „Zrobione" |
+|---|---|---|
+| Rozlicz ekipę | `event.costGrosze > 0` | nikt nie ma `hasPaid === false` wśród `regulars` |
+| Wpisz wynik | `event.trackResults` | `matchResult != null` |
+| Zaproś gości do Bojo | są nieprzejęci goście w składzie | znika, gdy `0` |
+
+„Powtórz mecz" jest zawsze dostępne, jako oferta, nie zadanie — gdy wszystkie zadania są
+zrobione (albo mecz żadnego nie śledzi), karta zwija się do jednej linii z tym jednym
+przyciskiem. Klik na zadanie przewija do istniejącej sekcji (`#podzial-kosztow`,
+`#wynik-meczu`, `#sklad` — atrybuty `id` dodane na istniejących kontenerach) albo wywołuje
+istniejący handler (`handleWyslijRozliczenie`, `handleOpenRepeat`) — komponent jest czysto
+prezentacyjny, zero nowego zapytania do bazy.
+
+„Powtórz mecz" pojawia się teraz w dwóch miejscach (tu i w „Zarządzaj wydarzeniem"), ale to
+ta sama akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod
+wspólną nazwą jak w `O-20` z audytu przepływu organizatora.
+
+**Okno „Powtórz mecz" ma domyślną datę.** Otwierało się dotąd z pustym polem i
+zablokowanym przyciskiem. `domyslnyTerminPowtorki()` (`lib/recurring.ts`) liczy najbliższy
+przyszły termin tego samego dnia tygodnia co pierwowzór — ta sama matematyka, którą
+`nastepnyTermin()` już robi dla serii cyklicznych. Pole zostaje edytowalne.
+
+---
+
+## Strony treści — `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`, `/o-nas`
+
+Cztery statyczne strony serwerowe pod SEO/GEO/AEO, dodane pod strategię „pozyskiwanie
+organizatorów" ([strategia.md §0](./strategia.md)). Wspólna powłoka
+`components/tresc/StronaTresci.tsx` (+ `SekcjaTresci.tsx`, `SpisTresci.tsx` jako
+`<details>`), treść jako dane w `frontend/src/content/*.ts` — testowalna bez renderowania,
+wzorem `components/home/landing/content.ts`.
+
+| Trasa | Co zawiera | Źródło treści |
+|---|---|---|
+| `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz i że dołączenie nie wymaga konta | `content/jakDziala.ts` |
+| `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta" | `content/dlaczego.ts` |
+| `/faq` | 36 pytań w sześciu kategoriach | `content/faq.ts` |
+| `/o-nas` | kto robi Bojo, model biznesowy, atrybucja OSM | `content/oNas.ts` |
+
+**FAQ ma jedno źródło.** `content/faq.ts` eksportuje `FAQ` (wszystko, renderowane na
+`/faq`) i `FAQ_LANDING` (osiem pozycji oznaczonych `naLandingu: true`, pokazywane na
+stronie głównej). `components/home/landing/content.ts` re-eksportuje
+`FAQ_LANDING as LANDING_FAQ` zamiast trzymać kopię — `LandingFaq.tsx` i
+`landingContent.test.ts` nie wiedzą, że coś się zmieniło. Oba miejsca renderują
+`faqJsonLd()` (`lib/structuredData.ts`) nad dokładnie tą treścią, którą pokazują —
+widoczny tekst i schema nie mają jak się rozjechać.
+
+**Uczciwość treści pilnowana testem.** `content/zakazaneFrazy.ts` trzyma dwie listy fraz:
+`ZAKAZANE_NA_LANDINGU` (landing nie wspomina ich w ogóle — nawet przecząco, bo samo
+przeczenie na czysto sprzedażowej stronie brzmi jak reklama) i `ZAKAZANE_WSZEDZIE` (strony
+treści mogą o nich pisać wyłącznie w zdaniu, które je zaprzecza). `landingContent.test.ts`
+i `tresciStron.test.ts` sprawdzają odpowiednio każdą z nich, plus dwa testy pozytywne: każda
+wzmianka o powiadomieniach mówi „w aplikacji"/„pod dzwonkiem", każda wzmianka o SMS-ie mówi,
+że Bojo go nie wysyła.
+
+**Nawigacja do stron treści:** link „Zobacz krok po kroku…" pod „Trzy kroki do składu"
+(`LandingHowItWorks.tsx`) do `/jak-dziala-bojo`; link „Wszystkie pytania i odpowiedzi"
+pod FAQ landingu (`LandingFaq.tsx`) do `/faq`; `SiteFooter.tsx` ma teraz dwie grupy
+linków („Produkt", „Bojo") zamiast jednej płaskiej listy, z czterema nowymi stronami
+w grupie „Bojo". Główna nawigacja (`Header.tsx`) zostaje bez zmian — dwie pozycje
+(„Znajdź grę", „Mapa boisk") to świadomy wybór, dokładanie stron treści by je rozmyło.
+
 ---
 
 ## Układ `/wydarzenia` — filtry, sortowanie, sekcje dzienne

@@ -343,12 +343,17 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
       `components/home/landing/{LandingFaq,content}.tsx`, `lib/structuredData.ts`
       (`faqJsonLd`). Treść widoczna i schema dzielą jedno źródło (`LANDING_FAQ`),
       pilnowane testem `src/__tests__/landingContent.test.ts`.
-- [ ] **Strona `/o-nas`** (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt.
-      Sygnał wiarygodności ważony przez Google i silniki generatywne.
+- [x] **Strona `/o-nas`** (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt, model
+      biznesowy, atrybucja OSM. Treść w `content/oNas.ts`, dane usługodawcy z `lib/legal.ts`.
+      Doszły też trzy siostrzane strony pod tę samą strategię: `/jak-dziala-bojo`,
+      `/dlaczego-bojo`, `/faq` (2026-08-13).
 - [x] **Dane własne jako treść** (GEO: statystyki podnoszą cytowalność ~40%) — sekcja
-      `LandingStats` na stronie głównej liczy boiska w bazie przy renderze
-      (`lib/landingStats.ts`, `getPublicVenueCount()`), zaokrąglone w dół do pełnych 50,
-      żeby liczba nigdy nie zawyżała stanu faktycznego.
+      `LandingStats` na stronie głównej pokazuje liczby zaszyte w `LANDING_STATS`
+      (`components/home/landing/content.ts`), aktualizowane ręcznie.
+      ⚠️ **Sprostowanie (2026-08-13):** ten wpis wcześniej twierdził, że liczbę boisk liczy
+      `lib/landingStats.ts`/`getPublicVenueCount()` przy renderze — **te pliki nie istnieją**.
+      `LANDING_STATS.sportsValue` i spółka to statyczne literały, nie zapytanie do bazy.
+      Licznik z bazy zostaje pomysłem, nie zrobioną rzeczą.
 - [ ] **Obecność zewnętrzna / backlinki** — profile w katalogach, grupy FB, prasa
       lokalna, współprace z obiektami. Najsilniejszy sygnał klasycznego SEO; buduje
       się miesiącami, poza repo.
