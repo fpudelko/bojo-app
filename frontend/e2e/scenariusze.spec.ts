@@ -63,14 +63,48 @@ async function zaloguj(page: Page, konto: { email: string; haslo: string }) {
   // renderuje się WYŁĄCZNIE zalogowanemu. Bez tego sprawdzenia zepsute
   // logowanie objawiało się dopiero jako „nie ma przycisku Dołącz" kilka
   // linijek dalej, w zupełnie niewinnym teście.
-  await expect(page.getByRole('button', { name: /powiadomienia/i }).first())
-    .toBeVisible({ timeout: 15_000 });
+  try {
+    await expect(page.getByRole('button', { name: /powiadomienia/i }).first())
+      .toBeVisible({ timeout: 15_000 });
+  } catch (e) {
+    const widok = await page.evaluate(() => document.body.innerText.slice(0, 400));
+    throw new Error(
+      `Logowanie nie dało sesji (brak dzwonka powiadomień).\n`
+      + `Adres: ${page.url()}\nCo widać:\n---\n${widok}\n---`,
+    );
+  }
+}
+
+/**
+ * Otwiera stronę meczu i UPEWNIA SIĘ, że dane doszły.
+ *
+ * Powód istnienia: przez pięć przebiegów w CI wszystkie scenariusze padały
+ * na „nie ma przycisku Dołącz", co jest objawem, nie przyczyną. Log z Actions
+ * widać tylko od końca, więc diagnostyka wypisana na początku zadania była
+ * nieosiągalna. Ten helper wkleja to, co REALNIE widzi przeglądarka, wprost
+ * w treść błędu — a błędy Playwright drukuje na końcu logu.
+ */
+async function otworzMecz(page: Page, id: string) {
+  await page.goto(`/wydarzenia/${id}`);
+  const licznik = page.locator('text=/\\d+ \\/ \\d+/').first();
+  try {
+    await expect(licznik).toBeVisible({ timeout: 15_000 });
+  } catch (e) {
+    const widok = await page.evaluate(() => document.body.innerText.slice(0, 600));
+    const url = page.url();
+    throw new Error(
+      `Strona meczu nie pokazała licznika miejsc.\n`
+      + `Adres: ${url}\n`
+      + `Co widać na stronie:\n---\n${widok}\n---\n`
+      + `(oryginalny błąd: ${(e as Error).message.split('\n')[0]})`,
+    );
+  }
 }
 
 test.describe('dołączanie do meczu', () => {
   test('wolne miejsca — wchodzi do składu i komunikat to potwierdza', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
-    await page.goto(`/wydarzenia/${MECZ.wolneMiejsca}`);
+    await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
     const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
@@ -90,7 +124,7 @@ test.describe('dołączanie do meczu', () => {
 
   test('komplet — komunikat mówi WPROST o rezerwie', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
-    await page.goto(`/wydarzenia/${MECZ.komplet}`);
+    await otworzMecz(page, MECZ.komplet);
     await uspokoj(page);
 
     await page.getByRole('button', { name: /komplet — zapisz się na rezerwę/i }).click();
@@ -111,7 +145,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
   // przeciwny wynik, różnica wyłącznie w trybie miejsc.
   test('rezerwacja — zawodnik z pola dostaje ostrzeżenie przed zapisem', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
-    await page.goto(`/wydarzenia/${MECZ.rezerwacjaBr}`);
+    await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
     const licznik = page.getByText(/pole: komplet/i)
@@ -129,7 +163,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
 
   test('wspólna pula — ten sam skład, zawodnik wchodzi bez ostrzeżenia', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
-    await page.goto(`/wydarzenia/${MECZ.wspolnaPula}`);
+    await otworzMecz(page, MECZ.wspolnaPula);
     await uspokoj(page);
 
     const licznik = page.getByText(/dla wszystkich ról/i)
@@ -150,7 +184,7 @@ test.describe('organizator', () => {
     await uspokoj(page);
     await expect(page.getByText(/czekają na twoją decyzję/i)).toBeVisible();
 
-    await page.goto(`/wydarzenia/${MECZ.doAkceptacji}`);
+    await otworzMecz(page, MECZ.doAkceptacji);
     await uspokoj(page);
     // Sekcja próśb — bez dat, więc nadaje się na wzorzec.
     const prosby = page.getByText(/czeka na akceptację|prośby o dołączenie/i).first()
@@ -160,7 +194,7 @@ test.describe('organizator', () => {
 
   test('kolejka rezerwowa z przyciskiem „Do składu"', async ({ page }) => {
     await zaloguj(page, KONTA.organizator);
-    await page.goto(`/wydarzenia/${MECZ.kolejka}`);
+    await otworzMecz(page, MECZ.kolejka);
     await uspokoj(page);
 
     await expect(page.getByText(/rezerwa — kolejka/i)).toBeVisible();
@@ -174,7 +208,7 @@ test.describe('organizator', () => {
 test.describe('płatności', () => {
   test('bez wyboru metody nie da się zapisać', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
-    await page.goto(`/wydarzenia/${MECZ.platny}`);
+    await otworzMecz(page, MECZ.platny);
     await uspokoj(page);
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
@@ -190,7 +224,7 @@ test.describe('płatności', () => {
 test.describe('obserwowanie', () => {
   test('obserwujący nie trafia na listę rezerwową', async ({ page }) => {
     await zaloguj(page, KONTA.drugiGracz);
-    await page.goto(`/wydarzenia/${MECZ.wolneMiejsca}`);
+    await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
     await page.getByRole('button', { name: /^Obserwuj$/i }).click();
@@ -207,7 +241,7 @@ test.describe('okna na telefonie', () => {
     test.skip(!info.project.name.includes('telefon'), 'dotyczy tylko widoku telefonu');
 
     await zaloguj(page, KONTA.organizator);
-    await page.goto(`/wydarzenia/${MECZ.wolneMiejsca}`);
+    await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
     await page.getByRole('button', { name: /wypisz się z meczu/i }).click();
