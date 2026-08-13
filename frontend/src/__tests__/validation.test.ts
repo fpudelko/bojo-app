@@ -6,6 +6,7 @@ import {
   sanitizeAddress,
   validatePhone,
   normalizePhone,
+  validateEmail,
 } from '@/lib/validation';
 
 describe('sanitizeText', () => {
@@ -104,6 +105,46 @@ describe('validatePhone', () => {
   it('rejects non-digit content', () => {
     expect(validatePhone('abcdefghi')).toBe(false);
     expect(validatePhone('')).toBe(false);
+  });
+});
+
+describe('validateEmail', () => {
+  it('akceptuje poprawny adres i przycina otaczające spacje', () => {
+    expect(validateEmail('  jan@example.com  ')).toBe('jan@example.com');
+  });
+
+  it('odrzuca puste pole', () => {
+    expect(() => validateEmail('')).toThrow('Podaj adres e-mail.');
+    expect(() => validateEmail('   ')).toThrow('Podaj adres e-mail.');
+  });
+
+  it('odrzuca adres bez @', () => {
+    expect(() => validateEmail('jan.kowalski.com')).toThrow(/poprawny adres/);
+  });
+
+  // Sedno poprawki: domena bez kropki (bez TLD-u) nie jest adresem, nawet gdy
+  // gdzieś w stringu jest kropka — poprzednia wersja sprawdzała `@` i `.`
+  // NIEZALEŻNIE od kolejności, więc "jan.kowalski@d" przechodziło.
+  it('odrzuca domenę bez kropki, mimo kropki w części lokalnej', () => {
+    expect(() => validateEmail('jan.kowalski@d')).toThrow(/poprawny adres/);
+    expect(() => validateEmail('ssssd@d')).toThrow(/poprawny adres/);
+  });
+
+  it('odrzuca adres z samą kropką na końcu domeny, bez TLD-u', () => {
+    expect(() => validateEmail('jan@example.')).toThrow(/poprawny adres/);
+  });
+
+  it('odrzuca spacje wewnątrz adresu', () => {
+    expect(() => validateEmail('jan kowalski@example.com')).toThrow(/poprawny adres/);
+  });
+
+  it('odrzuca zbyt długi adres', () => {
+    const dlugi = `${'a'.repeat(95)}@example.com`;
+    expect(() => validateEmail(dlugi)).toThrow('Adres e-mail jest za długi.');
+  });
+
+  it('akceptuje domenę wielopoziomową i plusowe aliasy', () => {
+    expect(validateEmail('jan+test@mail.example.co.uk')).toBe('jan+test@mail.example.co.uk');
   });
 });
 

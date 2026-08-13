@@ -48,16 +48,20 @@ export function normalizePhone(raw: string): string {
   return `+48${cleaned}`;
 }
 
+// Wymaga kropki W DOMENIE, po @, z czymś po niej (TLD) — same "zawiera @ i gdzieś
+// kropkę" (poprzednia wersja) przepuszczało np. "jan.kowalski@d" (kropka jest, ale
+// przed @, domena "d" bez TLD-u).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * Validate and normalize an email address.
- * Checks for basic format (contains @ and .), but full validation happens
- * on the server (Supabase Auth). Throws a user-friendly error.
+ * Checks a pragmatic format (local@domain.tld, no whitespace), but full validation
+ * happens on the server (Supabase Auth). Throws a user-friendly error.
  */
 export function validateEmail(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) throw new Error('Podaj adres e-mail.');
-  if (!trimmed.includes('@')) throw new Error('Adres musi zawierać @.');
-  if (!trimmed.includes('.')) throw new Error('Adres musi zawierać kropkę.');
   if (trimmed.length > 100) throw new Error('Adres e-mail jest za długi.');
+  if (!EMAIL_RE.test(trimmed)) throw new Error('Podaj poprawny adres e-mail.');
   return trimmed;
 }
