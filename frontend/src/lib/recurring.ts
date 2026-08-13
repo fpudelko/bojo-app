@@ -311,6 +311,22 @@ export function nastepnyTermin(dayOfWeek: number, eventTime: string, teraz = new
   return jakoData(cel);
 }
 
+/**
+ * Domyślny termin dla „Powtórz mecz": ten sam dzień tygodnia i godzina co
+ * pierwowzór, pierwszy raz w przyszłości — mecz sprzed miesiąca daje
+ * najbliższą przyszłą sobotę, nie sobotę sprzed trzech tygodni. Okno
+ * „Powtórz mecz" otwierało się dotąd z pustym polem daty i zablokowanym
+ * przyciskiem; to jest dokładnie ta sama matematyka, którą `nastepnyTermin()`
+ * już robi dla serii cyklicznych, tylko liczona od jednorazowego meczu
+ * zamiast od zapisanego `dayOfWeek`.
+ */
+export function domyslnyTerminPowtorki(date: string, time: string, teraz = new Date()): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const zrodlo = new Date(y, (m || 1) - 1, d || 1);
+  const dayOfWeek = zrodlo.getDay() === 0 ? 7 : zrodlo.getDay();
+  return nastepnyTermin(dayOfWeek, time, teraz);
+}
+
 /** Ile dni dzieli dziś od podanej daty (ujemne = przeszłość). */
 export function dniDo(data: string, teraz = new Date()): number {
   const [y, m, d] = data.split('-').map(Number);

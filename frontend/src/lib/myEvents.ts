@@ -48,6 +48,24 @@ export function splitMyEvents(items: MyEventRow[]): SplitMyEvents {
 }
 
 /**
+ * Rozegrane, płatne mecze organizatora, w których ktoś ze składu nie oddał
+ * pieniędzy. `unpaidCount` liczy już `toEvent()` z osadzonych uczestników
+ * (`lib/events.ts`) — ta sekcja nie dokłada ani jednego zapytania do bazy.
+ * Sortowanie od najświeższego: to ten mecz organizator najłatwiej pamięta
+ * i najłatwiej domknie.
+ */
+export function doRozliczenia(items: MyEventRow[]): MyEventRow[] {
+  return items
+    .filter(({ event, relation }) =>
+      relation.isOrganizer
+      && event.status !== 'cancelled'
+      && !isUpcoming(event)
+      && (event.costGrosze ?? 0) > 0
+      && (event.unpaidCount ?? 0) > 0)
+    .sort((a, b) => kluczTerminu(b).localeCompare(kluczTerminu(a)));
+}
+
+/**
  * The single most imminent match the user is actually in. Observing doesn't
  * count — you're not playing — and neither do cancelled or past matches.
  */
