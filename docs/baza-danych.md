@@ -1,6 +1,6 @@
 # Baza danych
 
-85 migracji (`001`–`087`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
+86 migracji (`001`–`088`, z lukami w numeracji) w `supabase/migrations/`. Modele domenowe →
 [domena.md](./domena.md).
 
 ---
@@ -123,6 +123,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `085_zapobiegaj_duplikatom_wpisu_goscia` | `dolacz_do_meczu_jako_goscie()` (`082`/`083`) sprawdza na starcie, czy ten sam e-mail już ma wpis w TYM meczu (nieprzejęty gość → zwraca istniejący `claim_token` zamiast duplikatu; przejęty → odrzuca) albo pasuje do konta już uczestniczącego przez normalne dołączenie. Naprawia realny przypadek z produkcji — ten sam e-mail zapisywał się jako gość wielokrotnie na jeden mecz |
 | `086_rpc_powiadomienie_braku_nazwy` | Wyzwalacz z `070`/`071` na `auth.users` jest poprawnie zdefiniowany, ale w produkcji **nigdy nie wstawił ani jednego powiadomienia** `uzupelnij_profil` — potwierdzone zapytaniem po danych produkcyjnych (dziesiątki kont z niepełną nazwą, zero wierszy tego typu w `notifications`), przyczyna nieznana. RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) to niezawodny odpowiednik po stronie klienta — wołany z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont (< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie. Wyzwalacz zostaje — `NOT EXISTS` w RPC chroni przed duplikatem, gdyby jednak zadziałał |
 | `087_juz_dolaczony_flaga` | `dolacz_do_meczu_jako_goscie()` zwraca dodatkową kolumnę `already_joined` (true przy idempotentnym zwrocie istniejącego `claim_token`, false przy świeżym zapisie) — frontend rozróżnia po niej ekran „Zapisano!" od „Wcześniej dołączyłeś do tej gry.". Zmiana `RETURNS TABLE` wymagała `DROP FUNCTION` + `CREATE` (nie `CREATE OR REPLACE`) i ponownego `GRANT` |
+| `088_konto_i_zamek_na_duplikaty` | Czwarta kolumna wyniku `dolacz_do_meczu_jako_goscie()`: `has_account` (`EXISTS` na `auth.users` po `lower(email)` — pytanie globalne, nie „czy w tym meczu"), dzięki czemu ekran po zapisie namawia na LOGOWANIE zamiast na drugie konto. Wyjątek `'Jesteś już zapisany na ten mecz.'` zamieniony na zwykły wiersz z `claim_token = NULL` (frontend rozpoznaje sytuację po kształcie wyniku, nie po treści komunikatu). Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token IS NULL) DESC, created_at` — samo `LIMIT 1` losowało wariant ekranu przy duplikatach. Unikalny indeks `idx_participants_unique_guest_email` na `(event_id, lower(guest_email)) WHERE guest_email IS NOT NULL` zamyka wyścig dwóch równoległych zapisów; **migracja KASUJE nadmiarowe wpisy** sprzed `085` (zostaje przejęty, a jak nie ma — najstarszy), bo inaczej indeks się nie zakłada |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

@@ -22,7 +22,7 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
 npm run lint           # ESLint — błędy blokują CI, ostrzeżenia nie
-npm test               # Vitest, 407 testów
+npm test               # Vitest, 428 testów
 npm run build          # build produkcyjny (potrzebuje tylko atrap kluczy, patrz niżej)
 ```
 

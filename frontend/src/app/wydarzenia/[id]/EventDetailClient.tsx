@@ -416,8 +416,11 @@ export default function EventDetailClient() {
   // token zamiast duplikatu) — nagłówek ekranu zachęty mówi „wcześniej dołączyłeś",
   // nie „zapisano".
   const [newUserAlreadyJoined, setNewUserAlreadyJoined] = useState(false);
-  // Ten sam e-mail ma już KONTO uczestniczące w tym meczu (087 rzuciła wyjątek) —
-  // osobny, uproszczony ekran zamiast zachęty do zakładania konta.
+  // Podany e-mail ma już konto w Bojo (088: kolumna has_account) — ekran po zapisie
+  // namawia wtedy na LOGOWANIE, nie na zakładanie drugiego konta.
+  const [newUserHasAccount, setNewUserHasAccount] = useState(false);
+  // Wpis ma już właściciela — 088 zwraca pusty claim_token, bo nie ma czego przejmować.
+  // Osobny, uproszczony ekran: samo logowanie, bez listy korzyści i pola hasła.
   const [showAlreadyJoinedPrompt, setShowAlreadyJoinedPrompt] = useState(false);
   const [accountPassword, setAccountPassword] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
@@ -844,26 +847,41 @@ export default function EventDetailClient() {
       // więc gość znikał z listy po zamknięciu modala.
       await load();
       setJoinAsGuestDialogOpen(false);
-      setNewUserClaimToken(result.claimToken);
       setNewUserEmail(guestEmail);
-      setNewUserIsReserve(result.isReserve);
-      setNewUserAlreadyJoined(result.alreadyJoined);
       setAccountPassword('');
       setAccountError(null);
-      setAccountEmailTaken(false);
+
+      // Wariant ekranu bierzemy z KSZTAŁTU wyniku, nie z treści komunikatu błędu.
+      // Pusty token = wpis ma już właściciela, nie ma czego przejmować.
+      if (!result.claimToken) {
+        setShowAlreadyJoinedPrompt(true);
+        toast('Ten mecz masz już w składzie.');
+        return;
+      }
+
+      setNewUserClaimToken(result.claimToken);
+      setNewUserIsReserve(result.isReserve);
+      setNewUserAlreadyJoined(result.alreadyJoined);
+      setNewUserHasAccount(result.hasAccount);
+      // Konto już istnieje — to samo pole hasła od razu loguje, zamiast próbować
+      // rejestracji, która i tak skończyłaby się błędem „konto już istnieje".
+      setAccountEmailTaken(result.hasAccount);
       setShowAccountPrompt(true);
-      toast(result.isReserve
-        ? 'Komplet — jesteś na liście rezerwowej'
-        : 'Dołączyłeś do meczu!');
+      toast(result.alreadyJoined
+        ? 'Ten zapis już istniał — nic nie dublujemy.'
+        : result.isReserve
+          ? 'Komplet — jesteś na liście rezerwowej'
+          : 'Dołączyłeś do meczu!');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
-      // Migracja 085: ten wyjątek oznacza, że e-mail ma już KONTO uczestniczące
-      // w tym meczu (przejęty gość albo zwykłe zalogowane dołączenie) — zamiast
-      // zostawić samego czerwonego toasta, pokazujemy ekran z linkiem do logowania.
+      // Furtka zgodności: dopóki migracja 088 nie jest wgrana ręcznie w Supabase,
+      // RPC sprzed niej rzuca wyjątek zamiast zwrócić wiersz z pustym tokenem.
+      // Po wgraniu 088 ta gałąź przestaje się odpalać.
       if (msg.includes('już zapisany na ten mecz')) {
         setJoinAsGuestDialogOpen(false);
         setNewUserEmail(guestEmail);
         setShowAlreadyJoinedPrompt(true);
+        return;
       }
       toast(msg, 'error');
     } finally {
@@ -3578,24 +3596,31 @@ export default function EventDetailClient() {
                 : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.
+              {newUserHasAccount
+                ? 'Ten e-mail ma już konto w Bojo. Zaloguj się, żeby zobaczyć więcej szczegółów — przypiszemy ten zapis do Ciebie.'
+                : newUserAlreadyJoined
+                  ? 'Twój zapis jest już na liście. Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'
+                  : 'Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'}
             </p>
 
-            {/* Trzy wartości */}
-            <ul className="mt-4 space-y-2.5 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-700 dark:text-slate-300">
-              <li className="flex gap-2">
-                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                <span>Dołączysz do ekipy i dostaniesz powiadomienia o kolejnych meczach</span>
-              </li>
-              <li className="flex gap-2">
-                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                <span>Założysz własny mecz i zbierzesz skład jednym linkiem</span>
-              </li>
-              <li className="flex gap-2">
-                <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                <span>Przejrzysz otwarte gry w okolicy</span>
-              </li>
-            </ul>
+            {/* Trzy wartości — tylko dla osób BEZ konta. Właściciela konta nie ma sensu
+                przekonywać do czegoś, co już ma; jemu skracamy ekran do logowania. */}
+            {!newUserHasAccount && (
+              <ul className="mt-4 space-y-2.5 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-700 dark:text-slate-300">
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                  <span>Dołączysz do ekipy i dostaniesz powiadomienia o kolejnych meczach</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                  <span>Założysz własny mecz i zbierzesz skład jednym linkiem</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                  <span>Przejrzysz otwarte gry w okolicy</span>
+                </li>
+              </ul>
+            )}
 
             {/* Potwierdzenie przez Google — natychmiastowe, jeden klik */}
             <div className="mt-5 space-y-2">
@@ -3607,7 +3632,7 @@ export default function EventDetailClient() {
                 disabled={accountBusy}
                 className="w-full h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-ink font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50"
               >
-                Potwierdź profil przez Google
+                {newUserHasAccount ? 'Zaloguj przez Google' : 'Potwierdź profil przez Google'}
               </button>
 
               <div className="flex items-center gap-2 py-1">
@@ -3619,7 +3644,9 @@ export default function EventDetailClient() {
               {/* Hasło wystarczy — imię i e-mail mamy już z formularza zapisu.
                   Gdy signUpWithEmail wykryje, że ten e-mail ma już konto,
                   to samo pole przełącza się na logowanie zamiast rejestracji. */}
-              {accountEmailTaken && (
+              {/* Gdy konto wykryła dopiero nieudana rejestracja — przy `has_account`
+                  z RPC to samo mówi już podlinia nagłówka, więc nie dublujemy. */}
+              {accountEmailTaken && !newUserHasAccount && (
                 <p className="rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-700 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                   Ten e-mail ma już konto w Bojo — podaj hasło, żeby się zalogować i przypisać ten zapis do siebie.
                 </p>
@@ -3653,26 +3680,29 @@ export default function EventDetailClient() {
               disabled={accountBusy}
               className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-50"
             >
-              Pomijam, potwierdzę później
+              {newUserHasAccount ? 'Pomiń i zobacz skład bez logowania' : 'Pomijam, potwierdzę później'}
             </button>
 
-            {/* Fallback link */}
-            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 text-center">
-              Lub{' '}
-              <a
-                href={`/gracz/przejmij/${newUserClaimToken}`}
-                className="text-primary-600 dark:text-primary-400 underline hover:text-primary-700"
-              >
-                potwierdź tutaj
-              </a>
-            </p>
+            {/* Fallback link — tylko dla ścieżki zakładania konta; ekran dla właściciela
+                konta ma zostać krótki. */}
+            {!newUserHasAccount && (
+              <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 text-center">
+                Lub{' '}
+                <a
+                  href={`/gracz/przejmij/${newUserClaimToken}`}
+                  className="text-primary-600 dark:text-primary-400 underline hover:text-primary-700"
+                >
+                  potwierdź tutaj
+                </a>
+              </p>
+            )}
           </div>
         </div>
       )}
 
-      {/* Ten sam e-mail ma już konto uczestniczące w tym meczu (085 rzuciła
-          wyjątek w handleJoinAsGuest) — bez listy korzyści i formularza
-          zakładania konta, samo zaloguj się albo pomiń. */}
+      {/* Wpis z tym e-mailem ma już właściciela (088 zwróciła pusty claim_token) —
+          nie ma czego przejmować, więc bez listy korzyści i bez formularza
+          zakładania konta: samo zaloguj się albo pomiń. */}
       {showAlreadyJoinedPrompt && (
         <div
           className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
@@ -3683,7 +3713,7 @@ export default function EventDetailClient() {
               Wcześniej dołączyłeś do tej gry.
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Zaloguj się, żeby zobaczyć szczegóły swojego zapisu.
+              Zaloguj się, żeby zobaczyć więcej szczegółów.
             </p>
             <div className="mt-5 space-y-2">
               <button
@@ -3700,7 +3730,7 @@ export default function EventDetailClient() {
               onClick={() => setShowAlreadyJoinedPrompt(false)}
               className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
             >
-              Pomiń, zobacz skład
+              Pomiń i zobacz skład bez logowania
             </button>
           </div>
         </div>

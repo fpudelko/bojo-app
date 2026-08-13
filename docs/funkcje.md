@@ -119,10 +119,14 @@ Anonimowy zapis **nie wymaga logowania ani wymyślania po stronie organizatora**
 link do dołączenia to ten sam link, co do każdego innego meczu. Ten sam e-mail nie
 zapisze się dwa razy na ten sam mecz. Gdy to wciąż e-mail bez konta (nieprzejęty
 wpis-gość), druga próba pokazuje ten sam ekran zachęty, tylko z nagłówkiem
-„Wcześniej dołączyłeś do tej gry." zamiast „Zapisano!". Gdy e-mail ma już konto
-uczestniczące w tym meczu, zamiast tego pokazuje się uproszczony ekran — bez
-zachęty do zakładania konta, tylko przycisk „Zaloguj się" i link „Pomiń, zobacz
-skład".
+„Wcześniej dołączyłeś do tej gry." zamiast „Zapisano!". Gdy e-mail **ma już konto
+w Bojo**, ekran skraca się do logowania — bez listy korzyści i bez namawiania na
+drugie konto, z podlinią „Zaloguj się, żeby zobaczyć więcej szczegółów" i małym
+„Pomiń i zobacz skład bez logowania"; nagłówek nadal mówi, czy to świeży zapis, czy
+powrót do zapisu sprzed chwili. Gdy wpis ma już właściciela (konto przejęło zapis
+albo dołączyło normalnie, po zalogowaniu), pokazuje się ten sam skrócony ekran bez
+pola hasła — nie ma czego przejmować, więc zostaje samo logowanie. W żadnym z tych
+przypadków nie powstaje drugi wiersz w składzie i nie leci czerwony błąd.
 
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
@@ -167,12 +171,23 @@ trybie. Naprawia to też tę samą lukę w zwykłej rejestracji przez `/logowani
 Migracja `087` dodaje do wyniku `dolacz_do_meczu_jako_goscie()` kolumnę
 `already_joined` (zmiana `RETURNS TABLE` — wymagała `DROP FUNCTION` + `CREATE`,
 `CREATE OR REPLACE` nie pozwala zmienić typu zwracanego, i ponownego `GRANT EXECUTE`).
-`joinEventAsGuest()` w `lib/events.ts` przekazuje ją dalej jako `alreadyJoined`.
-`handleJoinAsGuest()` w `EventDetailClient.tsx` używa jej do nagłówka ekranu zachęty
-(„Wcześniej dołączyłeś" zamiast „Zapisano!"); gdy zamiast tego złapie wyjątek
-`'Jesteś już zapisany na ten mecz.'` z `085` — co zawsze oznacza istniejące konto,
-bo obie gałęzie SQL, które go rzucają, wymagają wcześniejszego `auth.uid()` — otwiera
-osobny stan `showAlreadyJoinedPrompt` zamiast `showAccountPrompt`.
+`joinEventAsGuest()` w `lib/events.ts` przekazuje ją dalej jako `alreadyJoined`,
+a `handleJoinAsGuest()` w `EventDetailClient.tsx` używa jej do nagłówka ekranu zachęty
+(„Wcześniej dołączyłeś" zamiast „Zapisano!").
+
+Migracja `088` dokłada czwartą kolumnę `has_account` (`EXISTS` na `auth.users` po
+zlowercase'owanym e-mailu — pytanie globalne, nie „czy jest w tym meczu"), zamienia
+wyjątek `'Jesteś już zapisany na ten mecz.'` na zwykły wiersz z `claim_token = NULL`
+i zakłada unikalny indeks `idx_participants_unique_guest_email` na
+`(event_id, lower(guest_email))`, wcześniej kasując duplikaty sprzed `085` (bez tego
+indeks się nie zakłada). Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token
+IS NULL) DESC, created_at` — przy danych z duplikatami samo `LIMIT 1` losowało wariant
+ekranu. `handleJoinAsGuest()` wybiera ekran po kształcie wyniku: pusty `claimToken` →
+`showAlreadyJoinedPrompt`, w przeciwnym razie `showAccountPrompt` z `newUserHasAccount`
+i `accountEmailTaken` ustawionymi z `has_account` (pole hasła startuje w trybie
+logowania). Dopasowanie po treści wyjątku zostało tylko jako furtka zgodności na czas,
+zanim `088` zostanie wgrana ręcznie w Supabase — `joinEventAsGuest()` czyta
+`has_account` przez `?? false`, więc stary, trzykolumnowy kształt RPC nadal działa.
 
 **Pytania, na które odpowiada ta sekcja:** Czy mogę dołączyć do meczu bez konta w Bojo?
 Jak niezalogowany gracz może się zapisać na mecz? Czy gość bez konta zajmuje miejsce
