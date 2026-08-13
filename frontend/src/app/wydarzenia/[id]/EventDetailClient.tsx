@@ -18,6 +18,7 @@ import EventComments from '@/components/events/EventComments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
+import GuestInviteNudge from '@/components/events/GuestInviteNudge';
 import {
   getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
   terminyWZakresie, type ZakresEdycji,
@@ -47,7 +48,7 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { linkPrzejeciaWpisu, tekstZaproszeniaGoscia, przejmijWpisGoscia } from '@/lib/guestClaim';
+import { przejmijWpisGoscia, udostepnijZaproszenieGoscia } from '@/lib/guestClaim';
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart } from '@/lib/eventDates';
@@ -405,14 +406,17 @@ export default function EventDetailClient() {
   const [guestPaymentMethod, setGuestPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const [guestBusy, setGuestBusy] = useState(false);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
+  // Zachęta do zaproszenia dopiero co dodanego gościa do Bojo
+  const [nudgeOpen, setNudgeOpen] = useState(false);
+  const [nudgeGuest, setNudgeGuest] = useState<{ name: string; claimToken: string } | null>(null);
   const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
   const [newUserIsReserve, setNewUserIsReserve] = useState(false);
-  // Ten sam e-mail miał już nieprzejęty wpis w tym meczu (086 zwróciła istniejący
+  // Ten sam e-mail miał już nieprzejęty wpis w tym meczu (087 zwróciła istniejący
   // token zamiast duplikatu) — nagłówek ekranu zachęty mówi „wcześniej dołączyłeś",
   // nie „zapisano".
   const [newUserAlreadyJoined, setNewUserAlreadyJoined] = useState(false);
-  // Ten sam e-mail ma już KONTO uczestniczące w tym meczu (086 rzuciła wyjątek) —
+  // Ten sam e-mail ma już KONTO uczestniczące w tym meczu (087 rzuciła wyjątek) —
   // osobny, uproszczony ekran zamiast zachęty do zakładania konta.
   const [showAlreadyJoinedPrompt, setShowAlreadyJoinedPrompt] = useState(false);
   const [accountPassword, setAccountPassword] = useState('');
@@ -853,7 +857,7 @@ export default function EventDetailClient() {
         : 'Dołączyłeś do meczu!');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
-      // Migracja 086: ten wyjątek oznacza, że e-mail ma już KONTO uczestniczące
+      // Migracja 085: ten wyjątek oznacza, że e-mail ma już KONTO uczestniczące
       // w tym meczu (przejęty gość albo zwykłe zalogowane dołączenie) — zamiast
       // zostawić samego czerwonego toasta, pokazujemy ekran z linkiem do logowania.
       if (msg.includes('już zapisany na ten mecz')) {
@@ -990,11 +994,22 @@ export default function EventDetailClient() {
     if (!guestName.trim()) return;
     setBusy(true);
     try {
-      const { isReserve: onReserve } = await addGuest(event.id, guestName.trim(), false, user?.id ?? undefined, guestRole === 'goalkeeper');
+      const dodanyGosc = guestName.trim();
+      const { claimToken, isReserve: onReserve } = await addGuest(
+        event.id, dodanyGosc, false, user?.id ?? undefined, guestRole === 'goalkeeper',
+      );
       setGuestName('');
       setGuestRole('player');
       await load();
       toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
+
+      // Zachęta do zaproszenia gościa do Bojo — tylko raz na to wydarzenie,
+      // żeby organizator dopisujący 14 osób pod rząd nie dostał 14 identycznych modali.
+      const kluczWidziano = `bojo:goscie-cta-widziano:${event.id}`;
+      if (typeof localStorage !== 'undefined' && !localStorage.getItem(kluczWidziano)) {
+        setNudgeGuest({ name: dodanyGosc, claimToken });
+        setNudgeOpen(true);
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1138,33 +1153,23 @@ export default function EventDetailClient() {
   };
 
   /** Udostępnia jednorazowy link, którym gość zwiąże ten wpis ze swoim kontem —
-   *  razem z argumentem, nie samym adresem (patrz `tekstZaproszeniaGoscia`). */
+   *  razem z argumentem, nie samym adresem. Logika udostępniania (Web Share /
+   *  schowek) współdzielona z `GuestInviteNudge.tsx` przez `guestClaim.ts`. */
   const kopiujLinkPrzejecia = async (p: EventParticipant) => {
     if (!p.claimToken) return;
-    const url = linkPrzejeciaWpisu(p.claimToken);
     // Kto zaprasza: osoba, która ten wpis dopisała. Nie zawsze organizator —
     // przy `allowGuestAdds` robi to kolega z drużyny, a wiadomość podpisana
     // cudzym nazwiskiem myli bardziej niż brak podpisu.
     const zapraszajacy = participants.find((x) => x.userId === p.addedBy)?.name
       ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
       ?? event.organizerName;
-    const text = tekstZaproszeniaGoscia(p.name, event, zapraszajacy);
 
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: 'Zaproszenie do Bojo', text, url });
-        return;
-      } catch {
-        return; // anulowane przez użytkownika — nic nie pokazujemy, jak w shareEvent()
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(`${text}\n${url}`);
+    const wynik = await udostepnijZaproszenieGoscia(p.name, p.claimToken, event, zapraszajacy);
+    if (wynik === 'copied') {
       setSkopiowanyToken(p.id);
       setTimeout(() => setSkopiowanyToken(null), 2500);
       toast('Wiadomość skopiowana — wyślij ją tej osobie');
-    } catch {
+    } else if (wynik === 'failed' && typeof navigator !== 'undefined' && !navigator.share) {
       toast('Nie udało się skopiować linku', 'error');
     }
   };
@@ -3665,7 +3670,7 @@ export default function EventDetailClient() {
         </div>
       )}
 
-      {/* Ten sam e-mail ma już konto uczestniczące w tym meczu (086 rzuciła
+      {/* Ten sam e-mail ma już konto uczestniczące w tym meczu (085 rzuciła
           wyjątek w handleJoinAsGuest) — bez listy korzyści i formularza
           zakładania konta, samo zaloguj się albo pomiń. */}
       {showAlreadyJoinedPrompt && (
@@ -3813,6 +3818,19 @@ export default function EventDetailClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {nudgeOpen && nudgeGuest && (
+        <GuestInviteNudge
+          onClose={() => {
+            setNudgeOpen(false);
+            localStorage.setItem(`bojo:goscie-cta-widziano:${event.id}`, '1');
+          }}
+          guestName={nudgeGuest.name}
+          claimToken={nudgeGuest.claimToken}
+          event={event}
+          zapraszajacy={displayName(user) || event.organizerName}
+        />
       )}
     </div>
   );

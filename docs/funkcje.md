@@ -54,7 +54,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
-| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token` |
+| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
 **„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
@@ -164,7 +164,7 @@ rzuca błędu, tylko zwraca fałszywy sukces bez sesji; bez tej dodatkowej detek
 `handleCreateAccountFromGuest()` nigdy by nie przełączył się na logowanie w tym
 trybie. Naprawia to też tę samą lukę w zwykłej rejestracji przez `/logowanie`.
 
-Migracja `086` dodaje do wyniku `dolacz_do_meczu_jako_goscie()` kolumnę
+Migracja `087` dodaje do wyniku `dolacz_do_meczu_jako_goscie()` kolumnę
 `already_joined` (zmiana `RETURNS TABLE` — wymagała `DROP FUNCTION` + `CREATE`,
 `CREATE OR REPLACE` nie pozwala zmienić typu zwracanego, i ponownego `GRANT EXECUTE`).
 `joinEventAsGuest()` w `lib/events.ts` przekazuje ją dalej jako `alreadyJoined`.
@@ -708,9 +708,20 @@ użytkownik przyszedł. `?next=` (brama kreatora, strona boiska, grupa) ma pierw
 
 Konsekwencja: baner „Gracze zobaczą Cię jako…" (`UzupelnijProfilBanner`) renderuje się
 **także na `/wydarzenia`**, nie tylko na pulpicie. Bez tego konto bez imienia — typowo
-Google bez `full_name` — nie zobaczyłoby go nigdy. Powiadomienie z migracji `070` tej
-luki nie zamyka: wyzwalacz jest `AFTER INSERT ON auth.users`, więc dotyczy wyłącznie
-nowych kont, a migracja świadomie nie uzupełnia wstecz.
+Google bez `full_name` — nie zobaczyłoby go nigdy. Powiadomienie z migracji `070`/`071`
+tej luki nie zamykało (wyzwalacz w praktyce nigdy nie wstawiał wiersza — patrz sekcja
+„Powiadomienia — co realnie istnieje" niżej); od migracji `086` RPC wołane z
+`lib/auth.tsx` robi to niezawodnie dla świeżych kont.
+
+**Modal wyboru roli po rejestracji** (`components/onboarding/PostSignupRoleModal.tsx`,
+montowany globalnie w `layout.tsx`) pokazuje się raz, tylko po organicznej rejestracji
+(konto młodsze niż 10 minut, cel logowania jeden z `/`, `/wydarzenia`, `/moje-gry`,
+`/mapa` — czyli bez konkretnego kontekstu w rodzaju dołączania do meczu albo przejęcia
+wpisu gościa, sprawdzane przez `ostatniZamierzonyCel()` w `lib/powrotPoLogowaniu.ts`).
+Proponuje „Jestem organizatorem" (`/grupy/nowe`, wizualnie pierwsze) albo „Jestem
+graczem" (`/grupy` albo `/wydarzenia`). Zamknięcie krzyżykiem też oznacza wpis jako
+widziany (`localStorage`, klucz `bojo:onboarding-rola:<uid>`) — nie wraca przy kolejnym
+logowaniu.
 
 ---
 
@@ -865,11 +876,20 @@ Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
 | Zaproszenia cykliczne | Edge function `send-invites` |
 
-Wpisy do `notifications` powstają wyłącznie z wyzwalaczy w bazie — tabela ma polityki
-SELECT i UPDATE dla własnych wierszy i **żadnej polityki INSERT**, więc przeglądarka nie
-może wpisać powiadomienia nawet sobie. Dziś jest ich pięć: oferta zwolnionego miejsca
-(`062`), akceptacja zapisu i zmiana terminu (`065`), imienne zaproszenie (`067`) oraz
-**odwołanie meczu i konto bez nazwy** (`070`).
+Wpisy do `notifications` powstają wyłącznie z wyzwalaczy w bazie albo z wąsko
+uprawnionych funkcji RPC (`SECURITY DEFINER`) — tabela ma polityki SELECT i UPDATE dla
+własnych wierszy i **żadnej polityki INSERT**, więc przeglądarka nie może wpisać
+powiadomienia nawet sobie bez przejścia przez taką funkcję. Dziś jest ich pięć: oferta
+zwolnionego miejsca (`062`), akceptacja zapisu i zmiana terminu (`065`), imienne
+zaproszenie (`067`) oraz **odwołanie meczu i konto bez nazwy** (`070`).
+
+**Konto bez nazwy — wyzwalacz z `070`/`071` w praktyce nigdy nie zadziałał.**
+Potwierdzone zapytaniem po danych produkcyjnych: zero wierszy typu `uzupelnij_profil`
+mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `086` dodaje RPC
+`zglos_brak_pelnej_nazwy()`, wołaną z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont
+(< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie
+(`UzupelnijProfilBanner.tsx`) — niezawodny odpowiednik po stronie klienta. Wyzwalacz
+zostaje jako potencjalny drugi nadawca; `NOT EXISTS` w RPC chroni przed duplikatem.
 
 `NotificationBell` linkuje powiadomienie do meczu przez `event_id`, a te bez `event_id` —
 przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` → `/profil`). Bez niej renderowały się

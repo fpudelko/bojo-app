@@ -1,4 +1,4 @@
-import { Bell, Check, ChevronRight, Clock, MapPin, MessageCircle, Plus, Share2, Users } from 'lucide-react';
+import { Bell, Check, ChevronRight, Clock, MapPin, MessageCircle, Plus, Repeat, Share2, Users } from 'lucide-react';
 
 /**
  * Makiety trzech ekranów aplikacji do karuzeli na landingu.
@@ -184,7 +184,7 @@ export function MockMyGames() {
   );
 }
 
-/* ── EKRAN 2: /wydarzenia/nowe, krok 2 ──────────────────────────────────── */
+/* ── EKRAN 2: /wydarzenia/nowe, krok 2 z 3 ──────────────────────────────── */
 
 export function MockWizard() {
   const stepDot = (content: React.ReactNode, done: boolean, current?: boolean) => (
@@ -201,59 +201,60 @@ export function MockWizard() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* wskaźnik kroków */}
+      {/* wskaźnik kroków — „Kiedy i ile” to krok 2 z 3 (STEP_TITLES
+          w wydarzenia/nowe/page.tsx: „Co i gdzie” → „Kiedy i ile” → „Opcje”) */}
       <div className="flex shrink-0 items-center gap-1.5 border-b border-slate-200/70 bg-canvas px-3 py-2">
         {stepDot(<Check className="h-3 w-3" strokeWidth={3} />, true)}
-        {stepDot(<Check className="h-3 w-3" strokeWidth={3} />, true)}
-        {stepDot('3', false, true)}
+        {stepDot('2', false, true)}
+        {stepDot('3', false, false)}
         <span className="ml-1 text-[10px] font-medium text-slate-500">Kiedy i ile</span>
       </div>
 
       <div className="flex-1 overflow-hidden px-3 pt-3">
-        <div className="flex gap-2">
+        <p className="mb-1 text-[10px] font-medium text-slate-700">Data</p>
+        <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">7 sie 2026</div>
+
+        <div className="mt-2.5 flex gap-2">
           <div className="flex-1">
-            <p className="mb-1 text-[10px] font-medium text-slate-700">Data</p>
-            <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">7 sie</div>
+            <p className="mb-1 text-[10px] font-medium text-slate-700">Rozpoczęcie</p>
+            <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">18 : 00</div>
           </div>
           <div className="flex-1">
-            <p className="mb-1 text-[10px] font-medium text-slate-700">Godzina</p>
-            <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">18:00</div>
+            <p className="mb-1 text-[10px] font-medium text-slate-700">Czas gry</p>
+            <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">90 min</div>
+            <p className="mt-1 text-[9px] text-slate-500">Koniec o 19:30</p>
           </div>
         </div>
 
-        <p className="mb-1 mt-3 text-[10px] font-medium text-slate-700">Czas gry</p>
-        <div className="flex gap-1.5">
-          {['60', '75', '90', '105'].map((m) => (
-            <span
-              key={m}
-              className={[
-                'whitespace-nowrap rounded-lg border px-1.5 py-1 text-[10px] font-medium',
-                m === '90' ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-600',
-              ].join(' ')}
-            >
-              {m} min
-            </span>
-          ))}
+        {/* Kafelek „Wydarzenie cykliczne” — dokładnie ten sam, co pod
+            polami daty w kreatorze (extraSlot w EventDateTimeField). */}
+        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-slate-300 px-2.5 py-2">
+          <Repeat className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-medium text-slate-900">Wydarzenie cykliczne</p>
+            <p className="text-[9px] text-slate-500">Powtarzaj ten mecz co tydzień</p>
+          </div>
+          <span className="shrink-0 text-[9px] font-semibold text-primary-700">Włącz</span>
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-[10px] font-medium text-slate-700">Liczba graczy</p>
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-300 text-[12px] text-slate-500">−</span>
-            <span className="w-5 text-center text-[12px] font-bold text-ink">14</span>
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-300 text-[12px] text-slate-500">+</span>
-          </div>
+        <p className="mb-1.5 mt-3 text-[10px] font-medium text-slate-700">Liczba miejsc</p>
+        <div className="inline-flex items-center gap-2.5 rounded-lg border border-slate-300 px-2 py-1">
+          <span className="flex h-5 w-5 items-center justify-center text-[12px] text-slate-500">−</span>
+          <span className="w-4 text-center text-[12px] font-bold text-ink">14</span>
+          <span className="flex h-5 w-5 items-center justify-center text-[12px] text-slate-500">+</span>
         </div>
+        <p className="mt-1 text-[9px] text-slate-500">Kolejni chętni trafią na listę rezerwową.</p>
+
+        <MockToggle label="Bramkarze" desc="Osobny limit miejsc dla bramkarzy" on />
 
         {/* Koszt obiektu — dziś to tryb domyślny kreatora */}
-        <p className="mb-1 mt-3 text-[10px] font-medium text-slate-700">Koszt wynajmu obiektu (zł)</p>
+        <p className="mb-1 mt-2.5 text-[10px] font-medium text-slate-700">Koszt wynajmu obiektu (zł)</p>
         <div className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-ink">210</div>
         <p className="mt-1 text-[9px] leading-snug text-slate-500">
           Przy 14 miejscach wychodzi <span className="font-semibold">15,00 zł od osoby</span>.
         </p>
 
-        <MockToggle label="Bramkarze" desc="Osobny limit miejsc" on />
-        <MockToggle label="Biorę udział" desc="Zapisz mnie do składu" on />
+        <MockToggle label="Biorę udział" desc="Zapisz mnie jako uczestnika tej gry" on />
       </div>
 
       {/* przyklejony pasek akcji */}

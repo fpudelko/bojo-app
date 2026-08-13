@@ -1,4 +1,4 @@
--- 086: Dodaj flagę already_joined do dolacz_do_meczu_jako_goscie()
+-- 087: Dodaj flagę already_joined do dolacz_do_meczu_jako_goscie()
 --
 -- Problem: `085` poprawnie blokuje duplikat zapisu (rzuca wyjątek, gdy e-mail już ma
 -- konto uczestniczące w tym meczu; zwraca istniejący `claim_token` idempotentnie, gdy

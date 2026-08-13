@@ -117,3 +117,34 @@ export function tekstZaproszeniaGoscia(
     + `• przeglądanie otwartych gier w okolicy (tych wciąż przybywa).\n`
     + `Konto zakładasz Google'em albo e-mailem, zajmuje 30 sekund:`;
 }
+
+/** Udostępnia link przejęcia wpisu gościa — Web Share API, z fallbackiem do
+ *  schowka. Współdzielone przez przycisk „Zaproś do Bojo" w składzie
+ *  (`EventDetailClient.tsx`) i modal zachęty pokazywany zaraz po dodaniu
+ *  gościa (`GuestInviteNudge.tsx`), żeby obie ścieżki wysyłały dokładnie tę
+ *  samą treść tym samym mechanizmem. */
+export async function udostepnijZaproszenieGoscia(
+  imieGoscia: string,
+  token: string,
+  event: DaneDoUdostepnienia,
+  ktoZaprasza?: string,
+): Promise<'shared' | 'copied' | 'failed'> {
+  const url = linkPrzejeciaWpisu(token);
+  const text = tekstZaproszeniaGoscia(imieGoscia, event, ktoZaprasza);
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'Zaproszenie do Bojo', text, url });
+      return 'shared';
+    } catch {
+      return 'failed'; // anulowane przez użytkownika — nic nie pokazujemy, jak w shareEvent()
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}

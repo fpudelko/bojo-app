@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 import { track } from './analytics';
 import { zapamietajPowrot, odbierzPowrot } from './powrotPoLogowaniu';
 import { setHintCookie, clearHintCookie } from './sessionHint';
+import { displayName, isPelneImie } from './profileName';
 
 interface AuthContextValue {
   user: User | null;
@@ -111,6 +112,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(key)) {
           sessionStorage.setItem(key, '1');
           track('login').catch(() => {});
+        }
+
+        // Fresh account (utworzone w ciągu ostatnich 10 minut) bez pełnego
+        // imienia — zgłoś do dzwonka powiadomień. Nie dotyczy starych kont:
+        // trigger 070/071 miał to obsłużyć przy rejestracji, ale w praktyce
+        // nigdy nie zadziałał (patrz migracja 085) — to jest niezawodny
+        // odpowiednik po stronie klienta, celowo ograniczony do świeżych
+        // kont, żeby nie zalać powiadomieniami wszystkich dotychczasowych
+        // użytkowników z niepełną nazwą.
+        const wiekKontaMs = Date.now() - new Date(session.user.created_at).getTime();
+        if (wiekKontaMs < 10 * 60 * 1000 && !isPelneImie(displayName(session.user))) {
+          supabase.rpc('zglos_brak_pelnej_nazwy').then(() => {});
         }
       }
     });

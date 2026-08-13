@@ -270,7 +270,7 @@ zamiast tworzyć duplikat (idempotentnie, pokrywa też podwójny klik przy słab
 połączeniu); już przejęty wpis, albo konto z tym e-mailem dołączone normalnie
 (zalogowane) → `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'`.
 
-Frontend rozróżnia te dwie ścieżki. Migracja `086` dodała do zwracanego wiersza kolumnę
+Frontend rozróżnia te dwie ścieżki. Migracja `087` dodała do zwracanego wiersza kolumnę
 `already_joined` (true przy idempotentnym zwrocie tokenu) — gdy `handleJoinAsGuest()`
 w `EventDetailClient.tsx` dostanie `alreadyJoined: true`, ekran zachęty pokazuje nagłówek
 „Wcześniej dołączyłeś do tej gry." zamiast „Zapisano!"/„Świetnie! Jesteś w składzie.",
@@ -300,7 +300,7 @@ albo edge function do pilnowania po e-mailu (wymaga dostępu do IP).
 
 Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (naprawia
 „ambiguous column reference" w `RETURNING`), `084_powiadomienie_o_koncie_z_wpisem_goscia.sql`,
-`085_zapobiegaj_duplikatom_wpisu_goscia.sql`, `086_juz_dolaczony_flaga.sql` (kolumna
+`085_zapobiegaj_duplikatom_wpisu_goscia.sql`, `087_juz_dolaczony_flaga.sql` (kolumna
 `already_joined` w wyniku RPC).
 
 ---
