@@ -1,15 +1,24 @@
 # Bojo
 
 > Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów w całej Polsce:
-> znajdź boisko, stwórz mecz, zbierz skład. Katalog ~1400 boisk i obiektów sportowych
-> (obejmujący całą Polskę), mecze publiczne otwarte na dołączenie, stałe ekipy
+> znajdź boisko, stwórz mecz, zbierz skład. Katalog ponad 30 000 obiektów sportowych
+> w całej Polsce, mecze publiczne otwarte na dołączenie, stałe ekipy
 > (grupy). Sporty: piłka nożna, siatkówka, siatkówka plażowa, koszykówka. Interfejs
-> po polsku. Logowanie: Google lub e-mail.
+> po polsku. Logowanie (dla organizatora): Google lub e-mail. Dołączenie do meczu
+> nie wymaga konta.
 
 ## Kontekst dla modeli
 
 - [Pełny kontekst o Bojo](/llm-context.md): gęsty opis produktu, modelu domenowego
   i granic aplikacji — problem, rozwiązanie i mechanika każdej funkcji
+
+## Dla organizatora
+
+- [Jak działa Bojo](/jak-dziala-bojo): kreator meczu, wysyłanie linku, zapis gracza bez
+  konta, skład i rezerwa, rozliczenie po meczu
+- [Dlaczego Bojo](/dlaczego-bojo): różnice wobec grupy na Facebooku i ankiety na WhatsAppie
+- [FAQ](/faq): pełna lista pytań i odpowiedzi w sześciu kategoriach
+- [O nas](/o-nas): kto robi Bojo i skąd pochodzą dane o boiskach
 
 ## Dla graczy
 
@@ -36,17 +45,23 @@ zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchod
 
 ## Jak działa Bojo
 
-- Przeglądanie mapy i stron boisk nie wymaga konta. Tworzenie meczu i dołączanie — tak.
+- Przeglądanie mapy i stron boisk nie wymaga konta. Tworzenie meczu wymaga konta.
+  Dołączenie do meczu — nie: osoba z linkiem zapisuje się, podając imię i e-mail, bez
+  hasła i bez potwierdzania adresu; konto może dokończyć dopiero po zapisie, jeśli chce.
 - Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć) albo **prywatny**
   (dostęp wyłącznie przez link lub kod dołączenia). Trzeciego poziomu widoczności nie ma.
 - Organizator może wymagać akceptacji zapisu oraz pozwolić uczestnikom dopisywać gości
   bez konta.
 - Status **„Obserwuję"** nie zajmuje miejsca w składzie ani nie liczy się do statystyk.
 - Gdy komplet jest pełny, kolejne zapisy trafiają na **listę rezerwową**. Rezerwowy
-  **nie wskakuje automatycznie**, gdy ktoś się wypisze — organizator powiadamia go sam.
-- Organizator może włączyć podział kosztów, wyniki meczu, obecność i podział na drużyny.
+  **nie wskakuje automatycznie**, gdy ktoś się wypisze — dostaje ofertę miejsca
+  i ma czas na decyzję.
+- Organizator może włączyć podział kosztów, wyniki meczu i podział na drużyny.
 - Bojo **rejestruje**, kto zapłacił — **nie przelewa pieniędzy**. Płatność odbywa się
   poza aplikacją.
+- Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu,
+  zaproszenie, odwołanie meczu, zmiana kompletu składu) są wyłącznie **w aplikacji**.
+  Bojo nie wysyła SMS-ów, maili o meczu ani powiadomień push.
 
 ## Optional
 

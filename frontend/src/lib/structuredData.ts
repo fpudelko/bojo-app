@@ -151,6 +151,17 @@ export function faqJsonLd(items: ReadonlyArray<{ q: string; a: string }>) {
   };
 }
 
+/** `/o-nas` — points at the `Organization` node already emitted globally by
+ *  `siteJsonLd()` rather than repeating its fields here. */
+export function aboutPageJsonLd(base: string = SITE_URL) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    url: `${base}/o-nas`,
+    mainEntity: { '@id': `${base}/#organization` },
+  };
+}
+
 /** Venue list for a sport category page. */
 export function venueListJsonLd(
   listName: string,
