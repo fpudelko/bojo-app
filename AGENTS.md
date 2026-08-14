@@ -65,26 +65,21 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia.
 
-**Przeglądanie i akceptacja — z telefonu, bez pobierania czegokolwiek:**
+**Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
-1. Workflow wkleja obrazki **wprost w komentarz do PR-a** — nowe widoki oraz
-   trójki „wzorzec / teraz / co się zmieniło". Renderują się w aplikacji
-   mobilnej GitHuba. (Pod spodem: `.github/podglad-zrzutow.sh` wypycha pliki na
-   techniczną gałąź `podglad-zrzutow` i linkuje przez `raw.githubusercontent`;
-   artefakt z raportem HTML zostaje jako droga zapasowa.)
-2. Zgadzasz się? Napisz w wątku `/zrzuty ok` w osobnej linii. Etykieta
-   `zrzuty:zaakceptuj` działa równoważnie, ale w aplikacji mobilnej siedzi
-   głęboko pod ⓘ.
-3. Workflow generuje wzorce i dopisuje je do gałęzi PR-a.
+`.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi
+`podglad-zrzutow`, pod adresem `…/tree/podglad-zrzutow/pr-<numer>/<zestaw>`.
+GitHub renderuje `README.md` katalogu jako stronę, więc wchodzisz w odnośnik
+z komentarza i przewijasz obrazki: nowe widoki oraz trójki „wzorzec / teraz /
+różnica". Nic nie trzeba pobierać ani odpisywać. Raporty **kasują się same po
+7 dniach** — gałąź nie ma rosnąć w nieskończoność. Artefakt z raportem HTML
+zostaje jako droga zapasowa.
 
-Zatwierdzenie obowiązuje **tak samo widoki nowe, jak zmienione**
-(`.github/dopisz-wzorce.sh`). Nic nie trafia do repo bez decyzji człowieka:
-pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on staje się
-wzorcem na zawsze.
-
-**Pułapka `issue_comment`:** GitHub uruchamia workflow z gałęzi **domyślnej**,
-nie z PR-a. Zmiana w samym `wizualne.yml` zaczyna więc działać dopiero po
-zmergowaniu do `master` — na PR-ze, który ją wprowadza, komenda jeszcze milczy.
+Wzorce wchodzą do repo dopiero po nadaniu etykiety `zrzuty:zaakceptuj`
+(w aplikacji GitHuba: **ⓘ** w prawym dolnym rogu PR-a → *Labels*). Dotyczy to
+**tak samo widoków nowych, jak zmienionych** (`.github/dopisz-wzorce.sh`) —
+pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on staje
+się wzorcem na zawsze.
 
 `e2e/wizualne.spec.ts` chodzi **bez bazy** — na atrapach kluczy, w tym samym
 przebiegu co build. Komunikaty, które normalnie przychodzą z serwera (złe hasło,
