@@ -9,11 +9,12 @@ import { supabase } from '@/lib/supabase';
 function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
-  // Domyślnie na listę meczów, nie na pulpit: kto właśnie założył konto, ma
-  // zobaczyć, po co przyszedł. `?next=` (brama kreatora, strona boiska, grupa)
-  // ma pierwszeństwo. Ten sam domyślny cel deklaruje AuthForm — logowanie
-  // Google szło przez callback i jako jedyne go omijało.
-  const next = params.get('next') || '/wydarzenia';
+  // Domyślnie na stronę główną — tam czeka modal wyboru roli po świeżej
+  // rejestracji (PostSignupRoleModal). `?next=` (brama kreatora, strona
+  // boiska, grupa, dołączanie do meczu) ma pierwszeństwo. Ten sam domyślny
+  // cel deklaruje AuthForm — oba muszą się zgadzać, bo inaczej logowanie
+  // przez Google (idące przez ten callback) ląduje gdzie indziej niż mailem.
+  const next = params.get('next') || '/';
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
