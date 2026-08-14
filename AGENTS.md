@@ -65,6 +65,19 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
 
+**Scenariusze za logowaniem (pełny stos Supabase, wymaga Dockera):**
+
+```bash
+./scripts/stos-lokalny.sh    # Postgres + GoTrue + PostgREST, migracje, dane
+cd frontend && npm run build && npm run scenariusze
+```
+
+Przechodzą przejścia realnego gracza na realnej bazie: dołączenie, rezerwa,
+dwa tryby miejsc dla bramkarzy, prośby o akceptację, płatności, obserwowanie,
+okno na telefonie. Dane z `supabase/seed_wizualne.sql` mają **daty na sztywno**,
+a zegar przeglądarki jest zamrożony (`page.clock`) — inaczej etykiety „Dzisiaj"
+i „za 2 dni" zmieniałyby zrzuty każdego dnia.
+
 **Testy klikalności (Playwright):**
 
 ```bash

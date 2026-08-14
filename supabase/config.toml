@@ -1,0 +1,53 @@
+# Konfiguracja lokalnego stosu Supabase (CLI) — używana WYŁĄCZNIE w testach.
+#
+# Produkcja stoi w chmurze i nie ma z tym pliku nic wspólnego; migracje na niej
+# uruchamiane są ręcznie, tak jak dotąd (patrz AGENTS.md).
+#
+# UWAGA: migracji NIE aplikujemy przez `supabase db reset`. CLI oczekuje nazw
+# ze znacznikiem czasu (`20260813120000_nazwa.sql`), a w tym repo są numery
+# porządkowe (`001_…`, `078_…`) i zmiana konwencji zerwałaby ciągłość z bazą
+# produkcyjną. Zamiast tego `scripts/stos-lokalny.sh` podaje pliki po kolei
+# przez psql — dokładnie tak, jak robi to człowiek w SQL Editorze.
+
+project_id = "bojo-test"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+# `supabase/seed.sql` to katalog boisk dla dewelopera — kilka tysięcy wierszy,
+# których testy nie potrzebują, a które wydłużają start i wprowadzają dane
+# zależne od importów. Zrzuty mają stać na `seed_wizualne.sql` i tylko na nim.
+enabled = false
+
+[studio]
+enabled = false
+
+[inbucket]
+enabled = false
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3100"
+additional_redirect_urls = ["http://127.0.0.1:3100/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Bez potwierdzania adresu: testy zakładają konta i od razu się logują.
+enable_confirmations = false
+
+[analytics]
+enabled = false
