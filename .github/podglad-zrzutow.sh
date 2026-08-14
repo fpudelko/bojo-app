@@ -107,8 +107,12 @@ else
   echo "$DZIS" > "$KOPIA/$KATALOG/stempel.txt"
 
   # --- Strona raportu ------------------------------------------------------
+  # `|| true` przy KAŻDYM `grep`: przy `set -e` z `pipefail` grep bez trafienia
+  # zwraca 1 i ubija cały skrypt. Zdarzyło się dokładnie to — przebieg miał
+  # 40 nowych widoków i zero różnic, `grep '^roznica__'` nie znalazł nic
+  # i raport nigdy nie powstał, a krok zakończył się po cichu.
   LICZBA_NOWYCH="$(ls "$ZBIOR" | grep -c '^nowy__' || true)"
-  LICZBA_ROZNIC="$(ls "$ZBIOR" | grep '^roznica__' | sed 's/__[a-z]*\.png$//' | sort -u | wc -l)"
+  LICZBA_ROZNIC="$(ls "$ZBIOR" | { grep '^roznica__' || true; } | sed 's/__[a-z]*\.png$//' | sort -u | wc -l)"
 
   {
     echo "# Zrzuty — PR #${PR} · ${ZESTAW}"
@@ -127,7 +131,7 @@ else
       echo "Kolejno: **wzorzec** (jak było), **teraz** (jak jest), **różnica**"
       echo "(podświetlone piksele, które się ruszyły)."
       echo ""
-      ls "$ZBIOR" | grep '^roznica__' | sed 's/^roznica__//; s/__[a-z]*\.png$//' | sort -u \
+      ls "$ZBIOR" | { grep '^roznica__' || true; } | sed 's/^roznica__//; s/__[a-z]*\.png$//' | sort -u \
       | while IFS= read -r KLUCZ; do
           echo "### ${KLUCZ}"
           echo ""
@@ -152,7 +156,7 @@ else
       echo "Nie było ich wcześniej, więc nie ma z czym porównywać —"
       echo "to jest po prostu to, co widzi użytkownik."
       echo ""
-      ls "$ZBIOR" | grep '^nowy__' | sort | while IFS= read -r PLIK; do
+      ls "$ZBIOR" | { grep '^nowy__' || true; } | sort | while IFS= read -r PLIK; do
         PODPIS="$(echo "${PLIK#nowy__}" | sed 's/\.png$//; s/__/ · /g')"
         echo "### ${PODPIS}"
         echo ""

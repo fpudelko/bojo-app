@@ -32,18 +32,33 @@ module.exports = async ({ github, context, znacznik, tytul, udane, akceptacja, o
       '',
       'Wszystkie zrzuty zgadzają się ze wzorcami — nic się wizualnie nie ruszyło.',
     ].join('\n');
-  } else {
+  } else if (obrazki) {
     tresc = [
       naglowek,
       '',
       'Widoki się zmieniły. To **nie jest** błąd sam w sobie — zmiana może być',
       'dokładnie tym, co chciałeś zrobić.',
-      obrazki || '\n_(Raportu nie udało się wystawić — obrazki są w artefakcie przebiegu.)_',
+      obrazki,
       '',
       '---',
       '',
       'Nowe wzorce wejdą do repo dopiero po nadaniu etykiety `zrzuty:zaakceptuj`',
       '(w aplikacji GitHuba: **ⓘ** w prawym dolnym rogu → *Labels*).',
+      '',
+      '_To zadanie nie blokuje merge\'a ani deployu._',
+    ].join('\n');
+  } else {
+    // Brak obrazków przy nieudanym przebiegu znaczy coś innego niż zmiana
+    // wyglądu: test padł zanim doszło do porównania — na asercji zachowania,
+    // na braku przycisku, na wywróconym logowaniu. Mówienie wtedy „widoki się
+    // zmieniły" wysyła w złą stronę.
+    tresc = [
+      naglowek,
+      '',
+      'Testy nie doszły do porównania widoków — coś padło wcześniej',
+      '(asercja zachowania, brak elementu, logowanie). **Nie chodzi o wygląd.**',
+      '',
+      'Szczegóły są w logu przebiegu i w artefakcie z raportem.',
       '',
       '_To zadanie nie blokuje merge\'a ani deployu._',
     ].join('\n');
