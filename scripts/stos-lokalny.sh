@@ -36,6 +36,24 @@ if [[ "$CZY_JEST" != "t" ]]; then
 fi
 echo "  OK — schemat aktualny"
 
+# GRANT-y dla ról API. Bez tego PostgREST odpowiada 401 z kodem 42501
+# („permission denied for table events") jeszcze ZANIM dojdzie do RLS — i to
+# właśnie zatrzymywało wszystkie scenariusze za logowaniem: aplikacja widziała
+# każdy mecz jako „Nie znaleziono wydarzenia".
+#
+# Skąd to się bierze: `ALTER DEFAULT PRIVILEGES` Supabase jest zapisane DLA
+# konkretnej roli, a domyślne uprawnienia działają wyłącznie na obiekty
+# stworzone przez tę rolę. Migracje CLI puszcza inną rolą, więc tabele
+# powstają bez grantów. Na produkcji problemu nie ma — tam schemat rósł
+# w SQL Editorze. RLS zostaje nietknięty, to jest warstwa niżej.
+echo "→ Uprawnienia ról API do schematu public…"
+psql "$DB_URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES     IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES  IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS  IN SCHEMA public TO anon, authenticated, service_role;
+SQL
+
 echo "→ Konta testowe…"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f supabase/seed-test-users.sql
 
@@ -53,10 +71,20 @@ psql "$DB_URL" -c "SELECT
   (SELECT count(*) FROM event_participants)                AS uczestnicy;"
 
 # Czy PostgREST oddaje mecz anonimowi (czyli czy RLS przepuszcza odczyt).
+# To jest BRAMKA, nie wydruk: dopóki było tu samo `curl | head`, stos wstawał
+# „poprawnie", a o tym, że API nie oddaje niczego, dowiadywaliśmy się dopiero
+# z padających zrzutów — cztery minuty i jeden przebieg CI później.
 echo "→ Czy API oddaje mecz publiczny:"
-curl -s "$API_URL/rest/v1/events?id=eq.11111111-1111-4111-8111-111111111111&select=id,title" \
-  -H "apikey: $ANON" -H "Authorization: Bearer $ANON" | head -c 300
+ODPOWIEDZ="$(curl -s "$API_URL/rest/v1/events?id=eq.11111111-1111-4111-8111-111111111111&select=id,title" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON")"
+echo "$ODPOWIEDZ" | head -c 300
 echo
+if [[ "$ODPOWIEDZ" != \[\{* ]]; then
+  echo "✗ API nie oddało meczu — scenariusze i tak by padły." >&2
+  echo "  Pusta tablica: brak danych z seed_wizualne.sql." >&2
+  echo "  Błąd 42501: brak GRANT-ów dla ról anon/authenticated." >&2
+  exit 1
+fi
 
 # Zmienne dla builda i testów.
 {

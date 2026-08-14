@@ -65,6 +65,23 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
 
+`e2e/wizualne.spec.ts` chodzi **bez bazy** — na atrapach kluczy, w tym samym
+przebiegu co build. Komunikaty, które normalnie przychodzą z serwera (złe hasło,
+e-mail zajęty, limit prób, rejestracja wyłączona), podstawia `page.route()`:
+przechwytuje odpowiedź GoTrue i oddaje tę, którą chcemy zobaczyć. Ścieżka kodu
+w aplikacji jest prawdziwa, atrapa siedzi wyłącznie w sieci. Tak samo powstaje
+widok „Google zablokowane w tej przeglądarce" — przez podstawiony `User-Agent`
+Facebooka, bo w zwykłej przeglądarce nie da się go zobaczyć.
+
+Dwie pułapki przy pisaniu nowych zrzutów:
+
+- `/wydarzenia` renderuje listę **dwa razy** (gałąź `hidden md:block` i `md:hidden`),
+  więc `.first()` trafia na kopię ukrytą przez CSS — filtruj `filter({ visible: true })`.
+- Atrapa PostgREST musi kłamać tak jak serwer: zapytanie z `.single()` wysyła
+  `Accept: …pgrst.object+json` i przy zerze wierszy dostaje **406 PGRST116**.
+  Pusta tablica w tej sytuacji jest gorsza niż nic — supabase-js bierze ją za
+  wiersz i strona meczu rysuje nagłówek „undefined" oraz „Zostało NaN miejsc".
+
 **Scenariusze za logowaniem (pełny stos Supabase, wymaga Dockera):**
 
 ```bash

@@ -14,6 +14,17 @@ import { test, expect, type Page } from '@playwright/test';
 // nadaj PR-owi etykietę `zrzuty:zaakceptuj` — workflow wygeneruje nowe wzorce
 // i dopisze je do gałęzi.
 //
+// ZAKRES TEGO PLIKU: **bez bazy danych**.
+// Ten plik uruchamia się na atrapach kluczy Supabase, w tym samym przebiegu co
+// build produkcyjny — nie potrzebuje Dockera ani lokalnego stosu. Komunikaty,
+// które normalnie przychodzą z serwera (złe hasło, e-mail zajęty, limit prób),
+// podstawiamy `page.route()`: przechwytujemy odpowiedź GoTrue i oddajemy tę,
+// którą chcemy zobaczyć. Zrzut pokazuje wtedy PRAWDZIWY widok aplikacji na
+// prawdziwej ścieżce kodu — atrapa jest tylko po stronie sieci.
+//
+// Widoki wymagające zalogowania i realnych danych (skład meczu, rezerwa,
+// płatności) siedzą w `scenariusze.spec.ts` i chodzą na lokalnym Supabase.
+//
 // CZEGO NIE ROBIMY
 // Nie robimy zrzutu całej strony tam, gdzie treść zależy od czasu („za 2 dni")
 // albo od zewnętrznego serwisu (awatary, kafelki mapy). Takie miejsca albo
@@ -40,6 +51,85 @@ async function uspokoj(page: Page) {
   await page.evaluate(() => document.fonts?.ready);
 }
 
+/** Baner cookies wyskakuje po 6 sekundach ALBO po przewinięciu 300 px
+ *  (`lib/cookieConsent.ts`). Zrzut zrobiony na granicy tego czasu łapałby go
+ *  raz tak, raz nie — więc domyślnie go zamykamy, a pokazujemy tylko w tym
+ *  jednym teście, który jest o nim. */
+async function bezBaneraCookies(page: Page) {
+  await page.addInitScript(() => {
+    try { localStorage.setItem('bojo_cookie_consent_v1', '1'); } catch { /* tryb prywatny */ }
+  });
+}
+
+/** Pusta baza zamiast braku bazy.
+ *
+ *  Bez tego zapytania lecą na `placeholder.supabase.co`, a to, co zobaczy
+ *  test, zależy od tego, jak szybko padnie DNS — czasem pusta lista, czasem
+ *  wieczna kręciołka. Odpowiadając pustą tablicą dostajemy dokładnie ten stan,
+ *  o który chodzi: widok „nic tu nie ma", zawsze taki sam. */
+async function pustaBaza(page: Page) {
+  await page.route('**/rest/v1/**', (route) => {
+    // Zapytanie z `.single()` / `.maybeSingle()` wysyła nagłówek
+    // `Accept: application/vnd.pgrst.object+json` i PostgREST oddaje mu wtedy
+    // OBIEKT, a przy zerze wierszy — błąd 406 PGRST116. Pusta tablica w tym
+    // miejscu jest gorsza niż brak odpowiedzi: supabase-js bierze ją za wiersz
+    // i strona meczu rysuje nagłówek „undefined" oraz „Zostało NaN miejsc".
+    // Atrapa musi kłamać tak, jak kłamie prawdziwy serwer.
+    const accept = route.request().headers()['accept'] ?? '';
+    if (accept.includes('pgrst.object')) {
+      return route.fulfill({
+        status: 406,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'PGRST116',
+          details: 'The result contains 0 rows',
+          hint: null,
+          message: 'JSON object requested, multiple (or no) rows returned',
+        }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '0-0/0' },
+      body: '[]',
+    });
+  });
+}
+
+/** Podstawia odpowiedź GoTrue na logowanie hasłem. */
+async function odpowiedzLogowania(page: Page, status: number, body: unknown) {
+  await page.route('**/auth/v1/token**', (route) =>
+    route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }),
+  );
+}
+
+/** Podstawia odpowiedź GoTrue na zakładanie konta. */
+async function odpowiedzRejestracji(page: Page, status: number, body: unknown) {
+  await page.route('**/auth/v1/signup**', (route) =>
+    route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }),
+  );
+}
+
+/** Wypełnia i wysyła formularz logowania. */
+async function zaloguj(page: Page, email = 'ktos@example.com', haslo = 'tajnehaslo123') {
+  await page.locator('input[type="email"]').first().fill(email);
+  await page.locator('input[type="password"]').first().fill(haslo);
+  await page.getByRole('button', { name: 'Zaloguj się', exact: true }).last().click();
+}
+
+/** Karta z formularzem — zrzucamy ją, a nie całą stronę, bo w tle leci
+ *  podgląd listy meczów, który nie ma nic wspólnego z badanym komunikatem. */
+function karta(page: Page) {
+  return page.locator('form').first();
+}
+
+test.beforeEach(async ({ page }) => {
+  await bezBaneraCookies(page);
+});
+
+/* ── Widoki publiczne ───────────────────────────────────────────────────── */
+
 test.describe('widoki publiczne', () => {
   test('strona główna', async ({ page }) => {
     await page.goto('/');
@@ -59,6 +149,20 @@ test.describe('widoki publiczne', () => {
     await expect(page.locator('header').first()).toHaveScreenshot('lista-gier-naglowek.png');
   });
 
+  test('lista gier — nic nie znaleziono', async ({ page }) => {
+    await pustaBaza(page);
+    await page.goto('/wydarzenia');
+    // `filter({ visible: true })` nie jest ozdobnikiem: `/wydarzenia` renderuje
+    // listę DWA razy — raz w gałęzi `hidden md:block` (komputer), raz w
+    // `md:hidden` (telefon, z przełącznikiem lista/mapa). Bez filtru zwykłe
+    // `.first()` trafia na kopię ukrytą przez CSS i test czeka na coś, co
+    // w tym rozmiarze okna nigdy się nie pokaże.
+    await expect(page.getByText('Brak meczów').filter({ visible: true }).first())
+      .toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('lista-gier-pusto.png', { fullPage: true });
+  });
+
   test('logowanie', async ({ page }) => {
     await page.goto('/logowanie');
     await uspokoj(page);
@@ -72,7 +176,74 @@ test.describe('widoki publiczne', () => {
     if ((await formularz.count()) === 0) test.skip(true, 'brak formularza w tym widoku');
     await expect(formularz).toHaveScreenshot('rejestracja-formularz.png');
   });
+
+  test('404 — nie ma takiej strony', async ({ page }) => {
+    await page.goto('/takiej-strony-nie-ma');
+    await expect(page.getByText('Nie znaleziono strony')).toBeVisible();
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('404.png', { fullPage: true });
+  });
+
+  test('nie ma takiego meczu', async ({ page }) => {
+    await pustaBaza(page);
+    await page.goto('/wydarzenia/00000000-0000-4000-8000-000000000000');
+    await expect(page.getByText('Nie znaleziono wydarzenia')).toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('mecz-nie-istnieje.png', { fullPage: true });
+  });
+
+  test('regulamin', async ({ page }) => {
+    await page.goto('/regulamin');
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('regulamin.png', { fullPage: true });
+  });
+
+  test('polityka prywatności', async ({ page }) => {
+    await page.goto('/prywatnosc');
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('prywatnosc.png', { fullPage: true });
+  });
+
+  test('baner o cookies', async ({ page, context }) => {
+    // Jedyny test, w którym baner MA być widoczny — czyścimy zgodę wstawioną
+    // w `beforeEach` i przewijamy o próg, który go wywołuje.
+    await context.clearCookies();
+    await page.addInitScript(() => {
+      try { localStorage.removeItem('bojo_cookie_consent_v1'); } catch { /* tryb prywatny */ }
+    });
+    await page.goto('/');
+    await page.mouse.wheel(0, 600);
+    const baner = page.getByRole('dialog', { name: 'Informacja o cookies' });
+    await expect(baner).toBeVisible({ timeout: 15_000 });
+    await uspokoj(page);
+    await expect(baner).toHaveScreenshot('baner-cookies.png');
+  });
 });
+
+/* ── Ekrany, które bez konta proszą o zalogowanie ───────────────────────── */
+
+test.describe('zachęta do zalogowania', () => {
+  // Te trzy widoki to pierwszy kontakt z aplikacją dla kogoś, kto wszedł
+  // z linku. Jeśli któryś zamiast zachęty pokaże pustkę albo kręciołkę,
+  // człowiek odbija się od progu — a żaden inny test tego nie widzi.
+  for (const [nazwa, adres, plik] of [
+    ['moje gry', '/moje-gry', 'wylogowany-moje-gry.png'],
+    ['grupy', '/grupy', 'wylogowany-grupy.png'],
+    ['profil', '/profil', 'wylogowany-profil.png'],
+  ] as const) {
+    test(nazwa, async ({ page }) => {
+      await pustaBaza(page);
+      await page.goto(adres);
+      // Czekamy na cokolwiek stabilnego zamiast na sam `load` — inaczej zrzut
+      // łapie kręciołkę sprawdzania sesji.
+      await page.waitForLoadState('networkidle');
+      await uspokoj(page);
+      await expect(page).toHaveScreenshot(plik, { fullPage: true });
+    });
+  }
+});
+
+/* ── Komunikaty walidacji (po stronie przeglądarki) ─────────────────────── */
 
 test.describe('komunikaty walidacji', () => {
   // Sedno: komunikaty to miejsce, w którym najłatwiej o cichą regresję —
@@ -107,6 +278,201 @@ test.describe('komunikaty walidacji', () => {
     await expect(page.getByText(/podaj imię i nazwisko/i)).toHaveCount(0);
   });
 });
+
+/* ── Komunikaty z serwera logowania ─────────────────────────────────────── */
+
+test.describe('komunikaty logowania', () => {
+  // Wszystkie przechodzą przez `mapAuthError()` w `lib/auth.tsx`: GoTrue mówi
+  // po angielsku, użytkownik ma zobaczyć polski komunikat. Ten przekład jest
+  // najłatwiejszy do zepsucia — wystarczy, że Supabase zmieni brzmienie błędu,
+  // i zamiast „Nieprawidłowy e-mail lub hasło" wychodzi surowe angielskie
+  // zdanie. Zrzut pokazuje to od razu.
+
+  test('złe hasło', async ({ page }) => {
+    await odpowiedzLogowania(page, 400, {
+      error: 'invalid_grant',
+      error_description: 'Invalid login credentials',
+      message: 'Invalid login credentials',
+      code: 'invalid_credentials',
+    });
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await zaloguj(page);
+    await expect(page.getByText('Nieprawidłowy e-mail lub hasło.')).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('logowanie-zle-haslo.png');
+  });
+
+  test('e-mail niepotwierdzony', async ({ page }) => {
+    await odpowiedzLogowania(page, 400, {
+      error: 'invalid_grant',
+      error_description: 'Email not confirmed',
+      message: 'Email not confirmed',
+      code: 'email_not_confirmed',
+    });
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await zaloguj(page);
+    await expect(page.getByText(/potwierdź e-mail, zanim się zalogujesz/i)).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('logowanie-mail-niepotwierdzony.png');
+  });
+
+  test('za dużo prób', async ({ page }) => {
+    await odpowiedzLogowania(page, 429, {
+      error: 'over_request_rate_limit',
+      message: 'Request rate limit reached',
+      code: 'over_request_rate_limit',
+    });
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await zaloguj(page);
+    await expect(page.getByText(/za dużo prób/i)).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('logowanie-limit-prob.png');
+  });
+});
+
+/* ── Komunikaty przy zakładaniu konta ───────────────────────────────────── */
+
+test.describe('komunikaty rejestracji', () => {
+  async function wypelnijRejestracje(page: Page) {
+    await page.getByPlaceholder('Imię i nazwisko').fill('Krzysiek W');
+    await page.locator('input[type="email"]').first().fill('ktos@example.com');
+    await page.locator('input[type="password"]').first().fill('tajnehaslo123');
+    await page.getByRole('button', { name: /załóż konto/i }).click();
+  }
+
+  test('e-mail już zajęty — odpowiedź wprost', async ({ page }) => {
+    await odpowiedzRejestracji(page, 400, {
+      message: 'User already registered',
+      code: 'user_already_exists',
+    });
+    await page.goto('/logowanie?mode=rejestracja');
+    await uspokoj(page);
+    await wypelnijRejestracje(page);
+    await expect(page.getByText(/konto z tym adresem już istnieje/i)).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('rejestracja-mail-zajety.png');
+  });
+
+  test('e-mail już zajęty — przy ochronie przed enumeracją', async ({ page }) => {
+    // Supabase z włączoną ochroną przed enumeracją e-maili NIE zgłasza błędu:
+    // oddaje fałszywy sukces z pustą tablicą `identities`. Bez rozpoznania tego
+    // przypadku (`lib/auth.tsx`) aplikacja pokazywałaby „sprawdź pocztę" komuś,
+    // kto konto ma od dawna i żadnego maila nie dostanie.
+    await odpowiedzRejestracji(page, 200, {
+      id: '00000000-0000-4000-8000-000000000000',
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: 'ktos@example.com',
+      identities: [],
+      created_at: '2020-01-01T00:00:00Z',
+      updated_at: '2020-01-01T00:00:00Z',
+    });
+    await page.goto('/logowanie?mode=rejestracja');
+    await uspokoj(page);
+    await wypelnijRejestracje(page);
+    await expect(page.getByText(/konto z tym adresem już istnieje/i)).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('rejestracja-mail-zajety-cichy.png');
+  });
+
+  test('konto założone — sprawdź pocztę', async ({ page }) => {
+    await odpowiedzRejestracji(page, 200, {
+      id: '11111111-1111-4111-8111-111111111111',
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: 'ktos@example.com',
+      identities: [{ id: 'x', user_id: '11111111-1111-4111-8111-111111111111', provider: 'email' }],
+      created_at: '2020-01-01T00:00:00Z',
+      updated_at: '2020-01-01T00:00:00Z',
+    });
+    await page.goto('/logowanie?mode=rejestracja');
+    await uspokoj(page);
+    await wypelnijRejestracje(page);
+    await expect(page.getByText('Sprawdź pocztę')).toBeVisible();
+    // Tu formularza już nie ma — cała karta zamienia się w ekran potwierdzenia.
+    await expect(page.locator('main')).toHaveScreenshot('rejestracja-sprawdz-poczte.png');
+  });
+
+  test('rejestracja wyłączona', async ({ page }) => {
+    await odpowiedzRejestracji(page, 422, {
+      message: 'Signups not allowed for this instance',
+      code: 'signup_disabled',
+    });
+    await page.goto('/logowanie?mode=rejestracja');
+    await uspokoj(page);
+    await wypelnijRejestracje(page);
+    await expect(page.getByText(/rejestracja jest chwilowo wyłączona/i)).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('rejestracja-wylaczona.png');
+  });
+});
+
+/* ── Logowanie linkiem i reset hasła ────────────────────────────────────── */
+
+test.describe('logowanie bez hasła i reset', () => {
+  test('formularz logowania linkiem', async ({ page }) => {
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await page.getByRole('button', { name: /zaloguj się linkiem/i }).click();
+    await expect(page.getByRole('heading', { name: 'Logowanie linkiem' })).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('logowanie-linkiem-formularz.png');
+  });
+
+  test('link wysłany', async ({ page }) => {
+    await page.route('**/auth/v1/otp**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    );
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await page.getByRole('button', { name: /zaloguj się linkiem/i }).click();
+    await page.locator('input[type="email"]').first().fill('ktos@example.com');
+    await page.getByRole('button', { name: /wyślij link logowania/i }).click();
+    await expect(page.getByText('Sprawdź pocztę')).toBeVisible();
+    await expect(page.locator('main')).toHaveScreenshot('logowanie-linkiem-wyslany.png');
+  });
+
+  test('formularz resetu hasła', async ({ page }) => {
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await page.getByRole('button', { name: /nie pamiętasz hasła/i }).click();
+    await expect(page.getByRole('heading', { name: 'Reset hasła' })).toBeVisible();
+    await expect(karta(page)).toHaveScreenshot('reset-hasla-formularz.png');
+  });
+
+  test('reset hasła wysłany', async ({ page }) => {
+    await page.route('**/auth/v1/recover**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    );
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await page.getByRole('button', { name: /nie pamiętasz hasła/i }).click();
+    await page.locator('input[type="email"]').first().fill('ktos@example.com');
+    await page.getByRole('button', { name: /wyślij link resetu/i }).click();
+    await expect(page.getByText('Sprawdź pocztę')).toBeVisible();
+    await expect(page.locator('main')).toHaveScreenshot('reset-hasla-wyslany.png');
+  });
+});
+
+/* ── Przeglądarka wbudowana w Facebooka / Instagrama ────────────────────── */
+
+test.describe('przeglądarka w aplikacji', () => {
+  // Realny przypadek: link do meczu wysłany na Messengerze otwiera się
+  // w WebView, w którym Google blokuje logowanie. Aplikacja rozpoznaje to po
+  // `User-Agent` i zamiast martwego przycisku pokazuje instrukcję. Widok jest
+  // niedostępny w zwykłej przeglądarce, więc bez podstawionego UA nikt go
+  // nigdy nie zobaczy — łatwo zepsuć niepostrzeżenie.
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 '
+      + '(KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/450.0.0.0;FBDV/iPhone14,3]',
+  });
+
+  test('Google zablokowane — instrukcja zamiast martwego przycisku', async ({ page }) => {
+    await page.goto('/logowanie');
+    await uspokoj(page);
+    await expect(page.getByText('Google jest zablokowane w tej przeglądarce')).toBeVisible();
+    await expect(page.locator('main')).toHaveScreenshot('logowanie-webview-facebook.png');
+  });
+});
+
+/* ── Mapa ───────────────────────────────────────────────────────────────── */
 
 test.describe('mapa', () => {
   test('rama widoku mapy', async ({ page }) => {
