@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # Odsyła wzorce zrzutów na gałąź PR-a. Uruchamiany z katalogu `frontend`.
 #
-# DWA TRYBY, bo to dwie zupełnie różne sytuacje:
+# JEDNA ZASADA: nic nie trafia do repo bez etykiety `zrzuty:zaakceptuj`.
 #
-# 1. Wzorzec NOWY (widok, którego wcześniej nie było). Nie ma go z czym
-#    porównać, więc nie ma czego przeglądać — dopisujemy go bez pytania.
-#    Bez tego każdy nowy zrzut wymagał osobnej rundy: przebieg zapisuje plik
-#    do artefaktu, człowiek nakłada etykietę, przebieg leci drugi raz.
+# Dotyczy to tak samo widoków ZMIENIONYCH, jak i CAŁKIEM NOWYCH. Przez chwilę
+# nowe wzorce dopisywały się same — z rozumowaniem „nowy zrzut nie ma z czym
+# się różnić, więc nie ma czego przeglądać". To rozumowanie jest błędne:
+# pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on
+# staje się wzorcem na zawsze. Jeśli nowy ekran wyszedł krzywo, ciche
+# dopisanie utrwala krzywy stan i nikt się o tym nie dowie.
 #
-# 2. Wzorzec ZMIENIONY (widok wyglądał inaczej). To jest właśnie ta zmiana,
-#    którą trzeba obejrzeć — nadpisujemy ją WYŁĄCZNIE po nadaniu etykiety
-#    `zrzuty:zaakceptuj`, i tylko wtedy.
+# Zrzuty nowych widoków oglądasz w artefakcie (`zrzuty-raport` /
+# `scenariusze-raport`), zanim nadasz etykietę.
 #
 # Argument: dopełniacz do wiadomości commita („zrzutów", „scenariuszy").
 set -euo pipefail
@@ -22,29 +23,27 @@ GALAZ="${GALAZ:?brak nazwy gałęzi w GALAZ}"
 NOWE="$(git ls-files --others --exclude-standard e2e/wzorce)"
 ZMIENIONE="$(git diff --name-only -- e2e/wzorce)"
 
-if [[ "$AKCEPTUJ" == "1" ]]; then
-  if [[ -z "$NOWE$ZMIENIONE" ]]; then
-    echo "Wzorce bez zmian — nie ma czego dopisywać."
-    exit 0
+if [[ "$AKCEPTUJ" != "1" ]]; then
+  if [[ -n "$NOWE$ZMIENIONE" ]]; then
+    echo "Są wzorce do zatwierdzenia, ale brak etykiety zrzuty:zaakceptuj."
+    echo "Nowe:      $(echo "$NOWE" | grep -c . || true)"
+    echo "Zmienione: $(echo "$ZMIENIONE" | grep -c . || true)"
+    echo "Obejrzyj je w artefakcie i nadaj etykietę, jeśli są w porządku."
+  else
+    echo "Wzorce bez zmian."
   fi
-  WIADOMOSC="test: zaakceptowane wzorce $CO"
-else
-  if [[ -z "$NOWE" ]]; then
-    echo "Brak nowych wzorców. Zmienione zostawiam do przejrzenia."
-    exit 0
-  fi
-  # Zmienione wzorce mają zostać nietknięte — inaczej ciche nadpisanie
-  # zjadłoby dokładnie tę informację, po którą jest cały ten workflow.
-  if [[ -n "$ZMIENIONE" ]]; then
-    git checkout -- e2e/wzorce
-  fi
-  WIADOMOSC="test: wzorce dla nowych widoków ($CO)"
+  exit 0
+fi
+
+if [[ -z "$NOWE$ZMIENIONE" ]]; then
+  echo "Wzorce bez zmian — nie ma czego dopisywać."
+  exit 0
 fi
 
 git config user.name  "github-actions[bot]"
 git config user.email "github-actions[bot]@users.noreply.github.com"
 git add e2e/wzorce
-git commit -m "$WIADOMOSC"
+git commit -m "test: zaakceptowane wzorce $CO"
 
 # Oba zadania tego workflow potrafią dopisywać wzorce równocześnie, więc
 # odrzucony push nie jest błędem, tylko wyścigiem — po prostu próbujemy jeszcze

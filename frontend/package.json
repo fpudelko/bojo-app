@@ -12,8 +12,8 @@
     "e2e": "playwright test",
     "zrzuty": "playwright test --project=zrzuty-telefon --project=zrzuty-komputer",
     "zrzuty:akceptuj": "playwright test --project=zrzuty-telefon --project=zrzuty-komputer --update-snapshots",
-    "scenariusze": "playwright test --project=scenariusze-telefon --project=scenariusze-komputer",
-    "scenariusze:akceptuj": "playwright test --project=scenariusze-telefon --project=scenariusze-komputer --update-snapshots"
+    "scenariusze": "playwright test --project=scenariusze-telefon --project=scenariusze-komputer --workers=1",
+    "scenariusze:akceptuj": "playwright test --project=scenariusze-telefon --project=scenariusze-komputer --workers=1 --update-snapshots"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

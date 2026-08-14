@@ -17,6 +17,13 @@ import { test, expect, type Page } from '@playwright/test';
 // wystawia token ważny godzinę od PRAWDZIWEGO „teraz", a przeglądarka z zegarem
 // w 2030 uznawała go za wygasły i wylogowywała użytkownika.
 //
+// JEDEN WĄTEK, NIE DWA (`--workers=1` w `npm run scenariusze`). Baza jest
+// jedna na cały przebieg, a te same scenariusze lecą w dwóch rozmiarach okna.
+// Dwa wątki zapisujące się równolegle na ten sam mecz dawałyby licznik „4 / 10"
+// tam, gdzie test spodziewa się „3 / 10" — i wyglądałoby to na regresję
+// aplikacji. Z tego samego powodu każdy test, który coś zapisuje, sam po sobie
+// sprząta (`wypiszSie()`).
+//
 // Skutek uboczny: same daty w interfejsie zmieniają się z dnia na dzień.
 // Dlatego zrzuty obejmują FRAGMENTY bez daty (licznik, okno zapisu, kolejka),
 // a nie całą stronę. Ochrona przed regresją siedzi w asercjach zachowania —
@@ -57,6 +64,25 @@ function tresc(page: Page) {
  *  `role="status"` nadaje jej `lib/toast.tsx`. */
 function chmurka(page: Page) {
   return page.getByRole('status');
+}
+
+/**
+ * Sprząta po teście, który się zapisał na mecz.
+ *
+ * DLACZEGO TO MUSI BYĆ: baza jest JEDNA na cały przebieg, a te same testy
+ * lecą w dwóch rozmiarach okna. Bez sprzątania drugi przebieg zastaje mecz
+ * z dodatkowym uczestnikiem i asercja „2 / 10" pada — nie dlatego, że coś
+ * się zepsuło, tylko dlatego, że poprzedni test zostawił po sobie ślad.
+ * Ta sama pułapka dotyczy ponowienia po błędzie (`retries: 1`).
+ *
+ * Świadomie NIE jest to `afterEach`: wypisanie samo w sobie jest przejściem
+ * użytkownika i chcemy, żeby padło głośno, gdy przestanie działać.
+ */
+async function wypiszSie(page: Page) {
+  await page.getByRole('button', { name: /wypisz się z (meczu|rezerwy)/i }).click();
+  await page.getByRole('button', { name: /^Wypisz mnie$/i }).click();
+  await expect(page.getByRole('button', { name: /^Dołącz|komplet — zapisz/i }).first())
+    .toBeVisible({ timeout: 15_000 });
 }
 
 async function uspokoj(page: Page) {
@@ -174,6 +200,9 @@ test.describe('dołączanie do meczu', () => {
     const po = tresc(page).getByText('3 / 10')
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png');
+
+    await wypiszSie(page);
+    await expect(tresc(page).getByText('2 / 10')).toBeVisible();
   });
 
   test('komplet — komunikat mówi WPROST o rezerwie', async ({ page }) => {
@@ -194,6 +223,8 @@ test.describe('dołączanie do meczu', () => {
     await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
     await uspokoj(page);
     await expect(karta).toHaveScreenshot('karta-rezerwy.png');
+
+    await wypiszSie(page);
   });
 });
 
@@ -216,6 +247,9 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await uspokoj(page);
     await expect(page.getByRole('dialog').or(page.locator('.fixed.inset-0').last()))
       .toHaveScreenshot('bramkarze-rezerwacja-okno.png');
+    // Zamykamy okno bez zapisu — ten test celowo NIC nie zmienia w bazie,
+    // sprawdza wyłącznie ostrzeżenie przed zapisem.
+    await page.keyboard.press('Escape');
   });
 
   test('wspólna pula — ten sam skład, zawodnik wchodzi bez ostrzeżenia', async ({ page }) => {
@@ -230,6 +264,8 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await expect(page.getByText(/w polu jest już komplet/i)).toHaveCount(0);
+    // Tak samo jak wyżej: okno zamykamy bez zapisu, żeby skład został nietknięty.
+    await page.keyboard.press('Escape');
   });
 });
 
@@ -291,6 +327,9 @@ test.describe('obserwowanie', () => {
     // Regresja z tej sesji: obserwujący siedzi w bazie z `is_reserve = true`
     // i przez to pokazywał się w kolejce rezerwowej.
     await expect(tresc(page).getByText(/rezerwa — kolejka/i)).toHaveCount(0);
+
+    await page.getByRole('button', { name: /przestań obserwować/i }).first().click();
+    await expect(page.getByRole('button', { name: /^Obserwuj$/i })).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -485,5 +524,121 @@ test.describe('okno płatności', () => {
     const okno = page.getByText(/wybierz sposób płatności/i)
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(okno).toHaveScreenshot('okno-platnosci.png');
+    await page.keyboard.press('Escape');
+  });
+});
+
+/* ── Prośba o dołączenie, od strony gracza ──────────────────────────────── */
+
+test.describe('prośba o dołączenie', () => {
+  test('gracz widzi, na co czeka i jak się o tym dowie', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.doAkceptacji);
+    await uspokoj(page);
+
+    await page.getByRole('button', { name: /^Dołącz|poproś/i }).first().click();
+    const zapisz = page.getByRole('button', { name: /zapisz mnie|wyślij prośbę/i }).first();
+    if (await zapisz.isVisible().catch(() => false)) await zapisz.click();
+
+    await expect(chmurka(page).getByText(/wysłano prośbę o dołączenie/i)).toBeVisible();
+    const kafel = tresc(page).getByText('Oczekujesz na akceptację', { exact: true })
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(kafel).toBeVisible();
+    // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
+    // i ma zostać na ekranie.
+    await expect(kafel.getByText(/dostaniesz\s+powiadomienie w Bojo/i)).toBeVisible();
+    await uspokoj(page);
+    await expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png');
+
+    // Sprzątanie — prośba nie może zostać na kolejny przebieg.
+    await page.getByRole('button', { name: /^Anuluj$/ }).click();
+    await expect(tresc(page).getByText('Oczekujesz na akceptację', { exact: true }))
+      .toHaveCount(0, { timeout: 15_000 });
+  });
+});
+
+/* ── Skład: kto jest kim ────────────────────────────────────────────────── */
+
+test.describe('skład', () => {
+  test('zawodnik z pola ma własne oznaczenie, tak jak bramkarz', async ({ page }) => {
+    // Zgłoszenie wprost: „gracz z pola ma mieć analogiczne oznaczenie jak
+    // bramkarz ma BR". Bez tego lista wyglądała, jakby oznaczenie miały
+    // wyłącznie bramkarze, a reszta była nieopisana.
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.rezerwacjaBr);
+    await uspokoj(page);
+
+    const wiersz = tresc(page).getByText('Zawodnik 1', { exact: true })
+      .locator('xpath=ancestor::li[1]');
+    await expect(wiersz).toBeVisible();
+    await expect(wiersz.getByText(/POLE/)).toBeVisible();
+    await expect(wiersz).toHaveScreenshot('sklad-oznaczenie-pola.png');
+  });
+});
+
+/* ── Filtrowanie i sortowanie listy ─────────────────────────────────────── */
+
+test.describe('lista gier — narzędzia', () => {
+  test('okno filtrów', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/wydarzenia');
+    await page.getByRole('button', { name: 'Filtry' }).click();
+    const okno = page.getByRole('dialog');
+    await expect(okno).toBeVisible();
+    await uspokoj(page);
+    await expect(okno).toHaveScreenshot('okno-filtrow.png');
+  });
+
+  test('menu sortowania', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/wydarzenia');
+    await page.getByRole('button', { name: 'Sortuj' }).click();
+    // Menu rozwija się pod pigułką — sprawdzamy, że w ogóle się otwiera
+    // i że ma pozycję domyślną.
+    await expect(page.getByText(/termin/i).first()).toBeVisible();
+  });
+});
+
+/* ── Grupy: zakładanie ──────────────────────────────────────────────────── */
+
+test.describe('nowa grupa', () => {
+  test('formularz zakładania grupy', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/grupy/nowe');
+    await expect(page.locator('form').first().or(page.locator('input').first()))
+      .toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    await expect(page).toHaveScreenshot('grupa-nowa-formularz.png', { fullPage: true });
+  });
+});
+
+/* ── Profil ─────────────────────────────────────────────────────────────── */
+
+test.describe('profil', () => {
+  test('widok konta', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/profil');
+    await expect(page.getByRole('button', { name: /wyloguj/i }).first())
+      .toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    // Awatar i nazwa pochodzą z konta testowego, więc są stałe — cała strona
+    // nadaje się na wzorzec.
+    await expect(page).toHaveScreenshot('profil.png', { fullPage: true });
+  });
+});
+
+/* ── Kreator meczu: dalsze kroki ────────────────────────────────────────── */
+
+test.describe('kreator meczu — kolejne kroki', () => {
+  test('krok drugi otwiera się po wybraniu sportu', async ({ page }) => {
+    await zaloguj(page, KONTA.organizator);
+    await page.goto('/wydarzenia/nowe');
+    await expect(page.getByRole('button', { name: /dalej/i }).first())
+      .toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole('button', { name: /dalej/i }).first().click();
+    // Krok 2 to termin i miejsce. Nie robimy zrzutu całej strony — pola dat
+    // podpowiadają najbliższy termin, więc treść zmienia się z dnia na dzień.
+    await expect(page.getByRole('button', { name: /wróć/i }).first()).toBeVisible();
   });
 });

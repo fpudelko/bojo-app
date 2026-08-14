@@ -17,11 +17,9 @@ name: Wizualne (informacyjne)
 #      Workflow wygeneruje nowe wzorce i dopisze je do gałęzi PR-a —
 #      zobaczysz je wtedy w diffie jako zwykłą zmianę obrazków.
 #
-# WZORCE DLA NOWYCH WIDOKÓW dopisują się SAME, bez etykiety. Nowy zrzut nie ma
-# z czym się różnić, więc nie ma czego przeglądać — a wymaganie etykiety
-# oznaczało dodatkową rundę przy każdym nowym scenariuszu. Etykieta zostaje
-# tam, gdzie jest naprawdę potrzebna: przy widoku, który WYGLĄDA INACZEJ niż
-# wcześniej. Szczegóły w `.github/dopisz-wzorce.sh`.
+# DOTYCZY TAK SAMO WIDOKÓW NOWYCH. Nic nie trafia do repo bez etykiety —
+# pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on
+# staje się wzorcem na zawsze. Szczegóły w `.github/dopisz-wzorce.sh`.
 
 on:
   pull_request:
@@ -152,7 +150,8 @@ jobs:
                 '**Zmiana jest w porządku?** Nadaj temu PR-owi etykietę `zrzuty:zaakceptuj`.',
                 'Workflow wygeneruje nowe wzorce i dopisze je do gałęzi.',
                 '',
-                '_Widoki całkiem nowe nie wymagają etykiety — ich wzorce dopisały się same._',
+                'Tak samo z widokami **całkiem nowymi**: ich pierwszy zrzut też przechodzi',
+                'przez etykietę, bo to on staje się wzorcem na zawsze.',
                 '',
                 '_To zadanie nie blokuje merge\'a ani deployu._',
               ].join('\n');
