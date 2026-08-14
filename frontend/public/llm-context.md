@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-13 · migracja `088` · 31 tabel · 463 testy
+**Stan na:** 2026-08-14 · migracja `091` · 32 tabele · 469 testów
 
 ---
 
@@ -299,6 +299,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
+
+PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
+„uzupełnij profil" po rejestracji fizycznie zapisywało się w bazie, ale nigdy nie
+pojawiało się w dzwonku — wyścig między insertem a subskrypcją Realtime dzwonka, która
+nie zdążyła się zasubskrybować, zanim insert się wykonał. (2) Przycisk „Zaproś do Bojo"
+w karcie „Po meczu" skakał na skład, który dla zakończonego meczu jest domyślnie
+zwinięty do awatarów — scroll trafiał w puste miejsce. (3) Modal „Powtórz mecz" kopiował
+zegarową godzinę końca ze źródłowego meczu bez przeliczenia względem nowego startu —
+zmiana samej godziny startu potrafiła dać kopię „trwającą" 690 minut. (4) Organizator
+nie miał jak oznaczyć nieobecność gracza (infrastruktura istniała od migracji `011`, ale
+nic do niej nie zapisywało) ani przekazać części swoich praw komuś, kto pomaga prowadzić
+mecz pod jego nieobecność.
+
+ROZWIĄZANIE BOJO: (1) `lib/auth.tsx` po udanym RPC jawnie każe dzwonkowi odświeżyć listę
+(custom event), zamiast liczyć na Realtime dla tego jednego, znanego z wyścigu
+przypadku. (2) Kliknięcie „Zaproś do Bojo" rozwija skład i dopiero potem scrolluje.
+(3) Modal „Powtórz mecz" ma teraz pole „Koniec" obok „Godziny" — zmiana startu przesuwa
+koniec o tę samą deltę (zachowuje długość), zmiana końca nigdy nie rusza startu.
+(4) Nowy modal „Kto nie przyszedł" w karcie „Po meczu" (organizator/delegat od składu) —
+wpływa na plakietkę „Niezawodny" i pasek frekwencji na `/gracz/[id]`, bez zmiany widoku
+składu dla reszty. Nowy panel „Uprawnienia" (wyłącznie prawdziwy organizator): deleguje
+uczestnikowi meczu albo członkowi przypiętej grupy trzy niezależne prawa — pełną edycję
+(włącznie z odwołaniem meczu), zarządzanie składem i wynikiem, zarządzanie rozliczeniami
+i BLIK-iem. Egzekwowane w RLS, nie tylko w UI.
+
+MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
+`event_delegates` (migracja `089`, + funkcje `can_edit_event()`/`can_manage_squad()`/
+`can_manage_payments()`), rozszerzenie RLS na `events`/`event_participants`/
+`team_proposals`/`match_results`/`player_goals`/`event_player_invites` + RPC
+`event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
+`player_reports` (`091`). Pełny model uprawnień →
+[docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
+
 ### 2026-08-13 — Strony treści dla organizatorów, FAQ naprawia kłamstwo o koncie, domknięcie meczu po gwizdku
 
 PROBLEM: FAQ na stronie głównej, `llms.txt` i sekcja „Zasięg i skala" tego pliku
@@ -312,22 +346,22 @@ gości — bo nic o nie nie prosi we właściwym momencie. Strategia (`docs/stra
 przesuwa priorytet na pozyskiwanie organizatorów, a produkt nie miał stron tłumaczących
 mechanikę i przewagę nad wątkiem na Messengerze pod SEO/GEO/AEO.
 
-ROZWIĄZANIE BOJO: cztery nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
+ROZWIĄZANIE BOJO: trzy nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
 kreatora po rozliczenie, z jawną sekcją o tym, że dołączenie nie wymaga konta,
 i sekcją „co Bojo powiadamia i gdzie", która wprost mówi, że SMS-ów i maili o meczu nie
 wysyła), `/dlaczego-bojo` (tabela porównawcza z grupą FB/WhatsApp, argument na „moi
 gracze nie założą konta"), `/faq` (36 pytań w sześciu kategoriach, wspólne źródło ze
-stroną główną) i `/o-nas`. Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
+stroną główną). Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
 liczba obiektów ~30 000 zamiast nieaktualnego ~1400). Karta „Po meczu" na stronie meczu
 zbiera zadania organizatora (rozlicz ekipę, wpisz wynik, zaproś gości bez konta, powtórz
 mecz) w jednym miejscu zamiast jednej bursztynowej linijki; okno „Powtórz mecz" otwiera
 się z wypełnioną datą najbliższego takiego samego dnia tygodnia zamiast pustego pola;
 zakładka Historia na `/moje-gry` dostała sekcję „Do rozliczenia".
 
-MECHANIKA: `src/content/{faq,jakDziala,dlaczego,oNas,zakazaneFrazy}.ts` — copy jako
+MECHANIKA: `src/content/{faq,jakDziala,dlaczego,zakazaneFrazy}.ts` — copy jako
 dane, testowalne bez renderowania (wzorem `components/home/landing/content.ts`, który
 teraz re-eksportuje `FAQ_LANDING` z `content/faq.ts`); `components/tresc/*` — powłoka
-stron treści; `lib/structuredData.ts` (`aboutPageJsonLd()`); `lib/recurring.ts`
+stron treści; `lib/recurring.ts`
 (`domyslnyTerminPowtorki()`); `lib/myEvents.ts` (`doRozliczenia()`);
 `components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
 (`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
@@ -608,37 +642,5 @@ MECHANIKA: `lib/events.ts` (`awansujZRezerwy()`, `cofnijNaRezerwe()` — obie cz
 `EventDetailClient.tsx` (przyciski w liście rezerwowej i w sekcji „Zarządzanie
 graczami"). Bez migracji — polityka „Organizer updates participants" z migracji `004`
 dawała to uprawnienie od zawsze, brakowało wyłącznie wywołania.
-
-### 2026-08-10 — Rezerwa mówi wprost, że jest rezerwą; role bramkarzy jako świadomy wybór
-
-PROBLEM: gracz zapisujący się na mecz w Bojo z rozróżnieniem bramkarzy widział „zostały
-2 wolne miejsca", wybierał zawodnika z pola, dostawał zielony komunikat „Dołączyłeś do
-meczu!" — i był na liście rezerwowej, bo wolne były wyłącznie miejsca dla bramkarzy.
-Dowiadywał się o tym dopiero po zjechaniu na dół strony. Rozróżnianie bramkarzy było
-domyślnie WŁĄCZONE, więc organizator grający bez stałego bramkarza rozbijał pulę miejsc
-na role, nie wiedząc o tym. Obserwujący („może") jest zapisywany z `is_reserve = true`,
-żeby nie zajmować miejsca w składzie, i przez to trafiał do kolejki rezerwowej — kto
-kliknął „Obserwuj", widział siebie jako rezerwowego. Płatny mecz pozwalał dołączyć bez
-wskazania sposobu płatności. Organizator meczu wymagającego akceptacji wisiał we własnej
-kolejce próśb.
-
-ROZWIĄZANIE BOJO: licznik miejsc podaje rozbicie na role („8 w polu · 1 dla bramkarza"),
-okno zapisu ostrzega przed kliknięciem, że w wybranej roli jest komplet i który będzie
-to numer w kolejce, a komunikat po zapisie mówi „jesteś na liście rezerwowej" zamiast
-„dołączyłeś do meczu". Rezerwa ma jeden kolor w całej aplikacji — szary; bursztyn został
-przy obserwowaniu, niebieski przy oczekiwaniu na akceptację. Kreator nie zakłada
-odpowiedzi na pytanie o bramkarzy: dla sportów, które mają bramkarza, wybór Tak/Nie jest
-obowiązkowy i bez niego krok 2 nie przepuszcza dalej. Obserwujący nie pojawia się już na
-liście rezerwowej. Płatny mecz z listą akceptowanych metod wymaga wskazania sposobu
-płatności. Organizator dołącza do własnego meczu bez akceptacji.
-
-MECHANIKA: `lib/events.ts` (`joinEvent`/`confirmFromMaybe` zwracają `WynikZapisu`
-z `isReserve` i `pending`; `joinEvent` przyjmuje `jestemOrganizatorem`; nowa czysta
-funkcja `wolneMiejscaWgRol()`); `lib/eventWizard.ts` (`validateGoalkeepers()` wpięte
-w `validateStep(2, …)`); `EventCapacityFields.tsx` (Tak/Nie zamiast przełącznika,
-dopóki wartość to `null`); `wydarzenia/nowe/page.tsx` (`goalkeepersEnabled` startuje
-jako `null`); `lib/eventDraft.ts` (szkic potrafi zapamiętać brak decyzji);
-`EventDetailClient.tsx` (filtr `rsvp !== 'maybe'` na liście rezerwowej, rozbicie
-licznika, ostrzeżenie w oknie zapisu, wymuszony wybór płatności, szara kolorystyka).
 
 

@@ -117,7 +117,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const wiekKontaMs = Date.now() - new Date(session.user.created_at).getTime();
         if (wiekKontaMs < 10 * 60 * 1000 && !isPelneImie(displayName(session.user))) {
           supabase.rpc('zglos_brak_pelnej_nazwy').then(({ error }) => {
-            if (error) console.error('[zglos_brak_pelnej_nazwy] RPC failed:', error.message);
+            if (error) { console.error('[zglos_brak_pelnej_nazwy] RPC failed:', error.message); return; }
+            // Realtime dzwonka może przegrać wyścig z tym insertem — kanał
+            // jeszcze się nie zdążył zasubskrybować, zanim wiersz powstał
+            // w bazie, a Supabase Realtime nie ma bufora/replaya. Bez tego
+            // zdarzenia powiadomienie fizycznie istnieje, ale nie pokazuje
+            // się w dzwonku, dopóki ktoś nie odświeży strony.
+            window.dispatchEvent(new Event('bojo:powiadomienia-odswiez'));
           });
         }
       }

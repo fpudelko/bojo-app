@@ -1,6 +1,6 @@
 // Listy fraz zakazanych w treści marketingowej/informacyjnej — jedno miejsce,
-// żeby landing i nowe strony treści (`/faq`, `/jak-dziala-bojo`, `/dlaczego-bojo`,
-// `/o-nas`) nie mogły niezależnie zacząć obiecywać funkcję, której nie ma.
+// żeby landing i nowe strony treści (`/faq`, `/jak-dziala-bojo`, `/dlaczego-bojo`)
+// nie mogły niezależnie zacząć obiecywać funkcję, której nie ma.
 //
 // Dwie listy, bo dwie strony mają inne zasady:
 //  - landing (`ZAKAZANE_NA_LANDINGU`) NIE MOŻE wspominać tych rzeczy w ogóle,

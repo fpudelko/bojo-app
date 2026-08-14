@@ -19,6 +19,7 @@ import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { useAuth } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
+import { getMyDelegatePermissions } from '@/lib/eventDelegates';
 import {
   getSeriesEvents, updateSeriesEvents, updateSeriesTemplate,
   terminyWZakresie, patchDlaPozostalych, type ZakresEdycji,
@@ -97,7 +98,13 @@ export default function EditEventPage() {
 
     getEvent(id)
       .then(async ({ event: ev }) => {
-        if (ev.organizerId !== user.id && !isAdmin) { setNotAllowed(true); return; }
+        if (ev.organizerId !== user.id && !isAdmin) {
+          // Delegat z can_edit (migracja 089/090) ma te same prawa edycji co
+          // organizator — RLS na `events` UPDATE już to przepuszcza, tej
+          // stronie brakowało tylko sprawdzenia przed wejściem.
+          const delegat = await getMyDelegatePermissions(id, user.id).catch(() => null);
+          if (!delegat?.canEdit) { setNotAllowed(true); return; }
+        }
 
         setSport(ev.sport);
         setDate(ev.date);

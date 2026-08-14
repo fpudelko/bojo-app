@@ -71,6 +71,17 @@ describe('tekstRozliczenia', () => {
     expect(bezBlika).not.toContain('BLIK:');
   });
 
+  it('dopisuje adnotację "(nie przyszedł/-a)" przy zalegającym oznaczonym jako nieobecny', () => {
+    const sklad = [
+      gracz({ id: 'a', name: 'Marek', hasPaid: false }),
+      gracz({ id: 'b', name: 'Kuba', hasPaid: false }),
+    ];
+    const tekst = tekstRozliczenia(bazowy, sklad, new Set(['a']));
+    expect(tekst).toContain('Marek — 20,00 zł (nie przyszedł/-a)');
+    expect(tekst).toContain('Kuba — 20,00 zł');
+    expect(tekst).not.toContain('Kuba — 20,00 zł (nie przyszedł/-a)');
+  });
+
   it('liczy zebrane i oczekiwane po uwzględnieniu zniżki kartowej', () => {
     const sklad = [
       gracz({ id: 'a', name: 'Marek', hasPaid: true, hasSportsCard: true }),

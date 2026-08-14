@@ -173,6 +173,45 @@ Czyli: oczekujący na akceptację jest `pending`, **nawet jeśli** ma `rsvp = 'm
 
 ---
 
+## Delegowanie uprawnień organizatora
+
+`isOrganizer` powyżej to `organizer_id === userId` — **jeden** właściciel na cały cykl
+życia meczu, bez wyjątków. Migracja `089`/`090` dokłada obok tego osobną, opcjonalną
+warstwę: tabela `event_delegates` (`event_id, user_id, can_edit, can_manage_squad,
+can_manage_payments`) pozwala organizatorowi, który sam nie gra albo dzieli się
+obowiązkami, nadać zaufanej osobie część swoich praw — **bez zmiany `organizer_id`**.
+
+Kandydatem na delegata może zostać wyłącznie uczestnik meczu z kontem (nie gość) albo,
+jeśli mecz jest przypięty do grupy, członek tej grupy — nigdy dowolny użytkownik Bojo.
+Listą delegatów zarządza wyłącznie prawdziwy organizator (panel „Zarządzaj
+wydarzeniem" → „Uprawnienia"), nie inny delegat, nawet z `can_edit` — inaczej
+powstałby niekontrolowany łańcuch przekazywania.
+
+Trzy przełączniki, niezależne, `can_edit` jest nadzbiorem pozostałych dwóch:
+
+| Uprawnienie | Zakres |
+|---|---|
+| `can_edit` | Jak organizator: termin, miejsce, ustawienia, odwołanie meczu. Fizyczne usunięcie (`DELETE`) zostaje wyłącznie dla prawdziwego organizatora/admina |
+| `can_manage_squad` | Dzieli drużyny, wpisuje wynik, dodaje/usuwa uczestników, akceptuje prośby o dołączenie, zaprasza gości, oznacza nieobecność |
+| `can_manage_payments` | Oznacza kto zapłacił, zmienia zaakceptowane metody płatności i numer BLIK, wysyła rozliczenie |
+
+**Egzekwowane w RLS, nie tylko w UI** — trzy funkcje `SECURITY DEFINER`
+(`can_edit_event()`, `can_manage_squad()`, `can_manage_payments()`, migracja `089`)
+rozszerzają polityki na `events`, `event_participants`, `team_proposals`,
+`match_results`, `player_goals`, `event_player_invites`, `player_reports` (`090`/`091`).
+Wyjątek: metody płatności i BLIK na `events` NIE idą przez rozszerzenie ogólnej
+polityki UPDATE (tabela ma ~30 kolumn niezwiązanych z płatnościami — delegat od
+płatności dostałby dostęp do wszystkich) — zamiast tego dedykowana RPC
+`event_set_payment_settings()`.
+
+**Świadome ograniczenie zakresu**: delegat działa wyłącznie ze strony
+`/wydarzenia/[id]` — dashboard, listy „Moje mecze" i etykieta „organizator" w
+historii gracza (`/gracz/[id]`) NIE uwzględniają delegacji, poza jednym wyjątkiem:
+`getMyParticipatedEvents()` dolicza mecze, gdzie użytkownik jest delegatem z
+`can_edit`, żeby taki mecz w ogóle pojawił się na jego dashboardzie, gdy sam nie gra.
+
+---
+
 ## Reguły pojemności
 
 Do limitu miejsc liczą się **wyłącznie** wiersze `event_participants` spełniające:
@@ -534,7 +573,21 @@ jest jedynym źródłem etykiet, używanym identycznie w składzie (`TeamsPanel`
 `PublishedTeamsCard`) i w wyniku (`MatchResultForm`). Dane w `event_participants.team`
 i `match_results.score_a/score_b` zostają literami.
 
-Reputacja: `reliabilityPct()` (`lib/eventFeatures.ts`) liczy frekwencję. Znaczek
-„rzetelny gracz" wymaga ≥5 rozegranych gier i 0 nieobecności (`app/gracz/[id]/page.tsx`).
-
 Statystyki **pomijają** uczestników ze statusem `observing`.
+
+### Reputacja — dwa niezależne mechanizmy, nie jeden
+
+**Publiczny profil gracza (`/gracz/[id]`)** — plakietka „Niezawodny" (`eventsJoined >= 5
+&& noShows === 0`) i pasek frekwencji liczą się z `get_player_stats()` (RPC), która
+agreguje `no_shows` z tabeli `player_reports` (`report_type = 'nie_przyszedl'`,
+migracja `011`). Zapis do tej tabeli robi organizator/delegat z `can_manage_squad`
+(`089`/`090`) w modalu „Kto nie przyszedł" na stronie meczu, po `resultsAvailable`
+(`lib/attendance.ts`, `PoMeczuCard.tsx`) — świadomie osobny, dedykowany modal, nie
+kontrolka w głównym widoku składu. Unikalny indeks
+`(event_id, reported_participant_id, report_type)` (`091`) chroni przed podwójnym
+zawyżeniem licznika przy powtórnym kliknięciu.
+
+**`reliabilityPct()` (`lib/eventFeatures.ts`) to INNY, niezależny mechanizm** — liczy
+frekwencję z tabeli `player_stats`, per seria cykliczna (`getGroupPlayerStats`), nie
+per profil publiczny. Nie mylić obu — patrzą na różne tabele i różne konteksty
+(mecz pojedynczy vs seria).
