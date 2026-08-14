@@ -1140,7 +1140,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 | `components/map/EventsMapView.tsx` | nic nie importuje |
 | `components/map/EventsMapImpl.tsx` | nic nie importuje |
 | `components/home/NearbyGames.tsx` | kompletny, nigdzie nie renderowany |
-| `components/home/landing/PhoneFrame.tsx` | ramka telefonu wokół zrzutu ekranu; podgląd na landingu rysuje dziś makiety w JSX (`PhoneCarousel`), więc nikt tego nie importuje |
 | tabela `games` | zastąpiona przez `events` w `002` |
 
 **Aktywna mapa to `VenueExplorer.tsx`** (strona `/mapa`) oraz pickery lokalizacji.

@@ -1,26 +1,32 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import PhoneShell from './PhoneShell';
-import { MockMyGames, MockWizard, MockMatchPage } from './mockScreens';
+import PhoneFrame from './PhoneFrame';
 
+/** Prawdziwe zrzuty ekranu (nie makiety rysowane w JSX) — telefon, status bar
+ *  i systemowy pasek nawigacji Androida obcięte, zostaje tylko treść aplikacji
+ *  (PhoneFrame dorysowuje własną ramkę i notch). Wszystkie mają identyczny
+ *  kadr 945×1877 (patrz `frontend/public/landing/`), więc karuzela ma
+ *  jednolitą wysokość mimo że każdy slajd to inny widok. */
 const SCREENS = [
-  { id: 'moje',    label: 'Twoje mecze',     Screen: MockMyGames },
-  { id: 'kreator', label: 'Tworzenie meczu', Screen: MockWizard },
-  { id: 'mecz',    label: 'Strona meczu',    Screen: MockMatchPage },
+  { id: 'kreator',  label: 'Tworzenie meczu',        src: '/landing/kreator.jpg' },
+  { id: 'przed',    label: 'Wydarzenie przed meczem', src: '/landing/wydarzenie-przed.jpg' },
+  { id: 'lista',    label: 'Lista otwartych gier',    src: '/landing/wydarzenia.jpg' },
+  { id: 'mapa',     label: 'Mapa boisk',              src: '/landing/mapa.jpg' },
+  { id: 'po',       label: 'Wydarzenie po meczu',     src: '/landing/wydarzenie-po.jpg' },
 ] as const;
 
 const AUTO_ADVANCE_MS = 4000;
 
 /**
- * Podgląd aplikacji w hero landingu: trzy pełne ekrany do przewinięcia palcem.
+ * Podgląd aplikacji w hero landingu: pięć prawdziwych zrzutów ekranu do
+ * przewinięcia palcem.
  *
- * Poprzednia wersja pokazywała jeden ekran, i to niepełny — ramka nie miała
- * zadanej wysokości, więc brała ją z treści, a treści była jedna karta.
- * Teraz proporcje trzyma PhoneShell (`aspect-[9/19]`), a tor przewijania stoi
- * na natywnym scroll-snapie: zero zależności, gest kciukiem działa dokładnie
- * tak, jak człowiek się spodziewa, i strona nadal renderuje się bez JS —
- * bez JS zostaje po prostu przewijalny w bok pasek.
+ * Proporcje trzyma intrinsic width/height każdego `PhoneFrame` (identyczne
+ * dla wszystkich pięciu, patrz kadrowanie w komentarzu przy `SCREENS`),
+ * a tor przewijania stoi na natywnym scroll-snapie: zero zależności, gest
+ * kciukiem działa dokładnie tak, jak człowiek się spodziewa, i strona nadal
+ * renderuje się bez JS — bez JS zostaje po prostu przewijalny w bok pasek.
  *
  * Auto-przewijanie kończy się na zawsze przy pierwszym dotknięciu: karuzela,
  * która przeskakuje pod palcem w trakcie oglądania, jest gorsza niż statyczna.
@@ -86,20 +92,14 @@ export default function PhoneCarousel({ className = '' }: { className?: string }
         onPointerDown={stopAuto}
         className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {SCREENS.map(({ id, label, Screen }, i) => (
+        {SCREENS.map(({ id, label, src }, i) => (
           <div
             key={id}
             className="w-full shrink-0 snap-center"
             role="group"
             aria-label={`Ekran ${i + 1} z ${SCREENS.length}: ${label}`}
           >
-            <PhoneShell>
-              {/* Treść makiety to atrapy tekstu, nie informacja — czytnik ekranu
-                  dostaje sam opis slajdu wyżej. */}
-              <div aria-hidden="true" className="h-full">
-                <Screen />
-              </div>
-            </PhoneShell>
+            <PhoneFrame src={src} alt={label} priority={i === 0} width={945} height={1877} />
           </div>
         ))}
       </div>

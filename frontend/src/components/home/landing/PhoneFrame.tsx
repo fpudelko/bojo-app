@@ -6,11 +6,18 @@ export default function PhoneFrame({
   src,
   alt,
   priority = false,
+  width = 780,
+  height = 1688,
   className = '',
 }: {
   src: string;
   alt: string;
   priority?: boolean;
+  /** Intrinsic dimensions of `src` — must match the real file, bo bez
+   *  `object-fit` w tym komponencie rozjazd proporcji rozciąga obraz zamiast
+   *  go przyciąć. */
+  width?: number;
+  height?: number;
   className?: string;
 }) {
   return (
@@ -23,8 +30,8 @@ export default function PhoneFrame({
           <Image
             src={src}
             alt={alt}
-            width={780}
-            height={1688}
+            width={width}
+            height={height}
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             sizes="(min-width: 768px) 280px, 248px"
