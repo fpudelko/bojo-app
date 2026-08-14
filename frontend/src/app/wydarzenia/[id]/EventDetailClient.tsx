@@ -480,6 +480,10 @@ export default function EventDetailClient() {
   const [delegatesOpen, setDelegatesOpen] = useState(false);
   const [delegateCandidates, setDelegateCandidates] = useState<DelegateCandidate[]>([]);
   const [eventDelegatesList, setEventDelegatesList] = useState<EventDelegate[]>([]);
+  // Lista rozwinięta u każdego kandydata z osobna zajmowała cały ekran przy
+  // większej grupie — domyślnie tylko pierwsza osoba ma widoczne przełączniki,
+  // reszta zwinięta do samej nazwy, rozwijalna pojedynczo.
+  const [delegatesExpanded, setDelegatesExpanded] = useState<Set<string>>(new Set());
   const [delegatesBusy, setDelegatesBusy] = useState(false);
   // Oznaczanie nieobecności (Część 2C) — `nieobecniLoaded` odróżnia "jeszcze
   // nie wczytano" od "wczytano, nikt nie jest oznaczony", żeby nie dociągać
@@ -1441,6 +1445,7 @@ export default function EventDetailClient() {
       ]);
       setDelegateCandidates(candidates);
       setEventDelegatesList(delegates);
+      setDelegatesExpanded(candidates.length > 0 ? new Set([candidates[0].userId]) : new Set());
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setDelegatesBusy(false); }
@@ -4154,40 +4159,54 @@ export default function EventDetailClient() {
                     canManageSquad: aktualne?.canManageSquad ?? false,
                     canManagePayments: aktualne?.canManagePayments ?? false,
                   };
+                  const rozwiniete = delegatesExpanded.has(c.userId);
                   return (
                     <li key={c.userId} className="py-3">
-                      <p className="mb-2 text-sm font-medium text-ink">
-                        {c.name}
-                        <span className="ml-1.5 text-xs font-normal text-slate-400">
-                          {c.source === 'grupa' ? '· z grupy' : '· uczestnik'}
+                      <button
+                        type="button"
+                        onClick={() => setDelegatesExpanded((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.userId)) next.delete(c.userId); else next.add(c.userId);
+                          return next;
+                        })}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <span className="text-sm font-medium text-ink">
+                          {c.name}
+                          <span className="ml-1.5 text-xs font-normal text-slate-400">
+                            {c.source === 'grupa' ? '· z grupy' : '· uczestnik'}
+                          </span>
                         </span>
-                      </p>
-                      <div className="space-y-2">
-                        <label className="flex cursor-pointer items-center justify-between gap-3">
-                          <span className="text-xs text-slate-600">Może edytować jak organizator</span>
-                          <Switch
-                            checked={perms.canEdit}
-                            disabled={delegatesBusy}
-                            onChange={() => handleSetDelegate(c.userId, { ...perms, canEdit: !perms.canEdit })}
-                          />
-                        </label>
-                        <label className="flex cursor-pointer items-center justify-between gap-3">
-                          <span className="text-xs text-slate-600">Dzieli składy i wpisuje wyniki</span>
-                          <Switch
-                            checked={perms.canManageSquad}
-                            disabled={delegatesBusy}
-                            onChange={() => handleSetDelegate(c.userId, { ...perms, canManageSquad: !perms.canManageSquad })}
-                          />
-                        </label>
-                        <label className="flex cursor-pointer items-center justify-between gap-3">
-                          <span className="text-xs text-slate-600">Oznacza rozliczenia i BLIK</span>
-                          <Switch
-                            checked={perms.canManagePayments}
-                            disabled={delegatesBusy}
-                            onChange={() => handleSetDelegate(c.userId, { ...perms, canManagePayments: !perms.canManagePayments })}
-                          />
-                        </label>
-                      </div>
+                        <ChevronDown className={['h-4 w-4 shrink-0 text-slate-400 transition-transform', rozwiniete ? 'rotate-180' : ''].join(' ')} />
+                      </button>
+                      {rozwiniete && (
+                        <div className="mt-2 space-y-2">
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span className="text-xs text-slate-600">Może edytować jak organizator</span>
+                            <Switch
+                              checked={perms.canEdit}
+                              disabled={delegatesBusy}
+                              onChange={() => handleSetDelegate(c.userId, { ...perms, canEdit: !perms.canEdit })}
+                            />
+                          </label>
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span className="text-xs text-slate-600">Dzieli składy i wpisuje wyniki</span>
+                            <Switch
+                              checked={perms.canManageSquad}
+                              disabled={delegatesBusy}
+                              onChange={() => handleSetDelegate(c.userId, { ...perms, canManageSquad: !perms.canManageSquad })}
+                            />
+                          </label>
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span className="text-xs text-slate-600">Oznacza rozliczenia i BLIK</span>
+                            <Switch
+                              checked={perms.canManagePayments}
+                              disabled={delegatesBusy}
+                              onChange={() => handleSetDelegate(c.userId, { ...perms, canManagePayments: !perms.canManagePayments })}
+                            />
+                          </label>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
