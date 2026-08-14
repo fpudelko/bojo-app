@@ -871,10 +871,14 @@ React 18 nie zna propa `inert` (doszedł w 19), więc atrybut ustawiany jest prz
 
 ### Gdzie ląduje zalogowany
 
-Domyślny cel po zalogowaniu to **`/wydarzenia`** — lista meczów, czyli to, po co
-użytkownik przyszedł. `?next=` (brama kreatora, strona boiska, grupa) ma pierwszeństwo.
-`AuthForm.tsx` deklarował ten cel od dawna, ale logowanie Google idzie przez
-`app/auth/callback/page.tsx`, który jako jedyny domyślał `/` — stąd rozjazd.
+Domyślny cel po zalogowaniu/rejestracji to **`/`** — strona główna, gdzie świeże konto
+trafia na modal wyboru roli (niżej). `?next=` (brama kreatora, strona boiska, grupa,
+dołączanie do meczu, przejęcie wpisu gościa) ma pierwszeństwo i zawsze wygrywa z
+domyślnym celem. `AuthForm.tsx` i `app/auth/callback/page.tsx` (Google, magic link)
+deklarują ten sam domyślny cel — wcześniej się rozjeżdżały (`/wydarzenia` kontra `/`),
+co przy braku `?next=` dawało niedeterministyczny wynik zależny od kolejności async
+między ręcznym `router.push` w `AuthForm` a efektem w `app/logowanie/page.tsx`
+reagującym na zmianę stanu zalogowania.
 
 Konsekwencja: baner „Gracze zobaczą Cię jako…" (`UzupelnijProfilBanner`) renderuje się
 **także na `/wydarzenia`**, nie tylko na pulpicie. Bez tego konto bez imienia — typowo
