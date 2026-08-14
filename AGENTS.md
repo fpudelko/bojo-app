@@ -65,6 +65,11 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
 
+**Wzorce dla widoków NOWYCH dopisują się same**, bez etykiety — nowy zrzut nie ma
+z czym się różnić, więc nie ma czego przeglądać (`.github/dopisz-wzorce.sh`).
+Etykieta zostaje tam, gdzie jest potrzebna: przy widoku, który wygląda inaczej niż
+wcześniej.
+
 `e2e/wizualne.spec.ts` chodzi **bez bazy** — na atrapach kluczy, w tym samym
 przebiegu co build. Komunikaty, które normalnie przychodzą z serwera (złe hasło,
 e-mail zajęty, limit prób, rejestracja wyłączona), podstawia `page.route()`:

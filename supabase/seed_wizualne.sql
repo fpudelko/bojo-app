@@ -131,4 +131,41 @@ BEGIN
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, org, n1);
 
+  -- W08 — mecz odwołany --------------------------------------------------
+  -- Baner „Mecz odwołany" widać wyłącznie na meczu ze `status = cancelled`,
+  -- a odwołanie z poziomu testu wymagałoby natywnego `confirm()` i psułoby
+  -- dane innym scenariuszom. Prościej mieć taki mecz od razu w seedzie.
+  INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, status)
+  VALUES ('88888888-8888-4888-8888-888888888888', org, n1, 'piłka nożna', 'Orlik Rataje',
+    CURRENT_DATE + 10, '18:00', '19:30', 10, 'public',
+    'Czwartek — odwołany',
+    '[WIZ] Mecz odwołany — baner ostrzegawczy i brak możliwości zapisu.', 'cancelled')
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, org, n1), (eid, g2, n2);
+
+  -- W09 — mecz prywatny ---------------------------------------------------
+  INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description)
+  VALUES ('99999999-9999-4999-8999-999999999999', org, n1, 'piłka nożna', 'Boisko Malta',
+    CURRENT_DATE + 11, '19:00', '20:30', 10, 'private',
+    'Piątek — tylko z linku',
+    '[WIZ] Mecz prywatny — plakietka „Prywatne" i inny opis udostępniania.')
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, org, n1);
+
+  -- W10 — mecz, który się już odbył ---------------------------------------
+  -- Data w PRZESZŁOŚCI, więc nie da się zapisać, a organizator widzi miejsce
+  -- na wynik. To jedyny mecz w tym seedzie z datą wstecz — reszta liczy się
+  -- od dziś do przodu.
+  INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, track_results)
+  VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', org, n1, 'piłka nożna', 'Orlik Winogrady',
+    CURRENT_DATE - 3, '18:00', '19:30', 10, 'public',
+    'Zeszły tydzień — zagrane',
+    '[WIZ] Mecz z przeszłości — brak zapisu, widoczna sekcja wyniku.', true)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name)
+  VALUES (eid, org, n1), (eid, g2, n2), (eid, g3, n3);
+
 END $$;

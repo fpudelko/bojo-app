@@ -16,6 +16,12 @@ name: Wizualne (informacyjne)
 #   3. Zgadzasz się ze zmianą? Nadaj PR-owi etykietę `zrzuty:zaakceptuj`.
 #      Workflow wygeneruje nowe wzorce i dopisze je do gałęzi PR-a —
 #      zobaczysz je wtedy w diffie jako zwykłą zmianę obrazków.
+#
+# WZORCE DLA NOWYCH WIDOKÓW dopisują się SAME, bez etykiety. Nowy zrzut nie ma
+# z czym się różnić, więc nie ma czego przeglądać — a wymaganie etykiety
+# oznaczało dodatkową rundę przy każdym nowym scenariuszu. Etykieta zostaje
+# tam, gdzie jest naprawdę potrzebna: przy widoku, który WYGLĄDA INACZEJ niż
+# wcześniej. Szczegóły w `.github/dopisz-wzorce.sh`.
 
 on:
   pull_request:
@@ -99,19 +105,13 @@ jobs:
             frontend/test-results/
           retention-days: 14
 
-      - name: Dopisz nowe wzorce do gałęzi
-        if: steps.tryb.outputs.akceptuj == '1'
+      - name: Dopisz wzorce do gałęzi
+        if: always() && github.event_name == 'pull_request'
         working-directory: frontend
-        run: |
-          if [[ -z "$(git status --porcelain e2e/wzorce)" ]]; then
-            echo "Wzorce bez zmian — nie ma czego dopisywać."
-            exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add e2e/wzorce
-          git commit -m "test: zaakceptowane nowe wzorce zrzutów"
-          git push origin HEAD:${{ github.head_ref }}
+        env:
+          AKCEPTUJ: ${{ steps.tryb.outputs.akceptuj }}
+          GALAZ: ${{ github.head_ref }}
+        run: ../.github/dopisz-wzorce.sh "zrzutów"
 
       - name: Komentarz w PR
         if: always() && github.event_name == 'pull_request'
@@ -151,6 +151,8 @@ jobs:
                 '',
                 '**Zmiana jest w porządku?** Nadaj temu PR-owi etykietę `zrzuty:zaakceptuj`.',
                 'Workflow wygeneruje nowe wzorce i dopisze je do gałęzi.',
+                '',
+                '_Widoki całkiem nowe nie wymagają etykiety — ich wzorce dopisały się same._',
                 '',
                 '_To zadanie nie blokuje merge\'a ani deployu._',
               ].join('\n');
@@ -229,11 +231,7 @@ jobs:
           if [[ "${{ steps.tryb.outputs.akceptuj }}" == "1" ]]; then
             npm run scenariusze:akceptuj
           else
-            # `--max-failures=1` nie jest oszczędnością czasu, tylko warunkiem
-            # czytelności: przy 17 błędach Playwright kończy log listą nazw,
-            # a treści pierwszego błędu (z tekstem strony) nie da się wtedy
-            # odczytać z końcówki logu. Jeden błąd = jego pełna treść na końcu.
-            npm run scenariusze -- --max-failures=1
+            npm run scenariusze
           fi
 
       - name: Raport i różnice
@@ -246,17 +244,10 @@ jobs:
             frontend/test-results/
           retention-days: 14
 
-      - name: Dopisz nowe wzorce do gałęzi
-        if: steps.tryb.outputs.akceptuj == '1'
+      - name: Dopisz wzorce do gałęzi
+        if: always() && github.event_name == 'pull_request'
         working-directory: frontend
-        run: |
-          if [[ -z "$(git status --porcelain e2e/wzorce)" ]]; then
-            echo "Wzorce bez zmian."
-            exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin ${{ github.head_ref }} || true
-          git add e2e/wzorce
-          git commit -m "test: zaakceptowane wzorce scenariuszy"
-          git push origin HEAD:${{ github.head_ref }}
+        env:
+          AKCEPTUJ: ${{ steps.tryb.outputs.akceptuj }}
+          GALAZ: ${{ github.head_ref }}
+        run: ../.github/dopisz-wzorce.sh "scenariuszy"

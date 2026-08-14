@@ -36,7 +36,28 @@ const MECZ = {
   doAkceptacji:   '55555555-5555-4555-8555-555555555555',
   kolejka:        '66666666-6666-4666-8666-666666666666',
   platny:         '77777777-7777-4777-8777-777777777777',
+  odwolany:       '88888888-8888-4888-8888-888888888888',
+  prywatny:       '99999999-9999-4999-8999-999999999999',
+  zagrany:        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
 };
+
+/** Treść strony, BEZ chmurki powiadomienia.
+ *
+ *  Aplikacja pokazuje ten sam komunikat w dwóch miejscach: na karcie w treści
+ *  i w chmurce na dole ekranu. `getByText()` bez zawężenia trafia w oba i
+ *  Playwright przerywa na „strict mode violation" — co wygląda jak błąd
+ *  aplikacji, a jest tylko nieprecyzyjnym pytaniem. Chmurka renderuje się poza
+ *  `<main>` (w `lib/toast.tsx`, przy samym providerze), więc to jest granica,
+ *  której szukamy. */
+function tresc(page: Page) {
+  return page.locator('main');
+}
+
+/** Chmurka powiadomienia — osobno, bo jej treść też chcemy sprawdzać.
+ *  `role="status"` nadaje jej `lib/toast.tsx`. */
+function chmurka(page: Page) {
+  return page.getByRole('status');
+}
 
 async function uspokoj(page: Page) {
   await page.addStyleTag({
@@ -147,10 +168,11 @@ test.describe('dołączanie do meczu', () => {
     await page.getByRole('button', { name: /zapisz mnie/i }).click();
 
     // Sedno: komunikat mówi o SKŁADZIE, nie o rezerwie.
-    await expect(page.getByText(/dołączyłeś do meczu/i)).toBeVisible();
-    await expect(page.getByText('3 / 10')).toBeVisible();
+    await expect(chmurka(page).getByText(/dołączyłeś do meczu/i)).toBeVisible();
+    await expect(tresc(page).getByText('3 / 10')).toBeVisible();
     await uspokoj(page);
-    const po = page.getByText('3 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const po = tresc(page).getByText('3 / 10')
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png');
   });
 
@@ -163,10 +185,13 @@ test.describe('dołączanie do meczu', () => {
     await page.getByRole('button', { name: /zapisz mnie/i }).click();
 
     // Regresja z tej sesji: mówiło „Dołączyłeś do meczu!" komuś na rezerwie.
-    await expect(page.getByText(/jesteś na liście rezerwowej/i)).toBeVisible();
-    const karta = page.getByText(/jesteś na liście rezerwowej/i)
+    // Sprawdzamy OBA miejsca, w których to zdanie pada — chmurka i karta
+    // rozjeżdżały się już wcześniej i każde z nich może się zepsuć osobno.
+    await expect(chmurka(page).getByText(/liście rezerwowej/i)).toBeVisible();
+    const karta = tresc(page).getByText(/jesteś na liście rezerwowej/i)
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-    await expect(page.getByText(/nie masz miejsca w składzie/i)).toBeVisible();
+    await expect(karta).toBeVisible();
+    await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
     await uspokoj(page);
     await expect(karta).toHaveScreenshot('karta-rezerwy.png');
   });
@@ -260,11 +285,12 @@ test.describe('obserwowanie', () => {
     await uspokoj(page);
 
     await page.getByRole('button', { name: /^Obserwuj$/i }).click();
-    await expect(page.getByText(/obserwujesz ten mecz/i)).toBeVisible();
+    await expect(chmurka(page).getByText(/obserwujesz ten mecz/i)).toBeVisible();
+    await expect(tresc(page).getByText('Obserwujesz ten mecz', { exact: true })).toBeVisible();
 
     // Regresja z tej sesji: obserwujący siedzi w bazie z `is_reserve = true`
     // i przez to pokazywał się w kolejce rezerwowej.
-    await expect(page.getByText(/rezerwa — kolejka/i)).toHaveCount(0);
+    await expect(tresc(page).getByText(/rezerwa — kolejka/i)).toHaveCount(0);
   });
 });
 
@@ -286,5 +312,178 @@ test.describe('okna na telefonie', () => {
     await expect(potwierdz).toBeEnabled();
     const okno = potwierdz.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(okno).toHaveScreenshot('okno-wypisania-telefon.png');
+  });
+});
+
+/* ── Stany meczu, w których NIE DA SIĘ dołączyć ─────────────────────────── */
+
+test.describe('mecz w stanie szczególnym', () => {
+  // Wspólny mianownik: człowiek wchodzi z linku i musi od razu zrozumieć,
+  // dlaczego nie widzi przycisku „Dołącz". Brak komunikatu w którymkolwiek
+  // z tych trzech przypadków wygląda jak zepsuta strona.
+
+  test('odwołany — baner zamiast zapisu', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.odwolany);
+    await uspokoj(page);
+
+    const baner = tresc(page).getByText('Mecz odwołany', { exact: true })
+      .locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+    await expect(baner).toBeVisible();
+    await expect(tresc(page).getByText(/został odwołany przez organizatora/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Dołącz/ })).toHaveCount(0);
+    await expect(baner).toHaveScreenshot('mecz-odwolany-baner.png');
+  });
+
+  test('prywatny — plakietka mówi, że mecz nie jest na liście', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.prywatny);
+    await uspokoj(page);
+
+    await expect(tresc(page).getByText('Prywatne', { exact: true }).first()).toBeVisible();
+  });
+
+  test('zagrany — po meczu nie ma czego dołączać', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.zagrany);
+    await uspokoj(page);
+
+    await expect(page.getByRole('button', { name: /^Dołącz/ })).toHaveCount(0);
+    // Skład zagranego meczu nadal ma być widoczny — to jest pamięć o meczu,
+    // a nie martwa strona.
+    await expect(tresc(page).getByText('3 / 10')).toBeVisible();
+  });
+});
+
+/* ── Udostępnianie ──────────────────────────────────────────────────────── */
+
+test.describe('udostępnianie meczu', () => {
+  test('„Kopiuj" potwierdza skopiowanie linku', async ({ page, context }) => {
+    // Bez tego pozwolenia `navigator.clipboard.writeText()` rzuca wyjątkiem
+    // i przycisk milczy — co wyglądałoby na regresję, a byłoby ustawieniem
+    // przeglądarki testowej.
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.wolneMiejsca);
+    await uspokoj(page);
+
+    await page.getByRole('button', { name: /^Kopiuj$/ }).click();
+    await expect(page.getByRole('button', { name: /skopiowano/i })).toBeVisible();
+  });
+});
+
+/* ── Moje gry: cztery zakładki ──────────────────────────────────────────── */
+
+test.describe('moje gry', () => {
+  // Każda zakładka ma własny stan pusty i własny układ. Do dziś nie pilnowało
+  // ich nic — a to jest ekran, na który gracz wraca najczęściej.
+  test('nadchodzące — mecze organizatora', async ({ page }) => {
+    await zaloguj(page, KONTA.organizator);
+    await page.goto('/moje-gry');
+    await expect(page.getByRole('button', { name: 'Nadchodzące' })).toBeVisible();
+    await uspokoj(page);
+    // Same zakładki, bez listy: karty meczów niosą daty, które zmieniają się
+    // z dnia na dzień.
+    const zakladki = page.getByRole('button', { name: 'Nadchodzące' })
+      .locator('xpath=ancestor::div[1]');
+    await expect(zakladki).toHaveScreenshot('moje-gry-zakladki.png');
+  });
+
+  test('historia — stan pusty ma własny komunikat', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/moje-gry?tab=historia');
+    await expect(page.getByText('Brak historii meczy')).toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    await expect(page.getByText('Brak historii meczy')
+      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-historia-pusto.png');
+  });
+
+  test('zaproszenia — stan pusty tłumaczy, kiedy się zapełni', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/moje-gry?tab=zaproszenia');
+    await expect(page.getByText('Brak zaproszeń')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/gdy ktoś zaprosi cię na mecz/i)).toBeVisible();
+    await uspokoj(page);
+    await expect(page.getByText('Brak zaproszeń')
+      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-zaproszenia-pusto.png');
+  });
+
+  test('obserwowane — zakładka się otwiera', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/moje-gry?tab=obserwowane');
+    await expect(page.getByRole('button', { name: /Obserwowane/ })).toBeVisible({ timeout: 20_000 });
+  });
+});
+
+/* ── Grupy ──────────────────────────────────────────────────────────────── */
+
+test.describe('grupy', () => {
+  test('bez grup — zachęta zamiast pustki', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/grupy');
+    await expect(page.getByText('Nie należysz jeszcze do żadnej grupy')).toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    await expect(page.getByText('Nie należysz jeszcze do żadnej grupy')
+      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png');
+  });
+
+  test('zły kod grupy — komunikat, nie cisza', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await page.goto('/grupy');
+    await expect(page.getByText('Masz kod grupy?')).toBeVisible({ timeout: 20_000 });
+
+    await page.getByPlaceholder('K7QP4B').fill('ZZZZZZ');
+    await page.getByRole('button', { name: /^Dołącz$/ }).click();
+    // Cichy brak reakcji na zły kod to dokładnie ten rodzaj błędu, który
+    // trudno zauważyć ręcznie — wygląda jak „przycisk nic nie robi".
+    await expect(chmurka(page).getByText(/nie znaleziono grupy o tym kodzie/i)).toBeVisible();
+    await uspokoj(page);
+    await expect(chmurka(page)).toHaveScreenshot('grupy-zly-kod.png');
+  });
+});
+
+/* ── Powiadomienia ──────────────────────────────────────────────────────── */
+
+test.describe('powiadomienia', () => {
+  test('dzwonek otwiera panel', async ({ page }) => {
+    await zaloguj(page, KONTA.drugiGracz);
+    await page.goto('/wydarzenia');
+    await page.getByRole('button', { name: /powiadomienia/i }).first().click();
+    await expect(page.getByText('Powiadomienia', { exact: true })).toBeVisible();
+    await uspokoj(page);
+    const panel = page.getByText('Powiadomienia', { exact: true })
+      .locator('xpath=ancestor::div[2]');
+    await expect(panel).toHaveScreenshot('panel-powiadomien.png');
+  });
+});
+
+/* ── Kreator meczu ──────────────────────────────────────────────────────── */
+
+test.describe('kreator meczu', () => {
+  test('krok pierwszy — wybór sportu', async ({ page }) => {
+    await zaloguj(page, KONTA.organizator);
+    await page.goto('/wydarzenia/nowe');
+    await expect(page.getByRole('button', { name: /dalej/i }).first()).toBeVisible({ timeout: 20_000 });
+    await uspokoj(page);
+    // Krok 1 nie ma w sobie żadnej daty ani liczby z bazy, więc cała strona
+    // nadaje się na wzorzec.
+    await expect(page).toHaveScreenshot('kreator-krok-1.png', { fullPage: true });
+  });
+});
+
+/* ── Płatności: całe okno, nie tylko przycisk ───────────────────────────── */
+
+test.describe('okno płatności', () => {
+  test('wybór metody — wzorzec okna', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.platny);
+    await uspokoj(page);
+
+    await page.getByRole('button', { name: /^Dołącz/ }).first().click();
+    await expect(page.getByText(/wybierz sposób płatności/i)).toBeVisible();
+    await uspokoj(page);
+    const okno = page.getByText(/wybierz sposób płatności/i)
+      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(okno).toHaveScreenshot('okno-platnosci.png');
   });
 });
