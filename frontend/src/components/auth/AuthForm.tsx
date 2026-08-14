@@ -182,7 +182,8 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
     <div>
       <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{TITLES[mode]}</h2>
       <p className="mt-1 text-sm text-slate-500">
-        {mode === 'signin' && 'Wejdź na swoje konto, żeby grać i organizować mecze.'}
+        {/* DEMO: druga zmiana wyglądu dla raportu ze zrzutami. Nie mergować. */}
+        {mode === 'signin' && 'Zaloguj się i wskakuj na boisko — mecze czekają.'}
         {mode === 'signup' && 'Załóż konto w kilka sekund — wystarczy e-mail.'}
         {mode === 'magic' && 'Wyślemy Ci jednorazowy link — bez hasła.'}
         {mode === 'reset' && 'Podaj e-mail, a wyślemy link do zmiany hasła.'}
