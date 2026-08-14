@@ -73,6 +73,19 @@ async function zaloguj(page: Page, konto: { email: string; haslo: string }) {
       + `Adres: ${page.url()}\nCo widać:\n---\n${widok}\n---`,
     );
   }
+
+  // Okno „Zanim zaczniesz — kim jesteś?" (`PostSignupRoleModal`) wyskakuje
+  // świeżo założonym kontom i przykrywa całą stronę. Konta testowe są w bazie
+  // od chwili seeda, więc dla przeglądarki wyglądają na świeże. Odklikujemy je
+  // znacznikiem, którego używa sam komponent — zamiast klikać w okno, bo klik
+  // wybrałby rolę i zmienił stan, o którym test nic nie wie.
+  await page.evaluate(() => {
+    const raw = Object.keys(localStorage).find((k) => k.startsWith('sb-'));
+    try {
+      const uid = raw ? JSON.parse(localStorage.getItem(raw)!)?.user?.id : null;
+      if (uid) localStorage.setItem(`bojo:onboarding-rola:${uid}`, '1');
+    } catch { /* brak sesji w localStorage — okno i tak się nie pokaże */ }
+  });
 }
 
 /**
@@ -90,13 +103,32 @@ async function otworzMecz(page: Page, id: string) {
   try {
     await expect(licznik).toBeVisible({ timeout: 15_000 });
   } catch (e) {
-    const widok = await page.evaluate(() => document.body.innerText.slice(0, 600));
-    const url = page.url();
+    const widok = await page.evaluate(() => document.body.innerText.slice(0, 400));
+    // Kluczowe rozróżnienie: czy meczu NIE MA w bazie, czy jest, ale
+    // aplikacja go nie widzi. Pytamy API wprost, z tej samej przeglądarki.
+    // `process.env` nie istnieje w przeglądarce — adres i klucz przekazujemy
+    // z procesu testu (Node), gdzie zmienne z GITHUB_ENV są dostępne.
+    const zApi = await page.evaluate(async ({ mecz, url, key }) => {
+      if (!url || !key) return 'brak NEXT_PUBLIC_SUPABASE_* w procesie testu';
+      try {
+        const r = await fetch(
+          `${url}/rest/v1/events?id=eq.${mecz}&select=id,title,visibility`,
+          { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+        );
+        return `${r.status} ${(await r.text()).slice(0, 200)}`;
+      } catch (err) {
+        return `fetch padł: ${(err as Error).message}`;
+      }
+    }, {
+      mecz: id,
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    });
     throw new Error(
       `Strona meczu nie pokazała licznika miejsc.\n`
-      + `Adres: ${url}\n`
-      + `Co widać na stronie:\n---\n${widok}\n---\n`
-      + `(oryginalny błąd: ${(e as Error).message.split('\n')[0]})`,
+      + `Adres: ${page.url()}\n`
+      + `API dla tego meczu: ${zApi}\n`
+      + `Co widać na stronie:\n---\n${widok}\n---`,
     );
   }
 }
