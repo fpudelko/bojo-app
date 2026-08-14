@@ -131,16 +131,6 @@ test.beforeEach(async ({ page }) => {
 /* ── Widoki publiczne ───────────────────────────────────────────────────── */
 
 test.describe('widoki publiczne', () => {
-  test('strona główna', async ({ page }) => {
-    await page.goto('/');
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('strona-glowna.png', {
-      fullPage: true,
-      // Liczba boisk w katalogu rośnie z każdym importem, a nie o nią tu chodzi.
-      mask: [page.locator('[data-zrzut-maskuj]')],
-    });
-  });
-
   test('lista gier', async ({ page }) => {
     await page.goto('/wydarzenia');
     await uspokoj(page);
@@ -180,28 +170,12 @@ test.describe('widoki publiczne', () => {
   test('404 — nie ma takiej strony', async ({ page }) => {
     await page.goto('/takiej-strony-nie-ma');
     await expect(page.getByText('Nie znaleziono strony')).toBeVisible();
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('404.png', { fullPage: true });
   });
 
   test('nie ma takiego meczu', async ({ page }) => {
     await pustaBaza(page);
     await page.goto('/wydarzenia/00000000-0000-4000-8000-000000000000');
     await expect(page.getByText('Nie znaleziono wydarzenia')).toBeVisible({ timeout: 20_000 });
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('mecz-nie-istnieje.png', { fullPage: true });
-  });
-
-  test('regulamin', async ({ page }) => {
-    await page.goto('/regulamin');
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('regulamin.png', { fullPage: true });
-  });
-
-  test('polityka prywatności', async ({ page }) => {
-    await page.goto('/prywatnosc');
-    await uspokoj(page);
-    await expect(page).toHaveScreenshot('prywatnosc.png', { fullPage: true });
   });
 
   test('baner o cookies', async ({ page, context }) => {
@@ -485,4 +459,68 @@ test.describe('mapa', () => {
       mask: [page.locator('.leaflet-tile-pane')],
     });
   });
+});
+
+/* ── Przemiał po wszystkich trasach ─────────────────────────────────────── */
+
+// Powód istnienia: pojedyncze scenariusze pilnują miejsc, o których ktoś
+// pomyślał. Ta lista pilnuje CAŁEJ aplikacji — każdej trasy, którą da się
+// otworzyć bez bazy. Dzięki temu zmiana w nagłówku, stopce, kolorach czy
+// odstępach pokazuje się wszędzie tam, gdzie realnie ją widać, a nie tylko
+// na czterech ekranach, które akurat mają własny test.
+//
+// Trasy dynamiczne dostają wymyślone identyfikatory — przy pustej bazie
+// wychodzi z tego stan „nie ma takiego obiektu", też wart pilnowania.
+//
+// Czego tu NIE MA: `/mapa` (ma własny test z maskowaniem kafelków) oraz
+// `/auth/*` (przekierowania techniczne, nie widoki).
+const TRASY: Array<[nazwa: string, adres: string]> = [
+  ['strona-glowna',        '/'],
+  ['dlaczego-bojo',        '/dlaczego-bojo'],
+  ['jak-dziala-bojo',      '/jak-dziala-bojo'],
+  ['faq',                  '/faq'],
+  ['regulamin',            '/regulamin'],
+  ['prywatnosc',           '/prywatnosc'],
+  ['logowanie',            '/logowanie'],
+  ['wydarzenia',           '/wydarzenia'],
+  ['wydarzenia-nowe',      '/wydarzenia/nowe'],
+  ['wydarzenie-nieznane',  '/wydarzenia/00000000-0000-4000-8000-000000000000'],
+  ['moje-gry',             '/moje-gry'],
+  ['grupy',                '/grupy'],
+  ['grupy-nowe',           '/grupy/nowe'],
+  ['grupa-nieznana',       '/grupy/00000000-0000-4000-8000-000000000000'],
+  ['profil',               '/profil'],
+  ['cykliczne',            '/cykliczne'],
+  ['cykliczne-nowe',       '/cykliczne/nowe'],
+  ['rezerwacje',           '/rezerwacje'],
+  ['obiekt',               '/obiekt'],
+  ['obiekt-nowy',          '/obiekt/nowe'],
+  ['obiekt-nieznany',      '/obiekt/00000000-0000-4000-8000-000000000000'],
+  ['boiska-pilka-nozna',   '/boiska/pilka-nozna'],
+  ['boisko-nieznane',      '/boisko/nie-ma-takiego-boiska'],
+  ['gracz-nieznany',       '/gracz/00000000-0000-4000-8000-000000000000'],
+  ['turniej',              '/turniej'],
+  ['turniej-drabinka',     '/turniej/drabinka'],
+  ['turniej-rejestracja',  '/turniej/rejestracja'],
+  ['zaproszenie-do-gry',   '/d/NIEISTNIEJE'],
+  ['zaproszenie-do-grupy', '/g/NIEISTNIEJE'],
+  ['nie-ma-strony',        '/takiej-strony-nie-ma'],
+];
+
+test.describe('wszystkie trasy', () => {
+  for (const [nazwa, adres] of TRASY) {
+    test(nazwa, async ({ page }) => {
+      await pustaBaza(page);
+      await page.goto(adres);
+      // `networkidle` zamiast `load`: część tras dociąga dane po zamontowaniu,
+      // a zrzut zrobiony wcześniej łapie kręciołkę zamiast widoku.
+      await page.waitForLoadState('networkidle');
+      await uspokoj(page);
+      await expect(page).toHaveScreenshot(`trasa-${nazwa}.png`, {
+        fullPage: true,
+        // Liczniki z katalogu boisk rosną z każdym importem i nie o nie tu chodzi.
+        mask: [page.locator('[data-zrzut-maskuj]')],
+      });
+    });
+  }
 });
