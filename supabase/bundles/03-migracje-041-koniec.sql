@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 46 migracji: 041_join_code.sql → 088_konto_i_zamek_na_duplikaty.sql
+-- Zawiera 53 migracji: 041_join_code.sql → 095_statystyki_grupy.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -3997,3 +3997,1159 @@ $$;
 -- Zezwol anonimom na wywołanie (grant znika przy DROP FUNCTION, trzeba nadać ponownie)
 GRANT EXECUTE ON FUNCTION dolacz_do_meczu_jako_goscie(UUID, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN)
   TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 089_delegaci_wydarzenia.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 089: Delegowanie uprawnień organizatora — dla meczów, gdzie organizator nie
+-- gra albo dzieli się obowiązkami z kimś zaufanym z ekipy.
+--
+-- Delegatem może zostać wyłącznie osoba już powiązana z meczem: uczestnik
+-- (regularny, z kontem) albo — jeśli mecz jest przypięty do grupy — członek
+-- tej grupy. Bez nowego mechanizmu zaproszeń: to zawsze ktoś, kogo organizator
+-- już zna z kontekstu meczu/grupy (patrz frontend/src/lib/eventDelegates.ts).
+--
+-- Trzy niezależne przełączniki, bo różni ludzie dostają różny zakres zaufania:
+--   can_edit             — jak organizator: termin, miejsce, ustawienia,
+--                          odwołanie meczu. Fizyczne USUNIĘCIE zostaje tylko
+--                          dla prawdziwego organizatora/admina.
+--   can_manage_squad     — dzieli drużyny, wpisuje wynik, dodaje/usuwa
+--                          uczestników, akceptuje prośby o dołączenie,
+--                          zaprasza gości, oznacza nieobecność.
+--   can_manage_payments  — oznacza kto zapłacił, zmienia zaakceptowane metody
+--                          płatności i numer BLIK, wysyła rozliczenie.
+--
+-- Samą listę delegatów zarządza WYŁĄCZNIE prawdziwy organizator (nie inny
+-- delegat, nawet z can_edit) — inaczej powstałby łańcuch przekazywania
+-- uprawnień, którego nikt by nie kontrolował.
+
+CREATE TABLE IF NOT EXISTS event_delegates (
+  event_id             UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id              UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  can_edit             BOOLEAN NOT NULL DEFAULT false,
+  can_manage_squad     BOOLEAN NOT NULL DEFAULT false,
+  can_manage_payments  BOOLEAN NOT NULL DEFAULT false,
+  granted_by           UUID NOT NULL REFERENCES auth.users(id),
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, user_id),
+  -- Wiersz bez żadnego uprawnienia nie ma sensu — UI usuwa go zamiast
+  -- zapisywać same "false", ale to zabezpieczenie na wypadek błędu w kliencie.
+  CONSTRAINT at_least_one_permission CHECK (can_edit OR can_manage_squad OR can_manage_payments)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_delegates_user ON event_delegates (user_id);
+
+ALTER TABLE event_delegates ENABLE ROW LEVEL SECURITY;
+
+-- Widzi organizator (żeby zarządzać listą), sam zainteresowany (żeby UI
+-- wiedziało, co może) i admin.
+DROP POLICY IF EXISTS "Organizer, self and admin read delegates" ON event_delegates;
+CREATE POLICY "Organizer, self and admin read delegates"
+  ON event_delegates FOR SELECT
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin)
+  );
+
+-- Pisze WYŁĄCZNIE prawdziwy organizator (+ admin, spójnie z resztą admin-owych
+-- wyjątków w bazie, np. 040_admin_delete_events.sql).
+DROP POLICY IF EXISTS "Only organizer or admin manages delegates" ON event_delegates;
+CREATE POLICY "Only organizer or admin manages delegates"
+  ON event_delegates FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin)
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin)
+  );
+
+-- ---- Trzy pomocnicze funkcje do użycia w politykach innych tabel ----
+-- Osobne funkcje (nie jedna z parametrem tekstowym) celowo: literówka w
+-- nazwie kolumny przy tworzeniu polityki da błąd składni SQL od razu, a nie
+-- ciche "zawsze false" przy literówce w stringu. SECURITY DEFINER + search_path,
+-- bo wywołanie z wnętrza polityki RLS innej tabeli inaczej mogłoby się nie
+-- powieść przez brak uprawnień do odczytu event_delegates/events w kontekście
+-- wywołującego (wzorzec jak w istniejących funkcjach SECURITY DEFINER, np.
+-- zglos_brak_pelnej_nazwy z migracji 086).
+
+CREATE OR REPLACE FUNCTION can_edit_event(p_event_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND organizer_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM event_delegates WHERE event_id = p_event_id AND user_id = auth.uid() AND can_edit);
+$$;
+
+CREATE OR REPLACE FUNCTION can_manage_squad(p_event_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND organizer_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM event_delegates WHERE event_id = p_event_id AND user_id = auth.uid() AND (can_edit OR can_manage_squad));
+$$;
+
+CREATE OR REPLACE FUNCTION can_manage_payments(p_event_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND organizer_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM event_delegates WHERE event_id = p_event_id AND user_id = auth.uid() AND (can_edit OR can_manage_payments));
+$$;
+
+GRANT EXECUTE ON FUNCTION can_edit_event(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION can_manage_squad(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION can_manage_payments(UUID) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 090_rozszerzenie_rls_o_delegatow.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 090: Rozszerzenie istniejących polityk RLS o delegatów z migracji 089.
+--
+-- `events` UPDATE dostaje can_edit_event() — pełna edycja, włącznie z
+-- odwołaniem meczu (UPDATE status='cancelled'). Fizyczne USUNIĘCIE (DELETE)
+-- zostaje bez zmian: tylko prawdziwy organizator/admin.
+--
+-- `event_participants` UPDATE/INSERT/DELETE dostają can_manage_squad() —
+-- świadomy kompromis: RLS w Postgresie jest na poziomie wiersza, nie kolumny,
+-- więc UPDATE tej tabeli pokrywa zarówno pola składowe (is_reserve, team,
+-- pending_approval) jak i has_paid. Rozdzielenie tego czysto między
+-- can_manage_squad a can_manage_payments wymagałoby przepisania wszystkich
+-- zapisów na dedykowane RPC — nieproporcjonalny refaktor względem ryzyka (to
+-- wciąż tylko wiersz uczestnictwa W TYM meczu, nie cała tabela events).
+-- Polityka dostaje więc OBA warunki, a precyzyjny podział "kto klika co"
+-- pilnuje UI — dokładnie jak dziś robi to MatchResultForm z parametrem
+-- organizerId, świadomie nieużywanym poza samym gate'em w komponencie.
+--
+-- Płatności na `events` (accepted_payment_methods, blik_phone) NIE dostają
+-- rozszerzenia ogólnej polityki UPDATE — ta tabela ma ~30 kolumn niezwiązanych
+-- z płatnościami, więc delegat od płatności dostałby możliwość zmiany
+-- dowolnego pola wydarzenia. Zamiast tego: dedykowana funkcja RPC
+-- event_set_payment_settings(), która modyfikuje WYŁĄCZNIE te dwie kolumny.
+
+-- ---- events: pełna edycja + odwołanie ----
+DROP POLICY IF EXISTS "Organizer updates own events" ON events;
+CREATE POLICY "Organizer or edit-delegate updates events"
+  ON events FOR UPDATE
+  USING (auth.uid() = organizer_id OR can_edit_event(id))
+  WITH CHECK (auth.uid() = organizer_id OR can_edit_event(id));
+
+-- ---- event_participants: skład + płatności (patrz uzasadnienie wyżej) ----
+DROP POLICY IF EXISTS "Organizer updates participants" ON event_participants;
+DROP POLICY IF EXISTS "Organiser updates participant" ON event_participants;
+CREATE POLICY "Organizer or delegate updates participants"
+  ON event_participants FOR UPDATE
+  USING (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id) OR can_manage_payments(event_id)
+  )
+  WITH CHECK (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id) OR can_manage_payments(event_id)
+  );
+
+DROP POLICY IF EXISTS "Join or organiser adds guest" ON event_participants;
+CREATE POLICY "Join or organiser or delegate adds guest"
+  ON event_participants FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    OR auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id)
+  );
+
+DROP POLICY IF EXISTS "Leave or organiser removes" ON event_participants;
+CREATE POLICY "Leave or organiser or delegate removes"
+  ON event_participants FOR DELETE
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id)
+  );
+
+-- ---- team_proposals: zatwierdzanie i moderacja ----
+DROP POLICY IF EXISTS "Author or organizer deletes proposal" ON team_proposals;
+CREATE POLICY "Author or organizer or delegate deletes proposal" ON team_proposals FOR DELETE
+  USING (
+    auth.uid() = proposed_by
+    OR auth.uid() = (SELECT organizer_id FROM events WHERE id = team_proposals.event_id)
+    OR can_manage_squad(team_proposals.event_id)
+  );
+
+DROP POLICY IF EXISTS "Organizer accepts proposal" ON team_proposals;
+CREATE POLICY "Organizer or delegate accepts proposal" ON team_proposals FOR UPDATE
+  USING     (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = team_proposals.event_id)
+    OR can_manage_squad(team_proposals.event_id)
+  )
+  WITH CHECK(
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = team_proposals.event_id)
+    OR can_manage_squad(team_proposals.event_id)
+  );
+
+-- accept_team_proposal() pisze na cudzych wierszach event_participants (stąd
+-- SECURITY DEFINER) — sprawdzenie uprawnień jest wewnątrz funkcji, nie w RLS.
+CREATE OR REPLACE FUNCTION accept_team_proposal(p_proposal_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_event_id UUID;
+BEGIN
+  SELECT event_id INTO v_event_id FROM team_proposals WHERE id = p_proposal_id;
+  IF v_event_id IS NULL THEN
+    RAISE EXCEPTION 'Propozycja nie istnieje';
+  END IF;
+
+  IF auth.uid() <> (SELECT organizer_id FROM events WHERE id = v_event_id)
+     AND NOT can_manage_squad(v_event_id) THEN
+    RAISE EXCEPTION 'Tylko organizator może zatwierdzić składy';
+  END IF;
+
+  UPDATE event_participants SET team = NULL WHERE event_id = v_event_id;
+
+  UPDATE event_participants ep
+     SET team = pick.team
+    FROM team_proposal_picks pick
+   WHERE pick.proposal_id = p_proposal_id
+     AND pick.participant_id = ep.id;
+
+  UPDATE team_proposals SET status = 'accepted' WHERE id = p_proposal_id;
+END;
+$$;
+
+-- set_event_teams_published() był SECURITY INVOKER z warunkiem organizer_id
+-- wpisanym wprost w WHERE — zamiana na SECURITY DEFINER + can_manage_squad(),
+-- bo ogólna polityka UPDATE na `events` (wyżej) celowo NIE obejmuje
+-- can_manage_squad (żeby delegat od składów nie mógł zmieniać dowolnych pól
+-- wydarzenia) — bez tej zmiany delegat od składów przechodziłby RLS, ale
+-- funkcja i tak filtrowałaby jego update do zera wierszy.
+CREATE OR REPLACE FUNCTION set_event_teams_published(
+  p_event_id  UUID,
+  p_published BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT can_manage_squad(p_event_id) THEN
+    RAISE EXCEPTION 'Brak uprawnień do publikowania składów tego wydarzenia';
+  END IF;
+  UPDATE events SET teams_published = p_published WHERE id = p_event_id;
+END;
+$$;
+
+-- ---- match_results, player_goals: wynik meczu ----
+DROP POLICY IF EXISTS "Organizer manages match results" ON match_results;
+CREATE POLICY "Organizer or delegate manages match results"
+  ON match_results FOR ALL
+  USING  (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  );
+
+DROP POLICY IF EXISTS "Organizer manages player goals" ON player_goals;
+CREATE POLICY "Organizer or delegate manages player goals"
+  ON player_goals FOR ALL
+  USING  (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  );
+
+-- ---- event_player_invites: zapraszanie graczy do meczu ----
+DROP POLICY IF EXISTS "Invitee and organizer read invites" ON event_player_invites;
+CREATE POLICY "Invitee, organizer, delegate and admin read invites" ON event_player_invites FOR SELECT
+  USING (
+    user_id = auth.uid()
+    OR EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND e.organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
+  );
+
+DROP POLICY IF EXISTS "Organizer and participants invite" ON event_player_invites;
+CREATE POLICY "Organizer, delegate, admin or participant invite" ON event_player_invites FOR INSERT
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND e.organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
+    OR EXISTS (
+      SELECT 1 FROM event_participants ep
+      WHERE ep.event_id = event_player_invites.event_id
+        AND ep.user_id = auth.uid()
+        AND ep.pending_approval = false
+    )
+  );
+
+DROP POLICY IF EXISTS "Organizer or invitee removes invite" ON event_player_invites;
+CREATE POLICY "Organizer, delegate, invitee or admin removes invite" ON event_player_invites FOR DELETE
+  USING (
+    user_id = auth.uid()
+    OR EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND e.organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
+  );
+
+-- ---- Płatności: RPC dedykowana, nie rozszerzenie ogólnej polityki `events` ----
+CREATE OR REPLACE FUNCTION event_set_payment_settings(
+  p_event_id UUID,
+  p_accepted_payment_methods TEXT[],
+  p_blik_phone TEXT
+) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT can_manage_payments(p_event_id) THEN
+    RAISE EXCEPTION 'Brak uprawnień do zmiany ustawień płatności tego wydarzenia';
+  END IF;
+  UPDATE events
+    SET accepted_payment_methods = p_accepted_payment_methods,
+        blik_phone = p_blik_phone
+    WHERE id = p_event_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION event_set_payment_settings(UUID, TEXT[], TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION set_event_teams_published(UUID, BOOLEAN) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 091_oznaczanie_nieobecnosci.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 091: Oznaczanie nieobecności przez organizatora + zaostrzenie RLS player_reports.
+--
+-- Infrastruktura istnieje od migracji 011 (tabela player_reports,
+-- get_player_stats() z migracji 074 już liczy no_shows z report_type =
+-- 'nie_przyszedl'), ale nic w kliencie do niej nie pisało. Polityka INSERT
+-- była też za szeroka: DOWOLNY zalogowany użytkownik mógł zgłosić
+-- "nie przyszedł" o dowolnym uczestniku dowolnego meczu (auth.uid() IS NOT
+-- NULL) — furtka do fałszywych zgłoszeń psujących cudzą odznakę "Niezawodny"
+-- na /gracz/[id]. Zawężamy do organizatora i delegatów z uprawnieniem do
+-- składu (can_manage_squad, migracja 089/090).
+
+-- Bez unikalności powtórne kliknięcie "nie przyszedł" dokładałoby kolejne
+-- wiersze i sztucznie zawyżało licznik no_shows w get_player_stats().
+ALTER TABLE player_reports
+  ADD CONSTRAINT player_reports_unique_per_event UNIQUE (event_id, reported_participant_id, report_type);
+
+DROP POLICY IF EXISTS "Authenticated can submit reports" ON player_reports;
+CREATE POLICY "Organizer or squad delegate submits reports"
+  ON player_reports FOR INSERT
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  );
+
+-- Brakowało w ogóle możliwości cofnięcia błędnego oznaczenia.
+DROP POLICY IF EXISTS "Organizer or squad delegate deletes own event reports" ON player_reports;
+CREATE POLICY "Organizer or squad delegate deletes own event reports"
+  ON player_reports FOR DELETE
+  USING (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  );
+
+-- SELECT też ma widzieć delegat, nie tylko organizator — inaczej modal
+-- "Kto nie przyszedł" nie potrafiłby pokazać aktualnego stanu.
+DROP POLICY IF EXISTS "Organizer reads reports for their events" ON player_reports;
+CREATE POLICY "Organizer or squad delegate reads reports"
+  ON player_reports FOR SELECT
+  USING (
+    EXISTS (SELECT 1 FROM events WHERE id = event_id AND organizer_id = auth.uid())
+    OR can_manage_squad(event_id)
+  );
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 092_uprawnienia_w_grupie.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 092: Uprawnienia w grupie — założyciel dzieli się obowiązkami z ekipą.
+--
+-- Dziś w grupie są dokładnie dwie władze: założyciel (`groups.created_by`)
+-- może wszystko, każdy inny nie może nic poza wyjściem z grupy. Kolumna
+-- `role` z migracji `044` obiecuje więcej, ale nie ma polityki UPDATE na
+-- `group_members`, więc z przeglądarki NIE DA SIĘ jej zmienić — 'admin'
+-- dostaje wyłącznie twórca, z wyzwalacza. Efekt: ekipa, w której organizuje
+-- trzech ludzi, ma jedno konto z kluczami i dwa proszące o przysługę.
+--
+-- Trzy niezależne przełączniki, wzorem `event_delegates` z migracji `089` —
+-- różni ludzie dostają różny zakres zaufania:
+--   can_manage_members — dopisuje i usuwa graczy z grupy,
+--   can_create_events  — zakłada mecze przypięte do grupy,
+--   can_moderate_wall  — kasuje cudze wpisy z tablicy grupy (migracja `093`).
+--
+-- DLACZEGO PRZEŁĄCZNIKI, A NIE ROZSZERZENIE `role` O TRZECIĄ WARTOŚĆ.
+-- "Kasuje spam z tablicy" i "wyrzuca ludzi z ekipy" to dwa różne poziomy
+-- zaufania; jedna wartość enuma skleja je na stałe. Do tego zmiana wartości
+-- CHECK-a ('admin'/'member') wywróciłaby żywy kod: `lib/groups.ts` wstawia
+-- role='member' przy dołączeniu, `GroupDetailClient` czyta role==='admin',
+-- a `seed_test_groups.sql` wstawia obie.
+--
+-- `role` ZOSTAJE, ale przestaje być źródłem prawdy: wyzwalacz
+-- `ustaw_role_czlonka()` wylicza ją z przełączników przy każdym zapisie
+-- i nadpisuje to, co przysłał klient. Dzięki temu stary czytelnik (odznaka
+-- "admin" na liście członków) działa dalej, a rozjazd między dwoma zapisami
+-- tej samej informacji jest fizycznie niemożliwy.
+--
+-- ZAŁOŻYCIELA NIE DA SIĘ ZDEGRADOWAĆ. Jego moc nie siedzi w przełącznikach,
+-- tylko w `groups.created_by` — funkcje pomocnicze pytają najpierw o to.
+-- Wyzwalacz dodatkowo wymusza mu wszystkie trzy `true`, więc nawet UPDATE
+-- wycelowany w jego wiersz niczego nie odbiera.
+--
+-- LISTĄ UPRAWNIEŃ ZARZĄDZA WYŁĄCZNIE ZAŁOŻYCIEL — nie współorganizator
+-- z can_manage_members. Ten sam powód co w `089`: inaczej powstaje łańcuch
+-- przekazywania uprawnień, którego nikt nie kontroluje. can_manage_members
+-- pozwala dodać i usunąć CZŁONKA, nie nadać komuś praw.
+
+-- ---------------------------------------------------------------------------
+-- 1. Kolumny + backfill
+-- ---------------------------------------------------------------------------
+ALTER TABLE group_members
+  ADD COLUMN IF NOT EXISTS can_manage_members BOOLEAN NOT NULL DEFAULT false,
+  -- true, NIE false: dziś KAŻDY członek może założyć mecz i przypiąć go do
+  -- grupy (WybierzGrupeDialog). Domyślne false odebrałoby to w dniu wgrania
+  -- migracji wszystkim poza założycielem — to nie jest ta zmiana. Flaga
+  -- istnieje po to, żeby dało się ją ODEBRAĆ.
+  ADD COLUMN IF NOT EXISTS can_create_events  BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS can_moderate_wall  BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS granted_by         UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- Backfill: dotychczasowy 'admin' (tylko twórca, wpisywany triggerem) dostaje komplet.
+UPDATE group_members SET can_manage_members = true, can_create_events = true,
+                         can_moderate_wall = true
+ WHERE role = 'admin';
+
+-- ---------------------------------------------------------------------------
+-- 2. `role` jako etykieta wyliczana z przełączników
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION ustaw_role_czlonka()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_zalozyciel UUID;
+BEGIN
+  SELECT created_by INTO v_zalozyciel FROM groups WHERE id = NEW.group_id;
+
+  IF v_zalozyciel IS NOT NULL AND NEW.user_id = v_zalozyciel THEN
+    -- Założyciela nie da się zdegradować nawet celowym UPDATE-em.
+    NEW.can_manage_members := true;
+    NEW.can_create_events  := true;
+    NEW.can_moderate_wall  := true;
+    NEW.role := 'admin';
+  ELSIF NEW.can_manage_members OR NEW.can_moderate_wall THEN
+    NEW.role := 'admin';
+  ELSE
+    NEW.role := 'member';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_ustaw_role_czlonka ON group_members;
+CREATE TRIGGER trg_ustaw_role_czlonka
+  BEFORE INSERT OR UPDATE ON group_members
+  FOR EACH ROW EXECUTE FUNCTION ustaw_role_czlonka();
+
+-- Wyrównanie wierszy, które istniały przed wyzwalaczem.
+UPDATE group_members SET role = role;
+
+COMMENT ON COLUMN group_members.role IS
+  'Etykieta WYLICZANA z can_* przez trigger ustaw_role_czlonka (092). Zapis wprost jest nadpisywany.';
+
+-- ---------------------------------------------------------------------------
+-- 3. Funkcje pomocnicze do polityk RLS INNYCH tabel
+-- ---------------------------------------------------------------------------
+-- PUŁAPKA, KTÓREJ TE FUNKCJE UNIKAJĄ: polityka na `group_members`, która
+-- w warunku robi `EXISTS (SELECT 1 FROM group_members …)`, wywraca się przy
+-- pierwszym odczycie — Postgres zgłasza "infinite recursion detected in
+-- policy for relation group_members". Nie widać tego przy CREATE POLICY,
+-- tylko na produkcji.
+--
+-- Wyjście: SECURITY DEFINER. Funkcja wykonuje się z prawami właściciela
+-- tabeli (roli, która puściła migrację w SQL Editorze), do którego RLS się
+-- nie stosuje (nie włączono FORCE ROW LEVEL SECURITY) — wewnętrzny SELECT
+-- widzi więc wszystkie wiersze i żadna polityka nie jest wywoływana ponownie.
+-- Ten sam manewr, co `can_edit_event()` w `089`.
+--
+-- Osobne funkcje, nie jedna z parametrem tekstowym — literówka w nazwie
+-- kolumny wywali się błędem składni od razu, a nie cichym "zawsze false".
+--
+-- GRANT dla `anon` I `authenticated` — inaczej niż w `089`, gdzie wystarczył
+-- `authenticated`. Strona grupy renderuje się kluczem anonimowym
+-- (`app/grupy/[id]/page.tsx`), a wylogowany odwiedzający jest rolą `anon`.
+-- Bez grantu dla `anon` polityka SELECT na `group_posts` (`093`) zwróci
+-- `permission denied for function`, a nie pustą listę.
+
+CREATE OR REPLACE FUNCTION czy_zalozyciel_grupy(p_group_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM groups g WHERE g.id = p_group_id AND g.created_by = auth.uid());
+$$;
+
+CREATE OR REPLACE FUNCTION czy_czlonek_grupy(p_group_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM group_members m
+                  WHERE m.group_id = p_group_id AND m.user_id = auth.uid());
+$$;
+
+CREATE OR REPLACE FUNCTION czy_moze_zarzadzac_grupa(p_group_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM groups g WHERE g.id = p_group_id AND g.created_by = auth.uid())
+      OR EXISTS (SELECT 1 FROM group_members m
+                  WHERE m.group_id = p_group_id AND m.user_id = auth.uid()
+                    AND m.can_manage_members);
+$$;
+
+CREATE OR REPLACE FUNCTION czy_moze_tworzyc_wydarzenia_w_grupie(p_group_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM groups g WHERE g.id = p_group_id AND g.created_by = auth.uid())
+      OR EXISTS (SELECT 1 FROM group_members m
+                  WHERE m.group_id = p_group_id AND m.user_id = auth.uid()
+                    AND m.can_create_events);
+$$;
+
+CREATE OR REPLACE FUNCTION czy_moze_moderowac_tablice(p_group_id UUID) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM groups g WHERE g.id = p_group_id AND g.created_by = auth.uid())
+      OR EXISTS (SELECT 1 FROM group_members m
+                  WHERE m.group_id = p_group_id AND m.user_id = auth.uid()
+                    AND m.can_moderate_wall);
+$$;
+
+GRANT EXECUTE ON FUNCTION czy_zalozyciel_grupy(UUID)                 TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION czy_czlonek_grupy(UUID)                    TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION czy_moze_zarzadzac_grupa(UUID)             TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION czy_moze_tworzyc_wydarzenia_w_grupie(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION czy_moze_moderowac_tablice(UUID)           TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 4. Polityki na group_members i groups
+-- ---------------------------------------------------------------------------
+-- SELECT na obu tabelach zostaje `USING (true)` z `044` — listy członków są
+-- pokazywane na publicznej stronie grupy, a `getDelegateCandidates()` (`089`)
+-- czyta je dla meczu przypiętego do grupy.
+
+-- Nowość: uprawnienia da się w ogóle zmienić. Tylko założyciel (+ admin
+-- platformy, spójnie z `040`/`063`/`089`).
+DROP POLICY IF EXISTS "Zalozyciel zmienia uprawnienia czlonka" ON group_members;
+CREATE POLICY "Zalozyciel zmienia uprawnienia czlonka" ON group_members FOR UPDATE
+  USING (
+    czy_zalozyciel_grupy(group_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  )
+  WITH CHECK (
+    czy_zalozyciel_grupy(group_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  );
+
+-- Wyrzucić może zarządzający; założyciela nie wyrzuci NIKT poza nim samym.
+DROP POLICY IF EXISTS "Leave or be removed by creator" ON group_members;
+DROP POLICY IF EXISTS "Wyjscie albo usuniecie przez zarzadzajacego" ON group_members;
+CREATE POLICY "Wyjscie albo usuniecie przez zarzadzajacego" ON group_members FOR DELETE
+  USING (
+    auth.uid() = user_id
+    OR (
+      czy_moze_zarzadzac_grupa(group_id)
+      AND user_id IS DISTINCT FROM (SELECT g.created_by FROM groups g WHERE g.id = group_id)
+    )
+  );
+
+-- Ustawienia grupy edytuje założyciel albo zarządzający. USUNIĘCIE grupy
+-- zostaje wyłącznie przy założycielu (polityka "Creator deletes group" bez zmian).
+DROP POLICY IF EXISTS "Creator updates group" ON groups;
+CREATE POLICY "Zalozyciel lub zarzadzajacy edytuje grupe" ON groups FOR UPDATE
+  USING (czy_moze_zarzadzac_grupa(id)) WITH CHECK (czy_moze_zarzadzac_grupa(id));
+
+-- ---------------------------------------------------------------------------
+-- 5. Przypięcie meczu do grupy wymaga can_create_events
+-- ---------------------------------------------------------------------------
+-- WYZWALACZ, NIE POLITYKA RLS — świadomie. `WITH CHECK` przy UPDATE nie widzi
+-- wiersza SPRZED zmiany, więc warunek "group_id musi być dozwolony" blokowałby
+-- KAŻDĄ edycję meczu przypiętego do grupy, także zmianę godziny przez
+-- organizatora, który tymczasem wyszedł z grupy. Wyzwalacz porównuje OLD
+-- z NEW i pilnuje wyłącznie MOMENTU przypięcia. Dodatkowo rzuca czytelny
+-- wyjątek zamiast po cichu zaktualizować zero wierszy (patrz AGENTS.md).
+CREATE OR REPLACE FUNCTION pilnuj_uprawnien_do_grupy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND NEW.group_id IS NOT DISTINCT FROM OLD.group_id THEN
+    RETURN NEW;  -- grupa się nie zmienia — nie nasza sprawa
+  END IF;
+  -- auth.uid() IS NULL = wywołanie spoza sesji przeglądarki (seedy z SQL
+  -- Editora, admin, przyszłe zadania w tle) — ten sam warunek co w
+  -- utworz_termin_serii() (073): „cron nie działa w niczyim imieniu", więc
+  -- kontrolę uprawnień egzekwujemy tylko wtedy, gdy REALNIE jest czyjaś
+  -- sesja do sprawdzenia. Bez tego seed_test_groups.sql (INSERT jako
+  -- właściciel tabeli, auth.uid() = NULL) wywalał się na każdym meczu
+  -- przypiętym do grupy — złapane przez ./scripts/baza-testowa.sh.
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+  -- Termin serii cyklicznej dziedziczy grupę po poprzednim terminie, który był
+  -- sprawdzony przy tworzeniu. `utworz_termin_serii()` (073) robi
+  -- `INSERT INTO events VALUES (v_wzor.*)`, kopiując group_id, i bywa wołana
+  -- w kontekście, w którym auth.uid() nie należy do grupy — bez tego wyjątku
+  -- generowanie serii przestałoby działać.
+  IF TG_OP = 'INSERT' AND NEW.recurring_event_id IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NOT czy_moze_tworzyc_wydarzenia_w_grupie(NEW.group_id) THEN
+    RAISE EXCEPTION 'Nie masz uprawnień, żeby dodać mecz do tej grupy';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_pilnuj_uprawnien_do_grupy ON events;
+CREATE TRIGGER trg_pilnuj_uprawnien_do_grupy
+  BEFORE INSERT OR UPDATE OF group_id ON events
+  FOR EACH ROW EXECUTE FUNCTION pilnuj_uprawnien_do_grupy();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 093_tablica_grupy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 093: Tablica grupy — miejsce, gdzie ekipa gada między meczami.
+--
+-- Dziś jedyne miejsce na słowo pisane w grupie to komentarze POD KONKRETNYM
+-- meczem (`event_comments`, migracja `026`). Znikają razem z meczem
+-- (ON DELETE CASCADE) i nie mają jak przenieść informacji, która meczu nie
+-- dotyczy: "składka na siatki", "Kuba wraca po kontuzji", "w czwartek boisko
+-- zajęte". Taka wiadomość albo szła na Messengera, albo nie szła nigdzie.
+--
+-- Kształt celowo bliźniaczy do `event_comments`/`field_comments`: ta sama
+-- długość (1..1000), to samo miękkie kasowanie, to samo `user_name` zapisane
+-- na sztywno przy wpisie. Trzecia kopia tego samego kształtu jest tańsza niż
+-- wspólna tabela z kolumną "na co wskazuje" — patrz uzasadnienie w `063`.
+--
+-- PŁASKA LISTA, BEZ ODPOWIEDZI. Wątki wymagają parent_id, rekurencyjnego
+-- odczytu, limitu zagnieżdżenia i reguły, co zrobić z odpowiedziami pod
+-- skasowanym wpisem. Dwunastoosobowa ekipa tego nie potrzebuje — odpowiedzią
+-- jest nowy wpis. Zamiast tego `pinned_at`: jedna rzecz naprawdę ważna
+-- zostaje na górze (sortowanie potrzebuje daty, "przypięte 2 dni temu"
+-- dostajemy za darmo).
+--
+-- CZYTAJĄ WYŁĄCZNIE CZŁONKOWIE — inaczej niż `event_comments`, które są
+-- czytelne dla świata. Sama grupa (`groups`) zostaje publiczna, bo jej
+-- strona jest celem linku zaproszenia i musi wyrenderować nazwę w
+-- metadanych. Tablica jest o klasę bardziej prywatna: "składka 20 zł od
+-- osoby" i "Kuba znowu nie przyszedł" nie mają być w wynikach Google.
+-- Bramkę stawia `czy_czlonek_grupy()` z migracji `092`.
+--
+-- POWIADOMIENIE TYLKO O PRZYPIĘTYM WPISIE. Powiadamianie o każdym wpisie
+-- zamienia dzwonek — dziś noszący prawie wyłącznie rzeczy WYMAGAJĄCE
+-- DZIAŁANIA (patrz WYMAGA_AKCJI w lib/notifications.ts) — w kanał czatu.
+-- Przypięcie robi świadomie ktoś z can_moderate_wall, więc jest dobrym
+-- przybliżeniem "to jest ważne".
+
+CREATE TABLE IF NOT EXISTS group_posts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_name   TEXT NOT NULL,
+  -- Ta sama długość co event_comments i field_comments — trzecia kopia tego
+  -- samego kształtu jest tańsza niż wspólna tabela z kolumną "na co wskazuje".
+  body        TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 1000),
+  -- pinned_at, nie is_pinned: sortowanie potrzebuje daty za darmo.
+  pinned_at   TIMESTAMPTZ,
+  -- Zapora przed powtórnym powiadomieniem przy odpięciu i ponownym przypięciu
+  -- tego samego wpisu.
+  notified_at TIMESTAMPTZ,
+  deleted_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_posts_group
+  ON group_posts (group_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_group_posts_pinned
+  ON group_posts (group_id, pinned_at DESC) WHERE deleted_at IS NULL AND pinned_at IS NOT NULL;
+
+ALTER TABLE group_posts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "group_posts_select" ON group_posts;
+CREATE POLICY "group_posts_select" ON group_posts FOR SELECT
+  USING (deleted_at IS NULL AND czy_czlonek_grupy(group_id));
+
+DROP POLICY IF EXISTS "group_posts_insert" ON group_posts;
+CREATE POLICY "group_posts_insert" ON group_posts FOR INSERT
+  WITH CHECK (auth.uid() = user_id AND czy_czlonek_grupy(group_id));
+
+-- UPDATE obsługuje DWIE rzeczy: miękkie kasowanie i przypinanie. RLS w
+-- Postgresie działa na WIERSZ, nie na kolumnę, więc autor technicznie może
+-- też przypiąć własny wpis. Świadomie na to pozwalamy (to jego ekipa i jego
+-- wpis), ale POWIADOMIENIE i tak nie pójdzie — wyzwalacz niżej sprawdza
+-- osobno, czy przypinający ma can_moderate_wall. Bez tego przypięcie byłoby
+-- przyciskiem "wyślij powiadomienie do całej grupy" dla każdego.
+DROP POLICY IF EXISTS "group_posts_update" ON group_posts;
+CREATE POLICY "group_posts_update" ON group_posts FOR UPDATE
+  USING (
+    auth.uid() = user_id
+    OR czy_moze_moderowac_tablice(group_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  )
+  WITH CHECK (
+    auth.uid() = user_id
+    OR czy_moze_moderowac_tablice(group_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  );
+
+-- Brak polityki DELETE: kasowanie jest wyłącznie miękkie, tak jak
+-- w `event_comments` i `field_comments`.
+
+-- ---------------------------------------------------------------------------
+-- notifications.group_id — powiadomienie, które nie dotyczy meczu
+-- ---------------------------------------------------------------------------
+-- Dzwonek kieruje dziś wyłącznie na `/wydarzenia/{event_id}` albo na trasę
+-- zaszytą w mapie TYP_NA_TRASE (`NotificationBell.tsx`). Powiadomienie
+-- o ogłoszeniu w grupie nie ma meczu, więc bez tej kolumny renderowałoby się
+-- jako martwy, nieklikalny wiersz.
+ALTER TABLE notifications
+  ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES groups(id) ON DELETE CASCADE;
+
+COMMENT ON COLUMN notifications.group_id IS
+  'Grupa, której dotyczy powiadomienie. Gdy jest też event_id, pierwszeństwo w kierowaniu ma mecz.';
+
+-- Powiadomienie o nowym meczu w grupie (`072`) też niesie odtąd grupę.
+-- `event_id` zostaje, więc kierowanie w dzwonku nie zmienia się ani o piksel.
+CREATE OR REPLACE FUNCTION powiadom_o_nowym_meczu_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul TEXT;
+BEGIN
+  IF NEW.group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+
+  INSERT INTO notifications (user_id, type, title, body, event_id, group_id)
+  SELECT gm.user_id,
+         'nowy_mecz_w_grupie',
+         'Nowy mecz w grupie',
+         coalesce(v_tytul, 'Mecz') || ' — ' || to_char(NEW.event_date, 'DD.MM')
+           || ', godz. ' || to_char(NEW.event_time, 'HH24:MI') || '.',
+         NEW.id,
+         NEW.group_id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.organizer_id;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Powiadomienie o przypiętym ogłoszeniu
+-- ---------------------------------------------------------------------------
+-- BEFORE, nie AFTER: `notified_at` ustawiamy prosto na NEW, bez UPDATE-u tego
+-- samego wiersza z wnętrza wyzwalacza (który odpaliłby wyzwalacz ponownie).
+-- SECURITY DEFINER z tego samego powodu co w `072`: `notifications` nie ma
+-- polityki INSERT dla użytkownika, bo powiadomienie zawsze pisze się KOMU
+-- INNEMU niż ten, kto wywołał akcję.
+CREATE OR REPLACE FUNCTION powiadom_o_ogloszeniu_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_nazwa TEXT;
+BEGIN
+  IF NEW.pinned_at IS NULL OR NEW.notified_at IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.pinned_at IS NOT NULL THEN
+    RETURN NEW;  -- było już przypięte, nic nowego się nie stało
+  END IF;
+  -- Przypiąć własny wpis może autor (RLS jest wierszowe), ale rozesłać
+  -- powiadomienie do całej ekipy — tylko ktoś z can_moderate_wall.
+  IF NOT czy_moze_moderowac_tablice(NEW.group_id) THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT g.name INTO v_nazwa FROM groups g WHERE g.id = NEW.group_id;
+
+  INSERT INTO notifications (user_id, type, title, body, group_id)
+  SELECT gm.user_id,
+         'ogloszenie_w_grupie',
+         'Ogłoszenie w grupie ' || coalesce(v_nazwa, ''),
+         left(NEW.body, 140),
+         NEW.group_id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.user_id;
+
+  NEW.notified_at := now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_ogloszeniu_w_grupie ON group_posts;
+CREATE TRIGGER trg_powiadom_o_ogloszeniu_w_grupie
+  BEFORE INSERT OR UPDATE ON group_posts
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_ogloszeniu_w_grupie();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 094_zaproszenia_do_grupy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 094: Zaproszenia do grupy — kto kogo przyprowadził i czy w ogóle miał prawo.
+--
+-- DWIE DZIURY NARAZ.
+--
+-- 1. KOD DOŁĄCZENIA BYŁ DEKORACJĄ. Polityka INSERT na `group_members`
+--    z migracji `044` brzmi `auth.uid() = user_id` — czyli wystarczy ZNAĆ
+--    UUID grupy, żeby się do niej dopisać. A UUID nie jest tajny: tabela
+--    `groups` jest publicznie czytelna, strona `/grupy/{id}` publiczna,
+--    a link do niej ląduje w Messengerze. `join_code` sprawdzał wyłącznie
+--    interfejs (`GroupsClient.handleJoin`), więc baza wpuszczała każdego,
+--    kto ominął formularz.
+--
+-- 2. ZAPROSZENIE NIE MIAŁO NADAWCY. Link `/g/{kod}` prowadził na stronę
+--    grupy i tyle. Nie dało się powiedzieć "Marek zaprasza Cię do Ekipy
+--    Rataje", nie dało się później sprawdzić, kto kogo przyprowadził,
+--    i nie dało się kodu unieważnić.
+--
+-- DLACZEGO BEZ TABELI `group_invites`. Osobna tabela z tokenem, wygaśnięciem
+-- i licznikiem użyć daje unieważnianie POJEDYNCZEGO linku — funkcja klubu
+-- na dwieście osób, nie ekipy na dwanaście. Kosztuje drugą przestrzeń
+-- kodów (którą `/g/[code]` musi odtąd przeszukiwać w dwóch tabelach),
+-- odporny na wyścig licznik użyć i sprzątanie wygasłych. To samo (a)+(b)+(c)
+-- da się dostać za jedną kolumnę i dwie funkcje:
+--   (a) `group_members.invited_by` — zapisywane przez RPC, weryfikowane
+--       po stronie bazy (zapraszający musi sam być w grupie),
+--   (b) parametr `?od=<uuid>` w linku + publicznie czytelne `profiles`,
+--   (c) `odswiez_kod_grupy()` — nowy kod unieważnia wszystkie stare linki.
+-- Gdy pojawi się potrzeba wygaszania pojedynczych zaproszeń, `invited_by`
+-- zostaje i tak — to jedyna z tych trzech rzeczy, której URL nie zapisze.
+
+ALTER TABLE group_members
+  ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE groups
+  ADD COLUMN IF NOT EXISTS join_code_rotated_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_group_members_invited_by
+  ON group_members (invited_by) WHERE invited_by IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- 1. Dołączenie kodem — jedyna droga samodzielnego wejścia do grupy
+-- ---------------------------------------------------------------------------
+-- SECURITY DEFINER, bo po zdjęciu polityki INSERT (niżej) nikt nie ma prawa
+-- pisać do `group_members` z przeglądarki. Tożsamość bierzemy z auth.uid(),
+-- nie z argumentu — wzorem `dolacz_do_meczu()` z migracji `078` — więc nikt
+-- nie dopisze do grupy kogoś innego.
+CREATE OR REPLACE FUNCTION dolacz_do_grupy_kodem(p_code TEXT, p_od UUID DEFAULT NULL)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user  uuid := auth.uid();
+  v_group uuid;
+  v_od    uuid := NULL;
+BEGIN
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'Musisz być zalogowany, żeby dołączyć do grupy';
+  END IF;
+
+  SELECT g.id INTO v_group
+    FROM groups g
+   WHERE g.join_code = upper(btrim(coalesce(p_code, '')));
+
+  IF v_group IS NULL THEN
+    RAISE EXCEPTION 'Nie ma grupy o tym kodzie';
+  END IF;
+
+  -- Zapraszający liczy się TYLKO wtedy, gdy sam należy do grupy. Parametr
+  -- `od` przychodzi z adresu URL, więc każdy może wpisać tam co chce —
+  -- bez tego sprawdzenia obcy człowiek zapisałby się "z polecenia
+  -- założyciela".
+  IF p_od IS NOT NULL AND EXISTS (
+       SELECT 1 FROM group_members m WHERE m.group_id = v_group AND m.user_id = p_od
+     ) THEN
+    v_od := p_od;
+  END IF;
+
+  INSERT INTO group_members (group_id, user_id, role, invited_by)
+  VALUES (v_group, v_user, 'member', v_od)
+  ON CONFLICT (group_id, user_id) DO NOTHING;   -- „już członek" to wynik, nie błąd
+
+  RETURN v_group;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION dolacz_do_grupy_kodem(TEXT, UUID) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2. Dopisanie kogoś przez zarządzającego (bez kodu)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION dodaj_czlonka_do_grupy(p_group_id UUID, p_user_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT czy_moze_zarzadzac_grupa(p_group_id) THEN
+    RAISE EXCEPTION 'Nie masz uprawnień, żeby dodawać graczy do tej grupy';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_user_id) THEN
+    RAISE EXCEPTION 'Nie ma takiego użytkownika';
+  END IF;
+
+  INSERT INTO group_members (group_id, user_id, role, invited_by)
+  VALUES (p_group_id, p_user_id, 'member', auth.uid())
+  ON CONFLICT (group_id, user_id) DO NOTHING;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION dodaj_czlonka_do_grupy(UUID, UUID) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3. Unieważnienie linku = nowy kod
+-- ---------------------------------------------------------------------------
+-- Politykę UPDATE na `groups` ma dziś zarządzający (`092`), więc technicznie
+-- dałoby się to zrobić zwykłym UPDATE-em z klienta. Osobna funkcja, bo klient
+-- nie zna `generate_join_code()`, a losowanie kodu w JavaScripcie oznaczałoby
+-- drugą implementację tego samego alfabetu (bez I, L, O, 0, 1 — patrz `041`).
+CREATE OR REPLACE FUNCTION odswiez_kod_grupy(p_group_id UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_kod TEXT;
+  i INT;
+BEGIN
+  IF NOT czy_zalozyciel_grupy(p_group_id) THEN
+    RAISE EXCEPTION 'Tylko założyciel może odświeżyć kod grupy';
+  END IF;
+
+  -- Pętla na wypadek kolizji z UNIQUE — 31^6 kombinacji, ale kolizja jest
+  -- możliwa, a wyjątek w tym miejscu wyglądałby dla użytkownika jak awaria.
+  FOR i IN 1..10 LOOP
+    BEGIN
+      v_kod := generate_join_code();
+      UPDATE groups
+         SET join_code = v_kod, join_code_rotated_at = now()
+       WHERE id = p_group_id;
+      RETURN v_kod;
+    EXCEPTION WHEN unique_violation THEN
+      -- kolejna próba
+    END;
+  END LOOP;
+
+  RAISE EXCEPTION 'Nie udało się wylosować nowego kodu — spróbuj ponownie';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION odswiez_kod_grupy(UUID) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 4. Zamknięcie dziury: koniec samodzielnego INSERT-a
+-- ---------------------------------------------------------------------------
+-- Po zdjęciu tej polityki `group_members` NIE MA ŻADNEJ polityki INSERT, więc
+-- z przeglądarki nie da się dopisać nikogo — także siebie. Wszystkie realne
+-- drogi wejścia idą przez SECURITY DEFINER i tam sprawdzają warunek:
+--   * dolacz_do_grupy_kodem()      — trzeba znać kod,
+--   * dodaj_czlonka_do_grupy()     — trzeba mieć can_manage_members,
+--   * add_group_creator_as_member() (`044`) — wyzwalacz przy tworzeniu grupy,
+--   * seedy z SQL Editora           — działają jako właściciel tabeli, RLS ich
+--                                     nie dotyczy.
+DROP POLICY IF EXISTS "Users join groups" ON group_members;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 095_statystyki_grupy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 095: Statystyki grupy — to, po co ekipa w ogóle trzyma się razem.
+--
+-- `get_player_stats()` (`043`/`045`/`055`/`074`) liczy wszystko, czego gracz
+-- dotknął w całej aplikacji. Nie ma wymiaru grupy, więc strona ekipy nie
+-- potrafi odpowiedzieć na jedyne pytanie, które w ekipie pada: "kto strzela,
+-- kto przychodzi, ile już rozegraliśmy".
+--
+-- Dwie funkcje, nie jedna: nagłówek grupy potrzebuje pięciu liczb i jest
+-- publiczny, tabela graczy potrzebuje wiersza na osobę i jest wyłącznie dla
+-- członków. Skleić się tego nie da, bo różnią się i kształtem, i dostępem.
+--
+-- UCZCIWOŚĆ CO DO DANYCH — trzy rzeczy, których ta funkcja NIE udaje:
+--
+--  * ZWYCIĘSTWA liczą się wyłącznie tam, gdzie mecz miał podział na drużyny
+--    (`event_participants.team`, migracja `011`) ORAZ zapisany wynik
+--    (`match_results.winner`, migracja `014`). Domyślny `team_mode` to 'brak',
+--    więc dla większości meczów `team` jest NULL i zwycięstwa nie ma jak
+--    przypisać. Dlatego funkcja zwraca też `matches_with_teams` — mianownik.
+--    Bez niego "0 zwycięstw" znaczy naraz "przegrywa wszystko" i "nigdy nie
+--    dzieliliśmy drużyn", a to są dwie różne informacje.
+--
+--  * NIEZAWODNOŚĆ to nie frekwencja. Śledzenie obecności zniknęło z Bojo
+--    w migracji `064`, a `074` wyrzuciło `attended` z get_player_stats
+--    właśnie dlatego, że kolumna zwracająca zawsze zero jest obietnicą
+--    funkcji, której nie ma. `niezawodnosc_pct` = ile procent meczów,
+--    na które gracz był zapisany do składu, rozegrał BEZ zgłoszenia
+--    "nie przyszedł" (`player_reports`, migracja `091`).
+--
+--  * GOLE istnieją tylko tam, gdzie ktoś je wpisał. Brak wpisu to brak
+--    danych, nie zero.
+--
+-- SECURITY DEFINER w tabeli graczy, bo `player_reports` czyta wyłącznie
+-- organizator i delegat od składu (`091`). Zwykły członek grupy dostałby
+-- z SECURITY INVOKER same zera w kolumnie nieobecności i nie miałby jak się
+-- dowiedzieć, że to nie zera tylko brak dostępu. Zamiast tego funkcja
+-- sprawdza członkostwo sama i odmawia wprost, pierwszą instrukcją.
+--
+-- DROP przed CREATE — `CREATE OR REPLACE` nie pozwala zmienić listy kolumn
+-- zwracanych przez funkcję tabelaryczną (lekcja z `074`).
+
+-- ---------------------------------------------------------------------------
+-- 1. Nagłówek grupy — publiczny, pięć liczb
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS get_group_stats(UUID);
+
+CREATE FUNCTION get_group_stats(p_group_id UUID)
+RETURNS TABLE (
+  matches_played    INT,
+  matches_upcoming  INT,
+  goals_total       INT,
+  members_count     INT,
+  distinct_players  INT
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT
+    -- Rozegrane: mecz się odbył i nie został odwołany. Ten sam warunek co
+    -- w get_player_stats (`074`), żeby liczby na stronie gracza i na stronie
+    -- grupy nie kłóciły się ze sobą.
+    (SELECT count(*)::int
+       FROM events e
+      WHERE e.group_id = p_group_id
+        AND e.status <> 'cancelled'
+        AND (e.event_date + e.event_time)::timestamp <= now()),
+
+    (SELECT count(*)::int
+       FROM events e
+      WHERE e.group_id = p_group_id
+        AND e.status <> 'cancelled'
+        AND (e.event_date + e.event_time)::timestamp > now()),
+
+    (SELECT coalesce(sum(pg.goals), 0)::int
+       FROM player_goals pg
+       JOIN events e ON e.id = pg.event_id
+      WHERE e.group_id = p_group_id),
+
+    (SELECT count(*)::int
+       FROM group_members gm
+      WHERE gm.group_id = p_group_id),
+
+    -- Ilu RÓŻNYCH ludzi z kontem grało w meczach tej grupy. To nie to samo co
+    -- members_count: w meczu ekipy gra się też z kimś, kto do grupy nie należy.
+    (SELECT count(DISTINCT ep.user_id)::int
+       FROM event_participants ep
+       JOIN events e ON e.id = ep.event_id
+      WHERE e.group_id = p_group_id
+        AND ep.is_guest = false
+        AND ep.user_id IS NOT NULL
+        AND ep.rsvp <> 'maybe')
+$$;
+
+GRANT EXECUTE ON FUNCTION get_group_stats(UUID) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2. Tabela graczy — wyłącznie dla członków
+-- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS get_group_leaderboard(UUID);
+
+CREATE FUNCTION get_group_leaderboard(p_group_id UUID)
+RETURNS TABLE (
+  user_id             UUID,
+  matches_played      INT,
+  goals               INT,
+  wins                INT,
+  matches_with_teams  INT,
+  no_shows            INT,
+  niezawodnosc_pct    INT
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT czy_czlonek_grupy(p_group_id) THEN
+    RAISE EXCEPTION 'Statystyki grupy widzą wyłącznie jej członkowie';
+  END IF;
+
+  RETURN QUERY
+  WITH sklad AS (
+    -- Wiersz na (gracz, mecz): był w składzie rozegranego meczu tej grupy.
+    -- Rezerwa, obserwujący i prośba czekająca na akceptację nie grają.
+    SELECT ep.id AS participant_id, ep.user_id, ep.event_id, ep.team
+      FROM event_participants ep
+      JOIN events e ON e.id = ep.event_id
+     WHERE e.group_id          = p_group_id
+       AND e.status           <> 'cancelled'
+       AND (e.event_date + e.event_time)::timestamp <= now()
+       AND ep.is_guest         = false
+       AND ep.user_id IS NOT NULL
+       AND ep.is_reserve       = false
+       AND ep.pending_approval = false
+       AND ep.rsvp            <> 'maybe'
+  )
+  SELECT
+    s.user_id,
+    count(DISTINCT s.event_id)::int,
+    coalesce(sum(pg.goals), 0)::int,
+    count(*) FILTER (
+      WHERE s.team IS NOT NULL AND mr.winner IS NOT NULL AND mr.winner = s.team
+    )::int,
+    count(*) FILTER (
+      WHERE s.team IS NOT NULL AND mr.winner IS NOT NULL
+    )::int,
+    count(*) FILTER (WHERE pr.id IS NOT NULL)::int,
+    CASE
+      WHEN count(DISTINCT s.event_id) = 0 THEN 100
+      ELSE round(
+        100.0 * (count(DISTINCT s.event_id) - count(*) FILTER (WHERE pr.id IS NOT NULL))
+        / count(DISTINCT s.event_id)
+      )::int
+    END
+  FROM sklad s
+  LEFT JOIN player_goals pg
+         ON pg.participant_id = s.participant_id
+  LEFT JOIN match_results mr
+         ON mr.event_id = s.event_id
+  LEFT JOIN player_reports pr
+         ON pr.reported_participant_id = s.participant_id
+        AND pr.report_type = 'nie_przyszedl'
+  GROUP BY s.user_id
+  ORDER BY 3 DESC, 2 DESC;   -- gole, potem rozegrane
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_group_leaderboard(UUID) TO authenticated;

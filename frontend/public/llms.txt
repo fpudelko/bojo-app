@@ -26,7 +26,8 @@
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
-- [Grupy](/grupy): stałe ekipy, dołączanie przez link zaproszenia
+- [Grupy](/grupy): stałe ekipy — mecze, tablica ogłoszeń, statystyki i uprawnienia
+  współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
 - [Stałe gierki](/cykliczne): mecze powtarzane co tydzień; kolejny termin powstaje sam
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
 
@@ -48,7 +49,9 @@ zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchod
   Dołączenie do meczu — nie: osoba z linkiem zapisuje się, podając imię i e-mail, bez
   hasła i bez potwierdzania adresu; konto może dokończyć dopiero po zapisie, jeśli chce.
 - Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć) albo **prywatny**
-  (dostęp wyłącznie przez link lub kod dołączenia). Trzeciego poziomu widoczności nie ma.
+  (dostęp wyłącznie przez link lub kod dołączenia) — kolumna w bazie nie ma trzeciej
+  wartości. Prywatny mecz przypięty do grupy jest mimo to widoczny dla całej ekipy —
+  to świadome zachowanie, nie luka.
 - Organizator może wymagać akceptacji zapisu oraz pozwolić uczestnikom dopisywać gości
   bez konta.
 - Status **„Obserwuję"** nie zajmuje miejsca w składzie ani nie liczy się do statystyk.

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppNotification } from '@/types';
-import { otwarteSprawy } from '@/lib/notifications';
+import { otwarteSprawy, toNotif, WYMAGA_AKCJI } from '@/lib/notifications';
 
 // Zapytania w `otwarteSprawy` różnią się TABELĄ tylko pozornie — obie idą do
 // `event_participants`. Rozróżniamy je po tym, czy w łańcuchu pada `.eq
@@ -101,5 +101,33 @@ describe('otwarteSprawy', () => {
     ]);
     expect(wynik).toEqual(new Set());
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+// 093: powiadomienia grupowe (ogłoszenie na tablicy, nowy mecz w grupie) niosą
+// `group_id` — bez mapowania w `toNotif` dzwonek renderowałby martwy wiersz.
+describe('toNotif', () => {
+  it('maps group_id to groupId', () => {
+    const n = toNotif({
+      id: 'n1', user_id: 'u1', type: 'ogloszenie_w_grupie', title: 't',
+      group_id: 'g1', created_at: '2026-08-10T08:00:00Z',
+    });
+    expect(n.groupId).toBe('g1');
+  });
+
+  it('leaves groupId undefined when the row has none', () => {
+    const n = toNotif({
+      id: 'n1', user_id: 'u1', type: 'nowy_mecz_w_grupie', title: 't',
+      created_at: '2026-08-10T08:00:00Z',
+    });
+    expect(n.groupId).toBeUndefined();
+  });
+});
+
+// Dzwonek dziś niesie prawie wyłącznie rzeczy WYMAGAJĄCE DZIAŁANIA — ogłoszenie
+// na tablicy grupy to informacja, nie zadanie, więc nie ma tam czego rozpatrywać.
+describe('WYMAGA_AKCJI', () => {
+  it('does not include ogloszenie_w_grupie', () => {
+    expect(WYMAGA_AKCJI.has('ogloszenie_w_grupie')).toBe(false);
   });
 });

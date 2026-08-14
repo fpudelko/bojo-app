@@ -899,24 +899,46 @@ logowaniu.
 
 ---
 
+## Układ `/grupy` — lista ekip
+
+Karta ekipy pokazuje od razu to, po co się tu wchodzi: **kiedy gramy**, nie tylko nazwę.
+`getMyGroupsZTerminem()` (`lib/groups.ts`) dociąga do listy grup najbliższy nadchodzący
+mecz każdej z nich — dwa zapytania na cały ekran. Karta ma termin, miejsce i pasek
+zapełnienia składu; gdy grupa nie ma terminu, pokazuje „Brak terminu" z odnośnikiem do
+kreatora. Kod zaproszenia (jedyna droga samodzielnego dołączenia, patrz niżej) żyje
+w dyskretnym wierszu na dole, nie w karcie na pół ekranu jak wcześniej — otwiera bottom
+sheet (`KodGrupySheet.tsx`).
+
 ## Układ `/grupy/[id]`
 
 Trasa jest rozdzielona na serwerowy `page.tsx` (z `generateMetadata`) i
-`GroupDetailClient.tsx`. Metadane są tu istotne, bo **strona grupy jest celem linku
-zaproszenia** `/g/[kod]` — bez nich każde udostępnienie pokazywało generyczny tytuł
-całej aplikacji.
+`GroupDetailClient.tsx`, który składa cztery komponenty z `components/groups/`:
+`NajblizszyMeczGrupy`, `TablicaGrupy`, `SkladGrupy`, `StatystykiGrupy`. Metadane są tu
+istotne, bo **strona grupy jest jednym z celów linku zaproszenia** `/g/[kod]` — bez nich
+każde udostępnienie pokazywało generyczny tytuł całej aplikacji.
 
-Układ od góry: hero z okładką (nazwa + plakietki sport / miasto / liczba członków) →
-„Najbliższy mecz" (dla członka) → zakładki **Mecze / Skład** → przyklejony pasek z jedną
-główną akcją („Dołącz do grupy" albo „Stwórz mecz w grupie"), odsunięty od dolnej
-nawigacji przez `var(--bottom-nav-h)`.
+Układ od góry: nagłówek — okładka jako mały kafelek 56×56, **nie** hero na pół ekranu
+(dawny layout zakrywał nią najważniejszą treść, zgłoszone wprost) — nazwa, meta
+(sport/miasto/boisko/liczba członków), przycisk „Zaproś" (otwiera
+`ZaprosDoGrupySheet.tsx`) i zębatka ustawień dla założyciela/zarządzającego. Zaraz pod
+nim „Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) — **tu żyje cotygodniowa pętla**: gdy
+grupa ma nadchodzący mecz, karta z terminem, paskiem składu i linkiem do meczu; gdy nie
+ma, ale ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym
+kliknięciem (`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co
+poprzednio — całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja
+`072`/`093`); gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora.
+Środkowy FAB dolnej nawigacji na trasie `/grupy/<id>` sam prowadzi do
+`/wydarzenia/nowe?group=<id>` (`BottomNav.tsx`) — to samo działanie na desktopie robi
+tekstowy „+ Nowy termin" w zakładce Mecze.
 
-**Wejście z linku zaproszenia.** `/g/[kod]` przekierowuje na `/grupy/[id]?join=1` i tak
-było od zawsze — ale nikt tego parametru nie czytał. Teraz, gdy `?join=1` jest w adresie
-**i** użytkownik nie należy do grupy, nad wszystkim pojawia się baner „Masz zaproszenie
-do *nazwa*" z przyciskiem dołączenia; pasek na dole wtedy się nie dubluje.
+Cztery zakładki: **Mecze** (nadchodzące/historia, jak dawniej) / **Tablica** (patrz
+niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (rząd awatarów + lista,
+plakietka „Założyciel"/„Współorganizator", kebab „Usuń z ekipy" dla
+`can_manage_members` — **nie** zmiana uprawnień, ta jest wyłącznie w Ustawieniach, bo
+politykę UPDATE na `group_members` ma tylko założyciel) / **Statystyki** (patrz „Wyniki
+i statystyki" w `docs/domena.md`).
 
-Zakładka trzyma stan w URL (`?tab=sklad`), ale przez `window.history.replaceState`,
+Zakładka trzyma stan w URL (`?tab=tablica`), ale przez `window.history.replaceState`,
 **nie** `router.replace` jak na `/moje-gry`. Powód: `/moje-gry` jest trasą statyczną
 i nawigacja nic nie kosztuje, a `/grupy/[id]` jest dynamiczna — każde `router.replace`
 byłoby round-tripem po dane z serwera (łącznie z `generateMetadata`), przez co adres
@@ -924,6 +946,34 @@ w praktyce w ogóle się nie zmieniał.
 
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
+
+## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
+
+**Trzy niezależne przełączniki** (`can_manage_members`, `can_create_events`,
+`can_moderate_wall`, migracja `092`) — panel „Uprawnienia" w
+`/grupy/[id]/edytuj`, widoczny wyłącznie założycielowi (RLS pozwala zmieniać te
+kolumny tylko jemu). Pełny model → [docs/domena.md § Uprawnienia w
+grupie](./domena.md#uprawnienia-w-grupie).
+
+**`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta grupę,
+najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane w bazie) imię
+zapraszającego kluczem anonimowym — `groups` i `group_members` są publicznie czytelne,
+więc to działa bez konta. `ZaproszenieClient.tsx` renderuje to wszystko i, dla
+wylogowanego, formularz rejestracji (`AuthForm` w trybie `signup`, `next` wskazuje
+z powrotem na `/grupy/[id]?dolacz=<kod>&od=<uuid>`) — dokładnie ta sama miękka ścieżka,
+co przejęcie wpisu gościa (`/gracz/przejmij/[token]?auto=1`). Zalogowany odwiedzający
+jest przekierowany od razu, bez migania tego widoku; `GroupDetailClient` widząc
+`?dolacz=` dołącza go kodem automatycznie (`dolacz_do_grupy_kodem()`, migracja `094`)
+i czyści adres. Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
+pokazują komunikat, że trzeba poprosić o nowy — bez kodu dołączenie od tej migracji nie
+jest już możliwe (patrz niżej).
+
+**Dołączenie do grupy wymaga kodu — zawsze.** Migracja `094` zdjęła politykę INSERT na
+`group_members`, którą wcześniej wystarczało obejść, znając samo UUID grupy (publicznie
+czytelne). Jedyne drogi wejścia: `dolacz_do_grupy_kodem()` (trzeba znać kod),
+`dodaj_czlonka_do_grupy()` (trzeba mieć `can_manage_members`) i trigger przy założeniu
+grupy. `joinGroup()` (surowy INSERT) zostało usunięte z `lib/groups.ts` —
+zastępuje je `joinGroupByCode()`.
 
 ---
 
@@ -1065,13 +1115,21 @@ mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `086` doda
 (`UzupelnijProfilBanner.tsx`) — niezawodny odpowiednik po stronie klienta. Wyzwalacz
 zostaje jako potencjalny drugi nadawca; `NOT EXISTS` w RPC chroni przed duplikatem.
 
-`NotificationBell` linkuje powiadomienie do meczu przez `event_id`, a te bez `event_id` —
-przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` → `/profil`). Bez niej renderowały się
-jako martwy, nieklikalny wiersz.
+`NotificationBell` linkuje powiadomienie do meczu przez `event_id`; te bez `event_id`,
+ale z `group_id` (ogłoszenie na tablicy grupy, migracja `093`) — na `/grupy/{group_id}`;
+resztę bez żadnego z nich — przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` →
+`/profil`). Bez tego routingu renderowały się jako martwy, nieklikalny wiersz.
 
-Czego brakuje: **wyzwalacza przy utworzeniu gry w grupie**. Jedyna ścieżka powiadomienia
-o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą
-`SHOW_GAME_ALERTS`. To [luka 2 wobec wizji](./wizja.md#3-luki).
+**Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
+`072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
+wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
+`game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) — wciąż za
+flagą `SHOW_GAME_ALERTS`, [luka 2 wobec wizji](./wizja.md#3-luki), i to jest inna
+funkcja niż powiadomienie o meczu w grupie.
+
+**Przypięty wpis na tablicy grupy też powiadamia** (`ogloszenie_w_grupie`, migracja
+`093`) — jedyny typ wpisu na tablicy, który to robi; zwykły wpis nikogo nie powiadamia,
+żeby dzwonek nie zamienił się w kanał czatu.
 
 **Komplet i zwolnione miejsce (migracja `079`).** Organizator nie dowiadywał się
 o zmianie stanu składu — jedyny wyzwalacz na `DELETE` z `event_participants`
@@ -1114,9 +1172,9 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Auto-awans z listy rezerwowej.** Zwolnione miejsce jest **oferowane** pierwszej
   osobie z rezerwy, która musi je sama przyjąć — nikt nie trafia do składu po cichu
   ([domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans)). Nie „naprawiać".
-- **Trzeci poziom widoczności meczu** („widoczne dla grupy"). `events.visibility` to
-  wyłącznie `private` / `public`.
-- **Powiadomienie dla członków grupy o nowej grze.**
+- **Osobna wartość „widoczne dla grupy" w `events.visibility`.** Kolumna to nadal
+  wyłącznie `private` / `public` — ale prywatny mecz przypięty do grupy JEST widoczny
+  dla jej członków (`getMyGroupEvents()`), patrz [domena.md § Grupy](./domena.md#grupy).
 - **MVP** w statystykach. Jedyne wystąpienie słowa to tekst nagrody na `/turniej`.
 - **Rankingi publiczne.**
 - **Ocena umiejętności, poziom zaawansowania, dopasowywanie gier do poziomu.**

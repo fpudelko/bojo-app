@@ -496,13 +496,82 @@ jest cena.
 
 ## Grupy
 
-`lib/groups.ts`. Stała ekipa: sport, miasto, okładka, członkowie, mecze grupy.
-Dołączanie przez link zaproszenia `/g/[code]`.
+`lib/groups.ts`. Stała ekipa: sport, miasto, okładka, członkowie, mecze grupy, tablica
+(`lib/groupPosts.ts`), statystyki (`lib/groupStats.ts`). Dołączanie wyłącznie przez kod
+zaproszenia — `/g/[kod]` albo pole „Masz kod?" na `/grupy` (migracja `094`; znajomość
+samego UUID grupy dziś **nie wystarcza**, patrz niżej).
 
-**`events.group_id` steruje listowaniem, nie dostępem.** Przypisanie meczu do grupy
-sprawia, że pojawia się on na liście meczów grupy — ale widoczność meczu nadal wynika
-wyłącznie z `events.visibility` (`private` / `public`). Trzeciego poziomu widoczności
-nie ma — to [luka wobec wizji](./wizja.md#3-luki).
+**`events.group_id` steruje listowaniem, i — dla prywatnych meczów grupy — dostępem.**
+Przypisanie meczu do grupy sprawia, że pojawia się on na liście meczów grupy
+(`getEventsByGroup()`) i, jeśli jest prywatny, na dashboardzie każdego członka
+(`getMyGroupEvents()`) — mimo że `events.visibility` samo w sobie mówi tylko
+`private`/`public` i nie ma osobnej trzeciej wartości „widoczne dla grupy". To jest
+**świadomie ustalone zachowanie**, nie luka: prywatny mecz przypięty do grupy jest
+zawsze widoczny dla jej członków, tak samo jak dla organizatora. Kreator meczu i strona
+meczu mówią to wprost pod kartą widoczności (`opisWidocznosciWGrupie()` w
+`lib/eventFeatures.ts`) — inaczej „Prywatne" wygląda jak obietnica bez pokrycia.
+Nadal nie ma **prawdziwego** trzeciego poziomu w `events.visibility` (CHECK zostaje
+dwuwartościowy) i nadal nie zaostrzono ogólnej polityki `Events readable by all`
+(`USING (true)`) — `getMyGroupEvents()` w dalszym ciągu działa dzięki tej luźnej
+polityce, a jej domknięcie bez równoczesnej przebudowy funkcji po cichu urwałoby mecze
+grupowe z list. To osobne zadanie, patrz `BACKLOG.md §5`.
+
+---
+
+## Uprawnienia w grupie
+
+Założyciel (`groups.created_by`) ma zawsze pełną władzę i nie da się go zdegradować —
+to jedyna rzecz, którą definiuje sama kolumna, nie da się jej odebrać żadnym zapisem.
+Migracja `092` dokłada obok tego trzy niezależne przełączniki na `group_members`,
+wzorem [Delegowania uprawnień organizatora](#delegowanie-uprawnień-organizatora) wyżej:
+
+| Uprawnienie | Zakres | Domyślnie |
+|---|---|---|
+| `can_manage_members` | Dodaje i usuwa graczy z grupy, zmienia/odświeża kod zaproszenia | `false` |
+| `can_create_events` | Zakłada mecze przypięte do tej grupy | `true` — każdy członek to dziś robi, flaga istnieje po to, żeby dało się to odebrać |
+| `can_moderate_wall` | Kasuje cudze wpisy z tablicy i przypina ważne | `false` |
+
+**Kolumna `role` (`'admin'`/`'member'`) zostaje jako etykieta, ale przestaje być
+źródłem prawdy.** Trigger `ustaw_role_czlonka()` wylicza ją z trzech przełączników przy
+każdym zapisie i nadpisuje to, co przyszło z klienta — dzięki temu plakietka
+„Założyciel"/„Współorganizator" na liście składu działa bez zmian, a rozjazd między
+dwoma niezależnymi zapisami tej samej informacji jest fizycznie niemożliwy.
+
+**Uprawnieniami zarządza wyłącznie założyciel** — nie inny współorganizator, nawet
+z `can_manage_members`. Ten sam powód co przy delegatach meczu: inaczej powstaje
+niekontrolowany łańcuch przekazywania. `can_manage_members` pozwala dodać i usunąć
+CZŁONKA, nie nadać komuś praw — dlatego panel „Uprawnienia" w ustawieniach grupy
+(`/grupy/[id]/edytuj`) jest widoczny tylko założycielowi, mimo że sama strona ustawień
+jest dostępna też dla `can_manage_members`.
+
+Egzekwowane w RLS: pięć funkcji `SECURITY DEFINER` (`czy_zalozyciel_grupy()`,
+`czy_czlonek_grupy()`, `czy_moze_zarzadzac_grupa()`,
+`czy_moze_tworzyc_wydarzenia_w_grupie()`, `czy_moze_moderowac_tablice()`) rozszerzają
+polityki na `group_members`, `groups`, `group_posts` i wyzwalacz na `events.group_id`.
+Przypięcie meczu do grupy bez `can_create_events` kończy się wyjątkiem z bazy
+(wyzwalacz, nie polityka RLS — `WITH CHECK` przy `UPDATE` nie widzi wiersza sprzed
+zmiany, więc zablokowałby też zwykłą edycję terminu przez kogoś, kto międzyczasie
+wyszedł z grupy).
+
+**Zaproszenia noszą nadawcę.** `group_members.invited_by` (migracja `094`) zapisuje,
+kto kogo przyprowadził — RPC `dolacz_do_grupy_kodem(kod, od)` weryfikuje w bazie, że
+`od` naprawdę jest członkiem grupy, zanim to zapisze (parametr z adresu URL da się
+podrobić; najgorszy skutek to błędne imię na ekranie zaproszenia, nie fałszywe
+uprawnienie). Link zaproszenia da się unieważnić (`odswiez_kod_grupy()`, wyłącznie
+założyciel) — stary kod przestaje działać natychmiast, kto już jest w grupie, zostaje.
+
+---
+
+## Tablica grupy
+
+`group_posts` (migracja `093`) — płaska lista wpisów, bez wątków i bez załączników,
+zamknięta dla nie-członków (w odróżnieniu od `groups`, które jest publicznie
+czytelne — strona grupy jest celem linku zaproszenia i musi się wyrenderować bez
+konta). Jeden wpis może być przypięty (`pinned_at`) — to jedyna rzecz na tablicy, która
+wysyła powiadomienie do całej ekipy (typ `ogloszenie_w_grupie`, kolumna
+`notifications.group_id`), żeby dzwonek nie zamienił się w kanał czatu. Przypiąć własny
+wpis może każdy (RLS jest wierszowe), ale powiadomienie poleci tylko wtedy, gdy
+przypina ktoś z `can_moderate_wall` — pilnuje tego wyzwalacz w bazie, nie UI.
 
 ---
 

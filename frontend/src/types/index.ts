@@ -414,6 +414,7 @@ export interface AppNotification {
   eventId?: string;
   alertId?: string;
   claimToken?: string;
+  groupId?: string; // 093 — powiadomienia bez meczu (np. ogłoszenie na tablicy)
   readAt?: string;
   createdAt: string;
 }
@@ -444,6 +445,8 @@ export interface FieldComment {
 // Groups — a recurring crew of players
 // ---------------------------------------------------------------------------
 
+/** Etykieta wyliczana z `can_*` przez trigger `ustaw_role_czlonka` (migracja
+ *  `092`) — nie źródło prawdy o uprawnieniach, tylko podpis pod awatarem. */
 export type GroupRole = 'admin' | 'member';
 
 export interface Group {
@@ -459,6 +462,13 @@ export interface Group {
   coverImageUrl?: string;
   fieldId?: string;    // optional venue this group is tied to
   fieldName?: string;
+  joinCodeRotatedAt?: string; // 094 — kiedy ostatnio unieważniono stary link
+}
+
+/** Grupa z terminem najbliższego meczu — dla listy `/grupy`, żeby karta
+ *  odpowiadała od razu na pytanie "kiedy gramy", nie tylko "jak się nazywa". */
+export interface GroupWithNext extends Group {
+  nextEvent?: EventItem;
 }
 
 export interface GroupMember {
@@ -467,9 +477,60 @@ export interface GroupMember {
   userId: string;
   role: GroupRole;
   joinedAt: string;
+  // Trzy niezależne przełączniki (migracja `092`) — założyciel ma je zawsze
+  // `true` niezależnie od tego, co jest zapisane w wierszu (patrz
+  // `uprawnieniaCzlonka()` w `lib/groups.ts`, lustro wyzwalacza w bazie).
+  canManageMembers: boolean;
+  canCreateEvents: boolean;
+  canModerateWall: boolean;
+  invitedBy?: string; // 094 — kto przyprowadził tę osobę do ekipy
   // joined from profiles / participations
   name: string;
   avatarUrl?: string;
+}
+
+/** Czyje uprawnienia w grupie widzi UI — wyliczone, nie surowy wiersz bazy. */
+export interface GroupPermissions {
+  isFounder: boolean;
+  canManageMembers: boolean;
+  canCreateEvents: boolean;
+  canModerateWall: boolean;
+}
+
+/** Wpis na tablicy grupy (migracja `093`) — płaska lista, bez wątków. */
+export interface GroupPost {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  body: string;
+  pinnedAt?: string;
+  deletedAt?: string;
+  createdAt: string;
+}
+
+/** Nagłówek statystyk grupy — publiczny, z `get_group_stats()` (migracja `095`). */
+export interface GroupStats {
+  matchesPlayed: number;
+  matchesUpcoming: number;
+  goalsTotal: number;
+  membersCount: number;
+  distinctPlayers: number;
+}
+
+/** Wiersz tabeli graczy grupy — z `get_group_leaderboard()` (migracja `095`),
+ *  wyłącznie dla członków. `wins` ma sens wyłącznie gdy `matchesWithTeams > 0`
+ *  — patrz `pokazacKolumneWygranych()` w `lib/groupStats.ts`. */
+export interface GroupLeaderboardEntry {
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+  matchesPlayed: number;
+  goals: number;
+  wins: number;
+  matchesWithTeams: number;
+  noShows: number;
+  niezawodnoscPct: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -42,7 +42,7 @@ import {
   updateParticipantTeam, updateParticipantPayment,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, getPlayerGoals,
-  publishTeams, unpublishTeams, saveEventAdvancedSettings,
+  publishTeams, unpublishTeams, saveEventAdvancedSettings, opisWidocznosciWGrupie,
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
@@ -443,7 +443,7 @@ export default function EventDetailClient() {
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
   const [editMode, setEditMode] = useState(false);
-  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string } | null>(null);
+  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string; memberCount?: number } | null>(null);
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
@@ -540,7 +540,7 @@ export default function EventDetailClient() {
       }
       if (ev.groupId) {
         import('@/lib/groups').then(({ getGroup }) =>
-          getGroup(ev.groupId!).then((g) => g && setGroupInfo({ id: g.id, name: g.name })).catch(() => {}),
+          getGroup(ev.groupId!).then((g) => g && setGroupInfo({ id: g.id, name: g.name, memberCount: g.memberCount })).catch(() => {}),
         );
       } else {
         setGroupInfo(null);
@@ -2222,6 +2222,14 @@ export default function EventDetailClient() {
               )
             )}
           </div>
+          {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
+              mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
+              to wprost, zamiast zostawiać organizatora w niepewności. */}
+          {groupInfo && (
+            <p className="mt-2 text-xs text-slate-500">
+              {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount)}
+            </p>
+          )}
           {/* Payment info — how to pay + sports-card discount, at a glance. Shown
               generally on the event page, not just at join time. */}
           {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (

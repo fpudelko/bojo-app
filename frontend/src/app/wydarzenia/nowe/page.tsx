@@ -176,6 +176,7 @@ function NewEventForm() {
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupMemberCount, setGroupMemberCount] = useState<number | undefined>(undefined);
   // Ekipa meczu — wejście `?group=` tylko ją preselekcjonuje; od kroku 3 da się
   // ją wybrać albo zdjąć ręcznie, więc to musi być stan, nie sam parametr URL.
   const [grupaId, setGrupaId] = useState<string | undefined>(groupId);
@@ -186,6 +187,7 @@ function NewEventForm() {
       getGroup(groupId).then((g) => {
         if (!g) return;
         setGroupName(g.name);
+        setGroupMemberCount(g.memberCount);
         if (g.sport) setSport(g.sport);
         // Prefill the group's home venue (unless a field was passed explicitly).
         if (g.fieldId && !preFieldId) {
@@ -213,7 +215,7 @@ function NewEventForm() {
   useEffect(() => {
     if (!grupaId || groupName) return;
     import('@/lib/groups').then(({ getGroup }) =>
-      getGroup(grupaId).then((g) => { if (g) setGroupName(g.name); }).catch(() => {}),
+      getGroup(grupaId).then((g) => { if (g) { setGroupName(g.name); setGroupMemberCount(g.memberCount); } }).catch(() => {}),
     );
   }, [grupaId, groupName]);
 
@@ -1147,6 +1149,8 @@ function NewEventForm() {
                 setVisibility={setVisibility}
                 requireApproval={requireApproval}
                 setRequireApproval={setRequireApproval}
+                grupaNazwa={groupName ?? undefined}
+                liczbaCzlonkowGrupy={groupMemberCount}
               />
 
               {/* Seeker count nudge — appears when we have location + date */}
@@ -1268,6 +1272,7 @@ function NewEventForm() {
           onWybierz={(g: Group | null) => {
             setGrupaId(g?.id);
             setGroupName(g?.name ?? null);
+            setGroupMemberCount(g?.memberCount);
             setWyborGrupyOtwarty(false);
           }}
         />

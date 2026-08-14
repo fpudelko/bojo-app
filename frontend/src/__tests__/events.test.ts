@@ -129,6 +129,32 @@ describe('repeatEvent', () => {
     const eventRow = insertedRows.find((row) => 'end_time' in row);
     expect(eventRow.end_time).toBe('19:30');
   });
+
+  // Regresja: `repeatEvent` gubiło `groupId` — powtórka meczu ekipy wypinała
+  // termin z grupy, i cotygodniowa gierka rozjeżdżała się z listą meczów grupy
+  // po pierwszej powtórce.
+  it('carries source.groupId through to the repeated event', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(
+      { ...source, groupId: 'group-uuid-1' },
+      '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski',
+    );
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'group_id' in row);
+    expect(eventRow.group_id).toBe('group-uuid-1');
+  });
+
+  it('keeps group_id null when the source event has none', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(source, '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski');
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'group_id' in row);
+    expect(eventRow.group_id).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

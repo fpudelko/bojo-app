@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-14 · migracja `091` · 32 tabele · 469 testów
+**Stan na:** 2026-08-14 · migracja `095` · 33 tabele · 520 testów
 
 ---
 
@@ -170,23 +170,35 @@ Multisport? Co znaczy nieokreślona kwota zniżki?
 ## Grupy
 
 **Problem.** Ta sama paczka gra co tydzień. Za każdym razem trzeba zebrać tych samych
-ludzi od zera, a historia wspólnych meczów nigdzie nie zostaje.
+ludzi od zera w wątku na komunikatorze, historia wspólnych meczów nigdzie nie zostaje,
+a organizator jest jedyną osobą, która może cokolwiek zmienić.
 
-**Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków
-i mecze grupy w jednym miejscu. Dołącza się przez link zaproszenia.
+**Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków,
+mecze grupy, tablica ogłoszeń i statystyki w jednym miejscu. Dołącza się wyłącznie
+kodem zaproszenia — link `/g/[kod]` pokazuje ekipę i najbliższy mecz bez konta, a
+rejestracja od razu wciąga do grupy. Założyciel może nadać zaufanym członkom trzy
+niezależne uprawnienia: zarządzanie składem ekipy, zakładanie meczów w jej imieniu
+i moderowanie tablicy — sam pozostaje jedyną osobą, która może usunąć grupę.
 
-**Mechanika.** Logika w `frontend/src/lib/groups.ts`, tabele `groups` i `group_members`
-(migracja `044`). Link zaproszenia prowadzi pod `/g/[kod]`. Twórca grupy zostaje jej
-członkiem automatycznie (trigger `add_group_creator_as_member`).
+**Mechanika.** Logika w `frontend/src/lib/groups.ts` (+ `groupPosts.ts`,
+`groupStats.ts`, `groupShare.ts`), tabele `groups`/`group_members` (migracja `044`,
+uprawnienia i nadawca zaproszenia dołożone w `092`/`094`), `group_posts` (tablica,
+migracja `093`). Twórca grupy zostaje jej członkiem automatycznie (trigger
+`add_group_creator_as_member`) z pełnią uprawnień, których nie da się mu odebrać.
+Dołączenie kodem idzie przez funkcję bazodanową `dolacz_do_grupy_kodem()` — sama
+znajomość identyfikatora grupy dziś nie wystarcza, RLS tego pilnuje.
 
-**Przypisanie meczu do grupy steruje listowaniem, nie dostępem.** Kolumna
-`events.group_id` sprawia, że mecz pojawia się na liście meczów grupy, ale jego
-widoczność nadal wynika wyłącznie z `events.visibility`. Nie istnieje widoczność
-„tylko dla mojej grupy".
+**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy.** `events.visibility`
+ma dwie wartości (`private`/`public`), ale gdy mecz ma ustawione `events.group_id`,
+każdy członek tej grupy widzi go na swoim koncie i na liście meczów grupy — niezależnie
+od tego, że jest prywatny dla reszty świata. To świadome, ustalone zachowanie aplikacji,
+nie luka.
 
 **Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Jak dołączyć do stałej
-ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy dostają
-powiadomienie o nowym meczu?
+ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
+mecz swojej ekipy? Czy członkowie grupy dostają powiadomienie o nowym meczu? Czy
+w grupie jest czat albo tablica ogłoszeń? Czy założyciel grupy może dać komuś innemu
+uprawnienia do zarządzania ekipą? Czy grupa ma statystyki graczy?
 
 ---
 
@@ -245,8 +257,11 @@ Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, że działa:
 
 - **Automatyczny awans z listy rezerwowej.** Świadoma decyzja produktowa.
-- **Widoczność „tylko dla grupy".** `events.visibility` to wyłącznie `private`/`public`.
-- **Powiadomienie dla członków grupy o nowym meczu grupy.**
+- **Osobna wartość „tylko dla grupy" w `events.visibility`.** Kolumna to wyłącznie
+  `private`/`public` — ale prywatny mecz przypięty do grupy i tak widzi cała ekipa,
+  patrz sekcja „Grupy" wyżej.
+- **Czat w czasie rzeczywistym w grupie.** Jest tablica ogłoszeń (płaska lista wpisów,
+  bez wątków) — nie wiadomości na żywo.
 - **Realny przepływ pieniędzy** (BLIK, Stripe). Bojo rejestruje, kto zapłacił.
 - **Rankingi publiczne, ocena umiejętności, dopasowywanie meczów do poziomu.**
 - **Odznaki** — poza znaczkiem „rzetelny gracz" (≥5 rozegranych gier, 0 nieobecności).
@@ -298,6 +313,47 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-14 — Grupy jako magnes na organizatora: uprawnienia, tablica, zaproszenia z nadawcą, statystyki
+
+PROBLEM: strategia (`docs/strategia.md §0`) przesuwa priorytet na pozyskiwanie
+organizatorów — a grupa jest jedynym miejscem w Bojo, gdzie pętla „co tydzień zbieram
+tę samą ekipę" może domykać się jednym kliknięciem zamiast wątku na komunikatorze. Kod
+sprzed tej zmiany na to nie pozwalał: `repeatEvent()` gubił przypięcie do grupy przy
+powtórce meczu; każdy, kto poznał UUID grupy (publicznie czytelne), mógł się do niej
+dopisać, bo `join_code` sprawdzał wyłącznie interfejs; roli członka nie dało się w ogóle
+zmienić — brakowało polityki UPDATE na `group_members` — więc jedynym „współorganizatorem"
+był zawsze i wyłącznie założyciel; nie było tablicy ani statystyk drużyny; zaproszenie
+`/g/[kod]` prowadziło od razu na ekran proszący o logowanie, zanim ktokolwiek zobaczył,
+do czego właściwie dołącza.
+
+ROZWIĄZANIE BOJO: założyciel może teraz nadać zaufanym członkom trzy niezależne
+uprawnienia (zarządzanie składem ekipy, zakładanie meczów w jej imieniu, moderowanie
+tablicy) — sam zawsze zachowuje komplet i jako jedyny może usunąć grupę. Dołączenie do
+grupy wymaga kodu zawsze — dziura z samym UUID jest zamknięta. Nowa tablica ogłoszeń:
+płaska lista wpisów, jeden może być przypięty i to jedyny, który powiadamia całą ekipę
+(dzwonek ma zostać miejscem na rzeczy wymagające działania, nie kanałem czatu). Ekran
+grupy zaczyna się od najbliższego meczu — gdy go nie ma, jeden przycisk „Powtórz na
+{data}" zakłada kolejny termin z tymi samymi ustawieniami co poprzedni. Zaproszenie
+`/g/[kod]` jest teraz czytelne bez konta (nazwa ekipy, kto zaprasza, najbliższy mecz,
+historia) z formularzem rejestracji od razu pod spodem — ten sam „pokaż wartość przed
+kontem", co przy zapisie na mecz bez logowania. Statystyki grupy (mecze, gole,
+niezawodność) są uczciwe co do tego, czego nie da się policzyć: zwycięstwa liczą się
+tylko tam, gdzie mecz miał podział na drużyny i wpisany wynik, a „niezawodność" nie
+udaje frekwencji, której Bojo nie śledzi.
+
+MECHANIKA: migracje `092` (`group_members.can_manage_members/can_create_events/
+can_moderate_wall`, trigger `ustaw_role_czlonka()` wyliczający etykietę `role` z tych
+przełączników, pięć funkcji `SECURITY DEFINER` do polityk RLS), `093` (tabela
+`group_posts`, `notifications.group_id`, wyzwalacz powiadamiający o przypiętym
+ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
+`odswiez_kod_grupy()`, `group_members.invited_by`, zdjęta polityka INSERT na
+`group_members`), `095` (RPC `get_group_stats()`/`get_group_leaderboard()`). Frontend:
+`lib/{groupPosts,groupStats,groupShare}.ts`, przebudowane `/grupy`, `/grupy/[id]`
+(cztery zakładki: Mecze/Tablica/Skład/Statystyki, komponenty w `components/groups/`),
+`/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
+Pełny model uprawnień → [docs/domena.md § Uprawnienia w
+grupie](./domena.md#uprawnienia-w-grupie).
 
 ### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
 
@@ -619,28 +675,5 @@ pojemność inaczej niż aplikacja przy zapisie); `lib/events.ts` (`decydujCzyRe
 i `wolneMiejscaWgRol()` z tym samym podziałem); `EventCapacityFields.tsx` (trzy opcje
 z opisem zamiast przełącznika); `wydarzenia/nowe` i `wydarzenia/[id]/edytuj` (stan trybu);
 `lib/eventDraft.ts` (szkic pamięta tryb).
-
-### 2026-08-11 — Organizator przesuwa graczy między składem a rezerwą
-
-PROBLEM: kolejka rezerwowa w Bojo rozdaje zwolnione miejsca sama, ale tylko wtedy, gdy
-miejsce faktycznie się zwolniło, i tylko pierwszej osobie w kolejce. Organizator nie miał
-żadnego sposobu, żeby wziąć kogoś z rezerwy poza kolejnością — a powody bywają poza
-zasięgiem bazy: ktoś przepuścił swoją kolej i wrócił, ktoś dogadał się poza aplikacją,
-brakuje bramkarza, a w kolejce stoi jedyny chętny. Jedynym wyjściem było usunięcie wpisu
-i dopisanie tej samej osoby od nowa, co gubi powiązanie z jej kontem, historię gier
-i zadeklarowany sposób płatności. W drugą stronę było tak samo: żeby zwolnić miejsce
-w składzie, trzeba było gracza usunąć z meczu.
-
-ROZWIĄZANIE BOJO: przy każdej osobie na liście rezerwowej organizator ma przycisk
-„Do składu", a przy graczu w składzie — „Na rezerwę". Awans poza kolejnością do roli,
-w której nie ma już miejsca, prosi o potwierdzenie i pozwala świadomie przekroczyć limit
-(licznik pokaże wtedy np. 15/14). Oba ruchy zachowują wpis gracza wraz z kontem,
-historią i deklaracją płatności; po każdym kolejka rezerwowa przelicza się od razu.
-
-MECHANIKA: `lib/events.ts` (`awansujZRezerwy()`, `cofnijNaRezerwe()` — obie czyszczą
-`claim_offered_at` i `claim_passed`, po czym wołają `sync_reserve_claim`);
-`EventDetailClient.tsx` (przyciski w liście rezerwowej i w sekcji „Zarządzanie
-graczami"). Bez migracji — polityka „Organizer updates participants" z migracji `004`
-dawała to uprawnienie od zawsze, brakowało wyłącznie wywołania.
 
 
