@@ -65,6 +65,12 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia.
 
+Co więcej, **te zadania nigdy nie świecą na czerwono**. Samo `continue-on-error`
+nie wystarcza: workflow kończy się wtedy zielono, ale przy PR-ze i tak widać
+czerwony znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego testy
+lecą z `set +e`, a wynik jedzie do komentarza jako informacja. To jest pomoc dla
+chętnych, nie bramka.
+
 **Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
 `.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi

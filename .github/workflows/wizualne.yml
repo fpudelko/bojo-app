@@ -10,6 +10,12 @@ name: Wizualne (informacyjne)
 # a wtedy czerwona bramka blokująca merge zmusza do „naprawiania" czegoś, co
 # jest w porządku. Zmiana wyglądu ma być DO PRZEJRZENIA, nie do naprawienia.
 #
+# ZADANIA NIGDY NIE ŚWIECĄ NA CZERWONO. Samo `continue-on-error` nie wystarcza:
+# workflow owszem kończy się zielono, ale przy PR-ze i tak widać czerwony
+# znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego same testy
+# lecą z `set +e`, a ich wynik jedzie dalej jako `outputs.wynik` i ląduje
+# w komentarzu. Raport jest POMOCĄ DLA CHĘTNYCH, nie bramką.
+#
 # JAK TO WYGLĄDA Z TELEFONU
 #   1. Workflow wystawia RAPORT — jedną stronę na PR, z obrazkami: nowe widoki
 #      i trójki „wzorzec / teraz / różnica". Odnośnik ląduje w komentarzu do
@@ -112,15 +118,23 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
         run: npm run build
 
+      # `set +e` i własne `exit 0`: to zadanie ma NIGDY nie świecić na czerwono.
+      # Różnica w wyglądzie nie jest awarią, tylko informacją — a czerwony
+      # znaczek przy PR-ze czyta się jak zepsuty build i każe „naprawiać" coś,
+      # co bywa dokładnie zamierzone. Wynik jedzie dalej jako `outputs.wynik`
+      # i ląduje w komentarzu.
       - name: Zrzuty
         id: test
         working-directory: frontend
         run: |
+          set +e
           if [[ "${{ needs.kontekst.outputs.akceptuj }}" == "1" ]]; then
             npm run zrzuty:akceptuj
           else
             npm run zrzuty
           fi
+          echo "wynik=$?" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Raport i różnice
         if: always()
@@ -139,7 +153,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ needs.kontekst.outputs.pr }}
-        run: ../.github/podglad-zrzutow.sh "widoki publiczne"
+        # Raport jest pomocą, nie bramką — jego awaria nie ma prawa niczego
+        # zatrzymać ani zaczerwienić.
+        run: ../.github/podglad-zrzutow.sh "widoki-publiczne" || true
 
       - name: Dopisz wzorce do gałęzi
         if: always() && needs.kontekst.outputs.pr != ''
@@ -147,13 +163,14 @@ jobs:
         env:
           AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
           GALAZ: ${{ needs.kontekst.outputs.galaz }}
-        run: ../.github/dopisz-wzorce.sh "zrzutów"
+        run: ../.github/dopisz-wzorce.sh "zrzutów" || true
 
       - name: Komentarz w PR
         if: always() && needs.kontekst.outputs.pr != ''
+        continue-on-error: true
         uses: actions/github-script@v7
         env:
-          UDANE: ${{ steps.test.outcome }}
+          UDANE: ${{ steps.test.outputs.wynik }}
           AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
           PR: ${{ needs.kontekst.outputs.pr }}
         with:
@@ -164,7 +181,7 @@ jobs:
               github, context, core,
               znacznik: '🖼️',
               tytul: 'Widoki publiczne',
-              udane: process.env.UDANE === 'success',
+              udane: process.env.UDANE === '0',
               akceptacja: process.env.AKCEPTUJ === '1',
               obrazki: czytaj('frontend/podglad-zrzutow.md'),
               numer: Number(process.env.PR),
@@ -210,15 +227,19 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      # Jak wyżej: to zadanie nigdy nie świeci na czerwono.
       - name: Scenariusze
         id: test
         working-directory: frontend
         run: |
+          set +e
           if [[ "${{ needs.kontekst.outputs.akceptuj }}" == "1" ]]; then
             npm run scenariusze:akceptuj
           else
             npm run scenariusze
           fi
+          echo "wynik=$?" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Raport i różnice
         if: always()
@@ -236,7 +257,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ needs.kontekst.outputs.pr }}
-        run: ../.github/podglad-zrzutow.sh "scenariusze za logowaniem"
+        run: ../.github/podglad-zrzutow.sh "scenariusze-za-logowaniem" || true
 
       - name: Dopisz wzorce do gałęzi
         if: always() && needs.kontekst.outputs.pr != ''
@@ -244,10 +265,11 @@ jobs:
         env:
           AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
           GALAZ: ${{ needs.kontekst.outputs.galaz }}
-        run: ../.github/dopisz-wzorce.sh "scenariuszy"
+        run: ../.github/dopisz-wzorce.sh "scenariuszy" || true
 
       - name: Komentarz w PR
         if: always() && needs.kontekst.outputs.pr != ''
+        continue-on-error: true
         uses: actions/github-script@v7
         env:
           UDANE: ${{ steps.test.outcome }}
@@ -261,7 +283,7 @@ jobs:
               github, context, core,
               znacznik: '🎬',
               tytul: 'Scenariusze za logowaniem',
-              udane: process.env.UDANE === 'success',
+              udane: process.env.UDANE === '0',
               akceptacja: process.env.AKCEPTUJ === '1',
               obrazki: czytaj('frontend/podglad-zrzutow.md'),
               numer: Number(process.env.PR),
