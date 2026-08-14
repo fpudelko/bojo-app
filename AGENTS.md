@@ -63,7 +63,29 @@ npm run zrzuty:akceptuj # nadpisz wzorce świadomie
 Wzorce leżą w `frontend/e2e/wzorce/` i idą do repo, więc zmiana widoku pokazuje
 się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blokuje**
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
-nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
+nie do naprawienia.
+
+Co więcej, **te zadania nigdy nie świecą na czerwono**. Samo `continue-on-error`
+nie wystarcza: workflow kończy się wtedy zielono, ale przy PR-ze i tak widać
+czerwony znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego testy
+lecą z `set +e`, a wynik jedzie do komentarza jako informacja. To jest pomoc dla
+chętnych, nie bramka.
+
+**Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
+
+`.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi
+`podglad-zrzutow`, pod adresem `…/tree/podglad-zrzutow/pr-<numer>/<zestaw>`.
+GitHub renderuje `README.md` katalogu jako stronę, więc wchodzisz w odnośnik
+z komentarza i przewijasz obrazki: nowe widoki oraz trójki „wzorzec / teraz /
+różnica". Nic nie trzeba pobierać ani odpisywać. Raporty **kasują się same po
+7 dniach** — gałąź nie ma rosnąć w nieskończoność. Artefakt z raportem HTML
+zostaje jako droga zapasowa.
+
+Wzorce wchodzą do repo dopiero po nadaniu etykiety `zrzuty:zaakceptuj`
+(w aplikacji GitHuba: **ⓘ** w prawym dolnym rogu PR-a → *Labels*). Dotyczy to
+**tak samo widoków nowych, jak zmienionych** (`.github/dopisz-wzorce.sh`) —
+pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on staje
+się wzorcem na zawsze.
 
 `e2e/wizualne.spec.ts` chodzi **bez bazy** — na atrapach kluczy, w tym samym
 przebiegu co build. Komunikaty, które normalnie przychodzą z serwera (złe hasło,
