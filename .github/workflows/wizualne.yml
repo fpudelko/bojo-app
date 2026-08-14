@@ -10,14 +10,17 @@ name: Wizualne (informacyjne)
 # a wtedy czerwona bramka blokująca merge zmusza do „naprawiania" czegoś, co
 # jest w porządku. Zmiana wyglądu ma być DO PRZEJRZENIA, nie do naprawienia.
 #
-# JAK PRZEJRZEĆ I ZAAKCEPTOWAĆ ZMIANĘ
-#   1. Workflow pisze komentarz w PR z listą widoków, które się zmieniły.
-#   2. Raport HTML (z podglądem „przed / po / różnica") leży w artefaktach.
-#   3. Zgadzasz się ze zmianą? Nadaj PR-owi etykietę `zrzuty:zaakceptuj`.
-#      Workflow wygeneruje nowe wzorce i dopisze je do gałęzi PR-a —
-#      zobaczysz je wtedy w diffie jako zwykłą zmianę obrazków.
+# JAK TO WYGLĄDA Z TELEFONU
+#   1. Workflow wkleja obrazki WPROST w komentarz do PR-a — nowe widoki
+#      i różnice „wzorzec / teraz / co się zmieniło". Nic nie trzeba pobierać
+#      ani rozpakowywać; aplikacja GitHuba pokazuje je w wątku.
+#   2. Zgadzasz się? Napisz w komentarzu `/zrzuty ok`. Tyle.
+#      (Etykieta `zrzuty:zaakceptuj` nadal działa — jest równoważna, ale
+#      w aplikacji mobilnej siedzi głęboko pod ⓘ, więc komenda jest wygodniejsza.)
+#   3. Workflow wygeneruje wzorce i dopisze je do gałęzi PR-a — zobaczysz je
+#      wtedy w diffie jako zwykłą zmianę obrazków.
 #
-# DOTYCZY TAK SAMO WIDOKÓW NOWYCH. Nic nie trafia do repo bez etykiety —
+# DOTYCZY TAK SAMO WIDOKÓW NOWYCH. Nic nie trafia do repo bez zatwierdzenia —
 # pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on
 # staje się wzorcem na zawsze. Szczegóły w `.github/dopisz-wzorce.sh`.
 
@@ -26,30 +29,89 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/wizualne.yml'
+  # Akceptacja komentarzem — patrz zadanie `kontekst`.
+  issue_comment:
+    types: [created]
   # Ręczne odpalenie, gdy chcesz sprawdzić bez otwierania PR-a.
   workflow_dispatch:
 
 # Nowy push do tej samej gałęzi anuluje poprzedni przebieg — zrzuty ze starego
-# kodu i tak nie mają wartości.
+# kodu i tak nie mają wartości. Przy komentarzu `github.ref` wskazuje gałąź
+# domyślną, więc kluczem jest numer PR-a, a nie ref.
 concurrency:
-  group: wizualne-${{ github.ref }}
+  group: wizualne-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: write        # dopisanie nowych wzorców przy akceptacji
+  contents: write        # dopisanie wzorców przy akceptacji + gałąź z podglądem
   pull-requests: write   # komentarz z podsumowaniem
 
 jobs:
+  # Jedno miejsce, w którym rozstrzygamy: na czym pracujemy i czy akceptujemy.
+  # Bez tego każde zadanie musiałoby osobno radzić sobie z tym, że przy
+  # `issue_comment` nie ma ani `head_ref`, ani etykiet w evencie.
+  kontekst:
+    name: Kontekst
+    runs-on: ubuntu-latest
+    outputs:
+      uruchamiac: ${{ steps.ustal.outputs.uruchamiac }}
+      galaz:      ${{ steps.ustal.outputs.galaz }}
+      pr:         ${{ steps.ustal.outputs.pr }}
+      akceptuj:   ${{ steps.ustal.outputs.akceptuj }}
+    steps:
+      - id: ustal
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ustaw = (k, v) => core.setOutput(k, v);
+
+            if (context.eventName === 'issue_comment') {
+              const komentarz = context.payload.comment.body || '';
+              const czyPR = !!context.payload.issue.pull_request;
+              // Komenda musi być OSOBNĄ linią, żeby zacytowanie cudzego
+              // komentarza nie odpalało akceptacji przypadkiem.
+              const komenda = /^\s*\/zrzuty\s+(ok|akceptuj)\s*$/im.test(komentarz);
+              if (!czyPR || !komenda) { ustaw('uruchamiac', 'nie'); return; }
+
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              ustaw('uruchamiac', 'tak');
+              ustaw('galaz', pr.head.ref);
+              ustaw('pr', String(pr.number));
+              ustaw('akceptuj', '1');
+              return;
+            }
+
+            if (context.eventName === 'pull_request') {
+              const pr = context.payload.pull_request;
+              const etykieta = (pr.labels || []).some((l) => l.name === 'zrzuty:zaakceptuj');
+              ustaw('uruchamiac', 'tak');
+              ustaw('galaz', pr.head.ref);
+              ustaw('pr', String(pr.number));
+              ustaw('akceptuj', etykieta ? '1' : '0');
+              return;
+            }
+
+            // workflow_dispatch — bez PR-a, tylko porównanie.
+            ustaw('uruchamiac', 'tak');
+            ustaw('galaz', context.ref.replace('refs/heads/', ''));
+            ustaw('pr', '');
+            ustaw('akceptuj', '0');
+
   zrzuty:
     name: Porównanie zrzutów
+    needs: kontekst
+    if: needs.kontekst.outputs.uruchamiac == 'tak'
     runs-on: ubuntu-latest
     # Bez tego czerwony wynik tego zadania blokowałby merge tak samo jak CI.
-    # Informacja ma docierać komentarzem i artefaktem, nie blokadą.
+    # Informacja ma docierać komentarzem, nie blokadą.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ needs.kontekst.outputs.galaz }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -73,24 +135,14 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
         run: npm run build
 
-      # Etykieta `zrzuty:zaakceptuj` → wzorce lecą od nowa i wracają do gałęzi.
-      - name: Czy akceptujemy zmiany
-        id: tryb
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'zrzuty:zaakceptuj') }}" == "true" ]]; then
-            echo "akceptuj=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "akceptuj=0" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Zrzuty
         id: test
         working-directory: frontend
         run: |
-          if [[ "${{ steps.tryb.outputs.akceptuj }}" == "1" ]]; then
-            npx playwright test --project=zrzuty-telefon --project=zrzuty-komputer --update-snapshots
+          if [[ "${{ needs.kontekst.outputs.akceptuj }}" == "1" ]]; then
+            npm run zrzuty:akceptuj
           else
-            npx playwright test --project=zrzuty-telefon --project=zrzuty-komputer
+            npm run zrzuty
           fi
 
       - name: Raport i różnice
@@ -103,88 +155,55 @@ jobs:
             frontend/test-results/
           retention-days: 14
 
-      - name: Dopisz wzorce do gałęzi
-        if: always() && github.event_name == 'pull_request'
+      - name: Podgląd obrazków do komentarza
+        id: podglad
+        if: always() && needs.kontekst.outputs.pr != ''
         working-directory: frontend
         env:
-          AKCEPTUJ: ${{ steps.tryb.outputs.akceptuj }}
-          GALAZ: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.kontekst.outputs.pr }}
+        run: ../.github/podglad-zrzutow.sh "widoki publiczne"
+
+      - name: Dopisz wzorce do gałęzi
+        if: always() && needs.kontekst.outputs.pr != ''
+        working-directory: frontend
+        env:
+          AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
+          GALAZ: ${{ needs.kontekst.outputs.galaz }}
         run: ../.github/dopisz-wzorce.sh "zrzutów"
 
       - name: Komentarz w PR
-        if: always() && github.event_name == 'pull_request'
+        if: always() && needs.kontekst.outputs.pr != ''
         uses: actions/github-script@v7
+        env:
+          UDANE: ${{ steps.test.outcome }}
+          AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
+          PR: ${{ needs.kontekst.outputs.pr }}
         with:
           script: |
             const fs = require('fs');
-            const udane = '${{ steps.test.outcome }}' === 'success';
-            const akceptacja = '${{ steps.tryb.outputs.akceptuj }}' === '1';
-
-            let tresc;
-            if (akceptacja) {
-              tresc = [
-                '### 🖼️ Wzorce zrzutów zaktualizowane',
-                '',
-                'Etykieta `zrzuty:zaakceptuj` była nałożona, więc nowe wzorce trafiły na gałąź PR-a.',
-                'Obejrzyj je w diffie — GitHub pokaże je z suwakiem „przed/po".',
-                '',
-                '**Zdejmij etykietę**, żeby kolejne przebiegi znowu porównywały, zamiast nadpisywać.',
-              ].join('\n');
-            } else if (udane) {
-              tresc = [
-                '### 🖼️ Widoki bez zmian',
-                '',
-                'Wszystkie zrzuty zgadzają się ze wzorcami — nic się wizualnie nie ruszyło.',
-              ].join('\n');
-            } else {
-              tresc = [
-                '### 🖼️ Widok się zmienił — do przejrzenia',
-                '',
-                'Zrzuty różnią się od wzorców. To **nie jest** błąd sam w sobie: zmiana może być',
-                'dokładnie tym, co chciałeś zrobić.',
-                '',
-                '**Jak to obejrzeć:** w zakładce *Checks → Wizualne (informacyjne)* pobierz artefakt',
-                '`zrzuty-raport`. Raport HTML pokazuje trzy obrazki obok siebie: wzorzec, stan obecny',
-                'i podświetloną różnicę.',
-                '',
-                '**Zmiana jest w porządku?** Nadaj temu PR-owi etykietę `zrzuty:zaakceptuj`.',
-                'Workflow wygeneruje nowe wzorce i dopisze je do gałęzi.',
-                '',
-                'Tak samo z widokami **całkiem nowymi**: ich pierwszy zrzut też przechodzi',
-                'przez etykietę, bo to on staje się wzorcem na zawsze.',
-                '',
-                '_To zadanie nie blokuje merge\'a ani deployu._',
-              ].join('\n');
-            }
-
-            const { data: komentarze } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
+            const czytaj = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } };
+            await require(`${process.env.GITHUB_WORKSPACE}/.github/komentarz-zrzutow.js`)({
+              github, context, core,
+              znacznik: '🖼️',
+              tytul: 'Widoki publiczne',
+              udane: process.env.UDANE === 'success',
+              akceptacja: process.env.AKCEPTUJ === '1',
+              obrazki: czytaj('frontend/podglad-zrzutow.md'),
+              numer: Number(process.env.PR),
             });
-            const moj = komentarze.find((k) =>
-              k.user.type === 'Bot' && k.body.includes('🖼️'));
-
-            if (moj) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: moj.id, body: tresc,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.issue.number, body: tresc,
-              });
-            }
 
   scenariusze:
     name: Scenariusze za logowaniem
+    needs: kontekst
+    if: needs.kontekst.outputs.uruchamiac == 'tak'
     runs-on: ubuntu-latest
     # Tak samo nieblokujące jak zrzuty widoków publicznych.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ needs.kontekst.outputs.galaz }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -214,20 +233,11 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Czy akceptujemy zmiany
-        id: tryb
-        run: |
-          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'zrzuty:zaakceptuj') }}" == "true" ]]; then
-            echo "akceptuj=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "akceptuj=0" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Scenariusze
         id: test
         working-directory: frontend
         run: |
-          if [[ "${{ steps.tryb.outputs.akceptuj }}" == "1" ]]; then
+          if [[ "${{ needs.kontekst.outputs.akceptuj }}" == "1" ]]; then
             npm run scenariusze:akceptuj
           else
             npm run scenariusze
@@ -243,10 +253,39 @@ jobs:
             frontend/test-results/
           retention-days: 14
 
-      - name: Dopisz wzorce do gałęzi
-        if: always() && github.event_name == 'pull_request'
+      - name: Podgląd obrazków do komentarza
+        if: always() && needs.kontekst.outputs.pr != ''
         working-directory: frontend
         env:
-          AKCEPTUJ: ${{ steps.tryb.outputs.akceptuj }}
-          GALAZ: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.kontekst.outputs.pr }}
+        run: ../.github/podglad-zrzutow.sh "scenariusze za logowaniem"
+
+      - name: Dopisz wzorce do gałęzi
+        if: always() && needs.kontekst.outputs.pr != ''
+        working-directory: frontend
+        env:
+          AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
+          GALAZ: ${{ needs.kontekst.outputs.galaz }}
         run: ../.github/dopisz-wzorce.sh "scenariuszy"
+
+      - name: Komentarz w PR
+        if: always() && needs.kontekst.outputs.pr != ''
+        uses: actions/github-script@v7
+        env:
+          UDANE: ${{ steps.test.outcome }}
+          AKCEPTUJ: ${{ needs.kontekst.outputs.akceptuj }}
+          PR: ${{ needs.kontekst.outputs.pr }}
+        with:
+          script: |
+            const fs = require('fs');
+            const czytaj = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } };
+            await require(`${process.env.GITHUB_WORKSPACE}/.github/komentarz-zrzutow.js`)({
+              github, context, core,
+              znacznik: '🎬',
+              tytul: 'Scenariusze za logowaniem',
+              udane: process.env.UDANE === 'success',
+              akceptacja: process.env.AKCEPTUJ === '1',
+              obrazki: czytaj('frontend/podglad-zrzutow.md'),
+              numer: Number(process.env.PR),
+            });

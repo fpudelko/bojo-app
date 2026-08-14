@@ -63,12 +63,28 @@ npm run zrzuty:akceptuj # nadpisz wzorce świadomie
 Wzorce leżą w `frontend/e2e/wzorce/` i idą do repo, więc zmiana widoku pokazuje
 się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blokuje**
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
-nie do naprawienia. Akceptacja: etykieta `zrzuty:zaakceptuj` na PR-ze.
+nie do naprawienia.
 
-Etykieta obowiązuje **tak samo widoki nowe, jak zmienione** (`.github/dopisz-wzorce.sh`).
-Nic nie trafia do repo bez zatwierdzenia: pierwszy zrzut widoku jest właśnie tym,
-który warto obejrzeć, bo to on staje się wzorcem na zawsze. Same obrazki oglądasz
-w artefakcie `zrzuty-raport` / `scenariusze-raport`, zanim nadasz etykietę.
+**Przeglądanie i akceptacja — z telefonu, bez pobierania czegokolwiek:**
+
+1. Workflow wkleja obrazki **wprost w komentarz do PR-a** — nowe widoki oraz
+   trójki „wzorzec / teraz / co się zmieniło". Renderują się w aplikacji
+   mobilnej GitHuba. (Pod spodem: `.github/podglad-zrzutow.sh` wypycha pliki na
+   techniczną gałąź `podglad-zrzutow` i linkuje przez `raw.githubusercontent`;
+   artefakt z raportem HTML zostaje jako droga zapasowa.)
+2. Zgadzasz się? Napisz w wątku `/zrzuty ok` w osobnej linii. Etykieta
+   `zrzuty:zaakceptuj` działa równoważnie, ale w aplikacji mobilnej siedzi
+   głęboko pod ⓘ.
+3. Workflow generuje wzorce i dopisuje je do gałęzi PR-a.
+
+Zatwierdzenie obowiązuje **tak samo widoki nowe, jak zmienione**
+(`.github/dopisz-wzorce.sh`). Nic nie trafia do repo bez decyzji człowieka:
+pierwszy zrzut widoku jest właśnie tym, który warto obejrzeć, bo to on staje się
+wzorcem na zawsze.
+
+**Pułapka `issue_comment`:** GitHub uruchamia workflow z gałęzi **domyślnej**,
+nie z PR-a. Zmiana w samym `wizualne.yml` zaczyna więc działać dopiero po
+zmergowaniu do `master` — na PR-ze, który ją wprowadza, komenda jeszcze milczy.
 
 `e2e/wizualne.spec.ts` chodzi **bez bazy** — na atrapach kluczy, w tym samym
 przebiegu co build. Komunikaty, które normalnie przychodzą z serwera (złe hasło,

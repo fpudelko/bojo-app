@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Odsyła wzorce zrzutów na gałąź PR-a. Uruchamiany z katalogu `frontend`.
 #
-# JEDNA ZASADA: nic nie trafia do repo bez etykiety `zrzuty:zaakceptuj`.
+# JEDNA ZASADA: nic nie trafia do repo bez świadomego zatwierdzenia —
+# komentarza `/zrzuty ok` w PR-ze albo etykiety `zrzuty:zaakceptuj`.
 #
 # Dotyczy to tak samo widoków ZMIENIONYCH, jak i CAŁKIEM NOWYCH. Przez chwilę
 # nowe wzorce dopisywały się same — z rozumowaniem „nowy zrzut nie ma z czym
@@ -25,10 +26,10 @@ ZMIENIONE="$(git diff --name-only -- e2e/wzorce)"
 
 if [[ "$AKCEPTUJ" != "1" ]]; then
   if [[ -n "$NOWE$ZMIENIONE" ]]; then
-    echo "Są wzorce do zatwierdzenia, ale brak etykiety zrzuty:zaakceptuj."
+    echo "Są wzorce do zatwierdzenia, ale nikt ich jeszcze nie zatwierdził."
     echo "Nowe:      $(echo "$NOWE" | grep -c . || true)"
     echo "Zmienione: $(echo "$ZMIENIONE" | grep -c . || true)"
-    echo "Obejrzyj je w artefakcie i nadaj etykietę, jeśli są w porządku."
+    echo "Obejrzyj obrazki w komentarzu do PR-a i odpisz /zrzuty ok, jeśli są w porządku."
   else
     echo "Wzorce bez zmian."
   fi
