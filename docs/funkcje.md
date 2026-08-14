@@ -599,9 +599,10 @@ nie ma wpisanego wyniku, sporo nie ma domkniętego rozliczenia, a wpisy gości p
 nie są przejmowane.
 
 **Rozwiązanie.** `components/events/PoMeczuCard.tsx`, renderowana w `EventDetailClient.tsx`
-pod warunkiem `isOwner && resultsAvailable && !isCancelled`, między banerem odwołania a
-banerem „Mecz gotowy". Zbiera do trzech zadań — każde renderowane tylko, gdy dotyczy tego
-meczu:
+pod warunkiem `(isOwner || canManageSquad || canManagePayments) && resultsAvailable &&
+!isCancelled` (drugi i trzeci człon: delegaci, patrz [„Uprawnienia (delegowanie)"](#uprawnienia-delegowanie)
+niżej), między banerem odwołania a banerem „Mecz gotowy". Zbiera do trzech zadań — każde
+renderowane tylko, gdy dotyczy tego meczu:
 
 | Zadanie | Warunek renderowania | „Zrobione" |
 |---|---|---|
@@ -609,27 +610,96 @@ meczu:
 | Wpisz wynik | `event.trackResults` | `matchResult != null` |
 | Zaproś gości do Bojo | są nieprzejęci goście w składzie | znika, gdy `0` |
 
-„Powtórz mecz" jest zawsze dostępne, jako oferta, nie zadanie — gdy wszystkie zadania są
-zrobione (albo mecz żadnego nie śledzi), karta zwija się do jednej linii z tym jednym
-przyciskiem. Klik na zadanie przewija do istniejącej sekcji (`#podzial-kosztow`,
-`#wynik-meczu`, `#sklad` — atrybuty `id` dodane na istniejących kontenerach) albo wywołuje
-istniejący handler (`handleWyslijRozliczenie`, `handleOpenRepeat`) — komponent jest czysto
-prezentacyjny, zero nowego zapytania do bazy.
+Klik na zadanie „Rozlicz ekipę"/„Wpisz wynik" przewija do istniejącej sekcji
+(`#podzial-kosztow`, `#wynik-meczu`) albo wywołuje istniejący handler
+(`handleWyslijRozliczenie`) — komponent jest czysto prezentacyjny, zero nowego zapytania
+do bazy. Zadanie „Zaproś do Bojo" ma **wyjątkowo `onClick`, nie zwykły link do `#sklad`** —
+`handleZaprosGosciaPoMeczu()` najpierw wymusza `setRosterOpen(true)` (skład po meczu jest
+domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po re-renderze
+(`requestAnimationFrame`) — sam link bez rozwinięcia scrollował w puste miejsce, bo lista
+uczestników z przyciskami „Zaproś do Bojo" nie była jeszcze na ekranie.
+
+Pod zadaniami stoi zawsze wiersz dwóch przycisków: **„Kto nie przyszedł"** (widoczny tylko
+dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
+[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej) i **„Powtórz mecz"** (zawsze).
+Gdy wszystkie zadania są zrobione (albo mecz żadnego nie śledzi), karta zwija się do jednej
+linii tekstu nad tym samym wierszem przycisków.
 
 „Powtórz mecz" pojawia się teraz w dwóch miejscach (tu i w „Zarządzaj wydarzeniem"), ale to
 ta sama akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod
 wspólną nazwą jak w `O-20` z audytu przepływu organizatora.
 
-**Okno „Powtórz mecz" ma domyślną datę.** Otwierało się dotąd z pustym polem i
-zablokowanym przyciskiem. `domyslnyTerminPowtorki()` (`lib/recurring.ts`) liczy najbliższy
-przyszły termin tego samego dnia tygodnia co pierwowzór — ta sama matematyka, którą
-`nastepnyTermin()` już robi dla serii cyklicznych. Pole zostaje edytowalne.
+**Okno „Powtórz mecz" ma domyślną datę i zachowuje długość meczu.** Otwierało się dotąd
+z pustym polem i zablokowanym przyciskiem. `domyslnyTerminPowtorki()` (`lib/recurring.ts`)
+liczy najbliższy przyszły termin tego samego dnia tygodnia co pierwowzór — ta sama
+matematyka, którą `nastepnyTermin()` już robi dla serii cyklicznych. Pole zostaje
+edytowalne.
+
+Modal ma teraz też pole „Koniec" obok „Godziny" — wcześniej zmiana samej godziny startu
+(np. z 18:00 na 10:00) kopiowała `end_time` źródłowego meczu dosłownie, co potrafiło dać
+kopię „trwającą" 690 minut. Zmiana startu przesuwa koniec o tę samą deltę (zachowuje
+długość), zmiana końca nigdy nie rusza startu — dokładnie ten sam wzorzec co w modalu
+„Zmień termin" (`toMinutes`/`fromMinutes`, wydzielone do `lib/time.ts`).
 
 ---
 
-## Strony treści — `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`, `/o-nas`
+## Oznaczanie nieobecności
 
-Cztery statyczne strony serwerowe pod SEO/GEO/AEO, dodane pod strategię „pozyskiwanie
+**Problem.** Organizator nie miał jak oznaczyć, że ktoś zapisany na mecz się nie pojawił —
+jedyną drogą było ręczne zapamiętanie i unikanie tej osoby przy kolejnym zapraszaniu.
+Infrastruktura istniała od migracji `011` (tabela `player_reports`, `get_player_stats()`
+już liczyła `no_shows`), ale nic w aplikacji do niej nie zapisywało.
+
+**Rozwiązanie.** Przycisk „Kto nie przyszedł" w karcie „Po meczu" (widoczny dla
+`isOwner || canManageSquad`) otwiera dedykowany modal z listą `regulars` i przełącznikiem
+przy każdej osobie (`lib/attendance.ts`: `getNieobecni`/`oznaczNieobecnosc`/
+`cofnijNieobecnosc`). **Świadomie osobny modal, nie kontrolka w głównym widoku składu** —
+oznaczenia nie mają wpływać na to, co widzi reszta uczestników na stronie meczu.
+
+Zapis idzie do `player_reports` (`report_type = 'nie_przyszedl'`) i od razu wpływa na
+publiczny profil gracza (`/gracz/[id]`) — pasek frekwencji i plakietka „Niezawodny", patrz
+[docs/domena.md § Reputacja](./domena.md#reputacja--dwa-niezależne-mechanizmy-nie-jeden).
+Migracja `091` dodaje unikalny indeks (chroni przed podwójnym zawyżeniem licznika) i
+zaostrza RLS — INSERT/DELETE/SELECT na `player_reports` wymaga teraz organizatora albo
+delegata z `can_manage_squad` (wcześniej: dowolny zalogowany użytkownik).
+
+Wiadomość rozliczeniowa (`tekstRozliczenia()`, `lib/settlementShare.ts`) dopisuje przy
+zalegającym oznaczonym jako nieobecny adnotację „(nie przyszedł/-a)" — ekipa widzi kontekst
+długu, nie samą kwotę.
+
+---
+
+## Uprawnienia (delegowanie)
+
+**Problem.** Organizator, który sam nie gra albo dzieli się obowiązkami prowadzenia meczu
+z kimś z ekipy, nie miał jak przekazać części swoich praw — jedyną opcją było dawanie
+komuś danych logowania do własnego konta.
+
+**Rozwiązanie.** Panel „Zarządzaj wydarzeniem" → „Uprawnienia" (wyłącznie dla prawdziwego
+organizatora) otwiera modal z listą kandydatów — uczestnicy meczu z kontem plus, jeśli
+mecz jest przypięty do grupy, jej członkowie (`lib/eventDelegates.ts`:
+`getDelegateCandidates`). Dla każdego trzy niezależne przełączniki: „Może edytować jak
+organizator", „Dzieli składy i wpisuje wyniki", „Oznacza rozliczenia i BLIK" — zapisywane
+per-osoba od razu przy zmianie, bez zbiorczego „Zapisz".
+
+Pełny model uprawnień, w tym dlaczego to trzy osobne przełączniki i jak są egzekwowane w
+RLS (nie tylko w UI) → [docs/domena.md § Delegowanie uprawnień organizatora](./domena.md#delegowanie-uprawnień-organizatora).
+
+Delegat z `can_manage_payments` bez `can_edit` nie ma dostępu do pełnego formularza
+edycji (RLS go tam nie przepuszcza) — dostaje lekki, samodzielny panel „Sposoby
+płatności" obok karty „Podział kosztów" na stronie meczu, zapisujący przez RPC
+`event_set_payment_settings()`.
+
+**Świadome ograniczenie zakresu**: delegat zarządza meczem wyłącznie ze strony
+`/wydarzenia/[id]`. Dashboard, listy „Moje mecze" (poza jednym wyjątkiem dla delegatów
+z `can_edit`, żeby mecz w ogóle im się pokazał, gdy sami nie grają) i etykieta
+„organizator" w historii gracza nie uwzględniają delegacji w tej fazie.
+
+---
+
+## Strony treści — `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`
+
+Trzy statyczne strony serwerowe pod SEO/GEO/AEO, dodane pod strategię „pozyskiwanie
 organizatorów" ([strategia.md §0](./strategia.md)). Wspólna powłoka
 `components/tresc/StronaTresci.tsx` (+ `SekcjaTresci.tsx`, `SpisTresci.tsx` jako
 `<details>`), treść jako dane w `frontend/src/content/*.ts` — testowalna bez renderowania,
@@ -640,7 +710,6 @@ wzorem `components/home/landing/content.ts`.
 | `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz i że dołączenie nie wymaga konta | `content/jakDziala.ts` |
 | `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta" | `content/dlaczego.ts` |
 | `/faq` | 36 pytań w sześciu kategoriach | `content/faq.ts` |
-| `/o-nas` | kto robi Bojo, model biznesowy, atrybucja OSM | `content/oNas.ts` |
 
 **FAQ ma jedno źródło.** `content/faq.ts` eksportuje `FAQ` (wszystko, renderowane na
 `/faq`) i `FAQ_LANDING` (osiem pozycji oznaczonych `naLandingu: true`, pokazywane na

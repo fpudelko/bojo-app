@@ -18,7 +18,6 @@
   konta, skład i rezerwa, rozliczenie po meczu
 - [Dlaczego Bojo](/dlaczego-bojo): różnice wobec grupy na Facebooku i ankiety na WhatsAppie
 - [FAQ](/faq): pełna lista pytań i odpowiedzi w sześciu kategoriach
-- [O nas](/o-nas): kto robi Bojo i skąd pochodzą dane o boiskach
 
 ## Dla graczy
 

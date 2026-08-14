@@ -27,7 +27,11 @@ const zl = (grosze: number) => `${(grosze / 100).toFixed(2).replace('.', ',')} z
  * Bierze wyłącznie skład (`regulars`) — rezerwowy nie ma za co płacić, dopóki
  * nie wejdzie do gry, dokładnie jak w karcie „Twoja płatność".
  */
-export function tekstRozliczenia(e: DaneDoRozliczenia, sklad: EventParticipant[]): string {
+export function tekstRozliczenia(
+  e: DaneDoRozliczenia,
+  sklad: EventParticipant[],
+  nieobecni: Set<string> = new Set(),
+): string {
   const kwota = (p: EventParticipant) =>
     priceForParticipant(e.costGrosze, e.sportsCardDiscountGrosze, p.hasSportsCard);
 
@@ -57,7 +61,8 @@ export function tekstRozliczenia(e: DaneDoRozliczenia, sklad: EventParticipant[]
     // samo, a to jest najczęstsze źródło „a ja miałem mniej".
     for (const p of zaleglosci) {
       const k = kwota(p);
-      linie.push(`· ${p.name} — ${k.discountUnspecified ? 'zniżka z karty, dogadajmy kwotę' : zl(k.priceGrosze)}`);
+      const adnotacja = nieobecni.has(p.id) ? ' (nie przyszedł/-a)' : '';
+      linie.push(`· ${p.name} — ${k.discountUnspecified ? 'zniżka z karty, dogadajmy kwotę' : zl(k.priceGrosze)}${adnotacja}`);
     }
   }
 

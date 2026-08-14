@@ -87,6 +87,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
 | `team_proposal_votes` | `059` | Poparcia propozycji |
 | `tournaments` i 5 tabel `tournament_*` | `029` | Turniej |
+| `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -124,6 +125,9 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `086_rpc_powiadomienie_braku_nazwy` | Wyzwalacz z `070`/`071` na `auth.users` jest poprawnie zdefiniowany, ale w produkcji **nigdy nie wstawił ani jednego powiadomienia** `uzupelnij_profil` — potwierdzone zapytaniem po danych produkcyjnych (dziesiątki kont z niepełną nazwą, zero wierszy tego typu w `notifications`), przyczyna nieznana. RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`) to niezawodny odpowiednik po stronie klienta — wołany z `lib/auth.tsx` przy `SIGNED_IN` dla świeżych kont (< 10 min), tym samym warunkiem `isPelneImie()` co baner na pulpicie. Wyzwalacz zostaje — `NOT EXISTS` w RPC chroni przed duplikatem, gdyby jednak zadziałał |
 | `087_juz_dolaczony_flaga` | `dolacz_do_meczu_jako_goscie()` zwraca dodatkową kolumnę `already_joined` (true przy idempotentnym zwrocie istniejącego `claim_token`, false przy świeżym zapisie) — frontend rozróżnia po niej ekran „Zapisano!" od „Wcześniej dołączyłeś do tej gry.". Zmiana `RETURNS TABLE` wymagała `DROP FUNCTION` + `CREATE` (nie `CREATE OR REPLACE`) i ponownego `GRANT` |
 | `088_konto_i_zamek_na_duplikaty` | Czwarta kolumna wyniku `dolacz_do_meczu_jako_goscie()`: `has_account` (`EXISTS` na `auth.users` po `lower(email)` — pytanie globalne, nie „czy w tym meczu"), dzięki czemu ekran po zapisie namawia na LOGOWANIE zamiast na drugie konto. Wyjątek `'Jesteś już zapisany na ten mecz.'` zamieniony na zwykły wiersz z `claim_token = NULL` (frontend rozpoznaje sytuację po kształcie wyniku, nie po treści komunikatu). Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token IS NULL) DESC, created_at` — samo `LIMIT 1` losowało wariant ekranu przy duplikatach. Unikalny indeks `idx_participants_unique_guest_email` na `(event_id, lower(guest_email)) WHERE guest_email IS NOT NULL` zamyka wyścig dwóch równoległych zapisów; **migracja KASUJE nadmiarowe wpisy** sprzed `085` (zostaje przejęty, a jak nie ma — najstarszy), bo inaczej indeks się nie zakłada |
+| `089_delegaci_wydarzenia` | Tabela `event_delegates` (organizator deleguje `can_edit`/`can_manage_squad`/`can_manage_payments` uczestnikowi meczu albo członkowi przypiętej grupy) + trzy funkcje pomocnicze `can_edit_event()`/`can_manage_squad()`/`can_manage_payments()` (`SECURITY DEFINER`) do użycia w politykach RLS innych tabel. Listą delegatów zarządza wyłącznie prawdziwy organizator |
+| `090_rozszerzenie_rls_o_delegatow` | Rozszerza polityki RLS na `events`, `event_participants`, `team_proposals`, `team_proposal_picks`, `match_results`, `player_goals`, `event_player_invites` o funkcje z `089`. Nowa RPC `event_set_payment_settings()` — jedyna droga dla delegata z samym `can_manage_payments` (bez `can_edit`) do zmiany metod płatności/BLIK, bo ogólna polityka UPDATE na `events` celowo nie obejmuje `can_manage_payments` (tabela ma ~30 niezwiązanych kolumn). `set_event_teams_published()` (`042`) przechodzi z `SECURITY INVOKER` na `SECURITY DEFINER` + `can_manage_squad()` z tego samego powodu |
+| `091_oznaczanie_nieobecnosci` | Unikalny indeks na `player_reports (event_id, reported_participant_id, report_type)` — bez niego powtórne oznaczenie nieobecności zawyżało `no_shows` w `get_player_stats()`. Zaostrza RLS: `player_reports` INSERT był otwarty dla dowolnego zalogowanego użytkownika (`auth.uid() IS NOT NULL`), teraz tylko organizator/delegat z `can_manage_squad`; dodaje brakującą politykę DELETE (cofnięcie błędnego oznaczenia) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
@@ -140,13 +144,15 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 |---|---|
 | `get_nearby_events` | Mecze w promieniu (używa `haversine_km`) |
 | `get_player_stats` | Statystyki gracza |
-| `set_event_teams_published` | Publikacja składów |
+| `set_event_teams_published` | Publikacja składów. `SECURITY DEFINER` + `can_manage_squad()` od `090` (wcześniej `SECURITY INVOKER` z `organizer_id` wpisanym wprost w `WHERE`) |
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
 | `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | Turniej |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |
+| `can_edit_event`, `can_manage_squad`, `can_manage_payments` | Organizator ORAZ delegat z odpowiednim uprawnieniem (`event_delegates`) — używane wewnątrz polityk RLS innych tabel, nie wołane bezpośrednio z przeglądarki (`SECURITY DEFINER`, `089`) |
+| `event_set_payment_settings` | Zmienia `accepted_payment_methods`/`blik_phone` na `events` dla delegata z `can_manage_payments` bez `can_edit` — jedyna droga, bo ogólna polityka UPDATE na `events` go tam nie przepuszcza (`SECURITY DEFINER`, `090`) |
 | `haversine_km` | Odległość geograficzna |
 | `trigger_set_updated_at`, `trigger_set_expires_at` | Triggery czasowe |
 | `utworz_termin_serii(szablon_id, data)` | Tworzy jeden termin serii, kopiując ustawienia z ostatniego terminu. Wołana przez `supabase.rpc()` (przycisk „Utwórz termin” na `/cykliczne/[id]`) i przez `utworz_nalezne_terminy_serii()` — **to samo wejście dla ręcznego i automatycznego tworzenia**, żeby oba dawały identyczny wynik (`073`, `SECURITY DEFINER`, kontrola „tylko organizator” w środku) |

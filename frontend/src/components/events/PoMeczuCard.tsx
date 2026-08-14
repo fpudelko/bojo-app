@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, Trophy, UserPlus, Copy, Check, ChevronRight } from 'lucide-react';
+import { Banknote, Trophy, UserPlus, UserX, Copy, Check, ChevronRight } from 'lucide-react';
 import { withCount } from '@/lib/plural';
 
 /**
@@ -37,6 +37,8 @@ export default function PoMeczuCard({
   trackResults,
   wynikWpisany,
   liczbaGosciDoZaproszenia,
+  onZaprosGoscia,
+  onOznaczNieobecnych,
   onPowtorzMecz,
 }: {
   /** `event.costGrosze > 0` — bez tego panel kosztów w ogóle nie istnieje. */
@@ -46,6 +48,10 @@ export default function PoMeczuCard({
   trackResults: boolean;
   wynikWpisany: boolean;
   liczbaGosciDoZaproszenia: number;
+  onZaprosGoscia: () => void;
+  /** `undefined` = widz bez uprawnień do składu (np. delegat wyłącznie od
+   *  płatności) — przycisk "Kto nie przyszedł" wtedy się nie renderuje. */
+  onOznaczNieobecnych?: () => void;
   onPowtorzMecz: () => void;
 }) {
   const zadania: WierszZadania[] = [];
@@ -83,7 +89,7 @@ export default function PoMeczuCard({
         'gość bez konta w składzie', 'goście bez konta w składzie', 'gości bez konta w składzie',
       ),
       zrobione: false,
-      href: '#sklad',
+      onClick: onZaprosGoscia,
       akcjaLabel: 'Zaproś do Bojo',
       ikona: UserPlus,
     });
@@ -96,17 +102,28 @@ export default function PoMeczuCard({
   // ustępuje jednej linii zamiast zajmować pełną kartę zadań.
   if (doZrobienia.length === 0) {
     return (
-      <div className="mx-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <p className="text-sm text-slate-600 dark:text-slate-400">
           {zadania.length > 0 ? 'Wszystko rozliczone. ' : ''}Powtórzyć mecz za tydzień?
         </p>
-        <button
-          type="button"
-          onClick={onPowtorzMecz}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
-        >
-          <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
-        </button>
+        <div className="mt-3 flex gap-2">
+          {onOznaczNieobecnych && (
+            <button
+              type="button"
+              onClick={onOznaczNieobecnych}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+            >
+              <UserX className="h-4 w-4" strokeWidth={2.25} /> Kto nie przyszedł
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onPowtorzMecz}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+          >
+            <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
+          </button>
+        </div>
       </div>
     );
   }
@@ -158,13 +175,24 @@ export default function PoMeczuCard({
           );
         })}
       </ul>
-      <button
-        type="button"
-        onClick={onPowtorzMecz}
-        className="mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300 sm:w-auto"
-      >
-        <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
-      </button>
+      <div className="mt-3.5 flex gap-2">
+        {onOznaczNieobecnych && (
+          <button
+            type="button"
+            onClick={onOznaczNieobecnych}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+          >
+            <UserX className="h-4 w-4" strokeWidth={2.25} /> Kto nie przyszedł
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onPowtorzMecz}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+        >
+          <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
+        </button>
+      </div>
     </div>
   );
 }

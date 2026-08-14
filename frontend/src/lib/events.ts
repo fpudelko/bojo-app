@@ -969,6 +969,7 @@ export async function repeatEvent(
   organizerName: string,
   organizerParticipates = true,
   organizerIsGoalkeeper = false,
+  newEndTime?: string,
 ): Promise<string> {
   return createEvent(
     {
@@ -981,7 +982,12 @@ export async function repeatEvent(
       description: source.description,
       date: newDate,
       time: newTime,
-      endTime: source.endTime,
+      // Bez `newEndTime` kopiowalibyśmy zegarową wartość źródłowego końca
+      // dosłownie — przy zmianie tylko godziny startu (np. 18:00 → 10:00)
+      // dawało to absurdalne długości meczu (690 minut). Wywołujący liczy
+      // nowy koniec z zachowaniem oryginalnej długości (patrz modal "Powtórz
+      // mecz" w `EventDetailClient.tsx`).
+      endTime: newEndTime ?? source.endTime,
       maxPlayers: source.maxPlayers,
       visibility: source.visibility,
       requireSmsConfirmation: source.requireSmsConfirmation,
@@ -1069,9 +1075,24 @@ export async function getMyParticipatedEvents(
     .eq('organizer_id', userId);
   if (oErr) throw new Error(oErr.message);
 
+  // Delegat z can_edit (migracja 089/090) "prowadzi" mecz z perspektywy
+  // dashboardu tak samo jak prawdziwy organizator — inaczej mecz, którego
+  // sam nie gra (typowy powód delegowania), nigdy by mu się tu nie pokazał.
+  // Delegaci z samym can_manage_squad/can_manage_payments (bez can_edit)
+  // świadomie zostają poza tą listą, jeśli nie grają — muszą dotrzeć przez
+  // link (patrz plan wdrożenia, "Świadome ograniczenie zakresu").
+  const { data: delegateRows, error: dErr } = await supabase
+    .from('event_delegates')
+    .select('event_id')
+    .eq('user_id', userId)
+    .eq('can_edit', true);
+  if (dErr) throw new Error(dErr.message);
+  const delegatedEventIds = new Set((delegateRows ?? []).map((r) => r.event_id as string));
+
   const eventIds = Array.from(new Set([
     ...rows.map((r) => r.event_id as string),
     ...(ownRows ?? []).map((r) => r.id as string),
+    ...Array.from(delegatedEventIds),
   ]));
   if (eventIds.length === 0) return [];
 
@@ -1087,7 +1108,7 @@ export async function getMyParticipatedEvents(
     return {
       event: toEvent(row),
       relation: {
-        isOrganizer: row.organizer_id === userId,
+        isOrganizer: row.organizer_id === userId || delegatedEventIds.has(row.id as string),
         status: mine ? statusFromRow(mine) : 'none',
         hasPaid: mine?.has_paid ?? false,
       },

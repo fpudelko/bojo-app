@@ -4,7 +4,7 @@ import { breadcrumbsJsonLd } from '@/lib/structuredData';
 
 /**
  * Powłoka wspólna dla stron treści (`/jak-dziala-bojo`, `/dlaczego-bojo`,
- * `/faq`, `/o-nas`). Mobile-first: `max-w-3xl` i padding rosnący dopiero od
+ * `/faq`). Mobile-first: `max-w-3xl` i padding rosnący dopiero od
  * `sm:` — bazowe style są dla najmniejszego telefonu.
  *
  * Świadomie BEZ własnego układu dwukolumnowego (spis treści + treść obok

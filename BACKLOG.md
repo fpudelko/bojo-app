@@ -343,10 +343,11 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
       `components/home/landing/{LandingFaq,content}.tsx`, `lib/structuredData.ts`
       (`faqJsonLd`). Treść widoczna i schema dzielą jedno źródło (`LANDING_FAQ`),
       pilnowane testem `src/__tests__/landingContent.test.ts`.
-- [x] **Strona `/o-nas`** (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt, model
-      biznesowy, atrybucja OSM. Treść w `content/oNas.ts`, dane usługodawcy z `lib/legal.ts`.
-      Doszły też trzy siostrzane strony pod tę samą strategię: `/jak-dziala-bojo`,
-      `/dlaczego-bojo`, `/faq` (2026-08-13).
+- [x] ~~Strona `/o-nas`~~ (E-E-A-T) — kim jesteśmy, dlaczego budujemy Bojo, kontakt, model
+      biznesowy, atrybucja OSM. Doszły też trzy siostrzane strony pod tę samą strategię:
+      `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq` (2026-08-13). **Usunięta** — strona
+      treści bez wystarczającej wartości dla organizatora, sprzątnięta w ramach szlifowania
+      przepływu organizatora.
 - [x] **Dane własne jako treść** (GEO: statystyki podnoszą cytowalność ~40%) — sekcja
       `LandingStats` na stronie głównej pokazuje liczby zaszyte w `LANDING_STATS`
       (`components/home/landing/content.ts`), aktualizowane ręcznie.

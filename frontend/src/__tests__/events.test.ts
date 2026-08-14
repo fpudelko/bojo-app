@@ -42,8 +42,9 @@ vi.mock('@/lib/supabase', () => ({
 import { supabase } from '@/lib/supabase';
 import {
   createEvent, joinEvent, joinEventAsGuest, removeParticipant, getMyParticipationMap,
-  wolneMiejscaWgRol, addGuest,
+  wolneMiejscaWgRol, addGuest, repeatEvent,
 } from '@/lib/events';
+import type { EventItem } from '@/types';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -90,6 +91,43 @@ describe('createEvent', () => {
     await expect(
       createEvent({ sport: 'futsal', fieldName: 'X', date: '2099-01-01', time: '10:00', maxPlayers: 5, visibility: 'private' }, 'u', 'U'),
     ).rejects.toThrow('DB error');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// repeatEvent
+// ---------------------------------------------------------------------------
+describe('repeatEvent', () => {
+  const source: EventItem = {
+    id: 'src-event', organizerId: 'organizer-uid', organizerName: 'Jan Kowalski',
+    sport: 'piłka nożna', fieldName: 'Orlik Rataje', date: '2099-07-01', time: '18:00',
+    endTime: '19:30', maxPlayers: 10, visibility: 'private', createdAt: '2099-01-01T00:00:00Z',
+    status: 'active', requireSmsConfirmation: false, teamMode: 'brak', trackPayments: false,
+    showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
+    teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
+    maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,
+    reserveClaimHours: 2, acceptedPaymentMethods: [], acceptedSportsCards: [],
+    sportsCardDiscountGrosze: null,
+  };
+
+  it('passes an explicit newEndTime through to createEvent instead of copying source.endTime', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(source, '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski', true, false, '11:30');
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'end_time' in row);
+    expect(eventRow.end_time).toBe('11:30');
+  });
+
+  it('falls back to source.endTime when newEndTime is not given (previous behaviour)', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(source, '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski');
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'end_time' in row);
+    expect(eventRow.end_time).toBe('19:30');
   });
 });
 

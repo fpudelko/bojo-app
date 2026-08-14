@@ -104,6 +104,18 @@ export default function NotificationBell() {
     return () => { supabase.removeChannel(ch); };
   }, [user, instancja]);
 
+  // Realtime powyżej potrafi przegrać wyścig z insertem wykonanym tuż po
+  // zalogowaniu (np. `zglos_brak_pelnej_nazwy` w `lib/auth.tsx`) — kanał
+  // jeszcze nie zdążył się zasubskrybować, zanim wiersz powstał w bazie.
+  // Zamiast na to liczyć, kod tworzący takie jednorazowe powiadomienie
+  // jawnie każe tu odświeżyć listę, gdy insert się powiedzie.
+  useEffect(() => {
+    if (!user) return;
+    const odswiez = () => { getMyNotifications(10).then(setNotifs).catch(() => {}); };
+    window.addEventListener('bojo:powiadomienia-odswiez', odswiez);
+    return () => window.removeEventListener('bojo:powiadomienia-odswiez', odswiez);
+  }, [user]);
+
   // Stan spraw dociągamy przy KAŻDYM otwarciu panelu, nie raz przy montażu:
   // organizator akceptuje prośbę na stronie meczu i wraca do dzwonka: wpis ma
   // wtedy zniknąć ze „Sprawdź", a nic go o tej akceptacji nie powiadomi.

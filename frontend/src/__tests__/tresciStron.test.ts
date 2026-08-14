@@ -2,13 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { FAQ, FAQ_LANDING, KATEGORIE_FAQ } from '@/content/faq';
 import { JAK_DZIALA } from '@/content/jakDziala';
 import { CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
-import { O_NAS } from '@/content/oNas';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
 /**
  * Każda widoczna jednostka treści na `/faq`, `/jak-dziala-bojo`,
- * `/dlaczego-bojo`, `/o-nas` — jedna FAQ odpowiedź, jeden akapit, jeden
+ * `/dlaczego-bojo` — jedna FAQ odpowiedź, jeden akapit, jeden
  * wiersz tabeli porównawczej. Per-jednostka, nie jeden wielki zlepiony
  * string: to zgodne z zasadą "każda sekcja broni się sama"
  * (AGENTS.md, "RAG INJECTION") i unika kruchego dzielenia zdań w tekście
@@ -31,9 +30,6 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   }
   for (const w of TABELA_POROWNAWCZA) {
     jednostki.push({ etykieta: `dlaczego-bojo#roznice (${w.co})`, tekst: `${w.fb} ${w.bojo}` });
-  }
-  for (const [klucz, s] of Object.entries(O_NAS)) {
-    for (const a of s.akapity) jednostki.push({ etykieta: `o-nas#${klucz}`, tekst: a });
   }
 
   return jednostki;

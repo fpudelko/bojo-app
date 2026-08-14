@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat,
+  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -59,19 +59,17 @@ import {
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
   type TeamProposal,
 } from '@/lib/teamProposals';
-import { PAYMENT_METHOD_LABELS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+import {
+  getMyDelegatePermissions, getDelegateCandidates, getEventDelegates, setEventDelegate, setPaymentSettings,
+  type MyDelegatePermissions, type DelegateCandidate, type EventDelegate,
+} from '@/lib/eventDelegates';
+import { getNieobecni, oznaczNieobecnosc, cofnijNieobecnosc, type NieobecnyWpis } from '@/lib/attendance';
 import { withCount } from '@/lib/plural';
 import { TEAM_LABELS, TEAM_LETTERS, TEAM_COLOR_CLASSES } from '@/lib/teamLabels';
 import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-function fromMinutes(total: number): string {
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-}
+import { toMinutes, fromMinutes } from '@/lib/time';
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -440,6 +438,7 @@ export default function EventDetailClient() {
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [repeatDate, setRepeatDate] = useState('');
   const [repeatTime, setRepeatTime] = useState('');
+  const [repeatEnd, setRepeatEnd] = useState('');
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
@@ -474,13 +473,33 @@ export default function EventDetailClient() {
   const [whenConfirm, setWhenConfirm] = useState(false);
   // Wybór widoczności z badge'a — okno zamiast natychmiastowego przełącznika.
   const [visOpen, setVisOpen] = useState(false);
+  // Delegowanie uprawnień (migracja 089/090) — moje własne uprawnienia na
+  // tym meczu (gdy nie jestem organizatorem) i, dla organizatora, panel
+  // zarządzania listą delegatów.
+  const [myDelegate, setMyDelegate] = useState<MyDelegatePermissions | null>(null);
+  const [delegatesOpen, setDelegatesOpen] = useState(false);
+  const [delegateCandidates, setDelegateCandidates] = useState<DelegateCandidate[]>([]);
+  const [eventDelegatesList, setEventDelegatesList] = useState<EventDelegate[]>([]);
+  const [delegatesBusy, setDelegatesBusy] = useState(false);
+  // Oznaczanie nieobecności (Część 2C) — `nieobecniLoaded` odróżnia "jeszcze
+  // nie wczytano" od "wczytano, nikt nie jest oznaczony", żeby nie dociągać
+  // tego samego dwa razy (modal i przycisk rozliczenia dzielą ten sam stan).
+  const [nieobecni, setNieobecni] = useState<NieobecnyWpis[]>([]);
+  const [nieobecniLoaded, setNieobecniLoaded] = useState(false);
+  const [nieobecniOpen, setNieobecniOpen] = useState(false);
+  const [nieobecniBusy, setNieobecniBusy] = useState(false);
+  // Panel "Sposoby płatności" dla delegata bez can_edit — osobny od pełnego
+  // formularza edycji, bo tamten wymaga can_edit (patrz canManageEvent).
+  const [payMethods, setPayMethods] = useState<PaymentMethod[]>([]);
+  const [payBlik, setPayBlik] = useState('');
+  const [payBusy, setPayBusy] = useState(false);
 
   // Jedno wywołanie dla wszystkich okien tej strony — hook musi lecieć
   // bezwarunkowo, więc stan „czy cokolwiek jest otwarte" liczymy tutaj.
   useBlokadaPrzewijania(
     joinDialogOpen || joinAsGuestDialogOpen || leaveConfirmOpen || deleteConfirmOpen || venueInfoOpen
     || repeatOpen || inviteOpen || groupPickerOpen || whenOpen || visOpen || showAccountPrompt
-    || showAlreadyJoinedPrompt,
+    || showAlreadyJoinedPrompt || nieobecniOpen || delegatesOpen,
   );
   const loadMatchData = useCallback(async (ev: EventItem) => {
     if (!ev.trackResults) return;
@@ -498,7 +517,17 @@ export default function EventDetailClient() {
       const { event: ev, participants: parts } = await getEvent(id);
       setEvent(ev);
       setParticipants(parts);
+      setPayMethods(ev.acceptedPaymentMethods);
+      setPayBlik(ev.blikPhone ?? '');
       await loadMatchData(ev);
+      // Organizator nie musi pytać o własne uprawnienia — jest zawsze
+      // w pełni uprawniony. Ktokolwiek inny: dociągamy jego wiersz delegata,
+      // jeśli istnieje (`null`, gdy nie ma żadnego).
+      if (user && user.id !== ev.organizerId) {
+        getMyDelegatePermissions(id, user.id).then(setMyDelegate).catch(() => setMyDelegate(null));
+      } else {
+        setMyDelegate(null);
+      }
       // Proposals only matter once the match actually uses teams.
       if (ev.teamMode !== 'brak') {
         getTeamProposals(id, user?.id).then(setProposals).catch(() => {});
@@ -625,7 +654,18 @@ export default function EventDetailClient() {
   // pozwala każdemu) — i to właśnie ten, kto go przyprowadził, ma z nim
   // kontakt. Dotąd link przejęcia wpisu mógł wysłać wyłącznie organizator,
   // czyli najczęściej osoba, która gościa w ogóle nie zna.
-  const mozeZaprosic = (p: EventParticipant) => isOrganizer || (!!user && p.addedBy === user.id);
+  // Delegowanie uprawnień organizatora (migracja 089/090, `lib/eventDelegates.ts`).
+  // `can_edit` u delegata daje wszystko — spójne z tym, że RLS też traktuje
+  // can_edit jako nadzbiór can_manage_squad/can_manage_payments (patrz
+  // `can_manage_squad()`/`can_manage_payments()` w migracji 089).
+  const canEditDelegate = !!myDelegate?.canEdit;
+  const canManageSquad = isOrganizer || canEditDelegate || !!myDelegate?.canManageSquad;
+  const canManagePayments = isOrganizer || canEditDelegate || !!myDelegate?.canManagePayments;
+  // Zastępuje `isOwner` w miejscach, gdzie chodzi o pełną edycję (termin,
+  // ustawienia, odwołanie meczu) — NIE w miejscach, gdzie `isOwner` oznacza
+  // ścisłą własność (np. "Usuń na stałe", zarządzanie listą delegatów).
+  const canManageEvent = isOwner || canEditDelegate;
+  const mozeZaprosic = (p: EventParticipant) => isOrganizer || canManageSquad || (!!user && p.addedBy === user.id);
   // Pending requests don't count toward the roster or capacity.
   const confirmed = participants.filter((p) => !p.pendingApproval);
   const pendingRequests = participants.filter((p) => p.pendingApproval);
@@ -1072,7 +1112,7 @@ export default function EventDetailClient() {
   };
 
   const handleTogglePayment = async (p: EventParticipant) => {
-    if (!isOrganizer) return;
+    if (!isOrganizer && !canManagePayments) return;
     setBusy(true);
     try {
       // Use the discounted amount when the player holds a sports card and the
@@ -1200,7 +1240,8 @@ export default function EventDetailClient() {
    *  w `navigator.share` — to wiadomość do ludzi, którzy już są w meczu,
    *  a przy gościach bez konta link i tak nie pokazałby im nic nowego. */
   const handleWyslijRozliczenie = async () => {
-    const text = tekstRozliczenia(event, regulars);
+    const nieobecniSwiezy = await zapewnijNieobecnychWczytanych();
+    const text = tekstRozliczenia(event, regulars, new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)));
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: 'Rozliczenie', text });
@@ -1248,7 +1289,21 @@ export default function EventDetailClient() {
     const czas = event.time?.slice(0, 5) ?? '18:00';
     setRepeatDate(domyslnyTerminPowtorki(event.date, czas));
     setRepeatTime(czas);
+    setRepeatEnd((event.endTime ?? '').slice(0, 5));
     setRepeatOpen(true);
+  };
+
+  /** Przycisk "Zaproś do Bojo" w karcie "Po meczu" skakał na `#sklad`, ale
+   *  skład dla zakończonego meczu jest domyślnie zwinięty do samych awatarów
+   *  (`rosterOpen` startuje jako `false`) — scroll trafiał więc w puste
+   *  miejsce, bez listy gości do zaproszenia. */
+  const handleZaprosGosciaPoMeczu = () => {
+    setRosterOpen(true);
+    // Rozwinięcie zmienia wysokość kontenera nad #sklad — scroll musi
+    // poczekać na re-render, inaczej trafia w miejsce sprzed rozwinięcia.
+    requestAnimationFrame(() => {
+      document.getElementById('sklad')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const zapiszTermin = async (zakres: ZakresEdycji) => {
@@ -1363,6 +1418,7 @@ export default function EventDetailClient() {
       const newId = await repeatEvent(
         event, repeatDate, repeatTime, user.id, displayName(user),
         repeatJoin, repeatJoin && repeatRole === 'goalkeeper',
+        repeatEnd || undefined,
       );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
@@ -1370,6 +1426,93 @@ export default function EventDetailClient() {
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setRepeatBusy(false); }
+  };
+
+  /** Panel "Uprawnienia" — tylko prawdziwy organizator (nie inny delegat,
+   *  nawet z can_edit) może zarządzać listą delegatów. Kandydaci: uczestnicy
+   *  meczu z kontem + członkowie grupy, do której mecz jest przypięty. */
+  const handleOpenDelegates = async () => {
+    setDelegatesOpen(true);
+    setDelegatesBusy(true);
+    try {
+      const [candidates, delegates] = await Promise.all([
+        getDelegateCandidates(event.id, event.groupId ?? null),
+        getEventDelegates(event.id),
+      ]);
+      setDelegateCandidates(candidates);
+      setEventDelegatesList(delegates);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setDelegatesBusy(false); }
+  };
+
+  /** Zapis per-osoba przy każdej zmianie przełącznika — nie jeden zbiorczy
+   *  "Zapisz", spójnie z resztą apki (np. `hasPaid`). Mniej okazji do utraty
+   *  zmian przy przypadkowym zamknięciu modala. */
+  const handleSetDelegate = async (
+    userId: string,
+    perms: { canEdit: boolean; canManageSquad: boolean; canManagePayments: boolean },
+  ) => {
+    setDelegatesBusy(true);
+    try {
+      await setEventDelegate(event.id, userId, perms);
+      setEventDelegatesList(await getEventDelegates(event.id));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setDelegatesBusy(false); }
+  };
+
+  /** Nieobecni dociągamy leniwie — albo przy otwarciu modala "Kto nie
+   *  przyszedł", albo (jeśli jeszcze nie wczytano) przy pierwszym kliknięciu
+   *  "Wyślij rozliczenie", bo tekst wiadomości niesie tę samą adnotację.
+   *  Zwraca świeżą listę zamiast polegać na stanie `nieobecni` — `setState`
+   *  jest asynchroniczne, więc wywołujący, który potrzebuje wyniku od razu
+   *  (np. `handleWyslijRozliczenie`), dostałby nieaktualne domknięcie. */
+  const zapewnijNieobecnychWczytanych = async (): Promise<NieobecnyWpis[]> => {
+    if (nieobecniLoaded) return nieobecni;
+    try {
+      const swiezy = await getNieobecni(event.id);
+      setNieobecni(swiezy);
+      setNieobecniLoaded(true);
+      return swiezy;
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+      return [];
+    }
+  };
+
+  const handleOpenNieobecni = async () => {
+    setNieobecniOpen(true);
+    await zapewnijNieobecnychWczytanych();
+  };
+
+  const handleToggleNieobecny = async (p: EventParticipant) => {
+    const istniejacy = nieobecni.find((n) => n.reportedParticipantId === p.id);
+    setNieobecniBusy(true);
+    try {
+      if (istniejacy) {
+        await cofnijNieobecnosc(istniejacy.reportId);
+        setNieobecni((prev) => prev.filter((n) => n.reportId !== istniejacy.reportId));
+      } else {
+        await oznaczNieobecnosc(event.id, p.id);
+        setNieobecni(await getNieobecni(event.id));
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setNieobecniBusy(false); }
+  };
+
+  /** Sposoby płatności i numer BLIK przez dedykowaną RPC (nie ogólny
+   *  `updateEvent()`) — patrz `setPaymentSettings()` w `lib/eventDelegates.ts`. */
+  const handleSavePaymentSettings = async () => {
+    setPayBusy(true);
+    try {
+      await setPaymentSettings(event.id, payMethods, payMethods.includes('blik') ? (payBlik.trim() || null) : null);
+      await load();
+      toast('Zapisano sposoby płatności');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setPayBusy(false); }
   };
 
   // Zapisywanie wyniku i goli przeniosło się do `MatchResultForm` (ma własny
@@ -1442,14 +1585,14 @@ export default function EventDetailClient() {
   const skladWynikSection = (
     <>
       {/* Published teams — visible to all participants (separate from roster) */}
-      {showTeams && event.teamsPublished && !isOwner && (
+      {showTeams && event.teamsPublished && !isOwner && !canManageSquad && (
         <div className="px-4">
           <PublishedTeamsCard teamA={teamA} teamB={teamB} unassigned={unassigned} golyMap={golyMap} />
         </div>
       )}
 
       {/* Quick enable teams for organizer */}
-      {!showTeams && isOwner && (
+      {!showTeams && (isOwner || canManageSquad) && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
@@ -1466,13 +1609,13 @@ export default function EventDetailClient() {
       )}
 
       {/* DB-persisted teams (when teamMode !== 'brak') — organizer manages privately, visible to all after publishing */}
-      {showTeams && isOwner && (
+      {showTeams && (isOwner || canManageSquad) && (
         <TeamsPanel
           teamMode={event.teamMode}
           teamA={teamA}
           teamB={teamB}
           unassigned={unassigned}
-          isOrganizer={isOwner}
+          isOrganizer={isOwner || canManageSquad}
           teamsPublished={event.teamsPublished}
           busy={busy}
           onAssignTeam={handleAssignTeam}
@@ -1495,8 +1638,8 @@ export default function EventDetailClient() {
             proposals={proposals}
             participants={regulars}
             teamMode={event.teamMode}
-            isOrganizer={isOwner}
-            canPropose={!!user && !!myParticipation && !isOwner && !event.teamsPublished}
+            isOrganizer={isOwner || canManageSquad}
+            canPropose={!!user && !!myParticipation && !isOwner && !canManageSquad && !event.teamsPublished}
             currentUserId={user?.id}
             busy={busy}
             onSubmit={handleProposeTeams}
@@ -1511,24 +1654,24 @@ export default function EventDetailClient() {
       {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Wpisz wynik") */}
       <div id="wynik-meczu">
         {/* Pre-match "result coming" note — only the organizer enters results */}
-        {isOwner && event.trackResults && !resultsAvailable && (
+        {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
             <Trophy className="w-4 h-4 shrink-0" />
             Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
           </div>
         )}
-        {isOwner && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
+        {(isOwner || canManageSquad) && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
             Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
           </p>
         )}
-        {myParticipation && event.trackResults && resultsAvailable && (
+        {(myParticipation || canManageSquad) && event.trackResults && resultsAvailable && (
           <MatchResultForm
             sport={event.sport}
             eventId={event.id}
             organizerId={event.organizerId}
             currentUserId={user?.id ?? ''}
-            isOrganizer={isOrganizer}
+            isOrganizer={isOrganizer || canManageSquad}
             participants={participants}
             initialResult={matchResult}
             initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
@@ -1544,7 +1687,7 @@ export default function EventDetailClient() {
       {/* Cost split summary — deliberately NOT gated by !eventStarted: rozliczenie
           kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
           faktycznie się rozlicza z ekipą, było błędem. */}
-      {event.costGrosze > 0 && isOwner && (
+      {event.costGrosze > 0 && (isOwner || canManagePayments) && (
         <div id="podzial-kosztow" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
             <Banknote className="w-4 h-4" /> Podział kosztów
@@ -1622,9 +1765,58 @@ export default function EventDetailClient() {
               {rozliczenieSkopiowane ? 'Skopiowano' : 'Wyślij rozliczenie ekipie'}
             </Button>
             <p className="mt-2 text-[11px] text-slate-400">
-              Gotowa wiadomość z kwotą, listą zaległości i numerem BLIK — do wklejenia na czat.
+              Gotowa wiadomość z kwotą, listą zaległości{
+                event.acceptedPaymentMethods.includes('blik') ? ' i numerem BLIK' : ''
+              } — do wklejenia na czat.
             </p>
           </div>
+          {/* Delegat z can_manage_payments, ale bez can_edit, nie ma dostępu
+              do pełnego formularza edycji (RLS na `events` UPDATE go tam nie
+              przepuszcza) — stąd osobny, lekki panel zamiast duplikować
+              EventPaymentFields. Zapisuje przez RPC event_set_payment_settings,
+              nie przez updateEvent(). Organizator/can_edit widzi to samo
+              w formularzu edycji, więc tu się nie duplikuje. */}
+          {canManagePayments && !canManageEvent && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <p className="text-xs font-medium text-slate-600 mb-1.5">Sposoby płatności</p>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_METHODS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPayMethods((prev) => (
+                      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
+                    ))}
+                    className={[
+                      'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                      payMethods.includes(m)
+                        ? 'border-primary-600 bg-primary-50 text-primary-700'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                    ].join(' ')}
+                  >
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </button>
+                ))}
+              </div>
+              {payMethods.includes('blik') && (
+                <input
+                  type="text"
+                  value={payBlik}
+                  onChange={(e) => setPayBlik(e.target.value)}
+                  placeholder="Numer BLIK"
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              )}
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={handleSavePaymentSettings}
+                isLoading={payBusy}
+              >
+                Zapisz sposoby płatności
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1634,7 +1826,7 @@ export default function EventDetailClient() {
           przez formularz edycji i nigdzie nieodczytywane; to pierwsze
           miejsce, które je respektuje. Rezerwowy nie widzi tej karty —
           jeszcze nie ma za co płacić, dopóki nie wejdzie do składu. */}
-      {event.costGrosze > 0 && !isOwner && event.showPaymentStatus
+      {event.costGrosze > 0 && !isOwner && !canManagePayments && event.showPaymentStatus
         && myConfirmed && !myConfirmed.isReserve && (() => {
           const price = priceForParticipant(
             event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
@@ -1728,7 +1920,7 @@ export default function EventDetailClient() {
               <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
               <p className="text-xs text-red-500">Ten mecz został odwołany przez organizatora.</p>
             </div>
-            {isOwner && (
+            {canManageEvent && (
               <Button variant="outline" size="sm" onClick={handleRestore} disabled={busy}
                 className="shrink-0 border-red-200 text-red-600 hover:bg-red-50">
                 <RotateCcw className="w-3.5 h-3.5" /> Przywróć
@@ -1741,7 +1933,7 @@ export default function EventDetailClient() {
             `resultsAvailable` = start meczu + 30 min, ten sam próg, który
             już odsłania formularz wyniku niżej — przed nim nic nie jest
             jeszcze "po meczu". */}
-        {isOwner && resultsAvailable && !isCancelled && (
+        {(isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
             liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
@@ -1749,6 +1941,8 @@ export default function EventDetailClient() {
             trackResults={event.trackResults}
             wynikWpisany={matchResult != null}
             liczbaGosciDoZaproszenia={niePrzejeciGoscie.length}
+            onZaprosGoscia={handleZaprosGosciaPoMeczu}
+            onOznaczNieobecnych={(isOwner || canManageSquad) ? handleOpenNieobecni : undefined}
             onPowtorzMecz={handleOpenRepeat}
           />
         )}
@@ -1856,7 +2050,7 @@ export default function EventDetailClient() {
               </span>
             )}
             {/* date — organizer edits it in place */}
-            {isOrganizer && !eventStarted ? (
+            {(isOrganizer || canEditDelegate) && !eventStarted ? (
               <button
                 type="button"
                 onClick={openEditWhen}
@@ -1924,7 +2118,7 @@ export default function EventDetailClient() {
                 </span>
               )
             ) : event.costGrosze > 0 ? (
-              isOwner ? (() => {
+              (isOwner || canManagePayments) ? (() => {
                 const unpaid = regulars.filter((p) => !p.hasPaid).length;
                 return unpaid === 0 ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
@@ -1948,7 +2142,7 @@ export default function EventDetailClient() {
               ) : null
             ) : null}
             {/* visibility — one tap toggles it for the organizer */}
-            {isOrganizer ? (
+            {(isOrganizer || canEditDelegate) ? (
               <button
                 type="button"
                 onClick={() => setVisOpen(true)}
@@ -1999,7 +2193,7 @@ export default function EventDetailClient() {
                 w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
                 WybierzGrupeDialog; patrz sekcja 6a planu). Dla pozostałych:
                 widoczne tylko gdy grupa jest przypisana, sam link do niej. */}
-            {isOwner ? (
+            {canManageEvent ? (
               <button
                 type="button"
                 onClick={() => setGroupPickerOpen(true)}
@@ -2032,7 +2226,7 @@ export default function EventDetailClient() {
                   Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
                   {event.acceptedPaymentMethods.includes('blik') && event.blikPhone && (
                     canSeeBlikPhone({
-                      isOrganizer: isOwner,
+                      isOrganizer: isOwner || canManagePayments,
                       isInSquad: !!myParticipation,
                       minutesToStart: minutesUntilStart(event.date, event.time),
                     }) ? (
@@ -2060,7 +2254,7 @@ export default function EventDetailClient() {
         {/* Shown whenever the organizer requires approval — even with zero
             pending requests — so it's clear the feature is there and working,
             rather than the whole card vanishing (which read as "broken/missing"). */}
-        {isOwner && event.requireApproval && (
+        {(isOwner || canManageSquad) && event.requireApproval && (
           <div className="px-4">
             <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
@@ -2175,7 +2369,7 @@ export default function EventDetailClient() {
                 przycisk o tej samej nazwie, innej ikonie i innym warunku
                 widoczności (bez `!isFull`). Ikona ujednolicona na `Users`,
                 bo tej samej używa panel „Mecz gotowy" tuż po publikacji. */}
-            {user && !eventStarted && !isFull && (myParticipation || isOwner) && (
+            {user && !eventStarted && !isFull && (myParticipation || isOwner || canManageSquad) && (
               <button
                 onClick={() => setInviteOpen(true)}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
@@ -2244,7 +2438,7 @@ export default function EventDetailClient() {
             )}
 
             {/* Roster — replaces avatar row when open */}
-            {(regulars.length > 0 || reserves.length > 0 || isOwner) && rosterRozwiniety && (
+            {(regulars.length > 0 || reserves.length > 0 || isOwner || canManageSquad) && rosterRozwiniety && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -2266,7 +2460,7 @@ export default function EventDetailClient() {
                     zwłaszcza po meczu, gdy skład jest zwinięty do samej listy
                     (`ParticipantsList` niżej). Jedna linia nad składem, licząca
                     i skład, i rezerwę — gość na rezerwie też może przejąć wpis. */}
-                {isOrganizer && niePrzejeciGoscie.length > 0 && (
+                {(isOrganizer || canManageSquad) && niePrzejeciGoscie.length > 0 && (
                   <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
                     {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie —
                     kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
@@ -2277,7 +2471,7 @@ export default function EventDetailClient() {
                     karty „Skład". Dwie sekcje mówiące to samo — licznik na
                     górze i lista niżej — kazały szukać, w której z nich
                     właściwie się jest. */}
-                {isOwner && !eventStarted ? (
+                {(isOwner || canManageSquad) && !eventStarted ? (
                   <>
               <ul className="divide-y divide-slate-100">
                 {regulars.map((p) => (
@@ -2426,7 +2620,7 @@ export default function EventDetailClient() {
                               drogą było usunięcie wpisu i dopisanie tej samej
                               osoby od nowa, co gubi jej konto, historię
                               i deklarację płatności. */}
-                          {isOrganizer && !eventStarted && (
+                          {(isOrganizer || canManageSquad) && !eventStarted && (
                             <button
                               onClick={() => handleAwans(p)}
                               disabled={busy}
@@ -2440,7 +2634,7 @@ export default function EventDetailClient() {
                             <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
                               <Trash2 className="h-4 w-4" />
                             </button>
-                          ) : isOrganizer && (
+                          ) : (isOrganizer || canManageSquad) && (
                             <button onClick={() => handleRemovePlayer(p)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Usuń z rezerwy">
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -2453,7 +2647,7 @@ export default function EventDetailClient() {
               )}
 
               {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
-              {isOrganizer && (
+              {(isOrganizer || canManageSquad) && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
                   <div className="flex gap-2">
@@ -2512,7 +2706,7 @@ export default function EventDetailClient() {
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
         {user && myParticipation && !eventStarted && (
           <div className="px-4">
-            {!isOrganizer && event.allowGuestAdds && (
+            {!isOrganizer && !canManageSquad && event.allowGuestAdds && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
                 <div className="flex gap-2">
@@ -2785,7 +2979,7 @@ export default function EventDetailClient() {
         {/* ── ZARZĄDZANIE GRACZAMI (organizer only) — usuwanie, celowo osobno
             od reszty i zawsze z potwierdzeniem, zeby nic nie znikneło przez
             przypadkowe klikniecie w gestej liscie. ── */}
-        {isOwner && !eventStarted && regulars.length > 0 && (
+        {(isOwner || canManageSquad) && !eventStarted && regulars.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
               <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
@@ -2846,10 +3040,12 @@ export default function EventDetailClient() {
         {myParticipation && <EventComments eventId={event.id} />}
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
-            page or invite accidental clicks on cancel/delete. `isOwner`, NOT
-            `isOrganizer` — an admin looking at someone else's match must not
-            see a shortcut into managing/deleting it. */}
-        {isOwner && (
+            page or invite accidental clicks on cancel/delete. `canManageEvent`
+            (isOwner || delegat z can_edit) otwiera panel, ale "Usuń na stałe"
+            i "Uprawnienia" niżej zostają dodatkowo zawężone do `isOwner` —
+            fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
+            prawdziwy organizator, nie admin ani żaden delegat. */}
+        {canManageEvent && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -2903,6 +3099,15 @@ export default function EventDetailClient() {
                 >
                   <Copy className="w-4 h-4" /> Powtórz mecz (skopiuj)
                 </button>
+                {isOwner && (
+                  <button
+                    onClick={handleOpenDelegates}
+                    disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Uprawnienia
+                  </button>
+                )}
                 {!eventStarted && (!isCancelled ? (
                   <button
                     onClick={handleCancel} disabled={busy}
@@ -2918,12 +3123,14 @@ export default function EventDetailClient() {
                     <RotateCcw className="w-4 h-4" /> Przywróć mecz
                   </button>
                 ))}
-                <button
-                  onClick={() => setDeleteConfirmOpen(true)} disabled={busy}
-                  className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
-                </button>
+                {isOwner && (
+                  <button
+                    onClick={() => setDeleteConfirmOpen(true)} disabled={busy}
+                    className="w-full flex items-center gap-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Usuń na stałe
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -2939,7 +3146,7 @@ export default function EventDetailClient() {
             ścieżki organizatora). Jedyny stały punkt imiennego zaproszenia
             jest teraz tam, tuż pod licznikiem — tutaj zostaje wyłącznie
             udostępnianie linku. */}
-        {!isCancelled && (myParticipation || isOwner) && (
+        {!isCancelled && (myParticipation || isOwner || !!myDelegate) && (
           <div className="px-4">
             <ZaprosZnajomychPanel event={event} />
           </div>
@@ -2947,10 +3154,11 @@ export default function EventDetailClient() {
 
         {/* Kogo zaprosiłem, kto odpowiedział — dotąd nigdzie tego nie było
             widać, mimo że `dismissed_at` istnieje w bazie od migracji 060.
-            Tylko organizator: RLS na `event_player_invites` i tak nie
-            przepuści reszty. `joinedUserIds` liczone z uczestnictwa, które
-            strona ma już wczytane — zero dodatkowego zapytania o skład. */}
-        {isOwner && (
+            Organizator i delegat od składu: RLS na `event_player_invites`
+            (migracja 090) i tak nie przepuści reszty. `joinedUserIds` liczone
+            z uczestnictwa, które strona ma już wczytane — zero dodatkowego
+            zapytania o skład. */}
+        {(isOwner || canManageSquad) && (
           <div className="px-4">
             <EventInvitesStatus
               eventId={event.id}
@@ -3793,9 +4001,28 @@ export default function EventDetailClient() {
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Godzina</label>
-                <TimeSelect value={repeatTime} onChange={setRepeatTime} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Godzina</label>
+                  <TimeSelect
+                    value={repeatTime}
+                    onChange={(v) => {
+                      // Ten sam wzorzec co w modalu "Zmień termin": przesuwamy
+                      // koniec o deltę, żeby zachować długość meczu. Zmiana
+                      // końca (pole obok) nigdy nie rusza startu.
+                      if (repeatEnd) {
+                        const diff = toMinutes(v) - toMinutes(repeatTime);
+                        const nowyKoniec = toMinutes(repeatEnd) + diff;
+                        if (nowyKoniec >= 0 && nowyKoniec < 24 * 60) setRepeatEnd(fromMinutes(nowyKoniec));
+                      }
+                      setRepeatTime(v);
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Koniec</label>
+                  <TimeSelect value={repeatEnd} allowEmpty onChange={setRepeatEnd} />
+                </div>
               </div>
               <div className="flex items-center justify-between pt-1">
                 <div>
@@ -3855,6 +4082,120 @@ export default function EventDetailClient() {
                 Stwórz kopię
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* "Kto nie przyszedł" — oznaczenia idą do player_reports (report_type
+          'nie_przyszedl'), a get_player_stats() już liczy je w no_shows,
+          widoczne na /gracz/[id] jako pasek frekwencji i plakietka
+          "Niezawodny" (patrz lib/attendance.ts). Osobny modal, celowo poza
+          głównym widokiem składu — nie zaśmieca go dodatkowymi kontrolkami. */}
+      {nieobecniOpen && (
+        <div
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
+          onClick={() => setNieobecniOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">Kto nie przyszedł</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Wpływa na wiarygodność gracza na jego profilu — nie zmienia niczego w tym widoku meczu.
+            </p>
+            <ul className="divide-y divide-slate-100">
+              {regulars.map((p) => {
+                const oznaczony = nieobecni.some((n) => n.reportedParticipantId === p.id);
+                return (
+                  <li key={p.id} className="flex items-center gap-3 py-2.5">
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{p.name}</span>
+                    <Switch
+                      checked={oznaczony}
+                      onChange={() => handleToggleNieobecny(p)}
+                      disabled={nieobecniBusy}
+                      label={oznaczony ? `Oznacz ${p.name} jako obecnego` : `Oznacz ${p.name} jako nieobecnego`}
+                    />
+                  </li>
+                );
+              })}
+              {regulars.length === 0 && (
+                <li className="py-4 text-sm text-slate-400 text-center">Nikt nie ma miejsca w składzie</li>
+              )}
+            </ul>
+            <Button variant="outline" onClick={() => setNieobecniOpen(false)} className="mt-4 w-full">
+              Gotowe
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Uprawnienia (delegowanie) — wyłącznie prawdziwy organizator zarządza
+          tą listą (migracja 089/090, lib/eventDelegates.ts). Kandydaci:
+          uczestnicy meczu z kontem + członkowie grupy, do której mecz jest
+          przypięty. Zapis per-osoba przy każdej zmianie przełącznika. */}
+      {delegatesOpen && (
+        <div
+          className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
+          onClick={() => setDelegatesOpen(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-ink mb-1">Uprawnienia</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Dla osób, które pomagają Ci prowadzić ten mecz. Nie zmienia niczego w widoku meczu dla reszty.
+            </p>
+            {delegateCandidates.length === 0 ? (
+              <p className="py-4 text-sm text-slate-400 text-center">
+                Brak kandydatów — dopisz kogoś do składu albo przypnij mecz do grupy.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {delegateCandidates.map((c) => {
+                  const aktualne = eventDelegatesList.find((d) => d.userId === c.userId);
+                  const perms = {
+                    canEdit: aktualne?.canEdit ?? false,
+                    canManageSquad: aktualne?.canManageSquad ?? false,
+                    canManagePayments: aktualne?.canManagePayments ?? false,
+                  };
+                  return (
+                    <li key={c.userId} className="py-3">
+                      <p className="mb-2 text-sm font-medium text-ink">
+                        {c.name}
+                        <span className="ml-1.5 text-xs font-normal text-slate-400">
+                          {c.source === 'grupa' ? '· z grupy' : '· uczestnik'}
+                        </span>
+                      </p>
+                      <div className="space-y-2">
+                        <label className="flex cursor-pointer items-center justify-between gap-3">
+                          <span className="text-xs text-slate-600">Może edytować jak organizator</span>
+                          <Switch
+                            checked={perms.canEdit}
+                            disabled={delegatesBusy}
+                            onChange={() => handleSetDelegate(c.userId, { ...perms, canEdit: !perms.canEdit })}
+                          />
+                        </label>
+                        <label className="flex cursor-pointer items-center justify-between gap-3">
+                          <span className="text-xs text-slate-600">Dzieli składy i wpisuje wyniki</span>
+                          <Switch
+                            checked={perms.canManageSquad}
+                            disabled={delegatesBusy}
+                            onChange={() => handleSetDelegate(c.userId, { ...perms, canManageSquad: !perms.canManageSquad })}
+                          />
+                        </label>
+                        <label className="flex cursor-pointer items-center justify-between gap-3">
+                          <span className="text-xs text-slate-600">Oznacza rozliczenia i BLIK</span>
+                          <Switch
+                            checked={perms.canManagePayments}
+                            disabled={delegatesBusy}
+                            onChange={() => handleSetDelegate(c.userId, { ...perms, canManagePayments: !perms.canManagePayments })}
+                          />
+                        </label>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <Button variant="outline" onClick={() => setDelegatesOpen(false)} className="mt-4 w-full">
+              Gotowe
+            </Button>
           </div>
         </div>
       )}
