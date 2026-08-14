@@ -9,10 +9,15 @@ import TrustRow from './TrustRow';
 export default function LandingHero() {
   return (
     <section className="hero-surface-deep relative overflow-hidden pt-16 text-white">
-      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-center md:gap-8 md:pb-16 md:pt-20">
+      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-start md:gap-8 md:pb-16 md:pt-20">
         {/* .hero-first-screen (globals.css) makes this exactly one screen tall
-            on mobile with the content pinned to its bottom — see the comment
-            there. On md+ it collapses back to a plain block. */}
+            — na telefonie z treścią dosuniętą do dołu, na komputerze z górnym
+            odstępem odtwarzającym dawne wyśrodkowanie i `justify-content:
+            space-between`, które rozdziela resztę wysokości na cztery odstępy
+            między dziećmi (plakietka/h1/lead/CTA/TrustRow). Istniejące `mt-*`
+            przy tych elementach zostają jako podłoga — na niskim oknie
+            `space-between` po prostu nie ma czego dokładać. Szczegóły w
+            komentarzu przy klasie. */}
         <div className="hero-first-screen md:w-7/12">
           {/* Wrapper keeps the pill hugging its text: as a direct flex child
               of .hero-first-screen it would stretch to the full column width. */}
@@ -26,8 +31,17 @@ export default function LandingHero() {
               above (.hero-first-screen bottom-aligns the whole column as one
               group) — everything from the lead paragraph down stays at the
               exact same pixel position, verified against a pre-change
-              baseline. */}
-          <h1 className="mt-4 font-display text-[2.5rem] font-extrabold leading-[1.05] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem]">
+              baseline.
+
+              min-[1152px]:text-[4.75rem] dopiero od szerokości, przy której
+              kolumna faktycznie osiąga swoją docelową szerokość: rząd-rodzic
+              ma `max-w-6xl` (1152px), więc kolumna (7/12 tej szerokości)
+              rośnie wraz z oknem AŻ DO 1152px, a od tego progu jej szerokość
+              jest już stała (~630px). Tailwindowe `lg:` (1024px) odpaliłoby
+              większą czcionkę zbyt wcześnie — przy 1024px kolumna jest jeszcze
+              węższa niż docelowa i tekst łamałby się do 3 linii. Przy 630px
+              4.75rem to zmierzona górna granica 2 linii z zapasem. */}
+          <h1 className="mt-4 font-display text-[2.5rem] font-extrabold leading-[1.05] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem] min-[1152px]:text-[4.75rem]">
             {LANDING_HERO.h1[0]}<br />{LANDING_HERO.h1[1]}
           </h1>
 
