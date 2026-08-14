@@ -76,10 +76,15 @@ chętnych, nie bramka.
 `.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi
 `podglad-zrzutow`, pod adresem `…/tree/podglad-zrzutow/pr-<numer>/<zestaw>`.
 GitHub renderuje `README.md` katalogu jako stronę, więc wchodzisz w odnośnik
-z komentarza i przewijasz obrazki: nowe widoki oraz trójki „wzorzec / teraz /
-różnica". Nic nie trzeba pobierać ani odpisywać. Raporty **kasują się same po
-7 dniach** — gałąź nie ma rosnąć w nieskończoność. Artefakt z raportem HTML
-zostaje jako droga zapasowa.
+z komentarza i przewijasz obrazki. Nic nie trzeba pobierać ani odpisywać.
+Raporty **kasują się same po 7 dniach** — gałąź nie ma rosnąć w nieskończoność.
+Artefakt z raportem HTML zostaje jako droga zapasowa.
+
+Zmieniony widok pokazuje się **jako wycinek samego zmienionego miejsca**
+(`frontend/e2e/wytnij-zmiane.js` liczy prostokąt obejmujący podświetlone piksele
+i tnie po nim oba zrzuty), a pod nim całe strony **bok w bok**. Nakładka „diff"
+od Playwrighta ląduje w zwijanej sekcji: przy zmianie tekstu rysuje obie wersje
+jedna na drugiej i jest nie do odczytania.
 
 Wzorce wchodzą do repo dopiero po nadaniu etykiety `zrzuty:zaakceptuj`
 (w aplikacji GitHuba: **ⓘ** w prawym dolnym rogu PR-a → *Labels*). Dotyczy to
@@ -94,6 +99,12 @@ przechwytuje odpowiedź GoTrue i oddaje tę, którą chcemy zobaczyć. Ścieżka
 w aplikacji jest prawdziwa, atrapa siedzi wyłącznie w sieci. Tak samo powstaje
 widok „Google zablokowane w tej przeglądarce" — przez podstawiony `User-Agent`
 Facebooka, bo w zwykłej przeglądarce nie da się go zobaczyć.
+
+Na końcu `wizualne.spec.ts` siedzi **przemiał po wszystkich trasach** — lista
+`TRASY` z każdym adresem, który da się otworzyć bez bazy. Pojedyncze scenariusze
+pilnują miejsc, o których ktoś pomyślał; ta lista pilnuje całej aplikacji, więc
+zmiana w nagłówku, stopce czy odstępach pokazuje się wszędzie tam, gdzie realnie
+ją widać. **Dodajesz trasę w `src/app` → dopisz ją do `TRASY`.**
 
 Dwie pułapki przy pisaniu nowych zrzutów:
 

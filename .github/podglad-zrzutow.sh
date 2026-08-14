@@ -97,6 +97,18 @@ find "$KOPIA" -mindepth 1 -maxdepth 1 -type d -name 'pr-*' -empty -delete
 KATALOG="pr-${PR}/${ZESTAW}"
 rm -rf "${KOPIA:?}/$KATALOG"
 
+# Wycinki zmienionych fragmentów — liczone PRZED zbudowaniem strony, bo raport
+# najpierw pyta, czy istnieją.
+ls "$ZBIOR" 2>/dev/null | { grep '^roznica__.*__diff\.png$' || true; } \
+  | sed 's/^roznica__//; s/__diff\.png$//' \
+  | while IFS= read -r KLUCZ; do
+      [[ -z "$KLUCZ" ]] && continue
+      # Skrypt siedzi w `frontend/e2e`, a nie obok tego pliku, bo potrzebuje
+      # `pngjs` z `frontend/node_modules` — Node szuka pakietów od położenia
+      # MODUŁU, nie od katalogu roboczego.
+      node e2e/wytnij-zmiane.js "$ZBIOR" "$KLUCZ" || true
+    done
+
 if [[ -z "$(ls -A "$ZBIOR")" ]]; then
   # Nic się nie zmieniło — kasujemy poprzedni raport tego zestawu, żeby nie
   # wisiał nieaktualny, i kończymy.
@@ -128,25 +140,45 @@ else
     if [[ "$LICZBA_ROZNIC" -gt 0 ]]; then
       echo "## Zmienione widoki"
       echo ""
-      echo "Kolejno: **wzorzec** (jak było), **teraz** (jak jest), **różnica**"
-      echo "(podświetlone piksele, które się ruszyły)."
+      echo "Dla każdego widoku: najpierw **wycinek** samego zmienionego miejsca"
+      echo "w czytelnej skali, potem całe strony obok siebie."
       echo ""
       ls "$ZBIOR" | { grep '^roznica__' || true; } | sed 's/^roznica__//; s/__[a-z]*\.png$//' | sort -u \
       | while IFS= read -r KLUCZ; do
           echo "### ${KLUCZ}"
           echo ""
-          for RODZAJ in expected actual diff; do
-            [[ -f "$ZBIOR/roznica__${KLUCZ}__${RODZAJ}.png" ]] || continue
-            case "$RODZAJ" in
-              expected) OPIS="wzorzec" ;;
-              actual)   OPIS="teraz" ;;
-              diff)     OPIS="różnica" ;;
-            esac
-            echo "**${OPIS}**"
+
+          # Wycinek zmienionego fragmentu — najczytelniejsza rzecz w całym
+          # raporcie. Nakładka „diff" pokazuje obie wersje tekstu jedna na
+          # drugiej i przy zmianie napisu jest nie do odczytania.
+          if [[ -f "$ZBIOR/wycinek__${KLUCZ}__expected.png" ]]; then
+            echo "<table><tr>"
+            echo "<td width=\"50%\" align=\"center\"><b>było</b><br>"
+            echo "<img src=\"wycinek__${KLUCZ}__expected.png\" width=\"100%\"></td>"
+            echo "<td width=\"50%\" align=\"center\"><b>jest</b><br>"
+            echo "<img src=\"wycinek__${KLUCZ}__actual.png\" width=\"100%\"></td>"
+            echo "</tr></table>"
             echo ""
-            echo "![${OPIS}](roznica__${KLUCZ}__${RODZAJ}.png)"
+          fi
+
+          # Całe strony bok w bok — do sprawdzenia, czy zmiana czegoś nie
+          # rozjechała poza samym miejscem edycji.
+          echo "<table><tr>"
+          echo "<td width=\"50%\" align=\"center\"><b>cała strona — było</b><br>"
+          echo "<img src=\"roznica__${KLUCZ}__expected.png\" width=\"100%\"></td>"
+          echo "<td width=\"50%\" align=\"center\"><b>cała strona — jest</b><br>"
+          echo "<img src=\"roznica__${KLUCZ}__actual.png\" width=\"100%\"></td>"
+          echo "</tr></table>"
+          echo ""
+
+          if [[ -f "$ZBIOR/roznica__${KLUCZ}__diff.png" ]]; then
+            echo "<details><summary>nakładka z podświetlonymi pikselami</summary>"
             echo ""
-          done
+            echo "<img src=\"roznica__${KLUCZ}__diff.png\" width=\"100%\">"
+            echo ""
+            echo "</details>"
+            echo ""
+          fi
         done
     fi
 
