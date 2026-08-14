@@ -1,0 +1,76 @@
+// Treść /dlaczego-bojo — argumenty, którymi organizator przebija ścianę
+// "moi gracze nie założą konta w kolejnej apce" i nawyk grupy na Messengerze.
+
+export const CO_UWIERA: readonly string[] = [
+  'Liczenie „+1" w komentarzach pod postem — trzeba przewinąć cały wątek, żeby wiedzieć, ' +
+  'ile osób realnie przyjdzie.',
+  'Ludzie odpadający w środku wątku, którego nikt nie czyta do końca — organizator ' +
+  'dowiaduje się o rezygnacji przypadkiem, na boisku.',
+  '„Może wpadnę" nie do odróżnienia od „będę" — nie wiadomo, czy liczyć to miejsce, czy nie.',
+  'Ankieta bez limitu miejsc i bez kolejki — chętnych ponad limit nikt nie porządkuje, ' +
+  'wchodzi kto pierwszy kliknął.',
+  'Kto ile oddał za wynajem — liczone w pamięci albo w osobnej notatce, która ginie razem ' +
+  'z wątkiem.',
+];
+
+export interface WierszPorownania {
+  co: string;
+  fb: string;
+  bojo: string;
+}
+
+export const TABELA_POROWNAWCZA: readonly WierszPorownania[] = [
+  { co: 'Liczenie składu', fb: 'ręcznie, w komentarzach', bojo: 'licznik zajętych miejsc i twardy limit' },
+  { co: 'Chętni ponad limit', fb: 'kto pierwszy, ten lepszy', bojo: 'lista rezerwowa z kolejnością' },
+  { co: '„Może wpadnę"', fb: 'nie do odróżnienia od „będę"', bojo: 'osobny status „Obserwuję" — nie zajmuje miejsca' },
+  { co: 'Bramkarz', fb: 'prośba w wątku', bojo: 'osobny limit miejsc dla bramkarzy' },
+  { co: 'Kto ile płaci', fb: 'liczone w pamięci', bojo: 'koszt dzielony, zniżki z kart sportowych, odhaczanie wpłat' },
+  { co: 'Kto jeszcze nie oddał', fb: 'przewijasz wątek', bojo: 'gotowa wiadomość jednym przyciskiem' },
+  { co: 'Odwołanie meczu', fb: 'wiadomość, którą ktoś przegapi', bojo: 'wszyscy zapisani dostają powiadomienie w aplikacji' },
+  { co: 'Historia gier', fb: 'przepada w wątku', bojo: 'lista meczów, składy i wyniki w jednym miejscu' },
+  { co: 'Nowa osoba w ekipie', fb: 'musi wejść do grupy', bojo: 'wystarczy link' },
+  { co: 'Dostęp dla obcych', fb: 'grupa albo publiczna, albo zamknięta', bojo: 'mecz publiczny (na liście) albo prywatny (tylko z linkiem)' },
+];
+
+export interface SekcjaProza {
+  id: string;
+  tytul: string;
+  akapity: readonly string[];
+}
+
+/** Trzy pozostałe sekcje strony — proza, nie lista/tabela, ale tak samo
+ *  wyciągnięta z JSX: reguła architektury (§A.1) jest "copy osobno od JSX,
+ *  żeby dało się testować bez renderowania", i dotyczy każdej sekcji, nie
+ *  tylko tych z niestandardowym markupem. */
+export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
+  {
+    id: 'nie-chca-kolejnej-apki',
+    tytul: '„Moi gracze nie założą konta w kolejnej apce"',
+    akapity: [
+      'Nie muszą. Osoba z linkiem podaje imię i e-mail i jest w składzie. Bez hasła, bez ' +
+      'potwierdzania adresu, bez instalowania aplikacji — Bojo działa w przeglądarce. ' +
+      'Konto zakłada ten, kto sam zechce zobaczyć swoją historię i statystyki, i może to ' +
+      'zrobić po meczu, nie przed nim.',
+    ],
+  },
+  {
+    id: 'czego-nie-zastapi',
+    tytul: 'Czego Bojo nie zastąpi',
+    akapity: [
+      'Bojo nie jest komunikatorem. Nie wyśle SMS-a ani maila o meczu — jedyny kanał to ' +
+      'powiadomienia w aplikacji, pod dzwonkiem. Czat ekipy zostaje tam, gdzie jest; Bojo ' +
+      'daje jeden link, który się w tym czacie wkleja i który liczy to, czego czat ' +
+      'policzyć nie umie.',
+    ],
+  },
+  {
+    id: 'wczesny-etap',
+    tytul: 'Na jakim etapie jest Bojo',
+    akapity: [
+      'Publicznych gier na liście otwartych meczów bywa dziś mało, więc najpewniejszy ' +
+      'skład zbierzesz linkiem do swoich, nie licząc na to, że dopiszą się obcy. Katalog ' +
+      'obejmuje ponad 30 000 obiektów sportowych w całej Polsce, ale szczegóły — ' +
+      'nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po obiekcie.',
+    ],
+  },
+];

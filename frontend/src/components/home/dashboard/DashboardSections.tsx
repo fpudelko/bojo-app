@@ -243,6 +243,33 @@ export function NeedsPlayersSection({ items, limit = 3, href }: {
   );
 }
 
+/** Rozegrane mecze organizatora, w których ktoś ze składu nie oddał
+ *  pieniędzy — góra zakładki „Historia" na `/moje-gry`. Filtrowanie i
+ *  sortowanie w `doRozliczenia()` (`lib/myEvents.ts`); ta sekcja tylko
+ *  renderuje, dokładnie jak `NeedsPlayersSection` wyżej. `EventBrowseCard`
+ *  już pokazuje plakietkę „N osób nie zapłaciło" na karcie meczu przeszłego
+ *  — zero nowej logiki prezentacji. */
+export function DoRozliczeniaSection({ items, limit = null }: {
+  items: MyEventRow[]; limit?: number | null;
+}) {
+  if (items.length === 0) return null;
+  const shown = limit != null ? items.slice(0, limit) : items;
+  return (
+    <div>
+      <SectionHeader
+        title="Do rozliczenia"
+        count={items.length}
+        subtitle="Twoje rozegrane mecze, w których ktoś jeszcze nie oddał pieniędzy"
+      />
+      <div className="space-y-3">
+        {shown.map(({ event, relation }) => (
+          <EventBrowseCard key={event.id} event={event} relation={relation} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Kept separate from MyMatchesSection so "Obserwujesz" never reads as
  *  "you're in" — observing holds no spot and counts in no stats. Title and
  *  subtitle are overridable: /moje-gry calls this section "Obserwowane" and

@@ -102,49 +102,12 @@ export const LANDING_VALUES = [
   },
 ] as const;
 
-export const LANDING_FAQ: ReadonlyArray<{ q: string; a: string }> = [
-  {
-    q: 'Czy Bojo jest darmowe?',
-    a: 'Tak. Tworzenie meczów, dołączanie do gier, grupy i mapa boisk są bezpłatne. ' +
-      'Nie ma abonamentu ani opłat od organizatora.',
-  },
-  {
-    q: 'Ile zajmuje zorganizowanie meczu?',
-    a: 'Kreator ma trzy kroki: sport i boisko, termin i liczba miejsc, opcje. ' +
-      'W praktyce dwie minuty. Boisko wybierasz z mapy — nie wpisujesz adresu ręcznie.',
-  },
-  {
-    q: 'Czy muszę mieć konto, żeby przeglądać boiska i mecze?',
-    a: 'Nie. Mapa boisk, strony obiektów i lista publicznych meczów są dostępne bez ' +
-      'logowania. Konto jest potrzebne dopiero, żeby stworzyć mecz albo się na niego zapisać.',
-  },
-  {
-    q: 'Czym różni się mecz publiczny od prywatnego?',
-    a: 'Mecz publiczny widnieje na liście gier i każdy zalogowany może dołączyć. Mecz ' +
-      'prywatny jest dostępny wyłącznie dla osób z linkiem albo kodem dołączenia.',
-  },
-  {
-    q: 'Co się dzieje, gdy zbierze się komplet?',
-    a: 'Kolejne zapisy trafiają na listę rezerwową. Bojo nie awansuje rezerwowych ' +
-      'automatycznie — gdy ktoś się wypisze, organizator sam decyduje, kogo wpuścić.',
-  },
-  {
-    q: 'Czy przez Bojo zapłacę za wynajem boiska?',
-    a: 'Nie. Bojo dzieli koszt na graczy, uwzględnia zniżki z kart sportowych i pozwala ' +
-      'odhaczyć, kto już oddał pieniądze — ale samego przelewu nie obsługuje. ' +
-      'Rozliczacie się jak dotąd, tylko bez liczenia w pamięci.',
-  },
-  {
-    q: 'Gdzie działa Bojo?',
-    a: 'W całej Polsce. Mecz stworzysz w dowolnym miejscu — wskazując je na mapie albo ' +
-      'wybierając obiekt z katalogu, który obejmuje boiska z całego kraju.',
-  },
-  {
-    q: 'Jak zaprosić stałą ekipę?',
-    a: 'Zakładasz grupę i wysyłasz link zaproszenia. Członkowie widzą mecze grupy ' +
-      'i historię wspólnych składów w jednym miejscu.',
-  },
-];
+// Osiem pytań pokazywanych na stronie głównej — podzbiór jednego wspólnego
+// źródła w `src/content/faq.ts` (tam też pełna lista dla `/faq`). Re-eksport,
+// nie kopia: `LandingFaq.tsx`, `app/page.tsx` i `landingContent.test.ts` dalej
+// czytają `LANDING_FAQ` bez zmian, a widoczna treść i `faqJsonLd()` nie mają
+// jak się rozjechać z `/faq`.
+export { FAQ_LANDING as LANDING_FAQ } from '@/content/faq';
 
 export const LANDING_STATS = {
   sportsValue: '4',

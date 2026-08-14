@@ -14,6 +14,7 @@ import TimeSelect from '@/components/ui/TimeSelect';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
+import PoMeczuCard from '@/components/events/PoMeczuCard';
 import EventComments from '@/components/events/EventComments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
@@ -50,6 +51,7 @@ import type {
 import { sportEmoji } from '@/lib/sports';
 import { przejmijWpisGoscia, udostepnijZaproszenieGoscia } from '@/lib/guestClaim';
 import { tekstRozliczenia } from '@/lib/settlementShare';
+import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart } from '@/lib/eventDates';
 import {
@@ -1237,6 +1239,18 @@ export default function EventDetailClient() {
     setWhenOpen(true);
   };
 
+  /** Okno „Powtórz mecz" otwierało się z pustym polem daty i zablokowanym
+   *  przyciskiem — dla cotygodniowej gierki to trzy zbędne kliknięcia
+   *  w miejscu, w którym powinno być zero decyzji. `domyslnyTerminPowtorki()`
+   *  (`lib/recurring.ts`) daje najbliższy przyszły termin tego samego dnia
+   *  tygodnia; pole zostaje edytowalne, więc nic nie blokuje ręcznej zmiany. */
+  const handleOpenRepeat = () => {
+    const czas = event.time?.slice(0, 5) ?? '18:00';
+    setRepeatDate(domyslnyTerminPowtorki(event.date, czas));
+    setRepeatTime(czas);
+    setRepeatOpen(true);
+  };
+
   const zapiszTermin = async (zakres: ZakresEdycji) => {
     setZakresTerminuOtwarty(false);
     setBusy(true);
@@ -1494,31 +1508,34 @@ export default function EventDetailClient() {
         </div>
       )}
 
-      {/* Pre-match "result coming" note — only the organizer enters results */}
-      {isOwner && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
-          <Trophy className="w-4 h-4 shrink-0" />
-          Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
-        </div>
-      )}
-      {isOwner && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-          Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
-        </p>
-      )}
-      {myParticipation && event.trackResults && resultsAvailable && (
-        <MatchResultForm
-          sport={event.sport}
-          eventId={event.id}
-          organizerId={event.organizerId}
-          currentUserId={user?.id ?? ''}
-          isOrganizer={isOrganizer}
-          participants={participants}
-          initialResult={matchResult}
-          initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
-          onSaved={(result) => setMatchResult(result)}
-        />
-      )}
+      {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Wpisz wynik") */}
+      <div id="wynik-meczu">
+        {/* Pre-match "result coming" note — only the organizer enters results */}
+        {isOwner && event.trackResults && !resultsAvailable && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+            <Trophy className="w-4 h-4 shrink-0" />
+            Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
+          </div>
+        )}
+        {isOwner && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
+          </p>
+        )}
+        {myParticipation && event.trackResults && resultsAvailable && (
+          <MatchResultForm
+            sport={event.sport}
+            eventId={event.id}
+            organizerId={event.organizerId}
+            currentUserId={user?.id ?? ''}
+            isOrganizer={isOrganizer}
+            participants={participants}
+            initialResult={matchResult}
+            initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
+            onSaved={(result) => setMatchResult(result)}
+          />
+        )}
+      </div>
     </>
   );
 
@@ -1528,7 +1545,7 @@ export default function EventDetailClient() {
           kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
           faktycznie się rozlicza z ekipą, było błędem. */}
       {event.costGrosze > 0 && isOwner && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div id="podzial-kosztow" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
             <Banknote className="w-4 h-4" /> Podział kosztów
           </h2>
@@ -1718,6 +1735,22 @@ export default function EventDetailClient() {
               </Button>
             )}
           </div>
+        )}
+
+        {/* ── PO MECZU — zadania organizatora w jednym miejscu ──
+            `resultsAvailable` = start meczu + 30 min, ten sam próg, który
+            już odsłania formularz wyniku niżej — przed nim nic nie jest
+            jeszcze "po meczu". */}
+        {isOwner && resultsAvailable && !isCancelled && (
+          <PoMeczuCard
+            maPlatnosc={event.costGrosze > 0}
+            liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
+            onWyslijRozliczenie={handleWyslijRozliczenie}
+            trackResults={event.trackResults}
+            wynikWpisany={matchResult != null}
+            liczbaGosciDoZaproszenia={niePrzejeciGoscie.length}
+            onPowtorzMecz={handleOpenRepeat}
+          />
         )}
 
         {/* ── MECZ GOTOWY — pierwsza minuta po publikacji ──
@@ -2082,7 +2115,8 @@ export default function EventDetailClient() {
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}
-        <div className="px-4">
+        {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo") */}
+        <div id="sklad" className="px-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
             <div className="text-center">
               <span className="text-3xl font-extrabold tracking-tight text-primary-700">
@@ -2863,7 +2897,7 @@ export default function EventDetailClient() {
                 </Link>
 
                 <button
-                  onClick={() => { setRepeatDate(''); setRepeatTime(event.time?.slice(0, 5) ?? ''); setRepeatOpen(true); }}
+                  onClick={handleOpenRepeat}
                   disabled={busy}
                   className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
                 >

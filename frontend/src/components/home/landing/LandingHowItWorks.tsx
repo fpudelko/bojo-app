@@ -72,6 +72,16 @@ export default function LandingHowItWorks() {
             );
           })}
         </ol>
+
+        {/* Osobny link pod listą, nie przycisk — sekcja świadomie ma jedno
+            wejście do akcji (pierwszy krok, patrz komentarz wyżej); to jest
+            wyjście w głąb, do strony z pełnym opisem mechaniki, nie druga
+            ścieżka do kreatora. */}
+        <p className="mt-4 text-center text-sm">
+          <Link href="/jak-dziala-bojo" className="font-semibold text-primary-700 hover:text-primary-800">
+            Zobacz krok po kroku, co się dzieje po publikacji →
+          </Link>
+        </p>
       </div>
     </section>
   );

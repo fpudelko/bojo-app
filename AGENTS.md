@@ -22,7 +22,7 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
 npm run lint           # ESLint — błędy blokują CI, ostrzeżenia nie
-npm test               # Vitest, 436 testów
+npm test               # Vitest, 463 testy
 npm run build          # build produkcyjny (potrzebuje tylko atrap kluczy, patrz niżej)
 ```
 
@@ -278,3 +278,12 @@ ponownie i zacommituj wynik.
 - Nie commituj `.env` (jest w `.gitignore`).
 - Domena kanoniczna to `bojo.pl` — jeśli dodajesz miejsce z fallbackiem URL, użyj tej
   samej wartości co `layout.tsx`, `robots.ts` i `sitemap.ts`.
+- **Mobile-first bezwzględnie.** Style bazowe (bez media query) opisują najmniejszy
+  telefon; rozszerzanie widoku do tabletu/desktopu wyłącznie progresywnie, przez
+  warianty `min-width` (`sm:`/`md:`/`lg:`/`xl:` Tailwinda). Breakpointy `max-*:`
+  (`max-sm:`, `max-md:`…) i `@media (max-width: …)` są w nowym kodzie zabronione —
+  pilnuje tego `npm run check:docs` (sekcja 10), skanując cały `frontend/src`.
+- **Copy stron treści i landingu żyje w `frontend/src/content/*.ts`**, osobno od JSX
+  (wzorem dawnego `components/home/landing/content.ts`) — żeby dało się testować bez
+  renderowania, m.in. zakazane frazy w `content/zakazaneFrazy.ts`
+  (`landingContent.test.ts`, `tresciStron.test.ts`).

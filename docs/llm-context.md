@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-13 · migracja `088` · 31 tabel · 436 testów
+**Stan na:** 2026-08-13 · migracja `088` · 31 tabel · 463 testy
 
 ---
 
@@ -53,12 +53,15 @@ Sporty obsługiwane w filtrach i przy tworzeniu meczu: piłka nożna, siatkówka
 plażowa, koszykówka. Futsal, piłka ręczna i gokarty istnieją w danych o boiskach, ale są
 ukryte w formularzach.
 
-Przeglądanie mapy i stron boisk **nie wymaga konta**. Tworzenie meczu, dołączanie do
-składu i zakładanie grup wymagają logowania.
+Przeglądanie mapy i stron boisk **nie wymaga konta**. Tworzenie meczu i zakładanie grup
+wymagają logowania — **dołączenie do meczu nie wymaga konta**: osoba z linkiem podaje
+imię i e-mail i jest w składzie (funkcja RPC `dolacz_do_meczu_jako_goscie()`, migracje
+`082`–`088`, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)); konto może
+dokończyć dopiero po zapisie, jeśli chce mieć historię i statystyki.
 
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
 dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
-konto, żeby przeglądać boiska?
+konto, żeby przeglądać boiska? Czy trzeba mieć konto, żeby dołączyć do meczu?
 
 ---
 
@@ -295,6 +298,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-13 — Strony treści dla organizatorów, FAQ naprawia kłamstwo o koncie, domknięcie meczu po gwizdku
+
+PROBLEM: FAQ na stronie głównej, `llms.txt` i sekcja „Zasięg i skala" tego pliku
+twierdziły, że dołączenie do meczu wymaga logowania — nieprawda od migracji `082`
+(self-service zapis gościa, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)).
+To dokładnie ten argument, którym organizator przebija opór graczy przed zakładaniem
+konta w obcej aplikacji, i aplikacja sama sobie go zabierała. Osobno: dane produkcyjne
+pokazały, że rzeczy, które Bojo umie **po meczu**, prawie nigdy się nie dzieją —
+122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych, zero przejętych wpisów
+gości — bo nic o nie nie prosi we właściwym momencie. Strategia (`docs/strategia.md §0`)
+przesuwa priorytet na pozyskiwanie organizatorów, a produkt nie miał stron tłumaczących
+mechanikę i przewagę nad wątkiem na Messengerze pod SEO/GEO/AEO.
+
+ROZWIĄZANIE BOJO: cztery nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
+kreatora po rozliczenie, z jawną sekcją o tym, że dołączenie nie wymaga konta,
+i sekcją „co Bojo powiadamia i gdzie", która wprost mówi, że SMS-ów i maili o meczu nie
+wysyła), `/dlaczego-bojo` (tabela porównawcza z grupą FB/WhatsApp, argument na „moi
+gracze nie założą konta"), `/faq` (36 pytań w sześciu kategoriach, wspólne źródło ze
+stroną główną) i `/o-nas`. Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
+liczba obiektów ~30 000 zamiast nieaktualnego ~1400). Karta „Po meczu" na stronie meczu
+zbiera zadania organizatora (rozlicz ekipę, wpisz wynik, zaproś gości bez konta, powtórz
+mecz) w jednym miejscu zamiast jednej bursztynowej linijki; okno „Powtórz mecz" otwiera
+się z wypełnioną datą najbliższego takiego samego dnia tygodnia zamiast pustego pola;
+zakładka Historia na `/moje-gry` dostała sekcję „Do rozliczenia".
+
+MECHANIKA: `src/content/{faq,jakDziala,dlaczego,oNas,zakazaneFrazy}.ts` — copy jako
+dane, testowalne bez renderowania (wzorem `components/home/landing/content.ts`, który
+teraz re-eksportuje `FAQ_LANDING` z `content/faq.ts`); `components/tresc/*` — powłoka
+stron treści; `lib/structuredData.ts` (`aboutPageJsonLd()`); `lib/recurring.ts`
+(`domyslnyTerminPowtorki()`); `lib/myEvents.ts` (`doRozliczenia()`);
+`components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
+(`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
+`EventDetailClient.tsx` i `getMyParticipatedEvents()` już liczyły.
 
 ### 2026-08-13 — Powtórny zapis tym samym e-mailem: osobny ekran dla osoby z kontem i bez konta
 
@@ -604,30 +641,4 @@ jako `null`); `lib/eventDraft.ts` (szkic potrafi zapamiętać brak decyzji);
 `EventDetailClient.tsx` (filtr `rsvp !== 'maybe'` na liście rezerwowej, rozbicie
 licznika, ostrzeżenie w oknie zapisu, wymuszony wybór płatności, szara kolorystyka).
 
-### 2026-08-10 — Argument w zaproszeniu do przejęcia wpisu gościa, sprzątanie martwego kodu na stronie meczu
-
-PROBLEM: przycisk „Zaproś do Bojo" przy wierszu gościa kopiował do schowka sam adres
-linku, bez słowa wyjaśnienia, po co go kliknąć — ten sam błąd co przy głównym
-udostępnianiu meczu, tu nienaprawiony. Przycisk działał też wyłącznie w edytowalnym
-składzie przed startem meczu; po starcie meczu organizator przechodzi na uproszczony
-widok listy i przycisk znikał całkowicie — dokładnie w momencie, gdy organizator
-naturalnie wraca na stronę wpisać wynik i najłatwiej namówić kolegów bez konta do
-założenia go. Na stronie meczu żył też w pełni zbudowany, ale nieosiągalny z UI modal
-„Zgłoś uczestnika" — nic nigdy go nie otwierało.
-
-ROZWIĄZANIE BOJO: „Zaproś do Bojo" otwiera teraz systemowy arkusz udostępniania (albo
-kopiuje do schowka, gdy przeglądarka go nie ma) z gotowym tekstem tłumaczącym, po co
-założyć konto — zobaczenie swojego udziału, statystyk i historii gier. Przycisk działa
-też w widoku po starcie meczu. Nad składem pojawia się dla organizatora jedna linia —
-„N gości bez konta w składzie" — gdy jest kogo zaprosić. Usunięto martwy modal zgłoszeń
-uczestnika oraz nieużywany kod SMS-owy i plik obsługujący zaproszenia e-mailem, których
-nic w aplikacji nie wołało.
-
-MECHANIKA: `tekstZaproszeniaGoscia()` w `lib/guestClaim.ts` (wzorem `eventShareText`);
-`kopiujLinkPrzejecia()` w `EventDetailClient.tsx` woła `navigator.share` z fallbackiem
-do schowka; `ParticipantsList` (ten sam plik) dostał propsy
-`isOrganizer`/`skopiowanyToken`/`onZaprosDoBojo`, żeby przycisk i licznik gości działały
-też po starcie meczu; usunięte: `submitReport`/`getEventReports`
-(`lib/eventFeatures.ts`), typy `ReportType`/`PlayerReport` (`types/index.ts`), plik
-`lib/invites.ts`.
 

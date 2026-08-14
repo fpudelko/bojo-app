@@ -6,8 +6,8 @@
 > („pozyskiwanie organizatorów i szlifowanie przepływu organizacji gry").
 >
 > **Stan: 2026-08-08, `O-26`/`O-27` dopisane 2026-08-10, `O-28`…`O-31` dopisane
-> 2026-08-12.** Wnioski są czytaniem kodu, nie obserwacją użytkowników — patrz
-> „Czego ten audyt nie sprawdził" na końcu.
+> 2026-08-12, `O-32`…`O-35` dopisane 2026-08-13.** Wnioski są czytaniem kodu, nie
+> obserwacją użytkowników — patrz „Czego ten audyt nie sprawdził" na końcu.
 
 Ustalenia mają numery `O-n`; [BACKLOG.md](../BACKLOG.md) odwołuje się do tych samych.
 Kolumna **stan** mówi, czy rzecz została zrobiona, czy czeka.
@@ -150,6 +150,27 @@ dla organizatora, panel „Podział kosztów" liczący zniżki kartowe.
 | **O-29** | **Rozliczenie kończyło się na ekranie organizatora.** Panel „Podział kosztów" liczy wszystko poprawnie, ale żeby powiedzieć ekipie „jeszcze nie oddali: Marek, Kuba", trzeba było przepisać to ręcznie na czat — ten sam błąd co `O-18`/`O-27`, tu po prostu w innym miejscu. Goście bez konta w ogóle nie mają jak zobaczyć swojej kwoty w Bojo, więc dla nich wiadomość na czacie jest jedynym kanałem. Nowy przycisk „Wyślij rozliczenie ekipie" (`lib/settlementShare.ts`) otwiera systemowy arkusz udostępniania z gotowym tekstem: kwota, lista zaległości z kwotami (uwzględniają zniżkę kartową), numer BLIK, gdy organizator go akceptuje. | zrobione |
 | **O-30** | **Powrót z logowania nie kończył zapisu.** Wylogowany na stronie meczu klikał „Zaloguj się, aby dołączyć", zakładał konto i wracał na widok identyczny z tym sprzed logowania — musiał od nowa znaleźć przycisk „Dołącz →". Dwa dodatkowe kroki dokładnie w punkcie największego odpadania. `?dolacz=1` (ten sam wzorzec co `?utworzono=1`) niesie intencję przez logowanie i otwiera okno zapisu automatycznie po powrocie — w trybie rezerwy, jeśli skład jest już pełny. | zrobione |
 | **O-31** | **Zaproszenie do przejęcia wpisu gościa mógł wysłać tylko organizator**, mimo że `allowGuestAdds` pozwala dopisać gościa każdemu uczestnikowi — a to właśnie ta osoba zna gościa i ma z nim kontakt, nie organizator. Warunek `isOrganizer` zamieniony na `mozeZaprosic(p)`, który przepuszcza też tego, kto konkretnego gościa dopisał (`p.addedBy === user.id`). Zbiorczy baner „N gości bez konta" nad składem zostaje przy `isOrganizer` — to podsumowanie całego składu, nie pojedynczego gościa. | zrobione |
+
+---
+
+## Faza 7 — po gwizdku
+
+Dane produkcyjne (2026-08-13): 122 rozegrane mecze, 6 zapisanych wyników, 45
+nierozliczonych płatnych meczów, zero przejętych wpisów gości. Bojo umie rozliczenie,
+wyniki i przejęcie wpisu gościa — nic o nie nie prosiło we właściwym momencie.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **O-32** | **Nie było listy „co zostało" po meczu.** Strona pokazywała jedną bursztynową linijkę „wpisz wynik" i nic o rozliczeniu ani o gościach bez konta — organizator musiał sam wywnioskować, co jeszcze zrobić. Nowa karta „Po meczu" (`PoMeczuCard.tsx`) zbiera rozliczenie, wynik i zaproszenie gości w jednym miejscu, z żywym stanem każdej pozycji; „Powtórz mecz" zawsze dostępne jako oferta. | zrobione |
+| **O-33** | **Okno „Powtórz mecz" otwierało się z pustym polem daty** i zablokowanym przyciskiem — dla cotygodniowej gierki trzy zbędne kliknięcia. `domyslnyTerminPowtorki()` (`lib/recurring.ts`) wypełnia najbliższy przyszły termin tego samego dnia tygodnia. | zrobione |
+| **O-34** | **Zakładka Historia na `/moje-gry` nic nie domykała.** Mecz z zaległością wyglądał identycznie jak mecz w pełni rozliczony. Nowa sekcja „Do rozliczenia" (`doRozliczenia()` w `lib/myEvents.ts`) na górze zakładki. | zrobione |
+| **O-35** | **FAQ, `llms.txt` i `docs/llm-context.md` twierdziły, że dołączenie do meczu wymaga konta** — nieprawda od migracji `082` (self-service zapis gościa). To dokładnie argument, którym organizator przebija opór graczy przed zakładaniem konta, i sami go sobie zabieraliśmy. Poprawione we wszystkich trzech miejscach; dodane cztery strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`, `/o-nas`) tłumaczące mechanikę pod SEO/GEO/AEO. | zrobione |
+
+Świadomie poza zakresem: powiadomienie „mecz się odbył, wpisz wynik" i przypomnienie
+o zaległej wpłacie wymagałyby schedulera (`pg_cron`), którego stanu na produkcji nie da
+się potwierdzić z repo — ten sam powód, dla którego cron wygasania oferty zwolnionego
+miejsca zostaje poza zakresem (`BACKLOG.md §0`). Przywrócenie „obecności" (`track_attendance`)
+świadomie odrzucone — kolumna została usunięta migracją `064` jako uproszczenie, nie luka.
 
 ---
 

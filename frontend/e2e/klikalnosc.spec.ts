@@ -14,6 +14,10 @@ test.describe('strony publiczne wstają i nie mają martwych warstw', () => {
     ['lista gier', '/wydarzenia'],
     ['mapa', '/mapa'],
     ['logowanie', '/logowanie'],
+    ['jak działa Bojo', '/jak-dziala-bojo'],
+    ['dlaczego Bojo', '/dlaczego-bojo'],
+    ['FAQ', '/faq'],
+    ['o nas', '/o-nas'],
   ] as const) {
     test(`${nazwa} renderuje się bez błędu w konsoli`, async ({ page }) => {
       const bledy: string[] = [];

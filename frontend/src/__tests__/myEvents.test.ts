@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitMyEvents, nextMatch, type MyEventRow } from '@/lib/myEvents';
+import { splitMyEvents, nextMatch, doRozliczenia, type MyEventRow } from '@/lib/myEvents';
 import type { EventItem } from '@/types';
 import type { MyEventRelation } from '@/lib/events';
 
@@ -153,5 +153,52 @@ describe('nextMatch', () => {
 
   it('zwraca null dla pustego wejścia', () => {
     expect(nextMatch([])).toBeNull();
+  });
+});
+
+// Sekcja „Do rozliczenia" w zakładce Historia — rozegrane, płatne mecze
+// organizatora, w których ktoś jeszcze nie oddał pieniędzy. Czysty selektor
+// nad danymi, które `getMyParticipatedEvents()` już zwraca — zero nowego
+// zapytania.
+describe('doRozliczenia', () => {
+  const rozegranyPlatny = (id: string, overrides: Partial<EventItem> = {}, relacja: Partial<MyEventRelation> = {}) =>
+    row({ id, date: ymd(addDays(-2)), costGrosze: 2000, unpaidCount: 2, ...overrides }, { isOrganizer: true, ...relacja });
+
+  it('bierze rozegrany, płatny mecz organizatora z zaległością', () => {
+    const items = [rozegranyPlatny('a')];
+    expect(doRozliczenia(items).map((r) => r.event.id)).toEqual(['a']);
+  });
+
+  it('pomija mecze przyszłe', () => {
+    const items = [rozegranyPlatny('a', { date: ymd(addDays(2)) })];
+    expect(doRozliczenia(items)).toHaveLength(0);
+  });
+
+  it('pomija odwołane mecze', () => {
+    const items = [rozegranyPlatny('a', { status: 'cancelled' })];
+    expect(doRozliczenia(items)).toHaveLength(0);
+  });
+
+  it('pomija darmowe mecze', () => {
+    const items = [rozegranyPlatny('a', { costGrosze: 0 })];
+    expect(doRozliczenia(items)).toHaveLength(0);
+  });
+
+  it('pomija mecze, w których nie jestem organizatorem', () => {
+    const items = [rozegranyPlatny('a', {}, { isOrganizer: false })];
+    expect(doRozliczenia(items)).toHaveLength(0);
+  });
+
+  it('pomija w pełni opłacone mecze', () => {
+    const items = [rozegranyPlatny('a', { unpaidCount: 0 })];
+    expect(doRozliczenia(items)).toHaveLength(0);
+  });
+
+  it('sortuje od najświeższego', () => {
+    const items = [
+      rozegranyPlatny('dawny', { date: ymd(addDays(-10)) }),
+      rozegranyPlatny('swiezy', { date: ymd(addDays(-1)) }),
+    ];
+    expect(doRozliczenia(items).map((r) => r.event.id)).toEqual(['swiezy', 'dawny']);
   });
 });

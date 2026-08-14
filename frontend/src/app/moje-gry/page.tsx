@@ -11,8 +11,9 @@ import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
+import { DoRozliczeniaSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
+import { doRozliczenia } from '@/lib/myEvents';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -249,10 +250,13 @@ function MojeGryContent() {
           history.length === 0 ? (
             <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>
           ) : (
-            <div className="space-y-3">
-              {history.map(({ event, relation }) => (
-                <EventBrowseCard key={event.id} event={event} relation={relation} />
-              ))}
+            <div className="space-y-8">
+              <DoRozliczeniaSection items={doRozliczenia(history)} />
+              <div className="space-y-3">
+                {history.map(({ event, relation }) => (
+                  <EventBrowseCard key={event.id} event={event} relation={relation} />
+                ))}
+              </div>
             </div>
           )
         )}
