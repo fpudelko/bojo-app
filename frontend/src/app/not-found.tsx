@@ -9,10 +9,12 @@ export default function NotFound() {
       <Header />
       <main className="flex flex-1 items-center justify-center px-4 py-16 text-center">
         <div>
-          <p className="font-display text-7xl font-extrabold text-primary-700 mb-3 select-none">404</p>
+          {/* DEMO: zmiana wyłącznie po to, żeby raport ze zrzutami miał co
+              pokazać. Ten PR nie idzie do mastera. */}
+          <p className="font-display text-8xl font-extrabold text-accent-500 mb-3 select-none">404</p>
           <h1 className="text-xl font-semibold text-ink mb-2">Nie znaleziono strony</h1>
           <p className="text-sm text-slate-500 mb-8 max-w-xs mx-auto">
-            Ta strona nie istnieje lub została przeniesiona.
+            Ten adres nigdy nie istniał albo zmienił się po drodze.
           </p>
           <Link
             href="/"
