@@ -1000,7 +1000,7 @@ panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — ob
 działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
 
 **Rozmowa wygląda i przewija się jak WhatsApp**, nie jak lista wpisów odgórnie na
-najnowszy. `RozmowaGrupy.tsx` ma własny kontener przewijania (`h-[60dvh]`), chronologię
+najnowszy. `RozmowaGrupy.tsx` ma własny kontener przewijania (`h-[68dvh]`), chronologię
 rosnącą (najstarsza u góry, najnowsza na dole) i composer pod listą, nie nad nią —
 auto-scroll na dół po wejściu i po wysłaniu wiadomości, przycisk powrotu (strzałka w
 kółku, `sticky` wewnątrz kontenera, nie `fixed` względem ekranu — dzięki temu nigdy nie
