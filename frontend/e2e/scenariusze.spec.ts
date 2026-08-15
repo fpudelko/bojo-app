@@ -28,6 +28,13 @@ import { test, expect, type Page } from '@playwright/test';
 // Dlatego zrzuty obejmują FRAGMENTY bez daty (licznik, okno zapisu, kolejka),
 // a nie całą stronę. Ochrona przed regresją siedzi w asercjach zachowania —
 // zrzut dokłada do tego układ i kolory.
+//
+// WZORCE TYCH SCENARIUSZY leżą w `e2e/wzorce/scenariusze-*` i są **punktem
+// odniesienia**, nie wzorem tego, jak powinno być. Zostały przyjęte hurtem
+// jako stan zastany — od tej chwili raport pokazuje wyłącznie to, co się
+// wobec nich ZMIENIŁO, zamiast za każdym razem wypisywać czterdzieści
+// „nowych widoków". Jeśli któryś wygląda źle, to jest zwykły błąd do
+// naprawienia, a nie powód, żeby podważać wzorzec.
 
 const KONTA = {
   organizator: { email: 'test1@example.com', haslo: 'test1234' },
