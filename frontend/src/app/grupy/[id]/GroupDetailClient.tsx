@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
+import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
@@ -282,7 +283,12 @@ export default function GroupDetailClient() {
             (zastępuje mobilny pasek Header): powrót, tożsamość ekipy,
             zaproszenie z kodem dołączenia obok, ustawienia, a na mobile
             na samym końcu dzwonek i avatar. */}
-        <div className="sticky top-0 z-[1010] -mx-4 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0">
+        {/* -mt-5 znosi górny padding <main> (py-5) na mobile, żeby pasek
+            siedział tuż przy górnej krawędzi ekranu, tak jak zgłoszono
+            wprost — zbyt duży odstęp od krawędzi. Na desktopie Header
+            zostaje widoczny nad tym paskiem, więc odstęp z <main> ma sens
+            i go nie znosimy. */}
+        <div className="sticky top-0 z-[1010] -mx-4 -mt-5 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:mt-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0">
           <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <button
               onClick={() => router.push('/grupy')}
@@ -405,7 +411,13 @@ export default function GroupDetailClient() {
         )}
 
         {tab === 'tablica' && (member ? (
-          <RozmowaGrupy groupId={group.id} permissions={perms} />
+          <>
+            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
+                dokumencie — bez tego zasłaniał composer na dole kontenera
+                rozmowy, zgłoszone wprost jako "zasłonięte". */}
+            <HideBottomNav />
+            <RozmowaGrupy groupId={group.id} permissions={perms} />
+          </>
         ) : (
           <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
             Rozmowa jest widoczna wyłącznie dla członków ekipy.
