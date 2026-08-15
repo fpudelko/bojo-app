@@ -4,15 +4,16 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Settings, Loader2, LogOut, Trash2, CalendarPlus, Link2,
+  Users, ArrowLeft, Settings, Loader2, LogOut, Trash2, CalendarPlus, Link2, Check,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
-import TablicaGrupy from '@/components/groups/TablicaGrupy';
+import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
 import SkladGrupy from '@/components/groups/SkladGrupy';
 import StatystykiGrupy from '@/components/groups/StatystykiGrupy';
 import ZaprosDoGrupySheet from '@/components/groups/ZaprosDoGrupySheet';
+import type { PatchUprawnien } from '@/components/groups/UprawnieniaCzlonkaPanel';
 import { useMyParticipation } from '@/lib/useMyParticipation';
 import { isUpcoming } from '@/lib/eventDates';
 import { startKey } from '@/lib/eventFilters';
@@ -21,7 +22,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
   getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
-  joinGroupByCode, leaveGroup, removeMember, deleteGroup, uprawnieniaCzlonka,
+  joinGroupByCode, leaveGroup, removeMember, deleteGroup, setMemberPermissions, uprawnieniaCzlonka,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane } from '@/lib/groupPosts';
 import { sportEmoji, sportLabel } from '@/lib/sports';
@@ -30,7 +31,7 @@ import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
 type Tab = 'mecze' | 'tablica' | 'sklad' | 'staty';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'mecze', label: 'Mecze' },
-  { value: 'tablica', label: 'Tablica' },
+  { value: 'tablica', label: 'Rozmowa' },
   { value: 'sklad', label: 'Skład' },
   { value: 'staty', label: 'Statystyki' },
 ];
@@ -178,11 +179,36 @@ export default function GroupDetailClient() {
   };
 
   const handleRemove = async (userId: string) => {
-    if (!confirm('Usunąć tego gracza z ekipy? Straci dostęp do tablicy i meczów ekipy. Wpisy zostają.')) return;
+    if (!confirm('Usunąć tego gracza z ekipy? Straci dostęp do rozmowy i meczów ekipy. Wpisy zostają.')) return;
     setBusy(true);
     try { await removeMember(id, userId); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
+  };
+
+  const handleSetPerms = async (m: GroupMember, patch: PatchUprawnien) => {
+    try {
+      await setMemberPermissions(m.id, {
+        canManageMembers: patch.canManageMembers ?? m.canManageMembers,
+        canCreateEvents: patch.canCreateEvents ?? m.canCreateEvents,
+        canModerateWall: patch.canModerateWall ?? m.canModerateWall,
+        canInvite: patch.canInvite ?? m.canInvite,
+      });
+      setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...patch } : x)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić uprawnień', 'error');
+    }
+  };
+
+  const [kodSkopiowany, setKodSkopiowany] = useState(false);
+  const handleCopyCode = async () => {
+    if (!group) return;
+    try {
+      await navigator.clipboard.writeText(group.joinCode);
+      setKodSkopiowany(true);
+      toast('Skopiowano kod dołączenia');
+      setTimeout(() => setKodSkopiowany(false), 2000);
+    } catch { /* ignore */ }
   };
 
   const handleDelete = async () => {
@@ -239,12 +265,61 @@ export default function GroupDetailClient() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
-        <button
-          onClick={() => router.push('/grupy')}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-ink dark:text-slate-400"
-        >
-          <ArrowLeft className="h-4 w-4" /> Ekipy
-        </button>
+        {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
+            z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
+            wprost. Wszystko w jednym niskim pasku: powrót, tożsamość ekipy,
+            zaproszenie z kodem dołączenia obok, ustawienia. */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <button
+              onClick={() => router.push('/grupy')}
+              aria-label="Wróć do ekip"
+              className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
+              {group.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
+              )}
+            </span>
+            <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+            {member && perms.canInvite && (
+              <button
+                onClick={() => setInviteOpen(true)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950"
+              >
+                <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Zaproś</span>
+              </button>
+            )}
+            {member && perms.canInvite && (
+              <button
+                onClick={handleCopyCode}
+                title="Kopiuj kod dołączenia"
+                className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+              >
+                {kodSkopiowany ? <Check className="h-3 w-3 text-green-600" /> : group.joinCode}
+              </button>
+            )}
+            {perms.isFounder || perms.canManageMembers ? (
+              <Link
+                href={`/grupy/${group.id}/edytuj`}
+                className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-slate-700"
+                aria-label="Ustawienia ekipy"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+            ) : null}
+          </div>
+          <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
+            {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
+            {(group.sport || group.city || group.fieldName) && ' · '}
+            {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
+          </p>
+        </div>
 
         {legacyBezKodu && !member && (
           <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4">
@@ -255,49 +330,12 @@ export default function GroupDetailClient() {
           </div>
         )}
 
-        {/* Nagłówek — okładka jako mały kafelek, nie pół ekranu (dawny problem
-            zgłoszony wprost: zakrywała najważniejszą treść). */}
-        <div className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-700 to-primary-900 text-2xl">
-            {group.coverImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-xl font-bold text-ink">{group.name}</h1>
-            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-              {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
-              {(group.sport || group.city || group.fieldName) && ' · '}
-              {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
-            </p>
-            {member && (
-              <button
-                onClick={() => setInviteOpen(true)}
-                className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800"
-              >
-                <Link2 className="h-3.5 w-3.5" /> Zaproś
-              </button>
-            )}
-          </div>
-          {perms.isFounder || perms.canManageMembers ? (
-            <Link
-              href={`/grupy/${group.id}/edytuj`}
-              className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-slate-700"
-              aria-label="Ustawienia ekipy"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
-          ) : null}
-        </div>
-
         <NajblizszyMeczGrupy
           groupId={group.id}
           upcoming={member ? nextMatch : null}
           ostatni={member ? ostatniMecz : null}
           canCreateEvents={perms.canCreateEvents}
+          relation={nextMatch ? statusFor(nextMatch) : undefined}
         />
 
         {/* Zakładki */}
@@ -346,10 +384,10 @@ export default function GroupDetailClient() {
         )}
 
         {tab === 'tablica' && (member ? (
-          <TablicaGrupy groupId={group.id} permissions={perms} />
+          <RozmowaGrupy groupId={group.id} permissions={perms} />
         ) : (
           <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-            Tablica jest widoczna wyłącznie dla członków ekipy.
+            Rozmowa jest widoczna wyłącznie dla członków ekipy.
           </p>
         ))}
 
@@ -360,6 +398,7 @@ export default function GroupDetailClient() {
             permissions={perms}
             founderId={group.createdBy}
             onRemove={handleRemove}
+            onSetPerms={handleSetPerms}
           />
         )}
 

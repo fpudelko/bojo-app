@@ -1,26 +1,31 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { Crown, Shield, Trash2, User as UserIcon } from 'lucide-react';
+import { Crown, Settings, Shield, Trash2, User as UserIcon } from 'lucide-react';
+import UprawnieniaCzlonkaPanel, { type PatchUprawnien } from './UprawnieniaCzlonkaPanel';
+import { uprawnieniaCzlonka } from '@/lib/groups';
 import type { GroupMember, GroupPermissions } from '@/types';
 
 /**
  * Skład ekipy. Kebab „Usuń z ekipy" jest dostępny każdemu z
  * `can_manage_members` (nie tylko założycielowi) — spójnie z polityką DELETE
- * na `group_members` (migracja `092`). Zmiana UPRAWNIEŃ innego członka nie
- * jest tu dostępna wcale: politykę UPDATE na `group_members` ma wyłącznie
- * założyciel, więc ta akcja żyje jedynie w Ustawieniach (`/grupy/[id]/edytuj`),
- * a nie w tym menu — inaczej przycisk „nic by nie robił" reszcie zarządzających.
+ * na `group_members` (migracja `092`). Zmianę UPRAWNIEŃ innego członka widzi
+ * wyłącznie założyciel (ikona ustawień) — politykę UPDATE na `group_members`
+ * ma tylko on, więc przycisk pokazany komuś innemu „nic by nie robił".
  */
 export default function SkladGrupy({
-  members, myUserId, permissions, founderId, onRemove,
+  members, myUserId, permissions, founderId, onRemove, onSetPerms,
 }: {
   members: GroupMember[];
   myUserId?: string;
   permissions: GroupPermissions;
   founderId?: string;
   onRemove: (userId: string) => void;
+  onSetPerms: (member: GroupMember, patch: PatchUprawnien) => void;
 }) {
+  const [rozwinietyId, setRozwinietyId] = useState<string | null>(null);
+
   return (
     <div className="space-y-4">
       {members.length > 0 && (
@@ -45,38 +50,60 @@ export default function SkladGrupy({
         {members.map((m) => {
           const jestZalozycielem = !!founderId && m.userId === founderId;
           const mozeUsunac = permissions.canManageMembers && !jestZalozycielem && m.userId !== myUserId;
+          const mozeEdytowacUprawnienia = permissions.isFounder && !jestZalozycielem;
+          const rozwiniety = rozwinietyId === m.id;
           return (
-            <li key={m.id} className="flex items-center gap-3 py-2.5">
-              <Link href={`/gracz/${m.userId}`} className="group flex min-w-0 flex-1 items-center gap-3">
-                {m.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                    <UserIcon className="h-4 w-4" />
+            <li key={m.id} className="py-2.5">
+              <div className="flex items-center gap-3">
+                <Link href={`/gracz/${m.userId}`} className="group flex min-w-0 flex-1 items-center gap-3">
+                  {m.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={m.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                      <UserIcon className="h-4 w-4" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink transition-colors group-hover:text-primary-700">{m.name}</span>
+                    {jestZalozycielem ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                        <Crown className="h-3 w-3" /> Założyciel
+                      </span>
+                    ) : (m.canManageMembers || m.canCreateEvents || m.canModerateWall || m.canInvite) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary-700">
+                        <Shield className="h-3 w-3" /> Współorganizator
+                      </span>
+                    ) : null}
                   </span>
+                </Link>
+                {mozeEdytowacUprawnienia && (
+                  <button
+                    onClick={() => setRozwinietyId(rozwiniety ? null : m.id)}
+                    title="Uprawnienia"
+                    aria-expanded={rozwiniety}
+                    className={`shrink-0 rounded p-1.5 ${rozwiniety ? 'text-primary-700' : 'text-slate-400 hover:text-primary-600'}`}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
                 )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink transition-colors group-hover:text-primary-700">{m.name}</span>
-                  {jestZalozycielem ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                      <Crown className="h-3 w-3" /> Założyciel
-                    </span>
-                  ) : (m.canManageMembers || m.canCreateEvents || m.canModerateWall) ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary-700">
-                      <Shield className="h-3 w-3" /> Współorganizator
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
-              {mozeUsunac && (
-                <button
-                  onClick={() => onRemove(m.userId)}
-                  title="Usuń z ekipy"
-                  className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {mozeUsunac && (
+                  <button
+                    onClick={() => onRemove(m.userId)}
+                    title="Usuń z ekipy"
+                    className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {mozeEdytowacUprawnienia && rozwiniety && (
+                <div className="mt-2 rounded-xl bg-slate-50 px-3 dark:bg-slate-700/40">
+                  <UprawnieniaCzlonkaPanel
+                    perms={uprawnieniaCzlonka({ createdBy: founderId }, m)}
+                    onChange={(patch) => onSetPerms(m, patch)}
+                  />
+                </div>
               )}
             </li>
           );

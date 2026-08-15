@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { CalendarPlus, Loader2, MapPin, Share2 } from 'lucide-react';
+import { CalendarPlus, Loader2, Share2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { repeatEvent } from '@/lib/events';
+import type { MyEventRelation } from '@/lib/events';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { shareEvent, eventUrl } from '@/lib/eventShare';
 import type { EventItem } from '@/types';
@@ -20,13 +22,15 @@ import type { EventItem } from '@/types';
  * grupa nie miała jeszcze żadnego meczu.
  */
 export default function NajblizszyMeczGrupy({
-  groupId, upcoming, ostatni, canCreateEvents,
+  groupId, upcoming, ostatni, canCreateEvents, relation,
 }: {
   groupId: string;
   upcoming: EventItem | null;
   /** Ostatni rozegrany mecz grupy — źródło danych dla "Powtórz na {data}". */
   ostatni: EventItem | null;
   canCreateEvents: boolean;
+  /** Mój status w tym meczu — ten sam kształt, co karty na zakładce "Mecze". */
+  relation?: MyEventRelation;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -52,13 +56,6 @@ export default function NajblizszyMeczGrupy({
   };
 
   if (upcoming) {
-    const max = upcoming.maxPlayers ?? 0;
-    const taken = upcoming.participantsCount ?? 0;
-    const brakuje = Math.max(0, max - taken);
-    const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-    let kiedy = upcoming.date;
-    try { kiedy = format(parseISO(upcoming.date), 'EEEE, d MMMM', { locale: pl }); } catch { /* noop */ }
-
     const handleShare = async () => {
       const wynik = await shareEvent(upcoming, eventUrl(upcoming.id, window.location.origin));
       if (wynik === 'copied') toast('Skopiowano link do meczu');
@@ -67,32 +64,14 @@ export default function NajblizszyMeczGrupy({
     return (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700">Najbliższy mecz</p>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <p className="font-display text-lg font-bold capitalize text-ink">{kiedy}, {upcoming.time.slice(0, 5)}</p>
-          {upcoming.fieldName && (
-            <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
-              <MapPin className="h-3.5 w-3.5 shrink-0" /> {upcoming.fieldName}
-            </p>
-          )}
-          {max > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="shrink-0 text-xs text-slate-400">
-                {taken}/{max}{brakuje > 0 ? ` · brakuje ${brakuje}` : ''}
-              </span>
-            </div>
-          )}
-          <div className="mt-3 flex gap-2">
-            <Link href={`/wydarzenia/${upcoming.id}`} className="flex-1">
-              <Button className="w-full">Zobacz mecz</Button>
-            </Link>
-            <Button variant="outline" onClick={handleShare} className="inline-flex items-center gap-1.5">
-              <Share2 className="h-4 w-4" /> Udostępnij
-            </Button>
-          </div>
-        </div>
+        <EventBrowseCard event={upcoming} relation={relation} />
+        <Button
+          variant="outline"
+          onClick={handleShare}
+          className="mt-2 inline-flex w-full items-center justify-center gap-1.5"
+        >
+          <Share2 className="h-4 w-4" /> Udostępnij mecz
+        </Button>
       </section>
     );
   }

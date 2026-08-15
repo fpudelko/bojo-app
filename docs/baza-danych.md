@@ -1,6 +1,6 @@
 # Baza danych
 
-93 migracje (`001`–`095`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+94 migracje (`001`–`096`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -81,8 +81,8 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `event_invites` | `036` | Zaproszenia na mecz po e-mailu — **martwa**, `lib/invites.ts` nie jest nigdzie importowany |
 | `event_player_invites` | `060`, RLS poprawione w `061` | Imienne zaproszenia użytkowników na mecz |
 | `groups` | `044` | Stałe ekipy. `cover_image_url` (`046`), `field_id`/`field_name` (`051`), `join_code_rotated_at` (`094`) |
-| `group_members` | `044` | Członkowie ekip. `can_manage_members`/`can_create_events`/`can_moderate_wall`/`granted_by` (`092`), `invited_by` (`094`) — patrz `092`/`094` niżej |
-| `group_posts` | `093` | Tablica grupy — płaska lista, `pinned_at` dla ogłoszenia, zamknięta dla nie-członków |
+| `group_members` | `044` | Członkowie ekip. `can_manage_members`/`can_create_events`/`can_moderate_wall`/`granted_by` (`092`), `invited_by` (`094`), `can_invite` (`096`) — patrz `092`/`094`/`096` niżej |
+| `group_posts` | `093` | Rozmowa grupy (dawniej „Tablica") — płaska lista, `pinned_at` dla ogłoszenia, zamknięta dla nie-członków |
 | `analytics_events` | `047` | Log akcji do analityki |
 | `team_proposals` | `059` | Propozycje składów od uczestników |
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
@@ -133,6 +133,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `093_tablica_grupy` | Tabela `group_posts` (płaska lista, `pinned_at`, RLS zamknięte dla nie-członków przez `czy_czlonek_grupy`). `notifications.group_id` — powiadomienie bez meczu. Wyzwalacz `powiadom_o_ogloszeniu_w_grupie()` powiadamia ekipę WYŁĄCZNIE przy przypięciu wpisu przez kogoś z `can_moderate_wall`; `powiadom_o_nowym_meczu_w_grupie()` (`072`) dostaje `group_id` w insercie |
 | `094_zaproszenia_do_grupy` | `group_members.invited_by` + `groups.join_code_rotated_at`. RPC `dolacz_do_grupy_kodem(kod, od)` (jedyna droga samodzielnego dołączenia — weryfikuje `od` w bazie, zanim zapisze zapraszającego), `dodaj_czlonka_do_grupy` (dla `can_manage_members`, bez kodu), `odswiez_kod_grupy` (wyłącznie założyciel). **Zdejmuje politykę INSERT na `group_members`** — dotąd wystarczyło znać UUID grupy (publicznie czytelne), żeby się do niej dopisać |
 | `095_statystyki_grupy` | RPC `get_group_stats` (publiczne — pięć liczb do nagłówka grupy) i `get_group_leaderboard` (wyłącznie dla członków — `SECURITY DEFINER`, bo `player_reports` czyta tylko organizator/delegat). Zwycięstwa liczone wyłącznie tam, gdzie mecz miał podział na drużyny I zapisany wynik — stąd dodatkowa kolumna `matches_with_teams` jako mianownik |
+| `096_zaproszanie_do_grupy` | `group_members.can_invite` (domyślnie `true`, jak `can_create_events` w `092` — dziś każdy widzi „Zaproś" bez bramki) — czwarty niezależny przełącznik, kto widzi przycisk „Zaproś" i kod dołączenia. Bramka wyłącznie UI: `dolacz_do_grupy_kodem` (`094`) nie sprawdzała i nadal nie sprawdza uprawnień zapraszającego. Trigger `ustaw_role_czlonka()` (`092`) przedefiniowany, żeby wymusić `can_invite = true` na founderze |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

@@ -477,12 +477,13 @@ export interface GroupMember {
   userId: string;
   role: GroupRole;
   joinedAt: string;
-  // Trzy niezależne przełączniki (migracja `092`) — założyciel ma je zawsze
-  // `true` niezależnie od tego, co jest zapisane w wierszu (patrz
+  // Cztery niezależne przełączniki (migracje `092`, `096`) — założyciel ma
+  // je zawsze `true` niezależnie od tego, co jest zapisane w wierszu (patrz
   // `uprawnieniaCzlonka()` w `lib/groups.ts`, lustro wyzwalacza w bazie).
   canManageMembers: boolean;
   canCreateEvents: boolean;
   canModerateWall: boolean;
+  canInvite: boolean; // 096 — widzi przycisk "Zaproś" i kod dołączenia
   invitedBy?: string; // 094 — kto przyprowadził tę osobę do ekipy
   // joined from profiles / participations
   name: string;
@@ -495,6 +496,7 @@ export interface GroupPermissions {
   canManageMembers: boolean;
   canCreateEvents: boolean;
   canModerateWall: boolean;
+  canInvite: boolean;
 }
 
 /** Wpis na tablicy grupy (migracja `093`) — płaska lista, bez wątków. */

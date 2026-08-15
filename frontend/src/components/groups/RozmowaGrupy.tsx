@@ -9,7 +9,12 @@ import { useToast } from '@/lib/toast';
 import { getGroupPosts, addGroupPost, deleteGroupPost, setGroupPostPinned } from '@/lib/groupPosts';
 import type { GroupPost, GroupPermissions } from '@/types';
 
-export default function TablicaGrupy({ groupId, permissions }: { groupId: string; permissions: GroupPermissions }) {
+/**
+ * Rozmowa ekipy — dawna "Tablica". Wygląd dymków czatu (własne wiadomości po
+ * prawej), ale mechanika bez zmian: płaska lista, bez wątków, przypięcie
+ * wysyła powiadomienie do całej ekipy (`powiadom_o_ogloszeniu_w_grupie`, 093).
+ */
+export default function RozmowaGrupy({ groupId, permissions }: { groupId: string; permissions: GroupPermissions }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<GroupPost[]>([]);
@@ -19,7 +24,7 @@ export default function TablicaGrupy({ groupId, permissions }: { groupId: string
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    getGroupPosts(groupId).then(setPosts).catch((e) => console.warn('[TablicaGrupy]', e)).finally(() => setLoading(false));
+    getGroupPosts(groupId).then(setPosts).catch((e) => console.warn('[RozmowaGrupy]', e)).finally(() => setLoading(false));
   }, [groupId]);
 
   useEffect(() => { load(); }, [load]);
@@ -102,38 +107,54 @@ export default function TablicaGrupy({ groupId, permissions }: { groupId: string
           </p>
         </div>
       ) : (
-        <ul className="space-y-2.5">
-          {posts.map((p) => (
-            <li
-              key={p.id}
-              className={`rounded-2xl border p-3.5 ${p.pinnedAt ? 'border-primary-200 bg-primary-50/60' : 'border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800'}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    {p.pinnedAt && <Pin className="h-3 w-3 shrink-0 text-primary-700" />}
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{p.userName}</span>
-                    <span className="text-xs text-slate-400">
-                      {format(parseISO(p.createdAt), 'd MMM, HH:mm', { locale: pl })}
-                    </span>
+        // Kolejność zostaje jak w `getGroupPosts`: przypięty pierwszy, reszta
+        // malejąco. Pole do pisania jest nad listą (nie pod, jak w typowym
+        // czacie), więc najnowszy wpis MA być na górze, blisko composera —
+        // odwrócenie do porządku chronologicznego oddaliłoby świeżą
+        // wiadomość od miejsca, w którym powstała.
+        <ul className="flex flex-col gap-2.5">
+          {posts.map((p) => {
+            const wlasny = user?.id === p.userId;
+            return (
+              <li key={p.id} className={`flex ${wlasny ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] ${wlasny ? 'items-end' : 'items-start'} flex flex-col`}>
+                  {!wlasny && (
+                    <span className="mb-0.5 px-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{p.userName}</span>
+                  )}
+                  <div
+                    className={[
+                      'rounded-2xl px-3.5 py-2.5 text-sm',
+                      wlasny
+                        ? 'rounded-br-sm bg-primary-700 text-white'
+                        : 'rounded-bl-sm bg-white text-ink shadow-sm dark:bg-slate-800',
+                      p.pinnedAt && !wlasny ? 'ring-1 ring-primary-200' : '',
+                      p.pinnedAt && wlasny ? 'ring-1 ring-primary-300' : '',
+                    ].join(' ')}
+                  >
+                    {p.pinnedAt && (
+                      <span className={`mb-1 flex items-center gap-1 text-[11px] font-semibold ${wlasny ? 'text-primary-100' : 'text-primary-700'}`}>
+                        <Pin className="h-3 w-3" /> Przypięte
+                      </span>
+                    )}
+                    <p className="whitespace-pre-line">{p.body}</p>
                   </div>
-                  <p className="mt-1 whitespace-pre-line text-sm text-ink">{p.body}</p>
+                  <div className={`mt-1 flex items-center gap-2 px-1 text-[11px] text-slate-400 ${wlasny ? 'flex-row-reverse' : ''}`}>
+                    <span>{format(parseISO(p.createdAt), 'd MMM, HH:mm', { locale: pl })}</span>
+                    {permissions.canModerateWall && (
+                      <button onClick={() => handlePin(p)} className="hover:text-primary-600" title={p.pinnedAt ? 'Odepnij' : 'Przypnij na górze'}>
+                        <Pin className="h-3 w-3" />
+                      </button>
+                    )}
+                    {(wlasny || permissions.canModerateWall) && (
+                      <button onClick={() => handleDelete(p.id)} className="hover:text-red-500" title="Usuń wiadomość">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  {permissions.canModerateWall && (
-                    <button onClick={() => handlePin(p)} className="rounded p-1 text-slate-300 hover:text-primary-600" title={p.pinnedAt ? 'Odepnij' : 'Przypnij na górze'}>
-                      <Pin className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  {(user?.id === p.userId || permissions.canModerateWall) && (
-                    <button onClick={() => handleDelete(p.id)} className="rounded p-1 text-slate-300 hover:text-red-500" title="Usuń wpis">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -905,55 +905,69 @@ Karta ekipy pokazuje od razu to, po co się tu wchodzi: **kiedy gramy**, nie tyl
 `getMyGroupsZTerminem()` (`lib/groups.ts`) dociąga do listy grup najbliższy nadchodzący
 mecz każdej z nich — dwa zapytania na cały ekran. Karta ma termin, miejsce i pasek
 zapełnienia składu; gdy grupa nie ma terminu, pokazuje „Brak terminu" z odnośnikiem do
-kreatora. Kod zaproszenia (jedyna droga samodzielnego dołączenia, patrz niżej) żyje
-w dyskretnym wierszu na dole, nie w karcie na pół ekranu jak wcześniej — otwiera bottom
-sheet (`KodGrupySheet.tsx`).
+kreatora. **Lista jest posortowana po najbliższym terminie** (rosnąco: grupa z meczem
+jutro przed grupą z meczem za miesiąc), nie po dacie założenia ekipy; grupy bez terminu
+lądują na końcu, w kolejności `created_at` malejąco. Kod zaproszenia (jedyna droga
+samodzielnego dołączenia, patrz niżej) żyje w dyskretnym wierszu na dole, nie w karcie
+na pół ekranu jak wcześniej — otwiera bottom sheet (`KodGrupySheet.tsx`).
 
 ## Układ `/grupy/[id]`
 
 Trasa jest rozdzielona na serwerowy `page.tsx` (z `generateMetadata`) i
 `GroupDetailClient.tsx`, który składa cztery komponenty z `components/groups/`:
-`NajblizszyMeczGrupy`, `TablicaGrupy`, `SkladGrupy`, `StatystykiGrupy`. Metadane są tu
+`NajblizszyMeczGrupy`, `RozmowaGrupy`, `SkladGrupy`, `StatystykiGrupy`. Metadane są tu
 istotne, bo **strona grupy jest jednym z celów linku zaproszenia** `/g/[kod]` — bez nich
 każde udostępnienie pokazywało generyczny tytuł całej aplikacji.
 
-Układ od góry: nagłówek — okładka jako mały kafelek 56×56, **nie** hero na pół ekranu
-(dawny layout zakrywał nią najważniejszą treść, zgłoszone wprost) — nazwa, meta
-(sport/miasto/boisko/liczba członków), przycisk „Zaproś" (otwiera
-`ZaprosDoGrupySheet.tsx`) i zębatka ustawień dla założyciela/zarządzającego. Zaraz pod
-nim „Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) — **tu żyje cotygodniowa pętla**: gdy
-grupa ma nadchodzący mecz, karta z terminem, paskiem składu i linkiem do meczu; gdy nie
-ma, ale ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym
-kliknięciem (`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co
-poprzednio — całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja
-`072`/`093`); gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora.
-Środkowy FAB dolnej nawigacji na trasie `/grupy/<id>` sam prowadzi do
+Układ od góry: **niska belka** łącząca powrót, tożsamość ekipy i akcje w jednym rzędzie —
+strzałka powrotu, mały kafelek 32×32 (okładka albo emoji sportu), nazwa, przycisk
+„Zaproś" (otwiera `ZaprosDoGrupySheet.tsx`, widoczny tylko z `can_invite`), obok niego
+kod dołączenia jako klikalny chip (kopiuje kod do schowka) i zębatka ustawień dla
+założyciela/zarządzającego. Osobny wiersz pod belką niesie meta (sport/miasto/boisko/
+liczba członków) — dawniej to wszystko zajmowało osobny wiersz „← Ekipy" plus kartę
+nagłówka z okładką na pół ekranu, co zgłoszono wprost jako zajmujące za dużo miejsca.
+Zaraz pod belką „Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) — **tu żyje cotygodniowa
+pętla**: gdy grupa ma nadchodzący mecz, ten sam komponent karty co na `/wydarzenia`
+(`EventBrowseCard`, z moim statusem uczestnictwa) plus osobny przycisk „Udostępnij mecz"
+pod spodem; gdy nie ma, ale ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy
+termin jednym kliknięciem (`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data
+i godzina co poprzednio — całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`,
+migracja `072`/`093`); gdy grupa nie miała jeszcze żadnego meczu, link prosto do
+kreatora. Środkowy FAB dolnej nawigacji na trasie `/grupy/<id>` sam prowadzi do
 `/wydarzenia/nowe?group=<id>` (`BottomNav.tsx`) — to samo działanie na desktopie robi
 tekstowy „+ Nowy termin" w zakładce Mecze.
 
-Cztery zakładki: **Mecze** (nadchodzące/historia, jak dawniej) / **Tablica** (patrz
-niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (rząd awatarów + lista,
-plakietka „Założyciel"/„Współorganizator", kebab „Usuń z ekipy" dla
-`can_manage_members` — **nie** zmiana uprawnień, ta jest wyłącznie w Ustawieniach, bo
-politykę UPDATE na `group_members` ma tylko założyciel) / **Statystyki** (patrz „Wyniki
-i statystyki" w `docs/domena.md`).
+Cztery zakładki: **Mecze** (nadchodzące/historia, jak dawniej) / **Rozmowa** (dawniej
+„Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (rząd awatarów
++ lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
+panel z czterema przełącznikami inline — dla założyciela — i kebab „Usuń z ekipy" dla
+`can_manage_members`) / **Statystyki** (patrz „Wyniki i statystyki" w `docs/domena.md`).
+Zmiana uprawnień innego członka jest dostępna w dwóch miejscach o identycznej treści
+panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — obie ścieżki
+działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
 
-Zakładka trzyma stan w URL (`?tab=tablica`), ale przez `window.history.replaceState`,
-**nie** `router.replace` jak na `/moje-gry`. Powód: `/moje-gry` jest trasą statyczną
-i nawigacja nic nie kosztuje, a `/grupy/[id]` jest dynamiczna — każde `router.replace`
-byłoby round-tripem po dane z serwera (łącznie z `generateMetadata`), przez co adres
-w praktyce w ogóle się nie zmieniał.
+Zakładka trzyma stan w URL (`?tab=tablica` — nazwa parametru zostaje bez zmian mimo
+etykiety „Rozmowa", żeby nie psuć zapisanych linków), ale przez
+`window.history.replaceState`, **nie** `router.replace` jak na `/moje-gry`. Powód:
+`/moje-gry` jest trasą statyczną i nawigacja nic nie kosztuje, a `/grupy/[id]` jest
+dynamiczna — każde `router.replace` byłoby round-tripem po dane z serwera (łącznie
+z `generateMetadata`), przez co adres w praktyce w ogóle się nie zmieniał.
 
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
 
 ## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
 
-**Trzy niezależne przełączniki** (`can_manage_members`, `can_create_events`,
-`can_moderate_wall`, migracja `092`) — panel „Uprawnienia" w
-`/grupy/[id]/edytuj`, widoczny wyłącznie założycielowi (RLS pozwala zmieniać te
-kolumny tylko jemu). Pełny model → [docs/domena.md § Uprawnienia w
-grupie](./domena.md#uprawnienia-w-grupie).
+**Cztery niezależne przełączniki** (`can_manage_members`, `can_create_events`,
+`can_invite`, `can_moderate_wall`, migracje `092`/`096`) — panel „Uprawnienia", dostępny
+z dwóch miejsc: rozwijany przy członku w zakładce Skład i w osobnej zakładce
+„Uprawnienia" na `/grupy/[id]/edytuj` (akordeon, rozwijany po imieniu). Obie ścieżki
+widoczne wyłącznie założycielowi (RLS pozwala zmieniać te kolumny tylko jemu). Pełny
+model → [docs/domena.md § Uprawnienia w grupie](./domena.md#uprawnienia-w-grupie).
+
+Strona ustawień grupy (`/grupy/[id]/edytuj`) ma od tej zmiany zakładki: **Ogólne**
+(nazwa, sport, miasto, boisko, opis, okładka, strefa niebezpieczna), **Zaproszenia**
+(link, kod, rotacja kodu) i, wyłącznie dla założyciela, **Uprawnienia**.
 
 **`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta grupę,
 najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane w bazie) imię

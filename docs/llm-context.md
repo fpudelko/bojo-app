@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-14 · migracja `095` · 33 tabele · 520 testów
+**Stan na:** 2026-08-15 · migracja `096` · 33 tabele · 524 testy
 
 ---
 
@@ -174,15 +174,18 @@ ludzi od zera w wątku na komunikatorze, historia wspólnych meczów nigdzie nie
 a organizator jest jedyną osobą, która może cokolwiek zmienić.
 
 **Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków,
-mecze grupy, tablica ogłoszeń i statystyki w jednym miejscu. Dołącza się wyłącznie
-kodem zaproszenia — link `/g/[kod]` pokazuje ekipę i najbliższy mecz bez konta, a
-rejestracja od razu wciąga do grupy. Założyciel może nadać zaufanym członkom trzy
-niezależne uprawnienia: zarządzanie składem ekipy, zakładanie meczów w jej imieniu
-i moderowanie tablicy — sam pozostaje jedyną osobą, która może usunąć grupę.
+mecze grupy, rozmowa (wyglądem jak dymki czatu) i statystyki w jednym miejscu. Lista
+ekip na `/grupy` jest posortowana po najbliższym terminie, nie po dacie założenia —
+najpierw ta, która gra najwcześniej. Dołącza się wyłącznie kodem zaproszenia — link
+`/g/[kod]` pokazuje ekipę i najbliższy mecz bez konta, a rejestracja od razu wciąga do
+grupy. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
+zarządzanie składem ekipy, zakładanie meczów w jej imieniu, zapraszanie nowych (widzą
+przycisk „Zaproś" i kod dołączenia) i moderowanie rozmowy — sam pozostaje jedyną osobą,
+która może usunąć grupę.
 
 **Mechanika.** Logika w `frontend/src/lib/groups.ts` (+ `groupPosts.ts`,
 `groupStats.ts`, `groupShare.ts`), tabele `groups`/`group_members` (migracja `044`,
-uprawnienia i nadawca zaproszenia dołożone w `092`/`094`), `group_posts` (tablica,
+uprawnienia i nadawca zaproszenia dołożone w `092`/`094`/`096`), `group_posts` (rozmowa,
 migracja `093`). Twórca grupy zostaje jej członkiem automatycznie (trigger
 `add_group_creator_as_member`) z pełnią uprawnień, których nie da się mu odebrać.
 Dołączenie kodem idzie przez funkcję bazodanową `dolacz_do_grupy_kodem()` — sama
@@ -197,8 +200,9 @@ nie luka.
 **Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Jak dołączyć do stałej
 ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
 mecz swojej ekipy? Czy członkowie grupy dostają powiadomienie o nowym meczu? Czy
-w grupie jest czat albo tablica ogłoszeń? Czy założyciel grupy może dać komuś innemu
-uprawnienia do zarządzania ekipą? Czy grupa ma statystyki graczy?
+w grupie jest czat? Czy założyciel grupy może dać komuś innemu uprawnienia do
+zarządzania ekipą, w tym prawo zapraszania nowych osób? Czy grupa ma statystyki graczy?
+W jakiej kolejności wyświetla się lista moich ekip?
 
 ---
 
@@ -260,8 +264,9 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Osobna wartość „tylko dla grupy" w `events.visibility`.** Kolumna to wyłącznie
   `private`/`public` — ale prywatny mecz przypięty do grupy i tak widzi cała ekipa,
   patrz sekcja „Grupy" wyżej.
-- **Czat w czasie rzeczywistym w grupie.** Jest tablica ogłoszeń (płaska lista wpisów,
-  bez wątków) — nie wiadomości na żywo.
+- **Czat w czasie rzeczywistym w grupie.** Jest rozmowa (płaska lista wpisów w formie
+  dymków, bez wątków, bez załączników) — nie wiadomości na żywo; strona trzeba odświeżyć,
+  żeby zobaczyć nowy wpis od kogoś innego.
 - **Realny przepływ pieniędzy** (BLIK, Stripe). Bojo rejestruje, kto zapłacił.
 - **Rankingi publiczne, ocena umiejętności, dopasowywanie meczów do poziomu.**
 - **Odznaki** — poza znaczkiem „rzetelny gracz" (≥5 rozegranych gier, 0 nieobecności).
@@ -313,6 +318,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-15 — Ekran grupy: niska belka, rozmowa zamiast tablicy, sortowanie po terminie, uprawnienie do zapraszania
+
+PROBLEM: nagłówek `/grupy/[id]` zajmował za dużo miejsca (osobny wiersz „← Ekipy" nad
+kartą z okładką) zamiast pokazać od razu, kiedy gramy; kod dołączenia był schowany
+w osobnym ekranie ustawień zamiast obok przycisku „Zaproś"; lista ekip na `/grupy`
+sortowała się po dacie założenia, nie po tym, która gra najbliżej; zmiana uprawnień
+innego członka żyła wyłącznie w Ustawieniach, mimo że najczęściej potrzebna jest
+dokładnie tam, gdzie widać skład; „Zaproś" i kod dołączenia widział każdy członek bez
+żadnej bramki, bo `can_manage_members` mieszało dwa różne poziomy zaufania (dodawanie
+ludzi wprost i samo zapraszanie kodem) w jednym przełączniku; „Najbliższy mecz" miał
+własną, niestandardową kartę zamiast tej samej, którą gracz zna z `/wydarzenia`.
+
+ROZWIĄZANIE BOJO: jedna niska belka łączy powrót, tożsamość ekipy, „Zaproś", kod
+dołączenia (klikalny, kopiuje do schowka) i ustawienia. Lista `/grupy` sortuje się po
+najbliższym terminie. „Tablica" zmieniła się w „Rozmowę" — wizualnie dymki czatu, własne
+wiadomości po prawej. W Składzie każdy członek ma teraz przycisk ustawień rozwijający
+panel uprawnień inline (dla założyciela), a Ustawienia dostały zakładki (Ogólne /
+Zaproszenia / Uprawnienia) z tym samym panelem jako akordeon rozwijany po imieniu.
+Nowy, czwarty przełącznik `can_invite` steruje wyłącznie widocznością „Zaproś" i kodu —
+niezależnie od `can_manage_members`. „Najbliższy mecz" renderuje się teraz tą samą kartą
+co lista meczów (`EventBrowseCard`), z „Udostępnij" jako osobnym przyciskiem pod spodem.
+
+MECHANIKA: migracja `096` (`group_members.can_invite`, domyślnie `true` — dziś każdy to
+widzi bez bramki, ten sam powód co `can_create_events` w `092`; trigger
+`ustaw_role_czlonka()` przedefiniowany, żeby wymusić `true` na założycielu). Nowy
+`components/groups/UprawnieniaCzlonkaPanel.tsx` (cztery `ToggleRow`, współdzielony przez
+`SkladGrupy.tsx` i `/grupy/[id]/edytuj`); `TablicaGrupy.tsx` przemianowany na
+`RozmowaGrupy.tsx` (mechanika bez zmian — `group_posts`, `093` — zmienił się wyłącznie
+wygląd i etykieta); `getMyGroupsZTerminem()` w `lib/groups.ts` sortuje wynik po dacie
+najbliższego meczu, grupy bez terminu na końcu.
 
 ### 2026-08-14 — Grupy jako magnes na organizatora: uprawnienia, tablica, zaproszenia z nadawcą, statystyki
 
@@ -651,29 +687,5 @@ i `confirmedCounts()`; `joinEvent()` woła RPC, `approveParticipant()`, `addGues
 i `confirmFromMaybe()` pytają `czy_na_rezerwe()`); nowy `lib/zapytania.ts`;
 `frontend/.eslintrc.js`, `playwright.config.ts` i `e2e/klikalnosc.spec.ts`;
 `.github/workflows/ci.yml` (kroki lint i build, osobne zadanie `e2e`).
-
-### 2026-08-11 — Miejsca dla bramkarzy: rezerwacja albo wspólna pula, do wyboru
-
-PROBLEM: mecz w Bojo z rozróżnieniem bramkarzy dzielił pulę na sztywno — przy 14 miejscach
-i 2 bramkarzach zawodnicy z pola konkurowali o 12, więc trzynasty chętny lądował na
-rezerwie, podczas gdy dwa miejsca dla bramkarzy stały puste i nikt ich nie zajmował.
-Liczba wpisana przez organizatora jako „liczba miejsc" nie była liczbą osób, które mogą
-dołączyć, a nic o tym nie mówiło. Rezerwacja bywa jednak dokładnie tym, czego organizator
-chce — bez niej można skończyć z kompletem zawodników z pola i zerem bramkarzy.
-
-ROZWIĄZANIE BOJO: podział miejsc jest wyborem organizatora, z opisem skutków liczonym
-z realnej liczby miejsc. Trzy tryby: bez podziału na role (wszystkie miejsca wspólne),
-rozróżnianie bez rezerwacji (wspólna pula, bramkarzy nie wejdzie więcej niż limit, może
-zdarzyć się komplet bez bramkarza) oraz rezerwacja (14 miejsc = 12 w polu + 2 dla
-bramkarzy, miejsca bramkarzy czekają do końca). Licznik na stronie meczu mówi to samo
-językiem gracza: przy rezerwacji rozbija miejsca na role, przy wspólnej puli podaje
-liczbę wspólną z dopiskiem, ilu bramkarzy jeszcze wejdzie.
-
-MECHANIKA: migracja `077` (kolumna `events.goalkeeper_slots_reserved`, domyślnie `true`,
-oraz `sync_reserve_claim()` respektujące tryb — bez tego kolejka rezerwowa liczyłaby
-pojemność inaczej niż aplikacja przy zapisie); `lib/events.ts` (`decydujCzyRezerwa()`
-i `wolneMiejscaWgRol()` z tym samym podziałem); `EventCapacityFields.tsx` (trzy opcje
-z opisem zamiast przełącznika); `wydarzenia/nowe` i `wydarzenia/[id]/edytuj` (stan trybu);
-`lib/eventDraft.ts` (szkic pamięta tryb).
 
 

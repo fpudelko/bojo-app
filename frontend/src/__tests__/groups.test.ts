@@ -39,6 +39,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   joinGroupByCode, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
+  uprawnieniaCzlonka, getMyGroupsZTerminem,
 } from '@/lib/groups';
 
 beforeEach(() => {
@@ -115,7 +116,7 @@ describe('setMemberPermissions', () => {
     const chain = chainFor('group_members');
     chain.select.mockImplementationOnce(() => Promise.resolve({ data: [{ id: 'member-row-1' }], error: null }));
     await expect(setMemberPermissions('member-row-1', {
-      canManageMembers: true, canCreateEvents: true, canModerateWall: false,
+      canManageMembers: true, canCreateEvents: true, canModerateWall: false, canInvite: true,
     })).resolves.toBeUndefined();
   });
 
@@ -123,8 +124,39 @@ describe('setMemberPermissions', () => {
     const chain = chainFor('group_members');
     chain.select.mockImplementationOnce(() => Promise.resolve({ data: [], error: null }));
     await expect(setMemberPermissions('member-row-1', {
-      canManageMembers: true, canCreateEvents: false, canModerateWall: false,
+      canManageMembers: true, canCreateEvents: false, canModerateWall: false, canInvite: false,
     })).rejects.toThrow(/Nie udało się zmienić uprawnień/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// uprawnieniaCzlonka — czysta funkcja, lustro triggera ustaw_role_czlonka
+// z bazy (migracje `092`, `096`).
+// ---------------------------------------------------------------------------
+describe('uprawnieniaCzlonka', () => {
+  it('gives the founder every right, even when every column in the row is false', () => {
+    const p = uprawnieniaCzlonka(
+      { createdBy: 'founder-1' },
+      { userId: 'founder-1', canManageMembers: false, canCreateEvents: false, canModerateWall: false, canInvite: false },
+    );
+    expect(p).toEqual({ isFounder: true, canManageMembers: true, canCreateEvents: true, canModerateWall: true, canInvite: true });
+  });
+
+  it('reads canInvite from the row for a non-founder member', () => {
+    const p = uprawnieniaCzlonka(
+      { createdBy: 'founder-1' },
+      { userId: 'member-1', canManageMembers: false, canCreateEvents: true, canModerateWall: false, canInvite: true },
+    );
+    expect(p.isFounder).toBe(false);
+    expect(p.canInvite).toBe(true);
+  });
+
+  it('does not promote anyone when the group has no founder (creator account deleted)', () => {
+    const p = uprawnieniaCzlonka(
+      { createdBy: undefined },
+      { userId: 'member-1', canManageMembers: true, canCreateEvents: true, canModerateWall: true, canInvite: true },
+    );
+    expect(p.isFounder).toBe(false);
   });
 });
 
@@ -137,7 +169,7 @@ describe('getGroupMembers', () => {
     tables.group_members = {
       data: [{
         id: 'm1', group_id: 'g1', user_id: 'u1', role: 'admin', joined_at: '2026-01-01',
-        can_manage_members: true, can_create_events: true, can_moderate_wall: false, invited_by: 'u9',
+        can_manage_members: true, can_create_events: true, can_moderate_wall: false, can_invite: true, invited_by: 'u9',
       }],
       error: null,
     };
@@ -148,6 +180,7 @@ describe('getGroupMembers', () => {
     expect(m.canManageMembers).toBe(true);
     expect(m.canCreateEvents).toBe(true);
     expect(m.canModerateWall).toBe(false);
+    expect(m.canInvite).toBe(true);
     expect(m.invitedBy).toBe('u9');
     expect(m.name).toBe('Jan Kowalski');
   });
@@ -156,7 +189,7 @@ describe('getGroupMembers', () => {
     tables.group_members = {
       data: [{
         id: 'm1', group_id: 'g1', user_id: 'u1', role: 'member', joined_at: '2026-01-01',
-        can_manage_members: false, can_create_events: true, can_moderate_wall: false, invited_by: null,
+        can_manage_members: false, can_create_events: true, can_moderate_wall: false, can_invite: false, invited_by: null,
       }],
       error: null,
     };
@@ -171,7 +204,7 @@ describe('getGroupMembers', () => {
     tables.group_members = {
       data: [{
         id: 'm1', group_id: 'g1', user_id: 'u1', role: 'member', joined_at: '2026-01-01',
-        can_manage_members: false, can_create_events: true, can_moderate_wall: false, invited_by: null,
+        can_manage_members: false, can_create_events: true, can_moderate_wall: false, can_invite: false, invited_by: null,
       }],
       error: null,
     };
@@ -180,5 +213,33 @@ describe('getGroupMembers', () => {
 
     const [m] = await getGroupMembers('g1');
     expect(m.name).toBe('Gracz');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMyGroupsZTerminem — grupa z najbliższym terminem ma iść pierwsza,
+// grupy bez terminu lądują na końcu w niezmienionej kolejności.
+// ---------------------------------------------------------------------------
+describe('getMyGroupsZTerminem', () => {
+  it('sorts groups with an upcoming match ahead of ones without, nearest date first', async () => {
+    tables.group_members = { data: [{ group_id: 'g-far' }, { group_id: 'g-none' }, { group_id: 'g-near' }], error: null };
+    tables.groups = {
+      data: [
+        { id: 'g-far', name: 'Daleki termin', created_at: '2026-01-01' },
+        { id: 'g-none', name: 'Bez terminu', created_at: '2026-02-01' },
+        { id: 'g-near', name: 'Bliski termin', created_at: '2026-03-01' },
+      ],
+      error: null,
+    };
+    tables.events = {
+      data: [
+        { id: 'e-near', group_id: 'g-near', event_date: '2026-08-16', event_time: '19:00:00', status: 'confirmed' },
+        { id: 'e-far', group_id: 'g-far', event_date: '2026-09-01', event_time: '19:00:00', status: 'confirmed' },
+      ],
+      error: null,
+    };
+
+    const groups = await getMyGroupsZTerminem('user-1');
+    expect(groups.map((g) => g.id)).toEqual(['g-near', 'g-far', 'g-none']);
   });
 });
