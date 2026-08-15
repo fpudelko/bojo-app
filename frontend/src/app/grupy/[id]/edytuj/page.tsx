@@ -142,7 +142,7 @@ export default function EditGroupPage() {
 
   const handleDelete = async () => {
     if (!group) return;
-    if (!confirm(`Usunąć ekipę ${group.name}? Znika tablica, skład i statystyki. Mecze zostają, ale przestają być przypisane do ekipy. Tego nie da się cofnąć.`)) return;
+    if (!confirm(`Usunąć ekipę ${group.name}? Znika rozmowa, skład i statystyki. Mecze zostają, ale przestają być przypisane do ekipy. Tego nie da się cofnąć.`)) return;
     setBusy(true);
     try { await deleteGroup(id); toast('Ekipa usunięta'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }

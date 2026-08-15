@@ -55,6 +55,7 @@ export default function EditEventPage() {
   const [durationMin, setDurationMin] = useState(90);
   const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [minPlayers, setMinPlayers] = useState<number | null>(null);
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState(true);
   // Tryb miejsc dla bramkarzy (migracja `077`) — w edycji zawsze znamy
   // wartość z bazy, więc bez stanu „nie zdecydowano".
@@ -126,6 +127,7 @@ export default function EditEventPage() {
           setDurationMin(diff > 0 ? diff : 90);
         }
         setMaxPlayers(ev.maxPlayers);
+        setMinPlayers(ev.minPlayers ?? null);
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
         setSlotyZarezerwowane(ev.goalkeeperSlotsReserved ?? true);
         setReserveClaimHours(ev.reserveClaimHours ?? 3);
@@ -212,6 +214,7 @@ export default function EditEventPage() {
       time,
       endTime: endTime ?? undefined,
       maxPlayers,
+      minPlayers: minPlayers ?? undefined,
       maxGoalkeepers: 2,
       goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
       goalkeeperSlotsReserved: slotyZarezerwowane,
@@ -440,6 +443,8 @@ export default function EditEventPage() {
             sport={sport}
             maxPlayers={maxPlayers}
             onMaxPlayersChange={setMaxPlayers}
+            minPlayers={minPlayers}
+            onMinPlayersChange={setMinPlayers}
             goalkeepersEnabled={goalkeepersEnabled}
             slotyZarezerwowane={slotyZarezerwowane}
             setSlotyZarezerwowane={setSlotyZarezerwowane}

@@ -91,6 +91,20 @@ export function eventShareText(e: DaneDoUdostepnienia): string {
   return linie.join('\n');
 }
 
+/**
+ * Tekst do wklejenia na WhatsAppa, żeby zaczepić milczących z ekipy — Prawo 3
+ * strategii grup: nie walczymy z kanałem, w którym ekipa już rozmawia, tylko
+ * karmimy go gotową treścią. Zawsze z linkiem `/wydarzenia/{id}` (patrz
+ * `eventUrl`), nigdy z `/d/{kod}` — z tego samego powodu co reszta udostępnień.
+ */
+export function tekstZaczepki(e: DaneDoUdostepnienia, brakuje: number, url: string): string {
+  const opis = eventShareText(e);
+  const wezwanie = brakuje > 0
+    ? `Brakuje nam jeszcze ${withCount(brakuje, 'osoba', 'osoby', 'osób')} do kompletu. Dajcie znać, kto wchodzi 🙏`
+    : 'Dajcie znać, kto wchodzi 🙏';
+  return `${opis}\n\n${wezwanie}\n${url}`;
+}
+
 export type WynikUdostepnienia = 'shared' | 'copied' | 'failed';
 
 /**

@@ -155,6 +155,8 @@ export interface EventItem {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  /** Ilu graczy musi być w składzie, żeby gra się odbyła. `undefined` = brak progu (097). */
+  minPlayers?: number;
   participantsCount?: number; // non-reserve app participants (populated in list queries)
   pendingApprovalCount?: number; // awaiting organizer approval (requireApproval matches)
   /** Regulars (not reserve, not pending) without has_paid — populated in list
@@ -246,6 +248,13 @@ export interface EventParticipant {
   sportsCardProvider?: SportsCardProvider;
 }
 
+/** Jawna odmowa udziału (migracja `097`) — "nie gram", nie "nieobecność". */
+export interface EventDecline {
+  eventId: string;
+  userId: string;
+  createdAt: string;
+}
+
 export interface EventCreate {
   sport: string;
   fieldId?: string;
@@ -258,6 +267,8 @@ export interface EventCreate {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  /** Ilu graczy musi być, żeby gra się odbyła. Brak = brak progu (097). */
+  minPlayers?: number;
   visibility: Visibility;
   customLocationName?: string;
   customAddress?: string;

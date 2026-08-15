@@ -20,6 +20,8 @@ import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import GuestInviteNudge from '@/components/events/GuestInviteNudge';
+import CzyGramyPanel from '@/components/events/CzyGramyPanel';
+import NieGramButton from '@/components/events/NieGramButton';
 import {
   getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
   terminyWZakresie, type ZakresEdycji,
@@ -2321,6 +2323,22 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        {/* ── CZY GRAMY? ── odpowiada na to, co ekipy dziś liczą ręcznie na
+            czacie: próg minimum, kto z ekipy milczy, otwarcie dla okolicy
+            gdy brakuje ludzi. Renderuje się tylko organizatorowi/delegatowi
+            i tylko wtedy, gdy faktycznie ma coś do powiedzenia. */}
+        {!eventStarted && (
+          <div className="px-4">
+            <CzyGramyPanel
+              event={event}
+              participants={participants}
+              canManage={canManageSquad}
+              busy={busy}
+              onOtworzDlaOkolicy={() => handleSetVisibility('public')}
+            />
+          </div>
+        )}
+
         {/* ── PLAYER COUNT BLOCK ── */}
         {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo") */}
         <div id="sklad" className="px-4">
@@ -2903,6 +2921,15 @@ export default function EventDetailClient() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── NIE GRAM — jawna odmowa dla członka ekipy, który jeszcze nie
+            odpowiedział. Cisza w Bojo znaczyła dotąd naraz "nie widziałem"
+            i "odpadam"; to jest osobna, widoczna odpowiedź (097). ── */}
+        {user && event.groupId && !amIInvolved && !eventStarted && (
+          <div className="px-4">
+            <NieGramButton eventId={event.id} userId={user.id} />
           </div>
         )}
 

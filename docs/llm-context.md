@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-15 · migracja `096` · 33 tabele · 524 testy
+**Stan na:** 2026-08-15 · migracja `097` · 34 tabele · 554 testy
 
 ---
 
@@ -135,10 +135,25 @@ nie blokuje miejsca (migracja `048`). Bramkarze mają osobny limit `max_goalkeep
 nie wskakuje na jego miejsce — organizator powiadamia go ręcznie. To świadoma decyzja
 produktowa, nie brakująca funkcja.
 
+**„Czy gramy?"** Organizator może ustawić `min_players` — ile osób musi być w składzie,
+żeby mecz się odbył. Strona meczu pokazuje wprost werdykt („Gramy ✓" albo „Brakuje 2 do
+minimum"), zamiast zostawiać to liczeniu w głowie. Przy meczu przypiętym do stałej ekipy
+organizator widzi też, kto z ekipy jeszcze nie odpowiedział (ani nie dołączył, ani nie
+odmówił) i może zaczepić milczących powiadomieniem w Bojo albo skopiować gotowy tekst do
+wklejenia na WhatsAppa — Bojo nie ma dziś własnego kanału push ani SMS, więc karmi kanał,
+w którym ekipa już rozmawia, zamiast z nim konkurować. Członek ekipy, który jeszcze nie
+dołączył, może kliknąć **„Nie gram"** — jawna odmowa, osobna od zgłoszenia nieobecności
+po meczu i osobna od statystyki „Niezawodność".
+
+**„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator jednym
+kliknięciem zamienia go w publiczny, żeby dołączyli ludzie z sąsiedztwa — to jedyna
+rzecz z tego zestawu, której żaden komunikator nie potrafi.
+
 **Pytania, na które odpowiada ta sekcja:** Co się dzieje, gdy mecz w Bojo jest pełny?
 Czy rezerwowy wskakuje automatycznie, gdy ktoś zrezygnuje? Czy „Obserwuję" zajmuje
 miejsce w składzie? Jak działa akceptacja zapisów przez organizatora? Ilu bramkarzy
-mieści się na mecz?
+mieści się na mecz? Czy Bojo pilnuje minimalnej liczby graczy? Co się dzieje, gdy ekipie
+brakuje ludzi do kompletu? Czy da się jawnie odmówić udziału w meczu, zamiast milczeć?
 
 ---
 
@@ -261,6 +276,9 @@ Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, że działa:
 
 - **Automatyczny awans z listy rezerwowej.** Świadoma decyzja produktowa.
+- **Automatyczne dopisywanie milczących członków ekipy do składu.** Panel „Kto milczy"
+  tylko pokazuje i pozwala zaczepić — nie zapisuje nikogo za niego. Ta sama zasada, co
+  brak auto-awansu z rezerwy: nikt nie trafia do składu po cichu.
 - **Osobna wartość „tylko dla grupy" w `events.visibility`.** Kolumna to wyłącznie
   `private`/`public` — ale prywatny mecz przypięty do grupy i tak widzi cała ekipa,
   patrz sekcja „Grupy" wyżej.
@@ -319,7 +337,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-08-15 — Ekran grupy: niska belka, rozmowa zamiast tablicy, sortowanie po terminie, uprawnienie do zapraszania
+### 2026-08-15 — Czy gramy: próg minimum, kto milczy, otwarcie dla okolicy; rozmowa jak WhatsApp; ekipa z jedną osobą już nie jest martwa
+
+PROBLEM: realna ekipa grająca co tydzień odtworzyła ręcznie w wątku na WhatsAppie
+dokładnie ten model, który Bojo już ma (bramka/gram/pass + rezerwa) — a cała reszta
+wątku była pracą biurową organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum
+żeby zagrać", „Może jeszcze ktoś się decyduje?", „Szukamy chętnych… potrzebne 3 osoby"
+rozsyłane po innych grupach. Rozmowa grupy (dawna „Tablica") była listą wpisów odgórnie
+na najnowszy, nie czatem — mało czytelna, z przyciskiem wysyłki zajmującym cały wiersz
+i bez sposobu wrócić na dół po przewinięciu w górę. Nowo utworzona ekipa miała jednego
+członka i żadnej podpowiedzi, żeby kogoś zaprosić — organizator kończył formularz i nie
+wiedział, co dalej. „Usuń ekipę" i „Opuść ekipę" stały razem na dole strony grupy, pod
+każdą zakładką z osobna, zdублowane z tym samym przyciskiem w Ustawieniach.
+
+ROZWIĄZANIE BOJO: organizator ustawia próg `min_players`, a strona meczu pokazuje
+werdykt wprost („Gramy ✓" / „Brakuje 2 do minimum") zamiast zostawiać liczenie w głowie.
+Przy meczu ekipy widzi też, kto z grupy jeszcze nie odpowiedział — ani nie dołączył, ani
+nie odmówił — i może zaczepić milczących powiadomieniem w Bojo albo skopiować gotowy
+tekst na WhatsAppa (Bojo nie ma dziś pusha ani SMS-a, więc karmi kanał, w którym ekipa
+już rozmawia, zamiast z nim konkurować). Członek ekipy dostaje jawne „Nie gram" — cisza
+przestaje znaczyć naraz „nie widziałem" i „odpadam". Gdy prywatnemu meczowi brakuje
+ludzi, jedno kliknięcie „Otwórz dla okolicy" zamienia go w publiczny — jedyna rzecz
+z tego zestawu, której żaden komunikator nie potrafi. Rozmowa grupy wygląda i przewija
+się teraz jak WhatsApp: chronologia rosnąco, composer pod listą, auto-scroll na dół,
+przycisk powrotu, dymki grupujące wiadomości tej samej osoby. Formularz nowej ekipy
+dostał okładkę i po utworzeniu prosto prowadzi do zaproszenia znajomych. „Usuń ekipę"
+zostaje wyłącznie w Ustawieniach; „Opuść ekipę" przeniosło się do Składu.
+
+MECHANIKA: migracja `097` (`events.min_players`, tabela `event_declines` — osobna od
+`rsvp`, bo odmowa to nie nieobecność — RPC `zapytaj_milczacych()`, wyzwalacz
+`powiadom_o_progu_gry()` wzorem `079`); `lib/events.ts` (`werdyktGry()`);
+`lib/eventDeclines.ts`, `lib/eventResponses.ts` (`ktoMilczy()`) — nowe; `lib/eventShare.ts`
+(`tekstZaczepki()`); `components/events/{CzyGramyPanel,NieGramButton}.tsx` — nowe;
+`components/groups/RozmowaGrupy.tsx` — przebudowany; `app/grupy/nowe/page.tsx`
+(okładka, `?zapros=1`); `components/groups/SkladGrupy.tsx` (Opuść ekipę).
 
 PROBLEM: nagłówek `/grupy/[id]` zajmował za dużo miejsca (osobny wiersz „← Ekipy" nad
 kartą z okładką) zamiast pokazać od razu, kiedy gramy; kod dołączenia był schowany
@@ -658,34 +709,5 @@ MECHANIKA: migracja `079` — wyzwalacz `powiadom_o_zmianie_kompletu` na
 w adresie powrotu z `/logowanie` (ten sam wzorzec co `?utworzono=1`) i efekt otwierający
 `joinDialogOpen`; `mozeZaprosic()` w `EventDetailClient.tsx` zastępuje warunek
 `isOrganizer` przy przycisku „Zaproś do Bojo" (`isOrganizer || p.addedBy === user.id`).
-
-### 2026-08-11 — Refaktor: bramki w CI, koniec cichych porażek, reguła składu tylko w bazie
-
-PROBLEM: Bojo miało trzy klasy błędów, których żadne narzędzie w repo nie widziało.
-Build produkcyjny nie był uruchamiany w CI (rzekomo wymagał kluczy Supabase), więc błędy
-prerenderu wychodziły dopiero na Vercelu. ESLint nie działał (rzekomo wymagał
-interaktywnej konfiguracji), więc martwy kod i braki w zależnościach hooków przechodziły
-bez echa. Nic nie sprawdzało, czy przycisk da się KLIKNĄĆ — modal przykryty paskiem
-nawigacji przechodził typecheck i wszystkie testy. Do tego dwie pułapki, które nie dają
-błędu, tylko fałszywy sukces: RLS aktualizujące zero wierszy i PostgREST obcinający
-odpowiedź. Reguła „skład czy rezerwa" istniała w dwóch równoległych implementacjach —
-w TypeScripcie i w SQL — a ich rozjazd oznaczał, że gracz wchodzi do składu, podczas gdy
-kolejka rezerwowa nadal go w niej trzyma.
-
-ROZWIĄZANIE BOJO: CI uruchamia teraz lint, build produkcyjny (na atrapach kluczy) oraz
-testy klikalności w Playwrighcie, obok typechecku i testów jednostkowych. Dwa helpery
-w `lib/zapytania.ts` zamieniają ciszę w wyjątek: `zaktualizujJedenWiersz()` sprawdza, czy
-UPDATE trafił w wiersz, a `pobierzWszystkie()` stronicuje odczyty dużych tabel.
-Dołączanie do meczu jest jedną operacją bazodanową — funkcja `dolacz_do_meczu()` decyduje
-i wstawia wpis w jednej transakcji, więc dwóch graczy nie dostanie już tego samego
-ostatniego miejsca. Regułę pojemności zna wyłącznie funkcja `czy_na_rezerwe()`.
-
-MECHANIKA: migracja `078` (`czy_na_rezerwe()` jako jedyne miejsce z regułą,
-`dolacz_do_meczu()` rozpoznające organizatora po `auth.uid()`, `sync_reserve_claim()`
-pytające tej samej funkcji); `lib/events.ts` (usunięte `decydujCzyRezerwa()`
-i `confirmedCounts()`; `joinEvent()` woła RPC, `approveParticipant()`, `addGuest()`
-i `confirmFromMaybe()` pytają `czy_na_rezerwe()`); nowy `lib/zapytania.ts`;
-`frontend/.eslintrc.js`, `playwright.config.ts` i `e2e/klikalnosc.spec.ts`;
-`.github/workflows/ci.yml` (kroki lint i build, osobne zadanie `e2e`).
 
 

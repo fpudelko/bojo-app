@@ -85,6 +85,7 @@ function NewEventForm() {
   const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(14);  // domyślny sport to piłka nożna
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
+  const [minPlayers, setMinPlayers] = useState<number | null>(null);
   // `null`, nie `true`: patrz komentarz przy `validateGoalkeepers()`. Włączone
   // domyślnie rozbijało pulę miejsc na role bez wiedzy organizatora.
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState<boolean | null>(null);
@@ -533,6 +534,7 @@ function NewEventForm() {
           time,
           endTime: endTime ?? undefined,
           maxPlayers,
+          minPlayers: minPlayers ?? undefined,
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? (goalkeepersEnabled ?? false) : false,
           goalkeeperSlotsReserved: slotyZarezerwowane,
@@ -979,6 +981,8 @@ function NewEventForm() {
                 sport={sport}
                 maxPlayers={maxPlayers}
                 onMaxPlayersChange={(v) => { setMaxPlayersTouched(true); setMaxPlayers(v); }}
+                minPlayers={minPlayers}
+                onMinPlayersChange={setMinPlayers}
                 goalkeepersEnabled={goalkeepersEnabled}
                 setGoalkeepersEnabled={setGoalkeepersEnabled}
                 reserveClaimHours={reserveClaimHours}

@@ -669,6 +669,50 @@ długu, nie samą kwotę.
 
 ---
 
+## Czy gramy? — próg minimum, kto milczy, otwarcie dla okolicy
+
+**Problem.** Ekipy grające co tydzień odtwarzały ręcznie w wątku na WhatsAppie
+dokładnie ten model, który Bojo już ma — a całą resztą wątku była praca biurowa
+organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagrać", „Może
+jeszcze ktoś się decyduje?". Cisza w Bojo znaczyła naraz „nie widziałem" i „odpadam" —
+nie było jak odróżnić.
+
+**Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Trzy
+niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
+
+1. **Werdykt progu** — gdy organizator ustawił `min_players` (kompaktowy toggle „+ Ustaw
+   minimum, żeby gra się odbyła" w `EventCapacityFields.tsx`, obok stepperu liczby
+   miejsc): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
+   czysta funkcja, `werdyktGry()` (`lib/events.ts`) — ten sam werdykt na stronie meczu
+   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`.
+2. **„Nie odpowiedziało: N"** — wyłącznie dla meczu przypiętego do grupy (bez znanego
+   składu ekipy pojęcie „kto milczy" nie ma odbiorcy). `ktoMilczy()`
+   (`lib/eventResponses.ts`) liczy różnicę między członkami grupy a sumą
+   `event_participants` + `event_declines` — odmawiający jawnie **nie** milczy, to
+   kluczowy przypadek całej funkcji. Dwa przyciski: **„Zapytaj w Bojo"** (RPC
+   `zapytaj_milczacych()`, wpis pod dzwonkiem typu `pytanie_o_udzial`, z zaporą przed
+   spamem — 12 h) i **„Tekst na WhatsAppa"** (`tekstZaczepki()`, `lib/eventShare.ts` —
+   kopiuje do schowka gotowy tekst z linkiem `/wydarzenia/{id}`, bo Bojo nie ma jeszcze
+   pusha ani SMS-a i nie udaje kanału, którego nie ma).
+3. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
+   tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
+   (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
+   stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
+   prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+
+**„Nie gram"** (`NieGramButton.tsx`) — osobny, mały przycisk dla członka ekipy, który
+jeszcze nie dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
+`event_declines` (migracja `097`) — **nie** w `player_reports`, które karmi
+„Niezawodność" wyłącznie ze zgłoszeń nieobecności na mecz, na który ktoś się zapisał;
+wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Nie gram — cofnij").
+
+**Świadomie NIE zbudowane** (patrz `docs/domena.md § Czy gramy`): automatyczny zapis
+milczących do składu, powiadomienie o każdej pojedynczej odpowiedzi, próg minimum na
+poziomie szablonu serii cyklicznej.
+
+---
+
 ## Uprawnienia (delegowanie)
 
 **Problem.** Organizator, który sam nie gra albo dzieli się obowiązkami prowadzenia meczu
@@ -911,6 +955,15 @@ lądują na końcu, w kolejności `created_at` malejąco. Kod zaproszenia (jedyn
 samodzielnego dołączenia, patrz niżej) żyje w dyskretnym wierszu na dole, nie w karcie
 na pół ekranu jak wcześniej — otwiera bottom sheet (`KodGrupySheet.tsx`).
 
+**Formularz `/grupy/nowe`** dorównuje dziś zakładce Ogólne w ustawieniach — dochodzi
+wgrywanie okładki (`CoverUpload`, ścieżka w storage generowana lokalnie przed
+utworzeniem grupy, bo prawdziwe `id` powstaje dopiero po zapisie) i zdanie „Wszystko
+zmienisz później w ustawieniach ekipy". Po utworzeniu formularz przekierowuje na
+`/grupy/{id}?zapros=1` zamiast na goły `/grupy/{id}` — `GroupDetailClient` widząc ten
+parametr od razu otwiera `ZaprosDoGrupySheet` i czyści adres (ten sam wzorzec, co
+obsługa `?dolacz=`). Powód: ekipa z jedną osobą jest martwa, a chwila tuż po utworzeniu
+to jedyny moment, w którym organizator na pewno chce zapraszać.
+
 ## Układ `/grupy/[id]`
 
 Trasa jest rozdzielona na serwerowy `page.tsx` (z `generateMetadata`) i
@@ -945,6 +998,27 @@ panel z czterema przełącznikami inline — dla założyciela — i kebab „Us
 Zmiana uprawnień innego członka jest dostępna w dwóch miejscach o identycznej treści
 panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — obie ścieżki
 działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
+
+**Rozmowa wygląda i przewija się jak WhatsApp**, nie jak lista wpisów odgórnie na
+najnowszy. `RozmowaGrupy.tsx` ma własny kontener przewijania (`h-[60dvh]`), chronologię
+rosnącą (najstarsza u góry, najnowsza na dole) i composer pod listą, nie nad nią —
+auto-scroll na dół po wejściu i po wysłaniu wiadomości, przycisk powrotu (strzałka w
+kółku, `sticky` wewnątrz kontenera, nie `fixed` względem ekranu — dzięki temu nigdy nie
+wchodzi w konflikt z dolną nawigacją) pojawia się dopiero, gdy ktoś odjedzie od dołu.
+Wiadomości tej samej osoby pod rząd grupują się bez powtarzania nazwy, dni rozdzielają
+wyśrodkowane pigułki („Dzisiaj"/„Wczoraj"/data), godzina siedzi w rogu dymka zamiast
+w osobnym wierszu pod spodem. Przypięty wpis (`can_moderate_wall`) nie wskakuje na górę
+listy — wisi jako osobny pasek nad kontenerem przewijania, tapnięcie przewija do niego.
+Akcje (przypnij/usuń) chowają się pod małym „⋮" przy dymku, nie stoją stale widoczne.
+`getGroupPosts()` (`lib/groupPosts.ts`) nie zmienił kontraktu — nadal zwraca
+przypięty-pierwszy/malejąco (tego wciąż potrzebuje licznik nieprzeczytanych); kolejność
+chronologiczną liczy sam komponent, do wyświetlenia.
+
+**„Opuść ekipę" mieszka pod listą w Składzie**, nie na dole strony grupy jak wcześniej —
+`/grupy/[id]/edytuj` jest dostępne wyłącznie dla założyciela i `can_manage_members`, więc
+zwykły członek bez żadnych uprawnień nigdy tam nie trafi; Skład jest jego jedyną drogą
+wyjścia z ekipy. **„Usuń ekipę"** (wyłącznie założyciel) mieszka tylko w Ustawieniach →
+Ogólne — nie duplikuje się już na stronie grupy.
 
 Zakładka trzyma stan w URL (`?tab=tablica` — nazwa parametru zostaje bez zmian mimo
 etykiety „Rozmowa", żeby nie psuć zapisanych linków), ale przez
@@ -1140,6 +1214,14 @@ wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
 `game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) — wciąż za
 flagą `SHOW_GAME_ALERTS`, [luka 2 wobec wizji](./wizja.md#3-luki), i to jest inna
 funkcja niż powiadomienie o meczu w grupie.
+
+**Trzy nowe typy z migracji `097`** (patrz „Czy gramy?" wyżej): `pytanie_o_udzial` —
+RPC `zapytaj_milczacych()`, wołana ręcznie przez organizatora, nie wyzwalacz; jedyny typ
+w `WYMAGA_AKCJI` z zamknięciem po DWÓCH stronach (dołączenie **albo** jawna odmowa w
+`event_declines` zamykają sprawę jednakowo). `gra_potwierdzona`/`gra_zagrozona` —
+wyzwalacz `powiadom_o_progu_gry()` na `event_participants`, wzorem `079`: reaguje na
+PRZEKROCZENIE `min_players` w obie strony, nie na każdy zapis, i pomija osobę, której
+własny zapis/wypis spowodował zmianę (ona już wie).
 
 **Przypięty wpis na tablicy grupy też powiadamia** (`ogloszenie_w_grupie`, migracja
 `093`) — jedyny typ wpisu na tablicy, który to robi; zwykły wpis nikogo nie powiadamia,

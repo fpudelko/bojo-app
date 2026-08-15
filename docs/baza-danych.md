@@ -1,6 +1,6 @@
 # Baza danych
 
-94 migracje (`001`–`096`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+95 migracji (`001`–`097`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -57,8 +57,9 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | Tabela | Powstała w | Rola |
 |---|---|---|
 | `fields` | `001` | Boiska i obiekty (~1400) |
-| `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej |
+| `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta |
+| `event_declines` | `097` | Jawne „nie gram" — NIE nieobecność. Klucz główny `(event_id, user_id)`, RLS: widoczna dla siebie/organizatora/członków grupy meczu, zapis wyłącznie za siebie |
 | `profiles` | `005` | Użytkownicy (+ flaga `is_admin`) |
 | `recurring_events` | `007` | Szablony meczów cyklicznych — reguła powtarzania (dzień, godzina, wyprzedzenie), nie komplet ustawień meczu |
 | `recurring_event_invites` | `007` | Zapraszani do cyklicznych |
@@ -134,6 +135,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `094_zaproszenia_do_grupy` | `group_members.invited_by` + `groups.join_code_rotated_at`. RPC `dolacz_do_grupy_kodem(kod, od)` (jedyna droga samodzielnego dołączenia — weryfikuje `od` w bazie, zanim zapisze zapraszającego), `dodaj_czlonka_do_grupy` (dla `can_manage_members`, bez kodu), `odswiez_kod_grupy` (wyłącznie założyciel). **Zdejmuje politykę INSERT na `group_members`** — dotąd wystarczyło znać UUID grupy (publicznie czytelne), żeby się do niej dopisać |
 | `095_statystyki_grupy` | RPC `get_group_stats` (publiczne — pięć liczb do nagłówka grupy) i `get_group_leaderboard` (wyłącznie dla członków — `SECURITY DEFINER`, bo `player_reports` czyta tylko organizator/delegat). Zwycięstwa liczone wyłącznie tam, gdzie mecz miał podział na drużyny I zapisany wynik — stąd dodatkowa kolumna `matches_with_teams` jako mianownik |
 | `096_zaproszanie_do_grupy` | `group_members.can_invite` (domyślnie `true`, jak `can_create_events` w `092` — dziś każdy widzi „Zaproś" bez bramki) — czwarty niezależny przełącznik, kto widzi przycisk „Zaproś" i kod dołączenia. Bramka wyłącznie UI: `dolacz_do_grupy_kodem` (`094`) nie sprawdzała i nadal nie sprawdza uprawnień zapraszającego. Trigger `ustaw_role_czlonka()` (`092`) przedefiniowany, żeby wymusić `can_invite = true` na founderze |
+| `097_czy_gramy` | `events.min_players` (próg „gra się odbędzie", `NULL` domyślnie — zero zmiany dla istniejących meczów) + tabela `event_declines` (jawne „nie gram", osobna od `rsvp` — patrz `docs/domena.md`). RPC `zapytaj_milczacych(event_id)` (`SECURITY DEFINER`, wyłącznie mecze przypięte do grupy) powiadamia członków ekipy bez wpisu w składzie ani odmowy, z zaporą przed spamem (12 h). Wyzwalacz `powiadom_o_progu_gry()` na `event_participants` — wzorem `079`, reaguje na PRZEKROCZENIE progu w obie strony, nie na każdy zapis |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
@@ -166,6 +168,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `czy_zalozyciel_grupy`, `czy_czlonek_grupy`, `czy_moze_zarzadzac_grupa`, `czy_moze_tworzyc_wydarzenia_w_grupie`, `czy_moze_moderowac_tablice` | Pomocnicze do polityk RLS na `group_members`/`groups`/`group_posts` — `SECURITY DEFINER` unika nieskończonej rekurencji polityki, która sama odpytuje `group_members` (`092`) |
 | `dolacz_do_grupy_kodem`, `dodaj_czlonka_do_grupy`, `odswiez_kod_grupy` | Jedyne drogi wejścia do `group_members` po zdjęciu polityki INSERT — kolejno: dołączenie kodem, dopisanie przez zarządzającego, rotacja kodu przez założyciela (`SECURITY DEFINER`, `094`) |
 | `get_group_stats`, `get_group_leaderboard` | Statystyki grupy — pierwsza publiczna, druga wyłącznie dla członków, sama sprawdza członkostwo i odmawia wyjątkiem (`095`) |
+| `zapytaj_milczacych` | Wołana z przeglądarki przez organizatora/delegata z `can_create_events` — wstawia powiadomienie `pytanie_o_udzial` dla członków ekipy bez wpisu w składzie ani odmowy, pomija zaczepionych w ciągu ostatnich 12 h. Wyłącznie dla meczów przypiętych do grupy (`SECURITY DEFINER`, `097`) |
 
 **`pg_cron` wymaga jednorazowego włączenia** (Supabase → Database → Extensions)
 — migracja `073` sprawdza jego obecność i pomija harmonogram, jeśli go nie ma

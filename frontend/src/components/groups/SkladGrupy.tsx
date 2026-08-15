@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Crown, Settings, Shield, Trash2, User as UserIcon } from 'lucide-react';
+import { Crown, LogOut, Settings, Shield, Trash2, User as UserIcon } from 'lucide-react';
 import UprawnieniaCzlonkaPanel, { type PatchUprawnien } from './UprawnieniaCzlonkaPanel';
 import { uprawnieniaCzlonka } from '@/lib/groups';
 import type { GroupMember, GroupPermissions } from '@/types';
@@ -13,9 +13,14 @@ import type { GroupMember, GroupPermissions } from '@/types';
  * na `group_members` (migracja `092`). Zmianę UPRAWNIEŃ innego członka widzi
  * wyłącznie założyciel (ikona ustawień) — politykę UPDATE na `group_members`
  * ma tylko on, więc przycisk pokazany komuś innemu „nic by nie robił".
+ *
+ * „Opuść ekipę" mieszka tu, nie w Ustawieniach — `/grupy/[id]/edytuj` jest
+ * dostępne wyłącznie dla założyciela i `can_manage_members`, więc zwykły
+ * członek bez żadnych uprawnień nigdy tam nie trafi. To jest jego jedyna
+ * droga wyjścia z ekipy.
  */
 export default function SkladGrupy({
-  members, myUserId, permissions, founderId, onRemove, onSetPerms,
+  members, myUserId, permissions, founderId, onRemove, onSetPerms, onLeave, leaveBusy,
 }: {
   members: GroupMember[];
   myUserId?: string;
@@ -23,6 +28,9 @@ export default function SkladGrupy({
   founderId?: string;
   onRemove: (userId: string) => void;
   onSetPerms: (member: GroupMember, patch: PatchUprawnien) => void;
+  /** Obecne tylko dla członka, który nie jest założycielem — ten nie może opuścić ekipy. */
+  onLeave?: () => void;
+  leaveBusy?: boolean;
 }) {
   const [rozwinietyId, setRozwinietyId] = useState<string | null>(null);
 
@@ -109,6 +117,18 @@ export default function SkladGrupy({
           );
         })}
       </ul>
+
+      {onLeave && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={onLeave}
+            disabled={leaveBusy}
+            className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Opuść ekipę
+          </button>
+        </div>
+      )}
     </div>
   );
 }
