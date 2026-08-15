@@ -29,9 +29,19 @@ const RIGHT_ITEMS = [
   { href: '/grupy',    label: 'Grupy',  Icon: UsersIcon },
 ] as const;
 
+/** `/grupy/<uuid>` (nie `/grupy/nowe`, nie `/grupy/<uuid>/edytuj`) — wyłącznie
+ *  strona konkretnej ekipy niesie kontekst grupy do kreatora meczu. */
+function groupIdFromPathname(pathname: string): string | null {
+  const m = pathname.match(/^\/grupy\/([^/]+)$/);
+  if (!m || m[1] === 'nowe') return null;
+  return m[1];
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const groupId = groupIdFromPathname(pathname);
+  const nowyHref = groupId ? `/wydarzenia/nowe?group=${groupId}` : '/wydarzenia/nowe';
 
   // Leniwie przy każdej zmianie trasy — ten sam wzorzec "leniwego" odpalania
   // co reszta powiadomień w repo, bez kanału realtime dla zwykłej kropki.
@@ -90,9 +100,11 @@ export default function BottomNav() {
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}
 
-        {/* Centre FAB — always accessible, can't be deselected */}
+        {/* Centre FAB — always accessible, can't be deselected. Na stronie
+            konkretnej ekipy prowadzi do kreatora z już wybraną grupą — to jest
+            "przycisk nowy tworzy mecz od razu przypisany do tej grupy". */}
         <Link
-          href="/wydarzenia/nowe"
+          href={nowyHref}
           aria-label="Stwórz nowy mecz"
           className="flex h-full flex-col items-center justify-center gap-0.5 pb-2 group"
         >

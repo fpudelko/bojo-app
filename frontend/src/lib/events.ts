@@ -1012,6 +1012,10 @@ export async function repeatEvent(
       // i dziedziczenie ustawień przez kolejne terminy. Powtórka zwykłego meczu
       // pozostaje zwykłym meczem (`undefined`).
       recurringEventId: source.recurringEventId,
+      // Powtórka meczu grupy ZOSTAJE w grupie — bez tego „Powtórz mecz" po cichu
+      // wypinało termin z ekipy, i cotygodniowa gierka rozjeżdżała się z listą
+      // meczów grupy po pierwszej powtórce.
+      groupId: source.groupId,
     },
     organizerId,
     organizerName,

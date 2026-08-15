@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { withCount } from './plural';
 import type {
   EventAdvancedSettings,
   MatchResult,
@@ -6,6 +7,34 @@ import type {
   PlayerStats,
   TeamMode,
 } from '@/types';
+
+// ---------------------------------------------------------------------------
+// Widoczność meczu przypiętego do grupy
+// ---------------------------------------------------------------------------
+
+/**
+ * Zdanie pod kartą widoczności, gdy mecz jest przypięty do grupy.
+ *
+ * `events.visibility` ma dwie wartości (`private`/`public`) i to się w tym PR-ze
+ * nie zmienia — ale prywatny mecz przypięty do grupy JEST widoczny dla całej
+ * ekipy (`getMyGroupEvents()`, `lib/events.ts`), tylko dotąd nikt tego nie mówił
+ * wprost. Bez tego zdania „Prywatne" wygląda jak obietnica bez pokrycia: każdy
+ * członek grupy i tak zobaczy ten mecz na liście `/grupy/[id]`.
+ */
+export function opisWidocznosciWGrupie(
+  visibility: 'public' | 'private',
+  grupaNazwa: string | undefined,
+  liczbaCzlonkow: number | undefined,
+): string | null {
+  if (!grupaNazwa) return null;
+  const czlonkowie = liczbaCzlonkow != null
+    ? withCount(liczbaCzlonkow, 'członek', 'członkowie', 'członków')
+    : 'członkowie';
+  if (visibility === 'private') {
+    return `Prywatny — na liście ekipy „${grupaNazwa}". Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
+  }
+  return `Publiczny — widoczny dla wszystkich, a dodatkowo na liście ekipy „${grupaNazwa}".`;
+}
 
 // ---------------------------------------------------------------------------
 // Advanced settings

@@ -25,6 +25,8 @@ function celPowiadomienia(n: AppNotification): string | null {
     return `/gracz/przejmij/${n.claimToken}`;
   }
   if (n.eventId) return `/wydarzenia/${n.eventId}`;
+  // Ogłoszenie na tablicy grupy (093) nie ma meczu — prowadzi na samą grupę.
+  if (n.groupId) return `/grupy/${n.groupId}`;
   return TYP_NA_TRASE[n.type] ?? null;
 }
 

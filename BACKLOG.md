@@ -51,15 +51,29 @@ produkcji), domknięcie RLS na `events` (patrz §5 niżej).
 Pozycje, w których dokument strategiczny obiecuje coś, czego kod nie robi. **Dokument
 jest nadrzędny** — to są zadania, nie błędy w dokumencie.
 
-### 1.1 Trzeci poziom widoczności meczu — „widoczne dla grupy"
+### 1.1 Trzeci poziom widoczności meczu — ZDECYDOWANE bez zmiany schematu
+
 Wizja wymienia trzy poziomy: prywatny / widoczny dla grupy / publiczny.
 Kod ma dwa: `events.visibility` to CHECK `('private','public')` (`002_events_and_auth.sql`).
 
-Kolumna `group_id` (`051_group_field.sql`) steruje **listowaniem** meczu w grupie, nie
-**dostępem** do niego — mecz przypisany do grupy jest nadal albo publiczny, albo dostępny
-tylko przez kod.
+Decyzja z rundy „Grupy jako magnes na organizatora" (2026-08-14): **nie dokładamy**
+trzeciej wartości do CHECK-a ani osobnej polityki RLS na `events` dla tego przypadku.
+Zamiast tego nazwaliśmy i utrwaliliśmy dokumentacyjnie zachowanie, które już istniało:
+`getMyGroupEvents()` (`lib/events.ts`) celowo pokazuje członkom grupy prywatne mecze
+tej grupy na ich dashboardzie, a `getEventsByGroup()` listuje wszystkie mecze grupy
+niezależnie od widoczności — czyli **prywatny mecz przypięty do grupy jest zawsze
+widoczny dla jej członków**. Kreator meczu, edycja i strona meczu mówią to teraz wprost
+pod kartą widoczności (`opisWidocznosciWGrupie()`, `lib/eventFeatures.ts`) — wcześniej
+aplikacja tego nie mówiła, `llms.txt` twierdziło wprost „trzeciego poziomu widoczności
+nie ma", a organizator musiał się domyślać. Pełny opis → [docs/domena.md §
+Grupy](./docs/domena.md#grupy).
 
-Zakres: migracja rozszerzająca CHECK + polityka RLS + opcja w kreatorze meczu i edycji.
+**Wciąż otwarte, świadomie poza tym zakresem:** ogólna polityka `Events readable by
+all` na `events` ma nadal warunek `USING (true)` — każdy, także niezalogowany, może
+odczytać wszystkie mecze, w tym prywatne. `getMyGroupEvents()` działa dziś **wyłącznie
+dzięki tej luźnej polityce**. Domknięcie RLS na `events` bez jednoczesnej przebudowy tej
+funkcji po cichu urwałoby mecze grupowe z list, bez błędu — patrz §5 niżej. To osobne
+zadanie z osobnym ryzykiem, nie robimy go przy okazji.
 
 ### 1.2 Powiadomienie dla członków grupy o utworzeniu gry — ZROBIONE
 Wizja stawia to jako część propozycji „Grupy — zastąpienie facebook/whatsapp". Bez
@@ -220,11 +234,20 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       Dziś filtr `RELEVANT_SPORTS` jest **po stronie klienta** (`VenueExplorer`).
       Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
-- [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki.
-      **Kolejność ma znaczenie:** naprawić `getMyGroupEvents()` PRZED dociągnięciem
-      polityki na `events` (patrz ustalenie z 2026-08-04 niżej) — funkcja dziś zależy
-      wyłącznie od luźnego warunku `true`, więc domknięcie RLS bez jednoczesnej
-      przebudowy tej funkcji po cichu urwie mecze grupowe z list, bez błędu.
+- [ ] **Domknąć reguły dostępu w RLS na `events`** — część sprawdzana dziś po stronie
+      przeglądarki. **Kolejność ma znaczenie:** naprawić `getMyGroupEvents()` PRZED
+      dociągnięciem polityki na `events` (patrz ustalenie z 2026-08-04 niżej) —
+      funkcja dziś zależy wyłącznie od luźnego warunku `true`, więc domknięcie RLS bez
+      jednoczesnej przebudowy tej funkcji po cichu urwie mecze grupowe z list, bez błędu.
+      **Nadal otwarte** po rundzie „Grupy jako magnes na organizatora" (2026-08-14) —
+      świadomie poza jej zakresem, patrz §1.1 wyżej.
+- [x] **`group_members` przyjmowało INSERT od każdego, kto znał UUID grupy —
+      naprawione.** (2026-08-14) Polityka `"Users join groups"` z migracji `044`
+      sprawdzała wyłącznie `auth.uid() = user_id`; `join_code` filtrował dopiero
+      interfejs (`GroupsClient.handleJoin`), a same grupy są publicznie czytelne —
+      każdy zapisany UUID wystarczał, żeby dołączyć bez znajomości kodu. Migracja `094`
+      zdejmuje tę politykę: jedyne drogi wejścia to `dolacz_do_grupy_kodem()` (trzeba
+      znać kod) i `dodaj_czlonka_do_grupy()` (trzeba mieć `can_manage_members`).
 - [ ] **Numer do BLIKA nadal przyjeżdża w całym wierszu `events`.** `canSeeBlikPhone()`
       (`lib/payments.ts`) chowa numer w UI (organizator zawsze, uczestnik dopiero
       godzinę przed meczem), ale `toEvent()` robi `select('*')`, a RLS na `events` jest
