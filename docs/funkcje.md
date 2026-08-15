@@ -673,16 +673,15 @@ długu, nie samą kwotę.
 
 ---
 
-## Czy gramy? — próg minimum, kto milczy, otwarcie dla okolicy
+## Czy gramy? — próg minimum, otwarcie dla okolicy
 
 **Problem.** Ekipy grające co tydzień odtwarzały ręcznie w wątku na WhatsAppie
 dokładnie ten model, który Bojo już ma — a całą resztą wątku była praca biurowa
 organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagrać", „Może
-jeszcze ktoś się decyduje?". Cisza w Bojo znaczyła naraz „nie widziałem" i „odpadam" —
-nie było jak odróżnić.
+jeszcze ktoś się decyduje?".
 
 **Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
-wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Trzy
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
 niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
 
 1. **Werdykt progu** — gdy organizator ustawił `min_players` (kompaktowy toggle „+ Ustaw
@@ -690,18 +689,7 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
    miejsc): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
    czysta funkcja, `werdyktGry()` (`lib/events.ts`) — ten sam werdykt na stronie meczu
    i w linijce pod „Najbliższym meczem" na `/grupy/[id]`.
-2. **„Nie odpowiedziało: N"** — wyłącznie dla meczu przypiętego do grupy (bez znanego
-   składu ekipy pojęcie „kto milczy" nie ma odbiorcy). `ktoMilczy()`
-   (`lib/eventResponses.ts`) liczy różnicę między członkami grupy a sumą
-   `event_participants` + `event_declines` — odmawiający jawnie **nie** milczy, to
-   kluczowy przypadek całej funkcji. Dwa przyciski **obok siebie w jednym wierszu**
-   (`flex-1` na obu, nie `flex-wrap` — jeden pod drugim marnował miejsce):
-   **„Zapytaj w Bojo"** (RPC
-   `zapytaj_milczacych()`, wpis pod dzwonkiem typu `pytanie_o_udzial`, z zaporą przed
-   spamem — 12 h) i **„Tekst na WhatsAppa"** (`tekstZaczepki()`, `lib/eventShare.ts` —
-   kopiuje do schowka gotowy tekst z linkiem `/wydarzenia/{id}`, bo Bojo nie ma jeszcze
-   pusha ani SMS-a i nie udaje kanału, którego nie ma).
-3. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
+2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
    stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
@@ -712,6 +700,16 @@ jeszcze nie dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
 `event_declines` (migracja `097`) — **nie** w `player_reports`, które karmi
 „Niezawodność" wyłącznie ze zgłoszeń nieobecności na mecz, na który ktoś się zapisał;
 wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Nie gram — cofnij").
+
+**Panel miał wcześniej trzeci blok, „Nie odpowiedziało: N"** (kto z ekipy jeszcze nie
+zareagował na mecz, z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa") — usunięty na
+wyraźną prośbę: zamiast ścigać milczących, prostszą odpowiedzią na „brakuje ludzi" jest
+„Otwórz dla okolicy" powyżej. `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()`)
+i `tekstZaczepki()` z `lib/eventShare.ts` usunięte jako martwy kod — nic już ich nie
+importuje. RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja
+`097`) **zostają w bazie** nietknięte (migracji się nie kasuje po wdrożeniu), po prostu
+nic już ich nie wywołuje — `lib/notifications.ts` nadal umie wyświetlić taki wpis, gdyby
+kiedyś powstał, ale od tej zmiany żaden nie powstanie.
 
 **Świadomie NIE zbudowane** (patrz `docs/domena.md § Czy gramy`): automatyczny zapis
 milczących do składu, powiadomienie o każdej pojedynczej odpowiedzi, próg minimum na
@@ -1016,7 +1014,11 @@ Uprawnienia, więc nie duplikujemy ich treści tutaj): **Mecze** (nadchodzące/h
 „Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (mała belka
 „Zaproś do ekipy" + kod dołączenia + ikona udostępnienia nad rzędem awatarów — ten sam
 kod/link co w `ZaprosDoGrupySheet`, tylko bez otwierania arkusza; widoczna z tych samych
-warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — potem rząd awatarów
+warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — **powyżej niej,
+wyłącznie dla założyciela i wyłącznie gdy `memberCount > 30`, informacja „Nie musisz
+dodawać do ekipy jak najwięcej osób — publiczny mecz i tak widzą gracze z okolicy"**:
+duża prywatna ekipa zwykle znaczy, że organizator rozrasta grupę zamiast po prostu
+otworzyć mecz publicznie (patrz „Otwórz dla okolicy" niżej) — potem rząd awatarów
 + lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
 panel z czterema przełącznikami inline — dla założyciela — i kebab „Usuń z ekipy" dla
 `can_manage_members`) / **Statystyki** (patrz „Wyniki i statystyki" w `docs/domena.md`;

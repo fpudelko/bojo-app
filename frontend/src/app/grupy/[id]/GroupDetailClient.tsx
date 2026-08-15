@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2,
+  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2, Info,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
@@ -484,6 +484,20 @@ export default function GroupDetailClient() {
             >
               <Share2 className="h-4 w-4" />
             </button>
+          </div>
+        )}
+
+        {/* Ponad 30 osób w prywatnej ekipie zwykle znaczy, że organizator
+            rozrasta grupę, żeby zapełnić skład — a od tego jest publiczny
+            mecz, nie duże grono w ekipie. Widoczne wyłącznie dla założyciela:
+            to on decyduje, kogo dodawać, i to jemu ma się to pytanie zadać. */}
+        {tab === 'sklad' && perms.isFounder && memberCount > 30 && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Nie musisz dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz
+              publicznym, zobaczą go też gracze spoza ekipy — z okolicy.
+            </p>
           </div>
         )}
 

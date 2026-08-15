@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-15 · migracja `097` · 34 tabele · 554 testy
+**Stan na:** 2026-08-15 · migracja `097` · 34 tabele · 542 testy
 
 ---
 
@@ -137,13 +137,9 @@ produktowa, nie brakująca funkcja.
 
 **„Czy gramy?"** Organizator może ustawić `min_players` — ile osób musi być w składzie,
 żeby mecz się odbył. Strona meczu pokazuje wprost werdykt („Gramy ✓" albo „Brakuje 2 do
-minimum"), zamiast zostawiać to liczeniu w głowie. Przy meczu przypiętym do stałej ekipy
-organizator widzi też, kto z ekipy jeszcze nie odpowiedział (ani nie dołączył, ani nie
-odmówił) i może zaczepić milczących powiadomieniem w Bojo albo skopiować gotowy tekst do
-wklejenia na WhatsAppa — Bojo nie ma dziś własnego kanału push ani SMS, więc karmi kanał,
-w którym ekipa już rozmawia, zamiast z nim konkurować. Członek ekipy, który jeszcze nie
-dołączył, może kliknąć **„Nie gram"** — jawna odmowa, osobna od zgłoszenia nieobecności
-po meczu i osobna od statystyki „Niezawodność".
+minimum"), zamiast zostawiać to liczeniu w głowie. Członek ekipy, który jeszcze nie
+dołączył do meczu przypiętego do jego grupy, może kliknąć **„Nie gram"** — jawna odmowa,
+osobna od zgłoszenia nieobecności po meczu i osobna od statystyki „Niezawodność".
 
 **„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator jednym
 kliknięciem zamienia go w publiczny, żeby dołączyli ludzie z sąsiedztwa — to jedyna
@@ -276,9 +272,8 @@ Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, że działa:
 
 - **Automatyczny awans z listy rezerwowej.** Świadoma decyzja produktowa.
-- **Automatyczne dopisywanie milczących członków ekipy do składu.** Panel „Kto milczy"
-  tylko pokazuje i pozwala zaczepić — nie zapisuje nikogo za niego. Ta sama zasada, co
-  brak auto-awansu z rezerwy: nikt nie trafia do składu po cichu.
+- **Automatyczne dopisywanie kogokolwiek do składu.** Nikt nie trafia do składu po cichu
+  — to zawsze jawna akcja: zapis, dopisanie gościa albo ręczny awans z rezerwy.
 - **Osobna wartość „tylko dla grupy" w `events.visibility`.** Kolumna to wyłącznie
   `private`/`public` — ale prywatny mecz przypięty do grupy i tak widzi cała ekipa,
   patrz sekcja „Grupy" wyżej.
@@ -336,6 +331,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-15 — Info o rozmiarze ekipy dla założyciela; panel "Kto milczy" usunięty
+
+PROBLEM: duża prywatna ekipa (ponad 30 osób) zwykle znaczy, że organizator dodaje coraz
+więcej ludzi do grupy, żeby zapełnić skład na mecz — mimo że „Otwórz dla okolicy" (patrz
+niżej) rozwiązuje dokładnie ten problem bez rozrastania ekipy: publiczny mecz widzą też
+gracze spoza niej. Osobno: panel „Czy gramy?" na stronie meczu ekipy miał blok „Nie
+odpowiedziało: N" z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa" do ścigania
+milczących członków — usunięty na wyraźną prośbę, jako zbędny obok prostszego „Otwórz
+dla okolicy".
+
+ROZWIĄZANIE BOJO: zakładka Skład na stronie ekipy pokazuje teraz założycielowi, gdy
+ekipa ma ponad 30 członków, krótką informację: nie trzeba dodawać jak najwięcej osób,
+bo publiczny mecz i tak widzą gracze z okolicy. Panel „Czy gramy?" na stronie meczu stracił
+blok „Nie odpowiedziało" — zostają tylko werdykt progu minimum i „Otwórz dla okolicy".
+RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja `097`)
+zostają w bazie nietknięte — po prostu nic już ich nie wywołuje.
+
+MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
+`perms.isFounder && memberCount > 30` nad `<SkladGrupy>`. `components/events/CzyGramyPanel.tsx`
+— blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
+martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
+zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.
 
 ### 2026-08-15 — Rozmowa meczu też dla organizatora i ekipy, zakładki sticky, klawiatura ekranowa nie zostawia pustki, drobne poprawki UI
 
@@ -715,50 +733,5 @@ zamiast „Zapisano!". Migracja `088` dokłada kolumnę `has_account` i zamienia
 zwykły wynik — pełny opis czterech wariantów ekranu w sekcji „Powtórny zapis tym samym
 e-mailem" niżej.
 
-### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
-
-PROBLEM: przycisk „Zaproś do Bojo" (przejęcie wpisu gościa) działał tylko dla gości
-w głównym składzie — gość na rezerwie nie miał jak przejąć swojego wpisu, mimo że
-backend to wspierał. Formularz „Dopisz osobę bez konta" mimo włączonej opcji
-„Uczestnicy mogą dodawać gości" renderował się wyłącznie organizatorowi — zwykły
-uczestnik miał inny, ukryty formularz z dodatkowymi ograniczeniami bez pokrycia
-w regułach dostępu. Po zakończonym meczu dało się dalej kliknąć „Wypisz się z meczu",
-sekcja płatności chowała się pod składem zamiast być na wierzchu, a wynik meczu i skład
-używały dwóch różnych nazw drużyn („Drużyna A/B" w wyniku, „Niebiescy/Czerwoni"
-w składzie). Formularz wyniku pozwalał wpisać strzelcom więcej goli niż wynik końcowy.
-Karty meczów w zakładce „Historia" pokazywały cenę i „Wymaga akceptacji" — bezużyteczne
-po fakcie. Na `/profil` brakowało linku „bojo" w górnym pasku na telefonie.
-
-ROZWIĄZANIE BOJO: przycisk zaproszenia i informacja „dodał(a)" są teraz identyczne
-w składzie i na rezerwie. Formularz dopisywania gościa jest jeden wzorzec dla
-organizatora i uczestnika, widoczny każdemu potwierdzonemu uczestnikowi (także
-rezerwowemu) do startu meczu. Po starcie meczu znika „Wypisz się z meczu", a sekcje
-„Podział kosztów"/„Twoja płatność" przenoszą się nad „Składy"/„Wynik meczu" — treść
-się nie zmienia, tylko kolejność. Cena i „Wymaga akceptacji" w nagłówku meczu i na
-kartach w Historii ustępują po starcie meczu miejsca statusowi rozliczenia
-(„Rozliczono"/„X nie zapłaciło" dla organizatora, „Zapłacono"/„Zapłać" dla gracza).
-Nazwy drużyn („Niebiescy"/„Czerwoni" + litery N/C) są teraz jednym słownikiem
-używanym identycznie w składzie i w wyniku. Formularz wyniku blokuje zapis, gdy suma
-goli albo asyst u strzelców przekracza wynik końcowy. Gol przy nazwisku pojawia się
-w składzie, jeśli gracz strzelił więcej niż 0. Baner „Wróciliśmy do Twojego szkicu"
-w kreatorze wydarzenia miał przycisk „Zacznij od nowa" ucinany przez `truncate` na
-wąskich ekranach — teraz jest osobnym, zawsze widocznym przyciskiem.
-
-MECHANIKA: `EventDetailClient.tsx` — pętla `reserves.map` w torze organizatora
-dostała ten sam blok `mozeZaprosic()`/`kopiujLinkPrzejecia()` co `regulars.map`
-i `ParticipantsList`; formularz gościa dla uczestnika stracił warunek
-`!myParticipation.isReserve`; blok „WYPISZ SIĘ" gated dodatkowo `!eventStarted`;
-`skladWynikSection`/`platnosciSection` — dwie zmienne JSX renderowane w kolejności
-zależnej od `eventStarted`; `golyMap` (z `matchResult.resultData.scorers`) przekazywany
-do `ParticipantsList`/`PublishedTeamsCard`. Nowy plik `lib/teamLabels.ts`
-(`TEAM_LABELS`, `TEAM_LETTERS`, `TEAM_COLOR_CLASSES`) używany w `TeamsPanel.tsx`,
-`MatchResultForm.tsx` i `EventDetailClient.tsx`. `MatchResultForm.tsx` — walidacja
-`enteredGoals`/`enteredAssists` vs `scoreA + scoreB` w `family === 'goals'`.
-`lib/events.ts` — `has_paid` dołączony do zapytań `getMyParticipatedEvents()`,
-nowe pola `EventItem.unpaidCount` i `MyEventRelation.hasPaid`. `EventBrowseCard.tsx`
-— `paymentBadge` zastępuje cenę/„Wymaga akceptacji" dla `past` kart. `profil/page.tsx`
-— `<Header showMobileWordmark />` na głównym renderze zalogowanego użytkownika.
-`wydarzenia/nowe/page.tsx` — baner szkicu bez `truncate`, „Zacznij od nowa" jako
-osobny przycisk.
 
 
