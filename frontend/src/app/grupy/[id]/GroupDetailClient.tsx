@@ -348,6 +348,22 @@ export default function GroupDetailClient() {
           </p>
         </div>
 
+        {/* Zakładki — nad "Najbliższy mecz", nie pod nią: to nawigacja
+            strony, więc ma stać najwyżej, zaraz pod paskiem grupy. */}
+        <div className="border-b border-slate-100 dark:border-slate-700">
+          <div className="flex gap-5 overflow-x-auto">
+            {TABS.map(({ value, label }) => (
+              <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
+                {label}
+                {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
+                {value === 'tablica' && nieprzeczytaneN > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {legacyBezKodu && !member && (
           <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4">
             <p className="text-sm font-semibold text-ink">Zaproszenie do ekipy „{group.name}”</p>
@@ -369,21 +385,6 @@ export default function GroupDetailClient() {
             relation={nextMatch ? statusFor(nextMatch) : undefined}
           />
         )}
-
-        {/* Zakładki */}
-        <div className="border-b border-slate-100 dark:border-slate-700">
-          <div className="flex gap-5 overflow-x-auto">
-            {TABS.map(({ value, label }) => (
-              <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
-                {label}
-                {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
-                {value === 'tablica' && nieprzeczytaneN > 0 && (
-                  <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {tab === 'mecze' && (
           <div className="space-y-5">

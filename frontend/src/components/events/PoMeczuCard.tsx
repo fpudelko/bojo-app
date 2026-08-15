@@ -24,7 +24,6 @@ interface WierszZadania {
   key: string;
   etykieta: string;
   zrobione: boolean;
-  href?: string;
   onClick?: () => void;
   akcjaLabel: string;
   ikona: typeof Banknote;
@@ -36,6 +35,7 @@ export default function PoMeczuCard({
   onWyslijRozliczenie,
   trackResults,
   wynikWpisany,
+  onWpiszWynik,
   liczbaGosciDoZaproszenia,
   onZaprosGoscia,
   onOznaczNieobecnych,
@@ -47,6 +47,9 @@ export default function PoMeczuCard({
   onWyslijRozliczenie: () => void;
   trackResults: boolean;
   wynikWpisany: boolean;
+  /** Przełącza na zakładkę Wynik — formularz wyniku żyje tam, nie na tej samej
+   *  zakładce co ta karta, więc zwykły `href="#kotwica"` już nie wystarczy. */
+  onWpiszWynik: () => void;
   liczbaGosciDoZaproszenia: number;
   onZaprosGoscia: () => void;
   /** `undefined` = widz bez uprawnień do składu (np. delegat wyłącznie od
@@ -75,7 +78,7 @@ export default function PoMeczuCard({
       key: 'wynik',
       etykieta: wynikWpisany ? 'Wynik wpisany' : 'Wynik nie jest jeszcze wpisany',
       zrobione: wynikWpisany,
-      href: wynikWpisany ? undefined : '#wynik-meczu',
+      onClick: wynikWpisany ? undefined : onWpiszWynik,
       akcjaLabel: 'Wpisz wynik',
       ikona: Trophy,
     });
@@ -152,15 +155,6 @@ export default function PoMeczuCard({
           );
           if (z.zrobione) {
             return <li key={z.key} className="flex items-center gap-3">{tresc}</li>;
-          }
-          if (z.href) {
-            return (
-              <li key={z.key}>
-                <a href={z.href} className="flex items-center gap-3 rounded-lg -mx-1 px-1 py-1 transition hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                  {tresc}
-                </a>
-              </li>
-            );
           }
           return (
             <li key={z.key}>
