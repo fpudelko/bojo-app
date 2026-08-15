@@ -5,11 +5,16 @@ import { Loader2 } from 'lucide-react';
 import { getGroupStats, getGroupLeaderboard, pokazacKolumneWygranych } from '@/lib/groupStats';
 import type { GroupStats, GroupLeaderboardEntry } from '@/types';
 
+// `min-h` + `flex … justify-center`: „nadchodzące" jest dłuższe niż sąsiednie
+// etykiety i na wąskim telefonie łamie się do dwóch linii, podczas gdy „gole"
+// czy „rozegrane" mieszczą się w jednej — bez wspólnej minimalnej wysokości
+// i wyśrodkowania siatka rozjeżdżała się (ten jeden kafelek wyższy, treść
+// reszty przyklejona do góry zamiast wyśrodkowana).
 function Kafelek({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-3 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex min-h-[4rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-2 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <p className="font-display text-xl font-bold text-ink">{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[11px] leading-tight text-slate-500 dark:text-slate-400">{label}</p>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Loader2, CalendarPlus, Link2,
+  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
@@ -27,6 +27,7 @@ import {
   joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane } from '@/lib/groupPosts';
+import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
 import { sportEmoji, sportLabel } from '@/lib/sports';
 import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
 
@@ -216,6 +217,27 @@ export default function GroupDetailClient() {
     }
   };
 
+  // Belka „Zaproś do ekipy" nad Składem (patrz zakładka Skład niżej) — kod
+  // dołączenia i udostępnianie linku żyły wcześniej wyłącznie w
+  // `ZaprosDoGrupySheet`; tu jest szybki podgląd/kopiowanie bez otwierania
+  // arkusza.
+  const [kodSkopiowany, setKodSkopiowany] = useState(false);
+  const handleCopyCode = async () => {
+    if (!group) return;
+    try {
+      await navigator.clipboard.writeText(group.joinCode);
+      setKodSkopiowany(true);
+      toast('Skopiowano kod dołączenia');
+      setTimeout(() => setKodSkopiowany(false), 2000);
+    } catch { /* ignore */ }
+  };
+  const handleShareGroup = async () => {
+    if (!group) return;
+    const link = linkDoGrupy(group.joinCode, user?.id);
+    const wynik = await udostepnijGrupe(group, link, undefined, nextMatch ?? undefined);
+    if (wynik === 'copied') toast('Skopiowano zaproszenie');
+  };
+
   // Nadchodzące rosnąco (najbliższy pierwszy), historia malejąco.
   const { upcoming, past } = useMemo(() => {
     const up = events
@@ -285,7 +307,11 @@ export default function GroupDetailClient() {
             wprost — zbyt duży odstęp od krawędzi. Na desktopie Header
             zostaje widoczny nad tym paskiem, więc odstęp z <main> ma sens
             i go nie znosimy. */}
-        {/* Zakładka Rozmowa nie ma `sticky` — tam <main> jest już
+        {/* Belka i zakładki razem w JEDNYM sticky kontenerze — dwa osobne
+            `sticky top-0` elementy nakładałyby się na tej samej wysokości
+            zamiast układać w stos, więc oba trzymają się razem jako jedna
+            całość podczas przewijania.
+            Zakładka Rozmowa nie ma `sticky` — tam <main> jest już
             `overflow-hidden` w stałej wysokości ekranu (rozmowaPelnoekranowa)
             i nie przewija się, więc `position: sticky` na dziecku
             overflow-hidden liczy swój "punkt zaczepienia" inaczej niż
@@ -293,57 +319,61 @@ export default function GroupDetailClient() {
             zakładkach — zgłoszone wprost. Statyczne pozycjonowanie w tym
             jednym przypadku daje ten sam efekt (belka i tak jest pierwszym
             elementem na górze), bez tej niespójności. */}
-        <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:mt-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0`}>
-          <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <button
-              onClick={() => router.push('/grupy')}
-              aria-label="Wróć do ekip"
-              className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
-              {group.coverImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
-              )}
-            </span>
-            <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
-            {member && perms.canInvite && (
+        <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 bg-canvas md:static md:mx-0 md:mt-0 md:bg-transparent`}>
+          <div className="space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <button
-                onClick={() => setInviteOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950"
+                onClick={() => router.push('/grupy')}
+                aria-label="Wróć do ekip"
+                className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
               >
-                <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Zaproś</span>
+                <ArrowLeft className="h-4 w-4" />
               </button>
-            )}
-            <div className="shrink-0 md:hidden">
-              <NotificationBell />
-            </div>
-          </div>
-          <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
-            {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
-            {(group.sport || group.city || group.fieldName) && ' · '}
-            {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
-          </p>
-        </div>
-
-        {/* Zakładki — nad "Najbliższy mecz", nie pod nią: to nawigacja
-            strony, więc ma stać najwyżej, zaraz pod paskiem grupy. */}
-        <div className="border-b border-slate-100 dark:border-slate-700">
-          <div className="flex gap-5 overflow-x-auto">
-            {TABS.map(({ value, label }) => (
-              <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
-                {label}
-                {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
-                {value === 'tablica' && nieprzeczytaneN > 0 && (
-                  <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
+                {group.coverImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
                 )}
-              </button>
-            ))}
-            {/* Zębatka ustawień zniknęła z belki — zbyt dużo elementów w jednym
+              </span>
+              <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+              {member && perms.canInvite && (
+                <button
+                  onClick={() => setInviteOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950"
+                >
+                  <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Zaproś</span>
+                </button>
+              )}
+              <div className="shrink-0 md:hidden">
+                <NotificationBell />
+              </div>
+            </div>
+            <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
+              {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
+              {(group.sport || group.city || group.fieldName) && ' · '}
+              {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
+            </p>
+          </div>
+
+          {/* Zakładki — nad "Najbliższy mecz", nie pod nią: to nawigacja
+              strony, więc ma stać najwyżej, zaraz pod paskiem grupy.
+              `scrollbar-hide` (globals.css): przewijanie w bok na wąskim
+              telefonie nie ma pokazywać poziomego paska przewijania — samo
+              przewijanie działa tak samo, znika tylko sam pasek. */}
+          <div className="border-b border-slate-100 bg-canvas px-4 dark:border-slate-700 md:bg-transparent md:px-0">
+            <div className="scrollbar-hide flex gap-5 overflow-x-auto">
+              {TABS.map(({ value, label }) => (
+                <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
+                  {label}
+                  {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
+                  {value === 'tablica' && nieprzeczytaneN > 0 && (
+                    <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+                  )}
+                </button>
+              ))}
+              {/* Zębatka ustawień zniknęła z belki — zbyt dużo elementów w jednym
                 niskim pasku. Ta sama akcja, teraz jako zakładka: styl identyczny
                 z resztą, ale to Link do /edytuj, nie przełącznik stanu `tab` —
                 strona ustawień ma już własne zakładki (Ogólne/Zaproszenia/
@@ -353,6 +383,7 @@ export default function GroupDetailClient() {
                 Ustawienia
               </Link>
             )}
+            </div>
           </div>
         </div>
 
@@ -365,10 +396,11 @@ export default function GroupDetailClient() {
           </div>
         )}
 
-        {/* Ukryte na zakładce Rozmowa — tam ma być widać composer bez
-            przewijania, a ta karta (zwłaszcza z historią meczu) potrafiła
-            zepchnąć go poza ekran. */}
-        {tab !== 'tablica' && (
+        {/* Widoczne wyłącznie w zakładce Mecze — to jest jej treść (skrót
+            najbliższego terminu), nie uniwersalny nagłówek strony. Na
+            pozostałych zakładkach (zwłaszcza Rozmowa, gdzie ma być widać
+            composer bez przewijania) tylko zajmowała miejsce. */}
+        {tab === 'mecze' && (
           <NajblizszyMeczGrupy
             groupId={group.id}
             upcoming={member ? nextMatch : null}
@@ -429,6 +461,31 @@ export default function GroupDetailClient() {
             Rozmowa jest widoczna wyłącznie dla członków ekipy.
           </p>
         ))}
+
+        {tab === 'sklad' && member && perms.canInvite && (
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-semibold text-primary-700 hover:text-primary-800 dark:hover:text-primary-400"
+            >
+              <Link2 className="h-4 w-4 shrink-0" /> <span className="truncate">Zaproś do ekipy</span>
+            </button>
+            <button
+              onClick={handleCopyCode}
+              title="Kopiuj kod dołączenia"
+              className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              {kodSkopiowany ? <Check className="h-3 w-3 text-green-600" /> : group.joinCode}
+            </button>
+            <button
+              onClick={handleShareGroup}
+              aria-label="Udostępnij zaproszenie"
+              className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {tab === 'sklad' && (
           <SkladGrupy

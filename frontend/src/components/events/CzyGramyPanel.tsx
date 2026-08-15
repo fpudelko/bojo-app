@@ -114,12 +114,17 @@ export default function CzyGramyPanel({ event, participants, canManage, busy, on
               <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                 {milczacy.slice(0, 4).map((m) => m.name).join(', ')}{milczacy.length > 4 ? `, +${milczacy.length - 4}` : ''}
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                <Button variant="outline" onClick={handleZapytaj} disabled={busyZapytaj} className="inline-flex items-center gap-1.5 text-xs">
-                  {busyZapytaj ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircleQuestion className="h-3.5 w-3.5" />} Zapytaj w Bojo
+              {/* `flex-1` na obu przyciskach zamiast `flex-wrap` — dwa pełnej
+                  szerokości przyciski jeden pod drugim marnowały miejsce;
+                  teraz dzielą wiersz po połowie, z `truncate`, żeby dłuższa
+                  etykieta na wąskim telefonie się nie łamała. */}
+              <div className="mt-2.5 flex gap-2">
+                <Button variant="outline" onClick={handleZapytaj} disabled={busyZapytaj} className="flex-1 items-center gap-1.5 truncate text-xs">
+                  {busyZapytaj ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> : <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="truncate">Zapytaj w Bojo</span>
                 </Button>
-                <Button variant="outline" onClick={handleTekstNaWhatsapp} className="inline-flex items-center gap-1.5 text-xs">
-                  <Share2 className="h-3.5 w-3.5" /> Tekst na WhatsAppa
+                <Button variant="outline" onClick={handleTekstNaWhatsapp} className="flex-1 items-center gap-1.5 truncate text-xs">
+                  <Share2 className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Tekst na WhatsAppa</span>
                 </Button>
               </div>
             </>
