@@ -8,7 +8,30 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-12_
+_Ostatnia aktualizacja: 2026-08-15_
+
+---
+
+## PRZESŁANKA STRATEGICZNA (2026-08-15) — czytaj przed planowaniem
+
+**Mięsem na start są ekipy grające regularnie. Otwarte gry to „później".**
+Decyzja właściciela, świadomie inna niż założenie
+[rewizji 2026-08](./docs/rewizja-2026-08.md), która traktowała stałe ekipy jako segment
+„Marcina", czyli takiego, co nie przyjdzie. Rewizja zostaje jako zapis analizy z tamtą
+przesłanką — ale tam, gdzie obie się rozjeżdżają, **obowiązuje ta sekcja**.
+
+Co z tego wynika, wprost:
+
+| Pozycja | Rewizja mówiła | Teraz |
+|---|---|---|
+| Gry cykliczne (`SHOW_RECURRING`) | do skasowania | **zostają** — flaga włączona od migracji `073`, kod już poszedł w tę stronę |
+| „Półka, która nie umie być pusta" + `SHOW_GAME_ALERTS` | jedna z pięciu rzeczy do zbudowania | **schodzi na później** — to agenda otwartych gier |
+| Przejęcie profilu gościa (claim) | pierwsze | **nadal kluczowe** — w stałej ekipie ci sami goście wracają co tydzień, więc ta sama strata powtarza się 50× w roku, nie raz |
+| Web-push (PWA) | do skasowania („kanał powrotu dla użytkowników, których nie ma") | **wraca jako priorytet** — stała ekipa to dokładnie kohorta, którą jest po co przypominać: te same 10 osób, ten sam czwartek, jedno pytanie „grasz?". Plan: [§8 „PWA + web-push"](#pwa--web-push--plan-priorytet-od-2026-08-15) |
+
+Otwarte gry sprawdzamy tanio i ręcznie: właściciel wynajmuje orlik albo boisko do siatki
+i organizuje kilka gier sam. To lepszy test popytu niż liczenie postów w grupach na
+Facebooku — sprawdzany realnym meczem, nie szacunkiem.
 
 ---
 
@@ -158,7 +181,29 @@ Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alert
 
 ## 5. Zadania techniczne
 
-### 5.0 Katalog boisk — naprawa danych, potem cała Polska ⚠️ NASTĘPNY TEMAT
+### 5.0 Katalog boisk — ~~naprawa danych, potem cała Polska~~ ZROBIONE (2026-08-06/07)
+
+**Import całej Polski wszedł PR-em #109** (`scraper/import_osm_pbf.py` + workflow
+`import-osm-polska.yml`, województwo po województwie). Przyczyny problemów 1–3 i 6
+z audytu poniżej są usunięte **u źródła**, a nie łatane po fakcie:
+
+- **ZERO AI** — sport i nawierzchnia wyłącznie z tagów OSM. Punkt 1 („sport skażony
+  sąsiedztwem") brał się z `analyze_venues.py`, który doklejał sporty rozpoznane
+  przez model z kafelka o boku ~150 m. Tego mechanizmu w nowym imporcie nie ma.
+- **Nazwa ze złączenia przestrzennego** — „SP nr 12 — boisko piłkarskie, Świdnik"
+  zamiast „Boisko sportowe" (punkt 6).
+- **Miejscowość w adresie** — „ul. Poznańska" przestaje wyglądać na duplikat 12×
+  (punkt 6, druga połowa).
+- **Wymiary z geometrii poligonu**, mierzone zamiast zgadywanych ze zdjęcia.
+
+Audyt niżej zostaje jako **zapis historyczny** — opisuje stan sprzed importu i tłumaczy,
+dlaczego importer wygląda tak, jak wygląda. Nie jest listą zadań.
+
+**Czego NIE da się sprawdzić z repo:** czy stare wiersze z `scraper.py` i analizy
+satelitarnej nadal leżą obok tych z OSM. Właściciel potwierdził (2026-08-15), że stary
+Poznań został ukryty.
+
+<details><summary>Audyt 2026-08-03 — stan sprzed importu (zapis historyczny)</summary>
 
 **Stan bazy (audyt 2026-08-03, 1484 obiekty: 723 publiczne, 702 organizer_only,
 59 ukrytych).** Skrypty diagnostyczne i naprawcze: `supabase/audyt/`.
@@ -202,6 +247,8 @@ Tańsza ścieżka, do rozpisania:
 Cron analizy satelitarnej zdjęty 2026-08-03 (chodził ~20×/mies. przez OR
 w harmonogramie GitHuba). `fix-coords.yml` do usunięcia — forward-geocoding adresu
 przesunął 59 pinezek nawet o 3 km (`supabase/przywroc-wspolrzedne.sql` cofa).
+
+</details>
 
 **Copy landingu i dashboardu (2026-08-04) już mówi o „całej Polsce", z wyprzedzeniem
 względem tego zadania.** Świadoma decyzja: tworzenie meczu z pinezką gdziekolwiek na
@@ -399,6 +446,77 @@ i w rozmowie 2026-08-04 (jak). Skrót mechaniki:
 </details>
 
 
+### PWA + web-push — plan (priorytet od 2026-08-15)
+
+Po co: stała ekipa to te same dziesięć osób w ten sam czwartek. Jedyne, czego brakuje
+w ich tygodniu, to **doręczenie poza aplikacją** — dziś zaproszenie „z ekipy" czeka,
+aż zaproszony sam otworzy Bojo. Push to jedyny darmowy kanał, który to załatwia,
+i przy okazji domyka dziurę SMS-ów (`SHOW_SMS_FEATURES`) bez płacenia za wiadomość.
+
+**Kanał powiadomień JUŻ ISTNIEJE** (§3): tabela `notifications`, `lib/notifications.ts`,
+dzwonek, wyzwalacze w migracjach. Push nie jest nowym systemem — to **druga końcówka
+doręczania** dla wierszy, które i tak powstają.
+
+#### Etap 1 — instalowalność („apka na ekranie")
+
+- [ ] `app/manifest.ts` (Next 14 App Router generuje `/manifest.webmanifest`):
+      `name`, `short_name: "Bojo"`, `start_url: "/"`, `display: "standalone"`,
+      `theme_color: "#15663E"` (ten sam co w `layout.tsx`), `background_color`.
+- [ ] **Ikony — dziś ich nie ma w `public/`.** Potrzebne: 192×192, 512×512,
+      512×512 `maskable` (Android przycina do koła — bez wariantu maskable logo
+      dostaje obcięte rogi) oraz `apple-touch-icon` 180×180.
+- [ ] `appleWebApp` w `metadata` — **iOS ignoruje ikony z manifestu** i czyta wyłącznie
+      `apple-touch-icon`. Bez tego na iPhonie na ekranie głównym ląduje zrzut strony.
+- [ ] Minimalny service worker w `public/sw.js` + rejestracja po montażu.
+
+**Świadomie BEZ trybu offline.** SW ma obsłużyć `push` i `notificationclick`, nic więcej.
+Service worker cache'ujący HTML potrafi serwować stary build po deployu, a aplikacja
+żyjąca z bazy pokazywałaby wtedy nieaktualne składy — gorsze niż brak offline'u.
+Z tego samego powodu **nie bierzemy `next-pwa`** (słabo utrzymywany pod App Router)
+ani Serwista: do samego pusha żaden z nich nie jest potrzebny.
+
+#### Etap 2 — infrastruktura push
+
+- [ ] Para kluczy **VAPID**. Publiczny → `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+      prywatny → sekret Edge Functions (**nie do repo**, patrz `.env` w `.gitignore`).
+- [ ] Migracja `092_push_subscriptions.sql`: `user_id`, `endpoint` (UNIQUE),
+      `p256dh`, `auth`, `created_at`, `last_seen`. RLS: właściciel widzi i kasuje
+      wyłącznie swoje wiersze.
+- [ ] Zapis subskrypcji przez `zaktualizujJedenWiersz()` / zwykły insert z `lib/` —
+      **nie z komponentu** (granica z AGENTS.md).
+- [ ] Edge function `send-push` (Deno + `web-push`), wzorowana na `send-event-sms`.
+      Endpoint, który zwróci `410 Gone`, kasujemy z tabeli — inaczej lista subskrypcji
+      puchnie o martwe wpisy.
+
+#### Etap 3 — podpięcie i moment proszenia o zgodę
+
+- [ ] Wyzwalacz na `INSERT INTO notifications` → `send-push`. Dzięki temu push dziedziczy
+      wszystkie istniejące powody powiadomień, bez dublowania logiki.
+- [ ] **Kiedy prosić o zgodę.** Nie przy wejściu. Przeglądarka daje jedno pytanie —
+      po odmowie nie da się zapytać ponownie bez grzebania w ustawieniach. Prosimy
+      w chwili, gdy powód jest oczywisty: **tuż po dołączeniu do meczu** albo po
+      utworzeniu ekipy. Musi to być reakcja na kliknięcie — bez gestu użytkownika
+      przeglądarka odrzuci prośbę.
+- [ ] Zachęta do instalacji: własny przycisk na `beforeinstallprompt` (Android/Chrome)
+      oraz instrukcja „Udostępnij → Do ekranu początkowego" dla iOS, gdzie tego
+      zdarzenia nie ma.
+
+#### Czego to NIE załatwi
+
+**iOS dostaje web-push dopiero od 16.4 i wyłącznie dla PWA dodanej do ekranu
+głównego.** Użytkownik iPhone'a w Safari nie dostanie powiadomienia, dopóki nie
+zainstaluje — i o tym trzeba mówić wprost w interfejsie, zamiast obiecywać push
+wszystkim. To jest też powód, dla którego etap 1 musi być zrobiony porządnie, a nie
+„jakoś": na iOS instalacja jest warunkiem kanału, nie ozdobnikiem.
+
+#### Weryfikacja
+
+`e2e/wizualne.spec.ts` sprawdzi, że manifest się serwuje i SW rejestruje; samego
+doręczenia pusha Playwright nie pokaże — to test ręczny na dwóch telefonach
+(Android + iPhone po instalacji).
+
+---
+
 ### Zamykanie zapisów po komplecie (decyzja produktowa do wdrożenia)
 Dziś: gdy ktoś się wypisze, miejsce natychmiast wraca do puli i zajmuje je **pierwsza
 osoba, która kliknie „Dołącz"** — również ktoś z zewnątrz, z pominięciem listy rezerwowej.
@@ -412,7 +530,6 @@ Zakres: flaga na `events` (np. `signups_open`), zamknięcie przy osiągnięciu k
 przycisk dla organizatora, komunikat dla wchodzących („zapisy zamknięte — zapytaj
 organizatora"), przemyślenie interakcji z listą rezerwową.
 
-- **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
 - **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy
 - **Rankingi publiczne** i **odznaki** (strzelec miesiąca, 100h na boisku) — wizja §B
 - **Ocena umiejętności i dopasowywanie gier do poziomu** — wizja §B
