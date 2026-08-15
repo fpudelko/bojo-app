@@ -599,10 +599,10 @@ nie ma wpisanego wyniku, sporo nie ma domkniętego rozliczenia, a wpisy gości p
 nie są przejmowane.
 
 **Rozwiązanie.** `components/events/PoMeczuCard.tsx`, renderowana w `EventDetailClient.tsx`
-pod warunkiem `(isOwner || canManageSquad || canManagePayments) && resultsAvailable &&
-!isCancelled` (drugi i trzeci człon: delegaci, patrz [„Uprawnienia (delegowanie)"](#uprawnienia-delegowanie)
-niżej), między banerem odwołania a banerem „Mecz gotowy". Zbiera do trzech zadań — każde
-renderowane tylko, gdy dotyczy tego meczu:
+pod warunkiem `tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) &&
+resultsAvailable && !isCancelled` (drugi i trzeci człon warunku uprawnień: delegaci, patrz
+[„Uprawnienia (delegowanie)"](#uprawnienia-delegowanie) niżej). Zbiera do trzech zadań —
+każde renderowane tylko, gdy dotyczy tego meczu:
 
 | Zadanie | Warunek renderowania | „Zrobione" |
 |---|---|---|
@@ -610,10 +610,12 @@ renderowane tylko, gdy dotyczy tego meczu:
 | Wpisz wynik | `event.trackResults` | `matchResult != null` |
 | Zaproś gości do Bojo | są nieprzejęci goście w składzie | znika, gdy `0` |
 
-Karta sama jest **uniwersalna** — widoczna na każdej zakładce strony meczu (patrz
-„Zakładki na `/wydarzenia/[id]`" niżej), ale zadania, które kiedyś przewijały do sekcji na
-tej samej stronie, dziś żyją na osobnych zakładkach — samo `scrollIntoView`/`href="#..."`
-by nie trafiło. Klik na „Wpisz wynik" woła `onWpiszWynik` → `goToTab('wynik')`. Klik na
+Karta żyje **wyłącznie w zakładce Skład** — świadomie NIE jest uniwersalna, bo dubluje się
+z jej własną treścią (roster, zarządzanie graczami); na pozostałych zakładkach znika razem
+ze zmianą zakładki (patrz „Zakładki na `/wydarzenia/[id]`" niżej). Zadania, które kiedyś
+przewijały do sekcji na tej samej stronie, dziś żyją na osobnych zakładkach — samo
+`scrollIntoView`/`href="#..."` by nie trafiło. Klik na „Wpisz wynik" woła `onWpiszWynik` →
+`goToTab('wynik')`. Klik na
 „Rozlicz ekipę" nadal woła `handleWyslijRozliczenie()` (generuje tekst i otwiera arkusz
 udostępniania — nie przełącza zakładki, bo nie musi). Zadanie „Zaproś do Bojo" łączy oba:
 `handleZaprosGosciaPoMeczu()` najpierw `goToTab('sklad')` i `setRosterOpen(true)` (skład po
@@ -976,13 +978,18 @@ każde udostępnienie pokazywało generyczny tytuł całej aplikacji.
 
 Układ od góry: **niska belka** łącząca powrót, tożsamość ekipy i akcje w jednym rzędzie —
 strzałka powrotu, mały kafelek 32×32 (okładka albo emoji sportu), nazwa, przycisk
-„Zaproś" (otwiera `ZaprosDoGrupySheet.tsx`, widoczny tylko z `can_invite`), obok niego
-kod dołączenia jako klikalny chip (kopiuje kod do schowka) i zębatka ustawień dla
-założyciela/zarządzającego. Osobny wiersz pod belką niesie meta (sport/miasto/boisko/
-liczba członków) — dawniej to wszystko zajmowało osobny wiersz „← Ekipy" plus kartę
-nagłówka z okładką na pół ekranu, co zgłoszono wprost jako zajmujące za dużo miejsca.
-Zaraz pod belką stoją **zakładki** — nawigacja ma być najwyżej, nad treścią którą
-przełącza, nie pod pierwszą kartą. Pod zakładkami „Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`)
+„Zaproś" (otwiera `ZaprosDoGrupySheet.tsx`, widoczny tylko z `can_invite`) i na mobile
+dzwonek (`NotificationBell`) na końcu. **Kod dołączenia i zębatka ustawień zniknęły
+z belki** — miała za dużo elementów. Kod dołączenia żyje wyłącznie w arkuszu „Zaproś"
+(`ZaprosDoGrupySheet`); ustawienia dostały własny wpis w pasku zakładek (Link do
+`/grupy/[id]/edytuj`, stylowany identycznie jak reszta zakładek, widoczny dla
+założyciela/`can_manage_members`) zamiast osobnej ikony. Awatar też zniknął — sam dzwonek
+wystarczy, profil jest w dolnej nawigacji. Osobny wiersz pod belką niesie meta
+(sport/miasto/boisko/liczba członków) — dawniej to wszystko zajmowało osobny wiersz
+„← Ekipy" plus kartę nagłówka z okładką na pół ekranu, co zgłoszono wprost jako
+zajmujące za dużo miejsca. Zaraz pod belką stoją **zakładki** — nawigacja ma być
+najwyżej, nad treścią którą przełącza, nie pod pierwszą kartą. Pod zakładkami
+„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`)
 — **tu żyje cotygodniowa pętla**: gdy grupa ma nadchodzący mecz, ten sam komponent karty co
 na `/wydarzenia` (`EventBrowseCard`, z moim statusem uczestnictwa) plus osobny przycisk
 „Udostępnij mecz" pod spodem; gdy nie ma, ale ma historię, przycisk „Powtórz na {dzień}
@@ -993,7 +1000,9 @@ ta sama data i godzina co poprzednio — całą ekipę powiadamia trigger
 `/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>` (`BottomNav.tsx`) — to samo
 działanie na desktopie robi tekstowy „+ Nowy termin" w zakładce Mecze.
 
-Cztery zakładki: **Mecze** (nadchodzące/historia, jak dawniej) / **Rozmowa** (dawniej
+Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
+nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
+Uprawnienia, więc nie duplikujemy ich treści tutaj): **Mecze** (nadchodzące/historia, jak dawniej) / **Rozmowa** (dawniej
 „Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (rząd awatarów
 + lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
 panel z czterema przełącznikami inline — dla założyciela — i kebab „Usuń z ekipy" dla
@@ -1006,7 +1015,11 @@ działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wy
 najnowszy. `RozmowaGrupy.tsx` wypełnia wysokością cały dostępny ekran (`h-full` w
 elastycznym kontenerze rodzica — na tej zakładce `GroupDetailClient` ustawia stronę na
 `h-[100dvh] overflow-hidden`, żeby po ukryciu `BottomNav` rozmowa sięgała do samego dołu
-ekranu, zamiast zostawiać pod sobą pustą przestrzeń), chronologię
+ekranu, zamiast zostawiać pod sobą pustą przestrzeń — a niska belka na tej jednej
+zakładce traci `position: sticky` (zostaje zwykłym, statycznie pozycjonowanym elementem):
+`sticky` wewnątrz `overflow-hidden`, nieprzewijalnego kontenera liczy punkt zaczepienia
+inaczej niż przy zwykłym scrollu i belka lądowała niżej niż na pozostałych zakładkach —
+zgłoszone wprost), chronologię
 rosnącą (najstarsza u góry, najnowsza na dole) i composer pod listą, nie nad nią —
 auto-scroll na dół po wejściu i po wysłaniu wiadomości, przycisk powrotu (strzałka w
 kółku, `sticky` wewnątrz kontenera, nie `fixed` względem ekranu — dzięki temu nigdy nie
@@ -1040,32 +1053,56 @@ gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do 
 
 `EventDetailClient.tsx` ma od tej zmiany pięć zakładek nad treścią, analogicznie do
 `/grupy/[id]`, ale dostosowane do pojedynczego meczu: **Skład** (domyślna — dawne „Info":
-tytuł i chipy meczu, prośby o dołączenie, panel „Czy gramy?", licznik miejsc, awatary
-i lista uczestników, „Wypisz się"/„Nie gram" i inne banery statusu uczestnictwa,
-zarządzanie graczami, panel „Zaproś znajomych", status zaproszeń), **Rozmowa**
-(`RozmowaWydarzenia.tsx`, zastępuje dawny komponent `EventComments` — usunięty, nic innego
-go nie importowało), **Wynik** (drużyny i formularz wyniku — dawna `skladWynikSection`),
-**Rozliczenia** (podział kosztów per uczestnik — dawna `platnosciSection`) i **Ustawienia**
-(panel „Zarządzaj wydarzeniem": widoczność, goście, edycja, powtórka, uprawnienia,
-odwołanie/przywrócenie, usunięcie). Stan zakładki w `?tab=`, odczytany ręcznie z
-`window.location.search` przez `useEffect`, **nie** przez `useSearchParams()` — ta trasa
-jest prerenderowana i ten hak wywala produkcyjny build (`missing-suspense-with-csr-bailout`,
-patrz pułapka w `AGENTS.md`); dokładnie ten sam powód, dla którego `?utworzono=`/`?cykliczne=`/
-`?dolacz=` na tej stronie też są czytane ręcznie.
+prośby o dołączenie, panel „Czy gramy?", licznik miejsc, awatary i lista uczestników,
+podział na drużyny jako zwinięty panel — patrz niżej, „Wypisz się"/„Nie gram" i inne
+banery statusu uczestnictwa, zarządzanie graczami, karta „Po meczu", panel „Zaproś
+znajomych", status zaproszeń), **Rozmowa** (`RozmowaWydarzenia.tsx`, zastępuje dawny
+komponent `EventComments` — usunięty, nic innego go nie importowało; **wyłącznie okno
+czatu**, żadnych innych elementów), **Wynik** (drużyny i formularz wyniku — dawna
+`skladWynikSection`), **Rozliczenia** (podział kosztów per uczestnik — dawna
+`platnosciSection`) i **Ustawienia** (panel „Zarządzaj wydarzeniem", **domyślnie
+rozwinięty** — dawniej zwinięty, bo był jedną z wielu kart na długiej stronie; teraz to
+cała treść osobnej zakładki, więc zwijanie na wejściu nie miało już sensu: widoczność,
+goście, edycja, powtórka, uprawnienia, odwołanie/przywrócenie, usunięcie). Stan zakładki
+w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **nie** przez
+`useSearchParams()` — ta trasa jest prerenderowana i ten hak wywala produkcyjny build
+(`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
+powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
+ręcznie.
+
+**Nazwa meczu przeniosła się nad zakładki** — pasek na samej górze to teraz `[Wróć]`
+(bez etykiety, sama strzałka) + nazwa (`<h1>` obcinany wielokropkiem), tak jak belka na
+`/grupy/[id]`. „Udostępnij"/„Kopiuj", które wcześniej tam stały, przeniosły się **pod
+zakładki** — w miejsce, które kiedyś zajmował `<h1>`. To jest świadoma zamiana miejscami,
+nie usunięcie: obie pary elementów zostały, zmieniła się tylko ich kolejność w pionie.
 
 **Kilka elementów zostaje uniwersalnych** — renderują się niezależnie od aktywnej
-zakładki, bo dotyczą całego meczu, nie treści jednej podstrony: baner odwołania meczu,
-karta „Po meczu" (`PoMeczuCard`), panel „Mecz gotowy" tuż po publikacji, nagłówek z
-tytułem i chipami (data/miejsce/cena/widoczność/grupa), sticky pasek „Dołącz"/„Obserwuj"
-na dole ekranu oraz modale (zaproszenie z grupy, wybór grupy, zakres edycji terminu serii).
-Bez tego np. osoba przeglądająca zakładkę Rozliczenia nie widziałaby przycisku dołączenia
-do meczu, a karta „Po meczu" znikałaby razem ze zmianą zakładki.
+zakładki (poza Rozmową, patrz niżej), bo dotyczą całego meczu, nie treści jednej
+podstrony: baner odwołania meczu, panel „Mecz gotowy" tuż po publikacji, blok
+„Udostępnij"/„Kopiuj" + chipy meczu (data/miejsce/cena/widoczność/grupa), sticky pasek
+„Dołącz"/„Obserwuj" na dole ekranu oraz modale (zaproszenie z grupy, wybór grupy, zakres
+edycji terminu serii). Bez tego np. osoba przeglądająca zakładkę Rozliczenia nie
+widziałaby przycisku dołączenia do meczu. **Karta „Po meczu" (`PoMeczuCard`) NIE jest
+uniwersalna** — żyje wyłącznie w zakładce Skład, żeby nie duplikować się z jej własną
+treścią (roster, zarządzanie graczami) na każdej innej zakładce.
+
+**Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
+blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
+Bez niego uniwersalne elementy zaśmiecały jedyny ekran, który ma wyglądać jak zwykły czat.
 
 Karta „Po meczu" wskazuje zadania na innych zakładkach, więc jej przyciski **przełączają
 zakładkę zamiast (albo obok) przewijania** — `onWpiszWynik` woła `goToTab('wynik')`,
 `handleZaprosGosciaPoMeczu()` woła `goToTab('sklad')` przed `setRosterOpen(true)` i
 `scrollIntoView`. Bez tego klik z innej zakładki niż cel trafiał w treść, która nie była
 jeszcze zamontowana w DOM. Pełny opis → sekcja „Karta »Po meczu«" wyżej.
+
+**Podział na drużyny renderuje się w dwóch zakładkach naraz** — Skład (jako domyślnie
+zwinięty panel z przyciskiem „Podział na drużyny" ▾, stan `druzynyOtwarteWSkladzie`) i
+Wynik (zawsze rozwinięty, bo to jej główna treść). To nie są dwie kopie: obie zakładki
+renderują dokładnie ten sam JSX (`druzynySection`, wydzielony ze `skladWynikSection`) na
+tym samym stanie z rodzica (`teamA`/`teamB`/handlery `TeamsPanel`), więc zmiana w jednym
+miejscu — przypisanie gracza, losowanie, publikacja — jest natychmiast widoczna w drugim
+bez żadnej synchronizacji: to dosłownie ten sam stan React, wyświetlony dwa razy.
 
 `RozmowaWydarzenia.tsx` to ten sam mechanizm i wygląd co `RozmowaGrupy.tsx` (chronologia
 rosnąca, grupowanie wiadomości tej samej osoby, separatory dni, własny scroll z

@@ -420,6 +420,11 @@ export default function EventDetailClient() {
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   };
   const [rosterOpen, setRosterOpen] = useState(false);
+  // Podział na drużyny duplikuje się w zakładce Skład (patrz `druzynySection`
+  // niżej) — tam jest treścią poboczną, domyślnie zwiniętą, żeby nie
+  // przesłaniać listy uczestników. W zakładce Wynik ten sam JSX renderuje się
+  // zawsze rozwinięty, bo to jej główna treść.
+  const [druzynyOtwarteWSkladzie, setDruzynyOtwarteWSkladzie] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [joinAsGuestDialogOpen, setJoinAsGuestDialogOpen] = useState(false);
@@ -471,7 +476,10 @@ export default function EventDetailClient() {
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
-  const [editMode, setEditMode] = useState(false);
+  // Domyślnie rozwinięte — to teraz cała treść osobnej zakładki Ustawienia,
+  // nie jedna z wielu kart na długiej stronie, więc zwijanie na wejściu
+  // nie ma już sensu (dawniej `false` chroniło przed zajmowaniem miejsca).
+  const [editMode, setEditMode] = useState(true);
   const [groupInfo, setGroupInfo] = useState<{ id: string; name: string; memberCount?: number } | null>(null);
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -1625,7 +1633,12 @@ export default function EventDetailClient() {
   // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
   // organizator/gracz faktycznie tego szukają. Treść sekcji bez zmian,
   // zmienia się wyłącznie kolejność (patrz `eventStarted` niżej w JSX).
-  const skladWynikSection = (
+  // Wydzielone osobno, bo podział na drużyny renderuje się teraz w DWÓCH
+  // zakładkach naraz (Skład i Wynik) — ten sam JSX, ten sam stan z rodzica
+  // (`teamA`/`teamB`/handlery), więc zmiana w jednym miejscu jest od razu
+  // widoczna w drugim: to nie są dwie kopie, tylko dwa miejsca renderowania
+  // tego samego stanu.
+  const druzynySection = (
     <>
       {/* Published teams — visible to all participants (separate from roster) */}
       {showTeams && event.teamsPublished && !isOwner && !canManageSquad && (
@@ -1693,37 +1706,41 @@ export default function EventDetailClient() {
           />
         </div>
       )}
-
-      {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Wpisz wynik") */}
-      <div id="wynik-meczu">
-        {/* Pre-match "result coming" note — only the organizer enters results */}
-        {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
-            <Trophy className="w-4 h-4 shrink-0" />
-            Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
-          </div>
-        )}
-        {(isOwner || canManageSquad) && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-            Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
-          </p>
-        )}
-        {(myParticipation || canManageSquad) && event.trackResults && resultsAvailable && (
-          <MatchResultForm
-            sport={event.sport}
-            eventId={event.id}
-            organizerId={event.organizerId}
-            currentUserId={user?.id ?? ''}
-            isOrganizer={isOrganizer || canManageSquad}
-            participants={participants}
-            initialResult={matchResult}
-            initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
-            onSaved={(result) => setMatchResult(result)}
-          />
-        )}
-      </div>
     </>
   );
+
+  const wynikFormSection = (
+    // id: kotwica dla karty "Po meczu" (PoMeczuCard, "Wpisz wynik")
+    <div id="wynik-meczu">
+      {/* Pre-match "result coming" note — only the organizer enters results */}
+      {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+          <Trophy className="w-4 h-4 shrink-0" />
+          Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
+        </div>
+      )}
+      {(isOwner || canManageSquad) && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
+        </p>
+      )}
+      {(myParticipation || canManageSquad) && event.trackResults && resultsAvailable && (
+        <MatchResultForm
+          sport={event.sport}
+          eventId={event.id}
+          organizerId={event.organizerId}
+          currentUserId={user?.id ?? ''}
+          isOrganizer={isOrganizer || canManageSquad}
+          participants={participants}
+          initialResult={matchResult}
+          initialGoals={playerGoals.map((g) => ({ participantId: g.participantId, goals: g.goals }))}
+          onSaved={(result) => setMatchResult(result)}
+        />
+      )}
+    </div>
+  );
+
+  const skladWynikSection = <>{druzynySection}{wynikFormSection}</>;
 
   const platnosciSection = (
     <>
@@ -1921,41 +1938,25 @@ export default function EventDetailClient() {
         rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
       }`}>
 
-        {/* ── TOP BAR ──
-            Deliberately no cover photo: it was a satellite tile that ate half
-            the first screen and told nobody anything the venue card doesn't.
-            Labelled actions instead of bare icons — "Udostępnij" opens the
-            system share sheet, "Kopiuj" puts the link on the clipboard for
-            people who just want to paste it into a chat. */}
-        <div className="flex items-center justify-between gap-2 px-4 pt-4">
+        {/* ── TOP BAR ── nazwa meczu, nie akcje — „Udostępnij"/„Kopiuj"
+            przeniosły się pod zakładki, w miejsce dawnego <h1> (patrz HEADER
+            niżej), żeby nazwa była pierwszą rzeczą widoczną na stronie,
+            nad zakładkami, tak jak na `/grupy/[id]`. */}
+        <div className="flex items-center gap-2 px-4 pt-4">
           <button
             type="button"
             // Prosto z kreatora „wstecz" wracałoby do wypełnionego formularza —
             // najgorsze możliwe miejsce tuż po opublikowaniu meczu. `replace`,
             // a nie `push`, żeby kreator zniknął też z historii przeglądarki.
             onClick={() => { if (swiezoUtworzony) router.replace('/moje-gry'); else router.back(); }}
-            className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 active:scale-95"
+            aria-label="Wróć"
+            className="-ml-2 shrink-0 inline-flex items-center rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 active:scale-95"
           >
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} /> Wróć
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />
           </button>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleShare}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-            >
-              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Udostępnij
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-            >
-              {linkCopied
-                ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
-                : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj</>}
-            </button>
-          </div>
+          <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold tracking-tight text-ink">
+            {eventDisplayTitle(event)}
+          </h1>
         </div>
 
         {/* Zakładki — analogicznie do /grupy/[id], dostosowane do pojedynczego
@@ -1988,7 +1989,7 @@ export default function EventDetailClient() {
             meczu, nie treść żadnej konkretnej sekcji. */}
 
         {/* ── CANCELLED BANNER ── */}
-        {isCancelled && (
+        {tab !== 'rozmowa' && isCancelled && (
           <div className="mx-3 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
             <div className="flex-1">
@@ -2008,7 +2009,7 @@ export default function EventDetailClient() {
             `resultsAvailable` = start meczu + 30 min, ten sam próg, który
             już odsłania formularz wyniku niżej — przed nim nic nie jest
             jeszcze "po meczu". */}
-        {(isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
+        {tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
             liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
@@ -2031,7 +2032,7 @@ export default function EventDetailClient() {
 
             Układ mobile-first: główna akcja pełnej szerokości, dwie poboczne
             w siatce 2×1, która mieści się już na 320 px. */}
-        {swiezoUtworzony && isOwner && !isCancelled && (
+        {tab !== 'rozmowa' && swiezoUtworzony && isOwner && !isCancelled && (
           <div className="mx-4 rounded-2xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-950">
             <div className="flex items-start gap-2">
               <p className="min-w-0 flex-1 font-semibold text-ink">Mecz gotowy</p>
@@ -2080,11 +2081,32 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── HEADER: title + meta chips ── */}
+        {/* ── HEADER: akcje + meta chips ── nazwa meczu przeniosła się do
+            paska nad zakładkami (TOP BAR wyżej); tu zostały akcje, którymi
+            dawniej dzielił się z nią górny pasek. Labelled actions instead of
+            bare icons — "Udostępnij" opens the system share sheet, "Kopiuj"
+            puts the link on the clipboard for people who just want to paste
+            it into a chat. */}
+        {tab !== 'rozmowa' && (
         <div className="px-4">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            {eventDisplayTitle(event)}
-          </h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+            >
+              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Udostępnij
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+            >
+              {linkCopied
+                ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
+                : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj</>}
+            </button>
+          </div>
           {event.description && (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
               {event.description}
@@ -2333,6 +2355,7 @@ export default function EventDetailClient() {
             </p>
           )}
         </div>
+        )}
 
         {tab === 'sklad' && (<>
 
@@ -2805,6 +2828,24 @@ export default function EventDetailClient() {
           </div>
         </div>
 
+        {/* ── PODZIAŁ NA DRUŻYNY — duplikat treści zakładki Wynik, domyślnie
+            zwinięty. Ten sam stan (teamA/teamB/handlery), więc zmiana tutaj
+            i w zakładce Wynik to dokładnie to samo miejsce w pamięci — nie
+            trzeba nic synchronizować. */}
+        {showTeams && (
+          <div className="px-4">
+            <button
+              type="button"
+              onClick={() => setDruzynyOtwarteWSkladzie((o) => !o)}
+              className="flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm dark:border-slate-700 dark:bg-slate-800"
+            >
+              <span className="text-sm font-semibold text-ink">Podział na drużyny</span>
+              <ChevronDown className={['h-4 w-4 shrink-0 text-slate-400 transition-transform', druzynyOtwarteWSkladzie ? 'rotate-180' : ''].join(' ')} />
+            </button>
+            {druzynyOtwarteWSkladzie && <div className="mt-3 space-y-3">{druzynySection}</div>}
+          </div>
+        )}
+
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
         {user && myParticipation && !eventStarted && (
           <div className="px-4">
@@ -3006,15 +3047,17 @@ export default function EventDetailClient() {
 
         </>)}
 
-        {/* ── STICKY JOIN BAR ── uniwersalny, widoczny na każdej zakładce —
-            osoba, która jeszcze nie dołączyła, ma mieć dostęp do "Dołącz"
-            niezależnie od tego, którą zakładkę akurat przegląda.
+        {/* ── STICKY JOIN BAR ── uniwersalny na każdej zakładce OPRÓCZ Rozmowy
+            — tam ma być widać wyłącznie okno czatu, bez dodatkowych
+            elementów. Wszędzie indziej osoba, która jeszcze nie dołączyła,
+            ma mieć dostęp do "Dołącz" niezależnie od tego, którą zakładkę
+            akurat przegląda.
             Stays visible while merely OBSERVING: "Obserwuj" used to swap the
             whole bar away, so anyone who watched first had to hunt for a way
             to actually join. Now "Dołącz" holds its place until you're in, and
             the second button just reports the state you're already in. */}
-        {joinBarVisible && <HideBottomNav />}
-        {joinBarVisible && (
+        {tab !== 'rozmowa' && joinBarVisible && <HideBottomNav />}
+        {tab !== 'rozmowa' && joinBarVisible && (
           <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
