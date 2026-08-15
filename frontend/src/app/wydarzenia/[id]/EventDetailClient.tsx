@@ -73,6 +73,15 @@ import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes } from '@/lib/time';
 
+type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+const EVENT_TAB_LABELS: [EventTab, string][] = [
+  ['sklad', 'Skład'],
+  ['rozmowa', 'Rozmowa'],
+  ['wynik', 'Wynik'],
+  ['rozliczenia', 'Rozliczenia'],
+  ['ustawienia', 'Ustawienia'],
+];
+
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
 function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
@@ -392,20 +401,21 @@ export default function EventDetailClient() {
   // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
   // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
   const [, setCopied] = useState(false);
-  // Zakładki: Info (domyślnie) i Rozmowa, analogicznie do /grupy/[id].
-  // Czytamy `?tab=` ręcznie z `window.location`, NIE przez `useSearchParams()`
-  // — ten hak wywala produkcyjny build na tej trasie (patrz komentarz przy
-  // `cykliczne`/`dolacz` niżej, ten sam powód).
-  const [tab, setTab] = useState<'info' | 'rozmowa'>('info');
+  // Zakładki: Skład (domyślnie), Rozmowa, Wynik, Rozliczenia, Ustawienia —
+  // analogicznie do /grupy/[id]. Czytamy `?tab=` ręcznie z `window.location`,
+  // NIE przez `useSearchParams()` — ten hak wywala produkcyjny build na tej
+  // trasie (patrz komentarz przy `cykliczne`/`dolacz` niżej, ten sam powód).
+  const [tab, setTab] = useState<EventTab>('sklad');
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (new URLSearchParams(window.location.search).get('tab') === 'rozmowa') setTab('rozmowa');
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
   }, []);
-  const goToTab = (t: 'info' | 'rozmowa') => {
+  const goToTab = (t: EventTab) => {
     setTab(t);
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
-    if (t === 'rozmowa') sp.set('tab', 'rozmowa'); else sp.delete('tab');
+    if (t === 'sklad') sp.delete('tab'); else sp.set('tab', t);
     const qs = sp.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   };
@@ -1321,6 +1331,10 @@ export default function EventDetailClient() {
    *  (`rosterOpen` startuje jako `false`) — scroll trafiał więc w puste
    *  miejsce, bez listy gości do zaproszenia. */
   const handleZaprosGosciaPoMeczu = () => {
+    // Karta "Po meczu" jest uniwersalna (widoczna na każdej zakładce), a lista
+    // do zaproszenia gości mieszka na zakładce Skład — bez przełączenia scroll
+    // trafiał w pustkę, gdy ktoś kliknął z innej zakładki.
+    goToTab('sklad');
     setRosterOpen(true);
     // Rozwinięcie zmienia wysokość kontenera nad #sklad — scroll musi
     // poczekać na re-render, inaczej trafia w miejsce sprzed rozwinięcia.
@@ -1945,12 +1959,16 @@ export default function EventDetailClient() {
         </div>
 
         {/* Zakładki — analogicznie do /grupy/[id], dostosowane do pojedynczego
-            meczu: Info to cała dotychczasowa treść strony, Rozmowa zastępuje
-            dawne komentarze (EventComments) tym samym mechanizmem czatu co
-            w ekipie. */}
+            meczu: Skład to lista uczestników i zapisy (dawne "Info"), Rozmowa
+            zastępuje dawne komentarze (EventComments) tym samym mechanizmem
+            czatu co w ekipie, Wynik to drużyny i wpisany rezultat, Rozliczenia
+            to podział kosztów, Ustawienia to panel organizatora. Alerty
+            o statusie meczu (odwołany, świeżo opublikowany), podstawowe dane
+            meczu i sticky pasek dołączenia są uniwersalne — widoczne na każdej
+            zakładce, bo dotyczą każdej z nich. */}
         <div className="border-b border-slate-100 px-4">
-          <div className="flex gap-5">
-            {(['info', 'rozmowa'] as const).map((t) => (
+          <div className="flex gap-5 overflow-x-auto">
+            {EVENT_TAB_LABELS.map(([t, label]) => (
               <button
                 key={t}
                 onClick={() => goToTab(t)}
@@ -1960,13 +1978,14 @@ export default function EventDetailClient() {
                     : 'text-slate-500 hover:text-ink'
                 }`}
               >
-                {t === 'info' ? 'Info' : 'Rozmowa'}
+                {label}
               </button>
             ))}
           </div>
         </div>
 
-        {tab === 'info' && (<>
+        {/* Uniwersalne — widoczne na każdej zakładce, bo to podstawowy status
+            meczu, nie treść żadnej konkretnej sekcji. */}
 
         {/* ── CANCELLED BANNER ── */}
         {isCancelled && (
@@ -1996,6 +2015,7 @@ export default function EventDetailClient() {
             onWyslijRozliczenie={handleWyslijRozliczenie}
             trackResults={event.trackResults}
             wynikWpisany={matchResult != null}
+            onWpiszWynik={() => goToTab('wynik')}
             liczbaGosciDoZaproszenia={niePrzejeciGoscie.length}
             onZaprosGoscia={handleZaprosGosciaPoMeczu}
             onOznaczNieobecnych={(isOwner || canManageSquad) ? handleOpenNieobecni : undefined}
@@ -2313,6 +2333,8 @@ export default function EventDetailClient() {
             </p>
           )}
         </div>
+
+        {tab === 'sklad' && (<>
 
         {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
         {/* Shown whenever the organizer requires approval — even with zero
@@ -2982,7 +3004,11 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── STICKY JOIN BAR ──
+        </>)}
+
+        {/* ── STICKY JOIN BAR ── uniwersalny, widoczny na każdej zakładce —
+            osoba, która jeszcze nie dołączyła, ma mieć dostęp do "Dołącz"
+            niezależnie od tego, którą zakładkę akurat przegląda.
             Stays visible while merely OBSERVING: "Obserwuj" used to swap the
             whole bar away, so anyone who watched first had to hunt for a way
             to actually join. Now "Dołącz" holds its place until you're in, and
@@ -3051,6 +3077,8 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        {tab === 'sklad' && (<>
+
         {/* ── MECZ JUŻ TRWA / PO MECZU — komunikat zamiast przycisku dołączania ── */}
         {!(user && myParticipation) && eventStarted && (
           <div className="px-4">
@@ -3116,14 +3144,15 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* Po starcie meczu rozliczenie idzie nad składem/wynikiem — treść
-            obu sekcji zdefiniowana wyżej (skladWynikSection/platnosciSection),
-            tu zmienia się wyłącznie kolejność. */}
-        {eventStarted ? (
-          <>{platnosciSection}{skladWynikSection}</>
-        ) : (
-          <>{skladWynikSection}{platnosciSection}</>
-        )}
+        </>)}
+
+        {/* Drużyny i wynik — dawniej `skladWynikSection`, dziś cała treść
+            zakładki Wynik. */}
+        {tab === 'wynik' && skladWynikSection}
+
+        {/* Podział kosztów — dawniej `platnosciSection`, dziś cała treść
+            zakładki Rozliczenia. */}
+        {tab === 'rozliczenia' && platnosciSection}
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. `canManageEvent`
@@ -3131,7 +3160,7 @@ export default function EventDetailClient() {
             i "Uprawnienia" niżej zostają dodatkowo zawężone do `isOwner` —
             fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
             prawdziwy organizator, nie admin ani żaden delegat. */}
-        {canManageEvent && (
+        {tab === 'ustawienia' && canManageEvent && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -3222,6 +3251,8 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        {tab === 'sklad' && (<>
+
         {/* ── Zaproś znajomych — tylko dla uczestników ──
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
             więc panel ma sens także przy meczach sprzed migracji 041.
@@ -3253,6 +3284,11 @@ export default function EventDetailClient() {
           </div>
         )}
 
+        </>)}
+
+        {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisków na
+            różnych zakładkach (np. "Zaproś z grupy" w karcie "Mecz gotowy",
+            uniwersalnej), więc same nie mogą być zamknięte w jednej z nich. */}
         {inviteOpen && user && (
           <InviteFromGroupDialog
             eventId={event.id}
@@ -3286,6 +3322,8 @@ export default function EventDetailClient() {
             onClose={() => setZakresTerminuOtwarty(false)}
           />
         )}
+
+        {tab === 'sklad' && (<>
 
         {/* ── Organizator (zawsze na dole, widoczne dla wszystkich) ── */}
         {(() => {

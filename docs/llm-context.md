@@ -337,30 +337,41 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-08-15 — Rozmowa meczu jak w ekipie, zakładki na stronie meczu, rozmowa ekipy sięga do dołu ekranu
+### 2026-08-15 — Strona meczu dostaje pięć zakładek (Skład/Rozmowa/Wynik/Rozliczenia/Ustawienia), rozmowa meczu jak w ekipie, zakładki nad "Najbliższy mecz"
 
-PROBLEM: strona meczu miała na dole zwykłą listę komentarzy (odgórnie na najstarszy,
-composer nad listą) — inny wygląd i inna mechanika niż „Rozmowa" w ekipie, mimo że to
-ten sam rodzaj potrzeby: ustalić z resztą graczy, gdzie parkujemy albo kto bierze piłki.
-Wszystko na stronie meczu (dane, skład, płatności, komentarze) stało jedna pod drugą bez
-podziału, więc rozmowa ginęła na samym dole długiej strony. Osobno: po ukryciu dolnej
-nawigacji na zakładce Rozmowa w ekipie kontener czatu miał sztywną wysokość (`68dvh`) i
-zostawiał pod sobą pas pustego tła zamiast wykorzystać zwolnione miejsce.
+PROBLEM: strona meczu była jedną długą kolumną — dane, prośby o dołączenie, skład,
+drużyny, wynik, rozliczenie, ustawienia organizatora i komentarze stały jedna pod drugą
+bez podziału, więc np. rozliczenie kosztów ginęło daleko na dole. Komentarze wyglądały
+i działały inaczej niż „Rozmowa" w ekipie, mimo tej samej potrzeby: ustalić z resztą
+graczy, gdzie parkujemy albo kto bierze piłki. Na stronie ekipy zakładki (Mecze/Rozmowa/
+Skład/Statystyki) stały POD kartą „Najbliższy mecz", nie nad nią, mimo że to one są
+nawigacją strony. Osobno: po ukryciu dolnej nawigacji na zakładce Rozmowa w ekipie
+kontener czatu miał sztywną wysokość (`68dvh`) i zostawiał pod sobą pas pustego tła
+zamiast wykorzystać zwolnione miejsce.
 
-ROZWIĄZANIE BOJO: strona meczu dostała dwie zakładki, tak jak strona ekipy: **Info**
-(cała dotychczasowa treść) i **Rozmowa** — ten sam mechanizm czatu co w ekipie
-(chronologia rosnąco, grupowanie wiadomości, separatory dni, auto-scroll, composer pod
-listą), widoczny wyłącznie dla uczestników meczu. Rozmowa ekipy i rozmowa meczu obie
-teraz rozciągają się do samego dołu ekranu na telefonie zamiast zostawiać puste miejsce
-pod kontenerem czatu.
+ROZWIĄZANIE BOJO: strona meczu ma teraz pięć zakładek: **Skład** (domyślna — uczestnicy,
+zapisy, prośby o dołączenie, panel „Czy gramy?"), **Rozmowa** (ten sam mechanizm czatu co
+w ekipie — chronologia rosnąco, grupowanie wiadomości, separatory dni, auto-scroll,
+composer pod listą — widoczny wyłącznie dla uczestników), **Wynik** (drużyny i formularz
+rezultatu), **Rozliczenia** (podział kosztów) i **Ustawienia** (panel organizatora:
+widoczność, goście, edycja, powtórka, uprawnienia, odwołanie, usunięcie). Status meczu
+(baner odwołania, karta „Po meczu", nagłówek z datą/miejscem/ceną, sticky pasek „Dołącz")
+zostaje widoczny na każdej zakładce, bo dotyczy całego meczu, nie jednej podstrony. Na
+stronie ekipy zakładki przeniosły się nad „Najbliższy mecz". Rozmowa ekipy i rozmowa
+meczu obie rozciągają się teraz do samego dołu ekranu na telefonie zamiast zostawiać
+puste miejsce pod kontenerem czatu.
 
 MECHANIKA: nowy `components/events/RozmowaWydarzenia.tsx` (ta sama mechanika co
 `RozmowaGrupy.tsx`, ale bez przypinania i bez moderacji — dane to płaskie
-`event_comments`/`lib/comments.ts`, bez kolumny na przypięcie); zastępuje usunięty
-`components/events/EventComments.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`:
-stan zakładki w `?tab=rozmowa`, strona dostaje `h-[100dvh] overflow-hidden` i chowa
-`BottomNav` na tej zakładce, tak jak `GroupDetailClient.tsx` na Rozmowie.
-`RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca rodzic.
+`event_comments`/`lib/comments.ts`); zastępuje usunięty `components/events/EventComments.tsx`.
+`app/wydarzenia/[id]/EventDetailClient.tsx`: stan zakładki w `?tab=`, strona dostaje
+`h-[100dvh] overflow-hidden` na Rozmowie i chowa `BottomNav`, tak jak `GroupDetailClient.tsx`.
+Dawne `skladWynikSection`/`platnosciSection` (istniały już w kodzie pod tymi nazwami) trafiły
+wprost pod zakładki Wynik/Rozliczenia. Karta „Po meczu" (`PoMeczuCard`) dostała
+`onWpiszWynik` — jej zadania przełączają zakładkę (`goToTab`) zamiast liczyć na
+`scrollIntoView`/`href="#kotwica"` do sekcji, która mogła nie być zamontowana na aktywnej
+zakładce. `RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca
+rodzic.
 
 ### 2026-08-15 — Czy gramy: próg minimum, kto milczy, otwarcie dla okolicy; rozmowa jak WhatsApp; ekipa z jedną osobą już nie jest martwa
 
