@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Settings, Loader2, CalendarPlus, Link2, Check,
+  Users, ArrowLeft, Loader2, CalendarPlus, Link2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
+import NotificationBell from '@/components/layout/NotificationBell';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
@@ -216,17 +216,6 @@ export default function GroupDetailClient() {
     }
   };
 
-  const [kodSkopiowany, setKodSkopiowany] = useState(false);
-  const handleCopyCode = async () => {
-    if (!group) return;
-    try {
-      await navigator.clipboard.writeText(group.joinCode);
-      setKodSkopiowany(true);
-      toast('Skopiowano kod dołączenia');
-      setTimeout(() => setKodSkopiowany(false), 2000);
-    } catch { /* ignore */ }
-  };
-
   // Nadchodzące rosnąco (najbliższy pierwszy), historia malejąco.
   const { upcoming, past } = useMemo(() => {
     const up = events
@@ -285,15 +274,26 @@ export default function GroupDetailClient() {
         {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
             z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
             wprost. Wszystko w jednym niskim pasku, przyklejonym na górze
-            (zastępuje mobilny pasek Header): powrót, tożsamość ekipy,
-            zaproszenie z kodem dołączenia obok, ustawienia, a na mobile
-            na samym końcu dzwonek i avatar. */}
+            (zastępuje mobilny pasek Header): powrót, logo, nazwa, „Zaproś"
+            i na mobile dzwonek. Kod dołączenia i ustawienia miały tu za dużo
+            miejsca — kod dołączenia żyje w arkuszu „Zaproś" (ZaprosDoGrupySheet),
+            a ustawienia dostały własną zakładkę (link niżej, przy pozostałych
+            zakładkach) zamiast osobnej zębatki tutaj. Awatar zniknął — sam
+            dzwonek wystarczy, profil jest już w dolnej nawigacji. */}
         {/* -mt-5 znosi górny padding <main> (py-5) na mobile, żeby pasek
             siedział tuż przy górnej krawędzi ekranu, tak jak zgłoszono
             wprost — zbyt duży odstęp od krawędzi. Na desktopie Header
             zostaje widoczny nad tym paskiem, więc odstęp z <main> ma sens
             i go nie znosimy. */}
-        <div className="sticky top-0 z-[1010] -mx-4 -mt-5 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:mt-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0">
+        {/* Zakładka Rozmowa nie ma `sticky` — tam <main> jest już
+            `overflow-hidden` w stałej wysokości ekranu (rozmowaPelnoekranowa)
+            i nie przewija się, więc `position: sticky` na dziecku
+            overflow-hidden liczy swój "punkt zaczepienia" inaczej niż
+            zwykły scroll i belka lądowała niżej niż na pozostałych
+            zakładkach — zgłoszone wprost. Statyczne pozycjonowanie w tym
+            jednym przypadku daje ten sam efekt (belka i tak jest pierwszym
+            elementem na górze), bez tej niespójności. */}
+        <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:mt-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0`}>
           <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <button
               onClick={() => router.push('/grupy')}
@@ -319,26 +319,8 @@ export default function GroupDetailClient() {
                 <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Zaproś</span>
               </button>
             )}
-            {member && perms.canInvite && (
-              <button
-                onClick={handleCopyCode}
-                title="Kopiuj kod dołączenia"
-                className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
-              >
-                {kodSkopiowany ? <Check className="h-3 w-3 text-green-600" /> : group.joinCode}
-              </button>
-            )}
-            {perms.isFounder || perms.canManageMembers ? (
-              <Link
-                href={`/grupy/${group.id}/edytuj`}
-                className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-slate-700"
-                aria-label="Ustawienia ekipy"
-              >
-                <Settings className="h-4 w-4" />
-              </Link>
-            ) : null}
             <div className="shrink-0 md:hidden">
-              <MobileIdentityRow />
+              <NotificationBell />
             </div>
           </div>
           <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
@@ -361,6 +343,16 @@ export default function GroupDetailClient() {
                 )}
               </button>
             ))}
+            {/* Zębatka ustawień zniknęła z belki — zbyt dużo elementów w jednym
+                niskim pasku. Ta sama akcja, teraz jako zakładka: styl identyczny
+                z resztą, ale to Link do /edytuj, nie przełącznik stanu `tab` —
+                strona ustawień ma już własne zakładki (Ogólne/Zaproszenia/
+                Uprawnienia), więc nie duplikujemy jej treści tutaj. */}
+            {(perms.isFounder || perms.canManageMembers) && (
+              <Link href={`/grupy/${group.id}/edytuj`} className={tabCls(false)}>
+                Ustawienia
+              </Link>
+            )}
           </div>
         </div>
 
