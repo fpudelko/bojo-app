@@ -288,16 +288,16 @@ zachowaniem **dobrym** i nie ma z tamtą tabelą żadnego związku. RLS: widoczn
 siebie, organizatora meczu i członków grupy (gdy mecz jest przypięty do grupy), zapis
 wyłącznie za siebie (`auth.uid() = user_id`).
 
-**„Kto milczy" — panel dla organizatora meczu ekipy.** Ankieta na WhatsAppie pokazuje,
-kto zagłosował; nigdy nie pokaże, kto się nie odezwał. Czysta funkcja `ktoMilczy()`
-(`lib/eventResponses.ts`) liczy różnicę: członkowie grupy bez wpisu w `event_participants`
-**i** bez wiersza w `event_declines`. Kluczowy przypadek — odmawiający jawnie **NIE
-milczy**, cisza i odmowa to dwie różne, rozróżnialne odpowiedzi. Organizator może
-zaczepić milczących jednym z dwóch sposobów: RPC `zapytaj_milczacych()` (powiadomienie
-pod dzwonkiem, `SECURITY DEFINER`, zapora przed spamem — pomija zaczepionych w ciągu
-ostatnich 12 h) albo `tekstZaczepki()` (`lib/eventShare.ts`) — gotowy tekst do
-wklejenia na WhatsAppa, bo Bojo nie ma jeszcze własnego kanału push/SMS i nie udaje,
-że ma (patrz `docs/strategia.md`).
+**„Kto milczy" — usunięte.** Był tu panel dla organizatora meczu ekipy licząc różnicę
+między członkami grupy a sumą `event_participants`/`event_declines`, z przyciskami do
+zaczepienia milczących (RPC `zapytaj_milczacych()`, powiadomienie `pytanie_o_udzial`, i
+gotowy tekst na WhatsAppa). Usunięty na wyraźną prośbę — prostszą odpowiedzią na „brakuje
+ludzi" jest „Otwórz dla okolicy" niżej, nie ściganie własnej ekipy. `lib/eventResponses.ts`
+i `tekstZaczepki()` skasowane jako martwy kod. RPC i typ powiadomienia **zostają w
+bazie** (migracji `097` się nie kasuje po wdrożeniu) — po prostu nic już ich nie wywołuje.
+
+`event_declines` samo w sobie **nie znika** — karmi „Nie gram" (`NieGramButton.tsx`)
+opisane wyżej, niezależnie od usuniętego panelu „kto milczy".
 
 **„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator (albo
 delegat z `can_create_events`) jednym kliknięciem zamienia go w publiczny —
