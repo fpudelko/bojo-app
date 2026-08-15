@@ -694,7 +694,9 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
    składu ekipy pojęcie „kto milczy" nie ma odbiorcy). `ktoMilczy()`
    (`lib/eventResponses.ts`) liczy różnicę między członkami grupy a sumą
    `event_participants` + `event_declines` — odmawiający jawnie **nie** milczy, to
-   kluczowy przypadek całej funkcji. Dwa przyciski: **„Zapytaj w Bojo"** (RPC
+   kluczowy przypadek całej funkcji. Dwa przyciski **obok siebie w jednym wierszu**
+   (`flex-1` na obu, nie `flex-wrap` — jeden pod drugim marnował miejsce):
+   **„Zapytaj w Bojo"** (RPC
    `zapytaj_milczacych()`, wpis pod dzwonkiem typu `pytanie_o_udzial`, z zaporą przed
    spamem — 12 h) i **„Tekst na WhatsAppa"** (`tekstZaczepki()`, `lib/eventShare.ts` —
    kopiuje do schowka gotowy tekst z linkiem `/wydarzenia/{id}`, bo Bojo nie ma jeszcze
@@ -988,25 +990,39 @@ wystarczy, profil jest w dolnej nawigacji. Osobny wiersz pod belką niesie meta
 (sport/miasto/boisko/liczba członków) — dawniej to wszystko zajmowało osobny wiersz
 „← Ekipy" plus kartę nagłówka z okładką na pół ekranu, co zgłoszono wprost jako
 zajmujące za dużo miejsca. Zaraz pod belką stoją **zakładki** — nawigacja ma być
-najwyżej, nad treścią którą przełącza, nie pod pierwszą kartą. Pod zakładkami
-„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`)
-— **tu żyje cotygodniowa pętla**: gdy grupa ma nadchodzący mecz, ten sam komponent karty co
-na `/wydarzenia` (`EventBrowseCard`, z moim statusem uczestnictwa) plus osobny przycisk
-„Udostępnij mecz" pod spodem; gdy nie ma, ale ma historię, przycisk „Powtórz na {dzień}
-{data}" tworzy nowy termin jednym kliknięciem (`repeatEvent()` + `domyslnyTerminPowtorki()`,
-ta sama data i godzina co poprzednio — całą ekipę powiadamia trigger
-`powiadom_o_nowym_meczu_w_grupie`, migracja `072`/`093`); gdy grupa nie miała jeszcze
-żadnego meczu, link prosto do kreatora. Środkowy FAB dolnej nawigacji na trasie
-`/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>` (`BottomNav.tsx`) — to samo
-działanie na desktopie robi tekstowy „+ Nowy termin" w zakładce Mecze.
+najwyżej, nad treścią którą przełącza, nie pod pierwszą kartą. **Belka i zakładki dzielą
+jeden `sticky top-0` kontener** (poza zakładką Rozmowa, patrz niżej) — dwa osobne sticky
+elementy na tej samej wysokości nakładałyby się na siebie zamiast układać w stos, więc
+to jest jedna sticky całość, nie dwie. Poziome przewijanie zakładek na wąskim telefonie
+nie pokazuje paska przewijania (`.scrollbar-hide` w `globals.css`).
+
+**„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) jest widoczny wyłącznie w zakładce
+Mecze** — to jest jej treść (skrót najbliższego terminu), nie uniwersalny nagłówek
+strony; wcześniej wyświetlał się na każdej zakładce oprócz Rozmowy, co pod Statystykami
+czy Składem po prostu zajmowało miejsce. **Tu żyje cotygodniowa pętla**: gdy grupa ma
+nadchodzący mecz, ten sam komponent karty co na `/wydarzenia` (`EventBrowseCard`, z moim
+statusem uczestnictwa) plus osobny przycisk „Udostępnij mecz" pod spodem; gdy nie ma, ale
+ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym kliknięciem
+(`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co poprzednio —
+całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja `072`/`093`);
+gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora. Środkowy FAB dolnej
+nawigacji na trasie `/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>`
+(`BottomNav.tsx`) — to samo działanie na desktopie robi tekstowy „+ Nowy termin"
+w zakładce Mecze.
 
 Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
 nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
 Uprawnienia, więc nie duplikujemy ich treści tutaj): **Mecze** (nadchodzące/historia, jak dawniej) / **Rozmowa** (dawniej
-„Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (rząd awatarów
+„Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (mała belka
+„Zaproś do ekipy" + kod dołączenia + ikona udostępnienia nad rzędem awatarów — ten sam
+kod/link co w `ZaprosDoGrupySheet`, tylko bez otwierania arkusza; widoczna z tych samych
+warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — potem rząd awatarów
 + lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
 panel z czterema przełącznikami inline — dla założyciela — i kebab „Usuń z ekipy" dla
-`can_manage_members`) / **Statystyki** (patrz „Wyniki i statystyki" w `docs/domena.md`).
+`can_manage_members`) / **Statystyki** (patrz „Wyniki i statystyki" w `docs/domena.md`;
+kafelki liczbowe mają wspólną minimalną wysokość i wyśrodkowaną treść — „nadchodzące"
+jest dłuższe niż sąsiednie etykiety i na wąskim telefonie łamie się do dwóch linii, bez
+tego kafelek wyglądał na rozjechany względem reszty rzędu).
 Zmiana uprawnień innego członka jest dostępna w dwóch miejscach o identycznej treści
 panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — obie ścieżki
 działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
@@ -1075,6 +1091,9 @@ ręcznie.
 `/grupy/[id]`. „Udostępnij"/„Kopiuj", które wcześniej tam stały, przeniosły się **pod
 zakładki** — w miejsce, które kiedyś zajmował `<h1>`. To jest świadoma zamiana miejscami,
 nie usunięcie: obie pary elementów zostały, zmieniła się tylko ich kolejność w pionie.
+Ten pasek nazwy i zakładki dzielą jeden `sticky top-0` kontener (poza zakładką Rozmowa,
+z tego samego powodu co na `/grupy/[id]`), a poziome przewijanie zakładek chowa pasek
+przewijania (`.scrollbar-hide`).
 
 **Kilka elementów zostaje uniwersalnych** — renderują się niezależnie od aktywnej
 zakładki (poza Rozmową, patrz niżej), bo dotyczą całego meczu, nie treści jednej
@@ -1109,10 +1128,17 @@ rosnąca, grupowanie wiadomości tej samej osoby, separatory dni, własny scroll
 auto-przewijaniem i przyciskiem powrotu, composer pod listą), ale **bez przypinania i bez
 moderacji** — dane to płaskie `event_comments` (`lib/comments.ts`), bez kolumny na
 przypięcie i bez odpowiednika `can_moderate_wall` na poziomie meczu. Każdy usuwa
-wyłącznie swoją wiadomość, tak jak w dawnym `EventComments`. Widoczna wyłącznie dla
-uczestników (`myParticipation`), tak samo jak dawne komentarze. Na tej zakładce strona
-zachowuje się jak `/grupy/[id]` na Rozmowie: `BottomNav` chowa się (`HideBottomNav`),
-a strona dostaje `h-[100dvh] overflow-hidden`, żeby czat sięgał do dołu ekranu.
+wyłącznie swoją wiadomość, tak jak w dawnym `EventComments`. **Widoczna dla uczestników,
+organizatora (bez względu na to, czy sam gra) i — gdy mecz jest przypięty do ekipy — dla
+całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z osobnego
+`isGroupMember()` doładowanego razem z `groupInfo`) — dawne komentarze widzieli wyłącznie
+zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
+o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
+`BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
+żeby czat sięgał do dołu ekranu. Klawiatura ekranowa nie zostawia już pustej przestrzeni
+pod composerem — `viewport.interactiveWidget: 'resizes-content'` w `app/layout.tsx` każe
+przeglądarce faktycznie skurczyć layout (a więc i `100dvh`) razem z klawiaturą, zamiast
+tylko przesuwać widoczny fragment stałej wysokości strony.
 
 ## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
 

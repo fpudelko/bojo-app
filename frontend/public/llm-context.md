@@ -337,6 +337,46 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-15 — Rozmowa meczu też dla organizatora i ekipy, zakładki sticky, klawiatura ekranowa nie zostawia pustki, drobne poprawki UI
+
+PROBLEM: rozmowa meczu widziała wyłącznie zapisanych uczestników — organizator, który
+sam nie gra, i reszta ekipy meczu przypiętego do grupy nie mieli jak w niej pisać, mimo
+że to ich rozmowa. „Najbliższy mecz" na stronie ekipy pokazywał się na każdej zakładce
+oprócz Rozmowy, zajmując miejsce też pod Statystykami i Składem, gdzie nie miał związku
+z treścią. Pasek zakładek (ekipa i mecz) przewijał się razem z treścią zamiast zostać
+na miejscu, a poziome przewijanie krótkiego paska zakładek pokazywało pasek przewijania.
+Po otwarciu klawiatury ekranowej w Rozmowie robiła się pusta, marnowana przestrzeń nad
+klawiaturą — `100dvh` nie kurczył się razem z nią. Kod dołączenia do ekipy i możliwość
+zaproszenia zniknęły z zakładki Skład razem z odchudzeniem górnej belki w poprzedniej
+rundzie, a stat kafelek „nadchodzące" (dłuższy niż sąsiednie etykiety) łamał się do
+dwóch linii i wyglądał na rozjechany względem reszty rzędu. Przyciski „Zapytaj w Bojo"/
+„Tekst na WhatsAppa" stały jeden pod drugim, marnując miejsce.
+
+ROZWIĄZANIE BOJO: rozmowę meczu widzi teraz też organizator (bez względu na to, czy
+sam gra) i cała ekipa, do której mecz jest przypięty (bez względu na to, czy dany
+członek gra akurat w tym terminie). „Najbliższy mecz" na stronie ekipy pokazuje się
+wyłącznie w zakładce Mecze — to jej treść, nie uniwersalny nagłówek. Pasek nazwy/belki
+i zakładek (ekipa i mecz) trzyma się teraz góry ekranu podczas przewijania, a poziome
+przewijanie zakładek nie pokazuje już paska przewijania. Klawiatura ekranowa realnie
+kurczy layout, więc composer w Rozmowie zostaje tuż nad nią, bez pustki pod spodem.
+Zakładka Skład dostała z powrotem szybki dostęp do zaproszenia: mała belka „Zaproś do
+ekipy" + kod dołączenia + ikona udostępnienia nad listą graczy. Kafelki statystyk mają
+teraz wspólną minimalną wysokość i wyśrodkowaną treść, więc dłuższa etykieta już nie
+rozjeżdża rzędu. „Zapytaj w Bojo"/„Tekst na WhatsAppa" stoją teraz obok siebie.
+
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` — nowy stan `czlonekGrupyMeczu`
+(z `isGroupMember()`, doładowany razem z `groupInfo`), gate Rozmowy rozszerzony na
+`myParticipation || isOwner || czlonekGrupyMeczu`. `app/layout.tsx`:
+`viewport.interactiveWidget: 'resizes-content'`. `app/grupy/[id]/GroupDetailClient.tsx`:
+belka i pasek zakładek w jednym `sticky top-0` kontenerze (dwa osobne nakładałyby się
+na tej samej wysokości); `NajblizszyMeczGrupy` pod warunkiem `tab === 'mecze'` zamiast
+`tab !== 'tablica'`; nowa belka zaproszenia nad `<SkladGrupy>` (`linkDoGrupy()`/
+`udostepnijGrupe()` z `lib/groupShare.ts`, ponownie użyty `handleCopyCode`). Analogiczny
+sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klasa
+`.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
+i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
+`flex-wrap`.
+
 ### 2026-08-15 — Strona meczu dostaje pięć zakładek (Skład/Rozmowa/Wynik/Rozliczenia/Ustawienia); belka ekipy odchudzona, ustawienia jako zakładka
 
 PROBLEM: strona meczu była jedną długą kolumną — dane, prośby o dołączenie, skład,
@@ -720,36 +760,5 @@ nowe pola `EventItem.unpaidCount` i `MyEventRelation.hasPaid`. `EventBrowseCard.
 — `<Header showMobileWordmark />` na głównym renderze zalogowanego użytkownika.
 `wydarzenia/nowe/page.tsx` — baner szkicu bez `truncate`, „Zacznij od nowa" jako
 osobny przycisk.
-
-### 2026-08-12 — Komplet i zwolnione miejsce pod dzwonkiem, rozliczenie do wysłania, powrót z logowania kończy zapis, zaproszenie gościa też dla tego, kto go dopisał
-
-PROBLEM: organizator nie dowiadywał się, gdy skład meczu przechodził w komplet albo
-gdy ktoś się wypisał i komplet się rozpadł — cisza aż do wejścia na stronę meczu,
-podczas gdy na czacie WhatsApp „sorry, wypadam" jest widoczną wiadomością. Panel
-„Podział kosztów" liczył wszystko poprawnie, ale kończył się na ekranie: żeby
-powiedzieć ekipie, kto jeszcze nie oddał, organizator przepisywał to ręcznie na czat
-— goście bez konta w ogóle nie mają jak zobaczyć swojej kwoty w Bojo. Wylogowany,
-który kliknął „Zaloguj się, aby dołączyć", po zalogowaniu wracał na widok identyczny
-z tym sprzed logowania i musiał od nowa znaleźć przycisk „Dołącz". Przycisk „Zaproś do
-Bojo" (zaproszenie do przejęcia wpisu gościa) mógł kliknąć tylko organizator, mimo że
-gościa dopisuje często uczestnik (`allowGuestAdds`) — czyli osoba, która go zna
-i ma z nim kontakt, nie organizator.
-
-ROZWIĄZANIE BOJO: nowy wyzwalacz w bazie powiadamia organizatora o zmianie stanu
-kompletu w obie strony (nie o każdym zapisie z osobna, żeby nie zagłuszyć tych dwóch
-istotnych momentów kilkunastoma wpisami). Przycisk „Wyślij rozliczenie ekipie" otwiera
-systemowy arkusz udostępniania z gotową wiadomością: kwota, zebrane z oczekiwanych,
-lista zaległości z kwotami i numer BLIK. Kliknięcie „Zaloguj się, aby dołączyć" niesie
-przez logowanie intencję zapisu — po powrocie okno zapisu otwiera się samo. Zaproszenie
-do przejęcia wpisu gościa może wysłać też ten, kto konkretnego gościa dopisał, nie
-tylko organizator.
-
-MECHANIKA: migracja `079` — wyzwalacz `powiadom_o_zmianie_kompletu` na
-`event_participants` (INSERT/UPDATE/DELETE), typy `komplet_skladu` i
-`zwolnilo_sie_miejsce`; `lib/settlementShare.ts` (`tekstRozliczenia()`, wzorem
-`eventShareText`) i przycisk w panelu kosztów `EventDetailClient.tsx`; `?dolacz=1`
-w adresie powrotu z `/logowanie` (ten sam wzorzec co `?utworzono=1`) i efekt otwierający
-`joinDialogOpen`; `mozeZaprosic()` w `EventDetailClient.tsx` zastępuje warunek
-`isOrganizer` przy przycisku „Zaproś do Bojo" (`isOrganizer || p.addedBy === user.id`).
 
 
