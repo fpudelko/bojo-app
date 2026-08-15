@@ -7,6 +7,7 @@ import {
   Users, ArrowLeft, Settings, Loader2, CalendarPlus, Link2, Check,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
@@ -269,13 +270,19 @@ export default function GroupDetailClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header showMobileWordmark />
+      {/* Na mobile Header oddaje swój pasek grupie — dokładnie jak na /mapa
+          (`hideMobileBarForUser`): tożsamość (dzwonek+avatar) nie znika,
+          tylko przenosi się do paska grupy niżej, żeby nie dublować się
+          z jej własnym niskim paskiem. Na desktopie Header zostaje bez zmian. */}
+      <Header hideMobileBarForUser />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
         {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
             z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
-            wprost. Wszystko w jednym niskim pasku: powrót, tożsamość ekipy,
-            zaproszenie z kodem dołączenia obok, ustawienia. */}
-        <div className="space-y-1">
+            wprost. Wszystko w jednym niskim pasku, przyklejonym na górze
+            (zastępuje mobilny pasek Header): powrót, tożsamość ekipy,
+            zaproszenie z kodem dołączenia obok, ustawienia, a na mobile
+            na samym końcu dzwonek i avatar. */}
+        <div className="sticky top-0 z-[1010] -mx-4 space-y-1 bg-canvas px-4 pb-1 pt-2 md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0">
           <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <button
               onClick={() => router.push('/grupy')}
@@ -319,6 +326,9 @@ export default function GroupDetailClient() {
                 <Settings className="h-4 w-4" />
               </Link>
             ) : null}
+            <div className="shrink-0 md:hidden">
+              <MobileIdentityRow />
+            </div>
           </div>
           <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
             {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
@@ -336,13 +346,18 @@ export default function GroupDetailClient() {
           </div>
         )}
 
-        <NajblizszyMeczGrupy
-          groupId={group.id}
-          upcoming={member ? nextMatch : null}
-          ostatni={member ? ostatniMecz : null}
-          canCreateEvents={perms.canCreateEvents}
-          relation={nextMatch ? statusFor(nextMatch) : undefined}
-        />
+        {/* Ukryte na zakładce Rozmowa — tam ma być widać composer bez
+            przewijania, a ta karta (zwłaszcza z historią meczu) potrafiła
+            zepchnąć go poza ekran. */}
+        {tab !== 'tablica' && (
+          <NajblizszyMeczGrupy
+            groupId={group.id}
+            upcoming={member ? nextMatch : null}
+            ostatni={member ? ostatniMecz : null}
+            canCreateEvents={perms.canCreateEvents}
+            relation={nextMatch ? statusFor(nextMatch) : undefined}
+          />
+        )}
 
         {/* Zakładki */}
         <div className="border-b border-slate-100 dark:border-slate-700">
