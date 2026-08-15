@@ -15,7 +15,7 @@ import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
-import EventComments from '@/components/events/EventComments';
+import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
@@ -392,6 +392,23 @@ export default function EventDetailClient() {
   // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
   // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
   const [, setCopied] = useState(false);
+  // Zakładki: Info (domyślnie) i Rozmowa, analogicznie do /grupy/[id].
+  // Czytamy `?tab=` ręcznie z `window.location`, NIE przez `useSearchParams()`
+  // — ten hak wywala produkcyjny build na tej trasie (patrz komentarz przy
+  // `cykliczne`/`dolacz` niżej, ten sam powód).
+  const [tab, setTab] = useState<'info' | 'rozmowa'>('info');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('tab') === 'rozmowa') setTab('rozmowa');
+  }, []);
+  const goToTab = (t: 'info' | 'rozmowa') => {
+    setTab(t);
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (t === 'rozmowa') sp.set('tab', 'rozmowa'); else sp.delete('tab');
+    const qs = sp.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  };
   const [rosterOpen, setRosterOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
@@ -1545,6 +1562,11 @@ export default function EventDetailClient() {
   // it's up — the nav would otherwise cover "Dołącz"/"Obserwuj". Stays true
   // while merely observing (myMaybe), matching the join bar's own comment.
   const joinBarVisible = !(user && (myParticipation || myPendingRequest)) && !eventStarted;
+  // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
+  // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
+  // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
+  // zostawiać pod sobą pustą przestrzeń. Ta sama sztuczka co w GroupDetailClient.
+  const rozmowaPelnoekranowa = tab === 'rozmowa' && !!myParticipation;
   // resultsAvailable: event started + 30 min buffer before result form is shown
   const resultsAvailable = (() => {
     try {
@@ -1875,12 +1897,15 @@ export default function EventDetailClient() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas">
+    <div className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
       <Header showMobileWordmark />
       {/* pb-32 kompensował fixed pasek "Dołącz"/"Obserwuj" — a ten pokazuje
           się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
-          pod treścią. */}
-      <main className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${joinBarVisible ? 'pb-32' : 'pb-8'}`}>
+          pod treścią. Na zakładce Rozmowa oba paddingi są zbędne — rozmowa
+          ma sięgać do samego dołu ekranu, nie zostawiać pod sobą odstęp. */}
+      <main className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
+        rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
+      }`}>
 
         {/* ── TOP BAR ──
             Deliberately no cover photo: it was a satellite tile that ate half
@@ -1918,6 +1943,30 @@ export default function EventDetailClient() {
             </button>
           </div>
         </div>
+
+        {/* Zakładki — analogicznie do /grupy/[id], dostosowane do pojedynczego
+            meczu: Info to cała dotychczasowa treść strony, Rozmowa zastępuje
+            dawne komentarze (EventComments) tym samym mechanizmem czatu co
+            w ekipie. */}
+        <div className="border-b border-slate-100 px-4">
+          <div className="flex gap-5">
+            {(['info', 'rozmowa'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => goToTab(t)}
+                className={`pb-2.5 text-sm transition-colors whitespace-nowrap ${
+                  tab === t
+                    ? 'border-b-2 border-primary-700 font-semibold text-primary-700'
+                    : 'text-slate-500 hover:text-ink'
+                }`}
+              >
+                {t === 'info' ? 'Info' : 'Rozmowa'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {tab === 'info' && (<>
 
         {/* ── CANCELLED BANNER ── */}
         {isCancelled && (
@@ -3076,9 +3125,6 @@ export default function EventDetailClient() {
           <>{skladWynikSection}{platnosciSection}</>
         )}
 
-        {/* Comments — only for participants */}
-        {myParticipation && <EventComments eventId={event.id} />}
-
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. `canManageEvent`
             (isOwner || delegat z can_edit) otwiera panel, ale "Usuń na stałe"
@@ -3279,6 +3325,22 @@ export default function EventDetailClient() {
             </div>
           );
         })()}
+        </>)}
+
+        {tab === 'rozmowa' && (myParticipation ? (
+          <>
+            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
+                dokumencie — bez tego zasłaniałby composer na dole rozmowy. */}
+            <HideBottomNav />
+            <div className="min-h-0 flex-1 px-4">
+              <RozmowaWydarzenia eventId={event.id} />
+            </div>
+          </>
+        ) : (
+          <p className="py-10 text-center text-sm text-slate-400">
+            Rozmowa jest widoczna wyłącznie dla uczestników meczu.
+          </p>
+        ))}
       </main>
 
       {/* Reschedule — opened from the date chip. Two gates when people are
