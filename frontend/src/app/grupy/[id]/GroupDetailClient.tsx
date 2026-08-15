@@ -268,15 +268,20 @@ export default function GroupDetailClient() {
   }
 
   const memberCount = members.length;
+  // Zakładka Rozmowa jest jedynym miejscem, gdzie strona ma zachowywać się
+  // jak ekran czatu: BottomNav znika (patrz HideBottomNav niżej), więc bez
+  // stałej wysokości viewportu pod kontenerem rozmowy zostawałaby pusta
+  // przestrzeń, którą kiedyś zajmował pasek nawigacji.
+  const rozmowaPelnoekranowa = tab === 'tablica' && member;
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
+    <div className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
       {/* Na mobile Header oddaje swój pasek grupie — dokładnie jak na /mapa
           (`hideMobileBarForUser`): tożsamość (dzwonek+avatar) nie znika,
           tylko przenosi się do paska grupy niżej, żeby nie dublować się
           z jej własnym niskim paskiem. Na desktopie Header zostaje bez zmian. */}
       <Header hideMobileBarForUser />
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
+      <main className={`mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5 ${rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}>
         {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
             z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
             wprost. Wszystko w jednym niskim pasku, przyklejonym na górze
@@ -416,7 +421,15 @@ export default function GroupDetailClient() {
                 dokumencie — bez tego zasłaniał composer na dole kontenera
                 rozmowy, zgłoszone wprost jako "zasłonięte". */}
             <HideBottomNav />
-            <RozmowaGrupy groupId={group.id} permissions={perms} />
+            {/* flex-1 min-h-0 rozciąga kontener rozmowy do dołu ekranu —
+                <main> i ten div są teraz `h-[100dvh] overflow-hidden`
+                (rozmowaPelnoekranowa), więc to jest jedyny element, który
+                może jeszcze rosnąć. Bez min-h-0 flex nie pozwoliłby
+                kontenerowi rozmowy skurczyć się poniżej wysokości jego
+                treści, co wyłączyłoby jego własny scroll. */}
+            <div className="min-h-0 flex-1">
+              <RozmowaGrupy groupId={group.id} permissions={perms} />
+            </div>
           </>
         ) : (
           <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">

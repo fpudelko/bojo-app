@@ -143,7 +143,7 @@ export default function RozmowaGrupy({ groupId, permissions }: { groupId: string
   };
 
   return (
-    <div className="flex h-[68dvh] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
       {przypiety && (
         <button
           onClick={skoczDoPrzypietej}

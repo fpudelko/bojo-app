@@ -337,6 +337,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-15 — Rozmowa meczu jak w ekipie, zakładki na stronie meczu, rozmowa ekipy sięga do dołu ekranu
+
+PROBLEM: strona meczu miała na dole zwykłą listę komentarzy (odgórnie na najstarszy,
+composer nad listą) — inny wygląd i inna mechanika niż „Rozmowa" w ekipie, mimo że to
+ten sam rodzaj potrzeby: ustalić z resztą graczy, gdzie parkujemy albo kto bierze piłki.
+Wszystko na stronie meczu (dane, skład, płatności, komentarze) stało jedna pod drugą bez
+podziału, więc rozmowa ginęła na samym dole długiej strony. Osobno: po ukryciu dolnej
+nawigacji na zakładce Rozmowa w ekipie kontener czatu miał sztywną wysokość (`68dvh`) i
+zostawiał pod sobą pas pustego tła zamiast wykorzystać zwolnione miejsce.
+
+ROZWIĄZANIE BOJO: strona meczu dostała dwie zakładki, tak jak strona ekipy: **Info**
+(cała dotychczasowa treść) i **Rozmowa** — ten sam mechanizm czatu co w ekipie
+(chronologia rosnąco, grupowanie wiadomości, separatory dni, auto-scroll, composer pod
+listą), widoczny wyłącznie dla uczestników meczu. Rozmowa ekipy i rozmowa meczu obie
+teraz rozciągają się do samego dołu ekranu na telefonie zamiast zostawiać puste miejsce
+pod kontenerem czatu.
+
+MECHANIKA: nowy `components/events/RozmowaWydarzenia.tsx` (ta sama mechanika co
+`RozmowaGrupy.tsx`, ale bez przypinania i bez moderacji — dane to płaskie
+`event_comments`/`lib/comments.ts`, bez kolumny na przypięcie); zastępuje usunięty
+`components/events/EventComments.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`:
+stan zakładki w `?tab=rozmowa`, strona dostaje `h-[100dvh] overflow-hidden` i chowa
+`BottomNav` na tej zakładce, tak jak `GroupDetailClient.tsx` na Rozmowie.
+`RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca rodzic.
+
 ### 2026-08-15 — Czy gramy: próg minimum, kto milczy, otwarcie dla okolicy; rozmowa jak WhatsApp; ekipa z jedną osobą już nie jest martwa
 
 PROBLEM: realna ekipa grająca co tydzień odtworzyła ręcznie w wątku na WhatsAppie

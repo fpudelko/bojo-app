@@ -1000,7 +1000,10 @@ panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — ob
 działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
 
 **Rozmowa wygląda i przewija się jak WhatsApp**, nie jak lista wpisów odgórnie na
-najnowszy. `RozmowaGrupy.tsx` ma własny kontener przewijania (`h-[68dvh]`), chronologię
+najnowszy. `RozmowaGrupy.tsx` wypełnia wysokością cały dostępny ekran (`h-full` w
+elastycznym kontenerze rodzica — na tej zakładce `GroupDetailClient` ustawia stronę na
+`h-[100dvh] overflow-hidden`, żeby po ukryciu `BottomNav` rozmowa sięgała do samego dołu
+ekranu, zamiast zostawiać pod sobą pustą przestrzeń), chronologię
 rosnącą (najstarsza u góry, najnowsza na dole) i composer pod listą, nie nad nią —
 auto-scroll na dół po wejściu i po wysłaniu wiadomości, przycisk powrotu (strzałka w
 kółku, `sticky` wewnątrz kontenera, nie `fixed` względem ekranu — dzięki temu nigdy nie
@@ -1029,6 +1032,29 @@ z `generateMetadata`), przez co adres w praktyce w ogóle się nie zmieniał.
 
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
+
+## Zakładki na `/wydarzenia/[id]`
+
+`EventDetailClient.tsx` ma od tej zmiany dwie zakładki nad treścią, analogicznie do
+`/grupy/[id]`, ale dostosowane do pojedynczego meczu (nie ma tu odpowiednika Meczów/
+Składu/Statystyk z ekipy — skład jest już centralnym elementem zakładki Info, nie osobną
+podstroną): **Info** (domyślna, cała dotychczasowa treść strony bez zmian) i **Rozmowa**
+(`RozmowaWydarzenia.tsx`, zastępuje dawny komponent `EventComments` — usunięty, nic
+innego go nie importowało). Stan zakładki w `?tab=rozmowa`, ale odczytany ręcznie z
+`window.location.search` przez `useEffect`, **nie** przez `useSearchParams()` — ta trasa
+jest prerenderowana i ten hak wywala produkcyjny build (`missing-suspense-with-csr-bailout`,
+patrz pułapka w `AGENTS.md`); dokładnie ten sam powód, dla którego `?utworzono=`/`?cykliczne=`/
+`?dolacz=` na tej stronie też są czytane ręcznie.
+
+`RozmowaWydarzenia.tsx` to ten sam mechanizm i wygląd co `RozmowaGrupy.tsx` (chronologia
+rosnąca, grupowanie wiadomości tej samej osoby, separatory dni, własny scroll z
+auto-przewijaniem i przyciskiem powrotu, composer pod listą), ale **bez przypinania i bez
+moderacji** — dane to płaskie `event_comments` (`lib/comments.ts`), bez kolumny na
+przypięcie i bez odpowiednika `can_moderate_wall` na poziomie meczu. Każdy usuwa
+wyłącznie swoją wiadomość, tak jak w dawnym `EventComments`. Widoczna wyłącznie dla
+uczestników (`myParticipation`), tak samo jak dawne komentarze. Na tej zakładce strona
+zachowuje się jak `/grupy/[id]` na Rozmowie: `BottomNav` chowa się (`HideBottomNav`),
+a strona dostaje `h-[100dvh] overflow-hidden`, żeby czat sięgał do dołu ekranu.
 
 ## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
 
