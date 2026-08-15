@@ -32,17 +32,18 @@ function toGroup(row: any): Group {
  */
 export function uprawnieniaCzlonka(
   group: Pick<Group, 'createdBy'>,
-  member: Pick<GroupMember, 'userId' | 'canManageMembers' | 'canCreateEvents' | 'canModerateWall'> | null | undefined,
+  member: Pick<GroupMember, 'userId' | 'canManageMembers' | 'canCreateEvents' | 'canModerateWall' | 'canInvite'> | null | undefined,
 ): GroupPermissions {
   const isFounder = !!group.createdBy && !!member && group.createdBy === member.userId;
   if (isFounder) {
-    return { isFounder: true, canManageMembers: true, canCreateEvents: true, canModerateWall: true };
+    return { isFounder: true, canManageMembers: true, canCreateEvents: true, canModerateWall: true, canInvite: true };
   }
   return {
     isFounder: false,
     canManageMembers: !!member?.canManageMembers,
     canCreateEvents: !!member?.canCreateEvents,
     canModerateWall: !!member?.canModerateWall,
+    canInvite: !!member?.canInvite,
   };
 }
 
@@ -143,7 +144,23 @@ export async function getMyGroupsZTerminem(userId: string): Promise<GroupWithNex
     nextByGroup.set(groupId, toEvent(row));
   }
 
-  return groups.map((g) => ({ ...g, nextEvent: nextByGroup.get(g.id) }));
+  // Lista /grupy ma odpowiadać na "kiedy gramy najbliżej" — grupa z terminem
+  // jutro idzie przed grupą z terminem za miesiąc, niezależnie od tego, kiedy
+  // która ekipa powstała. Grupy bez terminu lądują na końcu, w kolejności
+  // z `getMyGroups()` (created_at malejąco) — `.sort()` w V8 jest stabilny,
+  // więc wystarczy nie zwracać 0 tylko dla par bez terminu.
+  return groups
+    .map((g) => ({ ...g, nextEvent: nextByGroup.get(g.id) }))
+    .sort((a, b) => {
+      if (a.nextEvent && b.nextEvent) {
+        const ak = `${a.nextEvent.date}T${a.nextEvent.time}`;
+        const bk = `${b.nextEvent.date}T${b.nextEvent.time}`;
+        return ak < bk ? -1 : ak > bk ? 1 : 0;
+      }
+      if (a.nextEvent) return -1;
+      if (b.nextEvent) return 1;
+      return 0;
+    });
 }
 
 export async function getGroup(groupId: string): Promise<Group | null> {
@@ -177,7 +194,7 @@ export async function getGroupByCode(code: string): Promise<Group | null> {
 export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   const { data: rows, error } = await supabase
     .from('group_members')
-    .select('id, group_id, user_id, role, joined_at, can_manage_members, can_create_events, can_moderate_wall, invited_by')
+    .select('id, group_id, user_id, role, joined_at, can_manage_members, can_create_events, can_moderate_wall, can_invite, invited_by')
     .eq('group_id', groupId)
     .order('joined_at', { ascending: true });
   if (error) throw new Error(error.message);
@@ -217,6 +234,7 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
     canManageMembers: !!r.can_manage_members,
     canCreateEvents: !!r.can_create_events,
     canModerateWall: !!r.can_moderate_wall,
+    canInvite: !!r.can_invite,
     invitedBy: r.invited_by ?? undefined,
     name: profileNameMap[r.user_id] ?? participationNameMap[r.user_id] ?? 'Gracz',
     avatarUrl: avatarMap[r.user_id],
@@ -237,7 +255,7 @@ export async function getMyGroupPermissions(groupId: string, userId: string): Pr
   const [{ data: groupRow, error: gErr }, { data: memberRow, error: mErr }] = await Promise.all([
     supabase.from('groups').select('created_by').eq('id', groupId).maybeSingle(),
     supabase.from('group_members')
-      .select('user_id, can_manage_members, can_create_events, can_moderate_wall')
+      .select('user_id, can_manage_members, can_create_events, can_moderate_wall, can_invite')
       .eq('group_id', groupId).eq('user_id', userId).maybeSingle(),
   ]);
   if (gErr) throw new Error(gErr.message);
@@ -250,16 +268,18 @@ export async function getMyGroupPermissions(groupId: string, userId: string): Pr
       canManageMembers: memberRow.can_manage_members,
       canCreateEvents: memberRow.can_create_events,
       canModerateWall: memberRow.can_moderate_wall,
+      canInvite: memberRow.can_invite,
     },
   );
 }
 
-/** Ustawia trzy przełączniki uprawnień jednego członka. RLS (migracja `092`)
- *  przepuszcza to wyłącznie założycielowi — `zaktualizujJedenWiersz` zamienia
- *  odmowę w wyjątek, zamiast pozwolić przyciskowi „nic nie robić" po cichu. */
+/** Ustawia cztery przełączniki uprawnień jednego członka. RLS (migracje
+ *  `092`, `096`) przepuszcza to wyłącznie założycielowi —
+ *  `zaktualizujJedenWiersz` zamienia odmowę w wyjątek, zamiast pozwolić
+ *  przyciskowi „nic nie robić" po cichu. */
 export async function setMemberPermissions(
   memberRowId: string,
-  perms: { canManageMembers: boolean; canCreateEvents: boolean; canModerateWall: boolean },
+  perms: { canManageMembers: boolean; canCreateEvents: boolean; canModerateWall: boolean; canInvite: boolean },
 ): Promise<void> {
   await zaktualizujJedenWiersz(
     'group_members',
@@ -268,6 +288,7 @@ export async function setMemberPermissions(
       can_manage_members: perms.canManageMembers,
       can_create_events: perms.canCreateEvents,
       can_moderate_wall: perms.canModerateWall,
+      can_invite: perms.canInvite,
     },
     'Nie udało się zmienić uprawnień',
   );

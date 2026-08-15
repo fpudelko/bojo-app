@@ -522,14 +522,22 @@ grupowe z list. To osobne zadanie, patrz `BACKLOG.md §5`.
 
 Założyciel (`groups.created_by`) ma zawsze pełną władzę i nie da się go zdegradować —
 to jedyna rzecz, którą definiuje sama kolumna, nie da się jej odebrać żadnym zapisem.
-Migracja `092` dokłada obok tego trzy niezależne przełączniki na `group_members`,
-wzorem [Delegowania uprawnień organizatora](#delegowanie-uprawnień-organizatora) wyżej:
+Migracja `092` (rozszerzona o `096`) dokłada obok tego cztery niezależne przełączniki na
+`group_members`, wzorem [Delegowania uprawnień organizatora](#delegowanie-uprawnień-organizatora) wyżej:
 
 | Uprawnienie | Zakres | Domyślnie |
 |---|---|---|
 | `can_manage_members` | Dodaje i usuwa graczy z grupy, zmienia/odświeża kod zaproszenia | `false` |
 | `can_create_events` | Zakłada mecze przypięte do tej grupy | `true` — każdy członek to dziś robi, flaga istnieje po to, żeby dało się to odebrać |
-| `can_moderate_wall` | Kasuje cudze wpisy z tablicy i przypina ważne | `false` |
+| `can_invite` | Widzi przycisk „Zaproś" i kod dołączenia (`096`) | `true` — z tego samego powodu co `can_create_events`: dziś każdy członek to widzi bez żadnej bramki |
+| `can_moderate_wall` | Kasuje cudze wpisy w rozmowie i przypina ważne | `false` |
+
+**`can_invite` a `can_manage_members` — dwa różne poziomy.** `can_invite` steruje
+wyłącznie WIDOCZNOŚCIĄ przycisku „Zaproś" i kodu dołączenia w UI — RPC
+`dolacz_do_grupy_kodem()` (`094`) nie sprawdzała i nadal nie sprawdza uprawnień osoby,
+która podała kod, więc to nie jest nowa granica bezpieczeństwa. Rotacja kodu
+(`odswiez_kod_grupy()`, unieważnia stary link) zostaje przy `can_manage_members` — to
+cięższa akcja, bo dotyka wszystkich, nie tylko widoczności jednego przycisku.
 
 **Kolumna `role` (`'admin'`/`'member'`) zostaje jako etykieta, ale przestaje być
 źródłem prawdy.** Trigger `ustaw_role_czlonka()` wylicza ją z trzech przełączników przy
@@ -562,16 +570,19 @@ założyciel) — stary kod przestaje działać natychmiast, kto już jest w gru
 
 ---
 
-## Tablica grupy
+## Rozmowa grupy
 
 `group_posts` (migracja `093`) — płaska lista wpisów, bez wątków i bez załączników,
 zamknięta dla nie-członków (w odróżnieniu od `groups`, które jest publicznie
 czytelne — strona grupy jest celem linku zaproszenia i musi się wyrenderować bez
-konta). Jeden wpis może być przypięty (`pinned_at`) — to jedyna rzecz na tablicy, która
-wysyła powiadomienie do całej ekipy (typ `ogloszenie_w_grupie`, kolumna
-`notifications.group_id`), żeby dzwonek nie zamienił się w kanał czatu. Przypiąć własny
-wpis może każdy (RLS jest wierszowe), ale powiadomienie poleci tylko wtedy, gdy
-przypina ktoś z `can_moderate_wall` — pilnuje tego wyzwalacz w bazie, nie UI.
+konta). W interfejsie ta zakładka nazywa się „Rozmowa" (dawniej „Tablica") i wygląda
+jak dymki czatu (`RozmowaGrupy.tsx`) — mechanika bazy danych i nazwy kolumn zostają bez
+zmian, zmienił się tylko produkt, nie schemat. Jeden wpis może być przypięty
+(`pinned_at`) — to jedyna rzecz w rozmowie, która wysyła powiadomienie do całej ekipy
+(typ `ogloszenie_w_grupie`, kolumna `notifications.group_id`), żeby dzwonek nie zamienił
+się w kanał czatu. Przypiąć własny wpis może każdy (RLS jest wierszowe), ale
+powiadomienie poleci tylko wtedy, gdy przypina ktoś z `can_moderate_wall` — pilnuje tego
+wyzwalacz w bazie, nie UI.
 
 ---
 

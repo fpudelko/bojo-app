@@ -9,8 +9,8 @@ import {
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
-import ToggleRow from '@/components/ui/ToggleRow';
 import VenuePicker from '@/components/map/VenuePicker';
+import UprawnieniaCzlonkaPanel from '@/components/groups/UprawnieniaCzlonkaPanel';
 import { useAuth } from '@/lib/auth';
 import {
   getGroup, updateGroup, setGroupCover, getMyGroupPermissions, getGroupMembers,
@@ -20,6 +20,8 @@ import { linkDoGrupy } from '@/lib/groupShare';
 import { useToast } from '@/lib/toast';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Group, GroupMember, GroupPermissions } from '@/types';
+
+type UstawieniaTab = 'ogolne' | 'zaproszenia' | 'uprawnienia';
 
 export default function EditGroupPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +45,8 @@ export default function EditGroupPage() {
   const [regenBusy, setRegenBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<UstawieniaTab>('ogolne');
+  const [rozwinietyId, setRozwinietyId] = useState<string | null>(null);
 
   const inputCls =
     'w-full border border-slate-300 dark:border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100';
@@ -114,12 +118,13 @@ export default function EditGroupPage() {
     } catch { /* ignore */ }
   };
 
-  const handleSetPerms = async (member: GroupMember, patch: Partial<{ canManageMembers: boolean; canCreateEvents: boolean; canModerateWall: boolean }>) => {
+  const handleSetPerms = async (member: GroupMember, patch: Partial<{ canManageMembers: boolean; canCreateEvents: boolean; canModerateWall: boolean; canInvite: boolean }>) => {
     try {
       await setMemberPermissions(member.id, {
         canManageMembers: patch.canManageMembers ?? member.canManageMembers,
         canCreateEvents: patch.canCreateEvents ?? member.canCreateEvents,
         canModerateWall: patch.canModerateWall ?? member.canModerateWall,
+        canInvite: patch.canInvite ?? member.canInvite,
       });
       setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, ...patch } : m)));
     } catch (e) {
@@ -186,6 +191,36 @@ export default function EditGroupPage() {
 
         <h1 className="font-display text-2xl font-bold text-ink">Ustawienia ekipy</h1>
 
+        {/* Zakładki — łatwiej trafić we właściwą sekcję niż przewijać jeden
+            długi formularz. Stan czysto kliencki (bez URL-a, w odróżnieniu
+            od zakładek na `/grupy/[id]`) — to podstrona ustawień, nie widok
+            do udostępniania linkiem. */}
+        <div className="border-b border-slate-100 dark:border-slate-700">
+          <div className="flex gap-5 overflow-x-auto">
+            {(
+              [
+                { value: 'ogolne', label: 'Ogólne' },
+                { value: 'zaproszenia', label: 'Zaproszenia' },
+                ...(isOwner ? [{ value: 'uprawnienia', label: 'Uprawnienia' } as const] : []),
+              ] as { value: UstawieniaTab; label: string }[]
+            ).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setSettingsTab(value)}
+                className={`pb-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                  settingsTab === value
+                    ? 'border-b-2 border-primary-700 font-semibold text-primary-700'
+                    : 'text-slate-500 hover:text-ink dark:text-slate-400 dark:hover:text-slate-100'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {settingsTab === 'ogolne' && (
+        <>
         {/* Podstawowe */}
         <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div>
@@ -274,7 +309,22 @@ export default function EditGroupPage() {
           </div>
         </div>
 
-        {/* Zaproszenia */}
+        {/* Strefa niebezpieczna */}
+        <div className="flex justify-center pb-2 pt-2">
+          {isOwner ? (
+            <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
+              <Trash2 className="h-3.5 w-3.5" /> Usuń ekipę
+            </button>
+          ) : (
+            <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
+              <LogOut className="h-3.5 w-3.5" /> Opuść ekipę
+            </button>
+          )}
+        </div>
+        </>
+        )}
+
+        {settingsTab === 'zaproszenia' && (
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <h2 className="mb-3 text-sm font-semibold text-ink">Zaproszenia</h2>
           <div className="flex items-center gap-2">
@@ -293,36 +343,35 @@ export default function EditGroupPage() {
             {regenBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Wygeneruj nowy link
           </button>
         </div>
+        )}
 
-        {/* Uprawnienia — tylko założyciel (zgodnie z RLS na group_members). */}
-        {isOwner && (
+        {/* Uprawnienia — tylko założyciel (zgodnie z RLS na group_members).
+            Akordeon zamiast zawsze rozwiniętej listy: przy większej ekipie
+            cztery przełączniki na każdego z dwunastu ludzi to ekran, który
+            trzeba przewijać, żeby znaleźć jedną osobę. */}
+        {settingsTab === 'uprawnienia' && isOwner && (
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <h2 className="mb-1 text-sm font-semibold text-ink">Uprawnienia</h2>
             <p className="mb-3 text-xs text-slate-500">Komu ufasz na tyle, żeby pomógł prowadzić ekipę.</p>
             <ul className="divide-y divide-slate-50 dark:divide-slate-700">
               {members.filter((m) => m.userId !== group.createdBy).map((m) => {
                 const p = uprawnieniaCzlonka(group, m);
+                const rozwiniety = rozwinietyId === m.id;
                 return (
-                  <li key={m.id} className="py-3">
-                    <p className="mb-1 text-sm font-medium text-ink">{m.name}</p>
-                    <ToggleRow
-                      label="Zarządza składem"
-                      desc="Dodaje i usuwa ludzi, wysyła zaproszenia, zmienia link."
-                      checked={p.canManageMembers}
-                      onChange={(v) => handleSetPerms(m, { canManageMembers: v })}
-                    />
-                    <ToggleRow
-                      label="Tworzy mecze ekipy"
-                      desc="Zakłada terminy przypisane do tej ekipy."
-                      checked={p.canCreateEvents}
-                      onChange={(v) => handleSetPerms(m, { canCreateEvents: v })}
-                    />
-                    <ToggleRow
-                      label="Moderuje tablicę"
-                      desc="Kasuje cudze wpisy i przypina ważne."
-                      checked={p.canModerateWall}
-                      onChange={(v) => handleSetPerms(m, { canModerateWall: v })}
-                    />
+                  <li key={m.id}>
+                    <button
+                      onClick={() => setRozwinietyId(rozwiniety ? null : m.id)}
+                      aria-expanded={rozwiniety}
+                      className="flex w-full items-center justify-between py-3 text-left"
+                    >
+                      <span className="text-sm font-medium text-ink">{m.name}</span>
+                      {rozwiniety ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                    </button>
+                    {rozwiniety && (
+                      <div className="pb-2">
+                        <UprawnieniaCzlonkaPanel perms={p} onChange={(patch) => handleSetPerms(m, patch)} />
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -332,19 +381,6 @@ export default function EditGroupPage() {
             </ul>
           </div>
         )}
-
-        {/* Strefa niebezpieczna */}
-        <div className="flex justify-center pb-4 pt-2">
-          {isOwner ? (
-            <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
-              <Trash2 className="h-3.5 w-3.5" /> Usuń ekipę
-            </button>
-          ) : (
-            <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
-              <LogOut className="h-3.5 w-3.5" /> Opuść ekipę
-            </button>
-          )}
-        </div>
       </main>
     </div>
   );
