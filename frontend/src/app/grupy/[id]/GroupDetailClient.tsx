@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Settings, Loader2, LogOut, Trash2, CalendarPlus, Link2, Check,
+  Users, ArrowLeft, Settings, Loader2, CalendarPlus, Link2, Check,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
@@ -22,7 +22,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
   getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
-  joinGroupByCode, leaveGroup, removeMember, deleteGroup, setMemberPermissions, uprawnieniaCzlonka,
+  joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane } from '@/lib/groupPosts';
 import { sportEmoji, sportLabel } from '@/lib/sports';
@@ -97,6 +97,21 @@ export default function GroupDetailClient() {
   const legacyBezKodu = searchParams.get('join') === '1' && !searchParams.get('kod') && !searchParams.get('dolacz');
   const autoJoinProbowane = useRef(false);
 
+  // Zaraz po utworzeniu ekipy (`/grupy/nowe`) — otwórz od razu sheet
+  // zaproszenia. Ekipa z jedną osobą jest martwa, a to jedyny moment, w którym
+  // organizator na pewno chce zapraszać.
+  const zaprosZUrl = searchParams.get('zapros') === '1';
+  const autoInviteProbowane = useRef(false);
+  useEffect(() => {
+    if (autoInviteProbowane.current || !zaprosZUrl) return;
+    autoInviteProbowane.current = true;
+    setInviteOpen(true);
+    const sp = new URLSearchParams(window.location.search);
+    sp.delete('zapros');
+    const qs = sp.toString();
+    window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
+  }, [zaprosZUrl, id]);
+
   const load = useCallback(async () => {
     let g: Group | null = null;
     try {
@@ -167,7 +182,6 @@ export default function GroupDetailClient() {
       });
   }, [authLoading, loading, user, kodZUrl, odZUrl, member, id, load, toast]);
 
-  const isOwner = !!user && !!group && group.createdBy === user.id;
   const perms = permissions ?? uprawnieniaCzlonka(group ?? {}, undefined);
 
   const handleLeave = async () => {
@@ -209,14 +223,6 @@ export default function GroupDetailClient() {
       toast('Skopiowano kod dołączenia');
       setTimeout(() => setKodSkopiowany(false), 2000);
     } catch { /* ignore */ }
-  };
-
-  const handleDelete = async () => {
-    if (!group) return;
-    if (!confirm(`Usunąć ekipę ${group.name}? Znika tablica, skład i statystyki. Mecze zostają, ale przestają być przypisane do ekipy. Tego nie da się cofnąć.`)) return;
-    setBusy(true);
-    try { await deleteGroup(id); toast('Ekipa usunięta'); router.push('/grupy'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
   // Nadchodzące rosnąco (najbliższy pierwszy), historia malejąco.
@@ -399,6 +405,8 @@ export default function GroupDetailClient() {
             founderId={group.createdBy}
             onRemove={handleRemove}
             onSetPerms={handleSetPerms}
+            onLeave={member && !perms.isFounder ? handleLeave : undefined}
+            leaveBusy={busy}
           />
         )}
 
@@ -409,21 +417,6 @@ export default function GroupDetailClient() {
             Statystyki są widoczne wyłącznie dla członków ekipy.
           </p>
         ))}
-
-        {/* Strefa niebezpieczna — celowo dyskretna */}
-        {member && (
-          <div className="flex justify-center pb-2 pt-4">
-            {isOwner ? (
-              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500">
-                <Trash2 className="h-3.5 w-3.5" /> Usuń ekipę
-              </button>
-            ) : (
-              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500">
-                <LogOut className="h-3.5 w-3.5" /> Opuść ekipę
-              </button>
-            )}
-          </div>
-        )}
 
         {!member && !legacyBezKodu && (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">

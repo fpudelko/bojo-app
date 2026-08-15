@@ -435,6 +435,21 @@ Zakres: flaga na `events` (np. `signups_open`), zamknięcie przy osiągnięciu k
 przycisk dla organizatora, komunikat dla wchodzących („zapisy zamknięte — zapytaj
 organizatora"), przemyślenie interakcji z listą rezerwową.
 
+**Styka się z „Otwórz dla okolicy" (migracja `097`, `docs/domena.md § Czy gramy`)** —
+oba dotyczą tego, co dzieje się z wolnym miejscem w meczu ekipy. Otwarcie dla okolicy
+zamienia PRYWATNY mecz z brakiem ludzi w PUBLICZNY, żeby dosięgnąć kogoś spoza ekipy;
+to zadanie dotyczy tego, kto dostaje pierwszeństwo do zwolnionego miejsca WEWNĄTRZ
+already-otwartego zapisu. Niezależne mechanizmy, ale przy projektowaniu warto sprawdzić,
+czy „Otwórz dla okolicy" na skompletowanym meczu (mało sensowne — nie ma wolnych miejsc)
+powinno być wyłączone tak samo, jak to zadanie chce wyłączyć zapisy po komplecie.
+
+**Priorytet #1 z rundy „Czy gramy?" (2026-08-15): Web-push (PWA).** Jedyny element,
+który jednocześnie odblokowuje: powiadomienia o meczu ekipy poza aplikacją (dziś panel
+„Kto milczy" i tak kończy na obejściu — kopiowaniu gotowego tekstu na WhatsAppa, bo
+kanału w samym Bojo nie ma), realne działanie „Zaproś z ekipy" (patrz niżej), `SHOW_GAME_ALERTS`
+(powód ukrycia już nieaktualny) i większość zastosowań SMS-a. Dopiero z nim zdanie
+„grupa zastępuje WhatsAppa" (`docs/wizja.md`) przestaje być obietnicą bez pokrycia.
+
 - **Web-push (PWA)** — darmowy kanał przypomnień, zastępuje większość SMS-ów
 - **Onboarding / pierwsza gra** — co widzi świeży user bez gier w okolicy
 - **Rankingi publiczne** i **odznaki** (strzelec miesiąca, 100h na boisku) — wizja §B

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventUrl, eventShareText, type DaneDoUdostepnienia } from '@/lib/eventShare';
+import { eventUrl, eventShareText, tekstZaczepki, type DaneDoUdostepnienia } from '@/lib/eventShare';
 
 const bazowy: DaneDoUdostepnienia = {
   sport: 'piłka nożna',
@@ -93,5 +93,38 @@ describe('eventShareText', () => {
   it('nie wywraca się na niepoprawnej dacie', () => {
     const t = eventShareText({ ...bazowy, date: 'bez-sensu' });
     expect(t.split('\n')[1]).toContain('bez-sensu');
+  });
+});
+
+describe('tekstZaczepki', () => {
+  const url = 'https://bojo.pl/wydarzenia/abc-123';
+
+  it('kończy się kanonicznym adresem /wydarzenia/, nigdy /d/', () => {
+    const t = tekstZaczepki(bazowy, 2, url);
+    expect(t.endsWith(url)).toBe(true);
+    expect(t).not.toContain('/d/');
+  });
+
+  it('odmienia liczbę brakujących osób poprawnie', () => {
+    expect(tekstZaczepki(bazowy, 1, url)).toContain('Brakuje nam jeszcze 1 osoba');
+    expect(tekstZaczepki(bazowy, 2, url)).toContain('Brakuje nam jeszcze 2 osoby');
+    expect(tekstZaczepki(bazowy, 5, url)).toContain('Brakuje nam jeszcze 5 osób');
+  });
+
+  it('gdy nikogo nie brakuje, prosi o odpowiedź bez liczby', () => {
+    const t = tekstZaczepki(bazowy, 0, url);
+    expect(t).not.toContain('Brakuje');
+    expect(t).toContain('Dajcie znać, kto wchodzi');
+  });
+
+  it('nie wspomina SMS-a ani pusha — jedyny kanał to link do wklejenia', () => {
+    const t = tekstZaczepki(bazowy, 2, url);
+    expect(t.toLowerCase()).not.toContain('sms');
+    expect(t.toLowerCase()).not.toContain('push');
+  });
+
+  it('zawiera te same szczegóły meczu co eventShareText', () => {
+    const t = tekstZaczepki(bazowy, 2, url);
+    expect(t).toContain('Orlik Sołacz, ul. Niestachowska 8');
   });
 });

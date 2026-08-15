@@ -265,6 +265,57 @@ ręcznie), ale nie blokuje kolejki. Goście bez konta są pomijani — nie mają
 
 ---
 
+## Czy gramy — próg minimum i jawna odmowa
+
+Migracja `097`. Odpowiada wprost na to, co organizatorzy ekip dziś liczą ręcznie
+w wątku na WhatsAppie: „brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagrać".
+
+**`events.min_players`** — ile graczy musi być w składzie, żeby gra się odbyła.
+`NULL` (domyślnie) = organizator progu nie ustawił, zero zmiany zachowania dla
+istniejących meczów. Liczone tą samą regułą co pojemność (`is_reserve = false AND
+pending_approval = false`) — patrz „Reguły pojemności" wyżej. Czysta funkcja
+`werdyktGry(event, liczbaWSkladzie)` (`lib/events.ts`) zwraca `'gramy'` / `'zagrozona'`
+/ `'brak-progu'` + liczbę brakujących — jedno miejsce z regułą, więc panel na stronie
+meczu i linijka na stronie grupy nigdy się nie rozjadą.
+
+**`event_declines` — jawne „nie gram", NIE nieobecność.** Osobna tabela, nie nowa
+wartość `rsvp`: `rsvp` jest wpleciona w regułę pojemności zdublowaną w trzech funkcjach
+(patrz wyżej) i w zapytania statystyk (`lib/players.ts` odfiltrowuje `rsvp <> 'maybe'`)
+— nowa wartość wpadłaby tam jako uczestnik. `player_reports` z `report_type =
+'nie_przyszedl'` (`091`) karmi statystykę „Niezawodność" wyłącznie ze zgłoszeń
+nie-przyjścia na mecz, na który ktoś się zapisał; wcześniejsza, jawna odmowa jest
+zachowaniem **dobrym** i nie ma z tamtą tabelą żadnego związku. RLS: widoczna dla
+siebie, organizatora meczu i członków grupy (gdy mecz jest przypięty do grupy), zapis
+wyłącznie za siebie (`auth.uid() = user_id`).
+
+**„Kto milczy" — panel dla organizatora meczu ekipy.** Ankieta na WhatsAppie pokazuje,
+kto zagłosował; nigdy nie pokaże, kto się nie odezwał. Czysta funkcja `ktoMilczy()`
+(`lib/eventResponses.ts`) liczy różnicę: członkowie grupy bez wpisu w `event_participants`
+**i** bez wiersza w `event_declines`. Kluczowy przypadek — odmawiający jawnie **NIE
+milczy**, cisza i odmowa to dwie różne, rozróżnialne odpowiedzi. Organizator może
+zaczepić milczących jednym z dwóch sposobów: RPC `zapytaj_milczacych()` (powiadomienie
+pod dzwonkiem, `SECURITY DEFINER`, zapora przed spamem — pomija zaczepionych w ciągu
+ostatnich 12 h) albo `tekstZaczepki()` (`lib/eventShare.ts`) — gotowy tekst do
+wklejenia na WhatsAppa, bo Bojo nie ma jeszcze własnego kanału push/SMS i nie udaje,
+że ma (patrz `docs/strategia.md`).
+
+**„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator (albo
+delegat z `can_create_events`) jednym kliknięciem zamienia go w publiczny —
+`setVisibility(id, 'public')`, ta sama funkcja co ręczny przełącznik widoczności na
+stronie meczu. Nie jest to nowe pojęcie w domenie: `docs/domena.md` już wcześniej
+ustaliło, że przypisanie do grupy jest ortogonalne do widoczności (mecz ekipy bywa
+publiczny), więc to po prostu istniejący przełącznik za jednym tapnięciem zamiast
+w menu ustawień, z podpowiedzią liczby brakujących miejsc.
+
+**Świadomie NIE zbudowane:** automatyczne dopisywanie milczących do składu (łamałoby
+„nikt nie trafia do składu po cichu" — patrz wyżej), powiadomienie o każdej odpowiedzi
+(tylko organizator dostaje zbiorczy obraz przez panel, nie strumień zdarzeń),
+`min_players` na poziomie serii cyklicznej (jak reszta ustawień specyficznych dla
+terminu, dziedziczy się z ostatniego terminu serii — patrz „Serie wydarzeń
+cyklicznych" niżej — nie z szablonu).
+
+---
+
 ## Self-service zapis gościa bez konta
 
 Niezalogowany gracz może zapisać się na mecz bez zakładania konta, podając imię i e-mail.

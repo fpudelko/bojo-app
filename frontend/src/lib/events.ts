@@ -26,6 +26,7 @@ export function toEvent(row: any): EventItem {
     time: row.event_time,
     endTime: row.end_time ?? undefined,
     maxPlayers: row.max_players,
+    minPlayers: row.min_players ?? undefined,
     participantsCount: Array.isArray(row.event_participants)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (row.event_participants as any[]).filter((p) => !p.is_reserve && !p.pending_approval).length
@@ -154,6 +155,7 @@ export async function createEvent(
       event_time: data.time,
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
+      min_players: data.minPlayers ?? null,
       visibility: data.visibility,
       require_sms_confirmation: data.requireSmsConfirmation ?? false,
       team_mode: data.teamMode ?? 'brak',
@@ -251,6 +253,7 @@ export async function updateEvent(
       event_time: data.time,
       end_time: data.endTime ?? null,
       max_players: data.maxPlayers,
+      min_players: data.minPlayers ?? null,
       visibility: data.visibility,
       require_sms_confirmation: data.requireSmsConfirmation ?? false,
       team_mode: data.teamMode ?? 'brak',
@@ -482,6 +485,20 @@ export function wolneMiejscaWgRol(
     razem,
     rozdzielone: true,
   };
+}
+
+/** Werdykt „czy gramy" — jedno miejsce z regułą progu minimum graczy (097),
+ *  zamiast liczenia w głowie organizatora ("brakuje nam 1go? Dobrze liczę?").
+ *  `wSkladzie` to ta sama liczba, co `participantsCount` — potwierdzeni
+ *  i nierezerwowi. Brak progu (`minPlayers` puste) daje `'brak-progu'`, żeby
+ *  UI nie udawał werdyktu tam, gdzie organizator go nie ustawił. */
+export function werdyktGry(
+  event: { minPlayers?: number },
+  wSkladzie: number,
+): { stan: 'gramy' | 'zagrozona' | 'brak-progu'; brakuje: number } {
+  if (!event.minPlayers || event.minPlayers <= 0) return { stan: 'brak-progu', brakuje: 0 };
+  const brakuje = Math.max(0, event.minPlayers - wSkladzie);
+  return { stan: brakuje === 0 ? 'gramy' : 'zagrozona', brakuje };
 }
 
 /** Pyta bazę, czy zapis w tej roli trafiłby teraz na rezerwę.
@@ -989,6 +1006,7 @@ export async function repeatEvent(
       // mecz" w `EventDetailClient.tsx`).
       endTime: newEndTime ?? source.endTime,
       maxPlayers: source.maxPlayers,
+      minPlayers: source.minPlayers,
       visibility: source.visibility,
       requireSmsConfirmation: source.requireSmsConfirmation,
       teamMode: source.teamMode,
