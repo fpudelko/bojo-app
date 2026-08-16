@@ -8,6 +8,7 @@ import CookieBanner from '@/components/CookieBanner';
 import AnnouncementBar from '@/components/AnnouncementBar';
 import BottomNavGate from '@/components/layout/BottomNavGate';
 import PostSignupRoleModal from '@/components/onboarding/PostSignupRoleModal';
+import RejestracjaSW from '@/components/RejestracjaSW';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { siteJsonLd } from '@/lib/structuredData';
 
@@ -63,8 +64,21 @@ export const metadata: Metadata = {
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     images: [OG_IMAGE],
   },
-  // Favicon is inlined as a data-URI <link> in <head> below, so we don't
-  // reference external icon files here (they would 404 in the console).
+  // Favicon SVG jest wklejony jako data-URI w <head> niżej. Tutaj dokładamy
+  // wyłącznie `apple-touch-icon`, bo iOS IGNORUJE ikony z manifestu i czyta
+  // tylko ten odnośnik — bez niego na ekranie głównym iPhone'a ląduje zrzut
+  // strony zamiast logo. Wygenerowany z tego samego SVG przez
+  // `scripts/generuj-ikony.mjs`.
+  icons: {
+    apple: [{ url: '/ikony/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  // Pasek stanu na iOS w trybie standalone. `default` daje ciemny tekst na
+  // jasnym tle — czytelne przy naszym jasnym interfejsie.
+  appleWebApp: {
+    capable: true,
+    title: 'Bojo',
+    statusBarStyle: 'default',
+  },
 };
 
 // Site identity as structured data, emitted once so crawlers and language
@@ -100,6 +114,7 @@ export default function RootLayout({
                 <BottomNavGate />
                 <CookieBanner />
                 <PostSignupRoleModal />
+                <RejestracjaSW />
               </BottomNavVisibilityProvider>
             </ToastProvider>
           </AuthProvider>

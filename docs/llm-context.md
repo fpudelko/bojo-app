@@ -299,6 +299,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
+
+PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
+z tego zwykły skrót w przeglądarce — zostawał pasek adresu, nie było własnej ikony ani
+ekranu startowego. Osobno: web-push na iOS działa WYŁĄCZNIE dla aplikacji dodanej do
+ekranu głównego, więc brak instalowalności blokował też przyszły kanał powiadomień.
+
+ROZWIĄZANIE BOJO: Bojo jest teraz instalowalną aplikacją. Po dodaniu do ekranu głównego
+otwiera się bez paska adresu, z własną ikoną i zieloną (#15663E) barwą paska stanu.
+Powiadomień push jeszcze NIE wysyła — to osobny, kolejny etap; ten krok przygotowuje
+warunek, bez którego push na iPhonie nie zadziała.
+
+MECHANIKA: `app/manifest.ts` (Next generuje `/manifest.webmanifest`, `display:
+standalone`), ikony w `public/ikony/` generowane z logo skryptem
+`scripts/generuj-ikony.mjs` — w wariancie zwykłym oraz `maskable` dla Androida, który
+przycina ikonę do kształtu producenta. `apple-touch-icon` i `appleWebApp` w metadanych
+`layout.tsx`, bo iOS ignoruje ikony z manifestu. Service worker `public/sw.js` celowo
+minimalny: obsługuje `push` i `notificationclick`, NIE cache'uje niczego — worker
+cache'ujący HTML serwowałby stary build po deployu, a aplikacja żyjąca z bazy
+pokazywałaby nieaktualne składy. Rejestracja przez `components/RejestracjaSW.tsx`.
+
 ### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
 
 PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
@@ -619,28 +640,3 @@ pojemność inaczej niż aplikacja przy zapisie); `lib/events.ts` (`decydujCzyRe
 i `wolneMiejscaWgRol()` z tym samym podziałem); `EventCapacityFields.tsx` (trzy opcje
 z opisem zamiast przełącznika); `wydarzenia/nowe` i `wydarzenia/[id]/edytuj` (stan trybu);
 `lib/eventDraft.ts` (szkic pamięta tryb).
-
-### 2026-08-11 — Organizator przesuwa graczy między składem a rezerwą
-
-PROBLEM: kolejka rezerwowa w Bojo rozdaje zwolnione miejsca sama, ale tylko wtedy, gdy
-miejsce faktycznie się zwolniło, i tylko pierwszej osobie w kolejce. Organizator nie miał
-żadnego sposobu, żeby wziąć kogoś z rezerwy poza kolejnością — a powody bywają poza
-zasięgiem bazy: ktoś przepuścił swoją kolej i wrócił, ktoś dogadał się poza aplikacją,
-brakuje bramkarza, a w kolejce stoi jedyny chętny. Jedynym wyjściem było usunięcie wpisu
-i dopisanie tej samej osoby od nowa, co gubi powiązanie z jej kontem, historię gier
-i zadeklarowany sposób płatności. W drugą stronę było tak samo: żeby zwolnić miejsce
-w składzie, trzeba było gracza usunąć z meczu.
-
-ROZWIĄZANIE BOJO: przy każdej osobie na liście rezerwowej organizator ma przycisk
-„Do składu", a przy graczu w składzie — „Na rezerwę". Awans poza kolejnością do roli,
-w której nie ma już miejsca, prosi o potwierdzenie i pozwala świadomie przekroczyć limit
-(licznik pokaże wtedy np. 15/14). Oba ruchy zachowują wpis gracza wraz z kontem,
-historią i deklaracją płatności; po każdym kolejka rezerwowa przelicza się od razu.
-
-MECHANIKA: `lib/events.ts` (`awansujZRezerwy()`, `cofnijNaRezerwe()` — obie czyszczą
-`claim_offered_at` i `claim_passed`, po czym wołają `sync_reserve_claim`);
-`EventDetailClient.tsx` (przyciski w liście rezerwowej i w sekcji „Zarządzanie
-graczami"). Bez migracji — polityka „Organizer updates participants" z migracji `004`
-dawała to uprawnienie od zawsze, brakowało wyłącznie wywołania.
-
-
