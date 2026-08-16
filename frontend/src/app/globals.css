@@ -142,6 +142,16 @@ body {
 html[data-bottom-nav='1'] { --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom)); }
 html[data-bottom-nav='1'] body { padding-bottom: var(--bottom-nav-h); }
 
+/* Ile MUSI zostać wolne na dole ekranu — dla wszystkiego, co jest `fixed
+   bottom-0` i nie jest samą nawigacją (baner cookies, zachęta do instalacji).
+
+   Dlaczego `max`, a nie dodawanie: gdy pasek nawigacji jest, `--bottom-nav-h`
+   JUŻ zawiera w sobie `env(safe-area-inset-bottom)` — dodanie go drugi raz
+   zostawiałoby na iPhonie zbędną dziurę. Gdy paska nie ma (wylogowany, widok
+   ze schowanym paskiem), zmienna wynosi 0 i zostaje sam odstęp na kreskę
+   gestów. Jedno i drugie naraz załatwia `max`. */
+:root { --dol-bezpieczny: max(var(--bottom-nav-h), env(safe-area-inset-bottom)); }
+
 /* Kolejność vh → svh jak w .hero-first-screen: svh nie liczy chowającego się
    paska adresu, więc na telefonie nie zostaje po nim nadmiarowe przewijanie. */
 html[data-bottom-nav='1'] .min-h-screen {

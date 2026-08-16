@@ -3123,7 +3123,13 @@ export default function EventDetailClient() {
             the second button just reports the state you're already in. */}
         {tab !== 'rozmowa' && joinBarVisible && <HideBottomNav />}
         {tab !== 'rozmowa' && joinBarVisible && (
-          <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
+          <div
+            className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md"
+            // Ten pasek chowa dolną nawigację (`HideBottomNav` wyżej), więc
+            // `--bottom-nav-h` jest wtedy zerem — samo `pb-6` w apce kończyło
+            // się przyciskiem tuż nad kreską gestów iOS.
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
                 <div className="flex gap-2">

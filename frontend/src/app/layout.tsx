@@ -32,6 +32,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#15663E',
+  // BEZ TEGO `env(safe-area-inset-*)` ZWRACA ZERO — a repo liczy na te wartości
+  // w kilku miejscach (dolna nawigacja, `--bottom-nav-h`, karty na mapie).
+  // W karcie przeglądarki nie było tego widać, bo miejsce na pasek gestów
+  // rezerwował sam Safari. Po instalacji jako apka paska przeglądarki nie ma
+  // i nikt tego miejsca nie pilnuje: pasek „Znajdź grę / Mapa / Nowy…" wjeżdżał
+  // pod kreskę gestów iOS, a podpis „Nowy" był przez nią przecięty.
+  viewportFit: 'cover',
   // Bez tego klawiatura ekranowa na Androidzie nie zmniejsza layoutu — okno
   // widoczne (visual viewport) się kurczy, ale strona licząca wysokość
   // z `100dvh` tego nie widzi, więc composer w Rozmowie zostawał tam, gdzie

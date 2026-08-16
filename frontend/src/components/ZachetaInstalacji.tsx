@@ -104,7 +104,7 @@ export default function ZachetaInstalacji() {
       // Pasek jest `fixed`, więc dopełnienie <body> go nie dotyczy — musi sam
       // odsunąć się o wysokość dolnej nawigacji. Ta sama sztuczka co
       // w `CookieBanner`; `--bottom-nav-h` wynosi 0 tam, gdzie paska nie ma.
-      style={{ marginBottom: 'var(--bottom-nav-h)' }}
+      style={{ marginBottom: 'var(--dol-bezpieczny)' }}
     >
       <div className="mx-auto flex max-w-lg items-start gap-3 px-4 py-3.5">
         <LogoIcon size={40} className="mt-0.5 shrink-0 rounded-xl" />
