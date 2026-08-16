@@ -52,6 +52,18 @@ Sprawdza to, czego nie widać na działającej bazie: czy migracje aplikują si�
 istniejącą już od `001` — na świeżej bazie odtworzenie schematu było niemożliwe.
 Atrapy Supabase (schemat `auth`, `storage`, pgcrypto) siedzą w `supabase/test/shim.sql`.
 
+**Ikony PWA** generuje `frontend/scripts/generuj-ikony.mjs` z logo w
+`components/Logo.tsx` (rasteryzuje Chromium z Playwrighta, bez dodatkowych paczek):
+
+```bash
+cd frontend && node scripts/generuj-ikony.mjs
+```
+
+Po podmianie logo uruchom ponownie i zacommituj wynik. `ikonyPwa.test.ts` pilnuje,
+żeby ścieżka litery w skrypcie nie rozjechała się z logo — bez tego podmiana logo
+zostawiłaby starą ikonę na ekranie telefonu i nikt by tego nie zauważył, bo ikonę
+widzi się raz, przy instalacji.
+
 **Regresja wizualna (zrzuty ekranu):**
 
 ```bash

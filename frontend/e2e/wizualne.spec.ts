@@ -524,3 +524,58 @@ test.describe('wszystkie trasy', () => {
     });
   }
 });
+
+/* ── PWA: instalowalność ────────────────────────────────────────────────── */
+
+test.describe('instalowalna apka', () => {
+  // Tego nie widać na żadnym zrzucie, a psuje się cicho: dość podmienić
+  // ścieżkę ikony albo wywalić rejestrację workera, żeby „dodaj do ekranu
+  // głównego" znowu robiło zwykły skrót w przeglądarce. Zauważyłby to dopiero
+  // ktoś instalujący aplikację — czyli nikt, bo instaluje się raz.
+
+  test('manifest jest serwowany i ma komplet ikon', async ({ page, request }) => {
+    await page.goto('/');
+    const odnosnik = page.locator('link[rel="manifest"]');
+    await expect(odnosnik).toHaveCount(1);
+
+    const adres = await odnosnik.getAttribute('href');
+    const odpowiedz = await request.get(adres!);
+    expect(odpowiedz.ok(), `manifest zwrócił ${odpowiedz.status()}`).toBe(true);
+
+    const manifest = await odpowiedz.json();
+    expect(manifest.display).toBe('standalone');
+    expect(manifest.start_url).toBeTruthy();
+    expect(manifest.icons.length).toBeGreaterThanOrEqual(4);
+
+    // Każda ikona z manifestu musi się realnie pobierać. Literówka w ścieżce
+    // nie wywala buildu — kończy się cichym brakiem ikony po instalacji.
+    for (const ikona of manifest.icons) {
+      const plik = await request.get(ikona.src);
+      expect(plik.ok(), `ikona ${ikona.src} zwróciła ${plik.status()}`).toBe(true);
+    }
+  });
+
+  test('apple-touch-icon jest w <head> — iOS nie czyta manifestu', async ({ page, request }) => {
+    await page.goto('/');
+    const odnosnik = page.locator('link[rel="apple-touch-icon"]');
+    await expect(odnosnik).toHaveCount(1);
+    const plik = await request.get((await odnosnik.getAttribute('href'))!);
+    expect(plik.ok()).toBe(true);
+  });
+
+  test('service worker się rejestruje', async ({ page }) => {
+    await page.goto('/');
+    // Rejestracja startuje dopiero po zdarzeniu `load`, a `register()` jest
+    // asynchroniczne — pojedyncze sprawdzenie zaraz po `load` trafia w moment,
+    // w którym workera jeszcze nie ma. Stąd odpytywanie do skutku zamiast
+    // jednego strzału.
+    await expect.poll(
+      () => page.evaluate(async () => {
+        if (!('serviceWorker' in navigator)) return 'brak API';
+        const rejestracja = await navigator.serviceWorker.getRegistration();
+        return rejestracja ? 'jest' : 'brak rejestracji';
+      }),
+      { timeout: 15_000 },
+    ).toBe('jest');
+  });
+});

@@ -332,6 +332,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
+
+PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
+z tego zwykły skrót w przeglądarce — zostawał pasek adresu, nie było własnej ikony ani
+ekranu startowego. Osobno: web-push na iOS działa WYŁĄCZNIE dla aplikacji dodanej do
+ekranu głównego, więc brak instalowalności blokował też przyszły kanał powiadomień.
+
+ROZWIĄZANIE BOJO: Bojo jest teraz instalowalną aplikacją. Po dodaniu do ekranu głównego
+otwiera się bez paska adresu, z własną ikoną i zieloną (#15663E) barwą paska stanu.
+Powiadomień push jeszcze NIE wysyła — to osobny, kolejny etap; ten krok przygotowuje
+warunek, bez którego push na iPhonie nie zadziała.
+
+MECHANIKA: `app/manifest.ts` (Next generuje `/manifest.webmanifest`, `display:
+standalone`), ikony w `public/ikony/` generowane z logo skryptem
+`scripts/generuj-ikony.mjs` — w wariancie zwykłym oraz `maskable` dla Androida, który
+przycina ikonę do kształtu producenta. `apple-touch-icon` i `appleWebApp` w metadanych
+`layout.tsx`, bo iOS ignoruje ikony z manifestu. Service worker `public/sw.js` celowo
+minimalny: obsługuje `push` i `notificationclick`, NIE cache'uje niczego — worker
+cache'ujący HTML serwowałby stary build po deployu, a aplikacja żyjąca z bazy
+pokazywałaby nieaktualne składy. Rejestracja przez `components/RejestracjaSW.tsx`.
+
 ### 2026-08-16 — Pomarańczowa kropka "nowość"; kropki na kartach ekip; filtr nieprzeczytanych na /moje-gry; zakładka Ustawienia bez wycieku uprawnień; usunięty próg minimum z kreatora
 
 PROBLEM: zakładka „Ustawienia" ekipy migała (czasem zostawała) widoczna osobie bez
@@ -707,41 +728,3 @@ stron treści; `lib/recurring.ts`
 `components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
 (`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
 `EventDetailClient.tsx` i `getMyParticipatedEvents()` już liczyły.
-
-### 2026-08-13 — Powtórny zapis tym samym e-mailem: osobny ekran dla osoby z kontem i bez konta
-
-PROBLEM: druga próba zapisu bez logowania tym samym adresem kończyła się czerwonym
-komunikatem „Jesteś już zapisany na ten mecz.", który znikał po chwili — bez ekranu,
-bez wyjaśnienia, co dalej. Osoba, która MA konto w Bojo, była dodatkowo namawiana na
-założenie drugiego; dowiadywała się o istniejącym koncie dopiero po wpisaniu hasła
-i nieudanej rejestracji. Baza nie miała czym odpowiedzieć na pytanie „czy ten e-mail
-ma konto", a wybór ekranu przy wpisach zduplikowanych przed migracją `085` był
-losowy — zapytanie brało `LIMIT 1` bez `ORDER BY`.
-
-ROZWIĄZANIE BOJO: powtórny zapis tym samym e-mailem nigdy nie tworzy drugiego wiersza
-w składzie i nie kończy się błędem, tylko ekranem dopasowanym do sytuacji. Bez konta:
-ten sam ekran co po zapisie, z nagłówkiem „Wcześniej dołączyłeś do tej gry." i zachętą
-do założenia profilu. Z kontem: ten sam nagłówek, ale ekran skrócony — „Zaloguj się,
-żeby zobaczyć więcej szczegółów", pole hasła od razu w trybie logowania (nie
-rejestracji), przycisk „Zaloguj przez Google" i małe „Pomiń i zobacz skład bez
-logowania"; bez listy korzyści, bo właściciela konta nie ma po co przekonywać do
-czegoś, co już ma. Gdy wpis ma już właściciela, zostaje samo logowanie — nie ma czego
-przejmować. Osoba z kontem zapisująca się po raz PIERWSZY też dostaje wariant
-logowania, a jej miejsce (albo pozycja w kolejce rezerwowej) jest zaklepane od razu.
-
-MECHANIKA: migracja `088_konto_i_zamek_na_duplikaty.sql`. RPC
-`dolacz_do_meczu_jako_goscie()` zwraca czwartą kolumnę `has_account` (`EXISTS` na
-`auth.users` po `lower(email)`, pytanie globalne — nie „czy jest w tym meczu"), a
-zamiast `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'` oddaje zwykły wiersz
-z `claim_token = NULL`; frontend wybiera ekran po kształcie wyniku, nie po treści
-komunikatu. Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token IS NULL) DESC,
-created_at`. Unikalny indeks `idx_participants_unique_guest_email` na
-`(event_id, lower(guest_email))` zamyka wyścig równoległych zapisów — migracja najpierw
-kasuje duplikaty sprzed `085`, bo inaczej indeks się nie zakłada. Frontend:
-`joinEventAsGuest()` w `lib/events.ts` (`claimToken: string | null`, `hasAccount`,
-`has_account ?? false` dla starego kształtu RPC sprzed ręcznego wgrania migracji),
-`handleJoinAsGuest()` i stan `newUserHasAccount` / `showAlreadyJoinedPrompt`
-w `EventDetailClient.tsx`. Testy: `frontend/src/__tests__/events.test.ts`,
-`describe('joinEventAsGuest — kontrakt z bazą')`.
-
-
