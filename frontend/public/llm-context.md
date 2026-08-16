@@ -332,29 +332,44 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
 
-PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
-ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
-nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
-push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
+w pasku dla KAŻDEGO, nie tylko dla organizatora/delegata — gated była wyłącznie treść
+panelu (`tab === 'ustawienia' && canManageEvent`), sam przycisk renderował się zawsze
+(`EVENT_TAB_LABELS.map(...)` bez filtra). Ktoś bez żadnej roli w meczu, nawet
+niezalogowany na to wydarzenie, widział klikalną zakładkę, która po otwarciu okazywała
+się pusta — zgłoszone ze zrzutem ekranu. Pomarańczowa kropka „nowy mecz w ekipie"
+i różowa „nieprzeczytana wiadomość" wylądowały w poprzednim wdrożeniu na kartach ekip
+na `/grupy`, ale nie na samej ikonie „Grupy" na dolnej nawigacji — tam wciąż była tylko
+jedna, różowa kropka po prawej. Filtr „tylko z nieprzeczytanymi" na `/moje-gry` stanął
+w pasku zakładek zamiast niżej, na wysokości „Brakuje graczy", jak zgłoszono. Zrzut
+kreatora meczu w karuzeli na landingu wciąż pokazywał usunięty już toggle „Wydarzenie
+cykliczne" — nieaktualny od poprzedniej zmiany, która ukryła tę opcję w prawdziwym
+kreatorze.
 
-ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
-pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
-„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
-„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
-i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
-„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
-powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
-spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
-w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+ROZWIĄZANIE BOJO: przycisk zakładki „Ustawienia" na stronie meczu znika teraz razem
+z treścią — ten sam warunek (`canManageEvent`) filtruje etykiety PRZED renderowaniem,
+nie tylko treść pod spodem. Ikona „Grupy" na dolnej nawigacji nosi dziś dwie kropki:
+różową (nieprzeczytana wiadomość w którejkolwiek ekipie) po LEWEJ, pomarańczową (nowy
+mecz w którejkolwiek ekipie od ostatniej wizyty na jej stronie) po PRAWEJ — osobna,
+zbiorcza kontrola obok tej już istniejącej na kartach `/grupy`. Filtr nieprzeczytanych
+na `/moje-gry` przeniósł się do nagłówka „Brakuje graczy" (ta sama kontrolka, którą
+kiedyś dostawał link „Wszystkie") — gdy akurat nie ma czego tam pokazać, sekcja
+i tak renderuje samą kropkę filtra zamiast znikać całkowicie, żeby dało się wyłączyć
+filtr z powrotem. Zrzut kreatora w karuzeli landingu podmieniony na aktualny stan UI.
 
-MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
-więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
-`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
-systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
-`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
-nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+MECHANIKA: `EventDetailClient.tsx` — `EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia'
+|| canManageEvent)` przed `.map()`. `lib/groups.ts` — nowa `hasNewGroupEvents(groupIds)`,
+ten sam wzorzec co `hasUnreadGroupMessages()`. `BottomNav.tsx` — `unreadGroups` i
+`newGroupEvents` liczone jednym efektem (wspólne `getMyGroupIds()`), dot na „Grupy"
+`top-left`/`top-right`. `components/home/dashboard/DashboardSections.tsx` —
+`SectionHeader` dostał `extra?: React.ReactNode` (kontrolka obok linku „Wszystkie");
+`NeedsPlayersSection` dostał `extra` i `pokazPustyNaglowek` (gdy `true` i sekcja byłaby
+pusta, renderuje samą `extra` zamiast `null` — domyślnie `false`, pulpit `AppHome` nie
+przekazuje żadnego z nich, więc zachowuje się jak dawniej). `app/moje-gry/page.tsx` —
+przycisk filtra wyjęty z paska zakładek, przekazywany jako `extra` do
+`NeedsPlayersSection`. `frontend/public/landing/kreator.jpg` — podmieniony zrzut.
 
 ### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
 

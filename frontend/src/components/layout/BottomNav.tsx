@@ -7,7 +7,7 @@ import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
-import { getMyGroupIds } from '@/lib/groups';
+import { getMyGroupIds, hasNewGroupEvents } from '@/lib/groups';
 import { hasUnreadGroupMessages } from '@/lib/groupPosts';
 import { hasUnreadEventMessages } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
@@ -65,12 +65,13 @@ export default function BottomNav() {
   }, [user, pathname]);
 
   const [unreadGroups, setUnreadGroups] = useState(false);
+  const [newGroupEvents, setNewGroupEvents] = useState(false);
   useEffect(() => {
-    if (!user) { setUnreadGroups(false); return; }
-    getMyGroupIds(user.id)
-      .then((ids) => hasUnreadGroupMessages(user.id, ids))
-      .then(setUnreadGroups)
-      .catch(() => {});
+    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); return; }
+    getMyGroupIds(user.id).then((ids) => {
+      hasUnreadGroupMessages(user.id, ids).then(setUnreadGroups).catch(() => {});
+      hasNewGroupEvents(ids).then(setNewGroupEvents).catch(() => {});
+    }).catch(() => {});
   }, [user, pathname]);
 
   // Pomarańczowa kropka „nowe wydarzenia w pobliżu" przy „Znajdź grę" —
@@ -96,13 +97,14 @@ export default function BottomNav() {
     href, label, Icon, dots = [],
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
-    /** Kropki — dziś "Moje" (oczekujące prośby o dołączenie + nieprzeczytane
-        wiadomości), "Grupy" (nieprzeczytane wiadomości) i "Znajdź grę" (nowe
-        wydarzenia w pobliżu). Kolor niesie znaczenie w całej apce (patrz
-        AGENTS.md, sekcja Konwencje): niebieski wyłącznie "wymaga akceptacji",
-        różowy wyłącznie "wiadomości", pomarańczowy wyłącznie "nowość, o której
-        jeszcze nie wiesz". Każda kropka ma swój róg, żeby dwie naraz na "Moje"
-        się nie nakładały. */
+    /** Kropki — dziś "Moje" (niebieska: oczekujące prośby o dołączenie z prawej;
+        różowa: nieprzeczytane wiadomości z lewej), "Grupy" (różowa: nieprzeczytane
+        wiadomości z lewej; pomarańczowa: nowy mecz w ekipie z prawej) i
+        "Znajdź grę" (pomarańczowa: nowe wydarzenia w pobliżu, z prawej). Kolor
+        niesie znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
+        niebieski wyłącznie "wymaga akceptacji", różowy wyłącznie "wiadomości",
+        pomarańczowy wyłącznie "nowość, o której jeszcze nie wiesz". Każda kropka
+        ma swój róg, żeby dwie naraz na tej samej ikonie się nie nakładały. */
     dots?: { color: string; label: string; position: 'top-right' | 'top-left' }[];
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
@@ -180,8 +182,9 @@ export default function BottomNav() {
             if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
             if (unreadEvents) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
           }
-          if (item.href === '/grupy' && unreadGroups) {
-            dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-right' });
+          if (item.href === '/grupy') {
+            if (unreadGroups) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
+            if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           return <NavLink key={item.href} {...item} dots={dots} />;
         })}

@@ -125,16 +125,30 @@ function MojeGryContent() {
   const { upcoming, history, playing, observing } = splitMyEvents(items);
   const next = nextMatch(items);
 
-  // Filtr „tylko z nieprzeczytanymi" — przełącznik w pasku zakładek (zawsze
-  // widoczny, niezależnie od tego, czy „Brakuje graczy" akurat coś pokazuje).
-  // Dotyczy wyłącznie zakładki Nadchodzące — zaproszenia i stałe gierki nie
-  // niosą wiadomości, więc filtr ich nie rusza.
+  // Filtr „tylko z nieprzeczytanymi" — dotyczy wyłącznie zakładki Nadchodzące;
+  // zaproszenia i stałe gierki nie niosą wiadomości, więc filtr ich nie rusza.
   const [onlyUnread, setOnlyUnread] = useState(false);
   const maNieprzeczytane = (event: EventItem) => (unreadByEvent[event.id] ?? 0) > 0;
   const upcomingWidoczne = onlyUnread ? upcoming.filter(({ event }) => maNieprzeczytane(event)) : upcoming;
   const playingWidoczne = onlyUnread ? playing.filter(({ event }) => maNieprzeczytane(event)) : playing;
   const nextWidoczny = onlyUnread ? (next && maNieprzeczytane(next.event) ? next : null) : next;
   const jestNieprzeczytanych = Object.keys(unreadByEvent).length > 0;
+
+  // Kotwiczony na wysokości „Brakuje graczy" (patrz `NeedsPlayersSection`
+  // niżej), nie w pasku zakładek — zgłoszone wprost.
+  const filtrNieprzeczytanychButton = (
+    <button
+      onClick={() => setOnlyUnread((v) => !v)}
+      aria-pressed={onlyUnread}
+      aria-label={onlyUnread ? 'Pokaż wszystkie mecze' : 'Pokaż tylko mecze z nieprzeczytanymi wiadomościami'}
+      title={onlyUnread ? 'Pokaż wszystkie mecze' : 'Tylko z nieprzeczytanymi wiadomościami'}
+      className={`shrink-0 rounded-full p-1.5 transition-colors ${
+        onlyUnread ? 'bg-pink-600 text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-pink-600 dark:hover:bg-slate-800'
+      }`}
+    >
+      <MessageCircle className="h-4 w-4" />
+    </button>
+  );
 
   if (!authLoading && !user) {
     return (
@@ -176,13 +190,9 @@ function MojeGryContent() {
         )}
 
         {/* Tabs — poziomy scroll z ukrytym scrollbarem: cztery zakładki +
-            dwie plakietki nie mieszczą się zawsze na 360px. Filtr „tylko
-            nieprzeczytane" stoi POZA przewijanym paskiem zakładek, w tym samym
-            wierszu — nie dokłada wysokości i jest widoczny zawsze, niezależnie
-            od tego, czy akurat jest co pokazać w „Brakuje graczy" (zgłoszone
-            wprost: przycisk nie może zależeć od zawartości sekcji niżej). */}
-        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex flex-1 min-w-0 gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            dwie plakietki nie mieszczą się zawsze na 360px. */}
+        <div className="border-b border-slate-100 dark:border-slate-700">
+          <div className="flex gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button onClick={() => goToTab('upcoming')} className={`${tabButtonCls(tab === 'upcoming')} shrink-0 whitespace-nowrap`}>
               Nadchodzące
             </button>
@@ -206,19 +216,6 @@ function MojeGryContent() {
               )}
             </button>
           </div>
-          {tab === 'upcoming' && jestNieprzeczytanych && (
-            <button
-              onClick={() => setOnlyUnread((v) => !v)}
-              aria-pressed={onlyUnread}
-              aria-label={onlyUnread ? 'Pokaż wszystkie mecze' : 'Pokaż tylko mecze z nieprzeczytanymi wiadomościami'}
-              title={onlyUnread ? 'Pokaż wszystkie mecze' : 'Tylko z nieprzeczytanymi wiadomościami'}
-              className={`mb-1.5 shrink-0 rounded-full p-1.5 transition-colors ${
-                onlyUnread ? 'bg-pink-600 text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-pink-600 dark:hover:bg-slate-800'
-              }`}
-            >
-              <MessageCircle className="h-4 w-4" />
-            </button>
-          )}
         </div>
 
         {/* Tab content */}
@@ -271,14 +268,26 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
+            <PendingRequestsSection items={upcomingWidoczne} unreadByEvent={unreadByEvent} />
+            {/* Filtr „tylko nieprzeczytane" stoi na wysokości „Brakuje graczy"
+                (`extra` w `SectionHeader`), nie w pasku zakładek — zgłoszone
+                wprost. `pokazPustyNaglowek` trzyma przycisk widocznym nawet
+                gdy akurat nie ma czego pokazać w tej sekcji (i wtedy niżej
+                stoi komunikat „nic z nieprzeczytanymi"), bo przycisk musi
+                zostać dostępny, żeby dało się wyłączyć filtr z powrotem. */}
+            <NeedsPlayersSection
+              items={upcomingWidoczne}
+              limit={null}
+              unreadByEvent={unreadByEvent}
+              extra={jestNieprzeczytanych ? filtrNieprzeczytanychButton : undefined}
+              pokazPustyNaglowek
+            />
             {onlyUnread && upcomingWidoczne.length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+              <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                 Żaden z nadchodzących meczów nie ma nieprzeczytanych wiadomości.
               </p>
             ) : (
               <>
-                <PendingRequestsSection items={upcomingWidoczne} unreadByEvent={unreadByEvent} />
-                <NeedsPlayersSection items={upcomingWidoczne} limit={null} unreadByEvent={unreadByEvent} />
                 {(!onlyUnread || nextWidoczny) && (
                   <NextMatchCard row={nextWidoczny} unreadMessages={nextWidoczny ? unreadByEvent[nextWidoczny.event.id] : undefined} />
                 )}

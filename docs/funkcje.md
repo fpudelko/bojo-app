@@ -272,15 +272,18 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
-**Kropki na „Moje", „Grupy" i „Znajdź grę".** Trzy niezależne, osobno liczone: niebieska na
-„Moje" — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`) —
-różowa na „Moje" oraz na „Grupy" — nieprzeczytane wiadomości (`hasUnreadEventMessages()`
-w `lib/comments.ts`, `hasUnreadGroupMessages()` w `lib/groupPosts.ts`) — i pomarańczowa na
-„Znajdź grę" — nowe wydarzenie w promieniu 5 km od ostatniej wizyty na `/wydarzenia`
-(`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik `KLUCZ_WYDARZENIA_WIDZIANO`).
-Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` → Konwencje. Na „Moje" mogą się
-zapalić obie kropki naraz — różowa siedzi w lewym górnym rogu ikony, niebieska w prawym,
-żeby się nie nakładały.
+**Kropki na „Moje", „Grupy" i „Znajdź grę".** Niebieska na „Moje" (prawy górny róg) —
+oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`). Różowa na
+„Moje" (lewy górny róg) i na „Grupy" (lewy górny róg) — nieprzeczytane wiadomości
+(`hasUnreadEventMessages()` w `lib/comments.ts`, `hasUnreadGroupMessages()` w
+`lib/groupPosts.ts`). Pomarańczowa na „Grupy" (prawy górny róg) — nowy mecz w
+którejkolwiek mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()`
+w `lib/groups.ts`, ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej).
+Pomarańczowa na „Znajdź grę" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od
+ostatniej wizyty na `/wydarzenia` (`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik
+`KLUCZ_WYDARZENIA_WIDZIANO`). Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` →
+Konwencje. Każda ikona może nosić dwie kropki naraz (różową i pomarańczową na „Grupy";
+różową i niebieską na „Moje") — lewy i prawy róg, żeby się nie nakładały.
 
 Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
 `hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
@@ -309,11 +312,14 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 `kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
-**Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości w pasku zakładek
-(zakładka Nadchodzące), poza przewijanym paskiem tabów — nie dokłada wysokości i jest
-widoczna niezależnie od tego, czy akurat jest co pokazać w „Brakuje graczy" (zgłoszone
-wprost: przycisk nie mógł zależeć od zawartości sekcji niżej). Widoczna tylko, gdy jest
-choć jeden nieprzeczytany mecz. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy",
+**Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości stoi na wysokości
+nagłówka „Brakuje graczy" (`extra` w `SectionHeader`, `components/home/dashboard/
+DashboardSections.tsx`), nie w pasku zakładek — zgłoszone wprost jako zła pozycja przy
+pierwszym podejściu. `NeedsPlayersSection` dostaje `pokazPustyNaglowek` na tej stronie: gdy
+akurat nie ma żadnego meczu bez kompletu, sekcja i tak renderuje samą kropkę filtra (bez
+tytułu „Brakuje graczy") zamiast znikać całkowicie — inaczej przycisk nie miałby gdzie
+stanąć, żeby dało się wyłączyć filtr z powrotem. Widoczna tylko, gdy jest choć jeden
+nieprzeczytany mecz w ogóle. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy",
 najbliższy mecz i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia
 i stałe gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
 
@@ -1063,7 +1069,19 @@ Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[
 nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
 Uprawnienia, więc nie duplikujemy ich treści tutaj — **zakładka Zaproszenia sama jest
 widoczna tylko dla founder/`can_invite`**, Uprawnienia jak dawniej wyłącznie dla
-foundera; kogo dana zakładka nie dotyczy, ten jej w ogóle nie widzi): **Mecze**
+foundera; kogo dana zakładka nie dotyczy, ten jej w ogóle nie widzi).
+
+**Link „Ustawienia" migał widoczny osobie bez żadnej roli w nowej ekipie** — `/grupy/[id]`
+jest trasą dynamiczną: przejście z ekipy, gdzie ktoś jest założycielem, do ekipy, gdzie nie
+ma żadnej roli, nie odmontowuje `GroupDetailClient`, tylko zmienia `id`. `load()` woła teraz
+`setMember(false)`/`setPermissions(null)` na SAMYM POCZĄTKU, przed pobraniem danych nowej
+ekipy — inaczej `permissions` z poprzedniej ekipy zostawało w stanie, dopóki nowe zapytanie
+nie wróciło, i link „Ustawienia" (gated `perms.isFounder || perms.canManageMembers`) świecił
+się przez chwilę komuś, kogo nie dotyczy. Ten sam wzorzec błędu naprawiono na
+`/wydarzenia/[id]` — tam zakładka „Ustawienia" w ogóle nie była gated na poziomie przycisku,
+tylko treści (patrz „Zakładki na `/wydarzenia/[id]`" niżej).
+
+**Mecze**
 (nadchodzące/historia, jak dawniej — sekcja „Najbliższy mecz" nad zakładkami pokazuje
 najbliższy termin raz; „Nadchodzące" niżej filtruje go z listy, żeby nie dublować tego
 samego meczu na jednym ekranie) / **Rozmowa** (dawniej
@@ -1144,6 +1162,14 @@ w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **ni
 (`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
 powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
 ręcznie.
+
+**Zakładka „Ustawienia" znika z paska dla kogokolwiek bez `canManageEvent`** — treść
+panelu zawsze była gated (`tab === 'ustawienia' && canManageEvent`), ale sam **przycisk
+zakładki** renderował się dla każdego (`EVENT_TAB_LABELS.map(...)` bez filtra), więc ktoś
+bez żadnej roli w meczu widział w pasku zakładkę, która po kliknięciu okazywała się pusta.
+Pokrewny błąd co „Ustawienia" na `/grupy/[id]` (patrz „Układ `/grupy/[id]`" wyżej) — inny
+mechanizm (tam stan nie zerował się między ekipami, tu przycisk zakładki w ogóle nie był
+gated), ten sam efekt: widoczny, ale martwy element UI dla kogoś bez odpowiedniej roli.
 
 **Nazwa meczu przeniosła się nad zakładki** — pasek na samej górze to teraz `[Wróć]`
 (bez etykiety, sama strzałka) + nazwa (`<h1>` obcinany wielokropkiem), tak jak belka na

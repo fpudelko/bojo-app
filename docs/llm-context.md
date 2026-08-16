@@ -356,6 +356,45 @@ systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisi
 `zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
 nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
 
+### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
+
+PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
+w pasku dla KAŻDEGO, nie tylko dla organizatora/delegata — gated była wyłącznie treść
+panelu (`tab === 'ustawienia' && canManageEvent`), sam przycisk renderował się zawsze
+(`EVENT_TAB_LABELS.map(...)` bez filtra). Ktoś bez żadnej roli w meczu, nawet
+niezalogowany na to wydarzenie, widział klikalną zakładkę, która po otwarciu okazywała
+się pusta — zgłoszone ze zrzutem ekranu. Pomarańczowa kropka „nowy mecz w ekipie"
+i różowa „nieprzeczytana wiadomość" wylądowały w poprzednim wdrożeniu na kartach ekip
+na `/grupy`, ale nie na samej ikonie „Grupy" na dolnej nawigacji — tam wciąż była tylko
+jedna, różowa kropka po prawej. Filtr „tylko z nieprzeczytanymi" na `/moje-gry` stanął
+w pasku zakładek zamiast niżej, na wysokości „Brakuje graczy", jak zgłoszono. Zrzut
+kreatora meczu w karuzeli na landingu wciąż pokazywał usunięty już toggle „Wydarzenie
+cykliczne" — nieaktualny od poprzedniej zmiany, która ukryła tę opcję w prawdziwym
+kreatorze.
+
+ROZWIĄZANIE BOJO: przycisk zakładki „Ustawienia" na stronie meczu znika teraz razem
+z treścią — ten sam warunek (`canManageEvent`) filtruje etykiety PRZED renderowaniem,
+nie tylko treść pod spodem. Ikona „Grupy" na dolnej nawigacji nosi dziś dwie kropki:
+różową (nieprzeczytana wiadomość w którejkolwiek ekipie) po LEWEJ, pomarańczową (nowy
+mecz w którejkolwiek ekipie od ostatniej wizyty na jej stronie) po PRAWEJ — osobna,
+zbiorcza kontrola obok tej już istniejącej na kartach `/grupy`. Filtr nieprzeczytanych
+na `/moje-gry` przeniósł się do nagłówka „Brakuje graczy" (ta sama kontrolka, którą
+kiedyś dostawał link „Wszystkie") — gdy akurat nie ma czego tam pokazać, sekcja
+i tak renderuje samą kropkę filtra zamiast znikać całkowicie, żeby dało się wyłączyć
+filtr z powrotem. Zrzut kreatora w karuzeli landingu podmieniony na aktualny stan UI.
+
+MECHANIKA: `EventDetailClient.tsx` — `EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia'
+|| canManageEvent)` przed `.map()`. `lib/groups.ts` — nowa `hasNewGroupEvents(groupIds)`,
+ten sam wzorzec co `hasUnreadGroupMessages()`. `BottomNav.tsx` — `unreadGroups` i
+`newGroupEvents` liczone jednym efektem (wspólne `getMyGroupIds()`), dot na „Grupy"
+`top-left`/`top-right`. `components/home/dashboard/DashboardSections.tsx` —
+`SectionHeader` dostał `extra?: React.ReactNode` (kontrolka obok linku „Wszystkie");
+`NeedsPlayersSection` dostał `extra` i `pokazPustyNaglowek` (gdy `true` i sekcja byłaby
+pusta, renderuje samą `extra` zamiast `null` — domyślnie `false`, pulpit `AppHome` nie
+przekazuje żadnego z nich, więc zachowuje się jak dawniej). `app/moje-gry/page.tsx` —
+przycisk filtra wyjęty z paska zakładek, przekazywany jako `extra` do
+`NeedsPlayersSection`. `frontend/public/landing/kreator.jpg` — podmieniony zrzut.
+
 ### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
 
 PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
@@ -684,37 +723,3 @@ ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
 `/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
 Pełny model uprawnień → [docs/domena.md § Uprawnienia w
 grupie](./domena.md#uprawnienia-w-grupie).
-
-### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
-
-PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
-„uzupełnij profil" po rejestracji fizycznie zapisywało się w bazie, ale nigdy nie
-pojawiało się w dzwonku — wyścig między insertem a subskrypcją Realtime dzwonka, która
-nie zdążyła się zasubskrybować, zanim insert się wykonał. (2) Przycisk „Zaproś do Bojo"
-w karcie „Po meczu" skakał na skład, który dla zakończonego meczu jest domyślnie
-zwinięty do awatarów — scroll trafiał w puste miejsce. (3) Modal „Powtórz mecz" kopiował
-zegarową godzinę końca ze źródłowego meczu bez przeliczenia względem nowego startu —
-zmiana samej godziny startu potrafiła dać kopię „trwającą" 690 minut. (4) Organizator
-nie miał jak oznaczyć nieobecność gracza (infrastruktura istniała od migracji `011`, ale
-nic do niej nie zapisywało) ani przekazać części swoich praw komuś, kto pomaga prowadzić
-mecz pod jego nieobecność.
-
-ROZWIĄZANIE BOJO: (1) `lib/auth.tsx` po udanym RPC jawnie każe dzwonkowi odświeżyć listę
-(custom event), zamiast liczyć na Realtime dla tego jednego, znanego z wyścigu
-przypadku. (2) Kliknięcie „Zaproś do Bojo" rozwija skład i dopiero potem scrolluje.
-(3) Modal „Powtórz mecz" ma teraz pole „Koniec" obok „Godziny" — zmiana startu przesuwa
-koniec o tę samą deltę (zachowuje długość), zmiana końca nigdy nie rusza startu.
-(4) Nowy modal „Kto nie przyszedł" w karcie „Po meczu" (organizator/delegat od składu) —
-wpływa na plakietkę „Niezawodny" i pasek frekwencji na `/gracz/[id]`, bez zmiany widoku
-składu dla reszty. Nowy panel „Uprawnienia" (wyłącznie prawdziwy organizator): deleguje
-uczestnikowi meczu albo członkowi przypiętej grupy trzy niezależne prawa — pełną edycję
-(włącznie z odwołaniem meczu), zarządzanie składem i wynikiem, zarządzanie rozliczeniami
-i BLIK-iem. Egzekwowane w RLS, nie tylko w UI.
-
-MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
-`event_delegates` (migracja `089`, + funkcje `can_edit_event()`/`can_manage_squad()`/
-`can_manage_payments()`), rozszerzenie RLS na `events`/`event_participants`/
-`team_proposals`/`match_results`/`player_goals`/`event_player_invites` + RPC
-`event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
-`player_reports` (`091`). Pełny model uprawnień →
-[docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
