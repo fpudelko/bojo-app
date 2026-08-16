@@ -462,3 +462,17 @@ export function policzNoweMeczePerGrupa(
   });
   return wynik;
 }
+
+/** Czy w którejkolwiek mojej ekipie pojawił się nowy mecz od ostatniej wizyty
+ *  na jej stronie — zasila pomarańczową kropkę „nowy mecz" przy „Grupy" na
+ *  dolnej nawigacji (patrz `BottomNav.tsx`), wzorem `hasUnreadGroupMessages()`
+ *  w `groupPosts.ts`. `groupIds` — id-ki grup, w których jestem członkiem. */
+export async function hasNewGroupEvents(groupIds: string[]): Promise<boolean> {
+  if (groupIds.length === 0) return false;
+  const events = await getGroupEventsForNew(groupIds);
+  const widzianoByGroup = (groupId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczGrupyWidziano(groupId)) : null
+  );
+  const counts = policzNoweMeczePerGrupa(events, widzianoByGroup);
+  return Object.keys(counts).length > 0;
+}

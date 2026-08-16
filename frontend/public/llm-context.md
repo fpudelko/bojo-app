@@ -332,6 +332,45 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
+
+PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
+w pasku dla KAŻDEGO, nie tylko dla organizatora/delegata — gated była wyłącznie treść
+panelu (`tab === 'ustawienia' && canManageEvent`), sam przycisk renderował się zawsze
+(`EVENT_TAB_LABELS.map(...)` bez filtra). Ktoś bez żadnej roli w meczu, nawet
+niezalogowany na to wydarzenie, widział klikalną zakładkę, która po otwarciu okazywała
+się pusta — zgłoszone ze zrzutem ekranu. Pomarańczowa kropka „nowy mecz w ekipie"
+i różowa „nieprzeczytana wiadomość" wylądowały w poprzednim wdrożeniu na kartach ekip
+na `/grupy`, ale nie na samej ikonie „Grupy" na dolnej nawigacji — tam wciąż była tylko
+jedna, różowa kropka po prawej. Filtr „tylko z nieprzeczytanymi" na `/moje-gry` stanął
+w pasku zakładek zamiast niżej, na wysokości „Brakuje graczy", jak zgłoszono. Zrzut
+kreatora meczu w karuzeli na landingu wciąż pokazywał usunięty już toggle „Wydarzenie
+cykliczne" — nieaktualny od poprzedniej zmiany, która ukryła tę opcję w prawdziwym
+kreatorze.
+
+ROZWIĄZANIE BOJO: przycisk zakładki „Ustawienia" na stronie meczu znika teraz razem
+z treścią — ten sam warunek (`canManageEvent`) filtruje etykiety PRZED renderowaniem,
+nie tylko treść pod spodem. Ikona „Grupy" na dolnej nawigacji nosi dziś dwie kropki:
+różową (nieprzeczytana wiadomość w którejkolwiek ekipie) po LEWEJ, pomarańczową (nowy
+mecz w którejkolwiek ekipie od ostatniej wizyty na jej stronie) po PRAWEJ — osobna,
+zbiorcza kontrola obok tej już istniejącej na kartach `/grupy`. Filtr nieprzeczytanych
+na `/moje-gry` przeniósł się do nagłówka „Brakuje graczy" (ta sama kontrolka, którą
+kiedyś dostawał link „Wszystkie") — gdy akurat nie ma czego tam pokazać, sekcja
+i tak renderuje samą kropkę filtra zamiast znikać całkowicie, żeby dało się wyłączyć
+filtr z powrotem. Zrzut kreatora w karuzeli landingu podmieniony na aktualny stan UI.
+
+MECHANIKA: `EventDetailClient.tsx` — `EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia'
+|| canManageEvent)` przed `.map()`. `lib/groups.ts` — nowa `hasNewGroupEvents(groupIds)`,
+ten sam wzorzec co `hasUnreadGroupMessages()`. `BottomNav.tsx` — `unreadGroups` i
+`newGroupEvents` liczone jednym efektem (wspólne `getMyGroupIds()`), dot na „Grupy"
+`top-left`/`top-right`. `components/home/dashboard/DashboardSections.tsx` —
+`SectionHeader` dostał `extra?: React.ReactNode` (kontrolka obok linku „Wszystkie");
+`NeedsPlayersSection` dostał `extra` i `pokazPustyNaglowek` (gdy `true` i sekcja byłaby
+pusta, renderuje samą `extra` zamiast `null` — domyślnie `false`, pulpit `AppHome` nie
+przekazuje żadnego z nich, więc zachowuje się jak dawniej). `app/moje-gry/page.tsx` —
+przycisk filtra wyjęty z paska zakładek, przekazywany jako `extra` do
+`NeedsPlayersSection`. `frontend/public/landing/kreator.jpg` — podmieniony zrzut.
+
 ### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
 
 PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
@@ -694,37 +733,3 @@ MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
 `event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
 `player_reports` (`091`). Pełny model uprawnień →
 [docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
-
-### 2026-08-13 — Strony treści dla organizatorów, FAQ naprawia kłamstwo o koncie, domknięcie meczu po gwizdku
-
-PROBLEM: FAQ na stronie głównej, `llms.txt` i sekcja „Zasięg i skala" tego pliku
-twierdziły, że dołączenie do meczu wymaga logowania — nieprawda od migracji `082`
-(self-service zapis gościa, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)).
-To dokładnie ten argument, którym organizator przebija opór graczy przed zakładaniem
-konta w obcej aplikacji, i aplikacja sama sobie go zabierała. Osobno: dane produkcyjne
-pokazały, że rzeczy, które Bojo umie **po meczu**, prawie nigdy się nie dzieją —
-122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych, zero przejętych wpisów
-gości — bo nic o nie nie prosi we właściwym momencie. Strategia (`docs/strategia.md §0`)
-przesuwa priorytet na pozyskiwanie organizatorów, a produkt nie miał stron tłumaczących
-mechanikę i przewagę nad wątkiem na Messengerze pod SEO/GEO/AEO.
-
-ROZWIĄZANIE BOJO: trzy nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
-kreatora po rozliczenie, z jawną sekcją o tym, że dołączenie nie wymaga konta,
-i sekcją „co Bojo powiadamia i gdzie", która wprost mówi, że SMS-ów i maili o meczu nie
-wysyła), `/dlaczego-bojo` (tabela porównawcza z grupą FB/WhatsApp, argument na „moi
-gracze nie założą konta"), `/faq` (36 pytań w sześciu kategoriach, wspólne źródło ze
-stroną główną). Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
-liczba obiektów ~30 000 zamiast nieaktualnego ~1400). Karta „Po meczu" na stronie meczu
-zbiera zadania organizatora (rozlicz ekipę, wpisz wynik, zaproś gości bez konta, powtórz
-mecz) w jednym miejscu zamiast jednej bursztynowej linijki; okno „Powtórz mecz" otwiera
-się z wypełnioną datą najbliższego takiego samego dnia tygodnia zamiast pustego pola;
-zakładka Historia na `/moje-gry` dostała sekcję „Do rozliczenia".
-
-MECHANIKA: `src/content/{faq,jakDziala,dlaczego,zakazaneFrazy}.ts` — copy jako
-dane, testowalne bez renderowania (wzorem `components/home/landing/content.ts`, który
-teraz re-eksportuje `FAQ_LANDING` z `content/faq.ts`); `components/tresc/*` — powłoka
-stron treści; `lib/recurring.ts`
-(`domyslnyTerminPowtorki()`); `lib/myEvents.ts` (`doRozliczenia()`);
-`components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
-(`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
-`EventDetailClient.tsx` i `getMyParticipatedEvents()` już liczyły.

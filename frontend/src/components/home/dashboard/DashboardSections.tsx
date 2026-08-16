@@ -27,12 +27,15 @@ type StatusFor = (event: EventItem) => MyEventRelation;
  *  Exported so /moje-gry — which reuses these sections without truncation —
  *  can render the same heading style for "Obserwowane" with its explanatory
  *  subline, instead of a third copy of this markup. */
-export function SectionHeader({ title, href, count, subtitle }: {
+export function SectionHeader({ title, href, count, subtitle, extra }: {
   title: string; href?: string; count?: number; subtitle?: string;
+  /** Dodatkowa kontrolka po prawej stronie wiersza, obok (albo zamiast) linku
+   *  „Wszystkie" — np. przycisk filtra na `/moje-gry` (patrz `NeedsPlayersSection`). */
+  extra?: React.ReactNode;
 }) {
   return (
     <div className="mb-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-bold text-ink">
           {title}
           {count != null && count > 0 && (
@@ -41,11 +44,14 @@ export function SectionHeader({ title, href, count, subtitle }: {
             </span>
           )}
         </h2>
-        {href && (
-          <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
-            Wszystkie <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {href && (
+            <Link href={href} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
+              Wszystkie <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+          {extra}
+        </div>
       </div>
       {subtitle && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
     </div>
@@ -213,8 +219,16 @@ export function PendingRequestsSection({ items, href, unreadByEvent }: {
   );
 }
 
-export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent }: {
+export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent, extra, pokazPustyNaglowek }: {
   items: MyEventRow[]; limit?: number | null; href?: string; unreadByEvent?: Record<string, number>;
+  /** Dodatkowa kontrolka w nagłówku, patrz `SectionHeader`. */
+  extra?: React.ReactNode;
+  /** `/moje-gry`: filtr nieprzeczytanych ma stać na wysokości „Brakuje graczy",
+   *  nawet gdy akurat nie ma czego tu pokazać — bez tego zniknąłby razem
+   *  z sekcją, mimo że przycisk nie ma nic wspólnego z kompletem składu.
+   *  Domyślnie `false`, bo pulpit (`AppHome`) ma zostać dokładnie taki, jaki
+   *  był — pusta sekcja tam ma po prostu nie istnieć. */
+  pokazPustyNaglowek?: boolean;
 }) {
   const needing = items
     .filter(({ event, relation }) =>
@@ -226,7 +240,10 @@ export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent }: {
       const kb = `${b.event.date}T${b.event.time || '23:59'}`;
       return ka < kb ? -1 : ka > kb ? 1 : 0;
     });
-  if (needing.length === 0) return null;
+  if (needing.length === 0) {
+    if (!pokazPustyNaglowek || !extra) return null;
+    return <div className="flex items-center justify-end">{extra}</div>;
+  }
   const shown = limit != null ? needing.slice(0, limit) : needing;
   return (
     <div>
@@ -235,6 +252,7 @@ export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent }: {
         href={href}
         count={needing.length}
         subtitle="Twoje mecze, które jeszcze nie mają kompletu"
+        extra={extra}
       />
       <div className="space-y-3">
         {shown.map(({ event, relation }) => (
