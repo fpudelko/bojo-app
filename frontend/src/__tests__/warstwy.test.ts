@@ -23,7 +23,8 @@ describe('skala warstw a konfiguracja Tailwinda', () => {
   it('kolejność warstw: mapa < nawigacja < modal < toast', () => {
     const liczba = (klasa: string) => Number(klasa.match(/\[(\d+)\]/)![1]);
     expect(liczba(WARSTWA.nakladkaMapy)).toBeLessThan(liczba(WARSTWA.nawigacjaDolna));
-    expect(liczba(WARSTWA.nawigacjaDolna)).toBeLessThan(liczba(WARSTWA.modal));
+    expect(liczba(WARSTWA.nawigacjaDolna)).toBeLessThan(liczba(WARSTWA.zachetaInstalacji));
+    expect(liczba(WARSTWA.zachetaInstalacji)).toBeLessThan(liczba(WARSTWA.modal));
     expect(liczba(WARSTWA.modal)).toBeLessThanOrEqual(liczba(WARSTWA.modalPanel));
     expect(liczba(WARSTWA.modalPanel)).toBeLessThan(liczba(WARSTWA.toast));
   });

@@ -9,6 +9,7 @@ import AnnouncementBar from '@/components/AnnouncementBar';
 import BottomNavGate from '@/components/layout/BottomNavGate';
 import PostSignupRoleModal from '@/components/onboarding/PostSignupRoleModal';
 import RejestracjaSW from '@/components/RejestracjaSW';
+import ZachetaInstalacji from '@/components/ZachetaInstalacji';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { siteJsonLd } from '@/lib/structuredData';
 
@@ -115,6 +116,7 @@ export default function RootLayout({
                 <CookieBanner />
                 <PostSignupRoleModal />
                 <RejestracjaSW />
+                <ZachetaInstalacji />
               </BottomNavVisibilityProvider>
             </ToastProvider>
           </AuthProvider>

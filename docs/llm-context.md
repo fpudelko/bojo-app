@@ -299,6 +299,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+
+PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
+ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
+nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
+push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+
+ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
+pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
+„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
+„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
+i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
+„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
+powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
+spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
+w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+
+MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
+więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
+`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
+systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
+`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
+nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+
 ### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
 
 PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
@@ -616,27 +640,3 @@ i `confirmedCounts()`; `joinEvent()` woła RPC, `approveParticipant()`, `addGues
 i `confirmFromMaybe()` pytają `czy_na_rezerwe()`); nowy `lib/zapytania.ts`;
 `frontend/.eslintrc.js`, `playwright.config.ts` i `e2e/klikalnosc.spec.ts`;
 `.github/workflows/ci.yml` (kroki lint i build, osobne zadanie `e2e`).
-
-### 2026-08-11 — Miejsca dla bramkarzy: rezerwacja albo wspólna pula, do wyboru
-
-PROBLEM: mecz w Bojo z rozróżnieniem bramkarzy dzielił pulę na sztywno — przy 14 miejscach
-i 2 bramkarzach zawodnicy z pola konkurowali o 12, więc trzynasty chętny lądował na
-rezerwie, podczas gdy dwa miejsca dla bramkarzy stały puste i nikt ich nie zajmował.
-Liczba wpisana przez organizatora jako „liczba miejsc" nie była liczbą osób, które mogą
-dołączyć, a nic o tym nie mówiło. Rezerwacja bywa jednak dokładnie tym, czego organizator
-chce — bez niej można skończyć z kompletem zawodników z pola i zerem bramkarzy.
-
-ROZWIĄZANIE BOJO: podział miejsc jest wyborem organizatora, z opisem skutków liczonym
-z realnej liczby miejsc. Trzy tryby: bez podziału na role (wszystkie miejsca wspólne),
-rozróżnianie bez rezerwacji (wspólna pula, bramkarzy nie wejdzie więcej niż limit, może
-zdarzyć się komplet bez bramkarza) oraz rezerwacja (14 miejsc = 12 w polu + 2 dla
-bramkarzy, miejsca bramkarzy czekają do końca). Licznik na stronie meczu mówi to samo
-językiem gracza: przy rezerwacji rozbija miejsca na role, przy wspólnej puli podaje
-liczbę wspólną z dopiskiem, ilu bramkarzy jeszcze wejdzie.
-
-MECHANIKA: migracja `077` (kolumna `events.goalkeeper_slots_reserved`, domyślnie `true`,
-oraz `sync_reserve_claim()` respektujące tryb — bez tego kolejka rezerwowa liczyłaby
-pojemność inaczej niż aplikacja przy zapisie); `lib/events.ts` (`decydujCzyRezerwa()`
-i `wolneMiejscaWgRol()` z tym samym podziałem); `EventCapacityFields.tsx` (trzy opcje
-z opisem zamiast przełącznika); `wydarzenia/nowe` i `wydarzenia/[id]/edytuj` (stan trybu);
-`lib/eventDraft.ts` (szkic pamięta tryb).

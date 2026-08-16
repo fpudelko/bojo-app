@@ -579,3 +579,89 @@ test.describe('instalowalna apka', () => {
     ).toBe('jest');
   });
 });
+
+/* ── Zachęta do dodania Bojo na ekran główny ────────────────────────────── */
+
+// Pasek pokazuje się dopiero PO udanym zapisie na mecz, więc w zwykłym
+// przejściu bez bazy nikt go nie zobaczy. Tu wywołujemy go wprost tym samym
+// zdarzeniem, którego używa aplikacja — chodzi o obejrzenie samego widoku,
+// nie o powtórzenie całej ścieżki (od tego są scenariusze za logowaniem).
+function pasekZachety(page: Page) {
+  return page.getByRole('dialog', { name: 'Dodaj Bojo do ekranu głównego' });
+}
+
+/**
+ * Prosi o pokazanie paska — DO SKUTKU.
+ *
+ * Pojedyncze `dispatchEvent` zaraz po `goto` przegrywa wyścig z hydratacją:
+ * komponent nie zdążył jeszcze podpiąć nasłuchu, więc zdarzenie leci w próżnię
+ * i nikt go nie odbiera. Powtarzamy, aż pasek się pojawi.
+ */
+async function pokazZachete(page: Page, androidowe = false) {
+  await expect.poll(async () => {
+    await page.evaluate((zNatywnym) => {
+      // Chrome wysyła `beforeinstallprompt` tylko wtedy, gdy sam uzna stronę
+      // za instalowalną — w teście podstawiamy samo zdarzenie, bo komponentowi
+      // do pokazania przycisku wystarczy, że je dostał.
+      if (zNatywnym) window.dispatchEvent(new Event('beforeinstallprompt'));
+      window.dispatchEvent(new Event('bojo:zaproponuj-instalacje'));
+    }, androidowe);
+    return pasekZachety(page).count();
+  }, { timeout: 15_000 }).toBeGreaterThan(0);
+}
+
+test.describe('zachęta do instalacji — iPhone', () => {
+  // Na iOS to JEDYNA droga do instalacji: Safari nie daje żadnego zdarzenia,
+  // którym dałoby się zainstalować za użytkownika. Instrukcja musi więc być
+  // czytelna i pokazywać te same ikony co system — dlatego ma własny wzorzec.
+  test.use({
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 '
+      + '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  });
+
+  test('instrukcja „Udostępnij → Do ekranu początkowego"', async ({ page }, info) => {
+    test.skip(!info.project.name.includes('telefon'), 'zachęta wyłącznie na telefonie');
+    await page.goto('/');
+    await pokazZachete(page);
+
+    const pasek = pasekZachety(page);
+    await expect(pasek).toBeVisible();
+    await expect(pasek.getByText(/tylko z ekranu głównego/i)).toBeVisible();
+    await uspokoj(page);
+    await expect(pasek).toHaveScreenshot('zacheta-instalacji-ios.png');
+  });
+});
+
+test.describe('zachęta do instalacji — Android', () => {
+  test('przycisk „Dodaj do ekranu"', async ({ page }, info) => {
+    test.skip(!info.project.name.includes('telefon'), 'zachęta wyłącznie na telefonie');
+    await page.goto('/');
+    await pokazZachete(page, true);
+
+    const pasek = pasekZachety(page);
+    await expect(pasek).toBeVisible();
+    await expect(pasek.getByRole('button', { name: 'Dodaj do ekranu' })).toBeVisible();
+    await uspokoj(page);
+    await expect(pasek).toHaveScreenshot('zacheta-instalacji-android.png');
+  });
+
+  test('po zamknięciu nie wraca', async ({ page }, info) => {
+    test.skip(!info.project.name.includes('telefon'), 'zachęta wyłącznie na telefonie');
+    await page.goto('/');
+    await pokazZachete(page, true);
+
+    const pasek = pasekZachety(page);
+    await pasek.getByRole('button', { name: 'Nie teraz' }).click();
+    await expect(pasek).toBeHidden();
+
+    // Sedno: druga prośba ma zostać bez odpowiedzi. Nachalny pasek na każdej
+    // stronie irytuje bardziej, niż pomaga. Nie używamy tu `pokazZachete`,
+    // bo ono czeka NA POJAWIENIE SIĘ paska — a my sprawdzamy, że się nie pojawi.
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('beforeinstallprompt'));
+      window.dispatchEvent(new Event('bojo:zaproponuj-instalacje'));
+    });
+    await expect(pasek).toBeHidden();
+  });
+});
