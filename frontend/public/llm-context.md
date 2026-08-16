@@ -332,6 +332,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
+
+PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
+między zapytaniami (poprzedni wpis w tym logu) — zgłoszone wprost, ponownie ze zrzutem,
+mimo `/moje-gry` nie znajdującego ani jednej nieprzeczytanej wiadomości. Każdy z czterech
+efektów w `BottomNav.tsx` kończył nieudane zapytanie gołym `.catch(() => {})`: błąd (chwilowy
+problem sieci, odświeżenie tokenu Supabase w trakcie) zostawiał stan takim, jaki był PRZED
+próbą — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka świeciła dalej
+bez związku z rzeczywistością, aż trafiłoby się kolejne udane zapytanie. Osobno: dymek nad
+pierwszą („Znajdź grę") i ostatnią („Grupy") z pięciu ikon wyśrodkowywał się nad wąską
+kolumną blisko krawędzi ekranu i wystawał poza nią, nieczytelny — też zgłoszone ze zrzutem.
+
+ROZWIĄZANIE BOJO: `catch` w każdym z czterech efektów ustawia teraz jawnie `false`
+(`null` dla nazwy grupy) zamiast nic nie robić — brak pewności o stanie wygrywa z fałszywie
+zapaloną kropką. Dymek dostał `dymekAlign` (`'left' | 'center' | 'right'`): skrajne kolumny
+przypinają go do swojej wewnętrznej krawędzi zamiast centrować nad ikoną, środkowe trzy
+zostają wyśrodkowane jak dotąd.
+
+MECHANIKA: `BottomNav.tsx` — każdy `.then(...).catch(...)` w efektach `pendingApproval`/
+`unreadEvents`/grupowym (`unreadGroups`, `newGroupEvents`, `newGroupName`, plus zewnętrzny
+`getMyGroups().catch()`) resetuje stan na `catch`. `NavLink` dostaje prop `dymekAlign`;
+`LEFT_ITEMS`/`RIGHT_ITEMS.map` liczy go z indeksu (`i === 0` / `i === length - 1`) i
+przekazuje klasy `left-0`/`right-0` zamiast `left-1/2 -translate-x-1/2` na dymku i jego
+trójkącie wskaźnika.
+
 ### 2026-08-16 — Naprawiony wyścig zostawiający fałszywą różową kropkę na "Moje"; dymki jeden na raz, 4 sekundy
 
 PROBLEM: różowa kropka „nowe wiadomości" na „Moje" świeciła się nawet wtedy, gdy sama
@@ -644,45 +669,3 @@ sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klas
 `.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
 i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
 `flex-wrap`.
-
-### 2026-08-15 — Strona meczu dostaje pięć zakładek (Skład/Rozmowa/Wynik/Rozliczenia/Ustawienia); belka ekipy odchudzona, ustawienia jako zakładka
-
-PROBLEM: strona meczu była jedną długą kolumną — dane, prośby o dołączenie, skład,
-drużyny, wynik, rozliczenie, ustawienia organizatora i komentarze stały jedna pod drugą
-bez podziału, więc np. rozliczenie kosztów ginęło daleko na dole. Komentarze wyglądały
-i działały inaczej niż „Rozmowa" w ekipie, mimo tej samej potrzeby. Na stronie ekipy
-zakładki stały POD kartą „Najbliższy mecz", nie nad nią. Belka ekipy miała za dużo
-elementów naraz (powrót, logo, nazwa, zaproszenie, kod dołączenia, zębatka ustawień,
-dzwonek, awatar). Po ukryciu dolnej nawigacji na zakładce Rozmowa (w ekipie i na meczu)
-kontener czatu zostawiał pod sobą pas pustego tła, a na zakładce Rozmowa w ekipie sama
-belka lądowała niżej niż na pozostałych zakładkach (efekt uboczny `position: sticky`
-wewnątrz nieprzewijalnego, `overflow-hidden` kontenera).
-
-ROZWIĄZANIE BOJO: strona meczu ma teraz pięć zakładek: **Skład** (domyślna — uczestnicy,
-zapisy, prośby o dołączenie, panel „Czy gramy?", zwinięty domyślnie podział na drużyny,
-karta „Po meczu"), **Rozmowa** (ten sam mechanizm czatu co w ekipie, i **wyłącznie** okno
-czatu — żadnych innych elementów strony), **Wynik** (drużyny i formularz rezultatu —
-ten sam podział na drużyny co w zakładce Skład, zawsze rozwinięty), **Rozliczenia**
-(podział kosztów) i **Ustawienia** (panel organizatora, domyślnie rozwinięty — to teraz
-cała treść zakładki, nie jedna z wielu kart). Nazwa meczu przeniosła się nad zakładki
-(tam gdzie wcześniej stały „Udostępnij"/„Kopiuj"), a te dwa przyciski zeszły pod
-zakładki, w miejsce dawnego tytułu — zamiana miejscami, nic nie zniknęło. Reszta statusu
-meczu (baner odwołania, „Mecz gotowy", chipy daty/miejsca/ceny, sticky pasek „Dołącz")
-zostaje uniwersalna na każdej zakładce oprócz Rozmowy. Na stronie ekipy zakładki
-przeniosły się nad „Najbliższy mecz", a belka schudła do logo, nazwy, „Zaproś" i
-dzwonka — kod dołączenia żyje już tylko w arkuszu „Zaproś", a ustawienia dostały swój
-wpis w pasku zakładek zamiast osobnej zębatki. Rozmowa ekipy i rozmowa meczu obie
-rozciągają się do samego dołu ekranu na telefonie, a belka ekipy na zakładce Rozmowa
-stoi teraz na tej samej wysokości co na pozostałych zakładkach.
-
-MECHANIKA: nowy `components/events/RozmowaWydarzenia.tsx`; zastępuje usunięty
-`components/events/EventComments.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`: stan
-zakładki w `?tab=`; `skladWynikSection` rozbita na `druzynySection` (renderowany w Skład
-i Wynik — ten sam JSX na tym samym stanie z rodzica, więc zmiana w jednym miejscu jest
-od razu widoczna w drugim, bez synchronizacji) i `wynikFormSection`; `PoMeczuCard` dostał
-`onWpiszWynik` i warunek `tab === 'sklad'` (przestał być uniwersalny); uniwersalne sekcje
-(baner odwołania, „Mecz gotowy", blok akcji, sticky pasek) dostały `tab !== 'rozmowa'`.
-`app/grupy/[id]/GroupDetailClient.tsx`: belka bez kodu dołączenia i zębatki (Link
-„Ustawienia" w pasku zakładek zamiast), `NotificationBell` zamiast `MobileIdentityRow`
-(bez awatara); `position: sticky` na belce warunkowo wyłączone na zakładce Rozmowy.
-`RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca rodzic.

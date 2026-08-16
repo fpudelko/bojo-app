@@ -293,6 +293,15 @@ odpalonego zapytania i nadpisać poprawny stan starym, zostawiając kropkę zapa
 żadnego realnego powodu. Zgłoszone wprost jako różowa kropka na „Moje" mimo zera
 nieprzeczytanych wiadomości widocznych na samej stronie.
 
+**Błąd zapytania gasi kropkę, nie zostawia poprzedniej wartości.** Powyższa poprawka nie
+wystarczyła — kropka na „Moje" wracała mimo przeczytania wiadomości. Każdy `.then()` w tych
+efektach kończył się gołym `.catch(() => {})`: przy błędzie (chwilowy problem sieci,
+odświeżenie tokenu Supabase w trakcie) stan po prostu zostawał taki, jaki był PRZED
+nieudanym zapytaniem — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka
+świeciła dalej w nieskończoność, aż trafi się kolejne udane zapytanie. `catch` w każdym z
+czterech efektów ustawia teraz jawnie `false` (`null` dla nazwy grupy) zamiast nic nie
+robić — brak pewności o stanie ma zawsze wygrywać z fałszywie zapaloną kropką.
+
 Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
 `hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
 tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływałaby systemowe
@@ -319,6 +328,12 @@ stan `dymekWidoczny` (typ + tekst + `href` ikony, do której należy) i kolejkę
 i pokazuje się po kolei, jeden po drugim, każdy na swoje 4 sekundy. Dymek jest zawsze
 przypięty do konkretnej ikony przez `href` — komponent `NavLink` dostaje gotowy tekst
 tylko wtedy, gdy `dymekWidoczny.href` zgadza się z jego własnym `href`.
+
+Dymek nad skrajną ikoną (pierwszą — „Znajdź grę", ostatnią — „Grupy") wystawał poza ekran:
+wyśrodkowany nad wąską kolumną blisko krawędzi, ciągnął się poza jej brzeg (zgłoszone wprost,
+ze zrzutem). `NavLink` dostaje prop `dymekAlign` (`'left' | 'center' | 'right'`) — skrajne
+kolumny w `BottomNav.tsx` przypinają dymek do swojej wewnętrznej krawędzi zamiast centrować
+go nad ikoną, środkowe trzy kolumny zostają wyśrodkowane jak dotąd.
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje

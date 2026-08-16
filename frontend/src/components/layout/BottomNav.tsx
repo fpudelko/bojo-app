@@ -68,7 +68,15 @@ export default function BottomNav() {
   useEffect(() => {
     if (!user) { setPendingApproval(false); return; }
     let aktualne = true;
-    hasPendingApprovalRequests(user.id).then((v) => { if (aktualne) setPendingApproval(v); }).catch(() => {});
+    // Błąd zapytania NIE zostawia poprzedniej wartości — inaczej jeden
+    // przejściowy błąd sieci (albo odświeżenie tokenu w trakcie) zapalał
+    // kropkę na stałe, bo `.catch(() => {})` po prostu nic nie robił i stan
+    // sprzed błędu zostawał zamrożony (zgłoszone wprost: kropka mimo braku
+    // czegokolwiek do przeczytania). Brak pewności co do stanu = brak kropki,
+    // nie „ostatnia znana wartość".
+    hasPendingApprovalRequests(user.id)
+      .then((v) => { if (aktualne) setPendingApproval(v); })
+      .catch(() => { if (aktualne) setPendingApproval(false); });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -79,7 +87,9 @@ export default function BottomNav() {
   useEffect(() => {
     if (!user) { setUnreadEvents(false); return; }
     let aktualne = true;
-    hasUnreadEventMessages(user.id).then((v) => { if (aktualne) setUnreadEvents(v); }).catch(() => {});
+    hasUnreadEventMessages(user.id)
+      .then((v) => { if (aktualne) setUnreadEvents(v); })
+      .catch(() => { if (aktualne) setUnreadEvents(false); });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -93,10 +103,16 @@ export default function BottomNav() {
     let aktualne = true;
     getMyGroups(user.id).then((groups) => {
       const ids = groups.map((g) => g.id);
-      hasUnreadGroupMessages(user.id, ids).then((v) => { if (aktualne) setUnreadGroups(v); }).catch(() => {});
-      hasNewGroupEvents(ids).then((v) => { if (aktualne) setNewGroupEvents(v); }).catch(() => {});
-      getNewGroupEventGroupName(groups).then((v) => { if (aktualne) setNewGroupName(v); }).catch(() => {});
-    }).catch(() => {});
+      hasUnreadGroupMessages(user.id, ids)
+        .then((v) => { if (aktualne) setUnreadGroups(v); })
+        .catch(() => { if (aktualne) setUnreadGroups(false); });
+      hasNewGroupEvents(ids)
+        .then((v) => { if (aktualne) setNewGroupEvents(v); })
+        .catch(() => { if (aktualne) setNewGroupEvents(false); });
+      getNewGroupEventGroupName(groups)
+        .then((v) => { if (aktualne) setNewGroupName(v); })
+        .catch(() => { if (aktualne) setNewGroupName(null); });
+    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroupName(null); } });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -167,7 +183,7 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek,
+    href, label, Icon, dots = [], dymek, dymekAlign = 'center',
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Kropki — dziś "Moje" (niebieska: oczekujące prośby o dołączenie z prawej;
@@ -183,6 +199,11 @@ export default function BottomNav() {
         (patrz `dymekWidoczny`/kolejka wyżej) — max 5 razy w życiu
         użytkownika na typ, najwyżej jeden dymek na ekranie naraz. */
     dymek?: string;
+    /** Wyśrodkowany dymek na skrajnej ikonie (pierwszej/ostatniej z pięciu
+        kolumn) wystawał poza ekran (zgłoszone wprost, ze zrzutem). Skrajne
+        ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
+        centrować nad ikoną. */
+    dymekAlign?: 'left' | 'center' | 'right';
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
@@ -200,10 +221,22 @@ export default function BottomNav() {
           {dymek && (
             <span
               role="status"
-              className="pointer-events-none absolute -top-9 left-1/2 z-[1020] w-max max-w-[130px] -translate-x-1/2 rounded-lg bg-ink px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg"
+              className={clsx(
+                'pointer-events-none absolute -top-9 z-[1020] w-max max-w-[130px] rounded-lg bg-ink px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg',
+                dymekAlign === 'left' && 'left-0',
+                dymekAlign === 'right' && 'right-0',
+                dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',
+              )}
             >
               {dymek}
-              <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-4 border-transparent border-t-ink" />
+              <span
+                className={clsx(
+                  'absolute top-full h-0 w-0 border-4 border-transparent border-t-ink',
+                  dymekAlign === 'left' && 'left-2.5',
+                  dymekAlign === 'right' && 'right-2.5',
+                  dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',
+                )}
+              />
             </span>
           )}
           <Icon className={clsx('w-5 h-5 transition-transform', active && 'scale-110')} />
@@ -240,13 +273,15 @@ export default function BottomNav() {
       aria-label="Nawigacja dolna"
     >
       <div className="grid h-14 grid-cols-5 items-end">
-        {LEFT_ITEMS.map((item) => {
+        {LEFT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
           if (item.href === '/wydarzenia' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
-          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} />;
+          // Pierwsza kolumna to lewa krawędź ekranu — dymek wystawałby poza nią.
+          const dymekAlign = i === 0 ? 'left' : 'center';
+          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} dymekAlign={dymekAlign} />;
         })}
 
         {/* Centre FAB — always accessible, can't be deselected. Na stronie
@@ -263,7 +298,7 @@ export default function BottomNav() {
           <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
         </Link>
 
-        {RIGHT_ITEMS.map((item) => {
+        {RIGHT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
           if (item.href === '/moje-gry') {
             if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
@@ -274,7 +309,9 @@ export default function BottomNav() {
             if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
-          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} />;
+          // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
+          const dymekAlign = i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
+          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} dymekAlign={dymekAlign} />;
         })}
       </div>
     </nav>
