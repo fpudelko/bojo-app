@@ -16,7 +16,7 @@ import { WARSTWA } from '@/lib/warstwy';
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
 const LIMIT_DYMKA = 5;
-const CZAS_DYMKA_MS = 1500;
+const CZAS_DYMKA_MS = 4000;
 
 function kluczDymka(typ: string): string {
   return `bojo:dymek-pokazania:${typ}`;
@@ -58,10 +58,18 @@ export default function BottomNav() {
 
   // Leniwie przy każdej zmianie trasy — ten sam wzorzec "leniwego" odpalania
   // co reszta powiadomień w repo, bez kanału realtime dla zwykłej kropki.
+  // `aktualne` w każdym z tych efektów odrzuca odpowiedź, która wróciła PO
+  // tym, jak trasa zmieniła się ponownie — bez tego wolniejsza odpowiedź
+  // z poprzedniej trasy mogła nadpisać świeższy, poprawny stan świeżo
+  // odpalonego zapytania i zostawić kropkę zapaloną bez realnego powodu
+  // (zgłoszone wprost: różowa kropka na „Moje" mimo braku jakiejkolwiek
+  // nieprzeczytanej wiadomości).
   const [pendingApproval, setPendingApproval] = useState(false);
   useEffect(() => {
     if (!user) { setPendingApproval(false); return; }
-    hasPendingApprovalRequests(user.id).then(setPendingApproval).catch(() => {});
+    let aktualne = true;
+    hasPendingApprovalRequests(user.id).then((v) => { if (aktualne) setPendingApproval(v); }).catch(() => {});
+    return () => { aktualne = false; };
   }, [user, pathname]);
 
   // Różowe kropki „nowe wiadomości" — osobne zapytanie od niebieskiej wyżej,
@@ -70,7 +78,9 @@ export default function BottomNav() {
   const [unreadEvents, setUnreadEvents] = useState(false);
   useEffect(() => {
     if (!user) { setUnreadEvents(false); return; }
-    hasUnreadEventMessages(user.id).then(setUnreadEvents).catch(() => {});
+    let aktualne = true;
+    hasUnreadEventMessages(user.id).then((v) => { if (aktualne) setUnreadEvents(v); }).catch(() => {});
+    return () => { aktualne = false; };
   }, [user, pathname]);
 
   const [unreadGroups, setUnreadGroups] = useState(false);
@@ -80,12 +90,14 @@ export default function BottomNav() {
   const [newGroupName, setNewGroupName] = useState<string | null>(null);
   useEffect(() => {
     if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroupName(null); return; }
+    let aktualne = true;
     getMyGroups(user.id).then((groups) => {
       const ids = groups.map((g) => g.id);
-      hasUnreadGroupMessages(user.id, ids).then(setUnreadGroups).catch(() => {});
-      hasNewGroupEvents(ids).then(setNewGroupEvents).catch(() => {});
-      getNewGroupEventGroupName(groups).then(setNewGroupName).catch(() => {});
+      hasUnreadGroupMessages(user.id, ids).then((v) => { if (aktualne) setUnreadGroups(v); }).catch(() => {});
+      hasNewGroupEvents(ids).then((v) => { if (aktualne) setNewGroupEvents(v); }).catch(() => {});
+      getNewGroupEventGroupName(groups).then((v) => { if (aktualne) setNewGroupName(v); }).catch(() => {});
     }).catch(() => {});
+    return () => { aktualne = false; };
   }, [user, pathname]);
 
   // Pomarańczowa kropka „nowe wydarzenia w pobliżu" przy „Znajdź grę" —
@@ -107,23 +119,38 @@ export default function BottomNav() {
     return () => { aktualne = false; };
   }, [pathname]);
 
-  // Dymki — krótkie wyjaśnienie znaczenia kropki, na moment, gdy się
-  // zapala. `poprzednieAktywne` łapie WYŁĄCZNIE przejście false→true (nie
-  // każde przeliczenie przy zmianie trasy, inaczej dymek wracałby za każdym
-  // przejściem między ekranami, dopóki kropka świeci). Licznik w
-  // `localStorage` jest per typ, nie per kropka — obie różowe (Moje/Grupy)
-  // dzielą jeden licznik „wiadomości", bo mówią to samo. Po `LIMIT_DYMKA`
-  // pokazaniach przestaje się pojawiać — zakładamy, że użytkownik już wie.
-  const [dymki, setDymki] = useState<Record<string, string>>({});
+  // Dymki — krótkie wyjaśnienie znaczenia kropki, na moment, gdy się zapala.
+  // Zawsze przypięty do konkretnej ikony (`href`) — stąd osobne typy dla
+  // różowej na „Moje" i różowej na „Grupy", mimo identycznego tekstu; bez
+  // tego nie dałoby się jednoznacznie wybrać, przy której ikonie pokazać
+  // wspólny dymek „wiadomości". Widoczny jest NAJWYŻEJ JEDEN naraz —
+  // `kolejkaDymkow` kolejkuje resztę zamiast pokazywać je równolegle, żeby
+  // dwa dymki nigdy się nie zasłaniały (zgłoszone wprost). `poprzednieAktywne`
+  // łapie WYŁĄCZNIE przejście false→true (nie każde przeliczenie przy
+  // zmianie trasy, inaczej dymek wracałby za każdym przejściem między
+  // ekranami, dopóki kropka świeci). Licznik pokazań w `localStorage` jest
+  // per typ — po `LIMIT_DYMKA` przestaje się pojawiać, zakładamy że
+  // użytkownik już wie, co ta kropka znaczy.
+  const [dymekWidoczny, setDymekWidoczny] = useState<{ typ: string; tekst: string; href: string } | null>(null);
+  const kolejkaDymkow = useRef<{ typ: string; tekst: string; href: string }[]>([]);
   const poprzednieAktywne = useRef<Record<string, boolean>>({});
+  const timerDymka = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pokazNastepnyDymek = () => {
+    const nastepny = kolejkaDymkow.current.shift();
+    setDymekWidoczny(nastepny ?? null);
+    timerDymka.current = nastepny ? setTimeout(pokazNastepnyDymek, CZAS_DYMKA_MS) : null;
+  };
+
   useEffect(() => {
-    const proby: [string, boolean, string | null][] = [
-      ['prosby', pendingApproval, 'Nowa prośba o dołączenie'],
-      ['wiadomosci', unreadEvents || unreadGroups, 'Nowe wiadomości'],
-      ['nowy-mecz-grupy', newGroupEvents, newGroupName ? `Nowa gra w grupie ${newGroupName}` : 'Nowa gra w Twojej ekipie'],
-      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km'],
+    const proby: [string, boolean, string | null, string][] = [
+      ['prosby', pendingApproval, 'Nowa prośba o dołączenie', '/moje-gry'],
+      ['wiadomosci-moje', unreadEvents, 'Nowe wiadomości', '/moje-gry'],
+      ['wiadomosci-grupy', unreadGroups, 'Nowe wiadomości', '/grupy'],
+      ['nowy-mecz-grupy', newGroupEvents, newGroupName ? `Nowa gra w grupie ${newGroupName}` : 'Nowa gra w Twojej ekipie', '/grupy'],
+      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
     ];
-    for (const [typ, aktywny, tekst] of proby) {
+    for (const [typ, aktywny, tekst, href] of proby) {
       const byloAktywne = poprzednieAktywne.current[typ] ?? false;
       poprzednieAktywne.current[typ] = aktywny;
       if (!aktywny || byloAktywne || !tekst || typeof window === 'undefined') continue;
@@ -131,13 +158,13 @@ export default function BottomNav() {
       const ile = Number(window.localStorage.getItem(klucz) ?? '0');
       if (ile >= LIMIT_DYMKA) continue;
       window.localStorage.setItem(klucz, String(ile + 1));
-      setDymki((d) => ({ ...d, [typ]: tekst }));
-      setTimeout(() => {
-        setDymki((d) => { const { [typ]: _pominiety, ...reszta } = d; return reszta; });
-      }, CZAS_DYMKA_MS);
+      kolejkaDymkow.current.push({ typ, tekst, href });
     }
+    if (!dymekWidoczny && !timerDymka.current && kolejkaDymkow.current.length > 0) pokazNastepnyDymek();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApproval, unreadEvents, unreadGroups, newGroupEvents, newGroupName, nearbyNew]);
+
+  useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
     href, label, Icon, dots = [], dymek,
@@ -152,8 +179,9 @@ export default function BottomNav() {
         pomarańczowy wyłącznie "nowość, o której jeszcze nie wiesz". Każda kropka
         ma swój róg, żeby dwie naraz na tej samej ikonie się nie nakładały. */
     dots?: { color: string; label: string; position: 'top-right' | 'top-left' }[];
-    /** Krótkie wyjaśnienie kropki, widoczne ~1,5 s przy pierwszym zapaleniu
-        (patrz efekt `dymki` wyżej) — max 5 razy w życiu użytkownika na typ. */
+    /** Krótkie wyjaśnienie kropki, widoczne ~4 s przy pierwszym zapaleniu
+        (patrz `dymekWidoczny`/kolejka wyżej) — max 5 razy w życiu
+        użytkownika na typ, najwyżej jeden dymek na ekranie naraz. */
     dymek?: string;
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
@@ -217,7 +245,7 @@ export default function BottomNav() {
           if (item.href === '/wydarzenia' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
-          const dymek = item.href === '/wydarzenia' ? dymki['pobliskie-nowe'] : undefined;
+          const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} />;
         })}
 
@@ -237,19 +265,15 @@ export default function BottomNav() {
 
         {RIGHT_ITEMS.map((item) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
-          let dymek: string | undefined;
           if (item.href === '/moje-gry') {
             if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
             if (unreadEvents) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
-            // Prośba o akceptację ma pierwszeństwo w dymku — pilniejsza (patrz
-            // AGENTS.md, Konwencje: niebieski = "wymaga akcji").
-            dymek = dymki['prosby'] ?? dymki['wiadomosci'];
           }
           if (item.href === '/grupy') {
             if (unreadGroups) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
             if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
-            dymek = dymki['wiadomosci'] ?? dymki['nowy-mecz-grupy'];
           }
+          const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} />;
         })}
       </div>
