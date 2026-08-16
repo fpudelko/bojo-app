@@ -1,6 +1,6 @@
 # Zrzuty — PR #193 · widoki-publiczne
 
-Przebieg [`31963594446`](https://github.com/fpudelko/bojo-app/actions/runs/31963594446)
+Przebieg [`31964496323`](https://github.com/fpudelko/bojo-app/actions/runs/31964496323)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/193)
 
 Zmienione widoki: **6** · nowe widoki: **0**
