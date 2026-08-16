@@ -11,6 +11,7 @@ export function toNotif(row: any): AppNotification {
     eventId:   row.event_id ?? undefined,
     alertId:   row.alert_id ?? undefined,
     claimToken: row.claim_token ?? undefined,
+    groupId:   row.group_id ?? undefined,
     readAt:    row.read_at ?? undefined,
     createdAt: row.created_at,
   };
@@ -27,7 +28,7 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
 }
 
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
-export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered']);
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial']);
 
 /**
  * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
@@ -42,7 +43,11 @@ export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offer
  *   - `prosba_o_dolaczenie` — czy w tym meczu wisi jeszcze jakiś wpis
  *     `pending_approval` (RLS pokazuje je organizatorowi),
  *   - `reserve_claim_offered` — czy MÓJ wpis w tym meczu ma nadal aktywną
- *     ofertę zwolnionego miejsca.
+ *     ofertę zwolnionego miejsca,
+ *   - `pytanie_o_udzial` (097) — czy JA nadal nie odpowiedziałem, czyli nie
+ *     mam ani wpisu w `event_participants`, ani jawnej odmowy w
+ *     `event_declines`. Odmowa jest tu kluczowym przypadkiem: zamyka sprawę
+ *     dokładnie tak samo jak dołączenie — „nie gram" to odpowiedź, nie cisza.
  *
  * Zwraca zbiór identyfikatorów powiadomień, które są nadal otwarte. Błąd
  * zapytania oznacza `null` — wywołujący ma wtedy zostawić dotychczasowy
@@ -61,9 +66,12 @@ export async function otwarteSprawy(
   const meczeOfert = Array.from(new Set(
     doSprawdzenia.filter((n) => n.type === 'reserve_claim_offered').map((n) => n.eventId!),
   ));
+  const meczePytan = Array.from(new Set(
+    doSprawdzenia.filter((n) => n.type === 'pytanie_o_udzial').map((n) => n.eventId!),
+  ));
 
   try {
-    const [prosby, oferty] = await Promise.all([
+    const [prosby, oferty, udzial, odmowy] = await Promise.all([
       meczeProsb.length
         ? supabase.from('event_participants').select('event_id')
             .eq('pending_approval', true).in('event_id', meczeProsb)
@@ -72,15 +80,31 @@ export async function otwarteSprawy(
         ? supabase.from('event_participants').select('event_id')
             .eq('user_id', userId).not('claim_offered_at', 'is', null).in('event_id', meczeOfert)
         : Promise.resolve({ data: [], error: null }),
+      meczePytan.length
+        ? supabase.from('event_participants').select('event_id')
+            .eq('user_id', userId).in('event_id', meczePytan)
+        : Promise.resolve({ data: [], error: null }),
+      meczePytan.length
+        ? supabase.from('event_declines').select('event_id')
+            .eq('user_id', userId).in('event_id', meczePytan)
+        : Promise.resolve({ data: [], error: null }),
     ]);
-    if (prosby.error || oferty.error) return null;
+    if (prosby.error || oferty.error || udzial.error || odmowy.error) return null;
 
     const zProsbami = new Set((prosby.data ?? []).map((r: any) => r.event_id as string));
     const zOfertami = new Set((oferty.data ?? []).map((r: any) => r.event_id as string));
+    const zOdpowiedzia = new Set([
+      ...(udzial.data ?? []).map((r: any) => r.event_id as string),
+      ...(odmowy.data ?? []).map((r: any) => r.event_id as string),
+    ]);
 
     return new Set(
       doSprawdzenia
-        .filter((n) => (n.type === 'prosba_o_dolaczenie' ? zProsbami : zOfertami).has(n.eventId!))
+        .filter((n) => {
+          if (n.type === 'prosba_o_dolaczenie') return zProsbami.has(n.eventId!);
+          if (n.type === 'reserve_claim_offered') return zOfertami.has(n.eventId!);
+          return !zOdpowiedzia.has(n.eventId!);
+        })
         .map((n) => n.id),
     );
   } catch {

@@ -1,16 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Share2, Copy, Check, Plus, LogOut, Trash2,
-  User as UserIcon, Loader2, Crown, ChevronRight, Pencil, MapPin, Mail, CalendarPlus,
+  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2, Info,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import Button from '@/components/ui/Button';
-import CoverUpload from '@/components/ui/CoverUpload';
+import NotificationBell from '@/components/layout/NotificationBell';
+import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
+import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
+import SkladGrupy from '@/components/groups/SkladGrupy';
+import StatystykiGrupy from '@/components/groups/StatystykiGrupy';
+import ZaprosDoGrupySheet from '@/components/groups/ZaprosDoGrupySheet';
+import type { PatchUprawnien } from '@/components/groups/UprawnieniaCzlonkaPanel';
 import { useMyParticipation } from '@/lib/useMyParticipation';
 import { isUpcoming } from '@/lib/eventDates';
 import { startKey } from '@/lib/eventFilters';
@@ -18,20 +23,30 @@ import { plural } from '@/lib/plural';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  getGroup, getGroupMembers, getGroupEvents, isGroupMember,
-  joinGroup, leaveGroup, removeMember, deleteGroup, setGroupCover,
+  getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
+  joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
+  kluczGrupyWidziano,
 } from '@/lib/groups';
+import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
+import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
+import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
 import { sportEmoji, sportLabel } from '@/lib/sports';
-import type { Group, GroupMember, EventItem } from '@/types';
+import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
 
-type Tab = 'mecze' | 'sklad';
+type Tab = 'mecze' | 'tablica' | 'sklad' | 'staty';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'mecze', label: 'Mecze' },
+  { value: 'tablica', label: 'Rozmowa' },
   { value: 'sklad', label: 'Skład' },
+  { value: 'staty', label: 'Statystyki' },
 ];
 
+function tabParam(t: Tab): string | null {
+  return t === 'mecze' ? null : t;
+}
+
 function tabCls(active: boolean) {
-  return `pb-2.5 text-sm transition-colors ${
+  return `pb-2.5 text-sm transition-colors whitespace-nowrap ${
     active
       ? 'border-b-2 border-primary-700 font-semibold text-primary-700'
       : 'text-slate-500 hover:text-ink dark:text-slate-400 dark:hover:text-slate-100'
@@ -50,35 +65,68 @@ export default function GroupDetailClient() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [member, setMember] = useState(false);
+  const [permissions, setPermissions] = useState<GroupPermissions | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [nieprzeczytaneN, setNieprzeczytaneN] = useState(0);
+  const [nieprzeczytaneWMeczach, setNieprzeczytaneWMeczach] = useState<Record<string, number>>({});
 
-  // Zakładka: stan lokalny, ale odczytany z URL-a, więc ?tab=sklad da się
-  // podlinkować i przeżywa odświeżenie.
-  //
-  // Adres aktualizujemy przez history.replaceState, nie router.replace jak na
-  // /moje-gry. Tam trasa jest statyczna i nawigacja nic nie kosztuje; tutaj
-  // /grupy/[id] jest dynamiczna, więc każde router.replace to round-trip po
-  // dane z serwera (łącznie z generateMetadata) — a przełączenie zakładki jest
-  // czysto kliencke i niczego z serwera nie potrzebuje.
-  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'sklad' ? 'sklad' : 'mecze');
+  // Zakładka: stan lokalny odczytany z URL-a, zapisywany przez
+  // history.replaceState — nie router.replace. `/grupy/[id]` jest trasą
+  // dynamiczną, więc router.replace to pełny round-trip po dane z
+  // generateMetadata; przełączenie zakładki jest czysto kliencke.
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams.get('tab');
+    return t === 'tablica' || t === 'sklad' || t === 'staty' ? t : 'mecze';
+  });
 
   const goToTab = (t: Tab) => {
     setTab(t);
     const sp = new URLSearchParams(window.location.search);
-    if (t === 'mecze') sp.delete('tab'); else sp.set('tab', t);
+    const p = tabParam(t);
+    if (p) sp.set('tab', p); else sp.delete('tab');
+    sp.delete('dolacz'); sp.delete('od'); sp.delete('join'); sp.delete('kod');
     const qs = sp.toString();
     window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
   };
 
-  // Wejście z linku zaproszenia /g/[kod] — przekierowanie dokleja ?join=1,
-  // ale nikt tego dotąd nie czytał, więc obiecana „prominent join action"
-  // nie istniała: zaproszony lądował na zwykłej stronie.
-  const fromInvite = searchParams.get('join') === '1';
+  // Dołączenie kodem z linku zaproszenia — `?dolacz=<kod>` (nowy adres
+  // /g/[kod]) albo `?join=1&kod=<kod>` (przekierowanie starych linków).
+  // Bez kodu (`?join=1` samo) dołączenie nie jest już możliwe — kod
+  // przestał być ozdobą UI (migracja `094`) — banner mówi to wprost.
+  const kodZUrl = searchParams.get('dolacz') || (searchParams.get('join') === '1' ? searchParams.get('kod') : null);
+  const odZUrl = searchParams.get('od') || undefined;
+  const legacyBezKodu = searchParams.get('join') === '1' && !searchParams.get('kod') && !searchParams.get('dolacz');
+  const autoJoinProbowane = useRef(false);
+
+  // Zaraz po utworzeniu ekipy (`/grupy/nowe`) — otwórz od razu sheet
+  // zaproszenia. Ekipa z jedną osobą jest martwa, a to jedyny moment, w którym
+  // organizator na pewno chce zapraszać.
+  const zaprosZUrl = searchParams.get('zapros') === '1';
+  const autoInviteProbowane = useRef(false);
+  useEffect(() => {
+    if (autoInviteProbowane.current || !zaprosZUrl) return;
+    autoInviteProbowane.current = true;
+    setInviteOpen(true);
+    const sp = new URLSearchParams(window.location.search);
+    sp.delete('zapros');
+    const qs = sp.toString();
+    window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
+  }, [zaprosZUrl, id]);
 
   const load = useCallback(async () => {
+    // Zerowanie PRZED pobraniem nowych danych — strona `/grupy/[id]` jest
+    // trasą dynamiczną, więc przejście z jednej ekipy do drugiej (np. link
+    // z listy) nie odmontowuje komponentu, tylko zmienia `id`. Bez tego
+    // resetu `permissions` z poprzedniej ekipy (gdzie mogłem być
+    // założycielem) zostawało w stanie, dopóki nowe zapytanie nie wróciło —
+    // zakładka „Ustawienia" migała albo świeciła się przez chwilę osobie bez
+    // żadnych uprawnień w nowej ekipie. Zgłoszone wprost.
+    setMember(false);
+    setPermissions(null);
+
     let g: Group | null = null;
     try {
       g = await getGroup(id);
@@ -90,13 +138,12 @@ export default function GroupDetailClient() {
     if (!g) { setNotFound(true); setLoading(false); return; }
     setGroup(g);
 
-    // Członkostwo pytane osobno, nie wyliczane z listy członków. Wcześniej
-    // awaria dogrywki danych zostawiała `member = false` i pokazywała
-    // członkowi grupy przycisk „Dołącz do grupy".
     if (user) {
       isGroupMember(id, user.id).then(setMember).catch(() => {});
+      getMyGroupPermissions(id, user.id).then(setPermissions).catch(() => {});
     } else {
       setMember(false);
+      setPermissions(null);
     }
 
     try {
@@ -112,65 +159,116 @@ export default function GroupDetailClient() {
 
   useEffect(() => { if (!authLoading) load(); }, [load, authLoading]);
 
-  const isOwner = !!user && !!group && group.createdBy === user.id;
+  // Wejście na stronę ekipy (którakolwiek zakładka) gasi pomarańczową kropkę
+  // „nowy mecz w ekipie" na karcie tej ekipy na `/grupy` (patrz `KartaEkipy`
+  // w GroupsClient.tsx) — osobny znacznik od `kluczTablicaWidziano`, bo to
+  // inne pytanie: „widziałem nowy mecz", nie „widziałem nową wiadomość".
+  useEffect(() => {
+    window.localStorage.setItem(kluczGrupyWidziano(id), new Date().toISOString());
+  }, [id]);
 
-  const inviteLink = group && typeof window !== 'undefined'
-    ? `${window.location.origin}/g/${group.joinCode}`
-    : '';
+  // Nieprzeczytane wpisy na tablicy — jedno dodatkowe zapytanie, wyłącznie
+  // dla członka (nie-członek i tak nie zobaczy tablicy, RLS zwróci pustkę).
+  useEffect(() => {
+    if (!member) { setNieprzeczytaneN(0); return; }
+    getGroupPosts(id).then((posts) => {
+      const widziano = typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(id)) : null;
+      setNieprzeczytaneN(nieprzeczytane(posts, widziano, user?.id));
+    }).catch(() => {});
+  }, [member, id, user?.id]);
 
-  const copyLink = async () => {
-    if (!inviteLink) return;
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
-  };
+  // Plakietki „nieprzeczytane" na kartach meczów ekipy — jedno zapytanie dla
+  // wszystkich naraz, wzorem analogicznego efektu w `/moje-gry`.
+  useEffect(() => {
+    if (!member || !user || events.length === 0) { setNieprzeczytaneWMeczach({}); return; }
+    getCommentsForUnread(events.map((e) => e.id))
+      .then((comments) => setNieprzeczytaneWMeczach(
+        policzNieprzeczytanePerWydarzenie(comments, user.id, (eventId) => window.localStorage.getItem(kluczRozmowyWidziano(eventId))),
+      ))
+      .catch(() => {});
+  }, [member, events, user]);
 
-  const share = async () => {
-    if (!group) return;
-    const text = `Dołącz do mojej grupy "${group.name}" w Bojo ⚽`;
-    if (navigator.share) {
-      await navigator.share({ title: group.name, text, url: inviteLink }).catch(() => {});
-    } else {
-      await navigator.clipboard.writeText(`${text}\n${inviteLink}`).catch(() => {});
-      toast('Skopiowano link z zaproszeniem');
+  // Wejście na zakładkę Tablica zaznacza wszystko jako widziane.
+  useEffect(() => {
+    if (tab === 'tablica' && typeof window !== 'undefined') {
+      window.localStorage.setItem(kluczTablicaWidziano(id), new Date().toISOString());
+      setNieprzeczytaneN(0);
     }
-  };
+  }, [tab, id]);
 
-  const handleJoin = async () => {
-    if (!user) { window.location.href = `/logowanie?next=${encodeURIComponent(`/grupy/${id}`)}`; return; }
-    setBusy(true);
-    try { await joinGroup(id, user.id); await load(); toast('Dołączyłeś do grupy!'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
-    finally { setBusy(false); }
-  };
+  // Auto-dołączenie: zalogowany użytkownik z kodem w adresie dołącza bez
+  // dodatkowego kliknięcia — dokładnie ta sama miękkość, co `?auto=1` przy
+  // przejęciu wpisu gościa (`PrzejmijClient.tsx`).
+  useEffect(() => {
+    if (autoJoinProbowane.current) return;
+    if (authLoading || loading) return;
+    if (!user || !kodZUrl || member) return;
+    autoJoinProbowane.current = true;
+    joinGroupByCode(kodZUrl, odZUrl)
+      .then(() => { toast('Dołączyłeś do ekipy!'); return load(); })
+      .catch((e) => toast(e instanceof Error ? e.message : 'Błąd', 'error'))
+      .finally(() => {
+        const sp = new URLSearchParams(window.location.search);
+        sp.delete('dolacz'); sp.delete('od'); sp.delete('join'); sp.delete('kod');
+        const qs = sp.toString();
+        window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
+      });
+  }, [authLoading, loading, user, kodZUrl, odZUrl, member, id, load, toast]);
+
+  const perms = permissions ?? uprawnieniaCzlonka(group ?? {}, undefined);
 
   const handleLeave = async () => {
     if (!user) return;
-    if (!confirm('Na pewno opuścić grupę?')) return;
+    if (!confirm('Opuścić ekipę?')) return;
     setBusy(true);
-    try { await leaveGroup(id, user.id); toast('Opuściłeś grupę'); router.push('/grupy'); }
+    try { await leaveGroup(id, user.id); toast('Opuściłeś ekipę'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
   const handleRemove = async (userId: string) => {
-    if (!confirm('Usunąć tego gracza z grupy?')) return;
+    if (!confirm('Usunąć tego gracza z ekipy? Straci dostęp do rozmowy i meczów ekipy. Wpisy zostają.')) return;
     setBusy(true);
     try { await removeMember(id, userId); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Na pewno usunąć grupę? Tej operacji nie można cofnąć.')) return;
-    setBusy(true);
-    try { await deleteGroup(id); toast('Grupa usunięta'); router.push('/grupy'); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
+  const handleSetPerms = async (m: GroupMember, patch: PatchUprawnien) => {
+    try {
+      await setMemberPermissions(m.id, {
+        canManageMembers: patch.canManageMembers ?? m.canManageMembers,
+        canCreateEvents: patch.canCreateEvents ?? m.canCreateEvents,
+        canModerateWall: patch.canModerateWall ?? m.canModerateWall,
+        canInvite: patch.canInvite ?? m.canInvite,
+      });
+      setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...patch } : x)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić uprawnień', 'error');
+    }
   };
 
-  // Nadchodzące rosnąco (najbliższy pierwszy). getEventsByGroup sortuje
-  // `event_date DESC`, więc bez tego na górze stał mecz NAJDALSZY.
+  // Belka „Zaproś do ekipy" nad Składem (patrz zakładka Skład niżej) — kod
+  // dołączenia i udostępnianie linku żyły wcześniej wyłącznie w
+  // `ZaprosDoGrupySheet`; tu jest szybki podgląd/kopiowanie bez otwierania
+  // arkusza.
+  const [kodSkopiowany, setKodSkopiowany] = useState(false);
+  const handleCopyCode = async () => {
+    if (!group) return;
+    try {
+      await navigator.clipboard.writeText(group.joinCode);
+      setKodSkopiowany(true);
+      toast('Skopiowano kod dołączenia');
+      setTimeout(() => setKodSkopiowany(false), 2000);
+    } catch { /* ignore */ }
+  };
+  const handleShareGroup = async () => {
+    if (!group) return;
+    const link = linkDoGrupy(group.joinCode, user?.id);
+    const wynik = await udostepnijGrupe(group, link, undefined, nextMatch ?? undefined);
+    if (wynik === 'copied') toast('Skopiowano zaproszenie');
+  };
+
+  // Nadchodzące rosnąco (najbliższy pierwszy), historia malejąco.
   const { upcoming, past } = useMemo(() => {
     const up = events
       .filter((e) => e.status !== 'cancelled' && isUpcoming(e))
@@ -182,13 +280,17 @@ export default function GroupDetailClient() {
   }, [events]);
 
   const nextMatch = upcoming[0] ?? null;
+  const ostatniMecz = past.find((e) => e.status !== 'cancelled') ?? null;
+  // Sekcja „Najbliższy mecz" nad zakładkami już go pokazuje (wyłącznie
+  // członkom) — w liście „Nadchodzące" niżej nie ma co go powtarzać.
+  const upcomingBezNajblizszego = member && nextMatch ? upcoming.filter((e) => e.id !== nextMatch.id) : upcoming;
 
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
-          <div className="h-44 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800" />
+          <div className="h-24 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800" />
         </main>
       </div>
     );
@@ -201,8 +303,8 @@ export default function GroupDetailClient() {
         <main className="flex flex-1 items-center justify-center px-4 text-center">
           <div>
             <Users className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-slate-600" />
-            <p className="mb-3 font-medium text-slate-500 dark:text-slate-400">Nie znaleziono grupy</p>
-            <Link href="/grupy" className="text-sm font-medium text-primary-700 hover:underline">Wróć do grup</Link>
+            <p className="mb-3 font-medium text-slate-500 dark:text-slate-400">Nie znaleziono ekipy</p>
+            <Link href="/grupy" className="text-sm font-medium text-primary-700 hover:underline">Wróć do ekip</Link>
           </div>
         </main>
       </div>
@@ -210,282 +312,266 @@ export default function GroupDetailClient() {
   }
 
   const memberCount = members.length;
-  const showJoinBanner = fromInvite && !member;
+  // Zakładka Rozmowa jest jedynym miejscem, gdzie strona ma zachowywać się
+  // jak ekran czatu: BottomNav znika (patrz HideBottomNav niżej), więc bez
+  // stałej wysokości viewportu pod kontenerem rozmowy zostawałaby pusta
+  // przestrzeń, którą kiedyś zajmował pasek nawigacji.
+  const rozmowaPelnoekranowa = tab === 'tablica' && member;
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
-      <Header showMobileWordmark />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
-        <button
-          onClick={() => router.push('/grupy')}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-ink dark:text-slate-400"
-        >
-          <ArrowLeft className="h-4 w-4" /> Grupy
-        </button>
-
-        {/* Zaproszenie z linku — domyka obietnicę, którą /g/[kod] składa od zawsze */}
-        {showJoinBanner && (
-          <div className="mb-4 rounded-2xl border-2 border-primary-200 bg-primary-50/70 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary-700">
-              <Mail className="h-3.5 w-3.5" /> Zaproszenie
-            </p>
-            <p className="mt-1.5 text-sm text-ink">
-              Masz zaproszenie do <span className="font-bold">{group.name}</span>.
-            </p>
-            <Button onClick={handleJoin} disabled={busy} className="mt-3 inline-flex w-full items-center justify-center gap-2">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Dołącz do grupy</>}
-            </Button>
-          </div>
-        )}
-
-        {/* Hero: okładka + nazwa + kontekst na jednym ekranie */}
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="relative h-44 bg-gradient-to-br from-primary-700 to-primary-900">
-            {group.coverImageUrl && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-            {isOwner && (
-              <div className="absolute right-3 top-3 flex gap-2">
-                <CoverUpload
-                  currentUrl={group.coverImageUrl}
-                  path={`groups/${group.id}/cover`}
-                  onSaved={async (url) => {
-                    try {
-                      await setGroupCover(group.id, url ?? null);
-                      setGroup((g) => (g ? { ...g, coverImageUrl: url ?? undefined } : g));
-                    } catch { toast('Nie udało się zapisać okładki', 'error'); }
-                  }}
-                />
-                <Link
-                  href={`/grupy/${group.id}/edytuj`}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur-sm transition hover:bg-white active:scale-95"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Edytuj
-                </Link>
-              </div>
-            )}
-
-            <div className="absolute inset-x-0 bottom-0 p-4">
-              <span className="text-3xl drop-shadow-md">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
-              <h1 className="mt-1 font-display text-2xl font-bold leading-tight text-white drop-shadow">{group.name}</h1>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {group.sport && (
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-                    {sportLabel(group.sport)}
-                  </span>
-                )}
-                {group.city && (
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-                    {group.city}
-                  </span>
-                )}
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-                  {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {(group.description || group.fieldName) && (
-            <div className="space-y-2 p-4">
-              {group.fieldName && (
-                group.fieldId ? (
-                  <Link href={`/boisko/${group.fieldId}`} className="inline-flex items-center gap-1 text-sm text-primary-700 hover:underline">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" /> {group.fieldName}
-                  </Link>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" /> {group.fieldName}
-                  </span>
-                )
-              )}
-              {group.description && (
-                <p className="whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">{group.description}</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Najbliższy mecz — pierwsze pytanie, jakie ma członek ekipy */}
-        {member && (
-          <div className="mt-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700">Najbliższy mecz</p>
-            {nextMatch ? (
-              <EventBrowseCard event={nextMatch} relation={statusFor(nextMatch)} />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center dark:border-slate-700 dark:bg-slate-800">
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Ekipa nie ma zaplanowanej gry</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Wrzuć termin, a wszyscy go zobaczą.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Zakładki */}
-        <div className="mt-5 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex gap-6">
-            {TABS.map(({ value, label }) => (
-              <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
-                {label}
-                {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
+    <div className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
+      {/* Na mobile Header oddaje swój pasek grupie — dokładnie jak na /mapa
+          (`hideMobileBarForUser`): tożsamość (dzwonek+avatar) nie znika,
+          tylko przenosi się do paska grupy niżej, żeby nie dublować się
+          z jej własnym niskim paskiem. Na desktopie Header zostaje bez zmian. */}
+      <Header hideMobileBarForUser />
+      <main className={`mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5 ${rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}>
+        {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
+            z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
+            wprost. Wszystko w jednym niskim pasku, przyklejonym na górze
+            (zastępuje mobilny pasek Header): powrót, logo, nazwa, „Zaproś"
+            i na mobile dzwonek. Kod dołączenia i ustawienia miały tu za dużo
+            miejsca — kod dołączenia żyje w arkuszu „Zaproś" (ZaprosDoGrupySheet),
+            a ustawienia dostały własną zakładkę (link niżej, przy pozostałych
+            zakładkach) zamiast osobnej zębatki tutaj. Awatar zniknął — sam
+            dzwonek wystarczy, profil jest już w dolnej nawigacji. */}
+        {/* -mt-5 znosi górny padding <main> (py-5) na mobile, żeby pasek
+            siedział tuż przy górnej krawędzi ekranu, tak jak zgłoszono
+            wprost — zbyt duży odstęp od krawędzi. Na desktopie Header
+            zostaje widoczny nad tym paskiem, więc odstęp z <main> ma sens
+            i go nie znosimy. */}
+        {/* Belka i zakładki razem w JEDNYM sticky kontenerze — dwa osobne
+            `sticky top-0` elementy nakładałyby się na tej samej wysokości
+            zamiast układać w stos, więc oba trzymają się razem jako jedna
+            całość podczas przewijania.
+            Zakładka Rozmowa nie ma `sticky` — tam <main> jest już
+            `overflow-hidden` w stałej wysokości ekranu (rozmowaPelnoekranowa)
+            i nie przewija się, więc `position: sticky` na dziecku
+            overflow-hidden liczy swój "punkt zaczepienia" inaczej niż
+            zwykły scroll i belka lądowała niżej niż na pozostałych
+            zakładkach — zgłoszone wprost. Statyczne pozycjonowanie w tym
+            jednym przypadku daje ten sam efekt (belka i tak jest pierwszym
+            elementem na górze), bez tej niespójności. */}
+        <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 bg-canvas md:static md:mx-0 md:mt-0 md:bg-transparent`}>
+          <div className="space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
+            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <button
+                onClick={() => router.push('/grupy')}
+                aria-label="Wróć do ekip"
+                className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
+              >
+                <ArrowLeft className="h-4 w-4" />
               </button>
-            ))}
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
+                {group.coverImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
+                )}
+              </span>
+              <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+              {member && perms.canInvite && (
+                <button
+                  onClick={() => setInviteOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950"
+                >
+                  <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Zaproś</span>
+                </button>
+              )}
+              <div className="shrink-0 md:hidden">
+                <NotificationBell />
+              </div>
+            </div>
+            <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
+              {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
+              {(group.sport || group.city || group.fieldName) && ' · '}
+              {memberCount} {plural(memberCount, 'członek', 'członkowie', 'członków')}
+            </p>
+          </div>
+
+          {/* Zakładki — nad "Najbliższy mecz", nie pod nią: to nawigacja
+              strony, więc ma stać najwyżej, zaraz pod paskiem grupy.
+              `scrollbar-hide` (globals.css): przewijanie w bok na wąskim
+              telefonie nie ma pokazywać poziomego paska przewijania — samo
+              przewijanie działa tak samo, znika tylko sam pasek. */}
+          <div className="border-b border-slate-100 bg-canvas px-4 dark:border-slate-700 md:bg-transparent md:px-0">
+            <div className="scrollbar-hide flex gap-5 overflow-x-auto">
+              {TABS.map(({ value, label }) => (
+                <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
+                  {label}
+                  {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
+                  {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */}
+                  {value === 'tablica' && nieprzeczytaneN > 0 && (
+                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+                  )}
+                </button>
+              ))}
+              {/* Zębatka ustawień zniknęła z belki — zbyt dużo elementów w jednym
+                niskim pasku. Ta sama akcja, teraz jako zakładka: styl identyczny
+                z resztą, ale to Link do /edytuj, nie przełącznik stanu `tab` —
+                strona ustawień ma już własne zakładki (Ogólne/Zaproszenia/
+                Uprawnienia), więc nie duplikujemy jej treści tutaj. */}
+            {(perms.isFounder || perms.canManageMembers) && (
+              <Link href={`/grupy/${group.id}/edytuj`} className={tabCls(false)}>
+                Ustawienia
+              </Link>
+            )}
+            </div>
           </div>
         </div>
 
-        {tab === 'mecze' ? (
-          <div className="mt-4 space-y-5">
+        {legacyBezKodu && !member && (
+          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4">
+            <p className="text-sm font-semibold text-ink">Zaproszenie do ekipy „{group.name}”</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Ten link jest nieaktualny — poproś kogoś z ekipy o nowy.
+            </p>
+          </div>
+        )}
+
+        {/* Widoczne wyłącznie w zakładce Mecze — to jest jej treść (skrót
+            najbliższego terminu), nie uniwersalny nagłówek strony. Na
+            pozostałych zakładkach (zwłaszcza Rozmowa, gdzie ma być widać
+            composer bez przewijania) tylko zajmowała miejsce. */}
+        {tab === 'mecze' && (
+          <NajblizszyMeczGrupy
+            groupId={group.id}
+            upcoming={member ? nextMatch : null}
+            ostatni={member ? ostatniMecz : null}
+            canCreateEvents={perms.canCreateEvents}
+            relation={nextMatch ? statusFor(nextMatch) : undefined}
+            unreadMessages={nextMatch ? nieprzeczytaneWMeczach[nextMatch.id] : undefined}
+          />
+        )}
+
+        {tab === 'mecze' && (
+          <div className="space-y-5">
+            <div className="hidden items-center justify-between md:flex">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Mecze ekipy</h2>
+              {perms.canCreateEvents && (
+                <Link href={`/wydarzenia/nowe?group=${group.id}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800">
+                  <CalendarPlus className="h-3.5 w-3.5" /> Nowy termin
+                </Link>
+              )}
+            </div>
             {events.length === 0 && (
               <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                Brak meczów. {member && 'Stwórz pierwszy!'}
+                Brak meczów. {perms.canCreateEvents && 'Stwórz pierwszy!'}
               </p>
             )}
-            {upcoming.length > 0 && (
+            {upcomingBezNajblizszego.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Nadchodzące
-                </h2>
-                {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</h3>
+                {upcomingBezNajblizszego.map((e) => (
+                  <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} />
+                ))}
               </section>
             )}
             {past.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Historia
-                </h2>
-                {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</h3>
+                {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} />)}
               </section>
-            )}
-          </div>
-        ) : (
-          <div className="mt-4 space-y-5">
-            {/* Rząd awatarów — kto to jest, jednym rzutem oka, bez czytania listy */}
-            {members.length > 0 && (
-              <div className="flex items-center">
-                <div className="flex -space-x-2">
-                  {members.slice(0, 8).map((m) => (
-                    m.avatarUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img key={m.id} src={m.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-canvas" />
-                    ) : (
-                      <span key={m.id} className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700 ring-2 ring-canvas">
-                        {m.name.charAt(0).toUpperCase()}
-                      </span>
-                    )
-                  ))}
-                </div>
-                {members.length > 8 && (
-                  <span className="ml-2 text-xs font-medium text-slate-500">+{members.length - 8}</span>
-                )}
-              </div>
-            )}
-
-            <ul className="divide-y divide-slate-50 dark:divide-slate-700">
-              {members.map((m) => (
-                <li key={m.id} className="flex items-center gap-3 py-2.5">
-                  <Link href={`/gracz/${m.userId}`} className="group flex min-w-0 flex-1 items-center gap-3">
-                    {m.avatarUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={m.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                    ) : (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                        <UserIcon className="h-4 w-4" />
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-ink transition-colors group-hover:text-primary-700">{m.name}</span>
-                      {m.role === 'admin' && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                          <Crown className="h-3 w-3" /> Założyciel
-                        </span>
-                      )}
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-primary-600 dark:text-slate-600" />
-                  </Link>
-                  {isOwner && m.userId !== user?.id && (
-                    <button
-                      onClick={() => handleRemove(m.userId)}
-                      disabled={busy}
-                      title="Usuń z grupy"
-                      className="shrink-0 rounded p-1.5 text-slate-500 hover:text-red-500 dark:text-slate-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-
-            {/* Zaproszenie żyje tam, gdzie skład — to jest jego kontekst */}
-            {member && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Zaproś do grupy</p>
-                <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-                  Wyślij link — po kliknięciu znajomy od razu zobaczy zaproszenie.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={share}
-                    className="inline-flex min-w-[140px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95"
-                  >
-                    <Share2 className="h-4 w-4" /> Udostępnij link
-                  </button>
-                  <button
-                    onClick={copyLink}
-                    className="inline-flex min-w-[140px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    {copied ? <><Check className="h-4 w-4 text-green-600" /> Skopiowano</> : <><Copy className="h-4 w-4" /> Kopiuj link</>}
-                  </button>
-                </div>
-                <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-                  lub podaj kod: <span className="font-mono font-bold tracking-widest text-primary-700">{group.joinCode}</span>
-                </p>
-              </div>
             )}
           </div>
         )}
 
-        {/* Strefa niebezpieczna — celowo dyskretna */}
-        {member && (
-          <div className="flex justify-center pb-2 pt-6">
-            {isOwner ? (
-              <button onClick={handleDelete} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500">
-                <Trash2 className="h-3.5 w-3.5" /> Usuń grupę
-              </button>
+        {tab === 'tablica' && (member ? (
+          <>
+            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
+                dokumencie — bez tego zasłaniał composer na dole kontenera
+                rozmowy, zgłoszone wprost jako "zasłonięte". */}
+            <HideBottomNav />
+            {/* flex-1 min-h-0 rozciąga kontener rozmowy do dołu ekranu —
+                <main> i ten div są teraz `h-[100dvh] overflow-hidden`
+                (rozmowaPelnoekranowa), więc to jest jedyny element, który
+                może jeszcze rosnąć. Bez min-h-0 flex nie pozwoliłby
+                kontenerowi rozmowy skurczyć się poniżej wysokości jego
+                treści, co wyłączyłoby jego własny scroll. */}
+            <div className="min-h-0 flex-1">
+              <RozmowaGrupy groupId={group.id} permissions={perms} />
+            </div>
+          </>
+        ) : (
+          <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+            Rozmowa jest widoczna wyłącznie dla członków ekipy.
+          </p>
+        ))}
+
+        {tab === 'sklad' && member && perms.canInvite && (
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-semibold text-primary-700 hover:text-primary-800 dark:hover:text-primary-400"
+            >
+              <Link2 className="h-4 w-4 shrink-0" /> <span className="truncate">Zaproś do ekipy</span>
+            </button>
+            <button
+              onClick={handleCopyCode}
+              title="Kopiuj kod dołączenia"
+              className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              {kodSkopiowany ? <Check className="h-3 w-3 text-green-600" /> : group.joinCode}
+            </button>
+            <button
+              onClick={handleShareGroup}
+              aria-label="Udostępnij zaproszenie"
+              className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Ponad 30 osób w prywatnej ekipie zwykle znaczy, że organizator
+            rozrasta grupę, żeby zapełnić skład — a od tego jest publiczny
+            mecz, nie duże grono w ekipie. Widoczne wyłącznie dla założyciela:
+            to on decyduje, kogo dodawać, i to jemu ma się to pytanie zadać. */}
+        {tab === 'sklad' && perms.isFounder && memberCount > 30 && (
+          <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Nie musisz dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz
+              publicznym, zobaczą go też gracze spoza ekipy — z okolicy.
+            </p>
+          </div>
+        )}
+
+        {tab === 'sklad' && (
+          <SkladGrupy
+            members={members}
+            myUserId={user?.id}
+            permissions={perms}
+            founderId={group.createdBy}
+            onRemove={handleRemove}
+            onSetPerms={handleSetPerms}
+            onLeave={member && !perms.isFounder ? handleLeave : undefined}
+            leaveBusy={busy}
+          />
+        )}
+
+        {tab === 'staty' && (member ? (
+          <StatystykiGrupy groupId={group.id} />
+        ) : (
+          <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+            Statystyki są widoczne wyłącznie dla członków ekipy.
+          </p>
+        ))}
+
+        {!member && !legacyBezKodu && (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+            {kodZUrl ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Dołączam do ekipy…</span>
             ) : (
-              <button onClick={handleLeave} disabled={busy} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600 dark:text-slate-500">
-                <LogOut className="h-3.5 w-3.5" /> Opuść grupę
-              </button>
+              'Poproś kogoś z ekipy o link, żeby dołączyć.'
             )}
           </div>
         )}
       </main>
 
-      {/* Jedna główna akcja, zawsze pod ręką. Baner zaproszenia ma już własny
-          przycisk „Dołącz", więc wtedy pasek się nie dubluje.
-          `--bottom-nav-h` (globals.css) trzyma go nad dolną nawigacją. */}
-      {!showJoinBanner && (
-        <div
-          className="sticky z-30 border-t border-slate-200 bg-canvas/95 px-4 py-3 backdrop-blur-sm dark:border-slate-700"
-          style={{ bottom: 'var(--bottom-nav-h)' }}
-        >
-          <div className="mx-auto w-full max-w-2xl">
-            {member ? (
-              <Link href={`/wydarzenia/nowe?group=${group.id}`}>
-                <Button className="inline-flex w-full items-center justify-center gap-2">
-                  <CalendarPlus className="h-4 w-4" /> Stwórz mecz w grupie
-                </Button>
-              </Link>
-            ) : (
-              <Button onClick={handleJoin} disabled={busy} className="inline-flex w-full items-center justify-center gap-2">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Dołącz do grupy</>}
-              </Button>
-            )}
-          </div>
-        </div>
+      {inviteOpen && (
+        <ZaprosDoGrupySheet group={group} najblizszy={nextMatch ?? undefined} onClose={() => setInviteOpen(false)} />
       )}
     </div>
   );
