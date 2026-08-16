@@ -285,6 +285,14 @@ ostatniej wizyty na `/wydarzenia` (`maNoweWydarzeniaWPobolizu()` w `lib/events.t
 Konwencje. Każda ikona może nosić dwie kropki naraz (różową i pomarańczową na „Grupy";
 różową i niebieską na „Moje") — lewy i prawy róg, żeby się nie nakładały.
 
+**Każde zapytanie ignoruje odpowiedź, która wróciła po zmianie trasy.** Wszystkie cztery
+efekty w `BottomNav.tsx` (prośby, wiadomości „Moje", wiadomości+nowość „Grupy", pobliskie
+nowe) trzymają lokalną flagę `aktualne`, zerowaną w funkcji sprzątającej efektu — bez tego
+wolniejsza odpowiedź z POPRZEDNIEJ trasy mogła wrócić PO szybszej odpowiedzi ze świeżo
+odpalonego zapytania i nadpisać poprawny stan starym, zostawiając kropkę zapaloną bez
+żadnego realnego powodu. Zgłoszone wprost jako różowa kropka na „Moje" mimo zera
+nieprzeczytanych wiadomości widocznych na samej stronie.
+
 Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
 `hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
 tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływałaby systemowe
@@ -293,14 +301,24 @@ Brak zgody = brak kropki, nie prośba w tle.
 
 **Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
 wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
-w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 1,5 s pojawia się mała czarna
-etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska), „Nowe wiadomości"
-(różowa — jeden tekst dla „Moje" i „Grupy", bo mówią to samo), „Nowa gra w grupie {nazwa}"
-(pomarańczowa na „Grupy" — nazwa z `getNewGroupEventGroupName()` w `lib/groups.ts`, ekipa
-z najświeższym nowym meczem, gdy nowych jest kilka naraz), „Nowa gra w promieniu 5 km"
+w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowe
+wiadomości" (różowa — osobny typ/licznik dla „Moje" i osobny dla „Grupy", mimo identycznego
+tekstu, żeby dymek jednoznacznie wiedział, przy której ikonie stanąć), „Nowa gra w grupie
+{nazwa}" (pomarańczowa na „Grupy" — nazwa z `getNewGroupEventGroupName()` w `lib/groups.ts`,
+ekipa z najświeższym nowym meczem, gdy nowych jest kilka naraz), „Nowa gra w promieniu 5 km"
 (pomarańczowa na „Znajdź grę"). Licznik pokazań w `localStorage`
-(`bojo:dymek-pokazania:<typ>`) jest **per typ, nie per kropka** — po 5 pokazaniach danego
-typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie, co ta kropka znaczy.
+(`bojo:dymek-pokazania:<typ>`) jest per typ — po 5 pokazaniach danego typu dymek przestaje
+się pojawiać, zakładamy że użytkownik już wie, co ta kropka znaczy.
+
+**Najwyżej jeden dymek na ekranie naraz.** Gdy kilka kropek zapala się w tym samym
+przeliczeniu (typowo przy pierwszym załadowaniu), dymki nie renderują się równolegle —
+zasłaniałyby się nawzajem na wąskim pasku pięciu ikon. `BottomNav.tsx` trzyma pojedynczy
+stan `dymekWidoczny` (typ + tekst + `href` ikony, do której należy) i kolejkę
+`kolejkaDymkow`: pierwszy trafiony typ pokazuje się od razu, reszta czeka w kolejce
+i pokazuje się po kolei, jeden po drugim, każdy na swoje 4 sekundy. Dymek jest zawsze
+przypięty do konkretnej ikony przez `href` — komponent `NavLink` dostaje gotowy tekst
+tylko wtedy, gdy `dymekWidoczny.href` zgadza się z jego własnym `href`.
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
