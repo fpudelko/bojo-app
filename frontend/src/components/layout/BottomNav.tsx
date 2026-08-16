@@ -7,6 +7,9 @@ import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { hasPendingApprovalRequests } from '@/lib/events';
+import { getMyGroupIds } from '@/lib/groups';
+import { hasUnreadGroupMessages } from '@/lib/groupPosts';
+import { hasUnreadEventMessages } from '@/lib/comments';
 import { WARSTWA } from '@/lib/warstwy';
 
 function BallIcon({ className }: { className?: string }) {
@@ -51,17 +54,38 @@ export default function BottomNav() {
     hasPendingApprovalRequests(user.id).then(setPendingApproval).catch(() => {});
   }, [user, pathname]);
 
+  // Różowe kropki „nowe wiadomości" — osobne zapytanie od niebieskiej wyżej,
+  // bo to inne znaczenie (patrz komentarz przy `dot` w `NavLink`), nie inny
+  // poziom pilności.
+  const [unreadEvents, setUnreadEvents] = useState(false);
+  useEffect(() => {
+    if (!user) { setUnreadEvents(false); return; }
+    hasUnreadEventMessages(user.id).then(setUnreadEvents).catch(() => {});
+  }, [user, pathname]);
+
+  const [unreadGroups, setUnreadGroups] = useState(false);
+  useEffect(() => {
+    if (!user) { setUnreadGroups(false); return; }
+    getMyGroupIds(user.id)
+      .then((ids) => hasUnreadGroupMessages(user.id, ids))
+      .then(setUnreadGroups)
+      .catch(() => {});
+  }, [user, pathname]);
+
   function NavLink({
-    href, label, Icon, dot,
+    href, label, Icon, dots = [],
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
-    /** Kropka — dziś tylko "Moje" przy oczekujących prośbach o dołączenie.
-        Niebieski, bo to jedyny kolor, który w apce znaczy wyłącznie
-        "wymaga akceptacji" (patrz sekcja 5 planu). */
-    dot?: { color: string; label: string };
+    /** Kropki — dziś "Moje" (oczekujące prośby o dołączenie + nieprzeczytane
+        wiadomości) i "Grupy" (nieprzeczytane wiadomości). Kolor niesie
+        znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
+        niebieski wyłącznie "wymaga akceptacji", różowy wyłącznie "wiadomości".
+        Każda kropka ma swój róg, żeby dwie naraz na "Moje" się nie nakładały. */
+    dots?: { color: string; label: string; position: 'top-right' | 'top-left' }[];
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
-    const ariaSuffix = dot ? ` — ${dot.label}` : '';
+    const widoczne = dots.filter(Boolean);
+    const ariaSuffix = widoczne.length > 0 ? ` — ${widoczne.map((d) => d.label).join(', ')}` : '';
     return (
       <Link
         href={href}
@@ -76,9 +100,17 @@ export default function BottomNav() {
           {/* Kropka zamiast pełnej plakietki — kolumna w gridzie dolnej
               nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
               niesie tę samą informację dla czytników ekranu. */}
-          {dot && (
-            <span className={clsx('absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full', dot.color)} aria-hidden="true" />
-          )}
+          {widoczne.map((d) => (
+            <span
+              key={d.position}
+              className={clsx(
+                'absolute h-1.5 w-1.5 rounded-full',
+                d.position === 'top-right' ? '-top-0.5 right-0' : '-top-0.5 left-0',
+                d.color,
+              )}
+              aria-hidden="true"
+            />
+          ))}
         </span>
         <span className="whitespace-nowrap">{label}</span>
       </Link>
@@ -114,15 +146,17 @@ export default function BottomNav() {
           <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
         </Link>
 
-        {RIGHT_ITEMS.map((item) => (
-          <NavLink
-            key={item.href}
-            {...item}
-            dot={item.href === '/moje-gry' && pendingApproval
-              ? { color: 'bg-blue-500', label: 'nowe prośby o dołączenie' }
-              : undefined}
-          />
-        ))}
+        {RIGHT_ITEMS.map((item) => {
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
+          if (item.href === '/moje-gry') {
+            if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
+            if (unreadEvents) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
+          }
+          if (item.href === '/grupy' && unreadGroups) {
+            dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-right' });
+          }
+          return <NavLink key={item.href} {...item} dots={dots} />;
+        })}
       </div>
     </nav>
   );

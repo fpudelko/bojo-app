@@ -200,7 +200,10 @@ export default function EditGroupPage() {
             {(
               [
                 { value: 'ogolne', label: 'Ogólne' },
-                { value: 'zaproszenia', label: 'Zaproszenia' },
+                // Zaproszenia dotyczą wyłącznie osób, które mogą zapraszać —
+                // reszcie (np. wyłącznie can_manage_members) ten kod i link
+                // nic nie dają.
+                ...(isOwner || perms.canInvite ? [{ value: 'zaproszenia', label: 'Zaproszenia' } as const] : []),
                 ...(isOwner ? [{ value: 'uprawnienia', label: 'Uprawnienia' } as const] : []),
               ] as { value: UstawieniaTab; label: string }[]
             ).map(({ value, label }) => (
@@ -324,7 +327,7 @@ export default function EditGroupPage() {
         </>
         )}
 
-        {settingsTab === 'zaproszenia' && (
+        {settingsTab === 'zaproszenia' && (isOwner || perms.canInvite) && (
         <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <h2 className="mb-3 text-sm font-semibold text-ink">Zaproszenia</h2>
           <div className="flex items-center gap-2">

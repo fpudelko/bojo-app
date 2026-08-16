@@ -4,17 +4,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Users, LogIn, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
+import { Users, LogIn, ChevronRight, Plus, CalendarPlus, MessageCircle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import KodGrupySheet from '@/components/groups/KodGrupySheet';
 import { useAuth } from '@/lib/auth';
 import { getMyGroupsZTerminem } from '@/lib/groups';
+import { getGroupPostsForUnread, policzNieprzeczytanePerGrupa, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { sportEmoji } from '@/lib/sports';
 import { withCount } from '@/lib/plural';
 import type { GroupWithNext } from '@/types';
 
-function KartaEkipy({ g }: { g: GroupWithNext }) {
+function KartaEkipy({ g, nieprzeczytane }: { g: GroupWithNext; nieprzeczytane: number }) {
   const max = g.nextEvent?.maxPlayers ?? 0;
   const taken = g.nextEvent?.participantsCount ?? 0;
   const brakuje = Math.max(0, max - taken);
@@ -42,6 +43,13 @@ function KartaEkipy({ g }: { g: GroupWithNext }) {
             {g.city && ` · ${g.city}`}
           </p>
         </div>
+        {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje).
+            Własne wpisy nigdy nie liczą się jako nieprzeczytane. */}
+        {nieprzeczytane > 0 && (
+          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+            <MessageCircle className="h-3 w-3" /> {nieprzeczytane}
+          </span>
+        )}
         <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
       </div>
 
@@ -79,6 +87,7 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<GroupWithNext[]>([]);
   const [loading, setLoading] = useState(true);
   const [kodOtwarty, setKodOtwarty] = useState(false);
+  const [nieprzeczytane, setNieprzeczytane] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -87,6 +96,16 @@ export default function GroupsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user]);
+
+  // Plakietki „nieprzeczytane" — jedno zapytanie dla wszystkich kart naraz.
+  useEffect(() => {
+    if (!user || groups.length === 0) { setNieprzeczytane({}); return; }
+    getGroupPostsForUnread(groups.map((g) => g.id))
+      .then((posts) => setNieprzeczytane(
+        policzNieprzeczytanePerGrupa(posts, user.id, (groupId) => window.localStorage.getItem(kluczTablicaWidziano(groupId))),
+      ))
+      .catch(() => {});
+  }, [user, groups]);
 
   if (!authLoading && !user) {
     return (
@@ -142,7 +161,7 @@ export default function GroupsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {groups.map((g) => <KartaEkipy key={g.id} g={g} />)}
+            {groups.map((g) => <KartaEkipy key={g.id} g={g} nieprzeczytane={nieprzeczytane[g.id] ?? 0} />)}
           </div>
         )}
 

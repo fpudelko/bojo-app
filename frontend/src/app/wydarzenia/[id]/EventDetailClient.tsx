@@ -16,6 +16,7 @@ import TeamsPanel from '@/components/events/TeamsPanel';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
+import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
@@ -419,6 +420,27 @@ export default function EventDetailClient() {
     const qs = sp.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   };
+
+  // Nieprzeczytane wiadomości w rozmowie — wzorem `/grupy/[id]`
+  // (GroupDetailClient). RLS na `event_comments` i tak zwróci pustkę temu, kto
+  // nie ma prawa widzieć rozmowy, więc gate na `mozeWidziecRozmowe` (liczony
+  // niżej, po early returnach) nie jest tu potrzebny.
+  const [nieprzeczytaneRozmowa, setNieprzeczytaneRozmowa] = useState(0);
+  useEffect(() => {
+    if (!event || !user) { setNieprzeczytaneRozmowa(0); return; }
+    getComments(event.id).then((comments) => {
+      const widziano = typeof window !== 'undefined' ? window.localStorage.getItem(kluczRozmowyWidziano(event.id)) : null;
+      setNieprzeczytaneRozmowa(nieprzeczytaneKomentarze(comments, widziano, user.id));
+    }).catch(() => {});
+  }, [event?.id, user?.id]);
+
+  // Wejście na zakładkę Rozmowa zaznacza wszystko jako widziane.
+  useEffect(() => {
+    if (tab === 'rozmowa' && event && typeof window !== 'undefined') {
+      window.localStorage.setItem(kluczRozmowyWidziano(event.id), new Date().toISOString());
+      setNieprzeczytaneRozmowa(0);
+    }
+  }, [tab, event?.id]);
   const [rosterOpen, setRosterOpen] = useState(false);
   // Podział na drużyny duplikuje się w zakładce Skład (patrz `druzynySection`
   // niżej) — tam jest treścią poboczną, domyślnie zwiniętą, żeby nie
@@ -1727,6 +1749,15 @@ export default function EventDetailClient() {
           Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
       )}
+      {/* Ten sam moment z perspektywy uczestnika, nie organizatora — bez tego
+          zakładka „Wynik" jest pustym ekranem dla każdego, kto nie zarządza
+          meczem, dopóki mecz się nie zacznie (zgłoszone wprost). */}
+      {!(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+          <Trophy className="w-4 h-4 shrink-0" />
+          Wynik pojawi się tutaj po zakończeniu meczu ({event.date} {event.time?.slice(0, 5)})
+        </div>
+      )}
       {(isOwner || canManageSquad) && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
           Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
@@ -1993,6 +2024,12 @@ export default function EventDetailClient() {
                   }`}
                 >
                   {label}
+                  {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md,
+                      Konwencje). Własne komentarze nigdy nie liczą się jako
+                      nieprzeczytane. */}
+                  {t === 'rozmowa' && nieprzeczytaneRozmowa > 0 && (
+                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneRozmowa}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -2281,9 +2318,10 @@ export default function EventDetailClient() {
                   : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
               </span>
             )}
-            {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia,
-                patrz sekcja 5 planu: bursztyn jest już zajęty przez rezerwę
-                i obserwowanie, więc to jedyny kolor, który tu nic innego nie znaczy */}
+            {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia w całej
+                apce (patrz AGENTS.md, Konwencje): bursztyn jest już zajęty przez
+                rezerwę i obserwowanie, więc to jedyny kolor, który tu nic innego
+                nie znaczy */}
             {!eventStarted && event.requireApproval && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji

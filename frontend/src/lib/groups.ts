@@ -112,6 +112,18 @@ export async function getMyGroups(userId: string): Promise<Group[]> {
   return (data ?? []).map(toGroup);
 }
 
+/** Same lekkie id-ki grup, w których jestem członkiem — bez `select('*')`
+ *  z `getMyGroups()`. Używane tam, gdzie liczy się tylko przynależność, np.
+ *  plakietka „nowe wiadomości" na dolnej nawigacji (patrz `groupPosts.ts`). */
+export async function getMyGroupIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('group_id')
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.group_id as string);
+}
+
 /**
  * Grupy użytkownika razem z najbliższym meczem każdej z nich — karta na
  * `/grupy` ma odpowiadać od razu na pytanie „kiedy gramy", nie tylko „jak się

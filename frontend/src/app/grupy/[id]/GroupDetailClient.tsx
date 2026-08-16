@@ -26,7 +26,8 @@ import {
   getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
   joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
 } from '@/lib/groups';
-import { getGroupPosts, nieprzeczytane } from '@/lib/groupPosts';
+import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
+import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
 import { sportEmoji, sportLabel } from '@/lib/sports';
 import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
@@ -51,8 +52,6 @@ function tabCls(active: boolean) {
   }`;
 }
 
-const KLUCZ_WIDZIANO = (groupId: string) => `bojo:tablica-widziano:${groupId}`;
-
 export default function GroupDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -71,6 +70,7 @@ export default function GroupDetailClient() {
   const [busy, setBusy] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [nieprzeczytaneN, setNieprzeczytaneN] = useState(0);
+  const [nieprzeczytaneWMeczach, setNieprzeczytaneWMeczach] = useState<Record<string, number>>({});
 
   // Zakładka: stan lokalny odczytany z URL-a, zapisywany przez
   // history.replaceState — nie router.replace. `/grupy/[id]` jest trasą
@@ -153,15 +153,26 @@ export default function GroupDetailClient() {
   useEffect(() => {
     if (!member) { setNieprzeczytaneN(0); return; }
     getGroupPosts(id).then((posts) => {
-      const widziano = typeof window !== 'undefined' ? window.localStorage.getItem(KLUCZ_WIDZIANO(id)) : null;
-      setNieprzeczytaneN(nieprzeczytane(posts, widziano));
+      const widziano = typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(id)) : null;
+      setNieprzeczytaneN(nieprzeczytane(posts, widziano, user?.id));
     }).catch(() => {});
-  }, [member, id]);
+  }, [member, id, user?.id]);
+
+  // Plakietki „nieprzeczytane" na kartach meczów ekipy — jedno zapytanie dla
+  // wszystkich naraz, wzorem analogicznego efektu w `/moje-gry`.
+  useEffect(() => {
+    if (!member || !user || events.length === 0) { setNieprzeczytaneWMeczach({}); return; }
+    getCommentsForUnread(events.map((e) => e.id))
+      .then((comments) => setNieprzeczytaneWMeczach(
+        policzNieprzeczytanePerWydarzenie(comments, user.id, (eventId) => window.localStorage.getItem(kluczRozmowyWidziano(eventId))),
+      ))
+      .catch(() => {});
+  }, [member, events, user]);
 
   // Wejście na zakładkę Tablica zaznacza wszystko jako widziane.
   useEffect(() => {
     if (tab === 'tablica' && typeof window !== 'undefined') {
-      window.localStorage.setItem(KLUCZ_WIDZIANO(id), new Date().toISOString());
+      window.localStorage.setItem(kluczTablicaWidziano(id), new Date().toISOString());
       setNieprzeczytaneN(0);
     }
   }, [tab, id]);
@@ -251,6 +262,9 @@ export default function GroupDetailClient() {
 
   const nextMatch = upcoming[0] ?? null;
   const ostatniMecz = past.find((e) => e.status !== 'cancelled') ?? null;
+  // Sekcja „Najbliższy mecz" nad zakładkami już go pokazuje (wyłącznie
+  // członkom) — w liście „Nadchodzące" niżej nie ma co go powtarzać.
+  const upcomingBezNajblizszego = member && nextMatch ? upcoming.filter((e) => e.id !== nextMatch.id) : upcoming;
 
   if (loading) {
     return (
@@ -368,8 +382,9 @@ export default function GroupDetailClient() {
                 <button key={value} onClick={() => goToTab(value)} className={tabCls(tab === value)}>
                   {label}
                   {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
+                  {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */}
                   {value === 'tablica' && nieprzeczytaneN > 0 && (
-                    <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
                   )}
                 </button>
               ))}
@@ -407,6 +422,7 @@ export default function GroupDetailClient() {
             ostatni={member ? ostatniMecz : null}
             canCreateEvents={perms.canCreateEvents}
             relation={nextMatch ? statusFor(nextMatch) : undefined}
+            unreadMessages={nextMatch ? nieprzeczytaneWMeczach[nextMatch.id] : undefined}
           />
         )}
 
@@ -425,10 +441,12 @@ export default function GroupDetailClient() {
                 Brak meczów. {perms.canCreateEvents && 'Stwórz pierwszy!'}
               </p>
             )}
-            {upcoming.length > 0 && (
+            {upcomingBezNajblizszego.length > 0 && (
               <section className="space-y-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</h3>
-                {upcoming.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
+                {upcomingBezNajblizszego.map((e) => (
+                  <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} />
+                ))}
               </section>
             )}
             {past.length > 0 && (

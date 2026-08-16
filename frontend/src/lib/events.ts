@@ -925,6 +925,29 @@ export async function hasPendingApprovalRequests(userId: string): Promise<boolea
   return (count ?? 0) > 0;
 }
 
+/** Id-ki meczów, w których gram, jestem na rezerwie albo organizuję —
+ *  świadomie BEZ „czeka na akceptację" i „obserwuję" (osobne, słabsze
+ *  relacje). Lekkie zapytania (bez `select('*')`), bo zasila plakietkę
+ *  „nowe wiadomości" na dolnej nawigacji, odpalaną przy każdej zmianie trasy. */
+export async function getMyActiveEventIds(userId: string): Promise<string[]> {
+  const { data: partRows, error: pErr } = await supabase
+    .from('event_participants')
+    .select('event_id, rsvp, pending_approval')
+    .eq('user_id', userId);
+  if (pErr) throw new Error(pErr.message);
+  const grameLubRezerwa = (partRows ?? [])
+    .filter((r) => !r.pending_approval && r.rsvp !== 'maybe')
+    .map((r) => r.event_id as string);
+
+  const { data: ownRows, error: oErr } = await supabase
+    .from('events')
+    .select('id')
+    .eq('organizer_id', userId);
+  if (oErr) throw new Error(oErr.message);
+
+  return Array.from(new Set([...grameLubRezerwa, ...(ownRows ?? []).map((r) => r.id as string)]));
+}
+
 /** Reject (delete) a pending join request. */
 export async function rejectParticipant(participantId: string): Promise<void> {
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);

@@ -90,10 +90,81 @@ export async function setGroupPostPinned(postId: string, przypiety: boolean): Pr
 /** Ile wpisów jest nowszych niż ostatnio widziano — czysta funkcja, znacznik
  *  „ostatnio widziano" trzyma wywołujący w `localStorage`
  *  (`bojo:tablica-widziano:<groupId>`, wzorem `bojo:goscie-cta-widziano:*`
- *  w `EventDetailClient.tsx`). Zero kosztu po stronie bazy. */
-export function nieprzeczytane(posts: GroupPost[], widzianoIso: string | null): number {
-  if (!widzianoIso) return posts.length;
+ *  w `EventDetailClient.tsx`). Zero kosztu po stronie bazy.
+ *
+ *  Własne wpisy nigdy nie liczą się jako nieprzeczytane — wysyłający już je
+ *  widział w momencie wysyłania (zgłoszone wprost: plakietka świeciła się
+ *  po własnej wiadomości). `myUserId` opcjonalne, żeby wywołania bez
+ *  znajomości tożsamości (np. testy) nie musiały nic filtrować. */
+export function nieprzeczytane(
+  posts: Pick<GroupPost, 'userId' | 'createdAt'>[],
+  widzianoIso: string | null,
+  myUserId?: string,
+): number {
+  const cudze = myUserId ? posts.filter((p) => p.userId !== myUserId) : posts;
+  if (!widzianoIso) return cudze.length;
   const widziano = new Date(widzianoIso).getTime();
-  if (Number.isNaN(widziano)) return posts.length;
-  return posts.filter((p) => new Date(p.createdAt).getTime() > widziano).length;
+  if (Number.isNaN(widziano)) return cudze.length;
+  return cudze.filter((p) => new Date(p.createdAt).getTime() > widziano).length;
+}
+
+/** Klucz w `localStorage` pod którym trzymamy „ostatnio widziano tablicę
+ *  grupy X" — jedna definicja, żeby `/grupy/[id]` (zapisuje) i `/grupy`
+ *  (czyta, żeby policzyć plakietki na kartach) nie mogły się rozjechać. */
+export function kluczTablicaWidziano(groupId: string): string {
+  return `bojo:tablica-widziano:${groupId}`;
+}
+
+/** Surowe wpisy (bez treści) dla wielu grup naraz — jedno zapytanie zamiast
+ *  N, do liczenia plakietek „nieprzeczytane" na kartach ekip na `/grupy`.
+ *  RLS i tak zwraca tylko grupy, w których jestem członkiem. */
+export async function getGroupPostsForUnread(
+  groupIds: string[],
+): Promise<Pick<GroupPost, 'id' | 'groupId' | 'userId' | 'createdAt'>[]> {
+  if (groupIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('group_posts')
+    .select('id, group_id, user_id, created_at')
+    .in('group_id', groupIds)
+    .is('deleted_at', null);
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({ id: r.id, groupId: r.group_id, userId: r.user_id, createdAt: r.created_at }));
+}
+
+/** Grupuje wynik `getGroupPostsForUnread()` po grupie i liczy nieprzeczytane
+ *  w każdej — czysta funkcja, `widzianoByGroup` to wywołujący czytający
+ *  `localStorage` (`kluczTablicaWidziano`), żeby ta funkcja została testowalna
+ *  bez DOM-u. Grupy bez nieprzeczytanych nie trafiają do wyniku. */
+export function policzNieprzeczytanePerGrupa(
+  posts: Pick<GroupPost, 'groupId' | 'userId' | 'createdAt'>[],
+  myUserId: string,
+  widzianoByGroup: (groupId: string) => string | null,
+): Record<string, number> {
+  const perGrupa = new Map<string, Pick<GroupPost, 'userId' | 'createdAt'>[]>();
+  for (const p of posts) {
+    if (!perGrupa.has(p.groupId)) perGrupa.set(p.groupId, []);
+    perGrupa.get(p.groupId)!.push(p);
+  }
+  const wynik: Record<string, number> = {};
+  perGrupa.forEach((wpisy, groupId) => {
+    const n = nieprzeczytane(wpisy, widzianoByGroup(groupId), myUserId);
+    if (n > 0) wynik[groupId] = n;
+  });
+  return wynik;
+}
+
+/** Czy w którejkolwiek mojej ekipie jest nieprzeczytany wpis na tablicy —
+ *  zasila różową kropkę „nowe wiadomości" przy „Grupy" na dolnej nawigacji
+ *  (patrz `BottomNav.tsx`). `groupIds` — id-ki grup, w których jestem
+ *  członkiem (`getMyGroupIds()` z `groups.ts`, tu nie importowane, żeby
+ *  uniknąć cyklu `groups.ts` ↔ `groupPosts.ts`). */
+export async function hasUnreadGroupMessages(userId: string, groupIds: string[]): Promise<boolean> {
+  if (groupIds.length === 0) return false;
+  const posts = await getGroupPostsForUnread(groupIds);
+  const widzianoByGroup = (groupId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(groupId)) : null
+  );
+  const counts = policzNieprzeczytanePerGrupa(posts, userId, widzianoByGroup);
+  return Object.keys(counts).length > 0;
 }

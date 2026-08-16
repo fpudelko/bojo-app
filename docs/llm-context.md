@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-15 · migracja `097` · 34 tabele · 542 testy
+**Stan na:** 2026-08-16 · migracja `097` · 34 tabele · 543 testy
 
 ---
 
@@ -331,6 +331,58 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-08-16 — Nieprzeczytane wiadomości liczą tylko cudze wpisy; plakietki na kartach i w dolnej nawigacji; poprawka pustego "Wyniku"; gry cykliczne ukryte
+
+PROBLEM: plakietka „nowe wiadomości" na Rozmowie ekipy świeciła się nawet po wysłaniu
+własnej wiadomości — nadawca widział ją jako nieprzeczytaną, mimo że widział ją
+w momencie wysyłania. Mecze (w odróżnieniu od ekip) w ogóle nie miały żadnego
+oznaczenia nieprzeczytanych wiadomości w rozmowie, ani na zakładce, ani na kartach
+meczów. Zakładka „Wynik" na stronie meczu była pustym ekranem dla każdego, kto nie
+jest organizatorem, dopóki mecz się nie zaczął — trzy warunkowe bloki treści
+wymagały tej roli albo `resultsAvailable`, uczestnik nie spełniał żadnego. „Najbliższy
+mecz" na stronie ekipy powtarzał się też w liście „Nadchodzące" pod spodem. Zakładka
+„Zaproszenia" w ustawieniach ekipy była widoczna nawet dla kogoś bez prawa zapraszania.
+Kolor nie miał w apce spisanego, spójnego znaczenia. Produktowa decyzja: rezygnacja
+z gier cyklicznych/stałych gierek.
+
+ROZWIĄZANIE BOJO: liczniki nieprzeczytanych (ekipy i mecze) wykluczają teraz własne
+wpisy autora. Mecze dostały ten sam mechanizm co ekipy: różowa plakietka z liczbą na
+zakładce Rozmowa, ikona z liczbą obok chipu wolnych miejsc na kartach meczów (na
+których gram/organizuję/jestem na rezerwie) na `/moje-gry` i w widoku ekipy, oraz
+różowa kropka na „Moje" i „Grupy" w dolnej nawigacji — nie nakłada się z istniejącą
+niebieską kropką „czeka na akceptację" (osobne rogi ikony). Karty ekip na `/grupy`
+dostały analogiczną plakietkę z liczbą nieprzeczytanych wpisów tablicy. Zakładka
+Wynik pokazuje teraz uczestnikowi komunikat „pojawi się po zakończeniu meczu" zamiast
+pustego ekranu. „Najbliższy mecz" znika z listy „Nadchodzące" pod spodem, żeby nie
+dublować tego samego meczu na jednym ekranie. Zakładka „Zaproszenia" w ustawieniach
+ekipy jest widoczna tylko dla founder/`can_invite`. Kolorystyka ma teraz spisaną,
+wyłączną konwencję (`AGENTS.md` → Konwencje): różowy zawsze i wyłącznie wiadomości,
+niebieski zawsze i wyłącznie wymagana akceptacja uczestnictwa — nowy wskaźnik ma się
+do niej dostosować zamiast wymyślać kolor na nowo. Gry cykliczne/stałe gierki
+zniknęły z nawigacji i z kreatora meczu — kod i istniejące serie zostają w repo
+nietknięte, dostępne pod bezpośrednim adresem.
+
+MECHANIKA: `lib/groupPosts.ts` — `nieprzeczytane()` przyjmuje opcjonalny `myUserId`
+i filtruje własne wpisy; nowe `getGroupPostsForUnread()`, `policzNieprzeczytanePerGrupa()`,
+`hasUnreadGroupMessages()`, `kluczTablicaWidziano()` (wydzielony z dawnej lokalnej
+stałej w `GroupDetailClient.tsx`). `lib/comments.ts` — analogiczny komplet dla meczów:
+`nieprzeczytaneKomentarze()`, `getCommentsForUnread()`, `policzNieprzeczytanePerWydarzenie()`,
+`hasUnreadEventMessages()`, `kluczRozmowyWidziano()`. `lib/events.ts` —
+`getMyActiveEventIds()` (gram/rezerwa/organizuję, bez „czeka na akceptację"/
+„obserwuję"). `lib/groups.ts` — `getMyGroupIds()`. `EventBrowseCard.tsx` — nowy prop
+`unreadMessages`, widoczny tylko gdy `relation` kwalifikuje (organizator/gram/
+rezerwa) — przekazywany przez `NextMatchCard`, `MyMatchesSection`,
+`PendingRequestsSection`, `NeedsPlayersSection`, `NajblizszyMeczGrupy`.
+`BottomNav.tsx` — `dot` zamienione na `dots` (tablica z pozycją `top-right`/
+`top-left`, żeby dwie kropki na „Moje" się nie nakładały). `EventDetailClient.tsx` —
+`wynikFormSection` dostał blok dla `!(isOwner || canManageSquad)`; nowy stan
+`nieprzeczytaneRozmowa` liczony efektem obok `tab`. `GroupDetailClient.tsx` —
+`upcomingBezNajblizszego` filtruje `nextMatch.id` z listy. `app/grupy/[id]/edytuj/page.tsx`
+— zakładka „Zaproszenia" warunkowana `isOwner || perms.canInvite`. `lib/features.ts`
+— `SHOW_RECURRING = false`; `app/wydarzenia/nowe/page.tsx` — przełącznik „Wydarzenie
+cykliczne" (`extraSlot` w `EventDateTimeField`) warunkowany tą flagą (wcześniej
+renderował się zawsze, niezależnie od niej — flaga gasiła tylko wejścia w nawigacji).
 
 ### 2026-08-15 — Info o rozmiarze ekipy dla założyciela; panel "Kto milczy" usunięty
 
@@ -678,60 +730,5 @@ z fallbackiem do schowka), współdzielona przez istniejący przycisk „Zaproś
 nowy modal `components/events/GuestInviteNudge.tsx`. `lib/powrotPoLogowaniu.ts` — nowa
 `ostatniZamierzonyCel()` (jak `odbierzPowrot()`, ale nie kasuje wpisu). Nowy
 `components/onboarding/PostSignupRoleModal.tsx`, montowany globalnie w `layout.tsx`.
-
-### 2026-08-12 — Zapis na mecz bez logowania (self-service dla gościa)
-
-PROBLEM: bariera założenia konta zniechęca nowych graczy. Organizator chce dać im
-możliwość szybkiego dołączenia do meczu (wystarczy imię i e-mail), bez wymuszania
-logowania ani dopisywania ich ręcznie z panelu. Pierwsza wersja miała błąd SQL
-blokujący zapis (`claim_token` niejednoznaczne w `RETURNING`), nie pokazywała info
-o rezerwie przed zapisem, nie odświeżała listy uczestników po zapisie (gość „znikał"
-po zamknięciu ekranu zachęty, mimo że wpis w bazie istniał) i wymagała dwóch
-dodatkowych kliknięć (logowanie/rejestracja + „To ja — potwierdzam") zanim gość
-faktycznie zobaczył siebie w składzie.
-
-ROZWIĄZANIE BOJO: niezalogowany gracz dołącza do meczu w sticky pasku („Dołącz bez
-konta"), wpisując imię i e-mail — widzi z góry, czy trafi do składu czy na rezerwę
-(ta sama predykcja co w dialogu dla zalogowanych). Po zapisie ekran zachęty pokazuje
-faktyczny status („Jesteś w składzie" / „Jesteś na liście rezerwowej") nad już
-zaktualizowaną listą uczestników. Profil można dokończyć bez ponownego wpisywania
-imienia/maila — hasłem (dane już zna z formularza zapisu) albo przez Google — oba
-automatycznie przejmują wpis gościa i lądują wprost na stronie meczu, bez dodatkowego
-ekranu potwierdzenia. Gdy podany e-mail ma już konto, to samo pole hasła przełącza
-się z rejestracji na logowanie zamiast tylko pokazać błąd. Nawet gdy gość zamknie
-ekran bez logowania — albo wpis dodał organizator ręcznie, bez udziału gościa —
-właściciel pasującego konta i tak dostanie powiadomienie z gotowym linkiem
-przejęcia, przy najbliższej okazji (nowe konto z tym e-mailem albo kolejne logowanie).
-
-MECHANIKA: migracja `082` z funkcją `dolacz_do_meczu_jako_goscie()` (SECURITY DEFINER,
-zwraca `claim_token`+`is_reserve`), poprawiona migracją `083` (INSERT…RETURNING
-z jawnym prefiksem tabeli — naprawia „ambiguous column reference"). Kolumny
-`guest_email`, `guest_phone` w `event_participants`. Frontend: `EventDetailClient.tsx`
-— dialog gościa pokazuje predykcję rezerwy z `wolneMiejscaWgRol()` (bez dodatkowego
-zapytania); `handleJoinAsGuest` woła `load()` po zapisie i używa `result.isReserve`
-w komunikacie; `handleCreateAccountFromGuest` woła `signUpWithEmail()` +
-`przejmijWpisGoscia()` wprost, bez przejścia przez `/logowanie`; gdy `signUpWithEmail`
-rzuci błąd „już istnieje", `handleSignInFromGuest` woła `signInWithEmail()` na tym
-samym polu hasła. `PrzejmijClient.tsx` (`/gracz/przejmij/[token]`) auto-przejmuje
-wpis, gdy link niesie `?auto=1` i user jest już zalogowany — bez klikania „To ja —
-potwierdzam". Wrapper `joinEventAsGuest()` w `lib/events.ts`. Walidacja e-maila
-w `lib/validation.ts`. Migracja `084`: dwa wyzwalacze SQL kojarzą wpis gościa
-z kontem po e-mailu (`event_participants`→`auth.users` i odwrotnie) i wstawiają
-powiadomienie typu `niepotwierdzony_wpis_goscia` (kolumna `notifications.claim_token`,
-`NotificationBell.tsx` kieruje je na `/gracz/przejmij/[token]`) — bez samodzielnego
-przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`. Migracja
-`085` naprawia znaleziony na produkcji duplikat: ten sam e-mail mógł zapisać się jako
-gość kilka razy na jeden mecz, bo `dolacz_do_meczu_jako_goscie()` tego nie sprawdzała
-— teraz na starcie odrzuca powtórkę (albo zwraca istniejący `claim_token`
-idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail już ma konto"
-(`identities.length === 0`) — dla trybu ochrony przed enumeracją e-maili w Supabase,
-gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces. Migracja
-`087` dodaje do `dolacz_do_meczu_jako_goscie()` kolumnę `already_joined` (true przy
-idempotentnym zwrocie tokenu z `085`), żeby frontend odróżnił świeży zapis od powtórki —
-ekran po powtórnym zapisie tym samym mailem pokazuje „Wcześniej dołączyłeś do tej gry."
-zamiast „Zapisano!". Migracja `088` dokłada kolumnę `has_account` i zamienia wyjątek na
-zwykły wynik — pełny opis czterech wariantów ekranu w sekcji „Powtórny zapis tym samym
-e-mailem" niżej.
-
 
 
