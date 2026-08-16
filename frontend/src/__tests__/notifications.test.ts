@@ -1,28 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppNotification } from '@/types';
-import { otwarteSprawy } from '@/lib/notifications';
+import { otwarteSprawy, toNotif, WYMAGA_AKCJI } from '@/lib/notifications';
 
-// Zapytania w `otwarteSprawy` różnią się TABELĄ tylko pozornie — obie idą do
-// `event_participants`. Rozróżniamy je po tym, czy w łańcuchu pada `.eq
-// ('pending_approval', true)` (prośby) czy `.not('claim_offered_at', …)`
-// (oferta miejsca z rezerwy), i oddajemy przygotowaną odpowiedź.
-const { wynikProsb, wynikOfert, from } = vi.hoisted(() => {
+// Zapytania w `otwarteSprawy` różnią się TABELĄ tylko pozornie — trzy z nich
+// idą do `event_participants`. Rozróżniamy je po tym, czy w łańcuchu pada
+// `.eq('pending_approval', true)` (prośby) czy `.not('claim_offered_at', …)`
+// (oferta miejsca z rezerwy) — gdy żadne z nich, to zapytanie o mój udział
+// (097). Czwarte zapytanie idzie do `event_declines` — tu rozróżnia sama
+// nazwa tabeli, przekazana do `from()`.
+const { wynikProsb, wynikOfert, wynikUdzial, wynikOdmowy, from } = vi.hoisted(() => {
   const wynikProsb = { data: [] as any[], error: null as any };
   const wynikOfert = { data: [] as any[], error: null as any };
+  const wynikUdzial = { data: [] as any[], error: null as any };
+  const wynikOdmowy = { data: [] as any[], error: null as any };
 
-  function nowyLancuch() {
+  function nowyLancuch(table: string) {
     const stan = { prosby: false, oferty: false };
     const lancuch: any = {
       select: () => lancuch,
       eq: (kolumna: string) => { if (kolumna === 'pending_approval') stan.prosby = true; return lancuch; },
       not: () => { stan.oferty = true; return lancuch; },
       // `.in()` domyka zapytanie — to na nim await zwraca wynik.
-      in: () => Promise.resolve(stan.prosby ? wynikProsb : stan.oferty ? wynikOfert : { data: [], error: null }),
+      in: () => Promise.resolve(
+        table === 'event_declines' ? wynikOdmowy
+          : stan.prosby ? wynikProsb
+          : stan.oferty ? wynikOfert
+          : wynikUdzial,
+      ),
     };
     return lancuch;
   }
 
-  return { wynikProsb, wynikOfert, from: vi.fn(() => nowyLancuch()) };
+  return { wynikProsb, wynikOfert, wynikUdzial, wynikOdmowy, from: vi.fn((table: string) => nowyLancuch(table)) };
 });
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
@@ -39,6 +48,8 @@ function powiadomienie(over: Partial<AppNotification> & { id: string; type: stri
 beforeEach(() => {
   wynikProsb.data = []; wynikProsb.error = null;
   wynikOfert.data = []; wynikOfert.error = null;
+  wynikUdzial.data = []; wynikUdzial.error = null;
+  wynikOdmowy.data = []; wynikOdmowy.error = null;
   from.mockClear();
 });
 
@@ -101,5 +112,74 @@ describe('otwarteSprawy', () => {
     ]);
     expect(wynik).toEqual(new Set());
     expect(from).not.toHaveBeenCalled();
+  });
+
+  // 097: "pytanie_o_udzial" jest otwarte, dopóki NIE odpowiedziałem — ani nie
+  // dołączyłem, ani nie odmówiłem wprost.
+  describe('pytanie_o_udzial (097)', () => {
+    it('zostaje otwarte, gdy nie ma ani wpisu w składzie, ani odmowy', async () => {
+      const wynik = await otwarteSprawy('u1', [
+        powiadomienie({ id: 'n1', type: 'pytanie_o_udzial', eventId: 'e1' }),
+      ]);
+      expect(wynik?.has('n1')).toBe(true);
+    });
+
+    it('zamyka się, gdy dołączyłem do meczu', async () => {
+      wynikUdzial.data = [{ event_id: 'e1' }];
+      const wynik = await otwarteSprawy('u1', [
+        powiadomienie({ id: 'n1', type: 'pytanie_o_udzial', eventId: 'e1' }),
+      ]);
+      expect(wynik?.has('n1')).toBe(false);
+    });
+
+    // Kluczowy przypadek: "nie gram" to ODPOWIEDŹ, nie cisza — musi zamykać
+    // sprawę dokładnie tak samo jak dołączenie.
+    it('zamyka się, gdy jawnie odmówiłem — odmowa to odpowiedź, nie cisza', async () => {
+      wynikOdmowy.data = [{ event_id: 'e1' }];
+      const wynik = await otwarteSprawy('u1', [
+        powiadomienie({ id: 'n1', type: 'pytanie_o_udzial', eventId: 'e1' }),
+      ]);
+      expect(wynik?.has('n1')).toBe(false);
+    });
+
+    it('zwraca null, gdy zapytanie o odmowy padło', async () => {
+      wynikOdmowy.error = { message: 'boom' };
+      const wynik = await otwarteSprawy('u1', [
+        powiadomienie({ id: 'n1', type: 'pytanie_o_udzial', eventId: 'e1' }),
+      ]);
+      expect(wynik).toBeNull();
+    });
+  });
+});
+
+// 093: powiadomienia grupowe (ogłoszenie na tablicy, nowy mecz w grupie) niosą
+// `group_id` — bez mapowania w `toNotif` dzwonek renderowałby martwy wiersz.
+describe('toNotif', () => {
+  it('maps group_id to groupId', () => {
+    const n = toNotif({
+      id: 'n1', user_id: 'u1', type: 'ogloszenie_w_grupie', title: 't',
+      group_id: 'g1', created_at: '2026-08-10T08:00:00Z',
+    });
+    expect(n.groupId).toBe('g1');
+  });
+
+  it('leaves groupId undefined when the row has none', () => {
+    const n = toNotif({
+      id: 'n1', user_id: 'u1', type: 'nowy_mecz_w_grupie', title: 't',
+      created_at: '2026-08-10T08:00:00Z',
+    });
+    expect(n.groupId).toBeUndefined();
+  });
+});
+
+// Dzwonek dziś niesie prawie wyłącznie rzeczy WYMAGAJĄCE DZIAŁANIA — ogłoszenie
+// na tablicy grupy to informacja, nie zadanie, więc nie ma tam czego rozpatrywać.
+describe('WYMAGA_AKCJI', () => {
+  it('does not include ogloszenie_w_grupie', () => {
+    expect(WYMAGA_AKCJI.has('ogloszenie_w_grupie')).toBe(false);
+  });
+
+  it('includes pytanie_o_udzial (097) — to jest prośba o decyzję, nie informacja', () => {
+    expect(WYMAGA_AKCJI.has('pytanie_o_udzial')).toBe(true);
   });
 });

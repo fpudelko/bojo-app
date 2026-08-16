@@ -15,7 +15,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
 | `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
-| `SHOW_RECURRING` | `true` | — (włączona od migracji `073`) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` |
+| `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
 Cztery pierwsze: `frontend/src/lib/features.ts` (stałe w kodzie).
@@ -272,6 +272,51 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
+**Kropki na „Moje", „Grupy" i „Znajdź grę".** Trzy niezależne, osobno liczone: niebieska na
+„Moje" — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`) —
+różowa na „Moje" oraz na „Grupy" — nieprzeczytane wiadomości (`hasUnreadEventMessages()`
+w `lib/comments.ts`, `hasUnreadGroupMessages()` w `lib/groupPosts.ts`) — i pomarańczowa na
+„Znajdź grę" — nowe wydarzenie w promieniu 5 km od ostatniej wizyty na `/wydarzenia`
+(`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik `KLUCZ_WYDARZENIA_WIDZIANO`).
+Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` → Konwencje. Na „Moje" mogą się
+zapalić obie kropki naraz — różowa siedzi w lewym górnym rogu ikony, niebieska w prawym,
+żeby się nie nakładały.
+
+Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
+`hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
+tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływałaby systemowe
+okno o zgodę na lokalizację bez żadnego kontekstu — dla kogoś, kto jej nigdy nie udzielił.
+Brak zgody = brak kropki, nie prośba w tle.
+
+„Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
+`kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
+wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania.
+`getMyActiveEventIds()` (gram/rezerwa/organizuję) **nie filtruje po dacie** — mecz
+z historii z nową wiadomością też zapala różową kropkę na „Moje"; `/moje-gry` (zakładka
+Historia) i mecze ekipy (`/grupy/[id]`, sekcja Historia) muszą więc przekazywać
+`unreadMessages` do `EventBrowseCard` również tam, nie tylko w Nadchodzących — inaczej
+kropka świeci się bez żadnego widocznego śladu, gdzie szukać wiadomości (zgłoszone wprost).
+Ten sam mechanizm zasila plakietkę z liczbą przy zakładce Rozmowa/Tablica (patrz zakładki
+`/wydarzenia/[id]` i `/grupy/[id]` niżej) oraz ikonę z liczbą obok chipu „N wolnych miejsc"
+na karcie meczu (`EventBrowseCard`, tylko gdy gram/organizuję/jestem na rezerwie w tym
+meczu).
+
+**Kropki na karcie ekipy (`/grupy`).** Na ikonie każdej ekipy: różowa w lewym górnym rogu —
+nieprzeczytana wiadomość na tablicy (ten sam `nieprzeczytane()` co wyżej) — pomarańczowa
+w prawym górnym rogu — nowy mecz w ekipie od ostatniej wizyty na `/grupy/[id]`
+(`maNoweMecze()`/`getGroupEventsForNew()` w `lib/groups.ts`, znacznik `kluczGrupyWidziano()`,
+ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — osobny od
+`kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
+listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
+
+**Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości w pasku zakładek
+(zakładka Nadchodzące), poza przewijanym paskiem tabów — nie dokłada wysokości i jest
+widoczna niezależnie od tego, czy akurat jest co pokazać w „Brakuje graczy" (zgłoszone
+wprost: przycisk nie mógł zależeć od zawartości sekcji niżej). Widoczna tylko, gdy jest
+choć jeden nieprzeczytany mecz. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy",
+najbliższy mecz i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia
+i stałe gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
+
 ---
 
 ## Górny pasek nawigacji — inny dla zalogowanych na mobile
@@ -494,9 +539,11 @@ konkurencyjny przycisk „Udostępnij" na tej samej stronie.
 
 ## Serie wydarzeń cyklicznych
 
-Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii
-(`SHOW_RECURRING` włączona, moduł widoczny w nawigacji). Model, żeby nie duplikować
-schematu `events` w `recurring_events` — pełny opis w [domena.md](./domena.md):
+Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii.
+Moduł jest dziś schowany za `SHOW_RECURRING = false` (patrz „Flagi funkcji" wyżej) —
+kod, istniejące serie i ich strony zarządzania zostają nietknięte, chowają się wyłącznie
+wejścia w nawigacji. Model, żeby nie duplikować schematu `events` w `recurring_events` —
+pełny opis w [domena.md](./domena.md):
 
 - **szablon** (`recurring_events`) niesie regułę powtarzania: dzień tygodnia, godzina,
   miejsce, limit miejsc, widoczność i wyprzedzenie (`notify_days_before`),
@@ -599,10 +646,10 @@ nie ma wpisanego wyniku, sporo nie ma domkniętego rozliczenia, a wpisy gości p
 nie są przejmowane.
 
 **Rozwiązanie.** `components/events/PoMeczuCard.tsx`, renderowana w `EventDetailClient.tsx`
-pod warunkiem `(isOwner || canManageSquad || canManagePayments) && resultsAvailable &&
-!isCancelled` (drugi i trzeci człon: delegaci, patrz [„Uprawnienia (delegowanie)"](#uprawnienia-delegowanie)
-niżej), między banerem odwołania a banerem „Mecz gotowy". Zbiera do trzech zadań — każde
-renderowane tylko, gdy dotyczy tego meczu:
+pod warunkiem `tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) &&
+resultsAvailable && !isCancelled` (drugi i trzeci człon warunku uprawnień: delegaci, patrz
+[„Uprawnienia (delegowanie)"](#uprawnienia-delegowanie) niżej). Zbiera do trzech zadań —
+każde renderowane tylko, gdy dotyczy tego meczu:
 
 | Zadanie | Warunek renderowania | „Zrobione" |
 |---|---|---|
@@ -610,14 +657,18 @@ renderowane tylko, gdy dotyczy tego meczu:
 | Wpisz wynik | `event.trackResults` | `matchResult != null` |
 | Zaproś gości do Bojo | są nieprzejęci goście w składzie | znika, gdy `0` |
 
-Klik na zadanie „Rozlicz ekipę"/„Wpisz wynik" przewija do istniejącej sekcji
-(`#podzial-kosztow`, `#wynik-meczu`) albo wywołuje istniejący handler
-(`handleWyslijRozliczenie`) — komponent jest czysto prezentacyjny, zero nowego zapytania
-do bazy. Zadanie „Zaproś do Bojo" ma **wyjątkowo `onClick`, nie zwykły link do `#sklad`** —
-`handleZaprosGosciaPoMeczu()` najpierw wymusza `setRosterOpen(true)` (skład po meczu jest
-domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po re-renderze
-(`requestAnimationFrame`) — sam link bez rozwinięcia scrollował w puste miejsce, bo lista
-uczestników z przyciskami „Zaproś do Bojo" nie była jeszcze na ekranie.
+Karta żyje **wyłącznie w zakładce Skład** — świadomie NIE jest uniwersalna, bo dubluje się
+z jej własną treścią (roster, zarządzanie graczami); na pozostałych zakładkach znika razem
+ze zmianą zakładki (patrz „Zakładki na `/wydarzenia/[id]`" niżej). Zadania, które kiedyś
+przewijały do sekcji na tej samej stronie, dziś żyją na osobnych zakładkach — samo
+`scrollIntoView`/`href="#..."` by nie trafiło. Klik na „Wpisz wynik" woła `onWpiszWynik` →
+`goToTab('wynik')`. Klik na
+„Rozlicz ekipę" nadal woła `handleWyslijRozliczenie()` (generuje tekst i otwiera arkusz
+udostępniania — nie przełącza zakładki, bo nie musi). Zadanie „Zaproś do Bojo" łączy oba:
+`handleZaprosGosciaPoMeczu()` najpierw `goToTab('sklad')` i `setRosterOpen(true)` (skład po
+meczu jest domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po re-renderze
+(`requestAnimationFrame`) — bez przełączenia zakładki scroll trafiał w pustkę, gdy karta
+była widoczna z innej zakładki niż Skład.
 
 Pod zadaniami stoi zawsze wiersz dwóch przycisków: **„Kto nie przyszedł"** (widoczny tylko
 dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
@@ -666,6 +717,54 @@ delegata z `can_manage_squad` (wcześniej: dowolny zalogowany użytkownik).
 Wiadomość rozliczeniowa (`tekstRozliczenia()`, `lib/settlementShare.ts`) dopisuje przy
 zalegającym oznaczonym jako nieobecny adnotację „(nie przyszedł/-a)" — ekipa widzi kontekst
 długu, nie samą kwotę.
+
+---
+
+## Czy gramy? — próg minimum, otwarcie dla okolicy
+
+**Problem.** Ekipy grające co tydzień odtwarzały ręcznie w wątku na WhatsAppie
+dokładnie ten model, który Bojo już ma — a całą resztą wątku była praca biurowa
+organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagrać", „Może
+jeszcze ktoś się decyduje?".
+
+**Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
+niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
+
+1. **Werdykt progu** — gdy organizator ustawił `min_players` (kompaktowy toggle „+ Ustaw
+   minimum, żeby gra się odbyła" w `EventCapacityFields.tsx`, obok stepperu liczby
+   miejsc): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
+   czysta funkcja, `werdyktGry()` (`lib/events.ts`) — ten sam werdykt na stronie meczu
+   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`. Toggle żyje **wyłącznie
+   w edycji** (`/wydarzenia/[id]/edytuj`) od 2026-08-16 — kreator (`/wydarzenia/nowe`)
+   nie przekazuje `onMinPlayersChange` do `EventCapacityFields`, więc sekcja się tam
+   w ogóle nie renderuje (prop opcjonalny, komponent gasi ją sam). Zgłoszone wprost jako
+   zbędny krok przy zakładaniu meczu; istniejące progi i ich logika zostają nietknięte.
+2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
+   tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
+   (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
+   stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
+   prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+
+**„Nie gram"** (`NieGramButton.tsx`) — osobny, mały przycisk dla członka ekipy, który
+jeszcze nie dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
+`event_declines` (migracja `097`) — **nie** w `player_reports`, które karmi
+„Niezawodność" wyłącznie ze zgłoszeń nieobecności na mecz, na który ktoś się zapisał;
+wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Nie gram — cofnij").
+
+**Panel miał wcześniej trzeci blok, „Nie odpowiedziało: N"** (kto z ekipy jeszcze nie
+zareagował na mecz, z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa") — usunięty na
+wyraźną prośbę: zamiast ścigać milczących, prostszą odpowiedzią na „brakuje ludzi" jest
+„Otwórz dla okolicy" powyżej. `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()`)
+i `tekstZaczepki()` z `lib/eventShare.ts` usunięte jako martwy kod — nic już ich nie
+importuje. RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja
+`097`) **zostają w bazie** nietknięte (migracji się nie kasuje po wdrożeniu), po prostu
+nic już ich nie wywołuje — `lib/notifications.ts` nadal umie wyświetlić taki wpis, gdyby
+kiedyś powstał, ale od tej zmiany żaden nie powstanie.
+
+**Świadomie NIE zbudowane** (patrz `docs/domena.md § Czy gramy`): automatyczny zapis
+milczących do składu, powiadomienie o każdej pojedynczej odpowiedzi, próg minimum na
+poziomie szablonu serii cyklicznej.
 
 ---
 
@@ -899,31 +998,249 @@ logowaniu.
 
 ---
 
+## Układ `/grupy` — lista ekip
+
+Karta ekipy pokazuje od razu to, po co się tu wchodzi: **kiedy gramy**, nie tylko nazwę.
+`getMyGroupsZTerminem()` (`lib/groups.ts`) dociąga do listy grup najbliższy nadchodzący
+mecz każdej z nich — dwa zapytania na cały ekran. Karta ma termin, miejsce i pasek
+zapełnienia składu; gdy grupa nie ma terminu, pokazuje „Brak terminu" z odnośnikiem do
+kreatora. **Lista jest posortowana po najbliższym terminie** (rosnąco: grupa z meczem
+jutro przed grupą z meczem za miesiąc), nie po dacie założenia ekipy; grupy bez terminu
+lądują na końcu, w kolejności `created_at` malejąco. Kod zaproszenia (jedyna droga
+samodzielnego dołączenia, patrz niżej) żyje w dyskretnym wierszu na dole, nie w karcie
+na pół ekranu jak wcześniej — otwiera bottom sheet (`KodGrupySheet.tsx`).
+
+**Formularz `/grupy/nowe`** dorównuje dziś zakładce Ogólne w ustawieniach — dochodzi
+wgrywanie okładki (`CoverUpload`, ścieżka w storage generowana lokalnie przed
+utworzeniem grupy, bo prawdziwe `id` powstaje dopiero po zapisie) i zdanie „Wszystko
+zmienisz później w ustawieniach ekipy". Po utworzeniu formularz przekierowuje na
+`/grupy/{id}?zapros=1` zamiast na goły `/grupy/{id}` — `GroupDetailClient` widząc ten
+parametr od razu otwiera `ZaprosDoGrupySheet` i czyści adres (ten sam wzorzec, co
+obsługa `?dolacz=`). Powód: ekipa z jedną osobą jest martwa, a chwila tuż po utworzeniu
+to jedyny moment, w którym organizator na pewno chce zapraszać.
+
 ## Układ `/grupy/[id]`
 
 Trasa jest rozdzielona na serwerowy `page.tsx` (z `generateMetadata`) i
-`GroupDetailClient.tsx`. Metadane są tu istotne, bo **strona grupy jest celem linku
-zaproszenia** `/g/[kod]` — bez nich każde udostępnienie pokazywało generyczny tytuł
-całej aplikacji.
+`GroupDetailClient.tsx`, który składa cztery komponenty z `components/groups/`:
+`NajblizszyMeczGrupy`, `RozmowaGrupy`, `SkladGrupy`, `StatystykiGrupy`. Metadane są tu
+istotne, bo **strona grupy jest jednym z celów linku zaproszenia** `/g/[kod]` — bez nich
+każde udostępnienie pokazywało generyczny tytuł całej aplikacji.
 
-Układ od góry: hero z okładką (nazwa + plakietki sport / miasto / liczba członków) →
-„Najbliższy mecz" (dla członka) → zakładki **Mecze / Skład** → przyklejony pasek z jedną
-główną akcją („Dołącz do grupy" albo „Stwórz mecz w grupie"), odsunięty od dolnej
-nawigacji przez `var(--bottom-nav-h)`.
+Układ od góry: **niska belka** łącząca powrót, tożsamość ekipy i akcje w jednym rzędzie —
+strzałka powrotu, mały kafelek 32×32 (okładka albo emoji sportu), nazwa, przycisk
+„Zaproś" (otwiera `ZaprosDoGrupySheet.tsx`, widoczny tylko z `can_invite`) i na mobile
+dzwonek (`NotificationBell`) na końcu. **Kod dołączenia i zębatka ustawień zniknęły
+z belki** — miała za dużo elementów. Kod dołączenia żyje wyłącznie w arkuszu „Zaproś"
+(`ZaprosDoGrupySheet`); ustawienia dostały własny wpis w pasku zakładek (Link do
+`/grupy/[id]/edytuj`, stylowany identycznie jak reszta zakładek, widoczny dla
+założyciela/`can_manage_members`) zamiast osobnej ikony. Awatar też zniknął — sam dzwonek
+wystarczy, profil jest w dolnej nawigacji. Osobny wiersz pod belką niesie meta
+(sport/miasto/boisko/liczba członków) — dawniej to wszystko zajmowało osobny wiersz
+„← Ekipy" plus kartę nagłówka z okładką na pół ekranu, co zgłoszono wprost jako
+zajmujące za dużo miejsca. Zaraz pod belką stoją **zakładki** — nawigacja ma być
+najwyżej, nad treścią którą przełącza, nie pod pierwszą kartą. **Belka i zakładki dzielą
+jeden `sticky top-0` kontener** (poza zakładką Rozmowa, patrz niżej) — dwa osobne sticky
+elementy na tej samej wysokości nakładałyby się na siebie zamiast układać w stos, więc
+to jest jedna sticky całość, nie dwie. Poziome przewijanie zakładek na wąskim telefonie
+nie pokazuje paska przewijania (`.scrollbar-hide` w `globals.css`).
 
-**Wejście z linku zaproszenia.** `/g/[kod]` przekierowuje na `/grupy/[id]?join=1` i tak
-było od zawsze — ale nikt tego parametru nie czytał. Teraz, gdy `?join=1` jest w adresie
-**i** użytkownik nie należy do grupy, nad wszystkim pojawia się baner „Masz zaproszenie
-do *nazwa*" z przyciskiem dołączenia; pasek na dole wtedy się nie dubluje.
+**„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) jest widoczny wyłącznie w zakładce
+Mecze** — to jest jej treść (skrót najbliższego terminu), nie uniwersalny nagłówek
+strony; wcześniej wyświetlał się na każdej zakładce oprócz Rozmowy, co pod Statystykami
+czy Składem po prostu zajmowało miejsce. **Tu żyje cotygodniowa pętla**: gdy grupa ma
+nadchodzący mecz, ten sam komponent karty co na `/wydarzenia` (`EventBrowseCard`, z moim
+statusem uczestnictwa) plus osobny przycisk „Udostępnij mecz" pod spodem; gdy nie ma, ale
+ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym kliknięciem
+(`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co poprzednio —
+całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja `072`/`093`);
+gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora. Środkowy FAB dolnej
+nawigacji na trasie `/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>`
+(`BottomNav.tsx`) — to samo działanie na desktopie robi tekstowy „+ Nowy termin"
+w zakładce Mecze.
 
-Zakładka trzyma stan w URL (`?tab=sklad`), ale przez `window.history.replaceState`,
-**nie** `router.replace` jak na `/moje-gry`. Powód: `/moje-gry` jest trasą statyczną
-i nawigacja nic nie kosztuje, a `/grupy/[id]` jest dynamiczna — każde `router.replace`
-byłoby round-tripem po dane z serwera (łącznie z `generateMetadata`), przez co adres
-w praktyce w ogóle się nie zmieniał.
+Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
+nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
+Uprawnienia, więc nie duplikujemy ich treści tutaj — **zakładka Zaproszenia sama jest
+widoczna tylko dla founder/`can_invite`**, Uprawnienia jak dawniej wyłącznie dla
+foundera; kogo dana zakładka nie dotyczy, ten jej w ogóle nie widzi): **Mecze**
+(nadchodzące/historia, jak dawniej — sekcja „Najbliższy mecz" nad zakładkami pokazuje
+najbliższy termin raz; „Nadchodzące" niżej filtruje go z listy, żeby nie dublować tego
+samego meczu na jednym ekranie) / **Rozmowa** (dawniej
+„Tablica" — patrz niżej, różowa plakietka z liczbą nieprzeczytanych; własne wpisy nigdy
+się nie liczą — wysyłający już je widział w momencie wysyłania) / **Skład** (mała belka
+„Zaproś do ekipy" + kod dołączenia + ikona udostępnienia nad rzędem awatarów — ten sam
+kod/link co w `ZaprosDoGrupySheet`, tylko bez otwierania arkusza; widoczna z tych samych
+warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — **powyżej niej,
+wyłącznie dla założyciela i wyłącznie gdy `memberCount > 30`, informacja „Nie musisz
+dodawać do ekipy jak najwięcej osób — publiczny mecz i tak widzą gracze z okolicy"**:
+duża prywatna ekipa zwykle znaczy, że organizator rozrasta grupę zamiast po prostu
+otworzyć mecz publicznie (patrz „Otwórz dla okolicy" niżej) — potem rząd awatarów
++ lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
+panel z czterema przełącznikami inline — dla założyciela — i kebab „Usuń z ekipy" dla
+`can_manage_members`) / **Statystyki** (patrz „Wyniki i statystyki" w `docs/domena.md`;
+kafelki liczbowe mają wspólną minimalną wysokość i wyśrodkowaną treść — „nadchodzące"
+jest dłuższe niż sąsiednie etykiety i na wąskim telefonie łamie się do dwóch linii, bez
+tego kafelek wyglądał na rozjechany względem reszty rzędu).
+Zmiana uprawnień innego członka jest dostępna w dwóch miejscach o identycznej treści
+panelu (`UprawnieniaCzlonkaPanel.tsx`): tu, w Składzie, i w Ustawieniach — obie ścieżki
+działają tylko dla założyciela, bo politykę UPDATE na `group_members` ma wyłącznie on.
+
+**Rozmowa wygląda i przewija się jak WhatsApp**, nie jak lista wpisów odgórnie na
+najnowszy. `RozmowaGrupy.tsx` wypełnia wysokością cały dostępny ekran (`h-full` w
+elastycznym kontenerze rodzica — na tej zakładce `GroupDetailClient` ustawia stronę na
+`h-[100dvh] overflow-hidden`, żeby po ukryciu `BottomNav` rozmowa sięgała do samego dołu
+ekranu, zamiast zostawiać pod sobą pustą przestrzeń — a niska belka na tej jednej
+zakładce traci `position: sticky` (zostaje zwykłym, statycznie pozycjonowanym elementem):
+`sticky` wewnątrz `overflow-hidden`, nieprzewijalnego kontenera liczy punkt zaczepienia
+inaczej niż przy zwykłym scrollu i belka lądowała niżej niż na pozostałych zakładkach —
+zgłoszone wprost), chronologię
+rosnącą (najstarsza u góry, najnowsza na dole) i composer pod listą, nie nad nią —
+auto-scroll na dół po wejściu i po wysłaniu wiadomości, przycisk powrotu (strzałka w
+kółku, `sticky` wewnątrz kontenera, nie `fixed` względem ekranu — dzięki temu nigdy nie
+wchodzi w konflikt z dolną nawigacją) pojawia się dopiero, gdy ktoś odjedzie od dołu.
+Wiadomości tej samej osoby pod rząd grupują się bez powtarzania nazwy, dni rozdzielają
+wyśrodkowane pigułki („Dzisiaj"/„Wczoraj"/data), godzina siedzi w rogu dymka zamiast
+w osobnym wierszu pod spodem. Przypięty wpis (`can_moderate_wall`) nie wskakuje na górę
+listy — wisi jako osobny pasek nad kontenerem przewijania, tapnięcie przewija do niego.
+Akcje (przypnij/usuń) chowają się pod małym „⋮" przy dymku, nie stoją stale widoczne.
+`getGroupPosts()` (`lib/groupPosts.ts`) nie zmienił kontraktu — nadal zwraca
+przypięty-pierwszy/malejąco (tego wciąż potrzebuje licznik nieprzeczytanych); kolejność
+chronologiczną liczy sam komponent, do wyświetlenia.
+
+**„Opuść ekipę" mieszka pod listą w Składzie**, nie na dole strony grupy jak wcześniej —
+`/grupy/[id]/edytuj` jest dostępne wyłącznie dla założyciela i `can_manage_members`, więc
+zwykły członek bez żadnych uprawnień nigdy tam nie trafi; Skład jest jego jedyną drogą
+wyjścia z ekipy. **„Usuń ekipę"** (wyłącznie założyciel) mieszka tylko w Ustawieniach →
+Ogólne — nie duplikuje się już na stronie grupy.
+
+Zakładka trzyma stan w URL (`?tab=tablica` — nazwa parametru zostaje bez zmian mimo
+etykiety „Rozmowa", żeby nie psuć zapisanych linków), ale przez
+`window.history.replaceState`, **nie** `router.replace` jak na `/moje-gry`. Powód:
+`/moje-gry` jest trasą statyczną i nawigacja nic nie kosztuje, a `/grupy/[id]` jest
+dynamiczna — każde `router.replace` byłoby round-tripem po dane z serwera (łącznie
+z `generateMetadata`), przez co adres w praktyce w ogóle się nie zmieniał.
 
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
+
+## Zakładki na `/wydarzenia/[id]`
+
+`EventDetailClient.tsx` ma od tej zmiany pięć zakładek nad treścią, analogicznie do
+`/grupy/[id]`, ale dostosowane do pojedynczego meczu: **Skład** (domyślna — dawne „Info":
+prośby o dołączenie, panel „Czy gramy?", licznik miejsc, awatary i lista uczestników,
+podział na drużyny jako zwinięty panel — patrz niżej, „Wypisz się"/„Nie gram" i inne
+banery statusu uczestnictwa, zarządzanie graczami, karta „Po meczu", panel „Zaproś
+znajomych", status zaproszeń), **Rozmowa** (`RozmowaWydarzenia.tsx`, zastępuje dawny
+komponent `EventComments` — usunięty, nic innego go nie importowało; **wyłącznie okno
+czatu**, żadnych innych elementów), **Wynik** (drużyny i formularz wyniku — dawna
+`skladWynikSection`), **Rozliczenia** (podział kosztów per uczestnik — dawna
+`platnosciSection`) i **Ustawienia** (panel „Zarządzaj wydarzeniem", **domyślnie
+rozwinięty** — dawniej zwinięty, bo był jedną z wielu kart na długiej stronie; teraz to
+cała treść osobnej zakładki, więc zwijanie na wejściu nie miało już sensu: widoczność,
+goście, edycja, powtórka, uprawnienia, odwołanie/przywrócenie, usunięcie). Stan zakładki
+w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **nie** przez
+`useSearchParams()` — ta trasa jest prerenderowana i ten hak wywala produkcyjny build
+(`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
+powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
+ręcznie.
+
+**Nazwa meczu przeniosła się nad zakładki** — pasek na samej górze to teraz `[Wróć]`
+(bez etykiety, sama strzałka) + nazwa (`<h1>` obcinany wielokropkiem), tak jak belka na
+`/grupy/[id]`. „Udostępnij"/„Kopiuj", które wcześniej tam stały, przeniosły się **pod
+zakładki** — w miejsce, które kiedyś zajmował `<h1>`. To jest świadoma zamiana miejscami,
+nie usunięcie: obie pary elementów zostały, zmieniła się tylko ich kolejność w pionie.
+Ten pasek nazwy i zakładki dzielą jeden `sticky top-0` kontener (poza zakładką Rozmowa,
+z tego samego powodu co na `/grupy/[id]`), a poziome przewijanie zakładek chowa pasek
+przewijania (`.scrollbar-hide`).
+
+**Kilka elementów zostaje uniwersalnych** — renderują się niezależnie od aktywnej
+zakładki (poza Rozmową, patrz niżej), bo dotyczą całego meczu, nie treści jednej
+podstrony: baner odwołania meczu, panel „Mecz gotowy" tuż po publikacji, blok
+„Udostępnij"/„Kopiuj" + chipy meczu (data/miejsce/cena/widoczność/grupa), sticky pasek
+„Dołącz"/„Obserwuj" na dole ekranu oraz modale (zaproszenie z grupy, wybór grupy, zakres
+edycji terminu serii). Bez tego np. osoba przeglądająca zakładkę Rozliczenia nie
+widziałaby przycisku dołączenia do meczu. **Karta „Po meczu" (`PoMeczuCard`) NIE jest
+uniwersalna** — żyje wyłącznie w zakładce Skład, żeby nie duplikować się z jej własną
+treścią (roster, zarządzanie graczami) na każdej innej zakładce.
+
+**Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
+blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
+Bez niego uniwersalne elementy zaśmiecały jedyny ekran, który ma wyglądać jak zwykły czat.
+Zakładka nosi różową plakietkę z liczbą nieprzeczytanych, tym samym mechanizmem co
+Rozmowa/Tablica w `/grupy/[id]` (patrz „Kropki na »Moje« i »Grupy«" wyżej) —
+`kluczRozmowyWidziano()`, własne komentarze wyłączone z liczenia.
+
+**Zakładka Wynik pokazuje treść uczestnikowi, nie tylko organizatorowi, zanim mecz się
+zacznie.** Przed poprawką pusty ekran widział każdy, kto nie jest organizatorem/`can
+ManageSquad` — trzy warunkowe bloki w `wynikFormSection` wymagały tej roli albo
+`resultsAvailable`, a zwykły uczestnik przed startem meczu nie spełniał żadnego. Dziś
+uczestnik widzi ten sam komunikat „Wynik pojawi się po zakończeniu meczu", co organizator
+(z inną treścią — organizator widzi „Wynik można wpisać po rozpoczęciu…").
+
+Karta „Po meczu" wskazuje zadania na innych zakładkach, więc jej przyciski **przełączają
+zakładkę zamiast (albo obok) przewijania** — `onWpiszWynik` woła `goToTab('wynik')`,
+`handleZaprosGosciaPoMeczu()` woła `goToTab('sklad')` przed `setRosterOpen(true)` i
+`scrollIntoView`. Bez tego klik z innej zakładki niż cel trafiał w treść, która nie była
+jeszcze zamontowana w DOM. Pełny opis → sekcja „Karta »Po meczu«" wyżej.
+
+**Podział na drużyny renderuje się w dwóch zakładkach naraz** — Skład (jako domyślnie
+zwinięty panel z przyciskiem „Podział na drużyny" ▾, stan `druzynyOtwarteWSkladzie`) i
+Wynik (zawsze rozwinięty, bo to jej główna treść). To nie są dwie kopie: obie zakładki
+renderują dokładnie ten sam JSX (`druzynySection`, wydzielony ze `skladWynikSection`) na
+tym samym stanie z rodzica (`teamA`/`teamB`/handlery `TeamsPanel`), więc zmiana w jednym
+miejscu — przypisanie gracza, losowanie, publikacja — jest natychmiast widoczna w drugim
+bez żadnej synchronizacji: to dosłownie ten sam stan React, wyświetlony dwa razy.
+
+`RozmowaWydarzenia.tsx` to ten sam mechanizm i wygląd co `RozmowaGrupy.tsx` (chronologia
+rosnąca, grupowanie wiadomości tej samej osoby, separatory dni, własny scroll z
+auto-przewijaniem i przyciskiem powrotu, composer pod listą), ale **bez przypinania i bez
+moderacji** — dane to płaskie `event_comments` (`lib/comments.ts`), bez kolumny na
+przypięcie i bez odpowiednika `can_moderate_wall` na poziomie meczu. Każdy usuwa
+wyłącznie swoją wiadomość, tak jak w dawnym `EventComments`. **Widoczna dla uczestników,
+organizatora (bez względu na to, czy sam gra) i — gdy mecz jest przypięty do ekipy — dla
+całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z osobnego
+`isGroupMember()` doładowanego razem z `groupInfo`) — dawne komentarze widzieli wyłącznie
+zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
+o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
+`BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
+żeby czat sięgał do dołu ekranu. Klawiatura ekranowa nie zostawia już pustej przestrzeni
+pod composerem — `viewport.interactiveWidget: 'resizes-content'` w `app/layout.tsx` każe
+przeglądarce faktycznie skurczyć layout (a więc i `100dvh`) razem z klawiaturą, zamiast
+tylko przesuwać widoczny fragment stałej wysokości strony.
+
+## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
+
+**Cztery niezależne przełączniki** (`can_manage_members`, `can_create_events`,
+`can_invite`, `can_moderate_wall`, migracje `092`/`096`) — panel „Uprawnienia", dostępny
+z dwóch miejsc: rozwijany przy członku w zakładce Skład i w osobnej zakładce
+„Uprawnienia" na `/grupy/[id]/edytuj` (akordeon, rozwijany po imieniu). Obie ścieżki
+widoczne wyłącznie założycielowi (RLS pozwala zmieniać te kolumny tylko jemu). Pełny
+model → [docs/domena.md § Uprawnienia w grupie](./domena.md#uprawnienia-w-grupie).
+
+Strona ustawień grupy (`/grupy/[id]/edytuj`) ma od tej zmiany zakładki: **Ogólne**
+(nazwa, sport, miasto, boisko, opis, okładka, strefa niebezpieczna), **Zaproszenia**
+(link, kod, rotacja kodu) i, wyłącznie dla założyciela, **Uprawnienia**.
+
+**`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta grupę,
+najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane w bazie) imię
+zapraszającego kluczem anonimowym — `groups` i `group_members` są publicznie czytelne,
+więc to działa bez konta. `ZaproszenieClient.tsx` renderuje to wszystko i, dla
+wylogowanego, formularz rejestracji (`AuthForm` w trybie `signup`, `next` wskazuje
+z powrotem na `/grupy/[id]?dolacz=<kod>&od=<uuid>`) — dokładnie ta sama miękka ścieżka,
+co przejęcie wpisu gościa (`/gracz/przejmij/[token]?auto=1`). Zalogowany odwiedzający
+jest przekierowany od razu, bez migania tego widoku; `GroupDetailClient` widząc
+`?dolacz=` dołącza go kodem automatycznie (`dolacz_do_grupy_kodem()`, migracja `094`)
+i czyści adres. Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
+pokazują komunikat, że trzeba poprosić o nowy — bez kodu dołączenie od tej migracji nie
+jest już możliwe (patrz niżej).
+
+**Dołączenie do grupy wymaga kodu — zawsze.** Migracja `094` zdjęła politykę INSERT na
+`group_members`, którą wcześniej wystarczało obejść, znając samo UUID grupy (publicznie
+czytelne). Jedyne drogi wejścia: `dolacz_do_grupy_kodem()` (trzeba znać kod),
+`dodaj_czlonka_do_grupy()` (trzeba mieć `can_manage_members`) i trigger przy założeniu
+grupy. `joinGroup()` (surowy INSERT) zostało usunięte z `lib/groups.ts` —
+zastępuje je `joinGroupByCode()`.
 
 ---
 
@@ -1065,13 +1382,29 @@ mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `086` doda
 (`UzupelnijProfilBanner.tsx`) — niezawodny odpowiednik po stronie klienta. Wyzwalacz
 zostaje jako potencjalny drugi nadawca; `NOT EXISTS` w RPC chroni przed duplikatem.
 
-`NotificationBell` linkuje powiadomienie do meczu przez `event_id`, a te bez `event_id` —
-przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` → `/profil`). Bez niej renderowały się
-jako martwy, nieklikalny wiersz.
+`NotificationBell` linkuje powiadomienie do meczu przez `event_id`; te bez `event_id`,
+ale z `group_id` (ogłoszenie na tablicy grupy, migracja `093`) — na `/grupy/{group_id}`;
+resztę bez żadnego z nich — przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` →
+`/profil`). Bez tego routingu renderowały się jako martwy, nieklikalny wiersz.
 
-Czego brakuje: **wyzwalacza przy utworzeniu gry w grupie**. Jedyna ścieżka powiadomienia
-o nowej grze to `game_alerts` (promień + sport), a ta jest ukryta flagą
-`SHOW_GAME_ALERTS`. To [luka 2 wobec wizji](./wizja.md#3-luki).
+**Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
+`072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
+wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
+`game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) — wciąż za
+flagą `SHOW_GAME_ALERTS`, [luka 2 wobec wizji](./wizja.md#3-luki), i to jest inna
+funkcja niż powiadomienie o meczu w grupie.
+
+**Trzy nowe typy z migracji `097`** (patrz „Czy gramy?" wyżej): `pytanie_o_udzial` —
+RPC `zapytaj_milczacych()`, wołana ręcznie przez organizatora, nie wyzwalacz; jedyny typ
+w `WYMAGA_AKCJI` z zamknięciem po DWÓCH stronach (dołączenie **albo** jawna odmowa w
+`event_declines` zamykają sprawę jednakowo). `gra_potwierdzona`/`gra_zagrozona` —
+wyzwalacz `powiadom_o_progu_gry()` na `event_participants`, wzorem `079`: reaguje na
+PRZEKROCZENIE `min_players` w obie strony, nie na każdy zapis, i pomija osobę, której
+własny zapis/wypis spowodował zmianę (ona już wie).
+
+**Przypięty wpis na tablicy grupy też powiadamia** (`ogloszenie_w_grupie`, migracja
+`093`) — jedyny typ wpisu na tablicy, który to robi; zwykły wpis nikogo nie powiadamia,
+żeby dzwonek nie zamienił się w kanał czatu.
 
 **Komplet i zwolnione miejsce (migracja `079`).** Organizator nie dowiadywał się
 o zmianie stanu składu — jedyny wyzwalacz na `DELETE` z `event_participants`
@@ -1114,9 +1447,9 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Auto-awans z listy rezerwowej.** Zwolnione miejsce jest **oferowane** pierwszej
   osobie z rezerwy, która musi je sama przyjąć — nikt nie trafia do składu po cichu
   ([domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans)). Nie „naprawiać".
-- **Trzeci poziom widoczności meczu** („widoczne dla grupy"). `events.visibility` to
-  wyłącznie `private` / `public`.
-- **Powiadomienie dla członków grupy o nowej grze.**
+- **Osobna wartość „widoczne dla grupy" w `events.visibility`.** Kolumna to nadal
+  wyłącznie `private` / `public` — ale prywatny mecz przypięty do grupy JEST widoczny
+  dla jej członków (`getMyGroupEvents()`), patrz [domena.md § Grupy](./domena.md#grupy).
 - **MVP** w statystykach. Jedyne wystąpienie słowa to tekst nagrody na `/turniej`.
 - **Rankingi publiczne.**
 - **Ocena umiejętności, poziom zaawansowania, dopasowywanie gier do poziomu.**

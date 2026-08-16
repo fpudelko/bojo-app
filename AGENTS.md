@@ -362,3 +362,25 @@ ponownie i zacommituj wynik.
   (wzorem dawnego `components/home/landing/content.ts`) — żeby dało się testować bez
   renderowania, m.in. zakazane frazy w `content/zakazaneFrazy.ts`
   (`landingContent.test.ts`, `tresciStron.test.ts`).
+- **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
+  zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
+  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: kropka na
+    dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
+    ikona wiadomości na karcie meczu/ekipy, kropka na ikonie ekipy (karta na `/grupy`).
+    Nigdy nic innego.
+  - **Niebieski (`blue-*`)** — zawsze i wyłącznie „wymaga akceptacji uczestnictwa":
+    prośba o dołączenie, oferta zwolnionego miejsca z rezerwy, pytanie o udział
+    (`WYMAGA_AKCJI` w `lib/notifications.ts`), plakietka „Wymaga akceptacji" na karcie
+    meczu. Nigdy nic innego.
+  - **Pomarańczowy (`orange-*`)** — zawsze i wyłącznie „nowość, o której jeszcze nie
+    wiesz" (bez konkretnej wiadomości do przeczytania ani decyzji do podjęcia): kropka
+    na ikonie ekipy, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`
+    (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Znajdź grę" na dolnej
+    nawigacji, gdy w promieniu 5 km pojawiło się nowe wydarzenie
+    (`KLUCZ_WYDARZENIA_WIDZIANO` w `lib/events.ts`). Nigdy nic innego.
+
+  Nowy wskaźnik/plakietka w UI ma sprawdzić, czy mieści się w jednym z tych trzech
+  znaczeń, zanim sięgnie po `pink-*`/`blue-*`/`orange-*` — i **nie** używać ich do
+  niczego innego (inny kolor niż zwykle też jest sygnałem). Przy dodawaniu nowego
+  typu wskaźnika warto od razu rozważyć, czy zasługuje na własny, konsekwentnie
+  używany kolor w całej apce, zamiast doraźnego wyboru per ekran.

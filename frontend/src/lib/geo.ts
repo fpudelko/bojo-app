@@ -67,3 +67,22 @@ export function getCurrentLocation(): Promise<GeoOutcome> {
     );
   });
 }
+
+/**
+ * Czy przeglądarka ma JUŻ udzieloną zgodę na lokalizację — bez pytania o nią.
+ * Kropka „nowe wydarzenia w pobliżu" na dolnej nawigacji (patrz
+ * `BottomNav.tsx`) sprawdza to przy każdej zmianie trasy; gdyby zamiast tego
+ * wołała `getCurrentLocation()` wprost, wyskakiwałaby systemowa prośba o
+ * zgodę bez żadnego kontekstu, komuś kto nigdy jej nie udzielił. Zwraca
+ * `false` też tam, gdzie Permissions API nie istnieje (Safari < 16) — brak
+ * kropki jest bezpieczniejszym fallbackiem niż proszenie o zgodę w tle.
+ */
+export async function hasGeolocationPermission(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !('permissions' in navigator)) return false;
+  try {
+    const status = await navigator.permissions.query({ name: 'geolocation' });
+    return status.state === 'granted';
+  } catch {
+    return false;
+  }
+}

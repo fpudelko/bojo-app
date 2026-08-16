@@ -18,6 +18,7 @@ import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, isPast } from '@/lib/eventWizard';
+import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import {
@@ -176,6 +177,7 @@ function NewEventForm() {
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupMemberCount, setGroupMemberCount] = useState<number | undefined>(undefined);
   // Ekipa meczu — wejście `?group=` tylko ją preselekcjonuje; od kroku 3 da się
   // ją wybrać albo zdjąć ręcznie, więc to musi być stan, nie sam parametr URL.
   const [grupaId, setGrupaId] = useState<string | undefined>(groupId);
@@ -186,6 +188,7 @@ function NewEventForm() {
       getGroup(groupId).then((g) => {
         if (!g) return;
         setGroupName(g.name);
+        setGroupMemberCount(g.memberCount);
         if (g.sport) setSport(g.sport);
         // Prefill the group's home venue (unless a field was passed explicitly).
         if (g.fieldId && !preFieldId) {
@@ -213,7 +216,7 @@ function NewEventForm() {
   useEffect(() => {
     if (!grupaId || groupName) return;
     import('@/lib/groups').then(({ getGroup }) =>
-      getGroup(grupaId).then((g) => { if (g) setGroupName(g.name); }).catch(() => {}),
+      getGroup(grupaId).then((g) => { if (g) { setGroupName(g.name); setGroupMemberCount(g.memberCount); } }).catch(() => {}),
     );
   }, [grupaId, groupName]);
 
@@ -931,7 +934,7 @@ function NewEventForm() {
                 setCzasWlasny={setCzasWlasny}
                 dateError={fieldErrors.date}
                 inputCls={inputCls}
-                extraSlot={
+                extraSlot={SHOW_RECURRING ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -967,7 +970,7 @@ function NewEventForm() {
                       <span className="shrink-0 text-xs font-semibold text-primary-700">Włącz</span>
                     )}
                   </button>
-                }
+                ) : undefined}
               />
 
               <EventCapacityFields
@@ -1147,6 +1150,8 @@ function NewEventForm() {
                 setVisibility={setVisibility}
                 requireApproval={requireApproval}
                 setRequireApproval={setRequireApproval}
+                grupaNazwa={groupName ?? undefined}
+                liczbaCzlonkowGrupy={groupMemberCount}
               />
 
               {/* Seeker count nudge — appears when we have location + date */}
@@ -1268,6 +1273,7 @@ function NewEventForm() {
           onWybierz={(g: Group | null) => {
             setGrupaId(g?.id);
             setGroupName(g?.name ?? null);
+            setGroupMemberCount(g?.memberCount);
             setWyborGrupyOtwarty(false);
           }}
         />

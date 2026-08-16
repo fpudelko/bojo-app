@@ -13,7 +13,11 @@ import type { MyEventRow } from '@/lib/myEvents';
  *  na /moje-gry ("Twoje najbliższe mecze"), zamiast osobnego, większego
  *  markupu. Przycisk „Udostępnij" znika razem z tym — mecz nadal da się
  *  udostępnić ze strony szczegółów. */
-export default function NextMatchCard({ row }: { row: MyEventRow | null }) {
+export default function NextMatchCard({ row, unreadMessages }: {
+  row: MyEventRow | null;
+  /** Nieprzeczytane wiadomości w rozmowie tego meczu — patrz `EventBrowseCard`. */
+  unreadMessages?: number;
+}) {
   if (!row) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
@@ -53,7 +57,7 @@ export default function NextMatchCard({ row }: { row: MyEventRow | null }) {
         Najbliższy mecz
       </span>
       <div className="mt-2">
-        <EventBrowseCard event={row.event} relation={row.relation} />
+        <EventBrowseCard event={row.event} relation={row.relation} unreadMessages={unreadMessages} />
       </div>
     </div>
   );
