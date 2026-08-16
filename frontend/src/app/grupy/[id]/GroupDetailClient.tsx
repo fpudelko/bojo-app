@@ -165,7 +165,12 @@ export default function GroupDetailClient() {
   // „nowy mecz w ekipie" na karcie tej ekipy na `/grupy` (patrz `KartaEkipy`
   // w GroupsClient.tsx) — osobny znacznik od `kluczTablicaWidziano`, bo to
   // inne pytanie: „widziałem nowy mecz", nie „widziałem nową wiadomość".
+  // Stara wartość jest odczytana PRZED nadpisaniem — bez niej zakładka Mecze
+  // nie miałaby jak wskazać, KTÓRY konkretnie mecz jest tym nowym (kropka na
+  // karcie ekipy gasłaby, ale w środku nic by tego nie tłumaczyło).
+  const [grupaWidzianaWczesniej, setGrupaWidzianaWczesniej] = useState<string | null>(null);
   useEffect(() => {
+    setGrupaWidzianaWczesniej(window.localStorage.getItem(kluczGrupyWidziano(id)));
     window.localStorage.setItem(kluczGrupyWidziano(id), new Date().toISOString());
   }, [id]);
 
@@ -296,6 +301,12 @@ export default function GroupDetailClient() {
   // Sekcja „Najbliższy mecz" nad zakładkami już go pokazuje (wyłącznie
   // członkom) — w liście „Nadchodzące" niżej nie ma co go powtarzać.
   const upcomingBezNajblizszego = member && nextMatch ? upcoming.filter((e) => e.id !== nextMatch.id) : upcoming;
+  // Pomarańczowa kropka na konkretnym meczu — ten sam znacznik, co gasi
+  // zbiorczą kropkę na karcie ekipy (`kluczGrupyWidziano`), tylko po stronie
+  // pojedynczego wpisu, żeby było wiadomo KTÓRY mecz jest tym nowym.
+  const jestNowyMecz = (e: EventItem) => (
+    grupaWidzianaWczesniej != null && new Date(e.createdAt).getTime() > new Date(grupaWidzianaWczesniej).getTime()
+  );
 
   if (loading) {
     return (
@@ -501,6 +512,7 @@ export default function GroupDetailClient() {
             canCreateEvents={perms.canCreateEvents}
             relation={nextMatch ? statusFor(nextMatch) : undefined}
             unreadMessages={nextMatch ? nieprzeczytaneWMeczach[nextMatch.id] : undefined}
+            isNew={nextMatch ? jestNowyMecz(nextMatch) : undefined}
           />
         )}
 
@@ -523,7 +535,7 @@ export default function GroupDetailClient() {
               <section className="space-y-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Nadchodzące</h3>
                 {upcomingBezNajblizszego.map((e) => (
-                  <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} />
+                  <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} isNew={jestNowyMecz(e)} />
                 ))}
               </section>
             )}

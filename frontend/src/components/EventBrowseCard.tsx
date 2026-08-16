@@ -38,13 +38,19 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
+export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
    *  kto gra, organizuje albo jest na rezerwie (nie dla „obserwuję" ani
    *  „czeka na akceptację", patrz `getMyActiveEventIds()` w `lib/events.ts`).
    *  Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */
   unreadMessages?: number;
+  /** Ten konkretny mecz jest nowy od ostatniej wizyty na liście/w ekipie —
+   *  pomarańczowa kropka na ikonie sportu, ten sam ślad co zbiorcza kropka
+   *  na `/wydarzenia`/karcie ekipy (patrz AGENTS.md, Konwencje: pomarańczowy
+   *  = „nowość"). Bez tego zbiorcza kropka nie miała jak wskazać, KTÓRY
+   *  konkretnie wpis na liście jest nowy — zgłoszone wprost. */
+  isNew?: boolean;
 }) {
   const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
@@ -114,11 +120,14 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
         {/* top: icon + title + price */}
         <div className="flex items-start gap-2.5">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
             style={{ backgroundColor: `${color}1a`, boxShadow: `inset 0 0 0 1px ${color}33` }}
             aria-hidden="true"
           >
             {emoji}
+            {isNew && (
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" />
+            )}
           </div>
 
           <div className="min-w-0 flex-1">

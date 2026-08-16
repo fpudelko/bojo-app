@@ -332,6 +332,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Pomarańczowa kropka na konkretnym meczu, dymki tłumaczące kropki na dolnej nawigacji
+
+PROBLEM: pomarańczowa kropka na „Grupy"/„Znajdź grę" i różowa/niebieska na „Moje" mówiły
+„coś nowego się pojawiło", ale po wejściu w daną zakładkę nie było wiadomo, KTÓRY
+konkretnie wpis na liście to jest — trzeba było zgadywać albo przeglądać wszystko po
+kolei. Kolor kropek ma spisaną, stałą konwencję (`AGENTS.md` → Konwencje), ale nikt nowy
+nie zna jej z góry — pierwsze zetknięcie z pomarańczową kropką nie tłumaczyło się samo.
+
+ROZWIĄZANIE BOJO: `EventBrowseCard` dostał `isNew` — pomarańczowa kropka w rogu ikony
+sportu na konkretnym wpisie, nowym od ostatniej wizyty na liście/w ekipie. Na
+`/wydarzenia` i w zakładce Mecze konkretnej ekipy (`/grupy/[id]`, też „Najbliższy mecz"
+nad zakładkami) widać teraz nie tylko ZE coś jest nowe, ale i CO. Osobno: gdy kropka na
+dolnej nawigacji zapala się pierwszy raz (przejście wyłączona→włączona, nie każda zmiana
+trasy), nad ikoną na 1,5 sekundy pojawia się mały czarny dymek z wyjaśnieniem — „Nowa
+prośba o dołączenie", „Nowe wiadomości", „Nowa gra w grupie {nazwa}", „Nowa gra w
+promieniu 5 km". Licznik w `localStorage` jest per typ dymka, nie per kropka — po 5
+pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie.
+
+MECHANIKA: `EventBrowseCard.tsx` — nowy prop `isNew`, kropka na ikonie sportu (analogicznie
+do plakietki nieprzeczytanych). `EventsListClient.tsx` — odczytuje
+`KLUCZ_WYDARZENIA_WIDZIANO` PRZED nadpisaniem, przekazuje starą wartość jako
+`widzianoWczesniej` do `EventsListView`; `null`/pierwsza wizyta świadomie nie oznacza
+niczego jako nowe (zalałoby listę kropkami). `GroupDetailClient.tsx` — ten sam wzorzec,
+`grupaWidzianaWczesniej` ze starej wartości `kluczGrupyWidziano()`. `lib/groups.ts` —
+nowa `getNewGroupEventGroupName()`: nazwa ekipy z najświeższym nowym meczem (gdy nowych
+jest kilka naraz, wygrywa `createdAt` najpóźniejszy). `BottomNav.tsx` — stan `dymki`
+(Record typ→tekst), `poprzednieAktywne` (ref) łapie wyłącznie przejście false→true,
+licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`, limit 5).
+
 ### 2026-08-16 — Przełącznik ekip w belce, ekipa z najbliższym meczem na pulpicie, prawdziwa naprawa kropki na "Moje", filtr znów przesunięty
 
 PROBLEM: kropka „nowe wiadomości" na „Moje" wciąż świeciła się bez śladu wiadomości mimo
@@ -692,44 +721,3 @@ widzi bez bramki, ten sam powód co `can_create_events` w `092`; trigger
 `RozmowaGrupy.tsx` (mechanika bez zmian — `group_posts`, `093` — zmienił się wyłącznie
 wygląd i etykieta); `getMyGroupsZTerminem()` w `lib/groups.ts` sortuje wynik po dacie
 najbliższego meczu, grupy bez terminu na końcu.
-
-### 2026-08-14 — Grupy jako magnes na organizatora: uprawnienia, tablica, zaproszenia z nadawcą, statystyki
-
-PROBLEM: strategia (`docs/strategia.md §0`) przesuwa priorytet na pozyskiwanie
-organizatorów — a grupa jest jedynym miejscem w Bojo, gdzie pętla „co tydzień zbieram
-tę samą ekipę" może domykać się jednym kliknięciem zamiast wątku na komunikatorze. Kod
-sprzed tej zmiany na to nie pozwalał: `repeatEvent()` gubił przypięcie do grupy przy
-powtórce meczu; każdy, kto poznał UUID grupy (publicznie czytelne), mógł się do niej
-dopisać, bo `join_code` sprawdzał wyłącznie interfejs; roli członka nie dało się w ogóle
-zmienić — brakowało polityki UPDATE na `group_members` — więc jedynym „współorganizatorem"
-był zawsze i wyłącznie założyciel; nie było tablicy ani statystyk drużyny; zaproszenie
-`/g/[kod]` prowadziło od razu na ekran proszący o logowanie, zanim ktokolwiek zobaczył,
-do czego właściwie dołącza.
-
-ROZWIĄZANIE BOJO: założyciel może teraz nadać zaufanym członkom trzy niezależne
-uprawnienia (zarządzanie składem ekipy, zakładanie meczów w jej imieniu, moderowanie
-tablicy) — sam zawsze zachowuje komplet i jako jedyny może usunąć grupę. Dołączenie do
-grupy wymaga kodu zawsze — dziura z samym UUID jest zamknięta. Nowa tablica ogłoszeń:
-płaska lista wpisów, jeden może być przypięty i to jedyny, który powiadamia całą ekipę
-(dzwonek ma zostać miejscem na rzeczy wymagające działania, nie kanałem czatu). Ekran
-grupy zaczyna się od najbliższego meczu — gdy go nie ma, jeden przycisk „Powtórz na
-{data}" zakłada kolejny termin z tymi samymi ustawieniami co poprzedni. Zaproszenie
-`/g/[kod]` jest teraz czytelne bez konta (nazwa ekipy, kto zaprasza, najbliższy mecz,
-historia) z formularzem rejestracji od razu pod spodem — ten sam „pokaż wartość przed
-kontem", co przy zapisie na mecz bez logowania. Statystyki grupy (mecze, gole,
-niezawodność) są uczciwe co do tego, czego nie da się policzyć: zwycięstwa liczą się
-tylko tam, gdzie mecz miał podział na drużyny i wpisany wynik, a „niezawodność" nie
-udaje frekwencji, której Bojo nie śledzi.
-
-MECHANIKA: migracje `092` (`group_members.can_manage_members/can_create_events/
-can_moderate_wall`, trigger `ustaw_role_czlonka()` wyliczający etykietę `role` z tych
-przełączników, pięć funkcji `SECURITY DEFINER` do polityk RLS), `093` (tabela
-`group_posts`, `notifications.group_id`, wyzwalacz powiadamiający o przypiętym
-ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
-`odswiez_kod_grupy()`, `group_members.invited_by`, zdjęta polityka INSERT na
-`group_members`), `095` (RPC `get_group_stats()`/`get_group_leaderboard()`). Frontend:
-`lib/{groupPosts,groupStats,groupShare}.ts`, przebudowane `/grupy`, `/grupy/[id]`
-(cztery zakładki: Mecze/Tablica/Skład/Statystyki, komponenty w `components/groups/`),
-`/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
-Pełny model uprawnień → [docs/domena.md § Uprawnienia w
-grupie](./domena.md#uprawnienia-w-grupie).

@@ -291,6 +291,29 @@ tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływ
 okno o zgodę na lokalizację bez żadnego kontekstu — dla kogoś, kto jej nigdy nie udzielił.
 Brak zgody = brak kropki, nie prośba w tle.
 
+**Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
+wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
+w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 1,5 s pojawia się mała czarna
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska), „Nowe wiadomości"
+(różowa — jeden tekst dla „Moje" i „Grupy", bo mówią to samo), „Nowa gra w grupie {nazwa}"
+(pomarańczowa na „Grupy" — nazwa z `getNewGroupEventGroupName()` w `lib/groups.ts`, ekipa
+z najświeższym nowym meczem, gdy nowych jest kilka naraz), „Nowa gra w promieniu 5 km"
+(pomarańczowa na „Znajdź grę"). Licznik pokazań w `localStorage`
+(`bojo:dymek-pokazania:<typ>`) jest **per typ, nie per kropka** — po 5 pokazaniach danego
+typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie, co ta kropka znaczy.
+
+**Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
+(„Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
+CO — zgłoszone wprost. `EventBrowseCard` dostał prop `isNew`: pomarańczowa kropka w rogu
+ikony sportu na konkretnym wpisie. Na `/wydarzenia` — `EventsListClient.tsx` odczytuje
+`KLUCZ_WYDARZENIA_WIDZIANO` PRZED nadpisaniem go na „teraz" (inaczej porównanie zawsze
+wypadałoby „nic nie jest nowe") i przekazuje starą wartość do `EventsListView` jako
+`widzianoWczesniej`; `null`/`undefined` (pierwsza wizyta) świadomie nie oznacza niczego —
+na pierwszej wizycie KAŻDE wydarzenie byłoby „nowe", co zalałoby listę kropkami. Na
+`/grupy/[id]` (zakładka Mecze, też „Najbliższy mecz" nad zakładkami) — ten sam wzorzec ze
+starą wartością `kluczGrupyWidziano()`, zmienna `grupaWidzianaWczesniej` w
+`GroupDetailClient.tsx`.
+
 „Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
 `kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
 wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania.
