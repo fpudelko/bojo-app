@@ -2013,7 +2013,13 @@ export default function EventDetailClient() {
               w bok nie ma pokazywać poziomego paska przewijania. */}
           <div className="border-b border-slate-100 px-4">
             <div className="scrollbar-hide flex gap-5 overflow-x-auto">
-              {EVENT_TAB_LABELS.map(([t, label]) => (
+              {/* „Ustawienia" to panel organizatora (treść niżej i tak
+                  wymaga `canManageEvent`) — sam przycisk zakładki musi
+                  zniknąć razem z nią, inaczej ktoś bez żadnej roli w meczu
+                  widzi zakładkę, która po kliknięciu jest pusta. Zgłoszone
+                  wprost, ten sam wyciek co w `/grupy/[id]` (patrz commit
+                  o zerowaniu `permissions`). */}
+              {EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia' || canManageEvent).map(([t, label]) => (
                 <button
                   key={t}
                   onClick={() => goToTab(t)}
