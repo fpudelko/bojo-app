@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation';
 import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
-import { hasPendingApprovalRequests } from '@/lib/events';
+import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
 import { getMyGroupIds } from '@/lib/groups';
 import { hasUnreadGroupMessages } from '@/lib/groupPosts';
 import { hasUnreadEventMessages } from '@/lib/comments';
+import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
 
 function BallIcon({ className }: { className?: string }) {
@@ -72,15 +73,36 @@ export default function BottomNav() {
       .catch(() => {});
   }, [user, pathname]);
 
+  // Pomarańczowa kropka „nowe wydarzenia w pobliżu" przy „Znajdź grę" —
+  // wyłącznie gdy zgoda na lokalizację jest JUŻ udzielona (`getCurrentLocation()`
+  // wprost wywołałaby systemowe okno o zgodę bez kontekstu, przy każdej zmianie
+  // trasy). Brak zgody = brak kropki, nie prośba o nią w tle.
+  const [nearbyNew, setNearbyNew] = useState(false);
+  useEffect(() => {
+    let aktualne = true;
+    (async () => {
+      const granted = await hasGeolocationPermission();
+      if (!granted) { if (aktualne) setNearbyNew(false); return; }
+      const loc = await getCurrentLocation();
+      if (!loc.ok) { if (aktualne) setNearbyNew(false); return; }
+      const events = await getNearbyEvents(loc.lat, loc.lng, 5, 20).catch(() => []);
+      const widziano = typeof window !== 'undefined' ? window.localStorage.getItem(KLUCZ_WYDARZENIA_WIDZIANO) : null;
+      if (aktualne) setNearbyNew(maNoweWydarzeniaWPobolizu(events, widziano));
+    })();
+    return () => { aktualne = false; };
+  }, [pathname]);
+
   function NavLink({
     href, label, Icon, dots = [],
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Kropki — dziś "Moje" (oczekujące prośby o dołączenie + nieprzeczytane
-        wiadomości) i "Grupy" (nieprzeczytane wiadomości). Kolor niesie
-        znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
-        niebieski wyłącznie "wymaga akceptacji", różowy wyłącznie "wiadomości".
-        Każda kropka ma swój róg, żeby dwie naraz na "Moje" się nie nakładały. */
+        wiadomości), "Grupy" (nieprzeczytane wiadomości) i "Znajdź grę" (nowe
+        wydarzenia w pobliżu). Kolor niesie znaczenie w całej apce (patrz
+        AGENTS.md, sekcja Konwencje): niebieski wyłącznie "wymaga akceptacji",
+        różowy wyłącznie "wiadomości", pomarańczowy wyłącznie "nowość, o której
+        jeszcze nie wiesz". Każda kropka ma swój róg, żeby dwie naraz na "Moje"
+        się nie nakładały. */
     dots?: { color: string; label: string; position: 'top-right' | 'top-left' }[];
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
@@ -130,7 +152,13 @@ export default function BottomNav() {
       aria-label="Nawigacja dolna"
     >
       <div className="grid h-14 grid-cols-5 items-end">
-        {LEFT_ITEMS.map((item) => <NavLink key={item.href} {...item} />)}
+        {LEFT_ITEMS.map((item) => {
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
+          if (item.href === '/wydarzenia' && nearbyNew) {
+            dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
+          }
+          return <NavLink key={item.href} {...item} dots={dots} />;
+        })}
 
         {/* Centre FAB — always accessible, can't be deselected. Na stronie
             konkretnej ekipy prowadzi do kreatora z już wybraną grupą — to jest

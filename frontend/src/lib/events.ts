@@ -885,6 +885,27 @@ export async function getNearbyEvents(lat: number, lng: number, radiusKm = 5, li
   return (data ?? []).map(toEvent);
 }
 
+/** Klucz w `localStorage` pod którym trzymamy „ostatnio odwiedzono listę
+ *  wydarzeń" — zasila pomarańczową kropkę „nowe wydarzenia w pobliżu" przy
+ *  „Znajdź grę" na dolnej nawigacji (patrz `BottomNav.tsx`). Jeden klucz,
+ *  nie per-lokalizacja: to pytanie „czy byłem na /wydarzenia od czasu, jak
+ *  coś nowego się pojawiło w pobliżu", nie per-miejsce śledzenie. */
+export const KLUCZ_WYDARZENIA_WIDZIANO = 'bojo:wydarzenia-widziano';
+
+/** Czy wśród pobliskich wydarzeń jest choć jedno nowsze niż ostatnio widziano
+ *  — ta sama logika co `maNoweMecze()` w `groups.ts` (brak znacznika =
+ *  wszystko nowe), tylko dla wydarzeń w promieniu, nie meczów jednej ekipy. */
+export function maNoweWydarzeniaWPobolizu(
+  events: { createdAt: string }[],
+  widzianoIso: string | null,
+): boolean {
+  if (events.length === 0) return false;
+  if (!widzianoIso) return true;
+  const widziano = new Date(widzianoIso).getTime();
+  if (Number.isNaN(widziano)) return true;
+  return events.some((e) => new Date(e.createdAt).getTime() > widziano);
+}
+
 export async function setRequireApproval(eventId: string, value: boolean): Promise<void> {
   const { error } = await supabase.from('events').update({ require_approval: value }).eq('id', eventId);
   if (error) throw new Error(error.message);

@@ -15,7 +15,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
 | `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
-| `SHOW_RECURRING` | `true` | — (włączona od migracji `073`) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` |
+| `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
 Cztery pierwsze: `frontend/src/lib/features.ts` (stałe w kodzie).
@@ -272,19 +272,50 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
-**Kropki na „Moje" i „Grupy".** Dwie niezależne, osobno liczone: niebieska na „Moje" —
-oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`) — i różowa
-na „Moje" oraz na „Grupy" — nieprzeczytane wiadomości (`hasUnreadEventMessages()`
-w `lib/comments.ts`, `hasUnreadGroupMessages()` w `lib/groupPosts.ts`). Kolor ma stałe
-znaczenie w całej apce, patrz `AGENTS.md` → Konwencje. Na „Moje" mogą się zapalić obie naraz
-— różowa siedzi w lewym górnym rogu ikony, niebieska w prawym, żeby się nie nakładały.
+**Kropki na „Moje", „Grupy" i „Znajdź grę".** Trzy niezależne, osobno liczone: niebieska na
+„Moje" — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`) —
+różowa na „Moje" oraz na „Grupy" — nieprzeczytane wiadomości (`hasUnreadEventMessages()`
+w `lib/comments.ts`, `hasUnreadGroupMessages()` w `lib/groupPosts.ts`) — i pomarańczowa na
+„Znajdź grę" — nowe wydarzenie w promieniu 5 km od ostatniej wizyty na `/wydarzenia`
+(`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik `KLUCZ_WYDARZENIA_WIDZIANO`).
+Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` → Konwencje. Na „Moje" mogą się
+zapalić obie kropki naraz — różowa siedzi w lewym górnym rogu ikony, niebieska w prawym,
+żeby się nie nakładały.
+
+Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
+`hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
+tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływałaby systemowe
+okno o zgodę na lokalizację bez żadnego kontekstu — dla kogoś, kto jej nigdy nie udzielił.
+Brak zgody = brak kropki, nie prośba w tle.
+
 „Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
 `kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
-wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania. Ten sam
-mechanizm zasila plakietkę z liczbą przy zakładce Rozmowa/Tablica (patrz zakładki
+wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania.
+`getMyActiveEventIds()` (gram/rezerwa/organizuję) **nie filtruje po dacie** — mecz
+z historii z nową wiadomością też zapala różową kropkę na „Moje"; `/moje-gry` (zakładka
+Historia) i mecze ekipy (`/grupy/[id]`, sekcja Historia) muszą więc przekazywać
+`unreadMessages` do `EventBrowseCard` również tam, nie tylko w Nadchodzących — inaczej
+kropka świeci się bez żadnego widocznego śladu, gdzie szukać wiadomości (zgłoszone wprost).
+Ten sam mechanizm zasila plakietkę z liczbą przy zakładce Rozmowa/Tablica (patrz zakładki
 `/wydarzenia/[id]` i `/grupy/[id]` niżej) oraz ikonę z liczbą obok chipu „N wolnych miejsc"
 na karcie meczu (`EventBrowseCard`, tylko gdy gram/organizuję/jestem na rezerwie w tym
-meczu) i na karcie ekipy (`/grupy`).
+meczu).
+
+**Kropki na karcie ekipy (`/grupy`).** Na ikonie każdej ekipy: różowa w lewym górnym rogu —
+nieprzeczytana wiadomość na tablicy (ten sam `nieprzeczytane()` co wyżej) — pomarańczowa
+w prawym górnym rogu — nowy mecz w ekipie od ostatniej wizyty na `/grupy/[id]`
+(`maNoweMecze()`/`getGroupEventsForNew()` w `lib/groups.ts`, znacznik `kluczGrupyWidziano()`,
+ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — osobny od
+`kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
+listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
+
+**Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości w pasku zakładek
+(zakładka Nadchodzące), poza przewijanym paskiem tabów — nie dokłada wysokości i jest
+widoczna niezależnie od tego, czy akurat jest co pokazać w „Brakuje graczy" (zgłoszone
+wprost: przycisk nie mógł zależeć od zawartości sekcji niżej). Widoczna tylko, gdy jest
+choć jeden nieprzeczytany mecz. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy",
+najbliższy mecz i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia
+i stałe gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
 
 ---
 
@@ -508,9 +539,11 @@ konkurencyjny przycisk „Udostępnij" na tej samej stronie.
 
 ## Serie wydarzeń cyklicznych
 
-Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii
-(`SHOW_RECURRING` włączona, moduł widoczny w nawigacji). Model, żeby nie duplikować
-schematu `events` w `recurring_events` — pełny opis w [domena.md](./domena.md):
+Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii.
+Moduł jest dziś schowany za `SHOW_RECURRING = false` (patrz „Flagi funkcji" wyżej) —
+kod, istniejące serie i ich strony zarządzania zostają nietknięte, chowają się wyłącznie
+wejścia w nawigacji. Model, żeby nie duplikować schematu `events` w `recurring_events` —
+pełny opis w [domena.md](./domena.md):
 
 - **szablon** (`recurring_events`) niesie regułę powtarzania: dzień tygodnia, godzina,
   miejsce, limit miejsc, widoczność i wyprzedzenie (`notify_days_before`),
@@ -702,7 +735,11 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
    minimum, żeby gra się odbyła" w `EventCapacityFields.tsx`, obok stepperu liczby
    miejsc): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
    czysta funkcja, `werdyktGry()` (`lib/events.ts`) — ten sam werdykt na stronie meczu
-   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`.
+   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`. Toggle żyje **wyłącznie
+   w edycji** (`/wydarzenia/[id]/edytuj`) od 2026-08-16 — kreator (`/wydarzenia/nowe`)
+   nie przekazuje `onMinPlayersChange` do `EventCapacityFields`, więc sekcja się tam
+   w ogóle nie renderuje (prop opcjonalny, komponent gasi ją sam). Zgłoszone wprost jako
+   zbędny krok przy zakładaniu meczu; istniejące progi i ich logika zostają nietknięte.
 2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
