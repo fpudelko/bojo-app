@@ -332,6 +332,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+
+PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
+ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
+nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
+push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+
+ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
+pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
+„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
+„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
+i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
+„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
+powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
+spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
+w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+
+MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
+więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
+`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
+systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
+`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
+nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+
 ### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
 
 PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
@@ -694,37 +718,3 @@ MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
 `event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
 `player_reports` (`091`). Pełny model uprawnień →
 [docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
-
-### 2026-08-13 — Strony treści dla organizatorów, FAQ naprawia kłamstwo o koncie, domknięcie meczu po gwizdku
-
-PROBLEM: FAQ na stronie głównej, `llms.txt` i sekcja „Zasięg i skala" tego pliku
-twierdziły, że dołączenie do meczu wymaga logowania — nieprawda od migracji `082`
-(self-service zapis gościa, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)).
-To dokładnie ten argument, którym organizator przebija opór graczy przed zakładaniem
-konta w obcej aplikacji, i aplikacja sama sobie go zabierała. Osobno: dane produkcyjne
-pokazały, że rzeczy, które Bojo umie **po meczu**, prawie nigdy się nie dzieją —
-122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych, zero przejętych wpisów
-gości — bo nic o nie nie prosi we właściwym momencie. Strategia (`docs/strategia.md §0`)
-przesuwa priorytet na pozyskiwanie organizatorów, a produkt nie miał stron tłumaczących
-mechanikę i przewagę nad wątkiem na Messengerze pod SEO/GEO/AEO.
-
-ROZWIĄZANIE BOJO: trzy nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
-kreatora po rozliczenie, z jawną sekcją o tym, że dołączenie nie wymaga konta,
-i sekcją „co Bojo powiadamia i gdzie", która wprost mówi, że SMS-ów i maili o meczu nie
-wysyła), `/dlaczego-bojo` (tabela porównawcza z grupą FB/WhatsApp, argument na „moi
-gracze nie założą konta"), `/faq` (36 pytań w sześciu kategoriach, wspólne źródło ze
-stroną główną). Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
-liczba obiektów ~30 000 zamiast nieaktualnego ~1400). Karta „Po meczu" na stronie meczu
-zbiera zadania organizatora (rozlicz ekipę, wpisz wynik, zaproś gości bez konta, powtórz
-mecz) w jednym miejscu zamiast jednej bursztynowej linijki; okno „Powtórz mecz" otwiera
-się z wypełnioną datą najbliższego takiego samego dnia tygodnia zamiast pustego pola;
-zakładka Historia na `/moje-gry` dostała sekcję „Do rozliczenia".
-
-MECHANIKA: `src/content/{faq,jakDziala,dlaczego,zakazaneFrazy}.ts` — copy jako
-dane, testowalne bez renderowania (wzorem `components/home/landing/content.ts`, który
-teraz re-eksportuje `FAQ_LANDING` z `content/faq.ts`); `components/tresc/*` — powłoka
-stron treści; `lib/recurring.ts`
-(`domyslnyTerminPowtorki()`); `lib/myEvents.ts` (`doRozliczenia()`);
-`components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
-(`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
-`EventDetailClient.tsx` i `getMyParticipatedEvents()` już liczyły.

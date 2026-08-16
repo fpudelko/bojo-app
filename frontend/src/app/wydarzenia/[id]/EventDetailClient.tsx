@@ -71,6 +71,7 @@ import { getNieobecni, oznaczNieobecnosc, cofnijNieobecnosc, type NieobecnyWpis 
 import { withCount } from '@/lib/plural';
 import { TEAM_LABELS, TEAM_LETTERS, TEAM_COLOR_CLASSES } from '@/lib/teamLabels';
 import { WARSTWA } from '@/lib/warstwy';
+import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes } from '@/lib/time';
 
@@ -934,6 +935,12 @@ export default function EventDetailClient() {
       } else {
         toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
       }
+      // Moment, w którym proponujemy dodanie Bojo do ekranu głównego: człowiek
+      // WŁAŚNIE zapisał się na mecz, więc obietnica „przypomnimy Ci o nim"
+      // znaczy dla niego coś konkretnego. Prośba na wejściu na stronę byłaby
+      // odruchowo zamknięta. Sama funkcja niczego nie wymusza — komponent
+      // sprawdzi, czy w ogóle jest kogo pytać (`lib/instalacja.ts`).
+      zaproponujInstalacje();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
