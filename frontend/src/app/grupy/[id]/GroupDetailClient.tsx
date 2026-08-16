@@ -25,6 +25,7 @@ import { useToast } from '@/lib/toast';
 import {
   getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
   joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
+  kluczGrupyWidziano,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
@@ -116,6 +117,16 @@ export default function GroupDetailClient() {
   }, [zaprosZUrl, id]);
 
   const load = useCallback(async () => {
+    // Zerowanie PRZED pobraniem nowych danych — strona `/grupy/[id]` jest
+    // trasą dynamiczną, więc przejście z jednej ekipy do drugiej (np. link
+    // z listy) nie odmontowuje komponentu, tylko zmienia `id`. Bez tego
+    // resetu `permissions` z poprzedniej ekipy (gdzie mogłem być
+    // założycielem) zostawało w stanie, dopóki nowe zapytanie nie wróciło —
+    // zakładka „Ustawienia" migała albo świeciła się przez chwilę osobie bez
+    // żadnych uprawnień w nowej ekipie. Zgłoszone wprost.
+    setMember(false);
+    setPermissions(null);
+
     let g: Group | null = null;
     try {
       g = await getGroup(id);
@@ -147,6 +158,14 @@ export default function GroupDetailClient() {
   }, [id, user]);
 
   useEffect(() => { if (!authLoading) load(); }, [load, authLoading]);
+
+  // Wejście na stronę ekipy (którakolwiek zakładka) gasi pomarańczową kropkę
+  // „nowy mecz w ekipie" na karcie tej ekipy na `/grupy` (patrz `KartaEkipy`
+  // w GroupsClient.tsx) — osobny znacznik od `kluczTablicaWidziano`, bo to
+  // inne pytanie: „widziałem nowy mecz", nie „widziałem nową wiadomość".
+  useEffect(() => {
+    window.localStorage.setItem(kluczGrupyWidziano(id), new Date().toISOString());
+  }, [id]);
 
   // Nieprzeczytane wpisy na tablicy — jedno dodatkowe zapytanie, wyłącznie
   // dla członka (nie-członek i tak nie zobaczy tablicy, RLS zwróci pustkę).
@@ -452,7 +471,7 @@ export default function GroupDetailClient() {
             {past.length > 0 && (
               <section className="space-y-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Historia</h3>
-                {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />)}
+                {past.map((e) => <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} unreadMessages={nieprzeczytaneWMeczach[e.id]} />)}
               </section>
             )}
           </div>

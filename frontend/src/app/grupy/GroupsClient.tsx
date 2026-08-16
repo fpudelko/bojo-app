@@ -4,18 +4,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Users, LogIn, ChevronRight, Plus, CalendarPlus, MessageCircle } from 'lucide-react';
+import { Users, LogIn, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import KodGrupySheet from '@/components/groups/KodGrupySheet';
 import { useAuth } from '@/lib/auth';
-import { getMyGroupsZTerminem } from '@/lib/groups';
+import { getMyGroupsZTerminem, getGroupEventsForNew, policzNoweMeczePerGrupa, kluczGrupyWidziano } from '@/lib/groups';
 import { getGroupPostsForUnread, policzNieprzeczytanePerGrupa, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { sportEmoji } from '@/lib/sports';
 import { withCount } from '@/lib/plural';
 import type { GroupWithNext } from '@/types';
 
-function KartaEkipy({ g, nieprzeczytane }: { g: GroupWithNext; nieprzeczytane: number }) {
+function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprzeczytane: number; noweMecze: boolean }) {
   const max = g.nextEvent?.maxPlayers ?? 0;
   const taken = g.nextEvent?.participantsCount ?? 0;
   const brakuje = Math.max(0, max - taken);
@@ -33,8 +33,18 @@ function KartaEkipy({ g, nieprzeczytane }: { g: GroupWithNext; nieprzeczytane: n
       className="block rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-primary-200 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800"
     >
       <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
+        {/* Kropki na rogach ikony, wzorem dolnej nawigacji (BottomNav.tsx):
+            różowa z lewej = nieprzeczytana wiadomość na tablicy, pomarańczowa
+            z prawej = nowy mecz w ekipie od ostatniej wizyty. Kolor niesie
+            stałe znaczenie w całej apce (patrz AGENTS.md, Konwencje). */}
+        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
           {g.sport ? sportEmoji(g.sport) : '👥'}
+          {nieprzeczytane > 0 && (
+            <span className="absolute -left-1 -top-1 h-3 w-3 rounded-full bg-pink-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />
+          )}
+          {noweMecze && (
+            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-ink">{g.name}</p>
@@ -43,13 +53,6 @@ function KartaEkipy({ g, nieprzeczytane }: { g: GroupWithNext; nieprzeczytane: n
             {g.city && ` · ${g.city}`}
           </p>
         </div>
-        {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje).
-            Własne wpisy nigdy nie liczą się jako nieprzeczytane. */}
-        {nieprzeczytane > 0 && (
-          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
-            <MessageCircle className="h-3 w-3" /> {nieprzeczytane}
-          </span>
-        )}
         <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
       </div>
 
@@ -88,6 +91,7 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true);
   const [kodOtwarty, setKodOtwarty] = useState(false);
   const [nieprzeczytane, setNieprzeczytane] = useState<Record<string, number>>({});
+  const [noweMecze, setNoweMecze] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -103,6 +107,17 @@ export default function GroupsPage() {
     getGroupPostsForUnread(groups.map((g) => g.id))
       .then((posts) => setNieprzeczytane(
         policzNieprzeczytanePerGrupa(posts, user.id, (groupId) => window.localStorage.getItem(kluczTablicaWidziano(groupId))),
+      ))
+      .catch(() => {});
+  }, [user, groups]);
+
+  // Pomarańczowe kropki „nowy mecz w ekipie" — jedno zapytanie dla wszystkich
+  // kart naraz, wzorem powyższego dla wiadomości.
+  useEffect(() => {
+    if (!user || groups.length === 0) { setNoweMecze({}); return; }
+    getGroupEventsForNew(groups.map((g) => g.id))
+      .then((events) => setNoweMecze(
+        policzNoweMeczePerGrupa(events, (groupId) => window.localStorage.getItem(kluczGrupyWidziano(groupId))),
       ))
       .catch(() => {});
   }, [user, groups]);
@@ -161,7 +176,9 @@ export default function GroupsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {groups.map((g) => <KartaEkipy key={g.id} g={g} nieprzeczytane={nieprzeczytane[g.id] ?? 0} />)}
+            {groups.map((g) => (
+              <KartaEkipy key={g.id} g={g} nieprzeczytane={nieprzeczytane[g.id] ?? 0} noweMecze={noweMecze[g.id] ?? false} />
+            ))}
           </div>
         )}
 

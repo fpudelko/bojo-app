@@ -398,3 +398,67 @@ export async function setGroupCover(groupId: string, url: string | null): Promis
 export async function getGroupEvents(groupId: string): Promise<EventItem[]> {
   return getEventsByGroup(groupId);
 }
+
+/** Klucz w `localStorage` pod którym trzymamy „ostatnio odwiedzono ekipę X" —
+ *  ustawiany przy KAŻDYM wejściu na `/grupy/[id]` (niezależnie od zakładki),
+ *  nie tylko na Tablicę (to robi `kluczTablicaWidziano` w `groupPosts.ts`,
+ *  osobny znacznik dla osobnego pytania: „czy widziałem wiadomości" vs.
+ *  „czy widziałem, że pojawił się nowy mecz"). */
+export function kluczGrupyWidziano(groupId: string): string {
+  return `bojo:grupa-widziano:${groupId}`;
+}
+
+/** Nadchodzące, nieodwołane mecze wielu grup naraz — same id/grupa/data
+ *  utworzenia, do liczenia pomarańczowej kropki „nowy mecz w ekipie" na
+ *  kartach `/grupy`. Jedno zapytanie zamiast N, wzorem
+ *  `getGroupPostsForUnread()`. */
+export async function getGroupEventsForNew(
+  groupIds: string[],
+): Promise<{ id: string; groupId: string; createdAt: string }[]> {
+  if (groupIds.length === 0) return [];
+  const dzis = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, group_id, created_at')
+    .in('group_id', groupIds)
+    .neq('status', 'cancelled')
+    .gte('event_date', dzis);
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({ id: r.id, groupId: r.group_id, createdAt: r.created_at }));
+}
+
+/** Czy wśród podanych meczów jest choć jeden nowszy niż ostatnio widziano —
+ *  ta sama logika co `nieprzeczytane()` w `groupPosts.ts` (brak znacznika =
+ *  wszystko liczy się jako nowe), tylko zwraca bool zamiast liczby: karta
+ *  ekipy pokazuje samą kropkę, bez licznika. */
+export function maNoweMecze(
+  events: { createdAt: string }[],
+  widzianoIso: string | null,
+): boolean {
+  if (events.length === 0) return false;
+  if (!widzianoIso) return true;
+  const widziano = new Date(widzianoIso).getTime();
+  if (Number.isNaN(widziano)) return true;
+  return events.some((e) => new Date(e.createdAt).getTime() > widziano);
+}
+
+/** Grupuje wynik `getGroupEventsForNew()` po grupie — czysta funkcja,
+ *  `widzianoByGroup` czyta `localStorage` (`kluczGrupyWidziano`) u
+ *  wywołującego, żeby zostać testowalną bez DOM-u. Grupy bez nowego meczu nie
+ *  trafiają do wyniku. */
+export function policzNoweMeczePerGrupa(
+  events: { id: string; groupId: string; createdAt: string }[],
+  widzianoByGroup: (groupId: string) => string | null,
+): Record<string, boolean> {
+  const perGrupa = new Map<string, { createdAt: string }[]>();
+  for (const e of events) {
+    if (!perGrupa.has(e.groupId)) perGrupa.set(e.groupId, []);
+    perGrupa.get(e.groupId)!.push(e);
+  }
+  const wynik: Record<string, boolean> = {};
+  perGrupa.forEach((wpisy, groupId) => {
+    if (maNoweMecze(wpisy, widzianoByGroup(groupId))) wynik[groupId] = true;
+  });
+  return wynik;
+}

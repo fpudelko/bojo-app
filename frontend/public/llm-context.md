@@ -332,6 +332,52 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Pomarańczowa kropka "nowość"; kropki na kartach ekip; filtr nieprzeczytanych na /moje-gry; zakładka Ustawienia bez wycieku uprawnień; usunięty próg minimum z kreatora
+
+PROBLEM: zakładka „Ustawienia" ekipy migała (czasem zostawała) widoczna osobie bez
+żadnych uprawnień — `/grupy/[id]` jest trasą dynamiczną, więc przejście z ekipy, gdzie
+ktoś jest założycielem, do ekipy, gdzie nie ma żadnej roli, nie odmontowywało
+komponentu; stan uprawnień z poprzedniej ekipy zostawał, dopóki nowe zapytanie nie
+wróciło. Karty ekip na `/grupy` i dolna nawigacja nie miały żadnego sygnału „pojawiło
+się coś nowego" — tylko „masz nieprzeczytaną wiadomość". Różowa kropka „nowe
+wiadomości" na „Moje" potrafiła się świecić bez żadnego widocznego śladu: liczy się też
+z meczów w Historii, a `/moje-gry` (zakładka Historia) i mecze ekipy w Historii nie
+przekazywały licznika nieprzeczytanych do karty meczu, więc nie było gdzie tej
+wiadomości znaleźć. Na `/moje-gry` nie dało się przefiltrować listy do samych meczów
+z nieprzeczytaną wiadomością. Kreator meczu miał krok z toggle'em „Ustaw minimum, żeby
+gra się odbyła" — zbędny przy zakładaniu nowego meczu, skoro organizator jeszcze nie
+zna faktycznej frekwencji.
+
+ROZWIĄZANIE BOJO: `/grupy/[id]` zeruje stan uprawnień na START każdego przeładowania
+(nie tylko po odpowiedzi z bazy), więc zakładka Ustawienia nigdy nie pokazuje
+uprawnień z poprzednio oglądanej ekipy. Trzeci, zarezerwowany kolor w apce —
+pomarańczowy — „nowość, o której jeszcze nie wiesz": kropka na ikonie ekipy (obok
+istniejącej różowej za wiadomości) gdy pojawił się nowy mecz od ostatniej wizyty na
+stronie ekipy, i kropka przy „Znajdź grę" na dolnej nawigacji, gdy w promieniu 5 km od
+użytkownika pojawiło się nowe wydarzenie — wyłącznie gdy zgoda na lokalizację jest już
+udzielona, sprawdzana po cichu, bez pytania o nią. Historia meczów (na `/moje-gry`
+i na stronie ekipy) pokazuje teraz plakietkę nieprzeczytanych tak samo jak Nadchodzące.
+Nowy przycisk-filtr w pasku zakładek `/moje-gry` (poza przewijanym paskiem tabów, więc
+nie dokłada wysokości i jest zawsze widoczny) zawęża widok do meczów z nieprzeczytaną
+wiadomością. Toggle progu minimum zniknął z kreatora meczu — zostaje w edycji istniejącego
+wydarzenia, gdzie organizator już zna realną frekwencję.
+
+MECHANIKA: `GroupDetailClient.tsx` — `load()` woła `setMember(false)`/`setPermissions(null)`
+przed pobraniem danych nowej ekipy. `lib/groups.ts` — `kluczGrupyWidziano()`,
+`getGroupEventsForNew()`, `maNoweMecze()`, `policzNoweMeczePerGrupa()`; ustawiane przy
+KAŻDYM wejściu na stronę ekipy (nie tylko na Tablicę). `lib/events.ts` —
+`KLUCZ_WYDARZENIA_WIDZIANO`, `maNoweWydarzeniaWPobolizu()`; znacznik ustawia
+`EventsListClient.tsx` (nie `EventsListView.tsx` — ten renderuje się też jako tło
+ekranu logowania). `lib/geo.ts` — `hasGeolocationPermission()` (Permissions API, cichy
+odczyt bez okna systemowego). `BottomNav.tsx` — nowy efekt liczący `nearbyNew`,
+dot na „Znajdź grę". `GroupsClient.tsx` — `KartaEkipy` dostała kropki na rogach ikony
+zamiast osobnej plakietki z liczbą z boku. `app/moje-gry/page.tsx` — stan `onlyUnread`,
+filtruje `upcoming`/`playing`/`next` przed przekazaniem do sekcji; `unreadByEvent`
+przekazywany też do kart w zakładce Historia. `GroupDetailClient.tsx` — to samo dla
+`past.map(...)`. `EventCapacityFields.tsx` bez zmian — `onMinPlayersChange` jest
+opcjonalny, `app/wydarzenia/nowe/page.tsx` po prostu przestał go przekazywać.
+`AGENTS.md` → Konwencje: trzeci kolor spisany obok różowego i niebieskiego.
+
 ### 2026-08-16 — Nieprzeczytane wiadomości liczą tylko cudze wpisy; plakietki na kartach i w dolnej nawigacji; poprawka pustego "Wyniku"; gry cykliczne ukryte
 
 PROBLEM: plakietka „nowe wiadomości" na Rozmowie ekipy świeciła się nawet po wysłaniu
@@ -697,38 +743,5 @@ kasuje duplikaty sprzed `085`, bo inaczej indeks się nie zakłada. Frontend:
 `handleJoinAsGuest()` i stan `newUserHasAccount` / `showAlreadyJoinedPrompt`
 w `EventDetailClient.tsx`. Testy: `frontend/src/__tests__/events.test.ts`,
 `describe('joinEventAsGuest — kontrakt z bazą')`.
-
-### 2026-08-12 — Powiadomienie o niepełnej nazwie naprawione, proaktywne zaproszenie gościa, wybór roli po rejestracji
-
-PROBLEM: powiadomienie w dzwonku „Uzupełnij swoje imię" (migracja `070`/`071`) nigdy
-nie zadziałało w produkcji — potwierdzone zapytaniem po danych: zero wierszy typu
-`uzupelnij_profil` mimo dziesiątek kont z niepełną nazwą założonych już po naprawie w
-`071`, przyczyna nieznana. Osobno: organizator dopisujący gościa bez konta miał tylko
-mały, łatwy do przeoczenia link „Zaproś do Bojo" przy jego imieniu w składzie — żadnej
-proaktywnej zachęty ani argumentacji, dlaczego to się organizatorowi opłaca. I: świeżo
-zarejestrowany użytkownik nie miał żadnej podpowiedzi, czy jest organizatorem (założyć
-grupę) czy graczem (dołączyć do swojej albo przeglądać otwarte mecze).
-
-ROZWIĄZANIE BOJO: nowe RPC `zglos_brak_pelnej_nazwy()` wołane z przeglądarki zaraz po
-zalogowaniu, dla świeżych kont (< 10 minut) bez pełnego imienia i nazwiska — tym samym
-warunkiem, którego już używa baner na pulpicie, więc oba mechanizmy mierzą jednym
-miernikiem. Zaraz po dodaniu gościa bez konta (przez organizatora albo, gdy włączone,
-przez uczestnika) otwiera się modal z trzema konkretnymi argumentami („dostanie
-powiadomienie o odwołaniu meczu", „zostanie w Twojej bazie graczy", „sam potwierdzi
-udział") i gotowym przyciskiem wysyłki zaproszenia — raz na wydarzenie, żeby dopisanie
-kilkunastu osób pod rząd nie zasypało modalami. Świeżo zarejestrowany, o ile rejestracja
-nie miała już konkretnego celu (dołączenie do meczu, przejęcie wpisu gościa), widzi
-modal z dwoma ścieżkami: „Jestem organizatorem" (prosto do założenia grupy) albo „Jestem
-graczem" (grupa albo przeglądanie meczów).
-
-MECHANIKA: migracja `086` — RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`,
-`NOT EXISTS` chroni przed duplikatem, gdyby wyzwalacz z `070`/`071` jednak zadziałał);
-wołane z `lib/auth.tsx` w `onAuthStateChange` przy `SIGNED_IN`. `lib/events.ts` —
-`addGuest()` zwraca teraz też `id`/`claimToken` (insert z `.select().single()`), nie
-tylko `isReserve`. `lib/guestClaim.ts` — nowa `udostepnijZaproszenieGoscia()` (Web Share
-z fallbackiem do schowka), współdzielona przez istniejący przycisk „Zaproś do Bojo" i
-nowy modal `components/events/GuestInviteNudge.tsx`. `lib/powrotPoLogowaniu.ts` — nowa
-`ostatniZamierzonyCel()` (jak `odbierzPowrot()`, ale nie kasuje wpisu). Nowy
-`components/onboarding/PostSignupRoleModal.tsx`, montowany globalnie w `layout.tsx`.
 
 
