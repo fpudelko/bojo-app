@@ -107,4 +107,10 @@ describe('nieprzeczytane', () => {
   it('returns 0 for an empty list', () => {
     expect(nieprzeczytane([], null)).toBe(0);
   });
+
+  it('excludes my own posts — I already saw them when I sent them', () => {
+    const wlasny = post('p1', '2026-08-10T10:00:00Z');
+    const cudzy = { ...post('p2', '2026-08-10T11:00:00Z'), userId: 'u2' };
+    expect(nieprzeczytane([wlasny, cudzy], null, 'u1')).toBe(1);
+  });
 });

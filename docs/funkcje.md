@@ -272,6 +272,20 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
+**Kropki na „Moje" i „Grupy".** Dwie niezależne, osobno liczone: niebieska na „Moje" —
+oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`) — i różowa
+na „Moje" oraz na „Grupy" — nieprzeczytane wiadomości (`hasUnreadEventMessages()`
+w `lib/comments.ts`, `hasUnreadGroupMessages()` w `lib/groupPosts.ts`). Kolor ma stałe
+znaczenie w całej apce, patrz `AGENTS.md` → Konwencje. Na „Moje" mogą się zapalić obie naraz
+— różowa siedzi w lewym górnym rogu ikony, niebieska w prawym, żeby się nie nakładały.
+„Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
+`kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
+wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania. Ten sam
+mechanizm zasila plakietkę z liczbą przy zakładce Rozmowa/Tablica (patrz zakładki
+`/wydarzenia/[id]` i `/grupy/[id]` niżej) oraz ikonę z liczbą obok chipu „N wolnych miejsc"
+na karcie meczu (`EventBrowseCard`, tylko gdy gram/organizuję/jestem na rezerwie w tym
+meczu) i na karcie ekipy (`/grupy`).
+
 ---
 
 ## Górny pasek nawigacji — inny dla zalogowanych na mobile
@@ -1010,8 +1024,14 @@ w zakładce Mecze.
 
 Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
 nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
-Uprawnienia, więc nie duplikujemy ich treści tutaj): **Mecze** (nadchodzące/historia, jak dawniej) / **Rozmowa** (dawniej
-„Tablica" — patrz niżej, plakietka z liczbą nieprzeczytanych) / **Skład** (mała belka
+Uprawnienia, więc nie duplikujemy ich treści tutaj — **zakładka Zaproszenia sama jest
+widoczna tylko dla founder/`can_invite`**, Uprawnienia jak dawniej wyłącznie dla
+foundera; kogo dana zakładka nie dotyczy, ten jej w ogóle nie widzi): **Mecze**
+(nadchodzące/historia, jak dawniej — sekcja „Najbliższy mecz" nad zakładkami pokazuje
+najbliższy termin raz; „Nadchodzące" niżej filtruje go z listy, żeby nie dublować tego
+samego meczu na jednym ekranie) / **Rozmowa** (dawniej
+„Tablica" — patrz niżej, różowa plakietka z liczbą nieprzeczytanych; własne wpisy nigdy
+się nie liczą — wysyłający już je widział w momencie wysyłania) / **Skład** (mała belka
 „Zaproś do ekipy" + kod dołączenia + ikona udostępnienia nad rzędem awatarów — ten sam
 kod/link co w `ZaprosDoGrupySheet`, tylko bez otwierania arkusza; widoczna z tych samych
 warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — **powyżej niej,
@@ -1110,6 +1130,16 @@ treścią (roster, zarządzanie graczami) na każdej innej zakładce.
 **Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
 blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
 Bez niego uniwersalne elementy zaśmiecały jedyny ekran, który ma wyglądać jak zwykły czat.
+Zakładka nosi różową plakietkę z liczbą nieprzeczytanych, tym samym mechanizmem co
+Rozmowa/Tablica w `/grupy/[id]` (patrz „Kropki na »Moje« i »Grupy«" wyżej) —
+`kluczRozmowyWidziano()`, własne komentarze wyłączone z liczenia.
+
+**Zakładka Wynik pokazuje treść uczestnikowi, nie tylko organizatorowi, zanim mecz się
+zacznie.** Przed poprawką pusty ekran widział każdy, kto nie jest organizatorem/`can
+ManageSquad` — trzy warunkowe bloki w `wynikFormSection` wymagały tej roli albo
+`resultsAvailable`, a zwykły uczestnik przed startem meczu nie spełniał żadnego. Dziś
+uczestnik widzi ten sam komunikat „Wynik pojawi się po zakończeniu meczu", co organizator
+(z inną treścią — organizator widzi „Wynik można wpisać po rozpoczęciu…").
 
 Karta „Po meczu" wskazuje zadania na innych zakładkach, więc jej przyciski **przełączają
 zakładkę zamiast (albo obok) przewijania** — `onWpiszWynik` woła `goToTab('wynik')`,

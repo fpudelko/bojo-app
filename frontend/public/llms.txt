@@ -28,7 +28,6 @@
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
 - [Grupy](/grupy): stałe ekipy — mecze, rozmowa, statystyki i uprawnienia
   współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
-- [Stałe gierki](/cykliczne): mecze powtarzane co tydzień; kolejny termin powstaje sam
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
 
 ## Boiska

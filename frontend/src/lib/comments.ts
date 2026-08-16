@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getMyActiveEventIds } from './events';
 import type { EventComment } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,4 +49,78 @@ export async function deleteComment(commentId: string): Promise<void> {
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', commentId);
   if (error) throw new Error(error.message);
+}
+
+/** Klucz w `localStorage` pod którym trzymamy „ostatnio widziano rozmowę
+ *  meczu X" — wzorem `kluczTablicaWidziano()` z `groupPosts.ts`. */
+export function kluczRozmowyWidziano(eventId: string): string {
+  return `bojo:rozmowa-widziano:${eventId}`;
+}
+
+/** Ile komentarzy jest nowszych niż ostatnio widziano — jak
+ *  `nieprzeczytane()` w `groupPosts.ts`: własne komentarze nigdy nie liczą
+ *  się jako nieprzeczytane, bo autor już je widział w momencie wysyłania. */
+export function nieprzeczytaneKomentarze(
+  comments: Pick<EventComment, 'userId' | 'createdAt'>[],
+  widzianoIso: string | null,
+  myUserId?: string,
+): number {
+  const cudze = myUserId ? comments.filter((c) => c.userId !== myUserId) : comments;
+  if (!widzianoIso) return cudze.length;
+  const widziano = new Date(widzianoIso).getTime();
+  if (Number.isNaN(widziano)) return cudze.length;
+  return cudze.filter((c) => new Date(c.createdAt).getTime() > widziano).length;
+}
+
+/** Surowe komentarze (bez treści) dla wielu meczów naraz — jedno zapytanie
+ *  zamiast N, do liczenia plakietek „nieprzeczytane" na kartach meczów
+ *  (`/moje-gry`, mecze ekipy) i kropki na dolnej nawigacji. */
+export async function getCommentsForUnread(
+  eventIds: string[],
+): Promise<Pick<EventComment, 'eventId' | 'userId' | 'createdAt'>[]> {
+  if (eventIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('event_comments')
+    .select('event_id, user_id, created_at')
+    .in('event_id', eventIds)
+    .is('deleted_at', null);
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({ eventId: r.event_id, userId: r.user_id, createdAt: r.created_at }));
+}
+
+/** Grupuje wynik `getCommentsForUnread()` po meczu i liczy nieprzeczytane
+ *  w każdym — czysta funkcja, `widzianoByEvent` to wywołujący czytający
+ *  `localStorage`, żeby zostać testowalną bez DOM-u. Mecze bez
+ *  nieprzeczytanych nie trafiają do wyniku. */
+export function policzNieprzeczytanePerWydarzenie(
+  comments: Pick<EventComment, 'eventId' | 'userId' | 'createdAt'>[],
+  myUserId: string,
+  widzianoByEvent: (eventId: string) => string | null,
+): Record<string, number> {
+  const perEvent = new Map<string, Pick<EventComment, 'userId' | 'createdAt'>[]>();
+  for (const c of comments) {
+    if (!perEvent.has(c.eventId)) perEvent.set(c.eventId, []);
+    perEvent.get(c.eventId)!.push(c);
+  }
+  const wynik: Record<string, number> = {};
+  perEvent.forEach((wpisy, eventId) => {
+    const n = nieprzeczytaneKomentarze(wpisy, widzianoByEvent(eventId), myUserId);
+    if (n > 0) wynik[eventId] = n;
+  });
+  return wynik;
+}
+
+/** Czy w którymkolwiek meczu, w którym gram / jestem na rezerwie / organizuję,
+ *  jest nieprzeczytana wiadomość — zasila różową kropkę „nowe wiadomości"
+ *  przy „Moje" na dolnej nawigacji (patrz `BottomNav.tsx`). */
+export async function hasUnreadEventMessages(userId: string): Promise<boolean> {
+  const eventIds = await getMyActiveEventIds(userId);
+  if (eventIds.length === 0) return false;
+  const comments = await getCommentsForUnread(eventIds);
+  const widzianoByEvent = (eventId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczRozmowyWidziano(eventId)) : null
+  );
+  const counts = policzNieprzeczytanePerWydarzenie(comments, userId, widzianoByEvent);
+  return Object.keys(counts).length > 0;
 }

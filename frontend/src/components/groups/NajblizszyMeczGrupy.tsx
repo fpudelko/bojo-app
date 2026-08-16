@@ -22,7 +22,7 @@ import type { EventItem } from '@/types';
  * grupa nie miała jeszcze żadnego meczu.
  */
 export default function NajblizszyMeczGrupy({
-  groupId, upcoming, ostatni, canCreateEvents, relation,
+  groupId, upcoming, ostatni, canCreateEvents, relation, unreadMessages,
 }: {
   groupId: string;
   upcoming: EventItem | null;
@@ -31,6 +31,8 @@ export default function NajblizszyMeczGrupy({
   canCreateEvents: boolean;
   /** Mój status w tym meczu — ten sam kształt, co karty na zakładce "Mecze". */
   relation?: MyEventRelation;
+  /** Nieprzeczytane wiadomości w rozmowie tego meczu — patrz `EventBrowseCard`. */
+  unreadMessages?: number;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -64,7 +66,7 @@ export default function NajblizszyMeczGrupy({
     return (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700">Najbliższy mecz</p>
-        <EventBrowseCard event={upcoming} relation={relation} />
+        <EventBrowseCard event={upcoming} relation={relation} unreadMessages={unreadMessages} />
         <Button
           variant="outline"
           onClick={handleShare}

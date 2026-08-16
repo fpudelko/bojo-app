@@ -88,8 +88,10 @@ export function InvitesSection({ invites, statusFor, href, limit = 3 }: {
  *  `limit`/`href` default to the dashboard's teaser behaviour (2 items +
  *  link to /moje-gry); /moje-gry itself passes limit={null} href={null} to
  *  show the full list with no "Wszystkie" link back to itself. */
-export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
+export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadByEvent }: {
   items: MyEventRow[]; limit?: number | null; href?: string | null;
+  /** Nieprzeczytane wiadomości per mecz — patrz `unreadMessages` na `EventBrowseCard`. */
+  unreadByEvent?: Record<string, number>;
 }) {
   if (items.length === 0) return null;
   const shown = limit != null ? items.slice(0, limit) : items;
@@ -98,7 +100,7 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry' }: {
       <SectionHeader title="Twoje najbliższe mecze" href={href ?? undefined} count={items.length} />
       <div className="space-y-3">
         {shown.map(({ event, relation }) => (
-          <EventBrowseCard key={event.id} event={event} relation={relation} />
+          <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
         ))}
       </div>
     </div>
@@ -178,8 +180,8 @@ function formatujTermin(data: string): string {
  *  Bez przycisków akceptuj/odrzuć w kafelku — decyzja zapada na stronie meczu,
  *  gdzie widać skład, rezerwę i kto właściwie prosi. Przyciski odpowiedzi
  *  wprost na liście zostały już raz wycofane z zaproszeń (PR #110). */
-export function PendingRequestsSection({ items, href }: {
-  items: MyEventRow[]; href?: string;
+export function PendingRequestsSection({ items, href, unreadByEvent }: {
+  items: MyEventRow[]; href?: string; unreadByEvent?: Record<string, number>;
 }) {
   const czekajace = items
     .filter(({ event, relation }) => relation.isOrganizer && (event.pendingApprovalCount ?? 0) > 0)
@@ -200,7 +202,7 @@ export function PendingRequestsSection({ items, href }: {
       <div className="space-y-3">
         {czekajace.map(({ event, relation }) => (
           <div key={event.id} className="rounded-2xl border border-blue-200 bg-blue-50/40 p-1">
-            <EventBrowseCard event={event} relation={relation} />
+            <EventBrowseCard event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
             <p className="px-3 pb-1.5 pt-1 text-xs font-semibold text-blue-700">
               {withCount(event.pendingApprovalCount ?? 0, 'osoba czeka', 'osoby czekają', 'osób czeka')} na akceptację
             </p>
@@ -211,8 +213,8 @@ export function PendingRequestsSection({ items, href }: {
   );
 }
 
-export function NeedsPlayersSection({ items, limit = 3, href }: {
-  items: MyEventRow[]; limit?: number | null; href?: string;
+export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent }: {
+  items: MyEventRow[]; limit?: number | null; href?: string; unreadByEvent?: Record<string, number>;
 }) {
   const needing = items
     .filter(({ event, relation }) =>
@@ -236,7 +238,7 @@ export function NeedsPlayersSection({ items, limit = 3, href }: {
       />
       <div className="space-y-3">
         {shown.map(({ event, relation }) => (
-          <EventBrowseCard key={event.id} event={event} relation={relation} />
+          <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
         ))}
       </div>
     </div>

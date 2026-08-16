@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Crown } from 'lucide-react';
+import { Clock, MapPin, Crown, MessageCircle } from 'lucide-react';
 import type { EventItem } from '@/types';
 import type { MyEventStatus, MyEventRelation } from '@/lib/events';
 import { sportEmoji, sportColor } from '@/lib/sports';
@@ -38,9 +38,16 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, relation }: {
+export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
+  /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
+   *  kto gra, organizuje albo jest na rezerwie (nie dla „obserwuję" ani
+   *  „czeka na akceptację", patrz `getMyActiveEventIds()` w `lib/events.ts`).
+   *  Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */
+  unreadMessages?: number;
 }) {
+  const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
+    && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
 
@@ -211,6 +218,11 @@ export function EventBrowseCard({ event, distance, relation }: {
                 ) : (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
                     {withCount(left, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}
+                  </span>
+                )}
+                {pokazNieprzeczytane && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                    <MessageCircle className="h-3 w-3" /> {unreadMessages}
                   </span>
                 )}
                 {statusChip ? (

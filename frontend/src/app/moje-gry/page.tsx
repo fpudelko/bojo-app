@@ -7,7 +7,8 @@ import { LogIn, Users, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getMyParticipatedEvents, type MyEventRelation } from '@/lib/events';
+import { getMyParticipatedEvents, getMyActiveEventIds, type MyEventRelation } from '@/lib/events';
+import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
@@ -63,6 +64,19 @@ function MojeGryContent() {
       .then(setItems)
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
+  }, [user]);
+
+  // Plakietki „nieprzeczytane" na kartach meczów — jedno zapytanie dla
+  // wszystkich naraz (gram/organizuję/rezerwa, patrz `getMyActiveEventIds`).
+  const [unreadByEvent, setUnreadByEvent] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!user) { setUnreadByEvent({}); return; }
+    getMyActiveEventIds(user.id)
+      .then((eventIds) => getCommentsForUnread(eventIds))
+      .then((comments) => setUnreadByEvent(
+        policzNieprzeczytanePerWydarzenie(comments, user.id, (eventId) => window.localStorage.getItem(kluczRozmowyWidziano(eventId))),
+      ))
+      .catch(() => {});
   }, [user]);
 
   // Kolejne terminy serii, których jeszcze nie ma w bazie. Osobno od
@@ -226,13 +240,14 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
-            <PendingRequestsSection items={upcoming} />
-            <NeedsPlayersSection items={upcoming} limit={null} />
-            <NextMatchCard row={next} />
+            <PendingRequestsSection items={upcoming} unreadByEvent={unreadByEvent} />
+            <NeedsPlayersSection items={upcoming} limit={null} unreadByEvent={unreadByEvent} />
+            <NextMatchCard row={next} unreadMessages={next ? unreadByEvent[next.event.id] : undefined} />
             <MyMatchesSection
               items={playing.filter(({ event }) => event.id !== next?.event.id)}
               limit={null}
               href={null}
+              unreadByEvent={unreadByEvent}
             />
             <NastepneEdycjeSection pozycje={nastepneEdycje} />
           </div>
