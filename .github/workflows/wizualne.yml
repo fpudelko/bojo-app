@@ -32,6 +32,12 @@ name: Wizualne (informacyjne)
 
 on:
   pull_request:
+    # `labeled` NIE jest w domyślnej trójce (opened, synchronize, reopened) —
+    # a bez niego nadanie etykiety `zrzuty:zaakceptuj` niczego nie uruchamiało.
+    # Cały mechanizm akceptacji działał więc wyłącznie wtedy, gdy po etykiecie
+    # przypadkiem doszedł jeszcze jakiś push. Instrukcja mówiła „nadaj etykietę
+    # i gotowe", a w rzeczywistości nic się nie działo.
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - 'frontend/**'
       - '.github/workflows/wizualne.yml'

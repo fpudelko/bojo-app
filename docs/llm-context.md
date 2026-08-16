@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-14 · migracja `091` · 32 tabele · 469 testów
+**Stan na:** 2026-08-16 · migracja `097` · 34 tabele · 543 testy
 
 ---
 
@@ -135,10 +135,21 @@ nie blokuje miejsca (migracja `048`). Bramkarze mają osobny limit `max_goalkeep
 nie wskakuje na jego miejsce — organizator powiadamia go ręcznie. To świadoma decyzja
 produktowa, nie brakująca funkcja.
 
+**„Czy gramy?"** Organizator może ustawić `min_players` — ile osób musi być w składzie,
+żeby mecz się odbył. Strona meczu pokazuje wprost werdykt („Gramy ✓" albo „Brakuje 2 do
+minimum"), zamiast zostawiać to liczeniu w głowie. Członek ekipy, który jeszcze nie
+dołączył do meczu przypiętego do jego grupy, może kliknąć **„Nie gram"** — jawna odmowa,
+osobna od zgłoszenia nieobecności po meczu i osobna od statystyki „Niezawodność".
+
+**„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator jednym
+kliknięciem zamienia go w publiczny, żeby dołączyli ludzie z sąsiedztwa — to jedyna
+rzecz z tego zestawu, której żaden komunikator nie potrafi.
+
 **Pytania, na które odpowiada ta sekcja:** Co się dzieje, gdy mecz w Bojo jest pełny?
 Czy rezerwowy wskakuje automatycznie, gdy ktoś zrezygnuje? Czy „Obserwuję" zajmuje
 miejsce w składzie? Jak działa akceptacja zapisów przez organizatora? Ilu bramkarzy
-mieści się na mecz?
+mieści się na mecz? Czy Bojo pilnuje minimalnej liczby graczy? Co się dzieje, gdy ekipie
+brakuje ludzi do kompletu? Czy da się jawnie odmówić udziału w meczu, zamiast milczeć?
 
 ---
 
@@ -170,23 +181,39 @@ Multisport? Co znaczy nieokreślona kwota zniżki?
 ## Grupy
 
 **Problem.** Ta sama paczka gra co tydzień. Za każdym razem trzeba zebrać tych samych
-ludzi od zera, a historia wspólnych meczów nigdzie nie zostaje.
+ludzi od zera w wątku na komunikatorze, historia wspólnych meczów nigdzie nie zostaje,
+a organizator jest jedyną osobą, która może cokolwiek zmienić.
 
-**Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków
-i mecze grupy w jednym miejscu. Dołącza się przez link zaproszenia.
+**Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków,
+mecze grupy, rozmowa (wyglądem jak dymki czatu) i statystyki w jednym miejscu. Lista
+ekip na `/grupy` jest posortowana po najbliższym terminie, nie po dacie założenia —
+najpierw ta, która gra najwcześniej. Dołącza się wyłącznie kodem zaproszenia — link
+`/g/[kod]` pokazuje ekipę i najbliższy mecz bez konta, a rejestracja od razu wciąga do
+grupy. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
+zarządzanie składem ekipy, zakładanie meczów w jej imieniu, zapraszanie nowych (widzą
+przycisk „Zaproś" i kod dołączenia) i moderowanie rozmowy — sam pozostaje jedyną osobą,
+która może usunąć grupę.
 
-**Mechanika.** Logika w `frontend/src/lib/groups.ts`, tabele `groups` i `group_members`
-(migracja `044`). Link zaproszenia prowadzi pod `/g/[kod]`. Twórca grupy zostaje jej
-członkiem automatycznie (trigger `add_group_creator_as_member`).
+**Mechanika.** Logika w `frontend/src/lib/groups.ts` (+ `groupPosts.ts`,
+`groupStats.ts`, `groupShare.ts`), tabele `groups`/`group_members` (migracja `044`,
+uprawnienia i nadawca zaproszenia dołożone w `092`/`094`/`096`), `group_posts` (rozmowa,
+migracja `093`). Twórca grupy zostaje jej członkiem automatycznie (trigger
+`add_group_creator_as_member`) z pełnią uprawnień, których nie da się mu odebrać.
+Dołączenie kodem idzie przez funkcję bazodanową `dolacz_do_grupy_kodem()` — sama
+znajomość identyfikatora grupy dziś nie wystarcza, RLS tego pilnuje.
 
-**Przypisanie meczu do grupy steruje listowaniem, nie dostępem.** Kolumna
-`events.group_id` sprawia, że mecz pojawia się na liście meczów grupy, ale jego
-widoczność nadal wynika wyłącznie z `events.visibility`. Nie istnieje widoczność
-„tylko dla mojej grupy".
+**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy.** `events.visibility`
+ma dwie wartości (`private`/`public`), ale gdy mecz ma ustawione `events.group_id`,
+każdy członek tej grupy widzi go na swoim koncie i na liście meczów grupy — niezależnie
+od tego, że jest prywatny dla reszty świata. To świadome, ustalone zachowanie aplikacji,
+nie luka.
 
 **Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Jak dołączyć do stałej
-ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy dostają
-powiadomienie o nowym meczu?
+ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
+mecz swojej ekipy? Czy członkowie grupy dostają powiadomienie o nowym meczu? Czy
+w grupie jest czat? Czy założyciel grupy może dać komuś innemu uprawnienia do
+zarządzania ekipą, w tym prawo zapraszania nowych osób? Czy grupa ma statystyki graczy?
+W jakiej kolejności wyświetla się lista moich ekip?
 
 ---
 
@@ -245,8 +272,14 @@ Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, że działa:
 
 - **Automatyczny awans z listy rezerwowej.** Świadoma decyzja produktowa.
-- **Widoczność „tylko dla grupy".** `events.visibility` to wyłącznie `private`/`public`.
-- **Powiadomienie dla członków grupy o nowym meczu grupy.**
+- **Automatyczne dopisywanie kogokolwiek do składu.** Nikt nie trafia do składu po cichu
+  — to zawsze jawna akcja: zapis, dopisanie gościa albo ręczny awans z rezerwy.
+- **Osobna wartość „tylko dla grupy" w `events.visibility`.** Kolumna to wyłącznie
+  `private`/`public` — ale prywatny mecz przypięty do grupy i tak widzi cała ekipa,
+  patrz sekcja „Grupy" wyżej.
+- **Czat w czasie rzeczywistym w grupie.** Jest rozmowa (płaska lista wpisów w formie
+  dymków, bez wątków, bez załączników) — nie wiadomości na żywo; strona trzeba odświeżyć,
+  żeby zobaczyć nowy wpis od kogoś innego.
 - **Realny przepływ pieniędzy** (BLIK, Stripe). Bojo rejestruje, kto zapłacił.
 - **Rankingi publiczne, ocena umiejętności, dopasowywanie meczów do poziomu.**
 - **Odznaki** — poza znaczkiem „rzetelny gracz" (≥5 rozegranych gier, 0 nieobecności).
@@ -344,6 +377,314 @@ minimalny: obsługuje `push` i `notificationclick`, NIE cache'uje niczego — wo
 cache'ujący HTML serwowałby stary build po deployu, a aplikacja żyjąca z bazy
 pokazywałaby nieaktualne składy. Rejestracja przez `components/RejestracjaSW.tsx`.
 
+### 2026-08-16 — Pomarańczowa kropka "nowość"; kropki na kartach ekip; filtr nieprzeczytanych na /moje-gry; zakładka Ustawienia bez wycieku uprawnień; usunięty próg minimum z kreatora
+
+PROBLEM: zakładka „Ustawienia" ekipy migała (czasem zostawała) widoczna osobie bez
+żadnych uprawnień — `/grupy/[id]` jest trasą dynamiczną, więc przejście z ekipy, gdzie
+ktoś jest założycielem, do ekipy, gdzie nie ma żadnej roli, nie odmontowywało
+komponentu; stan uprawnień z poprzedniej ekipy zostawał, dopóki nowe zapytanie nie
+wróciło. Karty ekip na `/grupy` i dolna nawigacja nie miały żadnego sygnału „pojawiło
+się coś nowego" — tylko „masz nieprzeczytaną wiadomość". Różowa kropka „nowe
+wiadomości" na „Moje" potrafiła się świecić bez żadnego widocznego śladu: liczy się też
+z meczów w Historii, a `/moje-gry` (zakładka Historia) i mecze ekipy w Historii nie
+przekazywały licznika nieprzeczytanych do karty meczu, więc nie było gdzie tej
+wiadomości znaleźć. Na `/moje-gry` nie dało się przefiltrować listy do samych meczów
+z nieprzeczytaną wiadomością. Kreator meczu miał krok z toggle'em „Ustaw minimum, żeby
+gra się odbyła" — zbędny przy zakładaniu nowego meczu, skoro organizator jeszcze nie
+zna faktycznej frekwencji.
+
+ROZWIĄZANIE BOJO: `/grupy/[id]` zeruje stan uprawnień na START każdego przeładowania
+(nie tylko po odpowiedzi z bazy), więc zakładka Ustawienia nigdy nie pokazuje
+uprawnień z poprzednio oglądanej ekipy. Trzeci, zarezerwowany kolor w apce —
+pomarańczowy — „nowość, o której jeszcze nie wiesz": kropka na ikonie ekipy (obok
+istniejącej różowej za wiadomości) gdy pojawił się nowy mecz od ostatniej wizyty na
+stronie ekipy, i kropka przy „Znajdź grę" na dolnej nawigacji, gdy w promieniu 5 km od
+użytkownika pojawiło się nowe wydarzenie — wyłącznie gdy zgoda na lokalizację jest już
+udzielona, sprawdzana po cichu, bez pytania o nią. Historia meczów (na `/moje-gry`
+i na stronie ekipy) pokazuje teraz plakietkę nieprzeczytanych tak samo jak Nadchodzące.
+Nowy przycisk-filtr w pasku zakładek `/moje-gry` (poza przewijanym paskiem tabów, więc
+nie dokłada wysokości i jest zawsze widoczny) zawęża widok do meczów z nieprzeczytaną
+wiadomością. Toggle progu minimum zniknął z kreatora meczu — zostaje w edycji istniejącego
+wydarzenia, gdzie organizator już zna realną frekwencję.
+
+MECHANIKA: `GroupDetailClient.tsx` — `load()` woła `setMember(false)`/`setPermissions(null)`
+przed pobraniem danych nowej ekipy. `lib/groups.ts` — `kluczGrupyWidziano()`,
+`getGroupEventsForNew()`, `maNoweMecze()`, `policzNoweMeczePerGrupa()`; ustawiane przy
+KAŻDYM wejściu na stronę ekipy (nie tylko na Tablicę). `lib/events.ts` —
+`KLUCZ_WYDARZENIA_WIDZIANO`, `maNoweWydarzeniaWPobolizu()`; znacznik ustawia
+`EventsListClient.tsx` (nie `EventsListView.tsx` — ten renderuje się też jako tło
+ekranu logowania). `lib/geo.ts` — `hasGeolocationPermission()` (Permissions API, cichy
+odczyt bez okna systemowego). `BottomNav.tsx` — nowy efekt liczący `nearbyNew`,
+dot na „Znajdź grę". `GroupsClient.tsx` — `KartaEkipy` dostała kropki na rogach ikony
+zamiast osobnej plakietki z liczbą z boku. `app/moje-gry/page.tsx` — stan `onlyUnread`,
+filtruje `upcoming`/`playing`/`next` przed przekazaniem do sekcji; `unreadByEvent`
+przekazywany też do kart w zakładce Historia. `GroupDetailClient.tsx` — to samo dla
+`past.map(...)`. `EventCapacityFields.tsx` bez zmian — `onMinPlayersChange` jest
+opcjonalny, `app/wydarzenia/nowe/page.tsx` po prostu przestał go przekazywać.
+`AGENTS.md` → Konwencje: trzeci kolor spisany obok różowego i niebieskiego.
+
+### 2026-08-16 — Nieprzeczytane wiadomości liczą tylko cudze wpisy; plakietki na kartach i w dolnej nawigacji; poprawka pustego "Wyniku"; gry cykliczne ukryte
+
+PROBLEM: plakietka „nowe wiadomości" na Rozmowie ekipy świeciła się nawet po wysłaniu
+własnej wiadomości — nadawca widział ją jako nieprzeczytaną, mimo że widział ją
+w momencie wysyłania. Mecze (w odróżnieniu od ekip) w ogóle nie miały żadnego
+oznaczenia nieprzeczytanych wiadomości w rozmowie, ani na zakładce, ani na kartach
+meczów. Zakładka „Wynik" na stronie meczu była pustym ekranem dla każdego, kto nie
+jest organizatorem, dopóki mecz się nie zaczął — trzy warunkowe bloki treści
+wymagały tej roli albo `resultsAvailable`, uczestnik nie spełniał żadnego. „Najbliższy
+mecz" na stronie ekipy powtarzał się też w liście „Nadchodzące" pod spodem. Zakładka
+„Zaproszenia" w ustawieniach ekipy była widoczna nawet dla kogoś bez prawa zapraszania.
+Kolor nie miał w apce spisanego, spójnego znaczenia. Produktowa decyzja: rezygnacja
+z gier cyklicznych/stałych gierek.
+
+ROZWIĄZANIE BOJO: liczniki nieprzeczytanych (ekipy i mecze) wykluczają teraz własne
+wpisy autora. Mecze dostały ten sam mechanizm co ekipy: różowa plakietka z liczbą na
+zakładce Rozmowa, ikona z liczbą obok chipu wolnych miejsc na kartach meczów (na
+których gram/organizuję/jestem na rezerwie) na `/moje-gry` i w widoku ekipy, oraz
+różowa kropka na „Moje" i „Grupy" w dolnej nawigacji — nie nakłada się z istniejącą
+niebieską kropką „czeka na akceptację" (osobne rogi ikony). Karty ekip na `/grupy`
+dostały analogiczną plakietkę z liczbą nieprzeczytanych wpisów tablicy. Zakładka
+Wynik pokazuje teraz uczestnikowi komunikat „pojawi się po zakończeniu meczu" zamiast
+pustego ekranu. „Najbliższy mecz" znika z listy „Nadchodzące" pod spodem, żeby nie
+dublować tego samego meczu na jednym ekranie. Zakładka „Zaproszenia" w ustawieniach
+ekipy jest widoczna tylko dla founder/`can_invite`. Kolorystyka ma teraz spisaną,
+wyłączną konwencję (`AGENTS.md` → Konwencje): różowy zawsze i wyłącznie wiadomości,
+niebieski zawsze i wyłącznie wymagana akceptacja uczestnictwa — nowy wskaźnik ma się
+do niej dostosować zamiast wymyślać kolor na nowo. Gry cykliczne/stałe gierki
+zniknęły z nawigacji i z kreatora meczu — kod i istniejące serie zostają w repo
+nietknięte, dostępne pod bezpośrednim adresem.
+
+MECHANIKA: `lib/groupPosts.ts` — `nieprzeczytane()` przyjmuje opcjonalny `myUserId`
+i filtruje własne wpisy; nowe `getGroupPostsForUnread()`, `policzNieprzeczytanePerGrupa()`,
+`hasUnreadGroupMessages()`, `kluczTablicaWidziano()` (wydzielony z dawnej lokalnej
+stałej w `GroupDetailClient.tsx`). `lib/comments.ts` — analogiczny komplet dla meczów:
+`nieprzeczytaneKomentarze()`, `getCommentsForUnread()`, `policzNieprzeczytanePerWydarzenie()`,
+`hasUnreadEventMessages()`, `kluczRozmowyWidziano()`. `lib/events.ts` —
+`getMyActiveEventIds()` (gram/rezerwa/organizuję, bez „czeka na akceptację"/
+„obserwuję"). `lib/groups.ts` — `getMyGroupIds()`. `EventBrowseCard.tsx` — nowy prop
+`unreadMessages`, widoczny tylko gdy `relation` kwalifikuje (organizator/gram/
+rezerwa) — przekazywany przez `NextMatchCard`, `MyMatchesSection`,
+`PendingRequestsSection`, `NeedsPlayersSection`, `NajblizszyMeczGrupy`.
+`BottomNav.tsx` — `dot` zamienione na `dots` (tablica z pozycją `top-right`/
+`top-left`, żeby dwie kropki na „Moje" się nie nakładały). `EventDetailClient.tsx` —
+`wynikFormSection` dostał blok dla `!(isOwner || canManageSquad)`; nowy stan
+`nieprzeczytaneRozmowa` liczony efektem obok `tab`. `GroupDetailClient.tsx` —
+`upcomingBezNajblizszego` filtruje `nextMatch.id` z listy. `app/grupy/[id]/edytuj/page.tsx`
+— zakładka „Zaproszenia" warunkowana `isOwner || perms.canInvite`. `lib/features.ts`
+— `SHOW_RECURRING = false`; `app/wydarzenia/nowe/page.tsx` — przełącznik „Wydarzenie
+cykliczne" (`extraSlot` w `EventDateTimeField`) warunkowany tą flagą (wcześniej
+renderował się zawsze, niezależnie od niej — flaga gasiła tylko wejścia w nawigacji).
+
+### 2026-08-15 — Info o rozmiarze ekipy dla założyciela; panel "Kto milczy" usunięty
+
+PROBLEM: duża prywatna ekipa (ponad 30 osób) zwykle znaczy, że organizator dodaje coraz
+więcej ludzi do grupy, żeby zapełnić skład na mecz — mimo że „Otwórz dla okolicy" (patrz
+niżej) rozwiązuje dokładnie ten problem bez rozrastania ekipy: publiczny mecz widzą też
+gracze spoza niej. Osobno: panel „Czy gramy?" na stronie meczu ekipy miał blok „Nie
+odpowiedziało: N" z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa" do ścigania
+milczących członków — usunięty na wyraźną prośbę, jako zbędny obok prostszego „Otwórz
+dla okolicy".
+
+ROZWIĄZANIE BOJO: zakładka Skład na stronie ekipy pokazuje teraz założycielowi, gdy
+ekipa ma ponad 30 członków, krótką informację: nie trzeba dodawać jak najwięcej osób,
+bo publiczny mecz i tak widzą gracze z okolicy. Panel „Czy gramy?" na stronie meczu stracił
+blok „Nie odpowiedziało" — zostają tylko werdykt progu minimum i „Otwórz dla okolicy".
+RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja `097`)
+zostają w bazie nietknięte — po prostu nic już ich nie wywołuje.
+
+MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
+`perms.isFounder && memberCount > 30` nad `<SkladGrupy>`. `components/events/CzyGramyPanel.tsx`
+— blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
+martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
+zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.
+
+### 2026-08-15 — Rozmowa meczu też dla organizatora i ekipy, zakładki sticky, klawiatura ekranowa nie zostawia pustki, drobne poprawki UI
+
+PROBLEM: rozmowa meczu widziała wyłącznie zapisanych uczestników — organizator, który
+sam nie gra, i reszta ekipy meczu przypiętego do grupy nie mieli jak w niej pisać, mimo
+że to ich rozmowa. „Najbliższy mecz" na stronie ekipy pokazywał się na każdej zakładce
+oprócz Rozmowy, zajmując miejsce też pod Statystykami i Składem, gdzie nie miał związku
+z treścią. Pasek zakładek (ekipa i mecz) przewijał się razem z treścią zamiast zostać
+na miejscu, a poziome przewijanie krótkiego paska zakładek pokazywało pasek przewijania.
+Po otwarciu klawiatury ekranowej w Rozmowie robiła się pusta, marnowana przestrzeń nad
+klawiaturą — `100dvh` nie kurczył się razem z nią. Kod dołączenia do ekipy i możliwość
+zaproszenia zniknęły z zakładki Skład razem z odchudzeniem górnej belki w poprzedniej
+rundzie, a stat kafelek „nadchodzące" (dłuższy niż sąsiednie etykiety) łamał się do
+dwóch linii i wyglądał na rozjechany względem reszty rzędu. Przyciski „Zapytaj w Bojo"/
+„Tekst na WhatsAppa" stały jeden pod drugim, marnując miejsce.
+
+ROZWIĄZANIE BOJO: rozmowę meczu widzi teraz też organizator (bez względu na to, czy
+sam gra) i cała ekipa, do której mecz jest przypięty (bez względu na to, czy dany
+członek gra akurat w tym terminie). „Najbliższy mecz" na stronie ekipy pokazuje się
+wyłącznie w zakładce Mecze — to jej treść, nie uniwersalny nagłówek. Pasek nazwy/belki
+i zakładek (ekipa i mecz) trzyma się teraz góry ekranu podczas przewijania, a poziome
+przewijanie zakładek nie pokazuje już paska przewijania. Klawiatura ekranowa realnie
+kurczy layout, więc composer w Rozmowie zostaje tuż nad nią, bez pustki pod spodem.
+Zakładka Skład dostała z powrotem szybki dostęp do zaproszenia: mała belka „Zaproś do
+ekipy" + kod dołączenia + ikona udostępnienia nad listą graczy. Kafelki statystyk mają
+teraz wspólną minimalną wysokość i wyśrodkowaną treść, więc dłuższa etykieta już nie
+rozjeżdża rzędu. „Zapytaj w Bojo"/„Tekst na WhatsAppa" stoją teraz obok siebie.
+
+MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` — nowy stan `czlonekGrupyMeczu`
+(z `isGroupMember()`, doładowany razem z `groupInfo`), gate Rozmowy rozszerzony na
+`myParticipation || isOwner || czlonekGrupyMeczu`. `app/layout.tsx`:
+`viewport.interactiveWidget: 'resizes-content'`. `app/grupy/[id]/GroupDetailClient.tsx`:
+belka i pasek zakładek w jednym `sticky top-0` kontenerze (dwa osobne nakładałyby się
+na tej samej wysokości); `NajblizszyMeczGrupy` pod warunkiem `tab === 'mecze'` zamiast
+`tab !== 'tablica'`; nowa belka zaproszenia nad `<SkladGrupy>` (`linkDoGrupy()`/
+`udostepnijGrupe()` z `lib/groupShare.ts`, ponownie użyty `handleCopyCode`). Analogiczny
+sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klasa
+`.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
+i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
+`flex-wrap`.
+
+### 2026-08-15 — Strona meczu dostaje pięć zakładek (Skład/Rozmowa/Wynik/Rozliczenia/Ustawienia); belka ekipy odchudzona, ustawienia jako zakładka
+
+PROBLEM: strona meczu była jedną długą kolumną — dane, prośby o dołączenie, skład,
+drużyny, wynik, rozliczenie, ustawienia organizatora i komentarze stały jedna pod drugą
+bez podziału, więc np. rozliczenie kosztów ginęło daleko na dole. Komentarze wyglądały
+i działały inaczej niż „Rozmowa" w ekipie, mimo tej samej potrzeby. Na stronie ekipy
+zakładki stały POD kartą „Najbliższy mecz", nie nad nią. Belka ekipy miała za dużo
+elementów naraz (powrót, logo, nazwa, zaproszenie, kod dołączenia, zębatka ustawień,
+dzwonek, awatar). Po ukryciu dolnej nawigacji na zakładce Rozmowa (w ekipie i na meczu)
+kontener czatu zostawiał pod sobą pas pustego tła, a na zakładce Rozmowa w ekipie sama
+belka lądowała niżej niż na pozostałych zakładkach (efekt uboczny `position: sticky`
+wewnątrz nieprzewijalnego, `overflow-hidden` kontenera).
+
+ROZWIĄZANIE BOJO: strona meczu ma teraz pięć zakładek: **Skład** (domyślna — uczestnicy,
+zapisy, prośby o dołączenie, panel „Czy gramy?", zwinięty domyślnie podział na drużyny,
+karta „Po meczu"), **Rozmowa** (ten sam mechanizm czatu co w ekipie, i **wyłącznie** okno
+czatu — żadnych innych elementów strony), **Wynik** (drużyny i formularz rezultatu —
+ten sam podział na drużyny co w zakładce Skład, zawsze rozwinięty), **Rozliczenia**
+(podział kosztów) i **Ustawienia** (panel organizatora, domyślnie rozwinięty — to teraz
+cała treść zakładki, nie jedna z wielu kart). Nazwa meczu przeniosła się nad zakładki
+(tam gdzie wcześniej stały „Udostępnij"/„Kopiuj"), a te dwa przyciski zeszły pod
+zakładki, w miejsce dawnego tytułu — zamiana miejscami, nic nie zniknęło. Reszta statusu
+meczu (baner odwołania, „Mecz gotowy", chipy daty/miejsca/ceny, sticky pasek „Dołącz")
+zostaje uniwersalna na każdej zakładce oprócz Rozmowy. Na stronie ekipy zakładki
+przeniosły się nad „Najbliższy mecz", a belka schudła do logo, nazwy, „Zaproś" i
+dzwonka — kod dołączenia żyje już tylko w arkuszu „Zaproś", a ustawienia dostały swój
+wpis w pasku zakładek zamiast osobnej zębatki. Rozmowa ekipy i rozmowa meczu obie
+rozciągają się do samego dołu ekranu na telefonie, a belka ekipy na zakładce Rozmowa
+stoi teraz na tej samej wysokości co na pozostałych zakładkach.
+
+MECHANIKA: nowy `components/events/RozmowaWydarzenia.tsx`; zastępuje usunięty
+`components/events/EventComments.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`: stan
+zakładki w `?tab=`; `skladWynikSection` rozbita na `druzynySection` (renderowany w Skład
+i Wynik — ten sam JSX na tym samym stanie z rodzica, więc zmiana w jednym miejscu jest
+od razu widoczna w drugim, bez synchronizacji) i `wynikFormSection`; `PoMeczuCard` dostał
+`onWpiszWynik` i warunek `tab === 'sklad'` (przestał być uniwersalny); uniwersalne sekcje
+(baner odwołania, „Mecz gotowy", blok akcji, sticky pasek) dostały `tab !== 'rozmowa'`.
+`app/grupy/[id]/GroupDetailClient.tsx`: belka bez kodu dołączenia i zębatki (Link
+„Ustawienia" w pasku zakładek zamiast), `NotificationBell` zamiast `MobileIdentityRow`
+(bez awatara); `position: sticky` na belce warunkowo wyłączone na zakładce Rozmowy.
+`RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca rodzic.
+
+### 2026-08-15 — Czy gramy: próg minimum, kto milczy, otwarcie dla okolicy; rozmowa jak WhatsApp; ekipa z jedną osobą już nie jest martwa
+
+PROBLEM: realna ekipa grająca co tydzień odtworzyła ręcznie w wątku na WhatsAppie
+dokładnie ten model, który Bojo już ma (bramka/gram/pass + rezerwa) — a cała reszta
+wątku była pracą biurową organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum
+żeby zagrać", „Może jeszcze ktoś się decyduje?", „Szukamy chętnych… potrzebne 3 osoby"
+rozsyłane po innych grupach. Rozmowa grupy (dawna „Tablica") była listą wpisów odgórnie
+na najnowszy, nie czatem — mało czytelna, z przyciskiem wysyłki zajmującym cały wiersz
+i bez sposobu wrócić na dół po przewinięciu w górę. Nowo utworzona ekipa miała jednego
+członka i żadnej podpowiedzi, żeby kogoś zaprosić — organizator kończył formularz i nie
+wiedział, co dalej. „Usuń ekipę" i „Opuść ekipę" stały razem na dole strony grupy, pod
+każdą zakładką z osobna, zdублowane z tym samym przyciskiem w Ustawieniach.
+
+ROZWIĄZANIE BOJO: organizator ustawia próg `min_players`, a strona meczu pokazuje
+werdykt wprost („Gramy ✓" / „Brakuje 2 do minimum") zamiast zostawiać liczenie w głowie.
+Przy meczu ekipy widzi też, kto z grupy jeszcze nie odpowiedział — ani nie dołączył, ani
+nie odmówił — i może zaczepić milczących powiadomieniem w Bojo albo skopiować gotowy
+tekst na WhatsAppa (Bojo nie ma dziś pusha ani SMS-a, więc karmi kanał, w którym ekipa
+już rozmawia, zamiast z nim konkurować). Członek ekipy dostaje jawne „Nie gram" — cisza
+przestaje znaczyć naraz „nie widziałem" i „odpadam". Gdy prywatnemu meczowi brakuje
+ludzi, jedno kliknięcie „Otwórz dla okolicy" zamienia go w publiczny — jedyna rzecz
+z tego zestawu, której żaden komunikator nie potrafi. Rozmowa grupy wygląda i przewija
+się teraz jak WhatsApp: chronologia rosnąco, composer pod listą, auto-scroll na dół,
+przycisk powrotu, dymki grupujące wiadomości tej samej osoby. Formularz nowej ekipy
+dostał okładkę i po utworzeniu prosto prowadzi do zaproszenia znajomych. „Usuń ekipę"
+zostaje wyłącznie w Ustawieniach; „Opuść ekipę" przeniosło się do Składu.
+
+MECHANIKA: migracja `097` (`events.min_players`, tabela `event_declines` — osobna od
+`rsvp`, bo odmowa to nie nieobecność — RPC `zapytaj_milczacych()`, wyzwalacz
+`powiadom_o_progu_gry()` wzorem `079`); `lib/events.ts` (`werdyktGry()`);
+`lib/eventDeclines.ts`, `lib/eventResponses.ts` (`ktoMilczy()`) — nowe; `lib/eventShare.ts`
+(`tekstZaczepki()`); `components/events/{CzyGramyPanel,NieGramButton}.tsx` — nowe;
+`components/groups/RozmowaGrupy.tsx` — przebudowany; `app/grupy/nowe/page.tsx`
+(okładka, `?zapros=1`); `components/groups/SkladGrupy.tsx` (Opuść ekipę).
+
+PROBLEM: nagłówek `/grupy/[id]` zajmował za dużo miejsca (osobny wiersz „← Ekipy" nad
+kartą z okładką) zamiast pokazać od razu, kiedy gramy; kod dołączenia był schowany
+w osobnym ekranie ustawień zamiast obok przycisku „Zaproś"; lista ekip na `/grupy`
+sortowała się po dacie założenia, nie po tym, która gra najbliżej; zmiana uprawnień
+innego członka żyła wyłącznie w Ustawieniach, mimo że najczęściej potrzebna jest
+dokładnie tam, gdzie widać skład; „Zaproś" i kod dołączenia widział każdy członek bez
+żadnej bramki, bo `can_manage_members` mieszało dwa różne poziomy zaufania (dodawanie
+ludzi wprost i samo zapraszanie kodem) w jednym przełączniku; „Najbliższy mecz" miał
+własną, niestandardową kartę zamiast tej samej, którą gracz zna z `/wydarzenia`.
+
+ROZWIĄZANIE BOJO: jedna niska belka łączy powrót, tożsamość ekipy, „Zaproś", kod
+dołączenia (klikalny, kopiuje do schowka) i ustawienia. Lista `/grupy` sortuje się po
+najbliższym terminie. „Tablica" zmieniła się w „Rozmowę" — wizualnie dymki czatu, własne
+wiadomości po prawej. W Składzie każdy członek ma teraz przycisk ustawień rozwijający
+panel uprawnień inline (dla założyciela), a Ustawienia dostały zakładki (Ogólne /
+Zaproszenia / Uprawnienia) z tym samym panelem jako akordeon rozwijany po imieniu.
+Nowy, czwarty przełącznik `can_invite` steruje wyłącznie widocznością „Zaproś" i kodu —
+niezależnie od `can_manage_members`. „Najbliższy mecz" renderuje się teraz tą samą kartą
+co lista meczów (`EventBrowseCard`), z „Udostępnij" jako osobnym przyciskiem pod spodem.
+
+MECHANIKA: migracja `096` (`group_members.can_invite`, domyślnie `true` — dziś każdy to
+widzi bez bramki, ten sam powód co `can_create_events` w `092`; trigger
+`ustaw_role_czlonka()` przedefiniowany, żeby wymusić `true` na założycielu). Nowy
+`components/groups/UprawnieniaCzlonkaPanel.tsx` (cztery `ToggleRow`, współdzielony przez
+`SkladGrupy.tsx` i `/grupy/[id]/edytuj`); `TablicaGrupy.tsx` przemianowany na
+`RozmowaGrupy.tsx` (mechanika bez zmian — `group_posts`, `093` — zmienił się wyłącznie
+wygląd i etykieta); `getMyGroupsZTerminem()` w `lib/groups.ts` sortuje wynik po dacie
+najbliższego meczu, grupy bez terminu na końcu.
+
+### 2026-08-14 — Grupy jako magnes na organizatora: uprawnienia, tablica, zaproszenia z nadawcą, statystyki
+
+PROBLEM: strategia (`docs/strategia.md §0`) przesuwa priorytet na pozyskiwanie
+organizatorów — a grupa jest jedynym miejscem w Bojo, gdzie pętla „co tydzień zbieram
+tę samą ekipę" może domykać się jednym kliknięciem zamiast wątku na komunikatorze. Kod
+sprzed tej zmiany na to nie pozwalał: `repeatEvent()` gubił przypięcie do grupy przy
+powtórce meczu; każdy, kto poznał UUID grupy (publicznie czytelne), mógł się do niej
+dopisać, bo `join_code` sprawdzał wyłącznie interfejs; roli członka nie dało się w ogóle
+zmienić — brakowało polityki UPDATE na `group_members` — więc jedynym „współorganizatorem"
+był zawsze i wyłącznie założyciel; nie było tablicy ani statystyk drużyny; zaproszenie
+`/g/[kod]` prowadziło od razu na ekran proszący o logowanie, zanim ktokolwiek zobaczył,
+do czego właściwie dołącza.
+
+ROZWIĄZANIE BOJO: założyciel może teraz nadać zaufanym członkom trzy niezależne
+uprawnienia (zarządzanie składem ekipy, zakładanie meczów w jej imieniu, moderowanie
+tablicy) — sam zawsze zachowuje komplet i jako jedyny może usunąć grupę. Dołączenie do
+grupy wymaga kodu zawsze — dziura z samym UUID jest zamknięta. Nowa tablica ogłoszeń:
+płaska lista wpisów, jeden może być przypięty i to jedyny, który powiadamia całą ekipę
+(dzwonek ma zostać miejscem na rzeczy wymagające działania, nie kanałem czatu). Ekran
+grupy zaczyna się od najbliższego meczu — gdy go nie ma, jeden przycisk „Powtórz na
+{data}" zakłada kolejny termin z tymi samymi ustawieniami co poprzedni. Zaproszenie
+`/g/[kod]` jest teraz czytelne bez konta (nazwa ekipy, kto zaprasza, najbliższy mecz,
+historia) z formularzem rejestracji od razu pod spodem — ten sam „pokaż wartość przed
+kontem", co przy zapisie na mecz bez logowania. Statystyki grupy (mecze, gole,
+niezawodność) są uczciwe co do tego, czego nie da się policzyć: zwycięstwa liczą się
+tylko tam, gdzie mecz miał podział na drużyny i wpisany wynik, a „niezawodność" nie
+udaje frekwencji, której Bojo nie śledzi.
+
+MECHANIKA: migracje `092` (`group_members.can_manage_members/can_create_events/
+can_moderate_wall`, trigger `ustaw_role_czlonka()` wyliczający etykietę `role` z tych
+przełączników, pięć funkcji `SECURITY DEFINER` do polityk RLS), `093` (tabela
+`group_posts`, `notifications.group_id`, wyzwalacz powiadamiający o przypiętym
+ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
+`odswiez_kod_grupy()`, `group_members.invited_by`, zdjęta polityka INSERT na
+`group_members`), `095` (RPC `get_group_stats()`/`get_group_leaderboard()`). Frontend:
+`lib/{groupPosts,groupStats,groupShare}.ts`, przebudowane `/grupy`, `/grupy/[id]`
+(cztery zakładki: Mecze/Tablica/Skład/Statystyki, komponenty w `components/groups/`),
+`/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
+Pełny model uprawnień → [docs/domena.md § Uprawnienia w
+grupie](./domena.md#uprawnienia-w-grupie).
+
 ### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
 
 PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
@@ -377,266 +718,3 @@ MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
 `event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
 `player_reports` (`091`). Pełny model uprawnień →
 [docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
-
-### 2026-08-13 — Strony treści dla organizatorów, FAQ naprawia kłamstwo o koncie, domknięcie meczu po gwizdku
-
-PROBLEM: FAQ na stronie głównej, `llms.txt` i sekcja „Zasięg i skala" tego pliku
-twierdziły, że dołączenie do meczu wymaga logowania — nieprawda od migracji `082`
-(self-service zapis gościa, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)).
-To dokładnie ten argument, którym organizator przebija opór graczy przed zakładaniem
-konta w obcej aplikacji, i aplikacja sama sobie go zabierała. Osobno: dane produkcyjne
-pokazały, że rzeczy, które Bojo umie **po meczu**, prawie nigdy się nie dzieją —
-122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych, zero przejętych wpisów
-gości — bo nic o nie nie prosi we właściwym momencie. Strategia (`docs/strategia.md §0`)
-przesuwa priorytet na pozyskiwanie organizatorów, a produkt nie miał stron tłumaczących
-mechanikę i przewagę nad wątkiem na Messengerze pod SEO/GEO/AEO.
-
-ROZWIĄZANIE BOJO: trzy nowe strony treści — `/jak-dziala-bojo` (cała ścieżka od
-kreatora po rozliczenie, z jawną sekcją o tym, że dołączenie nie wymaga konta,
-i sekcją „co Bojo powiadamia i gdzie", która wprost mówi, że SMS-ów i maili o meczu nie
-wysyła), `/dlaczego-bojo` (tabela porównawcza z grupą FB/WhatsApp, argument na „moi
-gracze nie założą konta"), `/faq` (36 pytań w sześciu kategoriach, wspólne źródło ze
-stroną główną). Poprawione FAQ na landingu, `llms.txt` (zapis bez konta,
-liczba obiektów ~30 000 zamiast nieaktualnego ~1400). Karta „Po meczu" na stronie meczu
-zbiera zadania organizatora (rozlicz ekipę, wpisz wynik, zaproś gości bez konta, powtórz
-mecz) w jednym miejscu zamiast jednej bursztynowej linijki; okno „Powtórz mecz" otwiera
-się z wypełnioną datą najbliższego takiego samego dnia tygodnia zamiast pustego pola;
-zakładka Historia na `/moje-gry` dostała sekcję „Do rozliczenia".
-
-MECHANIKA: `src/content/{faq,jakDziala,dlaczego,zakazaneFrazy}.ts` — copy jako
-dane, testowalne bez renderowania (wzorem `components/home/landing/content.ts`, który
-teraz re-eksportuje `FAQ_LANDING` z `content/faq.ts`); `components/tresc/*` — powłoka
-stron treści; `lib/recurring.ts`
-(`domyslnyTerminPowtorki()`); `lib/myEvents.ts` (`doRozliczenia()`);
-`components/events/PoMeczuCard.tsx`; `components/home/dashboard/DashboardSections.tsx`
-(`DoRozliczeniaSection`). Zero migracji SQL — cała część „po meczu" składa stan, który
-`EventDetailClient.tsx` i `getMyParticipatedEvents()` już liczyły.
-
-### 2026-08-13 — Powtórny zapis tym samym e-mailem: osobny ekran dla osoby z kontem i bez konta
-
-PROBLEM: druga próba zapisu bez logowania tym samym adresem kończyła się czerwonym
-komunikatem „Jesteś już zapisany na ten mecz.", który znikał po chwili — bez ekranu,
-bez wyjaśnienia, co dalej. Osoba, która MA konto w Bojo, była dodatkowo namawiana na
-założenie drugiego; dowiadywała się o istniejącym koncie dopiero po wpisaniu hasła
-i nieudanej rejestracji. Baza nie miała czym odpowiedzieć na pytanie „czy ten e-mail
-ma konto", a wybór ekranu przy wpisach zduplikowanych przed migracją `085` był
-losowy — zapytanie brało `LIMIT 1` bez `ORDER BY`.
-
-ROZWIĄZANIE BOJO: powtórny zapis tym samym e-mailem nigdy nie tworzy drugiego wiersza
-w składzie i nie kończy się błędem, tylko ekranem dopasowanym do sytuacji. Bez konta:
-ten sam ekran co po zapisie, z nagłówkiem „Wcześniej dołączyłeś do tej gry." i zachętą
-do założenia profilu. Z kontem: ten sam nagłówek, ale ekran skrócony — „Zaloguj się,
-żeby zobaczyć więcej szczegółów", pole hasła od razu w trybie logowania (nie
-rejestracji), przycisk „Zaloguj przez Google" i małe „Pomiń i zobacz skład bez
-logowania"; bez listy korzyści, bo właściciela konta nie ma po co przekonywać do
-czegoś, co już ma. Gdy wpis ma już właściciela, zostaje samo logowanie — nie ma czego
-przejmować. Osoba z kontem zapisująca się po raz PIERWSZY też dostaje wariant
-logowania, a jej miejsce (albo pozycja w kolejce rezerwowej) jest zaklepane od razu.
-
-MECHANIKA: migracja `088_konto_i_zamek_na_duplikaty.sql`. RPC
-`dolacz_do_meczu_jako_goscie()` zwraca czwartą kolumnę `has_account` (`EXISTS` na
-`auth.users` po `lower(email)`, pytanie globalne — nie „czy jest w tym meczu"), a
-zamiast `RAISE EXCEPTION 'Jesteś już zapisany na ten mecz.'` oddaje zwykły wiersz
-z `claim_token = NULL`; frontend wybiera ekran po kształcie wyniku, nie po treści
-komunikatu. Wyszukanie istniejącego wpisu dostało `ORDER BY (claim_token IS NULL) DESC,
-created_at`. Unikalny indeks `idx_participants_unique_guest_email` na
-`(event_id, lower(guest_email))` zamyka wyścig równoległych zapisów — migracja najpierw
-kasuje duplikaty sprzed `085`, bo inaczej indeks się nie zakłada. Frontend:
-`joinEventAsGuest()` w `lib/events.ts` (`claimToken: string | null`, `hasAccount`,
-`has_account ?? false` dla starego kształtu RPC sprzed ręcznego wgrania migracji),
-`handleJoinAsGuest()` i stan `newUserHasAccount` / `showAlreadyJoinedPrompt`
-w `EventDetailClient.tsx`. Testy: `frontend/src/__tests__/events.test.ts`,
-`describe('joinEventAsGuest — kontrakt z bazą')`.
-
-### 2026-08-12 — Powiadomienie o niepełnej nazwie naprawione, proaktywne zaproszenie gościa, wybór roli po rejestracji
-
-PROBLEM: powiadomienie w dzwonku „Uzupełnij swoje imię" (migracja `070`/`071`) nigdy
-nie zadziałało w produkcji — potwierdzone zapytaniem po danych: zero wierszy typu
-`uzupelnij_profil` mimo dziesiątek kont z niepełną nazwą założonych już po naprawie w
-`071`, przyczyna nieznana. Osobno: organizator dopisujący gościa bez konta miał tylko
-mały, łatwy do przeoczenia link „Zaproś do Bojo" przy jego imieniu w składzie — żadnej
-proaktywnej zachęty ani argumentacji, dlaczego to się organizatorowi opłaca. I: świeżo
-zarejestrowany użytkownik nie miał żadnej podpowiedzi, czy jest organizatorem (założyć
-grupę) czy graczem (dołączyć do swojej albo przeglądać otwarte mecze).
-
-ROZWIĄZANIE BOJO: nowe RPC `zglos_brak_pelnej_nazwy()` wołane z przeglądarki zaraz po
-zalogowaniu, dla świeżych kont (< 10 minut) bez pełnego imienia i nazwiska — tym samym
-warunkiem, którego już używa baner na pulpicie, więc oba mechanizmy mierzą jednym
-miernikiem. Zaraz po dodaniu gościa bez konta (przez organizatora albo, gdy włączone,
-przez uczestnika) otwiera się modal z trzema konkretnymi argumentami („dostanie
-powiadomienie o odwołaniu meczu", „zostanie w Twojej bazie graczy", „sam potwierdzi
-udział") i gotowym przyciskiem wysyłki zaproszenia — raz na wydarzenie, żeby dopisanie
-kilkunastu osób pod rząd nie zasypało modalami. Świeżo zarejestrowany, o ile rejestracja
-nie miała już konkretnego celu (dołączenie do meczu, przejęcie wpisu gościa), widzi
-modal z dwoma ścieżkami: „Jestem organizatorem" (prosto do założenia grupy) albo „Jestem
-graczem" (grupa albo przeglądanie meczów).
-
-MECHANIKA: migracja `086` — RPC `zglos_brak_pelnej_nazwy()` (`SECURITY DEFINER`,
-`NOT EXISTS` chroni przed duplikatem, gdyby wyzwalacz z `070`/`071` jednak zadziałał);
-wołane z `lib/auth.tsx` w `onAuthStateChange` przy `SIGNED_IN`. `lib/events.ts` —
-`addGuest()` zwraca teraz też `id`/`claimToken` (insert z `.select().single()`), nie
-tylko `isReserve`. `lib/guestClaim.ts` — nowa `udostepnijZaproszenieGoscia()` (Web Share
-z fallbackiem do schowka), współdzielona przez istniejący przycisk „Zaproś do Bojo" i
-nowy modal `components/events/GuestInviteNudge.tsx`. `lib/powrotPoLogowaniu.ts` — nowa
-`ostatniZamierzonyCel()` (jak `odbierzPowrot()`, ale nie kasuje wpisu). Nowy
-`components/onboarding/PostSignupRoleModal.tsx`, montowany globalnie w `layout.tsx`.
-
-### 2026-08-12 — Zapis na mecz bez logowania (self-service dla gościa)
-
-PROBLEM: bariera założenia konta zniechęca nowych graczy. Organizator chce dać im
-możliwość szybkiego dołączenia do meczu (wystarczy imię i e-mail), bez wymuszania
-logowania ani dopisywania ich ręcznie z panelu. Pierwsza wersja miała błąd SQL
-blokujący zapis (`claim_token` niejednoznaczne w `RETURNING`), nie pokazywała info
-o rezerwie przed zapisem, nie odświeżała listy uczestników po zapisie (gość „znikał"
-po zamknięciu ekranu zachęty, mimo że wpis w bazie istniał) i wymagała dwóch
-dodatkowych kliknięć (logowanie/rejestracja + „To ja — potwierdzam") zanim gość
-faktycznie zobaczył siebie w składzie.
-
-ROZWIĄZANIE BOJO: niezalogowany gracz dołącza do meczu w sticky pasku („Dołącz bez
-konta"), wpisując imię i e-mail — widzi z góry, czy trafi do składu czy na rezerwę
-(ta sama predykcja co w dialogu dla zalogowanych). Po zapisie ekran zachęty pokazuje
-faktyczny status („Jesteś w składzie" / „Jesteś na liście rezerwowej") nad już
-zaktualizowaną listą uczestników. Profil można dokończyć bez ponownego wpisywania
-imienia/maila — hasłem (dane już zna z formularza zapisu) albo przez Google — oba
-automatycznie przejmują wpis gościa i lądują wprost na stronie meczu, bez dodatkowego
-ekranu potwierdzenia. Gdy podany e-mail ma już konto, to samo pole hasła przełącza
-się z rejestracji na logowanie zamiast tylko pokazać błąd. Nawet gdy gość zamknie
-ekran bez logowania — albo wpis dodał organizator ręcznie, bez udziału gościa —
-właściciel pasującego konta i tak dostanie powiadomienie z gotowym linkiem
-przejęcia, przy najbliższej okazji (nowe konto z tym e-mailem albo kolejne logowanie).
-
-MECHANIKA: migracja `082` z funkcją `dolacz_do_meczu_jako_goscie()` (SECURITY DEFINER,
-zwraca `claim_token`+`is_reserve`), poprawiona migracją `083` (INSERT…RETURNING
-z jawnym prefiksem tabeli — naprawia „ambiguous column reference"). Kolumny
-`guest_email`, `guest_phone` w `event_participants`. Frontend: `EventDetailClient.tsx`
-— dialog gościa pokazuje predykcję rezerwy z `wolneMiejscaWgRol()` (bez dodatkowego
-zapytania); `handleJoinAsGuest` woła `load()` po zapisie i używa `result.isReserve`
-w komunikacie; `handleCreateAccountFromGuest` woła `signUpWithEmail()` +
-`przejmijWpisGoscia()` wprost, bez przejścia przez `/logowanie`; gdy `signUpWithEmail`
-rzuci błąd „już istnieje", `handleSignInFromGuest` woła `signInWithEmail()` na tym
-samym polu hasła. `PrzejmijClient.tsx` (`/gracz/przejmij/[token]`) auto-przejmuje
-wpis, gdy link niesie `?auto=1` i user jest już zalogowany — bez klikania „To ja —
-potwierdzam". Wrapper `joinEventAsGuest()` w `lib/events.ts`. Walidacja e-maila
-w `lib/validation.ts`. Migracja `084`: dwa wyzwalacze SQL kojarzą wpis gościa
-z kontem po e-mailu (`event_participants`→`auth.users` i odwrotnie) i wstawiają
-powiadomienie typu `niepotwierdzony_wpis_goscia` (kolumna `notifications.claim_token`,
-`NotificationBell.tsx` kieruje je na `/gracz/przejmij/[token]`) — bez samodzielnego
-przejęcia, tylko z linkiem; przejęcie nadal wymaga kliknięcia i `auth.uid()`. Migracja
-`085` naprawia znaleziony na produkcji duplikat: ten sam e-mail mógł zapisać się jako
-gość kilka razy na jeden mecz, bo `dolacz_do_meczu_jako_goscie()` tego nie sprawdzała
-— teraz na starcie odrzuca powtórkę (albo zwraca istniejący `claim_token`
-idempotentnie). `signUpWithEmail()` dostała też drugą detekcję „e-mail już ma konto"
-(`identities.length === 0`) — dla trybu ochrony przed enumeracją e-maili w Supabase,
-gdzie `signUp()` dla istniejącego adresu nie rzuca błędu tylko udaje sukces. Migracja
-`087` dodaje do `dolacz_do_meczu_jako_goscie()` kolumnę `already_joined` (true przy
-idempotentnym zwrocie tokenu z `085`), żeby frontend odróżnił świeży zapis od powtórki —
-ekran po powtórnym zapisie tym samym mailem pokazuje „Wcześniej dołączyłeś do tej gry."
-zamiast „Zapisano!". Migracja `088` dokłada kolumnę `has_account` i zamienia wyjątek na
-zwykły wynik — pełny opis czterech wariantów ekranu w sekcji „Powtórny zapis tym samym
-e-mailem" niżej.
-
-### 2026-08-12 — Zaproszenie gościa na rezerwie, dopisywanie gości przez uczestnika, rozliczenie i skład po meczu, jedna nazwa drużyny wszędzie
-
-PROBLEM: przycisk „Zaproś do Bojo" (przejęcie wpisu gościa) działał tylko dla gości
-w głównym składzie — gość na rezerwie nie miał jak przejąć swojego wpisu, mimo że
-backend to wspierał. Formularz „Dopisz osobę bez konta" mimo włączonej opcji
-„Uczestnicy mogą dodawać gości" renderował się wyłącznie organizatorowi — zwykły
-uczestnik miał inny, ukryty formularz z dodatkowymi ograniczeniami bez pokrycia
-w regułach dostępu. Po zakończonym meczu dało się dalej kliknąć „Wypisz się z meczu",
-sekcja płatności chowała się pod składem zamiast być na wierzchu, a wynik meczu i skład
-używały dwóch różnych nazw drużyn („Drużyna A/B" w wyniku, „Niebiescy/Czerwoni"
-w składzie). Formularz wyniku pozwalał wpisać strzelcom więcej goli niż wynik końcowy.
-Karty meczów w zakładce „Historia" pokazywały cenę i „Wymaga akceptacji" — bezużyteczne
-po fakcie. Na `/profil` brakowało linku „bojo" w górnym pasku na telefonie.
-
-ROZWIĄZANIE BOJO: przycisk zaproszenia i informacja „dodał(a)" są teraz identyczne
-w składzie i na rezerwie. Formularz dopisywania gościa jest jeden wzorzec dla
-organizatora i uczestnika, widoczny każdemu potwierdzonemu uczestnikowi (także
-rezerwowemu) do startu meczu. Po starcie meczu znika „Wypisz się z meczu", a sekcje
-„Podział kosztów"/„Twoja płatność" przenoszą się nad „Składy"/„Wynik meczu" — treść
-się nie zmienia, tylko kolejność. Cena i „Wymaga akceptacji" w nagłówku meczu i na
-kartach w Historii ustępują po starcie meczu miejsca statusowi rozliczenia
-(„Rozliczono"/„X nie zapłaciło" dla organizatora, „Zapłacono"/„Zapłać" dla gracza).
-Nazwy drużyn („Niebiescy"/„Czerwoni" + litery N/C) są teraz jednym słownikiem
-używanym identycznie w składzie i w wyniku. Formularz wyniku blokuje zapis, gdy suma
-goli albo asyst u strzelców przekracza wynik końcowy. Gol przy nazwisku pojawia się
-w składzie, jeśli gracz strzelił więcej niż 0. Baner „Wróciliśmy do Twojego szkicu"
-w kreatorze wydarzenia miał przycisk „Zacznij od nowa" ucinany przez `truncate` na
-wąskich ekranach — teraz jest osobnym, zawsze widocznym przyciskiem.
-
-MECHANIKA: `EventDetailClient.tsx` — pętla `reserves.map` w torze organizatora
-dostała ten sam blok `mozeZaprosic()`/`kopiujLinkPrzejecia()` co `regulars.map`
-i `ParticipantsList`; formularz gościa dla uczestnika stracił warunek
-`!myParticipation.isReserve`; blok „WYPISZ SIĘ" gated dodatkowo `!eventStarted`;
-`skladWynikSection`/`platnosciSection` — dwie zmienne JSX renderowane w kolejności
-zależnej od `eventStarted`; `golyMap` (z `matchResult.resultData.scorers`) przekazywany
-do `ParticipantsList`/`PublishedTeamsCard`. Nowy plik `lib/teamLabels.ts`
-(`TEAM_LABELS`, `TEAM_LETTERS`, `TEAM_COLOR_CLASSES`) używany w `TeamsPanel.tsx`,
-`MatchResultForm.tsx` i `EventDetailClient.tsx`. `MatchResultForm.tsx` — walidacja
-`enteredGoals`/`enteredAssists` vs `scoreA + scoreB` w `family === 'goals'`.
-`lib/events.ts` — `has_paid` dołączony do zapytań `getMyParticipatedEvents()`,
-nowe pola `EventItem.unpaidCount` i `MyEventRelation.hasPaid`. `EventBrowseCard.tsx`
-— `paymentBadge` zastępuje cenę/„Wymaga akceptacji" dla `past` kart. `profil/page.tsx`
-— `<Header showMobileWordmark />` na głównym renderze zalogowanego użytkownika.
-`wydarzenia/nowe/page.tsx` — baner szkicu bez `truncate`, „Zacznij od nowa" jako
-osobny przycisk.
-
-### 2026-08-12 — Komplet i zwolnione miejsce pod dzwonkiem, rozliczenie do wysłania, powrót z logowania kończy zapis, zaproszenie gościa też dla tego, kto go dopisał
-
-PROBLEM: organizator nie dowiadywał się, gdy skład meczu przechodził w komplet albo
-gdy ktoś się wypisał i komplet się rozpadł — cisza aż do wejścia na stronę meczu,
-podczas gdy na czacie WhatsApp „sorry, wypadam" jest widoczną wiadomością. Panel
-„Podział kosztów" liczył wszystko poprawnie, ale kończył się na ekranie: żeby
-powiedzieć ekipie, kto jeszcze nie oddał, organizator przepisywał to ręcznie na czat
-— goście bez konta w ogóle nie mają jak zobaczyć swojej kwoty w Bojo. Wylogowany,
-który kliknął „Zaloguj się, aby dołączyć", po zalogowaniu wracał na widok identyczny
-z tym sprzed logowania i musiał od nowa znaleźć przycisk „Dołącz". Przycisk „Zaproś do
-Bojo" (zaproszenie do przejęcia wpisu gościa) mógł kliknąć tylko organizator, mimo że
-gościa dopisuje często uczestnik (`allowGuestAdds`) — czyli osoba, która go zna
-i ma z nim kontakt, nie organizator.
-
-ROZWIĄZANIE BOJO: nowy wyzwalacz w bazie powiadamia organizatora o zmianie stanu
-kompletu w obie strony (nie o każdym zapisie z osobna, żeby nie zagłuszyć tych dwóch
-istotnych momentów kilkunastoma wpisami). Przycisk „Wyślij rozliczenie ekipie" otwiera
-systemowy arkusz udostępniania z gotową wiadomością: kwota, zebrane z oczekiwanych,
-lista zaległości z kwotami i numer BLIK. Kliknięcie „Zaloguj się, aby dołączyć" niesie
-przez logowanie intencję zapisu — po powrocie okno zapisu otwiera się samo. Zaproszenie
-do przejęcia wpisu gościa może wysłać też ten, kto konkretnego gościa dopisał, nie
-tylko organizator.
-
-MECHANIKA: migracja `079` — wyzwalacz `powiadom_o_zmianie_kompletu` na
-`event_participants` (INSERT/UPDATE/DELETE), typy `komplet_skladu` i
-`zwolnilo_sie_miejsce`; `lib/settlementShare.ts` (`tekstRozliczenia()`, wzorem
-`eventShareText`) i przycisk w panelu kosztów `EventDetailClient.tsx`; `?dolacz=1`
-w adresie powrotu z `/logowanie` (ten sam wzorzec co `?utworzono=1`) i efekt otwierający
-`joinDialogOpen`; `mozeZaprosic()` w `EventDetailClient.tsx` zastępuje warunek
-`isOrganizer` przy przycisku „Zaproś do Bojo" (`isOrganizer || p.addedBy === user.id`).
-
-### 2026-08-11 — Refaktor: bramki w CI, koniec cichych porażek, reguła składu tylko w bazie
-
-PROBLEM: Bojo miało trzy klasy błędów, których żadne narzędzie w repo nie widziało.
-Build produkcyjny nie był uruchamiany w CI (rzekomo wymagał kluczy Supabase), więc błędy
-prerenderu wychodziły dopiero na Vercelu. ESLint nie działał (rzekomo wymagał
-interaktywnej konfiguracji), więc martwy kod i braki w zależnościach hooków przechodziły
-bez echa. Nic nie sprawdzało, czy przycisk da się KLIKNĄĆ — modal przykryty paskiem
-nawigacji przechodził typecheck i wszystkie testy. Do tego dwie pułapki, które nie dają
-błędu, tylko fałszywy sukces: RLS aktualizujące zero wierszy i PostgREST obcinający
-odpowiedź. Reguła „skład czy rezerwa" istniała w dwóch równoległych implementacjach —
-w TypeScripcie i w SQL — a ich rozjazd oznaczał, że gracz wchodzi do składu, podczas gdy
-kolejka rezerwowa nadal go w niej trzyma.
-
-ROZWIĄZANIE BOJO: CI uruchamia teraz lint, build produkcyjny (na atrapach kluczy) oraz
-testy klikalności w Playwrighcie, obok typechecku i testów jednostkowych. Dwa helpery
-w `lib/zapytania.ts` zamieniają ciszę w wyjątek: `zaktualizujJedenWiersz()` sprawdza, czy
-UPDATE trafił w wiersz, a `pobierzWszystkie()` stronicuje odczyty dużych tabel.
-Dołączanie do meczu jest jedną operacją bazodanową — funkcja `dolacz_do_meczu()` decyduje
-i wstawia wpis w jednej transakcji, więc dwóch graczy nie dostanie już tego samego
-ostatniego miejsca. Regułę pojemności zna wyłącznie funkcja `czy_na_rezerwe()`.
-
-MECHANIKA: migracja `078` (`czy_na_rezerwe()` jako jedyne miejsce z regułą,
-`dolacz_do_meczu()` rozpoznające organizatora po `auth.uid()`, `sync_reserve_claim()`
-pytające tej samej funkcji); `lib/events.ts` (usunięte `decydujCzyRezerwa()`
-i `confirmedCounts()`; `joinEvent()` woła RPC, `approveParticipant()`, `addGuest()`
-i `confirmFromMaybe()` pytają `czy_na_rezerwe()`); nowy `lib/zapytania.ts`;
-`frontend/.eslintrc.js`, `playwright.config.ts` i `e2e/klikalnosc.spec.ts`;
-`.github/workflows/ci.yml` (kroki lint i build, osobne zadanie `e2e`).

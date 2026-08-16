@@ -293,3 +293,14 @@ a {
     font-size: 16px !important;
   }
 }
+
+/* Pasek zakładek przewijany w bok (grupa, wydarzenie) — sam scroll ma
+ * działać, ale widoczny pasek przewijania pod krótkim rzędem zakładek
+ * wygląda jak usterka, nie jak nawigacja. */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}

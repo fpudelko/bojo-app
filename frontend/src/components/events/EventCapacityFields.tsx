@@ -46,6 +46,7 @@ const TRYBY = [
 export default function EventCapacityFields({
   sport,
   maxPlayers, onMaxPlayersChange,
+  minPlayers = null, onMinPlayersChange,
   goalkeepersEnabled, setGoalkeepersEnabled,
   reserveClaimHours, setReserveClaimHours,
   slotyZarezerwowane = true, setSlotyZarezerwowane,
@@ -54,6 +55,9 @@ export default function EventCapacityFields({
   sport: string;
   maxPlayers: number;
   onMaxPlayersChange: (v: number) => void;
+  /** Próg "gra się odbędzie" (097). `null` = organizator go nie ustawił. */
+  minPlayers?: number | null;
+  onMinPlayersChange?: (v: number | null) => void;
   /** `null` = organizator jeszcze nie zdecydował (tylko kreator). */
   goalkeepersEnabled: boolean | null;
   setGoalkeepersEnabled: (v: boolean) => void;
@@ -106,6 +110,42 @@ export default function EventCapacityFields({
             Masz już graczy? Dopiszesz ich zaraz po utworzeniu — na stronie meczu, też bez konta.
           </p>
         </div>
+
+        {/* Próg minimum — dyskretny, jednolinijkowy toggle, nie osobna sekcja.
+            Odpowiada wprost na "10 to minimum żeby zagrać. Dobrze liczę?" —
+            zamiast liczyć w głowie, organizator dostaje werdykt na stronie meczu. */}
+        {onMinPlayersChange && (
+          <div className="mt-3">
+            {minPlayers == null ? (
+              <button
+                type="button"
+                onClick={() => onMinPlayersChange(Math.min(maxPlayers, Math.max(2, maxPlayers - 2)))}
+                className="text-xs font-medium text-primary-700 hover:text-primary-800"
+              >
+                + Ustaw minimum, żeby gra się odbyła
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <label htmlFor="min-players" className="text-xs text-slate-500">Minimum graczy</label>
+                <input
+                  id="min-players"
+                  type="number"
+                  min={1}
+                  max={maxPlayers}
+                  value={minPlayers}
+                  onChange={(e) => onMinPlayersChange(Math.min(maxPlayers, Math.max(1, Number(e.target.value) || 1)))}
+                  className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <button type="button" onClick={() => onMinPlayersChange(null)} className="text-xs text-slate-400 hover:text-red-500">
+                  Usuń
+                </button>
+              </div>
+            )}
+            <p className="mt-1 text-xs text-slate-400">
+              Poniżej progu Bojo pokaże „Gra zagrożona" i pozwoli zapytać ekipę, kto jeszcze wchodzi.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Czas na decyzję z rezerwy — widoczny wprost, nie pod „Więcej opcji".

@@ -2,6 +2,7 @@
 
 import { Globe, Lock } from 'lucide-react';
 import ToggleRow from '@/components/ui/ToggleRow';
+import { opisWidocznosciWGrupie } from '@/lib/eventFeatures';
 import type { Visibility } from '@/types';
 
 /**
@@ -10,13 +11,19 @@ import type { Visibility } from '@/types';
  * jako pierwszą kartę — ujednolicone z kolejnością kreatora).
  */
 export default function EventVisibilityFields({
-  visibility, setVisibility, requireApproval, setRequireApproval,
+  visibility, setVisibility, requireApproval, setRequireApproval, grupaNazwa, liczbaCzlonkowGrupy,
 }: {
   visibility: Visibility;
   setVisibility: (v: Visibility) => void;
   requireApproval: boolean;
   setRequireApproval: (v: boolean) => void;
+  /** Gdy mecz jest przypięty do grupy — dokłada zdanie o tym, kto naprawdę go
+   *  zobaczy. Bez tego „Prywatne" wygląda jak obietnica, której RLS nie
+   *  dotrzymuje: cała ekipa i tak widzi mecz na liście grupy. */
+  grupaNazwa?: string;
+  liczbaCzlonkowGrupy?: number;
 }) {
+  const opisGrupy = opisWidocznosciWGrupie(visibility, grupaNazwa, liczbaCzlonkowGrupy);
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-2">Widoczność</label>
@@ -42,6 +49,10 @@ export default function EventVisibilityFields({
           </span>
         </button>
       </div>
+
+      {opisGrupy && (
+        <p className="mt-2 text-xs text-slate-500">{opisGrupy}</p>
+      )}
 
       {/* Approval toggle — applies to both public and private events */}
       <div className="mt-3 rounded-lg border border-slate-200 px-4">

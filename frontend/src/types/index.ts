@@ -155,6 +155,8 @@ export interface EventItem {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  /** Ilu graczy musi być w składzie, żeby gra się odbyła. `undefined` = brak progu (097). */
+  minPlayers?: number;
   participantsCount?: number; // non-reserve app participants (populated in list queries)
   pendingApprovalCount?: number; // awaiting organizer approval (requireApproval matches)
   /** Regulars (not reserve, not pending) without has_paid — populated in list
@@ -246,6 +248,13 @@ export interface EventParticipant {
   sportsCardProvider?: SportsCardProvider;
 }
 
+/** Jawna odmowa udziału (migracja `097`) — "nie gram", nie "nieobecność". */
+export interface EventDecline {
+  eventId: string;
+  userId: string;
+  createdAt: string;
+}
+
 export interface EventCreate {
   sport: string;
   fieldId?: string;
@@ -258,6 +267,8 @@ export interface EventCreate {
   time: string;
   endTime?: string;
   maxPlayers: number;
+  /** Ilu graczy musi być, żeby gra się odbyła. Brak = brak progu (097). */
+  minPlayers?: number;
   visibility: Visibility;
   customLocationName?: string;
   customAddress?: string;
@@ -414,6 +425,7 @@ export interface AppNotification {
   eventId?: string;
   alertId?: string;
   claimToken?: string;
+  groupId?: string; // 093 — powiadomienia bez meczu (np. ogłoszenie na tablicy)
   readAt?: string;
   createdAt: string;
 }
@@ -444,6 +456,8 @@ export interface FieldComment {
 // Groups — a recurring crew of players
 // ---------------------------------------------------------------------------
 
+/** Etykieta wyliczana z `can_*` przez trigger `ustaw_role_czlonka` (migracja
+ *  `092`) — nie źródło prawdy o uprawnieniach, tylko podpis pod awatarem. */
 export type GroupRole = 'admin' | 'member';
 
 export interface Group {
@@ -459,6 +473,13 @@ export interface Group {
   coverImageUrl?: string;
   fieldId?: string;    // optional venue this group is tied to
   fieldName?: string;
+  joinCodeRotatedAt?: string; // 094 — kiedy ostatnio unieważniono stary link
+}
+
+/** Grupa z terminem najbliższego meczu — dla listy `/grupy`, żeby karta
+ *  odpowiadała od razu na pytanie "kiedy gramy", nie tylko "jak się nazywa". */
+export interface GroupWithNext extends Group {
+  nextEvent?: EventItem;
 }
 
 export interface GroupMember {
@@ -467,9 +488,62 @@ export interface GroupMember {
   userId: string;
   role: GroupRole;
   joinedAt: string;
+  // Cztery niezależne przełączniki (migracje `092`, `096`) — założyciel ma
+  // je zawsze `true` niezależnie od tego, co jest zapisane w wierszu (patrz
+  // `uprawnieniaCzlonka()` w `lib/groups.ts`, lustro wyzwalacza w bazie).
+  canManageMembers: boolean;
+  canCreateEvents: boolean;
+  canModerateWall: boolean;
+  canInvite: boolean; // 096 — widzi przycisk "Zaproś" i kod dołączenia
+  invitedBy?: string; // 094 — kto przyprowadził tę osobę do ekipy
   // joined from profiles / participations
   name: string;
   avatarUrl?: string;
+}
+
+/** Czyje uprawnienia w grupie widzi UI — wyliczone, nie surowy wiersz bazy. */
+export interface GroupPermissions {
+  isFounder: boolean;
+  canManageMembers: boolean;
+  canCreateEvents: boolean;
+  canModerateWall: boolean;
+  canInvite: boolean;
+}
+
+/** Wpis na tablicy grupy (migracja `093`) — płaska lista, bez wątków. */
+export interface GroupPost {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  body: string;
+  pinnedAt?: string;
+  deletedAt?: string;
+  createdAt: string;
+}
+
+/** Nagłówek statystyk grupy — publiczny, z `get_group_stats()` (migracja `095`). */
+export interface GroupStats {
+  matchesPlayed: number;
+  matchesUpcoming: number;
+  goalsTotal: number;
+  membersCount: number;
+  distinctPlayers: number;
+}
+
+/** Wiersz tabeli graczy grupy — z `get_group_leaderboard()` (migracja `095`),
+ *  wyłącznie dla członków. `wins` ma sens wyłącznie gdy `matchesWithTeams > 0`
+ *  — patrz `pokazacKolumneWygranych()` w `lib/groupStats.ts`. */
+export interface GroupLeaderboardEntry {
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+  matchesPlayed: number;
+  goals: number;
+  wins: number;
+  matchesWithTeams: number;
+  noShows: number;
+  niezawodnoscPct: number;
 }
 
 // ---------------------------------------------------------------------------

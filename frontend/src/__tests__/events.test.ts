@@ -42,7 +42,7 @@ vi.mock('@/lib/supabase', () => ({
 import { supabase } from '@/lib/supabase';
 import {
   createEvent, joinEvent, joinEventAsGuest, removeParticipant, getMyParticipationMap,
-  wolneMiejscaWgRol, addGuest, repeatEvent,
+  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry,
 } from '@/lib/events';
 import type { EventItem } from '@/types';
 
@@ -128,6 +128,45 @@ describe('repeatEvent', () => {
     const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
     const eventRow = insertedRows.find((row) => 'end_time' in row);
     expect(eventRow.end_time).toBe('19:30');
+  });
+
+  // Regresja: `repeatEvent` gubiło `groupId` — powtórka meczu ekipy wypinała
+  // termin z grupy, i cotygodniowa gierka rozjeżdżała się z listą meczów grupy
+  // po pierwszej powtórce.
+  it('carries source.groupId through to the repeated event', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(
+      { ...source, groupId: 'group-uuid-1' },
+      '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski',
+    );
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'group_id' in row);
+    expect(eventRow.group_id).toBe('group-uuid-1');
+  });
+
+  it('keeps group_id null when the source event has none', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(source, '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski');
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'group_id' in row);
+    expect(eventRow.group_id).toBeNull();
+  });
+
+  it('carries source.minPlayers through to the repeated event', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(
+      { ...source, minPlayers: 8 },
+      '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski',
+    );
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'min_players' in row);
+    expect(eventRow.min_players).toBe(8);
   });
 });
 
@@ -537,5 +576,40 @@ describe('wolneMiejscaWgRol — tryb wspólnej puli', () => {
     const w = wolneMiejscaWgRol(sklad(13, 0), wspolna);
     expect(w.razem).toBe(1);
     expect(w.bramkarze).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// werdyktGry (097) — próg minimum graczy, żeby organizator nie liczył
+// "brakuje nam 1go? dobrze liczę?" w głowie.
+// ---------------------------------------------------------------------------
+describe('werdyktGry', () => {
+  it('brak progu daje "brak-progu", nie udaje werdyktu', () => {
+    expect(werdyktGry({ minPlayers: undefined }, 5)).toEqual({ stan: 'brak-progu', brakuje: 0 });
+  });
+
+  it('próg 0 też liczy się jako brak progu', () => {
+    expect(werdyktGry({ minPlayers: 0 }, 5)).toEqual({ stan: 'brak-progu', brakuje: 0 });
+  });
+
+  it('równo minimum: gramy, brakuje 0', () => {
+    expect(werdyktGry({ minPlayers: 10 }, 10)).toEqual({ stan: 'gramy', brakuje: 0 });
+  });
+
+  it('powyżej minimum: gramy', () => {
+    expect(werdyktGry({ minPlayers: 10 }, 12)).toEqual({ stan: 'gramy', brakuje: 0 });
+  });
+
+  it('jeden poniżej minimum: zagrożona, brakuje 1', () => {
+    expect(werdyktGry({ minPlayers: 10 }, 9)).toEqual({ stan: 'zagrozona', brakuje: 1 });
+  });
+
+  it('pusty skład: zagrożona, brakuje całego progu', () => {
+    expect(werdyktGry({ minPlayers: 10 }, 0)).toEqual({ stan: 'zagrozona', brakuje: 10 });
+  });
+
+  it('błędna konfiguracja (min > max, tu tylko sam próg) nie wywraca funkcji', () => {
+    expect(() => werdyktGry({ minPlayers: 99 }, 3)).not.toThrow();
+    expect(werdyktGry({ minPlayers: 99 }, 3).brakuje).toBe(96);
   });
 });

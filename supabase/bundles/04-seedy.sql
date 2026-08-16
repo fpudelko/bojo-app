@@ -1205,6 +1205,12 @@ END $$;
 --     supabase/seed-test-users.sql
 --   • migracja 060 (event_player_invites) musi być wgrana, inaczej
 --     sekcja zaproszeń nie ma gdzie zapisać danych
+--   • migracje 092–095 (uprawnienia, tablica, zaproszenia, statystyki grup)
+--     muszą być wgrane, inaczej dwa niżej opisane elementy nie powstaną
+--
+-- Środowa Liga ma dodatkowo: t1 z pełnymi uprawnieniami współorganizatora
+-- (test panelu „Uprawnienia" w Ustawieniach) i trzy wpisy na tablicy, w tym
+-- jeden przypięty (test zakładki „Tablica" i licznika nieprzeczytanych).
 -- ============================================================
 
 DELETE FROM events WHERE description LIKE '[TEST-G]%';
@@ -1269,6 +1275,22 @@ BEGIN
     (g_sroda, t1, 'member'), (g_sroda, t2, 'member'), (g_sroda, t3, 'member'),
     (g_sroda, t4, 'member'), (g_sroda, t5, 'member'), (g_sroda, t6, 'member')
   ON CONFLICT DO NOTHING;
+
+  -- t1 dostaje pełne uprawnienia współorganizatora (migracja 092) — sprawdź
+  -- w Ustawieniach → Uprawnienia, czy t1 widnieje jako „Współorganizator"
+  -- w Składzie i czy faktycznie może dodawać/usuwać graczy oraz moderować
+  -- tablicę zalogowany jako t1@example.com.
+  UPDATE group_members
+     SET can_manage_members = true, can_create_events = true, can_moderate_wall = true
+   WHERE group_id = g_sroda AND user_id = t1;
+
+  -- Tablica: kilka wpisów, jeden przypięty — sprawdź plakietkę „przypięte",
+  -- powiadomienie pod dzwonkiem u pozostałych członków i licznik nieprzeczytanych.
+  INSERT INTO group_posts (group_id, user_id, user_name, body, pinned_at) VALUES
+    (g_sroda, me, me_name, 'Cześć ekipo! W tym tygodniu zmieniamy boisko na Orlik Winogrady — parking od strony ul. Wilczak.', now() - interval '2 hours');
+  INSERT INTO group_posts (group_id, user_id, user_name, body) VALUES
+    (g_sroda, t2, t2_name, 'Ok, będę 10 minut wcześniej z piłkami.'),
+    (g_sroda, t4, t4_name, 'W ten czwartek mnie nie będzie, jadę do rodziny.');
 
   -- 2. Ekipa założona przez kogoś innego — jestem zwykłym członkiem.
   --    Tu sprawdzasz, czego NIE wolno zwykłemu członkowi.

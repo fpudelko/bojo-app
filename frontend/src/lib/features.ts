@@ -30,5 +30,10 @@ export const SHOW_SMS_FEATURES = false;
  * respawned as free — so hiding it was the honest call. Now the next date is
  * created automatically, inherits the previous one's settings, and edits can
  * span the series.
+ *
+ * Wyłączona ponownie 2026-08-16 — produktowa decyzja o rezygnacji z gier
+ * cyklicznych/stałych gierek. Flaga chowa wejścia w nawigacji i przełącznik
+ * „Wydarzenie cykliczne" w kreatorze (`/wydarzenia/nowe`); istniejące serie
+ * i ich strony zarządzania zostają w kodzie nietknięte.
  */
-export const SHOW_RECURRING = true;
+export const SHOW_RECURRING = false;

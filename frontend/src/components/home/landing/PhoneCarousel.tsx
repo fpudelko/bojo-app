@@ -12,6 +12,7 @@ const SCREENS = [
   { id: 'kreator',  label: 'Tworzenie meczu',        src: '/landing/kreator.jpg' },
   { id: 'przed',    label: 'Wydarzenie przed meczem', src: '/landing/wydarzenie-przed.jpg' },
   { id: 'lista',    label: 'Lista otwartych gier',    src: '/landing/wydarzenia.jpg' },
+  { id: 'grupy',    label: 'Grupy i ekipy',           src: '/landing/grupy.jpg' },
   { id: 'mapa',     label: 'Mapa boisk',              src: '/landing/mapa.jpg' },
   { id: 'po',       label: 'Wydarzenie po meczu',     src: '/landing/wydarzenie-po.jpg' },
 ] as const;
