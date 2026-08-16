@@ -332,6 +332,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+
+PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
+ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
+nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
+push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+
+ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
+pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
+„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
+„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
+i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
+„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
+powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
+spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
+w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+
+MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
+więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
+`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
+systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
+`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
+nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+
 ### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
 
 PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
@@ -699,37 +723,3 @@ ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
 `/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
 Pełny model uprawnień → [docs/domena.md § Uprawnienia w
 grupie](./domena.md#uprawnienia-w-grupie).
-
-### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
-
-PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
-„uzupełnij profil" po rejestracji fizycznie zapisywało się w bazie, ale nigdy nie
-pojawiało się w dzwonku — wyścig między insertem a subskrypcją Realtime dzwonka, która
-nie zdążyła się zasubskrybować, zanim insert się wykonał. (2) Przycisk „Zaproś do Bojo"
-w karcie „Po meczu" skakał na skład, który dla zakończonego meczu jest domyślnie
-zwinięty do awatarów — scroll trafiał w puste miejsce. (3) Modal „Powtórz mecz" kopiował
-zegarową godzinę końca ze źródłowego meczu bez przeliczenia względem nowego startu —
-zmiana samej godziny startu potrafiła dać kopię „trwającą" 690 minut. (4) Organizator
-nie miał jak oznaczyć nieobecność gracza (infrastruktura istniała od migracji `011`, ale
-nic do niej nie zapisywało) ani przekazać części swoich praw komuś, kto pomaga prowadzić
-mecz pod jego nieobecność.
-
-ROZWIĄZANIE BOJO: (1) `lib/auth.tsx` po udanym RPC jawnie każe dzwonkowi odświeżyć listę
-(custom event), zamiast liczyć na Realtime dla tego jednego, znanego z wyścigu
-przypadku. (2) Kliknięcie „Zaproś do Bojo" rozwija skład i dopiero potem scrolluje.
-(3) Modal „Powtórz mecz" ma teraz pole „Koniec" obok „Godziny" — zmiana startu przesuwa
-koniec o tę samą deltę (zachowuje długość), zmiana końca nigdy nie rusza startu.
-(4) Nowy modal „Kto nie przyszedł" w karcie „Po meczu" (organizator/delegat od składu) —
-wpływa na plakietkę „Niezawodny" i pasek frekwencji na `/gracz/[id]`, bez zmiany widoku
-składu dla reszty. Nowy panel „Uprawnienia" (wyłącznie prawdziwy organizator): deleguje
-uczestnikowi meczu albo członkowi przypiętej grupy trzy niezależne prawa — pełną edycję
-(włącznie z odwołaniem meczu), zarządzanie składem i wynikiem, zarządzanie rozliczeniami
-i BLIK-iem. Egzekwowane w RLS, nie tylko w UI.
-
-MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
-`event_delegates` (migracja `089`, + funkcje `can_edit_event()`/`can_manage_squad()`/
-`can_manage_payments()`), rozszerzenie RLS na `events`/`event_participants`/
-`team_proposals`/`match_results`/`player_goals`/`event_player_invites` + RPC
-`event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
-`player_reports` (`091`). Pełny model uprawnień →
-[docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).
