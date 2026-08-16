@@ -13,10 +13,16 @@ import type { MyEventRow } from '@/lib/myEvents';
  *  na /moje-gry ("Twoje najbliższe mecze"), zamiast osobnego, większego
  *  markupu. Przycisk „Udostępnij" znika razem z tym — mecz nadal da się
  *  udostępnić ze strony szczegółów. */
-export default function NextMatchCard({ row, unreadMessages }: {
+export default function NextMatchCard({ row, unreadMessages, extra }: {
   row: MyEventRow | null;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — patrz `EventBrowseCard`. */
   unreadMessages?: number;
+  /** Dodatkowa kontrolka obok etykiety „Najbliższy mecz" — `/moje-gry` zaczepia
+   *  tu filtr nieprzeczytanych, gdy „Brakuje graczy" akurat nic nie pokazuje
+   *  (patrz `pokazPustyNaglowek` w `NeedsPlayersSection`). Renderuje się
+   *  wyłącznie w wypełnionym stanie — pusta karta „Nie masz zaplanowanych
+   *  gier" to CTA, nie miejsce na filtr. */
+  extra?: React.ReactNode;
 }) {
   if (!row) {
     return (
@@ -53,9 +59,12 @@ export default function NextMatchCard({ row, unreadMessages }: {
 
   return (
     <div>
-      <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
-        Najbliższy mecz
-      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
+          Najbliższy mecz
+        </span>
+        {extra}
+      </div>
       <div className="mt-2">
         <EventBrowseCard event={row.event} relation={row.relation} unreadMessages={unreadMessages} />
       </div>

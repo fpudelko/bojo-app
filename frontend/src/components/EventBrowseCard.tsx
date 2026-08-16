@@ -196,9 +196,27 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
             {max > 0 && (
               <span className="text-xs text-slate-500 dark:text-slate-400">{taken} graczy</span>
             )}
-            {statusChip && (
-              <span className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
-                {statusChip.label}
+            {/* Ta sama plakietka nieprzeczytanych co w karcie nadchodzącego meczu
+                niżej — bez niej mecz z Historii z nieprzeczytaną wiadomością
+                zapalał różową kropkę na „Moje" (patrz `hasUnreadEventMessages()`,
+                nie filtruje po dacie), ale nigdzie na karcie tego nie było widać:
+                ten branch JSX w ogóle nie renderował plakietki, niezależnie od
+                propa `unreadMessages`. Zgłoszone wprost — „mam kropkę, nie mam
+                gdzie szukać wiadomości". Owijka `ml-auto` trzyma parę (plakietka +
+                statusChip) razem przy prawej krawędzi, nawet gdy któregoś z nich
+                brakuje (np. organizator bez własnego udziału nie ma statusChipu). */}
+            {(pokazNieprzeczytane || statusChip) && (
+              <span className="ml-auto flex items-center gap-2">
+                {pokazNieprzeczytane && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                    <MessageCircle className="h-3 w-3" /> {unreadMessages}
+                  </span>
+                )}
+                {statusChip && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
+                    {statusChip.label}
+                  </span>
+                )}
               </span>
             )}
           </div>

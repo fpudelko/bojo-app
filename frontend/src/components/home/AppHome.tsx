@@ -10,6 +10,7 @@ import {
   GroupGamesSection,
   OpenGamesSection,
   MyGroupsSection,
+  NextGroupMatchTeaser,
   OnboardingSection,
 } from './dashboard/DashboardSections';
 import LandingFaq from './landing/LandingFaq';
@@ -50,6 +51,7 @@ export default function AppHome({ userId }: { userId: string }) {
         <UzupelnijProfilBanner />
         <InvitesSection invites={data.invites} statusFor={data.statusFor} />
         <NextMatchCard row={next} />
+        <NextGroupMatchTeaser groupEvents={data.groupEvents} groups={data.groups} />
         <MyMatchesSection items={restPlaying} />
         <ObservingSection items={observing} />
         <GroupGamesSection events={data.groupEvents} statusFor={data.statusFor} />

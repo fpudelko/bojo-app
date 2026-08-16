@@ -332,6 +332,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Przełącznik ekip w belce, ekipa z najbliższym meczem na pulpicie, prawdziwa naprawa kropki na "Moje", filtr znów przesunięty
+
+PROBLEM: kropka „nowe wiadomości" na „Moje" wciąż świeciła się bez śladu wiadomości mimo
+poprzedniej naprawy (przekazanie `unreadMessages` do kart Historii) — bo `EventBrowseCard`
+w ogóle nie renderował plakietki w gałęzi JSX dla rozegranych meczów, niezależnie od tego,
+co dostał w propsie; sam prop docierał, ale nie było go czym pokazać. Filtr
+nieprzeczytanych na `/moje-gry`, przeniesiony w poprzedniej zmianie na sztywno pod
+„Brakuje graczy", zajmował pusty wiersz na całą wysokość sekcji, gdy akurat nie było
+czego tam pokazać — zgłoszone wprost po raz drugi. Strona ekipy nie miała żadnego sposobu
+przełączenia się na inną ekipę bez powrotu do listy `/grupy`. Pulpit zalogowanego nie
+odpowiadał na pytanie „z którą ekipą gram najszybciej" bez przewijania do „Twoje grupy"
+na samym dole.
+
+ROZWIĄZANIE BOJO: plakietka nieprzeczytanych (razem ze statusChipem) doszła też do
+gałęzi „rozegrany/anulowany" karty meczu — kropka na „Moje" ma teraz zawsze widoczny ślad
+w Historii. Filtr nieprzeczytanych próbuje trzech miejsc po kolei: „Brakuje graczy" →
+„Najbliższy mecz" → pusty wiersz jako ostateczność, wyłącznie gdy obie realne sekcje są
+puste naraz. Nazwa ekipy w belce `/grupy/[id]` jest teraz przyciskiem — rozwija listę
+pozostałych ekip użytkownika, klik przełącza. Pulpit dostał nową sekcję „Twoja ekipa gra
+wkrótce" między najbliższym meczem a „Twoje najbliższe mecze": ekipa z najbliższym
+nadchodzącym meczem, link do jej strony.
+
+MECHANIKA: `EventBrowseCard.tsx` — plakietka `pokazNieprzeczytane` + `statusChip` owinięte
+wspólnym `ml-auto` w gałęzi `past`. `GroupDetailClient.tsx` — `mojeEkipy` (`getMyGroups()`),
+`przelacznikOtwarty`, dropdown pod belką z tłem `fixed inset-0` zamykającym po kliknięciu
+poza listą. `DashboardSections.tsx` — `needsPlayers()` wydzielone z `NeedsPlayersSection`
+jako eksportowany predykat (żeby `/moje-gry` mogło policzyć to samo przed renderowaniem,
+bez duplikowania reguły); nowy `NextGroupMatchTeaser({ groupEvents, groups })` — dane
+z `useDashboardData()`, zero nowego zapytania, doprecyzowuje sort po `date+time` po stronie
+klienta (SQL w `getMyGroupEvents()` sortuje tylko po `event_date`). `NextMatchCard.tsx` —
+nowy prop `extra` obok etykiety „Najbliższy mecz". `app/moje-gry/page.tsx` —
+`maBrakujeGraczy`, `extraDlaBrakujeGraczy`/`extraDlaNajblizszego`/
+`pokazPustyNaglowekDlaBrakujeGraczy` decydują, gdzie wyląduje `filtrNieprzeczytanychButton`.
+
 ### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
 
 PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
@@ -699,37 +733,3 @@ ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
 `/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
 Pełny model uprawnień → [docs/domena.md § Uprawnienia w
 grupie](./domena.md#uprawnienia-w-grupie).
-
-### 2026-08-14 — Delegowanie uprawnień organizatora, oznaczanie nieobecności, naprawa powtórki meczu i powiadomienia o profilu
-
-PROBLEM: cztery niezależne usterki w przepływie organizatora. (1) Powiadomienie
-„uzupełnij profil" po rejestracji fizycznie zapisywało się w bazie, ale nigdy nie
-pojawiało się w dzwonku — wyścig między insertem a subskrypcją Realtime dzwonka, która
-nie zdążyła się zasubskrybować, zanim insert się wykonał. (2) Przycisk „Zaproś do Bojo"
-w karcie „Po meczu" skakał na skład, który dla zakończonego meczu jest domyślnie
-zwinięty do awatarów — scroll trafiał w puste miejsce. (3) Modal „Powtórz mecz" kopiował
-zegarową godzinę końca ze źródłowego meczu bez przeliczenia względem nowego startu —
-zmiana samej godziny startu potrafiła dać kopię „trwającą" 690 minut. (4) Organizator
-nie miał jak oznaczyć nieobecność gracza (infrastruktura istniała od migracji `011`, ale
-nic do niej nie zapisywało) ani przekazać części swoich praw komuś, kto pomaga prowadzić
-mecz pod jego nieobecność.
-
-ROZWIĄZANIE BOJO: (1) `lib/auth.tsx` po udanym RPC jawnie każe dzwonkowi odświeżyć listę
-(custom event), zamiast liczyć na Realtime dla tego jednego, znanego z wyścigu
-przypadku. (2) Kliknięcie „Zaproś do Bojo" rozwija skład i dopiero potem scrolluje.
-(3) Modal „Powtórz mecz" ma teraz pole „Koniec" obok „Godziny" — zmiana startu przesuwa
-koniec o tę samą deltę (zachowuje długość), zmiana końca nigdy nie rusza startu.
-(4) Nowy modal „Kto nie przyszedł" w karcie „Po meczu" (organizator/delegat od składu) —
-wpływa na plakietkę „Niezawodny" i pasek frekwencji na `/gracz/[id]`, bez zmiany widoku
-składu dla reszty. Nowy panel „Uprawnienia" (wyłącznie prawdziwy organizator): deleguje
-uczestnikowi meczu albo członkowi przypiętej grupy trzy niezależne prawa — pełną edycję
-(włącznie z odwołaniem meczu), zarządzanie składem i wynikiem, zarządzanie rozliczeniami
-i BLIK-iem. Egzekwowane w RLS, nie tylko w UI.
-
-MECHANIKA: `lib/eventDelegates.ts`, `lib/attendance.ts`, `lib/time.ts` (nowe);
-`event_delegates` (migracja `089`, + funkcje `can_edit_event()`/`can_manage_squad()`/
-`can_manage_payments()`), rozszerzenie RLS na `events`/`event_participants`/
-`team_proposals`/`match_results`/`player_goals`/`event_player_invites` + RPC
-`event_set_payment_settings()` (`090`), unikalny indeks i zaostrzone RLS na
-`player_reports` (`091`). Pełny model uprawnień →
-[docs/domena.md § Delegowanie](./domena.md#delegowanie-uprawnień-organizatora).

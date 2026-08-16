@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2, Info,
+  Users, ArrowLeft, Loader2, CalendarPlus, Link2, Check, Share2, Info, ChevronDown,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
@@ -25,7 +25,7 @@ import { useToast } from '@/lib/toast';
 import {
   getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
   joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
-  kluczGrupyWidziano,
+  kluczGrupyWidziano, getMyGroups,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
@@ -72,6 +72,8 @@ export default function GroupDetailClient() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [nieprzeczytaneN, setNieprzeczytaneN] = useState(0);
   const [nieprzeczytaneWMeczach, setNieprzeczytaneWMeczach] = useState<Record<string, number>>({});
+  const [mojeEkipy, setMojeEkipy] = useState<Group[]>([]);
+  const [przelacznikOtwarty, setPrzelacznikOtwarty] = useState(false);
 
   // Zakładka: stan lokalny odczytany z URL-a, zapisywany przez
   // history.replaceState — nie router.replace. `/grupy/[id]` jest trasą
@@ -166,6 +168,16 @@ export default function GroupDetailClient() {
   useEffect(() => {
     window.localStorage.setItem(kluczGrupyWidziano(id), new Date().toISOString());
   }, [id]);
+
+  // Lista pozostałych ekip do przełącznika w nagłówku — jedno zapytanie,
+  // wyłącznie dla zalogowanego. Zamyka się przy każdej zmianie `id` (przejście
+  // do innej ekipy z listy albo z powrotem), żeby nie zostać otwartym po
+  // nawigacji.
+  useEffect(() => {
+    if (!user) { setMojeEkipy([]); return; }
+    getMyGroups(user.id).then(setMojeEkipy).catch(() => {});
+  }, [user]);
+  useEffect(() => { setPrzelacznikOtwarty(false); }, [id]);
 
   // Nieprzeczytane wpisy na tablicy — jedno dodatkowe zapytanie, wyłącznie
   // dla członka (nie-członek i tak nie zobaczy tablicy, RLS zwróci pustkę).
@@ -353,7 +365,7 @@ export default function GroupDetailClient() {
             jednym przypadku daje ten sam efekt (belka i tak jest pierwszym
             elementem na górze), bez tej niespójności. */}
         <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 bg-canvas md:static md:mx-0 md:mt-0 md:bg-transparent`}>
-          <div className="space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
+          <div className="relative space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
             <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <button
                 onClick={() => router.push('/grupy')}
@@ -370,7 +382,22 @@ export default function GroupDetailClient() {
                   <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
                 )}
               </span>
-              <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+              {/* Nazwa jako przycisk — rozwija listę pozostałych ekip zamiast
+                  być czystym tytułem. Wyłącznie gdy jest co przełączać (druga
+                  ekipa w liście); jednej ekipy nie ma sensu robić klikalną. */}
+              {mojeEkipy.filter((g) => g.id !== group.id).length > 0 ? (
+                <button
+                  onClick={() => setPrzelacznikOtwarty((v) => !v)}
+                  aria-expanded={przelacznikOtwarty}
+                  aria-label="Przełącz ekipę"
+                  className="flex min-w-0 flex-1 items-center gap-1 rounded-lg py-0.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700"
+                >
+                  <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${przelacznikOtwarty ? 'rotate-180' : ''}`} />
+                </button>
+              ) : (
+                <h1 className="min-w-0 flex-1 truncate font-display text-base font-bold text-ink">{group.name}</h1>
+              )}
               {member && perms.canInvite && (
                 <button
                   onClick={() => setInviteOpen(true)}
@@ -383,6 +410,38 @@ export default function GroupDetailClient() {
                 <NotificationBell />
               </div>
             </div>
+
+            {przelacznikOtwarty && (
+              <>
+                {/* Cała reszta ekranu za tłem — kliknięcie poza listą zamyka
+                    przełącznik, tak jak każdy inny dropdown w apce. */}
+                <button
+                  aria-label="Zamknij przełącznik ekip"
+                  onClick={() => setPrzelacznikOtwarty(false)}
+                  className="fixed inset-0 z-[1005] cursor-default"
+                />
+                <div className="absolute left-0 right-0 top-full z-[1010] mt-1 max-h-64 overflow-y-auto rounded-2xl border border-slate-100 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  {mojeEkipy.filter((g) => g.id !== group.id).map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => { setPrzelacznikOtwarty(false); router.push(`/grupy/${g.id}`); }}
+                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-sm">
+                        {g.coverImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={g.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-white">{g.sport ? sportEmoji(g.sport) : '👥'}</span>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-semibold text-ink">{g.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
             <p className="truncate px-1 text-xs text-slate-500 dark:text-slate-400">
               {[group.sport ? sportLabel(group.sport) : null, group.city, group.fieldName].filter(Boolean).join(' · ')}
               {(group.sport || group.city || group.fieldName) && ' · '}
