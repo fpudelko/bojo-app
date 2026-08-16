@@ -12,7 +12,7 @@ import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWi
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { DoRozliczeniaSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection } from '@/components/home/dashboard/DashboardSections';
+import { DoRozliczeniaSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
@@ -134,8 +134,12 @@ function MojeGryContent() {
   const nextWidoczny = onlyUnread ? (next && maNieprzeczytane(next.event) ? next : null) : next;
   const jestNieprzeczytanych = Object.keys(unreadByEvent).length > 0;
 
-  // Kotwiczony na wysokości „Brakuje graczy" (patrz `NeedsPlayersSection`
-  // niżej), nie w pasku zakładek — zgłoszone wprost.
+  // Kotwiczony na wysokości pierwszej sekcji, która realnie coś pokazuje —
+  // nie w pasku zakładek (zgłoszone wprost) i nie na sztywno pod „Brakuje
+  // graczy": gdy ta sekcja akurat jest pusta, pusty wiersz zarezerwowany
+  // tylko dla ikonki zjadał sporo miejsca (zgłoszone wprost po raz drugi).
+  // Kolejność prób: Brakuje graczy → Najbliższy mecz → pusty wiersz jako
+  // ostateczność, gdy filtr wyzerował obie te sekcje na raz.
   const filtrNieprzeczytanychButton = (
     <button
       onClick={() => setOnlyUnread((v) => !v)}
@@ -149,6 +153,13 @@ function MojeGryContent() {
       <MessageCircle className="h-4 w-4" />
     </button>
   );
+  const maBrakujeGraczy = upcomingWidoczne.some(needsPlayers);
+  // Trzy miejsca postoju filtra, w kolejności prób: prawdziwy nagłówek
+  // „Brakuje graczy", potem „Najbliższy mecz", na końcu pusty wiersz —
+  // wyłącznie gdy obie te sekcje akurat nic nie pokazują.
+  const extraDlaBrakujeGraczy = jestNieprzeczytanych && (maBrakujeGraczy || !nextWidoczny) ? filtrNieprzeczytanychButton : undefined;
+  const pokazPustyNaglowekDlaBrakujeGraczy = jestNieprzeczytanych && !maBrakujeGraczy && !nextWidoczny;
+  const extraDlaNajblizszego = jestNieprzeczytanych && !maBrakujeGraczy && !!nextWidoczny ? filtrNieprzeczytanychButton : undefined;
 
   if (!authLoading && !user) {
     return (
@@ -269,18 +280,12 @@ function MojeGryContent() {
               href="/moje-gry?tab=zaproszenia"
             />
             <PendingRequestsSection items={upcomingWidoczne} unreadByEvent={unreadByEvent} />
-            {/* Filtr „tylko nieprzeczytane" stoi na wysokości „Brakuje graczy"
-                (`extra` w `SectionHeader`), nie w pasku zakładek — zgłoszone
-                wprost. `pokazPustyNaglowek` trzyma przycisk widocznym nawet
-                gdy akurat nie ma czego pokazać w tej sekcji (i wtedy niżej
-                stoi komunikat „nic z nieprzeczytanymi"), bo przycisk musi
-                zostać dostępny, żeby dało się wyłączyć filtr z powrotem. */}
             <NeedsPlayersSection
               items={upcomingWidoczne}
               limit={null}
               unreadByEvent={unreadByEvent}
-              extra={jestNieprzeczytanych ? filtrNieprzeczytanychButton : undefined}
-              pokazPustyNaglowek
+              extra={extraDlaBrakujeGraczy}
+              pokazPustyNaglowek={pokazPustyNaglowekDlaBrakujeGraczy}
             />
             {onlyUnread && upcomingWidoczne.length === 0 ? (
               <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -289,7 +294,11 @@ function MojeGryContent() {
             ) : (
               <>
                 {(!onlyUnread || nextWidoczny) && (
-                  <NextMatchCard row={nextWidoczny} unreadMessages={nextWidoczny ? unreadByEvent[nextWidoczny.event.id] : undefined} />
+                  <NextMatchCard
+                    row={nextWidoczny}
+                    unreadMessages={nextWidoczny ? unreadByEvent[nextWidoczny.event.id] : undefined}
+                    extra={extraDlaNajblizszego}
+                  />
                 )}
                 <MyMatchesSection
                   items={playingWidoczne.filter(({ event }) => event.id !== nextWidoczny?.event.id)}

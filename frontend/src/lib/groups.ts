@@ -476,3 +476,24 @@ export async function hasNewGroupEvents(groupIds: string[]): Promise<boolean> {
   const counts = policzNoweMeczePerGrupa(events, widzianoByGroup);
   return Object.keys(counts).length > 0;
 }
+
+/** Nazwa ekipy, w której pojawił się najświeższy nowy mecz — zasila treść
+ *  dymka „Nowa gra w grupie {nazwa}" (patrz `BottomNav.tsx`). Gdy nowy mecz
+ *  ma więcej niż jedna ekipa naraz, wygrywa ta z najnowszym meczem
+ *  (`createdAt` najpóźniejszy) — jeden dymek nie ma jak wymienić wszystkich. */
+export async function getNewGroupEventGroupName(
+  groups: Pick<Group, 'id' | 'name'>[],
+): Promise<string | null> {
+  if (groups.length === 0) return null;
+  const events = await getGroupEventsForNew(groups.map((g) => g.id));
+  const widzianoByGroup = (groupId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczGrupyWidziano(groupId)) : null
+  );
+  let najnowszy: { createdAt: string; groupId: string } | null = null;
+  for (const e of events) {
+    if (!maNoweMecze([e], widzianoByGroup(e.groupId))) continue;
+    if (!najnowszy || e.createdAt > najnowszy.createdAt) najnowszy = e;
+  }
+  if (!najnowszy) return null;
+  return groups.find((g) => g.id === najnowszy!.groupId)?.name ?? null;
+}

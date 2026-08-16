@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import {
   ArrowRight, Bell, BellRing, CalendarPlus, Plus, Repeat, Share2, Users,
   type LucideIcon,
@@ -113,6 +115,63 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadB
   );
 }
 
+/** Ekipa z najbliższym nadchodzącym meczem — nad „Twoje najbliższe mecze"
+ *  (zgłoszone wprost), zanim trzeba przewijać do „Twoje grupy" niżej.
+ *  `groupEvents` z `useDashboardData()` przychodzi posortowane po dacie
+ *  (`getMyGroupEvents()` w `lib/events.ts`), ale tylko po `event_date` w
+ *  SQL-u — bez godziny w drugiej kolumnie sortowania dwa mecze tego samego
+ *  dnia mogłyby wyjść w złej kolejności, więc doprecyzowanie po `date+time`
+ *  tutaj jest tanie i pewne. */
+export function NextGroupMatchTeaser({ groupEvents, groups }: {
+  groupEvents: EventItem[];
+  groups: Group[];
+}) {
+  const najblizszy = [...groupEvents].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
+  if (!najblizszy) return null;
+  const ekipa = groups.find((g) => g.id === najblizszy.groupId);
+  if (!ekipa) return null;
+
+  const max = najblizszy.maxPlayers ?? 0;
+  const taken = najblizszy.participantsCount ?? 0;
+  const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
+
+  let dzien = '';
+  try { dzien = format(parseISO(najblizszy.date), 'EEE d MMM', { locale: pl }); }
+  catch { dzien = najblizszy.date; }
+
+  return (
+    <div>
+      <SectionHeader title="Twoja ekipa gra wkrótce" href="/grupy" />
+      <Link
+        href={`/grupy/${ekipa.id}`}
+        className="block rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-primary-200 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
+            {ekipa.sport ? sportEmoji(ekipa.sport) : '👥'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-ink">{ekipa.name}</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <span className="capitalize">{dzien}</span> · {najblizszy.time.slice(0, 5)}
+              {najblizszy.fieldName && ` · ${najblizszy.fieldName}`}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
+        </div>
+        {max > 0 && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+              <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
+          </div>
+        )}
+      </Link>
+    </div>
+  );
+}
+
 /** „Na który z moich meczów nie zbiera się skład" — pytanie, na które
  *  organizator dotąd nie miał gdzie odpowiedzieć. `/moje-gry` miesza
  *  organizowanie i granie celowo w jednej liście (`splitMyEvents` obok),
@@ -219,22 +278,29 @@ export function PendingRequestsSection({ items, href, unreadByEvent }: {
   );
 }
 
+/** Czy ten mecz liczy się jako „brakuje graczy" — wydzielone z
+ *  `NeedsPlayersSection`, żeby `/moje-gry` mogło policzyć to samo PRZED
+ *  renderowaniem, bez duplikowania reguły (decyduje, gdzie ma stanąć filtr
+ *  nieprzeczytanych, patrz `pokazPustyNaglowek` niżej). */
+export function needsPlayers({ event, relation }: MyEventRow): boolean {
+  return relation.isOrganizer
+    && (event.maxPlayers ?? 0) > 0
+    && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0);
+}
+
 export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent, extra, pokazPustyNaglowek }: {
   items: MyEventRow[]; limit?: number | null; href?: string; unreadByEvent?: Record<string, number>;
   /** Dodatkowa kontrolka w nagłówku, patrz `SectionHeader`. */
   extra?: React.ReactNode;
-  /** `/moje-gry`: filtr nieprzeczytanych ma stać na wysokości „Brakuje graczy",
-   *  nawet gdy akurat nie ma czego tu pokazać — bez tego zniknąłby razem
-   *  z sekcją, mimo że przycisk nie ma nic wspólnego z kompletem składu.
+  /** `/moje-gry`: gdy sekcja akurat nie ma czego pokazać, ale wywołujący i tak
+   *  chce tu zakotwiczyć `extra` (bo to pierwsza sekcja w kolejności, która
+   *  realnie coś pokazuje) — renderuje samą kontrolkę zamiast `null`.
    *  Domyślnie `false`, bo pulpit (`AppHome`) ma zostać dokładnie taki, jaki
    *  był — pusta sekcja tam ma po prostu nie istnieć. */
   pokazPustyNaglowek?: boolean;
 }) {
   const needing = items
-    .filter(({ event, relation }) =>
-      relation.isOrganizer
-      && (event.maxPlayers ?? 0) > 0
-      && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0))
+    .filter(needsPlayers)
     .sort((a, b) => {
       const ka = `${a.event.date}T${a.event.time || '23:59'}`;
       const kb = `${b.event.date}T${b.event.time || '23:59'}`;
