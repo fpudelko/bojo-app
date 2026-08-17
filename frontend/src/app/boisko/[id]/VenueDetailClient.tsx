@@ -18,6 +18,7 @@ import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
+import ZglosBladObiektu from '@/components/venues/ZglosBladObiektu';
 import VenueComments from '@/components/venue/VenueComments';
 import type { Field, TimeSlot } from '@/types';
 
@@ -686,6 +687,14 @@ export default function VenueDetailClient({
           </a>
           .
         </p>
+
+        {/* Dwie różne drogi, obie potrzebne: odnośnik wyżej naprawia dane
+            U ŹRÓDŁA (notatka w OSM, z pożytkiem dla wszystkich), a ten przycisk
+            zgłasza rzecz DO NAS — bo tylko my możemy ukryć obiekt, którego
+            w rzeczywistości nie ma. */}
+        <div className="px-1 text-center">
+          <ZglosBladObiektu fieldId={field.id} />
+        </div>
         {/* Admin: map visibility toggle */}
         {isAdmin && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">

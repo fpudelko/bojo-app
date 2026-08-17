@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2, Sun, Moon, ChevronRight } from 'lucide-react';
+import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2, Sun, Moon, ChevronRight, MessageSquareWarning } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -358,6 +358,24 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Pomoc — TU, a nie tylko w stopce. Stopka renderuje się wyłącznie
+            na landingu i stronach treści (`SiteFooter` jest importowany w
+            `app/page.tsx` i `StronaTresci`), czyli NIE na ekranach, na których
+            coś realnie pada: mecz, moje gry, mapa, ekipy. Profil jest jedynym
+            miejscem, do którego zalogowany trafia z każdego z nich. */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-800">
+          <Link
+            href="/zglos-blad"
+            className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-medium text-ink dark:text-slate-100"
+          >
+            <span className="flex items-center gap-2.5">
+              <MessageSquareWarning className="h-4 w-4 text-slate-400" />
+              Zgłoś błąd
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
+          </Link>
+        </div>
 
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
             hamburger; desktop nadal ma osobne menu z zębatką w Header.tsx) */}

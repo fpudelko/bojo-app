@@ -88,6 +88,7 @@ export async function zglosAwarie(blad: unknown, dodatkowy?: string): Promise<vo
       p_adres: kontekst().adres,
       p_przegladarka: kontekst().przegladarka,
       p_wersja: WERSJA,
+      p_field_id: null,
     });
   } catch {
     // Cisza świadomie — patrz zasada 4 w nagłówku pliku.
@@ -111,6 +112,49 @@ export async function zglosUwage(opis: string): Promise<void> {
     p_adres: kontekst().adres,
     p_przegladarka: kontekst().przegladarka,
     p_wersja: WERSJA,
+    p_field_id: null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Powody błędu w danych obiektu — lista zamknięta, bo pole tekstowe daje
+ *  „nie wiem", a te pięć pozycji pokrywa wszystko, co realnie zgłaszają ludzie.
+ *  Kolejność od najczęstszego do najcięższego. */
+export const POWODY_OBIEKTU = [
+  'Zła nazwa lub adres',
+  'Zły sport albo nawierzchnia',
+  'Nie ma bramek / koszy / siatki',
+  'Obiekt jest zamknięty lub niedostępny',
+  'Tego obiektu tu nie ma',
+] as const;
+
+export type PowodObiektu = typeof POWODY_OBIEKTU[number];
+
+/**
+ * Zgłoszenie błędu w danych boiska.
+ *
+ * ŚWIADOMIE NIE ZMIENIA DANYCH. Katalog pochodzi z OpenStreetMap (licencja
+ * ODbL) i nie jesteśmy jego właścicielem — automatyczna poprawka po jednym
+ * zgłoszeniu to zaproszenie do psucia mapy. Zgłoszenie trafia do panelu
+ * administratora, a naprawa u ŹRÓDŁA idzie osobnym przyciskiem („Zgłoś
+ * poprawkę" → notatka w OSM), który na stronie obiektu już jest.
+ */
+export async function zglosBladObiektu(
+  fieldId: string,
+  powod: PowodObiektu,
+  komentarz?: string,
+): Promise<void> {
+  const opis = komentarz?.trim() ? `${powod} — ${komentarz.trim()}` : powod;
+
+  const { error } = await supabase.rpc('zapisz_zgloszenie_bledu', {
+    p_rodzaj: 'obiekt',
+    p_opis: opis,
+    p_odcisk: null,
+    p_slad: null,
+    p_adres: kontekst().adres,
+    p_przegladarka: kontekst().przegladarka,
+    p_wersja: WERSJA,
+    p_field_id: fieldId,
   });
   if (error) throw new Error(error.message);
 }

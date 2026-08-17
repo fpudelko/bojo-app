@@ -22,7 +22,14 @@
 CREATE TABLE IF NOT EXISTS zgloszenia_bledow (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  rodzaj        TEXT NOT NULL CHECK (rodzaj IN ('uzytkownik', 'awaria')),
+  -- Trzy rodzaje, bo trzy różne rzeczy i trzy różne reakcje:
+  --   uzytkownik — „coś nie działa", napisane ręką,
+  --   awaria     — złapane samo, z komunikatem i stosem,
+  --   obiekt     — błąd w DANYCH boiska („tu już nie ma bramek").
+  -- Ten trzeci jest osobny, bo dotyczy danych, których NIE jesteśmy
+  -- właścicielem (OSM, licencja ODbL) — poprawka wymaga naszej decyzji,
+  -- a nie automatu.
+  rodzaj        TEXT NOT NULL CHECK (rodzaj IN ('uzytkownik', 'awaria', 'obiekt')),
 
   -- Skrót „to jest ten sam błąd": komunikat + pierwsza ramka stosu. NULL dla
   -- zgłoszeń od ludzi (patrz wyżej). Indeks częściowy, bo tylko awarie go mają.
@@ -40,6 +47,10 @@ CREATE TABLE IF NOT EXISTS zgloszenia_bledow (
   -- usunięcie konta nie kasowało historii błędów.
   user_id       UUID REFERENCES auth.users ON DELETE SET NULL,
 
+  -- Wypełnione wyłącznie dla `rodzaj = 'obiekt'`. `ON DELETE CASCADE`:
+  -- zgłoszenie o nieistniejącym już obiekcie nie ma po co zostawać.
+  field_id      UUID REFERENCES fields(id) ON DELETE CASCADE,
+
   status        TEXT NOT NULL DEFAULT 'nowe'
                 CHECK (status IN ('nowe', 'w_toku', 'zamkniete')),
   notatka       TEXT,
@@ -53,6 +64,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS zgloszenia_bledow_odcisk_idx
   ON zgloszenia_bledow (odcisk) WHERE odcisk IS NOT NULL;
 CREATE INDEX IF NOT EXISTS zgloszenia_bledow_status_idx
   ON zgloszenia_bledow (status, ostatni_raz DESC);
+-- Ile zgłoszeń zebrał jeden obiekt — backlog zakłada, że dopiero kilka
+-- niezależnych zgłoszeń uzasadnia zmianę danych bez naszej moderacji.
+CREATE INDEX IF NOT EXISTS zgloszenia_bledow_field_idx
+  ON zgloszenia_bledow (field_id) WHERE field_id IS NOT NULL;
 
 ALTER TABLE zgloszenia_bledow ENABLE ROW LEVEL SECURITY;
 
@@ -86,7 +101,8 @@ CREATE OR REPLACE FUNCTION public.zapisz_zgloszenie_bledu(
   p_slad         TEXT DEFAULT NULL,
   p_adres        TEXT DEFAULT NULL,
   p_przegladarka TEXT DEFAULT NULL,
-  p_wersja       TEXT DEFAULT NULL
+  p_wersja       TEXT DEFAULT NULL,
+  p_field_id     UUID DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -101,7 +117,7 @@ DECLARE
   v_opis TEXT := left(coalesce(p_opis, ''), 2000);
   v_slad TEXT := left(p_slad, 4000);
 BEGIN
-  IF p_rodzaj NOT IN ('uzytkownik', 'awaria') THEN
+  IF p_rodzaj NOT IN ('uzytkownik', 'awaria', 'obiekt') THEN
     RAISE EXCEPTION 'Nieznany rodzaj zgłoszenia: %', p_rodzaj;
   END IF;
 
@@ -128,17 +144,18 @@ BEGIN
   END IF;
 
   INSERT INTO zgloszenia_bledow
-    (rodzaj, opis, slad, adres, przegladarka, wersja, user_id)
+    (rodzaj, opis, slad, adres, przegladarka, wersja, user_id, field_id)
   VALUES
-    (p_rodzaj, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid())
+    (p_rodzaj, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid(),
+     CASE WHEN p_rodzaj = 'obiekt' THEN p_field_id ELSE NULL END)
   RETURNING id INTO v_id;
 
   RETURN v_id;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID) FROM PUBLIC;
 -- `anon` też: awaria na stronie meczu otwartej z linku, bez logowania, jest
 -- dokładnie tym przypadkiem, o którym chcemy wiedzieć.
-GRANT EXECUTE ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT)
+GRANT EXECUTE ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID)
   TO anon, authenticated;

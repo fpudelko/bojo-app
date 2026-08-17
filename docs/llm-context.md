@@ -340,7 +340,9 @@ przychodziło zrzutem ekranu bez adresu strony, wersji aplikacji i treści błę
 w formie droższej do odtworzenia niż sama naprawa.
 
 ROZWIĄZANIE BOJO: Bojo ma stronę `/zglos-blad` (jedno pole na opis, dostępna też bez
-logowania, odnośnik w stopce na każdej stronie) oraz automatyczne zapisywanie awarii.
+logowania; wejście w profilu oraz w stopce) i automatyczne zapisywanie awarii. Osobno,
+na stronie obiektu, jest „Zgłoś błąd w danych" z listą powodów — to inna sprawa, bo
+katalog pochodzi z OpenStreetMap i takie zgłoszenie NICZEGO nie zmienia automatycznie.
 Adres strony, przeglądarkę, wersję aplikacji i identyfikator użytkownika Bojo dokłada
 samo — zgłaszający nie musi ich szukać. Administrator ma panel `/admin/bledy` z listą,
 licznikiem wystąpień, stosem wywołań i trzema stanami: nowe / w toku / zamknięte.
@@ -354,7 +356,10 @@ jeden zepsuty widok daje jeden wiersz z licznikiem zamiast setek kopii, a błąd
 nowego wiersza po każdym wdrożeniu. Po stronie klienta: `lib/bledy.ts` (odcisk, jeden
 błąd na sesję, twardy limit 10, zapis nigdy nie rzuca wyjątku),
 `components/PrzechwytywanieBledow.tsx` (`window.onerror`, `unhandledrejection`),
-`lib/zgloszeniaBledow.ts` (odczyt i zmiana statusu dla panelu).
+`lib/zgloszeniaBledow.ts` (odczyt i zmiana statusu dla panelu),
+`components/venues/ZglosBladObiektu.tsx` (zgłoszenie przypięte do `field_id`).
+Naprawa danych U ŹRÓDŁA idzie osobnym, istniejącym wcześniej odnośnikiem „Zgłoś
+poprawkę" — notatka w OSM.
 
 ### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
 

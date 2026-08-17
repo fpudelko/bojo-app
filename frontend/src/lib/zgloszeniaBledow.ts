@@ -6,13 +6,14 @@ export type StatusZgloszenia = 'nowe' | 'w_toku' | 'zamkniete';
 
 export interface ZgloszenieBledu {
   id: string;
-  rodzaj: 'uzytkownik' | 'awaria';
+  rodzaj: 'uzytkownik' | 'awaria' | 'obiekt';
   opis: string;
   slad: string | null;
   adres: string | null;
   przegladarka: string | null;
   wersja: string | null;
   userId: string | null;
+  fieldId: string | null;
   status: StatusZgloszenia;
   notatka: string | null;
   liczba: number;
@@ -31,6 +32,7 @@ function naZgloszenie(w: any): ZgloszenieBledu {
     przegladarka: w.przegladarka ?? null,
     wersja: w.wersja ?? null,
     userId: w.user_id ?? null,
+    fieldId: w.field_id ?? null,
     status: w.status,
     notatka: w.notatka ?? null,
     liczba: w.liczba ?? 1,
