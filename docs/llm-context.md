@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-16 · migracja `097` · 34 tabele · 543 testy
+**Stan na:** 2026-08-16 · migracja `098` · 34 tabele · 543 testy
 
 ---
 
@@ -356,6 +356,32 @@ systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisi
 `zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
 nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
 
+### 2026-08-17 — Składy w osobnej zakładce, Wynik dopiero po meczu, naprawa cichych odmów bazy
+
+PROBLEM: trzy usterki zgłoszone z telefonu. (1) Przypisywanie graczy do drużyn „nic nie
+robiło" — ani przesunięcie gracza w lewo/prawo, ani przyciski N i C. (2) Podział na
+drużyny mieszkał w zakładce „Wynik", więc żeby poukładać składy PRZED meczem trzeba było
+wejść w wynik, którego jeszcze nie ma; sama zakładka „Wynik" istniała od utworzenia meczu
+i mówiła wyłącznie, że wyniku jeszcze nie ma. (3) Przełącznik admin/użytkownik na
+`/admin/uzytkownicy` przełączał się na ekranie, a po odświeżeniu wracał.
+
+ROZWIĄZANIE BOJO: podział na drużyny jest widoczny WPROST w zakładce „Skład" — nie
+w zwijanej sekcji i nie w osobnej zakładce. Zakładka „Wynik" pojawia się dopiero po
+rozpoczęciu meczu i zawiera sam formularz, bez drużyn. Zakładka „Rozliczenia" znika przy
+meczu za darmo, bo bez kosztu otwierała się pusta. Przypisywanie do drużyn i przełącznik
+admina zgłaszają teraz błąd zamiast milczeć, a sama odmowa bazy przy nadawaniu admina
+jest usunięta.
+
+MECHANIKA: filtr zakładek w `EventDetailClient.tsx` zależny od `resultsAvailable`
+(Wynik) i `event.costGrosze > 0` (Rozliczenia); `skladWynikSection` rozbite na
+`druzynySection` (renderowany w zakładce Skład) i `wynikFormSection` (zakładka Wynik).
+`updateParticipantTeam` i `updateParticipantPayment` (`lib/eventFeatures.ts`) oraz
+przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) — gołe
+`.update()` przy niepasującej polityce RLS zmienia zero wierszy i zwraca sukces.
+Migracja `098`: funkcja `czy_admin()` (`SECURITY DEFINER`) i przepięcie na nią polityk
+z `022` i `005`, które sprawdzały uprawnienie podzapytaniem o tę samą tabelę,
+na której siedzą.
+
 ### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
 
 PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
@@ -630,26 +656,3 @@ rezerwa) — przekazywany przez `NextMatchCard`, `MyMatchesSection`,
 — `SHOW_RECURRING = false`; `app/wydarzenia/nowe/page.tsx` — przełącznik „Wydarzenie
 cykliczne" (`extraSlot` w `EventDateTimeField`) warunkowany tą flagą (wcześniej
 renderował się zawsze, niezależnie od niej — flaga gasiła tylko wejścia w nawigacji).
-
-### 2026-08-15 — Info o rozmiarze ekipy dla założyciela; panel "Kto milczy" usunięty
-
-PROBLEM: duża prywatna ekipa (ponad 30 osób) zwykle znaczy, że organizator dodaje coraz
-więcej ludzi do grupy, żeby zapełnić skład na mecz — mimo że „Otwórz dla okolicy" (patrz
-niżej) rozwiązuje dokładnie ten problem bez rozrastania ekipy: publiczny mecz widzą też
-gracze spoza niej. Osobno: panel „Czy gramy?" na stronie meczu ekipy miał blok „Nie
-odpowiedziało: N" z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa" do ścigania
-milczących członków — usunięty na wyraźną prośbę, jako zbędny obok prostszego „Otwórz
-dla okolicy".
-
-ROZWIĄZANIE BOJO: zakładka Skład na stronie ekipy pokazuje teraz założycielowi, gdy
-ekipa ma ponad 30 członków, krótką informację: nie trzeba dodawać jak najwięcej osób,
-bo publiczny mecz i tak widzą gracze z okolicy. Panel „Czy gramy?" na stronie meczu stracił
-blok „Nie odpowiedziało" — zostają tylko werdykt progu minimum i „Otwórz dla okolicy".
-RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja `097`)
-zostają w bazie nietknięte — po prostu nic już ich nie wywołuje.
-
-MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
-`perms.isFounder && memberCount > 30` nad `<SkladGrupy>`. `components/events/CzyGramyPanel.tsx`
-— blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
-martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
-zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.
