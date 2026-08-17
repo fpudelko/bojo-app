@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Crown, LogOut, Settings, Shield, Trash2, User as UserIcon } from 'lucide-react';
 import UprawnieniaCzlonkaPanel, { type PatchUprawnien } from './UprawnieniaCzlonkaPanel';
-import { uprawnieniaCzlonka } from '@/lib/groups';
+import { czyWspolorganizator, uprawnieniaCzlonka } from '@/lib/groups';
 import type { GroupMember, GroupPermissions } from '@/types';
 
 /**
@@ -78,7 +78,7 @@ export default function SkladGrupy({
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
                         <Crown className="h-3 w-3" /> Założyciel
                       </span>
-                    ) : (m.canManageMembers || m.canCreateEvents || m.canModerateWall || m.canInvite) ? (
+                    ) : czyWspolorganizator(m) ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary-700">
                         <Shield className="h-3 w-3" /> Współorganizator
                       </span>

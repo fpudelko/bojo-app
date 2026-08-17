@@ -47,6 +47,26 @@ export function uprawnieniaCzlonka(
   };
 }
 
+/**
+ * Czy członkowi należy się odznaka „Współorganizator".
+ *
+ * Liczą się WYŁĄCZNIE dwa uprawnienia: zarządzanie składem i moderowanie
+ * tablicy. Dokładnie te same, z których trigger `ustaw_role_czlonka`
+ * (migracja `092`) wylicza `role = 'admin'` — etykieta w UI i rola w bazie
+ * muszą mówić to samo.
+ *
+ * `can_create_events` i `can_invite` NIE liczą się, bo obie mają w bazie
+ * DEFAULT true: to prawa KAŻDEGO członka ekipy (założyć mecz, podać kolejnej
+ * osobie kod), istniejące po to, żeby dało się je komuś ODEBRAĆ. Wliczanie ich
+ * do odznaki dawało „Współorganizator" przy każdym nazwisku na liście — czyli
+ * wyróżnienie, które nikogo nie wyróżnia.
+ */
+export function czyWspolorganizator(
+  member: Pick<GroupMember, 'canManageMembers' | 'canModerateWall'>,
+): boolean {
+  return !!member.canManageMembers || !!member.canModerateWall;
+}
+
 export async function createGroup(
   data: { name: string; description?: string; sport?: string; city?: string; fieldId?: string; fieldName?: string },
   userId: string,
