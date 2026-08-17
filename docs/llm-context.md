@@ -341,14 +341,16 @@ wejść w wynik, którego jeszcze nie ma; sama zakładka „Wynik" istniała od 
 i mówiła wyłącznie, że wyniku jeszcze nie ma. (3) Przełącznik admin/użytkownik na
 `/admin/uzytkownicy` przełączał się na ekranie, a po odświeżeniu wracał.
 
-ROZWIĄZANIE BOJO: podział na drużyny ma własną zakładkę „Składy", obok „Skład" (lista
-zapisanych). Zakładka „Wynik" pojawia się dopiero po rozpoczęciu meczu i tylko wtedy
-zawiera formularz — bez drużyn. Przypisywanie do drużyn i przełącznik admina zgłaszają
-teraz błąd zamiast milczeć, a sama odmowa bazy przy nadawaniu admina jest usunięta.
+ROZWIĄZANIE BOJO: podział na drużyny jest widoczny WPROST w zakładce „Skład" — nie
+w zwijanej sekcji i nie w osobnej zakładce. Zakładka „Wynik" pojawia się dopiero po
+rozpoczęciu meczu i zawiera sam formularz, bez drużyn. Zakładka „Rozliczenia" znika przy
+meczu za darmo, bo bez kosztu otwierała się pusta. Przypisywanie do drużyn i przełącznik
+admina zgłaszają teraz błąd zamiast milczeć, a sama odmowa bazy przy nadawaniu admina
+jest usunięta.
 
-MECHANIKA: nowa wartość `druzyny` w `EventTab` (`EventDetailClient.tsx`), filtr zakładek
-zależny od `resultsAvailable`; `skladWynikSection` rozbite na `druzynySection`
-i `wynikFormSection`, zwijana kopia drużyn w zakładce Skład zamieniona na odnośnik.
+MECHANIKA: filtr zakładek w `EventDetailClient.tsx` zależny od `resultsAvailable`
+(Wynik) i `event.costGrosze > 0` (Rozliczenia); `skladWynikSection` rozbite na
+`druzynySection` (renderowany w zakładce Skład) i `wynikFormSection` (zakładka Wynik).
 `updateParticipantTeam` i `updateParticipantPayment` (`lib/eventFeatures.ts`) oraz
 przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) — gołe
 `.update()` przy niepasującej polityce RLS zmienia zero wierszy i zwraca sukces.

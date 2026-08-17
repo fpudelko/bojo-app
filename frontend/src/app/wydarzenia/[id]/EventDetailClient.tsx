@@ -74,15 +74,18 @@ import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes } from '@/lib/time';
 
-type EventTab = 'sklad' | 'druzyny' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
-// „Skład" to lista zapisanych, „Składy" to podział na drużyny — dwie różne
-// rzeczy, które wcześniej mieszkały razem z wynikiem w jednej zakładce.
-// Wynik dochodzi dopiero po meczu (patrz `resultsAvailable` niżej): przed
-// gwizdkiem nie ma czego wpisywać, a zakładka i tak pokazywała tylko notkę
-// „wynik można wpisać po rozpoczęciu".
+type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+// Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
+// nie w zwijanej sekcji i nie w osobnej zakładce. Obie te wersje były po
+// drodze i obie okazały się gorsze: zwinięta chowała rzecz, po którą się tam
+// wchodzi, a osobna zakładka rozdzielała skład od jego podziału.
+//
+// Wynik dochodzi dopiero po meczu (patrz `resultsAvailable`): przed gwizdkiem
+// nie ma czego wpisywać, a zakładka i tak pokazywała wyłącznie notkę „wynik
+// można wpisać po rozpoczęciu". Rozliczenia znikają, gdy mecz jest za darmo —
+// wcześniej otwierały się puste.
 const EVENT_TAB_LABELS: [EventTab, string][] = [
   ['sklad', 'Skład'],
-  ['druzyny', 'Składy'],
   ['rozmowa', 'Rozmowa'],
   ['wynik', 'Wynik'],
   ['rozliczenia', 'Rozliczenia'],
@@ -416,7 +419,7 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'druzyny' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
+    if (t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
   }, []);
   const goToTab = (t: EventTab) => {
     setTab(t);
@@ -2030,9 +2033,9 @@ export default function EventDetailClient() {
                 // że wyniku jeszcze nie ma — czyli zajmowała miejsce w pasku,
                 // nie dając nic w zamian.
                 if (t === 'wynik') return resultsAvailable && !isCancelled;
-                // Podział na drużyny ma sens tylko wtedy, gdy jest włączony;
-                // organizator włącza go przyciskiem w zakładce Skład.
-                if (t === 'druzyny') return showTeams || isOwner || canManageSquad;
+                // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo
+                // nie ma czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
+                if (t === 'rozliczenia') return event.costGrosze > 0;
                 return true;
               }).map(([t, label]) => (
                 <button
@@ -2901,21 +2904,10 @@ export default function EventDetailClient() {
           </div>
         </div>
 
-        {/* Podział na drużyny miał tu zwijaną kopię z zakładki Wynik. Po
-            wydzieleniu własnej zakładki „Składy" byłyby to dwa wejścia do tego
-            samego — zostaje jedno, w zakładce. */}
-        {showTeams && (
-          <div className="px-4">
-            <button
-              type="button"
-              onClick={() => goToTab('druzyny')}
-              className="flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm dark:border-slate-700 dark:bg-slate-800"
-            >
-              <span className="text-sm font-semibold text-ink">Podział na drużyny</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-            </button>
-          </div>
-        )}
+        {/* Podział na drużyny — WPROST w zakładce Skład, bez zwijania i bez
+            osobnej zakładki. To jest ta sama treść, którą wcześniej trzeba było
+            odszukać w „Wyniku". */}
+        {druzynySection}
 
         {/* ── "WYPISZ SIĘ" — inline, nie w sticky ── */}
         {user && myParticipation && !eventStarted && (
@@ -3260,12 +3252,8 @@ export default function EventDetailClient() {
 
         </>)}
 
-        {/* Podział na drużyny — własna zakładka. Wcześniej siedział razem
-            z wynikiem, więc żeby poukładać składy PRZED meczem trzeba było
-            wejść w „Wynik", którego jeszcze nie było. */}
-        {tab === 'druzyny' && druzynySection}
-
-        {/* Wynik — sam formularz, bez drużyn. */}
+        {/* Wynik — sam formularz, bez drużyn. Drużyny renderują się wyżej,
+            w zakładce Skład. */}
         {tab === 'wynik' && wynikFormSection}
 
         {/* Podział kosztów — dawniej `platnosciSection`, dziś cała treść
