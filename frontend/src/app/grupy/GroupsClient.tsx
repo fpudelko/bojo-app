@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Users, LogIn, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
+import { Users, LogIn, ChevronRight, Plus, CalendarPlus, MessageCircle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import KodGrupySheet from '@/components/groups/KodGrupySheet';
@@ -33,14 +33,21 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
       className="block rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-primary-200 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800"
     >
       <div className="flex items-start gap-3">
-        {/* Kropki na rogach ikony, wzorem dolnej nawigacji (BottomNav.tsx):
-            różowa z lewej = nieprzeczytana wiadomość na tablicy, pomarańczowa
-            z prawej = nowy mecz w ekipie od ostatniej wizyty. Kolor niesie
-            stałe znaczenie w całej apce (patrz AGENTS.md, Konwencje). */}
+        {/* Wskaźniki na rogach ikony, wzorem dolnej nawigacji (BottomNav.tsx):
+            różowa CHMURKA z lewej = nieprzeczytana wiadomość na tablicy,
+            pomarańczowa kropka z prawej = nowy mecz w ekipie od ostatniej
+            wizyty. Kolor niesie stałe znaczenie w całej apce (patrz AGENTS.md,
+            Konwencje), a kształt chmurki mówi „ktoś napisał" bez uczenia się
+            znaczenia koloru. */}
         <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
           {g.sport ? sportEmoji(g.sport) : '👥'}
           {nieprzeczytane > 0 && (
-            <span className="absolute -left-1 -top-1 h-3 w-3 rounded-full bg-pink-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />
+            <MessageCircle
+              className="absolute -left-1.5 -top-1.5 h-4 w-4 text-pink-500"
+              strokeWidth={2.5}
+              fill="currentColor"
+              aria-hidden="true"
+            />
           )}
           {noweMecze && (
             <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />

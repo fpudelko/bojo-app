@@ -311,14 +311,26 @@ Brak zgody = brak kropki, nie prośba w tle.
 **Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
 wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
 w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna
-etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowe
-wiadomości" (różowa — osobny typ/licznik dla „Moje" i osobny dla „Grupy", mimo identycznego
-tekstu, żeby dymek jednoznacznie wiedział, przy której ikonie stanąć), „Nowa gra w grupie
-{nazwa}" (pomarańczowa na „Grupy" — nazwa z `getNewGroupEventGroupName()` w `lib/groups.ts`,
-ekipa z najświeższym nowym meczem, gdy nowych jest kilka naraz), „Nowa gra w promieniu 5 km"
-(pomarańczowa na „Znajdź grę"). Licznik pokazań w `localStorage`
-(`bojo:dymek-pokazania:<typ>`) jest per typ — po 5 pokazaniach danego typu dymek przestaje
-się pojawiać, zakładamy że użytkownik już wie, co ta kropka znaczy.
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowa
+wiadomość w Twoim meczu" (różowa, „Moje"), „Nowa wiadomość w grupie {nazwa}" (różowa,
+„Grupy" — nazwa z `getUnreadGroupName()` w `lib/groupPosts.ts`, ekipa z najświeższym
+nieprzeczytanym wpisem; osobny typ/licznik od dymka na „Moje", żeby dymek jednoznacznie
+wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Grupy"
+— `getNewGroupEventGroup()` w `lib/groups.ts`, ekipa z najświeższym nowym meczem, gdy
+nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Znajdź grę").
+Licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`) jest per typ — po 5
+pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie,
+co ten wskaźnik znaczy.
+
+**Pomarańczowy wskaźnik gaśnie razem ze swoim dymkiem, różowy nie.** Gdy dymek znika,
+`wygasWskaznik()` zapisuje „widziano" pod tym samym kluczem, co odwiedzenie strony
+(`kluczGrupyWidziano(id)` dla nowego meczu w ekipie, `KLUCZ_WYDARZENIA_WIDZIANO` dla gier
+w pobliżu) — więc gaśnie też kropka na karcie ekipy na `/grupy`. Uzasadnienie wprost
+z konwencji kolorów: pomarańczowy znaczy „nowość, o której jeszcze nie wiesz", a dymek
+wymieniający ekipę z nazwy tę wiadomość właśnie dostarczył. Różowa chmurka NIE gaśnie —
+ona nie mówi „jest nowość", tylko „jest coś do przeczytania", co znika dopiero po
+przeczytaniu; dymek trwa 4 s i można na niego nie patrzeć, a zgubiona w ten sposób
+wiadomość nie ma jak się upomnieć.
 
 **Najwyżej jeden dymek na ekranie naraz.** Gdy kilka kropek zapala się w tym samym
 przeliczeniu (typowo przy pierwszym załadowaniu), dymki nie renderują się równolegle —

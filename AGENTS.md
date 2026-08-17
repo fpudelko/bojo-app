@@ -364,10 +364,12 @@ ponownie i zacommituj wynik.
   (`landingContent.test.ts`, `tresciStron.test.ts`).
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
-  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: kropka na
+  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na
     dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
-    ikona wiadomości na karcie meczu/ekipy, kropka na ikonie ekipy (karta na `/grupy`).
-    Nigdy nic innego.
+    ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`).
+    Nigdy nic innego. **Wiadomości mają KSZTAŁT chmurki, nie kropki** — kropka mówi tylko
+    „coś tu jest" i wymaga zapamiętania koloru, chmurka mówi „ktoś napisał" bez tłumaczenia
+    (zgłoszone wprost). Kropka zostaje dla niebieskiego i pomarańczowego.
   - **Niebieski (`blue-*`)** — zawsze i wyłącznie „wymaga akceptacji uczestnictwa":
     prośba o dołączenie, oferta zwolnionego miejsca z rezerwy, pytanie o udział
     (`WYMAGA_AKCJI` w `lib/notifications.ts`), plakietka „Wymaga akceptacji" na karcie

@@ -332,6 +332,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Chmurka zamiast różowej kropki, dymek o nowej wiadomości w ekipie
+
+PROBLEM: nieprzeczytaną wiadomość Bojo sygnalizowało różową kropką na dolnej nawigacji
+i na karcie ekipy. Kropka mówi wyłącznie „coś tu jest" — jej znaczenia trzeba się
+nauczyć i zapamiętać, którego koloru dotyczy. Zgłoszone wprost pytaniem użytkownika:
+„różowa kropka oznacza, że wiadomość jest nowa?".
+
+ROZWIĄZANIE BOJO: wskaźnik wiadomości ma teraz kształt chmurki (dymka wiadomości),
+nie kropki — czyta się bez tłumaczenia. Kolor różowy zostaje, więc związek z plakietkami
+nieprzeczytanych na kartach meczów i ekip jest zachowany. Doszedł krótki dymek „Nowa
+wiadomość w grupie {nazwa}", pokazywany przy zapaleniu wskaźnika — taki sam jak
+istniejący „Nowa gra w grupie {nazwa}". Pomarańczowy wskaźnik („nowa gra") gaśnie razem
+ze swoim dymkiem, bo dymek dostarczył właśnie tę wiadomość; różowa chmurka gaśnie
+dopiero po przeczytaniu wiadomości.
+
+MECHANIKA: `components/layout/BottomNav.tsx` (kształt wskaźnika, kolejka dymków,
+`wygasWskaznik()`), `app/grupy/GroupsClient.tsx` (karta ekipy). Nazwa ekipy do treści
+dymka: `getUnreadGroupName()` w `lib/groupPosts.ts` i `getNewGroupEventGroup()`
+w `lib/groups.ts` — obie wybierają ekipę z najświeższym wpisem, bo jeden dymek nie
+wymieni wszystkich. Wygaszenie zapisuje „widziano" pod tym samym kluczem `localStorage`,
+co odwiedzenie strony ekipy, więc kropka znika też z karty na `/grupy`.
+
 ### 2026-08-17 — Kasowanie wiadomości w rozmowie znów działa
 
 PROBLEM: usunięcie własnej wiadomości w rozmowie meczu kończyło się w Bojo czerwonym
@@ -570,42 +592,3 @@ klienta (SQL w `getMyGroupEvents()` sortuje tylko po `event_date`). `NextMatchCa
 nowy prop `extra` obok etykiety „Najbliższy mecz". `app/moje-gry/page.tsx` —
 `maBrakujeGraczy`, `extraDlaBrakujeGraczy`/`extraDlaNajblizszego`/
 `pokazPustyNaglowekDlaBrakujeGraczy` decydują, gdzie wyląduje `filtrNieprzeczytanychButton`.
-
-### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
-
-PROBLEM: zakładka „Ustawienia" na stronie meczu (`/wydarzenia/[id]`) była widoczna
-w pasku dla KAŻDEGO, nie tylko dla organizatora/delegata — gated była wyłącznie treść
-panelu (`tab === 'ustawienia' && canManageEvent`), sam przycisk renderował się zawsze
-(`EVENT_TAB_LABELS.map(...)` bez filtra). Ktoś bez żadnej roli w meczu, nawet
-niezalogowany na to wydarzenie, widział klikalną zakładkę, która po otwarciu okazywała
-się pusta — zgłoszone ze zrzutem ekranu. Pomarańczowa kropka „nowy mecz w ekipie"
-i różowa „nieprzeczytana wiadomość" wylądowały w poprzednim wdrożeniu na kartach ekip
-na `/grupy`, ale nie na samej ikonie „Grupy" na dolnej nawigacji — tam wciąż była tylko
-jedna, różowa kropka po prawej. Filtr „tylko z nieprzeczytanymi" na `/moje-gry` stanął
-w pasku zakładek zamiast niżej, na wysokości „Brakuje graczy", jak zgłoszono. Zrzut
-kreatora meczu w karuzeli na landingu wciąż pokazywał usunięty już toggle „Wydarzenie
-cykliczne" — nieaktualny od poprzedniej zmiany, która ukryła tę opcję w prawdziwym
-kreatorze.
-
-ROZWIĄZANIE BOJO: przycisk zakładki „Ustawienia" na stronie meczu znika teraz razem
-z treścią — ten sam warunek (`canManageEvent`) filtruje etykiety PRZED renderowaniem,
-nie tylko treść pod spodem. Ikona „Grupy" na dolnej nawigacji nosi dziś dwie kropki:
-różową (nieprzeczytana wiadomość w którejkolwiek ekipie) po LEWEJ, pomarańczową (nowy
-mecz w którejkolwiek ekipie od ostatniej wizyty na jej stronie) po PRAWEJ — osobna,
-zbiorcza kontrola obok tej już istniejącej na kartach `/grupy`. Filtr nieprzeczytanych
-na `/moje-gry` przeniósł się do nagłówka „Brakuje graczy" (ta sama kontrolka, którą
-kiedyś dostawał link „Wszystkie") — gdy akurat nie ma czego tam pokazać, sekcja
-i tak renderuje samą kropkę filtra zamiast znikać całkowicie, żeby dało się wyłączyć
-filtr z powrotem. Zrzut kreatora w karuzeli landingu podmieniony na aktualny stan UI.
-
-MECHANIKA: `EventDetailClient.tsx` — `EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia'
-|| canManageEvent)` przed `.map()`. `lib/groups.ts` — nowa `hasNewGroupEvents(groupIds)`,
-ten sam wzorzec co `hasUnreadGroupMessages()`. `BottomNav.tsx` — `unreadGroups` i
-`newGroupEvents` liczone jednym efektem (wspólne `getMyGroupIds()`), dot na „Grupy"
-`top-left`/`top-right`. `components/home/dashboard/DashboardSections.tsx` —
-`SectionHeader` dostał `extra?: React.ReactNode` (kontrolka obok linku „Wszystkie");
-`NeedsPlayersSection` dostał `extra` i `pokazPustyNaglowek` (gdy `true` i sekcja byłaby
-pusta, renderuje samą `extra` zamiast `null` — domyślnie `false`, pulpit `AppHome` nie
-przekazuje żadnego z nich, więc zachowuje się jak dawniej). `app/moje-gry/page.tsx` —
-przycisk filtra wyjęty z paska zakładek, przekazywany jako `extra` do
-`NeedsPlayersSection`. `frontend/public/landing/kreator.jpg` — podmieniony zrzut.
