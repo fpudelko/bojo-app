@@ -18,7 +18,7 @@ const config: Config = {
   // tekście — wystarczy, że ktoś złoży nazwę klasy ze zmiennej albo zawęzi
   // `content`, i cała kolejność nakładania znika bez jednego błędu w konsoli.
   // Te cztery klasy są zbyt tanie i zbyt krytyczne, żeby na tym polegać.
-  safelist: ['z-[1100]', 'z-[1200]', 'z-[1300]', 'z-[1301]', 'z-[9999]'],
+  safelist: ['z-[1100]', 'z-[1200]', 'z-[1250]', 'z-[1300]', 'z-[1301]', 'z-[9999]'],
   theme: {
     extend: {
       colors: {
