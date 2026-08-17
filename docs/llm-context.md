@@ -332,6 +332,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Strona meczu: mniej pigułek, czytelniejsze wypisanie się
+
+PROBLEM: nad licznikiem miejsc — najważniejszą informacją na stronie meczu — stało pół
+ekranu rzeczy drugorzędnych. Para przycisków „Udostępnij / Kopiuj" powtarzała to, co
+niżej robi karta „Wyślij link znajomym", a data, czas trwania i miejsce były osobnymi
+pigułkami i razem ze statusem oraz ceną zajmowały cztery wiersze. Osobno: przycisk
+„Wypisz się z meczu" był szary i czerwieniał dopiero pod kursorem, czyli na telefonie
+nigdy.
+
+ROZWIĄZANIE BOJO: górna para „Udostępnij / Kopiuj" zniknęła — ta sama akcja została
+niżej, w karcie z nagłówkiem i zdaniem tłumaczącym, po co to klikać. Meta mieści się
+teraz w DWÓCH wierszach: pigułki zostały wyłącznie dla krótkich etykiet (status w meczu,
+cena, widoczność, wymaga akceptacji), a data, czas trwania i miejsce są jedną linią
+tekstu z ikonami. Nazwa boiska ma dzięki temu dość szerokości, żeby nie urywać się po
+trzech słowach. Przycisk wypisania się ma czerwoną ramkę i czerwony tekst od razu.
+
+MECHANIKA: `EventDetailClient.tsx`, sekcja HEADER. Zasada: pigułka jest elementem dla
+ETYKIETY — krótkiej i powtarzalnej („Za darmo"); treść o zmiennej długości (data, nazwa
+obiektu) traci na niej kilkadziesiąt pikseli na samą oprawę. Wypisanie się zostaje
+w wariancie „ramka + tekst", nie pełna czerwień — ta jest zarezerwowana dla akcji
+nieodwracalnych, takich jak „Usuń na stałe".
+
 ### 2026-08-17 — Zgłaszanie błędów: formularz dla ludzi i automatyczny log awarii
 
 PROBLEM: awaria u użytkownika nie zostawiała ŻADNEGO śladu. `app/error.tsx` wypisywał
@@ -587,49 +609,3 @@ przycina ikonę do kształtu producenta. `apple-touch-icon` i `appleWebApp` w me
 minimalny: obsługuje `push` i `notificationclick`, NIE cache'uje niczego — worker
 cache'ujący HTML serwowałby stary build po deployu, a aplikacja żyjąca z bazy
 pokazywałaby nieaktualne składy. Rejestracja przez `components/RejestracjaSW.tsx`.
-
-### 2026-08-16 — Pomarańczowa kropka "nowość"; kropki na kartach ekip; filtr nieprzeczytanych na /moje-gry; zakładka Ustawienia bez wycieku uprawnień; usunięty próg minimum z kreatora
-
-PROBLEM: zakładka „Ustawienia" ekipy migała (czasem zostawała) widoczna osobie bez
-żadnych uprawnień — `/grupy/[id]` jest trasą dynamiczną, więc przejście z ekipy, gdzie
-ktoś jest założycielem, do ekipy, gdzie nie ma żadnej roli, nie odmontowywało
-komponentu; stan uprawnień z poprzedniej ekipy zostawał, dopóki nowe zapytanie nie
-wróciło. Karty ekip na `/grupy` i dolna nawigacja nie miały żadnego sygnału „pojawiło
-się coś nowego" — tylko „masz nieprzeczytaną wiadomość". Różowa kropka „nowe
-wiadomości" na „Moje" potrafiła się świecić bez żadnego widocznego śladu: liczy się też
-z meczów w Historii, a `/moje-gry` (zakładka Historia) i mecze ekipy w Historii nie
-przekazywały licznika nieprzeczytanych do karty meczu, więc nie było gdzie tej
-wiadomości znaleźć. Na `/moje-gry` nie dało się przefiltrować listy do samych meczów
-z nieprzeczytaną wiadomością. Kreator meczu miał krok z toggle'em „Ustaw minimum, żeby
-gra się odbyła" — zbędny przy zakładaniu nowego meczu, skoro organizator jeszcze nie
-zna faktycznej frekwencji.
-
-ROZWIĄZANIE BOJO: `/grupy/[id]` zeruje stan uprawnień na START każdego przeładowania
-(nie tylko po odpowiedzi z bazy), więc zakładka Ustawienia nigdy nie pokazuje
-uprawnień z poprzednio oglądanej ekipy. Trzeci, zarezerwowany kolor w apce —
-pomarańczowy — „nowość, o której jeszcze nie wiesz": kropka na ikonie ekipy (obok
-istniejącej różowej za wiadomości) gdy pojawił się nowy mecz od ostatniej wizyty na
-stronie ekipy, i kropka przy „Znajdź grę" na dolnej nawigacji, gdy w promieniu 5 km od
-użytkownika pojawiło się nowe wydarzenie — wyłącznie gdy zgoda na lokalizację jest już
-udzielona, sprawdzana po cichu, bez pytania o nią. Historia meczów (na `/moje-gry`
-i na stronie ekipy) pokazuje teraz plakietkę nieprzeczytanych tak samo jak Nadchodzące.
-Nowy przycisk-filtr w pasku zakładek `/moje-gry` (poza przewijanym paskiem tabów, więc
-nie dokłada wysokości i jest zawsze widoczny) zawęża widok do meczów z nieprzeczytaną
-wiadomością. Toggle progu minimum zniknął z kreatora meczu — zostaje w edycji istniejącego
-wydarzenia, gdzie organizator już zna realną frekwencję.
-
-MECHANIKA: `GroupDetailClient.tsx` — `load()` woła `setMember(false)`/`setPermissions(null)`
-przed pobraniem danych nowej ekipy. `lib/groups.ts` — `kluczGrupyWidziano()`,
-`getGroupEventsForNew()`, `maNoweMecze()`, `policzNoweMeczePerGrupa()`; ustawiane przy
-KAŻDYM wejściu na stronę ekipy (nie tylko na Tablicę). `lib/events.ts` —
-`KLUCZ_WYDARZENIA_WIDZIANO`, `maNoweWydarzeniaWPobolizu()`; znacznik ustawia
-`EventsListClient.tsx` (nie `EventsListView.tsx` — ten renderuje się też jako tło
-ekranu logowania). `lib/geo.ts` — `hasGeolocationPermission()` (Permissions API, cichy
-odczyt bez okna systemowego). `BottomNav.tsx` — nowy efekt liczący `nearbyNew`,
-dot na „Znajdź grę". `GroupsClient.tsx` — `KartaEkipy` dostała kropki na rogach ikony
-zamiast osobnej plakietki z liczbą z boku. `app/moje-gry/page.tsx` — stan `onlyUnread`,
-filtruje `upcoming`/`playing`/`next` przed przekazaniem do sekcji; `unreadByEvent`
-przekazywany też do kart w zakładce Historia. `GroupDetailClient.tsx` — to samo dla
-`past.map(...)`. `EventCapacityFields.tsx` bez zmian — `onMinPlayersChange` jest
-opcjonalny, `app/wydarzenia/nowe/page.tsx` po prostu przestał go przekazywać.
-`AGENTS.md` → Konwencje: trzeci kolor spisany obok różowego i niebieskiego.

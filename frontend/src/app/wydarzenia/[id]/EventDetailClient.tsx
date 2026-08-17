@@ -2163,32 +2163,15 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── HEADER: akcje + meta chips ── nazwa meczu przeniosła się do
-            paska nad zakładkami (TOP BAR wyżej); tu zostały akcje, którymi
-            dawniej dzielił się z nią górny pasek. Labelled actions instead of
-            bare icons — "Udostępnij" opens the system share sheet, "Kopiuj"
-            puts the link on the clipboard for people who just want to paste
-            it into a chat. */}
+        {/* ── HEADER: meta ──
+            „Udostępnij" i „Kopiuj" BYŁY tutaj, na samej górze. Zostały zdjęte:
+            ta sama para przycisków stoi niżej, w karcie „Wyślij link znajomym",
+            gdzie ma nagłówek i zdanie tłumaczące, po co to klikać — czyli jest
+            czytelniejsza. Dwa wejścia do tej samej akcji na jednym ekranie
+            kosztowały pół ekranu nad najważniejszą informacją, czyli licznikiem
+            miejsc. */}
         {tab !== 'rozmowa' && (
         <div className="px-4">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleShare}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-            >
-              <Share2 className="h-4 w-4" strokeWidth={2.25} /> Udostępnij
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-            >
-              {linkCopied
-                ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
-                : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj</>}
-            </button>
-          </div>
           {event.description && (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
               {event.description}
@@ -2228,61 +2211,6 @@ export default function EventDetailClient() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
                 <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
               </span>
-            )}
-            {/* date — organizer edits it in place */}
-            {(isOrganizer || canEditDelegate) && !eventStarted ? (
-              <button
-                type="button"
-                onClick={openEditWhen}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-              >
-                <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
-                <span className="capitalize">{dateShort}</span> · {timeStr}
-                <Pencil className="h-3 w-3 text-slate-400" strokeWidth={2.25} />
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                <Calendar className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
-                <span className="capitalize">{dateShort}</span> · {timeStr}
-              </span>
-            )}
-            {/* duration */}
-            {event.endTime && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                <Clock className="h-3.5 w-3.5 text-slate-500" strokeWidth={2.25} />
-                {(() => {
-                  try {
-                    const [h1, m1] = (event.time ?? '00:00').split(':').map(Number);
-                    const [h2, m2] = event.endTime.split(':').map(Number);
-                    const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-                    return diff > 0 ? `${diff} min` : null;
-                  } catch { return null; }
-                })()}
-              </span>
-            )}
-            {/* venue — the ADDRESS, not the name: most catalogue names are
-                generic ("Boisko — piłka nożna") and say less than a street.
-                Custom locations have no venue page, so they open a small modal
-                with the address and directions instead of 404-ing. */}
-            {venueBadgeLabel && (
-              event.fieldId ? (
-                <Link
-                  href={`/boisko/${event.fieldId}?wroc=${encodeURIComponent(`/wydarzenia/${event.id}`)}`}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
-                  <span className="truncate">{venueBadgeLabel}</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setVenueInfoOpen(true)}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" strokeWidth={2.25} />
-                  <span className="truncate">{venueBadgeLabel}</span>
-                </button>
-              )
             )}
             {/* price — po starcie meczu ustępuje miejsca statusowi rozliczenia:
                 cena "ile trzeba zapłacić" traci sens, gdy już się zapłaciło albo nie */}
@@ -2396,6 +2324,73 @@ export default function EventDetailClient() {
                   <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
                 </Link>
               )
+            )}
+          </div>
+
+          {/* ── KIEDY I GDZIE — jedna linia, nie pigułki ──
+              Wcześniej data, czas trwania i miejsce były trzema osobnymi
+              pigułkami i razem ze statusem oraz ceną zajmowały CZTERY wiersze
+              nad licznikiem miejsc. Pigułka to element dla ETYKIETY — krótkiej,
+              powtarzalnej, w rodzaju „Za darmo". Data i nazwa boiska to nie
+              etykiety, tylko treść: najdłuższa na tym ekranie, a przez ramkę
+              i dopełnienie każda traciła kilkadziesiąt pikseli na samą oprawę.
+              Bez pigułek mieści się w jednej linii, a miejsce ma wreszcie dość
+              szerokości, żeby nie urywać się po trzech słowach. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+            {(isOrganizer || canEditDelegate) && !eventStarted ? (
+              <button
+                type="button"
+                onClick={openEditWhen}
+                className="inline-flex items-center gap-1.5 font-medium text-slate-700 transition hover:text-ink dark:text-slate-300"
+              >
+                <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                <span className="capitalize">{dateShort}</span> · {timeStr}
+                <Pencil className="h-3 w-3 text-slate-400" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                <span className="capitalize">{dateShort}</span> · {timeStr}
+              </span>
+            )}
+
+            {/* Czas trwania doklejony do godziny, bo to ta sama informacja —
+                „kiedy i jak długo", a nie dwa osobne fakty. */}
+            {event.endTime && (() => {
+              try {
+                const [h1, m1] = (event.time ?? '00:00').split(':').map(Number);
+                const [h2, m2] = event.endTime.split(':').map(Number);
+                const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+                return diff > 0 ? <span className="text-slate-400">· {diff} min</span> : null;
+              } catch { return null; }
+            })()}
+
+            {/* Miejsce: ADRES, nie nazwa — nazwy z katalogu bywają generyczne
+                („Boisko — piłka nożna") i mówią mniej niż ulica. Lokalizacja
+                spoza katalogu nie ma swojej strony, więc otwiera okienko
+                z adresem i dojazdem zamiast wywalać 404. */}
+            {venueBadgeLabel && (
+              <>
+                <span className="text-slate-300">·</span>
+                {event.fieldId ? (
+                  <Link
+                    href={`/boisko/${event.fieldId}?wroc=${encodeURIComponent(`/wydarzenia/${event.id}`)}`}
+                    className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <span className="truncate">{venueBadgeLabel}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setVenueInfoOpen(true)}
+                    className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <span className="truncate">{venueBadgeLabel}</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
           {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
@@ -2960,7 +2955,13 @@ export default function EventDetailClient() {
             )}
             <button
               onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
-              className="w-full h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+              // Czerwony od razu, nie dopiero pod kursorem. Wcześniej przycisk
+              // był szary i czerwieniał na `hover` — czyli na telefonie NIGDY,
+              // bo tam kursora nie ma. Wypisanie się jest odwracalne i nie jest
+              // groźne, więc nie robimy z niego pełnej czerwieni ostrzegawczej
+              // (ta zostaje dla „Usuń na stałe"): ramka i tekst w czerwieni,
+              // tło białe. Widać, że to wyjście, a nie akcja główna.
+              className="w-full h-11 rounded-2xl border border-red-200 bg-white text-sm font-semibold text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 dark:bg-transparent"
             >
               {amIReserve ? 'Wypisz się z rezerwy' : 'Wypisz się z meczu'}
             </button>
