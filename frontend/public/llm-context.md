@@ -332,6 +332,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+
+PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
+ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
+nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
+push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+
+ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
+pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
+„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
+„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
+i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
+„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
+powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
+spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
+w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+
+MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
+więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
+`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
+systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
+`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
+nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+
 ### 2026-08-17 — Składy w osobnej zakładce, Wynik dopiero po meczu, naprawa cichych odmów bazy
 
 PROBLEM: trzy usterki zgłoszone z telefonu. (1) Przypisywanie graczy do drużyn „nic nie
@@ -632,26 +656,3 @@ rezerwa) — przekazywany przez `NextMatchCard`, `MyMatchesSection`,
 — `SHOW_RECURRING = false`; `app/wydarzenia/nowe/page.tsx` — przełącznik „Wydarzenie
 cykliczne" (`extraSlot` w `EventDateTimeField`) warunkowany tą flagą (wcześniej
 renderował się zawsze, niezależnie od niej — flaga gasiła tylko wejścia w nawigacji).
-
-### 2026-08-15 — Info o rozmiarze ekipy dla założyciela; panel "Kto milczy" usunięty
-
-PROBLEM: duża prywatna ekipa (ponad 30 osób) zwykle znaczy, że organizator dodaje coraz
-więcej ludzi do grupy, żeby zapełnić skład na mecz — mimo że „Otwórz dla okolicy" (patrz
-niżej) rozwiązuje dokładnie ten problem bez rozrastania ekipy: publiczny mecz widzą też
-gracze spoza niej. Osobno: panel „Czy gramy?" na stronie meczu ekipy miał blok „Nie
-odpowiedziało: N" z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa" do ścigania
-milczących członków — usunięty na wyraźną prośbę, jako zbędny obok prostszego „Otwórz
-dla okolicy".
-
-ROZWIĄZANIE BOJO: zakładka Skład na stronie ekipy pokazuje teraz założycielowi, gdy
-ekipa ma ponad 30 członków, krótką informację: nie trzeba dodawać jak najwięcej osób,
-bo publiczny mecz i tak widzą gracze z okolicy. Panel „Czy gramy?" na stronie meczu stracił
-blok „Nie odpowiedziało" — zostają tylko werdykt progu minimum i „Otwórz dla okolicy".
-RPC `zapytaj_milczacych()` i typ powiadomienia `pytanie_o_udzial` (migracja `097`)
-zostają w bazie nietknięte — po prostu nic już ich nie wywołuje.
-
-MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
-`perms.isFounder && memberCount > 30` nad `<SkladGrupy>`. `components/events/CzyGramyPanel.tsx`
-— blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
-martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
-zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.

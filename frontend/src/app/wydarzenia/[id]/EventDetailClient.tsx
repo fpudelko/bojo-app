@@ -71,6 +71,7 @@ import { getNieobecni, oznaczNieobecnosc, cofnijNieobecnosc, type NieobecnyWpis 
 import { withCount } from '@/lib/plural';
 import { TEAM_LABELS, TEAM_LETTERS, TEAM_COLOR_CLASSES } from '@/lib/teamLabels';
 import { WARSTWA } from '@/lib/warstwy';
+import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes } from '@/lib/time';
 
@@ -942,6 +943,12 @@ export default function EventDetailClient() {
       } else {
         toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
       }
+      // Moment, w którym proponujemy dodanie Bojo do ekranu głównego: człowiek
+      // WŁAŚNIE zapisał się na mecz, więc obietnica „przypomnimy Ci o nim"
+      // znaczy dla niego coś konkretnego. Prośba na wejściu na stronę byłaby
+      // odruchowo zamknięta. Sama funkcja niczego nie wymusza — komponent
+      // sprawdzi, czy w ogóle jest kogo pytać (`lib/instalacja.ts`).
+      zaproponujInstalacje();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -3121,7 +3128,13 @@ export default function EventDetailClient() {
             the second button just reports the state you're already in. */}
         {tab !== 'rozmowa' && joinBarVisible && <HideBottomNav />}
         {tab !== 'rozmowa' && joinBarVisible && (
-          <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md">
+          <div
+            className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md"
+            // Ten pasek chowa dolną nawigację (`HideBottomNav` wyżej), więc
+            // `--bottom-nav-h` jest wtedy zerem — samo `pb-6` w apce kończyło
+            // się przyciskiem tuż nad kreską gestów iOS.
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
             <div className="mx-auto max-w-2xl">
               {!authLoading && !user ? (
                 <div className="flex gap-2">

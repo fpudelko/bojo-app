@@ -17,7 +17,7 @@ export default function CookieBanner() {
       // 0 px wszędzie tam, gdzie paska nie ma (wylogowany, desktop, strona
       // ze schowanym paskiem), więc warunek z useAuth/useBottomNavHidden
       // przestał być potrzebny.
-      style={{ marginBottom: 'var(--bottom-nav-h)' }}
+      style={{ marginBottom: 'var(--dol-bezpieczny)' }}
     >
       <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3 text-sm">
         <p className="flex-1 text-slate-600 leading-snug">

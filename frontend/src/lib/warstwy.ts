@@ -20,6 +20,10 @@ export const WARSTWA = {
   modal: 'z-[1300]',
   /** Panel modala, gdy tło i treść są osobnymi elementami (np. FilterSheet). */
   modalPanel: 'z-[1301]',
+  /** Pasek zachęty do dodania Bojo na ekran główny. Nad nawigacją, bo z niej
+   *  wyrasta; POD modalem, żeby nie przykryć okna, które użytkownik właśnie
+   *  otworzył. */
+  zachetaInstalacji: 'z-[1250]',
   /** Toasty — komunikat o wyniku akcji musi być widoczny także nad modalem. */
   toast: 'z-[9999]',
 } as const;
