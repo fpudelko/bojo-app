@@ -4,7 +4,7 @@
 // `deleteComment()`, przycisk moderacji nie ma prawa udawać sukcesu, gdy RLS
 // po cichu nie zmieniło żadnego wiersza.
 import { supabase } from './supabase';
-import { zaktualizujJedenWiersz } from './zapytania';
+import { zPonowieniemPoOdswiezeniu, zaktualizujJedenWiersz } from './zapytania';
 import type { GroupPost } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,19 +48,24 @@ export async function addGroupPost(
   // błąd Postgresa zamiast po prostu skrócić wpis.
   const safe = body.trim().slice(0, 1000);
   if (!safe) throw new Error('Wpis nie może być pusty.');
-  const { data, error } = await supabase
-    .from('group_posts')
-    .insert({
-      group_id: groupId,
-      user_id: userId,
-      user_name: userName,
-      body: safe,
-      pinned_at: opts?.przypnij ? new Date().toISOString() : null,
-    })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return toGroupPost(data);
+  // Tablica ekipy to drugi ekran, na którym karta wisi otwarta godzinami —
+  // ta sama pułapka co w rozmowie meczu: token wygasa, aplikacja dalej wygląda
+  // na zalogowaną, a baza odsyła komunikat o polityce bezpieczeństwa.
+  return zPonowieniemPoOdswiezeniu(async () => {
+    const { data, error } = await supabase
+      .from('group_posts')
+      .insert({
+        group_id: groupId,
+        user_id: userId,
+        user_name: userName,
+        body: safe,
+        pinned_at: opts?.przypnij ? new Date().toISOString() : null,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return toGroupPost(data);
+  });
 }
 
 /** Miękkie kasowanie. Autor albo moderator (`can_moderate_wall`) — RLS

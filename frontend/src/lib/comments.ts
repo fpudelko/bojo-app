@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { zaktualizujJedenWiersz, zPonowieniemPoOdswiezeniu } from './zapytania';
 import { getMyActiveEventIds } from './events';
 import type { EventComment } from '@/types';
 
@@ -34,21 +35,33 @@ export async function addComment(
 ): Promise<EventComment> {
   const safe = body.trim().slice(0, 1000);
   if (!safe) throw new Error('Komentarz nie może być pusty.');
-  const { data, error } = await supabase
-    .from('event_comments')
-    .insert({ event_id: eventId, user_id: userId, user_name: userName, body: safe })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return toComment(data);
+
+  // Przez `zPonowieniemPoOdswiezeniu`, bo to jest ekran, na którym karta bywa
+  // otwarta godzinami: ktoś zagląda do rozmowy rano, pisze wieczorem. Po
+  // wygaśnięciu tokenu polityka `auth.uid() = user_id` przestaje pasować
+  // i Postgres odsyła komunikat o „row-level security policy" — o czymś, z czym
+  // piszący nie ma nic wspólnego. Patrz `lib/zapytania.ts`.
+  return zPonowieniemPoOdswiezeniu(async () => {
+    const { data, error } = await supabase
+      .from('event_comments')
+      .insert({ event_id: eventId, user_id: userId, user_name: userName, body: safe })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return toComment(data);
+  });
 }
 
 export async function deleteComment(commentId: string): Promise<void> {
-  const { error } = await supabase
-    .from('event_comments')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', commentId);
-  if (error) throw new Error(error.message);
+  // `zaktualizujJedenWiersz`, nie gołe `.update()`: kasowanie jest MIĘKKIE
+  // (ustawia `deleted_at`), więc niepasująca polityka RLS dałaby zero zmienionych
+  // wierszy i sukces — wiadomość zniknęłaby z ekranu, a po odświeżeniu wróciła.
+  await zPonowieniemPoOdswiezeniu(() => zaktualizujJedenWiersz(
+    'event_comments',
+    commentId,
+    { deleted_at: new Date().toISOString() },
+    'Nie udało się usunąć wiadomości',
+  ));
 }
 
 /** Klucz w `localStorage` pod którym trzymamy „ostatnio widziano rozmowę
