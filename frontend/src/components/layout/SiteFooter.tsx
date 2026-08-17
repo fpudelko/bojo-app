@@ -40,6 +40,10 @@ export default function SiteFooter() {
             <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>
             <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
             <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
+            {/* Zgłoszenie błędu musi być osiągalne z KAŻDEJ strony — awaria
+                rzadko zdarza się tam, gdzie akurat wisi przycisk. Stopka jest
+                jedynym miejscem, które jest wszędzie. */}
+            <Link href="/zglos-blad" className="text-slate-500 transition-colors hover:text-white">Zgłoś błąd</Link>
           </GrupaLinkow>
         </div>
       </div>
