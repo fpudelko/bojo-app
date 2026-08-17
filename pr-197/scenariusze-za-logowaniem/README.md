@@ -1,9 +1,9 @@
 # Zrzuty — PR #197 · scenariusze-za-logowaniem
 
-Przebieg [`32054133633`](https://github.com/fpudelko/bojo-app/actions/runs/32054133633)
+Przebieg [`32054997179`](https://github.com/fpudelko/bojo-app/actions/runs/32054997179)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/197)
 
-Zmienione widoki: **3** · nowe widoki: **0**
+Zmienione widoki: **4** · nowe widoki: **0**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -75,6 +75,28 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__kolejka-organizator__diff.png" width="100%">
+
+</details>
+
+### profil
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__profil__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__profil__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__profil__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__profil__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__profil__diff.png" width="100%">
 
 </details>
 
