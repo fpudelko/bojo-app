@@ -38,13 +38,19 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
+export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
    *  kto gra, organizuje albo jest na rezerwie (nie dla „obserwuję" ani
    *  „czeka na akceptację", patrz `getMyActiveEventIds()` w `lib/events.ts`).
    *  Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */
   unreadMessages?: number;
+  /** Ten konkretny mecz jest nowy od ostatniej wizyty na liście/w ekipie —
+   *  pomarańczowa kropka na ikonie sportu, ten sam ślad co zbiorcza kropka
+   *  na `/wydarzenia`/karcie ekipy (patrz AGENTS.md, Konwencje: pomarańczowy
+   *  = „nowość"). Bez tego zbiorcza kropka nie miała jak wskazać, KTÓRY
+   *  konkretnie wpis na liście jest nowy — zgłoszone wprost. */
+  isNew?: boolean;
 }) {
   const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
@@ -114,11 +120,14 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
         {/* top: icon + title + price */}
         <div className="flex items-start gap-2.5">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
             style={{ backgroundColor: `${color}1a`, boxShadow: `inset 0 0 0 1px ${color}33` }}
             aria-hidden="true"
           >
             {emoji}
+            {isNew && (
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" />
+            )}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -196,9 +205,27 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages }: {
             {max > 0 && (
               <span className="text-xs text-slate-500 dark:text-slate-400">{taken} graczy</span>
             )}
-            {statusChip && (
-              <span className={`ml-auto rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
-                {statusChip.label}
+            {/* Ta sama plakietka nieprzeczytanych co w karcie nadchodzącego meczu
+                niżej — bez niej mecz z Historii z nieprzeczytaną wiadomością
+                zapalał różową kropkę na „Moje" (patrz `hasUnreadEventMessages()`,
+                nie filtruje po dacie), ale nigdzie na karcie tego nie było widać:
+                ten branch JSX w ogóle nie renderował plakietki, niezależnie od
+                propa `unreadMessages`. Zgłoszone wprost — „mam kropkę, nie mam
+                gdzie szukać wiadomości". Owijka `ml-auto` trzyma parę (plakietka +
+                statusChip) razem przy prawej krawędzi, nawet gdy któregoś z nich
+                brakuje (np. organizator bez własnego udziału nie ma statusChipu). */}
+            {(pokazNieprzeczytane || statusChip) && (
+              <span className="ml-auto flex items-center gap-2">
+                {pokazNieprzeczytane && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                    <MessageCircle className="h-3 w-3" /> {unreadMessages}
+                  </span>
+                )}
+                {statusChip && (
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
+                    {statusChip.label}
+                  </span>
+                )}
               </span>
             )}
           </div>

@@ -285,24 +285,85 @@ ostatniej wizyty na `/wydarzenia` (`maNoweWydarzeniaWPobolizu()` w `lib/events.t
 Konwencje. Każda ikona może nosić dwie kropki naraz (różową i pomarańczową na „Grupy";
 różową i niebieską na „Moje") — lewy i prawy róg, żeby się nie nakładały.
 
+**Każde zapytanie ignoruje odpowiedź, która wróciła po zmianie trasy.** Wszystkie cztery
+efekty w `BottomNav.tsx` (prośby, wiadomości „Moje", wiadomości+nowość „Grupy", pobliskie
+nowe) trzymają lokalną flagę `aktualne`, zerowaną w funkcji sprzątającej efektu — bez tego
+wolniejsza odpowiedź z POPRZEDNIEJ trasy mogła wrócić PO szybszej odpowiedzi ze świeżo
+odpalonego zapytania i nadpisać poprawny stan starym, zostawiając kropkę zapaloną bez
+żadnego realnego powodu. Zgłoszone wprost jako różowa kropka na „Moje" mimo zera
+nieprzeczytanych wiadomości widocznych na samej stronie.
+
+**Błąd zapytania gasi kropkę, nie zostawia poprzedniej wartości.** Powyższa poprawka nie
+wystarczyła — kropka na „Moje" wracała mimo przeczytania wiadomości. Każdy `.then()` w tych
+efektach kończył się gołym `.catch(() => {})`: przy błędzie (chwilowy problem sieci,
+odświeżenie tokenu Supabase w trakcie) stan po prostu zostawał taki, jaki był PRZED
+nieudanym zapytaniem — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka
+świeciła dalej w nieskończoność, aż trafi się kolejne udane zapytanie. `catch` w każdym z
+czterech efektów ustawia teraz jawnie `false` (`null` dla nazwy grupy) zamiast nic nie
+robić — brak pewności o stanie ma zawsze wygrywać z fałszywie zapaloną kropką.
+
 Pomarańczowa kropka **wymaga zgody na lokalizację JUŻ udzielonej** — sprawdzana cicho przez
 `hasGeolocationPermission()` (`lib/geo.ts`, Permissions API), bez pytania o nią. Gdyby zamiast
 tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływałaby systemowe
 okno o zgodę na lokalizację bez żadnego kontekstu — dla kogoś, kto jej nigdy nie udzielił.
 Brak zgody = brak kropki, nie prośba w tle.
 
+**Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
+wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
+w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowe
+wiadomości" (różowa — osobny typ/licznik dla „Moje" i osobny dla „Grupy", mimo identycznego
+tekstu, żeby dymek jednoznacznie wiedział, przy której ikonie stanąć), „Nowa gra w grupie
+{nazwa}" (pomarańczowa na „Grupy" — nazwa z `getNewGroupEventGroupName()` w `lib/groups.ts`,
+ekipa z najświeższym nowym meczem, gdy nowych jest kilka naraz), „Nowa gra w promieniu 5 km"
+(pomarańczowa na „Znajdź grę"). Licznik pokazań w `localStorage`
+(`bojo:dymek-pokazania:<typ>`) jest per typ — po 5 pokazaniach danego typu dymek przestaje
+się pojawiać, zakładamy że użytkownik już wie, co ta kropka znaczy.
+
+**Najwyżej jeden dymek na ekranie naraz.** Gdy kilka kropek zapala się w tym samym
+przeliczeniu (typowo przy pierwszym załadowaniu), dymki nie renderują się równolegle —
+zasłaniałyby się nawzajem na wąskim pasku pięciu ikon. `BottomNav.tsx` trzyma pojedynczy
+stan `dymekWidoczny` (typ + tekst + `href` ikony, do której należy) i kolejkę
+`kolejkaDymkow`: pierwszy trafiony typ pokazuje się od razu, reszta czeka w kolejce
+i pokazuje się po kolei, jeden po drugim, każdy na swoje 4 sekundy. Dymek jest zawsze
+przypięty do konkretnej ikony przez `href` — komponent `NavLink` dostaje gotowy tekst
+tylko wtedy, gdy `dymekWidoczny.href` zgadza się z jego własnym `href`.
+
+Dymek nad skrajną ikoną (pierwszą — „Znajdź grę", ostatnią — „Grupy") wystawał poza ekran:
+wyśrodkowany nad wąską kolumną blisko krawędzi, ciągnął się poza jej brzeg (zgłoszone wprost,
+ze zrzutem). `NavLink` dostaje prop `dymekAlign` (`'left' | 'center' | 'right'`) — skrajne
+kolumny w `BottomNav.tsx` przypinają dymek do swojej wewnętrznej krawędzi zamiast centrować
+go nad ikoną, środkowe trzy kolumny zostają wyśrodkowane jak dotąd.
+
+**Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
+(„Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
+CO — zgłoszone wprost. `EventBrowseCard` dostał prop `isNew`: pomarańczowa kropka w rogu
+ikony sportu na konkretnym wpisie. Na `/wydarzenia` — `EventsListClient.tsx` odczytuje
+`KLUCZ_WYDARZENIA_WIDZIANO` PRZED nadpisaniem go na „teraz" (inaczej porównanie zawsze
+wypadałoby „nic nie jest nowe") i przekazuje starą wartość do `EventsListView` jako
+`widzianoWczesniej`; `null`/`undefined` (pierwsza wizyta) świadomie nie oznacza niczego —
+na pierwszej wizycie KAŻDE wydarzenie byłoby „nowe", co zalałoby listę kropkami. Na
+`/grupy/[id]` (zakładka Mecze, też „Najbliższy mecz" nad zakładkami) — ten sam wzorzec ze
+starą wartością `kluczGrupyWidziano()`, zmienna `grupaWidzianaWczesniej` w
+`GroupDetailClient.tsx`.
+
 „Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
 `kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
 wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania.
 `getMyActiveEventIds()` (gram/rezerwa/organizuję) **nie filtruje po dacie** — mecz
 z historii z nową wiadomością też zapala różową kropkę na „Moje"; `/moje-gry` (zakładka
-Historia) i mecze ekipy (`/grupy/[id]`, sekcja Historia) muszą więc przekazywać
-`unreadMessages` do `EventBrowseCard` również tam, nie tylko w Nadchodzących — inaczej
-kropka świeci się bez żadnego widocznego śladu, gdzie szukać wiadomości (zgłoszone wprost).
-Ten sam mechanizm zasila plakietkę z liczbą przy zakładce Rozmowa/Tablica (patrz zakładki
-`/wydarzenia/[id]` i `/grupy/[id]` niżej) oraz ikonę z liczbą obok chipu „N wolnych miejsc"
-na karcie meczu (`EventBrowseCard`, tylko gdy gram/organizuję/jestem na rezerwie w tym
-meczu).
+Historia) i mecze ekipy (`/grupy/[id]`, sekcja Historia) przekazują `unreadMessages` do
+`EventBrowseCard` również tam, nie tylko w Nadchodzących. To jednak nie wystarczyło samo
+w sobie — **`EventBrowseCard` w ogóle nie renderował plakietki w gałęzi JSX dla
+rozegranych meczów** (osobny branch od meczów nadchodzących, bez badge'a niezależnie od
+propa `unreadMessages`), więc kropka na „Moje" świeciła się bez żadnego widocznego śladu,
+gdzie szukać wiadomości — zgłoszone wprost, dwa razy, zanim znaleziono właściwe miejsce.
+Plakietka (razem ze `statusChip`) teraz stoi też w gałęzi „rozegrany/anulowany", owinięta
+wspólnym `ml-auto`, żeby oba elementy trzymały się prawej krawędzi niezależnie od tego,
+czy któryś z nich akurat istnieje. Ten sam mechanizm zasila plakietkę z liczbą przy
+zakładce Rozmowa/Tablica (patrz zakładki `/wydarzenia/[id]` i `/grupy/[id]` niżej) oraz
+ikonę z liczbą obok chipu „N wolnych miejsc"/„Rozegrany" na karcie meczu (tylko gdy
+gram/organizuję/jestem na rezerwie w tym meczu).
 
 **Kropki na karcie ekipy (`/grupy`).** Na ikonie każdej ekipy: różowa w lewym górnym rogu —
 nieprzeczytana wiadomość na tablicy (ten sam `nieprzeczytane()` co wyżej) — pomarańczowa
@@ -313,15 +374,17 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
 **Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości stoi na wysokości
-nagłówka „Brakuje graczy" (`extra` w `SectionHeader`, `components/home/dashboard/
-DashboardSections.tsx`), nie w pasku zakładek — zgłoszone wprost jako zła pozycja przy
-pierwszym podejściu. `NeedsPlayersSection` dostaje `pokazPustyNaglowek` na tej stronie: gdy
-akurat nie ma żadnego meczu bez kompletu, sekcja i tak renderuje samą kropkę filtra (bez
-tytułu „Brakuje graczy") zamiast znikać całkowicie — inaczej przycisk nie miałby gdzie
-stanąć, żeby dało się wyłączyć filtr z powrotem. Widoczna tylko, gdy jest choć jeden
-nieprzeczytany mecz w ogóle. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy",
-najbliższy mecz i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia
-i stałe gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
+nagłówka pierwszej sekcji, która realnie ma co pokazać, nie w pasku zakładek (zgłoszone
+wprost) i nie na sztywno przy „Brakuje graczy" (zgłoszone wprost po raz drugi — pusty
+wiersz zarezerwowany tylko dla ikonki, gdy ta sekcja jest akurat pusta, zjadał sporo
+miejsca na ekranie). Kolejność prób w `app/moje-gry/page.tsx`: **Brakuje graczy** (`extra`
+w `SectionHeader`, gdy `maBrakujeGraczy`) → **Najbliższy mecz** (`extra` w
+`NextMatchCard`, gdy jest `nextWidoczny`, a „Brakuje graczy" akurat puste) → pusty wiersz
+jako ostateczność (`pokazPustyNaglowek` w `NeedsPlayersSection`), wyłącznie gdy obie
+tamte sekcje nic nie pokazują naraz. Widoczna tylko, gdy jest choć jeden nieprzeczytany
+mecz w ogóle. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy", najbliższy mecz
+i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia i stałe
+gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
 
 ---
 
@@ -599,7 +662,21 @@ Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego
 (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
 `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NeedsPlayersSection` →
 `NextMatchCard` → `MyMatchesSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie** są tu
-powtórzone — mają własne strony (`/grupy`, `/wydarzenia`).
+powtórzone — mają własne strony (`/grupy`, `/wydarzenia`). `NextGroupMatchTeaser` (niżej)
+też nie — to specyficznie dla pulpitu (`AppHome.tsx`), `/moje-gry` skupia się na meczach,
+nie na ekipach.
+
+**„Twoja ekipa gra wkrótce" (`NextGroupMatchTeaser`, `DashboardSections.tsx`)** — na
+pulpicie zalogowanego, między `NextMatchCard` a `MyMatchesSection` (zgłoszone wprost:
+ma stać NAD „Twoje najbliższe mecze", zanim trzeba przewijać do „Twoje grupy" niżej).
+Pokazuje ekipę z najbliższym nadchodzącym meczem — ikona, nazwa, termin, pasek
+zapełnienia składu — jako link do `/grupy/[id]`, tym samym stylem karty co `KartaEkipy`
+na `/grupy`. Dane z `groupEvents`/`groups` w `useDashboardData()`, zero dodatkowego
+zapytania: `getMyGroupEvents()` (`lib/events.ts`) sortuje po `event_date` w SQL-u, ale bez
+godziny jako drugiej kolumny sortowania, więc komponent doprecyzowuje sort po
+`date+time` po stronie klienta, zanim weźmie pierwszy element. Renderuje `null`, gdy
+żadna ekipa nie ma nadchodzącego meczu, albo gdy mecz nie da się dopasować do żadnej
+z grup usera (np. rozjazd danych) — cicha porażka, nie krzykliwy błąd na pulpicie.
 
 **„Brakuje graczy"** (`NeedsPlayersSection`, `components/home/dashboard/DashboardSections.tsx`)
 — organizowane, nadchodzące mecze, które jeszcze nie mają kompletu, sortowane od
@@ -1044,7 +1121,17 @@ założyciela/`can_manage_members`) zamiast osobnej ikony. Awatar też zniknął
 wystarczy, profil jest w dolnej nawigacji. Osobny wiersz pod belką niesie meta
 (sport/miasto/boisko/liczba członków) — dawniej to wszystko zajmowało osobny wiersz
 „← Ekipy" plus kartę nagłówka z okładką na pół ekranu, co zgłoszono wprost jako
-zajmujące za dużo miejsca. Zaraz pod belką stoją **zakładki** — nawigacja ma być
+zajmujące za dużo miejsca.
+
+**Nazwa ekipy w belce jest przełącznikiem, nie tylko tytułem** — kliknięcie rozwija
+listę pozostałych ekip użytkownika (`getMyGroups()`) pod belką, z ikoną, nazwą i
+strzałką ChevronDown, która się obraca po otwarciu; wybór innej ekipy nawiguje do jej
+`/grupy/[id]`. Widoczne (nazwa klikalna, strzałka) tylko gdy jest co przełączać — dla
+kogoś w jednej ekipie nazwa zostaje zwykłym `<h1>`. Zamyka się automatycznie po wyborze
+i przy każdej zmianie `id` w URL-u; tło na cały ekran (`fixed inset-0`) łapie kliknięcie
+poza listą, tak jak każdy inny dropdown w apce.
+
+Zaraz pod belką stoją **zakładki** — nawigacja ma być
 najwyżej, nad treścią którą przełącza, nie pod pierwszą kartą. **Belka i zakładki dzielą
 jeden `sticky top-0` kontener** (poza zakładką Rozmowa, patrz niżej) — dwa osobne sticky
 elementy na tej samej wysokości nakładałyby się na siebie zamiast układać w stos, więc

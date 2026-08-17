@@ -332,29 +332,122 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
 
-PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
-ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
-nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
-push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
+między zapytaniami (poprzedni wpis w tym logu) — zgłoszone wprost, ponownie ze zrzutem,
+mimo `/moje-gry` nie znajdującego ani jednej nieprzeczytanej wiadomości. Każdy z czterech
+efektów w `BottomNav.tsx` kończył nieudane zapytanie gołym `.catch(() => {})`: błąd (chwilowy
+problem sieci, odświeżenie tokenu Supabase w trakcie) zostawiał stan takim, jaki był PRZED
+próbą — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka świeciła dalej
+bez związku z rzeczywistością, aż trafiłoby się kolejne udane zapytanie. Osobno: dymek nad
+pierwszą („Znajdź grę") i ostatnią („Grupy") z pięciu ikon wyśrodkowywał się nad wąską
+kolumną blisko krawędzi ekranu i wystawał poza nią, nieczytelny — też zgłoszone ze zrzutem.
 
-ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
-pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
-„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
-„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
-i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
-„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
-powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
-spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
-w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+ROZWIĄZANIE BOJO: `catch` w każdym z czterech efektów ustawia teraz jawnie `false`
+(`null` dla nazwy grupy) zamiast nic nie robić — brak pewności o stanie wygrywa z fałszywie
+zapaloną kropką. Dymek dostał `dymekAlign` (`'left' | 'center' | 'right'`): skrajne kolumny
+przypinają go do swojej wewnętrznej krawędzi zamiast centrować nad ikoną, środkowe trzy
+zostają wyśrodkowane jak dotąd.
 
-MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
-więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
-`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
-systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
-`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
-nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+MECHANIKA: `BottomNav.tsx` — każdy `.then(...).catch(...)` w efektach `pendingApproval`/
+`unreadEvents`/grupowym (`unreadGroups`, `newGroupEvents`, `newGroupName`, plus zewnętrzny
+`getMyGroups().catch()`) resetuje stan na `catch`. `NavLink` dostaje prop `dymekAlign`;
+`LEFT_ITEMS`/`RIGHT_ITEMS.map` liczy go z indeksu (`i === 0` / `i === length - 1`) i
+przekazuje klasy `left-0`/`right-0` zamiast `left-1/2 -translate-x-1/2` na dymku i jego
+trójkącie wskaźnika.
+
+### 2026-08-16 — Naprawiony wyścig zostawiający fałszywą różową kropkę na "Moje"; dymki jeden na raz, 4 sekundy
+
+PROBLEM: różowa kropka „nowe wiadomości" na „Moje" świeciła się nawet wtedy, gdy sama
+strona `/moje-gry` (ten sam zestaw danych, ta sama para funkcji) nie znajdowała ŻADNEJ
+nieprzeczytanej wiadomości — potwierdzone zrzutem ekranu. Cztery efekty w `BottomNav.tsx`
+odpalają zapytanie przy KAŻDEJ zmianie trasy, ale trzy z czterech (prośby, wiadomości
+„Moje", wiadomości+nowość „Grupy") nie miały strażnika przed odpowiedzią, która wraca PO
+tym, jak trasa zmieniła się ponownie — wolniejsza odpowiedź z poprzedniej trasy mogła
+nadpisać świeży, poprawny stan starym `true`, zostawiając kropkę zapaloną bez żadnego
+realnego powodu (czwarty efekt, `nearbyNew`, taki strażnik już miał — niespójność w tym
+samym pliku była śladem brakującego wzorca). Osobno: dymki wyjaśniające kropki (poprzednia
+zmiana) mogły pokazać się dwa naraz i zasłonić się nawzajem, znikały po 1,5 s — za szybko.
+
+ROZWIĄZANIE BOJO: wszystkie cztery efekty mają teraz lokalną flagę `aktualne`, zerowaną
+w funkcji sprzątającej — spóźniona odpowiedź z nieaktualnej trasy jest po prostu
+ignorowana. Dymki pokazują się teraz TYLKO jeden na raz na całym pasku: nowa kolejka
+(`kolejkaDymkow`) zbiera wszystkie typy, które akurat się zapaliły, i pokazuje je po
+kolei, każdy na 4 sekundy zamiast 1,5. Wspólny typ „wiadomości" (dawniej jeden dla „Moje"
+i „Grupy") rozdzielony na `wiadomosci-moje`/`wiadomosci-grupy` z osobnymi licznikami —
+każdy dymek jest teraz jednoznacznie przypięty do jednej ikony przez `href`, więc kolejka
+wie, przy której konkretnie ikonie stanąć.
+
+MECHANIKA: `BottomNav.tsx` — `aktualne` w efektach `pendingApproval`/`unreadEvents`/
+grupowym (ten sam wzorzec co istniejący `nearbyNew`). Stan `dymekWidoczny` (typ + tekst +
+href) zamiast rekordu `dymki` per typ; `kolejkaDymkow` (ref) + `pokazNastepnyDymek()`
+serializują wyświetlanie; `timerDymka` (ref) pilnuje pojedynczego aktywnego `setTimeout`
+i jest jawnie zerowany, gdy kolejka się opróżni (inaczej kolejny cykl w ogóle by nie
+wystartował). `CZAS_DYMKA_MS` z 1500 na 4000.
+
+### 2026-08-16 — Pomarańczowa kropka na konkretnym meczu, dymki tłumaczące kropki na dolnej nawigacji
+
+PROBLEM: pomarańczowa kropka na „Grupy"/„Znajdź grę" i różowa/niebieska na „Moje" mówiły
+„coś nowego się pojawiło", ale po wejściu w daną zakładkę nie było wiadomo, KTÓRY
+konkretnie wpis na liście to jest — trzeba było zgadywać albo przeglądać wszystko po
+kolei. Kolor kropek ma spisaną, stałą konwencję (`AGENTS.md` → Konwencje), ale nikt nowy
+nie zna jej z góry — pierwsze zetknięcie z pomarańczową kropką nie tłumaczyło się samo.
+
+ROZWIĄZANIE BOJO: `EventBrowseCard` dostał `isNew` — pomarańczowa kropka w rogu ikony
+sportu na konkretnym wpisie, nowym od ostatniej wizyty na liście/w ekipie. Na
+`/wydarzenia` i w zakładce Mecze konkretnej ekipy (`/grupy/[id]`, też „Najbliższy mecz"
+nad zakładkami) widać teraz nie tylko ZE coś jest nowe, ale i CO. Osobno: gdy kropka na
+dolnej nawigacji zapala się pierwszy raz (przejście wyłączona→włączona, nie każda zmiana
+trasy), nad ikoną na 1,5 sekundy pojawia się mały czarny dymek z wyjaśnieniem — „Nowa
+prośba o dołączenie", „Nowe wiadomości", „Nowa gra w grupie {nazwa}", „Nowa gra w
+promieniu 5 km". Licznik w `localStorage` jest per typ dymka, nie per kropka — po 5
+pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie.
+
+MECHANIKA: `EventBrowseCard.tsx` — nowy prop `isNew`, kropka na ikonie sportu (analogicznie
+do plakietki nieprzeczytanych). `EventsListClient.tsx` — odczytuje
+`KLUCZ_WYDARZENIA_WIDZIANO` PRZED nadpisaniem, przekazuje starą wartość jako
+`widzianoWczesniej` do `EventsListView`; `null`/pierwsza wizyta świadomie nie oznacza
+niczego jako nowe (zalałoby listę kropkami). `GroupDetailClient.tsx` — ten sam wzorzec,
+`grupaWidzianaWczesniej` ze starej wartości `kluczGrupyWidziano()`. `lib/groups.ts` —
+nowa `getNewGroupEventGroupName()`: nazwa ekipy z najświeższym nowym meczem (gdy nowych
+jest kilka naraz, wygrywa `createdAt` najpóźniejszy). `BottomNav.tsx` — stan `dymki`
+(Record typ→tekst), `poprzednieAktywne` (ref) łapie wyłącznie przejście false→true,
+licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`, limit 5).
+
+### 2026-08-16 — Przełącznik ekip w belce, ekipa z najbliższym meczem na pulpicie, prawdziwa naprawa kropki na "Moje", filtr znów przesunięty
+
+PROBLEM: kropka „nowe wiadomości" na „Moje" wciąż świeciła się bez śladu wiadomości mimo
+poprzedniej naprawy (przekazanie `unreadMessages` do kart Historii) — bo `EventBrowseCard`
+w ogóle nie renderował plakietki w gałęzi JSX dla rozegranych meczów, niezależnie od tego,
+co dostał w propsie; sam prop docierał, ale nie było go czym pokazać. Filtr
+nieprzeczytanych na `/moje-gry`, przeniesiony w poprzedniej zmianie na sztywno pod
+„Brakuje graczy", zajmował pusty wiersz na całą wysokość sekcji, gdy akurat nie było
+czego tam pokazać — zgłoszone wprost po raz drugi. Strona ekipy nie miała żadnego sposobu
+przełączenia się na inną ekipę bez powrotu do listy `/grupy`. Pulpit zalogowanego nie
+odpowiadał na pytanie „z którą ekipą gram najszybciej" bez przewijania do „Twoje grupy"
+na samym dole.
+
+ROZWIĄZANIE BOJO: plakietka nieprzeczytanych (razem ze statusChipem) doszła też do
+gałęzi „rozegrany/anulowany" karty meczu — kropka na „Moje" ma teraz zawsze widoczny ślad
+w Historii. Filtr nieprzeczytanych próbuje trzech miejsc po kolei: „Brakuje graczy" →
+„Najbliższy mecz" → pusty wiersz jako ostateczność, wyłącznie gdy obie realne sekcje są
+puste naraz. Nazwa ekipy w belce `/grupy/[id]` jest teraz przyciskiem — rozwija listę
+pozostałych ekip użytkownika, klik przełącza. Pulpit dostał nową sekcję „Twoja ekipa gra
+wkrótce" między najbliższym meczem a „Twoje najbliższe mecze": ekipa z najbliższym
+nadchodzącym meczem, link do jej strony.
+
+MECHANIKA: `EventBrowseCard.tsx` — plakietka `pokazNieprzeczytane` + `statusChip` owinięte
+wspólnym `ml-auto` w gałęzi `past`. `GroupDetailClient.tsx` — `mojeEkipy` (`getMyGroups()`),
+`przelacznikOtwarty`, dropdown pod belką z tłem `fixed inset-0` zamykającym po kliknięciu
+poza listą. `DashboardSections.tsx` — `needsPlayers()` wydzielone z `NeedsPlayersSection`
+jako eksportowany predykat (żeby `/moje-gry` mogło policzyć to samo przed renderowaniem,
+bez duplikowania reguły); nowy `NextGroupMatchTeaser({ groupEvents, groups })` — dane
+z `useDashboardData()`, zero nowego zapytania, doprecyzowuje sort po `date+time` po stronie
+klienta (SQL w `getMyGroupEvents()` sortuje tylko po `event_date`). `NextMatchCard.tsx` —
+nowy prop `extra` obok etykiety „Najbliższy mecz". `app/moje-gry/page.tsx` —
+`maBrakujeGraczy`, `extraDlaBrakujeGraczy`/`extraDlaNajblizszego`/
+`pokazPustyNaglowekDlaBrakujeGraczy` decydują, gdzie wyląduje `filtrNieprzeczytanychButton`.
 
 ### 2026-08-16 — Zakładka Ustawienia meczu bez martwego przycisku; kropki "Grupy" przełożone; filtr nieprzeczytanych na wysokości "Brakuje graczy"; zaktualizowany zrzut kreatora
 
@@ -576,150 +669,3 @@ sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klas
 `.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
 i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
 `flex-wrap`.
-
-### 2026-08-15 — Strona meczu dostaje pięć zakładek (Skład/Rozmowa/Wynik/Rozliczenia/Ustawienia); belka ekipy odchudzona, ustawienia jako zakładka
-
-PROBLEM: strona meczu była jedną długą kolumną — dane, prośby o dołączenie, skład,
-drużyny, wynik, rozliczenie, ustawienia organizatora i komentarze stały jedna pod drugą
-bez podziału, więc np. rozliczenie kosztów ginęło daleko na dole. Komentarze wyglądały
-i działały inaczej niż „Rozmowa" w ekipie, mimo tej samej potrzeby. Na stronie ekipy
-zakładki stały POD kartą „Najbliższy mecz", nie nad nią. Belka ekipy miała za dużo
-elementów naraz (powrót, logo, nazwa, zaproszenie, kod dołączenia, zębatka ustawień,
-dzwonek, awatar). Po ukryciu dolnej nawigacji na zakładce Rozmowa (w ekipie i na meczu)
-kontener czatu zostawiał pod sobą pas pustego tła, a na zakładce Rozmowa w ekipie sama
-belka lądowała niżej niż na pozostałych zakładkach (efekt uboczny `position: sticky`
-wewnątrz nieprzewijalnego, `overflow-hidden` kontenera).
-
-ROZWIĄZANIE BOJO: strona meczu ma teraz pięć zakładek: **Skład** (domyślna — uczestnicy,
-zapisy, prośby o dołączenie, panel „Czy gramy?", zwinięty domyślnie podział na drużyny,
-karta „Po meczu"), **Rozmowa** (ten sam mechanizm czatu co w ekipie, i **wyłącznie** okno
-czatu — żadnych innych elementów strony), **Wynik** (drużyny i formularz rezultatu —
-ten sam podział na drużyny co w zakładce Skład, zawsze rozwinięty), **Rozliczenia**
-(podział kosztów) i **Ustawienia** (panel organizatora, domyślnie rozwinięty — to teraz
-cała treść zakładki, nie jedna z wielu kart). Nazwa meczu przeniosła się nad zakładki
-(tam gdzie wcześniej stały „Udostępnij"/„Kopiuj"), a te dwa przyciski zeszły pod
-zakładki, w miejsce dawnego tytułu — zamiana miejscami, nic nie zniknęło. Reszta statusu
-meczu (baner odwołania, „Mecz gotowy", chipy daty/miejsca/ceny, sticky pasek „Dołącz")
-zostaje uniwersalna na każdej zakładce oprócz Rozmowy. Na stronie ekipy zakładki
-przeniosły się nad „Najbliższy mecz", a belka schudła do logo, nazwy, „Zaproś" i
-dzwonka — kod dołączenia żyje już tylko w arkuszu „Zaproś", a ustawienia dostały swój
-wpis w pasku zakładek zamiast osobnej zębatki. Rozmowa ekipy i rozmowa meczu obie
-rozciągają się do samego dołu ekranu na telefonie, a belka ekipy na zakładce Rozmowa
-stoi teraz na tej samej wysokości co na pozostałych zakładkach.
-
-MECHANIKA: nowy `components/events/RozmowaWydarzenia.tsx`; zastępuje usunięty
-`components/events/EventComments.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`: stan
-zakładki w `?tab=`; `skladWynikSection` rozbita na `druzynySection` (renderowany w Skład
-i Wynik — ten sam JSX na tym samym stanie z rodzica, więc zmiana w jednym miejscu jest
-od razu widoczna w drugim, bez synchronizacji) i `wynikFormSection`; `PoMeczuCard` dostał
-`onWpiszWynik` i warunek `tab === 'sklad'` (przestał być uniwersalny); uniwersalne sekcje
-(baner odwołania, „Mecz gotowy", blok akcji, sticky pasek) dostały `tab !== 'rozmowa'`.
-`app/grupy/[id]/GroupDetailClient.tsx`: belka bez kodu dołączenia i zębatki (Link
-„Ustawienia" w pasku zakładek zamiast), `NotificationBell` zamiast `MobileIdentityRow`
-(bez awatara); `position: sticky` na belce warunkowo wyłączone na zakładce Rozmowy.
-`RozmowaGrupy.tsx`: `h-full` zamiast sztywnego `h-[68dvh]`, wysokość narzuca rodzic.
-
-### 2026-08-15 — Czy gramy: próg minimum, kto milczy, otwarcie dla okolicy; rozmowa jak WhatsApp; ekipa z jedną osobą już nie jest martwa
-
-PROBLEM: realna ekipa grająca co tydzień odtworzyła ręcznie w wątku na WhatsAppie
-dokładnie ten model, który Bojo już ma (bramka/gram/pass + rezerwa) — a cała reszta
-wątku była pracą biurową organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum
-żeby zagrać", „Może jeszcze ktoś się decyduje?", „Szukamy chętnych… potrzebne 3 osoby"
-rozsyłane po innych grupach. Rozmowa grupy (dawna „Tablica") była listą wpisów odgórnie
-na najnowszy, nie czatem — mało czytelna, z przyciskiem wysyłki zajmującym cały wiersz
-i bez sposobu wrócić na dół po przewinięciu w górę. Nowo utworzona ekipa miała jednego
-członka i żadnej podpowiedzi, żeby kogoś zaprosić — organizator kończył formularz i nie
-wiedział, co dalej. „Usuń ekipę" i „Opuść ekipę" stały razem na dole strony grupy, pod
-każdą zakładką z osobna, zdублowane z tym samym przyciskiem w Ustawieniach.
-
-ROZWIĄZANIE BOJO: organizator ustawia próg `min_players`, a strona meczu pokazuje
-werdykt wprost („Gramy ✓" / „Brakuje 2 do minimum") zamiast zostawiać liczenie w głowie.
-Przy meczu ekipy widzi też, kto z grupy jeszcze nie odpowiedział — ani nie dołączył, ani
-nie odmówił — i może zaczepić milczących powiadomieniem w Bojo albo skopiować gotowy
-tekst na WhatsAppa (Bojo nie ma dziś pusha ani SMS-a, więc karmi kanał, w którym ekipa
-już rozmawia, zamiast z nim konkurować). Członek ekipy dostaje jawne „Nie gram" — cisza
-przestaje znaczyć naraz „nie widziałem" i „odpadam". Gdy prywatnemu meczowi brakuje
-ludzi, jedno kliknięcie „Otwórz dla okolicy" zamienia go w publiczny — jedyna rzecz
-z tego zestawu, której żaden komunikator nie potrafi. Rozmowa grupy wygląda i przewija
-się teraz jak WhatsApp: chronologia rosnąco, composer pod listą, auto-scroll na dół,
-przycisk powrotu, dymki grupujące wiadomości tej samej osoby. Formularz nowej ekipy
-dostał okładkę i po utworzeniu prosto prowadzi do zaproszenia znajomych. „Usuń ekipę"
-zostaje wyłącznie w Ustawieniach; „Opuść ekipę" przeniosło się do Składu.
-
-MECHANIKA: migracja `097` (`events.min_players`, tabela `event_declines` — osobna od
-`rsvp`, bo odmowa to nie nieobecność — RPC `zapytaj_milczacych()`, wyzwalacz
-`powiadom_o_progu_gry()` wzorem `079`); `lib/events.ts` (`werdyktGry()`);
-`lib/eventDeclines.ts`, `lib/eventResponses.ts` (`ktoMilczy()`) — nowe; `lib/eventShare.ts`
-(`tekstZaczepki()`); `components/events/{CzyGramyPanel,NieGramButton}.tsx` — nowe;
-`components/groups/RozmowaGrupy.tsx` — przebudowany; `app/grupy/nowe/page.tsx`
-(okładka, `?zapros=1`); `components/groups/SkladGrupy.tsx` (Opuść ekipę).
-
-PROBLEM: nagłówek `/grupy/[id]` zajmował za dużo miejsca (osobny wiersz „← Ekipy" nad
-kartą z okładką) zamiast pokazać od razu, kiedy gramy; kod dołączenia był schowany
-w osobnym ekranie ustawień zamiast obok przycisku „Zaproś"; lista ekip na `/grupy`
-sortowała się po dacie założenia, nie po tym, która gra najbliżej; zmiana uprawnień
-innego członka żyła wyłącznie w Ustawieniach, mimo że najczęściej potrzebna jest
-dokładnie tam, gdzie widać skład; „Zaproś" i kod dołączenia widział każdy członek bez
-żadnej bramki, bo `can_manage_members` mieszało dwa różne poziomy zaufania (dodawanie
-ludzi wprost i samo zapraszanie kodem) w jednym przełączniku; „Najbliższy mecz" miał
-własną, niestandardową kartę zamiast tej samej, którą gracz zna z `/wydarzenia`.
-
-ROZWIĄZANIE BOJO: jedna niska belka łączy powrót, tożsamość ekipy, „Zaproś", kod
-dołączenia (klikalny, kopiuje do schowka) i ustawienia. Lista `/grupy` sortuje się po
-najbliższym terminie. „Tablica" zmieniła się w „Rozmowę" — wizualnie dymki czatu, własne
-wiadomości po prawej. W Składzie każdy członek ma teraz przycisk ustawień rozwijający
-panel uprawnień inline (dla założyciela), a Ustawienia dostały zakładki (Ogólne /
-Zaproszenia / Uprawnienia) z tym samym panelem jako akordeon rozwijany po imieniu.
-Nowy, czwarty przełącznik `can_invite` steruje wyłącznie widocznością „Zaproś" i kodu —
-niezależnie od `can_manage_members`. „Najbliższy mecz" renderuje się teraz tą samą kartą
-co lista meczów (`EventBrowseCard`), z „Udostępnij" jako osobnym przyciskiem pod spodem.
-
-MECHANIKA: migracja `096` (`group_members.can_invite`, domyślnie `true` — dziś każdy to
-widzi bez bramki, ten sam powód co `can_create_events` w `092`; trigger
-`ustaw_role_czlonka()` przedefiniowany, żeby wymusić `true` na założycielu). Nowy
-`components/groups/UprawnieniaCzlonkaPanel.tsx` (cztery `ToggleRow`, współdzielony przez
-`SkladGrupy.tsx` i `/grupy/[id]/edytuj`); `TablicaGrupy.tsx` przemianowany na
-`RozmowaGrupy.tsx` (mechanika bez zmian — `group_posts`, `093` — zmienił się wyłącznie
-wygląd i etykieta); `getMyGroupsZTerminem()` w `lib/groups.ts` sortuje wynik po dacie
-najbliższego meczu, grupy bez terminu na końcu.
-
-### 2026-08-14 — Grupy jako magnes na organizatora: uprawnienia, tablica, zaproszenia z nadawcą, statystyki
-
-PROBLEM: strategia (`docs/strategia.md §0`) przesuwa priorytet na pozyskiwanie
-organizatorów — a grupa jest jedynym miejscem w Bojo, gdzie pętla „co tydzień zbieram
-tę samą ekipę" może domykać się jednym kliknięciem zamiast wątku na komunikatorze. Kod
-sprzed tej zmiany na to nie pozwalał: `repeatEvent()` gubił przypięcie do grupy przy
-powtórce meczu; każdy, kto poznał UUID grupy (publicznie czytelne), mógł się do niej
-dopisać, bo `join_code` sprawdzał wyłącznie interfejs; roli członka nie dało się w ogóle
-zmienić — brakowało polityki UPDATE na `group_members` — więc jedynym „współorganizatorem"
-był zawsze i wyłącznie założyciel; nie było tablicy ani statystyk drużyny; zaproszenie
-`/g/[kod]` prowadziło od razu na ekran proszący o logowanie, zanim ktokolwiek zobaczył,
-do czego właściwie dołącza.
-
-ROZWIĄZANIE BOJO: założyciel może teraz nadać zaufanym członkom trzy niezależne
-uprawnienia (zarządzanie składem ekipy, zakładanie meczów w jej imieniu, moderowanie
-tablicy) — sam zawsze zachowuje komplet i jako jedyny może usunąć grupę. Dołączenie do
-grupy wymaga kodu zawsze — dziura z samym UUID jest zamknięta. Nowa tablica ogłoszeń:
-płaska lista wpisów, jeden może być przypięty i to jedyny, który powiadamia całą ekipę
-(dzwonek ma zostać miejscem na rzeczy wymagające działania, nie kanałem czatu). Ekran
-grupy zaczyna się od najbliższego meczu — gdy go nie ma, jeden przycisk „Powtórz na
-{data}" zakłada kolejny termin z tymi samymi ustawieniami co poprzedni. Zaproszenie
-`/g/[kod]` jest teraz czytelne bez konta (nazwa ekipy, kto zaprasza, najbliższy mecz,
-historia) z formularzem rejestracji od razu pod spodem — ten sam „pokaż wartość przed
-kontem", co przy zapisie na mecz bez logowania. Statystyki grupy (mecze, gole,
-niezawodność) są uczciwe co do tego, czego nie da się policzyć: zwycięstwa liczą się
-tylko tam, gdzie mecz miał podział na drużyny i wpisany wynik, a „niezawodność" nie
-udaje frekwencji, której Bojo nie śledzi.
-
-MECHANIKA: migracje `092` (`group_members.can_manage_members/can_create_events/
-can_moderate_wall`, trigger `ustaw_role_czlonka()` wyliczający etykietę `role` z tych
-przełączników, pięć funkcji `SECURITY DEFINER` do polityk RLS), `093` (tabela
-`group_posts`, `notifications.group_id`, wyzwalacz powiadamiający o przypiętym
-ogłoszeniu), `094` (RPC `dolacz_do_grupy_kodem()`/`dodaj_czlonka_do_grupy()`/
-`odswiez_kod_grupy()`, `group_members.invited_by`, zdjęta polityka INSERT na
-`group_members`), `095` (RPC `get_group_stats()`/`get_group_leaderboard()`). Frontend:
-`lib/{groupPosts,groupStats,groupShare}.ts`, przebudowane `/grupy`, `/grupy/[id]`
-(cztery zakładki: Mecze/Tablica/Skład/Statystyki, komponenty w `components/groups/`),
-`/grupy/[id]/edytuj`, `/g/[code]` (nowy `ZaproszenieClient.tsx`, reużywa `AuthForm`).
-Pełny model uprawnień → [docs/domena.md § Uprawnienia w
-grupie](./domena.md#uprawnienia-w-grupie).

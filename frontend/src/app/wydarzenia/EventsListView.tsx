@@ -65,7 +65,15 @@ const PAGE_SIZE = 20;
  * logowania (components/auth/LoginBackdrop.tsx). Gdyby renderował własny
  * nagłówek, na /logowanie byłyby dwa.
  */
-export default function EventsListView() {
+export default function EventsListView({ widzianoWczesniej }: {
+  /** Znacznik „ostatnio widziano listę" SPRZED nadpisania go przez
+   *  `EventsListClient.tsx` — `undefined` (jeszcze nie odczytane) i `null`
+   *  (pierwsza wizyta w ogóle) świadomie NIE oznaczają żadnej karty jako
+   *  nową: na pierwszej wizycie każde wydarzenie byłoby „nowe", co zalałoby
+   *  listę kropkami zamiast wskazać coś konkretnego. Bez propa (tło ekranu
+   *  logowania) żadna karta nigdy nie jest nowa. */
+  widzianoWczesniej?: string | null;
+} = {}) {
   // Jedno źródło relacji do meczu. Wcześniej strona wołała useMyParticipation()
   // ORAZ useMyInvites(), a oba pobierają getMyParticipationMap — to samo
   // zapytanie leciało dwa razy na każde wejście.
@@ -275,10 +283,14 @@ export default function EventsListView() {
 
   const filtersActive = dateFilter !== 'wszystkie' || radiusKm !== null || maxPriceGrosze !== null || minFreeSpots > 0;
 
+  const jestNowe = (event: EventItem) => (
+    widzianoWczesniej != null && new Date(event.createdAt).getTime() > new Date(widzianoWczesniej).getTime()
+  );
+
   const cards = (rows: EventRow[]) => (
     <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
       {rows.map(({ event, distance }) => (
-        <EventBrowseCard key={event.id} event={event} distance={distance} relation={statusFor(event)} />
+        <EventBrowseCard key={event.id} event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
       ))}
     </div>
   );
