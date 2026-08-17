@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { zaktualizujJedenWiersz } from './zapytania';
 import { withCount } from './plural';
 import type {
   EventAdvancedSettings,
@@ -82,11 +83,16 @@ export async function updateParticipantTeam(
   participantId: string,
   team: 'A' | 'B' | null,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ team })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  // `zaktualizujJedenWiersz`, nie gołe `.update()`: przy niepasującej polityce
+  // RLS Postgres zmienia ZERO wierszy i zwraca sukces. Objaw zgłoszony przez
+  // użytkownika: „przesuwam gracza w lewo i w prawo, klikam N i C — nic się
+  // nie dzieje". Żadnego błędu, bo formalnie nic się nie zepsuło.
+  await zaktualizujJedenWiersz(
+    'event_participants',
+    participantId,
+    { team },
+    'Nie udało się przypisać gracza do drużyny',
+  );
 }
 
 export async function updateParticipantPayment(
@@ -94,11 +100,14 @@ export async function updateParticipantPayment(
   hasPaid: boolean,
   paidAmount?: number,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ has_paid: hasPaid, paid_amount: paidAmount ?? 0 })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  // Ta sama pułapka co wyżej — „oznaczyłem, że zapłacił, a po odświeżeniu
+  // znowu nieopłacony" byłoby nie do zdiagnozowania bez tego.
+  await zaktualizujJedenWiersz(
+    'event_participants',
+    participantId,
+    { has_paid: hasPaid, paid_amount: paidAmount ?? 0 },
+    'Nie udało się zapisać płatności',
+  );
 }
 
 export async function updateParticipantPhone(

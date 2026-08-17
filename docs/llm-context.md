@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-16 · migracja `097` · 34 tabele · 543 testy
+**Stan na:** 2026-08-16 · migracja `098` · 34 tabele · 543 testy
 
 ---
 
@@ -332,6 +332,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Składy w osobnej zakładce, Wynik dopiero po meczu, naprawa cichych odmów bazy
+
+PROBLEM: trzy usterki zgłoszone z telefonu. (1) Przypisywanie graczy do drużyn „nic nie
+robiło" — ani przesunięcie gracza w lewo/prawo, ani przyciski N i C. (2) Podział na
+drużyny mieszkał w zakładce „Wynik", więc żeby poukładać składy PRZED meczem trzeba było
+wejść w wynik, którego jeszcze nie ma; sama zakładka „Wynik" istniała od utworzenia meczu
+i mówiła wyłącznie, że wyniku jeszcze nie ma. (3) Przełącznik admin/użytkownik na
+`/admin/uzytkownicy` przełączał się na ekranie, a po odświeżeniu wracał.
+
+ROZWIĄZANIE BOJO: podział na drużyny jest widoczny WPROST w zakładce „Skład" — nie
+w zwijanej sekcji i nie w osobnej zakładce. Zakładka „Wynik" pojawia się dopiero po
+rozpoczęciu meczu i zawiera sam formularz, bez drużyn. Zakładka „Rozliczenia" znika przy
+meczu za darmo, bo bez kosztu otwierała się pusta. Przypisywanie do drużyn i przełącznik
+admina zgłaszają teraz błąd zamiast milczeć, a sama odmowa bazy przy nadawaniu admina
+jest usunięta.
+
+MECHANIKA: filtr zakładek w `EventDetailClient.tsx` zależny od `resultsAvailable`
+(Wynik) i `event.costGrosze > 0` (Rozliczenia); `skladWynikSection` rozbite na
+`druzynySection` (renderowany w zakładce Skład) i `wynikFormSection` (zakładka Wynik).
+`updateParticipantTeam` i `updateParticipantPayment` (`lib/eventFeatures.ts`) oraz
+przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) — gołe
+`.update()` przy niepasującej polityce RLS zmienia zero wierszy i zwraca sukces.
+Migracja `098`: funkcja `czy_admin()` (`SECURITY DEFINER`) i przepięcie na nią polityk
+z `022` i `005`, które sprawdzały uprawnienie podzapytaniem o tę samą tabelę,
+na której siedzą.
+
 ### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
 
 PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
@@ -629,43 +655,3 @@ MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
 — blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
 martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
 zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.
-
-### 2026-08-15 — Rozmowa meczu też dla organizatora i ekipy, zakładki sticky, klawiatura ekranowa nie zostawia pustki, drobne poprawki UI
-
-PROBLEM: rozmowa meczu widziała wyłącznie zapisanych uczestników — organizator, który
-sam nie gra, i reszta ekipy meczu przypiętego do grupy nie mieli jak w niej pisać, mimo
-że to ich rozmowa. „Najbliższy mecz" na stronie ekipy pokazywał się na każdej zakładce
-oprócz Rozmowy, zajmując miejsce też pod Statystykami i Składem, gdzie nie miał związku
-z treścią. Pasek zakładek (ekipa i mecz) przewijał się razem z treścią zamiast zostać
-na miejscu, a poziome przewijanie krótkiego paska zakładek pokazywało pasek przewijania.
-Po otwarciu klawiatury ekranowej w Rozmowie robiła się pusta, marnowana przestrzeń nad
-klawiaturą — `100dvh` nie kurczył się razem z nią. Kod dołączenia do ekipy i możliwość
-zaproszenia zniknęły z zakładki Skład razem z odchudzeniem górnej belki w poprzedniej
-rundzie, a stat kafelek „nadchodzące" (dłuższy niż sąsiednie etykiety) łamał się do
-dwóch linii i wyglądał na rozjechany względem reszty rzędu. Przyciski „Zapytaj w Bojo"/
-„Tekst na WhatsAppa" stały jeden pod drugim, marnując miejsce.
-
-ROZWIĄZANIE BOJO: rozmowę meczu widzi teraz też organizator (bez względu na to, czy
-sam gra) i cała ekipa, do której mecz jest przypięty (bez względu na to, czy dany
-członek gra akurat w tym terminie). „Najbliższy mecz" na stronie ekipy pokazuje się
-wyłącznie w zakładce Mecze — to jej treść, nie uniwersalny nagłówek. Pasek nazwy/belki
-i zakładek (ekipa i mecz) trzyma się teraz góry ekranu podczas przewijania, a poziome
-przewijanie zakładek nie pokazuje już paska przewijania. Klawiatura ekranowa realnie
-kurczy layout, więc composer w Rozmowie zostaje tuż nad nią, bez pustki pod spodem.
-Zakładka Skład dostała z powrotem szybki dostęp do zaproszenia: mała belka „Zaproś do
-ekipy" + kod dołączenia + ikona udostępnienia nad listą graczy. Kafelki statystyk mają
-teraz wspólną minimalną wysokość i wyśrodkowaną treść, więc dłuższa etykieta już nie
-rozjeżdża rzędu. „Zapytaj w Bojo"/„Tekst na WhatsAppa" stoją teraz obok siebie.
-
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` — nowy stan `czlonekGrupyMeczu`
-(z `isGroupMember()`, doładowany razem z `groupInfo`), gate Rozmowy rozszerzony na
-`myParticipation || isOwner || czlonekGrupyMeczu`. `app/layout.tsx`:
-`viewport.interactiveWidget: 'resizes-content'`. `app/grupy/[id]/GroupDetailClient.tsx`:
-belka i pasek zakładek w jednym `sticky top-0` kontenerze (dwa osobne nakładałyby się
-na tej samej wysokości); `NajblizszyMeczGrupy` pod warunkiem `tab === 'mecze'` zamiast
-`tab !== 'tablica'`; nowa belka zaproszenia nad `<SkladGrupy>` (`linkDoGrupy()`/
-`udostepnijGrupe()` z `lib/groupShare.ts`, ponownie użyty `handleCopyCode`). Analogiczny
-sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klasa
-`.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
-i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
-`flex-wrap`.
