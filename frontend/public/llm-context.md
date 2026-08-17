@@ -332,6 +332,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
+
+PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
+ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
+nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
+push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
+
+ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
+pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
+„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
+„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
+i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
+„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
+powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
+spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
+w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
+
+MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
+więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
+`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
+systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
+`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
+nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
+
 ### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
 
 PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
@@ -629,43 +653,3 @@ MECHANIKA: `app/grupy/[id]/GroupDetailClient.tsx` — banner warunkowany
 — blok „Nie odpowiedziało" usunięty razem z jego stanem/handlerami. Skasowane jako
 martwy kod: `lib/eventResponses.ts` (`ktoMilczy()`, `zapytajMilczacych()` — cały plik,
 zero pozostałych wywołań) i `tekstZaczepki()` z `lib/eventShare.ts`, wraz z testami.
-
-### 2026-08-15 — Rozmowa meczu też dla organizatora i ekipy, zakładki sticky, klawiatura ekranowa nie zostawia pustki, drobne poprawki UI
-
-PROBLEM: rozmowa meczu widziała wyłącznie zapisanych uczestników — organizator, który
-sam nie gra, i reszta ekipy meczu przypiętego do grupy nie mieli jak w niej pisać, mimo
-że to ich rozmowa. „Najbliższy mecz" na stronie ekipy pokazywał się na każdej zakładce
-oprócz Rozmowy, zajmując miejsce też pod Statystykami i Składem, gdzie nie miał związku
-z treścią. Pasek zakładek (ekipa i mecz) przewijał się razem z treścią zamiast zostać
-na miejscu, a poziome przewijanie krótkiego paska zakładek pokazywało pasek przewijania.
-Po otwarciu klawiatury ekranowej w Rozmowie robiła się pusta, marnowana przestrzeń nad
-klawiaturą — `100dvh` nie kurczył się razem z nią. Kod dołączenia do ekipy i możliwość
-zaproszenia zniknęły z zakładki Skład razem z odchudzeniem górnej belki w poprzedniej
-rundzie, a stat kafelek „nadchodzące" (dłuższy niż sąsiednie etykiety) łamał się do
-dwóch linii i wyglądał na rozjechany względem reszty rzędu. Przyciski „Zapytaj w Bojo"/
-„Tekst na WhatsAppa" stały jeden pod drugim, marnując miejsce.
-
-ROZWIĄZANIE BOJO: rozmowę meczu widzi teraz też organizator (bez względu na to, czy
-sam gra) i cała ekipa, do której mecz jest przypięty (bez względu na to, czy dany
-członek gra akurat w tym terminie). „Najbliższy mecz" na stronie ekipy pokazuje się
-wyłącznie w zakładce Mecze — to jej treść, nie uniwersalny nagłówek. Pasek nazwy/belki
-i zakładek (ekipa i mecz) trzyma się teraz góry ekranu podczas przewijania, a poziome
-przewijanie zakładek nie pokazuje już paska przewijania. Klawiatura ekranowa realnie
-kurczy layout, więc composer w Rozmowie zostaje tuż nad nią, bez pustki pod spodem.
-Zakładka Skład dostała z powrotem szybki dostęp do zaproszenia: mała belka „Zaproś do
-ekipy" + kod dołączenia + ikona udostępnienia nad listą graczy. Kafelki statystyk mają
-teraz wspólną minimalną wysokość i wyśrodkowaną treść, więc dłuższa etykieta już nie
-rozjeżdża rzędu. „Zapytaj w Bojo"/„Tekst na WhatsAppa" stoją teraz obok siebie.
-
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` — nowy stan `czlonekGrupyMeczu`
-(z `isGroupMember()`, doładowany razem z `groupInfo`), gate Rozmowy rozszerzony na
-`myParticipation || isOwner || czlonekGrupyMeczu`. `app/layout.tsx`:
-`viewport.interactiveWidget: 'resizes-content'`. `app/grupy/[id]/GroupDetailClient.tsx`:
-belka i pasek zakładek w jednym `sticky top-0` kontenerze (dwa osobne nakładałyby się
-na tej samej wysokości); `NajblizszyMeczGrupy` pod warunkiem `tab === 'mecze'` zamiast
-`tab !== 'tablica'`; nowa belka zaproszenia nad `<SkladGrupy>` (`linkDoGrupy()`/
-`udostepnijGrupe()` z `lib/groupShare.ts`, ponownie użyty `handleCopyCode`). Analogiczny
-sticky kontener w `EventDetailClient.tsx` dla paska nazwy + zakładek. Nowa klasa
-`.scrollbar-hide` w `globals.css`. `StatystykiGrupy.tsx`: `Kafelek` dostał `min-h-[4rem]`
-i wyśrodkowanie flex. `CzyGramyPanel.tsx`: `flex-1` na obu przyciskach zamiast
-`flex-wrap`.
