@@ -504,6 +504,17 @@ export async function hasNewGroupEvents(groupIds: string[]): Promise<boolean> {
 export async function getNewGroupEventGroupName(
   groups: Pick<Group, 'id' | 'name'>[],
 ): Promise<string | null> {
+  return (await getNewGroupEventGroup(groups))?.name ?? null;
+}
+
+/** To samo co wyżej, ale z identyfikatorem ekipy. Dolna nawigacja potrzebuje
+ *  id, bo po pokazaniu dymka „Nowa gra w grupie {nazwa}" gasi pomarańczową
+ *  kropkę — zapisuje `kluczGrupyWidziano(id)`. Pomarańczowy znaczy „nowość,
+ *  o której jeszcze nie wiesz" (AGENTS.md, Konwencje); po dymku wymieniającym
+ *  ekipę z nazwy użytkownik już wie, więc kropka nie ma czego sygnalizować. */
+export async function getNewGroupEventGroup(
+  groups: Pick<Group, 'id' | 'name'>[],
+): Promise<{ id: string; name: string } | null> {
   if (groups.length === 0) return null;
   const events = await getGroupEventsForNew(groups.map((g) => g.id));
   const widzianoByGroup = (groupId: string) => (
@@ -515,5 +526,6 @@ export async function getNewGroupEventGroupName(
     if (!najnowszy || e.createdAt > najnowszy.createdAt) najnowszy = e;
   }
   if (!najnowszy) return null;
-  return groups.find((g) => g.id === najnowszy!.groupId)?.name ?? null;
+  const grupa = groups.find((g) => g.id === najnowszy!.groupId);
+  return grupa ? { id: grupa.id, name: grupa.name } : null;
 }

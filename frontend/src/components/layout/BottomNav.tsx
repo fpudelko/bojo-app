@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
+import { Map, Plus, CalendarDays, Users as UsersIcon, MessageCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
-import { getMyGroups, hasNewGroupEvents, getNewGroupEventGroupName } from '@/lib/groups';
-import { hasUnreadGroupMessages } from '@/lib/groupPosts';
+import { getMyGroups, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
+import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
 import { hasUnreadEventMessages } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
@@ -97,9 +97,12 @@ export default function BottomNav() {
   const [newGroupEvents, setNewGroupEvents] = useState(false);
   // Nazwa ekipy z najświeższym nowym meczem — wyłącznie do treści dymka
   // „Nowa gra w grupie {nazwa}"; sama kropka nie potrzebuje nazwy, tylko bool.
-  const [newGroupName, setNewGroupName] = useState<string | null>(null);
+  const [newGroup, setNewGroup] = useState<{ id: string; name: string } | null>(null);
+  // Nazwa ekipy z nieprzeczytaną wiadomością — do dymka „Nowa wiadomość
+  // w grupie {nazwa}". Sam wskaźnik jej nie potrzebuje, tylko bool.
+  const [unreadGroupName, setUnreadGroupName] = useState<string | null>(null);
   useEffect(() => {
-    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroupName(null); return; }
+    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); return; }
     let aktualne = true;
     getMyGroups(user.id).then((groups) => {
       const ids = groups.map((g) => g.id);
@@ -109,10 +112,13 @@ export default function BottomNav() {
       hasNewGroupEvents(ids)
         .then((v) => { if (aktualne) setNewGroupEvents(v); })
         .catch(() => { if (aktualne) setNewGroupEvents(false); });
-      getNewGroupEventGroupName(groups)
-        .then((v) => { if (aktualne) setNewGroupName(v); })
-        .catch(() => { if (aktualne) setNewGroupName(null); });
-    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroupName(null); } });
+      getNewGroupEventGroup(groups)
+        .then((v) => { if (aktualne) setNewGroup(v); })
+        .catch(() => { if (aktualne) setNewGroup(null); });
+      getUnreadGroupName(user.id, groups)
+        .then((v) => { if (aktualne) setUnreadGroupName(v); })
+        .catch(() => { if (aktualne) setUnreadGroupName(null); });
+    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); } });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -151,19 +157,57 @@ export default function BottomNav() {
   const kolejkaDymkow = useRef<{ typ: string; tekst: string; href: string }[]>([]);
   const poprzednieAktywne = useRef<Record<string, boolean>>({});
   const timerDymka = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aktualnyDymek = useRef<{ typ: string; tekst: string; href: string } | null>(null);
+  // Ref, nie sam stan: `pokazNastepnyDymek` woła się z `setTimeout`, więc
+  // domknięcie sprzed 4 sekund widziałoby nieaktualną ekipę.
+  const newGroupRef = useRef<{ id: string; name: string } | null>(null);
+  useEffect(() => { newGroupRef.current = newGroup; }, [newGroup]);
+
+  /**
+   * Gasi wskaźnik, którego dymek właśnie zniknął.
+   *
+   * WYŁĄCZNIE pomarańczowe. Pomarańczowy znaczy „nowość, o której jeszcze nie
+   * wiesz" (AGENTS.md, Konwencje) — dymek wymieniający ekipę albo promień
+   * z nazwy dostarcza dokładnie tę wiadomość, więc kropka nie ma już czego
+   * sygnalizować. Zapis idzie do tego samego klucza w `localStorage`, co
+   * odwiedzenie strony ekipy, więc gaśnie też kropka na karcie na `/grupy`.
+   *
+   * Różowa (wiadomości) NIE gaśnie po dymku — świadomie. Ona nie mówi
+   * „jest nowość", tylko „jest coś do przeczytania", a to znika dopiero po
+   * przeczytaniu. Dymek trwa 4 sekundy i użytkownik może na niego nie
+   * patrzeć; wiadomość zgubiona w ten sposób nie ma jak się upomnieć.
+   */
+  const wygasWskaznik = (typ: string) => {
+    if (typeof window === 'undefined') return;
+    const teraz = new Date().toISOString();
+    if (typ === 'pobliskie-nowe') {
+      window.localStorage.setItem(KLUCZ_WYDARZENIA_WIDZIANO, teraz);
+      setNearbyNew(false);
+      return;
+    }
+    if (typ === 'nowy-mecz-grupy' && newGroupRef.current) {
+      window.localStorage.setItem(kluczGrupyWidziano(newGroupRef.current.id), teraz);
+      setNewGroupEvents(false);
+      setNewGroup(null);
+    }
+  };
 
   const pokazNastepnyDymek = () => {
-    const nastepny = kolejkaDymkow.current.shift();
-    setDymekWidoczny(nastepny ?? null);
+    // Wskaźnik gaśnie razem ze swoim dymkiem, nie w chwili jego pokazania —
+    // inaczej kropka znikałaby spod tekstu, który właśnie ją tłumaczy.
+    if (aktualnyDymek.current) wygasWskaznik(aktualnyDymek.current.typ);
+    const nastepny = kolejkaDymkow.current.shift() ?? null;
+    aktualnyDymek.current = nastepny;
+    setDymekWidoczny(nastepny);
     timerDymka.current = nastepny ? setTimeout(pokazNastepnyDymek, CZAS_DYMKA_MS) : null;
   };
 
   useEffect(() => {
     const proby: [string, boolean, string | null, string][] = [
       ['prosby', pendingApproval, 'Nowa prośba o dołączenie', '/moje-gry'],
-      ['wiadomosci-moje', unreadEvents, 'Nowe wiadomości', '/moje-gry'],
-      ['wiadomosci-grupy', unreadGroups, 'Nowe wiadomości', '/grupy'],
-      ['nowy-mecz-grupy', newGroupEvents, newGroupName ? `Nowa gra w grupie ${newGroupName}` : 'Nowa gra w Twojej ekipie', '/grupy'],
+      ['wiadomosci-moje', unreadEvents, 'Nowa wiadomość w Twoim meczu', '/moje-gry'],
+      ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
+      ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
     ];
     for (const [typ, aktywny, tekst, href] of proby) {
@@ -178,7 +222,7 @@ export default function BottomNav() {
     }
     if (!dymekWidoczny && !timerDymka.current && kolejkaDymkow.current.length > 0) pokazNastepnyDymek();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingApproval, unreadEvents, unreadGroups, newGroupEvents, newGroupName, nearbyNew]);
+  }, [pendingApproval, unreadEvents, unreadGroups, newGroupEvents, newGroup, unreadGroupName, nearbyNew]);
 
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
@@ -186,15 +230,21 @@ export default function BottomNav() {
     href, label, Icon, dots = [], dymek, dymekAlign = 'center',
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
-    /** Kropki — dziś "Moje" (niebieska: oczekujące prośby o dołączenie z prawej;
-        różowa: nieprzeczytane wiadomości z lewej), "Grupy" (różowa: nieprzeczytane
-        wiadomości z lewej; pomarańczowa: nowy mecz w ekipie z prawej) i
-        "Znajdź grę" (pomarańczowa: nowe wydarzenia w pobliżu, z prawej). Kolor
-        niesie znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
+    /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
+        z prawej; różowa CHMURKA: nieprzeczytane wiadomości z lewej), "Grupy"
+        (różowa chmurka z lewej; pomarańczowa kropka: nowy mecz w ekipie z prawej)
+        i "Znajdź grę" (pomarańczowa kropka: nowe wydarzenia w pobliżu, z prawej).
+        Kolor niesie znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
         niebieski wyłącznie "wymaga akceptacji", różowy wyłącznie "wiadomości",
-        pomarańczowy wyłącznie "nowość, o której jeszcze nie wiesz". Każda kropka
-        ma swój róg, żeby dwie naraz na tej samej ikonie się nie nakładały. */
-    dots?: { color: string; label: string; position: 'top-right' | 'top-left' }[];
+        pomarańczowy wyłącznie "nowość, o której jeszcze nie wiesz". Każdy
+        wskaźnik ma swój róg, żeby dwa naraz na tej samej ikonie się nie nakładały.
+
+        KSZTAŁT też niesie znaczenie: wiadomości dostają CHMURKĘ, nie kropkę.
+        Kropka mówi wyłącznie "coś tu jest" i wymaga zapamiętania koloru;
+        chmurka mówi "ktoś napisał" bez tłumaczenia (zgłoszone wprost:
+        "różowa kropka oznacza że wiadomość nowa?"). Kolor zostaje ten sam,
+        więc związek z plakietkami wiadomości na kartach nie znika. */
+    dots?: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[];
     /** Krótkie wyjaśnienie kropki, widoczne ~4 s przy pierwszym zapaleniu
         (patrz `dymekWidoczny`/kolejka wyżej) — max 5 razy w życiu
         użytkownika na typ, najwyżej jeden dymek na ekranie naraz. */
@@ -244,15 +294,33 @@ export default function BottomNav() {
               nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
               niesie tę samą informację dla czytników ekranu. */}
           {widoczne.map((d) => (
-            <span
-              key={d.position}
-              className={clsx(
-                'absolute h-1.5 w-1.5 rounded-full',
-                d.position === 'top-right' ? '-top-0.5 right-0' : '-top-0.5 left-0',
-                d.color,
-              )}
-              aria-hidden="true"
-            />
+            d.ksztalt === 'chmurka' ? (
+              // Chmurka jest większa od kropki, więc wychodzi dalej poza ikonę
+              // i dostaje białą obwódkę — inaczej zlewa się z kreską ikony pod
+              // spodem. `fill` razem ze `stroke`, bo sam kontur w tym rozmiarze
+              // gubi się na tle.
+              <MessageCircle
+                key={d.position}
+                className={clsx(
+                  'absolute h-3 w-3 -top-1.5',
+                  d.position === 'top-right' ? '-right-1.5' : '-left-1.5',
+                  d.color,
+                )}
+                strokeWidth={2.5}
+                fill="currentColor"
+                aria-hidden="true"
+              />
+            ) : (
+              <span
+                key={d.position}
+                className={clsx(
+                  'absolute h-1.5 w-1.5 rounded-full',
+                  d.position === 'top-right' ? '-top-0.5 right-0' : '-top-0.5 left-0',
+                  d.color,
+                )}
+                aria-hidden="true"
+              />
+            )
           ))}
         </span>
         <span className="whitespace-nowrap">{label}</span>
@@ -274,7 +342,7 @@ export default function BottomNav() {
     >
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
           if (item.href === '/wydarzenia' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
@@ -299,13 +367,13 @@ export default function BottomNav() {
         </Link>
 
         {RIGHT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left' }[] = [];
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
           if (item.href === '/moje-gry') {
             if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
-            if (unreadEvents) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
+            if (unreadEvents) dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
           }
           if (item.href === '/grupy') {
-            if (unreadGroups) dots.push({ color: 'bg-pink-500', label: 'nowe wiadomości', position: 'top-left' });
+            if (unreadGroups) dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
             if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;

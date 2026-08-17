@@ -39,7 +39,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   joinGroupByCode, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
-  uprawnieniaCzlonka, czyWspolorganizator, getMyGroupsZTerminem,
+  uprawnieniaCzlonka, czyWspolorganizator, getMyGroupsZTerminem, getNewGroupEventGroup,
 } from '@/lib/groups';
 
 beforeEach(() => {
@@ -260,5 +260,35 @@ describe('czyWspolorganizator', () => {
 
   it('uznaje moderowanie tablicy', () => {
     expect(czyWspolorganizator({ canManageMembers: false, canModerateWall: true })).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getNewGroupEventGroup — id ekipy jest potrzebne, żeby po dymku zgasić
+// pomarańczową kropkę (zapis `bojo:grupa-widziano:<id>`)
+// ---------------------------------------------------------------------------
+describe('getNewGroupEventGroup', () => {
+  const grupy = [{ id: 'g1', name: 'Ekipa środa' }, { id: 'g2', name: 'Ekipa piątek' }];
+
+  beforeEach(() => { window.localStorage.clear(); });
+
+  it('zwraca id i nazwę ekipy z najświeższym nowym meczem', async () => {
+    tables.events = {
+      data: [
+        { id: 'e1', group_id: 'g1', created_at: '2026-08-10T10:00:00Z' },
+        { id: 'e2', group_id: 'g2', created_at: '2026-08-11T10:00:00Z' },
+      ],
+      error: null,
+    };
+    expect(await getNewGroupEventGroup(grupy)).toEqual({ id: 'g2', name: 'Ekipa piątek' });
+  });
+
+  it('pomija ekipę odwiedzoną po powstaniu meczu', async () => {
+    tables.events = {
+      data: [{ id: 'e2', group_id: 'g2', created_at: '2026-08-11T10:00:00Z' }],
+      error: null,
+    };
+    window.localStorage.setItem('bojo:grupa-widziano:g2', '2026-08-12T00:00:00Z');
+    expect(await getNewGroupEventGroup(grupy)).toBeNull();
   });
 });

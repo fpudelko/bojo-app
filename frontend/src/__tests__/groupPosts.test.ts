@@ -5,7 +5,7 @@ const { tables, chainFor, fromMock } = vi.hoisted(() => {
   const chains: Record<string, any> = {};
   function chainFor(table: string) {
     if (chains[table]) return chains[table];
-    const methods = ['select', 'insert', 'update', 'delete', 'eq', 'is', 'order', 'limit'];
+    const methods = ['select', 'insert', 'update', 'delete', 'eq', 'is', 'in', 'order', 'limit'];
     const chain: any = {};
     methods.forEach((m) => { chain[m] = vi.fn(() => chain); });
     chain.single = vi.fn(() => Promise.resolve(tables[table] ?? { data: null, error: null }));
@@ -19,7 +19,7 @@ const { tables, chainFor, fromMock } = vi.hoisted(() => {
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from: fromMock } }));
 
-import { getGroupPosts, addGroupPost, deleteGroupPost, setGroupPostPinned, nieprzeczytane } from '@/lib/groupPosts';
+import { getGroupPosts, addGroupPost, deleteGroupPost, setGroupPostPinned, nieprzeczytane, getUnreadGroupName } from '@/lib/groupPosts';
 import type { GroupPost } from '@/types';
 
 beforeEach(() => {
@@ -112,5 +112,50 @@ describe('nieprzeczytane', () => {
     const wlasny = post('p1', '2026-08-10T10:00:00Z');
     const cudzy = { ...post('p2', '2026-08-10T11:00:00Z'), userId: 'u2' };
     expect(nieprzeczytane([wlasny, cudzy], null, 'u1')).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getUnreadGroupName — treść dymka „Nowa wiadomość w grupie {nazwa}"
+// ---------------------------------------------------------------------------
+describe('getUnreadGroupName', () => {
+  const grupy = [{ id: 'g1', name: 'Ekipa środa' }, { id: 'g2', name: 'Ekipa piątek' }];
+
+  beforeEach(() => { window.localStorage.clear(); });
+
+  it('wskazuje ekipę z NAJNOWSZĄ nieprzeczytaną wiadomością', async () => {
+    tables.group_posts = {
+      data: [
+        { id: 'p1', group_id: 'g1', user_id: 'ktos', created_at: '2026-08-10T10:00:00Z' },
+        { id: 'p2', group_id: 'g2', user_id: 'ktos', created_at: '2026-08-11T10:00:00Z' },
+      ],
+      error: null,
+    };
+    expect(await getUnreadGroupName('ja', grupy)).toBe('Ekipa piątek');
+  });
+
+  it('pomija ekipę, której tablicę już się widziało', async () => {
+    tables.group_posts = {
+      data: [
+        { id: 'p1', group_id: 'g1', user_id: 'ktos', created_at: '2026-08-10T10:00:00Z' },
+        { id: 'p2', group_id: 'g2', user_id: 'ktos', created_at: '2026-08-11T10:00:00Z' },
+      ],
+      error: null,
+    };
+    window.localStorage.setItem('bojo:tablica-widziano:g2', '2026-08-12T00:00:00Z');
+    expect(await getUnreadGroupName('ja', grupy)).toBe('Ekipa środa');
+  });
+
+  it('własna wiadomość nie zapala dymka', async () => {
+    tables.group_posts = {
+      data: [{ id: 'p1', group_id: 'g1', user_id: 'ja', created_at: '2026-08-10T10:00:00Z' }],
+      error: null,
+    };
+    expect(await getUnreadGroupName('ja', grupy)).toBeNull();
+  });
+
+  it('brak ekip = brak zapytania', async () => {
+    expect(await getUnreadGroupName('ja', [])).toBeNull();
+    expect(fromMock).not.toHaveBeenCalled();
   });
 });
