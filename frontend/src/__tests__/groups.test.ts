@@ -39,7 +39,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   joinGroupByCode, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
-  uprawnieniaCzlonka, getMyGroupsZTerminem,
+  uprawnieniaCzlonka, czyWspolorganizator, getMyGroupsZTerminem,
 } from '@/lib/groups';
 
 beforeEach(() => {
@@ -241,5 +241,24 @@ describe('getMyGroupsZTerminem', () => {
 
     const groups = await getMyGroupsZTerminem('user-1');
     expect(groups.map((g) => g.id)).toEqual(['g-near', 'g-far', 'g-none']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// czyWspolorganizator — odznaka ma odpowiadać roli 'admin' z triggera (092)
+// ---------------------------------------------------------------------------
+describe('czyWspolorganizator', () => {
+  it('nie uznaje za współorganizatora kogoś z samymi domyślnymi prawami członka', () => {
+    // can_create_events i can_invite mają w bazie DEFAULT true — tak wygląda
+    // KAŻDY dopisany członek. Wcześniej dostawał przez to odznakę.
+    expect(czyWspolorganizator({ canManageMembers: false, canModerateWall: false })).toBe(false);
+  });
+
+  it('uznaje zarządzanie składem', () => {
+    expect(czyWspolorganizator({ canManageMembers: true, canModerateWall: false })).toBe(true);
+  });
+
+  it('uznaje moderowanie tablicy', () => {
+    expect(czyWspolorganizator({ canManageMembers: false, canModerateWall: true })).toBe(true);
   });
 });
