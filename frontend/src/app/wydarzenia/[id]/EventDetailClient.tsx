@@ -74,9 +74,15 @@ import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes } from '@/lib/time';
 
-type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+type EventTab = 'sklad' | 'druzyny' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+// „Skład" to lista zapisanych, „Składy" to podział na drużyny — dwie różne
+// rzeczy, które wcześniej mieszkały razem z wynikiem w jednej zakładce.
+// Wynik dochodzi dopiero po meczu (patrz `resultsAvailable` niżej): przed
+// gwizdkiem nie ma czego wpisywać, a zakładka i tak pokazywała tylko notkę
+// „wynik można wpisać po rozpoczęciu".
 const EVENT_TAB_LABELS: [EventTab, string][] = [
   ['sklad', 'Skład'],
+  ['druzyny', 'Składy'],
   ['rozmowa', 'Rozmowa'],
   ['wynik', 'Wynik'],
   ['rozliczenia', 'Rozliczenia'],
@@ -410,7 +416,7 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
+    if (t === 'druzyny' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
   }, []);
   const goToTab = (t: EventTab) => {
     setTab(t);
@@ -446,7 +452,6 @@ export default function EventDetailClient() {
   // niżej) — tam jest treścią poboczną, domyślnie zwiniętą, żeby nie
   // przesłaniać listy uczestników. W zakładce Wynik ten sam JSX renderuje się
   // zawsze rozwinięty, bo to jej główna treść.
-  const [druzynyOtwarteWSkladzie, setDruzynyOtwarteWSkladzie] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [joinAsGuestDialogOpen, setJoinAsGuestDialogOpen] = useState(false);
@@ -1779,7 +1784,6 @@ export default function EventDetailClient() {
     </div>
   );
 
-  const skladWynikSection = <>{druzynySection}{wynikFormSection}</>;
 
   const platnosciSection = (
     <>
@@ -2019,7 +2023,18 @@ export default function EventDetailClient() {
                   widzi zakładkę, która po kliknięciu jest pusta. Zgłoszone
                   wprost, ten sam wyciek co w `/grupy/[id]` (patrz commit
                   o zerowaniu `permissions`). */}
-              {EVENT_TAB_LABELS.filter(([t]) => t !== 'ustawienia' || canManageEvent).map(([t, label]) => (
+              {EVENT_TAB_LABELS.filter(([t]) => {
+                if (t === 'ustawienia') return canManageEvent;
+                // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka
+                // istniała od stworzenia meczu i po kliknięciu mówiła tylko,
+                // że wyniku jeszcze nie ma — czyli zajmowała miejsce w pasku,
+                // nie dając nic w zamian.
+                if (t === 'wynik') return resultsAvailable && !isCancelled;
+                // Podział na drużyny ma sens tylko wtedy, gdy jest włączony;
+                // organizator włącza go przyciskiem w zakładce Skład.
+                if (t === 'druzyny') return showTeams || isOwner || canManageSquad;
+                return true;
+              }).map(([t, label]) => (
                 <button
                   key={t}
                   onClick={() => goToTab(t)}
@@ -2886,21 +2901,19 @@ export default function EventDetailClient() {
           </div>
         </div>
 
-        {/* ── PODZIAŁ NA DRUŻYNY — duplikat treści zakładki Wynik, domyślnie
-            zwinięty. Ten sam stan (teamA/teamB/handlery), więc zmiana tutaj
-            i w zakładce Wynik to dokładnie to samo miejsce w pamięci — nie
-            trzeba nic synchronizować. */}
+        {/* Podział na drużyny miał tu zwijaną kopię z zakładki Wynik. Po
+            wydzieleniu własnej zakładki „Składy" byłyby to dwa wejścia do tego
+            samego — zostaje jedno, w zakładce. */}
         {showTeams && (
           <div className="px-4">
             <button
               type="button"
-              onClick={() => setDruzynyOtwarteWSkladzie((o) => !o)}
+              onClick={() => goToTab('druzyny')}
               className="flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 text-left shadow-sm dark:border-slate-700 dark:bg-slate-800"
             >
               <span className="text-sm font-semibold text-ink">Podział na drużyny</span>
-              <ChevronDown className={['h-4 w-4 shrink-0 text-slate-400 transition-transform', druzynyOtwarteWSkladzie ? 'rotate-180' : ''].join(' ')} />
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
-            {druzynyOtwarteWSkladzie && <div className="mt-3 space-y-3">{druzynySection}</div>}
           </div>
         )}
 
@@ -3247,9 +3260,13 @@ export default function EventDetailClient() {
 
         </>)}
 
-        {/* Drużyny i wynik — dawniej `skladWynikSection`, dziś cała treść
-            zakładki Wynik. */}
-        {tab === 'wynik' && skladWynikSection}
+        {/* Podział na drużyny — własna zakładka. Wcześniej siedział razem
+            z wynikiem, więc żeby poukładać składy PRZED meczem trzeba było
+            wejść w „Wynik", którego jeszcze nie było. */}
+        {tab === 'druzyny' && druzynySection}
+
+        {/* Wynik — sam formularz, bez drużyn. */}
+        {tab === 'wynik' && wynikFormSection}
 
         {/* Podział kosztów — dawniej `platnosciSection`, dziś cała treść
             zakładki Rozliczenia. */}

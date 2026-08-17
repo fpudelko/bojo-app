@@ -6,6 +6,7 @@ import { Lock, Search, Shield, ShieldCheck, User } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { zaktualizujJedenWiersz } from '@/lib/zapytania';
 
 interface Profile {
   id: string;
@@ -68,14 +69,26 @@ export default function UsersAdminPanel() {
     setBusy((s) => new Set(s).add(p.id));
     // optimistic
     setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_admin: !x.is_admin } : x)));
-    const { error } = await supabase.from('profiles').update({ is_admin: !p.is_admin }).eq('id', p.id);
-    if (error) {
-      setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_admin: p.is_admin } : x)));
-      addToast(error.message, 'error');
-    } else {
+    try {
+      // `zaktualizujJedenWiersz`, nie gołe `.update()`. Wcześniej brak
+      // uprawnienia dawał ZERO zmienionych wierszy i sukces — optymistyczna
+      // zmiana zostawała na ekranie, a po odświeżeniu przełącznik wracał na
+      // swoje miejsce. Wyglądało to na kaprys interfejsu, a było odmową bazy.
+      // Sama odmowa to osobny błąd, naprawiony migracją `098`: polityka
+      // sprawdzała uprawnienie zapytaniem o tę samą tabelę, na której siedzi.
+      await zaktualizujJedenWiersz(
+        'profiles',
+        p.id,
+        { is_admin: !p.is_admin },
+        'Nie udało się zmienić uprawnień',
+      );
       addToast(!p.is_admin ? 'Nadano admina' : 'Odebrano admina');
+    } catch (e) {
+      setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, is_admin: p.is_admin } : x)));
+      addToast(e instanceof Error ? e.message : 'Nie udało się zmienić uprawnień', 'error');
+    } finally {
+      setBusy((s) => { const n = new Set(s); n.delete(p.id); return n; });
     }
-    setBusy((s) => { const n = new Set(s); n.delete(p.id); return n; });
   };
 
   const rows = useMemo(() => {
