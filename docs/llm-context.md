@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-16 · migracja `098` · 34 tabele · 543 testy
+**Stan na:** 2026-08-16 · migracja `099` · 34 tabele · 543 testy
 
 ---
 
@@ -332,6 +332,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Zgłaszanie błędów: formularz dla ludzi i automatyczny log awarii
+
+PROBLEM: awaria u użytkownika nie zostawiała ŻADNEGO śladu. `app/error.tsx` wypisywał
+błąd do konsoli przeglądarki, której nikt nie ogląda, a zgłoszenie „coś mi wywaliło"
+przychodziło zrzutem ekranu bez adresu strony, wersji aplikacji i treści błędu — czyli
+w formie droższej do odtworzenia niż sama naprawa.
+
+ROZWIĄZANIE BOJO: Bojo ma stronę `/zglos-blad` (jedno pole na opis, dostępna też bez
+logowania; wejście w profilu oraz w stopce) i automatyczne zapisywanie awarii. Osobno,
+na stronie obiektu, jest „Zgłoś błąd w danych" z listą powodów — to inna sprawa, bo
+katalog pochodzi z OpenStreetMap i takie zgłoszenie NICZEGO nie zmienia automatycznie.
+Adres strony, przeglądarkę, wersję aplikacji i identyfikator użytkownika Bojo dokłada
+samo — zgłaszający nie musi ich szukać. Administrator ma panel `/admin/bledy` z listą,
+licznikiem wystąpień, stosem wywołań i trzema stanami: nowe / w toku / zamknięte.
+
+MECHANIKA: migracja `099` — tabela `zgloszenia_bledow` i RPC `zapisz_zgloszenie_bledu()`
+(`SECURITY DEFINER`, jedyne wejście do zapisu; tabela nie ma polityki INSERT, więc klient
+nie decyduje o statusie, liczniku ani `user_id`). Czytać może wyłącznie administrator
+(`czy_admin()` z `098`) — w adresie strony bywa link do prywatnego meczu. Awarie są
+GRUPOWANE po odcisku (komunikat + pierwsza ramka stosu, z wyciętym hashem builda), więc
+jeden zepsuty widok daje jeden wiersz z licznikiem zamiast setek kopii, a błąd nie zakłada
+nowego wiersza po każdym wdrożeniu. Po stronie klienta: `lib/bledy.ts` (odcisk, jeden
+błąd na sesję, twardy limit 10, zapis nigdy nie rzuca wyjątku),
+`components/PrzechwytywanieBledow.tsx` (`window.onerror`, `unhandledrejection`),
+`lib/zgloszeniaBledow.ts` (odczyt i zmiana statusu dla panelu),
+`components/venues/ZglosBladObiektu.tsx` (zgłoszenie przypięte do `field_id`).
+Naprawa danych U ŹRÓDŁA idzie osobnym, istniejącym wcześniej odnośnikiem „Zgłoś
+poprawkę" — notatka w OSM.
+
 ### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
 
 PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
@@ -604,55 +633,3 @@ przekazywany też do kart w zakładce Historia. `GroupDetailClient.tsx` — to s
 `past.map(...)`. `EventCapacityFields.tsx` bez zmian — `onMinPlayersChange` jest
 opcjonalny, `app/wydarzenia/nowe/page.tsx` po prostu przestał go przekazywać.
 `AGENTS.md` → Konwencje: trzeci kolor spisany obok różowego i niebieskiego.
-
-### 2026-08-16 — Nieprzeczytane wiadomości liczą tylko cudze wpisy; plakietki na kartach i w dolnej nawigacji; poprawka pustego "Wyniku"; gry cykliczne ukryte
-
-PROBLEM: plakietka „nowe wiadomości" na Rozmowie ekipy świeciła się nawet po wysłaniu
-własnej wiadomości — nadawca widział ją jako nieprzeczytaną, mimo że widział ją
-w momencie wysyłania. Mecze (w odróżnieniu od ekip) w ogóle nie miały żadnego
-oznaczenia nieprzeczytanych wiadomości w rozmowie, ani na zakładce, ani na kartach
-meczów. Zakładka „Wynik" na stronie meczu była pustym ekranem dla każdego, kto nie
-jest organizatorem, dopóki mecz się nie zaczął — trzy warunkowe bloki treści
-wymagały tej roli albo `resultsAvailable`, uczestnik nie spełniał żadnego. „Najbliższy
-mecz" na stronie ekipy powtarzał się też w liście „Nadchodzące" pod spodem. Zakładka
-„Zaproszenia" w ustawieniach ekipy była widoczna nawet dla kogoś bez prawa zapraszania.
-Kolor nie miał w apce spisanego, spójnego znaczenia. Produktowa decyzja: rezygnacja
-z gier cyklicznych/stałych gierek.
-
-ROZWIĄZANIE BOJO: liczniki nieprzeczytanych (ekipy i mecze) wykluczają teraz własne
-wpisy autora. Mecze dostały ten sam mechanizm co ekipy: różowa plakietka z liczbą na
-zakładce Rozmowa, ikona z liczbą obok chipu wolnych miejsc na kartach meczów (na
-których gram/organizuję/jestem na rezerwie) na `/moje-gry` i w widoku ekipy, oraz
-różowa kropka na „Moje" i „Grupy" w dolnej nawigacji — nie nakłada się z istniejącą
-niebieską kropką „czeka na akceptację" (osobne rogi ikony). Karty ekip na `/grupy`
-dostały analogiczną plakietkę z liczbą nieprzeczytanych wpisów tablicy. Zakładka
-Wynik pokazuje teraz uczestnikowi komunikat „pojawi się po zakończeniu meczu" zamiast
-pustego ekranu. „Najbliższy mecz" znika z listy „Nadchodzące" pod spodem, żeby nie
-dublować tego samego meczu na jednym ekranie. Zakładka „Zaproszenia" w ustawieniach
-ekipy jest widoczna tylko dla founder/`can_invite`. Kolorystyka ma teraz spisaną,
-wyłączną konwencję (`AGENTS.md` → Konwencje): różowy zawsze i wyłącznie wiadomości,
-niebieski zawsze i wyłącznie wymagana akceptacja uczestnictwa — nowy wskaźnik ma się
-do niej dostosować zamiast wymyślać kolor na nowo. Gry cykliczne/stałe gierki
-zniknęły z nawigacji i z kreatora meczu — kod i istniejące serie zostają w repo
-nietknięte, dostępne pod bezpośrednim adresem.
-
-MECHANIKA: `lib/groupPosts.ts` — `nieprzeczytane()` przyjmuje opcjonalny `myUserId`
-i filtruje własne wpisy; nowe `getGroupPostsForUnread()`, `policzNieprzeczytanePerGrupa()`,
-`hasUnreadGroupMessages()`, `kluczTablicaWidziano()` (wydzielony z dawnej lokalnej
-stałej w `GroupDetailClient.tsx`). `lib/comments.ts` — analogiczny komplet dla meczów:
-`nieprzeczytaneKomentarze()`, `getCommentsForUnread()`, `policzNieprzeczytanePerWydarzenie()`,
-`hasUnreadEventMessages()`, `kluczRozmowyWidziano()`. `lib/events.ts` —
-`getMyActiveEventIds()` (gram/rezerwa/organizuję, bez „czeka na akceptację"/
-„obserwuję"). `lib/groups.ts` — `getMyGroupIds()`. `EventBrowseCard.tsx` — nowy prop
-`unreadMessages`, widoczny tylko gdy `relation` kwalifikuje (organizator/gram/
-rezerwa) — przekazywany przez `NextMatchCard`, `MyMatchesSection`,
-`PendingRequestsSection`, `NeedsPlayersSection`, `NajblizszyMeczGrupy`.
-`BottomNav.tsx` — `dot` zamienione na `dots` (tablica z pozycją `top-right`/
-`top-left`, żeby dwie kropki na „Moje" się nie nakładały). `EventDetailClient.tsx` —
-`wynikFormSection` dostał blok dla `!(isOwner || canManageSquad)`; nowy stan
-`nieprzeczytaneRozmowa` liczony efektem obok `tab`. `GroupDetailClient.tsx` —
-`upcomingBezNajblizszego` filtruje `nextMatch.id` z listy. `app/grupy/[id]/edytuj/page.tsx`
-— zakładka „Zaproszenia" warunkowana `isOwner || perms.canInvite`. `lib/features.ts`
-— `SHOW_RECURRING = false`; `app/wydarzenia/nowe/page.tsx` — przełącznik „Wydarzenie
-cykliczne" (`extraSlot` w `EventDateTimeField`) warunkowany tą flagą (wcześniej
-renderował się zawsze, niezależnie od niej — flaga gasiła tylko wejścia w nawigacji).

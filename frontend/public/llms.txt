@@ -68,3 +68,4 @@ zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchod
 
 - [Regulamin](/regulamin)
 - [Polityka prywatności](/prywatnosc)
+- /zglos-blad — zgłoszenie błędu w aplikacji (formularz, działa też bez logowania)

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
+import { zglosAwarie } from '@/lib/bledy';
 
 export default function GlobalError({
   error,
@@ -13,6 +14,11 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[AppError]', error);
+    // Do tej pory na tym kończyła się cała wiedza o awarii: wpis w konsoli
+    // przeglądarki, której nikt nie ogląda. `digest` to identyfikator, którym
+    // Next łączy błąd z serwerowym logiem — bez niego zgłoszenie z produkcji
+    // bywa nie do powiązania z niczym.
+    zglosAwarie(error, error.digest ? `digest ${error.digest}` : undefined);
   }, [error]);
 
   return (
@@ -37,6 +43,13 @@ export default function GlobalError({
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Strona główna
+            </Link>
+          </div>
+          {/* Sam błąd już do nas poleciał — tu chodzi o to, co robił człowiek,
+              czyli o jedyną część, której nie da się odczytać ze stosu. */}
+          <div className="mt-6">
+            <Link href="/zglos-blad" className="text-sm font-medium text-primary-700 underline underline-offset-2">
+              Napisz, co się stało
             </Link>
           </div>
         </div>
