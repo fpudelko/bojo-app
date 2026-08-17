@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-16 · migracja `099` · 34 tabele · 543 testy
+**Stan na:** 2026-08-17 · migracja `100` · 34 tabele · 576 testów
 
 ---
 
@@ -332,6 +332,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Kasowanie wiadomości w rozmowie znów działa
+
+PROBLEM: usunięcie własnej wiadomości w rozmowie meczu kończyło się w Bojo czerwonym
+komunikatem `new row violates row-level security policy for table "event_comments"`,
+a wiadomość zostawała. Ta sama usterka dotyczyła tablicy ekipy i komentarzy pod
+obiektem — czyli wszystkich trzech miejsc, w których w Bojo się pisze.
+
+ROZWIĄZANIE BOJO: autor kasuje swoją wiadomość, moderator ekipy cudzą na tablicy,
+administrator komentarz pod obiektem. Skasowana wiadomość znika z listy i nie wraca
+po odświeżeniu. Bojo nie kasuje wiersza z bazy, tylko oznacza go jako usunięty.
+
+MECHANIKA: migracja `100`. Kasowanie jest miękkie (UPDATE ustawiający `deleted_at`),
+a polityka `SELECT USING (deleted_at IS NULL)` z migracji `026` wypychała zmieniony
+wiersz poza własną widoczność — Postgres sprawdza nowy wiersz TAKŻE politykami SELECT,
+więc UPDATE kończył się wyjątkiem, mimo poprawnej polityki UPDATE. Skasowany wiersz
+widzi teraz ten, kto miał prawo go skasować (warunek jest lustrem polityki UPDATE danej
+tabeli). Odtworzone na gołym Postgresie przez `scripts/baza-testowa.sh`. Osobno
+`lib/comments.ts` i `lib/groupPosts.ts` przeszły na `zaktualizujJedenWiersz()`
+i `zPonowieniemPoOdswiezeniu()` — zapis, który nie zmienił żadnego wiersza, jest teraz
+błędem, a wygasła sesja jest odświeżana i zapis ponawiany.
+
 ### 2026-08-17 — Strona meczu: mniej pigułek, czytelniejsze wypisanie się
 
 PROBLEM: nad licznikiem miejsc — najważniejszą informacją na stronie meczu — stało pół
@@ -588,24 +609,3 @@ pusta, renderuje samą `extra` zamiast `null` — domyślnie `false`, pulpit `Ap
 przekazuje żadnego z nich, więc zachowuje się jak dawniej). `app/moje-gry/page.tsx` —
 przycisk filtra wyjęty z paska zakładek, przekazywany jako `extra` do
 `NeedsPlayersSection`. `frontend/public/landing/kreator.jpg` — podmieniony zrzut.
-
-### 2026-08-16 — Bojo jako apka na ekranie głównym (PWA, etap 1)
-
-PROBLEM: Bojo dawało się „dodać do ekranu głównego", ale bez manifestu telefon robił
-z tego zwykły skrót w przeglądarce — zostawał pasek adresu, nie było własnej ikony ani
-ekranu startowego. Osobno: web-push na iOS działa WYŁĄCZNIE dla aplikacji dodanej do
-ekranu głównego, więc brak instalowalności blokował też przyszły kanał powiadomień.
-
-ROZWIĄZANIE BOJO: Bojo jest teraz instalowalną aplikacją. Po dodaniu do ekranu głównego
-otwiera się bez paska adresu, z własną ikoną i zieloną (#15663E) barwą paska stanu.
-Powiadomień push jeszcze NIE wysyła — to osobny, kolejny etap; ten krok przygotowuje
-warunek, bez którego push na iPhonie nie zadziała.
-
-MECHANIKA: `app/manifest.ts` (Next generuje `/manifest.webmanifest`, `display:
-standalone`), ikony w `public/ikony/` generowane z logo skryptem
-`scripts/generuj-ikony.mjs` — w wariancie zwykłym oraz `maskable` dla Androida, który
-przycina ikonę do kształtu producenta. `apple-touch-icon` i `appleWebApp` w metadanych
-`layout.tsx`, bo iOS ignoruje ikony z manifestu. Service worker `public/sw.js` celowo
-minimalny: obsługuje `push` i `notificationclick`, NIE cache'uje niczego — worker
-cache'ujący HTML serwowałby stary build po deployu, a aplikacja żyjąca z bazy
-pokazywałaby nieaktualne składy. Rejestracja przez `components/RejestracjaSW.tsx`.

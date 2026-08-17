@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 55 migracji: 041_join_code.sql → 097_czy_gramy.sql
+-- Zawiera 58 migracji: 041_join_code.sql → 100_kasowanie_wiadomosci.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -5423,3 +5423,307 @@ DROP TRIGGER IF EXISTS trg_powiadom_o_progu_gry ON event_participants;
 CREATE TRIGGER trg_powiadom_o_progu_gry
   AFTER INSERT OR UPDATE OR DELETE ON event_participants
   FOR EACH ROW EXECUTE FUNCTION powiadom_o_progu_gry();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 098_admin_bez_rekurencji.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 098: Nadawanie i odbieranie admina przestaje po cichu nie działać.
+--
+-- OBJAW: przełącznik admin/użytkownik na `/admin/uzytkownicy` „nic nie robi" —
+-- przełącza się na ekranie (optymistyczna aktualizacja), a po odświeżeniu
+-- wraca do stanu sprzed kliknięcia.
+--
+-- PRZYCZYNA: polityka z migracji `022` sprawdza uprawnienie zapytaniem
+-- o TĘ SAMĄ tabelę, na której siedzi:
+--
+--     CREATE POLICY "Admins can update any profile" ON profiles FOR UPDATE
+--       USING (EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin));
+--
+-- Podzapytanie o `profiles` wewnątrz polityki `profiles` samo podlega RLS tej
+-- tabeli. Postgres albo zgłasza „infinite recursion detected in policy", albo —
+-- gdy rekurencję utnie polityka SELECT — po prostu nie znajduje wiersza
+-- i warunek wychodzi FAŁSZ. Wtedy UPDATE aktualizuje ZERO wierszy i zwraca
+-- sukces: cisza, żadnego błędu, przycisk „nic nie robi".
+--
+-- ROZWIĄZANIE: sprawdzenie wyjeżdża do funkcji `SECURITY DEFINER`, która
+-- czyta `profiles` z pominięciem RLS. To ten sam wzorzec, którego repo używa
+-- już przy powiadomieniach (`065`, `070`) — funkcja działa z uprawnieniami
+-- właściciela, więc podzapytanie nie wraca do polityki, z której wyszło.
+--
+-- `STABLE`, bo wynik nie zmienia się w obrębie jednego zapytania — Postgres
+-- może dzięki temu wywołać ją raz na zapytanie, a nie raz na wiersz.
+
+CREATE OR REPLACE FUNCTION public.czy_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+-- Pusty search_path: funkcja SECURITY DEFINER bez tego daje się nabrać na
+-- podstawioną tabelę `profiles` w schemacie z wyższym priorytetem.
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(
+    (SELECT p.is_admin FROM public.profiles p WHERE p.id = auth.uid()),
+    false
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.czy_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.czy_admin() TO authenticated, service_role;
+
+DROP POLICY IF EXISTS "Admins can update any profile" ON profiles;
+CREATE POLICY "Admins can update any profile" ON profiles FOR UPDATE
+  USING      (public.czy_admin())
+  WITH CHECK (public.czy_admin());
+
+-- Ta sama rekurencja siedzi w politykach z `005`. `events` i `fields` to inne
+-- tabele niż `profiles`, więc pętli tam nie ma — ale podzapytanie i tak
+-- odpytuje `profiles` przez RLS, co przy zaostrzeniu polityk na `profiles`
+-- wywróciłoby je po cichu w ten sam sposób. Przepinamy na tę samą funkcję,
+-- żeby uprawnienie administratora było liczone w JEDNYM miejscu.
+DROP POLICY IF EXISTS "Admins can update any event" ON events;
+CREATE POLICY "Admins can update any event"
+  ON events FOR UPDATE
+  USING      (public.czy_admin())
+  WITH CHECK (public.czy_admin());
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 099_zgloszenia_bledow.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 099: Zgłoszenia błędów — od użytkownika i automatyczne z awarii.
+--
+-- WYMAGA MIGRACJI 098 (funkcja `czy_admin()`).
+--
+-- Po co: dziś awaria u użytkownika nie zostawia po sobie ŻADNEGO śladu.
+-- `app/error.tsx` wypisuje błąd do konsoli przeglądarki, której nikt nie ogląda,
+-- a zgłoszenie „coś mi wywaliło" przychodzi zrzutem ekranu na WhatsAppie, bez
+-- adresu strony, bez wersji, bez treści błędu. Odtworzenie takiego zgłoszenia
+-- kosztuje więcej niż sama naprawa.
+--
+-- JEDNA TABELA NA OBA RODZAJE, i to jest świadome: administrator ma jedno
+-- miejsce, w które patrzy. Kolumna `rodzaj` rozróżnia „napisał człowiek" od
+-- „złapało się samo", bo obie rzeczy czyta się inaczej.
+--
+-- GRUPOWANIE PO `odcisk` (fingerprint) zamiast wiersza na każde wystąpienie.
+-- Jeden zepsuty widok potrafi wygenerować setki błędów w minutę — bez
+-- grupowania panel administratora tonie w kopiach tego samego, a licznik
+-- wystąpień, czyli najważniejsza informacja („dotyczy 200 osób czy jednej"),
+-- w ogóle nie istnieje. Zgłoszenia od ludzi grupowaniu NIE podlegają: każde
+-- jest osobną historią, nawet gdy opis brzmi tak samo.
+
+CREATE TABLE IF NOT EXISTS zgloszenia_bledow (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Trzy rodzaje, bo trzy różne rzeczy i trzy różne reakcje:
+  --   uzytkownik — „coś nie działa", napisane ręką,
+  --   awaria     — złapane samo, z komunikatem i stosem,
+  --   obiekt     — błąd w DANYCH boiska („tu już nie ma bramek").
+  -- Ten trzeci jest osobny, bo dotyczy danych, których NIE jesteśmy
+  -- właścicielem (OSM, licencja ODbL) — poprawka wymaga naszej decyzji,
+  -- a nie automatu.
+  rodzaj        TEXT NOT NULL CHECK (rodzaj IN ('uzytkownik', 'awaria', 'obiekt')),
+
+  -- Skrót „to jest ten sam błąd": komunikat + pierwsza ramka stosu. NULL dla
+  -- zgłoszeń od ludzi (patrz wyżej). Indeks częściowy, bo tylko awarie go mają.
+  odcisk        TEXT,
+
+  opis          TEXT NOT NULL,
+  slad          TEXT,
+
+  -- Kontekst, bez którego zgłoszenie jest nie do odtworzenia.
+  adres         TEXT,
+  przegladarka  TEXT,
+  wersja        TEXT,
+
+  -- Zgłaszać może też niezalogowany — wtedy NULL. `ON DELETE SET NULL`, żeby
+  -- usunięcie konta nie kasowało historii błędów.
+  user_id       UUID REFERENCES auth.users ON DELETE SET NULL,
+
+  -- Wypełnione wyłącznie dla `rodzaj = 'obiekt'`. `ON DELETE CASCADE`:
+  -- zgłoszenie o nieistniejącym już obiekcie nie ma po co zostawać.
+  field_id      UUID REFERENCES fields(id) ON DELETE CASCADE,
+
+  status        TEXT NOT NULL DEFAULT 'nowe'
+                CHECK (status IN ('nowe', 'w_toku', 'zamkniete')),
+  notatka       TEXT,
+
+  liczba        INT NOT NULL DEFAULT 1,
+  pierwszy_raz  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ostatni_raz   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS zgloszenia_bledow_odcisk_idx
+  ON zgloszenia_bledow (odcisk) WHERE odcisk IS NOT NULL;
+CREATE INDEX IF NOT EXISTS zgloszenia_bledow_status_idx
+  ON zgloszenia_bledow (status, ostatni_raz DESC);
+-- Ile zgłoszeń zebrał jeden obiekt — backlog zakłada, że dopiero kilka
+-- niezależnych zgłoszeń uzasadnia zmianę danych bez naszej moderacji.
+CREATE INDEX IF NOT EXISTS zgloszenia_bledow_field_idx
+  ON zgloszenia_bledow (field_id) WHERE field_id IS NOT NULL;
+
+ALTER TABLE zgloszenia_bledow ENABLE ROW LEVEL SECURITY;
+
+-- CZYTAĆ MOŻE WYŁĄCZNIE ADMIN. To nie jest ostrożność na wyrost: w opisie
+-- błędu ląduje adres strony, a ten bywa linkiem do prywatnego meczu. Bez tej
+-- polityki dowolny zalogowany user czytałby cudze zgłoszenia razem z nimi.
+DROP POLICY IF EXISTS "Admin czyta zgloszenia" ON zgloszenia_bledow;
+CREATE POLICY "Admin czyta zgloszenia" ON zgloszenia_bledow
+  FOR SELECT USING (public.czy_admin());
+
+DROP POLICY IF EXISTS "Admin zmienia zgloszenia" ON zgloszenia_bledow;
+CREATE POLICY "Admin zmienia zgloszenia" ON zgloszenia_bledow
+  FOR UPDATE USING (public.czy_admin()) WITH CHECK (public.czy_admin());
+
+-- Zapis idzie WYŁĄCZNIE przez RPC niżej (SECURITY DEFINER), więc bezpośredni
+-- INSERT jest zamknięty dla wszystkich. Inaczej dowolny klient mógłby wstawiać
+-- wiersze z dowolnym `status`, `liczba` czy cudzym `user_id`.
+
+/**
+ * Zapisuje zgłoszenie. Awarie z tym samym odciskiem dokładają się do
+ * istniejącego wiersza zamiast tworzyć nowy.
+ *
+ * SECURITY DEFINER, bo tabela nie ma polityki INSERT — to jedyne wejście.
+ * Dzięki temu klient nie decyduje o `status`, `liczba` ani `user_id`:
+ * tożsamość bierzemy z `auth.uid()`, nie z tego, co przyszło z przeglądarki.
+ */
+CREATE OR REPLACE FUNCTION public.zapisz_zgloszenie_bledu(
+  p_rodzaj       TEXT,
+  p_opis         TEXT,
+  p_odcisk       TEXT DEFAULT NULL,
+  p_slad         TEXT DEFAULT NULL,
+  p_adres        TEXT DEFAULT NULL,
+  p_przegladarka TEXT DEFAULT NULL,
+  p_wersja       TEXT DEFAULT NULL,
+  p_field_id     UUID DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_id UUID;
+  -- Ucinamy na wejściu, nie przy wyświetlaniu: stos potrafi mieć kilkadziesiąt
+  -- kilobajtów, a do rozpoznania błędu wystarczy jego początek. Bez tego jedna
+  -- pętla w kodzie klienta potrafi wpompować megabajty do bazy.
+  v_opis TEXT := left(coalesce(p_opis, ''), 2000);
+  v_slad TEXT := left(p_slad, 4000);
+BEGIN
+  IF p_rodzaj NOT IN ('uzytkownik', 'awaria', 'obiekt') THEN
+    RAISE EXCEPTION 'Nieznany rodzaj zgłoszenia: %', p_rodzaj;
+  END IF;
+
+  IF v_opis = '' THEN
+    RAISE EXCEPTION 'Puste zgłoszenie';
+  END IF;
+
+  -- Awaria z odciskiem: dokładamy do istniejącego wiersza. `ostatni_raz`
+  -- i licznik są tym, po czym administrator poznaje, czy błąd żyje.
+  IF p_rodzaj = 'awaria' AND p_odcisk IS NOT NULL THEN
+    INSERT INTO zgloszenia_bledow
+      (rodzaj, odcisk, opis, slad, adres, przegladarka, wersja, user_id)
+    VALUES
+      ('awaria', p_odcisk, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid())
+    ON CONFLICT (odcisk) WHERE odcisk IS NOT NULL DO UPDATE
+      SET liczba      = zgloszenia_bledow.liczba + 1,
+          ostatni_raz = now(),
+          adres       = COALESCE(EXCLUDED.adres, zgloszenia_bledow.adres),
+          -- Błąd zamknięty, który wraca, musi znowu trafić na wierzch listy.
+          status      = CASE WHEN zgloszenia_bledow.status = 'zamkniete'
+                             THEN 'nowe' ELSE zgloszenia_bledow.status END
+      RETURNING id INTO v_id;
+    RETURN v_id;
+  END IF;
+
+  INSERT INTO zgloszenia_bledow
+    (rodzaj, opis, slad, adres, przegladarka, wersja, user_id, field_id)
+  VALUES
+    (p_rodzaj, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid(),
+     CASE WHEN p_rodzaj = 'obiekt' THEN p_field_id ELSE NULL END)
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID) FROM PUBLIC;
+-- `anon` też: awaria na stronie meczu otwartej z linku, bez logowania, jest
+-- dokładnie tym przypadkiem, o którym chcemy wiedzieć.
+GRANT EXECUTE ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID)
+  TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 100_kasowanie_wiadomosci.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 100: Kasowanie wiadomości było niemożliwe — polityka SELECT blokowała UPDATE.
+--
+-- OBJAW: „Usuń" w rozmowie meczu kończyło się czerwoną chmurką
+--   new row violates row-level security policy for table "event_comments"
+-- Ta sama pułapka siedziała w tablicy ekipy (`group_posts`, migracja `093`)
+-- i w komentarzach do obiektu (`field_comments`).
+--
+-- DLACZEGO, bo z samych polityk nie widać tego gołym okiem. Kasowanie jest
+-- MIĘKKIE: to UPDATE ustawiający `deleted_at`. Polityki na `event_comments`
+-- (migracja `026`) wyglądały poprawnie —
+--   UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)
+-- i autor swój własny wiersz przechodzi obiema klauzulami.
+--
+-- Blokowała trzecia, pozornie niezwiązana:
+--   SELECT USING (deleted_at IS NULL)
+-- Postgres przy UPDATE sprawdza NOWY wiersz także politykami SELECT — wiersz
+-- po zmianie musi zostać widoczny dla tego, kto go zmienił. A miękkie
+-- kasowanie robi dokładnie to, czego polityka SELECT zabrania: ustawia
+-- `deleted_at`, czyli wypycha wiersz poza własną widoczność. Stąd komunikat
+-- o „new row”, mimo że nikt nie wstawiał nowego wiersza.
+--
+-- Odtworzone na gołym Postgresie ze wszystkimi migracjami
+-- (`./scripts/baza-testowa.sh --zostaw`): UPDATE wywala się wyjątkiem,
+-- a po samej zmianie polityki SELECT przechodzi. Polityki na produkcji były
+-- identyczne z repo — to nie był rozjazd, tylko błąd projektowy w `026`.
+--
+-- ROZWIĄZANIE: skasowany wiersz widzi ten, kto miał prawo go skasować.
+-- Warunek widoczności skasowanych jest LUSTREM polityki UPDATE każdej tabeli
+-- — inaczej moderator, który kasuje CUDZY wpis, wpadłby w ten sam wyjątek,
+-- co autor przed poprawką.
+--
+-- Nic nie wycieka do interfejsu: `getComments()`, `getGroupPosts()` i
+-- `getFieldComments()` filtrują `deleted_at IS NULL` w samym zapytaniu.
+-- Polityka domyka to od strony bazy — skasowanej wiadomości nie odczyta ktoś
+-- postronny, nawet omijając aplikację.
+
+-- ---------------------------------------------------------------------------
+-- 1. Rozmowa meczu
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS "comments_select" ON event_comments;
+CREATE POLICY "comments_select" ON event_comments FOR SELECT
+  USING (deleted_at IS NULL OR auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- 2. Tablica ekipy (093) — kasować może autor, moderator i admin platformy,
+--    więc dokładnie ci trzej widzą skasowane.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS "group_posts_select" ON group_posts;
+CREATE POLICY "group_posts_select" ON group_posts FOR SELECT
+  USING (
+    czy_czlonek_grupy(group_id)
+    AND (
+      deleted_at IS NULL
+      OR auth.uid() = user_id
+      OR czy_moze_moderowac_tablice(group_id)
+      OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- 3. Komentarze do obiektu
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS "field_comments_select" ON field_comments;
+CREATE POLICY "field_comments_select" ON field_comments FOR SELECT
+  USING (
+    deleted_at IS NULL
+    OR auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  );

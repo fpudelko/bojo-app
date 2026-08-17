@@ -1,6 +1,6 @@
 # Baza danych
 
-95 migracji (`001`–`097`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+98 migracji (`001`–`100`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -138,6 +138,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `097_czy_gramy` | `events.min_players` (próg „gra się odbędzie", `NULL` domyślnie — zero zmiany dla istniejących meczów) + tabela `event_declines` (jawne „nie gram", osobna od `rsvp` — patrz `docs/domena.md`). RPC `zapytaj_milczacych(event_id)` (`SECURITY DEFINER`, wyłącznie mecze przypięte do grupy) powiadamia członków ekipy bez wpisu w składzie ani odmowy, z zaporą przed spamem (12 h). Wyzwalacz `powiadom_o_progu_gry()` na `event_participants` — wzorem `079`, reaguje na PRZEKROCZENIE progu w obie strony, nie na każdy zapis |
 | `098_admin_bez_rekurencji` | Funkcja `czy_admin()` (`SECURITY DEFINER`, `STABLE`) plus przepięcie na nią polityk „Admins can update any profile" (`022`) i „Admins can update any event" (`005`). Poprzednia wersja sprawdzała uprawnienie podzapytaniem o `profiles` WEWNĄTRZ polityki na `profiles` — podzapytanie samo podlegało RLS tej tabeli, więc warunek wychodził fałsz i UPDATE zmieniał ZERO wierszy, zwracając sukces. Objaw: przełącznik admin/użytkownik „nic nie robi", wraca po odświeżeniu |
 | `099_zgloszenia_bledow` | Tabela `zgloszenia_bledow` (zgłoszenia od ludzi i automatyczne awarie w jednym miejscu) plus RPC `zapisz_zgloszenie_bledu()` — `SECURITY DEFINER`, JEDYNE wejście do zapisu, bo tabela nie ma polityki INSERT. Awarie grupowane po `odcisk` (`ON CONFLICT` dokłada do licznika zamiast tworzyć kopię). SELECT/UPDATE wyłącznie dla `czy_admin()` — w kolumnie `adres` bywa link do prywatnego meczu. Trzeci rodzaj `obiekt` (`field_id`) to zgłoszenie błędu w danych boiska: NIE zmienia danych, bo katalog pochodzi z OSM |
+| `100_kasowanie_wiadomosci` | Naprawa polityk SELECT na `event_comments`, `group_posts` i `field_comments`. Kasowanie wiadomości jest MIĘKKIE (UPDATE ustawiający `deleted_at`), a polityka `SELECT USING (deleted_at IS NULL)` wypychała nowy wiersz poza własną widoczność — Postgres sprawdza nowy wiersz także politykami SELECT, więc UPDATE kończył się wyjątkiem `new row violates row-level security policy`, mimo poprawnych polityk UPDATE. Skasowany wiersz widzi teraz ten, kto miał prawo go skasować (warunek jest lustrem polityki UPDATE danej tabeli); zapytania aplikacji i tak filtrują `deleted_at IS NULL` |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
