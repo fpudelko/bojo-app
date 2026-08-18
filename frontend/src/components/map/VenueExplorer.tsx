@@ -443,28 +443,32 @@ function FilterPills({
           mapy (w odróżnieniu od /wydarzenia, gdzie sortowanie ma sens na
           liście), więc kolejność pinezek nie jest tu czymś do wyboru. */}
 
-      {!showGames && (
-        <PillDropdown label={sportPillLabel} active={sports.length > 0}>
-          {() => (
-            <>
-              <button onClick={() => setSports([])}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
-                <span className="text-base">🏟️</span>
-                <span className="flex-1 text-left">Wszystkie sporty</span>
-                {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
+      {/* Sporty ZAWSZE w tym samym miejscu paska — przed „Filtry", w obu
+          trybach. Wcześniej były dwa osobne dropdowny: jeden renderowany dla
+          obiektów PRZED „Filtry", drugi dla gier PO nim. Efekt: przełączenie
+          Gry↔Obiekty zamieniało pigułki miejscami, więc palec trafiał w inny
+          filtr niż sekundę wcześniej (zgłoszone wprost). Różni się wyłącznie
+          lista sportów (`sportOptions`), a nie pozycja kontrolki. */}
+      <PillDropdown label={sportPillLabel} active={sports.length > 0}>
+        {() => (
+          <>
+            <button onClick={() => setSports([])}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
+              <span className="text-base">🏟️</span>
+              <span className="flex-1 text-left">Wszystkie sporty</span>
+              {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
+            </button>
+            {sportOptions.map((o) => (
+              <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
+                <span className="text-base">{o.emoji}</span>
+                <span className="flex-1 text-left">{o.label}</span>
+                {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
               </button>
-              {sportOptions.map((o) => (
-                <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-                  <span className="text-base">{o.emoji}</span>
-                  <span className="flex-1 text-left">{o.label}</span>
-                  {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
-                </button>
-              ))}
-            </>
-          )}
-        </PillDropdown>
-      )}
+            ))}
+          </>
+        )}
+      </PillDropdown>
 
       {/* Typ obiektu przeniesiony do modala (D9): venue_type ma dziś 98,3%
           wierszy NULL, jako zawsze widoczny dropdown wyglądał jak zepsuty
@@ -480,29 +484,6 @@ function FilterPills({
       >
         <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
       </button>
-
-      {showGames && (
-        <PillDropdown label={sportPillLabel} active={sports.length > 0}>
-          {() => (
-            <>
-              <button onClick={() => setSports([])}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
-                <span className="text-base">🏟️</span>
-                <span className="flex-1 text-left">Wszystkie sporty</span>
-                {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
-              </button>
-              {sportOptions.map((o) => (
-                <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-                  <span className="text-base">{o.emoji}</span>
-                  <span className="flex-1 text-left">{o.label}</span>
-                  {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
-                </button>
-              ))}
-            </>
-          )}
-        </PillDropdown>
-      )}
 
       {showGames ? (
         <>
@@ -1076,14 +1057,24 @@ export default function VenueExplorer({
     </FilterSheet>
   );
 
+  /* Geometria pola (zaokrąglenie, wcięcia, pozycja lupki) CELOWO taka sama
+     jak w „Znajdź grę" (`EventsListView`), bo `/mapa` i `/wydarzenia` to dwie
+     zakładki tego samego paska i przełączanie między nimi przesuwało pole
+     o kilka pikseli — wyglądało jak przeskok. Różni się tylko tło: tutaj białe
+     z cieniem, bo pole leży NA mapie i musi się od niej odciąć.
+
+     Tekst podpowiedzi jest krótki, bo długi się ucinał w połowie słowa
+     („Szukaj boiska po nazwie lub a…") — czyli mówił mniej niż krótszy, który
+     się mieści. */
   const searchBox = (
     <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Szukaj boiska po nazwie lub adresie…"
-        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        aria-label={showGames ? 'Szukaj meczu' : 'Szukaj boiska'}
+        placeholder={showGames ? 'Nazwa albo boisko' : 'Nazwa boiska albo adres'}
+        className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600"
       />
       {search && (
         <button
@@ -1214,7 +1205,11 @@ export default function VenueExplorer({
             (patrz Header.tsx#hideMobileBarForUser), więc tożsamość musi mieć
             gdzie się pokazać. MobileIdentityRow sam zwraca null dla
             wylogowanego, więc wiersz wygląda dziś tak samo jak wcześniej. */}
-        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-3 pt-3 space-y-2">
+        {/* `px-4 pt-5` — identycznie jak wiersz szukania w „Znajdź grę"
+            (`EventsListView`). Wcześniej było `px-3 pt-3`, czyli pole skakało
+            o 8 px w pionie i 4 px w bok przy każdym przejściu między
+            zakładkami. */}
+        <div className="md:hidden pointer-events-none absolute inset-x-0 top-0 z-[600] px-4 pt-5 space-y-2">
           <div className="pointer-events-auto flex items-center gap-2">
             <div className="min-w-0 flex-1">{searchBox}</div>
             <MobileIdentityRow />

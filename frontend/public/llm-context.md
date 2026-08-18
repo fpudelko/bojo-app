@@ -332,6 +332,25 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Spójny pasek szukania i filtrów między „Znajdź grę" a „Mapa"
+
+PROBLEM: dwie zakładki tego samego dolnego paska wyglądały jak dwa różne ekrany. Pole
+szukania na mapie stało 8 px wyżej i miało inne zaokrąglenie, więc przy przełączaniu
+przeskakiwało. Podpowiedź w polu ucinała się w połowie słowa („Szukaj boiska po nazwie
+lub a…"). Pigułki filtrów zmieniały kolejność: sport stał raz przed „Filtry", raz po —
+przy przełączaniu Gry↔Obiekty palec trafiał w inny filtr niż sekundę wcześniej.
+
+ROZWIĄZANIE BOJO: pole szukania ma tę samą geometrię i ten sam odstęp od góry na obu
+zakładkach (na mapie zostaje białe tło z cieniem, bo leży na mapie). Podpowiedź jest
+krótka i mieści się w całości: „Nazwa boiska albo adres" dla obiektów, „Nazwa albo
+boisko" dla gier. Kolejność pigułek jest wspólna: najpierw zakres (sortowanie albo tryb
+mapy), potem sport, potem „Filtry", na końcu przełączniki.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (jeden dropdown sportów zamiast dwóch
+renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2xl` jak
+w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
+za dropdown sportów).
+
 ### 2026-08-18 — Powiadomienia push na telefon
 
 PROBLEM: każde powiadomienie Bojo czekało, aż użytkownik SAM otworzy aplikację.
@@ -535,27 +554,3 @@ błąd na sesję, twardy limit 10, zapis nigdy nie rzuca wyjątku),
 `components/venues/ZglosBladObiektu.tsx` (zgłoszenie przypięte do `field_id`).
 Naprawa danych U ŹRÓDŁA idzie osobnym, istniejącym wcześniej odnośnikiem „Zgłoś
 poprawkę" — notatka w OSM.
-
-### 2026-08-16 — Zachęta do dodania Bojo na ekran główny
-
-PROBLEM: Bojo dawało się zainstalować (manifest, ikony, service worker — wpis wyżej),
-ale nic o tym nie mówiło. Czekało, aż użytkownik sam wpadnie na pomysł — prawie nikt
-nie wpada. Na iPhonie to blokuje cały przyszły kanał powiadomień, bo Safari wysyła
-push WYŁĄCZNIE do aplikacji dodanej do ekranu głównego.
-
-ROZWIĄZANIE BOJO: po zapisaniu się na mecz na dole ekranu pojawia się pasek „Miej Bojo
-pod ręką". Nie na wejściu na stronę — dopiero po tym, jak coś się udało, żeby obietnica
-„przypomnimy Ci o meczu" znaczyła coś konkretnego. Na Androidzie pasek ma przycisk
-„Dodaj do ekranu", który otwiera systemowe okno instalacji. Na iPhonie przycisku nie ma
-i być nie może (Safari nie udostępnia takiego zdarzenia) — jest instrukcja z ikonami
-„Udostępnij → Do ekranu początkowego" oraz zdanie mówiące wprost, że bez tego
-powiadomienia na iPhonie nie zadziałają. Pasek pokazuje się RAZ: kto go zamknie, ma
-spokój. Nie pojawia się osobom, które już zainstalowały, na komputerze ani
-w przeglądarce wbudowanej w Facebooka czy Instagrama, gdzie instalacja i tak nie działa.
-
-MECHANIKA: `lib/instalacja.ts` (cała decyzja, kogo i kiedy pytać — osobno od widoku,
-więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytuje
-`beforeinstallprompt`, żeby pokazać własny przycisk w wybranym momencie zamiast
-systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
-`zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
-nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.

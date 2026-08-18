@@ -531,8 +531,13 @@ export default function EventsListView({ widzianoWczesniej }: {
         <UzupelnijProfilBanner />
       </div>
 
-      {/* Jeden pasek kafelków: Sortuj / Filtry / Sport / Wolne miejsca / Za darmo
-          (D7 planu) — scrolluje się w bok, gdy nie mieści się w jednej linii. */}
+      {/* Jeden pasek kafelków: Sortuj / Sport / Filtry / Wolne miejsca / Za darmo
+          — scrolluje się w bok, gdy nie mieści się w jednej linii.
+          KOLEJNOŚĆ JEST WSPÓLNA Z `/mapa` (`VenueExplorer`): najpierw wybór
+          zakresu (sortowanie albo tryb mapy), potem sport, potem „Filtry",
+          na końcu przełączniki. To dwie zakładki tego samego dolnego paska —
+          gdy pigułki zmieniają miejsca przy przejściu, palec trafia w inny
+          filtr niż sekundę wcześniej. */}
       <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Na widoku mapy nie ma czego sortować — pigułka chowa się razem
             z przełączeniem viewMode, sortBy zostaje bez zmian (pinezki i
@@ -577,18 +582,6 @@ export default function EventsListView({ widzianoWczesniej }: {
         </PillDropdown>
         )}
 
-        <button
-          type="button"
-          onClick={openSheet}
-          aria-haspopup="dialog"
-          className={clsx(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-            filtersActive ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 bg-white text-ink',
-          )}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
-        </button>
-
         <PillDropdown label={multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS)} active={sports.length > 0}>
           {() => (
             <>
@@ -616,6 +609,18 @@ export default function EventsListView({ widzianoWczesniej }: {
             </>
           )}
         </PillDropdown>
+
+        <button
+          type="button"
+          onClick={openSheet}
+          aria-haspopup="dialog"
+          className={clsx(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+            filtersActive ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 bg-white text-ink',
+          )}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
+        </button>
 
         <TogglePill
           label="Wolne miejsca"
