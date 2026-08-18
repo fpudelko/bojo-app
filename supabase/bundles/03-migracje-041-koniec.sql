@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 63 migracji: 041_join_code.sql → 105_taktyka_kapitan.sql
+-- Zawiera 65 migracji: 041_join_code.sql → 107_publikacja_taktyki.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -6219,3 +6219,146 @@ CREATE POLICY "team_messages_select" ON event_team_messages FOR SELECT
 DROP POLICY IF EXISTS "team_messages_insert" ON event_team_messages;
 CREATE POLICY "team_messages_insert" ON event_team_messages FOR INSERT
   WITH CHECK (auth.uid() = user_id AND czy_w_druzynie(event_id, team));
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 106_admin_zarzadza_skladem.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 106: Administrator platformy zarządza składem tak, jak pokazuje to interfejs.
+--
+-- OBJAW: przeciągnięcie gracza między drużynami kończyło się komunikatem
+--   „Nie udało się przypisać gracza do drużyny — baza nie zmieniła żadnego
+--    wiersza. Najczęstsza przyczyna: brak uprawnień (RLS)…"
+-- Ten komunikat zrobił dokładnie to, do czego powstał (`zaktualizujJedenWiersz`
+-- w `lib/zapytania.ts`): zamienił ciche „nic się nie stało" w konkretną
+-- informację. Diagnoza była w nim od razu.
+--
+-- PRZYCZYNA — TRZECI RAZ TEN SAM WZORZEC. `isOwner` w `EventDetailClient.tsx`
+-- to `user.id === event.organizerId || isAdmin`, więc administrator OGLĄDA
+-- pełen panel organizatora: losowanie składu, przypisywanie drużyn, gwiazdkę
+-- kapitana. Polityki na `event_participants` (`090`) znają wyłącznie
+-- organizatora i delegata. Efekt: kontrolki są, klikają się i nic nie robią.
+--
+-- Wcześniej to samo naprawiały `098` (przełącznik admin/użytkownik) i `104`
+-- (zapis taktyki). Wniosek jest zawsze ten sam i wart zapisania: jeżeli
+-- w interfejsie administrator jest traktowany jak organizator, to `czy_admin()`
+-- musi siedzieć w polityce — inaczej różnica wychodzi dopiero pod palcem
+-- użytkownika, a nie w kodzie.
+--
+-- ZAKRES: UPDATE (drużyna, kapitan, płatność), INSERT (dopisanie gościa)
+-- i DELETE (usunięcie ze składu) — czyli dokładnie te trzy rzeczy, które
+-- panel organizatora pokazuje administratorowi.
+
+-- ---------------------------------------------------------------------------
+-- UPDATE — przypisanie drużyny, kapitan, oznaczenie płatności
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Organizer or delegate updates participants" ON event_participants;
+CREATE POLICY "Organizer or delegate updates participants"
+  ON event_participants FOR UPDATE
+  USING (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id) OR can_manage_payments(event_id) OR czy_admin()
+  )
+  WITH CHECK (
+    auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id) OR can_manage_payments(event_id) OR czy_admin()
+  );
+
+-- ---------------------------------------------------------------------------
+-- INSERT — dopisanie gościa bez konta
+-- ---------------------------------------------------------------------------
+-- Warunek „zapisuję siebie" (`auth.uid() = user_id`) zostaje pierwszy: to jest
+-- zwykłe dołączenie do meczu i dotyczy wszystkich, nie tylko organizatora.
+DROP POLICY IF EXISTS "Join or organiser or delegate adds guest" ON event_participants;
+CREATE POLICY "Join or organiser or delegate adds guest"
+  ON event_participants FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    OR auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id)
+    OR czy_admin()
+  );
+
+-- ---------------------------------------------------------------------------
+-- DELETE — usunięcie ze składu
+-- ---------------------------------------------------------------------------
+-- Nazwa polityki i jej dotychczasowy warunek pochodzą z `090`; odtwarzamy je
+-- w całości, bo `CREATE POLICY` nie umie „dopisać" alternatywy do istniejącej.
+DROP POLICY IF EXISTS "Leave or organiser or delegate removes" ON event_participants;
+DROP POLICY IF EXISTS "Leave or organiser removes" ON event_participants;
+CREATE POLICY "Leave or organiser or delegate removes"
+  ON event_participants FOR DELETE
+  USING (
+    auth.uid() = user_id
+    OR auth.uid() = (SELECT organizer_id FROM events WHERE id = event_id)
+    OR can_manage_squad(event_id)
+    OR czy_admin()
+  );
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 107_publikacja_taktyki.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 107: Taktykę widać dopiero po opublikowaniu — jak skład.
+--
+-- PO CO: kapitan układa ustawienie na raty. Przeciąga jednego gracza, zmienia
+-- schemat, wraca po godzinie — a drużyna przez cały ten czas widziała każdą
+-- pośrednią wersję i nie miała jak odróżnić „tak gramy" od „tak akurat
+-- wyszło". Dokładnie ten sam problem rozwiązuje publikacja składu
+-- (`events.teams_published`, migracja `031`), więc taktyka dostaje ten sam
+-- mechanizm zamiast własnego.
+--
+-- KAPITAN WIDZI ZAWSZE, także przed publikacją — inaczej nie miałby czego
+-- układać. Reszta drużyny widzi dopiero po kliknięciu „Opublikuj taktykę".
+--
+-- CZAT DRUŻYNY ZOSTAJE NIEZALEŻNY. Rozmowa to nie jest część planu i nie ma
+-- powodu, żeby czekała na jego publikację — drużyna gada od razu, także po to,
+-- żeby kapitan miał na czym oprzeć decyzję.
+
+ALTER TABLE event_team_setup
+  ADD COLUMN IF NOT EXISTS opublikowana BOOLEAN NOT NULL DEFAULT false;
+
+-- Wiersze sprzed tej migracji powstały w świecie, w którym taktykę widzieli
+-- wszyscy — zostawiamy to bez zmian, żeby nikomu nie zniknęło coś, co już
+-- oglądał.
+UPDATE event_team_setup SET opublikowana = true WHERE schemat IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- Pomocnicza: czy taktyka tej drużyny jest opublikowana
+-- ---------------------------------------------------------------------------
+-- Potrzebna przy `event_team_slots`, gdzie flagi nie ma — pozycje i ustawienie
+-- to jedna decyzja rozbita na dwie tabele, więc muszą pojawiać się razem.
+-- SECURITY DEFINER wzorem `czy_w_druzynie()` (`103`).
+CREATE OR REPLACE FUNCTION czy_taktyka_opublikowana(p_event_id UUID, p_team TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE(
+    (SELECT s.opublikowana FROM event_team_setup s
+      WHERE s.event_id = p_event_id AND s.team = p_team),
+    false);
+$$;
+
+GRANT EXECUTE ON FUNCTION czy_taktyka_opublikowana(UUID, TEXT) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Odczyt: kapitan zawsze, drużyna po publikacji
+-- ---------------------------------------------------------------------------
+-- Zawężenie względem `103`, gdzie ustawienie widział każdy, kto widzi mecz.
+-- Ustawienie rywala przestaje być publiczne przy okazji — i dobrze: to jest
+-- ekran do uzgodnienia gry ze swoimi, nie podgląd cudzej szatni.
+DROP POLICY IF EXISTS "team_setup_select" ON event_team_setup;
+CREATE POLICY "team_setup_select" ON event_team_setup FOR SELECT
+  USING (
+    czy_kapitan_druzyny(event_id, team)
+    OR (opublikowana AND czy_w_druzynie(event_id, team))
+  );
+
+DROP POLICY IF EXISTS "team_slots_select" ON event_team_slots;
+CREATE POLICY "team_slots_select" ON event_team_slots FOR SELECT
+  USING (
+    czy_kapitan_druzyny(event_id, team)
+    OR (czy_taktyka_opublikowana(event_id, team) AND czy_w_druzynie(event_id, team))
+  );
+
+COMMENT ON COLUMN event_team_setup.opublikowana IS
+  'Czy drużyna widzi taktykę. Kapitan widzi zawsze; reszta dopiero po publikacji — wzorem events.teams_published (migracja 107).';

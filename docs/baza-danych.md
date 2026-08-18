@@ -1,6 +1,6 @@
 # Baza danych
 
-103 migracje (`001`–`105`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+105 migracji (`001`–`107`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -149,6 +149,8 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `103_taktyka_druzyny` | Trzy tabele pod zakładkę „Taktyka": `event_team_setup` (schemat jako TEKST, np. `1-4-4-2` — pozycje wylicza `lib/taktyka.ts`, więc nowe ustawienie nie wymaga migracji; taktyka jako `jsonb`), `event_team_slots` (kto na której pozycji; UNIQUE po `(event_id, participant_id)`, żeby jedna osoba nie stała w dwóch miejscach) i `event_team_messages` (czat WEWNĄTRZ drużyny, osobny od wspólnej rozmowy meczu). Funkcja `czy_w_druzynie()` (`SECURITY DEFINER`, `STABLE`). Polityka SELECT czatu ma od razu `deleted_at IS NULL OR auth.uid() = user_id` — bez tego autor nie skasuje własnej wiadomości (błąd naprawiany migracją `100` w trzech innych tabelach) |
 | `104_taktyka_admin` | Dopisanie `czy_admin()` do polityk zapisu z `103` (`event_team_setup`, `event_team_slots`) oraz do odczytu i pisania w `event_team_messages`. Zakładka „Taktyka" jest za bramką `isAdmin` w interfejsie, a polityki znały wyłącznie organizatora, delegata i członka drużyny — czyli jedyna osoba, która mogła ją otworzyć, nie mogła nic zapisać (`new row violates row-level security policy`). Ta sama klasa błędu co `098`: jedno uprawnienie egzekwowane w dwóch miejscach według dwóch reguł. Kasowanie cudzych wiadomości zostaje przy autorze |
 | `105_taktyka_kapitan` | Zapis ustawienia i pozycji (`event_team_setup`, `event_team_slots`) wyłącznie dla KAPITANA drużyny (`czy_kapitan_druzyny()`); czat drużyny dla całej drużyny (`czy_w_druzynie()`), bez administratora. Zmiana DECYZJI, nie naprawa: `104` wpuszczała admina, bo zakładka była wtedy schowana za `isAdmin` — teraz widzi ją każdy, kto gra, i wyłącznie swoją drużynę. Ustalenie ustawienia to jedna decyzja, nie głosowanie dziesięciu osób z prawem zapisu |
+| `106_admin_zarzadza_skladem` | `czy_admin()` w politykach UPDATE/INSERT/DELETE na `event_participants`. `isOwner` w interfejsie to `organizer || isAdmin`, więc administrator widzi pełny panel organizatora (losowanie składu, przypisanie drużyny, gwiazdka kapitana), a polityki z `090` znały wyłącznie organizatora i delegata — kontrolki się klikały i nic nie robiły. Trzeci raz ten sam wzorzec po `098` i `104` |
+| `107_publikacja_taktyki` | `event_team_setup.opublikowana` + zawężenie SELECT na `event_team_setup` i `event_team_slots`: kapitan widzi zawsze, reszta drużyny dopiero po publikacji (`czy_taktyka_opublikowana()`). Wzorem `events.teams_published` z `031` — kapitan układa na raty, a drużyna nie ogląda wersji pośrednich. Czat drużyny NIEzależny od publikacji |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

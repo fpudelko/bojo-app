@@ -121,10 +121,35 @@ export async function updateParticipantPhone(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Kapitan drużyny — JEDEN na drużynę.
+ *
+ * Nadanie gwiazdki komuś nowemu zdejmuje ją poprzedniemu z tej samej drużyny.
+ * Wcześniej był to zwykły przełącznik per osoba, więc dało się mieć pięciu
+ * kapitanów w jednym składzie — a od migracji `105` kapitan ustawia taktykę,
+ * czyli „pięciu kapitanów" znaczy „pięć osób nadpisujących sobie nawzajem
+ * ustawienie". Odebranie gwiazdki (`isCaptain = false`) nie rusza nikogo poza
+ * wskazaną osobą.
+ *
+ * `eventId`/`team` są opcjonalne wyłącznie dla zgodności ze starymi
+ * wywołaniami; bez nich zdjęcie poprzedniego kapitana się nie wykona.
+ */
 export async function setCaptain(
   participantId: string,
   isCaptain: boolean,
+  kontekst?: { eventId: string; team?: string | null },
 ): Promise<void> {
+  if (isCaptain && kontekst?.eventId && kontekst.team) {
+    const { error: bladZdjecia } = await supabase
+      .from('event_participants')
+      .update({ is_captain: false })
+      .eq('event_id', kontekst.eventId)
+      .eq('team', kontekst.team)
+      .neq('id', participantId)
+      .eq('is_captain', true);
+    if (bladZdjecia) throw new Error(bladZdjecia.message);
+  }
+
   const { error } = await supabase
     .from('event_participants')
     .update({ is_captain: isCaptain })

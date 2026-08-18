@@ -87,7 +87,12 @@ type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ust
 // można wpisać po rozpoczęciu". Rozliczenia znikają, gdy mecz jest za darmo —
 // wcześniej otwierały się puste.
 const EVENT_TAB_LABELS: [EventTab, string][] = [
-  ['sklad', 'Skład'],
+  // „Mecz", nie „Skład": ta zakładka trzyma opis, termin, miejsce, licznik
+  // wolnych miejsc, listę graczy, podział na drużyny i zapisy — czyli cały
+  // mecz, a nie sam skład. Nazwa opisywała jedną z siedmiu rzeczy, które tam
+  // są (zgłoszone wprost). Klucz `sklad` zostaje bez zmian: siedzi w adresach
+  // (`?tab=`), w kotwicy `#sklad` i w testach.
+  ['sklad', 'Mecz'],
   // „Taktyka" pojawia się DOPIERO po opublikowaniu składów — przed podziałem
   // na drużyny nie ma czego ustawiać, a zakładka pokazywałaby puste boisko.
   //
@@ -1317,7 +1322,7 @@ export default function EventDetailClient() {
 
   const handleToggleCaptain = async (p: EventParticipant) => {
     setBusy(true);
-    try { await setCaptain(p.id, !p.isCaptain); await load(); }
+    try { await setCaptain(p.id, !p.isCaptain, { eventId: event.id, team: p.team }); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
     finally { setBusy(false); }
   };
