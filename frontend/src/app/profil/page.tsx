@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { hasManagedVenue } from '@/lib/api';
 import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { validatePhone, normalizePhone } from '@/lib/validation';
+import PowiadomieniaPush from '@/components/PowiadomieniaPush';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -376,6 +377,10 @@ export default function ProfilePage() {
             <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
           </Link>
         </div>
+
+        {/* Powiadomienia push — nad panelem administratora i nad wylogowaniem,
+            bo dotyczą wszystkich, a nie tylko mnie. */}
+        <PowiadomieniaPush />
 
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
             hamburger; desktop nadal ma osobne menu z zębatką w Header.tsx) */}
