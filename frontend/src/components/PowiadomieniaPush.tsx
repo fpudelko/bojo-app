@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellOff, ChevronDown, Loader2, Smartphone } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import { stanPush, wlaczPush, wylaczPush, type StanPush } from '@/lib/push';
+import { probnePowiadomienie, stanPush, wlaczPush, wylaczPush, type StanPush } from '@/lib/push';
 import {
   RODZAJE_POWIADOMIEN, pobierzWylaczone, przelacz as przelaczNaLiscie, zapiszWylaczone,
 } from '@/lib/ustawieniaPowiadomien';
@@ -124,6 +124,25 @@ export default function PowiadomieniaPush() {
           </button>
         )}
       </div>
+
+      {/* Próba na żądanie — gdy „nie przychodzą", to jedno kliknięcie mówi,
+          po której stronie szukać: telefonu czy drogi do niego. */}
+      {stan === 'wlaczone' && (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await probnePowiadomienie();
+              toast('Wysłane — powinno pojawić się za chwilę');
+            } catch (blad) {
+              toast(blad instanceof Error ? blad.message : 'Nie udało się wysłać próbnego', 'error');
+            }
+          }}
+          className="mt-3 text-xs font-medium text-primary-700 underline underline-offset-2"
+        >
+          Wyślij próbne powiadomienie
+        </button>
+      )}
 
       {/* Lista rodzajów pojawia się WYŁĄCZNIE przy włączonych powiadomieniach.
           Przy wyłączonych byłaby ustawianiem czegoś, co i tak nie przyjdzie —
