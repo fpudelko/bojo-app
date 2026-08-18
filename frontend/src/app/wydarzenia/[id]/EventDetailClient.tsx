@@ -29,7 +29,6 @@ import {
 } from '@/lib/series';
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
-import { useAdmin } from '@/lib/admin';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
@@ -460,7 +459,6 @@ export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
-  const isAdmin = useAdmin();
   const { toast } = useToast();
 
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -789,7 +787,18 @@ export default function EventDetailClient() {
   // (guest management, entering the match result), not the management panel.
   // The "Zarządzaj wydarzeniem" panel below is gated on `isOwner`, so an admin
   // never gets a shortcut into someone else's match from there.
-  const isOrganizer = !!user && (user.id === event.organizerId || isAdmin);
+  // ADMINISTRATOR NIE JEST ORGANIZATOREM. Wcześniej `|| isAdmin` dawało mu
+  // pełny panel: losowanie składu, przypisywanie drużyn, gwiazdkę kapitana,
+  // ustawienia meczu. Kontrolki się pokazywały, a polityki w bazie znały
+  // wyłącznie organizatora i delegata — więc klikanie kończyło się czerwonym
+  // komunikatem o RLS. Łataliśmy to trzy razy po stronie bazy (`098`, `104`,
+  // `106`) i za każdym razem wychodziło coś kolejnego: przypisanie drużyny,
+  // zapis taktyki, głos na propozycję składu.
+  //
+  // Uprawnienie administratora jest tu po prostu niepotrzebne: mecze prowadzą
+  // organizatorzy, a admin ma własne ekrany (`/admin/*`). Jeden warunek mniej
+  // to koniec całej klasy błędów „przycisk, który nic nie robi".
+  const isOrganizer = !!user && user.id === event.organizerId;
   // Strict ownership — only the actual creator, never admins. Drives the inline
   // "Edytuj" link so admins don't see an edit shortcut on other people's events.
   const isOwner = !!user && user.id === event.organizerId;
@@ -1812,6 +1821,7 @@ export default function EventDetailClient() {
             teamMode={event.teamMode}
             isOrganizer={isOwner || canManageSquad}
             canPropose={!!user && !!myParticipation && !isOwner && !canManageSquad && !event.teamsPublished}
+            mozeGlosowac={!!user && !!myParticipation}
             currentUserId={user?.id}
             busy={busy}
             onSubmit={handleProposeTeams}
