@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Users, LogIn, ChevronRight, Plus, CalendarPlus, MessageCircle } from 'lucide-react';
+import { Users, LogIn, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import IkonaWiadomosci from '@/components/layout/IkonaWiadomosci';
 import Button from '@/components/ui/Button';
 import KodGrupySheet from '@/components/groups/KodGrupySheet';
 import { useAuth } from '@/lib/auth';
@@ -42,12 +43,7 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
         <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
           {g.sport ? sportEmoji(g.sport) : '👥'}
           {nieprzeczytane > 0 && (
-            <MessageCircle
-              className="absolute -left-1.5 -top-1.5 h-4 w-4 text-pink-500"
-              strokeWidth={2.5}
-              fill="currentColor"
-              aria-hidden="true"
-            />
+            <IkonaWiadomosci className="absolute -left-1.5 -top-1.5 h-4 w-4 text-pink-500" />
           )}
           {noweMecze && (
             <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />

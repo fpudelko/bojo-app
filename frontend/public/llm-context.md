@@ -332,6 +332,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-17 — Liczba nadchodzących meczów na „Moje", czytelniejsza chmurka
+
+PROBLEM: kropka przy ikonie w dolnej nawigacji mówi wyłącznie „coś tu jest" — nie wiadomo
+co ani ile, dopóki się nie kliknie. Osobno: chmurka wiadomości narysowana ikoną
+`MessageCircle` z biblioteki lucide w rozmiarze 12 px zlewała się w nieczytelną plamę.
+
+ROZWIĄZANIE BOJO: na ikonie „Moje" stoi zielona plakietka z LICZBĄ nadchodzących meczów,
+w których grasz, czekasz na rezerwie albo je organizujesz — od dzisiaj w przód, bez
+odwołanych. Zero nie pokazuje nic, powyżej dziewięciu „9+". Kolor zielony, poza trójką
+znaczeniowych kolorów Bojo (różowy = wiadomość, niebieski = wymaga akceptacji,
+pomarańczowy = nowość), bo liczba meczów to stan, a nie zdarzenie. Niebieska kropka
+„prośba o dołączenie" schodzi do dolnego rogu ikony, żeby nie znikać pod plakietką.
+Wskaźnik wiadomości to teraz kształt rysowany pod rozmiar 12 px.
+
+MECHANIKA: `policzNadchodzaceMoje()` w `lib/events.ts` (liczy ten sam zbiór co
+`getMyActiveEventIds()`, `head: true` — samo zliczenie, bez wierszy, bo zapytanie leci
+przy każdej zmianie trasy), `components/layout/IkonaWiadomosci.tsx` (kształt chmurki
+z białą obwódką wpisaną w ścieżkę przez `paint-order: stroke`),
+`components/layout/BottomNav.tsx`.
+
 ### 2026-08-17 — Chmurka zamiast różowej kropki, dymek o nowej wiadomości w ekipie
 
 PROBLEM: nieprzeczytaną wiadomość Bojo sygnalizowało różową kropką na dolnej nawigacji
@@ -558,37 +578,3 @@ nowa `getNewGroupEventGroupName()`: nazwa ekipy z najświeższym nowym meczem (g
 jest kilka naraz, wygrywa `createdAt` najpóźniejszy). `BottomNav.tsx` — stan `dymki`
 (Record typ→tekst), `poprzednieAktywne` (ref) łapie wyłącznie przejście false→true,
 licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`, limit 5).
-
-### 2026-08-16 — Przełącznik ekip w belce, ekipa z najbliższym meczem na pulpicie, prawdziwa naprawa kropki na "Moje", filtr znów przesunięty
-
-PROBLEM: kropka „nowe wiadomości" na „Moje" wciąż świeciła się bez śladu wiadomości mimo
-poprzedniej naprawy (przekazanie `unreadMessages` do kart Historii) — bo `EventBrowseCard`
-w ogóle nie renderował plakietki w gałęzi JSX dla rozegranych meczów, niezależnie od tego,
-co dostał w propsie; sam prop docierał, ale nie było go czym pokazać. Filtr
-nieprzeczytanych na `/moje-gry`, przeniesiony w poprzedniej zmianie na sztywno pod
-„Brakuje graczy", zajmował pusty wiersz na całą wysokość sekcji, gdy akurat nie było
-czego tam pokazać — zgłoszone wprost po raz drugi. Strona ekipy nie miała żadnego sposobu
-przełączenia się na inną ekipę bez powrotu do listy `/grupy`. Pulpit zalogowanego nie
-odpowiadał na pytanie „z którą ekipą gram najszybciej" bez przewijania do „Twoje grupy"
-na samym dole.
-
-ROZWIĄZANIE BOJO: plakietka nieprzeczytanych (razem ze statusChipem) doszła też do
-gałęzi „rozegrany/anulowany" karty meczu — kropka na „Moje" ma teraz zawsze widoczny ślad
-w Historii. Filtr nieprzeczytanych próbuje trzech miejsc po kolei: „Brakuje graczy" →
-„Najbliższy mecz" → pusty wiersz jako ostateczność, wyłącznie gdy obie realne sekcje są
-puste naraz. Nazwa ekipy w belce `/grupy/[id]` jest teraz przyciskiem — rozwija listę
-pozostałych ekip użytkownika, klik przełącza. Pulpit dostał nową sekcję „Twoja ekipa gra
-wkrótce" między najbliższym meczem a „Twoje najbliższe mecze": ekipa z najbliższym
-nadchodzącym meczem, link do jej strony.
-
-MECHANIKA: `EventBrowseCard.tsx` — plakietka `pokazNieprzeczytane` + `statusChip` owinięte
-wspólnym `ml-auto` w gałęzi `past`. `GroupDetailClient.tsx` — `mojeEkipy` (`getMyGroups()`),
-`przelacznikOtwarty`, dropdown pod belką z tłem `fixed inset-0` zamykającym po kliknięciu
-poza listą. `DashboardSections.tsx` — `needsPlayers()` wydzielone z `NeedsPlayersSection`
-jako eksportowany predykat (żeby `/moje-gry` mogło policzyć to samo przed renderowaniem,
-bez duplikowania reguły); nowy `NextGroupMatchTeaser({ groupEvents, groups })` — dane
-z `useDashboardData()`, zero nowego zapytania, doprecyzowuje sort po `date+time` po stronie
-klienta (SQL w `getMyGroupEvents()` sortuje tylko po `event_date`). `NextMatchCard.tsx` —
-nowy prop `extra` obok etykiety „Najbliższy mecz". `app/moje-gry/page.tsx` —
-`maBrakujeGraczy`, `extraDlaBrakujeGraczy`/`extraDlaNajblizszego`/
-`pokazPustyNaglowekDlaBrakujeGraczy` decydują, gdzie wyląduje `filtrNieprzeczytanychButton`.
