@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `108` · 38 tabel · 632 testy
+**Stan na:** 2026-08-18 · migracja `108` · 38 tabel · 637 testów
 
 ---
 
@@ -332,6 +332,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Propozycja włączenia powiadomień na stronie meczu
+
+PROBLEM: powiadomienia na telefon dało się włączyć wyłącznie przełącznikiem w profilu,
+a do profilu nikt nie zagląda. Funkcja, o której trzeba dowiedzieć się samemu, dla
+większości ludzi nie istnieje — a akurat ta decyduje, czy Bojo dowozi informację o meczu,
+czy przegrywa z komunikatorem.
+
+ROZWIĄZANIE BOJO: na stronie meczu, w którym gram, pojawia się karta „Damy znać, gdy coś
+się zmieni" z konkretem, co przyjdzie: ktoś napisze do ekipy, zwolni się miejsce, mecz
+zostanie odwołany. Systemowe okno zgody otwiera się DOPIERO po kliknięciu „Włącz" —
+Bojo nigdy nie prosi o zgodę samo z siebie, bo prośba na wejściu kończy się trwałym
+„Zablokuj", którego nie da się cofnąć ze strony. „Nie teraz" odkłada pytanie o 30 dni,
+nie chowa go na zawsze. Na iPhonie bez zainstalowanej aplikacji karta pokazuje instrukcję
+dodania do ekranu głównego zamiast przycisku, który nie mógłby zadziałać.
+
+MECHANIKA: `components/events/ZachetaPush.tsx` renderowany w zakładce „Mecz" wyłącznie
+dla uczestnika przed rozpoczęciem meczu; `odlozZachetePush()` i `czyZachetaOdlozona()`
+w `lib/push.ts` (klucz `bojo:push-odlozone`). Przełącznik w profilu zostaje jako miejsce,
+w którym powiadomienia da się wyłączyć.
+
 ### 2026-08-18 — Administrator przestaje być organizatorem cudzego meczu
 
 PROBLEM: administrator platformy widział na stronie każdego meczu pełny panel organizatora
@@ -527,24 +547,3 @@ i `NotificationBell`; `joinEvent()` i `odmow()` z `lib/eventDeclines.ts`, migrac
 `zaproszenie_na_mecz` dołączone do `WYMAGA_AKCJI` i do sprawdzania stanu w
 `otwarteSprawy()` (`lib/notifications.ts`), pusty stan w `app/wydarzenia/EventsListView.tsx`
 (rozgałęzienie po `getMyGroupIds()`).
-
-### 2026-08-18 — Kiedy kto się zapisał i kto odpadł ze składu
-
-PROBLEM: lista składu w Bojo pokazywała same nazwiska. Nie było widać, kto zapisał się
-pierwszy — a to jedyna rzecz, która tłumaczy kolejność na liście rezerwowej („dlaczego
-jestem na rezerwie"). Osobno: wypisanie się nie zostawiało ŻADNEGO śladu, bo kasuje wiersz
-z listy uczestników. Patrząc na wolne miejsce nie dało się odróżnić „ktoś odpadł" od
-„nikt się nie zapisał".
-
-ROZWIĄZANIE BOJO: przy każdym nazwisku w składzie i na liście rezerwowej stoi czas
-zapisu — „dziś 18:42", „wczoraj 21:05", „sob 14:32", a przy starszych sama data. Pod
-listą jest sekcja „Wypisali się": kto odpadł, kiedy, i czy zrobił to sam, czy usunął go
-organizator. Widzi ją każdy, kto widzi mecz.
-
-MECHANIKA: czas zapisu to `event_participants.created_at` (kolumna istniała od migracji
-`002`, nie była pokazywana), formatowany przez `etykietaZapisu()` w `lib/time.ts`.
-Wypisania: `removeParticipant()` w `lib/events.ts` dopisuje do dziennika meczu wpis
-`participant_left` albo `participant_removed` (rozróżnienie z sesji: czy usuwający to ta
-sama osoba), a `getWypisania()` je czyta. Migracja `101` dokłada drugą politykę SELECT
-na `event_activity_log` obejmującą wyłącznie te dwa rodzaje wpisów — reszta dziennika
-(płatności, zmiany ustawień) zostaje przy organizatorze.
