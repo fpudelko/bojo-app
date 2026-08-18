@@ -1,0 +1,383 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, Send, Trash2, Users } from 'lucide-react';
+import { useAuth, displayName } from '@/lib/auth';
+import { useToast } from '@/lib/toast';
+import {
+  OPCJE_TAKTYKI, domyslneUstawienie, opisTaktyki, pozycjeZeSchematu, ustawieniaDlaSkladu,
+  type Taktyka,
+} from '@/lib/taktyka';
+import {
+  pobierzPozycje, pobierzUstawienie, pobierzWiadomosciDruzyny, ustawNaPozycji,
+  usunWiadomoscDruzyny, wyslijDoDruzyny, zapiszUstawienie, zdejmijZPozycji,
+  type Druzyna, type WiadomoscDruzyny,
+} from '@/lib/taktykaApi';
+import type { EventParticipant } from '@/types';
+
+/**
+ * Taktyka jednej drużyny: ustawienie na boisku, przypisanie graczy do pozycji,
+ * cztery decyzje taktyczne i czat wyłącznie dla tej drużyny.
+ *
+ * PRZYPISANIE PRZEZ DWA STUKNIĘCIA, NIE PRZECIĄGANIE. Przeciąganie na
+ * telefonie walczy z przewijaniem strony i wymaga precyzji, której nie ma się
+ * jedną ręką w tramwaju: stukasz pozycję, potem nazwisko z listy. Ten sam
+ * wzorzec działa myszą, więc nie ma dwóch osobnych ścieżek do utrzymania.
+ *
+ * BOISKO PIONOWO, bo tak wygląda ekran telefonu. Współrzędne z
+ * `pozycjeZeSchematu()` są w procentach, więc pole skaluje się samo i nie ma
+ * tu ani jednej wartości w pikselach.
+ */
+export default function TaktykaDruzyny({
+  eventId, team, nazwa, sport, gracze,
+}: {
+  eventId: string;
+  team: Druzyna;
+  nazwa: string;
+  sport?: string;
+  /** Gracze przypisani do tej drużyny — z zakładki Skład. */
+  gracze: EventParticipant[];
+}) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [schemat, setSchemat] = useState<string | null>(null);
+  const [taktyka, setTaktyka] = useState<Taktyka>({});
+  const [notatka, setNotatka] = useState('');
+  const [pozycje, setPozycje] = useState<Record<number, string>>({});
+  const [wybranySlot, setWybranySlot] = useState<number | null>(null);
+  const [ladowanie, setLadowanie] = useState(true);
+
+  const [wiadomosci, setWiadomosci] = useState<WiadomoscDruzyny[]>([]);
+  const [tresc, setTresc] = useState('');
+  const [wysylanie, setWysylanie] = useState(false);
+  const konGiecListy = useRef<HTMLDivElement>(null);
+
+  const dostepne = ustawieniaDlaSkladu(sport, gracze.length);
+  const aktualnySchemat = schemat ?? domyslneUstawienie(sport, gracze.length);
+  const sloty = pozycjeZeSchematu(aktualnySchemat);
+
+  const wczytaj = useCallback(async () => {
+    setLadowanie(true);
+    try {
+      const [u, p, w] = await Promise.all([
+        pobierzUstawienie(eventId, team),
+        pobierzPozycje(eventId, team),
+        pobierzWiadomosciDruzyny(eventId, team),
+      ]);
+      if (u) {
+        setSchemat(u.schemat);
+        setTaktyka(u.taktyka);
+        setNotatka(u.notatka ?? '');
+      }
+      setPozycje(p);
+      setWiadomosci(w);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się wczytać taktyki', 'error');
+    } finally {
+      setLadowanie(false);
+    }
+  }, [eventId, team, toast]);
+
+  useEffect(() => { wczytaj(); }, [wczytaj]);
+  useEffect(() => {
+    konGiecListy.current?.scrollIntoView({ block: 'end' });
+  }, [wiadomosci.length]);
+
+  if (!user) return null;
+
+  const zmienSchemat = async (nowy: string) => {
+    setSchemat(nowy);
+    // Pozycje NIE są czyszczone przy zmianie ustawienia: numery slotów są
+    // wspólne, więc przejście 1-4-4-2 → 1-4-3-3 zachowuje obronę i bramkarza,
+    // a rusza tylko to, co naprawdę się zmieniło. Czyszczenie wszystkiego
+    // zmuszałoby do ustawiania składu od nowa po każdym kliknięciu.
+    try {
+      await zapiszUstawienie(eventId, team, { schemat: nowy }, user.id);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać ustawienia', 'error');
+    }
+  };
+
+  const zmienTaktyke = async (klucz: keyof Taktyka, wartosc: string) => {
+    // Ponowne kliknięcie w wybraną opcję ją zdejmuje — bez tego decyzji nie
+    // dałoby się cofnąć, a „nie ustalamy tego" jest poprawną odpowiedzią.
+    const nowa = { ...taktyka, [klucz]: taktyka[klucz] === wartosc ? undefined : wartosc } as Taktyka;
+    setTaktyka(nowa);
+    try {
+      await zapiszUstawienie(eventId, team, { taktyka: nowa }, user.id);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać taktyki', 'error');
+    }
+  };
+
+  const przypisz = async (participantId: string) => {
+    if (wybranySlot === null) return;
+    const slot = wybranySlot;
+    setWybranySlot(null);
+    try {
+      await ustawNaPozycji(eventId, team, slot, participantId);
+      setPozycje((prev) => {
+        const kopia: Record<number, string> = {};
+        // Zdejmujemy gracza z poprzedniej pozycji także w stanie widoku —
+        // baza już to zrobiła, ale bez tego nazwisko wisi w dwóch miejscach
+        // do czasu przeładowania.
+        for (const [s, id] of Object.entries(prev)) {
+          if (id !== participantId) kopia[Number(s)] = id;
+        }
+        kopia[slot] = participantId;
+        return kopia;
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się ustawić gracza', 'error');
+    }
+  };
+
+  const zdejmij = async (slot: number) => {
+    try {
+      await zdejmijZPozycji(eventId, team, slot);
+      setPozycje((prev) => {
+        const kopia = { ...prev };
+        delete kopia[slot];
+        return kopia;
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zdjąć gracza', 'error');
+    }
+  };
+
+  const wyslij = async () => {
+    if (!tresc.trim() || wysylanie) return;
+    setWysylanie(true);
+    try {
+      const w = await wyslijDoDruzyny(eventId, team, user.id, displayName(user), tresc);
+      setWiadomosci((prev) => [...prev, w]);
+      setTresc('');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się wysłać', 'error');
+    } finally {
+      setWysylanie(false);
+    }
+  };
+
+  const usun = async (id: string) => {
+    try {
+      await usunWiadomoscDruzyny(id);
+      setWiadomosci((prev) => prev.filter((w) => w.id !== id));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się usunąć', 'error');
+    }
+  };
+
+  const graczById = new Map(gracze.map((g) => [g.id, g]));
+  const obsadzeni = new Set(Object.values(pozycje));
+  const bezPozycji = gracze.filter((g) => !obsadzeni.has(g.id));
+
+  if (ladowanie) {
+    return <div className="flex justify-center py-10 text-slate-300"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Ustawienie ─────────────────────────────────────────────── */}
+      <div>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Ustawienie</p>
+        <div className="scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {dostepne.map((u) => (
+            <button
+              key={u.schemat}
+              type="button"
+              onClick={() => zmienSchemat(u.schemat)}
+              title={u.opis}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
+                aktualnySchemat === u.schemat
+                  ? 'border-primary-700 bg-primary-50 text-primary-700'
+                  : 'border-slate-200 bg-white text-slate-600'
+              }`}
+            >
+              {u.schemat.replace(/^1-/, '')}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          {dostepne.find((u) => u.schemat === aktualnySchemat)?.opis}
+        </p>
+      </div>
+
+      {/* ── Boisko ─────────────────────────────────────────────────── */}
+      <div className="relative w-full overflow-hidden rounded-2xl bg-primary-700" style={{ aspectRatio: '3 / 4' }}>
+        {/* Linie boiska rysowane tłem, nie obrazkiem: obrazek trzeba by
+            dowozić w dwóch wariantach kolorystycznych i skalować. */}
+        <div className="pointer-events-none absolute inset-3 rounded-lg border-2 border-white/25" />
+        <div className="pointer-events-none absolute inset-x-3 top-1/2 border-t-2 border-white/25" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/25" />
+        <div className="pointer-events-none absolute inset-x-1/4 top-3 h-12 rounded-b-lg border-2 border-t-0 border-white/25" />
+        <div className="pointer-events-none absolute inset-x-1/4 bottom-3 h-12 rounded-t-lg border-2 border-b-0 border-white/25" />
+
+        {sloty.map((poz) => {
+          const gracz = pozycje[poz.slot] ? graczById.get(pozycje[poz.slot]) : undefined;
+          const wybrany = wybranySlot === poz.slot;
+          return (
+            <button
+              key={poz.slot}
+              type="button"
+              onClick={() => (gracz ? zdejmij(poz.slot) : setWybranySlot(wybrany ? null : poz.slot))}
+              style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
+              className="absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5"
+              aria-label={gracz ? `${poz.nazwa}: ${gracz.name} — stuknij, żeby zdjąć` : `${poz.nazwa} — wolna pozycja`}
+            >
+              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[11px] font-bold shadow transition ${
+                gracz
+                  ? 'border-white bg-white text-primary-800'
+                  : wybrany
+                    ? 'border-accent-400 bg-accent-400 text-primary-950'
+                    : 'border-white/60 bg-primary-800/70 text-white/80'
+              }`}>
+                {gracz ? gracz.name.slice(0, 2).toUpperCase() : poz.rola}
+              </span>
+              <span className="max-w-full truncate text-[10px] font-semibold text-white drop-shadow">
+                {gracz ? gracz.name.split(' ')[0] : poz.nazwa}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Ławka ──────────────────────────────────────────────────── */}
+      <div>
+        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {wybranySlot !== null
+            ? `Kogo na pozycję „${sloty.find((s) => s.slot === wybranySlot)?.nazwa}"?`
+            : `Bez pozycji · ${bezPozycji.length}`}
+        </p>
+        {bezPozycji.length === 0 ? (
+          <p className="text-xs text-slate-400">Wszyscy ustawieni.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {bezPozycji.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => (wybranySlot === null ? undefined : przypisz(g.id))}
+                disabled={wybranySlot === null}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  wybranySlot === null
+                    ? 'border-slate-200 bg-white text-slate-500'
+                    : 'border-primary-600 bg-primary-50 text-primary-700'
+                }`}
+              >
+                {g.name}
+                {g.isGoalkeeper && ' 🧤'}
+              </button>
+            ))}
+          </div>
+        )}
+        {wybranySlot === null && bezPozycji.length > 0 && (
+          <p className="mt-1 text-[11px] text-slate-400">Stuknij pozycję na boisku, potem gracza.</p>
+        )}
+      </div>
+
+      {/* ── Taktyka ────────────────────────────────────────────────── */}
+      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Jak gramy</p>
+        {OPCJE_TAKTYKI.map(({ klucz, pytanie, opcje }) => (
+          <div key={klucz}>
+            <p className="text-[11px] font-medium text-slate-500">{pytanie}</p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {opcje.map((o) => (
+                <button
+                  key={o.wartosc}
+                  type="button"
+                  onClick={() => zmienTaktyke(klucz, o.wartosc)}
+                  title={o.opis}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                    taktyka[klucz] === o.wartosc
+                      ? 'border-primary-700 bg-primary-50 text-primary-700'
+                      : 'border-slate-200 bg-white text-slate-500'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <p className="text-[11px] font-medium text-slate-500">Stałe fragmenty i uwagi</p>
+          <textarea
+            value={notatka}
+            onChange={(e) => setNotatka(e.target.value)}
+            onBlur={() => zapiszUstawienie(eventId, team, { notatka }, user.id).catch(() => {})}
+            rows={2}
+            maxLength={500}
+            placeholder="Rożne bije Kuba, karne Michał…"
+            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+          />
+        </div>
+
+        {opisTaktyki(taktyka) && (
+          <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-700/50">
+            {opisTaktyki(taktyka)}
+          </p>
+        )}
+      </div>
+
+      {/* ── Czat drużyny ───────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
+          <Users className="h-4 w-4 text-slate-400" />
+          <p className="text-sm font-semibold text-ink">Rozmowa: {nazwa}</p>
+          {/* Bez tego zdania ktoś napisze tu coś, co miało trafić do wszystkich. */}
+          <span className="ml-auto text-[10px] text-slate-400">tylko ta drużyna</span>
+        </div>
+
+        <div className="max-h-72 space-y-2 overflow-y-auto px-3 py-3">
+          {wiadomosci.length === 0 ? (
+            <p className="py-6 text-center text-xs text-slate-400">
+              Ustalcie tu, kto z kim gra i kto bije rożne. Druga drużyna tego nie widzi.
+            </p>
+          ) : wiadomosci.map((w) => {
+            const wlasna = w.userId === user.id;
+            return (
+              <div key={w.id} className={`flex items-end gap-1.5 ${wlasna ? 'justify-end' : 'justify-start'}`}>
+                {wlasna && (
+                  <button type="button" onClick={() => usun(w.id)} aria-label="Usuń wiadomość" className="text-slate-300 hover:text-red-500">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                  wlasna ? 'rounded-br-sm bg-primary-700 text-white' : 'rounded-bl-sm bg-slate-100 text-ink dark:bg-slate-700'
+                }`}>
+                  {!wlasna && <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300">{w.userName}</p>}
+                  <p className="whitespace-pre-wrap break-words text-sm">{w.body}</p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={konGiecListy} />
+        </div>
+
+        <div className="flex items-end gap-2 border-t border-slate-100 px-3 py-2.5 dark:border-slate-700">
+          <textarea
+            value={tresc}
+            onChange={(e) => setTresc(e.target.value)}
+            rows={1}
+            maxLength={1000}
+            placeholder="Napisz do drużyny…"
+            className="flex-1 resize-none rounded-2xl bg-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-slate-700"
+          />
+          <button
+            type="button"
+            onClick={wyslij}
+            disabled={!tresc.trim() || wysylanie}
+            aria-label="Wyślij"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-700 text-white disabled:opacity-40"
+          >
+            {wysylanie ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

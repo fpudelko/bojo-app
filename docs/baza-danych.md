@@ -1,6 +1,6 @@
 # Baza danych
 
-100 migracji (`001`–`102`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+101 migracji (`001`–`103`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -90,6 +90,11 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 | `team_proposal_votes` | `059` | Poparcia propozycji |
 | `tournaments` i 5 tabel `tournament_*` | `029` | Turniej |
 | `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
+| `push_subscriptions` | `102` | Subskrypcje web-push, jedna na przeglądarkę. Każdy widzi i kasuje wyłącznie swoje |
+| `konfiguracja_push` | `102` | Adres funkcji `send-push` i sekret wyzwalacza. RLS bez polityk — przez API nieczytelna |
+| `event_team_setup` | `103` | Ustawienie i taktyka drużyny (jeden wiersz na drużynę meczu) |
+| `event_team_slots` | `103` | Przypisanie gracza do pozycji w ustawieniu |
+| `event_team_messages` | `103` | Czat drużyny — czyta wyłącznie ta drużyna (+ organizator/delegat) |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -141,6 +146,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `100_kasowanie_wiadomosci` | Naprawa polityk SELECT na `event_comments`, `group_posts` i `field_comments`. Kasowanie wiadomości jest MIĘKKIE (UPDATE ustawiający `deleted_at`), a polityka `SELECT USING (deleted_at IS NULL)` wypychała nowy wiersz poza własną widoczność — Postgres sprawdza nowy wiersz także politykami SELECT, więc UPDATE kończył się wyjątkiem `new row violates row-level security policy`, mimo poprawnych polityk UPDATE. Skasowany wiersz widzi teraz ten, kto miał prawo go skasować (warunek jest lustrem polityki UPDATE danej tabeli); zapytania aplikacji i tak filtrują `deleted_at IS NULL` |
 | `101_kto_sie_wypisal` | Druga (permissive) polityka SELECT na `event_activity_log`, obejmująca WYŁĄCZNIE wpisy `participant_left` i `participant_removed` — widzi je każdy, kto widzi mecz (podzapytanie o `events` wykonuje się z uprawnieniami pytającego, więc RLS `events` załatwia widoczność). Reszta dziennika zostaje przy organizatorze (polityka z `026`). Powód: wypisanie się kasuje wiersz z `event_participants` i nie zostawia śladu — nie da się odróżnić „odpadł" od „nigdy się nie zapisał" |
 | `102_push` | Tabela `push_subscriptions` (jeden wiersz = jedna przeglądarka; kluczem `endpoint`, nie `user_id`, bo telefon i laptop to dwie subskrypcje jednej osoby) + `konfiguracja_push` (adres funkcji brzegowej i sekret; RLS WŁĄCZONE i ZERO polityk, więc przez API nieczytelna — czyta wyłącznie wyzwalacz jako `SECURITY DEFINER`). Wyzwalacz `trg_wyslij_push` na `notifications` woła funkcję `send-push` przez `pg_net`. Brak konfiguracji albo brak `pg_net` = wyjście CICHE: kanał dodatkowy nie może wywrócić INSERT-a, w którym powstało powiadomienie w aplikacji. Wdrożenie ręczne → `supabase/functions/send-push/README.md` |
+| `103_taktyka_druzyny` | Trzy tabele pod zakładkę „Taktyka": `event_team_setup` (schemat jako TEKST, np. `1-4-4-2` — pozycje wylicza `lib/taktyka.ts`, więc nowe ustawienie nie wymaga migracji; taktyka jako `jsonb`), `event_team_slots` (kto na której pozycji; UNIQUE po `(event_id, participant_id)`, żeby jedna osoba nie stała w dwóch miejscach) i `event_team_messages` (czat WEWNĄTRZ drużyny, osobny od wspólnej rozmowy meczu). Funkcja `czy_w_druzynie()` (`SECURITY DEFINER`, `STABLE`). Polityka SELECT czatu ma od razu `deleted_at IS NULL OR auth.uid() = user_id` — bez tego autor nie skasuje własnej wiadomości (błąd naprawiany migracją `100` w trzech innych tabelach) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

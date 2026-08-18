@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `102` · 35 tabel · 609 testów
+**Stan na:** 2026-08-18 · migracja `103` · 38 tabel · 624 testy
 
 ---
 
@@ -332,6 +332,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Taktyka drużyny: ustawienie, pozycje i osobny czat (na razie tylko admin)
+
+PROBLEM: po opublikowaniu składów każda drużyna była wyłącznie listą nazwisk. Kto gra
+w obronie, kto na skrzydle i co robimy z piłką — ustalało się ustnie przed meczem, więc
+połowa składu tego nie słyszała. Osobno: rozmowa meczu jest wspólna dla obu drużyn, więc
+nie dało się w niej uzgodnić niczego, czego nie ma przeczytać rywal.
+
+ROZWIĄZANIE BOJO: zakładka „Taktyka", widoczna po opublikowaniu składów. Dla każdej
+drużyny osobno: wybór ustawienia z listy dobranej do liczby graczy (od 1-2-2 na orliku po
+1-4-2-3-1 na pełnym boisku, z opisem co dane ustawienie robi), boisko z pozycjami —
+gracza stawia się dwoma stuknięciami, bez przeciągania — cztery decyzje taktyczne
+(jak bronimy, wyjście od bramkarza, kiedy atakujemy rywala, tempo gry), notatka na stałe
+fragmenty oraz czat wyłącznie dla tej drużyny. Druga drużyna czatu nie widzi.
+
+MECHANIKA: migracja `103` (`event_team_setup`, `event_team_slots`, `event_team_messages`,
+funkcja `czy_w_druzynie()`), `lib/taktyka.ts` (katalog ustawień; pozycje na boisku
+wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalogu, bez
+migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
+razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
+więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.
+
 ### 2026-08-18 — Spójny pasek szukania i filtrów między „Znajdź grę" a „Mapa"
 
 PROBLEM: dwie zakładki tego samego dolnego paska wyglądały jak dwa różne ekrany. Pole
@@ -525,32 +546,3 @@ ETYKIETY — krótkiej i powtarzalnej („Za darmo"); treść o zmiennej długo�
 obiektu) traci na niej kilkadziesiąt pikseli na samą oprawę. Wypisanie się zostaje
 w wariancie „ramka + tekst", nie pełna czerwień — ta jest zarezerwowana dla akcji
 nieodwracalnych, takich jak „Usuń na stałe".
-
-### 2026-08-17 — Zgłaszanie błędów: formularz dla ludzi i automatyczny log awarii
-
-PROBLEM: awaria u użytkownika nie zostawiała ŻADNEGO śladu. `app/error.tsx` wypisywał
-błąd do konsoli przeglądarki, której nikt nie ogląda, a zgłoszenie „coś mi wywaliło"
-przychodziło zrzutem ekranu bez adresu strony, wersji aplikacji i treści błędu — czyli
-w formie droższej do odtworzenia niż sama naprawa.
-
-ROZWIĄZANIE BOJO: Bojo ma stronę `/zglos-blad` (jedno pole na opis, dostępna też bez
-logowania; wejście w profilu oraz w stopce) i automatyczne zapisywanie awarii. Osobno,
-na stronie obiektu, jest „Zgłoś błąd w danych" z listą powodów — to inna sprawa, bo
-katalog pochodzi z OpenStreetMap i takie zgłoszenie NICZEGO nie zmienia automatycznie.
-Adres strony, przeglądarkę, wersję aplikacji i identyfikator użytkownika Bojo dokłada
-samo — zgłaszający nie musi ich szukać. Administrator ma panel `/admin/bledy` z listą,
-licznikiem wystąpień, stosem wywołań i trzema stanami: nowe / w toku / zamknięte.
-
-MECHANIKA: migracja `099` — tabela `zgloszenia_bledow` i RPC `zapisz_zgloszenie_bledu()`
-(`SECURITY DEFINER`, jedyne wejście do zapisu; tabela nie ma polityki INSERT, więc klient
-nie decyduje o statusie, liczniku ani `user_id`). Czytać może wyłącznie administrator
-(`czy_admin()` z `098`) — w adresie strony bywa link do prywatnego meczu. Awarie są
-GRUPOWANE po odcisku (komunikat + pierwsza ramka stosu, z wyciętym hashem builda), więc
-jeden zepsuty widok daje jeden wiersz z licznikiem zamiast setek kopii, a błąd nie zakłada
-nowego wiersza po każdym wdrożeniu. Po stronie klienta: `lib/bledy.ts` (odcisk, jeden
-błąd na sesję, twardy limit 10, zapis nigdy nie rzuca wyjątku),
-`components/PrzechwytywanieBledow.tsx` (`window.onerror`, `unhandledrejection`),
-`lib/zgloszeniaBledow.ts` (odczyt i zmiana statusu dla panelu),
-`components/venues/ZglosBladObiektu.tsx` (zgłoszenie przypięte do `field_id`).
-Naprawa danych U ŹRÓDŁA idzie osobnym, istniejącym wcześniej odnośnikiem „Zgłoś
-poprawkę" — notatka w OSM.
