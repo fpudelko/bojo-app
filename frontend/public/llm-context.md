@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `108` · 38 tabel · 637 testów
+**Stan na:** 2026-08-19 · migracja `109` · 38 tabel · 645 testów
 
 ---
 
@@ -332,6 +332,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — Ustawienia powiadomień i powiadomienia o wiadomościach
+
+PROBLEM: powiadomienia na telefon działały „wszystko albo nic" — jedyną reakcją na zbyt
+wiele było wyłączenie ich w całości, razem z tymi, które naprawdę mają znaczenie
+(zwolnione miejsce, odwołany mecz). Osobno: wiadomości w rozmowie meczu i na tablicy
+ekipy NIE miały żadnego powiadomienia — nieprzeczytane liczyła sama przeglądarka, więc
+o nowej wiadomości dowiadywał się tylko ten, kto i tak otworzył aplikację.
+
+ROZWIĄZANIE BOJO: w profilu, pod przełącznikiem powiadomień, jest rozwijana lista „O czym
+powiadamiać" z osobnym przełącznikiem dla każdego rodzaju: zwolnione miejsce, odwołany
+mecz, pytanie o udział, zaproszenie, prośba o dołączenie, składy, nowy mecz w ekipie,
+wiadomości w meczu, wiadomości w ekipie, ogłoszenia. Rzeczy wymagające reakcji stoją na
+górze i mają znacznik „ważne" — Bojo ostrzega, ale nie zabrania ich wyłączyć. Ustawienia
+dotyczą WYŁĄCZNIE telefonu: dzwonek w aplikacji pokazuje wszystko.
+
+Doszły powiadomienia o wiadomościach (w meczu i w ekipie) oraz o opublikowaniu składów.
+Wiadomości mają zaporę: najwyżej jedno powiadomienie na godzinę z danej rozmowy, bo
+rozmowa przed meczem potrafi mieć trzydzieści wpisów w kwadrans, a trzydzieści
+powiadomień kończy się wyłączeniem wszystkich.
+
+MECHANIKA: migracja `109` — `profiles.push_wylaczone` (lista WYŁĄCZONYCH, żeby nowy rodzaj
+był domyślnie aktywny), filtr w wyzwalaczu wysyłki, wyzwalacze na `event_comments`,
+`group_posts` i `events.teams_published`. Klient: `lib/ustawieniaPowiadomien.ts`
+i `components/PowiadomieniaPush.tsx`. Przy logowaniu przez Google Bojo prosi teraz zawsze
+o wybór konta (`prompt=select_account`) — bez tego przy kilku kontach Google logowało od
+razu na pierwsze z brzegu.
+
 ### 2026-08-18 — Propozycja włączenia powiadomień na stronie meczu
 
 PROBLEM: powiadomienia na telefon dało się włączyć wyłącznie przełącznikiem w profilu,
@@ -524,26 +551,3 @@ nieprzeczytaną), `components/layout/BottomNav.tsx` (nowy klucz licznika dymka
 `wiadomosc-w-meczu` — stary niósł zużyte pokazania dawnej, ogólnikowej treści),
 `app/grupy/GroupsClient.tsx`. Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie
 za coś, do czego da się dojść z ekranu, na który wskazuje.
-
-### 2026-08-18 — „Gram" jednym kliknięciem i pusty stan, który prowadzi dalej
-
-PROBLEM: na zaproszenie do meczu dało się odpowiedzieć wyłącznie z poziomu strony meczu —
-trzeba było otworzyć kartę, przewinąć, zapisać się. Czyli „tak" kosztowało więcej kliknięć
-niż „nie" (nie robisz nic), w produkcie, którego sensem jest zebranie składu. Przy stałej
-ekipie ta sama pętla wraca co tydzień. Osobno: pusta lista „Znajdź grę" mówiła „Brak
-meczów" i proponowała stworzenie meczu publicznego — komuś, kto nikogo w Bojo nie zna,
-kończy się to meczem bez ludzi.
-
-ROZWIĄZANIE BOJO: przy zaproszeniu — na liście zaproszeń i w panelu powiadomień — stoi
-para małych przycisków „Gram" / „Nie gram". Odpowiedź zapisuje się bez otwierania meczu,
-karta znika od razu, a chmurka mówi, co naprawdę zaszło: skład, rezerwa albo prośba
-czekająca na akceptację. „Nie gram" to jawna odmowa widoczna dla organizatora, nie ciche
-schowanie karty. Zaproszenie liczy się teraz jako sprawa wymagająca decyzji (niebieski
-znacznik) i zamyka je zarówno zapis, jak i odmowa. Pusty stan „Znajdź grę" kieruje osobę
-bez ekipy do dołączenia kodem, a nie do zakładania meczu publicznego.
-
-MECHANIKA: `components/events/OdpowiedzJednymKlikiem.tsx` (wspólny dla `InviteList`
-i `NotificationBell`; `joinEvent()` i `odmow()` z `lib/eventDeclines.ts`, migracja `097`),
-`zaproszenie_na_mecz` dołączone do `WYMAGA_AKCJI` i do sprawdzania stanu w
-`otwarteSprawy()` (`lib/notifications.ts`), pusty stan w `app/wydarzenia/EventsListView.tsx`
-(rozgałęzienie po `getMyGroupIds()`).
