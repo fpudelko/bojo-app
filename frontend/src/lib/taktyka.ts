@@ -61,8 +61,12 @@ function opisLinii(indeks: number, ile: number) {
  *
  * Bramkarz stoi na `y = 6`, ostatnia linia na `y = 86`, reszta w równych
  * odstępach. W poziomie linia jest rozłożona symetrycznie względem środka,
- * z marginesem 12% na skrzydła — bez marginesu skrajny obrońca lądował na
- * samej krawędzi i jego nazwisko wychodziło poza boisko.
+ * z marginesem 20% na skrzydła.
+ *
+ * MARGINES BYŁ 12% I BYŁ ZA MAŁY: kółko skrajnego gracza dotykało linii
+ * bocznej, a jego imię wychodziło poza murawę (zgłoszone wprost). 20% zostawia
+ * miejsce na kółko i podpis po obu stronach, kosztem odrobiny „rozstawienia" —
+ * to nie jest mapa taktyczna w skali, tylko czytelny obrazek na telefonie.
  */
 export function pozycjeZeSchematu(schemat: string): Pozycja[] {
   const linie = schemat.split('-').map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
@@ -80,7 +84,7 @@ export function pozycjeZeSchematu(schemat: string): Pozycja[] {
     for (let j = 0; j < ilu; j += 1) {
       // Jeden gracz w linii staje na środku; kilku rozkłada się równo
       // w pasie 12–88% szerokości.
-      const x = ilu === 1 ? 50 : 12 + (j * (88 - 12)) / (ilu - 1);
+      const x = ilu === 1 ? 50 : 20 + (j * (80 - 20)) / (ilu - 1);
       pozycje.push({ slot, x: Math.round(x), y: Math.round(y), rola, nazwa });
       slot += 1;
     }
@@ -176,14 +180,18 @@ export function domyslneUstawienie(sport: string | undefined, ilu: number): stri
  * została notatką, bo to nazwiska, a nie wybór z listy.
  */
 export interface Taktyka {
-  krycie?: 'strefa' | 'na-wlasnego';
-  wyjscie?: 'krotko' | 'dlugo';
-  pressing?: 'wysoki' | 'sredni' | 'niski';
-  tempo?: 'szybko' | 'spokojnie';
+  krycie?: 'strefa' | 'na-wlasnego' | 'inne';
+  wyjscie?: 'krotko' | 'dlugo' | 'inne';
+  pressing?: 'wysoki' | 'sredni' | 'niski' | 'inne';
+  tempo?: 'szybko' | 'spokojnie' | 'inne';
+  /** Treść wpisana po wybraniu „Inne" — po jednej na pytanie. */
+  wlasne?: Partial<Record<'krycie' | 'wyjscie' | 'pressing' | 'tempo', string>>;
 }
 
+export type KluczTaktyki = 'krycie' | 'wyjscie' | 'pressing' | 'tempo';
+
 export const OPCJE_TAKTYKI: {
-  klucz: keyof Taktyka;
+  klucz: KluczTaktyki;
   pytanie: string;
   opcje: { wartosc: string; label: string; opis: string }[];
 }[] = [
@@ -204,12 +212,16 @@ export const OPCJE_TAKTYKI: {
     ],
   },
   {
+    // GDZIE odbieramy piłkę — nie „jak bronimy". Pierwsza wersja miała tu
+    // „Od razu / Od połowy / Na swojej połowie", czyli dwie ostatnie opisywały
+    // to samo cofnięcie i różniły się wyłącznie sformułowaniem (zgłoszone
+    // wprost). Zostają dwie odpowiedzi, które naprawdę się wykluczają:
+    // ruszamy pod ich bramkę albo czekamy u siebie.
     klucz: 'pressing',
-    pytanie: 'Kiedy atakujemy rywala',
+    pytanie: 'Gdzie odbieramy piłkę',
     opcje: [
-      { wartosc: 'wysoki', label: 'Od razu', opis: 'Naciskamy pod ich bramką — męczące, ale duszy rywala' },
-      { wartosc: 'sredni', label: 'Od połowy', opis: 'Ustawiamy się i czekamy na środku' },
-      { wartosc: 'niski', label: 'Na swojej połowie', opis: 'Cofamy się, gramy z kontry' },
+      { wartosc: 'wysoki', label: 'Pod ich bramką', opis: 'Naciskamy od razu po stracie — męczące, ale dusi rywala' },
+      { wartosc: 'niski', label: 'U siebie', opis: 'Cofamy się, ustawiamy blok i gramy z kontry' },
     ],
   },
   {
@@ -222,11 +234,31 @@ export const OPCJE_TAKTYKI: {
   },
 ];
 
+/**
+ * „Inne" jest przy KAŻDYM pytaniu i otwiera pole tekstowe.
+ *
+ * Lista zamknięta zakłada, że przewidzieliśmy wszystko, co ekipa może ustalić
+ * — a nie przewidzieliśmy. Bez tej furtki jedyną odpowiedzią na „my gramy
+ * inaczej" jest nieodpowiadanie wcale, czyli puste pytanie i wrażenie, że
+ * aplikacja nie rozumie, jak gracie.
+ */
+export const WARTOSC_INNE = 'inne';
+
+/** Odpowiedź na jedno pytanie, gotowa do wyświetlenia. Dla „Inne" oddaje
+ *  wpisany tekst, a nie słowo „Inne" — to ono jest odpowiedzią. */
+export function odpowiedzTaktyki(t: Taktyka | null | undefined, klucz: KluczTaktyki): string {
+  if (!t) return '';
+  const wybor = t[klucz];
+  if (!wybor) return '';
+  if (wybor === WARTOSC_INNE) return t.wlasne?.[klucz]?.trim() ?? '';
+  return OPCJE_TAKTYKI.find((o) => o.klucz === klucz)?.opcje.find((x) => x.wartosc === wybor)?.label ?? '';
+}
+
 /** Taktyka jednym zdaniem — do nagłówka i do wiadomości w czacie drużyny. */
 export function opisTaktyki(t: Taktyka | null | undefined): string {
   if (!t) return '';
-  const czesci = OPCJE_TAKTYKI
-    .map(({ klucz, opcje }) => opcje.find((o) => o.wartosc === t[klucz])?.label)
-    .filter(Boolean);
-  return czesci.join(' · ');
+  return OPCJE_TAKTYKI
+    .map(({ klucz }) => odpowiedzTaktyki(t, klucz))
+    .filter((x) => x.length > 0)
+    .join(' · ');
 }

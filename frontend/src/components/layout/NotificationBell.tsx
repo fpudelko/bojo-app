@@ -94,8 +94,16 @@ export default function NotificationBell() {
   // wygasić prośbę, która naprawdę czeka.
   const [otwarte, setOtwarte] = useState<Set<string> | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const listaRef = useRef<HTMLUListElement>(null);
 
   const unread = notifs.filter((n) => !n.readAt).length;
+
+  // Otwarcie panelu zawsze pokazuje GÓRĘ listy, czyli najnowsze powiadomienie.
+  // Przeglądarka potrafi zapamiętać poprzednią pozycję przewijania i wtedy
+  // panel otwiera się w środku historii — z nową rzeczą schowaną nad krawędzią.
+  useEffect(() => {
+    if (open && listaRef.current) listaRef.current.scrollTop = 0;
+  }, [open, notifs.length]);
 
   /** Sprawa zamknięta odpowiedzią z panelu. Zdejmujemy powiadomienie ze zbioru
    *  otwartych zamiast przeładowywać całą listę: pozycja przestaje krzyczeć
@@ -193,8 +201,11 @@ export default function NotificationBell() {
         )}
       </button>
 
+      {/* `max-h-[80vh]` zamiast wysokości bez ograniczenia: na niskim ekranie
+          panel schodził poniżej krawędzi i dolne powiadomienia były poza
+          zasięgiem, bo przewijała się wtedy STRONA POD SPODEM, a nie panel. */}
       {open && (
-        <div className="fixed inset-x-3 top-14 z-[1010] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
+        <div className="fixed inset-x-3 top-14 z-[1010] flex max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <div className="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
             <p className="text-sm font-semibold text-ink">Powiadomienia</p>
             {notifs.length > 0 && (
@@ -209,7 +220,12 @@ export default function NotificationBell() {
               <p className="text-xs text-slate-300 mt-1">Damy znać, gdy coś się wydarzy w Twoich grach.</p>
             </div>
           ) : (
-            <ul className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+            // `overscroll-contain` — bez tego przewijanie listy po dojechaniu
+            // do jej końca „przeskakuje" na stronę pod spodem (scroll
+            // chaining): ekran ucieka, a do góry listy nie da się wrócić
+            // palcem (zgłoszone wprost). `flex-1` zamiast sztywnego `max-h-80`,
+            // żeby panel wykorzystał całą dostępną wysokość.
+            <ul ref={listaRef} className="flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain">
               {notifs.map((n) => {
                 // Dopóki stanu nie znamy (`otwarte === null`), zachowujemy się
                 // jak dotąd: typ decyduje. Gdy znamy — decyduje sprawa.

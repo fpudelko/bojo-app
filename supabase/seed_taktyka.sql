@@ -17,19 +17,15 @@
 --   • migracje do `103` włącznie uruchomione,
 --   • konta test1..test10@example.com (supabase/seed-test-users.sql),
 --   • konto franekks@gmail.com — organizator wszystkich meczów,
---   • konto franciszekpudelko@gmail.com — ZAPISANE do każdego meczu, czyli to,
---     na którym realnie klikasz. Mecze są PRYWATNE, więc widzi je organizator
---     i uczestnicy; bez zapisania nie zobaczyłbyś ich wcale.
+--   • konto franciszekpudelko@gmail.com — ZAPISANE do każdego meczu jako
+--     KAPITAN drużyny Zielonych (A), czyli to, na którym realnie klikasz.
+--     Mecze są PRYWATNE, więc widzi je organizator i uczestnicy; bez zapisania
+--     nie zobaczyłbyś ich wcale. Kapitan, bo od migracji `105` taktykę ustawia
+--     wyłącznie on — reszcie drużyny wyświetla się gotowy opis.
 --
--- WAŻNE: zakładka „Taktyka" jest dziś widoczna WYŁĄCZNIE dla administratora
--- platformy. Jeśli jej nie widzisz mimo opublikowanych składów — sprawdź, czy
--- na koncie, z którego patrzysz, masz `profiles.is_admin = true`:
---
---   UPDATE profiles SET is_admin = true
---    WHERE id = (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
---
--- Wymaga też migracji `104` — bez niej zakładka się otworzy, ale każdy zapis
--- skończy się komunikatem o polityce bezpieczeństwa.
+-- WAŻNE: zakładkę „Taktyka" widzi ten, kto GRA w meczu i ma przypisaną
+-- drużynę — i widzi wyłącznie SWOJĄ. Uprawnienia administratora nie mają tu
+-- już nic do rzeczy (do migracji `104` włącznie było odwrotnie).
 --
 -- JAK PRZEZ TO PRZEJŚĆ
 -- Wejdź na /moje-gry. Mecze mają w tytule numer („T01 …"), a opis zaczyna się
@@ -327,6 +323,13 @@ BEGIN
     (eid, 'A', t2, 'Michał Zieliński', 'Biorę. Będę 10 minut wcześniej.', now() - interval '1 hour 40 minutes'),
     (eid, 'B', t7, 'Janek Bąk', 'Cofamy się i gramy z kontry, nie wychodzimy wysoko.', now() - interval '1 hour 30 minutes'),
     (eid, 'B', t8, 'Olek Duda', 'Jasne. Kto na prawej obronie?', now() - interval '1 hour 20 minutes');
+
+  -- KAPITAN: konto testowe w każdej drużynie A. Zakładkę „Taktyka" widzi ten,
+  -- kto gra w meczu, a USTAWIA wyłącznie kapitan — bez tego wpisu skrypt dawałby
+  -- widok do czytania i nie dałoby się niczego kliknąć.
+  UPDATE event_participants p SET is_captain = true
+   WHERE p.user_id = fp
+     AND p.event_id IN (SELECT id FROM events WHERE description LIKE '[TAK]%');
 
   RAISE NOTICE 'Gotowe: 12 scenariuszy taktyki. Wejdź na /moje-gry i zacznij od T12 — tam wszystko jest już ustawione.';
 END $$;

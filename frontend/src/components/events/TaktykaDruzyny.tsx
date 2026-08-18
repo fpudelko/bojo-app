@@ -5,8 +5,8 @@ import { Loader2, Send, Trash2, Users } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  OPCJE_TAKTYKI, domyslneUstawienie, opisTaktyki, pozycjeZeSchematu, ustawieniaDlaSkladu,
-  type Taktyka,
+  OPCJE_TAKTYKI, WARTOSC_INNE, domyslneUstawienie, odpowiedzTaktyki, opisTaktyki,
+  pozycjeZeSchematu, ustawieniaDlaSkladu, type KluczTaktyki, type Taktyka,
 } from '@/lib/taktyka';
 import {
   pobierzPozycje, pobierzUstawienie, pobierzWiadomosciDruzyny, ustawNaPozycji,
@@ -19,6 +19,14 @@ import type { EventParticipant } from '@/types';
  * Taktyka jednej drużyny: ustawienie na boisku, przypisanie graczy do pozycji,
  * cztery decyzje taktyczne i czat wyłącznie dla tej drużyny.
  *
+ * USTAWIA WYŁĄCZNIE KAPITAN, reszta drużyny to samo widzi. Bez tego skład
+ * zmieniałby się pod ręką dziesięciu osób naraz i nikt nie wiedziałby, która
+ * wersja obowiązuje — a ustalenie ustawienia to jedna decyzja, nie głosowanie.
+ * Kapitana wskazuje organizator w zakładce „Skład" (gwiazdka przy nazwisku).
+ * Dla reszty ten sam ekran renderuje się jako czytelny opis: boisko z obsadą,
+ * cztery odpowiedzi i notatka — bez ani jednego przycisku, który i tak nic by
+ * nie zrobił.
+ *
  * PRZYPISANIE PRZEZ DWA STUKNIĘCIA, NIE PRZECIĄGANIE. Przeciąganie na
  * telefonie walczy z przewijaniem strony i wymaga precyzji, której nie ma się
  * jedną ręką w tramwaju: stukasz pozycję, potem nazwisko z listy. Ten sam
@@ -29,7 +37,7 @@ import type { EventParticipant } from '@/types';
  * tu ani jednej wartości w pikselach.
  */
 export default function TaktykaDruzyny({
-  eventId, team, nazwa, sport, gracze,
+  eventId, team, nazwa, sport, gracze, mozeEdytowac, kapitan,
 }: {
   eventId: string;
   team: Druzyna;
@@ -37,6 +45,10 @@ export default function TaktykaDruzyny({
   sport?: string;
   /** Gracze przypisani do tej drużyny — z zakładki Skład. */
   gracze: EventParticipant[];
+  /** Czy patrzący jest kapitanem tej drużyny. `false` = widok do czytania. */
+  mozeEdytowac: boolean;
+  /** Imię kapitana — do zdania „ustawia {kto}", żeby wiadomo było, kogo pytać. */
+  kapitan?: string;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -99,16 +111,20 @@ export default function TaktykaDruzyny({
     }
   };
 
-  const zmienTaktyke = async (klucz: keyof Taktyka, wartosc: string) => {
-    // Ponowne kliknięcie w wybraną opcję ją zdejmuje — bez tego decyzji nie
-    // dałoby się cofnąć, a „nie ustalamy tego" jest poprawną odpowiedzią.
-    const nowa = { ...taktyka, [klucz]: taktyka[klucz] === wartosc ? undefined : wartosc } as Taktyka;
-    setTaktyka(nowa);
+  const zapiszTaktyke = async (nowa: Taktyka) => {
     try {
       await zapiszUstawienie(eventId, team, { taktyka: nowa }, user.id);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać taktyki', 'error');
     }
+  };
+
+  const zmienTaktyke = async (klucz: KluczTaktyki, wartosc: string) => {
+    // Ponowne kliknięcie w wybraną opcję ją zdejmuje — bez tego decyzji nie
+    // dałoby się cofnąć, a „nie ustalamy tego" jest poprawną odpowiedzią.
+    const nowa = { ...taktyka, [klucz]: taktyka[klucz] === wartosc ? undefined : wartosc } as Taktyka;
+    setTaktyka(nowa);
+    await zapiszTaktyke(nowa);
   };
 
   const przypisz = async (participantId: string) => {
@@ -181,7 +197,15 @@ export default function TaktykaDruzyny({
     <div className="space-y-4">
       {/* ── Ustawienie ─────────────────────────────────────────────── */}
       <div>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Ustawienie</p>
+        <div className="mb-1.5 flex items-baseline gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Ustawienie</p>
+          {!mozeEdytowac && (
+            <span className="text-[11px] text-slate-400">
+              ustawia {kapitan ? `kapitan · ${kapitan}` : 'kapitan drużyny'}
+            </span>
+          )}
+        </div>
+        {mozeEdytowac ? (
         <div className="scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {dostepne.map((u) => (
             <button
@@ -199,13 +223,20 @@ export default function TaktykaDruzyny({
             </button>
           ))}
         </div>
+        ) : (
+          <p className="text-sm font-bold text-ink">{aktualnySchemat.replace(/^1-/, '')}</p>
+        )}
         <p className="mt-1 text-xs text-slate-500">
           {dostepne.find((u) => u.schemat === aktualnySchemat)?.opis}
         </p>
       </div>
 
       {/* ── Boisko ─────────────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden rounded-2xl bg-primary-700" style={{ aspectRatio: '3 / 4' }}>
+      {/* Węższe niż cała szerokość ekranu (`max-w-[300px]`) i wyśrodkowane.
+          Pełna szerokość telefonu dawała boisko wysokie na pół ekranu, po
+          którym trzeba było przewijać, żeby zobaczyć obie linie naraz —
+          a to jest obrazek do rzutu oka, nie mapa w skali (zgłoszone wprost). */}
+      <div className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-2xl bg-primary-700" style={{ aspectRatio: '3 / 4' }}>
         {/* Linie boiska rysowane tłem, nie obrazkiem: obrazek trzeba by
             dowozić w dwóch wariantach kolorystycznych i skalować. */}
         <div className="pointer-events-none absolute inset-3 rounded-lg border-2 border-white/25" />
@@ -221,12 +252,13 @@ export default function TaktykaDruzyny({
             <button
               key={poz.slot}
               type="button"
+              disabled={!mozeEdytowac}
               onClick={() => (gracz ? zdejmij(poz.slot) : setWybranySlot(wybrany ? null : poz.slot))}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
-              className="absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5"
-              aria-label={gracz ? `${poz.nazwa}: ${gracz.name} — stuknij, żeby zdjąć` : `${poz.nazwa} — wolna pozycja`}
+              className="absolute flex w-14 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
+              aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[11px] font-bold shadow transition ${
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
                 gracz
                   ? 'border-white bg-white text-primary-800'
                   : wybrany
@@ -246,7 +278,7 @@ export default function TaktykaDruzyny({
       {/* ── Ławka ──────────────────────────────────────────────────── */}
       <div>
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          {wybranySlot !== null
+          {mozeEdytowac && wybranySlot !== null
             ? `Kogo na pozycję „${sloty.find((s) => s.slot === wybranySlot)?.nazwa}"?`
             : `Bez pozycji · ${bezPozycji.length}`}
         </p>
@@ -259,8 +291,8 @@ export default function TaktykaDruzyny({
                 key={g.id}
                 type="button"
                 onClick={() => (wybranySlot === null ? undefined : przypisz(g.id))}
-                disabled={wybranySlot === null}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                disabled={!mozeEdytowac || wybranySlot === null}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-default ${
                   wybranySlot === null
                     ? 'border-slate-200 bg-white text-slate-500'
                     : 'border-primary-600 bg-primary-50 text-primary-700'
@@ -272,7 +304,7 @@ export default function TaktykaDruzyny({
             ))}
           </div>
         )}
-        {wybranySlot === null && bezPozycji.length > 0 && (
+        {mozeEdytowac && wybranySlot === null && bezPozycji.length > 0 && (
           <p className="mt-1 text-[11px] text-slate-400">Stuknij pozycję na boisku, potem gracza.</p>
         )}
       </div>
@@ -280,47 +312,86 @@ export default function TaktykaDruzyny({
       {/* ── Taktyka ────────────────────────────────────────────────── */}
       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Jak gramy</p>
-        {OPCJE_TAKTYKI.map(({ klucz, pytanie, opcje }) => (
-          <div key={klucz}>
-            <p className="text-[11px] font-medium text-slate-500">{pytanie}</p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {opcje.map((o) => (
-                <button
-                  key={o.wartosc}
-                  type="button"
-                  onClick={() => zmienTaktyke(klucz, o.wartosc)}
-                  title={o.opis}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                    taktyka[klucz] === o.wartosc
-                      ? 'border-primary-700 bg-primary-50 text-primary-700'
-                      : 'border-slate-200 bg-white text-slate-500'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
+
+        {mozeEdytowac ? (
+          OPCJE_TAKTYKI.map(({ klucz, pytanie, opcje }) => (
+            <div key={klucz}>
+              <p className="text-[11px] font-medium text-slate-500">{pytanie}</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {[...opcje, { wartosc: WARTOSC_INNE, label: 'Inne', opis: 'Wpisz własnymi słowami' }].map((o) => (
+                  <button
+                    key={o.wartosc}
+                    type="button"
+                    onClick={() => zmienTaktyke(klucz, o.wartosc)}
+                    title={o.opis}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                      taktyka[klucz] === o.wartosc
+                        ? 'border-primary-700 bg-primary-50 text-primary-700'
+                        : 'border-slate-200 bg-white text-slate-500'
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {/* Pole otwiera się DOPIERO po wybraniu „Inne" — zawsze widoczne
+                  dokładałoby cztery puste ramki do ekranu, na którym zwykle
+                  klika się same gotowe odpowiedzi. */}
+              {taktyka[klucz] === WARTOSC_INNE && (
+                <input
+                  value={taktyka.wlasne?.[klucz] ?? ''}
+                  onChange={(e) => setTaktyka((t) => ({
+                    ...t, wlasne: { ...t.wlasne, [klucz]: e.target.value },
+                  }))}
+                  onBlur={() => zapiszTaktyke(taktyka)}
+                  maxLength={120}
+                  placeholder={`${pytanie} — jak u Was?`}
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                />
+              )}
             </div>
+          ))
+        ) : (
+          /* Widok dla drużyny: same odpowiedzi, bez pytań bez odpowiedzi.
+             Nieustalona decyzja nie renderuje się wcale — pusty wiersz „Tempo
+             gry: —" mówi tylko tyle, że ktoś czegoś nie kliknął. */
+          <div className="space-y-2">
+            {OPCJE_TAKTYKI.map(({ klucz, pytanie }) => {
+              const odp = odpowiedzTaktyki(taktyka, klucz);
+              if (!odp) return null;
+              return (
+                <div key={klucz} className="flex items-baseline gap-2">
+                  <span className="shrink-0 text-[11px] text-slate-400">{pytanie}</span>
+                  <span className="text-sm font-semibold text-ink">{odp}</span>
+                </div>
+              );
+            })}
+            {!opisTaktyki(taktyka) && (
+              <p className="text-sm text-slate-400">
+                {kapitan ? `${kapitan} jeszcze nic nie ustalił.` : 'Kapitan jeszcze nic nie ustalił.'}
+              </p>
+            )}
           </div>
-        ))}
+        )}
 
         <div>
           <p className="text-[11px] font-medium text-slate-500">Stałe fragmenty i uwagi</p>
-          <textarea
-            value={notatka}
-            onChange={(e) => setNotatka(e.target.value)}
-            onBlur={() => zapiszUstawienie(eventId, team, { notatka }, user.id).catch(() => {})}
-            rows={2}
-            maxLength={500}
-            placeholder="Rożne bije Kuba, karne Michał…"
-            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-          />
+          {mozeEdytowac ? (
+            <textarea
+              value={notatka}
+              onChange={(e) => setNotatka(e.target.value)}
+              onBlur={() => zapiszUstawienie(eventId, team, { notatka }, user.id).catch(() => {})}
+              rows={2}
+              maxLength={500}
+              placeholder="Rożne bije Kuba, karne Michał…"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+            />
+          ) : notatka.trim() ? (
+            <p className="mt-1 whitespace-pre-line text-sm text-ink">{notatka}</p>
+          ) : (
+            <p className="mt-1 text-sm text-slate-400">Nic dopisanego.</p>
+          )}
         </div>
-
-        {opisTaktyki(taktyka) && (
-          <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-700/50">
-            {opisTaktyki(taktyka)}
-          </p>
-        )}
       </div>
 
       {/* ── Czat drużyny ───────────────────────────────────────────── */}
