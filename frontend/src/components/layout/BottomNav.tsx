@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, Plus, CalendarDays, Users as UsersIcon, MessageCircle } from 'lucide-react';
+import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
-import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
+import IkonaWiadomosci from './IkonaWiadomosci';
+import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, policzNadchodzaceMoje, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
 import { getMyGroups, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
 import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
 import { hasUnreadEventMessages } from '@/lib/comments';
@@ -80,7 +81,20 @@ export default function BottomNav() {
     return () => { aktualne = false; };
   }, [user, pathname]);
 
-  // Różowe kropki „nowe wiadomości" — osobne zapytanie od niebieskiej wyżej,
+  // Liczba nadchodzących meczów na „Moje". Kropka mówi tylko „coś tu jest";
+  // liczba mówi, ile masz zaklepanych gier — i to jest informacja, po którą
+  // ktoś sięga codziennie, a nie raz przy zapaleniu wskaźnika.
+  const [ileMoich, setIleMoich] = useState(0);
+  useEffect(() => {
+    if (!user) { setIleMoich(0); return; }
+    let aktualne = true;
+    policzNadchodzaceMoje(user.id)
+      .then((v) => { if (aktualne) setIleMoich(v); })
+      .catch(() => { if (aktualne) setIleMoich(0); });
+    return () => { aktualne = false; };
+  }, [user, pathname]);
+
+  // Różowe chmurki „nowe wiadomości" — osobne zapytanie od niebieskiej wyżej,
   // bo to inne znaczenie (patrz komentarz przy `dot` w `NavLink`), nie inny
   // poziom pilności.
   const [unreadEvents, setUnreadEvents] = useState(false);
@@ -227,7 +241,7 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek, dymekAlign = 'center',
+    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0,
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
@@ -243,8 +257,19 @@ export default function BottomNav() {
         Kropka mówi wyłącznie "coś tu jest" i wymaga zapamiętania koloru;
         chmurka mówi "ktoś napisał" bez tłumaczenia (zgłoszone wprost:
         "różowa kropka oznacza że wiadomość nowa?"). Kolor zostaje ten sam,
-        więc związek z plakietkami wiadomości na kartach nie znika. */
-    dots?: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[];
+        więc związek z plakietkami wiadomości na kartach nie znika.
+
+        LICZBA nadchodzących meczów na "Moje" jest zielona, nie w żadnym
+        z trzech znaczeniowych kolorów — bo nie znaczy ani "przeczytaj", ani
+        "zdecyduj", ani "nowość". To stan, nie zdarzenie: liczba zaklepanych
+        gier, którą patrzy się codziennie. Niebieska kropka "prośba o dołączenie"
+        schodzi wtedy w dolny róg, żeby nie wpaść pod plakietkę — akcja do
+        wykonania nie może zniknąć pod informacją. */
+    dots?: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[];
+    /** Liczba nadchodzących meczów — plakietka w prawym górnym rogu ikony.
+        0 nie renderuje nic (pusty pasek to nie jest informacja warta piksela),
+        powyżej 9 pokazuje "9+", żeby plakietka nie rozpychała kolumny. */
+    licznik?: number;
     /** Krótkie wyjaśnienie kropki, widoczne ~4 s przy pierwszym zapaleniu
         (patrz `dymekWidoczny`/kolejka wyżej) — max 5 razy w życiu
         użytkownika na typ, najwyżej jeden dymek na ekranie naraz. */
@@ -257,7 +282,11 @@ export default function BottomNav() {
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
-    const ariaSuffix = widoczne.length > 0 ? ` — ${widoczne.map((d) => d.label).join(', ')}` : '';
+    const opisy = [
+      ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
+      ...widoczne.map((d) => d.label),
+    ];
+    const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
     return (
       <Link
         href={href}
@@ -299,29 +328,36 @@ export default function BottomNav() {
               // i dostaje białą obwódkę — inaczej zlewa się z kreską ikony pod
               // spodem. `fill` razem ze `stroke`, bo sam kontur w tym rozmiarze
               // gubi się na tle.
-              <MessageCircle
+              <IkonaWiadomosci
                 key={d.position}
                 className={clsx(
-                  'absolute h-3 w-3 -top-1.5',
-                  d.position === 'top-right' ? '-right-1.5' : '-left-1.5',
+                  'absolute h-3.5 w-3.5 -top-2',
+                  d.position === 'top-right' ? '-right-2' : '-left-2',
                   d.color,
                 )}
-                strokeWidth={2.5}
-                fill="currentColor"
-                aria-hidden="true"
               />
             ) : (
               <span
                 key={d.position}
                 className={clsx(
                   'absolute h-1.5 w-1.5 rounded-full',
-                  d.position === 'top-right' ? '-top-0.5 right-0' : '-top-0.5 left-0',
+                  d.position === 'top-right' && '-top-0.5 right-0',
+                  d.position === 'top-left' && '-top-0.5 left-0',
+                  d.position === 'bottom-right' && '-bottom-0.5 -right-0.5 ring-2 ring-white',
                   d.color,
                 )}
                 aria-hidden="true"
               />
             )
           ))}
+          {licznik > 0 && (
+            <span
+              className="absolute -right-2.5 -top-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-primary-700 px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white"
+              aria-hidden="true"
+            >
+              {licznik > 9 ? '9+' : licznik}
+            </span>
+          )}
         </span>
         <span className="whitespace-nowrap">{label}</span>
       </Link>
@@ -342,7 +378,7 @@ export default function BottomNav() {
     >
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
           if (item.href === '/wydarzenia' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
@@ -367,9 +403,9 @@ export default function BottomNav() {
         </Link>
 
         {RIGHT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
           if (item.href === '/moje-gry') {
-            if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'top-right' });
+            if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
             if (unreadEvents) dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
           }
           if (item.href === '/grupy') {
@@ -379,7 +415,16 @@ export default function BottomNav() {
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
           const dymekAlign = i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
-          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} dymekAlign={dymekAlign} />;
+          return (
+            <NavLink
+              key={item.href}
+              {...item}
+              dots={dots}
+              dymek={dymek}
+              dymekAlign={dymekAlign}
+              licznik={item.href === '/moje-gry' ? ileMoich : 0}
+            />
+          );
         })}
       </div>
     </nav>

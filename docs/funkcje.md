@@ -308,6 +308,20 @@ tego kropka wołała `getCurrentLocation()` wprost, każda zmiana trasy wywoływ
 okno o zgodę na lokalizację bez żadnego kontekstu — dla kogoś, kto jej nigdy nie udzielił.
 Brak zgody = brak kropki, nie prośba w tle.
 
+**Liczba nadchodzących meczów na „Moje".** W prawym górnym rogu ikony „Moje" stoi
+zielona plakietka z liczbą meczów, w których gram, czekam na rezerwie albo organizuję —
+od dzisiaj w przód, bez odwołanych (`policzNadchodzaceMoje()` w `lib/events.ts`, ten sam
+zbiór co `getMyActiveEventIds()`, więc kliknięcie pokazuje dokładnie tyle pozycji, ile
+mówi plakietka). Zero nie renderuje nic, powyżej dziewięciu pokazuje „9+". Kolor zielony,
+nie różowy/niebieski/pomarańczowy — to stan, nie zdarzenie (patrz AGENTS.md, Konwencje).
+Niebieska kropka „prośba o dołączenie" schodzi przez to do dolnego rogu ikony.
+
+**Chmurka wiadomości to własny kształt, nie ikona z biblioteki.** `MessageCircle` z lucide
+w rozmiarze 12 px zlewał się w plamę (okrąg z detalami w środku; wypełniony traci wszystko
+poza obrysem). `components/layout/IkonaWiadomosci.tsx` rysuje prostokąt z zaokrąglonymi
+rogami i ogonkiem, bez detali w środku, z białą obwódką wpisaną w kształt
+(`paint-order: stroke` — ring z Tailwinda rysowałby prostokąt wokół pola ikony).
+
 **Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
 wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
 w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna

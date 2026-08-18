@@ -969,6 +969,32 @@ export async function getMyActiveEventIds(userId: string): Promise<string[]> {
   return Array.from(new Set([...grameLubRezerwa, ...(ownRows ?? []).map((r) => r.id as string)]));
 }
 
+/**
+ * Ile mam nadchodzących meczów — liczba na ikonie „Moje" w dolnej nawigacji.
+ *
+ * Liczy dokładnie to, co lista „Moje": mecze, w których gram, czekam na
+ * rezerwie albo organizuję (`getMyActiveEventIds()` — bez „czeka na
+ * akceptację" i bez obserwowanych), od dzisiaj w przód, bez odwołanych.
+ * Liczba, której nie da się kliknąć i zobaczyć tego samego, jest gorsza niż
+ * jej brak.
+ *
+ * `head: true` — potrzebujemy samej liczby, nie wierszy; to zapytanie leci
+ * przy każdej zmianie trasy.
+ */
+export async function policzNadchodzaceMoje(userId: string): Promise<number> {
+  const ids = await getMyActiveEventIds(userId);
+  if (ids.length === 0) return 0;
+  const dzis = new Date().toISOString().slice(0, 10);
+  const { count, error } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .in('id', ids)
+    .neq('status', 'cancelled')
+    .gte('event_date', dzis);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 /** Reject (delete) a pending join request. */
 export async function rejectParticipant(participantId: string): Promise<void> {
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
