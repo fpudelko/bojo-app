@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `104` · 38 tabel · 624 testy
+**Stan na:** 2026-08-18 · migracja `105` · 38 tabel · 628 testów
 
 ---
 
@@ -332,6 +332,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Taktyka: ustawia kapitan, widzi drużyna
+
+PROBLEM: pierwsza wersja zakładki „Taktyka" pokazywała OBIE drużyny i była dostępna
+wyłącznie dla administratora platformy — czyli gracz nie widział własnej taktyki, a osoba
+z zewnątrz widziała cudzy czat drużyny. Osobno: wśród gotowych odpowiedzi „Od połowy"
+i „Na swojej połowie" opisywały to samo cofnięcie się, a lista zamknięta nie miała miejsca
+na „my gramy inaczej". Zakładka pokazywała też opis meczu, datę i miejsce — czyli rzeczy
+z zakładki „Skład", przez które trzeba było przewijać.
+
+ROZWIĄZANIE BOJO: zakładkę widzi ten, kto GRA w meczu, i wyłącznie SWOJĄ drużynę.
+Ustawienie, pozycje i taktykę zmienia KAPITAN (wskazuje go organizator w „Składzie"
+gwiazdką przy nazwisku); reszta drużyny widzi gotowy opis bez ani jednego przycisku.
+Przy każdym pytaniu jest „Inne" z polem tekstowym. Pytanie o pressing brzmi teraz „Gdzie
+odbieramy piłkę" i ma dwie wykluczające się odpowiedzi: „Pod ich bramką" albo „U siebie".
+Boisko jest mniejsze i pozycje odsunięte od linii bocznych, żeby imiona się mieściły.
+Szczegóły meczu (opis, termin, miejsce, licznik miejsc) zostają wyłącznie w „Składzie".
+
+MECHANIKA: migracja `105` — `czy_kapitan_druzyny()` w politykach zapisu na
+`event_team_setup` i `event_team_slots`, czat przez `czy_w_druzynie()` bez administratora
+(cofnięcie `104`). `lib/taktyka.ts`: `WARTOSC_INNE`, `odpowiedzTaktyki()`, margines pozycji
+20% zamiast 12%. `components/events/TaktykaDruzyny.tsx` renderuje tryb do czytania, gdy
+patrzący nie jest kapitanem. Nagłówek meczu w `EventDetailClient.tsx` gatowany na
+`tab === 'sklad'`.
+
 ### 2026-08-18 — Naprawa: administrator nie mógł zapisać taktyki
 
 PROBLEM: zakładka „Taktyka" otwierała się, ale każde kliknięcie kończyło się czerwonym
@@ -521,24 +545,3 @@ dymka: `getUnreadGroupName()` w `lib/groupPosts.ts` i `getNewGroupEventGroup()`
 w `lib/groups.ts` — obie wybierają ekipę z najświeższym wpisem, bo jeden dymek nie
 wymieni wszystkich. Wygaszenie zapisuje „widziano" pod tym samym kluczem `localStorage`,
 co odwiedzenie strony ekipy, więc kropka znika też z karty na `/grupy`.
-
-### 2026-08-17 — Kasowanie wiadomości w rozmowie znów działa
-
-PROBLEM: usunięcie własnej wiadomości w rozmowie meczu kończyło się w Bojo czerwonym
-komunikatem `new row violates row-level security policy for table "event_comments"`,
-a wiadomość zostawała. Ta sama usterka dotyczyła tablicy ekipy i komentarzy pod
-obiektem — czyli wszystkich trzech miejsc, w których w Bojo się pisze.
-
-ROZWIĄZANIE BOJO: autor kasuje swoją wiadomość, moderator ekipy cudzą na tablicy,
-administrator komentarz pod obiektem. Skasowana wiadomość znika z listy i nie wraca
-po odświeżeniu. Bojo nie kasuje wiersza z bazy, tylko oznacza go jako usunięty.
-
-MECHANIKA: migracja `100`. Kasowanie jest miękkie (UPDATE ustawiający `deleted_at`),
-a polityka `SELECT USING (deleted_at IS NULL)` z migracji `026` wypychała zmieniony
-wiersz poza własną widoczność — Postgres sprawdza nowy wiersz TAKŻE politykami SELECT,
-więc UPDATE kończył się wyjątkiem, mimo poprawnej polityki UPDATE. Skasowany wiersz
-widzi teraz ten, kto miał prawo go skasować (warunek jest lustrem polityki UPDATE danej
-tabeli). Odtworzone na gołym Postgresie przez `scripts/baza-testowa.sh`. Osobno
-`lib/comments.ts` i `lib/groupPosts.ts` przeszły na `zaktualizujJedenWiersz()`
-i `zPonowieniemPoOdswiezeniu()` — zapis, który nie zmienił żadnego wiersza, jest teraz
-błędem, a wygasła sesja jest odświeżana i zapis ponawiany.

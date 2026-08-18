@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   domyslneUstawienie, opisTaktyki, pozycjeZeSchematu, ustawieniaDlaSkladu,
-  USTAWIENIA_PILKA,
+  USTAWIENIA_PILKA, OPCJE_TAKTYKI, WARTOSC_INNE,
 } from '@/lib/taktyka';
 
 describe('pozycjeZeSchematu', () => {
@@ -26,11 +26,11 @@ describe('pozycjeZeSchematu', () => {
 
   it('linia rozkłada się symetrycznie i nie dotyka krawędzi', () => {
     const czworka = pozycjeZeSchematu('1-4-4-2').filter((p) => p.rola === 'OB');
-    expect(czworka.map((p) => p.x)).toEqual([12, 37, 63, 88]);
-    // Margines po bokach istnieje po to, żeby nazwisko skrajnego gracza
-    // mieściło się na boisku.
-    expect(Math.min(...czworka.map((p) => p.x))).toBeGreaterThan(0);
-    expect(Math.max(...czworka.map((p) => p.x))).toBeLessThan(100);
+    expect(czworka.map((p) => p.x)).toEqual([20, 40, 60, 80]);
+    // Margines po bokach istnieje po to, żeby kółko i nazwisko skrajnego
+    // gracza mieściły się na murawie — przy 12% dotykały linii bocznej.
+    expect(Math.min(...czworka.map((p) => p.x))).toBeGreaterThanOrEqual(20);
+    expect(Math.max(...czworka.map((p) => p.x))).toBeLessThanOrEqual(80);
   });
 
   it('numery slotów są kolejne — na nich opiera się przypisanie graczy', () => {
@@ -98,11 +98,41 @@ describe('katalog ustawień', () => {
 
 describe('opisTaktyki', () => {
   it('składa wybrane decyzje w jedno zdanie', () => {
-    expect(opisTaktyki({ krycie: 'strefa', pressing: 'wysoki' })).toBe('Strefa · Od razu');
+    expect(opisTaktyki({ krycie: 'strefa', pressing: 'wysoki' })).toBe('Strefa · Pod ich bramką');
   });
 
   it('brak decyzji to pusty tekst, nie „undefined"', () => {
     expect(opisTaktyki({})).toBe('');
     expect(opisTaktyki(null)).toBe('');
+  });
+
+  it('„Inne" pokazuje WPISANY tekst, nie słowo „Inne"', () => {
+    // To on jest odpowiedzią — „Inne" nie mówi nikomu nic.
+    expect(opisTaktyki({ krycie: 'inne', wlasne: { krycie: 'mieszamy co 10 minut' } }))
+      .toBe('mieszamy co 10 minut');
+  });
+
+  it('„Inne" bez wpisanego tekstu nie zostawia śmiecia w podsumowaniu', () => {
+    expect(opisTaktyki({ krycie: 'inne', wlasne: { krycie: '   ' } })).toBe('');
+    expect(opisTaktyki({ krycie: 'inne' })).toBe('');
+  });
+});
+
+describe('katalog taktyki', () => {
+  it('żadne pytanie nie ma dwóch odpowiedzi znaczących to samo', () => {
+    // Pierwsza wersja miała „Od połowy" i „Na swojej połowie" — dwa różne
+    // sformułowania jednego cofnięcia się. Ten test nie wykryje synonimów sam
+    // z siebie, ale pilnuje liczby opcji: przy dwóch odpowiedziach na pytanie
+    // trudniej wpisać dwie takie same.
+    for (const { klucz, opcje } of OPCJE_TAKTYKI) {
+      expect(opcje.length, klucz).toBeLessThanOrEqual(3);
+      expect(new Set(opcje.map((o) => o.label)).size, klucz).toBe(opcje.length);
+    }
+  });
+
+  it('żadna gotowa opcja nie zajmuje wartości zarezerwowanej dla „Inne"', () => {
+    for (const { opcje } of OPCJE_TAKTYKI) {
+      expect(opcje.some((o) => o.wartosc === WARTOSC_INNE)).toBe(false);
+    }
   });
 });

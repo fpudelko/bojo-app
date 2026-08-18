@@ -89,9 +89,13 @@ type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ust
 const EVENT_TAB_LABELS: [EventTab, string][] = [
   ['sklad', 'Skład'],
   // „Taktyka" pojawia się DOPIERO po opublikowaniu składów — przed podziałem
-  // na drużyny nie ma czego ustawiać, a zakładka pokazywałaby dwa puste
-  // boiska. Dziś dodatkowo za bramką `isAdmin`: funkcja jest świeża i wchodzi
-  // najpierw na jedno konto, żeby sprawdzić ją na żywym meczu.
+  // na drużyny nie ma czego ustawiać, a zakładka pokazywałaby puste boisko.
+  //
+  // Widzi ją ten, kto GRA w tym meczu i ma przypisaną drużynę — i widzi
+  // WYŁĄCZNIE swoją. Wcześniej bramką był `isAdmin`, co dawało dwa złe skutki
+  // naraz: administrator oglądał obie drużyny (czyli też cudzą taktykę
+  // i cudzy czat), a zwykły gracz nie widział własnej. Ustawia kapitan,
+  // reszta czyta — patrz `TaktykaDruzyny`.
   ['taktyka', 'Taktyka'],
   ['rozmowa', 'Rozmowa'],
   ['wynik', 'Wynik'],
@@ -860,6 +864,13 @@ export default function EventDetailClient() {
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
   const teamA = regulars.filter((p) => p.team === 'A');
   const teamB = regulars.filter((p) => p.team === 'B');
+  // Moja drużyna w tym meczu — zasila zakładkę „Taktyka". `undefined`, gdy nie
+  // gram albo nie mam jeszcze przypisanej drużyny; wtedy zakładki nie ma.
+  const mojaDruzyna = (myParticipation?.team === 'A' || myParticipation?.team === 'B')
+    ? myParticipation.team
+    : undefined;
+  const mojiGracze = mojaDruzyna === 'A' ? teamA : mojaDruzyna === 'B' ? teamB : [];
+  const kapitanMojejDruzyny = mojiGracze.find((p) => p.isCaptain)?.name;
   const unassigned = regulars.filter((p) => !p.team);
 
   // Gole przy nazwisku w składzie — jedyne aktywnie zapisywane źródło jest
@@ -2098,9 +2109,9 @@ export default function EventDetailClient() {
                 // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo
                 // nie ma czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
                 if (t === 'rozliczenia') return event.costGrosze > 0;
-                // Taktyka: tylko po publikacji składów i (na razie) tylko dla
-                // administratora — patrz komentarz przy EVENT_TAB_LABELS.
-                if (t === 'taktyka') return isAdmin && event.teamsPublished && !isCancelled;
+                // Taktyka: po publikacji składów i tylko dla kogoś, kto ma
+                // drużynę w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
+                if (t === 'taktyka') return !!mojaDruzyna && event.teamsPublished && !isCancelled;
                 return true;
               }).map(([t, label]) => (
                 <button
@@ -2227,8 +2238,15 @@ export default function EventDetailClient() {
             gdzie ma nagłówek i zdanie tłumaczące, po co to klikać — czyli jest
             czytelniejsza. Dwa wejścia do tej samej akcji na jednym ekranie
             kosztowały pół ekranu nad najważniejszą informacją, czyli licznikiem
-            miejsc. */}
-        {tab !== 'rozmowa' && (
+            miejsc.
+
+            OD TERAZ TYLKO W ZAKŁADCE „SKŁAD". Wcześniej ten blok renderował się
+            na każdej zakładce poza Rozmową, więc wchodząc w Taktykę albo
+            Rozliczenia trzeba było przewinąć opis meczu, datę, miejsce i pigułki,
+            zanim zobaczyło się to, po co się tam weszło. Zgłoszone wprost.
+            Zasada: szczegóły meczu mieszkają w „Składzie", zakładki pokazują
+            swoją treść. */}
+        {tab === 'sklad' && (
         <div className="px-4">
           {event.description && (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
@@ -2570,7 +2588,9 @@ export default function EventDetailClient() {
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}
-        {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo") */}
+        {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo").
+            Też wyłącznie w „Składzie" — patrz komentarz przy nagłówku wyżej. */}
+        {tab === 'sklad' && (
         <div id="sklad" className="px-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
             <div className="text-center">
@@ -2964,6 +2984,7 @@ export default function EventDetailClient() {
             )}
           </div>
         </div>
+        )}
 
         {/* Podział na drużyny — WPROST w zakładce Skład, bez zwijania i bez
             osobnej zakładki. To jest ta sama treść, którą wcześniej trzeba było
@@ -3327,29 +3348,23 @@ export default function EventDetailClient() {
 
         {/* Wynik — sam formularz, bez drużyn. Drużyny renderują się wyżej,
             w zakładce Skład. */}
-        {tab === 'taktyka' && isAdmin && event.teamsPublished && (
-          <div className="space-y-6 px-4 py-4">
-            {/* Dwie drużyny jedna pod drugą, nie w zakładkach wewnątrz zakładki:
-                organizator ustawia zwykle obie, a przełącznik w przełączniku
-                gubi, gdzie się jest. */}
-            {([['A', teamA], ['B', teamB]] as const).map(([klucz, gracze]) => (
-              <div key={klucz}>
-                <p className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[klucz].pill}`}>
-                  {TEAM_LABELS[klucz]} ({TEAM_LETTERS[klucz]}) · {gracze.length}
-                </p>
-                {gracze.length === 0 ? (
-                  <p className="text-sm text-slate-400">Nikt nie jest przypisany do tej drużyny.</p>
-                ) : (
-                  <TaktykaDruzyny
-                    eventId={event.id}
-                    team={klucz}
-                    nazwa={TEAM_LABELS[klucz]}
-                    sport={event.sport}
-                    gracze={gracze}
-                  />
-                )}
-              </div>
-            ))}
+        {tab === 'taktyka' && mojaDruzyna && event.teamsPublished && (
+          <div className="px-4 py-4">
+            {/* JEDNA drużyna — moja. Rywal ma swoje ustawienie i swój czat,
+                i nie ma powodu, żebym je czytał: to jest ekran do uzgodnienia
+                gry ze swoimi, a nie podgląd cudzej szatni. */}
+            <p className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
+              {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
+            </p>
+            <TaktykaDruzyny
+              eventId={event.id}
+              team={mojaDruzyna}
+              nazwa={TEAM_LABELS[mojaDruzyna]}
+              sport={event.sport}
+              gracze={mojiGracze}
+              mozeEdytowac={!!myParticipation?.isCaptain}
+              kapitan={kapitanMojejDruzyny}
+            />
           </div>
         )}
 
