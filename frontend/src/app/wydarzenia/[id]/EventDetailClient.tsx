@@ -30,6 +30,7 @@ import {
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
+import ZachetaPush from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
 import { eventUrl, shareEvent } from '@/lib/eventShare';
@@ -2600,6 +2601,15 @@ export default function EventDetailClient() {
               onOtworzDlaOkolicy={() => handleSetVisibility('public')}
             />
           </div>
+        )}
+
+        {/* ── POWIADOMIENIA — propozycja, nie prośba na wejściu ──
+            Pytamy TYLKO tego, kto gra w tym meczu i tylko przed jego startem:
+            wtedy widać, po co to komu (wiadomość od ekipy, zwolnione miejsce,
+            odwołanie). Prośba na starcie aplikacji kończy się trwałym
+            „Zablokuj", którego nie da się cofnąć ze strony. */}
+        {tab === 'sklad' && (
+          <ZachetaPush widoczna={!!user && !!myParticipation && !eventStarted && !isCancelled} />
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}

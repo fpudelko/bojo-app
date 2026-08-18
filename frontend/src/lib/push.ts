@@ -31,6 +31,39 @@ export type StanPush =
  *  Prywatny mieszka wyłącznie w sekretach funkcji brzegowej. */
 const KLUCZ_PUBLICZNY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
+/**
+ * Odłożenie zachęty do włączenia powiadomień.
+ *
+ * NIE „na zawsze", tylko NA 30 DNI. „Nie teraz" znaczy dokładnie tyle, ile
+ * mówi: dziś nie mam na to głowy. Trwałe schowanie po jednym kliknięciu
+ * kasowałoby jedyny kanał, który w ogóle dowozi informację o meczu, a przecież
+ * za miesiąc ta sama osoba może chcieć inaczej. Drugi warunek: pytamy
+ * WYŁĄCZNIE tam, gdzie push ma oczywisty sens (strona meczu, w którym gram),
+ * więc nie jest to prośba wyskakująca znikąd.
+ */
+const KLUCZ_ODLOZONE = 'bojo:push-odlozone';
+const ILE_DNI_ODLOZENIA = 30;
+
+export function odlozZachetePush(teraz: Date = new Date()): void {
+  try {
+    localStorage.setItem(KLUCZ_ODLOZONE, String(teraz.getTime()));
+  } catch { /* tryb prywatny — trudno, zapyta jeszcze raz */ }
+}
+
+export function czyZachetaOdlozona(teraz: Date = new Date()): boolean {
+  try {
+    const zapis = localStorage.getItem(KLUCZ_ODLOZONE);
+    if (!zapis) return false;
+    const kiedy = Number(zapis);
+    if (!Number.isFinite(kiedy)) return false;
+    return teraz.getTime() - kiedy < ILE_DNI_ODLOZENIA * 24 * 60 * 60 * 1000;
+  } catch {
+    // Brak localStorage = nie mamy jak zapamiętać odmowy, więc nie pytamy
+    // w kółko. Ta sama zasada co przy zachęcie do instalacji.
+    return true;
+  }
+}
+
 /** base64url → Uint8Array; `pushManager.subscribe` nie przyjmuje stringa. */
 function naBajty(base64url: string): Uint8Array<ArrayBuffer> {
   const dopelnienie = '='.repeat((4 - (base64url.length % 4)) % 4);
