@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `103` · 38 tabel · 624 testy
+**Stan na:** 2026-08-18 · migracja `104` · 38 tabel · 624 testy
 
 ---
 
@@ -332,6 +332,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Naprawa: administrator nie mógł zapisać taktyki
+
+PROBLEM: zakładka „Taktyka" otwierała się, ale każde kliknięcie kończyło się czerwonym
+komunikatem `new row violates row-level security policy`. Zakładka jest dziś widoczna
+wyłącznie dla administratora platformy, a reguły dostępu w bazie znały tylko organizatora
+meczu, jego delegata i członka drużyny — czyli jedyna osoba, która mogła ten widok
+otworzyć, nie mogła w nim nic zapisać.
+
+ROZWIĄZANIE BOJO: administrator zapisuje ustawienie, pozycje i pisze w czacie drużyny.
+Kasowanie cudzych wiadomości zostaje przy autorze — tak samo jak w rozmowie meczu.
+
+MECHANIKA: migracja `104` dokłada `czy_admin()` (z `098`) do polityk zapisu na
+`event_team_setup` i `event_team_slots` oraz do odczytu i wstawiania w
+`event_team_messages`. Odtworzone na gołym Postgresie: na politykach z `103` zapis
+kończy się wyjątkiem, po `104` przechodzi, a osoba spoza meczu nadal nie zapisze niczego.
+Zasada na przyszłość: jeśli widok jest za bramką `isAdmin`, `czy_admin()` musi być
+w polityce od pierwszego dnia — to ta sama klasa błędu co w `098`.
+
 ### 2026-08-18 — Taktyka drużyny: ustawienie, pozycje i osobny czat (na razie tylko admin)
 
 PROBLEM: po opublikowaniu składów każda drużyna była wyłącznie listą nazwisk. Kto gra
@@ -524,25 +542,3 @@ tabeli). Odtworzone na gołym Postgresie przez `scripts/baza-testowa.sh`. Osobno
 `lib/comments.ts` i `lib/groupPosts.ts` przeszły na `zaktualizujJedenWiersz()`
 i `zPonowieniemPoOdswiezeniu()` — zapis, który nie zmienił żadnego wiersza, jest teraz
 błędem, a wygasła sesja jest odświeżana i zapis ponawiany.
-
-### 2026-08-17 — Strona meczu: mniej pigułek, czytelniejsze wypisanie się
-
-PROBLEM: nad licznikiem miejsc — najważniejszą informacją na stronie meczu — stało pół
-ekranu rzeczy drugorzędnych. Para przycisków „Udostępnij / Kopiuj" powtarzała to, co
-niżej robi karta „Wyślij link znajomym", a data, czas trwania i miejsce były osobnymi
-pigułkami i razem ze statusem oraz ceną zajmowały cztery wiersze. Osobno: przycisk
-„Wypisz się z meczu" był szary i czerwieniał dopiero pod kursorem, czyli na telefonie
-nigdy.
-
-ROZWIĄZANIE BOJO: górna para „Udostępnij / Kopiuj" zniknęła — ta sama akcja została
-niżej, w karcie z nagłówkiem i zdaniem tłumaczącym, po co to klikać. Meta mieści się
-teraz w DWÓCH wierszach: pigułki zostały wyłącznie dla krótkich etykiet (status w meczu,
-cena, widoczność, wymaga akceptacji), a data, czas trwania i miejsce są jedną linią
-tekstu z ikonami. Nazwa boiska ma dzięki temu dość szerokości, żeby nie urywać się po
-trzech słowach. Przycisk wypisania się ma czerwoną ramkę i czerwony tekst od razu.
-
-MECHANIKA: `EventDetailClient.tsx`, sekcja HEADER. Zasada: pigułka jest elementem dla
-ETYKIETY — krótkiej i powtarzalnej („Za darmo"); treść o zmiennej długości (data, nazwa
-obiektu) traci na niej kilkadziesiąt pikseli na samą oprawę. Wypisanie się zostaje
-w wariancie „ramka + tekst", nie pełna czerwień — ta jest zarezerwowana dla akcji
-nieodwracalnych, takich jak „Usuń na stałe".

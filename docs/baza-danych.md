@@ -1,6 +1,6 @@
 # Baza danych
 
-101 migracji (`001`–`103`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+102 migracje (`001`–`104`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -147,6 +147,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `101_kto_sie_wypisal` | Druga (permissive) polityka SELECT na `event_activity_log`, obejmująca WYŁĄCZNIE wpisy `participant_left` i `participant_removed` — widzi je każdy, kto widzi mecz (podzapytanie o `events` wykonuje się z uprawnieniami pytającego, więc RLS `events` załatwia widoczność). Reszta dziennika zostaje przy organizatorze (polityka z `026`). Powód: wypisanie się kasuje wiersz z `event_participants` i nie zostawia śladu — nie da się odróżnić „odpadł" od „nigdy się nie zapisał" |
 | `102_push` | Tabela `push_subscriptions` (jeden wiersz = jedna przeglądarka; kluczem `endpoint`, nie `user_id`, bo telefon i laptop to dwie subskrypcje jednej osoby) + `konfiguracja_push` (adres funkcji brzegowej i sekret; RLS WŁĄCZONE i ZERO polityk, więc przez API nieczytelna — czyta wyłącznie wyzwalacz jako `SECURITY DEFINER`). Wyzwalacz `trg_wyslij_push` na `notifications` woła funkcję `send-push` przez `pg_net`. Brak konfiguracji albo brak `pg_net` = wyjście CICHE: kanał dodatkowy nie może wywrócić INSERT-a, w którym powstało powiadomienie w aplikacji. Wdrożenie ręczne → `supabase/functions/send-push/README.md` |
 | `103_taktyka_druzyny` | Trzy tabele pod zakładkę „Taktyka": `event_team_setup` (schemat jako TEKST, np. `1-4-4-2` — pozycje wylicza `lib/taktyka.ts`, więc nowe ustawienie nie wymaga migracji; taktyka jako `jsonb`), `event_team_slots` (kto na której pozycji; UNIQUE po `(event_id, participant_id)`, żeby jedna osoba nie stała w dwóch miejscach) i `event_team_messages` (czat WEWNĄTRZ drużyny, osobny od wspólnej rozmowy meczu). Funkcja `czy_w_druzynie()` (`SECURITY DEFINER`, `STABLE`). Polityka SELECT czatu ma od razu `deleted_at IS NULL OR auth.uid() = user_id` — bez tego autor nie skasuje własnej wiadomości (błąd naprawiany migracją `100` w trzech innych tabelach) |
+| `104_taktyka_admin` | Dopisanie `czy_admin()` do polityk zapisu z `103` (`event_team_setup`, `event_team_slots`) oraz do odczytu i pisania w `event_team_messages`. Zakładka „Taktyka" jest za bramką `isAdmin` w interfejsie, a polityki znały wyłącznie organizatora, delegata i członka drużyny — czyli jedyna osoba, która mogła ją otworzyć, nie mogła nic zapisać (`new row violates row-level security policy`). Ta sama klasa błędu co `098`: jedno uprawnienie egzekwowane w dwóch miejscach według dwóch reguł. Kasowanie cudzych wiadomości zostaje przy autorze |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
