@@ -1,0 +1,99 @@
+name: Wdróż funkcje brzegowe
+
+# Wdraża funkcje z `supabase/functions/` na Supabase — BEZ instalowania czegokolwiek
+# na własnym komputerze. Wystarczy przeglądarka: Actions → „Wdróż funkcje brzegowe"
+# → „Run workflow".
+#
+# PO CO: dokumentacja Supabase każe wołać `supabase functions deploy` z konsoli,
+# a to zakłada zainstalowane CLI, Dockera i zalogowaną sesję. Właściciel pracuje
+# z telefonu i przeglądarki, więc jedyne realne wejście to GitHub Actions.
+#
+# `--no-verify-jwt` dla `send-push` JEST OBOWIĄZKOWE: tę funkcję woła baza
+# danych (wyzwalacz z migracji `102`), a nie zalogowany człowiek. Bez tej flagi
+# Supabase odrzuca wywołanie, zanim funkcja zdąży sprawdzić własny sekret
+# (nagłówek `x-bojo-sekret`). Dlatego lista funkcji „bez JWT" siedzi tutaj
+# w kodzie, a nie w pamięci osoby klikającej.
+#
+# Wymagany sekret repozytorium:
+#   SUPABASE_ACCESS_TOKEN  — Supabase → Account → Access Tokens
+#
+# `PROJECT_REF` NIE jest sekretem: to ten sam identyfikator, który stoi
+# w publicznym adresie API aplikacji.
+
+on:
+  workflow_dispatch:
+    inputs:
+      funkcja:
+        description: 'Która funkcja (puste = wszystkie z supabase/functions/)'
+        required: false
+        type: string
+
+  # Push na gałąź roboczą — jedyny wyzwalacz, który agent kontroluje sam
+  # (token agenta nie ma prawa odpalać workflow_dispatch przez API).
+  push:
+    branches: ['claude/funkcje/**']
+    paths: ['supabase/functions/**']
+
+env:
+  PROJECT_REF: qjmizwjwjaprurfesimx
+  # Funkcje wołane przez bazę, nie przez zalogowanego użytkownika — patrz
+  # komentarz w nagłówku.
+  BEZ_JWT: 'send-push'
+
+jobs:
+  wdroz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sprawdź, czy jest token
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::Brak sekretu SUPABASE_ACCESS_TOKEN. Supabase → Account → Access Tokens, potem Settings → Secrets and variables → Actions w tym repo."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Wdróż
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          WYBRANA="${{ inputs.funkcja }}"
+
+          if [ -n "$WYBRANA" ]; then
+            LISTA="$WYBRANA"
+          else
+            LISTA=$(ls supabase/functions | tr '\n' ' ')
+          fi
+
+          echo "Do wdrożenia: $LISTA"
+
+          for F in $LISTA; do
+            if [ ! -d "supabase/functions/$F" ]; then
+              echo "::error::Nie ma katalogu supabase/functions/$F"
+              exit 1
+            fi
+
+            FLAGI=""
+            case " $BEZ_JWT " in
+              *" $F "*) FLAGI="--no-verify-jwt" ;;
+            esac
+
+            echo "── $F $FLAGI"
+            supabase functions deploy "$F" --project-ref "$PROJECT_REF" $FLAGI
+          done
+
+      - name: Co dalej
+        if: success()
+        run: |
+          echo "### Funkcje wdrożone ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Jeśli to była \`send-push\`, zostały jeszcze dwa kroki spoza GitHuba:" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. sekrety funkcji w Supabase (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, BOJO_PUSH_SEKRET)," >> "$GITHUB_STEP_SUMMARY"
+          echo "2. wpis w tabeli \`konfiguracja_push\` (adres funkcji + ten sam sekret)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pełna instrukcja: \`supabase/functions/send-push/README.md\`." >> "$GITHUB_STEP_SUMMARY"
