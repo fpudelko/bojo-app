@@ -59,6 +59,7 @@ export default function TeamProposals({
   teamMode,
   isOrganizer,
   canPropose,
+  mozeGlosowac,
   currentUserId,
   busy,
   onSubmit,
@@ -74,6 +75,11 @@ export default function TeamProposals({
   isOrganizer: boolean;
   /** True only for a signed-in participant while the squad isn't published yet. */
   canPropose: boolean;
+  /** Czy patrzący może poprzeć propozycję — czyli czy GRA w tym meczu.
+   *  Polityka `Participant votes` (migracja `059`) wpuszcza wyłącznie
+   *  uczestników, a przycisk widoczny dla wszystkich kończył się czerwonym
+   *  komunikatem o RLS u każdego, kto tylko oglądał mecz (zgłoszone wprost). */
+  mozeGlosowac: boolean;
   currentUserId?: string;
   busy: boolean;
   onSubmit: (picks: Record<string, 'A' | 'B'>) => Promise<void>;
@@ -196,6 +202,12 @@ export default function TeamProposals({
                       )}
                     </p>
                     <div className="flex shrink-0 items-center gap-1.5">
+                      {/* Licznik poparcia widzą wszyscy — to informacja o tym,
+                          co myśli drużyna. KLIKALNY jest tylko dla grających:
+                          głosowanie jest ich sprawą, a przycisk, który u kogoś
+                          z zewnątrz zawsze kończy się błędem, jest gorszy niż
+                          jego brak. */}
+                      {mozeGlosowac ? (
                       <button
                         onClick={() => (pr.votedByMe ? onUnvote(pr.id) : onVote(pr.id))}
                         disabled={busy}
@@ -208,6 +220,14 @@ export default function TeamProposals({
                       >
                         <ThumbsUp className="h-3.5 w-3.5" /> {pr.voteCount}
                       </button>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-400"
+                          title="Popierać mogą gracze tego meczu"
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5" /> {pr.voteCount}
+                        </span>
+                      )}
                       {isOrganizer && pr.status !== 'accepted' && (
                         <button
                           onClick={() => onAccept(pr.id)}

@@ -1,6 +1,6 @@
 # Baza danych
 
-105 migracji (`001`–`107`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+106 migracji (`001`–`108`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -151,6 +151,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `105_taktyka_kapitan` | Zapis ustawienia i pozycji (`event_team_setup`, `event_team_slots`) wyłącznie dla KAPITANA drużyny (`czy_kapitan_druzyny()`); czat drużyny dla całej drużyny (`czy_w_druzynie()`), bez administratora. Zmiana DECYZJI, nie naprawa: `104` wpuszczała admina, bo zakładka była wtedy schowana za `isAdmin` — teraz widzi ją każdy, kto gra, i wyłącznie swoją drużynę. Ustalenie ustawienia to jedna decyzja, nie głosowanie dziesięciu osób z prawem zapisu |
 | `106_admin_zarzadza_skladem` | `czy_admin()` w politykach UPDATE/INSERT/DELETE na `event_participants`. `isOwner` w interfejsie to `organizer || isAdmin`, więc administrator widzi pełny panel organizatora (losowanie składu, przypisanie drużyny, gwiazdka kapitana), a polityki z `090` znały wyłącznie organizatora i delegata — kontrolki się klikały i nic nie robiły. Trzeci raz ten sam wzorzec po `098` i `104` |
 | `107_publikacja_taktyki` | `event_team_setup.opublikowana` + zawężenie SELECT na `event_team_setup` i `event_team_slots`: kapitan widzi zawsze, reszta drużyny dopiero po publikacji (`czy_taktyka_opublikowana()`). Wzorem `events.teams_published` z `031` — kapitan układa na raty, a drużyna nie ogląda wersji pośrednich. Czat drużyny NIEzależny od publikacji |
+| `108_koniec_admina_w_meczu` | Odwrócenie `106`: polityki na `event_participants` wracają do brzmienia z `090`, bez `czy_admin()`. `106` naprawiała objaw — panel organizatora pokazywany administratorowi przez `isOwner = organizer \|\| isAdmin`. Przyczyną było samo `\|\| isAdmin`, które zniknęło z `EventDetailClient.tsx`; uprawnienie, z którego nic nie korzysta, to wyłącznie ryzyko. „Admins can update any event" (`005`) zostaje — to moderacja wydarzenia, nie zarządzanie cudzym składem |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

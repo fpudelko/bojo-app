@@ -6,7 +6,7 @@ import { clsx } from 'clsx';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  ArrowRight, Bell, BellRing, CalendarPlus, Plus, Repeat, Share2, Users,
+  ArrowRight, Bell, BellRing, CalendarDays, CalendarPlus, MapPin, Plus, Repeat, Share2, Users,
   type LucideIcon,
 } from 'lucide-react';
 import AlertSetupDialog from '../AlertSetupDialog';
@@ -134,6 +134,7 @@ export function NextGroupMatchTeaser({ groupEvents, groups }: {
   const max = najblizszy.maxPlayers ?? 0;
   const taken = najblizszy.participantsCount ?? 0;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
+  const brakuje = Math.max(0, max - taken);
 
   let dzien = '';
   try { dzien = format(parseISO(najblizszy.date), 'EEE d MMM', { locale: pl }); }
@@ -153,20 +154,49 @@ export function NextGroupMatchTeaser({ groupEvents, groups }: {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-ink">{ekipa.name}</p>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              <span className="capitalize">{dzien}</span> · {najblizszy.time.slice(0, 5)}
-              {najblizszy.fieldName && ` · ${najblizszy.fieldName}`}
+              {ekipa.city ?? 'Twoja ekipa'}
             </p>
           </div>
           <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
         </div>
-        {max > 0 && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-              <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
-            </div>
-            <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
+
+        {/* Ten sam układ co karta ekipy na `/grupy`: termin plakietką, obok
+            „brakuje N" albo „komplet", a nazwa obiektu w JEDNYM uciętym
+            wierszu pod spodem. Wcześniej wszystko szło jednym zdaniem
+            „śr. 19 sie · 19:30 · <nazwa obiektu>", w którym nazwa boiska
+            zajmowała większość kafelka i przykrywała dwie rzeczy, po które
+            się tu patrzy: KIEDY gramy i czy jest komplet (zgłoszone wprost). */}
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
+              <CalendarDays className="h-3 w-3" />
+              <span className="capitalize">{dzien}</span> · {najblizszy.time.slice(0, 5)}
+            </span>
+            {max > 0 && (
+              <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                brakuje > 0
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {brakuje > 0 ? `brakuje ${brakuje}` : 'komplet'}
+              </span>
+            )}
           </div>
-        )}
+          {najblizszy.fieldName && (
+            <p className="min-w-0 truncate text-[11px] text-slate-400" title={najblizszy.fieldName}>
+              <MapPin className="mr-1 inline h-3 w-3 align-[-2px]" />
+              {najblizszy.fieldName}
+            </p>
+          )}
+          {max > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
+            </div>
+          )}
+        </div>
       </Link>
     </div>
   );

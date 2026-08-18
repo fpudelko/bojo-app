@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `107` · 38 tabel · 632 testy
+**Stan na:** 2026-08-18 · migracja `108` · 38 tabel · 632 testy
 
 ---
 
@@ -332,6 +332,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Administrator przestaje być organizatorem cudzego meczu
+
+PROBLEM: administrator platformy widział na stronie każdego meczu pełny panel organizatora
+— losowanie składu, przypisywanie drużyn, gwiazdkę kapitana, ustawienia. Reguły dostępu
+w bazie znały wyłącznie organizatora i jego delegatów, więc kontrolki się pokazywały,
+klikały i kończyły czerwonym komunikatem o uprawnieniach. Łatane trzy razy z rzędu i za
+każdym razem wychodziło kolejne miejsce: przełącznik ról, zapis taktyki, przypisanie
+drużyny, poparcie propozycji składu. Osobno: przycisk „Popieram" przy propozycji składu
+widział każdy, a poprzeć może wyłącznie gracz tego meczu.
+
+ROZWIĄZANIE BOJO: administrator ogląda mecz jak każdy inny użytkownik. Meczem zarządza
+organizator i osoby, którym on nadał uprawnienia; administrator ma własne ekrany
+(`/admin/*`). Licznik poparcia przy propozycji składu widzą wszyscy, ale klikalny jest
+tylko dla grających — przycisk, który u kogoś z zewnątrz zawsze kończy się błędem, jest
+gorszy niż jego brak.
+
+MECHANIKA: `isOwner` w `EventDetailClient.tsx` to teraz `user.id === event.organizerId`
+(bez `|| isAdmin`), migracja `108` cofa dodane godzinę wcześniej `czy_admin()` z polityk
+`event_participants` (uprawnienie bez zastosowania to wyłącznie ryzyko). `TeamProposals`
+dostał prop `mozeGlosowac`, spójny z polityką `Participant votes` z migracji `059`.
+Moderacja samego wydarzenia przez administratora (`005`) zostaje bez zmian.
+
 ### 2026-08-18 — Taktyka: publikacja, pozycje z nazwami, zakładka „Mecz"
 
 PROBLEM: kapitan układał ustawienie na oczach drużyny — każda pośrednia wersja była
@@ -526,23 +548,3 @@ Wypisania: `removeParticipant()` w `lib/events.ts` dopisuje do dziennika meczu w
 sama osoba), a `getWypisania()` je czyta. Migracja `101` dokłada drugą politykę SELECT
 na `event_activity_log` obejmującą wyłącznie te dwa rodzaje wpisów — reszta dziennika
 (płatności, zmiany ustawień) zostaje przy organizatorze.
-
-### 2026-08-17 — Liczba nadchodzących meczów na „Moje", czytelniejsza chmurka
-
-PROBLEM: kropka przy ikonie w dolnej nawigacji mówi wyłącznie „coś tu jest" — nie wiadomo
-co ani ile, dopóki się nie kliknie. Osobno: chmurka wiadomości narysowana ikoną
-`MessageCircle` z biblioteki lucide w rozmiarze 12 px zlewała się w nieczytelną plamę.
-
-ROZWIĄZANIE BOJO: na ikonie „Moje" stoi zielona plakietka z LICZBĄ nadchodzących meczów,
-w których grasz, czekasz na rezerwie albo je organizujesz — od dzisiaj w przód, bez
-odwołanych. Zero nie pokazuje nic, powyżej dziewięciu „9+". Kolor zielony, poza trójką
-znaczeniowych kolorów Bojo (różowy = wiadomość, niebieski = wymaga akceptacji,
-pomarańczowy = nowość), bo liczba meczów to stan, a nie zdarzenie. Niebieska kropka
-„prośba o dołączenie" schodzi do dolnego rogu ikony, żeby nie znikać pod plakietką.
-Wskaźnik wiadomości to teraz kształt rysowany pod rozmiar 12 px.
-
-MECHANIKA: `policzNadchodzaceMoje()` w `lib/events.ts` (liczy ten sam zbiór co
-`getMyActiveEventIds()`, `head: true` — samo zliczenie, bez wierszy, bo zapytanie leci
-przy każdej zmianie trasy), `components/layout/IkonaWiadomosci.tsx` (kształt chmurki
-z białą obwódką wpisaną w ścieżkę przez `paint-order: stroke`),
-`components/layout/BottomNav.tsx`.
