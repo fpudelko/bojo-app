@@ -36,6 +36,9 @@ vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn().mockReturnValue(mockChain),
     rpc: mockRpc,
+    // `auth` w atrapie, bo `removeParticipant()` pyta o sesję, żeby odróżnić
+    // „wypisał się sam" od „usunął go organizator" (dziennik meczu).
+    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
   },
 }));
 

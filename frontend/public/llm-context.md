@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-17 · migracja `100` · 34 tabele · 576 testów
+**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 594 testy
 
 ---
 
@@ -332,6 +332,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Kiedy kto się zapisał i kto odpadł ze składu
+
+PROBLEM: lista składu w Bojo pokazywała same nazwiska. Nie było widać, kto zapisał się
+pierwszy — a to jedyna rzecz, która tłumaczy kolejność na liście rezerwowej („dlaczego
+jestem na rezerwie"). Osobno: wypisanie się nie zostawiało ŻADNEGO śladu, bo kasuje wiersz
+z listy uczestników. Patrząc na wolne miejsce nie dało się odróżnić „ktoś odpadł" od
+„nikt się nie zapisał".
+
+ROZWIĄZANIE BOJO: przy każdym nazwisku w składzie i na liście rezerwowej stoi czas
+zapisu — „dziś 18:42", „wczoraj 21:05", „sob 14:32", a przy starszych sama data. Pod
+listą jest sekcja „Wypisali się": kto odpadł, kiedy, i czy zrobił to sam, czy usunął go
+organizator. Widzi ją każdy, kto widzi mecz.
+
+MECHANIKA: czas zapisu to `event_participants.created_at` (kolumna istniała od migracji
+`002`, nie była pokazywana), formatowany przez `etykietaZapisu()` w `lib/time.ts`.
+Wypisania: `removeParticipant()` w `lib/events.ts` dopisuje do dziennika meczu wpis
+`participant_left` albo `participant_removed` (rozróżnienie z sesji: czy usuwający to ta
+sama osoba), a `getWypisania()` je czyta. Migracja `101` dokłada drugą politykę SELECT
+na `event_activity_log` obejmującą wyłącznie te dwa rodzaje wpisów — reszta dziennika
+(płatności, zmiany ustawień) zostaje przy organizatorze.
+
 ### 2026-08-17 — Liczba nadchodzących meczów na „Moje", czytelniejsza chmurka
 
 PROBLEM: kropka przy ikonie w dolnej nawigacji mówi wyłącznie „coś tu jest" — nie wiadomo
@@ -549,32 +570,3 @@ href) zamiast rekordu `dymki` per typ; `kolejkaDymkow` (ref) + `pokazNastepnyDym
 serializują wyświetlanie; `timerDymka` (ref) pilnuje pojedynczego aktywnego `setTimeout`
 i jest jawnie zerowany, gdy kolejka się opróżni (inaczej kolejny cykl w ogóle by nie
 wystartował). `CZAS_DYMKA_MS` z 1500 na 4000.
-
-### 2026-08-16 — Pomarańczowa kropka na konkretnym meczu, dymki tłumaczące kropki na dolnej nawigacji
-
-PROBLEM: pomarańczowa kropka na „Grupy"/„Znajdź grę" i różowa/niebieska na „Moje" mówiły
-„coś nowego się pojawiło", ale po wejściu w daną zakładkę nie było wiadomo, KTÓRY
-konkretnie wpis na liście to jest — trzeba było zgadywać albo przeglądać wszystko po
-kolei. Kolor kropek ma spisaną, stałą konwencję (`AGENTS.md` → Konwencje), ale nikt nowy
-nie zna jej z góry — pierwsze zetknięcie z pomarańczową kropką nie tłumaczyło się samo.
-
-ROZWIĄZANIE BOJO: `EventBrowseCard` dostał `isNew` — pomarańczowa kropka w rogu ikony
-sportu na konkretnym wpisie, nowym od ostatniej wizyty na liście/w ekipie. Na
-`/wydarzenia` i w zakładce Mecze konkretnej ekipy (`/grupy/[id]`, też „Najbliższy mecz"
-nad zakładkami) widać teraz nie tylko ZE coś jest nowe, ale i CO. Osobno: gdy kropka na
-dolnej nawigacji zapala się pierwszy raz (przejście wyłączona→włączona, nie każda zmiana
-trasy), nad ikoną na 1,5 sekundy pojawia się mały czarny dymek z wyjaśnieniem — „Nowa
-prośba o dołączenie", „Nowe wiadomości", „Nowa gra w grupie {nazwa}", „Nowa gra w
-promieniu 5 km". Licznik w `localStorage` jest per typ dymka, nie per kropka — po 5
-pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie.
-
-MECHANIKA: `EventBrowseCard.tsx` — nowy prop `isNew`, kropka na ikonie sportu (analogicznie
-do plakietki nieprzeczytanych). `EventsListClient.tsx` — odczytuje
-`KLUCZ_WYDARZENIA_WIDZIANO` PRZED nadpisaniem, przekazuje starą wartość jako
-`widzianoWczesniej` do `EventsListView`; `null`/pierwsza wizyta świadomie nie oznacza
-niczego jako nowe (zalałoby listę kropkami). `GroupDetailClient.tsx` — ten sam wzorzec,
-`grupaWidzianaWczesniej` ze starej wartości `kluczGrupyWidziano()`. `lib/groups.ts` —
-nowa `getNewGroupEventGroupName()`: nazwa ekipy z najświeższym nowym meczem (gdy nowych
-jest kilka naraz, wygrywa `createdAt` najpóźniejszy). `BottomNav.tsx` — stan `dymki`
-(Record typ→tekst), `poprzednieAktywne` (ref) łapie wyłącznie przejście false→true,
-licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`, limit 5).

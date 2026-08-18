@@ -39,7 +39,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
-  awansujZRezerwy, cofnijNaRezerwe,
+  awansujZRezerwy, cofnijNaRezerwe, getWypisania,
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment,
@@ -73,7 +73,7 @@ import { TEAM_LABELS, TEAM_LETTERS, TEAM_COLOR_CLASSES } from '@/lib/teamLabels'
 import { WARSTWA } from '@/lib/warstwy';
 import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
-import { toMinutes, fromMinutes } from '@/lib/time';
+import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
 
 type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
@@ -182,7 +182,7 @@ function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; warian
  *  Bojo" musi tu żyć osobno, inaczej znika dokładnie wtedy, gdy organizator
  *  naturalnie wraca na stronę wpisać wynik i konwersja gościa jest najłatwiejsza. */
 function ParticipantsList({
-  regulars, reserves, gkEnabled, mozeZaprosic, skopiowanyToken, onZaprosDoBojo, golyMap,
+  regulars, reserves, gkEnabled, mozeZaprosic, skopiowanyToken, onZaprosDoBojo, golyMap, wypisania = [],
 }: {
   regulars: EventParticipant[];
   reserves: EventParticipant[];
@@ -191,6 +191,9 @@ function ParticipantsList({
   skopiowanyToken: string | null;
   onZaprosDoBojo: (p: EventParticipant) => void;
   golyMap: Record<string, number>;
+  /** Kto odpadł ze składu i kiedy — z dziennika meczu (`getWypisania()`).
+      Puste = sekcja się nie renderuje. */
+  wypisania?: { id: string; name: string; kiedy: string; przezOrganizatora: boolean }[];
 }) {
   return (
     <div className="space-y-3 text-left">
@@ -199,7 +202,17 @@ function ParticipantsList({
           <div key={p.id} className="py-2">
             <PlayerLink p={p} className="flex items-center gap-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
               <PlayerAvatar p={p} />
-              <span className="flex-1 min-w-0 text-sm font-medium text-ink truncate">{p.name}</span>
+              {/* Nazwisko i czas zapisu w jednej kolumnie: kolejność zapisów
+                  to jedyna informacja, która tłumaczy skład („kto był
+                  pierwszy") — a przy pełnym meczu jest też odpowiedzią na
+                  „dlaczego jestem na rezerwie". `min-w-0` na kolumnie, bo bez
+                  niego `truncate` na nazwisku przestaje działać. */}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">{p.name}</span>
+                {p.createdAt && (
+                  <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                )}
+              </span>
               {golyMap[p.id] > 0 && (
                 <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
               )}
@@ -233,7 +246,14 @@ function ParticipantsList({
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
                     {i + 1}
                   </span>
-                  <span className="flex-1 min-w-0 text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{p.name}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-slate-500 dark:text-slate-400">{p.name}</span>
+                    {/* Na rezerwie czas zapisu znaczy jeszcze więcej niż
+                        w składzie: to on ustawia kolejkę. */}
+                    {p.createdAt && (
+                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                    )}
+                  </span>
                   {golyMap[p.id] > 0 && (
                     <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
                   )}
@@ -255,6 +275,30 @@ function ParticipantsList({
               </div>
             ))}
           </div>
+        </>
+      )}
+
+      {wypisania.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 pt-2">
+            <div className="flex-1 border-t border-slate-100 dark:border-slate-700" />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Wypisali się</span>
+            <div className="flex-1 border-t border-slate-100 dark:border-slate-700" />
+          </div>
+          {/* Bez awatarów i bez odnośnika do profilu — te osoby nie są już
+              częścią składu, a sekcja ma odpowiadać na „czy ktoś odpadł",
+              nie zapraszać do klikania. */}
+          <ul className="space-y-1.5">
+            {wypisania.map((w) => (
+              <li key={w.id} className="flex items-center gap-2 text-[11px] text-slate-400">
+                <span className="min-w-0 truncate font-medium text-slate-500 line-through decoration-slate-300">
+                  {w.name}
+                </span>
+                <span className="shrink-0">{etykietaZapisu(w.kiedy)}</span>
+                {w.przezOrganizatora && <span className="shrink-0">· usunięty</span>}
+              </li>
+            ))}
+          </ul>
         </>
       )}
     </div>
@@ -406,6 +450,7 @@ export default function EventDetailClient() {
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
+  const [wypisania, setWypisania] = useState<{ id: string; name: string; kiedy: string; przezOrganizatora: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -593,6 +638,10 @@ export default function EventDetailClient() {
       const { event: ev, participants: parts } = await getEvent(id);
       setEvent(ev);
       setParticipants(parts);
+      // Osobno i bez `await` w łańcuchu danych meczu: lista wypisań jest
+      // dodatkiem, a nie warunkiem narysowania strony. `getWypisania()` sama
+      // zwraca pustą listę przy błędzie.
+      getWypisania(id).then(setWypisania).catch(() => setWypisania([]));
       setPayMethods(ev.acceptedPaymentMethods);
       setPayBlik(ev.blikPhone ?? '');
       await loadMatchData(ev);
@@ -2899,6 +2948,7 @@ export default function EventDetailClient() {
                     skopiowanyToken={skopiowanyToken}
                     onZaprosDoBojo={kopiujLinkPrzejecia}
                     golyMap={golyMap}
+                    wypisania={wypisania}
                   />
                 )}
               </div>

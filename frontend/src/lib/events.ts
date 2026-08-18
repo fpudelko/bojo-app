@@ -720,12 +720,37 @@ export async function removeParticipant(participantId: string): Promise<void> {
   // acceptReserveClaim). Nobody ever wakes up already in the squad.
   const { data: row } = await supabase
     .from('event_participants')
-    .select('event_id')
+    .select('event_id, user_id, name, is_reserve')
     .eq('id', participantId)
     .maybeSingle();
 
   const { error } = await supabase.from('event_participants').delete().eq('id', participantId);
   if (error) throw new Error(error.message);
+
+  // Wypisanie się jest jedyną zmianą składu, która nie zostawia po sobie
+  // ŻADNEGO śladu: wiersz znika i nikt nie wie, czy ktoś odpadł, czy w ogóle
+  // się nie zapisał. Log jest tu jedynym miejscem, gdzie ta informacja może
+  // przeżyć — `event_participants` z definicji trzyma tylko stan bieżący.
+  //
+  // Kto wypisał: porównanie z sesją, nie parametr wywołania. `removeParticipant`
+  // obsługuje oba przypadki (sam się wypisał / organizator usunął) i wołane
+  // jest z czterech miejsc — parametr rozjechałby się przy pierwszym nowym.
+  if (row?.event_id) {
+    // Cały zapis do dziennika w `try` kończącym się ciszą: miejsce jest już
+    // zwolnione, więc awaria samego zapisu historii nie może zamienić się
+    // w błąd pokazany komuś, kto właśnie się wypisał.
+    try {
+      const { data: sesja } = await supabase.auth.getSession();
+      const ktoUsuwa = sesja.session?.user.id ?? null;
+      await logActivity(
+        row.event_id,
+        ktoUsuwa,
+        row.name ?? null,
+        row.user_id && ktoUsuwa === row.user_id ? 'participant_left' : 'participant_removed',
+        { byla_rezerwa: !!row.is_reserve },
+      );
+    } catch { /* patrz wyżej */ }
+  }
 
   // Hand the freed spot to the queue right away, so the first reserve sees the
   // offer without waiting for someone else to open the page.
@@ -993,6 +1018,38 @@ export async function policzNadchodzaceMoje(userId: string): Promise<number> {
     .gte('event_date', dzis);
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+/** Kto się wypisał z meczu i kiedy.
+ *
+ *  Czyta WYŁĄCZNIE dwa rodzaje wpisów z dziennika (`participant_left`,
+ *  `participant_removed`) — reszta dziennika (płatności, zmiany ustawień)
+ *  zostaje przy organizatorze. Politykę pod to dokłada migracja `101`:
+ *  te dwa rodzaje widzi każdy, kto widzi mecz.
+ *
+ *  `user_name` z chwili wypisania, nie join do `profiles`: człowiek, który
+ *  skasował konto, ma zniknąć z profili, ale wpis „wypisał się" nadal ma
+ *  mówić, kogo dotyczył.
+ */
+export async function getWypisania(
+  eventId: string,
+): Promise<{ id: string; name: string; kiedy: string; przezOrganizatora: boolean }[]> {
+  const { data, error } = await supabase
+    .from('event_activity_log')
+    .select('id, user_name, action, created_at')
+    .eq('event_id', eventId)
+    .in('action', ['participant_left', 'participant_removed'])
+    .order('created_at', { ascending: false })
+    .limit(20);
+  // Cisza przy błędzie: brak historii wypisań nie może wywrócić strony meczu.
+  if (error) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    name: r.user_name ?? 'Ktoś',
+    kiedy: r.created_at,
+    przezOrganizatora: r.action === 'participant_removed',
+  }));
 }
 
 /** Reject (delete) a pending join request. */
