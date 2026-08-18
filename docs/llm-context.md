@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 594 testy
+**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 604 testy
 
 ---
 
@@ -332,6 +332,52 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Chmurka wiadomości gaśnie, karta ekipy czytelna
+
+PROBLEM: różowa chmurka „nowa wiadomość" świeciła się bez końca, mimo że wszystko było
+przeczytane. Przyczyna: liczyła rozmowy ze WSZYSTKICH meczów, w których kiedykolwiek
+grałem — także sprzed pół roku. Rozmowa z rozegranego meczu, do której nikt nie wrócił,
+zapalała wskaźnik na stałe: „Moje" pokazuje wyłącznie nadchodzące, więc nie było jak jej
+otworzyć, a więc i odznaczyć. Osobno: karta ekipy na liście `/grupy` opisywała najbliższy
+mecz jednym zdaniem, w którym nazwa obiektu zajmowała trzy wiersze i przykrywała jedyne
+dwie istotne rzeczy — kiedy gramy i czy jest komplet.
+
+ROZWIĄZANIE BOJO: chmurka liczy wyłącznie NADCHODZĄCE mecze, więc gaśnie po wejściu
+w rozmowę i nie da się jej zapalić czymś, do czego nie ma jak dojść. Dochodzi dymek „Nowa
+wiadomość w meczu {tytuł}", taki sam jak „Nowa gra w grupie {nazwa}". Karta ekipy pokazuje
+termin plakietką, obok plakietkę „brakuje N" albo „komplet", a nazwę obiektu w jednym
+uciętym wierszu pod spodem.
+
+MECHANIKA: `nieprzeczytaneWMeczach()` w `lib/comments.ts` (zastępuje
+`hasUnreadEventMessages()`; filtruje mecze po dacie i zwraca tytuł meczu z najświeższą
+nieprzeczytaną), `components/layout/BottomNav.tsx` (nowy klucz licznika dymka
+`wiadomosc-w-meczu` — stary niósł zużyte pokazania dawnej, ogólnikowej treści),
+`app/grupy/GroupsClient.tsx`. Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie
+za coś, do czego da się dojść z ekranu, na który wskazuje.
+
+### 2026-08-18 — „Gram" jednym kliknięciem i pusty stan, który prowadzi dalej
+
+PROBLEM: na zaproszenie do meczu dało się odpowiedzieć wyłącznie z poziomu strony meczu —
+trzeba było otworzyć kartę, przewinąć, zapisać się. Czyli „tak" kosztowało więcej kliknięć
+niż „nie" (nie robisz nic), w produkcie, którego sensem jest zebranie składu. Przy stałej
+ekipie ta sama pętla wraca co tydzień. Osobno: pusta lista „Znajdź grę" mówiła „Brak
+meczów" i proponowała stworzenie meczu publicznego — komuś, kto nikogo w Bojo nie zna,
+kończy się to meczem bez ludzi.
+
+ROZWIĄZANIE BOJO: przy zaproszeniu — na liście zaproszeń i w panelu powiadomień — stoi
+para małych przycisków „Gram" / „Nie gram". Odpowiedź zapisuje się bez otwierania meczu,
+karta znika od razu, a chmurka mówi, co naprawdę zaszło: skład, rezerwa albo prośba
+czekająca na akceptację. „Nie gram" to jawna odmowa widoczna dla organizatora, nie ciche
+schowanie karty. Zaproszenie liczy się teraz jako sprawa wymagająca decyzji (niebieski
+znacznik) i zamyka je zarówno zapis, jak i odmowa. Pusty stan „Znajdź grę" kieruje osobę
+bez ekipy do dołączenia kodem, a nie do zakładania meczu publicznego.
+
+MECHANIKA: `components/events/OdpowiedzJednymKlikiem.tsx` (wspólny dla `InviteList`
+i `NotificationBell`; `joinEvent()` i `odmow()` z `lib/eventDeclines.ts`, migracja `097`),
+`zaproszenie_na_mecz` dołączone do `WYMAGA_AKCJI` i do sprawdzania stanu w
+`otwarteSprawy()` (`lib/notifications.ts`), pusty stan w `app/wydarzenia/EventsListView.tsx`
+(rozgałęzienie po `getMyGroupIds()`).
+
 ### 2026-08-18 — Kiedy kto się zapisał i kto odpadł ze składu
 
 PROBLEM: lista składu w Bojo pokazywała same nazwiska. Nie było widać, kto zapisał się
@@ -516,57 +562,3 @@ przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) 
 Migracja `098`: funkcja `czy_admin()` (`SECURITY DEFINER`) i przepięcie na nią polityk
 z `022` i `005`, które sprawdzały uprawnienie podzapytaniem o tę samą tabelę,
 na której siedzą.
-
-### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
-
-PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
-między zapytaniami (poprzedni wpis w tym logu) — zgłoszone wprost, ponownie ze zrzutem,
-mimo `/moje-gry` nie znajdującego ani jednej nieprzeczytanej wiadomości. Każdy z czterech
-efektów w `BottomNav.tsx` kończył nieudane zapytanie gołym `.catch(() => {})`: błąd (chwilowy
-problem sieci, odświeżenie tokenu Supabase w trakcie) zostawiał stan takim, jaki był PRZED
-próbą — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka świeciła dalej
-bez związku z rzeczywistością, aż trafiłoby się kolejne udane zapytanie. Osobno: dymek nad
-pierwszą („Znajdź grę") i ostatnią („Grupy") z pięciu ikon wyśrodkowywał się nad wąską
-kolumną blisko krawędzi ekranu i wystawał poza nią, nieczytelny — też zgłoszone ze zrzutem.
-
-ROZWIĄZANIE BOJO: `catch` w każdym z czterech efektów ustawia teraz jawnie `false`
-(`null` dla nazwy grupy) zamiast nic nie robić — brak pewności o stanie wygrywa z fałszywie
-zapaloną kropką. Dymek dostał `dymekAlign` (`'left' | 'center' | 'right'`): skrajne kolumny
-przypinają go do swojej wewnętrznej krawędzi zamiast centrować nad ikoną, środkowe trzy
-zostają wyśrodkowane jak dotąd.
-
-MECHANIKA: `BottomNav.tsx` — każdy `.then(...).catch(...)` w efektach `pendingApproval`/
-`unreadEvents`/grupowym (`unreadGroups`, `newGroupEvents`, `newGroupName`, plus zewnętrzny
-`getMyGroups().catch()`) resetuje stan na `catch`. `NavLink` dostaje prop `dymekAlign`;
-`LEFT_ITEMS`/`RIGHT_ITEMS.map` liczy go z indeksu (`i === 0` / `i === length - 1`) i
-przekazuje klasy `left-0`/`right-0` zamiast `left-1/2 -translate-x-1/2` na dymku i jego
-trójkącie wskaźnika.
-
-### 2026-08-16 — Naprawiony wyścig zostawiający fałszywą różową kropkę na "Moje"; dymki jeden na raz, 4 sekundy
-
-PROBLEM: różowa kropka „nowe wiadomości" na „Moje" świeciła się nawet wtedy, gdy sama
-strona `/moje-gry` (ten sam zestaw danych, ta sama para funkcji) nie znajdowała ŻADNEJ
-nieprzeczytanej wiadomości — potwierdzone zrzutem ekranu. Cztery efekty w `BottomNav.tsx`
-odpalają zapytanie przy KAŻDEJ zmianie trasy, ale trzy z czterech (prośby, wiadomości
-„Moje", wiadomości+nowość „Grupy") nie miały strażnika przed odpowiedzią, która wraca PO
-tym, jak trasa zmieniła się ponownie — wolniejsza odpowiedź z poprzedniej trasy mogła
-nadpisać świeży, poprawny stan starym `true`, zostawiając kropkę zapaloną bez żadnego
-realnego powodu (czwarty efekt, `nearbyNew`, taki strażnik już miał — niespójność w tym
-samym pliku była śladem brakującego wzorca). Osobno: dymki wyjaśniające kropki (poprzednia
-zmiana) mogły pokazać się dwa naraz i zasłonić się nawzajem, znikały po 1,5 s — za szybko.
-
-ROZWIĄZANIE BOJO: wszystkie cztery efekty mają teraz lokalną flagę `aktualne`, zerowaną
-w funkcji sprzątającej — spóźniona odpowiedź z nieaktualnej trasy jest po prostu
-ignorowana. Dymki pokazują się teraz TYLKO jeden na raz na całym pasku: nowa kolejka
-(`kolejkaDymkow`) zbiera wszystkie typy, które akurat się zapaliły, i pokazuje je po
-kolei, każdy na 4 sekundy zamiast 1,5. Wspólny typ „wiadomości" (dawniej jeden dla „Moje"
-i „Grupy") rozdzielony na `wiadomosci-moje`/`wiadomosci-grupy` z osobnymi licznikami —
-każdy dymek jest teraz jednoznacznie przypięty do jednej ikony przez `href`, więc kolejka
-wie, przy której konkretnie ikonie stanąć.
-
-MECHANIKA: `BottomNav.tsx` — `aktualne` w efektach `pendingApproval`/`unreadEvents`/
-grupowym (ten sam wzorzec co istniejący `nearbyNew`). Stan `dymekWidoczny` (typ + tekst +
-href) zamiast rekordu `dymki` per typ; `kolejkaDymkow` (ref) + `pokazNastepnyDymek()`
-serializują wyświetlanie; `timerDymka` (ref) pilnuje pojedynczego aktywnego `setTimeout`
-i jest jawnie zerowany, gdy kolejka się opróżni (inaczej kolejny cykl w ogóle by nie
-wystartował). `CZAS_DYMKA_MS` z 1500 na 4000.

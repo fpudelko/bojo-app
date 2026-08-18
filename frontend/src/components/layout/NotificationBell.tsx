@@ -6,7 +6,15 @@ import { Bell, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
+import OdpowiedzJednymKlikiem from '@/components/events/OdpowiedzJednymKlikiem';
 import type { AppNotification } from '@/types';
+
+/** Typy powiadomień, na które da się odpowiedzieć „Gram/Nie gram" wprost
+ *  z panelu, bez wchodzenia na mecz. Świadomie WĄSKA lista: to pytania o mój
+ *  udział. `prosba_o_dolaczenie` (ktoś chce dołączyć do MOJEGO meczu) ani
+ *  `reserve_claim_offered` (oferta miejsca z rezerwy, ma własny przepływ
+ *  z terminem ważności) tu nie należą — obie znaczą co innego niż „grasz?". */
+const ODPOWIEM_STAD = new Set(['pytanie_o_udzial', 'zaproszenie_na_mecz']);
 
 /** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
  *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
@@ -88,6 +96,18 @@ export default function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
 
   const unread = notifs.filter((n) => !n.readAt).length;
+
+  /** Sprawa zamknięta odpowiedzią z panelu. Zdejmujemy powiadomienie ze zbioru
+   *  otwartych zamiast przeładowywać całą listę: pozycja przestaje krzyczeć
+   *  „Sprawdź", zostaje jako zwykły wpis w historii, a panel nie mruga. */
+  const odswiezPoOdpowiedzi = (idPowiadomienia: string) => {
+    setOtwarte((prev) => {
+      if (!prev) return prev;
+      const kopia = new Set(prev);
+      kopia.delete(idPowiadomienia);
+      return kopia;
+    });
+  };
 
   // Load + subscribe
   useEffect(() => {
@@ -208,6 +228,20 @@ export default function NotificationBell() {
                         className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${bgClass}`}
                       >
                         <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} />
+                        {/* Odpowiedź WEWNĄTRZ odnośnika, nie obok: cała pozycja
+                            panelu jest klikalna, a przycisk obok niej byłby
+                            drugim celem w tej samej linii. `OdpowiedzJednymKlikiem`
+                            zatrzymuje zdarzenie, więc kliknięcie „Gram" nie
+                            przenosi na mecz. */}
+                        {n.eventId && ODPOWIEM_STAD.has(n.type) && wymagaAkcji && (
+                          <span className="mt-2 flex justify-end">
+                            <OdpowiedzJednymKlikiem
+                              eventId={n.eventId}
+                              wariant="panel"
+                              onOdpowiedziano={() => odswiezPoOdpowiedzi(n.id)}
+                            />
+                          </span>
+                        )}
                       </Link>
                     ) : (
                       <div className={`px-4 py-3 ${bgClass}`}>

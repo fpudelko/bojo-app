@@ -10,7 +10,7 @@ import IkonaWiadomosci from './IkonaWiadomosci';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, policzNadchodzaceMoje, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
 import { getMyGroups, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
 import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
-import { hasUnreadEventMessages } from '@/lib/comments';
+import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
 
@@ -98,12 +98,18 @@ export default function BottomNav() {
   // bo to inne znaczenie (patrz komentarz przy `dot` w `NavLink`), nie inny
   // poziom pilności.
   const [unreadEvents, setUnreadEvents] = useState(false);
+  // Tytuł meczu z najświeższą nieprzeczytaną — wyłącznie do treści dymka.
+  const [unreadEventTitle, setUnreadEventTitle] = useState<string | null>(null);
   useEffect(() => {
-    if (!user) { setUnreadEvents(false); return; }
+    if (!user) { setUnreadEvents(false); setUnreadEventTitle(null); return; }
     let aktualne = true;
-    hasUnreadEventMessages(user.id)
-      .then((v) => { if (aktualne) setUnreadEvents(v); })
-      .catch(() => { if (aktualne) setUnreadEvents(false); });
+    nieprzeczytaneWMeczach(user.id)
+      .then(({ ile, tytul }) => {
+        if (!aktualne) return;
+        setUnreadEvents(ile > 0);
+        setUnreadEventTitle(tytul);
+      })
+      .catch(() => { if (aktualne) { setUnreadEvents(false); setUnreadEventTitle(null); } });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -219,7 +225,13 @@ export default function BottomNav() {
   useEffect(() => {
     const proby: [string, boolean, string | null, string][] = [
       ['prosby', pendingApproval, 'Nowa prośba o dołączenie', '/moje-gry'],
-      ['wiadomosci-moje', unreadEvents, 'Nowa wiadomość w Twoim meczu', '/moje-gry'],
+      // Klucz typu ZMIENIONY z 'wiadomosci-moje': licznik pokazań siedzi
+      // w localStorage per typ, więc stary klucz niósł zużyte pokazania dawnego,
+      // ogólnikowego dymka „Nowe wiadomości". Nowy klucz = nowa treść dostaje
+      // swoje pięć pokazań, zamiast milczeć u kogoś, kto tamten już wyczerpał.
+      ['wiadomosc-w-meczu', unreadEvents,
+        unreadEventTitle ? `Nowa wiadomość w meczu ${unreadEventTitle}` : 'Nowa wiadomość w Twoim meczu',
+        '/moje-gry'],
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
@@ -236,7 +248,7 @@ export default function BottomNav() {
     }
     if (!dymekWidoczny && !timerDymka.current && kolejkaDymkow.current.length > 0) pokazNastepnyDymek();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingApproval, unreadEvents, unreadGroups, newGroupEvents, newGroup, unreadGroupName, nearbyNew]);
+  }, [pendingApproval, unreadEvents, unreadEventTitle, unreadGroups, newGroupEvents, newGroup, unreadGroupName, nearbyNew]);
 
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 

@@ -127,13 +127,63 @@ export function policzNieprzeczytanePerWydarzenie(
 /** Czy w którymkolwiek meczu, w którym gram / jestem na rezerwie / organizuję,
  *  jest nieprzeczytana wiadomość — zasila różową kropkę „nowe wiadomości"
  *  przy „Moje" na dolnej nawigacji (patrz `BottomNav.tsx`). */
-export async function hasUnreadEventMessages(userId: string): Promise<boolean> {
+/**
+ * Nieprzeczytane wiadomości w moich NADCHODZĄCYCH meczach — plus tytuł meczu
+ * z najświeższą, do treści dymka „Nowa wiadomość w meczu {tytuł}".
+ *
+ * TYLKO NADCHODZĄCE, i to jest tu cała rzecz. Wcześniej liczyły się wszystkie
+ * mecze, w których kiedykolwiek grałem — także sprzed pół roku. Rozmowa
+ * z rozegranego meczu, do której nikt nigdy nie wrócił, zapalała wskaźnik
+ * NA ZAWSZE: „Moje" pokazuje wyłącznie nadchodzące, więc nie było jak jej
+ * otworzyć, a więc i nie było jak jej odznaczyć. Zgłoszone wprost — „chmurka
+ * ciągle się świeci, a wiadomość dawno wyświetlona".
+ *
+ * Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie za coś, do
+ * czego da się dojść z ekranu, na który on wskazuje.
+ */
+export async function nieprzeczytaneWMeczach(
+  userId: string,
+): Promise<{ ile: number; tytul: string | null }> {
   const eventIds = await getMyActiveEventIds(userId);
-  if (eventIds.length === 0) return false;
-  const comments = await getCommentsForUnread(eventIds);
+  if (eventIds.length === 0) return { ile: 0, tytul: null };
+
+  const dzis = new Date().toISOString().slice(0, 10);
+  const { data: mecze, error } = await supabase
+    .from('events')
+    .select('id, title, event_date')
+    .in('id', eventIds)
+    .neq('status', 'cancelled')
+    .gte('event_date', dzis);
+  if (error || !mecze || mecze.length === 0) return { ile: 0, tytul: null };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tytuly = new Map((mecze as any[]).map((m) => [m.id as string, m.title as string]));
+  // Filtr po `tytuly` ZNOWU, mimo że zapytanie ma już `.in(...)`: bez tego
+  // liczba nieprzeczytanych zależy wyłącznie od tego, czy baza odfiltrowała
+  // poprawnie. Ta funkcja ma dawać tę samą odpowiedź niezależnie od tego, co
+  // wróciło z sieci — wskaźnik zapalony za mecz spoza listy jest dokładnie
+  // tym błędem, który tu naprawiamy.
+  const comments = (await getCommentsForUnread(Array.from(tytuly.keys())))
+    .filter((c) => tytuly.has(c.eventId));
   const widzianoByEvent = (eventId: string) => (
     typeof window !== 'undefined' ? window.localStorage.getItem(kluczRozmowyWidziano(eventId)) : null
   );
   const counts = policzNieprzeczytanePerWydarzenie(comments, userId, widzianoByEvent);
-  return Object.keys(counts).length > 0;
+  const zNieprzeczytanymi = Object.keys(counts);
+  if (zNieprzeczytanymi.length === 0) return { ile: 0, tytul: null };
+
+  // Tytuł z meczu, w którym padła NAJŚWIEŻSZA nieprzeczytana wiadomość — jeden
+  // dymek nie wymieni wszystkich, a najnowsza jest tą, która właśnie zapaliła
+  // wskaźnik.
+  let najnowsza: { createdAt: string; eventId: string } | null = null;
+  for (const c of comments) {
+    if (!counts[c.eventId] || c.userId === userId) continue;
+    if (!najnowsza || c.createdAt > najnowsza.createdAt) {
+      najnowsza = { createdAt: c.createdAt, eventId: c.eventId };
+    }
+  }
+  return {
+    ile: zNieprzeczytanymi.length,
+    tytul: najnowsza ? tytuly.get(najnowsza.eventId) ?? null : null,
+  };
 }
