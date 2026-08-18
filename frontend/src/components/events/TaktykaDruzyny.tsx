@@ -56,8 +56,19 @@ export default function TaktykaDruzyny({
   const [schemat, setSchemat] = useState<string | null>(null);
   const [taktyka, setTaktyka] = useState<Taktyka>({});
   const [notatka, setNotatka] = useState('');
+  const [opublikowana, setOpublikowana] = useState(false);
+  // Czy w ogóle DOSTALIŚMY ustawienie. Dla nie-kapitana przed publikacją baza
+  // nie zwraca wiersza (polityka z `107`), więc brak danych znaczy tu „jeszcze
+  // nieopublikowane", a nie „puste boisko" — i tak trzeba to napisać wprost,
+  // bo domyślny schemat narysowałby ustawienie, którego nikt nie wybrał.
+  const [maUstawienie, setMaUstawienie] = useState(false);
   const [pozycje, setPozycje] = useState<Record<number, string>>({});
+  // Wybór działa W OBIE STRONY: pozycja → gracz albo gracz → pozycja.
+  // Jedna kolejność zawsze komuś nie pasuje — patrzysz na wolną pozycję i
+  // szukasz kogoś ALBO patrzysz na człowieka bez pozycji i szukasz mu miejsca.
+  // Naraz aktywny jest tylko jeden wybór; kliknięcie drugiej strony domyka parę.
   const [wybranySlot, setWybranySlot] = useState<number | null>(null);
+  const [wybranyGracz, setWybranyGracz] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
 
   const [wiadomosci, setWiadomosci] = useState<WiadomoscDruzyny[]>([]);
@@ -77,10 +88,12 @@ export default function TaktykaDruzyny({
         pobierzPozycje(eventId, team),
         pobierzWiadomosciDruzyny(eventId, team),
       ]);
+      setMaUstawienie(!!u);
       if (u) {
         setSchemat(u.schemat);
         setTaktyka(u.taktyka);
         setNotatka(u.notatka ?? '');
+        setOpublikowana(u.opublikowana);
       }
       setPozycje(p);
       setWiadomosci(w);
@@ -111,6 +124,18 @@ export default function TaktykaDruzyny({
     }
   };
 
+  const przelaczPublikacje = async () => {
+    const nowa = !opublikowana;
+    setOpublikowana(nowa);
+    try {
+      await zapiszUstawienie(eventId, team, { opublikowana: nowa, schemat: aktualnySchemat }, user.id);
+      toast(nowa ? 'Taktyka opublikowana — drużyna ją widzi' : 'Taktyka ukryta');
+    } catch (e) {
+      setOpublikowana(!nowa);
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić widoczności', 'error');
+    }
+  };
+
   const zapiszTaktyke = async (nowa: Taktyka) => {
     try {
       await zapiszUstawienie(eventId, team, { taktyka: nowa }, user.id);
@@ -127,10 +152,11 @@ export default function TaktykaDruzyny({
     await zapiszTaktyke(nowa);
   };
 
-  const przypisz = async (participantId: string) => {
-    if (wybranySlot === null) return;
-    const slot = wybranySlot;
+  const przypisz = async (participantId: string, doSlotu?: number) => {
+    const slot = doSlotu ?? wybranySlot;
+    if (slot === null || slot === undefined) return;
     setWybranySlot(null);
+    setWybranyGracz(null);
     try {
       await ustawNaPozycji(eventId, team, slot, participantId);
       setPozycje((prev) => {
@@ -193,8 +219,56 @@ export default function TaktykaDruzyny({
     return <div className="flex justify-center py-10 text-slate-300"><Loader2 className="h-5 w-5 animate-spin" /></div>;
   }
 
+  // Widok dla drużyny przed publikacją: sam komunikat i czat. Bez tego
+  // renderowałoby się boisko z domyślnym ustawieniem i pustymi pozycjami,
+  // czyli plan, którego kapitan nigdy nie ułożył.
+  const czekamyNaKapitana = !mozeEdytowac && !maUstawienie;
+
   return (
     <div className="space-y-4">
+      {czekamyNaKapitana && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm font-semibold text-ink">Taktyka jeszcze nieustalona</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {kapitan ? `${kapitan} (kapitan)` : 'Kapitan'} pokaże ustawienie, gdy będzie gotowe.
+            Rozmowa drużyny działa już teraz.
+          </p>
+        </div>
+      )}
+
+      {/* ── Publikacja ─────────────────────────────────────────────────
+          Wzorem publikacji składu: kapitan układa na raty i sam decyduje,
+          kiedy to jest gotowe. Bez tego drużyna oglądałaby każdą pośrednią
+          wersję i nie odróżniała „tak gramy" od „tak akurat wyszło". */}
+      {mozeEdytowac && (
+        <div className={`flex items-center gap-3 rounded-2xl border p-3 ${
+          opublikowana ? 'border-primary-200 bg-primary-50' : 'border-amber-200 bg-amber-50'
+        }`}>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink">
+              {opublikowana ? 'Drużyna widzi tę taktykę' : 'Widzisz to tylko Ty'}
+            </p>
+            <p className="text-xs text-slate-500">
+              {opublikowana
+                ? 'Zmiany, które teraz zrobisz, są widoczne od razu.'
+                : 'Ułóż spokojnie, a potem opublikuj — do tego czasu nikt tego nie ogląda.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={przelaczPublikacje}
+            className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              opublikowana
+                ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                : 'bg-primary-700 text-white hover:bg-primary-800'
+            }`}
+          >
+            {opublikowana ? 'Ukryj' : 'Opublikuj taktykę'}
+          </button>
+        </div>
+      )}
+
+      {!czekamyNaKapitana && (<>
       {/* ── Ustawienie ─────────────────────────────────────────────── */}
       <div>
         <div className="mb-1.5 flex items-baseline gap-2">
@@ -253,7 +327,14 @@ export default function TaktykaDruzyny({
               key={poz.slot}
               type="button"
               disabled={!mozeEdytowac}
-              onClick={() => (gracz ? zdejmij(poz.slot) : setWybranySlot(wybrany ? null : poz.slot))}
+              onClick={() => {
+                // Mam już wybranego gracza? Stuknięcie pozycji go tu stawia —
+                // także wtedy, gdy pozycja jest zajęta (podmiana jest tym,
+                // czego się w tym momencie oczekuje, a nie błędem).
+                if (wybranyGracz) return przypisz(wybranyGracz, poz.slot);
+                if (gracz) return zdejmij(poz.slot);
+                return setWybranySlot(wybrany ? null : poz.slot);
+              }}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
               className="absolute flex w-14 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
               aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
@@ -261,7 +342,7 @@ export default function TaktykaDruzyny({
               <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
                 gracz
                   ? 'border-white bg-white text-primary-800'
-                  : wybrany
+                  : wybrany || (wybranyGracz && !gracz)
                     ? 'border-accent-400 bg-accent-400 text-primary-950'
                     : 'border-white/60 bg-primary-800/70 text-white/80'
               }`}>
@@ -280,7 +361,9 @@ export default function TaktykaDruzyny({
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
           {mozeEdytowac && wybranySlot !== null
             ? `Kogo na pozycję „${sloty.find((s) => s.slot === wybranySlot)?.nazwa}"?`
-            : `Bez pozycji · ${bezPozycji.length}`}
+            : mozeEdytowac && wybranyGracz
+              ? 'Stuknij pozycję na boisku'
+              : `Bez pozycji · ${bezPozycji.length}`}
         </p>
         {bezPozycji.length === 0 ? (
           <p className="text-xs text-slate-400">Wszyscy ustawieni.</p>
@@ -290,12 +373,17 @@ export default function TaktykaDruzyny({
               <button
                 key={g.id}
                 type="button"
-                onClick={() => (wybranySlot === null ? undefined : przypisz(g.id))}
-                disabled={!mozeEdytowac || wybranySlot === null}
+                onClick={() => {
+                  if (wybranySlot !== null) return przypisz(g.id);
+                  return setWybranyGracz(wybranyGracz === g.id ? null : g.id);
+                }}
+                disabled={!mozeEdytowac}
                 className={`rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-default ${
-                  wybranySlot === null
-                    ? 'border-slate-200 bg-white text-slate-500'
-                    : 'border-primary-600 bg-primary-50 text-primary-700'
+                  wybranyGracz === g.id
+                    ? 'border-accent-500 bg-accent-400 text-primary-950'
+                    : wybranySlot === null
+                      ? 'border-slate-200 bg-white text-slate-500'
+                      : 'border-primary-600 bg-primary-50 text-primary-700'
                 }`}
               >
                 {g.name}
@@ -304,8 +392,10 @@ export default function TaktykaDruzyny({
             ))}
           </div>
         )}
-        {mozeEdytowac && wybranySlot === null && bezPozycji.length > 0 && (
-          <p className="mt-1 text-[11px] text-slate-400">Stuknij pozycję na boisku, potem gracza.</p>
+        {mozeEdytowac && wybranySlot === null && !wybranyGracz && bezPozycji.length > 0 && (
+          <p className="mt-1 text-[11px] text-slate-400">
+            Stuknij pozycję i gracza — w dowolnej kolejności.
+          </p>
         )}
       </div>
 
@@ -393,6 +483,8 @@ export default function TaktykaDruzyny({
           )}
         </div>
       </div>
+
+      </>)}
 
       {/* ── Czat drużyny ───────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">

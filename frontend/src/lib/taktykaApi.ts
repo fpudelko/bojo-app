@@ -7,6 +7,8 @@ export interface UstawienieDruzyny {
   schemat: string | null;
   taktyka: Taktyka;
   notatka: string | null;
+  /** Czy drużyna to widzi. Kapitan widzi zawsze — patrz migracja `107`. */
+  opublikowana: boolean;
 }
 
 export interface WiadomoscDruzyny {
@@ -25,7 +27,7 @@ export async function pobierzUstawienie(
 ): Promise<UstawienieDruzyny | null> {
   const { data, error } = await supabase
     .from('event_team_setup')
-    .select('schemat, taktyka, notatka')
+    .select('schemat, taktyka, notatka, opublikowana')
     .eq('event_id', eventId)
     .eq('team', team)
     .maybeSingle();
@@ -35,6 +37,7 @@ export async function pobierzUstawienie(
     schemat: data.schemat ?? null,
     taktyka: (data.taktyka ?? {}) as Taktyka,
     notatka: data.notatka ?? null,
+    opublikowana: !!data.opublikowana,
   };
 }
 
@@ -55,6 +58,7 @@ export async function zapiszUstawienie(
     ...(zmiana.schemat !== undefined ? { schemat: zmiana.schemat } : {}),
     ...(zmiana.taktyka !== undefined ? { taktyka: zmiana.taktyka } : {}),
     ...(zmiana.notatka !== undefined ? { notatka: zmiana.notatka } : {}),
+    ...(zmiana.opublikowana !== undefined ? { opublikowana: zmiana.opublikowana } : {}),
     updated_at: new Date().toISOString(),
     updated_by: userId,
   }, { onConflict: 'event_id,team' });

@@ -22,7 +22,7 @@ export interface Pozycja {
   slot: number;
   x: number;
   y: number;
-  /** Skrót roli na koszulce: BR, OB, PM, NA. */
+  /** Skrót pozycji: BR, LO, ŚO, PO, ŚPD, LP, ŚPO, LN, N… */
   rola: string;
   /** Pełna nazwa — do etykiety pod pozycją i dla czytników ekranu. */
   nazwa: string;
@@ -37,23 +37,65 @@ export interface Ustawienie {
   opis: string;
 }
 
-const NAZWY_LINII = [
-  { rola: 'BR', nazwa: 'Bramkarz' },
-  { rola: 'OB', nazwa: 'Obrona' },
-  { rola: 'PM', nazwa: 'Pomoc' },
-  { rola: 'NA', nazwa: 'Atak' },
-];
-
 /**
- * Nazwa linii przy schematach z dodatkową linią pomocy (np. `1-4-2-3-1`).
- * Linie środkowe dostają „Pomoc", ostatnia zawsze „Atak" — inaczej
- * `1-4-2-3-1` miałoby napastnika opisanego jako pomocnika.
+ * Nazwa pozycji: linia + strona boiska.
+ *
+ * Wcześniej wszyscy obrońcy byli po prostu „OB", a pomocnicy „PM" — czyli
+ * plakietka mówiła to samo, co i tak widać po wysokości na boisku, i nic
+ * ponadto. Piłkarz mówi „lewy obrońca" i „defensywny pomocnik", więc tak samo
+ * nazywa je teraz Bojo (zgłoszone wprost).
+ *
+ * STRONA bierze się z miejsca w linii: skrajny lewy to L, skrajny prawy to P,
+ * wszystko pomiędzy to Ś. Przy dwóch graczach w linii nie ma środka — są lewy
+ * i prawy.
+ *
+ * DEFENSYWNY/OFENSYWNY tylko wtedy, gdy pomoc ma DWIE linie (np. `1-4-2-3-1`):
+ * przy jednej linii pomocy dopisek niczego nie rozróżnia, a wydłuża skrót.
  */
-function opisLinii(indeks: number, ile: number) {
-  if (indeks === 0) return NAZWY_LINII[0];
-  if (indeks === ile - 1) return NAZWY_LINII[3];
-  if (indeks === 1) return NAZWY_LINII[1];
-  return NAZWY_LINII[2];
+function stronaWLinii(indeks: number, ilu: number): 'L' | 'Ś' | 'P' {
+  if (ilu === 1) return 'Ś';
+  if (indeks === 0) return 'L';
+  if (indeks === ilu - 1) return 'P';
+  return 'Ś';
+}
+
+const SLOWO_STRONY: Record<'L' | 'Ś' | 'P', string> = { L: 'Lewy', 'Ś': 'Środkowy', P: 'Prawy' };
+
+function opisPozycji(
+  indeksLinii: number,
+  ileLinii: number,
+  indeksWLinii: number,
+  iluWLinii: number,
+): { rola: string; nazwa: string } {
+  if (indeksLinii === 0) return { rola: 'BR', nazwa: 'Bramkarz' };
+
+  const strona = stronaWLinii(indeksWLinii, iluWLinii);
+  const slowo = SLOWO_STRONY[strona];
+  const ostatnia = indeksLinii === ileLinii - 1;
+
+  if (ostatnia) {
+    // Jeden napastnik nie potrzebuje strony — jest po prostu napastnikiem.
+    if (iluWLinii === 1) return { rola: 'N', nazwa: 'Napastnik' };
+    return { rola: `${strona}N`, nazwa: `${slowo} napastnik` };
+  }
+
+  if (indeksLinii === 1) {
+    return { rola: `${strona}O`, nazwa: `${slowo} obrońca` };
+  }
+
+  // Linie pomocy: pierwsza z nich defensywna, ostatnia ofensywna — ale tylko
+  // gdy jest ich więcej niż jedna.
+  const pierwszaPomoc = 2;
+  const ostatniaPomoc = ileLinii - 2;
+  const kilkaLiniiPomocy = ostatniaPomoc > pierwszaPomoc;
+
+  if (kilkaLiniiPomocy && indeksLinii === pierwszaPomoc) {
+    return { rola: `${strona}PD`, nazwa: `${slowo} pomocnik defensywny` };
+  }
+  if (kilkaLiniiPomocy && indeksLinii === ostatniaPomoc) {
+    return { rola: `${strona}PO`, nazwa: `${slowo} pomocnik ofensywny` };
+  }
+  return { rola: `${strona}P`, nazwa: `${slowo} pomocnik` };
 }
 
 /**
@@ -76,15 +118,15 @@ export function pozycjeZeSchematu(schemat: string): Pozycja[] {
   let slot = 0;
 
   linie.forEach((ilu, i) => {
-    const { rola, nazwa } = opisLinii(i, linie.length);
     // Jedna linia = jedna „wysokość". Pierwsza (bramkarz) nisko, ostatnia
     // wysoko, reszta równo pomiędzy.
     const y = linie.length === 1 ? 50 : 6 + (i * (86 - 6)) / (linie.length - 1);
 
     for (let j = 0; j < ilu; j += 1) {
       // Jeden gracz w linii staje na środku; kilku rozkłada się równo
-      // w pasie 12–88% szerokości.
+      // w pasie 20–80% szerokości.
       const x = ilu === 1 ? 50 : 20 + (j * (80 - 20)) / (ilu - 1);
+      const { rola, nazwa } = opisPozycji(i, linie.length, j, ilu);
       pozycje.push({ slot, x: Math.round(x), y: Math.round(y), rola, nazwa });
       slot += 1;
     }

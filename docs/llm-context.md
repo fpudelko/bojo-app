@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `105` · 38 tabel · 628 testów
+**Stan na:** 2026-08-18 · migracja `107` · 38 tabel · 632 testy
 
 ---
 
@@ -332,6 +332,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Taktyka: publikacja, pozycje z nazwami, zakładka „Mecz"
+
+PROBLEM: kapitan układał ustawienie na oczach drużyny — każda pośrednia wersja była
+widoczna i nie dało się odróżnić „tak gramy" od „tak akurat wyszło". Pozycje na boisku
+miały skróty „OB" i „PM", czyli mówiły to samo, co widać po wysokości na boisku. Gracza
+dało się przypisać wyłącznie w kolejności pozycja → nazwisko. Zakładka „Skład" trzymała
+opis meczu, termin, miejsce, licznik, listę graczy i zapisy — czyli cały mecz. Osobno:
+administrator widział panel organizatora, ale przypisanie gracza do drużyny kończyło się
+komunikatem o braku uprawnień.
+
+ROZWIĄZANIE BOJO: kapitan ma przełącznik „Opublikuj taktykę" — do tego czasu widzi ją sam,
+a drużyna czyta „Taktyka jeszcze nieustalona" i normalnie rozmawia na czacie. Pozycje
+nazywają się jak w piłce: LO, ŚO, PO, ŚPD, LP, ŚPO, LN, N. Gracza przypisuje się w obie
+strony — stukasz pozycję i nazwisko albo nazwisko i pozycję. Zakładka „Skład" nazywa się
+teraz „Mecz". Kapitan jest JEDEN na drużynę: nadanie gwiazdki komuś nowemu zdejmuje ją
+poprzedniemu.
+
+MECHANIKA: migracja `107` (`event_team_setup.opublikowana`, `czy_taktyka_opublikowana()`,
+zawężone polityki SELECT) i `106` (`czy_admin()` w politykach `event_participants` —
+interfejs traktował admina jak organizatora, baza nie). `lib/taktyka.ts`: `opisPozycji()`
+wylicza skrót z linii i strony boiska. `setCaptain()` w `lib/eventFeatures.ts` zdejmuje
+poprzedniego kapitana tej samej drużyny.
+
 ### 2026-08-18 — Taktyka: ustawia kapitan, widzi drużyna
 
 PROBLEM: pierwsza wersja zakładki „Taktyka" pokazywała OBIE drużyny i była dostępna
@@ -523,25 +546,3 @@ MECHANIKA: `policzNadchodzaceMoje()` w `lib/events.ts` (liczy ten sam zbiór co
 przy każdej zmianie trasy), `components/layout/IkonaWiadomosci.tsx` (kształt chmurki
 z białą obwódką wpisaną w ścieżkę przez `paint-order: stroke`),
 `components/layout/BottomNav.tsx`.
-
-### 2026-08-17 — Chmurka zamiast różowej kropki, dymek o nowej wiadomości w ekipie
-
-PROBLEM: nieprzeczytaną wiadomość Bojo sygnalizowało różową kropką na dolnej nawigacji
-i na karcie ekipy. Kropka mówi wyłącznie „coś tu jest" — jej znaczenia trzeba się
-nauczyć i zapamiętać, którego koloru dotyczy. Zgłoszone wprost pytaniem użytkownika:
-„różowa kropka oznacza, że wiadomość jest nowa?".
-
-ROZWIĄZANIE BOJO: wskaźnik wiadomości ma teraz kształt chmurki (dymka wiadomości),
-nie kropki — czyta się bez tłumaczenia. Kolor różowy zostaje, więc związek z plakietkami
-nieprzeczytanych na kartach meczów i ekip jest zachowany. Doszedł krótki dymek „Nowa
-wiadomość w grupie {nazwa}", pokazywany przy zapaleniu wskaźnika — taki sam jak
-istniejący „Nowa gra w grupie {nazwa}". Pomarańczowy wskaźnik („nowa gra") gaśnie razem
-ze swoim dymkiem, bo dymek dostarczył właśnie tę wiadomość; różowa chmurka gaśnie
-dopiero po przeczytaniu wiadomości.
-
-MECHANIKA: `components/layout/BottomNav.tsx` (kształt wskaźnika, kolejka dymków,
-`wygasWskaznik()`), `app/grupy/GroupsClient.tsx` (karta ekipy). Nazwa ekipy do treści
-dymka: `getUnreadGroupName()` w `lib/groupPosts.ts` i `getNewGroupEventGroup()`
-w `lib/groups.ts` — obie wybierają ekipę z najświeższym wpisem, bo jeden dymek nie
-wymieni wszystkich. Wygaszenie zapisuje „widziano" pod tym samym kluczem `localStorage`,
-co odwiedzenie strony ekipy, więc kropka znika też z karty na `/grupy`.

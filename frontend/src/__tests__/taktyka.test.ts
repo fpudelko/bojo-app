@@ -15,7 +15,33 @@ describe('pozycjeZeSchematu', () => {
     const p = pozycjeZeSchematu('1-4-4-2');
     expect(p[0].rola).toBe('BR');
     expect(p[0].y).toBeLessThan(p[p.length - 1].y);
-    expect(p[p.length - 1].rola).toBe('NA');
+    expect(p[p.length - 1].rola).toBe('PN');
+  });
+
+  it('pozycja niesie STRONĘ boiska, nie samą linię', () => {
+    // „OB" przy każdym obrońcy mówiło to samo, co i tak widać po wysokości
+    // na boisku. Piłkarz mówi „lewy obrońca", więc tak samo mówi Bojo.
+    expect(pozycjeZeSchematu('1-4-4-2').filter((x) => x.rola.endsWith('O')).map((x) => x.rola))
+      .toEqual(['LO', 'ŚO', 'ŚO', 'PO']);
+  });
+
+  it('samotny napastnik nie ma strony — jest po prostu napastnikiem', () => {
+    const p = pozycjeZeSchematu('1-4-2-3-1');
+    expect(p[p.length - 1].rola).toBe('N');
+    expect(p[p.length - 1].nazwa).toBe('Napastnik');
+  });
+
+  it('dwie linie pomocy dostają defensywną i ofensywną, jedna nie', () => {
+    // Przy jednej linii pomocy dopisek D/O niczego nie rozróżnia, a wydłuża
+    // skrót — więc go nie ma.
+    const dwie = pozycjeZeSchematu('1-4-2-3-1').map((x) => x.rola);
+    expect(dwie).toContain('LPD');
+    expect(dwie).toContain('LPO');
+    // Sprawdzamy dokładny zestaw, nie końcówki: „PO" to prawy OBROŃCA,
+    // a „PPO" prawy pomocnik ofensywny — dopasowanie po końcówce myliłoby te
+    // dwie pozycje.
+    const jedna = pozycjeZeSchematu('1-4-4-2').filter((x) => x.nazwa.includes('pomocnik'));
+    expect(jedna.map((x) => x.rola)).toEqual(['LP', 'ŚP', 'ŚP', 'PP']);
   });
 
   it('pojedynczy gracz w linii staje na środku', () => {
@@ -24,8 +50,13 @@ describe('pozycjeZeSchematu', () => {
     expect(p[p.length - 1].x).toBe(50);            // samotny napastnik
   });
 
+  it('dwóch w linii to lewy i prawy — bez środka', () => {
+    expect(pozycjeZeSchematu('1-2-1').filter((x) => x.rola.endsWith('O')).map((x) => x.rola))
+      .toEqual(['LO', 'PO']);
+  });
+
   it('linia rozkłada się symetrycznie i nie dotyka krawędzi', () => {
-    const czworka = pozycjeZeSchematu('1-4-4-2').filter((p) => p.rola === 'OB');
+    const czworka = pozycjeZeSchematu('1-4-4-2').filter((p) => p.rola.endsWith('O'));
     expect(czworka.map((p) => p.x)).toEqual([20, 40, 60, 80]);
     // Margines po bokach istnieje po to, żeby kółko i nazwisko skrajnego
     // gracza mieściły się na murawie — przy 12% dotykały linii bocznej.
@@ -39,10 +70,10 @@ describe('pozycjeZeSchematu', () => {
 
   it('ostatnia linia to zawsze atak, także przy pięciu liniach', () => {
     const p = pozycjeZeSchematu('1-4-2-3-1');
-    expect(p[p.length - 1].rola).toBe('NA');
+    expect(p[p.length - 1].nazwa).toBe('Napastnik');
     // Środkowe linie to pomoc — bez tego 1-4-2-3-1 opisywałoby napastnika
     // jako pomocnika.
-    expect(p.filter((x) => x.rola === 'PM')).toHaveLength(5);
+    expect(p.filter((x) => x.nazwa.includes('pomocnik'))).toHaveLength(5);
   });
 
   it('śmieciowe wejście nie wywraca widoku', () => {
