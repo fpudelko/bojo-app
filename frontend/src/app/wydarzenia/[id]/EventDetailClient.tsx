@@ -30,6 +30,7 @@ import {
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
+import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
 import { eventUrl, shareEvent } from '@/lib/eventShare';
@@ -75,7 +76,7 @@ import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
 
-type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
 // nie w zwijanej sekcji i nie w osobnej zakładce. Obie te wersje były po
 // drodze i obie okazały się gorsze: zwinięta chowała rzecz, po którą się tam
@@ -87,6 +88,11 @@ type EventTab = 'sklad' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // wcześniej otwierały się puste.
 const EVENT_TAB_LABELS: [EventTab, string][] = [
   ['sklad', 'Skład'],
+  // „Taktyka" pojawia się DOPIERO po opublikowaniu składów — przed podziałem
+  // na drużyny nie ma czego ustawiać, a zakładka pokazywałaby dwa puste
+  // boiska. Dziś dodatkowo za bramką `isAdmin`: funkcja jest świeża i wchodzi
+  // najpierw na jedno konto, żeby sprawdzić ją na żywym meczu.
+  ['taktyka', 'Taktyka'],
   ['rozmowa', 'Rozmowa'],
   ['wynik', 'Wynik'],
   ['rozliczenia', 'Rozliczenia'],
@@ -465,7 +471,7 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
+    if (t === 'taktyka' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
   }, []);
   const goToTab = (t: EventTab) => {
     setTab(t);
@@ -2092,6 +2098,9 @@ export default function EventDetailClient() {
                 // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo
                 // nie ma czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
                 if (t === 'rozliczenia') return event.costGrosze > 0;
+                // Taktyka: tylko po publikacji składów i (na razie) tylko dla
+                // administratora — patrz komentarz przy EVENT_TAB_LABELS.
+                if (t === 'taktyka') return isAdmin && event.teamsPublished && !isCancelled;
                 return true;
               }).map(([t, label]) => (
                 <button
@@ -3318,6 +3327,32 @@ export default function EventDetailClient() {
 
         {/* Wynik — sam formularz, bez drużyn. Drużyny renderują się wyżej,
             w zakładce Skład. */}
+        {tab === 'taktyka' && isAdmin && event.teamsPublished && (
+          <div className="space-y-6 px-4 py-4">
+            {/* Dwie drużyny jedna pod drugą, nie w zakładkach wewnątrz zakładki:
+                organizator ustawia zwykle obie, a przełącznik w przełączniku
+                gubi, gdzie się jest. */}
+            {([['A', teamA], ['B', teamB]] as const).map(([klucz, gracze]) => (
+              <div key={klucz}>
+                <p className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[klucz].pill}`}>
+                  {TEAM_LABELS[klucz]} ({TEAM_LETTERS[klucz]}) · {gracze.length}
+                </p>
+                {gracze.length === 0 ? (
+                  <p className="text-sm text-slate-400">Nikt nie jest przypisany do tej drużyny.</p>
+                ) : (
+                  <TaktykaDruzyny
+                    eventId={event.id}
+                    team={klucz}
+                    nazwa={TEAM_LABELS[klucz]}
+                    sport={event.sport}
+                    gracze={gracze}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {tab === 'wynik' && wynikFormSection}
 
         {/* Podział kosztów — dawniej `platnosciSection`, dziś cała treść
