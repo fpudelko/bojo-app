@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
-import { Bell, ChevronRight } from 'lucide-react';
+import {
+  Bell, CalendarPlus, CalendarX, Check, ChevronRight, MessageCircle, TicketCheck,
+  UserPlus, type LucideIcon,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
@@ -15,6 +18,54 @@ import type { AppNotification } from '@/types';
  *  `reserve_claim_offered` (oferta miejsca z rezerwy, ma własny przepływ
  *  z terminem ważności) tu nie należą — obie znaczą co innego niż „grasz?". */
 const ODPOWIEM_STAD = new Set(['pytanie_o_udzial', 'zaproszenie_na_mecz']);
+
+/**
+ * Ikona i podpis rodzaju — jedno spojrzenie zamiast czytania.
+ *
+ * Panel wyglądał jak lista identycznych szarych akapitów: cztery pozycje
+ * „Nowy mecz w grupie" pod rząd różniły się wyłącznie treścią drobnym drukiem
+ * (zgłoszone wprost — „te powiadomienia jakoś mi się nie podobają"). Ikona
+ * niesie rodzaj, więc oko odróżnia „odwołany" od „nowy" bez czytania, a kolor
+ * trzyma się konwencji z AGENTS.md: niebieski = wymaga decyzji, różowy =
+ * wiadomość, reszta neutralnie.
+ */
+const IKONY: Record<string, { Ikona: LucideIcon; klasa: string; rodzaj: string }> = {
+  nowy_mecz_w_grupie:          { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Nowy mecz' },
+  event_cancelled:             { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
+  mecz_odwolany:               { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
+  prosba_o_dolaczenie:         { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
+  pytanie_o_udzial:            { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Grasz?' },
+  zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },
+  reserve_claim_offered:       { Ikona: TicketCheck,   klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Wolne miejsce' },
+  ogloszenie_w_grupie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
+  niepotwierdzony_wpis_goscia: { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Potwierdź' },
+};
+
+const IKONA_DOMYSLNA = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };
+
+/**
+ * Nagłówek grupy: „Dziś", „Wczoraj", „Wcześniej".
+ *
+ * Data przy każdym wierszu („16 sie o 21:01") powtarzała tę samą informację
+ * dziesięć razy i zabierała miejsce treści. Grupa mówi to raz, a przy wierszu
+ * zostaje sama godzina — dokładnie tak jak w komunikatorach, z których ludzie
+ * korzystają codziennie.
+ */
+function grupaDnia(iso: string, teraz: Date): string {
+  const d = new Date(iso);
+  const dzien = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const roznica = Math.round((dzien(teraz) - dzien(d)) / 86_400_000);
+  if (roznica <= 0) return 'Dziś';
+  if (roznica === 1) return 'Wczoraj';
+  return 'Wcześniej';
+}
+
+function godzina(iso: string, grupa: string): string {
+  const d = new Date(iso);
+  const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (grupa !== 'Wcześniej') return hhmm;
+  return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+}
 
 /** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
  *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
@@ -52,26 +103,53 @@ function celPowiadomienia(n: AppNotification): string | null {
  *  czeka na decyzję i czy oferta miejsca nadal jest aktywna. Prośba rozpatrzona
  *  gaśnie jak każdy inny przeczytany wpis — bez tego wisiała ze znacznikiem
  *  „Sprawdź" bez końca, mimo że nie było już czego sprawdzać. */
-function TrescPowiadomienia({ n, wymagaAkcji }: { n: AppNotification; wymagaAkcji: boolean }) {
+function TrescPowiadomienia({ n, wymagaAkcji, grupa }: {
+  n: AppNotification;
+  wymagaAkcji: boolean;
+  grupa: string;
+}) {
+  const { Ikona, klasa, rodzaj } = IKONY[n.type] ?? IKONA_DOMYSLNA;
+  // PRZECZYTANE ≠ ZAŁATWIONE, więc pozycja wymagająca decyzji nie blaknie
+  // nigdy. Reszta po przeczytaniu traci wyłącznie WAGĘ (cieńsza czcionka,
+  // spokojniejszy kolor) — wcześniej dostawała `opacity-60` i robiła się
+  // nieczytelna, czyli historia powiadomień była bezużyteczna.
   const wygaszone = !!n.readAt && !wymagaAkcji;
+
   return (
-    <>
-      {!n.readAt && (
-        <span className={`inline-block w-1.5 h-1.5 rounded-full mb-1 ${wymagaAkcji ? 'bg-blue-600' : 'bg-primary-600'}`} />
-      )}
-      <p className={`text-sm leading-tight ${wygaszone ? 'font-normal text-slate-500' : 'font-medium text-ink'}`}>{n.title}</p>
-      {n.body && <p className={`text-xs mt-0.5 ${wygaszone ? 'text-slate-400' : 'text-slate-600'}`}>{n.body}</p>}
-      <div className="mt-1 flex items-center gap-2">
-        <p className="text-xs text-slate-400">
-          {new Date(n.createdAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-        </p>
-        {wymagaAkcji && (
-          <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-            Sprawdź <ChevronRight className="h-3 w-3" />
-          </span>
+    <div className="flex gap-3">
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${klasa}`}>
+        <Ikona className="h-4 w-4" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <p className={`min-w-0 flex-1 text-sm leading-tight ${
+            wygaszone ? 'font-medium text-slate-600' : 'font-semibold text-ink'
+          }`}>
+            {n.title}
+          </p>
+          <span className="shrink-0 text-[11px] text-slate-400">{godzina(n.createdAt, grupa)}</span>
+        </div>
+
+        {n.body && (
+          <p className={`mt-0.5 line-clamp-2 text-xs ${wygaszone ? 'text-slate-400' : 'text-slate-600'}`}>
+            {n.body}
+          </p>
         )}
+
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{rodzaj}</span>
+          {wymagaAkcji && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+              Sprawdź <ChevronRight className="h-3 w-3" />
+            </span>
+          )}
+          {!n.readAt && !wymagaAkcji && (
+            <span className="h-1.5 w-1.5 rounded-full bg-primary-600" aria-label="nieprzeczytane" />
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -95,6 +173,9 @@ export default function NotificationBell() {
   const [otwarte, setOtwarte] = useState<Set<string> | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const listaRef = useRef<HTMLUListElement>(null);
+  // Jeden znacznik czasu na render: gdyby każdy wiersz wołał `new Date()`,
+  // lista otwarta o 23:59:59 mogłaby mieć dwie różne granice „Dziś".
+  const teraz = new Date();
 
   const unread = notifs.filter((n) => !n.readAt).length;
 
@@ -201,12 +282,15 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* `max-h-[80vh]` zamiast wysokości bez ograniczenia: na niskim ekranie
-          panel schodził poniżej krawędzi i dolne powiadomienia były poza
-          zasięgiem, bo przewijała się wtedy STRONA POD SPODEM, a nie panel. */}
+      {/* WYSOKOŚĆ: `svh`, nie `vh`. Na iOS `vh` liczy się od WIĘKSZEGO okna
+          (tego z ukrytym paskiem przeglądarki), więc 80vh potrafi być wyższe
+          niż to, co realnie widać — panel schodził pod dolną nawigację razem
+          z ostatnim powiadomieniem. `svh` to najmniejsze okno, czyli takie,
+          które mieści się ZAWSZE. `vh` zostaje jako zapas dla starszych
+          przeglądarek. */}
       {open && (
-        <div className="fixed inset-x-3 top-14 z-[1010] flex max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
-          <div className="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+        <div className="fixed inset-x-3 top-14 z-[1010] flex max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl supports-[height:1svh]:max-h-[72svh] sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-ink">Powiadomienia</p>
             {notifs.length > 0 && (
               <span className="text-xs text-slate-400">{notifs.length} ostatnich</span>
@@ -215,35 +299,51 @@ export default function NotificationBell() {
 
           {notifs.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <Bell className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+              <Bell className="mx-auto mb-2 h-8 w-8 text-slate-200" />
               <p className="text-sm text-slate-400">Brak powiadomień</p>
-              <p className="text-xs text-slate-300 mt-1">Damy znać, gdy coś się wydarzy w Twoich grach.</p>
+              <p className="mt-1 text-xs text-slate-300">Damy znać, gdy coś się wydarzy w Twoich grach.</p>
             </div>
           ) : (
-            // `overscroll-contain` — bez tego przewijanie listy po dojechaniu
-            // do jej końca „przeskakuje" na stronę pod spodem (scroll
-            // chaining): ekran ucieka, a do góry listy nie da się wrócić
-            // palcem (zgłoszone wprost). `flex-1` zamiast sztywnego `max-h-80`,
-            // żeby panel wykorzystał całą dostępną wysokość.
-            <ul ref={listaRef} className="flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain">
-              {notifs.map((n) => {
+            /* `min-h-0` — TO JEST przyczyna, dla której listy nie dało się
+               przewinąć. Element `flex-1` z własnym przewijaniem domyślnie NIE
+               kurczy się poniżej wysokości swojej treści, więc rozpychał panel
+               od środka: `overflow-hidden` obcinało dół (ostatnie powiadomienie
+               znikało pod paskiem), a wewnętrzne przewijanie nigdy się nie
+               włączało — palec przewijał stronę pod spodem. Ta sama pułapka co
+               `min-w-0` przy `truncate`, opisana w AGENTS.md.
+
+               `overscroll-contain` zostaje: pilnuje, żeby dojechanie do końca
+               listy nie przenosiło przewijania na stronę pod spodem. */
+            <ul
+              ref={listaRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            >
+              {notifs.map((n, i) => {
                 // Dopóki stanu nie znamy (`otwarte === null`), zachowujemy się
                 // jak dotąd: typ decyduje. Gdy znamy — decyduje sprawa.
                 const wymagaAkcji = WYMAGA_AKCJI.has(n.type)
                   && (otwarte === null || otwarte.has(n.id));
-                const bgClass = !n.readAt
-                  ? (wymagaAkcji ? 'bg-blue-50/60' : 'bg-primary-50/40')
-                  : wymagaAkcji ? 'bg-blue-50/30' : 'opacity-60';
+                const grupa = grupaDnia(n.createdAt, teraz);
+                const nowaGrupa = i === 0 || grupaDnia(notifs[i - 1].createdAt, teraz) !== grupa;
                 const cel = celPowiadomienia(n);
+                const tlo = !n.readAt
+                  ? (wymagaAkcji ? 'bg-blue-50/60' : 'bg-primary-50/30')
+                  : wymagaAkcji ? 'bg-blue-50/30' : 'bg-white';
+
                 return (
                   <li key={n.id}>
+                    {nowaGrupa && (
+                      <p className="sticky top-0 z-10 bg-slate-50/95 px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 backdrop-blur">
+                        {grupa}
+                      </p>
+                    )}
                     {cel ? (
                       <Link
                         href={cel}
                         onClick={() => setOpen(false)}
-                        className={`block px-4 py-3 hover:bg-slate-50 transition-colors ${bgClass}`}
+                        className={`block border-b border-slate-50 px-4 py-3 transition-colors hover:bg-slate-50 ${tlo}`}
                       >
-                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} />
+                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} grupa={grupa} />
                         {/* Odpowiedź WEWNĄTRZ odnośnika, nie obok: cała pozycja
                             panelu jest klikalna, a przycisk obok niej byłby
                             drugim celem w tej samej linii. `OdpowiedzJednymKlikiem`
@@ -260,8 +360,8 @@ export default function NotificationBell() {
                         )}
                       </Link>
                     ) : (
-                      <div className={`px-4 py-3 ${bgClass}`}>
-                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} />
+                      <div className={`border-b border-slate-50 px-4 py-3 ${tlo}`}>
+                        <TrescPowiadomienia n={n} wymagaAkcji={wymagaAkcji} grupa={grupa} />
                       </div>
                     )}
                   </li>

@@ -757,7 +757,7 @@ export default function EventDetailClient() {
     const takenSpots = participants.filter((p) => !p.pendingApproval && !p.isReserve).length;
     setJoinRole('player');
     setJoinAsReserve(takenSpots >= event.maxPlayers);
-    setJoinDialogOpen(true);
+    otworzOknoZapisu();
   }, [chceDolaczyc, authLoading, loading, user, event, participants]);
 
   if (loading) {
@@ -1737,6 +1737,22 @@ export default function EventDetailClient() {
   // będzie ten zapis. Liczone z tych samych danych, z których liczy je
   // `decydujCzyRezerwa()` po stronie zapisu, żeby zapowiedź zgadzała się
   // z tym, co faktycznie się stanie.
+  /**
+   * Otwarcie okna zapisu z gotowym wyborem tam, gdzie nie ma czego wybierać.
+   *
+   * Przy JEDNEJ akceptowanej metodzie płatności „Jak zapłacisz?" to pytanie
+   * z jedną odpowiedzią: kliknięcie nie niesie żadnej decyzji, a nieodkliknięte
+   * blokuje przycisk „Zapisz mnie". Ta sama zasada działa już przy kartach
+   * sportowych (jedna akceptowana = wybrana automatycznie), więc płatność
+   * dostaje ją dla spójności.
+   */
+  const otworzOknoZapisu = () => {
+    if (event.costGrosze > 0 && event.acceptedPaymentMethods.length === 1) {
+      setJoinPaymentMethod(event.acceptedPaymentMethods[0]);
+    }
+    setJoinDialogOpen(true);
+  };
+
   const rolaPelna = joinAsReserve || (gkEnabled
     ? (joinRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
     : wolne.razem === 0);
@@ -3194,7 +3210,7 @@ export default function EventDetailClient() {
               </div>
               <div className="mt-3 flex gap-2">
                 <button
-                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); otworzOknoZapisu(); }}
                   disabled={busy}
                   className="flex-1 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
                 >
@@ -3263,7 +3279,7 @@ export default function EventDetailClient() {
               ) : user && !isFull ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); otworzOknoZapisu(); }}
                     disabled={busy}
                     className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99] disabled:opacity-50"
                   >
@@ -3290,7 +3306,7 @@ export default function EventDetailClient() {
               ) : user && isFull ? (
                 <>
                   <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); otworzOknoZapisu(); }}
                     className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
                   >
                     Komplet — zapisz się na rezerwę
