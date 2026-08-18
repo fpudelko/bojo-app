@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Users, LogIn, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
+import { Users, LogIn, ChevronRight, Plus, CalendarPlus, CalendarDays, MapPin } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import IkonaWiadomosci from '@/components/layout/IkonaWiadomosci';
 import Button from '@/components/ui/Button';
@@ -60,19 +60,42 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
       </div>
 
       {g.nextEvent ? (
-        <div className="mt-3">
-          <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            <span className="capitalize">{dzien}</span> · {g.nextEvent.time.slice(0, 5)}
-            {g.nextEvent.fieldName && ` · ${g.nextEvent.fieldName}`}
-          </p>
+        /* Najbliższy mecz ekipy — plakietkami, wzorem karty meczu.
+           Wcześniej wszystko szło jednym zdaniem „Śr. 19 Sie · 19:30 · <nazwa
+           obiektu>", w którym nazwa boiska ciągnęła się przez trzy wiersze
+           i przykrywała jedyne dwie rzeczy naprawdę istotne na tej liście:
+           KIEDY gramy i czy jest komplet. Termin ma teraz własną plakietkę,
+           obiekt jest drugorzędny, jednowierszowy i ucięty (`min-w-0` +
+           `truncate`, bez niego flex odmawia skurczyć element poniżej długości
+           tekstu i znów rozpycha kartę). */
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
+              <CalendarDays className="h-3 w-3" />
+              <span className="capitalize">{dzien}</span> · {g.nextEvent.time.slice(0, 5)}
+            </span>
+            {max > 0 && (
+              <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                brakuje > 0
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
+              }`}>
+                {brakuje > 0 ? `brakuje ${brakuje}` : 'komplet'}
+              </span>
+            )}
+          </div>
+          {g.nextEvent.fieldName && (
+            <p className="min-w-0 truncate text-[11px] text-slate-400" title={g.nextEvent.fieldName}>
+              <MapPin className="mr-1 inline h-3 w-3 align-[-2px]" />
+              {g.nextEvent.fieldName}
+            </p>
+          )}
           {max > 0 && (
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
               </div>
-              <span className="shrink-0 text-[11px] text-slate-400">
-                {taken}/{max}{brakuje > 0 ? ` — brakuje ${brakuje}` : ''}
-              </span>
+              <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
             </div>
           )}
         </div>

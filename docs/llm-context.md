@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 598 testów
+**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 604 testy
 
 ---
 
@@ -332,6 +332,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Chmurka wiadomości gaśnie, karta ekipy czytelna
+
+PROBLEM: różowa chmurka „nowa wiadomość" świeciła się bez końca, mimo że wszystko było
+przeczytane. Przyczyna: liczyła rozmowy ze WSZYSTKICH meczów, w których kiedykolwiek
+grałem — także sprzed pół roku. Rozmowa z rozegranego meczu, do której nikt nie wrócił,
+zapalała wskaźnik na stałe: „Moje" pokazuje wyłącznie nadchodzące, więc nie było jak jej
+otworzyć, a więc i odznaczyć. Osobno: karta ekipy na liście `/grupy` opisywała najbliższy
+mecz jednym zdaniem, w którym nazwa obiektu zajmowała trzy wiersze i przykrywała jedyne
+dwie istotne rzeczy — kiedy gramy i czy jest komplet.
+
+ROZWIĄZANIE BOJO: chmurka liczy wyłącznie NADCHODZĄCE mecze, więc gaśnie po wejściu
+w rozmowę i nie da się jej zapalić czymś, do czego nie ma jak dojść. Dochodzi dymek „Nowa
+wiadomość w meczu {tytuł}", taki sam jak „Nowa gra w grupie {nazwa}". Karta ekipy pokazuje
+termin plakietką, obok plakietkę „brakuje N" albo „komplet", a nazwę obiektu w jednym
+uciętym wierszu pod spodem.
+
+MECHANIKA: `nieprzeczytaneWMeczach()` w `lib/comments.ts` (zastępuje
+`hasUnreadEventMessages()`; filtruje mecze po dacie i zwraca tytuł meczu z najświeższą
+nieprzeczytaną), `components/layout/BottomNav.tsx` (nowy klucz licznika dymka
+`wiadomosc-w-meczu` — stary niósł zużyte pokazania dawnej, ogólnikowej treści),
+`app/grupy/GroupsClient.tsx`. Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie
+za coś, do czego da się dojść z ekranu, na który wskazuje.
+
 ### 2026-08-18 — „Gram" jednym kliknięciem i pusty stan, który prowadzi dalej
 
 PROBLEM: na zaproszenie do meczu dało się odpowiedzieć wyłącznie z poziomu strony meczu —
@@ -539,28 +562,3 @@ przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) 
 Migracja `098`: funkcja `czy_admin()` (`SECURITY DEFINER`) i przepięcie na nią polityk
 z `022` i `005`, które sprawdzały uprawnienie podzapytaniem o tę samą tabelę,
 na której siedzą.
-
-### 2026-08-16 — Kropka na "Moje" gaśnie po błędzie zapytania zamiast zostać zapaloną na stałe; dymek na skrajnej ikonie nie wystaje poza ekran
-
-PROBLEM: różowa kropka „nowe wiadomości" na „Moje" wracała nawet po naprawie wyścigu
-między zapytaniami (poprzedni wpis w tym logu) — zgłoszone wprost, ponownie ze zrzutem,
-mimo `/moje-gry` nie znajdującego ani jednej nieprzeczytanej wiadomości. Każdy z czterech
-efektów w `BottomNav.tsx` kończył nieudane zapytanie gołym `.catch(() => {})`: błąd (chwilowy
-problem sieci, odświeżenie tokenu Supabase w trakcie) zostawiał stan takim, jaki był PRZED
-próbą — jeśli ostatnia udana odpowiedź brzmiała „są nieprzeczytane", kropka świeciła dalej
-bez związku z rzeczywistością, aż trafiłoby się kolejne udane zapytanie. Osobno: dymek nad
-pierwszą („Znajdź grę") i ostatnią („Grupy") z pięciu ikon wyśrodkowywał się nad wąską
-kolumną blisko krawędzi ekranu i wystawał poza nią, nieczytelny — też zgłoszone ze zrzutem.
-
-ROZWIĄZANIE BOJO: `catch` w każdym z czterech efektów ustawia teraz jawnie `false`
-(`null` dla nazwy grupy) zamiast nic nie robić — brak pewności o stanie wygrywa z fałszywie
-zapaloną kropką. Dymek dostał `dymekAlign` (`'left' | 'center' | 'right'`): skrajne kolumny
-przypinają go do swojej wewnętrznej krawędzi zamiast centrować nad ikoną, środkowe trzy
-zostają wyśrodkowane jak dotąd.
-
-MECHANIKA: `BottomNav.tsx` — każdy `.then(...).catch(...)` w efektach `pendingApproval`/
-`unreadEvents`/grupowym (`unreadGroups`, `newGroupEvents`, `newGroupName`, plus zewnętrzny
-`getMyGroups().catch()`) resetuje stan na `catch`. `NavLink` dostaje prop `dymekAlign`;
-`LEFT_ITEMS`/`RIGHT_ITEMS.map` liczy go z indeksu (`i === 0` / `i === length - 1`) i
-przekazuje klasy `left-0`/`right-0` zamiast `left-1/2 -translate-x-1/2` na dymku i jego
-trójkącie wskaźnika.
