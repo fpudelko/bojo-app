@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { clsx } from 'clsx';
 import {
   Check, List, MailOpen, Map as MapIcon, Navigation, Plus, Search, SlidersHorizontal,
-  Ticket, Wallet, X,
+  Ticket, Users, Wallet, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem } from '@/types';
@@ -18,6 +18,7 @@ import RangeSlider from '@/components/ui/RangeSlider';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import UzupelnijProfilBanner from '@/components/home/dashboard/UzupelnijProfilBanner';
 import { useAuth } from '@/lib/auth';
+import { getMyGroupIds } from '@/lib/groups';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { isEventJoinable } from '@/lib/eventDates';
 import { foldText, foldedIncludes } from '@/lib/searchText';
@@ -83,6 +84,20 @@ export default function EventsListView({ widzianoWczesniej }: {
   // Render wychodzi ten sam, bo STATUS_CHIP w EventBrowseCard nie ma klucza
   // 'none' — gdyby kiedyś doszedł, ta równoważność przestaje działać.
   const { user } = useAuth();
+  // Czy ten człowiek ma w ogóle jakąś ekipę. Potrzebne WYŁĄCZNIE do pustego
+  // stanu: komuś bez ekipy pusta lista otwartych gier nie mówi nic poza
+  // „tu nic nie ma", a najkrótsza droga do pierwszego meczu prowadzi przez
+  // kod od kolegów, nie przez zakładanie własnego meczu.
+  // `null` = jeszcze nie wiemy; wtedy pusty stan zachowuje się jak dotąd.
+  const [mamEkipe, setMamEkipe] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!user) { setMamEkipe(null); return; }
+    let aktualne = true;
+    getMyGroupIds(user.id)
+      .then((ids) => { if (aktualne) setMamEkipe(ids.length > 0); })
+      .catch(() => { if (aktualne) setMamEkipe(null); });
+    return () => { aktualne = false; };
+  }, [user]);
   const { statusFor, openCount: inviteCount } = useMyInvites();
 
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -405,9 +420,23 @@ export default function EventsListView({ widzianoWczesniej }: {
       {!loading && !loadError && sorted.length === 0 && (
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
           <span className="mb-4 text-5xl">⚽</span>
-          <p className="text-base font-bold text-slate-700 dark:text-slate-300">Brak meczów</p>
+          <p className="text-base font-bold text-slate-700 dark:text-slate-300">
+            {hasFilters ? 'Brak meczów' : 'Nie ma teraz otwartych gier w okolicy'}
+          </p>
+          {/* Pusty stan ma prowadzić dalej, a nie tylko stwierdzać brak.
+              Komu dokąd:
+                - z filtrem → wyczyść filtr, to najbliższa przyczyna pustki;
+                - bez ekipy → kod od kolegów, bo tak wygląda pierwszy mecz
+                  w praktyce (otwarte gry dopiero się rozkręcają, więc „stwórz
+                  mecz publiczny" komuś, kto nikogo tu nie zna, kończy się
+                  meczem bez ludzi — czyli najgorszym pierwszym wrażeniem);
+                - z ekipą → własny mecz, bo ma kogo na niego zaprosić. */}
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {hasFilters ? 'Zmień filtr albo wrzuć własny mecz.' : 'Wrzuć własny — zobaczą go gracze z okolicy.'}
+            {hasFilters
+              ? 'Zmień filtr albo wrzuć własny mecz.'
+              : mamEkipe === false
+                ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów — mecze ekipy zobaczysz w „Grupy".'
+                : 'Wrzuć własny — zobaczą go gracze z okolicy.'}
           </p>
           {hasFilters && (
             <button
@@ -418,12 +447,26 @@ export default function EventsListView({ widzianoWczesniej }: {
               Wyczyść filtry
             </button>
           )}
-          <Link
-            href="/wydarzenia/nowe"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
-          >
-            <Plus className="h-4 w-4" /> Stwórz mecz
-          </Link>
+          {!hasFilters && mamEkipe === false ? (
+            <>
+              <Link
+                href="/grupy"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+              >
+                <Users className="h-4 w-4" /> Dołącz do ekipy
+              </Link>
+              <Link href="/wydarzenia/nowe" className="mt-3 text-sm font-semibold text-primary-700 underline">
+                albo stwórz własny mecz
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/wydarzenia/nowe"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+            >
+              <Plus className="h-4 w-4" /> Stwórz mecz
+            </Link>
+          )}
         </div>
       )}
     </>

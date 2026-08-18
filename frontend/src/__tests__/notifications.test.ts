@@ -183,3 +183,35 @@ describe('WYMAGA_AKCJI', () => {
     expect(WYMAGA_AKCJI.has('pytanie_o_udzial')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Zaproszenie na mecz jest pytaniem o udział, nie ogłoszeniem
+// ---------------------------------------------------------------------------
+describe('zaproszenie_na_mecz', () => {
+  it('wymaga działania — inaczej wisiało w panelu jako zwykła informacja', () => {
+    expect(WYMAGA_AKCJI.has('zaproszenie_na_mecz')).toBe(true);
+  });
+
+  it('zostaje otwarte, dopóki nie ma ani zapisu, ani odmowy', async () => {
+    const wynik = await otwarteSprawy('u1', [
+      powiadomienie({ id: 'n1', type: 'zaproszenie_na_mecz', eventId: 'e1' }),
+    ]);
+    expect(wynik?.has('n1')).toBe(true);
+  });
+
+  it('zamyka się po zapisaniu na mecz', async () => {
+    wynikUdzial.data = [{ event_id: 'e1' }];
+    const wynik = await otwarteSprawy('u1', [
+      powiadomienie({ id: 'n1', type: 'zaproszenie_na_mecz', eventId: 'e1' }),
+    ]);
+    expect(wynik?.has('n1')).toBe(false);
+  });
+
+  it('zamyka się TAK SAMO po odmowie — „nie gram" to odpowiedź, nie cisza', async () => {
+    wynikOdmowy.data = [{ event_id: 'e1' }];
+    const wynik = await otwarteSprawy('u1', [
+      powiadomienie({ id: 'n1', type: 'zaproszenie_na_mecz', eventId: 'e1' }),
+    ]);
+    expect(wynik?.has('n1')).toBe(false);
+  });
+});

@@ -28,7 +28,7 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
 }
 
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
-export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial']);
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz']);
 
 /**
  * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
@@ -66,8 +66,14 @@ export async function otwarteSprawy(
   const meczeOfert = Array.from(new Set(
     doSprawdzenia.filter((n) => n.type === 'reserve_claim_offered').map((n) => n.eventId!),
   ));
+  // `zaproszenie_na_mecz` liczy się tak samo jak `pytanie_o_udzial`: oba
+  // pytają MNIE, czy gram, i oba zamyka ta sama odpowiedź — wpis w składzie
+  // albo jawna odmowa. Zaproszenie było wcześniej poza tym mechanizmem, więc
+  // wisiało w panelu jako zwykła informacja, mimo że czekało na decyzję.
   const meczePytan = Array.from(new Set(
-    doSprawdzenia.filter((n) => n.type === 'pytanie_o_udzial').map((n) => n.eventId!),
+    doSprawdzenia
+      .filter((n) => n.type === 'pytanie_o_udzial' || n.type === 'zaproszenie_na_mecz')
+      .map((n) => n.eventId!),
   ));
 
   try {

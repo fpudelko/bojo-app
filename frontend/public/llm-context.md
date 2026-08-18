@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 594 testy
+**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 598 testów
 
 ---
 
@@ -332,6 +332,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — „Gram" jednym kliknięciem i pusty stan, który prowadzi dalej
+
+PROBLEM: na zaproszenie do meczu dało się odpowiedzieć wyłącznie z poziomu strony meczu —
+trzeba było otworzyć kartę, przewinąć, zapisać się. Czyli „tak" kosztowało więcej kliknięć
+niż „nie" (nie robisz nic), w produkcie, którego sensem jest zebranie składu. Przy stałej
+ekipie ta sama pętla wraca co tydzień. Osobno: pusta lista „Znajdź grę" mówiła „Brak
+meczów" i proponowała stworzenie meczu publicznego — komuś, kto nikogo w Bojo nie zna,
+kończy się to meczem bez ludzi.
+
+ROZWIĄZANIE BOJO: przy zaproszeniu — na liście zaproszeń i w panelu powiadomień — stoi
+para małych przycisków „Gram" / „Nie gram". Odpowiedź zapisuje się bez otwierania meczu,
+karta znika od razu, a chmurka mówi, co naprawdę zaszło: skład, rezerwa albo prośba
+czekająca na akceptację. „Nie gram" to jawna odmowa widoczna dla organizatora, nie ciche
+schowanie karty. Zaproszenie liczy się teraz jako sprawa wymagająca decyzji (niebieski
+znacznik) i zamyka je zarówno zapis, jak i odmowa. Pusty stan „Znajdź grę" kieruje osobę
+bez ekipy do dołączenia kodem, a nie do zakładania meczu publicznego.
+
+MECHANIKA: `components/events/OdpowiedzJednymKlikiem.tsx` (wspólny dla `InviteList`
+i `NotificationBell`; `joinEvent()` i `odmow()` z `lib/eventDeclines.ts`, migracja `097`),
+`zaproszenie_na_mecz` dołączone do `WYMAGA_AKCJI` i do sprawdzania stanu w
+`otwarteSprawy()` (`lib/notifications.ts`), pusty stan w `app/wydarzenia/EventsListView.tsx`
+(rozgałęzienie po `getMyGroupIds()`).
+
 ### 2026-08-18 — Kiedy kto się zapisał i kto odpadł ze składu
 
 PROBLEM: lista składu w Bojo pokazywała same nazwiska. Nie było widać, kto zapisał się
@@ -541,32 +564,3 @@ MECHANIKA: `BottomNav.tsx` — każdy `.then(...).catch(...)` w efektach `pendin
 `LEFT_ITEMS`/`RIGHT_ITEMS.map` liczy go z indeksu (`i === 0` / `i === length - 1`) i
 przekazuje klasy `left-0`/`right-0` zamiast `left-1/2 -translate-x-1/2` na dymku i jego
 trójkącie wskaźnika.
-
-### 2026-08-16 — Naprawiony wyścig zostawiający fałszywą różową kropkę na "Moje"; dymki jeden na raz, 4 sekundy
-
-PROBLEM: różowa kropka „nowe wiadomości" na „Moje" świeciła się nawet wtedy, gdy sama
-strona `/moje-gry` (ten sam zestaw danych, ta sama para funkcji) nie znajdowała ŻADNEJ
-nieprzeczytanej wiadomości — potwierdzone zrzutem ekranu. Cztery efekty w `BottomNav.tsx`
-odpalają zapytanie przy KAŻDEJ zmianie trasy, ale trzy z czterech (prośby, wiadomości
-„Moje", wiadomości+nowość „Grupy") nie miały strażnika przed odpowiedzią, która wraca PO
-tym, jak trasa zmieniła się ponownie — wolniejsza odpowiedź z poprzedniej trasy mogła
-nadpisać świeży, poprawny stan starym `true`, zostawiając kropkę zapaloną bez żadnego
-realnego powodu (czwarty efekt, `nearbyNew`, taki strażnik już miał — niespójność w tym
-samym pliku była śladem brakującego wzorca). Osobno: dymki wyjaśniające kropki (poprzednia
-zmiana) mogły pokazać się dwa naraz i zasłonić się nawzajem, znikały po 1,5 s — za szybko.
-
-ROZWIĄZANIE BOJO: wszystkie cztery efekty mają teraz lokalną flagę `aktualne`, zerowaną
-w funkcji sprzątającej — spóźniona odpowiedź z nieaktualnej trasy jest po prostu
-ignorowana. Dymki pokazują się teraz TYLKO jeden na raz na całym pasku: nowa kolejka
-(`kolejkaDymkow`) zbiera wszystkie typy, które akurat się zapaliły, i pokazuje je po
-kolei, każdy na 4 sekundy zamiast 1,5. Wspólny typ „wiadomości" (dawniej jeden dla „Moje"
-i „Grupy") rozdzielony na `wiadomosci-moje`/`wiadomosci-grupy` z osobnymi licznikami —
-każdy dymek jest teraz jednoznacznie przypięty do jednej ikony przez `href`, więc kolejka
-wie, przy której konkretnie ikonie stanąć.
-
-MECHANIKA: `BottomNav.tsx` — `aktualne` w efektach `pendingApproval`/`unreadEvents`/
-grupowym (ten sam wzorzec co istniejący `nearbyNew`). Stan `dymekWidoczny` (typ + tekst +
-href) zamiast rekordu `dymki` per typ; `kolejkaDymkow` (ref) + `pokazNastepnyDymek()`
-serializują wyświetlanie; `timerDymka` (ref) pilnuje pojedynczego aktywnego `setTimeout`
-i jest jawnie zerowany, gdy kolejka się opróżni (inaczej kolejny cykl w ogóle by nie
-wystartował). `CZAS_DYMKA_MS` z 1500 na 4000.
