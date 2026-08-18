@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `101` · 34 tabele · 604 testy
+**Stan na:** 2026-08-18 · migracja `102` · 35 tabel · 609 testów
 
 ---
 
@@ -332,6 +332,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-18 — Powiadomienia push na telefon
+
+PROBLEM: każde powiadomienie Bojo czekało, aż użytkownik SAM otworzy aplikację.
+Przy stałej ekipie wyglądało to tak: organizator zakłada mecz w czwartek, a ludzie
+dowiadują się o tym na komunikatorze — czyli Bojo przegrywało w jedynej rzeczy, która
+decyduje o zebraniu składu.
+
+ROZWIĄZANIE BOJO: Bojo wysyła powiadomienia na telefon, także gdy aplikacja jest
+zamknięta. Włącza się je jednym przełącznikiem w profilu („Powiadomienia na telefon");
+dotyczą tego samego, co dzwonek w aplikacji: nowy mecz ekipy, wiadomość w rozmowie,
+zwolnione miejsce z rezerwy, prośba o dołączenie. Na iPhonie push działa WYŁĄCZNIE po
+dodaniu Bojo do ekranu głównego — to ograniczenie systemu, więc Bojo rozpoznaje ten
+przypadek i pokazuje instrukcję zamiast martwego przycisku. Kliknięcie powiadomienia
+otwiera dokładnie ten mecz albo tę ekipę, której dotyczy.
+
+MECHANIKA: migracja `102` — `push_subscriptions` (jeden wiersz na przeglądarkę) i wyzwalacz
+`trg_wyslij_push` na `notifications`, który przez `pg_net` woła funkcję brzegową
+`send-push`. Wysyłka po stronie bazy, nie aplikacji, bo powiadomienia powstają
+w wyzwalaczach i aplikacja często nie wie, że powstały (mecz zakłada jedna osoba,
+powiadomienia dostaje dziesięć). Klient: `lib/push.ts` i `components/PowiadomieniaPush.tsx`,
+service worker `public/sw.js` (od etapu PWA). Uruchomienie wymaga ręcznych kroków
+(klucze VAPID, sekrety, wdrożenie funkcji) → `supabase/functions/send-push/README.md`.
+
 ### 2026-08-18 — Chmurka wiadomości gaśnie, karta ekipy czytelna
 
 PROBLEM: różowa chmurka „nowa wiadomość" świeciła się bez końca, mimo że wszystko było
@@ -536,29 +559,3 @@ więc sprawdzalna testem), `components/ZachetaInstalacji.tsx` (pasek; przechwytu
 systemowego paska Chrome). Wywołanie z `EventDetailClient.tsx` po udanym zapisie przez
 `zaproponujInstalacje()`. Nowa warstwa `zachetaInstalacji` w `lib/warstwy.ts` —
 nad dolną nawigacją, pod modalem. Znacznik odrzucenia: `bojo:instalacja-odrzucona`.
-
-### 2026-08-17 — Składy w osobnej zakładce, Wynik dopiero po meczu, naprawa cichych odmów bazy
-
-PROBLEM: trzy usterki zgłoszone z telefonu. (1) Przypisywanie graczy do drużyn „nic nie
-robiło" — ani przesunięcie gracza w lewo/prawo, ani przyciski N i C. (2) Podział na
-drużyny mieszkał w zakładce „Wynik", więc żeby poukładać składy PRZED meczem trzeba było
-wejść w wynik, którego jeszcze nie ma; sama zakładka „Wynik" istniała od utworzenia meczu
-i mówiła wyłącznie, że wyniku jeszcze nie ma. (3) Przełącznik admin/użytkownik na
-`/admin/uzytkownicy` przełączał się na ekranie, a po odświeżeniu wracał.
-
-ROZWIĄZANIE BOJO: podział na drużyny jest widoczny WPROST w zakładce „Skład" — nie
-w zwijanej sekcji i nie w osobnej zakładce. Zakładka „Wynik" pojawia się dopiero po
-rozpoczęciu meczu i zawiera sam formularz, bez drużyn. Zakładka „Rozliczenia" znika przy
-meczu za darmo, bo bez kosztu otwierała się pusta. Przypisywanie do drużyn i przełącznik
-admina zgłaszają teraz błąd zamiast milczeć, a sama odmowa bazy przy nadawaniu admina
-jest usunięta.
-
-MECHANIKA: filtr zakładek w `EventDetailClient.tsx` zależny od `resultsAvailable`
-(Wynik) i `event.costGrosze > 0` (Rozliczenia); `skladWynikSection` rozbite na
-`druzynySection` (renderowany w zakładce Skład) i `wynikFormSection` (zakładka Wynik).
-`updateParticipantTeam` i `updateParticipantPayment` (`lib/eventFeatures.ts`) oraz
-przełącznik admina idą przez `zaktualizujJedenWiersz()` (`lib/zapytania.ts`) — gołe
-`.update()` przy niepasującej polityce RLS zmienia zero wierszy i zwraca sukces.
-Migracja `098`: funkcja `czy_admin()` (`SECURITY DEFINER`) i przepięcie na nią polityk
-z `022` i `005`, które sprawdzały uprawnienie podzapytaniem o tę samą tabelę,
-na której siedzą.

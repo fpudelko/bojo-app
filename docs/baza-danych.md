@@ -1,6 +1,6 @@
 # Baza danych
 
-99 migracji (`001`–`101`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+100 migracji (`001`–`102`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -140,6 +140,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `099_zgloszenia_bledow` | Tabela `zgloszenia_bledow` (zgłoszenia od ludzi i automatyczne awarie w jednym miejscu) plus RPC `zapisz_zgloszenie_bledu()` — `SECURITY DEFINER`, JEDYNE wejście do zapisu, bo tabela nie ma polityki INSERT. Awarie grupowane po `odcisk` (`ON CONFLICT` dokłada do licznika zamiast tworzyć kopię). SELECT/UPDATE wyłącznie dla `czy_admin()` — w kolumnie `adres` bywa link do prywatnego meczu. Trzeci rodzaj `obiekt` (`field_id`) to zgłoszenie błędu w danych boiska: NIE zmienia danych, bo katalog pochodzi z OSM |
 | `100_kasowanie_wiadomosci` | Naprawa polityk SELECT na `event_comments`, `group_posts` i `field_comments`. Kasowanie wiadomości jest MIĘKKIE (UPDATE ustawiający `deleted_at`), a polityka `SELECT USING (deleted_at IS NULL)` wypychała nowy wiersz poza własną widoczność — Postgres sprawdza nowy wiersz także politykami SELECT, więc UPDATE kończył się wyjątkiem `new row violates row-level security policy`, mimo poprawnych polityk UPDATE. Skasowany wiersz widzi teraz ten, kto miał prawo go skasować (warunek jest lustrem polityki UPDATE danej tabeli); zapytania aplikacji i tak filtrują `deleted_at IS NULL` |
 | `101_kto_sie_wypisal` | Druga (permissive) polityka SELECT na `event_activity_log`, obejmująca WYŁĄCZNIE wpisy `participant_left` i `participant_removed` — widzi je każdy, kto widzi mecz (podzapytanie o `events` wykonuje się z uprawnieniami pytającego, więc RLS `events` załatwia widoczność). Reszta dziennika zostaje przy organizatorze (polityka z `026`). Powód: wypisanie się kasuje wiersz z `event_participants` i nie zostawia śladu — nie da się odróżnić „odpadł" od „nigdy się nie zapisał" |
+| `102_push` | Tabela `push_subscriptions` (jeden wiersz = jedna przeglądarka; kluczem `endpoint`, nie `user_id`, bo telefon i laptop to dwie subskrypcje jednej osoby) + `konfiguracja_push` (adres funkcji brzegowej i sekret; RLS WŁĄCZONE i ZERO polityk, więc przez API nieczytelna — czyta wyłącznie wyzwalacz jako `SECURITY DEFINER`). Wyzwalacz `trg_wyslij_push` na `notifications` woła funkcję `send-push` przez `pg_net`. Brak konfiguracji albo brak `pg_net` = wyjście CICHE: kanał dodatkowy nie może wywrócić INSERT-a, w którym powstało powiadomienie w aplikacji. Wdrożenie ręczne → `supabase/functions/send-push/README.md` |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
