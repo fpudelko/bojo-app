@@ -321,6 +321,14 @@ tytuł niesie numer (`R01`…`R43`), a opis zaczyna się od „SPRAWDŹ:" i koń
 wynikiem. Marker `[REG]`. Na końcu pliku zapytanie, które wypisuje całość jako listę
 kontrolną z adresami.
 
+`supabase/seed_taktyka.sql` — **12 scenariuszy do zakładki „Taktyka"** (migracja `103`):
+różne wielkości składu (5v5, 7v7, 8v8, 11v11), siatkówka i koszykówka, nierówne drużyny,
+pusta druga drużyna, bardzo długie nazwiska oraz przypadki, w których zakładki ma NIE być
+(składy nieopublikowane, mecz odwołany). `T12` jest wypełniony do końca — ustawienie,
+obsadzone pozycje, taktyka, notatka i wiadomości w czacie obu drużyn — bo to jedyny stan,
+którego nie da się zobaczyć bez kilku minut klikania. Marker `[TAK]`, tytuły `T01`…`T12`,
+na końcu pliku lista kontrolna z adresami.
+
 `supabase/seed_test_jan.sql` — 19 wydarzeń pokrywających obszary, których nie ruszają
 poprzednie seedy: wyniki meczów z golami, mecze z przeszłości i statystyki gracza,
 odwołanie meczu, goście dopisani przez uczestnika, miejsce spoza katalogu, komentarze,
