@@ -150,3 +150,33 @@ export async function wylaczPush(userId: string): Promise<void> {
     await subskrypcja.unsubscribe();
   }
 }
+
+/**
+ * Próbne powiadomienie wyświetlone LOKALNIE, bez ruszania serwera.
+ *
+ * DLACZEGO TO JEST PRZYDATNE: gdy powiadomienia „nie przychodzą", winowajca
+ * jest w jednym z dwóch miejsc, a objaw jest identyczny. To rozdziela je
+ * jednym kliknięciem:
+ *
+ *   próbne WIDAĆ, a prawdziwych nie ma → telefon umie wyświetlać, więc problem
+ *     jest po drodze: subskrypcja z innej przeglądarki niż ta, w którą patrzysz,
+ *     albo powiadomienie w ogóle nie powstało po stronie meczu;
+ *   próbnego NIE WIDAĆ → problem jest na urządzeniu: powiadomienia wyłączone
+ *     dla Bojo w ustawieniach systemu, tryb skupienia, albo — na iPhonie —
+ *     aplikacja otwarta z przeglądarki zamiast z ekranu głównego.
+ *
+ * Świadomie NIE idzie przez serwer: test ma sprawdzać sam koniec drogi.
+ */
+export async function probnePowiadomienie(): Promise<void> {
+  const rejestracja = await navigator.serviceWorker.getRegistration();
+  if (!rejestracja) throw new Error('Aplikacja nie jest jeszcze gotowa — odśwież stronę.');
+  if (Notification.permission !== 'granted') {
+    throw new Error('Najpierw włącz powiadomienia.');
+  }
+  await rejestracja.showNotification('Bojo — próbne powiadomienie', {
+    body: 'Jeśli to widzisz, telefon wyświetla powiadomienia poprawnie.',
+    icon: '/ikony/ikona-192.png',
+    badge: '/ikony/maskowalna-192.png',
+    tag: 'bojo-test',
+  });
+}
