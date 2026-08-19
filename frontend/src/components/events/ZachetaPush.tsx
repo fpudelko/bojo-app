@@ -33,10 +33,24 @@ import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
  *
  * „Nie teraz" odkłada o 30 dni, nie chowa na zawsze — patrz `odlozZachetePush()`.
  */
+/** Zdarzenie, którym strona meczu prosi o pokazanie zachęty — dokładnie ten
+ *  sam wzorzec co `zaproponujInstalacje()`. */
+export const ZDARZENIE_POWIADOMIEN = 'bojo:zaproponuj-powiadomienia';
+
+/**
+ * Prosi o pokazanie zachęty. Wołane w MOMENCIE ZAPISANIA SIĘ na mecz — wtedy
+ * obietnica „damy znać, gdy coś się zmieni" znaczy coś konkretnego, bo właśnie
+ * pojawiło się coś, o czym warto wiedzieć.
+ */
+export function zaproponujPowiadomienia() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(ZDARZENIE_POWIADOMIEN));
+}
+
 export default function ZachetaPush({ widoczna }: {
-  /** Czy w ogóle jest po co pytać — dziś: „gram w tym meczu i mecz się jeszcze
-   *  nie odbył". Warunek liczy strona meczu, żeby ten komponent nie musiał
-   *  znać reguł uczestnictwa. */
+  /** Czy jest po co pytać — „gram w tym meczu i mecz się jeszcze nie odbył".
+   *  Warunek liczy strona meczu, żeby ten komponent nie musiał znać reguł
+   *  uczestnictwa. Sam w sobie NIE wystarcza do pokazania paska: trzeba jeszcze
+   *  zdarzenia zapisania się (patrz `zaproponujPowiadomienia`). */
   widoczna: boolean;
 }) {
   const { user } = useAuth();
@@ -44,20 +58,30 @@ export default function ZachetaPush({ widoczna }: {
   const [stan, setStan] = useState<StanPush | null>(null);
   const [busy, setBusy] = useState(false);
   const [schowana, setSchowana] = useState(false);
+  // Pasek pokazuje się PO ZAPISANIU SIĘ, nie przy każdym wejściu na mecz,
+  // w którym się gra. Wcześniejsza wersja wracała za każdym razem, dopóki
+  // ktoś jej nie zamknął — czyli była przypomnieniem, a miała być propozycją
+  // w momencie, w którym ma sens (zgłoszone wprost).
+  const [poproszono, setPoproszono] = useState(false);
+  useEffect(() => {
+    const pokaz = () => setPoproszono(true);
+    window.addEventListener(ZDARZENIE_POWIADOMIEN, pokaz);
+    return () => window.removeEventListener(ZDARZENIE_POWIADOMIEN, pokaz);
+  }, []);
 
   const odswiez = useCallback(() => {
     stanPush().then(setStan).catch(() => setStan('nieobslugiwane'));
   }, []);
-  useEffect(() => { if (widoczna) odswiez(); }, [widoczna, odswiez]);
+  useEffect(() => { if (widoczna && poproszono) odswiez(); }, [widoczna, poproszono, odswiez]);
 
   // iOS przed instalacją: zamiast milczeć, prosimy o pokazanie paska
   // instalacji. Ten sam pasek pilnuje własnych reguł (raz na odrzucenie,
   // tylko gdy jest sens), więc to jest prośba, nie rozkaz.
   useEffect(() => {
-    if (widoczna && stan === 'wymaga-instalacji') zaproponujInstalacje();
-  }, [widoczna, stan]);
+    if (widoczna && poproszono && stan === 'wymaga-instalacji') zaproponujInstalacje();
+  }, [widoczna, poproszono, stan]);
 
-  if (!user || !widoczna || schowana || stan === null) return null;
+  if (!user || !widoczna || !poproszono || schowana || stan === null) return null;
   // Pytamy WYŁĄCZNIE wtedy, gdy da się coś włączyć. `wlaczone` — już jest,
   // `zablokowane` — odmowy nie cofniemy ze strony, `nieobslugiwane` — nie ma
   // czego proponować. Zostaje `wylaczone` oraz iOS przed instalacją, gdzie

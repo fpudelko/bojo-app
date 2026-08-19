@@ -1,6 +1,6 @@
 # Baza danych
 
-107 migracji (`001`–`109`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+108 migracji (`001`–`110`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -154,6 +154,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `108_koniec_admina_w_meczu` | Odwrócenie `106`: polityki na `event_participants` wracają do brzmienia z `090`, bez `czy_admin()`. `106` naprawiała objaw — panel organizatora pokazywany administratorowi przez `isOwner = organizer \|\| isAdmin`. Przyczyną było samo `\|\| isAdmin`, które zniknęło z `EventDetailClient.tsx`; uprawnienie, z którego nic nie korzysta, to wyłącznie ryzyko. „Admins can update any event" (`005`) zostaje — to moderacja wydarzenia, nie zarządzanie cudzym składem |
 | `109_ustawienia_powiadomien` | `profiles.push_wylaczone` (tablica rodzajów, których użytkownik NIE chce na telefon; pusta = wszystko włączone, więc nowy rodzaj nie wymaga migracji danych) plus filtr w `wyslij_push_po_powiadomieniu()`. Filtr dotyczy WYŁĄCZNIE pusha — dzwonek w aplikacji pokazuje wszystko, bo to historia, a nie kanał przerywający dzień. Trzy nowe wyzwalacze: `powiadom_o_wiadomosci_w_meczu()` (`event_comments`), `powiadom_o_wiadomosci_w_grupie()` (`group_posts`, pomija przypięte — te ma `093`) i `powiadom_o_skladach()` (`events`, tylko przejście `teams_published` false→true). Obie wiadomości mają zaporę 60 min per odbiorca: rozmowa przed meczem potrafi mieć 30 wpisów w kwadrans |
 | `110_moment_zapisu` | `event_participants.zapisano_at` (`NOT NULL DEFAULT now()`, backfill `= created_at`) — moment, od którego liczy się miejsce w kolejce rezerwowej, osobny od `created_at`. Trigger `trg_moment_zapisu` (`ustaw_moment_zapisu()`) ustawia go na `now()` WYŁĄCZNIE przy przejściu `rsvp` z `'maybe'` na `'yes'` — bo „Obserwuję" to ten sam wiersz co zwykły zapis (patrz `049`), a wiersz obserwującego powstaje wcześniej niż jego realne dołączenie. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `078` poza `ORDER BY zapisano_at` zamiast `created_at` w obu kolejkach — pole i bramkarze) — to ona rozdaje zwolnione miejsca, więc to ona musiała się zmienić, nie tylko etykieta na liście. Bez migracji (klient nie sortuje po `zapisano_at` w SQL) aplikacja zachowuje się jak przed nią |
+| `111_tresci_powiadomien` | Treści powiadomień wg zasady: TYTUŁ = konkret, którego dotyczy (nazwa meczu, nazwa ekipy), TREŚĆ = co się wydarzyło. Przy wiadomościach treść niesie teraz samą wiadomość (`autor: tekst`, ucięty do 140 znaków z wielokropkiem) zamiast „X napisał w rozmowie" — bez tego po powiadomieniu trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10 minut później", czy o „nie dam rady". Poprawione też `sklady_opublikowane` i `nowy_mecz_w_grupie` (nazwa ekipy w tytule, termin i miejsce w treści) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

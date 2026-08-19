@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-19 · migracja `110` · 38 tabel · 673 testy
+**Stan na:** 2026-08-19 · migracja `111` · 38 tabel · 673 testy
 
 ---
 
@@ -332,6 +332,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — Treść powiadomienia mówi, co się stało
+
+PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
+linijkach — i musi w tym czasie odpowiedzieć na pytanie „czy mnie to teraz obchodzi".
+Powiadomienia o wiadomościach nie odpowiadały wcale: tytuł brzmiał „Nowa wiadomość" (czyli
+to, co widać po ikonie), a treść mówiła „X napisał w rozmowie", czyli powtarzała tytuł
+innymi słowami. Trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10
+minut później", czy o „nie dam rady, szukajcie kogoś". Osobno: zachęta do włączenia
+powiadomień wracała przy każdym wejściu na mecz, w którym się gra.
+
+ROZWIĄZANIE BOJO: tytuł powiadomienia niesie konkret, którego dotyczy (nazwa meczu, nazwa
+ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wiadomość
+(`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
+i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
+do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
+pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
+ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
+aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
+(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
+drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
+widać go teraz na liście składów (plakietka `kpt`) i przy nazwie drużyny w zakładce Taktyka.
+
+MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
+`powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
+`components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
+udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
+z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
+widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
+zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
+idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
+składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
+`teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
+opublikować.
+
 ### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
 
 PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
@@ -535,27 +569,3 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (jeden dropdown sportów zamiast d
 renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2xl` jak
 w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
 za dropdown sportów).
-
-### 2026-08-18 — Powiadomienia push na telefon
-
-PROBLEM: każde powiadomienie Bojo czekało, aż użytkownik SAM otworzy aplikację.
-Przy stałej ekipie wyglądało to tak: organizator zakłada mecz w czwartek, a ludzie
-dowiadują się o tym na komunikatorze — czyli Bojo przegrywało w jedynej rzeczy, która
-decyduje o zebraniu składu.
-
-ROZWIĄZANIE BOJO: Bojo wysyła powiadomienia na telefon, także gdy aplikacja jest
-zamknięta. Włącza się je jednym przełącznikiem w profilu („Powiadomienia na telefon");
-dotyczą tego samego, co dzwonek w aplikacji: nowy mecz ekipy, wiadomość w rozmowie,
-zwolnione miejsce z rezerwy, prośba o dołączenie. Na iPhonie push działa WYŁĄCZNIE po
-dodaniu Bojo do ekranu głównego — to ograniczenie systemu, więc Bojo rozpoznaje ten
-przypadek i pokazuje instrukcję zamiast martwego przycisku. Kliknięcie powiadomienia
-otwiera dokładnie ten mecz albo tę ekipę, której dotyczy.
-
-MECHANIKA: migracja `102` — `push_subscriptions` (jeden wiersz na przeglądarkę) i wyzwalacz
-`trg_wyslij_push` na `notifications`, który przez `pg_net` woła funkcję brzegową
-`send-push`. Wysyłka po stronie bazy, nie aplikacji, bo powiadomienia powstają
-w wyzwalaczach i aplikacja często nie wie, że powstały (mecz zakłada jedna osoba,
-powiadomienia dostaje dziesięć). Klient: `lib/push.ts` i `components/PowiadomieniaPush.tsx`,
-service worker `public/sw.js` (od etapu PWA). Uruchomienie wymaga ręcznych kroków
-(klucze VAPID, sekrety, wdrożenie funkcji) → `supabase/functions/send-push/README.md`.
-

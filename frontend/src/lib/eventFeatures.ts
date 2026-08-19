@@ -182,11 +182,17 @@ export async function setCaptain(
     if (bladZdjecia) throw new Error(bladZdjecia.message);
   }
 
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ is_captain: isCaptain })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  // Przez `zaktualizujJedenWiersz`, nie gołym `.update()`: gdyby polityka RLS
+  // nie przepuściła zmiany, Postgres zaktualizowałby zero wierszy i zwrócił
+  // sukces — gwiazdka mrugnęłaby i wróciła na miejsce, bez śladu błędu.
+  // Odkąd gwiazdka pokazuje się we WSZYSTKICH trybach dzielenia drużyn,
+  // a nie tylko w trybie `kapitanowie`, klika ją znacznie więcej osób.
+  await zaktualizujJedenWiersz(
+    'event_participants',
+    participantId,
+    { is_captain: isCaptain },
+    isCaptain ? 'Nie udało się ustawić kapitana' : 'Nie udało się zdjąć kapitana',
+  );
 }
 
 // ---------------------------------------------------------------------------
