@@ -8,7 +8,7 @@ vi.mock('@/lib/instalacja', () => ({
   }),
 }));
 
-import { czyZachetaOdlozona, odlozZachetePush } from '@/lib/push';
+import { czyZachetaOdlozona, odlozZachetePush, widziDiagnostyke } from '@/lib/push';
 
 const DZIEN = 24 * 60 * 60 * 1000;
 
@@ -43,5 +43,23 @@ describe('odkładanie zachęty do włączenia powiadomień', () => {
   it('śmieć w localStorage nie blokuje zachęty na zawsze', () => {
     window.localStorage.setItem('bojo:push-odlozone', 'kiedyś');
     expect(czyZachetaOdlozona()).toBe(false);
+  });
+});
+
+describe('widziDiagnostyke', () => {
+  it('narzędzia diagnostyczne widzą wyłącznie konta testujące', () => {
+    expect(widziDiagnostyke('franekks@gmail.com')).toBe(true);
+    expect(widziDiagnostyke('franciszekpudelko@gmail.com')).toBe(true);
+    expect(widziDiagnostyke('ktos@example.com')).toBe(false);
+  });
+
+  it('wielkość liter i spacje nie wpuszczają ani nie wypuszczają nikogo', () => {
+    expect(widziDiagnostyke('  FranekKS@Gmail.com ')).toBe(true);
+  });
+
+  it('brak adresu to brak dostępu', () => {
+    expect(widziDiagnostyke(undefined)).toBe(false);
+    expect(widziDiagnostyke(null)).toBe(false);
+    expect(widziDiagnostyke('')).toBe(false);
   });
 });

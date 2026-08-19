@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellOff, ChevronDown, Loader2, Smartphone } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import { probnePowiadomienie, stanPush, wlaczPush, wylaczPush, type StanPush } from '@/lib/push';
+import {
+  probnePowiadomienie, stanPush, widziDiagnostyke, wlaczPush, wylaczPush, type StanPush,
+} from '@/lib/push';
 import {
   RODZAJE_POWIADOMIEN, pobierzWylaczone, przelacz as przelaczNaLiscie, zapiszWylaczone,
 } from '@/lib/ustawieniaPowiadomien';
@@ -127,7 +129,7 @@ export default function PowiadomieniaPush() {
 
       {/* Próba na żądanie — gdy „nie przychodzą", to jedno kliknięcie mówi,
           po której stronie szukać: telefonu czy drogi do niego. */}
-      {stan === 'wlaczone' && (
+      {stan === 'wlaczone' && widziDiagnostyke(user.email) && (
         <button
           type="button"
           onClick={async () => {

@@ -152,6 +152,24 @@ export async function wylaczPush(userId: string): Promise<void> {
 }
 
 /**
+ * Konta, które widzą narzędzia diagnostyczne.
+ *
+ * „Wyślij próbne powiadomienie" to przycisk do rozstrzygania awarii, nie
+ * funkcja produktu: zwykłemu graczowi nie mówi nic poza tym, że coś mignęło.
+ * Zostaje przy dwóch kontach, na których realnie testujemy Bojo — reszta
+ * ekipy nie musi się zastanawiać, co to robi (zgłoszone wprost).
+ *
+ * Lista adresów, nie flaga w bazie: to jest narzędzie na czas dochodzenia,
+ * a nie uprawnienie, którym trzeba zarządzać. Gdy push zacznie działać
+ * pewnie, przycisk zniknie w całości.
+ */
+const KONTA_DIAGNOSTYCZNE = ['franekks@gmail.com', 'franciszekpudelko@gmail.com'];
+
+export function widziDiagnostyke(email: string | null | undefined): boolean {
+  return !!email && KONTA_DIAGNOSTYCZNE.includes(email.trim().toLowerCase());
+}
+
+/**
  * Próbne powiadomienie wyświetlone LOKALNIE, bez ruszania serwera.
  *
  * DLACZEGO TO JEST PRZYDATNE: gdy powiadomienia „nie przychodzą", winowajca
