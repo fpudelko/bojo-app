@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellOff, ChevronDown, Loader2, Smartphone } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { czytajStanPrzegladarki } from '@/lib/instalacja';
 import { useToast } from '@/lib/toast';
 import {
   probnePowiadomienie, stanPush, widziDiagnostyke, wlaczPush, wylaczPush, type StanPush,
@@ -22,8 +23,19 @@ import {
  *   wymaga-instalacji → iPhone w Safari: push zadziała dopiero po dodaniu Bojo
  *                       do ekranu głównego. Mówimy to wprost, bo inaczej
  *                       jedyną informacją byłoby „nie działa".
- *   zablokowane       → odmowa jest trwała i NIE da się jej cofnąć ze strony;
- *                       jedyna droga to ustawienia przeglądarki.
+ *   zablokowane       → odmowy NIE da się cofnąć ze strony; jedyna droga to
+ *                       ustawienia przeglądarki. Dlatego zamiast samego
+ *                       stwierdzenia faktu pokazujemy KROK PO KROKU, gdzie to
+ *                       odblokować — z podziałem na Androida i iOS, bo ścieżki
+ *                       są zupełnie różne.
+ *
+ *                       Ważne, żeby to nie brzmiało jak awaria Bojo: na
+ *                       Androidzie Chrome blokuje SAM, po dwukrotnym
+ *                       zignorowaniu okienka z prośbą, więc człowiek zwykle nie
+ *                       pamięta, że cokolwiek odrzucił. Uprawnienie jest
+ *                       wspólne dla przeglądarki i aplikacji z ekranu głównego
+ *                       (ta sama domena), więc odblokowanie w jednym miejscu
+ *                       naprawia oba (zgłoszone wprost).
  *   nieobslugiwane    → nic nie renderujemy. Nie ma czego zaproponować.
  */
 export default function PowiadomieniaPush() {
@@ -39,6 +51,12 @@ export default function PowiadomieniaPush() {
   const [wylaczone, setWylaczone] = useState<string[] | null>(null);
 
   const odswiez = useCallback(() => { stanPush().then(setStan).catch(() => setStan('nieobslugiwane')); }, []);
+  // System czytamy raz: instrukcja odblokowania jest zupełnie inna na iOS
+  // (ustawienia systemu) i na Androidzie (ustawienia Chrome'a), a pokazanie
+  // obu naraz zamienia pomoc w zgadywanie.
+  const { system } = typeof window === 'undefined'
+    ? { system: 'inny' as const }
+    : czytajStanPrzegladarki();
   useEffect(() => { odswiez(); }, [odswiez]);
 
   // Ustawienia wczytujemy dopiero przy rozwinięciu: przy zwiniętej liście
@@ -99,9 +117,47 @@ export default function PowiadomieniaPush() {
               : stan === 'wymaga-instalacji'
                 ? 'Na iPhonie działają dopiero po dodaniu Bojo do ekranu głównego: Udostępnij → „Dodaj do ekranu początkowego".'
                 : stan === 'zablokowane'
-                  ? 'Powiadomienia są zablokowane w ustawieniach przeglądarki — tylko tam da się to cofnąć.'
+                  ? 'Przeglądarka zablokowała powiadomienia dla bojo.pl. Chrome robi to sam, gdy okienko z prośbą zostanie dwa razy zamknięte — nie trzeba było niczego świadomie odrzucać.'
                   : 'Nowy mecz ekipy, wiadomość w rozmowie, zwolnione miejsce — bez zaglądania do aplikacji.'}
           </p>
+
+          {stan === 'zablokowane' && (
+            <div className="mt-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-700/40">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Jak odblokować
+              </p>
+              {system === 'ios' ? (
+                <ol className="mt-1.5 list-inside list-decimal space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                  <li>Ustawienia iPhone’a → Powiadomienia → znajdź <b>Bojo</b></li>
+                  <li>Włącz <b>Dopuść powiadomienia</b></li>
+                  <li>Wróć tutaj i stuknij „Sprawdź ponownie"</li>
+                </ol>
+              ) : (
+                <>
+                  <ol className="mt-1.5 list-inside list-decimal space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                    <li>Chrome → <b>⋮</b> → Ustawienia → <b>Ustawienia witryn</b> → Powiadomienia</li>
+                    <li>W sekcji „Zablokowane" znajdź <b>bojo.pl</b> i wybierz <b>Zezwalaj</b></li>
+                    <li>Wróć tutaj i stuknij „Sprawdź ponownie"</li>
+                  </ol>
+                  {/* Krótsza droga, ale tylko z przeglądarki: w aplikacji
+                      z ekranu głównego nie ma paska adresu, więc kłódki nie ma
+                      gdzie kliknąć. */}
+                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    Szybciej z przeglądarki: stuknij ikonę obok adresu → Uprawnienia →
+                    Powiadomienia → Zezwalaj. Uprawnienie jest wspólne, więc aplikacja
+                    z ekranu głównego zacznie działać razem z nią.
+                  </p>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={odswiez}
+                className="mt-2 text-xs font-semibold text-primary-700 underline underline-offset-2"
+              >
+                Sprawdź ponownie
+              </button>
+            </div>
+          )}
 
           {stan === 'wymaga-instalacji' && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-500 dark:bg-slate-700/50">
