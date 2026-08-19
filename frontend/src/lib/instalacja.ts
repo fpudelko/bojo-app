@@ -123,3 +123,29 @@ export function powodInstalacji(system: System): string {
     ? 'Na iPhonie powiadomienia o meczach działają tylko z ekranu głównego.'
     : 'Będziesz dostawać przypomnienie o meczu i wiadomość, gdy zwolni się miejsce.';
 }
+
+/** Jedna korzyść z instalacji: nazwa ikony + zdanie. */
+export interface Korzysc {
+  /** Klucz ikony — komponent mapuje go na konkretny symbol z `lucide-react`. */
+  ikona: 'miejsce' | 'przypomnienie' | 'rozmowa';
+  tekst: string;
+}
+
+/**
+ * Co użytkownik NA TYM ZYSKA — trzy zdania zamiast jednego „zainstaluj".
+ *
+ * Każde mówi o zdarzeniu, które naprawdę się zdarza i którego szkoda przegapić,
+ * a nie o właściwości technicznej („szybszy start", „działa offline"). Nikt nie
+ * dodaje ikony na ekran główny dlatego, że coś jest szybsze — dodaje, bo nie
+ * chce stracić miejsca w składzie.
+ *
+ * Kolejność jest istotna: pierwsza pozycja to jedyna rzecz, która boli
+ * natychmiast (zwolnione miejsce znika w kilka minut).
+ */
+export function korzysciInstalacji(): Korzysc[] {
+  return [
+    { ikona: 'miejsce', tekst: 'Wiesz pierwszy, gdy zwolni się miejsce w meczu' },
+    { ikona: 'przypomnienie', tekst: 'Przypomnienie o meczu dzień wcześniej' },
+    { ikona: 'rozmowa', tekst: 'Rozmowa ekipy i skład — jednym stuknięciem, bez szukania' },
+  ];
+}

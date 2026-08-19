@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   czyPokazacZachete,
+  korzysciInstalacji,
   powodInstalacji,
   SYGNATURY_WBUDOWANEJ,
   type StanPrzegladarki,
@@ -87,5 +88,31 @@ describe('powód instalacji', () => {
     const tekst = powodInstalacji('android');
     expect(tekst).toMatch(/przypomnienie/i);
     expect(tekst).not.toMatch(/zainstaluj/i);
+  });
+});
+
+describe('korzyści z instalacji', () => {
+  it('trzy zdania, każde o zdarzeniu — nie o właściwości technicznej', () => {
+    const korzysci = korzysciInstalacji();
+    expect(korzysci).toHaveLength(3);
+    expect(korzysci.every((k) => k.tekst.length > 0)).toBe(true);
+  });
+
+  it('zwolnione miejsce jest pierwsze — to jedyna rzecz, która boli natychmiast', () => {
+    // Zwolnione miejsce znika w kilka minut. Przypomnienie o meczu i rozmowa
+    // ekipy poczekają; ta jedna rzecz nie, więc stoi na górze listy.
+    expect(korzysciInstalacji()[0].ikona).toBe('miejsce');
+  });
+
+  it('każda korzyść ma inną ikonę — inaczej lista wygląda jak trzy razy to samo', () => {
+    const ikony = korzysciInstalacji().map((k) => k.ikona);
+    expect(new Set(ikony).size).toBe(ikony.length);
+  });
+
+  it('zero języka marketingowego', () => {
+    const tekst = korzysciInstalacji().map((k) => k.tekst).join(' ').toLowerCase();
+    for (const fraza of ['najlepsz', 'rewolucyj', 'wygodniej niż', 'błyskawicz']) {
+      expect(tekst).not.toContain(fraza);
+    }
   });
 });

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 69 migracji: 041_join_code.sql → 110_tresci_powiadomien.sql
+-- Zawiera 69 migracji: 041_join_code.sql → 111_tresci_powiadomien.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -6777,9 +6777,9 @@ GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 110_tresci_powiadomien.sql
+-- 111_tresci_powiadomien.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 110: Treści powiadomień — tytuł mówi CZEGO dotyczy, treść mówi CO się stało.
+-- 111: Treści powiadomień — tytuł mówi CZEGO dotyczy, treść mówi CO się stało.
 --
 -- PO CO: powiadomienie na telefonie widać przez sekundę, na zablokowanym
 -- ekranie, w dwóch linijkach. Musi w tym czasie odpowiedzieć na jedno pytanie:

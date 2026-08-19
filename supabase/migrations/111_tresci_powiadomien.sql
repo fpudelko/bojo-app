@@ -1,4 +1,4 @@
--- 110: Treści powiadomień — tytuł mówi CZEGO dotyczy, treść mówi CO się stało.
+-- 111: Treści powiadomień — tytuł mówi CZEGO dotyczy, treść mówi CO się stało.
 --
 -- PO CO: powiadomienie na telefonie widać przez sekundę, na zablokowanym
 -- ekranie, w dwóch linijkach. Musi w tym czasie odpowiedzieć na jedno pytanie:

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-19 · migracja `110` · 38 tabel · 673 testy
+**Stan na:** 2026-08-19 · migracja `111` · 38 tabel · 673 testy
 
 ---
 
@@ -347,12 +347,17 @@ ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wi
 (`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
 i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
 do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
-pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony.
+pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
+ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
+aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
+(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut).
 
-MECHANIKA: migracja `110` (funkcje `powiadom_o_wiadomosci_w_meczu`,
+MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
 `powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
 `components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
-udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`). Zatwierdzenie propozycji
+udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
+z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
+widokiem, więc sprawdzalna testem bez renderowania). Zatwierdzenie propozycji
 składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
 `teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
 opublikować.
