@@ -2700,7 +2700,11 @@ export default function EventDetailClient() {
             Pytamy TYLKO tego, kto gra w tym meczu i tylko przed jego startem:
             wtedy widać, po co to komu (wiadomość od ekipy, zwolnione miejsce,
             odwołanie). Prośba na starcie aplikacji kończy się trwałym
-            „Zablokuj", którego nie da się cofnąć ze strony. */}
+            „Zablokuj", którego nie da się cofnąć ze strony.
+
+            Pasek jest `fixed`, więc miejsce w drzewie nie ma znaczenia dla
+            wyglądu — ale gate na zakładkę zostaje: w „Rozmowie" przykryłby
+            pole pisania wiadomości, które też siedzi przy dolnej krawędzi. */}
         {tab === 'sklad' && (
           <ZachetaPush widoczna={!!user && !!myParticipation && !eventStarted && !isCancelled} />
         )}
