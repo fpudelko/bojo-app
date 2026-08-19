@@ -73,6 +73,21 @@ i numer BLIK, gdy organizator akceptuje tę metodę płatności. Bez tego organi
 przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zobaczyć
 swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
 
+**„Wszyscy oddali" — masowe oznaczenie płatności, nie klikanie po jednej osobie.**
+Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscyOddali`,
+obok „Wyślij rozliczenie ekipie") oznacza jako opłaconych wszystkich w składzie
+(`regulars` — bez rezerwy, bez oczekujących na akceptację; goście bez konta się liczą,
+bo też są w składzie i też płacą), którzy jeszcze nie oddali. Gdy już wszyscy oddali,
+ten sam przycisk zmienia się w „Cofnij — nikt nie oddał" i odwraca oznaczenie
+jednym kliknięciem. Kwota per osoba liczona jak wszędzie przez `priceForParticipant()`
+— zniżka z karty sportowej jest respektowana, więc masowe oznaczenie robi tyle UPDATE-ów,
+ile jest różnych kwot w składzie (`ustawPlatnoscWszystkim()`, `lib/eventFeatures.ts`),
+nie jeden. Dostępne dla organizatora i delegata z `can_manage_payments`, potwierdzane
+`confirm()` jak reszta masowych/nieodwracalnych akcji na tej stronie. Helper
+`zaktualizujWiersze()` (`lib/zapytania.ts`) sprawdza, że baza zmieniła dokładnie tyle
+wierszy, ile podano — ta sama pułapka cichej porażki RLS co przy pojedynczym zapisie,
+tylko na skalę całego składu.
+
 **Po starcie meczu cena ustępuje miejsca rozliczeniu.** Chip ceny w nagłówku strony
 meczu i badge na karcie `EventBrowseCard` (zakładka „Historia") pokazują przed
 meczem cenę i „Wymaga akceptacji"; po starcie meczu (`eventStarted`) — organizator
@@ -360,6 +375,30 @@ wyśrodkowany nad wąską kolumną blisko krawędzi, ciągnął się poza jej br
 ze zrzutem). `NavLink` dostaje prop `dymekAlign` (`'left' | 'center' | 'right'`) — skrajne
 kolumny w `BottomNav.tsx` przypinają dymek do swojej wewnętrznej krawędzi zamiast centrować
 go nad ikoną, środkowe trzy kolumny zostają wyśrodkowane jak dotąd.
+
+**Plakietka „💬 N" na karcie meczu prowadzi prosto do Rozmowy, nie do zakładki Mecz.**
+Cała karta (`EventBrowseCard.tsx`) to jeden `<Link>` na `/wydarzenia/[id]`; plakietka
+z liczbą nieprzeczytanych wewnątrz niej przejmuje kliknięcie (`stopPropagation` +
+`router.push`) i nawiguje na `/wydarzenia/[id]?tab=rozmowa` — adres, który
+`EventDetailClient.tsx` już umiał czytać (`?tab=`), tylko nic go dotąd nie generowało.
+`role="link"` + `onKeyDown` (Enter/Spacja), żeby plakietka została osiągalna
+z klawiatury mimo że nie jest osobnym `<a>`.
+
+**Przytrzymanie „Moje" otwiera panel ze wszystkimi rozmowami z nieprzeczytanymi.**
+Krótkie tapnięcie działa jak dotąd (nawiguje na `/moje-gry`); przytrzymanie ~0,5 s
+(`useDlugieWcisniecie()`, `lib/useDlugieWcisniecie.ts` — timer + tolerancja 10 px na
+drgnięcie palca, `onClickCapture` połyka klik, który przeglądarka i tak wyśle po
+długim dotyku) otwiera `components/layout/PanelRozmow.tsx`: wysuwany od dołu arkusz
+z listą meczów I ekip z nieprzeczytanymi razem, od najświeższej wiadomości. Dane
+dopiero przy otwarciu — zwykłe tapnięcie nie robi ani jednego dodatkowego zapytania.
+Wiersz meczu prowadzi na `?tab=rozmowa`, wiersz ekipy na `?tab=tablica`. Lista składana
+z `rozmowyZNieprzeczytanymi()` (`lib/comments.ts`) i `rozmowyGrupZNieprzeczytanymi()`
+(`lib/groupPosts.ts`) — obie to cienkie nakładki na tę samą logikę, która wcześniej
+liczyła tylko `{ ile, tytul }` dla dymka (`nieprzeczytaneWMeczach()`/
+`getUnreadGroupName()`, zostają, zachowanie bez zmian). Panel NIE zastępuje przycisku
+-filtra „tylko nieprzeczytane" na `/moje-gry` (linijka wyżej, chmurka obok pola
+wyszukiwania): filtr zawęża listę meczów, panel przeskakuje wprost do rozmowy, także
+w ekipie, do której `/moje-gry` w ogóle nie prowadzi.
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
@@ -683,6 +722,18 @@ Cztery zakładki w URL (`?tab=`): **Nadchodzące** (`nadchodzace`) / **Historia*
 „Nadchodzące", nie rzuca błędem. Pasek zakładek scrolluje się w bok (`overflow-x-auto`
 z ukrytym scrollbarem, `shrink-0` na każdym przycisku) — cztery zakładki + dwie plakietki
 liczników nie mieściły się zawsze na 360px.
+
+**Swipe w bok przełącza zakładki** — tu i na `/grupy/[id]` oraz `/wydarzenia/[id]`
+(patrz te sekcje niżej), ten sam hak `useSwipeZakladek()` (`lib/useSwipeZakladek.ts`).
+Tylko dotyk, mysz na desktopie bez zmian (kolidowałaby z zaznaczaniem tekstu i z
+przeciąganiem graczy między drużynami). Bez zawijania — swipe w prawo na pierwszej
+zakładce i w lewo na ostatniej nic nie robi, kraniec jest krańcem. Próg 60 px, limit
+czasu 800 ms (wolne przeciąganie to przewijanie strony, nie gest) i wymóg wyraźnej
+przewagi poziomej nad pionową — te same reguły wszędzie, bo logika (`nastepnaZakladka()`)
+jest jedna, czysta funkcja. Gest wyłącza się sam nad elementem przewijanym w poziomie
+(pasek zakładek, żeby nie odbierać mu własnego przewijania) i jawnie, przez atrybut
+`data-bez-swipe`, tam gdzie już jest inny gest dotykowy: podział na drużyny (własny
+swipe „przypisz do drużyny" plus `@dnd-kit`) i pole tekstowe rozmowy.
 
 Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego**
 (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
@@ -1164,6 +1215,11 @@ elementy na tej samej wysokości nakładałyby się na siebie zamiast układać 
 to jest jedna sticky całość, nie dwie. Poziome przewijanie zakładek na wąskim telefonie
 nie pokazuje paska przewijania (`.scrollbar-hide` w `globals.css`).
 
+**Swipe w bok przełącza zakładki** — mechanika opisana przy `/moje-gry` wyżej
+(`useSwipeZakladek()`), tu z jedną pułapką: „Ustawienia" na końcu paska WYGLĄDA jak
+zakładka, ale jest `<Link>` do `/grupy/[id]/edytuj`, nie przełącznikiem stanu `tab` —
+nie wchodzi do listy, po której porusza się gest.
+
 **„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) jest widoczny wyłącznie w zakładce
 Mecze** — to jest jej treść (skrót najbliższego terminu), nie uniwersalny nagłówek
 strony; wcześniej wyświetlał się na każdej zakładce oprócz Rozmowy, co pod Statystykami
@@ -1275,6 +1331,15 @@ w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **ni
 (`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
 powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
 ręcznie.
+
+**Swipe w bok przełącza zakładki** — mechanika opisana przy `/moje-gry` wyżej
+(`useSwipeZakladek()`). Lista zakładek, po której porusza się gest, jest liczona
+`useMemo`-em umieszczonym PRZED `if (loading)`/`if (notFound)` wyżej w komponencie —
+musi się wywołać bezwarunkowo na każdym renderze (to hook), więc duplikuje cztery reguły
+widoczności zakładek (patrz niżej) w bezpiecznej dla `event === null` wersji zamiast
+czekać na konsty liczone dopiero po tych early returnach; komentarz w kodzie łączy oba
+miejsca. Podział na drużyny (własny swipe + `@dnd-kit`) i pole tekstowe rozmowy
+wyłączają gest przez `data-bez-swipe`.
 
 **Zakładka „Ustawienia" znika z paska dla kogokolwiek bez `canManageEvent`** — treść
 panelu zawsze była gated (`tab === 'ustawienia' && canManageEvent`), ale sam **przycisk

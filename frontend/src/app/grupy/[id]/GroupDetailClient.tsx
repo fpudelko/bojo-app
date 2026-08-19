@@ -31,6 +31,7 @@ import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/group
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
 import { sportEmoji, sportLabel } from '@/lib/sports';
+import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
 
 type Tab = 'mecze' | 'tablica' | 'sklad' | 'staty';
@@ -93,6 +94,9 @@ export default function GroupDetailClient() {
     const qs = sp.toString();
     window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
   };
+  // „Ustawienia" na końcu paska jest linkiem do /edytuj, nie zakładką stanu
+  // `tab` — nie wchodzi do listy swipe'owej.
+  const gestSwipe = useSwipeZakladek(TABS.map((t) => t.value), tab, goToTab);
 
   // Dołączenie kodem z linku zaproszenia — `?dolacz=<kod>` (nowy adres
   // /g/[kod]) albo `?join=1&kod=<kod>` (przekierowanie starych linków).
@@ -348,7 +352,10 @@ export default function GroupDetailClient() {
           tylko przenosi się do paska grupy niżej, żeby nie dublować się
           z jej własnym niskim paskiem. Na desktopie Header zostaje bez zmian. */}
       <Header hideMobileBarForUser />
-      <main className={`mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5 ${rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}>
+      <main
+        className={`mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5 ${rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}
+        {...gestSwipe}
+      >
         {/* Niska belka — dawniej osobny wiersz "← Ekipy" i karta nagłówka
             z okładką na pół ekranu zjadały cały górny ekran zgłoszenie
             wprost. Wszystko w jednym niskim pasku, przyklejonym na górze

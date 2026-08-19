@@ -39,6 +39,36 @@ export async function zaktualizujJedenWiersz(
   }
 }
 
+/**
+ * UPDATE, który musi trafić w dokładnie tyle wierszy, ile podano identyfikatorów.
+ * Ta sama pułapka co przy `zaktualizujJedenWiersz`, tylko na skalę: przy akcji
+ * masowej cicha porażka RLS jest jeszcze trudniejsza do zauważenia, bo część
+ * wierszy potrafi się zmienić, a część nie.
+ *
+ * @throws gdy baza zmieniła inną liczbę wierszy niż oczekiwana
+ */
+export async function zaktualizujWiersze(
+  tabela: string,
+  identyfikatory: string[],
+  zmiany: Record<string, unknown>,
+  opis = 'Nie udało się zapisać zmiany',
+): Promise<void> {
+  if (identyfikatory.length === 0) return;
+  const { data, error } = await supabase
+    .from(tabela)
+    .update(zmiany)
+    .in('id', identyfikatory)
+    .select('id');
+
+  if (error) throw new Error(error.message);
+  if (!data || data.length !== identyfikatory.length) {
+    throw new Error(
+      `${opis} — baza zmieniła ${data?.length ?? 0} z ${identyfikatory.length} wierszy. `
+      + 'Najczęstsza przyczyna: brak uprawnień (RLS) albo wpis już nie istnieje.',
+    );
+  }
+}
+
 /** Domyślny rozmiar strony. Poniżej serwerowego limitu „Max rows" w Supabase,
  *  żeby pełna strona zawsze znaczyła „jest więcej", a nie „to już koniec". */
 const STRONA = 1000;

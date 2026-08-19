@@ -18,6 +18,7 @@ import { doRozliczenia } from '@/lib/myEvents';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
+import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
 
 type Tab = 'upcoming' | 'history' | 'invites' | 'observing';
@@ -31,6 +32,8 @@ const SLUG_TO_TAB: Record<string, Tab> = {
 const TAB_TO_SLUG: Record<Tab, string> = {
   upcoming: 'nadchodzace', history: 'historia', invites: 'zaproszenia', observing: 'obserwowane',
 };
+// Kolejność zakładek do swipe'a — ta sama, w jakiej są wypisane w pasku niżej.
+const TABS: Tab[] = ['upcoming', 'history', 'invites', 'observing'];
 
 function tabButtonCls(active: boolean) {
   return `pb-2.5 text-sm transition-colors ${
@@ -53,6 +56,7 @@ function MojeGryContent() {
   // (the invites badge on /wydarzenia) can point straight at it.
   const tab: Tab = SLUG_TO_TAB[searchParams.get('tab') ?? ''] ?? 'upcoming';
   const goToTab = (t: Tab) => router.replace(`/moje-gry?tab=${TAB_TO_SLUG[t]}`, { scroll: false });
+  const gestSwipe = useSwipeZakladek(TABS, tab, goToTab);
 
   const { open: openInvites, statusFor: inviteStatusFor, loading: invitesLoading } = useMyInvites();
   const visibleInviteCount = openInvites.length;
@@ -184,7 +188,7 @@ function MojeGryContent() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header showMobileWordmark />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6" {...gestSwipe}>
 
         {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
             tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}

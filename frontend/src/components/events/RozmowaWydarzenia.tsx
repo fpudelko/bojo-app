@@ -171,7 +171,7 @@ export default function RozmowaWydarzenia({ eventId }: { eventId: string }) {
       </div>
 
       {user && (
-        <div className="flex shrink-0 items-end gap-2 border-t border-slate-100 bg-white p-2 dark:border-slate-700 dark:bg-slate-800">
+        <div data-bez-swipe className="flex shrink-0 items-end gap-2 border-t border-slate-100 bg-white p-2 dark:border-slate-700 dark:bg-slate-800">
           <textarea
             ref={textareaRef}
             value={body}

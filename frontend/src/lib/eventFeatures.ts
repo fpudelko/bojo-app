@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { zaktualizujJedenWiersz } from './zapytania';
+import { zaktualizujJedenWiersz, zaktualizujWiersze } from './zapytania';
 import { withCount } from './plural';
 import type {
   EventAdvancedSettings,
@@ -108,6 +108,38 @@ export async function updateParticipantPayment(
     { has_paid: hasPaid, paid_amount: paidAmount ?? 0 },
     'Nie udało się zapisać płatności',
   );
+}
+
+/** Masowe oznaczenie płatności całego składu — „Wszyscy oddali" w zakładce
+ *  Rozliczenia. Kwota bywa różna per osoba (zniżka z karty sportowej), więc
+ *  grupujemy po kwocie: jeden UPDATE na każdą wartość, zwykle jeden albo dwa. */
+export async function ustawPlatnoscWszystkim(
+  pozycje: { id: string; kwotaGrosze: number }[],
+  oplacone: boolean,
+): Promise<void> {
+  if (pozycje.length === 0) return;
+  if (!oplacone) {
+    await zaktualizujWiersze(
+      'event_participants',
+      pozycje.map((p) => p.id),
+      { has_paid: false, paid_amount: 0 },
+      'Nie udało się cofnąć oznaczenia wpłat',
+    );
+    return;
+  }
+  const grupy = new Map<number, string[]>();
+  for (const p of pozycje) {
+    if (!grupy.has(p.kwotaGrosze)) grupy.set(p.kwotaGrosze, []);
+    grupy.get(p.kwotaGrosze)!.push(p.id);
+  }
+  for (const [kwota, ids] of Array.from(grupy.entries())) {
+    await zaktualizujWiersze(
+      'event_participants',
+      ids,
+      { has_paid: true, paid_amount: kwota },
+      'Nie udało się oznaczyć wpłat',
+    );
+  }
 }
 
 export async function updateParticipantPhone(
