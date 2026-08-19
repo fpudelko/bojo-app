@@ -966,7 +966,7 @@ wzorem `components/home/landing/content.ts`.
 
 | Trasa | Co zawiera | Źródło treści |
 |---|---|---|
-| `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz i że dołączenie nie wymaga konta | `content/jakDziala.ts` |
+| `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz, że dołączenie nie wymaga konta i co zrobić, gdy brakuje 1-2 graczy do składu | `content/jakDziala.ts` |
 | `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta" | `content/dlaczego.ts` |
 | `/faq` | 36 pytań w sześciu kategoriach | `content/faq.ts` |
 
@@ -974,9 +974,20 @@ wzorem `components/home/landing/content.ts`.
 `/faq`) i `FAQ_LANDING` (osiem pozycji oznaczonych `naLandingu: true`, pokazywane na
 stronie głównej). `components/home/landing/content.ts` re-eksportuje
 `FAQ_LANDING as LANDING_FAQ` zamiast trzymać kopię — `LandingFaq.tsx` i
-`landingContent.test.ts` nie wiedzą, że coś się zmieniło. Oba miejsca renderują
+`landingContent.test.ts` nie wiedzą, że coś się zmieniło. Cztery miejsca renderują
 `faqJsonLd()` (`lib/structuredData.ts`) nad dokładnie tą treścią, którą pokazują —
-widoczny tekst i schema nie mają jak się rozjechać.
+widoczny tekst i schema nie mają jak się rozjechać: landing (`LANDING_FAQ`), `/faq`
+(`FAQ` w całości, pogrupowane po kategorii), `/jak-dziala-bojo` i `/dlaczego-bojo`
+(każda strona swój tematyczny podzbiór — organizator/pieniądze na jednej, podstawy/konto
+na drugiej, dobrany ręcznie po treści pytania, żeby się nie dublował między stronami).
+Accordion `<details>`/`ChevronDown` żyje w jednym miejscu — `components/tresc/MiniFaq.tsx`
+— zamiast być kopiowany na każdej stronie z osobna.
+
+`/jak-dziala-bojo` emituje dodatkowo `HowTo` (`lib/structuredData.ts#howToJsonLd`) nad
+trzema krokami sekcji „zakładasz-mecz” — treść kroków to te same akapity, które widać na
+stronie, nie osobno pisany tekst. `siteJsonLd()` (renderowany raz, w `layout.tsx`) niesie
+od teraz też węzeł `SoftwareApplication` z `featureList` — lista funkcji musi zostać
+zsynchronizowana z tabelą flag niżej, jeśli któraś z wymienionych funkcji trafi za flagę.
 
 **Uczciwość treści pilnowana testem.** `content/zakazaneFrazy.ts` trzyma dwie listy fraz:
 `ZAKAZANE_NA_LANDINGU` (landing nie wspomina ich w ogóle — nawet przecząco, bo samo

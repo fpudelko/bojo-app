@@ -332,6 +332,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
+
+PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
+(„jak rozliczyć mecz ze znajomymi”, „gdzie szukać brakujących graczy”, „czym Bojo różni się
+od grupy na WhatsAppie”), ale nagłówki i meta-opisy nie używały tych fraz wprost — wyszukiwarki
+i asystenci AI składają odpowiedź z fragmentu najbliższego pytaniu, więc sekcja bez pytania
+w nagłówku ginęła, mimo że odpowiedź w treści już tam była. Osobno: strony treści nie miały
+żadnej danej strukturalnej poza `BreadcrumbList` — `siteJsonLd()` opisywał Bojo tylko jako
+`Organization`/`WebSite`, bez listy funkcji czytelnej dla modeli.
+
+ROZWIĄZANIE BOJO: nagłówek sekcji „Kto ile płaci” brzmi teraz „Jak rozliczyć mecz ze
+znajomymi — kalkulator kosztów boiska” (treść bez zmian — pierwsze zdanie już było gotową
+odpowiedzią). Nowa sekcja „Co zrobić, gdy brakuje 1-2 graczy do składu” tłumaczy przełącznik
+„mecz publiczny” z kroku 3 kreatora i uczciwie zastrzega, że publicznych gier bywa dziś
+niewiele. `/jak-dziala-bojo` i `/dlaczego-bojo` dostały każda mały, tematyczny blok FAQ
+(accordion) pod koniec strony — inny podzbiór pytań na każdej, żeby się nie dublowały.
+`siteJsonLd()` niesie teraz też węzeł `SoftwareApplication` z listą funkcji, a
+`/jak-dziala-bojo` emituje `HowTo` nad trzema krokami zakładania meczu.
+
+MECHANIKA: `content/jakDziala.ts` (sekcja `pieniadze` przemianowana, nowa sekcja
+`brakuje-graczy`), `lib/structuredData.ts` (`howToJsonLd()`, węzeł `SoftwareApplication`
+w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty z `/faq`,
+używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
+nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
+stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
+
 ### 2026-08-19 — Treść powiadomienia mówi, co się stało
 
 PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
@@ -550,22 +576,3 @@ wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalog
 migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
 razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
 więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.
-
-### 2026-08-18 — Spójny pasek szukania i filtrów między „Znajdź grę" a „Mapa"
-
-PROBLEM: dwie zakładki tego samego dolnego paska wyglądały jak dwa różne ekrany. Pole
-szukania na mapie stało 8 px wyżej i miało inne zaokrąglenie, więc przy przełączaniu
-przeskakiwało. Podpowiedź w polu ucinała się w połowie słowa („Szukaj boiska po nazwie
-lub a…"). Pigułki filtrów zmieniały kolejność: sport stał raz przed „Filtry", raz po —
-przy przełączaniu Gry↔Obiekty palec trafiał w inny filtr niż sekundę wcześniej.
-
-ROZWIĄZANIE BOJO: pole szukania ma tę samą geometrię i ten sam odstęp od góry na obu
-zakładkach (na mapie zostaje białe tło z cieniem, bo leży na mapie). Podpowiedź jest
-krótka i mieści się w całości: „Nazwa boiska albo adres" dla obiektów, „Nazwa albo
-boisko" dla gier. Kolejność pigułek jest wspólna: najpierw zakres (sortowanie albo tryb
-mapy), potem sport, potem „Filtry", na końcu przełączniki.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (jeden dropdown sportów zamiast dwóch
-renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2xl` jak
-w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
-za dropdown sportów).

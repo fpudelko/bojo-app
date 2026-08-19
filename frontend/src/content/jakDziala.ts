@@ -54,6 +54,21 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     ],
   },
   {
+    id: 'brakuje-graczy',
+    label: 'Gdy brakuje 1-2 graczy',
+    tytul: 'Co zrobić, gdy brakuje 1-2 graczy do składu',
+    akapity: [
+      'Ustaw mecz jako publiczny — trafi na listę otwartych gier i będzie mógł do niego ' +
+      'dołączyć każdy zalogowany gracz, nie tylko osoby, które dostały Twój link. To ten ' +
+      'sam przełącznik z kroku 3 kreatora (patrz wyżej) — możesz go zmienić też później, ' +
+      'w ustawieniach już założonego meczu.',
+      'Warto mieć realistyczne oczekiwania: publicznych gier na liście bywa dziś niewiele, ' +
+      'więc najpewniejszy sposób na dobranie brakujących osób to nadal link do własnej ' +
+      'ekipy (patrz wyżej) — otwarcie meczu publicznie to dodatkowa szansa, nie gwarancja ' +
+      'kompletu.',
+    ],
+  },
+  {
     id: 'bez-konta',
     label: 'Czy gracze muszą zakładać konto?',
     tytul: 'Czy gracze muszą zakładać konto?',
@@ -97,8 +112,8 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
   },
   {
     id: 'pieniadze',
-    label: 'Kto ile płaci',
-    tytul: 'Kto ile płaci',
+    label: 'Kto ile płaci — kalkulator kosztów',
+    tytul: 'Jak rozliczyć mecz ze znajomymi — kalkulator kosztów boiska',
     akapity: [
       'Bojo liczy i pilnuje rozliczenia — nie przelewa pieniędzy. Wpisujesz koszt ' +
       'wynajmu obiektu, a Bojo dzieli go na miejsca i przelicza po każdej zmianie liczby ' +
