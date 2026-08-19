@@ -352,7 +352,7 @@ ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: d
 aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
 (zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
 drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
-widać go teraz na liście składów (plakietka `kpt`) i przy nazwie drużyny w zakładce Taktyka.
+widać go teraz na liście składów (litera „c" w okręgu przy nazwisku, `OznaczenieKapitana.tsx`). Na boisku w Taktyce widnieje pełne imię i nazwisko łamane na dwie linijki, a w kółku inicjały imienia i nazwiska (`inicjaly()` w `lib/taktyka.ts`) — samo imię nie rozróżniało dwóch Mateuszów w jednym składzie. Przy najbliższym meczu ekipy stoi ten sam panel „Zaproś znajomych" co w widoku meczu (udostępnienie + kopiowanie linku) zamiast pojedynczego „Udostępnij mecz" i przy nazwie drużyny w zakładce Taktyka.
 
 MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
 `powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),

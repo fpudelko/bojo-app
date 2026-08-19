@@ -5,6 +5,7 @@ import { Loader2, Send, Trash2, Users } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
+  inicjaly,
   OPCJE_TAKTYKI, WARTOSC_INNE, domyslneUstawienie, odpowiedzTaktyki, opisTaktyki,
   pozycjeZeSchematu, ustawieniaDlaSkladu, type KluczTaktyki, type Taktyka,
 } from '@/lib/taktyka';
@@ -356,7 +357,7 @@ export default function TaktykaDruzyny({
                 return setWybranySlot(wybrany ? null : poz.slot);
               }}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
-              className="absolute flex w-14 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
+              className="absolute flex w-[4.25rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
               aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
             >
               <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
@@ -366,10 +367,16 @@ export default function TaktykaDruzyny({
                     ? 'border-accent-400 bg-accent-400 text-primary-950'
                     : 'border-white/60 bg-primary-800/70 text-white/80'
               }`}>
-                {gracz ? gracz.name.slice(0, 2).toUpperCase() : poz.rola}
+                {gracz ? inicjaly(gracz.name) : poz.rola}
               </span>
-              <span className="max-w-full truncate text-[10px] font-semibold text-white drop-shadow">
-                {gracz ? gracz.name.split(' ')[0] : poz.nazwa}
+              {/* CAŁE nazwisko, łamane na dwie linijki — nie samo imię.
+                  Skrót do imienia gubił dokładnie tę informację, po którą się
+                  tu patrzy: w składzie bywa dwóch Kubów i dwóch Mateuszów,
+                  a wtedy plan gry przestaje cokolwiek znaczyć. Łamanie zamiast
+                  ucięcia, bo ucięte „Mateusz Bazar…" jest tak samo bezużyteczne
+                  jak samo imię. */}
+              <span className="max-w-full break-words text-center text-[9px] font-semibold leading-[1.15] text-white drop-shadow">
+                {gracz ? gracz.name : poz.nazwa}
               </span>
             </button>
           );

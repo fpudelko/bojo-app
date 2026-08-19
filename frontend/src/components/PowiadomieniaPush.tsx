@@ -100,6 +100,12 @@ export default function PowiadomieniaPush() {
     }
   };
 
+  // Adres BEZ zgadywania: Chrome trzyma uprawnienie per host, a listę
+  // podpisuje dokładnie tym hostem, na którym jesteś. Wpisany na sztywno
+  // „bojo.pl" nie zgadzał się z „www.bojo.pl" widocznym w ustawieniach
+  // witryn — instrukcja kazała szukać wpisu, którego tam nie było.
+  const host = typeof window === 'undefined' ? 'www.bojo.pl' : window.location.hostname;
+
   const przelaczRodzaj = async (typ: string, wlaczyc: boolean) => {
     if (!wylaczone) return;
     const nowe = przelaczNaLiscie(wylaczone, typ, wlaczyc);
@@ -128,7 +134,7 @@ export default function PowiadomieniaPush() {
               : stan === 'wymaga-instalacji'
                 ? 'Na iPhonie działają dopiero po dodaniu Bojo do ekranu głównego: Udostępnij → „Dodaj do ekranu początkowego".'
                 : stan === 'zablokowane'
-                  ? 'Przeglądarka zablokowała powiadomienia dla bojo.pl. Chrome robi to sam, gdy okienko z prośbą zostanie dwa razy zamknięte — nie trzeba było niczego świadomie odrzucać.'
+                  ? `Przeglądarka zablokowała powiadomienia dla ${host}. Chrome robi to sam, gdy okienko z prośbą zostanie dwa razy zamknięte — nie trzeba było niczego świadomie odrzucać.`
                   : 'Nowy mecz ekipy, wiadomość w rozmowie, zwolnione miejsce — bez zaglądania do aplikacji.'}
           </p>
 
@@ -147,7 +153,7 @@ export default function PowiadomieniaPush() {
                 <>
                   <ol className="mt-1.5 list-inside list-decimal space-y-1 text-xs text-slate-600 dark:text-slate-300">
                     <li>Chrome → <b>⋮</b> → Ustawienia → <b>Ustawienia witryn</b> → Powiadomienia</li>
-                    <li>W sekcji „Zablokowane" znajdź <b>bojo.pl</b> i wybierz <b>Zezwalaj</b></li>
+                    <li>W sekcji „Zablokowane" znajdź <b>{host}</b> i wybierz <b>Zezwalaj</b></li>
                     <li>Wróć tutaj i stuknij „Sprawdź ponownie"</li>
                   </ol>
                   {/* Krótsza droga, ale tylko z przeglądarki: w aplikacji
