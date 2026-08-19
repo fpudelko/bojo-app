@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  Bell, CalendarPlus, CalendarX, Check, ChevronRight, MessageCircle, TicketCheck,
-  UserPlus, type LucideIcon,
+  Bell, CalendarPlus, CalendarX, Check, ChevronRight, MessageCircle, Settings,
+  TicketCheck, UserPlus, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI } from '@/lib/notifications';
@@ -18,6 +18,21 @@ import type { AppNotification } from '@/types';
  *  `reserve_claim_offered` (oferta miejsca z rezerwy, ma własny przepływ
  *  z terminem ważności) tu nie należą — obie znaczą co innego niż „grasz?". */
 const ODPOWIEM_STAD = new Set(['pytanie_o_udzial', 'zaproszenie_na_mecz']);
+
+/**
+ * Ile powiadomień wczytujemy do panelu.
+ *
+ * Było 10 i to była zła liczba: przy ekipie grającej co tydzień dziesięć
+ * pozycji kończy się na przedwczoraj, więc „nie widzę tego, co przyszło rano"
+ * było prawdą — reszta po prostu nie istniała w panelu. Lista i tak się
+ * przewija, więc jedynym kosztem większej liczby jest ciut większa odpowiedź
+ * z bazy, a zyskiem historia, do której da się wrócić.
+ *
+ * 50, nie „wszystkie": panel to podręczna lista ostatnich zdarzeń, a nie
+ * archiwum. Przy pięćdziesięciu pozycjach przewijanie zaczyna być gorsze od
+ * wejścia w mecz i sprawdzenia na miejscu.
+ */
+const ILE_POWIADOMIEN = 50;
 
 /**
  * Ikona i podpis rodzaju — jedno spojrzenie zamiast czytania.
@@ -201,7 +216,7 @@ export default function NotificationBell() {
   // Load + subscribe
   useEffect(() => {
     if (!user) { setNotifs([]); return; }
-    getMyNotifications(10).then(setNotifs).catch(() => {});
+    getMyNotifications(ILE_POWIADOMIEN).then(setNotifs).catch(() => {});
 
     const ch = supabase
       .channel(`notifs-${user.id}-${instancja}`)
@@ -222,7 +237,7 @@ export default function NotificationBell() {
   // jawnie każe tu odświeżyć listę, gdy insert się powiedzie.
   useEffect(() => {
     if (!user) return;
-    const odswiez = () => { getMyNotifications(10).then(setNotifs).catch(() => {}); };
+    const odswiez = () => { getMyNotifications(ILE_POWIADOMIEN).then(setNotifs).catch(() => {}); };
     window.addEventListener('bojo:powiadomienia-odswiez', odswiez);
     return () => window.removeEventListener('bojo:powiadomienia-odswiez', odswiez);
   }, [user]);
@@ -292,9 +307,21 @@ export default function NotificationBell() {
         <div className="fixed inset-x-3 top-14 z-[1010] flex max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl supports-[height:1svh]:max-h-[72svh] sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-ink">Powiadomienia</p>
-            {notifs.length > 0 && (
-              <span className="text-xs text-slate-400">{notifs.length} ostatnich</span>
-            )}
+            {/* „N ostatnich" mówiło o liczbie, której nikt nie potrzebuje —
+                widać ją na liście. W tym samym rogu mieszka teraz wejście
+                w ustawienia powiadomień: to najbardziej naturalne miejsce, żeby
+                ich szukać (jestem w powiadomieniach i chcę zmienić, co
+                dostaję), a nie profil, do którego trzeba wiedzieć, żeby zajrzeć.
+                W profilu ustawienia zostają — to dwie drogi do tego samego. */}
+            <Link
+              href="/profil#powiadomienia"
+              onClick={() => setOpen(false)}
+              aria-label="Ustawienia powiadomień"
+              title="Ustawienia powiadomień"
+              className="-mr-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
           </div>
 
           {notifs.length === 0 ? (

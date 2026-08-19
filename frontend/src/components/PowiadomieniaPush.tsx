@@ -59,6 +59,17 @@ export default function PowiadomieniaPush() {
     : czytajStanPrzegladarki();
   useEffect(() => { odswiez(); }, [odswiez]);
 
+  // Wejście z panelu powiadomień (`/profil#powiadomienia`) rozwija listę od
+  // razu: kto klika „ustawienia powiadomień", przyszedł po nią, a nie po
+  // kolejny przycisk do rozwinięcia. Czytamy `window.location.hash`, nie
+  // `useSearchParams()` — ten drugi wywraca build produkcyjny na trasach
+  // prerenderowanych (patrz AGENTS.md).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#powiadomienia') {
+      setRozwiniete(true);
+    }
+  }, []);
+
   // Ustawienia wczytujemy dopiero przy rozwinięciu: przy zwiniętej liście
   // to zapytanie do bazy, którego wynik i tak nie byłby widoczny.
   useEffect(() => {

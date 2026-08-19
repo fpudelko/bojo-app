@@ -379,8 +379,15 @@ export default function ProfilePage() {
         </div>
 
         {/* Powiadomienia push — nad panelem administratora i nad wylogowaniem,
-            bo dotyczą wszystkich, a nie tylko mnie. */}
-        <PowiadomieniaPush />
+            bo dotyczą wszystkich, a nie tylko mnie.
+
+            `id` jest celem odnośnika z panelu powiadomień (`/profil#powiadomienia`):
+            wejście w ustawienia ma od razu pokazać tę kartę, a nie górę profilu,
+            z której trzeba jej dopiero szukać. `scroll-mt` odsuwa ją spod
+            przyklejonego nagłówka — bez tego kotwica ląduje pod paskiem. */}
+        <div id="powiadomienia" className="scroll-mt-20">
+          <PowiadomieniaPush />
+        </div>
 
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
             hamburger; desktop nadal ma osobne menu z zębatką w Header.tsx) */}
