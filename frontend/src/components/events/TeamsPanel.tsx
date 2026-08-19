@@ -344,7 +344,21 @@ export default function TeamsPanel({
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const canManualAssign = ['reczne', 'kapitanowie'].includes(teamMode);
-  const showCaptain = teamMode === 'kapitanowie';
+  // Gwiazdka kapitana NIE zależy już od trybu dzielenia drużyn.
+  //
+  // Dawniej pokazywała się wyłącznie w trybie `kapitanowie`, bo „kapitan"
+  // znaczył tylko tyle, co „ten, który wybiera skład". Od zakładki Taktyka
+  // znaczy coś jeszcze: kapitan układa ustawienie i publikuje je drużynie.
+  // Przy składach ułożonych ręcznie, losowo albo z przyjętej propozycji nie
+  // było jak wskazać kapitana — a Taktyka i tak pytała o niego. Efekt: mecz
+  // stał na „Taktyka jeszcze nieustalona" i nikt nie mógł tego ruszyć, bo
+  // kapitana nie dało się powołać. Klasyczny ślepy zaułek: ekran opisuje stan,
+  // z którego nie wychodzi żadna akcja.
+  //
+  // `variant === 'propose'` zostaje bez gwiazdki celowo — propozycja niczego
+  // nie zmienia do czasu przyjęcia, więc powoływanie w niej kapitana byłoby
+  // obietnicą bez pokrycia.
+  const showCaptain = variant === 'manage';
   const hasTeams = teamA.length > 0 || teamB.length > 0;
   const isBalanced = teamA.length === teamB.length;
 

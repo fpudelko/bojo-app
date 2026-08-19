@@ -350,7 +350,14 @@ function PublishedTeamsCard({
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
                       {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">⚽{golyMap[p.id]}</span>}
                       {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                      {p.isCaptain && <span className="text-[10px]">⭐</span>}
+                      {/* Kapitan podpisany słowem, nie samą gwiazdką. Gwiazdka
+                          wymaga wiedzy, co znaczy — a to jedyne miejsce, gdzie
+                          gracz sprawdza, kogo pytać o ustawienie w Taktyce. */}
+                      {p.isCaptain && (
+                        <span className="shrink-0 rounded bg-amber-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-amber-700">
+                          kpt
+                        </span>
+                      )}
                     </PlayerLink>
                   ))}
               </div>
@@ -3487,9 +3494,22 @@ export default function EventDetailClient() {
             {/* JEDNA drużyna — moja. Rywal ma swoje ustawienie i swój czat,
                 i nie ma powodu, żebym je czytał: to jest ekran do uzgodnienia
                 gry ze swoimi, a nie podgląd cudzej szatni. */}
-            <p className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
-              {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
-            </p>
+            {/* Kapitan przy nazwie drużyny, na stałe — nie tylko w pustym
+                stanie. To pierwsza rzecz, o którą pyta się na tym ekranie:
+                „kto to w ogóle ustawia". */}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
+                {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
+              </p>
+              {kapitanMojejDruzyny ? (
+                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                  <Star className="h-3 w-3 shrink-0 text-amber-500" />
+                  Kapitan: <b className="font-semibold text-slate-700">{kapitanMojejDruzyny}</b>
+                </span>
+              ) : (
+                <span className="text-xs text-slate-400">bez kapitana</span>
+              )}
+            </div>
             <TaktykaDruzyny
               eventId={event.id}
               team={mojaDruzyna}
@@ -3498,6 +3518,7 @@ export default function EventDetailClient() {
               gracze={mojiGracze}
               mozeEdytowac={!!myParticipation?.isCaptain}
               kapitan={kapitanMojejDruzyny}
+              mozeWskazacKapitana={isOwner || canManageSquad}
             />
           </div>
         )}

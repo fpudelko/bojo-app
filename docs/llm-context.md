@@ -350,14 +350,18 @@ do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania s
 pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
 ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
 aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
-(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut).
+(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
+drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
+widać go teraz na liście składów (plakietka `kpt`) i przy nazwie drużyny w zakładce Taktyka.
 
 MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
 `powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
 `components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
 udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
 z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
-widokiem, więc sprawdzalna testem bez renderowania). Zatwierdzenie propozycji
+widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
+zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
+idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
 składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
 `teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
 opublikować.
