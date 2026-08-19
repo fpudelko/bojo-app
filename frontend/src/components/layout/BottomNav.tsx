@@ -13,6 +13,8 @@ import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
 import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
+import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
+import PanelRozmow from './PanelRozmow';
 
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
@@ -161,6 +163,13 @@ export default function BottomNav() {
     return () => { aktualne = false; };
   }, [pathname]);
 
+  // Przytrzymanie „Moje" → panel z listą wszystkich nieprzeczytanych rozmów
+  // (mecze + ekipy), zgłoszone wprost. Hak żyje na poziomie komponentu, nie
+  // wewnątrz `NavLink` — `NavLink` jest funkcją definiowaną w ciele
+  // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
+  const [panelRozmowOtwarty, setPanelRozmowOtwarty] = useState(false);
+  const gestMoje = useDlugieWcisniecie(() => setPanelRozmowOtwarty(true));
+
   // Dymki — krótkie wyjaśnienie znaczenia kropki, na moment, gdy się zapala.
   // Zawsze przypięty do konkretnej ikony (`href`) — stąd osobne typy dla
   // różowej na „Moje" i różowej na „Grupy", mimo identycznego tekstu; bez
@@ -235,6 +244,10 @@ export default function BottomNav() {
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
+      // Odkrywalność gestu przytrzymania — bez tego nikt by się nie
+      // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
+      // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
+      ['przytrzymaj-rozmowy', unreadEvents || unreadGroups, 'Przytrzymaj „Moje" → wszystkie rozmowy', '/moje-gry'],
     ];
     for (const [typ, aktywny, tekst, href] of proby) {
       const byloAktywne = poprzednieAktywne.current[typ] ?? false;
@@ -253,7 +266,7 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0,
+    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, gest,
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
@@ -291,6 +304,9 @@ export default function BottomNav() {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś wyłącznie na
+        „Moje", stąd opcjonalne. Rozłożone wprost na `<Link>`. */
+    gest?: Record<string, unknown>;
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
@@ -306,7 +322,9 @@ export default function BottomNav() {
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
           active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
+          gest && 'select-none [-webkit-touch-callout:none]',
         )}
+        {...gest}
       >
         <span className="relative">
           {dymek && (
@@ -435,10 +453,18 @@ export default function BottomNav() {
               dymek={dymek}
               dymekAlign={dymekAlign}
               licznik={item.href === '/moje-gry' ? ileMoich : 0}
+              gest={item.href === '/moje-gry' ? gestMoje : undefined}
             />
           );
         })}
       </div>
+      {user && (
+        <PanelRozmow
+          otwarty={panelRozmowOtwarty}
+          naZamknij={() => setPanelRozmowOtwarty(false)}
+          userId={user.id}
+        />
+      )}
     </nav>
   );
 }

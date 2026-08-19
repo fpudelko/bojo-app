@@ -214,7 +214,7 @@ function SwipeablePlayerRow({
   const committed = Math.abs(offsetX) >= SWIPE_THRESHOLD;
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div data-bez-swipe className="relative overflow-hidden rounded-xl">
       {/* Reveal background */}
       <div className={[
         'absolute inset-0 rounded-xl flex items-center transition-colors',
@@ -371,7 +371,9 @@ export default function TeamsPanel({
   const draggingParticipant = draggingId ? allParticipants.find((p) => p.id === draggingId) : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    // `data-bez-swipe`: cały panel to przeciąganie graczy między drużynami
+    // (@dnd-kit) — swipe przełączający zakładki zabrałby to gestowi.
+    <div data-bez-swipe className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-19 · migracja `109` · 38 tabel · 645 testów
+**Stan na:** 2026-08-19 · migracja `110` · 38 tabel · 673 testy
 
 ---
 
@@ -332,6 +332,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
+
+PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
+pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
+realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
+między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
+ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
+przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
+
+ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
+miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
+przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
+nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
+dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
+całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
+sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
+prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
+z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
+w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
+
+MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
+`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
+w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
+`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
+w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
+`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
+`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
+w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
+i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
+
 ### 2026-08-19 — Ustawienia powiadomień i powiadomienia o wiadomościach
 
 PROBLEM: powiadomienia na telefon działały „wszystko albo nic" — jedyną reakcją na zbyt
@@ -529,25 +559,3 @@ powiadomienia dostaje dziesięć). Klient: `lib/push.ts` i `components/Powiadomi
 service worker `public/sw.js` (od etapu PWA). Uruchomienie wymaga ręcznych kroków
 (klucze VAPID, sekrety, wdrożenie funkcji) → `supabase/functions/send-push/README.md`.
 
-### 2026-08-18 — Chmurka wiadomości gaśnie, karta ekipy czytelna
-
-PROBLEM: różowa chmurka „nowa wiadomość" świeciła się bez końca, mimo że wszystko było
-przeczytane. Przyczyna: liczyła rozmowy ze WSZYSTKICH meczów, w których kiedykolwiek
-grałem — także sprzed pół roku. Rozmowa z rozegranego meczu, do której nikt nie wrócił,
-zapalała wskaźnik na stałe: „Moje" pokazuje wyłącznie nadchodzące, więc nie było jak jej
-otworzyć, a więc i odznaczyć. Osobno: karta ekipy na liście `/grupy` opisywała najbliższy
-mecz jednym zdaniem, w którym nazwa obiektu zajmowała trzy wiersze i przykrywała jedyne
-dwie istotne rzeczy — kiedy gramy i czy jest komplet.
-
-ROZWIĄZANIE BOJO: chmurka liczy wyłącznie NADCHODZĄCE mecze, więc gaśnie po wejściu
-w rozmowę i nie da się jej zapalić czymś, do czego nie ma jak dojść. Dochodzi dymek „Nowa
-wiadomość w meczu {tytuł}", taki sam jak „Nowa gra w grupie {nazwa}". Karta ekipy pokazuje
-termin plakietką, obok plakietkę „brakuje N" albo „komplet", a nazwę obiektu w jednym
-uciętym wierszu pod spodem.
-
-MECHANIKA: `nieprzeczytaneWMeczach()` w `lib/comments.ts` (zastępuje
-`hasUnreadEventMessages()`; filtruje mecze po dacie i zwraca tytuł meczu z najświeższą
-nieprzeczytaną), `components/layout/BottomNav.tsx` (nowy klucz licznika dymka
-`wiadomosc-w-meczu` — stary niósł zużyte pokazania dawnej, ogólnikowej treści),
-`app/grupy/GroupsClient.tsx`. Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie
-za coś, do czego da się dojść z ekranu, na który wskazuje.

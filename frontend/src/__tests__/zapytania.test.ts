@@ -7,6 +7,9 @@ const { stanUpdate, from } = vi.hoisted(() => {
       eq: () => ({
         select: () => Promise.resolve(stanUpdate),
       }),
+      in: () => ({
+        select: () => Promise.resolve(stanUpdate),
+      }),
     }),
   }));
   return { stanUpdate, from };
@@ -14,7 +17,7 @@ const { stanUpdate, from } = vi.hoisted(() => {
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
 
-import { zaktualizujJedenWiersz, pobierzWszystkie } from '@/lib/zapytania';
+import { zaktualizujJedenWiersz, zaktualizujWiersze, pobierzWszystkie } from '@/lib/zapytania';
 
 beforeEach(() => { stanUpdate.data = []; stanUpdate.error = null; from.mockClear(); });
 
@@ -42,6 +45,32 @@ describe('zaktualizujJedenWiersz', () => {
   it('przepuszcza prawdziwy błąd bazy bez podmiany treści', async () => {
     stanUpdate.error = { message: 'connection reset' };
     await expect(zaktualizujJedenWiersz('t', 'x', {})).rejects.toThrow('connection reset');
+  });
+});
+
+describe('zaktualizujWiersze', () => {
+  it('pusta lista id — nie odpytuje bazy', async () => {
+    await zaktualizujWiersze('event_participants', [], { has_paid: true });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it('przechodzi, gdy baza zmieniła dokładnie tyle wierszy, ile podano', async () => {
+    stanUpdate.data = [{ id: 'p1' }, { id: 'p2' }];
+    await expect(zaktualizujWiersze('event_participants', ['p1', 'p2'], { has_paid: true }))
+      .resolves.toBeUndefined();
+  });
+
+  // Cicha porażka RLS na skalę: część wierszy się zmieniła, część nie —
+  // i to musi rzucić błędem, nie przejść po cichu jako częściowy sukces.
+  it('rzuca, gdy baza zmieniła mniej wierszy niż podano id', async () => {
+    stanUpdate.data = [{ id: 'p1' }];
+    await expect(zaktualizujWiersze('event_participants', ['p1', 'p2'], { has_paid: true }))
+      .rejects.toThrow(/zmieniła 1 z 2 wierszy/);
+  });
+
+  it('przepuszcza prawdziwy błąd bazy bez podmiany treści', async () => {
+    stanUpdate.error = { message: 'connection reset' };
+    await expect(zaktualizujWiersze('t', ['x'], {})).rejects.toThrow('connection reset');
   });
 });
 

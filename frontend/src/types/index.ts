@@ -220,6 +220,11 @@ export interface EventParticipant {
   hasPaid: boolean;
   isReserve: boolean;
   createdAt: string;
+  /** Moment, od którego liczy się miejsce w kolejce rezerwowej (migracja `110`).
+   *  Różny od `createdAt` dla kogoś, kto najpierw obserwował (rsvp 'maybe') —
+   *  wiersz powstał wcześniej niż prawdziwe dołączenie. Brak (baza bez migracji
+   *  `110`) — użyj `momentZapisu()` z `lib/events.ts`, nie tego pola wprost. */
+  zapisanoAt?: string;
   avatarUrl?: string;
   // advanced fields
   team?: 'A' | 'B';

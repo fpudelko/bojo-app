@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -40,10 +40,10 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
-  awansujZRezerwy, cofnijNaRezerwe, getWypisania,
+  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu,
 } from '@/lib/events';
 import {
-  updateParticipantTeam, updateParticipantPayment,
+  updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, getPlayerGoals,
   publishTeams, unpublishTeams, saveEventAdvancedSettings, opisWidocznosciWGrupie,
@@ -75,6 +75,7 @@ import { WARSTWA } from '@/lib/warstwy';
 import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
+import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 
 type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
@@ -224,8 +225,8 @@ function ParticipantsList({
                   niego `truncate` na nazwisku przestaje działać. */}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-ink">{p.name}</span>
-                {p.createdAt && (
-                  <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                {momentZapisu(p) && (
+                  <span className="block text-[11px] text-slate-400">{etykietaZapisu(momentZapisu(p))}</span>
                 )}
               </span>
               {golyMap[p.id] > 0 && (
@@ -265,8 +266,8 @@ function ParticipantsList({
                     <span className="block truncate text-sm font-medium text-slate-500 dark:text-slate-400">{p.name}</span>
                     {/* Na rezerwie czas zapisu znaczy jeszcze więcej niż
                         w składzie: to on ustawia kolejkę. */}
-                    {p.createdAt && (
-                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                    {momentZapisu(p) && (
+                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(momentZapisu(p))}</span>
                     )}
                   </span>
                   {golyMap[p.id] > 0 && (
@@ -760,6 +761,48 @@ export default function EventDetailClient() {
     otworzOknoZapisu();
   }, [chceDolaczyc, authLoading, loading, user, event, participants]);
 
+  // Zakładki widoczne w pasku — musi być liczone TUTAJ, przed `if (loading)`/
+  // `if (notFound || !event)` niżej, bo `useSwipeZakladek` to hook i musi
+  // wywoływać się bezwarunkowo, w tej samej kolejności na każdym renderze.
+  // Poniżej te same cztery reguły co przy `canManageEvent`/`resultsAvailable`/
+  // `isCancelled`/`mojaDruzyna` (liczonych drugi raz, później, dla reszty
+  // strony) — bo tamte konsty odwołują się wprost do `event.organizerId` itp.
+  // i wywaliłyby się, dopóki `event` jest `null`. ZMIENIAJĄC REGUŁĘ WIDOCZNOŚCI
+  // ZAKŁADKI, ZMIEŃ OBA MIEJSCA — ten sam wzorzec celowego zdublowania co
+  // `joinEvent`/`addGuest`/`confirmFromMaybe` (patrz docs/domena.md).
+  const widoczneZakladkiObiekty = useMemo<[EventTab, string][]>(() => {
+    if (!event) return [EVENT_TAB_LABELS[0]];
+    const canManageEventWczesnie = !!user && (user.id === event.organizerId || !!myDelegate?.canEdit);
+    const isCancelledWczesnie = event.status === 'cancelled';
+    // resultsAvailable: event started + 30 min buffer before result form is shown
+    const resultsAvailableWczesnie = (() => {
+      try {
+        const [y, m, d] = event.date.split('-').map(Number);
+        const [h, min] = (event.time ?? '00:00').split(':').map(Number);
+        return Date.now() >= new Date(y, m - 1, d, h, min).getTime() + 30 * 60 * 1000;
+      } catch { return true; }
+    })();
+    const mojaDruzynaWczesnie = (() => {
+      const rzad = participants.find((p) => p.userId && p.userId === user?.id && !p.pendingApproval && p.rsvp !== 'maybe');
+      return rzad?.team === 'A' || rzad?.team === 'B' ? rzad.team : null;
+    })();
+    return EVENT_TAB_LABELS.filter(([t]) => {
+      if (t === 'ustawienia') return canManageEventWczesnie;
+      // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka istniała od
+      // stworzenia meczu i po kliknięciu mówiła tylko, że wyniku jeszcze nie
+      // ma — czyli zajmowała miejsce w pasku, nie dając nic w zamian.
+      if (t === 'wynik') return resultsAvailableWczesnie && !isCancelledWczesnie;
+      // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo nie ma
+      // czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
+      if (t === 'rozliczenia') return event.costGrosze > 0;
+      // Taktyka: po publikacji składów i tylko dla kogoś, kto ma drużynę
+      // w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
+      if (t === 'taktyka') return !!mojaDruzynaWczesnie && event.teamsPublished && !isCancelledWczesnie;
+      return true;
+    });
+  }, [event, user, myDelegate, participants]);
+  const gestSwipe = useSwipeZakladek(widoczneZakladkiObiekty.map(([t]) => t), tab, goToTab);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -827,7 +870,13 @@ export default function EventDetailClient() {
   // żeby nie zajmował miejsca w składzie, a nie deklaracja gry. Bez tego filtru
   // wpadał do kolejki rezerwowej i człowiek, który kliknął „Obserwuj",
   // widział siebie jako rezerwowego.
-  const reserves = confirmed.filter((p) => p.isReserve && p.rsvp !== 'maybe');
+  // Sortowane po `momentZapisu`, nie po kolejności z zapytania (to ostatnie
+  // idzie po `created_at`, patrz `lib/events.ts:getEvent`): dla kogoś, kto
+  // najpierw obserwował i potem dołączył, kolejka ma liczyć się od momentu
+  // dołączenia, nie od momentu kliknięcia „Obserwuj" (migracja `110`).
+  const reserves = confirmed
+    .filter((p) => p.isReserve && p.rsvp !== 'maybe')
+    .sort((a, b) => momentZapisu(a).localeCompare(momentZapisu(b)));
   // Gość przejmuje wpis, dopóki ma token — po przejęciu `is_guest` przechodzi
   // na false (migracja 066), więc licznik sam się zeruje bez dodatkowego stanu.
   const niePrzejeciGoscie = [...regulars, ...reserves].filter((p) => p.isGuest && p.claimToken);
@@ -1007,7 +1056,7 @@ export default function EventDetailClient() {
       // wywaliłby się na unikalności. Przełączamy istniejący wpis, przekazując
       // te same decyzje (pozycja, płatność), które właśnie podjął w dialogu.
       const wynik = myMaybe
-        ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc)
+        ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc, { userId: user.id, name: displayName(user) })
         : await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc);
       await load();
       // Komunikat bierze się z TEGO, CO SIĘ STAŁO, nie z ustawień meczu.
@@ -1286,6 +1335,33 @@ export default function EventDetailClient() {
       const owed = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
       await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? owed : 0);
       await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  /** „Wszyscy oddali" / „Cofnij" — masowe oznaczenie całego składu naraz.
+   *  Kwota liczona per osoba przez `priceForParticipant()`, bo zniżka z karty
+   *  sportowej różni kwoty w obrębie tego samego meczu. */
+  const handleWszyscyOddali = async () => {
+    if (!isOrganizer && !canManagePayments) return;
+    const oplacone = regulars.some((p) => !p.hasPaid);
+    const cel = oplacone ? regulars.filter((p) => !p.hasPaid) : regulars;
+    const pytanie = oplacone
+      ? `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`
+      : `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})? Nikt nie będzie miał odhaczonej wpłaty.`;
+    if (!confirm(pytanie)) return;
+    setBusy(true);
+    try {
+      await ustawPlatnoscWszystkim(
+        cel.map((p) => ({
+          id: p.id,
+          kwotaGrosze: priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze,
+        })),
+        oplacone,
+      );
+      await load();
+      toast(oplacone ? 'Oznaczono wpłaty' : 'Cofnięto oznaczenie wpłat');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1966,6 +2042,18 @@ export default function EventDetailClient() {
               })}
             </ul>
           </div>
+          {/* Masowe oznaczenie zamiast klikania po jednej osobie — zgłoszone
+              wprost. Dwa stany jednego przycisku, sterowane tym, czy ktoś
+              jeszcze nie oddał; nie renderuje się, gdy skład jest pusty. */}
+          {regulars.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
+                {regulars.some((p) => !p.hasPaid)
+                  ? 'Wszyscy oddali'
+                  : <span className="text-slate-500">Cofnij — nikt nie oddał</span>}
+              </Button>
+            </div>
+          )}
           {/* Rozliczenie kończyło się na ekranie: żeby powiedzieć ekipie,
               kto jeszcze nie oddał, organizator przepisywał to ręcznie na
               czat. Goście bez konta w ogóle nie mają jak tego zobaczyć
@@ -2085,9 +2173,12 @@ export default function EventDetailClient() {
           się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
           pod treścią. Na zakładce Rozmowa oba paddingi są zbędne — rozmowa
           ma sięgać do samego dołu ekranu, nie zostawiać pod sobą odstęp. */}
-      <main className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
-        rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
-      }`}>
+      <main
+        className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
+          rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
+        }`}
+        {...gestSwipe}
+      >
 
         {/* Nazwa meczu i zakładki razem w jednym sticky kontenerze — tak jak
             na `/grupy/[id]`: dwa osobne `sticky top-0` elementy nakładałyby
@@ -2131,21 +2222,7 @@ export default function EventDetailClient() {
                   widzi zakładkę, która po kliknięciu jest pusta. Zgłoszone
                   wprost, ten sam wyciek co w `/grupy/[id]` (patrz commit
                   o zerowaniu `permissions`). */}
-              {EVENT_TAB_LABELS.filter(([t]) => {
-                if (t === 'ustawienia') return canManageEvent;
-                // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka
-                // istniała od stworzenia meczu i po kliknięciu mówiła tylko,
-                // że wyniku jeszcze nie ma — czyli zajmowała miejsce w pasku,
-                // nie dając nic w zamian.
-                if (t === 'wynik') return resultsAvailable && !isCancelled;
-                // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo
-                // nie ma czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
-                if (t === 'rozliczenia') return event.costGrosze > 0;
-                // Taktyka: po publikacji składów i tylko dla kogoś, kto ma
-                // drużynę w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
-                if (t === 'taktyka') return !!mojaDruzyna && event.teamsPublished && !isCancelled;
-                return true;
-              }).map(([t, label]) => (
+              {widoczneZakladkiObiekty.map(([t, label]) => (
                 <button
                   key={t}
                   onClick={() => goToTab(t)}
