@@ -3,7 +3,10 @@ import Link from 'next/link';
 import StronaTresci from '@/components/tresc/StronaTresci';
 import SpisTresci from '@/components/tresc/SpisTresci';
 import SekcjaTresci from '@/components/tresc/SekcjaTresci';
+import MiniFaq from '@/components/tresc/MiniFaq';
 import { JAK_DZIALA } from '@/content/jakDziala';
+import { FAQ } from '@/content/faq';
+import { faqJsonLd, howToJsonLd } from '@/lib/structuredData';
 
 export const metadata: Metadata = {
   title: 'Jak działa Bojo',
@@ -12,6 +15,23 @@ export const metadata: Metadata = {
     'zaproszony gracz i czy dołączenie do meczu wymaga konta.',
   alternates: { canonical: '/jak-dziala-bojo' },
 };
+
+const KROKI_ZAKLADANIA = JAK_DZIALA.find((s) => s.id === 'zakladasz-mecz')!.akapity;
+
+const HOW_TO_JSON_LD = howToJsonLd('Jak zorganizować mecz w Bojo', [
+  { name: 'Sport i miejsce', text: KROKI_ZAKLADANIA[0] },
+  { name: 'Termin i liczba miejsc', text: KROKI_ZAKLADANIA[1] },
+  { name: 'Opcje i publikacja', text: KROKI_ZAKLADANIA[2] },
+]);
+
+const PYTANIA_TUTAJ = [
+  'Ile zajmuje zorganizowanie meczu?',
+  'Czym różni się mecz publiczny od prywatnego?',
+  'Co się dzieje, gdy zbierze się komplet?',
+  'Jak Bojo dzieli koszt na graczy?',
+  'Czy Bojo wysyła SMS-y albo maile o meczu?',
+];
+const FAQ_TUTAJ = FAQ.filter((p) => PYTANIA_TUTAJ.includes(p.q));
 
 export default function JakDzialaBojoPage() {
   return (
@@ -34,6 +54,15 @@ export default function JakDzialaBojoPage() {
           )}
         </SekcjaTresci>
       ))}
+
+      <section id="pytania-organizatora" className="scroll-mt-20">
+        <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Pytania organizatorów
+        </h2>
+        <div className="mt-3">
+          <MiniFaq pytania={FAQ_TUTAJ} />
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-primary-200 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-950">
         <p className="font-display text-lg font-bold text-ink">Gotowy spróbować?</p>
@@ -61,6 +90,17 @@ export default function JakDzialaBojoPage() {
           </Link>
         </div>
       </section>
+
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(HOW_TO_JSON_LD) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(FAQ_TUTAJ)) }}
+      />
     </StronaTresci>
   );
 }

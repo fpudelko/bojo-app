@@ -2,15 +2,26 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import StronaTresci from '@/components/tresc/StronaTresci';
 import SekcjaTresci from '@/components/tresc/SekcjaTresci';
+import MiniFaq from '@/components/tresc/MiniFaq';
 import { CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import { FAQ } from '@/content/faq';
+import { faqJsonLd } from '@/lib/structuredData';
 
 export const metadata: Metadata = {
-  title: 'Dlaczego Bojo',
+  title: 'Dlaczego Bojo — alternatywa dla grupy na WhatsAppie i Facebooku',
   description:
-    'Co Bojo robi inaczej niż grupa na Facebooku i ankieta na WhatsAppie — i dlaczego ' +
-    'gracze nie muszą zakładać konta, żeby dołączyć do meczu.',
+    'Bojo zamiast grupy na Facebooku, wątku na Messengerze i ankiety na WhatsAppie do ' +
+    'organizowania amatorskich meczów — bez zakładania kolejnego konta dla graczy.',
   alternates: { canonical: '/dlaczego-bojo' },
 };
+
+const PYTANIA_TUTAJ = [
+  'Czy gracze muszą zakładać konto, żeby dołączyć do mojego meczu?',
+  'Czy muszę instalować aplikację?',
+  'Czy Bojo jest darmowe?',
+  'Gdzie działa Bojo?',
+];
+const FAQ_TUTAJ = FAQ.filter((p) => PYTANIA_TUTAJ.includes(p.q));
 
 export default function DlaczegoBojoPage() {
   return (
@@ -65,6 +76,15 @@ export default function DlaczegoBojoPage() {
         </SekcjaTresci>
       ))}
 
+      <section id="pytania-podstawowe" className="scroll-mt-20">
+        <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Pytania na start
+        </h2>
+        <div className="mt-3">
+          <MiniFaq pytania={FAQ_TUTAJ} />
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-primary-200 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-950">
         <p className="font-display text-lg font-bold text-ink">Zobacz to na własnym meczu</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -82,6 +102,12 @@ export default function DlaczegoBojoPage() {
           </Link>
         </div>
       </section>
+
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(FAQ_TUTAJ)) }}
+      />
     </StronaTresci>
   );
 }
