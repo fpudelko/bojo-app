@@ -5,7 +5,6 @@ import { Loader2, Send, Trash2, Users } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  inicjaly,
   OPCJE_TAKTYKI, WARTOSC_INNE, domyslneUstawienie, odpowiedzTaktyki, opisTaktyki,
   pozycjeZeSchematu, ustawieniaDlaSkladu, type KluczTaktyki, type Taktyka,
 } from '@/lib/taktyka';
@@ -367,7 +366,12 @@ export default function TaktykaDruzyny({
                     ? 'border-accent-400 bg-accent-400 text-primary-950'
                     : 'border-white/60 bg-primary-800/70 text-white/80'
               }`}>
-                {gracz ? inicjaly(gracz.name) : poz.rola}
+                {/* ZAWSZE nazwa pozycji, także pod obsadzonym kółkiem.
+                    Inicjały powtarzały to, co i tak stoi podpisane pod spodem
+                    pełnym imieniem i nazwiskiem — a gubiły jedyną informację,
+                    której na boisku nie widać skądinąd: kto gra na czym.
+                    Kółko mówi „gdzie", podpis mówi „kto". */}
+                {poz.rola}
               </span>
               {/* CAŁE nazwisko, łamane na dwie linijki — nie samo imię.
                   Skrót do imienia gubił dokładnie tę informację, po którą się

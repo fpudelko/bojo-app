@@ -304,20 +304,3 @@ export function opisTaktyki(t: Taktyka | null | undefined): string {
     .filter((x) => x.length > 0)
     .join(' · ');
 }
-
-/**
- * Inicjały do kółka na boisku — pierwsza litera imienia i pierwsza nazwiska.
- *
- * Wcześniej były to dwie pierwsze litery całego napisu, czyli „MA" dla
- * „Mateusza" i „MA" dla „Marcina": w drużynie z dwoma Mateuszami kółka
- * wychodziły identyczne. Imię + nazwisko rozróżnia ich od razu.
- *
- * Jedno słowo (pseudonim, gość dopisany jako „Kuba") zostaje przy dwóch
- * pierwszych literach — nie ma z czego wziąć drugiej inicjału.
- */
-export function inicjaly(nazwa: string): string {
-  const czlony = nazwa.trim().split(/\s+/).filter(Boolean);
-  if (czlony.length === 0) return '?';
-  if (czlony.length === 1) return czlony[0].slice(0, 2).toUpperCase();
-  return (czlony[0][0] + czlony[czlony.length - 1][0]).toUpperCase();
-}
