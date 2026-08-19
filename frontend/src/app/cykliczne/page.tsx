@@ -33,7 +33,9 @@ function deriveStatus(ev: RecurringEvent, next: NextEvent | null | undefined): R
 const STATUS_CONFIG: Record<RecurringStatus, { label: string; bg: string; text: string; dot: string }> = {
   open:     { label: 'Zapisy otwarte',  bg: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
   waiting:  { label: 'Brak terminu',    bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-300'   },
-  full:     { label: 'Komplet',         bg: 'bg-slate-100',   text: 'text-slate-600',   dot: 'bg-slate-400'   },
+  // Komplet niebieski jak na kartach meczu (patrz `lib/komplet.ts`) — dotąd
+  // był tu szary, a na kartach czerwony: ten sam stan w dwóch barwach.
+  full:     { label: 'Komplet',         bg: 'bg-blue-50',     text: 'text-blue-700',    dot: 'bg-blue-500'    },
   cancelled:{ label: 'Odwołana',        bg: 'bg-red-50',      text: 'text-red-600',     dot: 'bg-red-500'     },
   inactive: { label: 'Nieaktywna',      bg: 'bg-slate-100',   text: 'text-slate-500',   dot: 'bg-slate-300'   },
 };

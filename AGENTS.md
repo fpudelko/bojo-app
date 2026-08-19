@@ -378,10 +378,21 @@ ponownie i zacommituj wynik.
     Nigdy nic innego. **Wiadomości mają KSZTAŁT chmurki, nie kropki** — kropka mówi tylko
     „coś tu jest" i wymaga zapamiętania koloru, chmurka mówi „ktoś napisał" bez tłumaczenia
     (zgłoszone wprost). Kropka zostaje dla niebieskiego i pomarańczowego.
-  - **Niebieski (`blue-*`)** — zawsze i wyłącznie „wymaga akceptacji uczestnictwa":
-    prośba o dołączenie, oferta zwolnionego miejsca z rezerwy, pytanie o udział
-    (`WYMAGA_AKCJI` w `lib/notifications.ts`), plakietka „Wymaga akceptacji" na karcie
-    meczu. Nigdy nic innego.
+  - **Niebieski (`blue-*`)** — „wymaga akceptacji uczestnictwa": prośba o dołączenie,
+    oferta zwolnionego miejsca z rezerwy, pytanie o udział (`WYMAGA_AKCJI`
+    w `lib/notifications.ts`), plakietka „Wymaga akceptacji" na karcie meczu.
+
+    **Drugie, wąskie zastosowanie: stan „komplet"** (plakietka i pasek zapełnienia,
+    `lib/komplet.ts`) — decyzja właściciela z 2026-08-19. Wcześniej komplet był
+    czerwony, a czerwień w tej aplikacji znaczy „coś poszło źle": mecz odwołany,
+    błąd, usunięcie. Komplet nie jest awarią, tylko stanem, o który się gra — czerwona
+    plakietka mówiła organizatorowi „masz problem" dokładnie wtedy, gdy osiągnął cel.
+    Do tego każda karta malowała komplet inaczej (dwa odcienie czerwieni, szarość
+    na `/cykliczne`, pasek raz zielony, raz bursztynowy, raz czerwony).
+
+    Te dwa znaczenia są rozłączne — jedno to prośba o decyzję, drugie stan pojemności —
+    ale **jeśli kiedykolwiek staną obok siebie na jednej karcie, trzeba to rozstrzygnąć
+    na nowo.** Trzeciego znaczenia nie dokładamy.
   - **Pomarańczowy (`orange-*`)** — zawsze i wyłącznie „nowość, o której jeszcze nie
     wiesz" (bez konkretnej wiadomości do przeczytania ani decyzji do podjęcia): kropka
     na ikonie ekipy, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`

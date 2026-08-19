@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  inicjaly, domyslneUstawienie, opisTaktyki, pozycjeZeSchematu, ustawieniaDlaSkladu,
+  domyslneUstawienie, opisTaktyki, pozycjeZeSchematu, ustawieniaDlaSkladu,
   USTAWIENIA_PILKA, OPCJE_TAKTYKI, WARTOSC_INNE,
 } from '@/lib/taktyka';
 
@@ -165,31 +165,5 @@ describe('katalog taktyki', () => {
     for (const { opcje } of OPCJE_TAKTYKI) {
       expect(opcje.some((o) => o.wartosc === WARTOSC_INNE)).toBe(false);
     }
-  });
-});
-
-describe('inicjaly', () => {
-  it('bierze imię i NAZWISKO, nie dwie pierwsze litery imienia', () => {
-    // W drużynie z Mateuszem Bazarnikiem i Mateuszem Szubertem dwie pierwsze
-    // litery dałyby dwa identyczne kółka — czyli plan gry bez informacji.
-    expect(inicjaly('Mateusz Bazarnik')).toBe('MB');
-    expect(inicjaly('Mateusz Szubert')).toBe('MS');
-  });
-
-  it('bierze OSTATNI człon, gdy nazwisko jest dwuczłonowe', () => {
-    expect(inicjaly('Jan Kowalski Nowak')).toBe('JN');
-  });
-
-  it('jedno słowo zostaje przy dwóch literach — nie ma z czego wziąć drugiej', () => {
-    expect(inicjaly('Franek')).toBe('FR');
-  });
-
-  it('nadmiarowe spacje nie psują wyniku', () => {
-    expect(inicjaly('  Damian   Sobczyk ')).toBe('DS');
-  });
-
-  it('pusta nazwa nie wywraca boiska', () => {
-    expect(inicjaly('')).toBe('?');
-    expect(inicjaly('   ')).toBe('?');
   });
 });

@@ -5,7 +5,6 @@ import { Loader2, Send, Trash2, Users } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  inicjaly,
   OPCJE_TAKTYKI, WARTOSC_INNE, domyslneUstawienie, odpowiedzTaktyki, opisTaktyki,
   pozycjeZeSchematu, ustawieniaDlaSkladu, type KluczTaktyki, type Taktyka,
 } from '@/lib/taktyka';
@@ -357,7 +356,7 @@ export default function TaktykaDruzyny({
                 return setWybranySlot(wybrany ? null : poz.slot);
               }}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
-              className="absolute flex w-[4.25rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
+              className="absolute flex h-8 w-[4.25rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center disabled:cursor-default"
               aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
             >
               <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
@@ -367,15 +366,36 @@ export default function TaktykaDruzyny({
                     ? 'border-accent-400 bg-accent-400 text-primary-950'
                     : 'border-white/60 bg-primary-800/70 text-white/80'
               }`}>
-                {gracz ? inicjaly(gracz.name) : poz.rola}
+                {/* ZAWSZE nazwa pozycji, także pod obsadzonym kółkiem.
+                    Inicjały powtarzały to, co i tak stoi podpisane pod spodem
+                    pełnym imieniem i nazwiskiem — a gubiły jedyną informację,
+                    której na boisku nie widać skądinąd: kto gra na czym.
+                    Kółko mówi „gdzie", podpis mówi „kto". */}
+                {poz.rola}
               </span>
               {/* CAŁE nazwisko, łamane na dwie linijki — nie samo imię.
                   Skrót do imienia gubił dokładnie tę informację, po którą się
                   tu patrzy: w składzie bywa dwóch Kubów i dwóch Mateuszów,
                   a wtedy plan gry przestaje cokolwiek znaczyć. Łamanie zamiast
                   ucięcia, bo ucięte „Mateusz Bazar…" jest tak samo bezużyteczne
-                  jak samo imię. */}
-              <span className="max-w-full break-words text-center text-[9px] font-semibold leading-[1.15] text-white drop-shadow">
+                  jak samo imię.
+
+                  PODPIS POZYCJONOWANY ABSOLUTNIE, nie jako druga komórka
+                  kolumny: przy dolnej linii przenosimy go NAD kółko, a gdyby
+                  siedział w tym samym układzie, przeniesienie zjechałoby całym
+                  guzikiem w dół (środek `-translate-y-1/2` liczy się z całej
+                  wysokości) i krawędź ucięłaby nazwisko mimo przeniesienia.
+                  Tak kółko stoi dokładnie na swoim punkcie w obu wariantach.
+
+                  Dolna linia to bramkarz na `y = 6`, czyli 94% wysokości
+                  murawy — pod nim nie ma już miejsca na dwie linijki.
+                  Dosunięcie go wyżej odpadało: stałby poza polem karnym,
+                  czyli tam, gdzie bramkarz nie stoi. */}
+              <span
+                className={`absolute left-1/2 w-[4.25rem] -translate-x-1/2 break-words text-center text-[9px] font-semibold leading-[1.15] text-white drop-shadow ${
+                  poz.y < 15 ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
+                }`}
+              >
                 {gracz ? gracz.name : poz.nazwa}
               </span>
             </button>

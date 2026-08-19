@@ -13,6 +13,7 @@ import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
 import { withCount } from '@/lib/plural';
+import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
 
 /**
  * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
@@ -86,7 +87,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const barColor = full ? '#dc2626' : color;
+  const barColor = full ? KOLOR_PASKA_KOMPLET : color;
 
   let dayLabel = '';
   try {
@@ -261,7 +262,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
               <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
               <div className="flex shrink-0 items-center gap-3">
                 {full ? (
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${PLAKIETKA_KOMPLET}`}>Komplet</span>
                 ) : (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
                     {withCount(left, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}
