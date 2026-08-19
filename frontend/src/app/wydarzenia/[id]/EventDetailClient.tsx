@@ -350,12 +350,12 @@ function PublishedTeamsCard({
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
                       {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">⚽{golyMap[p.id]}</span>}
                       {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                      {/* Kapitan podpisany słowem, nie samą gwiazdką. Gwiazdka
-                          wymaga wiedzy, co znaczy — a to jedyne miejsce, gdzie
-                          gracz sprawdza, kogo pytać o ustawienie w Taktyce. */}
+                      {/* `(c)` — oznaczenie kapitana z koszulki, nie sama
+                          gwiazdka. Gwiazdka wymaga wiedzy, co znaczy;
+                          `(c)` czyta się bez tłumaczenia w każdym sporcie. */}
                       {p.isCaptain && (
-                        <span className="shrink-0 rounded bg-amber-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-amber-700">
-                          kpt
+                        <span title="Kapitan" className="shrink-0 text-[11px] font-bold text-amber-600">
+                          (c)
                         </span>
                       )}
                     </PlayerLink>
@@ -2924,7 +2924,9 @@ export default function EventDetailClient() {
                         )}
                         {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
                         {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
-                        {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                        {/* To samo oznaczenie co przy składach — jedna rzecz
+                            ma wyglądać tak samo wszędzie, gdzie się pokazuje. */}
+                        {p.isCaptain && <span title="Kapitan" className="shrink-0 text-[11px] font-bold text-amber-600">(c)</span>}
                         {showTeams && p.team && (
                           <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${TEAM_COLOR_CLASSES[p.team].pill}`}>
                             {TEAM_LETTERS[p.team]}
