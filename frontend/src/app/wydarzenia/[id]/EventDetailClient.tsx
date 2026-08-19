@@ -30,7 +30,7 @@ import {
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
-import ZachetaPush from '@/components/events/ZachetaPush';
+import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
 import { eventUrl, shareEvent } from '@/lib/eventShare';
@@ -1029,7 +1029,14 @@ export default function EventDetailClient() {
     try {
       await acceptTeamProposal(proposalId);
       await load();
-      toast('Składy zatwierdzone');
+      // Zatwierdzenie i publikacja to DWA różne kroki (patrz migracja `059`:
+      // `accept_team_proposal` przepisuje drużyny, ale nie rusza
+      // `teams_published`) — i dobrze, bo między jednym a drugim organizator
+      // zwykle jeszcze coś poprawia. Ale bez tego zdania łatwo uznać, że
+      // zatwierdzenie już wszystko ogłosiło, i zostawić drużynę bez składów.
+      toast(event.teamsPublished
+        ? 'Składy zatwierdzone i widoczne dla graczy'
+        : 'Składy zatwierdzone — opublikuj je, żeby zobaczyła je drużyna');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1079,6 +1086,11 @@ export default function EventDetailClient() {
       // odruchowo zamknięta. Sama funkcja niczego nie wymusza — komponent
       // sprawdzi, czy w ogóle jest kogo pytać (`lib/instalacja.ts`).
       zaproponujInstalacje();
+      // …i, osobno, propozycja powiadomień. Ta sama chwila, dwa różne pytania:
+      // instalacja dotyczy tego, GDZIE Bojo mieszka, powiadomienia tego, CZY
+      // odezwie się samo. Każde z nich ma własne reguły pokazywania, więc
+      // wołamy oba i pozwalamy im zdecydować.
+      zaproponujPowiadomienia();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
