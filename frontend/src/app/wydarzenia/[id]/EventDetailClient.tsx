@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import TimeSelect from '@/components/ui/TimeSelect';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
+import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
@@ -400,61 +401,6 @@ function Switch({ checked, onChange, disabled, label }: {
         checked ? 'translate-x-5' : 'translate-x-0',
       ].join(' ')} />
     </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// JoinCodePanel — visible to all participants
-//
-// Panel udostępniał kiedyś WŁASNY link (`/d/{kod}`), inny niż przycisk
-// „Udostępnij" w pasku górnym — ten sam mecz, dwa adresy, dwa przyciski o tej
-// samej nazwie na jednej stronie. Teraz oba wołają `shareEvent` z tym samym
-// adresem kanonicznym i tym samym tekstem. Dlaczego akurat kanoniczny, a nie
-// krótszy: patrz komentarz przy `eventUrl` w `lib/eventShare.ts`.
-// ---------------------------------------------------------------------------
-function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
-  const [copied, setCopied] = useState(false);
-
-  const link = () => eventUrl(
-    event.id,
-    typeof window !== 'undefined' ? window.location.origin : 'https://bojo.pl',
-  );
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(link());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch { /* ignore */ }
-  };
-
-  const share = async () => {
-    const wynik = await shareEvent(event, link());
-    if (wynik === 'copied') {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3">
-      <Share2 className="w-4 h-4 text-slate-400 shrink-0" />
-      <p className="flex-1 text-sm font-semibold text-slate-800">Zaproś znajomych</p>
-      <div className="flex gap-2 shrink-0">
-        <button
-          onClick={share}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95"
-        >
-          <Share2 className="w-3.5 h-3.5" /> Udostępnij
-        </button>
-        <button
-          onClick={copyLink}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-        >
-          {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> OK</> : <><Copy className="w-3.5 h-3.5" /> Kopiuj</>}
-        </button>
-      </div>
-    </div>
   );
 }
 
