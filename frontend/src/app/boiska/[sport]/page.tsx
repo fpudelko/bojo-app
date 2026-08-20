@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
+import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,11 @@ export default async function SportCategoryPage(
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
+          {FOCUS_SPORT_BY_SLUG[params.sport] && (
+            <Link href={`/graj/${params.sport}/poznan`} className="text-primary-600 hover:underline text-sm">
+              Szukasz gry w Poznaniu? Zobacz otwarte mecze →
+            </Link>
+          )}
         </div>
       </main>
     </div>
