@@ -331,7 +331,13 @@ export default function BottomNav() {
             <span
               role="status"
               className={clsx(
-                'pointer-events-none absolute -top-9 z-[1020] w-max max-w-[130px] rounded-lg bg-ink px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg',
+                // `bg-slate-800`, nie `bg-ink` — `ink` odwraca się w trybie
+                // ciemnym (tekst → prawie biały tło), więc dymek z twardym
+                // `text-white` znikał na własnym tle (zgłoszone wprost:
+                // "średnio widać dymki w trybie ciemnym"). Dymek ma być ciemną
+                // plakietką w OBU motywach, jak toast (`lib/toast.tsx`), nie
+                // podążać za odwracającym się tokenem tekstu.
+                'pointer-events-none absolute -top-9 z-[1020] w-max max-w-[130px] rounded-lg bg-slate-800 px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg',
                 dymekAlign === 'left' && 'left-0',
                 dymekAlign === 'right' && 'right-0',
                 dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',
@@ -340,7 +346,7 @@ export default function BottomNav() {
               {dymek}
               <span
                 className={clsx(
-                  'absolute top-full h-0 w-0 border-4 border-transparent border-t-ink',
+                  'absolute top-full h-0 w-0 border-4 border-transparent border-t-slate-800',
                   dymekAlign === 'left' && 'left-2.5',
                   dymekAlign === 'right' && 'right-2.5',
                   dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',

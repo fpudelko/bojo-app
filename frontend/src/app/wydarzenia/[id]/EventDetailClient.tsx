@@ -1964,6 +1964,21 @@ export default function EventDetailClient() {
               </div>
             );
           })()}
+          {/* Masowe oznaczenie zamiast klikania po jednej osobie — zgłoszone
+              wprost. Na górze, od razu pod podsumowaniem, nie pod listą
+              uczestników: to najczęstsza akcja na tej zakładce po meczu, więc
+              nie ma czekać za przewijaniem całego składu. Dwa stany jednego
+              przycisku, sterowane tym, czy ktoś jeszcze nie oddał; nie
+              renderuje się, gdy skład jest pusty. */}
+          {regulars.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
+                {regulars.some((p) => !p.hasPaid)
+                  ? 'Wszyscy oddali'
+                  : <span className="text-slate-500">Cofnij — nikt nie oddał</span>}
+              </Button>
+            </div>
+          )}
           {/* Per-participant toggle — a real switch, not a colored pill, so
               it's unmistakable that clicking it changes something. */}
           <div className="mt-4 pt-4 border-t border-slate-100">
@@ -2001,18 +2016,6 @@ export default function EventDetailClient() {
               })}
             </ul>
           </div>
-          {/* Masowe oznaczenie zamiast klikania po jednej osobie — zgłoszone
-              wprost. Dwa stany jednego przycisku, sterowane tym, czy ktoś
-              jeszcze nie oddał; nie renderuje się, gdy skład jest pusty. */}
-          {regulars.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
-                {regulars.some((p) => !p.hasPaid)
-                  ? 'Wszyscy oddali'
-                  : <span className="text-slate-500">Cofnij — nikt nie oddał</span>}
-              </Button>
-            </div>
-          )}
           {/* Rozliczenie kończyło się na ekranie: żeby powiedzieć ekipie,
               kto jeszcze nie oddał, organizator przepisywał to ręcznie na
               czat. Goście bez konta w ogóle nie mają jak tego zobaczyć
@@ -2232,7 +2235,10 @@ export default function EventDetailClient() {
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
             liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
+            liczbaWSkladzie={regulars.length}
             onWyslijRozliczenie={handleWyslijRozliczenie}
+            onWszyscyOddali={handleWszyscyOddali}
+            busy={busy}
             trackResults={event.trackResults}
             wynikWpisany={matchResult != null}
             onWpiszWynik={() => goToTab('wynik')}
