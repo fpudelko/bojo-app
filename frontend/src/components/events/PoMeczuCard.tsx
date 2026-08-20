@@ -14,10 +14,12 @@ import { withCount } from '@/lib/plural';
  * z danych, które i tak już ma wczytane (`regulars`, `matchResult`,
  * `niePrzejeciGoscie`) — zero nowego zapytania do bazy.
  *
- * "Powtórz mecz" pojawia się tu i w panelu „Zarządzaj wydarzeniem" — to jest
- * jednak TA SAMA akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`),
- * nie dwie różne rzeczy pod wspólną nazwą jak w `O-20`
- * (`docs/przeplyw-organizatora.md`), więc dublowanie tu jest świadome.
+ * "Powtórz" pojawia się tu i w panelu „Zarządzaj wydarzeniem" (tam jako
+ * "Powtórz mecz (skopiuj)") — to jest jednak TA SAMA akcja pod tą samą ikoną
+ * (`handleOpenRepeat`), tylko krócej podpisana, bo tutaj dzieli miejsce
+ * z dwoma innymi przyciskami w jednej linii; nie dwie różne rzeczy pod
+ * wspólną nazwą jak w `O-20` (`docs/przeplyw-organizatora.md`), więc
+ * dublowanie tu jest świadome.
  */
 
 interface WierszZadania {
@@ -29,11 +31,15 @@ interface WierszZadania {
   ikona: typeof Banknote;
 }
 
-/** Rząd przycisków "Kto nie przyszedł" / "Wszyscy oddali" / "Powtórz mecz" —
- *  trzy naraz na 360 px, więc ciaśniej niż domyślny rozmiar przycisku w apce
- *  (mniejsza czcionka, węższy padding, mniejsza ikona). Wspólna stała, bo rząd
- *  renderuje się w dwóch gałęziach niżej (pusta lista zadań / pełna lista). */
-const PRZYCISK_CLS = 'flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300';
+/** Rząd przycisków "Nieobecni" / "Zapłacili" / "Powtórz" — trzy naraz na
+ *  360 px. Same skrócone etykiety nie wystarczały same z siebie (nawet
+ *  "Kto nie przyszedł" przy najmniejszej sensownej czcionce nie mieści się
+ *  w ~95 px na przycisk, zgłoszone wprost ze zrzutem: tekst ucinał się do
+ *  "Kto nie p..."), więc oba naraz: krótsze słowa I mniejsza czcionka niż
+ *  domyślny przycisk apki (10 px, węższy padding, ta sama ikona). Wspólna
+ *  stała, bo rząd renderuje się w dwóch gałęziach niżej (pusta lista zadań /
+ *  pełna lista). */
+const PRZYCISK_CLS = 'flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-300 px-1.5 py-2 text-[10px] font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300';
 
 export default function PoMeczuCard({
   maPlatnosc,
@@ -54,15 +60,16 @@ export default function PoMeczuCard({
   maPlatnosc: boolean;
   liczbaNieoplaconych: number;
   /** `regulars.length` — bez tego `liczbaNieoplaconych === 0` nie odróżnia
-   *  "wszyscy już oddali" od "skład jest pusty", a przycisk "Wszyscy oddali"
+   *  "wszyscy już oddali" od "skład jest pusty", a przycisk "Zapłacili"
    *  nie ma się wtedy do czego odnosić. */
   liczbaWSkladzie: number;
   onWyslijRozliczenie: () => void;
   /** Ta sama akcja co przycisk "Wszyscy oddali"/"Cofnij" w zakładce
-   *  Rozliczenia (`handleWszyscyOddali` w `EventDetailClient.tsx`) — etykieta
-   *  przełącza się tu tak samo, sterowana `liczbaNieoplaconych`. */
+   *  Rozliczenia (`handleWszyscyOddali` w `EventDetailClient.tsx`) — tu pod
+   *  krótszą etykietą "Zapłacili"/"Cofnij" (patrz `PRZYCISK_CLS`), ale
+   *  przełącza się tak samo, sterowana `liczbaNieoplaconych`. */
   onWszyscyOddali: () => void;
-  /** Blokuje przycisk "Wszyscy oddali" na czas zapisu, żeby drugi klik nie
+  /** Blokuje przycisk "Zapłacili" na czas zapisu, żeby drugi klik nie
    *  wysłał drugiego żądania na to samo. */
   busy?: boolean;
   trackResults: boolean;
@@ -73,7 +80,8 @@ export default function PoMeczuCard({
   liczbaGosciDoZaproszenia: number;
   onZaprosGoscia: () => void;
   /** `undefined` = widz bez uprawnień do składu (np. delegat wyłącznie od
-   *  płatności) — przycisk "Kto nie przyszedł" wtedy się nie renderuje. */
+   *  płatności) — przycisk "Nieobecni" (otwiera modal "Kto nie przyszedł")
+   *  wtedy się nie renderuje. */
   onOznaczNieobecnych?: () => void;
   onPowtorzMecz: () => void;
 }) {
@@ -87,7 +95,11 @@ export default function PoMeczuCard({
       className={PRZYCISK_CLS}
     >
       <Banknote className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-      <span className="truncate">{wszyscyJuzOddali ? 'Cofnij' : 'Wszyscy oddali'}</span>
+      {/* "Zapłacili", nie "Wszyscy oddali" — pełna etykieta nie mieści się
+          obok dwóch innych przycisków w jednej linii nawet przy najmniejszej
+          czytelnej czcionce (zgłoszone wprost, ze zrzutem: ucinało się do
+          "Wszyscy..."). Panel „Podział kosztów" ma miejsce na pełną wersję. */}
+      <span className="truncate">{wszyscyJuzOddali ? 'Cofnij' : 'Zapłacili'}</span>
     </button>
   );
 
@@ -151,7 +163,10 @@ export default function PoMeczuCard({
               className={PRZYCISK_CLS}
             >
               <UserX className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-              <span className="truncate">Kto nie przyszedł</span>
+              {/* Skrócone z "Kto nie przyszedł" — modal, który się otwiera,
+                  ma pełną nazwę w nagłówku, ten przycisk musi się zmieścić
+                  obok dwóch innych w jednej linii. */}
+              <span className="truncate">Nieobecni</span>
             </button>
           )}
           {przyciskWszyscyOddali}
@@ -161,7 +176,7 @@ export default function PoMeczuCard({
             className={PRZYCISK_CLS}
           >
             <Copy className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-            <span className="truncate">Powtórz mecz</span>
+            <span className="truncate">Powtórz</span>
           </button>
         </div>
       </div>
@@ -171,34 +186,38 @@ export default function PoMeczuCard({
   return (
     <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <p className="font-semibold text-ink">Po meczu</p>
-      <ul className="mt-3 space-y-2.5">
+      <ul className="mt-2.5 space-y-2">
         {zadania.map((z) => {
           const Ikona = z.ikona;
+          // Sama strzałka po prawej, bez powtarzania `akcjaLabel` na
+          // widoku — cały wiersz jest już jednym przyciskiem, a pełna
+          // etykieta akcji obok statusu ("4 osoby jeszcze nie oddały" +
+          // "Wyślij rozliczenie") zabierała tyle miejsca, że status zawijał
+          // się do dwóch linii mimo sporego luzu wokół (zgłoszone wprost).
+          // `aria-label` na przycisku niesie oba fragmenty dla czytników
+          // ekranu, mimo że na ekranie widać tylko jeden.
           const tresc = (
             <>
               <span className={[
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
                 z.zrobione ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700',
               ].join(' ')}>
-                {z.zrobione ? <Check className="h-4 w-4" strokeWidth={2.5} /> : <Ikona className="h-4 w-4" strokeWidth={2.25} />}
+                {z.zrobione ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : <Ikona className="h-3.5 w-3.5" strokeWidth={2.25} />}
               </span>
               <span className="min-w-0 flex-1 text-sm text-slate-700 dark:text-slate-300">{z.etykieta}</span>
-              {!z.zrobione && (
-                <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary-700">
-                  {z.akcjaLabel} <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
-              )}
+              {!z.zrobione && <ChevronRight className="h-4 w-4 shrink-0 text-primary-700" strokeWidth={2.5} />}
             </>
           );
           if (z.zrobione) {
-            return <li key={z.key} className="flex items-center gap-3">{tresc}</li>;
+            return <li key={z.key} className="flex items-center gap-2.5">{tresc}</li>;
           }
           return (
             <li key={z.key}>
               <button
                 type="button"
                 onClick={z.onClick}
-                className="flex w-full items-center gap-3 rounded-lg -mx-1 px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                aria-label={`${z.etykieta}. ${z.akcjaLabel}`}
+                className="flex w-full items-center gap-2.5 rounded-lg -mx-1 px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/50"
               >
                 {tresc}
               </button>
@@ -206,7 +225,7 @@ export default function PoMeczuCard({
           );
         })}
       </ul>
-      <div className="mt-3.5 flex gap-1.5">
+      <div className="mt-3 flex gap-1.5">
         {onOznaczNieobecnych && (
           <button
             type="button"
@@ -214,7 +233,7 @@ export default function PoMeczuCard({
             className={PRZYCISK_CLS}
           >
             <UserX className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-            <span className="truncate">Kto nie przyszedł</span>
+            <span className="truncate">Nieobecni</span>
           </button>
         )}
         {przyciskWszyscyOddali}
@@ -224,7 +243,7 @@ export default function PoMeczuCard({
           className={PRZYCISK_CLS}
         >
           <Copy className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-          <span className="truncate">Powtórz mecz</span>
+          <span className="truncate">Powtórz</span>
         </button>
       </div>
     </div>
