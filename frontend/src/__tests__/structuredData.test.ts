@@ -112,6 +112,22 @@ describe('eventJsonLd — pola', () => {
   it('bez miejsca nie emituje location', () => {
     expect(eventJsonLd('a', publicEvent(), BASE)!.location).toBeUndefined();
   });
+
+  it('dodaje geo do location, gdy zna współrzędne', () => {
+    const out = eventJsonLd(
+      'a',
+      publicEvent({ field_name: 'Orlik Rataje', lat: 52.4064, lng: 16.9252 }),
+      BASE,
+    )!;
+    expect(out.location).toMatchObject({
+      geo: { '@type': 'GeoCoordinates', latitude: 52.4064, longitude: 16.9252 },
+    });
+  });
+
+  it('bez współrzędnych nie emituje geo', () => {
+    const out = eventJsonLd('a', publicEvent({ field_name: 'Orlik Rataje' }), BASE)!;
+    expect(out.location as { geo?: unknown }).not.toHaveProperty('geo');
+  });
 });
 
 describe('siteJsonLd', () => {

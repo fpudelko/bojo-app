@@ -332,6 +332,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — SEO/GEO: współrzędne meczu w danych strukturalnych, linki między boiskami a treścią
+
+PROBLEM: dane strukturalne meczu (`SportsEvent`) nie niosły współrzędnych, mimo że `events.lat`
+i `events.lng` są zapisywane przy każdym utworzeniu meczu — wyszukiwarki i asystenci AI nie
+mieli sygnału geograficznego do lokalnych zapytań („mecze w mojej okolicy”). Osobno: katalog
+boisk (`/boiska/[sport]`) i strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`) nie linkowały
+do siebie nawzajem — ktoś szukający boiska nie trafiał na wyjaśnienie, jak zorganizować na nim
+mecz, i odwrotnie.
+
+ROZWIĄZANIE BOJO: `location.geo` (`GeoCoordinates`) w danych strukturalnych meczu, gdy
+współrzędne są znane — dotyczy zarówno boiska z katalogu, jak i przypiętej pinezki, bo obie
+ścieżki zapisują `events.lat`/`events.lng`. `/boiska/[sport]` dostało link „Jak działa Bojo —
+zbierz skład na to boisko”, a `/jak-dziala-bojo` i `/dlaczego-bojo` dostały link „Mapa boisk”
+w swoich CTA-boxach.
+
+MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` dokłada `geo`
+jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
+selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
+`app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
+
 ### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
 
 PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
@@ -555,24 +575,3 @@ MECHANIKA: migracja `104` dokłada `czy_admin()` (z `098`) do polityk zapisu na
 kończy się wyjątkiem, po `104` przechodzi, a osoba spoza meczu nadal nie zapisze niczego.
 Zasada na przyszłość: jeśli widok jest za bramką `isAdmin`, `czy_admin()` musi być
 w polityce od pierwszego dnia — to ta sama klasa błędu co w `098`.
-
-### 2026-08-18 — Taktyka drużyny: ustawienie, pozycje i osobny czat (na razie tylko admin)
-
-PROBLEM: po opublikowaniu składów każda drużyna była wyłącznie listą nazwisk. Kto gra
-w obronie, kto na skrzydle i co robimy z piłką — ustalało się ustnie przed meczem, więc
-połowa składu tego nie słyszała. Osobno: rozmowa meczu jest wspólna dla obu drużyn, więc
-nie dało się w niej uzgodnić niczego, czego nie ma przeczytać rywal.
-
-ROZWIĄZANIE BOJO: zakładka „Taktyka", widoczna po opublikowaniu składów. Dla każdej
-drużyny osobno: wybór ustawienia z listy dobranej do liczby graczy (od 1-2-2 na orliku po
-1-4-2-3-1 na pełnym boisku, z opisem co dane ustawienie robi), boisko z pozycjami —
-gracza stawia się dwoma stuknięciami, bez przeciągania — cztery decyzje taktyczne
-(jak bronimy, wyjście od bramkarza, kiedy atakujemy rywala, tempo gry), notatka na stałe
-fragmenty oraz czat wyłącznie dla tej drużyny. Druga drużyna czatu nie widzi.
-
-MECHANIKA: migracja `103` (`event_team_setup`, `event_team_slots`, `event_team_messages`,
-funkcja `czy_w_druzynie()`), `lib/taktyka.ts` (katalog ustawień; pozycje na boisku
-wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalogu, bez
-migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
-razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
-więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.

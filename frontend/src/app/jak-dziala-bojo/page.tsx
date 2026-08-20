@@ -88,6 +88,12 @@ export default function JakDzialaBojoPage() {
           >
             Wszystkie pytania
           </Link>
+          <Link
+            href="/mapa"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-300"
+          >
+            Mapa boisk
+          </Link>
         </div>
       </section>
 

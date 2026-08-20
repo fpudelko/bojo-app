@@ -63,6 +63,8 @@ export interface EventForJsonLd {
   status?: string;
   max_players?: number;
   cost_grosz?: number;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 /**
@@ -115,6 +117,9 @@ export function eventJsonLd(
               })(),
               addressCountry: 'PL',
             },
+            ...(ev.lat != null && ev.lng != null
+              ? { geo: { '@type': 'GeoCoordinates', latitude: ev.lat, longitude: ev.lng } }
+              : {}),
           },
         }
       : {}),

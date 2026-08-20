@@ -989,6 +989,14 @@ stronie, nie osobno pisany tekst. `siteJsonLd()` (renderowany raz, w `layout.tsx
 od teraz też węzeł `SoftwareApplication` z `featureList` — lista funkcji musi zostać
 zsynchronizowana z tabelą flag niżej, jeśli któraś z wymienionych funkcji trafi za flagę.
 
+`eventJsonLd()` (`lib/structuredData.ts`, wywoływane z `app/wydarzenia/[id]/page.tsx`)
+dodaje `location.geo` (`GeoCoordinates`), gdy mecz ma zapisane `lat`/`lng` — kolumny
+istnieją na `events` od `002_events_and_auth.sql` i są wypełniane przy każdym insertcie,
+niezależnie od tego, czy lokalizacja to boisko z katalogu czy przypięta pinezka, więc nie
+trzeba joina do `fields`. `/jak-dziala-bojo` i `/dlaczego-bojo` linkują teraz w swoich
+CTA-boxach do `/mapa`, a `/boiska/[sport]` linkuje z powrotem do `/jak-dziala-bojo` —
+wcześniej strona treści i katalog boisk nie odsyłały do siebie nawzajem.
+
 **Uczciwość treści pilnowana testem.** `content/zakazaneFrazy.ts` trzyma dwie listy fraz:
 `ZAKAZANE_NA_LANDINGU` (landing nie wspomina ich w ogóle — nawet przecząco, bo samo
 przeczenie na czysto sprzedażowej stronie brzmi jak reklama) i `ZAKAZANE_WSZEDZIE` (strony
