@@ -16,7 +16,7 @@ import EventVisibilityFields from '@/components/events/EventVisibilityFields';
 import EventPaymentFields from '@/components/events/EventPaymentFields';
 import RemindersSection from '@/components/events/RemindersSection';
 import { SHOW_SMS_FEATURES } from '@/lib/features';
-import { useAuth } from '@/lib/auth';
+import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
 import { getMyDelegatePermissions } from '@/lib/eventDelegates';
@@ -247,7 +247,10 @@ export default function EditEventPage() {
     setError(null);
     try {
       // Edytowany termin zawsze zapisuje się w całości — z własną datą.
-      await updateEvent(id, payload);
+      // actorId/actorName odblokowują wpis do dziennika aktywności
+      // (event_updated, lib/events.ts) — bez nich gałąź nigdy się nie
+      // wykonywała dla głównej ścieżki edycji.
+      await updateEvent(id, payload, user?.id, displayName(user ?? null));
 
       if (zakres !== 'ten' && recurringEventId) {
         const dzis = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD, lokalnie

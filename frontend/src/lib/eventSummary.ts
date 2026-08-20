@@ -37,6 +37,8 @@ export interface DanePodsumowania {
   time: string;
   durationMin: number;
   maxPlayers: number;
+  /** Próg „gra się odbędzie" (migracja 097). `null`/`undefined` = nie ustawiono. */
+  minPlayers?: number | null;
   goalkeepersEnabled: boolean;
   maxGoalkeepers: number;
   organizerParticipates: boolean;
@@ -119,6 +121,9 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
 
   // ── Skład ─────────────────────────────────────────────────────────────────
   const czesciSkladu = [withCount(v.maxPlayers, 'miejsce', 'miejsca', 'miejsc')];
+  if (v.minPlayers) {
+    czesciSkladu.push(`min. ${v.minPlayers}`);
+  }
   if (v.goalkeepersEnabled) {
     czesciSkladu.push(`w tym ${withCount(v.maxGoalkeepers, 'bramkarz', 'bramkarzy', 'bramkarzy')}`);
   }

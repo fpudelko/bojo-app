@@ -29,6 +29,10 @@ export interface EventDraftValues {
   czasWlasny: boolean;
   maxPlayers: number;
   maxPlayersTouched: boolean;
+  /** Próg „gra się odbędzie" (migracja 097). Opcjonalne jak `nazwaWlasnaMiejsca`
+   *  — szkice zapisane przed dodaniem tego pola wczytują się bez zmian
+   *  (`?? null`), a `v` zostaje na `1`. */
+  minPlayers?: number | null;
   /** `null` = organizator jeszcze nie zdecydował. Szkic musi umieć oddać brak
    *  decyzji, inaczej samo odtworzenie szkicu decydowałoby za niego. */
   goalkeepersEnabled: boolean | null;

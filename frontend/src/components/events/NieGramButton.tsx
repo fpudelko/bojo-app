@@ -8,10 +8,10 @@ import { odmow, cofnijOdmowe, getDeclines } from '@/lib/eventDeclines';
 /**
  * Jawne "Nie gram" dla członka ekipy, który jeszcze nie dołączył — cisza
  * w Bojo znaczyła dotąd naraz "nie widziałem" i "odpadam"; ta odmowa jest
- * osobną, widoczną odpowiedzią, którą panel "Czy gramy?" odróżnia od
- * milczenia (`lib/eventResponses.ts`, `ktoMilczy`). Widoczne tylko przy
- * meczu przypiętym do grupy — bez grupy pojęcie "kto jeszcze nie
- * odpowiedział" nie ma odbiorcy.
+ * osobną, widoczną odpowiedzią (`lib/eventDeclines.ts`, tabela
+ * `event_declines`, migracja `097`). Widoczne tylko przy meczu przypiętym
+ * do grupy — bez grupy pojęcie "kto jeszcze nie odpowiedział" nie ma
+ * odbiorcy.
  */
 export default function NieGramButton({ eventId, userId }: { eventId: string; userId: string }) {
   const { toast } = useToast();

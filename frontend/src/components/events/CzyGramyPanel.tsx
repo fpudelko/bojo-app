@@ -15,6 +15,12 @@ import type { EventItem, EventParticipant } from '@/types';
  * "Otwórz dla okolicy" nie zmienia widoczności samodzielnie — woła
  * `onOtworzDlaOkolicy` (istniejący `handleSetVisibility('public')` na stronie
  * meczu), żeby logowanie aktywności i komunikat zostały jedną, wspólną drogą.
+ *
+ * Panel miał wcześniej trzeci blok, „Nie odpowiedziało: N" z przyciskiem
+ * wywołującym RPC `zapytaj_milczacych()` (migracja `097`) — usunięty na
+ * wyraźną prośbę 2026-08-16: zamiast ścigać milczących, prostszą odpowiedzią
+ * na „brakuje ludzi" jest „Otwórz dla okolicy" poniżej. RPC zostaje w bazie
+ * nietknięty (`docs/funkcje.md § Czy gramy?`), po prostu nic już go nie woła.
  */
 export default function CzyGramyPanel({ event, participants, canManage, busy, onOtworzDlaOkolicy }: {
   event: EventItem;
@@ -69,6 +75,7 @@ export default function CzyGramyPanel({ event, participants, canManage, busy, on
             Brakuje {freeSpots} — otwórz dla okolicy
           </Button>
           <p className="mt-1 text-center text-xs text-slate-400">Mecz pojawi się na publicznej liście, żeby dołączyli ludzie z sąsiedztwa.</p>
+          <p className="mt-0.5 text-center text-xs text-slate-400">Wczesny etap: graczy z okolicy dopiero przybywa — najpewniej zbierzesz skład, wysyłając link ekipie.</p>
         </div>
       )}
     </div>
