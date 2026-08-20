@@ -79,7 +79,8 @@ Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscy
 przełącznikami, nie pod nią: to najczęstsza akcja na tej zakładce po meczu, więc nie ma
 czekać za przewijaniem całego składu (zgłoszone wprost: pierwsza wersja stała na dole,
 obok „Wyślij rozliczenie ekipie"). Ta sama akcja dostępna jest też jako trzeci przycisk
-(skrócona etykieta „Wszyscy oddali"/„Cofnij") w rzędzie karty „Po meczu" — patrz
+(skrócona etykieta „Zapłacili"/„Cofnij" — pełna „Wszyscy oddali" nie mieściła się obok
+dwóch innych przycisków w jednej linii, patrz niżej) w rzędzie karty „Po meczu" — patrz
 [„Karta »Po meczu«"](#karta-po-meczu) niżej. Oznacza jako opłaconych wszystkich w składzie
 (`regulars` — bez rezerwy, bez oczekujących na akceptację; goście bez konta się liczą,
 bo też są w składzie i też płacą), którzy jeszcze nie oddali. Gdy już wszyscy oddali,
@@ -835,22 +836,32 @@ meczu jest domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po
 (`requestAnimationFrame`) — bez przełączenia zakładki scroll trafiał w pustkę, gdy karta
 była widoczna z innej zakładki niż Skład.
 
-Pod zadaniami stoi zawsze wiersz do trzech przycisków: **„Kto nie przyszedł"** (widoczny
-tylko dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
-[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej), **„Wszyscy oddali"**/„Cofnij"
+**Wiersz zadania pokazuje status i samą strzałkę, nie powtarza etykiety akcji.** Pierwsza
+wersja renderowała obok statusu jeszcze pełną etykietę akcji („Wyślij rozliczenie ›",
+„Wpisz wynik ›") — na wąskim telefonie to zabierało większość szerokości wiersza i status
+(np. „4 osoby jeszcze nie oddały") zawijał się do dwóch linii, mimo widocznego luzu wokół
+(zgłoszone wprost, ze zrzutem). Cały wiersz jest już jednym przyciskiem (`onClick={z.onClick}`
+na całej szerokości), więc etykieta akcji jest zbędna wizualnie — została wyłącznie
+w `aria-label` przycisku (`"{etykieta}. {akcjaLabel}"`), dla czytników ekranu.
+
+Pod zadaniami stoi zawsze wiersz do trzech przycisków: **„Nieobecni"** (widoczny
+tylko dla `isOwner || canManageSquad` — otwiera modal „Kto nie przyszedł", patrz
+[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej), **„Zapłacili"**/„Cofnij"
 (widoczny tylko gdy `event.costGrosze > 0` i skład nie jest pusty — ta sama akcja
 `handleWszyscyOddali` co przycisk „Wszyscy oddali" w panelu „Podział kosztów" wyżej,
-sekcja „Funkcje meczu") i **„Powtórz mecz"** (zawsze). Trzy przyciski
-w jednej linii na 360 px wymagają węższego wariantu niż domyślny przycisk apki — mniejsza
-czcionka, ciaśniejszy padding, mniejsza ikona (`PRZYCISK_CLS` w `PoMeczuCard.tsx`); etykieta
-„Wszyscy oddali" jest tu skrócona do samego „Cofnij" (bez „— nikt nie oddał"), bo pełny
-kontekst stanu widać w panelu „Podział kosztów". Gdy wszystkie zadania są zrobione (albo
-mecz żadnego nie śledzi), karta zwija się do jednej linii tekstu nad tym samym wierszem
-przycisków — łącznie z „Wszyscy oddali", który wtedy pokazuje „Cofnij".
+sekcja „Funkcje meczu") i **„Powtórz"** (zawsze). Trzy przyciski w jednej linii na
+360 px wymagają węższego wariantu niż domyślny przycisk apki I krótszych etykiet niż
+pełne wersje gdzie indziej w apce — samo zmniejszenie czcionki nie wystarczało (zgłoszone
+wprost, ze zrzutem: nawet przy najmniejszej czytelnej czcionce „Kto nie przyszedł" ucinało
+się do „Kto nie p..."). `PRZYCISK_CLS` w `PoMeczuCard.tsx`: czcionka 10 px, wąski padding,
+te same ikony co pełne wersje przycisku gdzie indziej. Gdy wszystkie zadania są zrobione
+(albo mecz żadnego nie śledzi), karta zwija się do jednej linii tekstu nad tym samym
+wierszem przycisków — łącznie z „Zapłacili", który wtedy pokazuje „Cofnij".
 
-„Powtórz mecz" pojawia się teraz w dwóch miejscach (tu i w „Zarządzaj wydarzeniem"), ale to
-ta sama akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod
-wspólną nazwą jak w `O-20` z audytu przepływu organizatora.
+„Powtórz" pojawia się teraz w dwóch miejscach (tu, skrócone z powodu ciasnoty, i pełne
+„Powtórz mecz (skopiuj)" w „Zarządzaj wydarzeniem"), ale to ta sama akcja pod tą samą
+ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod wspólną nazwą jak w `O-20` z audytu
+przepływu organizatora.
 
 **Okno „Powtórz mecz" ma domyślną datę i zachowuje długość meczu.** Otwierało się dotąd
 z pustym polem i zablokowanym przyciskiem. `domyslnyTerminPowtorki()` (`lib/recurring.ts`)
@@ -873,8 +884,9 @@ jedyną drogą było ręczne zapamiętanie i unikanie tej osoby przy kolejnym za
 Infrastruktura istniała od migracji `011` (tabela `player_reports`, `get_player_stats()`
 już liczyła `no_shows`), ale nic w aplikacji do niej nie zapisywało.
 
-**Rozwiązanie.** Przycisk „Kto nie przyszedł" w karcie „Po meczu" (widoczny dla
-`isOwner || canManageSquad`) otwiera dedykowany modal z listą `regulars` i przełącznikiem
+**Rozwiązanie.** Przycisk „Nieobecni" w karcie „Po meczu" (widoczny dla
+`isOwner || canManageSquad`) otwiera dedykowany modal „Kto nie przyszedł" z listą
+`regulars` i przełącznikiem
 przy każdej osobie (`lib/attendance.ts`: `getNieobecni`/`oznaczNieobecnosc`/
 `cofnijNieobecnosc`). **Świadomie osobny modal, nie kontrolka w głównym widoku składu** —
 oznaczenia nie mają wpływać na to, co widzi reszta uczestników na stronie meczu.
