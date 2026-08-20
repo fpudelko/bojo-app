@@ -20,6 +20,7 @@ import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
 import ZglosBladObiektu from '@/components/venues/ZglosBladObiektu';
 import VenueComments from '@/components/venue/VenueComments';
+import { odczytajPowrot } from '@/lib/powrot';
 import type { Field, TimeSlot } from '@/types';
 
 
@@ -66,16 +67,17 @@ export default function VenueDetailClient({
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
 
-  // Where the back arrow goes. Read from the query string AFTER mount rather
-  // than via useSearchParams(): this route is prerendered for every venue
+  // Where the back arrow goes. Read from sessionStorage AFTER mount, not from
+  // a `?wroc=` query param (patrz lib/powrot.ts — usuwa warianty URL-a boiska
+  // z linków wewnętrznych, canonical i tak jest bez parametrów) and not via
+  // useSearchParams(): this route is prerendered for every venue
   // (generateStaticParams), and that hook forces a client-side bail-out which
   // fails the production build unless the whole page sits in <Suspense>.
   // The link only has to be right by the time somebody clicks it.
-  // Same-origin paths only, or the param becomes an open redirect.
   const [backHref, setBackHref] = useState('/mapa');
   useEffect(() => {
-    const wroc = new URLSearchParams(window.location.search).get('wroc');
-    if (wroc && wroc.startsWith('/') && !wroc.startsWith('//')) setBackHref(wroc);
+    const wroc = odczytajPowrot();
+    if (wroc) setBackHref(wroc);
   }, []);
 
   const [field, setField] = useState<Field | null>(null);
@@ -219,10 +221,10 @@ export default function VenueDetailClient({
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
         <div className="flex items-center gap-3">
-          {/* Back goes where the visitor came from. Arriving from a match page
-              (?wroc=…) used to dump people on /mapa, losing the match they
-              were looking at. Only relative paths are honoured, so the param
-              can't be used to bounce anyone off-site. */}
+          {/* Back goes where the visitor came from (lib/powrot.ts). Without it,
+              arriving from a match page dumped people on /mapa, losing the
+              match they were looking at. Only relative paths are honoured,
+              so the stashed value can't be used to bounce anyone off-site. */}
           <Link
             href={backHref}
             className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"

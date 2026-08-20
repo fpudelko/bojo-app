@@ -33,6 +33,9 @@ function toField(row: any): Field {
     website: row.website ?? undefined,
     mapVisibility: row.map_visibility ?? 'organizer_only',
     district: row.district ?? undefined,
+    city: row.city ?? undefined,
+    voivodeship: row.voivodeship ?? undefined,
+    seoTier: row.seo_tier ?? 3,
   };
 }
 
@@ -162,10 +165,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   if (!field) return { title: 'Boisko nie znalezione | Bojo' };
 
   const sportsStr = field.sport.join(', ');
-  // Miejscowość z adresu zamiast zaszytego „w Poznaniu". Katalog obejmuje dziś
-  // całą Polskę, więc tytuł boiska w Lublinie mówiący „w Poznaniu" był po
-  // prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
-  const miejscowosc = miejscowoscZAdresu(field.address);
+  // Miejscowość z kolumny `city` (migracja 112, patrz scraper/backfill_lokalizacja.py)
+  // zamiast zaszytego „w Poznaniu" — i zamiast parsowania z `address`, które
+  // przy 169 duplikatach nazw i niejednoznacznym formacie bywało zgadywaniem.
+  // Katalog obejmuje dziś całą Polskę, więc tytuł boiska w Lublinie mówiący
+  // „w Poznaniu" był po prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
+  const miejscowosc = field.city ?? miejscowoscZAdresu(field.address);
   const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
   return {
     title: `${field.name} — ${sportsStr}${gdzie} | Bojo`,
@@ -173,6 +178,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
     alternates: { canonical: `/boisko/${slugify(field.name)}` },
+    // Tier 3 (dane skąpe/niepotwierdzone, patrz migracja 112) zostaje w serwisie
+    // dla użytkowników (mapa, wyszukiwanie), ale nie marnuje budżetu skanowania —
+    // `follow: true`, żeby boty dalej szły po linkach wewnętrznych do hubów.
+    robots: { index: field.seoTier !== 3, follow: true },
     openGraph: {
       title: `${field.name} | Bojo`,
       description: `Boisko${gdzie}: ${field.address}. ${sportsStr}.`,
@@ -239,7 +248,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = slugify(field.name);
 
-  const miasto = miejscowoscZAdresu(field.address);
+  const miasto = field.city ?? miejscowoscZAdresu(field.address);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',

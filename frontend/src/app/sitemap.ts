@@ -1,7 +1,4 @@
 import type { MetadataRoute } from 'next';
-import { supabase } from '@/lib/supabase';
-import { slugify } from '@/lib/utils';
-import { pobierzWszystkie } from '@/lib/zapytania';
 import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 
 const SPORT_SLUGS = [
@@ -48,31 +45,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  let fieldPages: MetadataRoute.Sitemap = [];
-  try {
-    // Stronicowanie przez `pobierzWszystkie()`: PostgREST obcina zbyt długą
-    // odpowiedź BEZ błędu, więc jedno zapytanie po katalogu liczącym tysiące
-    // obiektów po cichu gubiło ogon. Pętla mieszkała tu we własnej kopii —
-    // druga stała w indeksie slugów, co znaczyło dwa miejsca do poprawienia
-    // przy każdej zmianie i dwa miejsca do zapomnienia.
-    const wiersze = await pobierzWszystkie<{ id: string; name: string }>((od, doIdx) =>
-      supabase
-        .from('fields')
-        .select('name, id')
-        .eq('map_visibility', 'public')
-        .order('id')
-        .range(od, doIdx));
-    fieldPages = wiersze
-      .filter((field) => field.name)
-      .map((field) => ({
-        url: `${base}/boisko/${slugify(field.name)}`,
-        lastModified: new Date(),
-        changeFrequency: 'monthly' as const,
-        priority: 0.7,
-      }));
-  } catch {
-    // sitemap degrades gracefully if DB unavailable
-  }
-
-  return [...staticPages, ...sportPages, ...grajPages, ...fieldPages];
+  // Boiska NIE są tu wypisywane — katalog ma 32 684+ wiersze, więc żyją
+  // w osobnych sitemapach per województwo (sitemap-boiska/[plik]/route.ts),
+  // zebranych w sitemap-index.xml razem z tym plikiem. Trzymanie ich tutaj
+  // znaczyłoby jeden rosnący bez końca plik zamiast partycji.
+  return [...staticPages, ...sportPages, ...grajPages];
 }

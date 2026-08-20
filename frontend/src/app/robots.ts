@@ -26,6 +26,9 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: '*', allow: '/', disallow: DISALLOW },
       ...AI_CRAWLERS.map((userAgent) => ({ userAgent, allow: '/', disallow: DISALLOW })),
     ],
-    sitemap: `${base}/sitemap.xml`,
+    // Indeks (sitemap-index.xml/route.ts) zamiast samego sitemap.xml — ten
+    // ostatni ma dziś tylko strony statyczne i huby, boiska partycjonowane
+    // po województwie żyją w osobnych plikach zebranych przez ten indeks.
+    sitemap: `${base}/sitemap-index.xml`,
   };
 }

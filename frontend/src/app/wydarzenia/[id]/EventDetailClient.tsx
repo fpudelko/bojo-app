@@ -19,6 +19,7 @@ import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
+import { zapiszPowrot } from '@/lib/powrot';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
@@ -2524,7 +2525,8 @@ export default function EventDetailClient() {
                 <span className="text-slate-300">·</span>
                 {event.fieldId ? (
                   <Link
-                    href={`/boisko/${event.fieldId}?wroc=${encodeURIComponent(`/wydarzenia/${event.id}`)}`}
+                    href={`/boisko/${event.fieldId}`}
+                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
                     className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
                   >
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
