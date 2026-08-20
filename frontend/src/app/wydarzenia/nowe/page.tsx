@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin, Lock, ChevronDown, X, Users, Check, Repeat, Pencil } from 'lucide-react';
 import { clsx } from 'clsx';
-import { countAlertSeekers } from '@/lib/alerts';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import UnifiedLocationPicker from '@/components/map/UnifiedLocationPicker';
@@ -17,7 +16,7 @@ import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
-import { validateStep1, validateStep2, validateStep, validatePayments, isPast } from '@/lib/eventWizard';
+import { validateStep1, validateStep2, validateStep, validatePayments, validateGoalkeepers, isPast } from '@/lib/eventWizard';
 import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { defaultEventTitle } from '@/lib/eventTitle';
@@ -86,6 +85,9 @@ function NewEventForm() {
   const [czasWlasny, setCzasWlasny] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(14);  // domyślny sport to piłka nożna
   const [maxPlayersTouched, setMaxPlayersTouched] = useState(false);
+  // Próg „gra się odbędzie" (migracja 097). `null` = organizator go nie
+  // ustawił — bez tego pola panel „Czy gramy?” nigdy się nie renderuje.
+  const [minPlayers, setMinPlayers] = useState<number | null>(null);
   // `null`, nie `true`: patrz komentarz przy `validateGoalkeepers()`. Włączone
   // domyślnie rozbijało pulę miejsc na role bez wiedzy organizatora.
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState<boolean | null>(null);
@@ -120,17 +122,6 @@ function NewEventForm() {
   // stronę pokazywało baner "Wróciliśmy do Twojego szkicu" mimo braku
   // realnej edycji.
   const isFirstSave = useRef(true);
-
-  const [seekerCount, setSeekerCount] = useState(0);
-
-  // Count users with matching alerts — shown near visibility picker
-  useEffect(() => {
-    const lat = location.lat;
-    const lng = location.lng;
-    if (!lat || !lng || !date) { setSeekerCount(0); return; }
-    const dow = (() => { const d = new Date(date).getDay(); return d === 0 ? 7 : d; })();
-    countAlertSeekers(lat, lng, sport, dow).then(setSeekerCount).catch(() => {});
-  }, [location.lat, location.lng, sport, date]);
 
   const [costPln, setCostPln] = useState('');
   // Tryb wpisywania kosztu. W bazie i tak ląduje kwota od osoby — to tylko
@@ -278,6 +269,7 @@ function NewEventForm() {
         setCzasWlasny(v.czasWlasny);
         setMaxPlayers(v.maxPlayers);
         setMaxPlayersTouched(v.maxPlayersTouched);
+        setMinPlayers(v.minPlayers ?? null);
         setGoalkeepersEnabled(v.goalkeepersEnabled);
         setSlotyZarezerwowane(v.slotyZarezerwowane ?? true);
         setReserveClaimHours(v.reserveClaimHours);
@@ -320,7 +312,7 @@ function NewEventForm() {
     if (isFirstSave.current) { isFirstSave.current = false; return; }
     saveEventDraft(step, {
       sport, location, nazwaWlasnaMiejsca,
-      date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched,
+      date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched, minPlayers,
       goalkeepersEnabled, slotyZarezerwowane, reserveClaimHours, title, description, descriptionEnabled, visibility,
       requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
       acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
@@ -329,7 +321,7 @@ function NewEventForm() {
   }, [
     hydrated, submitting, step, sport, location, nazwaWlasnaMiejsca,
     date, time, durationMin, czasWlasny, maxPlayers,
-    maxPlayersTouched, goalkeepersEnabled, slotyZarezerwowane, reserveClaimHours, title, description, descriptionEnabled,
+    maxPlayersTouched, minPlayers, goalkeepersEnabled, slotyZarezerwowane, reserveClaimHours, title, description, descriptionEnabled,
     visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
     kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
     acceptedSportsCards, sportsCardOtherName, grupaId,
@@ -349,8 +341,12 @@ function NewEventForm() {
     setCzasWlasny(false);
     setMaxPlayers(14);
     setMaxPlayersTouched(false);
-    setGoalkeepersEnabled(true);
+    setMinPlayers(null);
+    setGoalkeepersEnabled(null);
+    setSlotyZarezerwowane(true);
     setReserveClaimHours(3);
+    setRecurringEnabled(false);
+    setRecurringNotifyDaysBefore(3);
     setTitle('');
     setDescription('');
     setDescriptionEnabled(false);
@@ -367,6 +363,9 @@ function NewEventForm() {
     setCardDiscountPln('');
     setAcceptedSportsCards([]);
     setSportsCardOtherName('');
+    // Regresja O-12: bez resetu tego refa płatny mecz po „Zacznij od nowa"
+    // przestawał auto-wybierać „Gotówka" jako domyślną metodę płatności.
+    domyslnaMetodaUstawiona.current = false;
     // Wejście z `?group=` zostaje — „Zacznij od nowa" czyści szkic, a nie
     // kontekst, z którego organizator tu przyszedł.
     setGrupaId(groupId);
@@ -508,6 +507,7 @@ function NewEventForm() {
       ...validateStep1(location),
       ...validateStep2(date, time),
       ...validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln }),
+      ...validateGoalkeepers({ sportMaBramkarza: GK_SPORTS.includes(sport), goalkeepersEnabled }),
     };
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -546,6 +546,7 @@ function NewEventForm() {
           time,
           endTime: endTime ?? undefined,
           maxPlayers,
+          minPlayers: minPlayers ?? undefined,
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? (goalkeepersEnabled ?? false) : false,
           goalkeeperSlotsReserved: slotyZarezerwowane,
@@ -992,6 +993,8 @@ function NewEventForm() {
                 sport={sport}
                 maxPlayers={maxPlayers}
                 onMaxPlayersChange={(v) => { setMaxPlayersTouched(true); setMaxPlayers(v); }}
+                minPlayers={minPlayers}
+                onMinPlayersChange={setMinPlayers}
                 goalkeepersEnabled={goalkeepersEnabled}
                 setGoalkeepersEnabled={setGoalkeepersEnabled}
                 reserveClaimHours={reserveClaimHours}
@@ -1166,17 +1169,6 @@ function NewEventForm() {
                 liczbaCzlonkowGrupy={groupMemberCount}
               />
 
-              {/* Seeker count nudge — appears when we have location + date */}
-              {seekerCount >= 2 && (
-                <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-                  <Users className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-800">
-                    <span className="font-semibold">{withCount(seekerCount, 'osoba szuka', 'osoby szukają', 'osób szuka')}</span>
-                    {' '}podobnej gry w tym rejonie — rozważ otwarcie zapisów publicznie!
-                  </p>
-                </div>
-              )}
-
               {/* Ostatnia rzecz przed „Opublikuj mecz": data, miejsce, skład,
                   cena i widoczność w jednym miejscu. Do tej pory organizator
                   publikował, nie widząc niczego, co ustawił na krokach 1–2. */}
@@ -1190,6 +1182,7 @@ function NewEventForm() {
                   time,
                   durationMin,
                   maxPlayers,
+                  minPlayers,
                   goalkeepersEnabled: GK_SPORTS.includes(sport) && !!goalkeepersEnabled,
                   maxGoalkeepers: 2,
                   organizerParticipates,

@@ -245,8 +245,17 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
       <div className="mt-5 space-y-2 text-center text-sm">
         {mode === 'signin' && (
           <>
+            {/* Nad "Nie masz konta?" — najniższa realna bariera logowania
+                (nie trzeba pamiętać hasła), wcześniej ukryta jako mały, szary
+                link pod spodem. Świadomie tylko w trybie logowania: magic link
+                tworzy konto bez zbierania imienia i nazwiska
+                (`sendMagicLink()` nie ustawia `shouldCreateUser: false`),
+                a rejestracja hasłem wymaga pełnego imienia — patrz walidacja
+                wyżej. */}
+            <button onClick={() => switchMode('magic')} className="font-semibold text-primary-700 hover:text-primary-800">
+              Zaloguj się linkiem — bez hasła
+            </button>
             <p className="text-slate-500">Nie masz konta?{' '}<button onClick={() => switchMode('signup')} className="font-semibold text-primary-700 hover:text-primary-800">Załóż je</button></p>
-            <button onClick={() => switchMode('magic')} className="text-xs font-medium text-slate-500 hover:text-primary-700">Zaloguj się linkiem (bez hasła)</button>
           </>
         )}
         {mode === 'signup' && (

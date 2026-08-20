@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 70 migracji: 041_join_code.sql → 112_seo_tier_i_lokalizacja.sql
+-- Zawiera 74 migracji: 041_join_code.sql → 116_powiadomienie_o_usunieciu_meczu.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -7132,3 +7132,392 @@ DROP TRIGGER IF EXISTS field_comments_promuj_tier ON field_comments;
 CREATE TRIGGER field_comments_promuj_tier
   AFTER INSERT ON field_comments
   FOR EACH ROW EXECUTE FUNCTION trg_field_comments_promuj_tier();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 113_powiadomienie_o_usunieciu_uczestnika.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 113: Powiadomienie o usunięciu POTWIERDZONEGO gracza ze składu.
+--
+-- `076_pelniejsze_tresci_powiadomien.sql#powiadom_o_odrzuceniu_prosby`
+-- powiadamia wyłącznie o odrzuceniu PROŚBY (`OLD.pending_approval IS TRUE`).
+-- Wyrzucenie gracza, który był już w składzie — bo `removeParticipant()`
+-- (`lib/events.ts`) robi identyczny DELETE w obu przypadkach — nie generowało
+-- żadnego powiadomienia. Gracz dowiadywał się dopiero wchodząc na stronę
+-- meczu, albo na boisku. To ta sama klasa błędu, którą `070` naprawiła dla
+-- odwołania meczu, jeden poziom niżej.
+--
+-- Trigger jest BEFORE DELETE, tak jak `076`, żeby oba triggery na tym samym
+-- zdarzeniu działały w tym samym momencie cyklu życia wiersza — dzielą
+-- wzajemnie wykluczające się warunki (pending vs nie-pending), nie kolidują.
+--
+-- Rozróżnienie "sam się wypisał" vs "organizator/delegat usunął": jedyna
+-- ścieżka DELETE to `removeParticipant`, a polityka RLS (`108`) pozwala na nią
+-- właścicielowi wiersza, organizatorowi albo delegatowi z `can_manage_squad` —
+-- `auth.uid() IS NOT DISTINCT FROM OLD.user_id` wystarczy, żeby odróżnić
+-- samowypisanie (nie ma o czym powiadamiać) od usunięcia przez kogoś innego.
+--
+-- Gdy usuwany jest CAŁY mecz, `event_participants` kaskaduje (`ON DELETE
+-- CASCADE`) i `SELECT ... FROM events WHERE id = OLD.event_id` nie zwróci
+-- nic — trigger wtedy milczy, bo o usunięciu meczu mówi osobne powiadomienie
+-- (migracja `116`). Bez tego warunku każdy uczestnik usuniętego meczu
+-- dostałby mylące "usunięto Cię ze składu" zamiast "mecz został usunięty".
+
+CREATE OR REPLACE FUNCTION powiadom_o_usunieciu_uczestnika()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_tytul  TEXT;
+  v_data   DATE;
+  v_godz   TIME;
+  v_status TEXT;
+BEGIN
+  IF OLD.user_id IS NULL
+     OR OLD.pending_approval IS TRUE               -- pokrywa 076
+     OR auth.uid() IS NOT DISTINCT FROM OLD.user_id -- samowypisanie
+  THEN
+    RETURN OLD;
+  END IF;
+
+  SELECT coalesce(title, sport), event_date, event_time, status
+    INTO v_tytul, v_data, v_godz, v_status
+    FROM events WHERE id = OLD.event_id;
+
+  -- Mecz usunięty (kaskada) → nic do znalezienia; mecz odwołany albo już
+  -- rozegrany → nie dorzucamy kolejnego powiadomienia do tego, co już wysłała
+  -- `070`, ani nie mieszamy graczowi w głowie datą z przeszłości.
+  IF v_status IS NULL OR v_status = 'cancelled' OR v_data < current_date THEN
+    RETURN OLD;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  VALUES (
+    OLD.user_id, 'usuniety_ze_skladu', 'Usunięto Cię ze składu',
+    coalesce(v_tytul, 'Mecz') || ' — ' || to_char(v_data, 'DD.MM') || ', godz. '
+      || to_char(v_godz, 'HH24:MI') || '. Organizator usunął Twój zapis.',
+    OLD.event_id
+  );
+  RETURN OLD;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_usunieciu_uczestnika ON event_participants;
+CREATE TRIGGER trg_powiadom_o_usunieciu_uczestnika
+  BEFORE DELETE ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_usunieciu_uczestnika();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 114_powiadomienie_o_zmianie_warunkow.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 114: Powiadomienie o zmianie miejsca lub kosztu meczu.
+--
+-- Jedyne triggery reagujące na edycję meczu to `065` (zmiana daty/godziny)
+-- i `070` (odwołanie). Przeniesienie meczu na inne boisko albo zmiana ceny —
+-- dwie rzeczy, które organizator faktycznie zmienia w edycji — nie generowały
+-- żadnego powiadomienia. Na czacie grupowym taka informacja by padła; Bojo
+-- ma być lepsze od czatu, nie gorsze.
+--
+-- Jeden trigger na oba przypadki (miejsce + koszt), bo `updateEvent()`
+-- (`lib/events.ts`) zapisuje ZAWSZE cały wiersz jedną instrukcją UPDATE —
+-- rozdzielenie na dwa triggery dawałoby dwa powiadomienia z jednego kliknięcia
+-- "Zapisz zmiany", gdy organizator zmienia oba naraz.
+
+CREATE OR REPLACE FUNCTION powiadom_o_zmianie_warunkow()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_tytul           TEXT;
+  v_miejsce_zmiana  BOOLEAN;
+  v_cena_zmiana     BOOLEAN;
+  v_body            TEXT;
+BEGIN
+  v_miejsce_zmiana := NEW.field_id IS DISTINCT FROM OLD.field_id
+    OR NEW.field_name IS DISTINCT FROM OLD.field_name
+    OR NEW.custom_location_name IS DISTINCT FROM OLD.custom_location_name
+    OR NEW.custom_address IS DISTINCT FROM OLD.custom_address
+    OR NEW.lat IS DISTINCT FROM OLD.lat
+    OR NEW.lng IS DISTINCT FROM OLD.lng;
+  v_cena_zmiana := NEW.cost_grosz IS DISTINCT FROM OLD.cost_grosz;
+
+  IF NOT v_miejsce_zmiana AND NOT v_cena_zmiana THEN RETURN NEW; END IF;
+  IF NEW.status = 'cancelled' OR NEW.event_date < current_date THEN RETURN NEW; END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+  v_body := coalesce(v_tytul, 'Mecz') || ' — ';
+  IF v_miejsce_zmiana AND v_cena_zmiana THEN
+    v_body := v_body || 'zmieniło się miejsce i koszt.';
+  ELSIF v_miejsce_zmiana THEN
+    v_body := v_body || 'zmieniło się miejsce: '
+      || coalesce(NEW.field_name, NEW.custom_location_name, 'nowa lokalizacja') || '.';
+  ELSE
+    v_body := v_body || 'zmienił się koszt: '
+      || to_char(NEW.cost_grosz / 100.0, 'FM999990.00') || ' zł od osoby.';
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT p.user_id, 'zmiana_warunkow_meczu', 'Zmiana w meczu', v_body, NEW.id
+    FROM event_participants p
+   WHERE p.event_id = NEW.id AND p.user_id IS NOT NULL AND p.user_id <> NEW.organizer_id;
+
+  RETURN NEW;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_zmianie_warunkow ON events;
+CREATE TRIGGER trg_powiadom_o_zmianie_warunkow
+  AFTER UPDATE ON events
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_zmianie_warunkow();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 115_gosc_wymaga_akceptacji.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 115: Zapis gościa respektuje "akceptacja zapisów" (require_approval).
+--
+-- `dolacz_do_meczu_jako_goscie()` (`088`, wcześniej `082`-`087`) wstawiała
+-- `pending_approval = false` na sztywno. Na meczu z włączoną akceptacją
+-- zapisów gość z linku wchodził prosto do składu, podczas gdy zalogowany
+-- gracz w tej samej sytuacji czeka na zgodę organizatora (`dolacz_do_meczu`,
+-- `078`). To łamało obietnicę kontroli składu, którą "akceptacja zapisów"
+-- daje organizatorowi — furtka bez zamka obok drzwi z zamkiem.
+--
+-- Naprawa mirroruje `dolacz_do_meczu` z `078`: `v_pending :=
+-- coalesce(v_wymaga_akceptacji, false)`, a `v_rezerwa` liczy się TYLKO gdy
+-- NIE jest pending (`czy_na_rezerwe()` i tak już filtruje `pending_approval
+-- = false` przy liczeniu pojemności, więc wiersz pending nie zajmuje miejsca
+-- ani w składzie, ani na rezerwie).
+--
+-- Sygnatura i kształt `RETURNS TABLE` zostają IDENTYCZNE — zero zmian po
+-- stronie wywołania z frontendu. `pending_approval` nowo wstawionego (albo
+-- znalezionego) wiersza frontend dociąga tym samym drugim zapytaniem po
+-- `claim_token`, którym już dziś dociąga `is_reserve`
+-- (`lib/events.ts#joinEventAsGuest`) — nie ma potrzeby poszerzać zwrotki RPC.
+--
+-- Organizator i tak dostaje powiadomienie o nowej prośbie: trigger
+-- `powiadom_o_prosbie_o_dolaczenie` (`076`) reaguje na `NEW.pending_approval
+-- IS TRUE` niezależnie od tego, czy `NEW.user_id` jest NULL (gość) czy nie —
+-- `approveParticipant`/`rejectParticipant` operują po `participantId`, bez
+-- gałęzi na obecność konta.
+
+DROP FUNCTION IF EXISTS dolacz_do_meczu_jako_goscie(UUID, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN);
+
+CREATE FUNCTION dolacz_do_meczu_jako_goscie(
+  p_event_id UUID,
+  p_imie TEXT,
+  p_email TEXT,
+  p_bramkarz BOOLEAN DEFAULT false,
+  p_metoda_platnosci TEXT DEFAULT NULL,
+  p_karta_sportowa BOOLEAN DEFAULT false
+)
+RETURNS TABLE (claim_token UUID, event_id UUID, already_joined BOOLEAN, has_account BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_rezerwa boolean;
+  v_pending boolean;
+  v_wymaga_akceptacji boolean;
+  v_imie_clean text := TRIM(BOTH ' ' FROM p_imie);
+  v_email_clean text := TRIM(BOTH ' ' FROM p_email);
+  v_istniejacy_token uuid;
+  v_ma_wpis boolean;
+  v_ma_konto boolean;
+BEGIN
+  -- Walidacja imienia
+  IF v_imie_clean = '' OR LENGTH(v_imie_clean) > 80 THEN
+    RAISE EXCEPTION 'Nieprawidłowe imię';
+  END IF;
+
+  -- Walidacja e-maila (prymitywna, bardziej szczegółową weryfikuje Supabase Auth)
+  IF v_email_clean IS NULL OR v_email_clean = '' THEN
+    RAISE EXCEPTION 'Podaj adres e-mail';
+  END IF;
+  IF NOT (v_email_clean LIKE '%@%.%') THEN
+    RAISE EXCEPTION 'Nieprawidłowy adres e-mail';
+  END IF;
+  IF LENGTH(v_email_clean) > 100 THEN
+    RAISE EXCEPTION 'Adres e-mail jest za długi';
+  END IF;
+
+  -- Czy mecz istnieje i czy nie został odwołany? Przy okazji: czy wymaga akceptacji.
+  SELECT require_approval INTO v_wymaga_akceptacji FROM events WHERE id = p_event_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie ma takiego meczu';
+  END IF;
+  IF EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND status = 'cancelled') THEN
+    RAISE EXCEPTION 'Mecz został odwołany';
+  END IF;
+
+  -- Czy ten e-mail ma konto w Bojo? Pytanie GLOBALNE (nie „czy jest w tym meczu"), bo
+  -- decyduje o tym, czy ekran po zapisie zachęca do REJESTRACJI czy do LOGOWANIA.
+  -- auth.users jest niedostępne dla anona — stąd SECURITY DEFINER.
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users u WHERE lower(u.email) = lower(v_email_clean)
+  ) INTO v_ma_konto;
+
+  -- Ten sam e-mail już ma wpis w tym meczu? ORDER BY, bo przy danych sprzed migracji
+  -- `088` wybór wiersza decydował o wariancie ekranu — wiersz przejęty (z właścicielem)
+  -- ma pierwszeństwo nad nieprzejętym gościem.
+  SELECT ep.claim_token, true
+    INTO v_istniejacy_token, v_ma_wpis
+    FROM event_participants ep
+   WHERE ep.event_id = p_event_id
+     AND ep.guest_email IS NOT NULL
+     AND lower(ep.guest_email) = lower(v_email_clean)
+   ORDER BY (ep.claim_token IS NULL) DESC, ep.created_at
+   LIMIT 1;
+
+  IF v_ma_wpis THEN
+    IF v_istniejacy_token IS NULL THEN
+      -- Wpis ma już właściciela (konto przejęło zapis). Nie ma czego przejmować —
+      -- frontend rozpozna to po pustym tokenie i pokaże ekran „zaloguj się".
+      RETURN QUERY SELECT NULL::uuid, p_event_id, true, v_ma_konto;
+      RETURN;
+    END IF;
+    -- Nieprzejęty gość z tym samym mailem — zwróć istniejący token zamiast
+    -- wstawiać duplikat, oznaczając already_joined = true. Stan pending_approval
+    -- tego wiersza dociąga frontend drugim zapytaniem po claim_token.
+    RETURN QUERY SELECT v_istniejacy_token, p_event_id, true, v_ma_konto;
+    RETURN;
+  END IF;
+
+  -- E-mail pasuje do konta, które jest już uczestnikiem tego meczu przez
+  -- normalne (zalogowane) dołączenie — też nie ma czego przejmować.
+  IF EXISTS (
+    SELECT 1
+      FROM auth.users u
+      JOIN event_participants ep ON ep.user_id = u.id AND ep.event_id = p_event_id
+     WHERE lower(u.email) = lower(v_email_clean)
+  ) THEN
+    RETURN QUERY SELECT NULL::uuid, p_event_id, true, true;
+    RETURN;
+  END IF;
+
+  -- Odśwież kolejkę rezerwowych (wygasłe oferty przepadają, miejsca przechodzą dalej)
+  PERFORM sync_reserve_claim(p_event_id);
+
+  -- Akceptacja zapisów: tak samo jak przy zalogowanym dołączeniu (`078`), wiersz
+  -- oczekujący na zgodę NIE zajmuje miejsca ani w składzie, ani na rezerwie —
+  -- `czy_na_rezerwe()` liczy pojemność wyłącznie z `pending_approval = false`.
+  v_pending := coalesce(v_wymaga_akceptacji, false);
+  v_rezerwa := CASE WHEN v_pending THEN false
+                    ELSE czy_na_rezerwe(p_event_id, p_bramkarz) END;
+
+  -- Wstaw wiersz gościa i zwróć claim_token
+  -- (token generuje trigger nadaj_token_gosciowi automatycznie)
+  RETURN QUERY INSERT INTO event_participants (
+    event_id,
+    user_id,
+    name,
+    is_guest,
+    guest_email,
+    is_reserve,
+    is_goalkeeper,
+    payment_method,
+    has_sports_card,
+    pending_approval
+  ) VALUES (
+    p_event_id,
+    NULL,
+    v_imie_clean,
+    true,
+    v_email_clean,
+    v_rezerwa,
+    p_bramkarz,
+    p_metoda_platnosci,
+    p_karta_sportowa,
+    v_pending
+  )
+  RETURNING event_participants.claim_token, p_event_id, false, v_ma_konto;
+END;
+$$;
+
+-- Zezwol anonimom na wywołanie (grant znika przy DROP FUNCTION, trzeba nadać ponownie)
+GRANT EXECUTE ON FUNCTION dolacz_do_meczu_jako_goscie(UUID, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN)
+  TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 116_powiadomienie_o_usunieciu_meczu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 116: Powiadomienie o twardym usunięciu meczu.
+--
+-- `deleteEvent()` (`lib/events.ts`) to goły `DELETE FROM events`. Modal
+-- potwierdzenia mówi wprost „Wszyscy uczestnicy stracą dostęp do meczu"
+-- (`EventDetailClient.tsx`) — a mimo to nikt z nich nic nie dostawał. To
+-- jedyne miejsce w produkcie, gdzie usunięcie danych jest całkowicie ciche.
+--
+-- ⚠️ PUŁAPKA ON DELETE CASCADE — PRZECZYTAJ PRZED ZMIANĄ TEGO PLIKU.
+-- `notifications.event_id REFERENCES events(id) ON DELETE CASCADE` (`025`).
+-- Gdyby ten trigger wstawiał powiadomienie z `event_id = OLD.id`, kaskada
+-- Postgresa skasowałaby WŁASNY wiersz tego powiadomienia razem z resztą
+-- danych zależnych od usuwanego meczu — insert by się powiódł, ale nic by nie
+-- przetrwało, po cichu, bez błędu. Dlatego insert niżej celowo wstawia
+-- `event_id = NULL`. `celPowiadomienia()` (`NotificationBell.tsx`) już dziś
+-- obsługuje `eventId = null` — renderuje wiersz jako nieklikalny, zamiast
+-- linkować do martwej strony 404. NIE zamieniaj `NULL` na `OLD.id`.
+--
+-- `BEFORE DELETE`: wiersz meczu (`sport`, `title`, `event_date`, `event_time`)
+-- musi jeszcze istnieć, żeby zbudować treść powiadomienia.
+
+CREATE OR REPLACE FUNCTION powiadom_o_usunieciu_meczu()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_tytul TEXT;
+BEGIN
+  -- Mecz z przeszłości i tak nikogo nie zaskoczy na boisku — nie mieszamy
+  -- graczowi w głowie powiadomieniem o dawno rozegranym/zapomnianym meczu.
+  IF OLD.event_date < current_date THEN RETURN OLD; END IF;
+
+  v_tytul := coalesce(OLD.title, OLD.sport);
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT p.user_id, 'mecz_usuniety', 'Mecz usunięty',
+    coalesce(v_tytul, 'Mecz') || ' — ' || to_char(OLD.event_date, 'DD.MM') || ', godz. '
+      || to_char(OLD.event_time, 'HH24:MI') || '. Organizator usunął ten mecz na stałe.',
+    NULL::uuid -- CELOWO NULL, nie OLD.id — patrz komentarz na górze pliku (pułapka CASCADE)
+    FROM event_participants p
+   WHERE p.event_id = OLD.id AND p.user_id IS NOT NULL AND p.user_id <> OLD.organizer_id;
+
+  RETURN OLD;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_usunieciu_meczu ON events;
+CREATE TRIGGER trg_powiadom_o_usunieciu_meczu
+  BEFORE DELETE ON events
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_usunieciu_meczu();
+
+-- ---------------------------------------------------------------------------
+-- Naprawa odkryta przy ręcznym teście tej migracji na bazie testowej:
+-- `powiadom_o_odrzuceniu_prosby()` (`076`) blokowała twarde usunięcie KAŻDEGO
+-- meczu z choćby jedną oczekującą prośbą o dołączenie.
+-- ---------------------------------------------------------------------------
+-- Sekwencja przy `DELETE FROM events`: `BEFORE DELETE` na `events` (ten
+-- trigger, wyżej) → wiersz meczu znika z tabeli → `ON DELETE CASCADE` kasuje
+-- powiązane `event_participants` → to odpala ICH `BEFORE DELETE`, czyli też
+-- `076`. W tym momencie `events` z tym `id` już nie istnieje, a `076` mimo to
+-- próbowała wstawić powiadomienie z `event_id = OLD.event_id` — INSERT łamał
+-- FK `notifications_event_id_fkey` i cała transakcja `DELETE FROM events`
+-- wywracała się z błędem klucza obcego zamiast po prostu usunąć mecz.
+-- Odtworzone ręcznie: mecz z jedną oczekującą prośbą, `DELETE FROM events`
+-- kończył się `ERROR: insert or update on table "notifications" violates
+-- foreign key constraint "notifications_event_id_fkey"`.
+--
+-- Naprawa: ten sam wzorzec osłony co w `powiadom_o_usunieciu_uczestnika()`
+-- wyżej — gdy mecz już nie istnieje (kaskada), trigger milczy. O usunięciu
+-- całego meczu i tak mówi powiadomienie `mecz_usuniety` wyżej.
+CREATE OR REPLACE FUNCTION powiadom_o_odrzuceniu_prosby()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_tytul TEXT; v_data DATE; v_godz TIME;
+BEGIN
+  IF OLD.pending_approval IS NOT TRUE OR OLD.user_id IS NULL THEN RETURN OLD; END IF;
+  SELECT coalesce(title, sport), event_date, event_time INTO v_tytul, v_data, v_godz
+    FROM events WHERE id = OLD.event_id;
+  -- Mecz już nie istnieje (kaskadowe usunięcie całego meczu, patrz komentarz
+  -- wyżej) — nic do odrzucenia, bo nie było decyzji organizatora, tylko
+  -- usunięcie wydarzenia. INSERT z NULLami w treści i tak złamałby FK.
+  IF NOT FOUND THEN RETURN OLD; END IF;
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  VALUES (OLD.user_id, 'prosba_odrzucona', 'Prośba o dołączenie odrzucona',
+    'Organizator nie przyjął Twojej prośby o dołączenie do meczu: ' || coalesce(v_tytul,'mecz')
+      || ' — ' || to_char(v_data,'DD.MM') || ', godz. ' || to_char(v_godz,'HH24:MI') || '.',
+    OLD.event_id);
+  RETURN OLD;
+END; $$;

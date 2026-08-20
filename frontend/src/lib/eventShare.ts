@@ -91,6 +91,14 @@ export function eventShareText(e: DaneDoUdostepnienia): string {
   return linie.join('\n');
 }
 
+/** Tekst + adres w jednej linijce niżej — to samo, co dziś robi fallback
+ *  schowka w `shareEvent()`. Wydzielone, żeby przyciski „Kopiuj link" (pasek
+ *  meczu, panel „Zaproś znajomych") nie kopiowały gołego adresu — to ten sam
+ *  błąd, który `shareEvent()` naprawiał dla `navigator.share`. */
+export function textDoKopiowania(e: DaneDoUdostepnienia, url: string): string {
+  return `${eventShareText(e)}\n${url}`;
+}
+
 export type WynikUdostepnienia = 'shared' | 'copied' | 'failed';
 
 /**
@@ -118,7 +126,7 @@ export async function shareEvent(
   }
 
   try {
-    await navigator.clipboard.writeText(`${text}\n${url}`);
+    await navigator.clipboard.writeText(textDoKopiowania(e, url));
     return 'copied';
   } catch {
     return 'failed';

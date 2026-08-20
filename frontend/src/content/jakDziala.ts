@@ -165,10 +165,11 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Co Bojo powiadamia i gdzie',
     tytul: 'Co Bojo powiadamia i gdzie',
     akapity: [
-      'Powiadomienia są w aplikacji, pod dzwonkiem — sześć zdarzeń: oferta zwolnionego ' +
-      'miejsca, akceptacja zapisu, zmiana terminu, imienne zaproszenie na mecz, ' +
-      'odwołanie meczu i zmiana stanu kompletu składu (organizator dowiaduje się, gdy ' +
-      'skład przestaje albo zaczyna być pełny).',
+      'Powiadomienia są w aplikacji, pod dzwonkiem — najważniejsze zdarzenia z meczu: ' +
+      'oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu, miejsca lub kosztu, ' +
+      'imienne zaproszenie na mecz, odwołanie lub usunięcie meczu, usunięcie ze składu ' +
+      'oraz zmiana stanu kompletu składu (organizator dowiaduje się, gdy skład przestaje ' +
+      'albo zaczyna być pełny).',
       'Bojo nie wysyła SMS-ów ani maili o meczu i nie ma powiadomień push — jedyny kanał ' +
       'to powiadomienia w aplikacji, opisane wyżej. Kanałem, który realnie dociera do ' +
       'ludzi, jest link wysłany tam, gdzie ekipa już rozmawia — dlatego to na nim opiera ' +

@@ -11,11 +11,13 @@ import { fieldPin, clusterDivIcon } from './mapIcons';
 /**
  * Clustered venue pins for the location pickers.
  *
- * The pickers used to render one <Marker> per field — up to ~1400 React
- * components with no clustering, which both lagged and left the map an
- * unreadable wall of pins. This mirrors the explorer's cluster layer: markers
- * are managed imperatively, added in chunks, and only the selected pin is
- * repainted when the selection changes.
+ * The pickers used to render one <Marker> per field with no clustering — back
+ * when the catalog was Poznań-only (~1400 venues) that already lagged and
+ * left the map an unreadable wall of pins; the catalog since grew to over
+ * 30 000 venues across Poland (OSM import, PR #109), making unclustered
+ * markers unusable at any zoom. This mirrors the explorer's cluster layer:
+ * markers are managed imperatively, added in chunks, and only the selected
+ * pin is repainted when the selection changes.
  */
 export default function ClusteredFieldMarkers({
   fields,

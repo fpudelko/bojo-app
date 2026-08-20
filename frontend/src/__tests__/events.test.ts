@@ -322,7 +322,7 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: false, has_account: false });
 
     await expect(joinEventAsGuest('e1', 'Jan Kowalski', 'jan@example.com'))
-      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false });
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false, pendingApproval: false });
     expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu_jako_goscie', expect.objectContaining({
       p_event_id: 'e1',
       p_imie: 'Jan Kowalski',
@@ -338,14 +338,14 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     mockSingle.mockResolvedValue({ data: { is_reserve: true }, error: null });
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
-      .resolves.toEqual({ claimToken: 'tok-2', isReserve: true, alreadyJoined: false, hasAccount: true });
+      .resolves.toEqual({ claimToken: 'tok-2', isReserve: true, alreadyJoined: false, hasAccount: true, pendingApproval: false });
   });
 
   it('powtórka tym samym mailem bez konta — ten sam token, alreadyJoined', async () => {
     bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: true, has_account: false });
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
-      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: true, hasAccount: false });
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: true, hasAccount: false, pendingApproval: false });
   });
 
   // Wpis ma już właściciela: pusty token to sygnał „nie ma czego przejmować,
@@ -355,7 +355,7 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     bazaOddaje({ claim_token: null, event_id: 'e1', already_joined: true, has_account: true });
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
-      .resolves.toEqual({ claimToken: null, isReserve: false, alreadyJoined: true, hasAccount: true });
+      .resolves.toEqual({ claimToken: null, isReserve: false, alreadyJoined: true, hasAccount: true, pendingApproval: false });
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
@@ -365,7 +365,17 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     bazaOddaje({ claim_token: 'tok-1', event_id: 'e1', already_joined: false });
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
-      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false });
+      .resolves.toEqual({ claimToken: 'tok-1', isReserve: false, alreadyJoined: false, hasAccount: false, pendingApproval: false });
+  });
+
+  // 111: mecz z akceptacją zapisów — gość dostaje pending_approval=true i nie
+  // zajmuje miejsca (dokładnie ta sama para pól co isReserve, drugim zapytaniem).
+  it('mecz z akceptacją zapisów — pendingApproval true', async () => {
+    bazaOddaje({ claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false });
+    mockSingle.mockResolvedValue({ data: { is_reserve: false, pending_approval: true }, error: null });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
+      .resolves.toEqual({ claimToken: 'tok-3', isReserve: false, alreadyJoined: false, hasAccount: false, pendingApproval: true });
   });
 
   it('przenosi błąd z bazy bez podmiany treści', async () => {

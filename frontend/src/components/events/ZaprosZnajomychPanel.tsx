@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
-import { eventUrl, shareEvent } from '@/lib/eventShare';
+import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
 import type { EventItem } from '@/types';
 
 /**
@@ -39,7 +39,7 @@ export default function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(link());
+      await navigator.clipboard.writeText(textDoKopiowania(event, link()));
       potwierdz();
     } catch { /* ignore */ }
   };

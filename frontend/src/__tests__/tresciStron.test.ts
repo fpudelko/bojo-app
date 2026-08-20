@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { FAQ, FAQ_LANDING, KATEGORIE_FAQ } from '@/content/faq';
 import { JAK_DZIALA } from '@/content/jakDziala';
@@ -38,8 +40,35 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   return jednostki;
 }
 
+/** `llms.txt` (indeks dla zewnętrznych asystentów, `frontend/public/llms.txt`) — jedna
+ *  jednostka na wypunktowanie/akapit, zgodnie z "każda sekcja broni się sama". Plik jest
+ *  twardo zawinięty na ~80 znakach (kontynuacja wypunktowania to linia z wcięciem), więc
+ *  dzielenie po samym `\n` rozrywałoby zdania w środku — linie łączymy spacją, aż do
+ *  pustej linii albo kolejnego `- `/nagłówka `#`. */
+function jednostkiLlmsTxt(): { etykieta: string; tekst: string }[] {
+  const raw = readFileSync(join(__dirname, '../../public/llms.txt'), 'utf-8');
+  const linie = raw.split('\n');
+  const jednostki: { etykieta: string; tekst: string }[] = [];
+  let biezacyStart = -1;
+  let biezacyTekst = '';
+
+  const zamknij = () => {
+    if (biezacyTekst.trim()) jednostki.push({ etykieta: `llms.txt:${biezacyStart}`, tekst: biezacyTekst.trim() });
+    biezacyTekst = '';
+  };
+
+  linie.forEach((linia, i) => {
+    const nowaJednostka = /^(- |#)/.test(linia) || linia.trim() === '';
+    if (nowaJednostka) { zamknij(); biezacyStart = i + 1; }
+    if (linia.trim() !== '') biezacyTekst += `${biezacyTekst ? ' ' : ''}${linia.trim()}`;
+  });
+  zamknij();
+
+  return jednostki;
+}
+
 describe('strony treści — brak obietnic bez pokrycia w kodzie', () => {
-  const jednostki = jednostkiTresci();
+  const jednostki = [...jednostkiTresci(), ...jednostkiLlmsTxt()];
 
   for (const fraza of ZAKAZANE_WSZEDZIE) {
     it(`"/${fraza}/" pojawia się co najwyżej w zdaniu, które ją jawnie zaprzecza`, () => {
@@ -47,7 +76,14 @@ describe('strony treści — brak obietnic bez pokrycia w kodzie', () => {
       for (const { etykieta, tekst } of jednostki) {
         const dopasowanie = re.exec(tekst.toLowerCase());
         if (!dopasowanie) continue;
-        const kontekst = tekst.toLowerCase().slice(Math.max(0, dopasowanie.index - 20), dopasowanie.index);
+        // llms.txt: zdania są dłuższe niż w plikach treści (`- Bojo nie wysyła SMS-ów,
+        // maili o meczu ani powiadomień push.` — jedno "nie" na starcie przeczy trzem
+        // rzeczownikom naraz, po polsku poprawnie, ale poza sztywnym oknem 20 znaków).
+        // Cała jednostka to i tak jeden ograniczony wypunktowanie/akapit
+        // (`jednostkiLlmsTxt()`), więc pełny prefiks zamiast okna nie rozmywa testu.
+        const kontekst = etykieta.startsWith('llms.txt')
+          ? tekst.toLowerCase().slice(0, dopasowanie.index)
+          : tekst.toLowerCase().slice(Math.max(0, dopasowanie.index - 20), dopasowanie.index);
         expect(kontekst, `${etykieta}: "${fraza}" bez przeczenia w "${tekst}"`).toMatch(/nie /);
       }
     });

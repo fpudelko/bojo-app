@@ -36,7 +36,7 @@ import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
 import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
-import { eventUrl, shareEvent } from '@/lib/eventShare';
+import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
@@ -485,6 +485,9 @@ export default function EventDetailClient() {
   const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
   const [newUserIsReserve, setNewUserIsReserve] = useState(false);
+  // Mecz ma włączoną akceptację zapisów (111) — gość czeka na zgodę
+  // organizatora tak samo jak zalogowany gracz, nie zajmuje miejsca w składzie.
+  const [newUserPending, setNewUserPending] = useState(false);
   // Ten sam e-mail miał już nieprzejęty wpis w tym meczu (087 zwróciła istniejący
   // token zamiast duplikatu) — nagłówek ekranu zachęty mówi „wcześniej dołączyłeś",
   // nie „zapisano".
@@ -1078,6 +1081,7 @@ export default function EventDetailClient() {
 
       setNewUserClaimToken(result.claimToken);
       setNewUserIsReserve(result.isReserve);
+      setNewUserPending(result.pendingApproval);
       setNewUserAlreadyJoined(result.alreadyJoined);
       setNewUserHasAccount(result.hasAccount);
       // Konto już istnieje — to samo pole hasła od razu loguje, zamiast próbować
@@ -1086,9 +1090,11 @@ export default function EventDetailClient() {
       setShowAccountPrompt(true);
       toast(result.alreadyJoined
         ? 'Ten zapis już istniał — nic nie dublujemy.'
-        : result.isReserve
-          ? 'Komplet — jesteś na liście rezerwowej'
-          : 'Dołączyłeś do meczu!');
+        : result.pendingApproval
+          ? 'Prośba wysłana — czeka na akceptację organizatora'
+          : result.isReserve
+            ? 'Komplet — jesteś na liście rezerwowej'
+            : 'Dołączyłeś do meczu!');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
       // Furtka zgodności: dopóki migracja 088 nie jest wgrana ręcznie w Supabase,
@@ -1555,10 +1561,11 @@ export default function EventDetailClient() {
   };
 
   /** Straight to the clipboard — for people who just want to paste the link
-   *  into a chat and skip the system share sheet. */
+   *  into a chat and skip the system share sheet. Tekst + adres, tak jak
+   *  `shareEvent()` — goły URL na desktopie powtarzał błąd O-18. */
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(eventUrl(event.id, window.location.origin));
+      await navigator.clipboard.writeText(textDoKopiowania(event, eventUrl(event.id, window.location.origin)));
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     } catch {
@@ -2648,9 +2655,9 @@ export default function EventDetailClient() {
         )}
 
         {/* ── CZY GRAMY? ── odpowiada na to, co ekipy dziś liczą ręcznie na
-            czacie: próg minimum, kto z ekipy milczy, otwarcie dla okolicy
-            gdy brakuje ludzi. Renderuje się tylko organizatorowi/delegatowi
-            i tylko wtedy, gdy faktycznie ma coś do powiedzenia. */}
+            czacie: próg minimum, otwarcie dla okolicy gdy brakuje ludzi.
+            Renderuje się tylko organizatorowi/delegatowi i tylko wtedy, gdy
+            faktycznie ma coś do powiedzenia. */}
         {!eventStarted && (
           <div className="px-4">
             <CzyGramyPanel
@@ -4157,6 +4164,12 @@ export default function EventDetailClient() {
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 
+            {event.requireApproval && (
+              <p className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-medium text-blue-700">
+                Organizator musi zaakceptować Twoją prośbę, zanim wejdziesz do składu.
+              </p>
+            )}
+
             {/* Imię i e-mail */}
             <div className="mb-4 space-y-3">
               <div>
@@ -4299,7 +4312,9 @@ export default function EventDetailClient() {
             <h2 className="font-display text-xl font-bold text-ink">
               {newUserAlreadyJoined
                 ? 'Wcześniej dołączyłeś do tej gry.'
-                : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
+                : newUserPending
+                  ? 'Prośba wysłana — czeka na akceptację.'
+                  : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               {newUserHasAccount

@@ -684,7 +684,7 @@ export async function joinEventAsGuest(
   email: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
-): Promise<{ claimToken: string | null; isReserve: boolean; alreadyJoined: boolean; hasAccount: boolean }> {
+): Promise<{ claimToken: string | null; isReserve: boolean; alreadyJoined: boolean; hasAccount: boolean; pendingApproval: boolean }> {
   const { validateEmail } = await import('./validation');
   const safeName = validateName(name, 'Imię i nazwisko', 80);
   const safeEmail = validateEmail(email);
@@ -702,18 +702,20 @@ export async function joinEventAsGuest(
   const row = Array.isArray(data) ? data[0] : data;
   const claimToken: string | null = row.claim_token ?? null;
 
-  // Determine if guest landed on reserve by checking the database
+  // Determine if guest landed on reserve/pending by checking the database
   // (we could add it to the RPC return, but for now query it). Skipped when the entry
   // already has an owner — there is no token to look it up by, and the sign-in screen
   // shown in that case does not mention the reserve list anyway.
   let isReserve = false;
+  let pendingApproval = false;
   if (claimToken) {
     const { data: participant } = await supabase
       .from('event_participants')
-      .select('is_reserve')
+      .select('is_reserve, pending_approval')
       .eq('claim_token', claimToken)
       .single();
     isReserve = participant?.is_reserve ?? false;
+    pendingApproval = participant?.pending_approval ?? false;
   }
 
   return {
@@ -721,6 +723,7 @@ export async function joinEventAsGuest(
     isReserve,
     alreadyJoined: row.already_joined ?? false,
     hasAccount: row.has_account ?? false,
+    pendingApproval,
   };
 }
 

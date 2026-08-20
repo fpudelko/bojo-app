@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-20 · migracja `112` · 39 tabel · 691 testy
+**Stan na:** 2026-08-20 · migracja `116` · 39 tabel · 692 testy
 
 ---
 
@@ -339,6 +339,78 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
+
+PROBLEM: każdy udostępniony link do meczu pokazywał ten sam, generyczny baner Bojo — bez
+sportu, terminu, miejsca ani liczby wolnych miejsc. Podgląd linku robi połowę roboty przy
+przekonywaniu kogoś do kliknięcia, a Bojo tę połowę oddawało za darmo. Osobno: przycisk
+„Kopiuj link" (w odróżnieniu od „Udostępnij") kopiował sam goły adres, bez daty, miejsca
+i ceny.
+
+ROZWIĄZANIE BOJO: link do meczu ma teraz własną kartę podglądu — sport, nazwa, dzień
+i godzina, miejsce, liczba wolnych miejsc (albo „Komplet"), cena. „Kopiuj link" kopiuje
+to samo, co „Udostępnij": tekst z detalami meczu plus adres.
+
+MECHANIKA: `app/wydarzenia/[id]/opengraph-image.tsx` (konwencja Next.js, `runtime =
+'edge'`, generuje obrazek 1200×630 przez `next/og`), dane przez wspólny `getEventMeta()`
+wydzielony do `eventMeta.ts`. `textDoKopiowania()` w `lib/eventShare.ts` — jeden helper
+dla trzech miejsc kopiujących link (pasek meczu, panel „Zaproś znajomych", fallback
+`navigator.share`).
+
+### 2026-08-20 — Zapis gościa bez konta respektuje akceptację zapisów
+
+PROBLEM: mecz z włączoną „akceptacją zapisów" miał furtkę — gość zapisujący się linkiem,
+bez zakładania konta, wchodził prosto do składu, podczas gdy zalogowany gracz na tym
+samym meczu czekał na zgodę organizatora. Kontrola składu, którą organizator świadomie
+włączył, nie obejmowała najprostszej ścieżki dołączenia.
+
+ROZWIĄZANIE BOJO: zapis gościa respektuje akceptację zapisów dokładnie tak samo jak zapis
+zalogowany — wpis czeka na zgodę i nie zajmuje miejsca, dopóki organizator go nie
+zaakceptuje. Formularz zapisu bez konta pokazuje to wprost, zanim gość kliknie „Zapisz
+się".
+
+MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `115`) ustawia `pending_approval
+= events.require_approval`, tak jak `dolacz_do_meczu()` (migracja `078`) dla zapisu
+zalogowanego. Organizator dostaje powiadomienie o prośbie tym samym mechanizmem co dla
+zalogowanych graczy.
+
+### 2026-08-20 — Powiadomienia o usunięciu ze składu, zmianie meczu i usunięciu meczu
+
+PROBLEM: trzy sytuacje w Bojo były całkowicie ciche. Organizator usuwający gracza z już
+zajętego miejsca w składzie (nie z listy oczekujących — to miało powiadomienie od dawna)
+nie zostawiał żadnego śladu — gracz dowiadywał się na boisku. Zmiana miejsca meczu albo
+ceny po publikacji nie generowała nic — na czacie grupowym taka informacja by padła.
+Twarde usunięcie całego meczu (nie odwołanie — realne skasowanie) nie mówiło nic
+nikomu, mimo że modal potwierdzenia ostrzega wprost „wszyscy uczestnicy stracą dostęp".
+
+ROZWIĄZANIE BOJO: wszystkie trzy sytuacje generują teraz powiadomienie pod dzwonkiem:
+„Usunięto Cię ze składu", „Zmiana w meczu" (miejsce lub koszt), „Mecz usunięty".
+
+MECHANIKA: trzy triggery SQL — `powiadom_o_usunieciu_uczestnika` (migracja `113`,
+`BEFORE DELETE` na `event_participants`, pomija samowypisanie i wiersze już objęte
+powiadomieniem o odrzuconej prośbie), `powiadom_o_zmianie_warunkow` (migracja `114`,
+`AFTER UPDATE` na `events`, jeden trigger dla miejsca i kosztu — `updateEvent()` zapisuje
+cały wiersz jedną instrukcją), `powiadom_o_usunieciu_meczu` (migracja `116`, `BEFORE
+DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `ON DELETE
+CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
+Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
+oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
+
+### 2026-08-20 — Próg „gra się odbędzie" działa już przy zakładaniu meczu
+
+PROBLEM: panel „Czy gramy?" (próg minimum graczy, migracja `097`) nigdy się nie pokazywał
+na nowo założonych meczach — kreator (`/wydarzenia/nowe`) nie miał kontrolki do ustawienia
+progu, miała ją tylko strona edycji. Organizator musiał najpierw opublikować mecz, potem
+wejść w edycję, żeby w ogóle zobaczyć tę funkcję.
+
+ROZWIĄZANIE BOJO: kreator ma teraz to samo pole „+ Ustaw minimum, żeby gra się odbyła" co
+edycja, tuż pod liczbą miejsc. Ustawiony próg widać od razu w podsumowaniu przed
+publikacją.
+
+MECHANIKA: `EventCapacityFields` w `app/wydarzenia/nowe/page.tsx` dostaje propsy
+`minPlayers`/`onMinPlayersChange` (wcześniej przekazywane tylko w `edytuj/page.tsx`);
+wartość idzie do `createEvent()` jako `minPlayers`, zapisuje się w szkicu
+(`lib/eventDraft.ts`) i w podsumowaniu (`lib/eventSummary.ts`).
 ### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
 
 PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony
@@ -499,96 +571,3 @@ był domyślnie aktywny), filtr w wyzwalaczu wysyłki, wyzwalacze na `event_comm
 i `components/PowiadomieniaPush.tsx`. Przy logowaniu przez Google Bojo prosi teraz zawsze
 o wybór konta (`prompt=select_account`) — bez tego przy kilku kontach Google logowało od
 razu na pierwsze z brzegu.
-
-### 2026-08-18 — Propozycja włączenia powiadomień na stronie meczu
-
-PROBLEM: powiadomienia na telefon dało się włączyć wyłącznie przełącznikiem w profilu,
-a do profilu nikt nie zagląda. Funkcja, o której trzeba dowiedzieć się samemu, dla
-większości ludzi nie istnieje — a akurat ta decyduje, czy Bojo dowozi informację o meczu,
-czy przegrywa z komunikatorem.
-
-ROZWIĄZANIE BOJO: na stronie meczu, w którym gram, pojawia się karta „Damy znać, gdy coś
-się zmieni" z konkretem, co przyjdzie: ktoś napisze do ekipy, zwolni się miejsce, mecz
-zostanie odwołany. Systemowe okno zgody otwiera się DOPIERO po kliknięciu „Włącz" —
-Bojo nigdy nie prosi o zgodę samo z siebie, bo prośba na wejściu kończy się trwałym
-„Zablokuj", którego nie da się cofnąć ze strony. „Nie teraz" odkłada pytanie o 30 dni,
-nie chowa go na zawsze. Na iPhonie bez zainstalowanej aplikacji karta pokazuje instrukcję
-dodania do ekranu głównego zamiast przycisku, który nie mógłby zadziałać.
-
-MECHANIKA: `components/events/ZachetaPush.tsx` renderowany w zakładce „Mecz" wyłącznie
-dla uczestnika przed rozpoczęciem meczu; `odlozZachetePush()` i `czyZachetaOdlozona()`
-w `lib/push.ts` (klucz `bojo:push-odlozone`). Przełącznik w profilu zostaje jako miejsce,
-w którym powiadomienia da się wyłączyć.
-
-### 2026-08-18 — Administrator przestaje być organizatorem cudzego meczu
-
-PROBLEM: administrator platformy widział na stronie każdego meczu pełny panel organizatora
-— losowanie składu, przypisywanie drużyn, gwiazdkę kapitana, ustawienia. Reguły dostępu
-w bazie znały wyłącznie organizatora i jego delegatów, więc kontrolki się pokazywały,
-klikały i kończyły czerwonym komunikatem o uprawnieniach. Łatane trzy razy z rzędu i za
-każdym razem wychodziło kolejne miejsce: przełącznik ról, zapis taktyki, przypisanie
-drużyny, poparcie propozycji składu. Osobno: przycisk „Popieram" przy propozycji składu
-widział każdy, a poprzeć może wyłącznie gracz tego meczu.
-
-ROZWIĄZANIE BOJO: administrator ogląda mecz jak każdy inny użytkownik. Meczem zarządza
-organizator i osoby, którym on nadał uprawnienia; administrator ma własne ekrany
-(`/admin/*`). Licznik poparcia przy propozycji składu widzą wszyscy, ale klikalny jest
-tylko dla grających — przycisk, który u kogoś z zewnątrz zawsze kończy się błędem, jest
-gorszy niż jego brak.
-
-MECHANIKA: `isOwner` w `EventDetailClient.tsx` to teraz `user.id === event.organizerId`
-(bez `|| isAdmin`), migracja `108` cofa dodane godzinę wcześniej `czy_admin()` z polityk
-`event_participants` (uprawnienie bez zastosowania to wyłącznie ryzyko). `TeamProposals`
-dostał prop `mozeGlosowac`, spójny z polityką `Participant votes` z migracji `059`.
-Moderacja samego wydarzenia przez administratora (`005`) zostaje bez zmian.
-
-### 2026-08-18 — Taktyka: publikacja, pozycje z nazwami, zakładka „Mecz"
-
-PROBLEM: kapitan układał ustawienie na oczach drużyny — każda pośrednia wersja była
-widoczna i nie dało się odróżnić „tak gramy" od „tak akurat wyszło". Pozycje na boisku
-miały skróty „OB" i „PM", czyli mówiły to samo, co widać po wysokości na boisku. Gracza
-dało się przypisać wyłącznie w kolejności pozycja → nazwisko. Zakładka „Skład" trzymała
-opis meczu, termin, miejsce, licznik, listę graczy i zapisy — czyli cały mecz. Osobno:
-administrator widział panel organizatora, ale przypisanie gracza do drużyny kończyło się
-komunikatem o braku uprawnień.
-
-ROZWIĄZANIE BOJO: kapitan ma przełącznik „Opublikuj taktykę" — do tego czasu widzi ją sam,
-a drużyna czyta „Taktyka jeszcze nieustalona" i normalnie rozmawia na czacie. Pozycje
-nazywają się jak w piłce: LO, ŚO, PO, ŚPD, LP, ŚPO, LN, N. Gracza przypisuje się w obie
-strony — stukasz pozycję i nazwisko albo nazwisko i pozycję. Zakładka „Skład" nazywa się
-teraz „Mecz". Kapitan jest JEDEN na drużynę: nadanie gwiazdki komuś nowemu zdejmuje ją
-poprzedniemu.
-
-MECHANIKA: migracja `107` (`event_team_setup.opublikowana`, `czy_taktyka_opublikowana()`,
-zawężone polityki SELECT) i `106` (`czy_admin()` w politykach `event_participants` —
-interfejs traktował admina jak organizatora, baza nie). `lib/taktyka.ts`: `opisPozycji()`
-wylicza skrót z linii i strony boiska. `setCaptain()` w `lib/eventFeatures.ts` zdejmuje
-poprzedniego kapitana tej samej drużyny.
-
-### 2026-08-18 — Taktyka: ustawia kapitan, widzi drużyna
-
-PROBLEM: pierwsza wersja zakładki „Taktyka" pokazywała OBIE drużyny i była dostępna
-wyłącznie dla administratora platformy — czyli gracz nie widział własnej taktyki, a osoba
-z zewnątrz widziała cudzy czat drużyny. Osobno: wśród gotowych odpowiedzi „Od połowy"
-i „Na swojej połowie" opisywały to samo cofnięcie się, a lista zamknięta nie miała miejsca
-na „my gramy inaczej". Zakładka pokazywała też opis meczu, datę i miejsce — czyli rzeczy
-z zakładki „Skład", przez które trzeba było przewijać.
-
-ROZWIĄZANIE BOJO: zakładkę widzi ten, kto GRA w meczu, i wyłącznie SWOJĄ drużynę.
-Ustawienie, pozycje i taktykę zmienia KAPITAN (wskazuje go organizator w „Składzie"
-gwiazdką przy nazwisku); reszta drużyny widzi gotowy opis bez ani jednego przycisku.
-Przy każdym pytaniu jest „Inne" z polem tekstowym. Pytanie o pressing brzmi teraz „Gdzie
-odbieramy piłkę" i ma dwie wykluczające się odpowiedzi: „Pod ich bramką" albo „U siebie".
-Boisko jest mniejsze i pozycje odsunięte od linii bocznych, żeby imiona się mieściły.
-Szczegóły meczu (opis, termin, miejsce, licznik miejsc) zostają wyłącznie w „Składzie".
-
-MECHANIKA: migracja `105` — `czy_kapitan_druzyny()` w politykach zapisu na
-`event_team_setup` i `event_team_slots`, czat przez `czy_w_druzynie()` bez administratora
-(cofnięcie `104`). `lib/taktyka.ts`: `WARTOSC_INNE`, `odpowiedzTaktyki()`, margines pozycji
-20% zamiast 12%. `components/events/TaktykaDruzyny.tsx` renderuje tryb do czytania, gdy
-patrzący nie jest kapitanem. Nagłówek meczu w `EventDetailClient.tsx` gatowany na
-`tab === 'sklad'`.
-
-MECHANIKA: migracja `104` dokłada `czy_admin()` (z `098`) do polityk zapisu na
-`event_team_setup` i `event_team_slots` oraz do odczytu i wstawiania w
-`event_team_messages`.

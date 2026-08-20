@@ -141,9 +141,9 @@ Legenda:
 | Znajdź brakujących graczy — wystawianie gier publicznych | `ZBUDOWANE` | `getPublicEvents`, `/wydarzenia` |
 | Znajdź grę w 2 minuty — dołączanie do gier publicznych | `ZBUDOWANE` | `joinEvent`, sortowanie po odległości, `getNearbyEvents` |
 | Grupy — stałe ekipy, zaproszenia, historia | `ZBUDOWANE` | `lib/groups.ts`, `/grupy/*`, `/g/[code]` |
-| …**powiadomienie dla członków grupy o nowej grze** | `NIE ZNALEZIONO` | Jedyna ścieżka to `game_alerts` (promień + sport), nie członkostwo → [luka 2](#3-luki) |
-| Rozliczysz ekipę w minutę — kalkulator płatności | `CZĘŚCIOWO` | Panel „Podział kosztów" działa, ale tylko dla organizatora i tylko **przed** meczem → [luka 4](#3-luki) |
-| Wszystkie obiekty w jednym miejscu | `ZBUDOWANE` | ~1400 boisk, `/mapa`, `/boiska/[sport]`, `/boisko/[id]`; pełne profile zamiast pinezek |
+| …**powiadomienie dla członków grupy o nowej grze** | `ZBUDOWANE` | Trigger `powiadom_o_nowym_meczu_w_grupie` (migracja `072`) — patrz [luka 2](#3-luki), zamknięta |
+| Rozliczysz ekipę w minutę — kalkulator płatności | `ZBUDOWANE` | Panel „Podział kosztów" liczy i renderuje się też **po** meczu — patrz [luka 4](#3-luki), zamknięta |
+| Wszystkie obiekty w jednym miejscu | `ZBUDOWANE` | Ponad 30 000 boisk w całej Polsce (import OSM, PR #109), `/mapa`, `/boiska/[sport]`, `/boisko/[id]`; pełne profile zamiast pinezek |
 | (później) zarezerwuj obiekt przez apkę | `ZBUDOWANE, UKRYTE` | **Wyprzedza roadmapę.** `lib/bookings.ts`, `/obiekt/*`, `/rezerwacje`; flaga `FEATURE_RESERVATIONS` |
 | (później) rozliczanie płatności | `CZĘŚCIOWO` | Rejestrowanie kto zapłacił — tak. Realny przepływ pieniędzy (BLIK/Stripe) — nie |
 | (później) wynajmij sędziego | `NIE ZNALEZIONO` | — |
@@ -176,21 +176,22 @@ Pozycje, w których **kod nie nadążył za dokumentem**. Każda ma wpis w
    Kolumna `group_id` (`051_group_field.sql`) steruje **listowaniem** meczu w grupie,
    nie **dostępem** do niego. Wymaga migracji + zmian w UI tworzenia meczu.
 
-2. **Powiadomienie dla członków grupy o utworzeniu gry.** Dokument stawia to jako część
-   propozycji „Grupy — zastąpienie facebook/whatsapp", bo bez powiadomienia grupa nie
-   zastępuje czatu. Kanał powiadomień **istnieje** (tabela `notifications`,
-   `lib/notifications.ts`, `NotificationBell`, wysyłka e-mail przez Resend), ale nic nie
-   wywołuje go przy tworzeniu meczu w grupie.
+2. **ZROBIONE — Powiadomienie dla członków grupy o utworzeniu gry.** Dokument stawia to
+   jako część propozycji „Grupy — zastąpienie facebook/whatsapp". Trigger
+   `powiadom_o_nowym_meczu_w_grupie` (migracja `072`) wstawia powiadomienie wszystkim
+   członkom grupy poza organizatorem przy każdym `INSERT INTO events` z ustawionym
+   `group_id`. Szczegóły → [BACKLOG.md §1.2](../BACKLOG.md#12-powiadomienie-dla-członków-grupy-o-utworzeniu-gry--zrobione).
 
 3. **Gry cykliczne ukryte flagą.** Dokument wymienia je w pierwszej propozycji wartości,
    na równi z grami pojedynczymi. Kod jest kompletny; `SHOW_RECURRING = false` ukrywa
    wejścia w `Header.tsx`, `app/page.tsx` i `moje-gry`. Decyzja: odmrozić czy uzasadnić
    ukrycie.
 
-4. **Rozliczenie po meczu.** Propozycja brzmi „Rozliczysz ekipę w minutę", a panel
-   „Podział kosztów" renderuje się pod warunkiem `isOwner && !eventStarted`
-   (`EventDetailClient.tsx`). Rozliczenie po meczu — czyli wtedy, kiedy się zwykle
-   rozlicza — jest niedostępne, a uczestnicy nie widzą, ile mają zapłacić.
+4. **ZROBIONE — Rozliczenie po meczu.** Propozycja brzmi „Rozliczysz ekipę w minutę".
+   Panel „Podział kosztów" (`EventDetailClient.tsx`) nie jest już bramkowany
+   `!eventStarted` — renderuje się przy `costGrosze > 0 && (isOwner || canManagePayments)`,
+   niezależnie od tego, czy mecz się zaczął. Karta „Twoja płatność" pokazuje uczestnikowi
+   kwotę do zapłaty. Szczegóły → [BACKLOG.md §1.4](../BACKLOG.md#14-rozliczenie-po-meczu--zrobione).
 
 ### Odwrotny kierunek: kod wyprzedza dokument
 
