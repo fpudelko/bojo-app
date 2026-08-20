@@ -59,9 +59,16 @@ imię i e-mail i jest w składzie (funkcja RPC `dolacz_do_meczu_jako_goscie()`, 
 `082`–`088`, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)); konto może
 dokończyć dopiero po zapisie, jeśli chce mieć historię i statystyki.
 
+Jedno miasto ma dziś dedykowaną stronę pod konkretny sport: `/graj/[sport]/poznan`
+(cztery sporty × Poznań), z licznikiem otwartych meczów w promieniu ok. 15 km na żywo —
+patrz [funkcje.md](./funkcje.md#strona-grajsportmiasto--poznań). To pilotaż, nie ograniczenie
+produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, Poznań ma tylko osobną stronę
+wejściową.
+
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
 dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
-konto, żeby przeglądać boiska? Czy trzeba mieć konto, żeby dołączyć do meczu?
+konto, żeby przeglądać boiska? Czy trzeba mieć konto, żeby dołączyć do meczu? Czy Bojo ma
+osobną stronę dla Poznania?
 
 ---
 
@@ -332,6 +339,50 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
+
+PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony
+docelowej — `/boiska/[sport]` odpowiada „gdzie jest boisko" (katalog nationwide), a
+`/wydarzenia` to płaska lista bez adresu URL na sport ani miasto. Wartość #2 misji Bojo
+(„koniec z odwoływaniem meczu z braku 1-2 osób") nie miała własnego wejścia z wyszukiwarki.
+Osobno: `get_nearby_events()` (migracja `025`) istniała od dawna, ale poza wyłączoną flagą
+`SHOW_GAME_ALERTS` nic jej nie wołało — martwy kod.
+
+ROZWIĄZANIE BOJO: cztery nowe strony, `/graj/[sport]/poznan` (piłka nożna, siatkówka,
+siatkówka plażowa, koszykówka) — jedyne miasto z realnym pokryciem katalogu i ruchem.
+Każda pokazuje na żywo otwarte publiczne mecze danego sportu w promieniu 15 km od centrum
+(licznik + do 5 najbliższych, link do strony meczu), 3 kroki zakładania meczu, uczciwe
+zastrzeżenie gdy lista jest pusta, i CTA „Stwórz mecz publiczny" z prefillem sportu.
+`/boiska/[sport]` i `/wydarzenia/nowe` dostały linki do/z nowych stron.
+
+MECHANIKA: `app/graj/[sport]/[miasto]/page.tsx` (`generateStaticParams` — zbiór bounded,
+4 strony, `revalidate=3600`), `lib/events.ts#getNearbyEvents()` (odkurzone, RPC
+`get_nearby_events`), `lib/sports.ts#FOCUS_SPORT_BY_SLUG` (slug↔wartość w bazie, używane
+też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten parametr),
+`content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
+testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
+tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.
+
+### 2026-08-19 — SEO/GEO: współrzędne meczu w danych strukturalnych, linki między boiskami a treścią
+
+PROBLEM: dane strukturalne meczu (`SportsEvent`) nie niosły współrzędnych, mimo że `events.lat`
+i `events.lng` są zapisywane przy każdym utworzeniu meczu — wyszukiwarki i asystenci AI nie
+mieli sygnału geograficznego do lokalnych zapytań („mecze w mojej okolicy”). Osobno: katalog
+boisk (`/boiska/[sport]`) i strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`) nie linkowały
+do siebie nawzajem — ktoś szukający boiska nie trafiał na wyjaśnienie, jak zorganizować na nim
+mecz, i odwrotnie.
+
+ROZWIĄZANIE BOJO: `location.geo` (`GeoCoordinates`) w danych strukturalnych meczu, gdy
+współrzędne są znane — dotyczy zarówno boiska z katalogu, jak i przypiętej pinezki, bo obie
+ścieżki zapisują `events.lat`/`events.lng`. `/boiska/[sport]` dostało link „Jak działa Bojo —
+zbierz skład na to boisko”, a `/jak-dziala-bojo` i `/dlaczego-bojo` dostały link „Mapa boisk”
+w swoich CTA-boxach.
+
+MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` dokłada `geo`
+jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
+selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
+`app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
+
 ### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
 
 PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
@@ -538,41 +589,6 @@ MECHANIKA: migracja `105` — `czy_kapitan_druzyny()` w politykach zapisu na
 patrzący nie jest kapitanem. Nagłówek meczu w `EventDetailClient.tsx` gatowany na
 `tab === 'sklad'`.
 
-### 2026-08-18 — Naprawa: administrator nie mógł zapisać taktyki
-
-PROBLEM: zakładka „Taktyka" otwierała się, ale każde kliknięcie kończyło się czerwonym
-komunikatem `new row violates row-level security policy`. Zakładka jest dziś widoczna
-wyłącznie dla administratora platformy, a reguły dostępu w bazie znały tylko organizatora
-meczu, jego delegata i członka drużyny — czyli jedyna osoba, która mogła ten widok
-otworzyć, nie mogła w nim nic zapisać.
-
-ROZWIĄZANIE BOJO: administrator zapisuje ustawienie, pozycje i pisze w czacie drużyny.
-Kasowanie cudzych wiadomości zostaje przy autorze — tak samo jak w rozmowie meczu.
-
 MECHANIKA: migracja `104` dokłada `czy_admin()` (z `098`) do polityk zapisu na
 `event_team_setup` i `event_team_slots` oraz do odczytu i wstawiania w
-`event_team_messages`. Odtworzone na gołym Postgresie: na politykach z `103` zapis
-kończy się wyjątkiem, po `104` przechodzi, a osoba spoza meczu nadal nie zapisze niczego.
-Zasada na przyszłość: jeśli widok jest za bramką `isAdmin`, `czy_admin()` musi być
-w polityce od pierwszego dnia — to ta sama klasa błędu co w `098`.
-
-### 2026-08-18 — Taktyka drużyny: ustawienie, pozycje i osobny czat (na razie tylko admin)
-
-PROBLEM: po opublikowaniu składów każda drużyna była wyłącznie listą nazwisk. Kto gra
-w obronie, kto na skrzydle i co robimy z piłką — ustalało się ustnie przed meczem, więc
-połowa składu tego nie słyszała. Osobno: rozmowa meczu jest wspólna dla obu drużyn, więc
-nie dało się w niej uzgodnić niczego, czego nie ma przeczytać rywal.
-
-ROZWIĄZANIE BOJO: zakładka „Taktyka", widoczna po opublikowaniu składów. Dla każdej
-drużyny osobno: wybór ustawienia z listy dobranej do liczby graczy (od 1-2-2 na orliku po
-1-4-2-3-1 na pełnym boisku, z opisem co dane ustawienie robi), boisko z pozycjami —
-gracza stawia się dwoma stuknięciami, bez przeciągania — cztery decyzje taktyczne
-(jak bronimy, wyjście od bramkarza, kiedy atakujemy rywala, tempo gry), notatka na stałe
-fragmenty oraz czat wyłącznie dla tej drużyny. Druga drużyna czatu nie widzi.
-
-MECHANIKA: migracja `103` (`event_team_setup`, `event_team_slots`, `event_team_messages`,
-funkcja `czy_w_druzynie()`), `lib/taktyka.ts` (katalog ustawień; pozycje na boisku
-wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalogu, bez
-migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
-razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
-więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.
+`event_team_messages`.

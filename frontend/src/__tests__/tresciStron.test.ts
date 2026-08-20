@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { FAQ, FAQ_LANDING, KATEGORIE_FAQ } from '@/content/faq';
 import { JAK_DZIALA } from '@/content/jakDziala';
 import { CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import { GRAJ_LEAD, GRAJ_BRAK_MECZY } from '@/content/graj';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -31,6 +32,8 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   for (const w of TABELA_POROWNAWCZA) {
     jednostki.push({ etykieta: `dlaczego-bojo#roznice (${w.co})`, tekst: `${w.fb} ${w.bojo}` });
   }
+  jednostki.push({ etykieta: 'graj#lead', tekst: GRAJ_LEAD });
+  jednostki.push({ etykieta: 'graj#brak-meczy', tekst: GRAJ_BRAK_MECZY });
 
   return jednostki;
 }

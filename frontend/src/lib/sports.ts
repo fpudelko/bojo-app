@@ -3,6 +3,8 @@
 // Legacy sports (piłka ręczna, gokarty) stay in DB and appear on the map
 // but are hidden from filter dropdowns and event forms.
 
+import { slugify } from './utils';
+
 export const SPORT_CONFIG = {
   'piłka nożna':       { emoji: '⚽', color: '#15663E', label: 'Piłka nożna' },
   'futsal':            { emoji: '⚽', color: '#15663E', label: 'Futsal' },
@@ -27,6 +29,14 @@ export const FOCUS_SPORTS = [
   'siatkówka plażowa',
   'koszykówka',
 ] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
+
+/** URL-slug → wartość w bazie, dla FOCUS_SPORTS, np. 'pilka-nozna' → 'piłka nożna'.
+ *  Używane przez `/graj/[sport]/[miasto]` i przez prefill `?sport=` w kreatorze. */
+export const FOCUS_SPORT_BY_SLUG: Record<string, (typeof FOCUS_SPORTS)[number]> =
+  Object.fromEntries(FOCUS_SPORTS.map((s) => [slugify(s), s])) as Record<
+    string,
+    (typeof FOCUS_SPORTS)[number]
+  >;
 
 /** Sporty jako filtr FACYLITÓW na mapie — szerszy niż FOCUS_SPORTS (ten dotyczy
  *  sportów, w które da się zorganizować mecz). `wielofunkcyjne` i `piłka ręczna`

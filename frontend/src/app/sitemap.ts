@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { pobierzWszystkie } from '@/lib/zapytania';
+import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 
 const SPORT_SLUGS = [
   'pilka-nozna',
@@ -37,6 +38,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // Tylko Poznań dziś — /graj/[sport]/[miasto] generuje statycznie wyłącznie
+  // te kombinacje (patrz generateStaticParams w tej trasie), więc sitemap
+  // trzyma się tego samego, bounded źródła zamiast zgadywać miasta.
+  const grajPages: MetadataRoute.Sitemap = Object.keys(FOCUS_SPORT_BY_SLUG).map((slug) => ({
+    url: `${base}/graj/${slug}/poznan`,
+    lastModified: new Date(),
+    changeFrequency: 'daily' as const,
+    priority: 0.6,
+  }));
+
   let fieldPages: MetadataRoute.Sitemap = [];
   try {
     // Stronicowanie przez `pobierzWszystkie()`: PostgREST obcina zbyt długą
@@ -63,5 +74,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // sitemap degrades gracefully if DB unavailable
   }
 
-  return [...staticPages, ...sportPages, ...fieldPages];
+  return [...staticPages, ...sportPages, ...grajPages, ...fieldPages];
 }

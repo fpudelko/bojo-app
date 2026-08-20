@@ -1001,6 +1001,14 @@ stronie, nie osobno pisany tekst. `siteJsonLd()` (renderowany raz, w `layout.tsx
 od teraz też węzeł `SoftwareApplication` z `featureList` — lista funkcji musi zostać
 zsynchronizowana z tabelą flag niżej, jeśli któraś z wymienionych funkcji trafi za flagę.
 
+`eventJsonLd()` (`lib/structuredData.ts`, wywoływane z `app/wydarzenia/[id]/page.tsx`)
+dodaje `location.geo` (`GeoCoordinates`), gdy mecz ma zapisane `lat`/`lng` — kolumny
+istnieją na `events` od `002_events_and_auth.sql` i są wypełniane przy każdym insertcie,
+niezależnie od tego, czy lokalizacja to boisko z katalogu czy przypięta pinezka, więc nie
+trzeba joina do `fields`. `/jak-dziala-bojo` i `/dlaczego-bojo` linkują teraz w swoich
+CTA-boxach do `/mapa`, a `/boiska/[sport]` linkuje z powrotem do `/jak-dziala-bojo` —
+wcześniej strona treści i katalog boisk nie odsyłały do siebie nawzajem.
+
 **Uczciwość treści pilnowana testem.** `content/zakazaneFrazy.ts` trzyma dwie listy fraz:
 `ZAKAZANE_NA_LANDINGU` (landing nie wspomina ich w ogóle — nawet przecząco, bo samo
 przeczenie na czysto sprzedażowej stronie brzmi jak reklama) i `ZAKAZANE_WSZEDZIE` (strony
@@ -1015,6 +1023,48 @@ pod FAQ landingu (`LandingFaq.tsx`) do `/faq`; `SiteFooter.tsx` ma teraz dwie gr
 linków („Produkt", „Bojo") zamiast jednej płaskiej listy, z czterema nowymi stronami
 w grupie „Bojo". Główna nawigacja (`Header.tsx`) zostaje bez zmian — dwie pozycje
 („Znajdź grę", „Mapa boisk") to świadomy wybór, dokładanie stron treści by je rozmyło.
+
+---
+
+## Strona `/graj/[sport]/[miasto]` — Poznań
+
+Landing pod SEO/GEO ([strategia.md](./strategia.md)), osobny wzorzec od katalogu boisk:
+`/boiska/[sport]` odpowiada „gdzie jest boisko", `/graj/[sport]/[miasto]` — „dołącz do
+meczu albo znajdź brakujących graczy" w konkretnym mieście. Cztery sporty (`FOCUS_SPORTS`
+z `lib/sports.ts`, te same co w kreatorze meczu) × jedno miasto = cztery strony, generowane
+statycznie (`generateStaticParams`) z `revalidate = 3600` — bo zbiór jest z góry
+ograniczony, w przeciwieństwie do `/boiska/[sport]`, który celowo renderuje się na żądanie
+(katalog rośnie z każdym importem, patrz AGENTS.md).
+
+**Tylko Poznań.** Jedyne miasto z realnym pokryciem katalogu i ruchem
+(`content/dlaczego.ts#wczesny-etap`). Rozszerzenie na kolejne miasta wymaga rewizji
+`content/zakazaneFrazy.ts` (dziś zakazuje nazw miast na landingu) i jest świadomą decyzją
+produktową, nie dopiskiem do tej strony — patrz `strategia.md` pozycja roadmapy #10.
+
+**Dane na żywo, nie zaszyte.** Strona woła `getNearbyEvents()` (`lib/events.ts`, RPC
+`get_nearby_events` z `025_game_alerts.sql`, wcześniej nieużywane w kodzie poza wyłączoną
+flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od środka Poznania, filtruje wynik po sporcie
+i pokazuje do 5 najbliższych meczów jako listę z linkami do `/wydarzenia/[id]`. Licznik
+u góry pokazuje pełną liczbę dopasowań, nie tylko wyświetloną piątkę. Gdy lista jest pusta,
+strona pokazuje uczciwe zastrzeżenie (`content/graj.ts#GRAJ_BRAK_MECZY`) zamiast chować
+pusty stan — ten sam ton co `content/dlaczego.ts#wczesny-etap`.
+
+**Treść bez nowych faktów.** Kroki zakładania meczu i zdanie o tym, czego Bojo nie robi
+(brak rezerwacji boiska) są importowane z `content/jakDziala.ts`, nie przepisywane —
+`tresciStron.test.ts` pilnuje ich raz, w jednym miejscu. Copy unikalne dla tej strony
+(`content/graj.ts`) jest dopisane do tego samego testu i podlega tym samym zakazanym
+frazom co `/jak-dziala-bojo` i `/dlaczego-bojo`, mimo że AGENTS.md nie wymusza tego
+automatycznie dla nowych tras.
+
+**CTA prefill.** „Stwórz mecz publiczny” prowadzi do `/wydarzenia/nowe?sport=<slug>` —
+kreator czyta ten parametr (`FOCUS_SPORT_BY_SLUG` z `lib/sports.ts`) i ustawia sport przez
+istniejący `selectSport()`, tym samym mechanizmem co ręczny wybór w UI (więc domyślna
+liczba miejsc też się dostraja). Wcześniej `?sport=` było ignorowane.
+
+**Cross-linki (dopełnienie roadmapy #9):** `/boiska/[sport]` linkuje do
+`/graj/[sport]/poznan` dla czterech sportów, które tę stronę mają; `sitemap.ts` ma osobny,
+bounded blok `grajPages` z tego samego źródła (`FOCUS_SPORT_BY_SLUG`), więc nie może się
+rozjechać z `generateStaticParams`.
 
 ---
 

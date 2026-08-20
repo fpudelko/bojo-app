@@ -39,6 +39,8 @@ const llms = read('frontend/public/llms.txt');
 const llmsRoutes = [...llms.matchAll(/\]\((\/[^)\s]*)\)/g)].map((m) => m[1]);
 const sportSlugs = [...read('frontend/src/app/boiska/[sport]/page.tsx')
   .matchAll(/'([a-z-]+)':\s*\{ db:/g)].map((m) => m[1]);
+const grajSlugs = [...read('frontend/src/content/graj.ts')
+  .matchAll(/slug: '([a-z-]+)'/g)].map((m) => m[1]);
 
 for (const route of llmsRoutes) {
   let page;
@@ -53,6 +55,11 @@ for (const route of llmsRoutes) {
     const slug = route.slice('/boiska/'.length);
     if (!sportSlugs.includes(slug)) { fail(`llms.txt: slug sportu "${slug}" nie istnieje w SPORT_MAP`); continue; }
     page = 'frontend/src/app/boiska/[sport]/page.tsx';
+  } else if (route.startsWith('/graj/')) {
+    const [slug, miasto] = route.slice('/graj/'.length).split('/');
+    if (!grajSlugs.includes(slug)) { fail(`llms.txt: slug sportu "${slug}" nie istnieje w content/graj.ts`); continue; }
+    if (miasto !== 'poznan') { fail(`llms.txt: /graj obsługuje dziś wyłącznie Poznań, nie "${miasto}"`); continue; }
+    page = 'frontend/src/app/graj/[sport]/[miasto]/page.tsx';
   } else page = `frontend/src/app${route}/page.tsx`;
   if (!existsSync(join(ROOT, page))) fail(`llms.txt: trasa ${route} nie ma ${page}`);
 }
