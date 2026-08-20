@@ -166,9 +166,6 @@ export default async function SportCategoryPage(
                       })}
                     </div>
                   </div>
-                  <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${field.available ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {field.available ? 'Dostępne' : 'Niedostępne'}
-                  </span>
                 </Link>
               </li>
             ))}

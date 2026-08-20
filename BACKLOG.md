@@ -174,9 +174,10 @@ Wcześniejsze wersje tego pliku i `PRZEWODNIK.md` twierdziły, że powiadomień 
 | E-mail | Edge function `notify-game-alert` → Resend |
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
 | Zaproszenia cykliczne | Edge function `send-invites` |
+| Web-push | Migracja `102` — tabela `push_subscriptions`, trigger na `notifications` → edge function `send-push` |
 
-Czego brakuje: **web-push (PWA)** oraz wyzwalaczy dla zdarzeń innych niż alerty
-(dołączenie do meczu, awans z rezerwy, nowa gra w grupie — §1.2).
+Web-push wysyłki są zbudowane (migracja `102`) — status wdrożenia na produkcji poza
+zakresem tego wpisu.
 
 ---
 

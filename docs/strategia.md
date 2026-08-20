@@ -19,8 +19,8 @@ Bojo.pl ma więc mówić językiem organizatora, a nie targowiska.
 **Produkt działa i jest wdrożony.** Aplikacja webowa (Next.js 14 + Supabase, hosting
 Vercel), spójny design, większość funkcji core gotowa:
 
-- Mapa boisk w Poznaniu (~1400 obiektów z OSM + wzbogacone AI: telefon, www, godziny,
-  sposób rezerwacji)
+- Mapa boisk w całej Polsce (ponad 30 000 obiektów z importu OSM, PR #109; wcześniejszy
+  katalog ograniczony do Poznania — ~1400 obiektów, wzbogacony AI — zastąpiony)
 - Organizacja meczów: tworzenie gry, zapisy, lista rezerwowa, goście bez konta
 - Zaawansowane: drużyny (drag&drop, losowanie, kapitanowie), wyniki meczów, statystyki,
   płatności

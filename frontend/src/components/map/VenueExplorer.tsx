@@ -513,7 +513,7 @@ export default function VenueExplorer({
   const [allFields, setAllFields] = useState<Field[]>(initialFields ?? []);
   const [events,    setEvents]    = useState<EventItem[]>(initialEvents ?? []);
   const [search,    setSearch]    = useState('');
-  // Render only a window of cards to keep the list/carousel snappy (~1400 venues).
+  // Render only a window of cards to keep the list/carousel snappy (katalog: ponad 30 000 obiektów w całej Polsce).
   const PAGE = 60;
   const [visibleCount, setVisibleCount] = useState(PAGE);
 

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-18 · migracja `108` · 38 tabel · 632 testy
+**Stan na:** 2026-08-20 · migracja `112` · 38 tabel · 633 testy
 
 ---
 
@@ -332,6 +332,79 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
+
+PROBLEM: każdy udostępniony link do meczu pokazywał ten sam, generyczny baner Bojo — bez
+sportu, terminu, miejsca ani liczby wolnych miejsc. Podgląd linku robi połowę roboty przy
+przekonywaniu kogoś do kliknięcia, a Bojo tę połowę oddawało za darmo. Osobno: przycisk
+„Kopiuj link" (w odróżnieniu od „Udostępnij") kopiował sam goły adres, bez daty, miejsca
+i ceny.
+
+ROZWIĄZANIE BOJO: link do meczu ma teraz własną kartę podglądu — sport, nazwa, dzień
+i godzina, miejsce, liczba wolnych miejsc (albo „Komplet"), cena. „Kopiuj link" kopiuje
+to samo, co „Udostępnij": tekst z detalami meczu plus adres.
+
+MECHANIKA: `app/wydarzenia/[id]/opengraph-image.tsx` (konwencja Next.js, `runtime =
+'edge'`, generuje obrazek 1200×630 przez `next/og`), dane przez wspólny `getEventMeta()`
+wydzielony do `eventMeta.ts`. `textDoKopiowania()` w `lib/eventShare.ts` — jeden helper
+dla trzech miejsc kopiujących link (pasek meczu, panel „Zaproś znajomych", fallback
+`navigator.share`).
+
+### 2026-08-20 — Zapis gościa bez konta respektuje akceptację zapisów
+
+PROBLEM: mecz z włączoną „akceptacją zapisów" miał furtkę — gość zapisujący się linkiem,
+bez zakładania konta, wchodził prosto do składu, podczas gdy zalogowany gracz na tym
+samym meczu czekał na zgodę organizatora. Kontrola składu, którą organizator świadomie
+włączył, nie obejmowała najprostszej ścieżki dołączenia.
+
+ROZWIĄZANIE BOJO: zapis gościa respektuje akceptację zapisów dokładnie tak samo jak zapis
+zalogowany — wpis czeka na zgodę i nie zajmuje miejsca, dopóki organizator go nie
+zaakceptuje. Formularz zapisu bez konta pokazuje to wprost, zanim gość kliknie „Zapisz
+się".
+
+MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `111`) ustawia `pending_approval
+= events.require_approval`, tak jak `dolacz_do_meczu()` (migracja `078`) dla zapisu
+zalogowanego. Organizator dostaje powiadomienie o prośbie tym samym mechanizmem co dla
+zalogowanych graczy.
+
+### 2026-08-20 — Powiadomienia o usunięciu ze składu, zmianie meczu i usunięciu meczu
+
+PROBLEM: trzy sytuacje w Bojo były całkowicie ciche. Organizator usuwający gracza z już
+zajętego miejsca w składzie (nie z listy oczekujących — to miało powiadomienie od dawna)
+nie zostawiał żadnego śladu — gracz dowiadywał się na boisku. Zmiana miejsca meczu albo
+ceny po publikacji nie generowała nic — na czacie grupowym taka informacja by padła.
+Twarde usunięcie całego meczu (nie odwołanie — realne skasowanie) nie mówiło nic
+nikomu, mimo że modal potwierdzenia ostrzega wprost „wszyscy uczestnicy stracą dostęp".
+
+ROZWIĄZANIE BOJO: wszystkie trzy sytuacje generują teraz powiadomienie pod dzwonkiem:
+„Usunięto Cię ze składu", „Zmiana w meczu" (miejsce lub koszt), „Mecz usunięty".
+
+MECHANIKA: trzy triggery SQL — `powiadom_o_usunieciu_uczestnika` (migracja `109`,
+`BEFORE DELETE` na `event_participants`, pomija samowypisanie i wiersze już objęte
+powiadomieniem o odrzuconej prośbie), `powiadom_o_zmianie_warunkow` (migracja `110`,
+`AFTER UPDATE` na `events`, jeden trigger dla miejsca i kosztu — `updateEvent()` zapisuje
+cały wiersz jedną instrukcją), `powiadom_o_usunieciu_meczu` (migracja `112`, `BEFORE
+DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `ON DELETE
+CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
+Migracja `112` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
+oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
+
+### 2026-08-20 — Próg „gra się odbędzie" działa już przy zakładaniu meczu
+
+PROBLEM: panel „Czy gramy?" (próg minimum graczy, migracja `097`) nigdy się nie pokazywał
+na nowo założonych meczach — kreator (`/wydarzenia/nowe`) nie miał kontrolki do ustawienia
+progu, miała ją tylko strona edycji. Organizator musiał najpierw opublikować mecz, potem
+wejść w edycję, żeby w ogóle zobaczyć tę funkcję.
+
+ROZWIĄZANIE BOJO: kreator ma teraz to samo pole „+ Ustaw minimum, żeby gra się odbyła" co
+edycja, tuż pod liczbą miejsc. Ustawiony próg widać od razu w podsumowaniu przed
+publikacją.
+
+MECHANIKA: `EventCapacityFields` w `app/wydarzenia/nowe/page.tsx` dostaje propsy
+`minPlayers`/`onMinPlayersChange` (wcześniej przekazywane tylko w `edytuj/page.tsx`);
+wartość idzie do `createEvent()` jako `minPlayers`, zapisuje się w szkicu
+(`lib/eventDraft.ts`) i w podsumowaniu (`lib/eventSummary.ts`).
+
 ### 2026-08-18 — Administrator przestaje być organizatorem cudzego meczu
 
 PROBLEM: administrator platformy widział na stronie każdego meczu pełny panel organizatora
@@ -459,92 +532,3 @@ renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2
 w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
 za dropdown sportów).
 
-### 2026-08-18 — Powiadomienia push na telefon
-
-PROBLEM: każde powiadomienie Bojo czekało, aż użytkownik SAM otworzy aplikację.
-Przy stałej ekipie wyglądało to tak: organizator zakłada mecz w czwartek, a ludzie
-dowiadują się o tym na komunikatorze — czyli Bojo przegrywało w jedynej rzeczy, która
-decyduje o zebraniu składu.
-
-ROZWIĄZANIE BOJO: Bojo wysyła powiadomienia na telefon, także gdy aplikacja jest
-zamknięta. Włącza się je jednym przełącznikiem w profilu („Powiadomienia na telefon");
-dotyczą tego samego, co dzwonek w aplikacji: nowy mecz ekipy, wiadomość w rozmowie,
-zwolnione miejsce z rezerwy, prośba o dołączenie. Na iPhonie push działa WYŁĄCZNIE po
-dodaniu Bojo do ekranu głównego — to ograniczenie systemu, więc Bojo rozpoznaje ten
-przypadek i pokazuje instrukcję zamiast martwego przycisku. Kliknięcie powiadomienia
-otwiera dokładnie ten mecz albo tę ekipę, której dotyczy.
-
-MECHANIKA: migracja `102` — `push_subscriptions` (jeden wiersz na przeglądarkę) i wyzwalacz
-`trg_wyslij_push` na `notifications`, który przez `pg_net` woła funkcję brzegową
-`send-push`. Wysyłka po stronie bazy, nie aplikacji, bo powiadomienia powstają
-w wyzwalaczach i aplikacja często nie wie, że powstały (mecz zakłada jedna osoba,
-powiadomienia dostaje dziesięć). Klient: `lib/push.ts` i `components/PowiadomieniaPush.tsx`,
-service worker `public/sw.js` (od etapu PWA). Uruchomienie wymaga ręcznych kroków
-(klucze VAPID, sekrety, wdrożenie funkcji) → `supabase/functions/send-push/README.md`.
-
-### 2026-08-18 — Chmurka wiadomości gaśnie, karta ekipy czytelna
-
-PROBLEM: różowa chmurka „nowa wiadomość" świeciła się bez końca, mimo że wszystko było
-przeczytane. Przyczyna: liczyła rozmowy ze WSZYSTKICH meczów, w których kiedykolwiek
-grałem — także sprzed pół roku. Rozmowa z rozegranego meczu, do której nikt nie wrócił,
-zapalała wskaźnik na stałe: „Moje" pokazuje wyłącznie nadchodzące, więc nie było jak jej
-otworzyć, a więc i odznaczyć. Osobno: karta ekipy na liście `/grupy` opisywała najbliższy
-mecz jednym zdaniem, w którym nazwa obiektu zajmowała trzy wiersze i przykrywała jedyne
-dwie istotne rzeczy — kiedy gramy i czy jest komplet.
-
-ROZWIĄZANIE BOJO: chmurka liczy wyłącznie NADCHODZĄCE mecze, więc gaśnie po wejściu
-w rozmowę i nie da się jej zapalić czymś, do czego nie ma jak dojść. Dochodzi dymek „Nowa
-wiadomość w meczu {tytuł}", taki sam jak „Nowa gra w grupie {nazwa}". Karta ekipy pokazuje
-termin plakietką, obok plakietkę „brakuje N" albo „komplet", a nazwę obiektu w jednym
-uciętym wierszu pod spodem.
-
-MECHANIKA: `nieprzeczytaneWMeczach()` w `lib/comments.ts` (zastępuje
-`hasUnreadEventMessages()`; filtruje mecze po dacie i zwraca tytuł meczu z najświeższą
-nieprzeczytaną), `components/layout/BottomNav.tsx` (nowy klucz licznika dymka
-`wiadomosc-w-meczu` — stary niósł zużyte pokazania dawnej, ogólnikowej treści),
-`app/grupy/GroupsClient.tsx`. Zasada, którą to wprowadza: wskaźnik wolno zapalić wyłącznie
-za coś, do czego da się dojść z ekranu, na który wskazuje.
-
-### 2026-08-18 — „Gram" jednym kliknięciem i pusty stan, który prowadzi dalej
-
-PROBLEM: na zaproszenie do meczu dało się odpowiedzieć wyłącznie z poziomu strony meczu —
-trzeba było otworzyć kartę, przewinąć, zapisać się. Czyli „tak" kosztowało więcej kliknięć
-niż „nie" (nie robisz nic), w produkcie, którego sensem jest zebranie składu. Przy stałej
-ekipie ta sama pętla wraca co tydzień. Osobno: pusta lista „Znajdź grę" mówiła „Brak
-meczów" i proponowała stworzenie meczu publicznego — komuś, kto nikogo w Bojo nie zna,
-kończy się to meczem bez ludzi.
-
-ROZWIĄZANIE BOJO: przy zaproszeniu — na liście zaproszeń i w panelu powiadomień — stoi
-para małych przycisków „Gram" / „Nie gram". Odpowiedź zapisuje się bez otwierania meczu,
-karta znika od razu, a chmurka mówi, co naprawdę zaszło: skład, rezerwa albo prośba
-czekająca na akceptację. „Nie gram" to jawna odmowa widoczna dla organizatora, nie ciche
-schowanie karty. Zaproszenie liczy się teraz jako sprawa wymagająca decyzji (niebieski
-znacznik) i zamyka je zarówno zapis, jak i odmowa. Pusty stan „Znajdź grę" kieruje osobę
-bez ekipy do dołączenia kodem, a nie do zakładania meczu publicznego.
-
-MECHANIKA: `components/events/OdpowiedzJednymKlikiem.tsx` (wspólny dla `InviteList`
-i `NotificationBell`; `joinEvent()` i `odmow()` z `lib/eventDeclines.ts`, migracja `097`),
-`zaproszenie_na_mecz` dołączone do `WYMAGA_AKCJI` i do sprawdzania stanu w
-`otwarteSprawy()` (`lib/notifications.ts`), pusty stan w `app/wydarzenia/EventsListView.tsx`
-(rozgałęzienie po `getMyGroupIds()`).
-
-### 2026-08-18 — Kiedy kto się zapisał i kto odpadł ze składu
-
-PROBLEM: lista składu w Bojo pokazywała same nazwiska. Nie było widać, kto zapisał się
-pierwszy — a to jedyna rzecz, która tłumaczy kolejność na liście rezerwowej („dlaczego
-jestem na rezerwie"). Osobno: wypisanie się nie zostawiało ŻADNEGO śladu, bo kasuje wiersz
-z listy uczestników. Patrząc na wolne miejsce nie dało się odróżnić „ktoś odpadł" od
-„nikt się nie zapisał".
-
-ROZWIĄZANIE BOJO: przy każdym nazwisku w składzie i na liście rezerwowej stoi czas
-zapisu — „dziś 18:42", „wczoraj 21:05", „sob 14:32", a przy starszych sama data. Pod
-listą jest sekcja „Wypisali się": kto odpadł, kiedy, i czy zrobił to sam, czy usunął go
-organizator. Widzi ją każdy, kto widzi mecz.
-
-MECHANIKA: czas zapisu to `event_participants.created_at` (kolumna istniała od migracji
-`002`, nie była pokazywana), formatowany przez `etykietaZapisu()` w `lib/time.ts`.
-Wypisania: `removeParticipant()` w `lib/events.ts` dopisuje do dziennika meczu wpis
-`participant_left` albo `participant_removed` (rozróżnienie z sesji: czy usuwający to ta
-sama osoba), a `getWypisania()` je czyta. Migracja `101` dokłada drugą politykę SELECT
-na `event_activity_log` obejmującą wyłącznie te dwa rodzaje wpisów — reszta dziennika
-(płatności, zmiany ustawień) zostaje przy organizatorze.

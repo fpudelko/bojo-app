@@ -60,9 +60,10 @@ zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchod
 - Organizator może włączyć podział kosztów, wyniki meczu i podział na drużyny.
 - Bojo **rejestruje**, kto zapłacił — **nie przelewa pieniędzy**. Płatność odbywa się
   poza aplikacją.
-- Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu,
-  zaproszenie, odwołanie meczu, zmiana kompletu składu) są wyłącznie **w aplikacji**.
-  Bojo nie wysyła SMS-ów, maili o meczu ani powiadomień push.
+- Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu, miejsca
+  lub kosztu, zaproszenie, odwołanie lub usunięcie meczu, usunięcie ze składu, zmiana
+  kompletu składu) są wyłącznie **w aplikacji**. Bojo nie wysyła SMS-ów, maili o meczu
+  ani powiadomień push.
 
 ## Optional
 

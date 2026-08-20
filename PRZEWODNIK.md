@@ -79,7 +79,7 @@ Tu prowadzimy rozmowy z obiektami, żeby podłączyć je do rezerwacji. Dla każ
 
 ## 4. Skąd się biorą dane o boiskach
 
-Boisk jest ~1400. Dane uzupełniamy **automatycznie**, uruchamiając skrypty z zakładki **GitHub → Actions** (ręcznie, „Run workflow"). Workflowów jest 11; poniżej cztery główne, w kolejności użycia:
+Boisk jest ponad 30 000 (import OSM całej Polski, PR #109). Dane uzupełniamy **automatycznie**, uruchamiając skrypty z zakładki **GitHub → Actions** (ręcznie, „Run workflow"). Workflowów jest 11; poniżej cztery główne, w kolejności użycia:
 
 | # | Workflow (Actions) | Co dorzuca | Koszt |
 |---|---|---|---|
