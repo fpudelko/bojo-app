@@ -1,4 +1,4 @@
--- 111: Zapis gościa respektuje "akceptacja zapisów" (require_approval).
+-- 115: Zapis gościa respektuje "akceptacja zapisów" (require_approval).
 --
 -- `dolacz_do_meczu_jako_goscie()` (`088`, wcześniej `082`-`087`) wstawiała
 -- `pending_approval = false` na sztywno. Na meczu z włączoną akceptacją

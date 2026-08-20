@@ -1,4 +1,4 @@
--- 110: Powiadomienie o zmianie miejsca lub kosztu meczu.
+-- 114: Powiadomienie o zmianie miejsca lub kosztu meczu.
 --
 -- Jedyne triggery reagujące na edycję meczu to `065` (zmiana daty/godziny)
 -- i `070` (odwołanie). Przeniesienie meczu na inne boisko albo zmiana ceny —

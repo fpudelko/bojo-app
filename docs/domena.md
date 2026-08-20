@@ -325,7 +325,7 @@ Tworzy to wpis gościa (`is_guest = true`, `user_id = NULL`, `guest_email = ...`
 **Reguły pojemności** — gość liczy się normalnie do limitu miejsc (`is_reserve = false AND pending_approval = false`),
 wyląduje na rezerwie jeśli mecz pełny, identycznie jak zalogowany gracz.
 
-**Akceptacja zapisów (`require_approval`)** — od migracji `111` zapis gościa respektuje
+**Akceptacja zapisów (`require_approval`)** — od migracji `115` zapis gościa respektuje
 to ustawienie tak samo jak zapis zalogowany (`dolacz_do_meczu`, `078`): wiersz dostaje
 `pending_approval = event.require_approval` i w tym stanie NIE zajmuje miejsca — ani
 w składzie, ani na rezerwie (`czy_na_rezerwe()` liczy pojemność wyłącznie z wierszy
@@ -425,7 +425,7 @@ Migracje: `082_guest_self_signup.sql`, `083_fix_guest_signup_claim_token.sql` (n
 `085_zapobiegaj_duplikatom_wpisu_goscia.sql`, `087_juz_dolaczony_flaga.sql` (kolumna
 `already_joined` w wyniku RPC), `088_konto_i_zamek_na_duplikaty.sql` (kolumna
 `has_account`, wynik zamiast wyjątku, unikalny indeks na `(event_id, lower(guest_email))`),
-`111_gosc_wymaga_akceptacji.sql` (respektowanie `require_approval`).
+`115_gosc_wymaga_akceptacji.sql` (respektowanie `require_approval`).
 
 ---
 

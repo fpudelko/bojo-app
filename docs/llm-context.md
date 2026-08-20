@@ -362,7 +362,7 @@ zalogowany — wpis czeka na zgodę i nie zajmuje miejsca, dopóki organizator g
 zaakceptuje. Formularz zapisu bez konta pokazuje to wprost, zanim gość kliknie „Zapisz
 się".
 
-MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `111`) ustawia `pending_approval
+MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `115`) ustawia `pending_approval
 = events.require_approval`, tak jak `dolacz_do_meczu()` (migracja `078`) dla zapisu
 zalogowanego. Organizator dostaje powiadomienie o prośbie tym samym mechanizmem co dla
 zalogowanych graczy.
@@ -379,14 +379,14 @@ nikomu, mimo że modal potwierdzenia ostrzega wprost „wszyscy uczestnicy strac
 ROZWIĄZANIE BOJO: wszystkie trzy sytuacje generują teraz powiadomienie pod dzwonkiem:
 „Usunięto Cię ze składu", „Zmiana w meczu" (miejsce lub koszt), „Mecz usunięty".
 
-MECHANIKA: trzy triggery SQL — `powiadom_o_usunieciu_uczestnika` (migracja `109`,
+MECHANIKA: trzy triggery SQL — `powiadom_o_usunieciu_uczestnika` (migracja `113`,
 `BEFORE DELETE` na `event_participants`, pomija samowypisanie i wiersze już objęte
-powiadomieniem o odrzuconej prośbie), `powiadom_o_zmianie_warunkow` (migracja `110`,
+powiadomieniem o odrzuconej prośbie), `powiadom_o_zmianie_warunkow` (migracja `114`,
 `AFTER UPDATE` na `events`, jeden trigger dla miejsca i kosztu — `updateEvent()` zapisuje
-cały wiersz jedną instrukcją), `powiadom_o_usunieciu_meczu` (migracja `112`, `BEFORE
+cały wiersz jedną instrukcją), `powiadom_o_usunieciu_meczu` (migracja `116`, `BEFORE
 DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `ON DELETE
 CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
-Migracja `112` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
+Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
 oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
 
 ### 2026-08-20 — Próg „gra się odbędzie" działa już przy zakładaniu meczu

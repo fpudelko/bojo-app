@@ -1,4 +1,4 @@
--- 109: Powiadomienie o usunięciu POTWIERDZONEGO gracza ze składu.
+-- 113: Powiadomienie o usunięciu POTWIERDZONEGO gracza ze składu.
 --
 -- `076_pelniejsze_tresci_powiadomien.sql#powiadom_o_odrzuceniu_prosby`
 -- powiadamia wyłącznie o odrzuceniu PROŚBY (`OLD.pending_approval IS TRUE`).
@@ -21,7 +21,7 @@
 -- Gdy usuwany jest CAŁY mecz, `event_participants` kaskaduje (`ON DELETE
 -- CASCADE`) i `SELECT ... FROM events WHERE id = OLD.event_id` nie zwróci
 -- nic — trigger wtedy milczy, bo o usunięciu meczu mówi osobne powiadomienie
--- (migracja `112`). Bez tego warunku każdy uczestnik usuniętego meczu
+-- (migracja `116`). Bez tego warunku każdy uczestnik usuniętego meczu
 -- dostałby mylące "usunięto Cię ze składu" zamiast "mecz został usunięty".
 
 CREATE OR REPLACE FUNCTION powiadom_o_usunieciu_uczestnika()

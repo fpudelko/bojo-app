@@ -1,4 +1,4 @@
--- 112: Powiadomienie o twardym usunięciu meczu.
+-- 116: Powiadomienie o twardym usunięciu meczu.
 --
 -- `deleteEvent()` (`lib/events.ts`) to goły `DELETE FROM events`. Modal
 -- potwierdzenia mówi wprost „Wszyscy uczestnicy stracą dostęp do meczu"
