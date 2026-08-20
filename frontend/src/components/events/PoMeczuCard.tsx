@@ -29,10 +29,19 @@ interface WierszZadania {
   ikona: typeof Banknote;
 }
 
+/** Rząd przycisków "Kto nie przyszedł" / "Wszyscy oddali" / "Powtórz mecz" —
+ *  trzy naraz na 360 px, więc ciaśniej niż domyślny rozmiar przycisku w apce
+ *  (mniejsza czcionka, węższy padding, mniejsza ikona). Wspólna stała, bo rząd
+ *  renderuje się w dwóch gałęziach niżej (pusta lista zadań / pełna lista). */
+const PRZYCISK_CLS = 'flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300';
+
 export default function PoMeczuCard({
   maPlatnosc,
   liczbaNieoplaconych,
+  liczbaWSkladzie,
   onWyslijRozliczenie,
+  onWszyscyOddali,
+  busy = false,
   trackResults,
   wynikWpisany,
   onWpiszWynik,
@@ -44,7 +53,18 @@ export default function PoMeczuCard({
   /** `event.costGrosze > 0` — bez tego panel kosztów w ogóle nie istnieje. */
   maPlatnosc: boolean;
   liczbaNieoplaconych: number;
+  /** `regulars.length` — bez tego `liczbaNieoplaconych === 0` nie odróżnia
+   *  "wszyscy już oddali" od "skład jest pusty", a przycisk "Wszyscy oddali"
+   *  nie ma się wtedy do czego odnosić. */
+  liczbaWSkladzie: number;
   onWyslijRozliczenie: () => void;
+  /** Ta sama akcja co przycisk "Wszyscy oddali"/"Cofnij" w zakładce
+   *  Rozliczenia (`handleWszyscyOddali` w `EventDetailClient.tsx`) — etykieta
+   *  przełącza się tu tak samo, sterowana `liczbaNieoplaconych`. */
+  onWszyscyOddali: () => void;
+  /** Blokuje przycisk "Wszyscy oddali" na czas zapisu, żeby drugi klik nie
+   *  wysłał drugiego żądania na to samo. */
+  busy?: boolean;
   trackResults: boolean;
   wynikWpisany: boolean;
   /** Przełącza na zakładkę Wynik — formularz wyniku żyje tam, nie na tej samej
@@ -57,6 +77,20 @@ export default function PoMeczuCard({
   onOznaczNieobecnych?: () => void;
   onPowtorzMecz: () => void;
 }) {
+  const pokazWszyscyOddali = maPlatnosc && liczbaWSkladzie > 0;
+  const wszyscyJuzOddali = liczbaNieoplaconych === 0;
+  const przyciskWszyscyOddali = pokazWszyscyOddali && (
+    <button
+      type="button"
+      onClick={onWszyscyOddali}
+      disabled={busy}
+      className={PRZYCISK_CLS}
+    >
+      <Banknote className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+      <span className="truncate">{wszyscyJuzOddali ? 'Cofnij' : 'Wszyscy oddali'}</span>
+    </button>
+  );
+
   const zadania: WierszZadania[] = [];
 
   if (maPlatnosc) {
@@ -109,22 +143,25 @@ export default function PoMeczuCard({
         <p className="text-sm text-slate-600 dark:text-slate-400">
           {zadania.length > 0 ? 'Wszystko rozliczone. ' : ''}Powtórzyć mecz za tydzień?
         </p>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex gap-1.5">
           {onOznaczNieobecnych && (
             <button
               type="button"
               onClick={onOznaczNieobecnych}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+              className={PRZYCISK_CLS}
             >
-              <UserX className="h-4 w-4" strokeWidth={2.25} /> Kto nie przyszedł
+              <UserX className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+              <span className="truncate">Kto nie przyszedł</span>
             </button>
           )}
+          {przyciskWszyscyOddali}
           <button
             type="button"
             onClick={onPowtorzMecz}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+            className={PRZYCISK_CLS}
           >
-            <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
+            <Copy className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+            <span className="truncate">Powtórz mecz</span>
           </button>
         </div>
       </div>
@@ -169,22 +206,25 @@ export default function PoMeczuCard({
           );
         })}
       </ul>
-      <div className="mt-3.5 flex gap-2">
+      <div className="mt-3.5 flex gap-1.5">
         {onOznaczNieobecnych && (
           <button
             type="button"
             onClick={onOznaczNieobecnych}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+            className={PRZYCISK_CLS}
           >
-            <UserX className="h-4 w-4" strokeWidth={2.25} /> Kto nie przyszedł
+            <UserX className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+            <span className="truncate">Kto nie przyszedł</span>
           </button>
         )}
+        {przyciskWszyscyOddali}
         <button
           type="button"
           onClick={onPowtorzMecz}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300"
+          className={PRZYCISK_CLS}
         >
-          <Copy className="h-4 w-4" strokeWidth={2.25} /> Powtórz mecz
+          <Copy className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+          <span className="truncate">Powtórz mecz</span>
         </button>
       </div>
     </div>

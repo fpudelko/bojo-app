@@ -74,8 +74,13 @@ przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zo
 swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
 
 **„Wszyscy oddali" — masowe oznaczenie płatności, nie klikanie po jednej osobie.**
-Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscyOddali`,
-obok „Wyślij rozliczenie ekipie") oznacza jako opłaconych wszystkich w składzie
+Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscyOddali`) stoi
+**na górze panelu**, zaraz pod podsumowaniem „Zebrano" — nad listą uczestników z
+przełącznikami, nie pod nią: to najczęstsza akcja na tej zakładce po meczu, więc nie ma
+czekać za przewijaniem całego składu (zgłoszone wprost: pierwsza wersja stała na dole,
+obok „Wyślij rozliczenie ekipie"). Ta sama akcja dostępna jest też jako trzeci przycisk
+(skrócona etykieta „Wszyscy oddali"/„Cofnij") w rzędzie karty „Po meczu" — patrz
+[„Karta »Po meczu«"](#karta-po-meczu) niżej. Oznacza jako opłaconych wszystkich w składzie
 (`regulars` — bez rezerwy, bez oczekujących na akceptację; goście bez konta się liczą,
 bo też są w składzie i też płacą), którzy jeszcze nie oddali. Gdy już wszyscy oddali,
 ten sam przycisk zmienia się w „Cofnij — nikt nie oddał" i odwraca oznaczenie
@@ -830,11 +835,18 @@ meczu jest domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po
 (`requestAnimationFrame`) — bez przełączenia zakładki scroll trafiał w pustkę, gdy karta
 była widoczna z innej zakładki niż Skład.
 
-Pod zadaniami stoi zawsze wiersz dwóch przycisków: **„Kto nie przyszedł"** (widoczny tylko
-dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
-[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej) i **„Powtórz mecz"** (zawsze).
-Gdy wszystkie zadania są zrobione (albo mecz żadnego nie śledzi), karta zwija się do jednej
-linii tekstu nad tym samym wierszem przycisków.
+Pod zadaniami stoi zawsze wiersz do trzech przycisków: **„Kto nie przyszedł"** (widoczny
+tylko dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
+[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej), **„Wszyscy oddali"**/„Cofnij"
+(widoczny tylko gdy `event.costGrosze > 0` i skład nie jest pusty — ta sama akcja
+`handleWszyscyOddali` co przycisk „Wszyscy oddali" w panelu „Podział kosztów" wyżej,
+sekcja „Funkcje meczu") i **„Powtórz mecz"** (zawsze). Trzy przyciski
+w jednej linii na 360 px wymagają węższego wariantu niż domyślny przycisk apki — mniejsza
+czcionka, ciaśniejszy padding, mniejsza ikona (`PRZYCISK_CLS` w `PoMeczuCard.tsx`); etykieta
+„Wszyscy oddali" jest tu skrócona do samego „Cofnij" (bez „— nikt nie oddał"), bo pełny
+kontekst stanu widać w panelu „Podział kosztów". Gdy wszystkie zadania są zrobione (albo
+mecz żadnego nie śledzi), karta zwija się do jednej linii tekstu nad tym samym wierszem
+przycisków — łącznie z „Wszyscy oddali", który wtedy pokazuje „Cofnij".
 
 „Powtórz mecz" pojawia się teraz w dwóch miejscach (tu i w „Zarządzaj wydarzeniem"), ale to
 ta sama akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod
