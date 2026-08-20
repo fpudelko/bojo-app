@@ -1,6 +1,6 @@
 # Baza danych
 
-106 migracji (`001`–`108`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+110 migracji (`001`–`112`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -56,7 +56,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 
 | Tabela | Powstała w | Rola |
 |---|---|---|
-| `fields` | `001` | Boiska i obiekty (~1400) |
+| `fields` | `001` | Boiska i obiekty (ponad 30 000, import OSM całej Polski — PR #109) |
 | `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta |
 | `event_declines` | `097` | Jawne „nie gram" — NIE nieobecność. Klucz główny `(event_id, user_id)`, RLS: widoczna dla siebie/organizatora/członków grupy meczu, zapis wyłącznie za siebie |
@@ -152,6 +152,10 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `106_admin_zarzadza_skladem` | `czy_admin()` w politykach UPDATE/INSERT/DELETE na `event_participants`. `isOwner` w interfejsie to `organizer || isAdmin`, więc administrator widzi pełny panel organizatora (losowanie składu, przypisanie drużyny, gwiazdka kapitana), a polityki z `090` znały wyłącznie organizatora i delegata — kontrolki się klikały i nic nie robiły. Trzeci raz ten sam wzorzec po `098` i `104` |
 | `107_publikacja_taktyki` | `event_team_setup.opublikowana` + zawężenie SELECT na `event_team_setup` i `event_team_slots`: kapitan widzi zawsze, reszta drużyny dopiero po publikacji (`czy_taktyka_opublikowana()`). Wzorem `events.teams_published` z `031` — kapitan układa na raty, a drużyna nie ogląda wersji pośrednich. Czat drużyny NIEzależny od publikacji |
 | `108_koniec_admina_w_meczu` | Odwrócenie `106`: polityki na `event_participants` wracają do brzmienia z `090`, bez `czy_admin()`. `106` naprawiała objaw — panel organizatora pokazywany administratorowi przez `isOwner = organizer \|\| isAdmin`. Przyczyną było samo `\|\| isAdmin`, które zniknęło z `EventDetailClient.tsx`; uprawnienie, z którego nic nie korzysta, to wyłącznie ryzyko. „Admins can update any event" (`005`) zostaje — to moderacja wydarzenia, nie zarządzanie cudzym składem |
+| `109_powiadomienie_o_usunieciu_uczestnika` | Trigger `BEFORE DELETE ON event_participants` — powiadomienie `usuniety_ze_skladu`, gdy organizator/delegat usuwa POTWIERDZONEGO gracza (nie pending — to pokrywa `076`, nie samowypisanie — `auth.uid() IS NOT DISTINCT FROM OLD.user_id`). Wcześniej wyrzucenie z już zajętego miejsca w składzie było całkowicie ciche |
+| `110_powiadomienie_o_zmianie_warunkow` | Trigger `AFTER UPDATE ON events` — powiadomienie `zmiana_warunkow_meczu`, gdy zmieni się miejsce (`field_id`/`field_name`/`custom_location_name`/`custom_address`/`lat`/`lng`) lub koszt (`cost_grosz`). Jeden trigger na oba pola, bo `updateEvent()` zapisuje cały wiersz jedną instrukcją — osobne triggery dawałyby dwa powiadomienia z jednego zapisu formularza |
+| `111_gosc_wymaga_akceptacji` | `DROP`/`CREATE` `dolacz_do_meczu_jako_goscie()` (sygnatura i zwrotka bez zmian) — gość respektuje `require_approval` tak samo jak zalogowany zapis (`dolacz_do_meczu`, `078`): `pending_approval = event.require_approval`, wiersz pending nie zajmuje miejsca. Wcześniej wstawiała `pending_approval = false` na sztywno — gość z linku omijał akceptację zapisów, którą organizator świadomie włączył |
+| `112_powiadomienie_o_usunieciu_meczu` | Trigger `BEFORE DELETE ON events` — powiadomienie `mecz_usuniety` do uczestników (pending i potwierdzonych) przy twardym `deleteEvent()`. `event_id = NULL` w INSERT-cie — CELOWO, bo `notifications.event_id` ma `ON DELETE CASCADE` na `events(id)`, więc wiersz z `OLD.id` zostałby skasowany momenty po wstawieniu. Ta sama migracja naprawia odkryty przy tej okazji, wcześniej istniejący bug: `powiadom_o_odrzuceniu_prosby()` (`076`) nie sprawdzała, czy mecz nadrzędny wciąż istnieje — przy kaskadowym usuwaniu `event_participants` po `DELETE FROM events` z choćby jedną oczekującą prośbą, INSERT do `notifications` łamał FK i **cała transakcja usuwania meczu wywracała się błędem** |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
