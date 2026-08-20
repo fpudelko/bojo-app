@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock, MapPin, Crown, MessageCircle } from 'lucide-react';
@@ -12,6 +13,7 @@ import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
 import { withCount } from '@/lib/plural';
+import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
 
 /**
  * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
@@ -56,13 +58,36 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
+  const router = useRouter();
+
+  // Plakietka prowadzi PROSTO do zakładki Rozmowa, nie do zakładki Mecz jak
+  // reszta karty — zgłoszone wprost. Nie może być zagnieżdżonym <a> (cała
+  // karta to już <Link>), więc przejmuje klik i nawiguje sama, z `stopPropagation`
+  // żeby nie odpalić też kliknięcia karty.
+  const idzDoRozmowy = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/wydarzenia/${event.id}?tab=rozmowa`);
+  };
+  const plakietkaRozmowy = pokazNieprzeczytane ? (
+    <span
+      role="link"
+      tabIndex={0}
+      aria-label={`Otwórz rozmowę — ${withCount(unreadMessages!, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}`}
+      onClick={idzDoRozmowy}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') idzDoRozmowy(e); }}
+      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 transition-colors hover:bg-pink-200 dark:bg-pink-950 dark:text-pink-300"
+    >
+      <MessageCircle className="h-3 w-3" /> {unreadMessages}
+    </span>
+  ) : null;
 
   const max = event.maxPlayers ?? 0;
   const taken = event.participantsCount ?? 0;
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const barColor = full ? '#dc2626' : color;
+  const barColor = full ? KOLOR_PASKA_KOMPLET : color;
 
   let dayLabel = '';
   try {
@@ -216,11 +241,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                 brakuje (np. organizator bez własnego udziału nie ma statusChipu). */}
             {(pokazNieprzeczytane || statusChip) && (
               <span className="ml-auto flex items-center gap-2">
-                {pokazNieprzeczytane && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
-                    <MessageCircle className="h-3 w-3" /> {unreadMessages}
-                  </span>
-                )}
+                {plakietkaRozmowy}
                 {statusChip && (
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
                     {statusChip.label}
@@ -241,17 +262,13 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
               <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
               <div className="flex shrink-0 items-center gap-3">
                 {full ? (
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Komplet</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${PLAKIETKA_KOMPLET}`}>Komplet</span>
                 ) : (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
                     {withCount(left, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}
                   </span>
                 )}
-                {pokazNieprzeczytane && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
-                    <MessageCircle className="h-3 w-3" /> {unreadMessages}
-                  </span>
-                )}
+                {plakietkaRozmowy}
                 {statusChip ? (
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
                     {statusChip.label}

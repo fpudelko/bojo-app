@@ -13,6 +13,8 @@ import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
 import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
+import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
+import PanelRozmow from './PanelRozmow';
 
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
@@ -161,6 +163,13 @@ export default function BottomNav() {
     return () => { aktualne = false; };
   }, [pathname]);
 
+  // Przytrzymanie „Moje" → panel z listą wszystkich nieprzeczytanych rozmów
+  // (mecze + ekipy), zgłoszone wprost. Hak żyje na poziomie komponentu, nie
+  // wewnątrz `NavLink` — `NavLink` jest funkcją definiowaną w ciele
+  // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
+  const [panelRozmowOtwarty, setPanelRozmowOtwarty] = useState(false);
+  const gestMoje = useDlugieWcisniecie(() => setPanelRozmowOtwarty(true));
+
   // Dymki — krótkie wyjaśnienie znaczenia kropki, na moment, gdy się zapala.
   // Zawsze przypięty do konkretnej ikony (`href`) — stąd osobne typy dla
   // różowej na „Moje" i różowej na „Grupy", mimo identycznego tekstu; bez
@@ -235,6 +244,10 @@ export default function BottomNav() {
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
+      // Odkrywalność gestu przytrzymania — bez tego nikt by się nie
+      // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
+      // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
+      ['przytrzymaj-rozmowy', unreadEvents || unreadGroups, 'Przytrzymaj „Moje" → wszystkie rozmowy', '/moje-gry'],
     ];
     for (const [typ, aktywny, tekst, href] of proby) {
       const byloAktywne = poprzednieAktywne.current[typ] ?? false;
@@ -253,7 +266,7 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0,
+    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, gest,
   }: {
     href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
@@ -291,6 +304,9 @@ export default function BottomNav() {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś wyłącznie na
+        „Moje", stąd opcjonalne. Rozłożone wprost na `<Link>`. */
+    gest?: Record<string, unknown>;
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
@@ -306,14 +322,22 @@ export default function BottomNav() {
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
           active ? 'text-primary-700' : 'text-slate-400 hover:text-slate-600',
+          gest && 'select-none [-webkit-touch-callout:none]',
         )}
+        {...gest}
       >
         <span className="relative">
           {dymek && (
             <span
               role="status"
               className={clsx(
-                'pointer-events-none absolute -top-9 z-[1020] w-max max-w-[130px] rounded-lg bg-ink px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg',
+                // `bg-slate-800`, nie `bg-ink` — `ink` odwraca się w trybie
+                // ciemnym (tekst → prawie biały tło), więc dymek z twardym
+                // `text-white` znikał na własnym tle (zgłoszone wprost:
+                // "średnio widać dymki w trybie ciemnym"). Dymek ma być ciemną
+                // plakietką w OBU motywach, jak toast (`lib/toast.tsx`), nie
+                // podążać za odwracającym się tokenem tekstu.
+                'pointer-events-none absolute -top-9 z-[1020] w-max max-w-[130px] rounded-lg bg-slate-800 px-2 py-1 text-center text-[10px] font-semibold leading-tight text-white shadow-lg',
                 dymekAlign === 'left' && 'left-0',
                 dymekAlign === 'right' && 'right-0',
                 dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',
@@ -322,7 +346,7 @@ export default function BottomNav() {
               {dymek}
               <span
                 className={clsx(
-                  'absolute top-full h-0 w-0 border-4 border-transparent border-t-ink',
+                  'absolute top-full h-0 w-0 border-4 border-transparent border-t-slate-800',
                   dymekAlign === 'left' && 'left-2.5',
                   dymekAlign === 'right' && 'right-2.5',
                   dymekAlign === 'center' && 'left-1/2 -translate-x-1/2',
@@ -435,10 +459,18 @@ export default function BottomNav() {
               dymek={dymek}
               dymekAlign={dymekAlign}
               licznik={item.href === '/moje-gry' ? ileMoich : 0}
+              gest={item.href === '/moje-gry' ? gestMoje : undefined}
             />
           );
         })}
       </div>
+      {user && (
+        <PanelRozmow
+          otwarty={panelRozmowOtwarty}
+          naZamknij={() => setPanelRozmowOtwarty(false)}
+          userId={user.id}
+        />
+      )}
     </nav>
   );
 }

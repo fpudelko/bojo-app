@@ -5,15 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { CalendarPlus, Loader2, Share2 } from 'lucide-react';
+import { CalendarPlus, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
+import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { repeatEvent } from '@/lib/events';
 import type { MyEventRelation } from '@/lib/events';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
-import { shareEvent, eventUrl } from '@/lib/eventShare';
 import type { EventItem } from '@/types';
 
 /**
@@ -60,22 +60,17 @@ export default function NajblizszyMeczGrupy({
   };
 
   if (upcoming) {
-    const handleShare = async () => {
-      const wynik = await shareEvent(upcoming, eventUrl(upcoming.id, window.location.origin));
-      if (wynik === 'copied') toast('Skopiowano link do meczu');
-    };
-
     return (
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700">Najbliższy mecz</p>
         <EventBrowseCard event={upcoming} relation={relation} unreadMessages={unreadMessages} isNew={isNew} />
-        <Button
-          variant="outline"
-          onClick={handleShare}
-          className="mt-2 inline-flex w-full items-center justify-center gap-1.5"
-        >
-          <Share2 className="h-4 w-4" /> Udostępnij mecz
-        </Button>
+        {/* Ten sam panel co w widoku meczu, nie własny przycisk „Udostępnij
+            mecz". Poprzednia wersja robiła połowę tego samego: otwierała
+            systemowe okno wyboru aplikacji i na tym kończyła, więc kto je
+            zamknął, zostawał z niczym. Kopiowanie linku działa zawsze. */}
+        <div className="mt-2">
+          <ZaprosZnajomychPanel event={upcoming} />
+        </div>
       </section>
     );
   }

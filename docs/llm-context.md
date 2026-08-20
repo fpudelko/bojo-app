@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-20 · migracja `112` · 38 tabel · 633 testy
+**Stan na:** 2026-08-20 · migracja `116` · 39 tabel · 692 testy
 
 ---
 
@@ -59,9 +59,16 @@ imię i e-mail i jest w składzie (funkcja RPC `dolacz_do_meczu_jako_goscie()`, 
 `082`–`088`, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)); konto może
 dokończyć dopiero po zapisie, jeśli chce mieć historię i statystyki.
 
+Jedno miasto ma dziś dedykowaną stronę pod konkretny sport: `/graj/[sport]/poznan`
+(cztery sporty × Poznań), z licznikiem otwartych meczów w promieniu ok. 15 km na żywo —
+patrz [funkcje.md](./funkcje.md#strona-grajsportmiasto--poznań). To pilotaż, nie ograniczenie
+produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, Poznań ma tylko osobną stronę
+wejściową.
+
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
 dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
-konto, żeby przeglądać boiska? Czy trzeba mieć konto, żeby dołączyć do meczu?
+konto, żeby przeglądać boiska? Czy trzeba mieć konto, żeby dołączyć do meczu? Czy Bojo ma
+osobną stronę dla Poznania?
 
 ---
 
@@ -404,131 +411,163 @@ MECHANIKA: `EventCapacityFields` w `app/wydarzenia/nowe/page.tsx` dostaje propsy
 `minPlayers`/`onMinPlayersChange` (wcześniej przekazywane tylko w `edytuj/page.tsx`);
 wartość idzie do `createEvent()` jako `minPlayers`, zapisuje się w szkicu
 (`lib/eventDraft.ts`) i w podsumowaniu (`lib/eventSummary.ts`).
+### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
 
-### 2026-08-18 — Administrator przestaje być organizatorem cudzego meczu
+PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony
+docelowej — `/boiska/[sport]` odpowiada „gdzie jest boisko" (katalog nationwide), a
+`/wydarzenia` to płaska lista bez adresu URL na sport ani miasto. Wartość #2 misji Bojo
+(„koniec z odwoływaniem meczu z braku 1-2 osób") nie miała własnego wejścia z wyszukiwarki.
+Osobno: `get_nearby_events()` (migracja `025`) istniała od dawna, ale poza wyłączoną flagą
+`SHOW_GAME_ALERTS` nic jej nie wołało — martwy kod.
 
-PROBLEM: administrator platformy widział na stronie każdego meczu pełny panel organizatora
-— losowanie składu, przypisywanie drużyn, gwiazdkę kapitana, ustawienia. Reguły dostępu
-w bazie znały wyłącznie organizatora i jego delegatów, więc kontrolki się pokazywały,
-klikały i kończyły czerwonym komunikatem o uprawnieniach. Łatane trzy razy z rzędu i za
-każdym razem wychodziło kolejne miejsce: przełącznik ról, zapis taktyki, przypisanie
-drużyny, poparcie propozycji składu. Osobno: przycisk „Popieram" przy propozycji składu
-widział każdy, a poprzeć może wyłącznie gracz tego meczu.
+ROZWIĄZANIE BOJO: cztery nowe strony, `/graj/[sport]/poznan` (piłka nożna, siatkówka,
+siatkówka plażowa, koszykówka) — jedyne miasto z realnym pokryciem katalogu i ruchem.
+Każda pokazuje na żywo otwarte publiczne mecze danego sportu w promieniu 15 km od centrum
+(licznik + do 5 najbliższych, link do strony meczu), 3 kroki zakładania meczu, uczciwe
+zastrzeżenie gdy lista jest pusta, i CTA „Stwórz mecz publiczny" z prefillem sportu.
+`/boiska/[sport]` i `/wydarzenia/nowe` dostały linki do/z nowych stron.
 
-ROZWIĄZANIE BOJO: administrator ogląda mecz jak każdy inny użytkownik. Meczem zarządza
-organizator i osoby, którym on nadał uprawnienia; administrator ma własne ekrany
-(`/admin/*`). Licznik poparcia przy propozycji składu widzą wszyscy, ale klikalny jest
-tylko dla grających — przycisk, który u kogoś z zewnątrz zawsze kończy się błędem, jest
-gorszy niż jego brak.
+MECHANIKA: `app/graj/[sport]/[miasto]/page.tsx` (`generateStaticParams` — zbiór bounded,
+4 strony, `revalidate=3600`), `lib/events.ts#getNearbyEvents()` (odkurzone, RPC
+`get_nearby_events`), `lib/sports.ts#FOCUS_SPORT_BY_SLUG` (slug↔wartość w bazie, używane
+też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten parametr),
+`content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
+testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
+tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.
 
-MECHANIKA: `isOwner` w `EventDetailClient.tsx` to teraz `user.id === event.organizerId`
-(bez `|| isAdmin`), migracja `108` cofa dodane godzinę wcześniej `czy_admin()` z polityk
-`event_participants` (uprawnienie bez zastosowania to wyłącznie ryzyko). `TeamProposals`
-dostał prop `mozeGlosowac`, spójny z polityką `Participant votes` z migracji `059`.
-Moderacja samego wydarzenia przez administratora (`005`) zostaje bez zmian.
+### 2026-08-19 — SEO/GEO: współrzędne meczu w danych strukturalnych, linki między boiskami a treścią
 
-### 2026-08-18 — Taktyka: publikacja, pozycje z nazwami, zakładka „Mecz"
+PROBLEM: dane strukturalne meczu (`SportsEvent`) nie niosły współrzędnych, mimo że `events.lat`
+i `events.lng` są zapisywane przy każdym utworzeniu meczu — wyszukiwarki i asystenci AI nie
+mieli sygnału geograficznego do lokalnych zapytań („mecze w mojej okolicy”). Osobno: katalog
+boisk (`/boiska/[sport]`) i strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`) nie linkowały
+do siebie nawzajem — ktoś szukający boiska nie trafiał na wyjaśnienie, jak zorganizować na nim
+mecz, i odwrotnie.
 
-PROBLEM: kapitan układał ustawienie na oczach drużyny — każda pośrednia wersja była
-widoczna i nie dało się odróżnić „tak gramy" od „tak akurat wyszło". Pozycje na boisku
-miały skróty „OB" i „PM", czyli mówiły to samo, co widać po wysokości na boisku. Gracza
-dało się przypisać wyłącznie w kolejności pozycja → nazwisko. Zakładka „Skład" trzymała
-opis meczu, termin, miejsce, licznik, listę graczy i zapisy — czyli cały mecz. Osobno:
-administrator widział panel organizatora, ale przypisanie gracza do drużyny kończyło się
-komunikatem o braku uprawnień.
+ROZWIĄZANIE BOJO: `location.geo` (`GeoCoordinates`) w danych strukturalnych meczu, gdy
+współrzędne są znane — dotyczy zarówno boiska z katalogu, jak i przypiętej pinezki, bo obie
+ścieżki zapisują `events.lat`/`events.lng`. `/boiska/[sport]` dostało link „Jak działa Bojo —
+zbierz skład na to boisko”, a `/jak-dziala-bojo` i `/dlaczego-bojo` dostały link „Mapa boisk”
+w swoich CTA-boxach.
 
-ROZWIĄZANIE BOJO: kapitan ma przełącznik „Opublikuj taktykę" — do tego czasu widzi ją sam,
-a drużyna czyta „Taktyka jeszcze nieustalona" i normalnie rozmawia na czacie. Pozycje
-nazywają się jak w piłce: LO, ŚO, PO, ŚPD, LP, ŚPO, LN, N. Gracza przypisuje się w obie
-strony — stukasz pozycję i nazwisko albo nazwisko i pozycję. Zakładka „Skład" nazywa się
-teraz „Mecz". Kapitan jest JEDEN na drużynę: nadanie gwiazdki komuś nowemu zdejmuje ją
-poprzedniemu.
+MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` dokłada `geo`
+jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
+selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
+`app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
 
-MECHANIKA: migracja `107` (`event_team_setup.opublikowana`, `czy_taktyka_opublikowana()`,
-zawężone polityki SELECT) i `106` (`czy_admin()` w politykach `event_participants` —
-interfejs traktował admina jak organizatora, baza nie). `lib/taktyka.ts`: `opisPozycji()`
-wylicza skrót z linii i strony boiska. `setCaptain()` w `lib/eventFeatures.ts` zdejmuje
-poprzedniego kapitana tej samej drużyny.
+### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
 
-### 2026-08-18 — Taktyka: ustawia kapitan, widzi drużyna
+PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
+(„jak rozliczyć mecz ze znajomymi”, „gdzie szukać brakujących graczy”, „czym Bojo różni się
+od grupy na WhatsAppie”), ale nagłówki i meta-opisy nie używały tych fraz wprost — wyszukiwarki
+i asystenci AI składają odpowiedź z fragmentu najbliższego pytaniu, więc sekcja bez pytania
+w nagłówku ginęła, mimo że odpowiedź w treści już tam była. Osobno: strony treści nie miały
+żadnej danej strukturalnej poza `BreadcrumbList` — `siteJsonLd()` opisywał Bojo tylko jako
+`Organization`/`WebSite`, bez listy funkcji czytelnej dla modeli.
 
-PROBLEM: pierwsza wersja zakładki „Taktyka" pokazywała OBIE drużyny i była dostępna
-wyłącznie dla administratora platformy — czyli gracz nie widział własnej taktyki, a osoba
-z zewnątrz widziała cudzy czat drużyny. Osobno: wśród gotowych odpowiedzi „Od połowy"
-i „Na swojej połowie" opisywały to samo cofnięcie się, a lista zamknięta nie miała miejsca
-na „my gramy inaczej". Zakładka pokazywała też opis meczu, datę i miejsce — czyli rzeczy
-z zakładki „Skład", przez które trzeba było przewijać.
+ROZWIĄZANIE BOJO: nagłówek sekcji „Kto ile płaci” brzmi teraz „Jak rozliczyć mecz ze
+znajomymi — kalkulator kosztów boiska” (treść bez zmian — pierwsze zdanie już było gotową
+odpowiedzią). Nowa sekcja „Co zrobić, gdy brakuje 1-2 graczy do składu” tłumaczy przełącznik
+„mecz publiczny” z kroku 3 kreatora i uczciwie zastrzega, że publicznych gier bywa dziś
+niewiele. `/jak-dziala-bojo` i `/dlaczego-bojo` dostały każda mały, tematyczny blok FAQ
+(accordion) pod koniec strony — inny podzbiór pytań na każdej, żeby się nie dublowały.
+`siteJsonLd()` niesie teraz też węzeł `SoftwareApplication` z listą funkcji, a
+`/jak-dziala-bojo` emituje `HowTo` nad trzema krokami zakładania meczu.
 
-ROZWIĄZANIE BOJO: zakładkę widzi ten, kto GRA w meczu, i wyłącznie SWOJĄ drużynę.
-Ustawienie, pozycje i taktykę zmienia KAPITAN (wskazuje go organizator w „Składzie"
-gwiazdką przy nazwisku); reszta drużyny widzi gotowy opis bez ani jednego przycisku.
-Przy każdym pytaniu jest „Inne" z polem tekstowym. Pytanie o pressing brzmi teraz „Gdzie
-odbieramy piłkę" i ma dwie wykluczające się odpowiedzi: „Pod ich bramką" albo „U siebie".
-Boisko jest mniejsze i pozycje odsunięte od linii bocznych, żeby imiona się mieściły.
-Szczegóły meczu (opis, termin, miejsce, licznik miejsc) zostają wyłącznie w „Składzie".
+MECHANIKA: `content/jakDziala.ts` (sekcja `pieniadze` przemianowana, nowa sekcja
+`brakuje-graczy`), `lib/structuredData.ts` (`howToJsonLd()`, węzeł `SoftwareApplication`
+w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty z `/faq`,
+używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
+nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
+stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
 
-MECHANIKA: migracja `105` — `czy_kapitan_druzyny()` w politykach zapisu na
-`event_team_setup` i `event_team_slots`, czat przez `czy_w_druzynie()` bez administratora
-(cofnięcie `104`). `lib/taktyka.ts`: `WARTOSC_INNE`, `odpowiedzTaktyki()`, margines pozycji
-20% zamiast 12%. `components/events/TaktykaDruzyny.tsx` renderuje tryb do czytania, gdy
-patrzący nie jest kapitanem. Nagłówek meczu w `EventDetailClient.tsx` gatowany na
-`tab === 'sklad'`.
+### 2026-08-19 — Treść powiadomienia mówi, co się stało
 
-### 2026-08-18 — Naprawa: administrator nie mógł zapisać taktyki
+PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
+linijkach — i musi w tym czasie odpowiedzieć na pytanie „czy mnie to teraz obchodzi".
+Powiadomienia o wiadomościach nie odpowiadały wcale: tytuł brzmiał „Nowa wiadomość" (czyli
+to, co widać po ikonie), a treść mówiła „X napisał w rozmowie", czyli powtarzała tytuł
+innymi słowami. Trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10
+minut później", czy o „nie dam rady, szukajcie kogoś". Osobno: zachęta do włączenia
+powiadomień wracała przy każdym wejściu na mecz, w którym się gra.
 
-PROBLEM: zakładka „Taktyka" otwierała się, ale każde kliknięcie kończyło się czerwonym
-komunikatem `new row violates row-level security policy`. Zakładka jest dziś widoczna
-wyłącznie dla administratora platformy, a reguły dostępu w bazie znały tylko organizatora
-meczu, jego delegata i członka drużyny — czyli jedyna osoba, która mogła ten widok
-otworzyć, nie mogła w nim nic zapisać.
+ROZWIĄZANIE BOJO: tytuł powiadomienia niesie konkret, którego dotyczy (nazwa meczu, nazwa
+ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wiadomość
+(`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
+i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
+do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
+pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
+ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
+aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
+(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
+drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
+widać go teraz na liście składów (litera „c" w okręgu przy nazwisku, `OznaczenieKapitana.tsx`). Na boisku w Taktyce widnieje pełne imię i nazwisko łamane na dwie linijki, a w kółku nazwa pozycji (BR, LO, ŚP, N…) — kółko mówi „gdzie", podpis mówi „kto"; samo imię nie rozróżniało dwóch Mateuszów w jednym składzie. Przy najbliższym meczu ekipy stoi ten sam panel „Zaproś znajomych" co w widoku meczu (udostępnienie + kopiowanie linku) zamiast pojedynczego „Udostępnij mecz" i przy nazwie drużyny w zakładce Taktyka.
 
-ROZWIĄZANIE BOJO: administrator zapisuje ustawienie, pozycje i pisze w czacie drużyny.
-Kasowanie cudzych wiadomości zostaje przy autorze — tak samo jak w rozmowie meczu.
+MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
+`powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
+`components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
+udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
+z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
+widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
+zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
+idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
+składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
+`teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
+opublikować.
 
-MECHANIKA: migracja `104` dokłada `czy_admin()` (z `098`) do polityk zapisu na
-`event_team_setup` i `event_team_slots` oraz do odczytu i wstawiania w
-`event_team_messages`. Odtworzone na gołym Postgresie: na politykach z `103` zapis
-kończy się wyjątkiem, po `104` przechodzi, a osoba spoza meczu nadal nie zapisze niczego.
-Zasada na przyszłość: jeśli widok jest za bramką `isAdmin`, `czy_admin()` musi być
-w polityce od pierwszego dnia — to ta sama klasa błędu co w `098`.
+### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
 
-### 2026-08-18 — Taktyka drużyny: ustawienie, pozycje i osobny czat (na razie tylko admin)
+PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
+pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
+realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
+między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
+ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
+przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
 
-PROBLEM: po opublikowaniu składów każda drużyna była wyłącznie listą nazwisk. Kto gra
-w obronie, kto na skrzydle i co robimy z piłką — ustalało się ustnie przed meczem, więc
-połowa składu tego nie słyszała. Osobno: rozmowa meczu jest wspólna dla obu drużyn, więc
-nie dało się w niej uzgodnić niczego, czego nie ma przeczytać rywal.
+ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
+miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
+przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
+nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
+dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
+całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
+sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
+prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
+z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
+w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
 
-ROZWIĄZANIE BOJO: zakładka „Taktyka", widoczna po opublikowaniu składów. Dla każdej
-drużyny osobno: wybór ustawienia z listy dobranej do liczby graczy (od 1-2-2 na orliku po
-1-4-2-3-1 na pełnym boisku, z opisem co dane ustawienie robi), boisko z pozycjami —
-gracza stawia się dwoma stuknięciami, bez przeciągania — cztery decyzje taktyczne
-(jak bronimy, wyjście od bramkarza, kiedy atakujemy rywala, tempo gry), notatka na stałe
-fragmenty oraz czat wyłącznie dla tej drużyny. Druga drużyna czatu nie widzi.
+MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
+`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
+w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
+`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
+w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
+`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
+`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
+w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
+i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
 
-MECHANIKA: migracja `103` (`event_team_setup`, `event_team_slots`, `event_team_messages`,
-funkcja `czy_w_druzynie()`), `lib/taktyka.ts` (katalog ustawień; pozycje na boisku
-wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalogu, bez
-migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
-razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
-więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.
+### 2026-08-19 — Ustawienia powiadomień i powiadomienia o wiadomościach
 
-### 2026-08-18 — Spójny pasek szukania i filtrów między „Znajdź grę" a „Mapa"
+PROBLEM: powiadomienia na telefon działały „wszystko albo nic" — jedyną reakcją na zbyt
+wiele było wyłączenie ich w całości, razem z tymi, które naprawdę mają znaczenie
+(zwolnione miejsce, odwołany mecz). Osobno: wiadomości w rozmowie meczu i na tablicy
+ekipy NIE miały żadnego powiadomienia — nieprzeczytane liczyła sama przeglądarka, więc
+o nowej wiadomości dowiadywał się tylko ten, kto i tak otworzył aplikację.
 
-PROBLEM: dwie zakładki tego samego dolnego paska wyglądały jak dwa różne ekrany. Pole
-szukania na mapie stało 8 px wyżej i miało inne zaokrąglenie, więc przy przełączaniu
-przeskakiwało. Podpowiedź w polu ucinała się w połowie słowa („Szukaj boiska po nazwie
-lub a…"). Pigułki filtrów zmieniały kolejność: sport stał raz przed „Filtry", raz po —
-przy przełączaniu Gry↔Obiekty palec trafiał w inny filtr niż sekundę wcześniej.
+ROZWIĄZANIE BOJO: w profilu, pod przełącznikiem powiadomień, jest rozwijana lista „O czym
+powiadamiać" z osobnym przełącznikiem dla każdego rodzaju: zwolnione miejsce, odwołany
+mecz, pytanie o udział, zaproszenie, prośba o dołączenie, składy, nowy mecz w ekipie,
+wiadomości w meczu, wiadomości w ekipie, ogłoszenia. Rzeczy wymagające reakcji stoją na
+górze i mają znacznik „ważne" — Bojo ostrzega, ale nie zabrania ich wyłączyć. Ustawienia
+dotyczą WYŁĄCZNIE telefonu: dzwonek w aplikacji pokazuje wszystko.
 
-ROZWIĄZANIE BOJO: pole szukania ma tę samą geometrię i ten sam odstęp od góry na obu
-zakładkach (na mapie zostaje białe tło z cieniem, bo leży na mapie). Podpowiedź jest
-krótka i mieści się w całości: „Nazwa boiska albo adres" dla obiektów, „Nazwa albo
-boisko" dla gier. Kolejność pigułek jest wspólna: najpierw zakres (sortowanie albo tryb
-mapy), potem sport, potem „Filtry", na końcu przełączniki.
+Doszły powiadomienia o wiadomościach (w meczu i w ekipie) oraz o opublikowaniu składów.
+Wiadomości mają zaporę: najwyżej jedno powiadomienie na godzinę z danej rozmowy, bo
+rozmowa przed meczem potrafi mieć trzydzieści wpisów w kwadrans, a trzydzieści
+powiadomień kończy się wyłączeniem wszystkich.
 
-MECHANIKA: `components/map/VenueExplorer.tsx` (jeden dropdown sportów zamiast dwóch
-renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2xl` jak
-w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
-za dropdown sportów).
-
+MECHANIKA: migracja `109` — `profiles.push_wylaczone` (lista WYŁĄCZONYCH, żeby nowy rodzaj
+był domyślnie aktywny), filtr w wyzwalaczu wysyłki, wyzwalacze na `event_comments`,
+`group_posts` i `events.teams_published`. Klient: `lib/ustawieniaPowiadomien.ts`
+i `components/PowiadomieniaPush.tsx`. Przy logowaniu przez Google Bojo prosi teraz zawsze
+o wybór konta (`prompt=select_account`) — bez tego przy kilku kontach Google logowało od
+razu na pierwsze z brzegu.

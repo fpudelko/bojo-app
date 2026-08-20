@@ -155,7 +155,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     zapamietajPowrot(next);
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: callbackUrl(next) },
+      options: {
+        redirectTo: callbackUrl(next),
+        // `prompt=select_account` — ZAWSZE pytaj, na które konto.
+        //
+        // Bez tego Google przy jednej aktywnej sesji loguje od razu, bez
+        // pokazywania listy: kto ma konto prywatne i firmowe (a przy testowaniu
+        // Bojo — konto właściciela i testowe), trafiał na to, które akurat było
+        // pierwsze, i nie miał jak tego zmienić inaczej niż wylogowując się
+        // z Google w całej przeglądarce (zgłoszone wprost).
+        //
+        // Koszt: jedno dodatkowe kliknięcie dla kogoś z JEDNYM kontem. Cena
+        // pomyłki jest wyższa — konto w Bojo zakłada się wtedy na złym adresie
+        // i wychodzi to dopiero, gdy zniknie historia meczów.
+        queryParams: { prompt: 'select_account' },
+      },
     });
   };
 

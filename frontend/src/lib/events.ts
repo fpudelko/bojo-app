@@ -83,6 +83,7 @@ function toParticipant(row: any): EventParticipant {
     hasPaid: row.has_paid ?? false,
     isReserve: row.is_reserve ?? false,
     createdAt: row.created_at,
+    zapisanoAt: row.zapisano_at ?? undefined,
     avatarUrl: row.avatarUrl ?? undefined,
     team: row.team ?? undefined,
     paidAmount: row.paid_amount ?? 0,
@@ -99,6 +100,14 @@ function toParticipant(row: any): EventParticipant {
     hasSportsCard: row.has_sports_card ?? false,
     sportsCardProvider: row.sports_card_provider ?? undefined,
   };
+}
+
+/** Moment, od którego liczy się miejsce w kolejce rezerwowej. Osobny od
+ *  `createdAt`, bo wiersz obserwującego („Obserwuję") powstaje wcześniej niż
+ *  prawdziwy zapis — patrz migracja `110`. Fallback na `createdAt` obsługuje
+ *  bazę bez tej migracji: zachowanie jest wtedy dokładnie takie jak przed nią. */
+export function momentZapisu(p: { zapisanoAt?: string; createdAt?: string }): string {
+  return p.zapisanoAt ?? p.createdAt ?? '';
 }
 
 // ---------------------------------------------------------------------------
@@ -592,6 +601,7 @@ export async function confirmFromMaybe(
   eventId: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
+  actor?: { userId: string; name: string },
 ): Promise<WynikZapisu> {
   await runSyncReserveClaim(eventId);
   const isReserve = await czyNaRezerwe(eventId, asGoalkeeper);
@@ -604,6 +614,16 @@ export async function confirmFromMaybe(
     has_sports_card: payment?.hasSportsCard ?? false,
     sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
   }, 'Nie udało się potwierdzić udziału');
+
+  // Potwierdzenie z „obserwuję" nie zostawiało dotąd żadnego śladu w dzienniku
+  // — to UPDATE, nie INSERT, więc `joinEvent`-owy `logActivity` po prostu nie
+  // biegł na tej ścieżce.
+  if (actor) {
+    logActivity(eventId, actor.userId, actor.name, 'participant_joined',
+      { is_reserve: isReserve, pending: false }).catch(
+      (e) => console.warn('[ActivityLog] participant_joined', e),
+    );
+  }
 
   return { isReserve, pending: false };
 }

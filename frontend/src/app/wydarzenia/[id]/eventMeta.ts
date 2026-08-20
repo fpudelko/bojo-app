@@ -19,13 +19,15 @@ export interface EventMeta {
   max_players?: number;
   cost_grosz?: number;
   cover?: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 export async function getEventMeta(id: string): Promise<EventMeta | null> {
   const { data } = await supabase
     .from('events')
     .select(
-      'title, sport, event_date, event_time, end_time, field_name, custom_location_name, custom_address, visibility, status, max_players, cost_grosz, cover_image_url',
+      'title, sport, event_date, event_time, end_time, field_name, custom_location_name, custom_address, visibility, status, max_players, cost_grosz, cover_image_url, lat, lng',
     )
     .eq('id', id)
     .maybeSingle();
@@ -44,5 +46,7 @@ export async function getEventMeta(id: string): Promise<EventMeta | null> {
     max_players: data.max_players ?? undefined,
     cost_grosz: data.cost_grosz ?? undefined,
     cover: data.cover_image_url ?? undefined,
+    lat: data.lat ?? null,
+    lng: data.lng ?? null,
   };
 }

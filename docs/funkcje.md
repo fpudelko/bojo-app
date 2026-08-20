@@ -73,6 +73,27 @@ i numer BLIK, gdy organizator akceptuje tę metodę płatności. Bez tego organi
 przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zobaczyć
 swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
 
+**„Wszyscy oddali" — masowe oznaczenie płatności, nie klikanie po jednej osobie.**
+Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscyOddali`) stoi
+**na górze panelu**, zaraz pod podsumowaniem „Zebrano" — nad listą uczestników z
+przełącznikami, nie pod nią: to najczęstsza akcja na tej zakładce po meczu, więc nie ma
+czekać za przewijaniem całego składu (zgłoszone wprost: pierwsza wersja stała na dole,
+obok „Wyślij rozliczenie ekipie"). Ta sama akcja dostępna jest też jako trzeci przycisk
+(skrócona etykieta „Zapłacili"/„Cofnij" — pełna „Wszyscy oddali" nie mieściła się obok
+dwóch innych przycisków w jednej linii, patrz niżej) w rzędzie karty „Po meczu" — patrz
+[„Karta »Po meczu«"](#karta-po-meczu) niżej. Oznacza jako opłaconych wszystkich w składzie
+(`regulars` — bez rezerwy, bez oczekujących na akceptację; goście bez konta się liczą,
+bo też są w składzie i też płacą), którzy jeszcze nie oddali. Gdy już wszyscy oddali,
+ten sam przycisk zmienia się w „Cofnij — nikt nie oddał" i odwraca oznaczenie
+jednym kliknięciem. Kwota per osoba liczona jak wszędzie przez `priceForParticipant()`
+— zniżka z karty sportowej jest respektowana, więc masowe oznaczenie robi tyle UPDATE-ów,
+ile jest różnych kwot w składzie (`ustawPlatnoscWszystkim()`, `lib/eventFeatures.ts`),
+nie jeden. Dostępne dla organizatora i delegata z `can_manage_payments`, potwierdzane
+`confirm()` jak reszta masowych/nieodwracalnych akcji na tej stronie. Helper
+`zaktualizujWiersze()` (`lib/zapytania.ts`) sprawdza, że baza zmieniła dokładnie tyle
+wierszy, ile podano — ta sama pułapka cichej porażki RLS co przy pojedynczym zapisie,
+tylko na skalę całego składu.
+
 **Po starcie meczu cena ustępuje miejsca rozliczeniu.** Chip ceny w nagłówku strony
 meczu i badge na karcie `EventBrowseCard` (zakładka „Historia") pokazują przed
 meczem cenę i „Wymaga akceptacji"; po starcie meczu (`eventStarted`) — organizator
@@ -360,6 +381,30 @@ wyśrodkowany nad wąską kolumną blisko krawędzi, ciągnął się poza jej br
 ze zrzutem). `NavLink` dostaje prop `dymekAlign` (`'left' | 'center' | 'right'`) — skrajne
 kolumny w `BottomNav.tsx` przypinają dymek do swojej wewnętrznej krawędzi zamiast centrować
 go nad ikoną, środkowe trzy kolumny zostają wyśrodkowane jak dotąd.
+
+**Plakietka „💬 N" na karcie meczu prowadzi prosto do Rozmowy, nie do zakładki Mecz.**
+Cała karta (`EventBrowseCard.tsx`) to jeden `<Link>` na `/wydarzenia/[id]`; plakietka
+z liczbą nieprzeczytanych wewnątrz niej przejmuje kliknięcie (`stopPropagation` +
+`router.push`) i nawiguje na `/wydarzenia/[id]?tab=rozmowa` — adres, który
+`EventDetailClient.tsx` już umiał czytać (`?tab=`), tylko nic go dotąd nie generowało.
+`role="link"` + `onKeyDown` (Enter/Spacja), żeby plakietka została osiągalna
+z klawiatury mimo że nie jest osobnym `<a>`.
+
+**Przytrzymanie „Moje" otwiera panel ze wszystkimi rozmowami z nieprzeczytanymi.**
+Krótkie tapnięcie działa jak dotąd (nawiguje na `/moje-gry`); przytrzymanie ~0,5 s
+(`useDlugieWcisniecie()`, `lib/useDlugieWcisniecie.ts` — timer + tolerancja 10 px na
+drgnięcie palca, `onClickCapture` połyka klik, który przeglądarka i tak wyśle po
+długim dotyku) otwiera `components/layout/PanelRozmow.tsx`: wysuwany od dołu arkusz
+z listą meczów I ekip z nieprzeczytanymi razem, od najświeższej wiadomości. Dane
+dopiero przy otwarciu — zwykłe tapnięcie nie robi ani jednego dodatkowego zapytania.
+Wiersz meczu prowadzi na `?tab=rozmowa`, wiersz ekipy na `?tab=tablica`. Lista składana
+z `rozmowyZNieprzeczytanymi()` (`lib/comments.ts`) i `rozmowyGrupZNieprzeczytanymi()`
+(`lib/groupPosts.ts`) — obie to cienkie nakładki na tę samą logikę, która wcześniej
+liczyła tylko `{ ile, tytul }` dla dymka (`nieprzeczytaneWMeczach()`/
+`getUnreadGroupName()`, zostają, zachowanie bez zmian). Panel NIE zastępuje przycisku
+-filtra „tylko nieprzeczytane" na `/moje-gry` (linijka wyżej, chmurka obok pola
+wyszukiwania): filtr zawęża listę meczów, panel przeskakuje wprost do rozmowy, także
+w ekipie, do której `/moje-gry` w ogóle nie prowadzi.
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
@@ -684,6 +729,18 @@ Cztery zakładki w URL (`?tab=`): **Nadchodzące** (`nadchodzace`) / **Historia*
 z ukrytym scrollbarem, `shrink-0` na każdym przycisku) — cztery zakładki + dwie plakietki
 liczników nie mieściły się zawsze na 360px.
 
+**Swipe w bok przełącza zakładki** — tu i na `/grupy/[id]` oraz `/wydarzenia/[id]`
+(patrz te sekcje niżej), ten sam hak `useSwipeZakladek()` (`lib/useSwipeZakladek.ts`).
+Tylko dotyk, mysz na desktopie bez zmian (kolidowałaby z zaznaczaniem tekstu i z
+przeciąganiem graczy między drużynami). Bez zawijania — swipe w prawo na pierwszej
+zakładce i w lewo na ostatniej nic nie robi, kraniec jest krańcem. Próg 60 px, limit
+czasu 800 ms (wolne przeciąganie to przewijanie strony, nie gest) i wymóg wyraźnej
+przewagi poziomej nad pionową — te same reguły wszędzie, bo logika (`nastepnaZakladka()`)
+jest jedna, czysta funkcja. Gest wyłącza się sam nad elementem przewijanym w poziomie
+(pasek zakładek, żeby nie odbierać mu własnego przewijania) i jawnie, przez atrybut
+`data-bez-swipe`, tam gdzie już jest inny gest dotykowy: podział na drużyny (własny
+swipe „przypisz do drużyny" plus `@dnd-kit`) i pole tekstowe rozmowy.
+
 Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego**
 (`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
 `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NeedsPlayersSection` →
@@ -779,15 +836,32 @@ meczu jest domyślnie zwinięty do awatarów), dopiero potem `scrollIntoView` po
 (`requestAnimationFrame`) — bez przełączenia zakładki scroll trafiał w pustkę, gdy karta
 była widoczna z innej zakładki niż Skład.
 
-Pod zadaniami stoi zawsze wiersz dwóch przycisków: **„Kto nie przyszedł"** (widoczny tylko
-dla `isOwner || canManageSquad` — otwiera modal oznaczania nieobecności, patrz
-[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej) i **„Powtórz mecz"** (zawsze).
-Gdy wszystkie zadania są zrobione (albo mecz żadnego nie śledzi), karta zwija się do jednej
-linii tekstu nad tym samym wierszem przycisków.
+**Wiersz zadania pokazuje status i samą strzałkę, nie powtarza etykiety akcji.** Pierwsza
+wersja renderowała obok statusu jeszcze pełną etykietę akcji („Wyślij rozliczenie ›",
+„Wpisz wynik ›") — na wąskim telefonie to zabierało większość szerokości wiersza i status
+(np. „4 osoby jeszcze nie oddały") zawijał się do dwóch linii, mimo widocznego luzu wokół
+(zgłoszone wprost, ze zrzutem). Cały wiersz jest już jednym przyciskiem (`onClick={z.onClick}`
+na całej szerokości), więc etykieta akcji jest zbędna wizualnie — została wyłącznie
+w `aria-label` przycisku (`"{etykieta}. {akcjaLabel}"`), dla czytników ekranu.
 
-„Powtórz mecz" pojawia się teraz w dwóch miejscach (tu i w „Zarządzaj wydarzeniem"), ale to
-ta sama akcja pod tą samą etykietą i ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod
-wspólną nazwą jak w `O-20` z audytu przepływu organizatora.
+Pod zadaniami stoi zawsze wiersz do trzech przycisków: **„Nieobecni"** (widoczny
+tylko dla `isOwner || canManageSquad` — otwiera modal „Kto nie przyszedł", patrz
+[„Oznaczanie nieobecności"](#oznaczanie-nieobecnosci) niżej), **„Zapłacili"**/„Cofnij"
+(widoczny tylko gdy `event.costGrosze > 0` i skład nie jest pusty — ta sama akcja
+`handleWszyscyOddali` co przycisk „Wszyscy oddali" w panelu „Podział kosztów" wyżej,
+sekcja „Funkcje meczu") i **„Powtórz"** (zawsze). Trzy przyciski w jednej linii na
+360 px wymagają węższego wariantu niż domyślny przycisk apki I krótszych etykiet niż
+pełne wersje gdzie indziej w apce — samo zmniejszenie czcionki nie wystarczało (zgłoszone
+wprost, ze zrzutem: nawet przy najmniejszej czytelnej czcionce „Kto nie przyszedł" ucinało
+się do „Kto nie p..."). `PRZYCISK_CLS` w `PoMeczuCard.tsx`: czcionka 10 px, wąski padding,
+te same ikony co pełne wersje przycisku gdzie indziej. Gdy wszystkie zadania są zrobione
+(albo mecz żadnego nie śledzi), karta zwija się do jednej linii tekstu nad tym samym
+wierszem przycisków — łącznie z „Zapłacili", który wtedy pokazuje „Cofnij".
+
+„Powtórz" pojawia się teraz w dwóch miejscach (tu, skrócone z powodu ciasnoty, i pełne
+„Powtórz mecz (skopiuj)" w „Zarządzaj wydarzeniem"), ale to ta sama akcja pod tą samą
+ikoną (`handleOpenRepeat`) — nie dwie różne rzeczy pod wspólną nazwą jak w `O-20` z audytu
+przepływu organizatora.
 
 **Okno „Powtórz mecz" ma domyślną datę i zachowuje długość meczu.** Otwierało się dotąd
 z pustym polem i zablokowanym przyciskiem. `domyslnyTerminPowtorki()` (`lib/recurring.ts`)
@@ -810,8 +884,9 @@ jedyną drogą było ręczne zapamiętanie i unikanie tej osoby przy kolejnym za
 Infrastruktura istniała od migracji `011` (tabela `player_reports`, `get_player_stats()`
 już liczyła `no_shows`), ale nic w aplikacji do niej nie zapisywało.
 
-**Rozwiązanie.** Przycisk „Kto nie przyszedł" w karcie „Po meczu" (widoczny dla
-`isOwner || canManageSquad`) otwiera dedykowany modal z listą `regulars` i przełącznikiem
+**Rozwiązanie.** Przycisk „Nieobecni" w karcie „Po meczu" (widoczny dla
+`isOwner || canManageSquad`) otwiera dedykowany modal „Kto nie przyszedł" z listą
+`regulars` i przełącznikiem
 przy każdej osobie (`lib/attendance.ts`: `getNieobecni`/`oznaczNieobecnosc`/
 `cofnijNieobecnosc`). **Świadomie osobny modal, nie kontrolka w głównym widoku składu** —
 oznaczenia nie mają wpływać na to, co widzi reszta uczestników na stronie meczu.
@@ -915,7 +990,7 @@ wzorem `components/home/landing/content.ts`.
 
 | Trasa | Co zawiera | Źródło treści |
 |---|---|---|
-| `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz i że dołączenie nie wymaga konta | `content/jakDziala.ts` |
+| `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz, że dołączenie nie wymaga konta i co zrobić, gdy brakuje 1-2 graczy do składu | `content/jakDziala.ts` |
 | `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta" | `content/dlaczego.ts` |
 | `/faq` | 36 pytań w sześciu kategoriach | `content/faq.ts` |
 
@@ -923,9 +998,28 @@ wzorem `components/home/landing/content.ts`.
 `/faq`) i `FAQ_LANDING` (osiem pozycji oznaczonych `naLandingu: true`, pokazywane na
 stronie głównej). `components/home/landing/content.ts` re-eksportuje
 `FAQ_LANDING as LANDING_FAQ` zamiast trzymać kopię — `LandingFaq.tsx` i
-`landingContent.test.ts` nie wiedzą, że coś się zmieniło. Oba miejsca renderują
+`landingContent.test.ts` nie wiedzą, że coś się zmieniło. Cztery miejsca renderują
 `faqJsonLd()` (`lib/structuredData.ts`) nad dokładnie tą treścią, którą pokazują —
-widoczny tekst i schema nie mają jak się rozjechać.
+widoczny tekst i schema nie mają jak się rozjechać: landing (`LANDING_FAQ`), `/faq`
+(`FAQ` w całości, pogrupowane po kategorii), `/jak-dziala-bojo` i `/dlaczego-bojo`
+(każda strona swój tematyczny podzbiór — organizator/pieniądze na jednej, podstawy/konto
+na drugiej, dobrany ręcznie po treści pytania, żeby się nie dublował między stronami).
+Accordion `<details>`/`ChevronDown` żyje w jednym miejscu — `components/tresc/MiniFaq.tsx`
+— zamiast być kopiowany na każdej stronie z osobna.
+
+`/jak-dziala-bojo` emituje dodatkowo `HowTo` (`lib/structuredData.ts#howToJsonLd`) nad
+trzema krokami sekcji „zakładasz-mecz” — treść kroków to te same akapity, które widać na
+stronie, nie osobno pisany tekst. `siteJsonLd()` (renderowany raz, w `layout.tsx`) niesie
+od teraz też węzeł `SoftwareApplication` z `featureList` — lista funkcji musi zostać
+zsynchronizowana z tabelą flag niżej, jeśli któraś z wymienionych funkcji trafi za flagę.
+
+`eventJsonLd()` (`lib/structuredData.ts`, wywoływane z `app/wydarzenia/[id]/page.tsx`)
+dodaje `location.geo` (`GeoCoordinates`), gdy mecz ma zapisane `lat`/`lng` — kolumny
+istnieją na `events` od `002_events_and_auth.sql` i są wypełniane przy każdym insertcie,
+niezależnie od tego, czy lokalizacja to boisko z katalogu czy przypięta pinezka, więc nie
+trzeba joina do `fields`. `/jak-dziala-bojo` i `/dlaczego-bojo` linkują teraz w swoich
+CTA-boxach do `/mapa`, a `/boiska/[sport]` linkuje z powrotem do `/jak-dziala-bojo` —
+wcześniej strona treści i katalog boisk nie odsyłały do siebie nawzajem.
 
 **Uczciwość treści pilnowana testem.** `content/zakazaneFrazy.ts` trzyma dwie listy fraz:
 `ZAKAZANE_NA_LANDINGU` (landing nie wspomina ich w ogóle — nawet przecząco, bo samo
@@ -941,6 +1035,89 @@ pod FAQ landingu (`LandingFaq.tsx`) do `/faq`; `SiteFooter.tsx` ma teraz dwie gr
 linków („Produkt", „Bojo") zamiast jednej płaskiej listy, z czterema nowymi stronami
 w grupie „Bojo". Główna nawigacja (`Header.tsx`) zostaje bez zmian — dwie pozycje
 („Znajdź grę", „Mapa boisk") to świadomy wybór, dokładanie stron treści by je rozmyło.
+
+---
+
+## Strona `/graj/[sport]/[miasto]` — Poznań
+
+Landing pod SEO/GEO ([strategia.md](./strategia.md)), osobny wzorzec od katalogu boisk:
+`/boiska/[sport]` odpowiada „gdzie jest boisko", `/graj/[sport]/[miasto]` — „dołącz do
+meczu albo znajdź brakujących graczy" w konkretnym mieście. Cztery sporty (`FOCUS_SPORTS`
+z `lib/sports.ts`, te same co w kreatorze meczu) × jedno miasto = cztery strony, generowane
+statycznie (`generateStaticParams`) z `revalidate = 3600` — bo zbiór jest z góry
+ograniczony, w przeciwieństwie do `/boiska/[sport]`, który celowo renderuje się na żądanie
+(katalog rośnie z każdym importem, patrz AGENTS.md).
+
+**Tylko Poznań.** Jedyne miasto z realnym pokryciem katalogu i ruchem
+(`content/dlaczego.ts#wczesny-etap`). Rozszerzenie na kolejne miasta wymaga rewizji
+`content/zakazaneFrazy.ts` (dziś zakazuje nazw miast na landingu) i jest świadomą decyzją
+produktową, nie dopiskiem do tej strony — patrz `strategia.md` pozycja roadmapy #10.
+
+**Dane na żywo, nie zaszyte.** Strona woła `getNearbyEvents()` (`lib/events.ts`, RPC
+`get_nearby_events` z `025_game_alerts.sql`, wcześniej nieużywane w kodzie poza wyłączoną
+flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od środka Poznania, filtruje wynik po sporcie
+i pokazuje do 5 najbliższych meczów jako listę z linkami do `/wydarzenia/[id]`. Licznik
+u góry pokazuje pełną liczbę dopasowań, nie tylko wyświetloną piątkę. Gdy lista jest pusta,
+strona pokazuje uczciwe zastrzeżenie (`content/graj.ts#GRAJ_BRAK_MECZY`) zamiast chować
+pusty stan — ten sam ton co `content/dlaczego.ts#wczesny-etap`.
+
+**Treść bez nowych faktów.** Kroki zakładania meczu i zdanie o tym, czego Bojo nie robi
+(brak rezerwacji boiska) są importowane z `content/jakDziala.ts`, nie przepisywane —
+`tresciStron.test.ts` pilnuje ich raz, w jednym miejscu. Copy unikalne dla tej strony
+(`content/graj.ts`) jest dopisane do tego samego testu i podlega tym samym zakazanym
+frazom co `/jak-dziala-bojo` i `/dlaczego-bojo`, mimo że AGENTS.md nie wymusza tego
+automatycznie dla nowych tras.
+
+**CTA prefill.** „Stwórz mecz publiczny” prowadzi do `/wydarzenia/nowe?sport=<slug>` —
+kreator czyta ten parametr (`FOCUS_SPORT_BY_SLUG` z `lib/sports.ts`) i ustawia sport przez
+istniejący `selectSport()`, tym samym mechanizmem co ręczny wybór w UI (więc domyślna
+liczba miejsc też się dostraja). Wcześniej `?sport=` było ignorowane.
+
+**Cross-linki (dopełnienie roadmapy #9):** `/boiska/[sport]` linkuje do
+`/graj/[sport]/poznan` dla czterech sportów, które tę stronę mają; `sitemap.ts` ma osobny,
+bounded blok `grajPages` z tego samego źródła (`FOCUS_SPORT_BY_SLUG`), więc nie może się
+rozjechać z `generateStaticParams`.
+
+---
+
+## Tierowanie indeksacji katalogu boisk (SEO/GEO, migracja `112`)
+
+Katalog ma dziś **32 684 wiersze** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
+i rośnie z każdym kolejnym importem. Indeksowanie wszystkich naraz ryzykuje karę Google za
+cienką treść (thin content) — większość obiektów ma tylko nazwę, adres i sport, bez
+żadnego realnego ruchu: audyt produkcyjnej bazy przy wdrożeniu pokazał, że **tylko 40
+obiektów w całej historii miało kiedykolwiek mecz**.
+
+**Trzy poziomy, kolumna `fields.seo_tier`:**
+- **Tier 1** (`index,follow`) — miasto z listy `miasta_priorytetowe` (~100 dużych/średnich
+  miast, dane GUS) LUB `is_verified_venue` LUB ma mecz LUB ma komentarz pod obiektem.
+- **Tier 2** (`index,follow`) — ma miejscowość, sport i nazwę, ale nie spełnia kryteriów
+  Tier 1.
+- **Tier 3** (`noindex,follow`) — reszta: brak miejscowości, ubogie dane. Strona dalej
+  działa dla użytkowników (mapa, wyszukiwanie) i przekazuje linki dalej (`follow`), tylko
+  nie trafia do indeksu Google.
+
+Tier liczy funkcja `oblicz_seo_tier()` w bazie, wołana automatycznie z trzech triggerów
+(`fields_przelicz_tier`, `events_promuj_tier`, `field_comments_promuj_tier`) — **nie
+ustawiać `seo_tier` ręcznie z kodu aplikacji**. Awans do Tier 1 po pierwszym meczu albo
+komentarzu jest jednokierunkowy (odwołanie meczu nie degraduje z powrotem), dokładnie tak
+jak wklejony przez użytkownika plan proponował: „gdy ktoś zorganizuje mecz — obiekt
+automatycznie awansuje".
+
+**`city`/`voivodeship` nie parsować z `address`.** Kolumny wypełnia osobny, ręcznie
+uruchamiany skrypt `scraper/backfill_lokalizacja.py` (reużywa `nearest_place()` z
+`import_osm_pbf.py` — ten sam plik `.osm.pbf`, ten sam najbliższy węzeł `place=`), nie
+funkcja `miejscowoscZAdresu()` w `boisko/[id]/page.tsx` (ta zostaje jako fallback dla
+wierszy sprzed backfillu — 169 duplikatów nazw i niejednoznaczny format adresu robią
+z parsowania tekstu zgadywankę). Świeżo zaaplikowana migracja `112` zostawia `city` puste
+— dopóki backfill nie przejdzie, wszystkie boiska są w Tier 3.
+
+**Sitemap partycjonowany per województwo**, nie jeden rosnący bez końca plik:
+`sitemap.ts` (strony statyczne, huby sportów, `/graj/…`) + 16×
+`sitemap-boiska/[plik]/route.ts` (po jednym na województwo, tylko Tier 1/2 — Tier 3 ma
+`noindex`, więc wpis w sitemapie byłby sprzeczną instrukcją dla Googlebota), zebrane
+w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje na ten indeks, nie na goły
+`sitemap.xml`.
 
 ---
 
@@ -1164,6 +1341,11 @@ elementy na tej samej wysokości nakładałyby się na siebie zamiast układać 
 to jest jedna sticky całość, nie dwie. Poziome przewijanie zakładek na wąskim telefonie
 nie pokazuje paska przewijania (`.scrollbar-hide` w `globals.css`).
 
+**Swipe w bok przełącza zakładki** — mechanika opisana przy `/moje-gry` wyżej
+(`useSwipeZakladek()`), tu z jedną pułapką: „Ustawienia" na końcu paska WYGLĄDA jak
+zakładka, ale jest `<Link>` do `/grupy/[id]/edytuj`, nie przełącznikiem stanu `tab` —
+nie wchodzi do listy, po której porusza się gest.
+
 **„Najbliższy mecz" (`NajblizszyMeczGrupy.tsx`) jest widoczny wyłącznie w zakładce
 Mecze** — to jest jej treść (skrót najbliższego terminu), nie uniwersalny nagłówek
 strony; wcześniej wyświetlał się na każdej zakładce oprócz Rozmowy, co pod Statystykami
@@ -1275,6 +1457,15 @@ w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **ni
 (`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
 powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
 ręcznie.
+
+**Swipe w bok przełącza zakładki** — mechanika opisana przy `/moje-gry` wyżej
+(`useSwipeZakladek()`). Lista zakładek, po której porusza się gest, jest liczona
+`useMemo`-em umieszczonym PRZED `if (loading)`/`if (notFound)` wyżej w komponencie —
+musi się wywołać bezwarunkowo na każdym renderze (to hook), więc duplikuje cztery reguły
+widoczności zakładek (patrz niżej) w bezpiecznej dla `event === null` wersji zamiast
+czekać na konsty liczone dopiero po tych early returnach; komentarz w kodzie łączy oba
+miejsca. Podział na drużyny (własny swipe + `@dnd-kit`) i pole tekstowe rozmowy
+wyłączają gest przez `data-bez-swipe`.
 
 **Zakładka „Ustawienia" znika z paska dla kogokolwiek bez `canManageEvent`** — treść
 panelu zawsze była gated (`tab === 'ustawienia' && canManageEvent`), ale sam **przycisk
@@ -1395,10 +1586,15 @@ pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBound
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
-linkuje teraz z `?wroc=/mapa?boisko=<id>` zamiast gołego `/boisko/<slug>`. Strona boiska
-(`VenueDetailClient.tsx`) już umiała wrócić pod dowolny adres z parametru `wroc`, a
-`VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku (`boiskoZLinku`) —
-brakowało tylko połączenia obu gotowych mechanizmów.
+linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel
+powrotu (`/mapa?boisko=<id>`) w `sessionStorage` przez `lib/powrot.ts` — dawniej jechał
+w `?wroc=` w samym URL-u, ale to znaczyło dwa różne, niekanoniczne adresy tej samej
+strony boiska do zeskanowania przez wyszukiwarki (jeden z mapy, jeden ze strony meczu),
+mimo że `canonical` i tak zwijał je w jeden przy indeksowaniu (migracja `112`, SEO/GEO).
+Strona boiska (`VenueDetailClient.tsx`) odczytuje ten cel z `sessionStorage` po
+zamontowaniu, `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku
+(`boiskoZLinku`) — brakowało tylko połączenia obu gotowych mechanizmów. Link ze strony
+meczu (`EventDetailClient.tsx`) do boiska działa tak samo.
 
 **Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i przełącznik
 „Gry dziś" zostają zawsze widoczne; Typ obiektu i Nawierzchnia przenoszą się do

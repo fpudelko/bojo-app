@@ -15,7 +15,7 @@ import PodsumowanieMeczu from './PodsumowanieMeczu';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
+import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, validateGoalkeepers, isPast } from '@/lib/eventWizard';
 import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
@@ -167,6 +167,8 @@ function NewEventForm() {
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
+  // Preselect sport when arriving from /graj/[sport]/[miasto] via ?sport=<slug>.
+  const preSport = searchParams.get('sport');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [groupMemberCount, setGroupMemberCount] = useState<number | undefined>(undefined);
   // Ekipa meczu — wejście `?group=` tylko ją preselekcjonuje; od kroku 3 da się
@@ -200,6 +202,16 @@ function NewEventForm() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preFieldId]);
+
+  // Preselect sport from URL ?sport=<slug> (arriving from /graj/[sport]/[miasto]).
+  // `selectSport` is defined further down in this component but the effect
+  // callback only runs after render commits, once the closure is populated.
+  useEffect(() => {
+    if (!preSport) return;
+    const db = FOCUS_SPORT_BY_SLUG[preSport];
+    if (db) selectSport(db);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preSport]);
 
   // Nazwa ekipy dla wyboru, który nie przyszedł z `?group=` — czyli po
   // odtworzeniu szkicu albo po wskazaniu ekipy w dialogu, gdy strona zdążyła

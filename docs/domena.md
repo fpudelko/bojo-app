@@ -247,10 +247,27 @@ Mechanika (migracja `058`):
 | Aktywna oferta | `event_participants.claim_offered_at` |
 | Przepuścił (odrzucił lub nie zdążył) | `event_participants.claim_passed` |
 | Utrzymanie kolejki | funkcja `sync_reserve_claim(event_id)`, `SECURITY DEFINER` |
+| Kolejność w kolejce | `event_participants.zapisano_at` (migracja `110`) |
 
 Kolejka rusza się przy **wejściu na stronę meczu** — nie ma backendu ani crona, więc
 `sync_reserve_claim` jest wołane z klienta (`syncReserveClaim` w `lib/events.ts`) i musi
-być idempotentne. Funkcja wygasza przeterminowaną ofertę i przekazuje miejsce dalej.
+być idempotentne. Funkcja wygasza przeterminowaną ofertę i przekazuje miejsce dalej,
+**sortując rezerwę po `zapisano_at`, nie po `created_at`** — patrz niżej, dlaczego to
+dwie różne rzeczy.
+
+**Kolejność liczy się od `zapisano_at`, nie od `created_at` — migracja `110`.**
+„Obserwuję" (`rsvp = 'maybe'`, patrz wyżej) to ten sam wiersz w `event_participants` co
+zwykły zapis: kliknięcie „Obserwuj" tworzy wiersz od razu, a późniejsze „Dołącz" tylko
+przełącza `rsvp` na `'yes'` (`confirmFromMaybe()` w `lib/events.ts`) — nie tworzy nowego
+wiersza, bo `dolacz_do_meczu()` rzuciłby „Jesteś już zapisany". Przed `110` jedynym
+znacznikiem był `created_at`, więc ktoś, kto zaczął obserwować dużo wcześniej, a dołączył
+dopiero po fakcie, wskakiwał w kolejce PRZED każdego, kto zapisał się w międzyczasie —
+i to on dostawał każde kolejne zwolnione miejsce. `zapisano_at` to osobny znacznik
+o jednej roli: moment, od którego liczy się miejsce w kolejce. Trigger
+`trg_moment_zapisu` ustawia go na `now()` (zegar serwera, nie przeglądarki) wyłącznie
+przy przejściu `'maybe' → 'yes'`; `created_at` zostaje nietknięte i nadal znaczy „kiedy
+powstał wiersz". Klient czyta oba przez `momentZapisu()` (`lib/events.ts`), z fallbackiem
+na `created_at`, gdy `zapisano_at` nie istnieje (baza bez tej migracji).
 
 Od migracji `062` funkcja dopisuje też wpis do `notifications` w momencie ustawienia
 oferty — bez tego rezerwowy dowiadywał się o zwolnionym miejscu wyłącznie wtedy, gdy

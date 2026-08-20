@@ -42,6 +42,18 @@
 Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
 zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
 
+## Graj w Poznaniu
+
+Jedyne miasto z dedykowaną stroną dziś — realne pokrycie katalogu i ruchu, patrz
+[Dlaczego Bojo](/dlaczego-bojo). Każda strona pokazuje otwarte publiczne mecze w danym
+sporcie w promieniu ok. 15 km od centrum Poznania (na żywo, licznik) i prowadzi do
+stworzenia własnego meczu.
+
+- [Piłka nożna w Poznaniu](/graj/pilka-nozna/poznan)
+- [Siatkówka w Poznaniu](/graj/siatkowka/poznan)
+- [Siatkówka plażowa w Poznaniu](/graj/siatkowka-plazowa/poznan)
+- [Koszykówka w Poznaniu](/graj/koszykowka/poznan)
+
 ## Jak działa Bojo
 
 - Przeglądanie mapy i stron boisk nie wymaga konta. Tworzenie meczu wymaga konta.

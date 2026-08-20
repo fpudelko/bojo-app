@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { zaktualizujJedenWiersz } from './zapytania';
+import { zaktualizujJedenWiersz, zaktualizujWiersze } from './zapytania';
 import { withCount } from './plural';
 import type {
   EventAdvancedSettings,
@@ -110,6 +110,38 @@ export async function updateParticipantPayment(
   );
 }
 
+/** Masowe oznaczenie płatności całego składu — „Wszyscy oddali" w zakładce
+ *  Rozliczenia. Kwota bywa różna per osoba (zniżka z karty sportowej), więc
+ *  grupujemy po kwocie: jeden UPDATE na każdą wartość, zwykle jeden albo dwa. */
+export async function ustawPlatnoscWszystkim(
+  pozycje: { id: string; kwotaGrosze: number }[],
+  oplacone: boolean,
+): Promise<void> {
+  if (pozycje.length === 0) return;
+  if (!oplacone) {
+    await zaktualizujWiersze(
+      'event_participants',
+      pozycje.map((p) => p.id),
+      { has_paid: false, paid_amount: 0 },
+      'Nie udało się cofnąć oznaczenia wpłat',
+    );
+    return;
+  }
+  const grupy = new Map<number, string[]>();
+  for (const p of pozycje) {
+    if (!grupy.has(p.kwotaGrosze)) grupy.set(p.kwotaGrosze, []);
+    grupy.get(p.kwotaGrosze)!.push(p.id);
+  }
+  for (const [kwota, ids] of Array.from(grupy.entries())) {
+    await zaktualizujWiersze(
+      'event_participants',
+      ids,
+      { has_paid: true, paid_amount: kwota },
+      'Nie udało się oznaczyć wpłat',
+    );
+  }
+}
+
 export async function updateParticipantPhone(
   participantId: string,
   phone: string,
@@ -150,11 +182,17 @@ export async function setCaptain(
     if (bladZdjecia) throw new Error(bladZdjecia.message);
   }
 
-  const { error } = await supabase
-    .from('event_participants')
-    .update({ is_captain: isCaptain })
-    .eq('id', participantId);
-  if (error) throw new Error(error.message);
+  // Przez `zaktualizujJedenWiersz`, nie gołym `.update()`: gdyby polityka RLS
+  // nie przepuściła zmiany, Postgres zaktualizowałby zero wierszy i zwrócił
+  // sukces — gwiazdka mrugnęłaby i wróciła na miejsce, bez śladu błędu.
+  // Odkąd gwiazdka pokazuje się we WSZYSTKICH trybach dzielenia drużyn,
+  // a nie tylko w trybie `kapitanowie`, klika ją znacznie więcej osób.
+  await zaktualizujJedenWiersz(
+    'event_participants',
+    participantId,
+    { is_captain: isCaptain },
+    isCaptain ? 'Nie udało się ustawić kapitana' : 'Nie udało się zdjąć kapitana',
+  );
 }
 
 // ---------------------------------------------------------------------------

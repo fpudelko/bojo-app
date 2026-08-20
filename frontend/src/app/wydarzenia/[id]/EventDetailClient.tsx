@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -13,10 +13,13 @@ import Button from '@/components/ui/Button';
 import TimeSelect from '@/components/ui/TimeSelect';
 import MatchResultForm from '@/components/events/MatchResultForm';
 import TeamsPanel from '@/components/events/TeamsPanel';
+import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
+import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
+import { zapiszPowrot } from '@/lib/powrot';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
@@ -30,6 +33,7 @@ import {
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
+import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
 import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
@@ -39,10 +43,10 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
-  awansujZRezerwy, cofnijNaRezerwe, getWypisania,
+  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu,
 } from '@/lib/events';
 import {
-  updateParticipantTeam, updateParticipantPayment,
+  updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, getPlayerGoals,
   publishTeams, unpublishTeams, saveEventAdvancedSettings, opisWidocznosciWGrupie,
@@ -74,6 +78,7 @@ import { WARSTWA } from '@/lib/warstwy';
 import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
+import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 
 type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
@@ -223,8 +228,8 @@ function ParticipantsList({
                   niego `truncate` na nazwisku przestaje działać. */}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-ink">{p.name}</span>
-                {p.createdAt && (
-                  <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                {momentZapisu(p) && (
+                  <span className="block text-[11px] text-slate-400">{etykietaZapisu(momentZapisu(p))}</span>
                 )}
               </span>
               {golyMap[p.id] > 0 && (
@@ -264,8 +269,8 @@ function ParticipantsList({
                     <span className="block truncate text-sm font-medium text-slate-500 dark:text-slate-400">{p.name}</span>
                     {/* Na rezerwie czas zapisu znaczy jeszcze więcej niż
                         w składzie: to on ustawia kolejkę. */}
-                    {p.createdAt && (
-                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(p.createdAt)}</span>
+                    {momentZapisu(p) && (
+                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(momentZapisu(p))}</span>
                     )}
                   </span>
                   {golyMap[p.id] > 0 && (
@@ -348,7 +353,7 @@ function PublishedTeamsCard({
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
                       {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">⚽{golyMap[p.id]}</span>}
                       {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
-                      {p.isCaptain && <span className="text-[10px]">⭐</span>}
+                      {p.isCaptain && <OznaczenieKapitana />}
                     </PlayerLink>
                   ))}
               </div>
@@ -397,61 +402,6 @@ function Switch({ checked, onChange, disabled, label }: {
         checked ? 'translate-x-5' : 'translate-x-0',
       ].join(' ')} />
     </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// JoinCodePanel — visible to all participants
-//
-// Panel udostępniał kiedyś WŁASNY link (`/d/{kod}`), inny niż przycisk
-// „Udostępnij" w pasku górnym — ten sam mecz, dwa adresy, dwa przyciski o tej
-// samej nazwie na jednej stronie. Teraz oba wołają `shareEvent` z tym samym
-// adresem kanonicznym i tym samym tekstem. Dlaczego akurat kanoniczny, a nie
-// krótszy: patrz komentarz przy `eventUrl` w `lib/eventShare.ts`.
-// ---------------------------------------------------------------------------
-function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
-  const [copied, setCopied] = useState(false);
-
-  const link = () => eventUrl(
-    event.id,
-    typeof window !== 'undefined' ? window.location.origin : 'https://bojo.pl',
-  );
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(textDoKopiowania(event, link()));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch { /* ignore */ }
-  };
-
-  const share = async () => {
-    const wynik = await shareEvent(event, link());
-    if (wynik === 'copied') {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3">
-      <Share2 className="w-4 h-4 text-slate-400 shrink-0" />
-      <p className="flex-1 text-sm font-semibold text-slate-800">Zaproś znajomych</p>
-      <div className="flex gap-2 shrink-0">
-        <button
-          onClick={share}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-800 active:scale-95"
-        >
-          <Share2 className="w-3.5 h-3.5" /> Udostępnij
-        </button>
-        <button
-          onClick={copyLink}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
-        >
-          {copied ? <><Check className="w-3.5 h-3.5 text-green-600" /> OK</> : <><Copy className="w-3.5 h-3.5" /> Kopiuj</>}
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -759,8 +709,50 @@ export default function EventDetailClient() {
     const takenSpots = participants.filter((p) => !p.pendingApproval && !p.isReserve).length;
     setJoinRole('player');
     setJoinAsReserve(takenSpots >= event.maxPlayers);
-    setJoinDialogOpen(true);
+    otworzOknoZapisu();
   }, [chceDolaczyc, authLoading, loading, user, event, participants]);
+
+  // Zakładki widoczne w pasku — musi być liczone TUTAJ, przed `if (loading)`/
+  // `if (notFound || !event)` niżej, bo `useSwipeZakladek` to hook i musi
+  // wywoływać się bezwarunkowo, w tej samej kolejności na każdym renderze.
+  // Poniżej te same cztery reguły co przy `canManageEvent`/`resultsAvailable`/
+  // `isCancelled`/`mojaDruzyna` (liczonych drugi raz, później, dla reszty
+  // strony) — bo tamte konsty odwołują się wprost do `event.organizerId` itp.
+  // i wywaliłyby się, dopóki `event` jest `null`. ZMIENIAJĄC REGUŁĘ WIDOCZNOŚCI
+  // ZAKŁADKI, ZMIEŃ OBA MIEJSCA — ten sam wzorzec celowego zdublowania co
+  // `joinEvent`/`addGuest`/`confirmFromMaybe` (patrz docs/domena.md).
+  const widoczneZakladkiObiekty = useMemo<[EventTab, string][]>(() => {
+    if (!event) return [EVENT_TAB_LABELS[0]];
+    const canManageEventWczesnie = !!user && (user.id === event.organizerId || !!myDelegate?.canEdit);
+    const isCancelledWczesnie = event.status === 'cancelled';
+    // resultsAvailable: event started + 30 min buffer before result form is shown
+    const resultsAvailableWczesnie = (() => {
+      try {
+        const [y, m, d] = event.date.split('-').map(Number);
+        const [h, min] = (event.time ?? '00:00').split(':').map(Number);
+        return Date.now() >= new Date(y, m - 1, d, h, min).getTime() + 30 * 60 * 1000;
+      } catch { return true; }
+    })();
+    const mojaDruzynaWczesnie = (() => {
+      const rzad = participants.find((p) => p.userId && p.userId === user?.id && !p.pendingApproval && p.rsvp !== 'maybe');
+      return rzad?.team === 'A' || rzad?.team === 'B' ? rzad.team : null;
+    })();
+    return EVENT_TAB_LABELS.filter(([t]) => {
+      if (t === 'ustawienia') return canManageEventWczesnie;
+      // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka istniała od
+      // stworzenia meczu i po kliknięciu mówiła tylko, że wyniku jeszcze nie
+      // ma — czyli zajmowała miejsce w pasku, nie dając nic w zamian.
+      if (t === 'wynik') return resultsAvailableWczesnie && !isCancelledWczesnie;
+      // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo nie ma
+      // czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
+      if (t === 'rozliczenia') return event.costGrosze > 0;
+      // Taktyka: po publikacji składów i tylko dla kogoś, kto ma drużynę
+      // w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
+      if (t === 'taktyka') return !!mojaDruzynaWczesnie && event.teamsPublished && !isCancelledWczesnie;
+      return true;
+    });
+  }, [event, user, myDelegate, participants]);
+  const gestSwipe = useSwipeZakladek(widoczneZakladkiObiekty.map(([t]) => t), tab, goToTab);
 
   if (loading) {
     return (
@@ -829,7 +821,13 @@ export default function EventDetailClient() {
   // żeby nie zajmował miejsca w składzie, a nie deklaracja gry. Bez tego filtru
   // wpadał do kolejki rezerwowej i człowiek, który kliknął „Obserwuj",
   // widział siebie jako rezerwowego.
-  const reserves = confirmed.filter((p) => p.isReserve && p.rsvp !== 'maybe');
+  // Sortowane po `momentZapisu`, nie po kolejności z zapytania (to ostatnie
+  // idzie po `created_at`, patrz `lib/events.ts:getEvent`): dla kogoś, kto
+  // najpierw obserwował i potem dołączył, kolejka ma liczyć się od momentu
+  // dołączenia, nie od momentu kliknięcia „Obserwuj" (migracja `110`).
+  const reserves = confirmed
+    .filter((p) => p.isReserve && p.rsvp !== 'maybe')
+    .sort((a, b) => momentZapisu(a).localeCompare(momentZapisu(b)));
   // Gość przejmuje wpis, dopóki ma token — po przejęciu `is_guest` przechodzi
   // na false (migracja 066), więc licznik sam się zeruje bez dodatkowego stanu.
   const niePrzejeciGoscie = [...regulars, ...reserves].filter((p) => p.isGuest && p.claimToken);
@@ -982,7 +980,14 @@ export default function EventDetailClient() {
     try {
       await acceptTeamProposal(proposalId);
       await load();
-      toast('Składy zatwierdzone');
+      // Zatwierdzenie i publikacja to DWA różne kroki (patrz migracja `059`:
+      // `accept_team_proposal` przepisuje drużyny, ale nie rusza
+      // `teams_published`) — i dobrze, bo między jednym a drugim organizator
+      // zwykle jeszcze coś poprawia. Ale bez tego zdania łatwo uznać, że
+      // zatwierdzenie już wszystko ogłosiło, i zostawić drużynę bez składów.
+      toast(event.teamsPublished
+        ? 'Składy zatwierdzone i widoczne dla graczy'
+        : 'Składy zatwierdzone — opublikuj je, żeby zobaczyła je drużyna');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1009,7 +1014,7 @@ export default function EventDetailClient() {
       // wywaliłby się na unikalności. Przełączamy istniejący wpis, przekazując
       // te same decyzje (pozycja, płatność), które właśnie podjął w dialogu.
       const wynik = myMaybe
-        ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc)
+        ? await confirmFromMaybe(myMaybe.id, event.id, asGoalkeeper, platnosc, { userId: user.id, name: displayName(user) })
         : await joinEvent(event.id, user.id, displayName(user), asGoalkeeper, platnosc);
       await load();
       // Komunikat bierze się z TEGO, CO SIĘ STAŁO, nie z ustawień meczu.
@@ -1032,6 +1037,11 @@ export default function EventDetailClient() {
       // odruchowo zamknięta. Sama funkcja niczego nie wymusza — komponent
       // sprawdzi, czy w ogóle jest kogo pytać (`lib/instalacja.ts`).
       zaproponujInstalacje();
+      // …i, osobno, propozycja powiadomień. Ta sama chwila, dwa różne pytania:
+      // instalacja dotyczy tego, GDZIE Bojo mieszka, powiadomienia tego, CZY
+      // odezwie się samo. Każde z nich ma własne reguły pokazywania, więc
+      // wołamy oba i pozwalamy im zdecydować.
+      zaproponujPowiadomienia();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1291,6 +1301,33 @@ export default function EventDetailClient() {
       const owed = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
       await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? owed : 0);
       await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
+  /** „Wszyscy oddali" / „Cofnij" — masowe oznaczenie całego składu naraz.
+   *  Kwota liczona per osoba przez `priceForParticipant()`, bo zniżka z karty
+   *  sportowej różni kwoty w obrębie tego samego meczu. */
+  const handleWszyscyOddali = async () => {
+    if (!isOrganizer && !canManagePayments) return;
+    const oplacone = regulars.some((p) => !p.hasPaid);
+    const cel = oplacone ? regulars.filter((p) => !p.hasPaid) : regulars;
+    const pytanie = oplacone
+      ? `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`
+      : `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})? Nikt nie będzie miał odhaczonej wpłaty.`;
+    if (!confirm(pytanie)) return;
+    setBusy(true);
+    try {
+      await ustawPlatnoscWszystkim(
+        cel.map((p) => ({
+          id: p.id,
+          kwotaGrosze: priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze,
+        })),
+        oplacone,
+      );
+      await load();
+      toast(oplacone ? 'Oznaczono wpłaty' : 'Cofnięto oznaczenie wpłat');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1743,6 +1780,22 @@ export default function EventDetailClient() {
   // będzie ten zapis. Liczone z tych samych danych, z których liczy je
   // `decydujCzyRezerwa()` po stronie zapisu, żeby zapowiedź zgadzała się
   // z tym, co faktycznie się stanie.
+  /**
+   * Otwarcie okna zapisu z gotowym wyborem tam, gdzie nie ma czego wybierać.
+   *
+   * Przy JEDNEJ akceptowanej metodzie płatności „Jak zapłacisz?" to pytanie
+   * z jedną odpowiedzią: kliknięcie nie niesie żadnej decyzji, a nieodkliknięte
+   * blokuje przycisk „Zapisz mnie". Ta sama zasada działa już przy kartach
+   * sportowych (jedna akceptowana = wybrana automatycznie), więc płatność
+   * dostaje ją dla spójności.
+   */
+  const otworzOknoZapisu = () => {
+    if (event.costGrosze > 0 && event.acceptedPaymentMethods.length === 1) {
+      setJoinPaymentMethod(event.acceptedPaymentMethods[0]);
+    }
+    setJoinDialogOpen(true);
+  };
+
   const rolaPelna = joinAsReserve || (gkEnabled
     ? (joinRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
     : wolne.razem === 0);
@@ -1919,6 +1972,21 @@ export default function EventDetailClient() {
               </div>
             );
           })()}
+          {/* Masowe oznaczenie zamiast klikania po jednej osobie — zgłoszone
+              wprost. Na górze, od razu pod podsumowaniem, nie pod listą
+              uczestników: to najczęstsza akcja na tej zakładce po meczu, więc
+              nie ma czekać za przewijaniem całego składu. Dwa stany jednego
+              przycisku, sterowane tym, czy ktoś jeszcze nie oddał; nie
+              renderuje się, gdy skład jest pusty. */}
+          {regulars.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
+                {regulars.some((p) => !p.hasPaid)
+                  ? 'Wszyscy oddali'
+                  : <span className="text-slate-500">Cofnij — nikt nie oddał</span>}
+              </Button>
+            </div>
+          )}
           {/* Per-participant toggle — a real switch, not a colored pill, so
               it's unmistakable that clicking it changes something. */}
           <div className="mt-4 pt-4 border-t border-slate-100">
@@ -2075,9 +2143,12 @@ export default function EventDetailClient() {
           się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
           pod treścią. Na zakładce Rozmowa oba paddingi są zbędne — rozmowa
           ma sięgać do samego dołu ekranu, nie zostawiać pod sobą odstęp. */}
-      <main className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
-        rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
-      }`}>
+      <main
+        className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
+          rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
+        }`}
+        {...gestSwipe}
+      >
 
         {/* Nazwa meczu i zakładki razem w jednym sticky kontenerze — tak jak
             na `/grupy/[id]`: dwa osobne `sticky top-0` elementy nakładałyby
@@ -2121,21 +2192,7 @@ export default function EventDetailClient() {
                   widzi zakładkę, która po kliknięciu jest pusta. Zgłoszone
                   wprost, ten sam wyciek co w `/grupy/[id]` (patrz commit
                   o zerowaniu `permissions`). */}
-              {EVENT_TAB_LABELS.filter(([t]) => {
-                if (t === 'ustawienia') return canManageEvent;
-                // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka
-                // istniała od stworzenia meczu i po kliknięciu mówiła tylko,
-                // że wyniku jeszcze nie ma — czyli zajmowała miejsce w pasku,
-                // nie dając nic w zamian.
-                if (t === 'wynik') return resultsAvailable && !isCancelled;
-                // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo
-                // nie ma czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
-                if (t === 'rozliczenia') return event.costGrosze > 0;
-                // Taktyka: po publikacji składów i tylko dla kogoś, kto ma
-                // drużynę w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
-                if (t === 'taktyka') return !!mojaDruzyna && event.teamsPublished && !isCancelled;
-                return true;
-              }).map(([t, label]) => (
+              {widoczneZakladkiObiekty.map(([t, label]) => (
                 <button
                   key={t}
                   onClick={() => goToTab(t)}
@@ -2186,7 +2243,10 @@ export default function EventDetailClient() {
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
             liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
+            liczbaWSkladzie={regulars.length}
             onWyslijRozliczenie={handleWyslijRozliczenie}
+            onWszyscyOddali={handleWszyscyOddali}
+            busy={busy}
             trackResults={event.trackResults}
             wynikWpisany={matchResult != null}
             onWpiszWynik={() => goToTab('wynik')}
@@ -2472,7 +2532,8 @@ export default function EventDetailClient() {
                 <span className="text-slate-300">·</span>
                 {event.fieldId ? (
                   <Link
-                    href={`/boisko/${event.fieldId}?wroc=${encodeURIComponent(`/wydarzenia/${event.id}`)}`}
+                    href={`/boisko/${event.fieldId}`}
+                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
                     className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
                   >
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
@@ -2607,6 +2668,19 @@ export default function EventDetailClient() {
               onOtworzDlaOkolicy={() => handleSetVisibility('public')}
             />
           </div>
+        )}
+
+        {/* ── POWIADOMIENIA — propozycja, nie prośba na wejściu ──
+            Pytamy TYLKO tego, kto gra w tym meczu i tylko przed jego startem:
+            wtedy widać, po co to komu (wiadomość od ekipy, zwolnione miejsce,
+            odwołanie). Prośba na starcie aplikacji kończy się trwałym
+            „Zablokuj", którego nie da się cofnąć ze strony.
+
+            Pasek jest `fixed`, więc miejsce w drzewie nie ma znaczenia dla
+            wyglądu — ale gate na zakładkę zostaje: w „Rozmowie" przykryłby
+            pole pisania wiadomości, które też siedzi przy dolnej krawędzi. */}
+        {tab === 'sklad' && (
+          <ZachetaPush widoczna={!!user && !!myParticipation && !eventStarted && !isCancelled} />
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}
@@ -2805,7 +2879,7 @@ export default function EventDetailClient() {
                         )}
                         {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
                         {p.userId === event.organizerId && <span className="text-xs text-primary-600 shrink-0">• org.</span>}
-                        {p.isCaptain && <span title="Kapitan"><Star className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                        {p.isCaptain && <OznaczenieKapitana />}
                         {showTeams && p.team && (
                           <span className={`text-xs px-1.5 py-0.5 rounded font-bold shrink-0 ${TEAM_COLOR_CLASSES[p.team].pill}`}>
                             {TEAM_LETTERS[p.team]}
@@ -3191,7 +3265,7 @@ export default function EventDetailClient() {
               </div>
               <div className="mt-3 flex gap-2">
                 <button
-                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                  onClick={() => { setJoinRole('player'); setJoinAsReserve(false); otworzOknoZapisu(); }}
                   disabled={busy}
                   className="flex-1 rounded-xl bg-primary-700 px-3 py-2.5 text-sm font-bold text-white hover:bg-primary-800 transition disabled:opacity-50"
                 >
@@ -3260,7 +3334,7 @@ export default function EventDetailClient() {
               ) : user && !isFull ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); setJoinDialogOpen(true); }}
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(false); otworzOknoZapisu(); }}
                     disabled={busy}
                     className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99] disabled:opacity-50"
                   >
@@ -3287,7 +3361,7 @@ export default function EventDetailClient() {
               ) : user && isFull ? (
                 <>
                   <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); setJoinDialogOpen(true); }}
+                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); otworzOknoZapisu(); }}
                     className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
                   >
                     Komplet — zapisz się na rezerwę
@@ -3375,9 +3449,22 @@ export default function EventDetailClient() {
             {/* JEDNA drużyna — moja. Rywal ma swoje ustawienie i swój czat,
                 i nie ma powodu, żebym je czytał: to jest ekran do uzgodnienia
                 gry ze swoimi, a nie podgląd cudzej szatni. */}
-            <p className={`mb-2 inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
-              {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
-            </p>
+            {/* Kapitan przy nazwie drużyny, na stałe — nie tylko w pustym
+                stanie. To pierwsza rzecz, o którą pyta się na tym ekranie:
+                „kto to w ogóle ustawia". */}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
+                {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
+              </p>
+              {kapitanMojejDruzyny ? (
+                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                  <Star className="h-3 w-3 shrink-0 text-amber-500" />
+                  Kapitan: <b className="font-semibold text-slate-700">{kapitanMojejDruzyny}</b>
+                </span>
+              ) : (
+                <span className="text-xs text-slate-400">bez kapitana</span>
+              )}
+            </div>
             <TaktykaDruzyny
               eventId={event.id}
               team={mojaDruzyna}
@@ -3386,6 +3473,7 @@ export default function EventDetailClient() {
               gracze={mojiGracze}
               mozeEdytowac={!!myParticipation?.isCaptain}
               kapitan={kapitanMojejDruzyny}
+              mozeWskazacKapitana={isOwner || canManageSquad}
             />
           </div>
         )}

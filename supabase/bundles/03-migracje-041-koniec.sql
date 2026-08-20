@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 70 migracji: 041_join_code.sql → 112_powiadomienie_o_usunieciu_meczu.sql
+-- Zawiera 74 migracji: 041_join_code.sql → 116_powiadomienie_o_usunieciu_meczu.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -6420,9 +6420,724 @@ CREATE POLICY "Leave or organiser or delegate removes"
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 109_powiadomienie_o_usunieciu_uczestnika.sql
+-- 109_ustawienia_powiadomien.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 109: Powiadomienie o usunięciu POTWIERDZONEGO gracza ze składu.
+-- 109: Ustawienia powiadomień + powiadomienia o wiadomościach.
+--
+-- DWIE RZECZY, bo bez drugiej pierwsza byłaby pusta w najważniejszym miejscu:
+-- „wiadomości w meczu" i „wiadomości w ekipie" NIE MIAŁY dotąd żadnego
+-- powiadomienia. Nieprzeczytane liczyła sama przeglądarka (znacznik „ostatnio
+-- widziano" w `localStorage`), więc o nowej wiadomości dowiadywał się tylko
+-- ten, kto i tak otworzył aplikację. Nie było czego wyłączać ani włączać.
+--
+-- ---------------------------------------------------------------------------
+-- 1. Ustawienia — czego NIE wysyłać
+-- ---------------------------------------------------------------------------
+-- Lista WYŁĄCZONYCH rodzajów, nie włączonych. Domyślnie pusta, czyli wszystko
+-- działa — nowy rodzaj powiadomienia nie wymaga wtedy migracji danych ani
+-- „obudzenia" nikomu ustawień. Odwrotnie (lista włączonych) każdy nowy rodzaj
+-- byłby domyślnie wyłączony dla wszystkich, którzy kiedykolwiek dotknęli
+-- ustawień — czyli funkcja wchodziłaby martwa.
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS push_wylaczone TEXT[] NOT NULL DEFAULT '{}';
+
+COMMENT ON COLUMN profiles.push_wylaczone IS
+  'Rodzaje powiadomień, których użytkownik NIE chce dostawać na telefon. Pusta tablica = wszystko włączone. Dotyczy wyłącznie pusha — dzwonek w aplikacji pokazuje wszystko (migracja 109).';
+
+-- Wyzwalacz wysyłki respektuje ustawienia. ŚWIADOMIE tylko push: dzwonek
+-- w aplikacji zostaje kompletny, bo to jest historia tego, co się wydarzyło,
+-- a nie kanał, który przerywa komuś dzień. Wyłączenie rodzaju ma znaczyć
+-- „nie zawracaj mi telefonu", a nie „ukryj to przede mną".
+CREATE OR REPLACE FUNCTION wyslij_push_po_powiadomieniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+BEGIN
+  -- Ustawienia sprawdzamy PIERWSZE: to najtańszy sposób na niewysłanie.
+  IF EXISTS (
+    SELECT 1 FROM profiles p
+     WHERE p.id = NEW.user_id AND NEW.type = ANY(p.push_wylaczone)
+  ) THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT wartosc INTO v_url    FROM konfiguracja_push WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_push WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-bojo-sekret', v_sekret
+    ),
+    body    := jsonb_build_object(
+      'user_id', NEW.user_id,
+      'tytul',   NEW.title,
+      'tresc',   NEW.body,
+      'typ',     NEW.type,
+      'event_id', NEW.event_id,
+      'group_id', NEW.group_id
+    )
+  );
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Kanał dodatkowy nie może wywrócić zapisu powiadomienia w aplikacji.
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Wiadomość w rozmowie meczu → powiadomienie dla składu
+-- ---------------------------------------------------------------------------
+-- ZAPORA 60 MINUT, per mecz i per odbiorca. Rozmowa przed meczem potrafi mieć
+-- trzydzieści wiadomości w kwadrans („będę 10 minut później", „kto bierze
+-- piłki"). Bez zapory każdy dostałby trzydzieści powiadomień, czyli wyłączyłby
+-- je po drugiej gierce — a razem z nimi te, które naprawdę mają znaczenie.
+-- Jedno powiadomienie na godzinę mówi „coś się dzieje, zajrzyj", i to
+-- wystarczy: treść i tak jest w aplikacji.
+--
+-- Ten sam wzorzec co zapora 12 h w `zapytaj_milczacych()` (migracja `097`).
+CREATE OR REPLACE FUNCTION powiadom_o_wiadomosci_w_meczu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_tytul TEXT;
+BEGIN
+  SELECT title INTO v_tytul FROM events WHERE id = NEW.event_id;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT ep.user_id,
+         'wiadomosc_w_meczu',
+         'Nowa wiadomość',
+         coalesce(v_tytul, 'Mecz') || ' — ' || NEW.user_name || ' napisał w rozmowie.',
+         NEW.event_id
+    FROM event_participants ep
+   WHERE ep.event_id = NEW.event_id
+     AND ep.user_id IS NOT NULL
+     AND ep.user_id <> NEW.user_id          -- autor wie, że napisał
+     AND ep.pending_approval = false
+     AND NOT EXISTS (
+       SELECT 1 FROM notifications n
+        WHERE n.user_id = ep.user_id
+          AND n.event_id = NEW.event_id
+          AND n.type = 'wiadomosc_w_meczu'
+          AND n.created_at > now() - interval '60 minutes'
+     );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Powiadomienie nie może zablokować wysłania samej wiadomości.
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_wiadomosci_w_meczu ON event_comments;
+CREATE TRIGGER trg_powiadom_o_wiadomosci_w_meczu
+  AFTER INSERT ON event_comments
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_wiadomosci_w_meczu();
+
+-- ---------------------------------------------------------------------------
+-- 3. Wpis na tablicy ekipy → powiadomienie dla członków
+-- ---------------------------------------------------------------------------
+-- Migracja `093` powiadamia WYŁĄCZNIE o wpisie PRZYPIĘTYM przez kogoś
+-- z `can_moderate_wall` — czyli o ogłoszeniu. Zwykła rozmowa ekipy nie
+-- powiadamiała nikogo. Ta sama zapora 60 minut, ten sam powód.
+CREATE OR REPLACE FUNCTION powiadom_o_wiadomosci_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_nazwa TEXT;
+BEGIN
+  -- Ogłoszenie (wpis przypięty) ma własne powiadomienie z `093` — nie dublujemy.
+  IF NEW.pinned_at IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT name INTO v_nazwa FROM groups WHERE id = NEW.group_id;
+
+  INSERT INTO notifications (user_id, type, title, body, group_id)
+  SELECT gm.user_id,
+         'wiadomosc_w_grupie',
+         'Nowa wiadomość w ekipie',
+         coalesce(v_nazwa, 'Ekipa') || ' — ' || NEW.user_name || ' napisał na tablicy.',
+         NEW.group_id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.user_id
+     AND NOT EXISTS (
+       SELECT 1 FROM notifications n
+        WHERE n.user_id = gm.user_id
+          AND n.group_id = NEW.group_id
+          AND n.type = 'wiadomosc_w_grupie'
+          AND n.created_at > now() - interval '60 minutes'
+     );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_wiadomosci_w_grupie ON group_posts;
+CREATE TRIGGER trg_powiadom_o_wiadomosci_w_grupie
+  AFTER INSERT ON group_posts
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_wiadomosci_w_grupie();
+
+-- ---------------------------------------------------------------------------
+-- 4. Publikacja składów → powiadomienie dla grających
+-- ---------------------------------------------------------------------------
+-- „Pojawiły się składy" to moment, na który czeka cała drużyna, a dotąd
+-- trzeba było zgadywać, kiedy nastąpił.
+CREATE OR REPLACE FUNCTION powiadom_o_skladach()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  -- Wyłącznie przejście false → true. Bez tego każda edycja meczu
+  -- z opublikowanymi składami wysyłałaby powiadomienie od nowa.
+  IF NEW.teams_published IS NOT TRUE OR OLD.teams_published IS TRUE THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT ep.user_id,
+         'sklady_opublikowane',
+         'Są składy',
+         coalesce(NEW.title, 'Mecz') || ' — sprawdź, w której drużynie grasz.',
+         NEW.id
+    FROM event_participants ep
+   WHERE ep.event_id = NEW.id
+     AND ep.user_id IS NOT NULL
+     AND ep.is_reserve = false
+     AND ep.pending_approval = false;
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_skladach ON events;
+CREATE TRIGGER trg_powiadom_o_skladach
+  AFTER UPDATE OF teams_published ON events
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_skladach();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 110_moment_zapisu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 110: `zapisano_at` — moment, od którego liczy się miejsce w kolejce rezerwowej.
+--
+-- PO CO. `event_participants.created_at` pełnił dotąd dwie role naraz: znacznik
+-- „kiedy powstał wiersz" (do etykiety pod nazwiskiem) i klucz sortowania kolejki
+-- rezerwowej (`sync_reserve_claim`, migracja `078`, `ORDER BY created_at`).
+--
+-- „Obserwuję" nie jest osobną tabelą — to ten sam wiersz w `event_participants`
+-- z `rsvp = 'maybe'` (migracja `049`). Kliknięcie „Obserwuj" tworzy wiersz od
+-- razu. Późniejsze „Dołącz" nie tworzy nowego wiersza (drugi INSERT tego
+-- samego użytkownika na ten sam mecz rzuciłby „Jesteś już zapisany") — tylko
+-- aktualizuje `rsvp` z 'maybe' na 'yes' (`confirmFromMaybe`). `created_at`
+-- zostaje z chwili kliknięcia „Obserwuj", która mogła paść wiele godzin
+-- wcześniej.
+--
+-- Skutek zgłoszony wprost: gracz zaczął obserwować wczoraj o 00:06, dołączył
+-- dziś o 6:35 — a lista uczestników pokazywała „wczoraj 00:06". Gorsze niż
+-- sama etykieta: w kolejce rezerwowej taka osoba stała PRZED wszystkimi, którzy
+-- zapisali się w międzyczasie, i to ona dostawałaby każde zwolnione miejsce.
+--
+-- ROZWIĄZANIE. Osobna kolumna o jednej, jasnej roli: moment, od którego liczy
+-- się miejsce w kolejce. Nie nadpisujemy `created_at` — ono nadal ma znaczyć
+-- „kiedy powstał wiersz" (i to jest właściwa informacja dla „obserwuję od").
+-- Trigger ustawia `zapisano_at = now()` WYŁĄCZNIE przy przejściu 'maybe' → 'yes'
+-- — zegar serwera, nie telefonu, żeby spieszący się zegar klienta nie dawał
+-- przewagi w kolejce.
+--
+-- Backfill: `zapisano_at = created_at` dla istniejących wierszy. Dla kogoś, kto
+-- już dziś ma zafałszowany znacznik (obserwował, potem dołączył), backfill
+-- NIE odtwarza prawdziwego momentu potwierdzenia — nigdzie nie był zapisany.
+-- Kolejka tych osób zostaje z dotychczasową, niesprawiedliwą datą; naprawia się
+-- to wyłącznie dla zapisów od tej migracji w przód.
+
+ALTER TABLE event_participants ADD COLUMN IF NOT EXISTS zapisano_at TIMESTAMPTZ;
+UPDATE event_participants SET zapisano_at = created_at WHERE zapisano_at IS NULL;
+ALTER TABLE event_participants ALTER COLUMN zapisano_at SET DEFAULT now();
+ALTER TABLE event_participants ALTER COLUMN zapisano_at SET NOT NULL;
+
+COMMENT ON COLUMN event_participants.zapisano_at IS
+  'Moment, od którego liczy się miejsce w kolejce rezerwowej. Przy zwykłym '
+  'dołączeniu równy created_at; dla kogoś, kto najpierw obserwował (rsvp maybe) '
+  'i potem dołączył, to moment potwierdzenia, nie moment kliknięcia "Obserwuj". '
+  'Ustawiany przez trg_moment_zapisu, nigdy z przeglądarki.';
+
+CREATE INDEX IF NOT EXISTS idx_event_participants_kolejka
+  ON event_participants (event_id, zapisano_at);
+
+CREATE OR REPLACE FUNCTION ustaw_moment_zapisu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Obserwujący ma wiersz od chwili kliknięcia "Obserwuj". Prawdziwy zapis to
+  -- dopiero przejście na 'yes' — i to on ma ustawiać kolejkę.
+  IF OLD.rsvp = 'maybe' AND NEW.rsvp = 'yes' THEN
+    NEW.zapisano_at := now();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_moment_zapisu ON event_participants;
+CREATE TRIGGER trg_moment_zapisu
+  BEFORE UPDATE ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION ustaw_moment_zapisu();
+
+-- ---------------------------------------------------------------------------
+-- sync_reserve_claim: kolejka zwolnionych miejsc sortuje się teraz po
+-- zapisano_at, nie po created_at. Ciało skopiowane z migracji `078`
+-- (ten sam wzorzec, którym `078` zastąpiło `075`/`077`) — zmienione są
+-- WYŁĄCZNIE dwie linie ORDER BY, jedna dla kolejki pola, jedna dla bramkarzy.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sync_reserve_claim(p_event_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_hours smallint; v_started boolean; v_title text; v_sport text;
+  v_gk_enabled boolean;
+  v_next_id uuid; v_next_user uuid;
+BEGIN
+  SELECT reserve_claim_hours, goalkeepers_enabled,
+         (event_date + event_time)::timestamp <= now() OR status = 'cancelled',
+         coalesce(title, sport), sport
+    INTO v_hours, v_gk_enabled, v_started, v_title, v_sport
+    FROM events WHERE id = p_event_id;
+
+  IF v_hours IS NULL OR v_started THEN RETURN; END IF;
+
+  -- Wygasłe oferty przepadają — dopiero potem cokolwiek liczymy.
+  UPDATE event_participants
+     SET claim_passed = true, claim_offered_at = NULL
+   WHERE event_id = p_event_id AND claim_offered_at IS NOT NULL
+     AND claim_offered_at + (v_hours || ' hours')::interval <= now();
+
+  -- Zawodnicy z pola
+  IF NOT czy_na_rezerwe(p_event_id, false) THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = false
+     ORDER BY zapisano_at LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', 'Zwolniło się miejsce!',
+        'Masz ' || v_hours || ' godz. na potwierdzenie udziału w „' || v_title || '" (' || v_sport || ').', p_event_id);
+    END IF;
+  END IF;
+
+  -- Bramkarze — osobna kolejka. Pytanie zadajemy PONOWNIE, bo powyższa oferta
+  -- mogła właśnie zająć ostatnie miejsce ze wspólnej puli (tryb `077`).
+  IF v_gk_enabled AND NOT czy_na_rezerwe(p_event_id, true) THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = true
+     ORDER BY zapisano_at LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', 'Zwolniło się miejsce!',
+        'Masz ' || v_hours || ' godz. na potwierdzenie udziału (jako bramkarz) w „' || v_title || '" (' || v_sport || ').', p_event_id);
+    END IF;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 111_tresci_powiadomien.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 111: Treści powiadomień — tytuł mówi CZEGO dotyczy, treść mówi CO się stało.
+--
+-- PO CO: powiadomienie na telefonie widać przez sekundę, na zablokowanym
+-- ekranie, w dwóch linijkach. Musi w tym czasie odpowiedzieć na jedno pytanie:
+-- „czy mnie to teraz obchodzi". Dotychczasowe treści odpowiadały wolniej, niż
+-- trzeba, a przy wiadomościach nie odpowiadały wcale.
+--
+-- ZASADA, którą to wprowadza i której warto się trzymać przy nowych typach:
+--   TYTUŁ  = konkret, którego dotyczy (nazwa meczu, nazwa ekipy),
+--   TREŚĆ  = co się wydarzyło, najlepiej cudzymi słowami (treść wiadomości).
+--
+-- Odwrotnie było przy wiadomościach: tytuł brzmiał „Nowa wiadomość" (czyli to,
+-- co i tak widać po ikonie), a treść mówiła „X napisał w rozmowie" — czyli
+-- powtarzała tytuł innymi słowami i NIE pokazywała samej wiadomości. Po takim
+-- powiadomieniu trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi
+-- o „będę 10 minut później", czy o „nie dam rady, szukajcie kogoś".
+
+-- ---------------------------------------------------------------------------
+-- 1. Wiadomość w rozmowie meczu
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION powiadom_o_wiadomosci_w_meczu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_tytul TEXT;
+  v_tresc TEXT;
+BEGIN
+  SELECT title INTO v_tytul FROM events WHERE id = NEW.event_id;
+
+  -- 140 znaków: tyle mniej więcej mieści się w powiadomieniu na telefonie,
+  -- zanim system i tak utnie resztę. Ucinamy sami, żeby dołożyć wielokropek —
+  -- inaczej wiadomość kończy się w pół słowa i wygląda jak błąd.
+  v_tresc := NEW.user_name || ': ' ||
+    CASE WHEN length(NEW.body) > 140 THEN left(NEW.body, 140) || '…' ELSE NEW.body END;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT ep.user_id,
+         'wiadomosc_w_meczu',
+         coalesce(v_tytul, 'Rozmowa meczu'),
+         v_tresc,
+         NEW.event_id
+    FROM event_participants ep
+   WHERE ep.event_id = NEW.event_id
+     AND ep.user_id IS NOT NULL
+     AND ep.user_id <> NEW.user_id
+     AND ep.pending_approval = false
+     AND NOT EXISTS (
+       SELECT 1 FROM notifications n
+        WHERE n.user_id = ep.user_id
+          AND n.event_id = NEW.event_id
+          AND n.type = 'wiadomosc_w_meczu'
+          AND n.created_at > now() - interval '60 minutes'
+     );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Wiadomość na tablicy ekipy
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION powiadom_o_wiadomosci_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_nazwa TEXT;
+  v_tresc TEXT;
+BEGIN
+  IF NEW.pinned_at IS NOT NULL THEN
+    RETURN NEW;   -- ogłoszenie ma własne powiadomienie (093)
+  END IF;
+
+  SELECT name INTO v_nazwa FROM groups WHERE id = NEW.group_id;
+
+  v_tresc := NEW.user_name || ': ' ||
+    CASE WHEN length(NEW.body) > 140 THEN left(NEW.body, 140) || '…' ELSE NEW.body END;
+
+  INSERT INTO notifications (user_id, type, title, body, group_id)
+  SELECT gm.user_id,
+         'wiadomosc_w_grupie',
+         coalesce(v_nazwa, 'Twoja ekipa'),
+         v_tresc,
+         NEW.group_id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.user_id
+     AND NOT EXISTS (
+       SELECT 1 FROM notifications n
+        WHERE n.user_id = gm.user_id
+          AND n.group_id = NEW.group_id
+          AND n.type = 'wiadomosc_w_grupie'
+          AND n.created_at > now() - interval '60 minutes'
+     );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Publikacja składów
+-- ---------------------------------------------------------------------------
+-- „Są składy" jako tytuł mówiło CO, ale nie CZEGO dotyczy — przy dwóch meczach
+-- w tygodniu trzeba było wejść, żeby sprawdzić który. Teraz tytuł niesie nazwę
+-- meczu, a treść dokłada termin, bo to jest następne pytanie po „który mecz".
+CREATE OR REPLACE FUNCTION powiadom_o_skladach()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.teams_published IS NOT TRUE OR OLD.teams_published IS TRUE THEN
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT ep.user_id,
+         'sklady_opublikowane',
+         coalesce(NEW.title, 'Mecz'),
+         'Są składy — sprawdź, w której drużynie grasz. '
+           || to_char(NEW.event_date, 'DD.MM') || ', godz. '
+           || to_char(NEW.event_time, 'HH24:MI') || '.',
+         NEW.id
+    FROM event_participants ep
+   WHERE ep.event_id = NEW.id
+     AND ep.user_id IS NOT NULL
+     AND ep.is_reserve = false
+     AND ep.pending_approval = false;
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4. Nowy mecz w ekipie
+-- ---------------------------------------------------------------------------
+-- Tytuł „Nowy mecz w grupie" nie mówił W KTÓREJ, a przy kilku ekipach to jest
+-- pierwsze pytanie. Treść dostaje miejsce — bo „czwartek 20:00" bez boiska nie
+-- wystarcza do decyzji, gdy ekipa gra w dwóch miejscach.
+CREATE OR REPLACE FUNCTION powiadom_o_nowym_meczu_w_grupie()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_nazwa_grupy TEXT;
+BEGIN
+  IF NEW.group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT name INTO v_nazwa_grupy FROM groups WHERE id = NEW.group_id;
+
+  INSERT INTO notifications (user_id, type, title, body, event_id, group_id)
+  SELECT gm.user_id,
+         'nowy_mecz_w_grupie',
+         coalesce(v_nazwa_grupy, 'Twoja ekipa') || ' — nowy mecz',
+         coalesce(NEW.title, 'Mecz') || ', '
+           || to_char(NEW.event_date, 'DD.MM') || ' godz. '
+           || to_char(NEW.event_time, 'HH24:MI')
+           || coalesce(' · ' || NEW.field_name, '') || '.',
+         NEW.id,
+         NEW.group_id
+    FROM group_members gm
+   WHERE gm.group_id = NEW.group_id
+     AND gm.user_id <> NEW.organizer_id;   -- zakładający wie, że założył
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_nowym_meczu_w_grupie ON events;
+CREATE TRIGGER trg_powiadom_o_nowym_meczu_w_grupie
+  AFTER INSERT ON events
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_nowym_meczu_w_grupie();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 112_seo_tier_i_lokalizacja.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 112_seo_tier_i_lokalizacja.sql
+--
+-- Fundament pod tierowanie indeksacji katalogu boisk w wyszukiwarkach
+-- (SEO/GEO). Audyt produkcyjnej bazy (2026-08-20) pokazał, że:
+--   - `fields` ma dziś 32 684 wiersze (import całej Polski z OSM już się
+--     wydarzył — scraper/import_osm_pbf.py), nie hipotetyczne "35k do
+--     zaimportowania". Ryzyko cienkiej treści jest aktualne, nie prewencyjne.
+--   - tylko 40 obiektów w całej historii miało kiedykolwiek mecz (events).
+--     Kryterium "ma mecz" samo w sobie dałoby Tier 1 rzędu dziesiątek, nie
+--     tysięcy rekordów — to sygnał PROMOCJI, nie doboru początkowego.
+--   - nie ma kolumn city/voivodeship. Jest tylko district (12% wypełnione),
+--     postcode (26%), osm_tags->>'addr:city' (1%). Jedyne pola w 100%:
+--     lat/lng i address (wolny tekst, parsowany dziś niespójnie w kilku
+--     miejscach frontendu — miejscowoscZAdresu() w boisko/[id]/page.tsx
+--     i komentarz w lib/structuredData.ts#eventJsonLd).
+--   - baza nie ma PostGIS — dopasowanie punkt→miasto/województwo robi
+--     scraper/backfill_lokalizacja.py (Python, Shapely/osmium, reużywa
+--     nearest_place() z import_osm_pbf.py), nie SQL w tej migracji.
+--
+-- Kolejność uruchomienia: ta migracja → scraper/backfill_lokalizacja.py
+-- (ręcznie, per województwo) → triggery niżej same przeliczają seo_tier,
+-- bo backfill zapisuje city/voivodeship przez UPDATE OF city, co je budzi.
+
+ALTER TABLE fields
+  ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS voivodeship TEXT,
+  ADD COLUMN IF NOT EXISTS seo_tier SMALLINT NOT NULL DEFAULT 3;
+
+ALTER TABLE fields
+  DROP CONSTRAINT IF EXISTS fields_seo_tier_check;
+ALTER TABLE fields
+  ADD CONSTRAINT fields_seo_tier_check CHECK (seo_tier IN (1, 2, 3));
+
+COMMENT ON COLUMN fields.city IS
+  'Miejscowość, normalizowana w scraper/backfill_lokalizacja.py (nearest_place() z importu OSM). NIE parsować z address w nowym kodzie.';
+COMMENT ON COLUMN fields.voivodeship IS
+  'Slug województwa jak w scraper/import_osm_pbf.py WOJEWODZTWA (np. "wielkopolskie").';
+COMMENT ON COLUMN fields.seo_tier IS
+  '1 = pełna indeksacja (index,follow), 2 = index,follow warunkowo (po Fazie 1 — programmatic content), 3 = noindex,follow. Liczone przez oblicz_seo_tier(), patrz triggery niżej — nie ustawiać ręcznie poza backfillem.';
+
+CREATE INDEX IF NOT EXISTS idx_fields_city ON fields (city) WHERE city IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_fields_voivodeship ON fields (voivodeship) WHERE voivodeship IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_fields_seo_tier ON fields (seo_tier);
+
+-- ---------------------------------------------------------------------------
+-- Miasta priorytetowe — "duże i średnie miasto" bez PostGIS i bez tabeli
+-- populacji w bazie. Analogiczne do dzisiejszego hardkodowanego MIASTA
+-- w frontend/src/content/graj.ts (dziś tylko Poznań), tylko szersze: ~100
+-- polskich miast powyżej ok. 15 tys. mieszkańców (dane GUS, publiczne).
+-- Rozszerzenie hubów /[sport]/[miasto] poza Poznań to osobna decyzja
+-- (Faza 2, BACKLOG.md) — ta tabela służy WYŁĄCZNIE do tieringu indeksacji.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS miasta_priorytetowe (
+  nazwa TEXT PRIMARY KEY
+);
+
+ALTER TABLE miasta_priorytetowe ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "miasta_priorytetowe_select" ON miasta_priorytetowe;
+CREATE POLICY "miasta_priorytetowe_select" ON miasta_priorytetowe FOR SELECT
+  USING (true);
+
+INSERT INTO miasta_priorytetowe (nazwa) VALUES
+  ('Warszawa'), ('Kraków'), ('Łódź'), ('Wrocław'), ('Poznań'),
+  ('Gdańsk'), ('Szczecin'), ('Bydgoszcz'), ('Lublin'), ('Białystok'),
+  ('Katowice'), ('Gdynia'), ('Częstochowa'), ('Radom'), ('Sosnowiec'),
+  ('Toruń'), ('Kielce'), ('Rzeszów'), ('Gliwice'), ('Zabrze'),
+  ('Olsztyn'), ('Bielsko-Biała'), ('Bytom'), ('Zielona Góra'), ('Rybnik'),
+  ('Ruda Śląska'), ('Opole'), ('Tychy'), ('Gorzów Wielkopolski'), ('Dąbrowa Górnicza'),
+  ('Elbląg'), ('Płock'), ('Wałbrzych'), ('Włocławek'), ('Tarnów'),
+  ('Chorzów'), ('Koszalin'), ('Kalisz'), ('Legnica'), ('Grudziądz'),
+  ('Słupsk'), ('Jaworzno'), ('Jastrzębie-Zdrój'), ('Nowy Sącz'), ('Jelenia Góra'),
+  ('Siedlce'), ('Mysłowice'), ('Konin'), ('Piotrków Trybunalski'), ('Inowrocław'),
+  ('Lubin'), ('Ostrowiec Świętokrzyski'), ('Suwałki'), ('Stargard'), ('Gniezno'),
+  ('Ostrów Wielkopolski'), ('Siemianowice Śląskie'), ('Głogów'), ('Pabianice'), ('Chełm'),
+  ('Zamość'), ('Tomaszów Mazowiecki'), ('Łomża'), ('Tarnowskie Góry'), ('Przemyśl'),
+  ('Stalowa Wola'), ('Kędzierzyn-Koźle'), ('Piła'), ('Mielec'), ('Świdnica'),
+  ('Ostrołęka'), ('Będzin'), ('Racibórz'), ('Legionowo'), ('Leszno'),
+  ('Zgierz'), ('Piekary Śląskie'), ('Skierniewice'), ('Świnoujście'), ('Krosno'),
+  ('Ełk'), ('Starachowice'), ('Biała Podlaska'), ('Wejherowo'), ('Puławy'),
+  ('Bielawa'), ('Żory'), ('Sopot'), ('Iława'), ('Rumia'),
+  ('Nysa'), ('Wodzisław Śląski'), ('Otwock'), ('Kutno'), ('Wołomin'),
+  ('Sieradz'), ('Piaseczno'), ('Ciechanów'), ('Skarżysko-Kamienna'), ('Świętochłowice'),
+  ('Malbork'), ('Jarosław')
+ON CONFLICT (nazwa) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- oblicz_seo_tier — czysta funkcja, bez side-effectów. Bierze dane obiektu
+-- jako parametry (nie SELECT po id z fields) właśnie po to, żeby działała
+-- poprawnie w triggerze BEFORE INSERT — w tym momencie NEW.* jeszcze nie
+-- jest widoczne przez SELECT z tej samej tabeli.
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION oblicz_seo_tier(
+  p_id uuid, p_city text, p_is_verified boolean, p_sport text[], p_name text
+) RETURNS smallint
+LANGUAGE sql STABLE AS $$
+  SELECT CASE
+    WHEN (p_city IS NOT NULL AND p_city IN (SELECT nazwa FROM miasta_priorytetowe))
+      OR p_is_verified IS TRUE
+      OR EXISTS (SELECT 1 FROM events e WHERE e.field_id = p_id)
+      OR EXISTS (SELECT 1 FROM field_comments fc WHERE fc.field_id = p_id AND fc.deleted_at IS NULL)
+    THEN 1
+    WHEN p_city IS NOT NULL
+      AND p_sport IS NOT NULL AND array_length(p_sport, 1) > 0
+      AND coalesce(length(trim(p_name)), 0) > 0
+    THEN 2
+    ELSE 3
+  END
+$$;
+
+COMMENT ON FUNCTION oblicz_seo_tier IS
+  'Tier 1: miasto priorytetowe, LUB is_verified_venue, LUB ma mecz, LUB ma komentarz. Tier 2: ma miejscowość + sport + nazwę. Tier 3: reszta. Historia meczów/komentarzy jest sygnałem promocji (patrz triggery events/field_comments), nie głównym kryterium doboru — przy 40 obiektach z meczem w całej bazie samo to kryterium dałoby Tier 1 rzędu dziesiątek, nie tysięcy.';
+
+CREATE OR REPLACE FUNCTION trg_fields_przelicz_tier() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.seo_tier := oblicz_seo_tier(NEW.id, NEW.city, NEW.is_verified_venue, NEW.sport, NEW.name);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS fields_przelicz_tier ON fields;
+CREATE TRIGGER fields_przelicz_tier
+  BEFORE INSERT OR UPDATE OF city, is_verified_venue, sport, name ON fields
+  FOR EACH ROW EXECUTE FUNCTION trg_fields_przelicz_tier();
+
+-- Awans do Tier 1, gdy ktoś zorganizuje mecz na obiekcie — jednokierunkowy
+-- (mecz odwołany/usunięty nie degraduje z powrotem, tak jak inne "raz
+-- zdobyte" stany w tej aplikacji, np. is_verified_venue).
+CREATE OR REPLACE FUNCTION trg_events_promuj_tier() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.field_id IS NOT NULL THEN
+    UPDATE fields SET seo_tier = 1 WHERE id = NEW.field_id AND seo_tier <> 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS events_promuj_tier ON events;
+CREATE TRIGGER events_promuj_tier
+  AFTER INSERT ON events
+  FOR EACH ROW EXECUTE FUNCTION trg_events_promuj_tier();
+
+CREATE OR REPLACE FUNCTION trg_field_comments_promuj_tier() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE fields SET seo_tier = 1 WHERE id = NEW.field_id AND seo_tier <> 1;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS field_comments_promuj_tier ON field_comments;
+CREATE TRIGGER field_comments_promuj_tier
+  AFTER INSERT ON field_comments
+  FOR EACH ROW EXECUTE FUNCTION trg_field_comments_promuj_tier();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 113_powiadomienie_o_usunieciu_uczestnika.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 113: Powiadomienie o usunięciu POTWIERDZONEGO gracza ze składu.
 --
 -- `076_pelniejsze_tresci_powiadomien.sql#powiadom_o_odrzuceniu_prosby`
 -- powiadamia wyłącznie o odrzuceniu PROŚBY (`OLD.pending_approval IS TRUE`).
@@ -6445,7 +7160,7 @@ CREATE POLICY "Leave or organiser or delegate removes"
 -- Gdy usuwany jest CAŁY mecz, `event_participants` kaskaduje (`ON DELETE
 -- CASCADE`) i `SELECT ... FROM events WHERE id = OLD.event_id` nie zwróci
 -- nic — trigger wtedy milczy, bo o usunięciu meczu mówi osobne powiadomienie
--- (migracja `112`). Bez tego warunku każdy uczestnik usuniętego meczu
+-- (migracja `116`). Bez tego warunku każdy uczestnik usuniętego meczu
 -- dostałby mylące "usunięto Cię ze składu" zamiast "mecz został usunięty".
 
 CREATE OR REPLACE FUNCTION powiadom_o_usunieciu_uczestnika()
@@ -6491,9 +7206,9 @@ CREATE TRIGGER trg_powiadom_o_usunieciu_uczestnika
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 110_powiadomienie_o_zmianie_warunkow.sql
+-- 114_powiadomienie_o_zmianie_warunkow.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 110: Powiadomienie o zmianie miejsca lub kosztu meczu.
+-- 114: Powiadomienie o zmianie miejsca lub kosztu meczu.
 --
 -- Jedyne triggery reagujące na edycję meczu to `065` (zmiana daty/godziny)
 -- i `070` (odwołanie). Przeniesienie meczu na inne boisko albo zmiana ceny —
@@ -6552,9 +7267,9 @@ CREATE TRIGGER trg_powiadom_o_zmianie_warunkow
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 111_gosc_wymaga_akceptacji.sql
+-- 115_gosc_wymaga_akceptacji.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 111: Zapis gościa respektuje "akceptacja zapisów" (require_approval).
+-- 115: Zapis gościa respektuje "akceptacja zapisów" (require_approval).
 --
 -- `dolacz_do_meczu_jako_goscie()` (`088`, wcześniej `082`-`087`) wstawiała
 -- `pending_approval = false` na sztywno. Na meczu z włączoną akceptacją
@@ -6721,9 +7436,9 @@ GRANT EXECUTE ON FUNCTION dolacz_do_meczu_jako_goscie(UUID, TEXT, TEXT, BOOLEAN,
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 112_powiadomienie_o_usunieciu_meczu.sql
+-- 116_powiadomienie_o_usunieciu_meczu.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 112: Powiadomienie o twardym usunięciu meczu.
+-- 116: Powiadomienie o twardym usunięciu meczu.
 --
 -- `deleteEvent()` (`lib/events.ts`) to goły `DELETE FROM events`. Modal
 -- potwierdzenia mówi wprost „Wszyscy uczestnicy stracą dostęp do meczu"

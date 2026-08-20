@@ -31,6 +31,39 @@ export type StanPush =
  *  Prywatny mieszka wyłącznie w sekretach funkcji brzegowej. */
 const KLUCZ_PUBLICZNY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
+/**
+ * Odłożenie zachęty do włączenia powiadomień.
+ *
+ * NIE „na zawsze", tylko NA 30 DNI. „Nie teraz" znaczy dokładnie tyle, ile
+ * mówi: dziś nie mam na to głowy. Trwałe schowanie po jednym kliknięciu
+ * kasowałoby jedyny kanał, który w ogóle dowozi informację o meczu, a przecież
+ * za miesiąc ta sama osoba może chcieć inaczej. Drugi warunek: pytamy
+ * WYŁĄCZNIE tam, gdzie push ma oczywisty sens (strona meczu, w którym gram),
+ * więc nie jest to prośba wyskakująca znikąd.
+ */
+const KLUCZ_ODLOZONE = 'bojo:push-odlozone';
+const ILE_DNI_ODLOZENIA = 30;
+
+export function odlozZachetePush(teraz: Date = new Date()): void {
+  try {
+    localStorage.setItem(KLUCZ_ODLOZONE, String(teraz.getTime()));
+  } catch { /* tryb prywatny — trudno, zapyta jeszcze raz */ }
+}
+
+export function czyZachetaOdlozona(teraz: Date = new Date()): boolean {
+  try {
+    const zapis = localStorage.getItem(KLUCZ_ODLOZONE);
+    if (!zapis) return false;
+    const kiedy = Number(zapis);
+    if (!Number.isFinite(kiedy)) return false;
+    return teraz.getTime() - kiedy < ILE_DNI_ODLOZENIA * 24 * 60 * 60 * 1000;
+  } catch {
+    // Brak localStorage = nie mamy jak zapamiętać odmowy, więc nie pytamy
+    // w kółko. Ta sama zasada co przy zachęcie do instalacji.
+    return true;
+  }
+}
+
 /** base64url → Uint8Array; `pushManager.subscribe` nie przyjmuje stringa. */
 function naBajty(base64url: string): Uint8Array<ArrayBuffer> {
   const dopelnienie = '='.repeat((4 - (base64url.length % 4)) % 4);
@@ -116,4 +149,52 @@ export async function wylaczPush(userId: string): Promise<void> {
       .eq('endpoint', subskrypcja.endpoint);
     await subskrypcja.unsubscribe();
   }
+}
+
+/**
+ * Konta, które widzą narzędzia diagnostyczne.
+ *
+ * „Wyślij próbne powiadomienie" to przycisk do rozstrzygania awarii, nie
+ * funkcja produktu: zwykłemu graczowi nie mówi nic poza tym, że coś mignęło.
+ * Zostaje przy dwóch kontach, na których realnie testujemy Bojo — reszta
+ * ekipy nie musi się zastanawiać, co to robi (zgłoszone wprost).
+ *
+ * Lista adresów, nie flaga w bazie: to jest narzędzie na czas dochodzenia,
+ * a nie uprawnienie, którym trzeba zarządzać. Gdy push zacznie działać
+ * pewnie, przycisk zniknie w całości.
+ */
+const KONTA_DIAGNOSTYCZNE = ['franekks@gmail.com', 'franciszekpudelko@gmail.com'];
+
+export function widziDiagnostyke(email: string | null | undefined): boolean {
+  return !!email && KONTA_DIAGNOSTYCZNE.includes(email.trim().toLowerCase());
+}
+
+/**
+ * Próbne powiadomienie wyświetlone LOKALNIE, bez ruszania serwera.
+ *
+ * DLACZEGO TO JEST PRZYDATNE: gdy powiadomienia „nie przychodzą", winowajca
+ * jest w jednym z dwóch miejsc, a objaw jest identyczny. To rozdziela je
+ * jednym kliknięciem:
+ *
+ *   próbne WIDAĆ, a prawdziwych nie ma → telefon umie wyświetlać, więc problem
+ *     jest po drodze: subskrypcja z innej przeglądarki niż ta, w którą patrzysz,
+ *     albo powiadomienie w ogóle nie powstało po stronie meczu;
+ *   próbnego NIE WIDAĆ → problem jest na urządzeniu: powiadomienia wyłączone
+ *     dla Bojo w ustawieniach systemu, tryb skupienia, albo — na iPhonie —
+ *     aplikacja otwarta z przeglądarki zamiast z ekranu głównego.
+ *
+ * Świadomie NIE idzie przez serwer: test ma sprawdzać sam koniec drogi.
+ */
+export async function probnePowiadomienie(): Promise<void> {
+  const rejestracja = await navigator.serviceWorker.getRegistration();
+  if (!rejestracja) throw new Error('Aplikacja nie jest jeszcze gotowa — odśwież stronę.');
+  if (Notification.permission !== 'granted') {
+    throw new Error('Najpierw włącz powiadomienia.');
+  }
+  await rejestracja.showNotification('Bojo — próbne powiadomienie', {
+    body: 'Jeśli to widzisz, telefon wyświetla powiadomienia poprawnie.',
+    icon: '/ikony/ikona-192.png',
+    badge: '/ikony/maskowalna-192.png',
+    tag: 'bojo-test',
+  });
 }

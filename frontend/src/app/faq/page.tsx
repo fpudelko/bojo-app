@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { ChevronDown } from 'lucide-react';
 import StronaTresci from '@/components/tresc/StronaTresci';
 import SpisTresci from '@/components/tresc/SpisTresci';
+import MiniFaq from '@/components/tresc/MiniFaq';
 import { FAQ, KATEGORIE_FAQ } from '@/content/faq';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -30,21 +30,8 @@ export default function FaqPage() {
           <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
             {kat.tytul}
           </h2>
-          <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white px-5 dark:border-slate-700/80 dark:bg-slate-800 sm:px-6">
-            {FAQ.filter((p) => p.kategoria === kat.klucz).map((item) => (
-              <details key={item.q} className="group border-b border-slate-200 py-4 last:border-b-0 dark:border-slate-700">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                  {item.q}
-                  <ChevronDown
-                    className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <p className="mt-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                  {item.a}
-                </p>
-              </details>
-            ))}
+          <div className="mt-3">
+            <MiniFaq pytania={FAQ.filter((p) => p.kategoria === kat.klucz)} />
           </div>
         </section>
       ))}

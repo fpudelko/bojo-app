@@ -15,6 +15,10 @@ import EventDetailClient from './EventDetailClient';
 // (generowany per mecz: sport, termin, miejsce, wolne miejsca), łącznie
 // z obsługą `cover_image_url`, gdyby kiedyś powstało UI do jego ustawiania.
 // Next.js łączy oba źródła metadanych automatycznie.
+//
+// EventMeta/getEventMeta wydzielone do ./eventMeta.ts (współdzielone
+// z opengraph-image.tsx) — patrz tamten plik, w tym lat/lng dla
+// `location.geo` w danych strukturalnych (lib/structuredData.ts).
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const ev = await getEventMeta(params.id);

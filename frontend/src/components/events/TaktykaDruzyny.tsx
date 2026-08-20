@@ -22,7 +22,8 @@ import type { EventParticipant } from '@/types';
  * USTAWIA WYŁĄCZNIE KAPITAN, reszta drużyny to samo widzi. Bez tego skład
  * zmieniałby się pod ręką dziesięciu osób naraz i nikt nie wiedziałby, która
  * wersja obowiązuje — a ustalenie ustawienia to jedna decyzja, nie głosowanie.
- * Kapitana wskazuje organizator w zakładce „Skład" (gwiazdka przy nazwisku).
+ * Kapitana wskazuje organizator (albo współorganizator od składów) w zakładce
+ * „Mecz" — gwiazdką przy nazwisku, niezależnie od trybu dzielenia drużyn.
  * Dla reszty ten sam ekran renderuje się jako czytelny opis: boisko z obsadą,
  * cztery odpowiedzi i notatka — bez ani jednego przycisku, który i tak nic by
  * nie zrobił.
@@ -37,7 +38,7 @@ import type { EventParticipant } from '@/types';
  * tu ani jednej wartości w pikselach.
  */
 export default function TaktykaDruzyny({
-  eventId, team, nazwa, sport, gracze, mozeEdytowac, kapitan,
+  eventId, team, nazwa, sport, gracze, mozeEdytowac, kapitan, mozeWskazacKapitana,
 }: {
   eventId: string;
   team: Druzyna;
@@ -49,6 +50,10 @@ export default function TaktykaDruzyny({
   mozeEdytowac: boolean;
   /** Imię kapitana — do zdania „ustawia {kto}", żeby wiadomo było, kogo pytać. */
   kapitan?: string;
+  /** Czy patrzący może kapitana POWOŁAĆ (organizator, współorganizator od
+   *  składów). Decyduje wyłącznie o treści komunikatu przy braku kapitana:
+   *  jemu mówimy, gdzie kliknąć, reszcie — kogo poprosić. */
+  mozeWskazacKapitana?: boolean;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -226,11 +231,26 @@ export default function TaktykaDruzyny({
 
   return (
     <div className="space-y-4">
-      {czekamyNaKapitana && (
+      {/* Bez kapitana ta zakładka nie ma kogo czekać — a poprzednia treść
+          („Kapitan pokaże ustawienie") sugerowała, że ktoś taki istnieje
+          i się ociąga. Mówimy więc wprost, czego brakuje, i kto to naprawia:
+          organizatorowi pokazujemy gdzie kliknąć, reszcie — kogo poprosić. */}
+      {czekamyNaKapitana && !kapitan && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
+          <p className="text-sm font-semibold text-ink">Drużyna nie ma jeszcze kapitana</p>
+          <p className="mt-1 text-xs text-slate-600">
+            {mozeWskazacKapitana
+              ? 'Wskaż go w zakładce Mecz — gwiazdka przy nazwisku na liście składów. Kapitan ustawia taktykę i publikuje ją drużynie.'
+              : 'Taktykę ustawia kapitan. Poproś organizatora, żeby kogoś wskazał — rozmowa drużyny działa już teraz.'}
+          </p>
+        </div>
+      )}
+
+      {czekamyNaKapitana && kapitan && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-800">
           <p className="text-sm font-semibold text-ink">Taktyka jeszcze nieustalona</p>
           <p className="mt-1 text-xs text-slate-500">
-            {kapitan ? `${kapitan} (kapitan)` : 'Kapitan'} pokaże ustawienie, gdy będzie gotowe.
+            {kapitan} (kapitan) pokaże ustawienie, gdy będzie gotowe.
             Rozmowa drużyny działa już teraz.
           </p>
         </div>
@@ -336,7 +356,7 @@ export default function TaktykaDruzyny({
                 return setWybranySlot(wybrany ? null : poz.slot);
               }}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
-              className="absolute flex w-14 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 disabled:cursor-default"
+              className="absolute flex h-8 w-[4.25rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center disabled:cursor-default"
               aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
             >
               <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
@@ -346,10 +366,37 @@ export default function TaktykaDruzyny({
                     ? 'border-accent-400 bg-accent-400 text-primary-950'
                     : 'border-white/60 bg-primary-800/70 text-white/80'
               }`}>
-                {gracz ? gracz.name.slice(0, 2).toUpperCase() : poz.rola}
+                {/* ZAWSZE nazwa pozycji, także pod obsadzonym kółkiem.
+                    Inicjały powtarzały to, co i tak stoi podpisane pod spodem
+                    pełnym imieniem i nazwiskiem — a gubiły jedyną informację,
+                    której na boisku nie widać skądinąd: kto gra na czym.
+                    Kółko mówi „gdzie", podpis mówi „kto". */}
+                {poz.rola}
               </span>
-              <span className="max-w-full truncate text-[10px] font-semibold text-white drop-shadow">
-                {gracz ? gracz.name.split(' ')[0] : poz.nazwa}
+              {/* CAŁE nazwisko, łamane na dwie linijki — nie samo imię.
+                  Skrót do imienia gubił dokładnie tę informację, po którą się
+                  tu patrzy: w składzie bywa dwóch Kubów i dwóch Mateuszów,
+                  a wtedy plan gry przestaje cokolwiek znaczyć. Łamanie zamiast
+                  ucięcia, bo ucięte „Mateusz Bazar…" jest tak samo bezużyteczne
+                  jak samo imię.
+
+                  PODPIS POZYCJONOWANY ABSOLUTNIE, nie jako druga komórka
+                  kolumny: przy dolnej linii przenosimy go NAD kółko, a gdyby
+                  siedział w tym samym układzie, przeniesienie zjechałoby całym
+                  guzikiem w dół (środek `-translate-y-1/2` liczy się z całej
+                  wysokości) i krawędź ucięłaby nazwisko mimo przeniesienia.
+                  Tak kółko stoi dokładnie na swoim punkcie w obu wariantach.
+
+                  Dolna linia to bramkarz na `y = 6`, czyli 94% wysokości
+                  murawy — pod nim nie ma już miejsca na dwie linijki.
+                  Dosunięcie go wyżej odpadało: stałby poza polem karnym,
+                  czyli tam, gdzie bramkarz nie stoi. */}
+              <span
+                className={`absolute left-1/2 w-[4.25rem] -translate-x-1/2 break-words text-center text-[9px] font-semibold leading-[1.15] text-white drop-shadow ${
+                  poz.y < 15 ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
+                }`}
+              >
+                {gracz ? gracz.name : poz.nazwa}
               </span>
             </button>
           );

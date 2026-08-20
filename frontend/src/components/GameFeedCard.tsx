@@ -8,6 +8,7 @@ import type { EventItem } from '@/types';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { eventDisplayTitle } from '@/lib/eventTitle';
+import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
 import { timeUntil } from './EventListCard';
 
 /** Rich, conversion-focused game card for the public feed.
@@ -21,7 +22,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const barColor = full ? '#ef4444' : pct >= 80 ? '#f59e0b' : color;
+  const barColor = full ? KOLOR_PASKA_KOMPLET : pct >= 80 ? '#f59e0b' : color;
 
   // Date / time label
   let dayLabel = '';
@@ -97,7 +98,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
               <span className="text-sm font-medium text-slate-500">graczy</span>
             </div>
             {full ? (
-              <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-bold text-red-500">Komplet</span>
+              <span className={`rounded-full px-3 py-1 text-sm font-bold ${PLAKIETKA_KOMPLET}`}>Komplet</span>
             ) : (
               <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
                 brak {left}

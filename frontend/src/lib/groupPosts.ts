@@ -5,6 +5,7 @@
 // po cichu nie zmieniło żadnego wiersza.
 import { supabase } from './supabase';
 import { zPonowieniemPoOdswiezeniu, zaktualizujJedenWiersz } from './zapytania';
+import type { RozmowaNieprzeczytana } from './comments';
 import type { GroupPost } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,28 +175,46 @@ export async function hasUnreadGroupMessages(userId: string, groupIds: string[])
   return Object.keys(counts).length > 0;
 }
 
-/** Nazwa ekipy z najświeższą nieprzeczytaną wiadomością — treść dymka
- *  „Nowa wiadomość w grupie {nazwa}" na dolnej nawigacji (`BottomNav.tsx`).
- *  Gdy nieprzeczytane są w kilku ekipach naraz, wygrywa ta z najnowszym
- *  wpisem: jeden dymek nie wymieni wszystkich, a najnowszy jest tym, który
- *  właśnie zapalił wskaźnik. Parametr strukturalny, nie `Group` — import typu
- *  z `groups.ts` zamknąłby cykl `groups.ts` ↔ `groupPosts.ts`. */
-export async function getUnreadGroupName(
+/** Moje ekipy z nieprzeczytanym wpisem na tablicy, od najświeższego —
+ *  odpowiednik `rozmowyZNieprzeczytanymi()` z `comments.ts`, dla grup zamiast
+ *  meczów. Karmi panel rozmów otwierany przytrzymaniem „Moje" (`BottomNav.tsx`).
+ *  Parametr strukturalny, nie `Group` — import typu z `groups.ts` zamknąłby
+ *  cykl `groups.ts` ↔ `groupPosts.ts`. */
+export async function rozmowyGrupZNieprzeczytanymi(
   userId: string,
   groups: { id: string; name: string }[],
-): Promise<string | null> {
-  if (groups.length === 0) return null;
+): Promise<RozmowaNieprzeczytana[]> {
+  if (groups.length === 0) return [];
   const posts = await getGroupPostsForUnread(groups.map((g) => g.id));
   const widziano = (groupId: string) => (
     typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(groupId)) : null
   );
-  const zNieprzeczytanymi = policzNieprzeczytanePerGrupa(posts, userId, widziano);
-  let najnowszy: { createdAt: string; groupId: string } | null = null;
+  const counts = policzNieprzeczytanePerGrupa(posts, userId, widziano);
+
+  const najnowszaByGroup = new Map<string, string>();
   for (const p of posts) {
-    if (!zNieprzeczytanymi[p.groupId]) continue;
-    if (p.userId === userId) continue;
-    if (!najnowszy || p.createdAt > najnowszy.createdAt) najnowszy = { createdAt: p.createdAt, groupId: p.groupId };
+    if (!counts[p.groupId] || p.userId === userId) continue;
+    const obecna = najnowszaByGroup.get(p.groupId);
+    if (!obecna || p.createdAt > obecna) najnowszaByGroup.set(p.groupId, p.createdAt);
   }
-  if (!najnowszy) return null;
-  return groups.find((g) => g.id === najnowszy!.groupId)?.name ?? null;
+
+  return Object.keys(counts)
+    .map((groupId) => ({
+      id: groupId,
+      tytul: groups.find((g) => g.id === groupId)?.name ?? '',
+      ile: counts[groupId],
+      najnowsza: najnowszaByGroup.get(groupId) ?? '',
+    }))
+    .sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
+}
+
+/** Nazwa ekipy z najświeższą nieprzeczytaną wiadomością — treść dymka
+ *  „Nowa wiadomość w grupie {nazwa}" na dolnej nawigacji (`BottomNav.tsx`).
+ *  Cienka nakładka na `rozmowyGrupZNieprzeczytanymi()`. */
+export async function getUnreadGroupName(
+  userId: string,
+  groups: { id: string; name: string }[],
+): Promise<string | null> {
+  const lista = await rozmowyGrupZNieprzeczytanymi(userId, groups);
+  return lista[0]?.tytul || null;
 }

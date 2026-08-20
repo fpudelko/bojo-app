@@ -28,6 +28,24 @@ export function siteJsonLd(base: string = SITE_URL) {
         inLanguage: 'pl-PL',
         publisher: { '@id': `${base}/#organization` },
       },
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${base}/#software`,
+        name: 'Bojo',
+        applicationCategory: 'SportsApplication',
+        operatingSystem: 'Web',
+        url: base,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'PLN' },
+        featureList: [
+          'Tworzenie meczu w trzech krokach — sport, termin, opcje',
+          'Dołączanie do meczu bez zakładania konta',
+          'Lista rezerwowa z widoczną kolejnością',
+          'Kalkulator podziału kosztów boiska między graczy',
+          'Publiczne mecze widoczne dla graczy z okolicy, gdy brakuje składu',
+          'Grupy i stałe ekipy z historią meczów',
+        ],
+        publisher: { '@id': `${base}/#organization` },
+      },
     ],
   };
 }
@@ -45,6 +63,8 @@ export interface EventForJsonLd {
   status?: string;
   max_players?: number;
   cost_grosz?: number;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 /**
@@ -97,6 +117,9 @@ export function eventJsonLd(
               })(),
               addressCountry: 'PL',
             },
+            ...(ev.lat != null && ev.lng != null
+              ? { geo: { '@type': 'GeoCoordinates', latitude: ev.lat, longitude: ev.lng } }
+              : {}),
           },
         }
       : {}),
@@ -148,6 +171,18 @@ export function faqJsonLd(items: ReadonlyArray<{ q: string; a: string }>) {
       name: it.q,
       acceptedAnswer: { '@type': 'Answer', text: it.a },
     })),
+  };
+}
+
+/** HowTo schema. Steps should mirror visible step-by-step text on the page —
+ *  same rule as `faqJsonLd()`: schema without matching visible content is
+ *  a spam signal, not a ranking boost. */
+export function howToJsonLd(name: string, steps: { name: string; text: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name,
+    step: steps.map((s) => ({ '@type': 'HowToStep', name: s.name, text: s.text })),
   };
 }
 

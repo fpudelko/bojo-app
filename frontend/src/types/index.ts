@@ -44,6 +44,11 @@ export interface Field {
   isVerifiedVenue?: boolean;
   condition?: string;
   aiTypedAt?: string;
+  /** Znormalizowane w scraper/backfill_lokalizacja.py — nie parsować z address. */
+  city?: string;
+  voivodeship?: string;
+  /** 1 = pełna indeksacja, 2 = warunkowa, 3 = noindex,follow. Patrz migracja 112. */
+  seoTier?: 1 | 2 | 3;
 }
 
 export interface FieldsResponse {
@@ -220,6 +225,11 @@ export interface EventParticipant {
   hasPaid: boolean;
   isReserve: boolean;
   createdAt: string;
+  /** Moment, od którego liczy się miejsce w kolejce rezerwowej (migracja `110`).
+   *  Różny od `createdAt` dla kogoś, kto najpierw obserwował (rsvp 'maybe') —
+   *  wiersz powstał wcześniej niż prawdziwe dołączenie. Brak (baza bez migracji
+   *  `110`) — użyj `momentZapisu()` z `lib/events.ts`, nie tego pola wprost. */
+  zapisanoAt?: string;
   avatarUrl?: string;
   // advanced fields
   team?: 'A' | 'B';
