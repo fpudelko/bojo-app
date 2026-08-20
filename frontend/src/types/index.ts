@@ -44,6 +44,11 @@ export interface Field {
   isVerifiedVenue?: boolean;
   condition?: string;
   aiTypedAt?: string;
+  /** Znormalizowane w scraper/backfill_lokalizacja.py — nie parsować z address. */
+  city?: string;
+  voivodeship?: string;
+  /** 1 = pełna indeksacja, 2 = warunkowa, 3 = noindex,follow. Patrz migracja 112. */
+  seoTier?: 1 | 2 | 3;
 }
 
 export interface FieldsResponse {

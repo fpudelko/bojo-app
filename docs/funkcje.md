@@ -1068,6 +1068,47 @@ rozjechać z `generateStaticParams`.
 
 ---
 
+## Tierowanie indeksacji katalogu boisk (SEO/GEO, migracja `112`)
+
+Katalog ma dziś **32 684 wiersze** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
+i rośnie z każdym kolejnym importem. Indeksowanie wszystkich naraz ryzykuje karę Google za
+cienką treść (thin content) — większość obiektów ma tylko nazwę, adres i sport, bez
+żadnego realnego ruchu: audyt produkcyjnej bazy przy wdrożeniu pokazał, że **tylko 40
+obiektów w całej historii miało kiedykolwiek mecz**.
+
+**Trzy poziomy, kolumna `fields.seo_tier`:**
+- **Tier 1** (`index,follow`) — miasto z listy `miasta_priorytetowe` (~100 dużych/średnich
+  miast, dane GUS) LUB `is_verified_venue` LUB ma mecz LUB ma komentarz pod obiektem.
+- **Tier 2** (`index,follow`) — ma miejscowość, sport i nazwę, ale nie spełnia kryteriów
+  Tier 1.
+- **Tier 3** (`noindex,follow`) — reszta: brak miejscowości, ubogie dane. Strona dalej
+  działa dla użytkowników (mapa, wyszukiwanie) i przekazuje linki dalej (`follow`), tylko
+  nie trafia do indeksu Google.
+
+Tier liczy funkcja `oblicz_seo_tier()` w bazie, wołana automatycznie z trzech triggerów
+(`fields_przelicz_tier`, `events_promuj_tier`, `field_comments_promuj_tier`) — **nie
+ustawiać `seo_tier` ręcznie z kodu aplikacji**. Awans do Tier 1 po pierwszym meczu albo
+komentarzu jest jednokierunkowy (odwołanie meczu nie degraduje z powrotem), dokładnie tak
+jak wklejony przez użytkownika plan proponował: „gdy ktoś zorganizuje mecz — obiekt
+automatycznie awansuje".
+
+**`city`/`voivodeship` nie parsować z `address`.** Kolumny wypełnia osobny, ręcznie
+uruchamiany skrypt `scraper/backfill_lokalizacja.py` (reużywa `nearest_place()` z
+`import_osm_pbf.py` — ten sam plik `.osm.pbf`, ten sam najbliższy węzeł `place=`), nie
+funkcja `miejscowoscZAdresu()` w `boisko/[id]/page.tsx` (ta zostaje jako fallback dla
+wierszy sprzed backfillu — 169 duplikatów nazw i niejednoznaczny format adresu robią
+z parsowania tekstu zgadywankę). Świeżo zaaplikowana migracja `112` zostawia `city` puste
+— dopóki backfill nie przejdzie, wszystkie boiska są w Tier 3.
+
+**Sitemap partycjonowany per województwo**, nie jeden rosnący bez końca plik:
+`sitemap.ts` (strony statyczne, huby sportów, `/graj/…`) + 16×
+`sitemap-boiska/[plik]/route.ts` (po jednym na województwo, tylko Tier 1/2 — Tier 3 ma
+`noindex`, więc wpis w sitemapie byłby sprzeczną instrukcją dla Googlebota), zebrane
+w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje na ten indeks, nie na goły
+`sitemap.xml`.
+
+---
+
 ## Układ `/wydarzenia` — filtry, sortowanie, sekcje dzienne
 
 Widok jest rozdzielony na dwie warstwy: **`EventsListView.tsx`** (sama treść) i
@@ -1533,10 +1574,15 @@ pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBound
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
-linkuje teraz z `?wroc=/mapa?boisko=<id>` zamiast gołego `/boisko/<slug>`. Strona boiska
-(`VenueDetailClient.tsx`) już umiała wrócić pod dowolny adres z parametru `wroc`, a
-`VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku (`boiskoZLinku`) —
-brakowało tylko połączenia obu gotowych mechanizmów.
+linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel
+powrotu (`/mapa?boisko=<id>`) w `sessionStorage` przez `lib/powrot.ts` — dawniej jechał
+w `?wroc=` w samym URL-u, ale to znaczyło dwa różne, niekanoniczne adresy tej samej
+strony boiska do zeskanowania przez wyszukiwarki (jeden z mapy, jeden ze strony meczu),
+mimo że `canonical` i tak zwijał je w jeden przy indeksowaniu (migracja `112`, SEO/GEO).
+Strona boiska (`VenueDetailClient.tsx`) odczytuje ten cel z `sessionStorage` po
+zamontowaniu, `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu z linku
+(`boiskoZLinku`) — brakowało tylko połączenia obu gotowych mechanizmów. Link ze strony
+meczu (`EventDetailClient.tsx`) do boiska działa tak samo.
 
 **Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i przełącznik
 „Gry dziś" zostają zawsze widoczne; Typ obiektu i Nawierzchnia przenoszą się do

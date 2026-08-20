@@ -27,6 +27,7 @@ import {
   type Kadr, type Skupisko,
 } from '@/lib/api';
 import { getPublicEvents } from '@/lib/events';
+import { zapiszPowrot } from '@/lib/powrot';
 import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugify, externalUrl } from '@/lib/utils';
@@ -384,9 +385,15 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
           )}
         </div>
         <Link
-          href={`/boisko/${slug}${backTo ? `?wroc=${encodeURIComponent(backTo)}` : ''}`}
+          href={`/boisko/${slug}`}
           className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Cel „wstecz" jedzie w sessionStorage, nie w URL-u — patrz
+            // lib/powrot.ts. Link do boiska zostaje czystym, kanonicznym
+            // adresem zamiast wariantu z ?wroc=.
+            if (backTo) zapiszPowrot(backTo);
+          }}
         >
           Zobacz boisko <span aria-hidden="true">›</span>
         </Link>

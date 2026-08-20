@@ -1,6 +1,6 @@
 # Baza danych
 
-108 migracji (`001`–`110`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+110 migracji (`001`–`112`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -56,7 +56,8 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 
 | Tabela | Powstała w | Rola |
 |---|---|---|
-| `fields` | `001` | Boiska i obiekty (~1400) |
+| `fields` | `001` | Boiska i obiekty (32 684 wierszy po imporcie całej Polski z OSM, `scraper/import_osm_pbf.py` — dawne „~1400" opisywało wyłącznie katalog poznański). `city`/`voivodeship`/`seo_tier` (`112`) — patrz niżej |
+| `miasta_priorytetowe` | `112` | Statyczna lista ~100 dużych/średnich miast (dane GUS), wejście do `oblicz_seo_tier()`. WYŁĄCZNIE do tieringu indeksacji — nie mylić z hubami `/graj/[sport]/[miasto]` (dziś tylko Poznań, `content/graj.ts`) |
 | `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta. `zapisano_at` (`110`) — moment liczący się do kolejki rezerwowej, osobny od `created_at` |
 | `event_declines` | `097` | Jawne „nie gram" — NIE nieobecność. Klucz główny `(event_id, user_id)`, RLS: widoczna dla siebie/organizatora/członków grupy meczu, zapis wyłącznie za siebie |
@@ -155,6 +156,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `109_ustawienia_powiadomien` | `profiles.push_wylaczone` (tablica rodzajów, których użytkownik NIE chce na telefon; pusta = wszystko włączone, więc nowy rodzaj nie wymaga migracji danych) plus filtr w `wyslij_push_po_powiadomieniu()`. Filtr dotyczy WYŁĄCZNIE pusha — dzwonek w aplikacji pokazuje wszystko, bo to historia, a nie kanał przerywający dzień. Trzy nowe wyzwalacze: `powiadom_o_wiadomosci_w_meczu()` (`event_comments`), `powiadom_o_wiadomosci_w_grupie()` (`group_posts`, pomija przypięte — te ma `093`) i `powiadom_o_skladach()` (`events`, tylko przejście `teams_published` false→true). Obie wiadomości mają zaporę 60 min per odbiorca: rozmowa przed meczem potrafi mieć 30 wpisów w kwadrans |
 | `110_moment_zapisu` | `event_participants.zapisano_at` (`NOT NULL DEFAULT now()`, backfill `= created_at`) — moment, od którego liczy się miejsce w kolejce rezerwowej, osobny od `created_at`. Trigger `trg_moment_zapisu` (`ustaw_moment_zapisu()`) ustawia go na `now()` WYŁĄCZNIE przy przejściu `rsvp` z `'maybe'` na `'yes'` — bo „Obserwuję" to ten sam wiersz co zwykły zapis (patrz `049`), a wiersz obserwującego powstaje wcześniej niż jego realne dołączenie. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `078` poza `ORDER BY zapisano_at` zamiast `created_at` w obu kolejkach — pole i bramkarze) — to ona rozdaje zwolnione miejsca, więc to ona musiała się zmienić, nie tylko etykieta na liście. Bez migracji (klient nie sortuje po `zapisano_at` w SQL) aplikacja zachowuje się jak przed nią |
 | `111_tresci_powiadomien` | Treści powiadomień wg zasady: TYTUŁ = konkret, którego dotyczy (nazwa meczu, nazwa ekipy), TREŚĆ = co się wydarzyło. Przy wiadomościach treść niesie teraz samą wiadomość (`autor: tekst`, ucięty do 140 znaków z wielokropkiem) zamiast „X napisał w rozmowie" — bez tego po powiadomieniu trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10 minut później", czy o „nie dam rady". Poprawione też `sklady_opublikowane` i `nowy_mecz_w_grupie` (nazwa ekipy w tytule, termin i miejsce w treści) |
+| `112_seo_tier_i_lokalizacja` | `fields.city`/`voivodeship`/`seo_tier` + tabela `miasta_priorytetowe` + funkcja `oblicz_seo_tier()` (patrz „Funkcje w bazie" niżej). Fundament pod tierowanie indeksacji katalogu boisk w wyszukiwarkach — Tier 3 dostaje `noindex,follow` w `generateMetadata` (`boisko/[id]/page.tsx`), sitemap jest partycjonowany per województwo (`sitemap-boiska/[plik]/route.ts`, zebrane w `sitemap-index.xml`). `city`/`voivodeship` wypełnia osobny, ręcznie uruchamiany skrypt `scraper/backfill_lokalizacja.py` (reużywa `nearest_place()` z `import_osm_pbf.py`) — sama migracja zostawia je puste, więc świeżo zaaplikowana baza ma wszystkie boiska w Tier 3, dopóki backfill nie przejdzie |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
@@ -188,6 +190,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `dolacz_do_grupy_kodem`, `dodaj_czlonka_do_grupy`, `odswiez_kod_grupy` | Jedyne drogi wejścia do `group_members` po zdjęciu polityki INSERT — kolejno: dołączenie kodem, dopisanie przez zarządzającego, rotacja kodu przez założyciela (`SECURITY DEFINER`, `094`) |
 | `get_group_stats`, `get_group_leaderboard` | Statystyki grupy — pierwsza publiczna, druga wyłącznie dla członków, sama sprawdza członkostwo i odmawia wyjątkiem (`095`) |
 | `zapytaj_milczacych` | Wołana z przeglądarki przez organizatora/delegata z `can_create_events` — wstawia powiadomienie `pytanie_o_udzial` dla członków ekipy bez wpisu w składzie ani odmowy, pomija zaczepionych w ciągu ostatnich 12 h. Wyłącznie dla meczów przypiętych do grupy (`SECURITY DEFINER`, `097`) |
+| `oblicz_seo_tier` | Tier indeksacji boiska (1/2/3) dla `sitemap.ts`/`generateMetadata` w `boisko/[id]/page.tsx` — miasto priorytetowe (`miasta_priorytetowe`) LUB `is_verified_venue` LUB ma mecz LUB ma komentarz → 1; ma miejscowość+sport+nazwę → 2; reszta → 3. Wołana z triggerów `fields_przelicz_tier` (BEFORE INSERT/UPDATE OF city, is_verified_venue, sport, name), `events_promuj_tier`, `field_comments_promuj_tier` (`112`) — nie ustawiać `seo_tier` ręcznie, triggery to przeliczają same. Audyt przy wdrożeniu: tylko 40 boisk w całej bazie miało kiedykolwiek mecz, więc to kryterium samo w sobie nie mogło być głównym sitem |
 
 **`pg_cron` wymaga jednorazowego włączenia** (Supabase → Database → Extensions)
 — migracja `073` sprawdza jego obecność i pomija harmonogram, jeśli go nie ma

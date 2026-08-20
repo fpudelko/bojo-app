@@ -431,6 +431,44 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 - [ ] **Core Web Vitals** — zmierzyć po wdrożeniu (PageSpeed Insights) i dopiero na
       podstawie pomiaru decydować o optymalizacjach.
 
+### 7a. Tierowanie katalogu boisk — Fazy 1-3 (Faza 0 zrobiona, 2026-08-20)
+
+Użytkownik wkleił obszerny plan SEO/GEO (tiered indexing, huby miast, programmatic
+content, JSON-LD, crowdsourcing) dla katalogu boisk. Audyt kodu i produkcyjnej bazy
+(32 684 wiersze w `fields`, tylko 40 z meczem w całej historii, brak kolumn
+city/voivodeship) pokazał, że część liczb z wklejonego planu nie zgadzała się
+z rzeczywistością — pełne uzasadnienie w migracji `112_seo_tier_i_lokalizacja.sql`
+i w sekcji „Tierowanie indeksacji katalogu boisk" w [funkcje.md](./docs/funkcje.md).
+
+- [x] **Faza 0 — fundament danych i higiena.** `fields.city`/`voivodeship`/`seo_tier`,
+      tabela `miasta_priorytetowe`, funkcja `oblicz_seo_tier()` + triggery promocji,
+      `scraper/backfill_lokalizacja.py`, sitemap partycjonowany per województwo
+      (`sitemap-boiska/[plik]/route.ts` + `sitemap-index.xml/route.ts`), `noindex` dla
+      Tier 3, usunięcie `?wroc=` z linków wewnętrznych (`lib/powrot.ts`, sessionStorage
+      zamiast query stringa). **Migracja `112` wymaga ręcznego uruchomienia na Supabase
+      + ręcznego przebiegu `scraper/backfill_lokalizacja.py` per województwo** — bez
+      backfillu wszystkie boiska zostają w Tier 3 (`noindex`).
+- [ ] **Faza 1 — fact-dense opis obiektu.** Generator (`lib/opisObiektu.ts`) budujący
+      „direct answer" akapit z danych obiektu (sport, miasto, nawierzchnia, oświetlenie,
+      kryty/odkryty), wpięty w `/boisko/[id]` i w `description` JSON-LD
+      (`SportsActivityLocation`). Musi przechodzić przez `content/zakazaneFrazy.ts` —
+      nowy test na próbce syntetycznych rekordów, wzorem `tresciStron.test.ts`, bo przy
+      32k+ generowanych opisów nie da się tego wyrywkowo przeczytać.
+- [ ] **Faza 2 — huby miast poza Poznań.** Użytkownik potwierdził (2026-08-20) świadome
+      odblokowanie: uogólnienie `/graj/[sport]/[miasto]` poza dzisiejsze
+      `MIASTA = ['poznan']` (`content/graj.ts`) i usunięcie blokady „warszaw"/„krak[oó]w"
+      z `content/zakazaneFrazy.ts`. Realny zakres miast do wygenerowania zależy od
+      rozkładu `city`/`seo_tier` PO przebiegu backfillu z Fazy 0 — sprawdzić
+      `SELECT city, count(*) FROM fields WHERE seo_tier IN (1,2) GROUP BY city ORDER BY 2 DESC`
+      zanim się wybierze próg. Huby wojewódzkie `/boiska/[wojewodztwo]` wzorem
+      dzisiejszego `force-dynamic` `/boiska/[sport]` (bez prerenderu — te same powody
+      skalowania co `/boisko/[id]`, patrz AGENTS.md).
+- [ ] **Faza 3 — mikro-ankiety UGC.** Nawierzchnia/oświetlenie jako pytania tak/nie/nie
+      wiem, rozszerzające istniejący `ZglosBladObiektu.tsx`/`lib/bledy.ts`/
+      `field_comments`, z progiem quorum do wyświetlenia „potwierdzone przez N graczy" —
+      dowiązuje do otwartego punktu „Zgłaszanie błędów: w aplikacji i w danych obiektu" niżej
+      (override kolumn vs. oddawanie poprawek do OSM, próg liczby zgłoszeń).
+
 ## 8. Pomysły jeszcze niezbudowane
 
 ### ~~Przejęcie profilu gościa (claim)~~ — ZROBIONE (PR #104, migracja `066`)
