@@ -287,6 +287,12 @@ ręcznie), ale nie blokuje kolejki. Goście bez konta są pomijani — nie mają
 Migracja `097`. Odpowiada wprost na to, co organizatorzy ekip dziś liczą ręcznie
 w wątku na WhatsAppie: „brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagrać".
 
+**Próg minimum jest dziś schowany za `SHOW_MIN_PLAYERS_THRESHOLD`** (wyłączona
+2026-08-21, produktowa decyzja: nie chcemy tej funkcji w aplikacji — patrz
+`docs/funkcje.md § Czy gramy?`). Mechanika niżej opisuje, jak działa pod spodem;
+UI (toggle w kreatorze/edycji, werdykt na stronie meczu) się nie renderuje. „Nie
+gram" i „Otwórz dla okolicy" (opisane niżej) nie zależą od progu i działają jak dotąd.
+
 **`events.min_players`** — ile graczy musi być w składzie, żeby gra się odbyła.
 `NULL` (domyślnie) = organizator progu nie ustawił, zero zmiany zachowania dla
 istniejących meczów. Liczone tą samą regułą co pojemność (`is_reserve = false AND

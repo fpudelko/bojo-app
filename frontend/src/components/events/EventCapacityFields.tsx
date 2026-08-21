@@ -1,6 +1,7 @@
 'use client';
 
 import { GK_SPORTS } from '@/lib/sports';
+import { SHOW_MIN_PLAYERS_THRESHOLD } from '@/lib/features';
 
 /** Ilu bramkarzy naraz. Stała, nie ustawienie — dwie drużyny, dwie bramki. */
 const LIMIT_BRAMKARZY = 2;
@@ -114,7 +115,7 @@ export default function EventCapacityFields({
         {/* Próg minimum — dyskretny, jednolinijkowy toggle, nie osobna sekcja.
             Odpowiada wprost na "10 to minimum żeby zagrać. Dobrze liczę?" —
             zamiast liczyć w głowie, organizator dostaje werdykt na stronie meczu. */}
-        {onMinPlayersChange && (
+        {SHOW_MIN_PLAYERS_THRESHOLD && onMinPlayersChange && (
           <div className="mt-3">
             {minPlayers == null ? (
               <button
