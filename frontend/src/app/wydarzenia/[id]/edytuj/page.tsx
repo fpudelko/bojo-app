@@ -60,7 +60,7 @@ export default function EditEventPage() {
   // Tryb miejsc dla bramkarzy (migracja `077`) — w edycji zawsze znamy
   // wartość z bazy, więc bez stanu „nie zdecydowano".
   const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
-  const [reserveClaimHours, setReserveClaimHours] = useState(3);
+  const [reserveClaimMinutes, setReserveClaimMinutes] = useState(180);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [descriptionEnabled, setDescriptionEnabled] = useState(false);
@@ -130,7 +130,7 @@ export default function EditEventPage() {
         setMinPlayers(ev.minPlayers ?? null);
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
         setSlotyZarezerwowane(ev.goalkeeperSlotsReserved ?? true);
-        setReserveClaimHours(ev.reserveClaimHours ?? 3);
+        setReserveClaimMinutes(ev.reserveClaimMinutes ?? 180);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setDescriptionEnabled(!!ev.description);
@@ -218,7 +218,7 @@ export default function EditEventPage() {
       maxGoalkeepers: 2,
       goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
       goalkeeperSlotsReserved: slotyZarezerwowane,
-      reserveClaimHours,
+      reserveClaimMinutes,
       visibility,
       requireApproval,
       requireSmsConfirmation,
@@ -452,8 +452,8 @@ export default function EditEventPage() {
             slotyZarezerwowane={slotyZarezerwowane}
             setSlotyZarezerwowane={setSlotyZarezerwowane}
             setGoalkeepersEnabled={setGoalkeepersEnabled}
-            reserveClaimHours={reserveClaimHours}
-            setReserveClaimHours={setReserveClaimHours}
+            reserveClaimMinutes={reserveClaimMinutes}
+            setReserveClaimMinutes={setReserveClaimMinutes}
           />
 
           {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby. */}

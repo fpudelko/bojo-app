@@ -91,7 +91,7 @@ function NewEventForm() {
   // `null`, nie `true`: patrz komentarz przy `validateGoalkeepers()`. Włączone
   // domyślnie rozbijało pulę miejsc na role bez wiedzy organizatora.
   const [goalkeepersEnabled, setGoalkeepersEnabled] = useState<boolean | null>(null);
-  const [reserveClaimHours, setReserveClaimHours] = useState(3);
+  const [reserveClaimMinutes, setReserveClaimMinutes] = useState(180);
   // Tryb miejsc dla bramkarzy (migracja `077`). Wartość ma znaczenie tylko
   // wtedy, gdy `goalkeepersEnabled` jest włączone.
   const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
@@ -272,7 +272,7 @@ function NewEventForm() {
         setMinPlayers(v.minPlayers ?? null);
         setGoalkeepersEnabled(v.goalkeepersEnabled);
         setSlotyZarezerwowane(v.slotyZarezerwowane ?? true);
-        setReserveClaimHours(v.reserveClaimHours);
+        setReserveClaimMinutes(v.reserveClaimMinutes);
         setTitle(v.title);
         setDescription(v.description);
         setDescriptionEnabled(v.descriptionEnabled);
@@ -313,7 +313,7 @@ function NewEventForm() {
     saveEventDraft(step, {
       sport, location, nazwaWlasnaMiejsca,
       date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched, minPlayers,
-      goalkeepersEnabled, slotyZarezerwowane, reserveClaimHours, title, description, descriptionEnabled, visibility,
+      goalkeepersEnabled, slotyZarezerwowane, reserveClaimMinutes, title, description, descriptionEnabled, visibility,
       requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
       acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
       sportsCardOtherName, grupaId,
@@ -321,7 +321,7 @@ function NewEventForm() {
   }, [
     hydrated, submitting, step, sport, location, nazwaWlasnaMiejsca,
     date, time, durationMin, czasWlasny, maxPlayers,
-    maxPlayersTouched, minPlayers, goalkeepersEnabled, slotyZarezerwowane, reserveClaimHours, title, description, descriptionEnabled,
+    maxPlayersTouched, minPlayers, goalkeepersEnabled, slotyZarezerwowane, reserveClaimMinutes, title, description, descriptionEnabled,
     visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
     kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
     acceptedSportsCards, sportsCardOtherName, grupaId,
@@ -344,7 +344,7 @@ function NewEventForm() {
     setMinPlayers(null);
     setGoalkeepersEnabled(null);
     setSlotyZarezerwowane(true);
-    setReserveClaimHours(3);
+    setReserveClaimMinutes(180);
     setRecurringEnabled(false);
     setRecurringNotifyDaysBefore(3);
     setTitle('');
@@ -550,7 +550,7 @@ function NewEventForm() {
           maxGoalkeepers: 2,
           goalkeepersEnabled: GK_SPORTS.includes(sport) ? (goalkeepersEnabled ?? false) : false,
           goalkeeperSlotsReserved: slotyZarezerwowane,
-          reserveClaimHours,
+          reserveClaimMinutes,
           visibility,
           requireSmsConfirmation: false,
           // No "advanced" section: paid match tracks payments and shows the
@@ -997,8 +997,8 @@ function NewEventForm() {
                 onMinPlayersChange={setMinPlayers}
                 goalkeepersEnabled={goalkeepersEnabled}
                 setGoalkeepersEnabled={setGoalkeepersEnabled}
-                reserveClaimHours={reserveClaimHours}
-                setReserveClaimHours={setReserveClaimHours}
+                reserveClaimMinutes={reserveClaimMinutes}
+                setReserveClaimMinutes={setReserveClaimMinutes}
               />
 
               {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — tak liczy

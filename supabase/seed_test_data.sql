@@ -408,11 +408,11 @@ BEGIN
   -- 21. Piątkowa gra na Rataje — REZERWA: aktywna oferta
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                       max_players, visibility, title, description, reserve_claim_hours)
+                       max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (org1, org1_name, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 2, '20:00', 4, 'public',
     'Piątkowa gra na Rataje',
     '[TEST] Zwolniło się miejsce i czeka na Test 5 (aktywna oferta, okno 3h). Zaloguj się na test5@example.com — powinieneś zobaczyć zielony baner „Zwolniło się miejsce" z „Wchodzę" / „Odpuszczam". Organizator widzi przy nim „czeka na decyzję".',
-    3)
+    180)
   RETURNING id INTO eid;
   -- 3 w składzie przy limicie 4 → jedno miejsce wolne, zarezerwowane ofertą
   INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
@@ -428,11 +428,11 @@ BEGIN
   -- 22. Sobotni mecz na Junikowie — REZERWA: oferta wygasła
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                       max_players, visibility, title, description, reserve_claim_hours)
+                       max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (org3, org3_name, 'piłka nożna', 'Orlik Junikowo', CURRENT_DATE + 3, '17:00', 4, 'public',
     'Sobotni mecz na Junikowie',
     '[TEST] Oferta dla Test 7 wygasła (wysłana 5h temu przy oknie 1h). Samo wejście na stronę meczu powinno ją wygasić i przekazać miejsce do Test 8 — odśwież i sprawdź, czy Test 7 ma „przepuścił(a)", a Test 8 „czeka na decyzję".',
-    1)
+    60)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
     (eid, org3, org3_name, false),
@@ -447,11 +447,11 @@ BEGIN
   -- 23. Niedzielna gra na Malcie — REZERWA: ktoś już przepuścił
   -- ========================================================
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                       max_players, visibility, title, description, reserve_claim_hours)
+                       max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (org2, org2_name, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 4, '18:00', 4, 'public',
     'Niedzielna gra na Malcie',
     '[TEST] Test 9 już odpuścił miejsce (zostaje na liście z etykietą „przepuścił(a)", ale nie blokuje kolejki), oferta poszła do Test 10. Sprawdź, że organizator wciąż może awansować Test 9 ręcznie.',
-    6)
+    360)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
     (eid, org2, org2_name, false),
