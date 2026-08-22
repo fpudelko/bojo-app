@@ -3,18 +3,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
-  Check, List, MailOpen, Map as MapIcon, Navigation, Plus, Search, SlidersHorizontal,
+  List, MailOpen, Map as MapIcon, Navigation, Plus, Search, SlidersHorizontal,
   Ticket, Users, Wallet, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem } from '@/types';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
+import { TogglePill } from '@/components/ui/FilterPill';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
+import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import UzupelnijProfilBanner from '@/components/home/dashboard/UzupelnijProfilBanner';
 import { useAuth } from '@/lib/auth';
@@ -26,7 +28,7 @@ import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import {
   DAY_GROUP_LABEL, filterByMaxPrice, filterByMinFreeSpots, filterByRadius, groupByDay,
-  matchesDateFilter, multiLabel, sortEvents, toggleInArray,
+  matchesDateFilter, sortEvents,
   type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 
@@ -43,7 +45,10 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: 'miejsca',   label: 'Najwięcej wolnych miejsc' },
 ];
 
-const SPORT_OPTIONS = FOCUS_SPORTS.map((s) => ({ value: s, label: sportLabel(s) }));
+/** Domyślne sortowanie. Wydzielone, bo licznik filtrów musi wiedzieć,
+ *  czym jest „nic nie zmieniałem", a `useState` to za mało. */
+const SORT_DOMYSLNY: SortBy = 'termin';
+
 
 // Cztery suwaki modala filtrów — zakresy ustalone raz, żeby nie były dowolnością
 // przy każdej zmianie. Skrajna prawa pozycja = brak ograniczenia (D2/D3 planu).
@@ -112,7 +117,7 @@ export default function EventsListView({ widzianoWczesniej }: {
   const [minFreeSpots, setMinFreeSpots] = useState(0);
   const [onlyFreeSpots, setOnlyFreeSpots] = useState(false);
   const [onlyNoCost, setOnlyNoCost] = useState(false);
-  const [sortBy, setSortBy] = useState<SortBy>('termin');
+  const [sortBy, setSortBy] = useState<SortBy>(SORT_DOMYSLNY);
 
   // Mobile-only przełącznik lista/mapa (D9) — desktop zawsze pokazuje listę,
   // ma już osobny link „Mapa boisk" w nawigacji.
@@ -129,7 +134,57 @@ export default function EventsListView({ widzianoWczesniej }: {
   // (styl Booking: wybierz kilka rzeczy, potem zatwierdź). Zamknięcie przez
   // tło/X/Escape odrzuca szkic bez dotykania prawdziwego stanu. Sortuj już nie
   // jest tu draftowane — ma własną, natychmiast-aplikującą pigułkę (D5).
+  const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  /**
+   * NAJBLIŻSZE, GDY TYLKO WOLNO — bez wyskakującego pytania na wejściu.
+   *
+   * „Co jest koło mnie" to pytanie, które zadaje ktoś wchodzący na tę listę;
+   * sortowanie po terminie odpowiada na inne („co najwcześniej"), więc pierwszą
+   * rzeczą bywał mecz przez pół miasta. Ale prośba o lokalizację wyświetlona
+   * w sekundzie wejścia, zanim człowiek zobaczył cokolwiek, to najskuteczniejszy
+   * sposób na „Nie zezwalaj" — i wtedy odległość przepada na zawsze.
+   *
+   * Stąd: pytamy TYLKO tych, którzy już kiedyś zgodzili się w tej przeglądarce
+   * (`permissions.query` mówi to bez pokazywania okna). Reszta dostaje kolejność
+   * po terminie i widoczne zaproszenie „Pokaż najbliższe" — czyli prośbę
+   * z kontekstem, w momencie, w którym sama o nią prosi.
+   */
+  useEffect(() => {
+    let aktualne = true;
+    (async () => {
+      try {
+        const zgoda = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+        if (!aktualne || zgoda?.state !== 'granted') return;
+        const res = await getCurrentLocation();
+        if (!aktualne || !res.ok) return;
+        setUserPos({ lat: res.lat, lng: res.lng });
+        setSortBy('odleglosc');
+      } catch { /* przeglądarka bez `permissions` — zostaje kolejność po terminie */ }
+    })();
+    return () => { aktualne = false; };
+  }, []);
+
+  /** Ile zawężeń jest włączonych — liczba na ikonie filtrów.
+   *
+   *  Schowanie pigułek za ikoną ma jedną cenę: znika widok tego, co się
+   *  ustawiło. Bez tej liczby człowiek, który wczoraj zaznaczył „za darmo",
+   *  dziś widzi krótką listę i nie ma jak zgadnąć dlaczego. Liczba jest
+   *  zamiennikiem tamtej widoczności, nie ozdobą.
+   *
+   *  Sortowanie liczy się TYLKO gdy inne niż domyślne: kolejność zawsze
+   *  jakaś jest, więc „1 filtr" na czystym ekranie byłoby kłamstwem. */
+  const liczbaFiltrow = [
+    sports.length > 0,
+    onlyFreeSpots,
+    onlyNoCost,
+    dateFilter !== 'wszystkie',
+    radiusKm !== null,
+    maxPriceGrosze !== null,
+    minFreeSpots > 0,
+    sortBy !== SORT_DOMYSLNY,
+  ].filter(Boolean).length;
   const [draftDate, setDraftDate] = useState<DateFilter>(dateFilter);
   const [draftRadius, setDraftRadius] = useState<number | null>(radiusKm);
   const [draftMaxPricePln, setDraftMaxPricePln] = useState<number | null>(
@@ -296,7 +351,6 @@ export default function EventsListView({ widzianoWczesniej }: {
     return rows;
   }, [baseForPreview, draftDate, draftRadius, draftMaxPricePln, draftMinFreeSpots, userPos]);
 
-  const filtersActive = dateFilter !== 'wszystkie' || radiusKm !== null || maxPriceGrosze !== null || minFreeSpots > 0;
 
   const jestNowe = (event: EventItem) => (
     widzianoWczesniej != null && new Date(event.createdAt).getTime() > new Date(widzianoWczesniej).getTime()
@@ -497,15 +551,10 @@ export default function EventsListView({ widzianoWczesniej }: {
       {user && (
         <div className="md:hidden">
           <div className="flex items-center gap-2 px-4 pt-5">
+            {/* Ikona mapy zjechała do wiersza z przełącznikiem `Gry | Obiekty`
+                — stała tu, a filtry były piętro niżej, więc dwie kontrolki
+                robiące „jak patrzę" siedziały w dwóch różnych wierszach. */}
             {searchInput('Znajdź grę', 'mobile')}
-            <button
-              type="button"
-              onClick={() => setViewMode((v) => (v === 'lista' ? 'mapa' : 'lista'))}
-              aria-label={viewMode === 'lista' ? 'Pokaż na mapie' : 'Pokaż listę'}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-            >
-              {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
-            </button>
             <MobileIdentityRow />
           </div>
           {inviteBadge && <div className="px-4 pt-2">{inviteBadge}</div>}
@@ -531,110 +580,86 @@ export default function EventsListView({ widzianoWczesniej }: {
         <UzupelnijProfilBanner />
       </div>
 
-      {/* Jeden pasek kafelków: Sortuj / Sport / Filtry / Wolne miejsca / Za darmo
-          — scrolluje się w bok, gdy nie mieści się w jednej linii.
-          KOLEJNOŚĆ JEST WSPÓLNA Z `/mapa` (`VenueExplorer`): najpierw wybór
-          zakresu (sortowanie albo tryb mapy), potem sport, potem „Filtry",
-          na końcu przełączniki. To dwie zakładki tego samego dolnego paska —
-          gdy pigułki zmieniają miejsca przy przejściu, palec trafia w inny
-          filtr niż sekundę wcześniej. */}
-      <div className="flex items-center gap-2 overflow-x-auto px-4 pb-1 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {/* Na widoku mapy nie ma czego sortować — pigułka chowa się razem
-            z przełączeniem viewMode, sortBy zostaje bez zmian (pinezki i
-            tak korzystają z `sorted`, kolejność po prostu nie jest wtedy
-            eksponowana w UI). */}
-        {viewMode !== 'mapa' && (
-        <PillDropdown label="Sortuj" active={sortBy !== 'termin'}>
-          {(close) => (
-            <>
-              {SORT_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={async () => {
-                    if (o.value === 'odleglosc' && !userPos) {
-                      setSortGeoBusy(true);
-                      const res = await getCurrentLocation();
-                      setSortGeoBusy(false);
-                      if (res.ok) {
-                        setUserPos({ lat: res.lat, lng: res.lng });
-                        setSortBy('odleglosc');
-                      } else {
-                        setGeoError(geoErrorMessage(res.kind));
-                      }
-                      close();
-                      return;
-                    }
-                    setSortBy(o.value);
-                    close();
-                  }}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 dark:hover:bg-slate-700"
-                >
-                  {o.value === 'odleglosc' && <Navigation className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
-                  <span className="flex-1 text-left">
-                    {sortGeoBusy && o.value === 'odleglosc' ? 'Szukam Cię…' : o.label}
-                  </span>
-                  {sortBy === o.value && <Check className="h-4 w-4 text-primary-700" />}
-                </button>
-              ))}
-            </>
-          )}
-        </PillDropdown>
-        )}
+      {/* JEDEN WIERSZ, ZERO PRZEWIJANIA W BOK.
+          Było pięć pigułek (Sortuj / Sport / Filtry / Wolne miejsca / Za darmo)
+          w pasku przewijanym poziomo — na telefonie ostatnie dwie wychodziły
+          poza prawą krawędź i po prostu ich nie było widać. Kontrolka, której
+          nie widać, nie istnieje.
 
-        <PillDropdown label={multiLabel(sports, 'Wszystkie sporty', SPORT_OPTIONS)} active={sports.length > 0}>
-          {() => (
-            <>
-              <button
-                type="button"
-                onClick={() => setSports([])}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-              >
-                <span className="text-base">🏟️</span>
-                <span className="flex-1 text-left">Wszystkie sporty</span>
-                {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
-              </button>
-              {FOCUS_SPORTS.map((sport) => (
-                <button
-                  key={sport}
-                  type="button"
-                  onClick={() => setSports(toggleInArray(sports, sport))}
-                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50"
-                >
-                  <span className="text-base">{sportEmoji(sport)}</span>
-                  <span className="flex-1 text-left">{sportLabel(sport)}</span>
-                  {sports.includes(sport) && <Check className="h-4 w-4 text-primary-700" />}
-                </button>
-              ))}
-            </>
-          )}
-        </PillDropdown>
+          Zostają DWIE rzeczy, bo odpowiadają na dwa różne pytania:
+          • `Gry | Obiekty` — NA CO patrzę. Zmienia dane, więc dostaje pełny
+            przełącznik. Ten sam komponent i te same napisy co na `/mapa`,
+            żeby przejście między ekranami nie przestawiało palca.
+          • dwie ikony po prawej — JAK patrzę (lista/mapa) i CZEGO SZUKAM
+            (filtry). Prezentacja i zawężenie to nie są dane, więc nie
+            konkurują kształtem z przełącznikiem po lewej.
 
-        <button
-          type="button"
-          onClick={openSheet}
-          aria-haspopup="dialog"
-          className={clsx(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-            filtersActive ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 bg-white text-ink',
-          )}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
-        </button>
-
-        <TogglePill
-          label="Wolne miejsca"
-          icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
-          active={onlyFreeSpots}
-          onClick={() => setOnlyFreeSpots((v) => !v)}
+          Reszta — sortowanie, sport, wolne miejsca, za darmo — zjeżdża do
+          arkusza filtrów. Ikona niesie LICZBĘ aktywnych, żeby schowanie ich
+          nie znaczyło „zapomnij, co ustawiłeś". */}
+      <div className="flex items-center gap-2 px-4 pb-1 pt-3">
+        <SegmentedToggle
+          value="gry"
+          onChange={(v) => { if (v === 'obiekty') router.push('/mapa'); }}
+          options={[{ value: 'gry', label: 'Gry' }, { value: 'obiekty', label: 'Obiekty' }] as const}
+          ariaLabel="Gry albo obiekty"
         />
-        <TogglePill
-          label="Za darmo"
-          icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
-          active={onlyNoCost}
-          onClick={() => setOnlyNoCost((v) => !v)}
-        />
+
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode((v) => (v === 'lista' ? 'mapa' : 'lista'))}
+            aria-label={viewMode === 'lista' ? 'Pokaż na mapie' : 'Pokaż listę'}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          >
+            {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={openSheet}
+            aria-label={liczbaFiltrow > 0 ? `Filtry — ${liczbaFiltrow} aktywne` : 'Filtry'}
+            className={clsx(
+              'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
+              liczbaFiltrow > 0
+                ? 'border-primary-700 bg-primary-700 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {liczbaFiltrow > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white dark:ring-slate-900">
+                {liczbaFiltrow}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
+
+
+      {/* Kolejność powiedziana wprost — i zaproszenie, nie okno systemowe.
+          Dwie osoby na tej samej liście widzą różną kolejność (jedna dała
+          zgodę na lokalizację, druga nie) i bez tego zdania żadna nie ma jak
+          się dowiedzieć dlaczego. */}
+      {viewMode === 'lista' && sortBy !== 'odleglosc' && (
+        <p className="px-4 pt-2 text-xs text-slate-500 dark:text-slate-400">
+          {SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
+          {' · '}
+          <button
+            type="button"
+            onClick={async () => {
+              if (userPos) { setSortBy('odleglosc'); return; }
+              setSortGeoBusy(true);
+              const res = await getCurrentLocation();
+              setSortGeoBusy(false);
+              if (res.ok) { setUserPos({ lat: res.lat, lng: res.lng }); setSortBy('odleglosc'); }
+              else setGeoError(geoErrorMessage(res.kind));
+            }}
+            className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800"
+          >
+            {sortGeoBusy ? 'Szukam Cię…' : 'Pokaż najbliższe'}
+          </button>
+        </p>
+      )}
 
       <FilterSheet
         open={sheetOpen}
@@ -645,6 +670,93 @@ export default function EventsListView({ widzianoWczesniej }: {
         applyLabel={geoBusy ? 'Szukam Cię…' : `Pokaż ${previewRows.length} ${plural(previewRows.length, 'mecz', 'mecze', 'meczy')}`}
       >
         <div className="space-y-6">
+          {/* SORTOWANIE I SPORT NA GÓRZE, suwaki niżej. Te dwa odpowiadają na
+              pytanie „czego szukam", suwaki dopiero „jak wąsko" — a arkusz
+              czyta się od góry. Działają OD RAZU, bez „Zastosuj": podgląd
+              („Pokaż N meczy") liczy się z ich aktualnych wartości, więc
+              zmiana od razu widać na przycisku. */}
+          <div>
+            <p className="mb-2 text-sm font-semibold text-ink">Kolejność</p>
+            <div className="flex flex-wrap gap-2">
+              {SORT_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={async () => {
+                    if (o.value === 'odleglosc' && !userPos) {
+                      setSortGeoBusy(true);
+                      const res = await getCurrentLocation();
+                      setSortGeoBusy(false);
+                      if (res.ok) { setUserPos({ lat: res.lat, lng: res.lng }); setSortBy('odleglosc'); }
+                      else setGeoError(geoErrorMessage(res.kind));
+                      return;
+                    }
+                    setSortBy(o.value);
+                  }}
+                  className={clsx(
+                    'flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                    sortBy === o.value
+                      ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
+                  )}
+                >
+                  {o.value === 'odleglosc' && <Navigation className="h-3.5 w-3.5 shrink-0" />}
+                  {sortGeoBusy && o.value === 'odleglosc' ? 'Szukam Cię…' : o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-semibold text-ink">Sport</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSports([])}
+                className={clsx(
+                  'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                  sports.length === 0
+                    ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
+                )}
+              >
+                🏟️ Wszystkie
+              </button>
+              {FOCUS_SPORTS.map((sport) => (
+                <button
+                  key={sport}
+                  type="button"
+                  onClick={() => setSports((cur) => (
+                    cur.includes(sport) ? cur.filter((s) => s !== sport) : [...cur, sport]
+                  ))}
+                  className={clsx(
+                    'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                    sports.includes(sport)
+                      ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
+                  )}
+                >
+                  {sportEmoji(sport)} {sportLabel(sport)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <TogglePill
+              label="Wolne miejsca"
+              icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
+              active={onlyFreeSpots}
+              onClick={() => setOnlyFreeSpots((v) => !v)}
+            />
+            <TogglePill
+              label="Za darmo"
+              icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
+              active={onlyNoCost}
+              onClick={() => setOnlyNoCost((v) => !v)}
+            />
+          </div>
+
           <RangeSlider
             label="Kiedy"
             min={0}
