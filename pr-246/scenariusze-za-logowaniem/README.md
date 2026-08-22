@@ -1,9 +1,9 @@
 # Zrzuty — PR #246 · scenariusze-za-logowaniem
 
-Przebieg [`32582208341`](https://github.com/fpudelko/bojo-app/actions/runs/32582208341)
+Przebieg [`32583027300`](https://github.com/fpudelko/bojo-app/actions/runs/32583027300)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/246)
 
-Zmienione widoki: **9** · nowe widoki: **5**
+Zmienione widoki: **8** · nowe widoki: **5**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -141,28 +141,6 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__kolejka-organizator__diff.png" width="100%">
-
-</details>
-
-### moje-gry-historia-pusto
-
-<table><tr>
-<td width="50%" align="center"><b>było</b><br>
-<img src="wycinek__moje-gry-historia-pusto__expected.png" width="100%"></td>
-<td width="50%" align="center"><b>jest</b><br>
-<img src="wycinek__moje-gry-historia-pusto__actual.png" width="100%"></td>
-</tr></table>
-
-<table><tr>
-<td width="50%" align="center"><b>cała strona — było</b><br>
-<img src="roznica__moje-gry-historia-pusto__expected.png" width="100%"></td>
-<td width="50%" align="center"><b>cała strona — jest</b><br>
-<img src="roznica__moje-gry-historia-pusto__actual.png" width="100%"></td>
-</tr></table>
-
-<details><summary>nakładka z podświetlonymi pikselami</summary>
-
-<img src="roznica__moje-gry-historia-pusto__diff.png" width="100%">
 
 </details>
 
