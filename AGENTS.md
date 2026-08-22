@@ -360,6 +360,16 @@ odwołanie meczu, goście dopisani przez uczestnika, miejsce spoza katalogu, kom
 składy nieopublikowane, 18-osobowy skład. Marker `[TEST-J]`. Wymaga konta
 `j4n.brz0@gmail.com`.
 
+`supabase/seed_przedpremiera.sql` — **7 stanów startowych + ekipa** pod jedną ciągłą
+sesję z dwoma telefonami (`docs/testy-przedpremierowe.md`). Świadomie MAŁY, w kontrze
+do `seed_regresja`: tam każdy mecz sprawdza jedną rzecz, tu chodzi o błędy na stykach,
+których nie widać w rozłącznych krokach. Marker `[PRZED]`, tytuły `P1`…`P7`.
+
+`supabase/wyczysc-testowe.sql` — sprząta WSZYSTKIE seedy po markerach, przed
+wpuszczeniem ludzi. Trzy sekcje: podgląd (liczy), kasowanie (zakomentowane, trzeba
+odkomentować świadomie) i lista meczów BEZ markera — czyli tych zrobionych ręką przy
+klikaniu, których aplikacja nie odróżni od prawdziwych. Kont testowych NIE kasuje.
+
 Komplet do postawienia bazy od zera: `supabase/bundles/` (3 paczki migracji + seedy),
 generowane przez `node scripts/build-db-bundles.mjs` — po dodaniu migracji uruchom
 ponownie i zacommituj wynik.

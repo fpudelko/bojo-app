@@ -26,7 +26,11 @@ DECLARE
   g3   UUID := (SELECT id FROM auth.users WHERE email = 'test3@example.com');
   g4   UUID := (SELECT id FROM auth.users WHERE email = 'test4@example.com');
   g5   UUID := (SELECT id FROM auth.users WHERE email = 'test5@example.com');
-  n1 TEXT; n2 TEXT; n3 TEXT; n4 TEXT; n5 TEXT;
+  -- `gracz` to konto, którym loguje się większość scenariuszy
+  -- (`KONTA.gracz` w e2e/scenariusze.spec.ts) — mecze, w których ma BYĆ
+  -- w składzie od początku, muszą go dostać tutaj.
+  gracz UUID := (SELECT id FROM auth.users WHERE email = 'test6@example.com');
+  n1 TEXT; n2 TEXT; n3 TEXT; n4 TEXT; n5 TEXT; n_gracz TEXT;
   eid UUID;
   i INT;
 BEGIN
@@ -39,6 +43,7 @@ BEGIN
   n3 := COALESCE((SELECT display_name FROM profiles WHERE id = g3),  'Piotr Wiśniewski');
   n4 := COALESCE((SELECT display_name FROM profiles WHERE id = g4),  'Kacper Wójcik');
   n5 := COALESCE((SELECT display_name FROM profiles WHERE id = g5),  'Michał Kamiński');
+  n_gracz := COALESCE((SELECT display_name FROM profiles WHERE id = gracz), 'Zuzanna Lewandowska');
 
   -- W01 — wolne miejsca, zwykły zapis ---------------------------------
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
@@ -169,5 +174,46 @@ BEGIN
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name)
   VALUES (eid, org, n1), (eid, g2, n2), (eid, g3, n3);
+
+
+  -- W11 — mecz płatny, KTÓRY JUŻ SIĘ ODBYŁ, z graczem w składzie -------
+  -- Po co osobno od W07: `canSeeBlikPhone()` odsłania numer uczestnikowi
+  -- dopiero na godzinę przed meczem, więc na meczu za tydzień nie da się
+  -- sprawdzić, czy numer w ogóle DOCHODZI z bazy (od migracji `120` leci
+  -- osadzeniem z `event_blik`, a nie kolumną w `events`).
+  --
+  -- Data w PRZESZŁOŚCI zamiast „za pół godziny" jest tu świadoma: godzina
+  -- meczu jest czytana w strefie PRZEGLĄDARKI, a data siedzi w bazie bez
+  -- strefy. Mecz „za 30 minut" wychodziłby więc inaczej w CI (UTC) niż na
+  -- komputerze w Polsce i test raz przechodziłby, raz nie. Mecz sprzed
+  -- doby jest przeszły w każdej strefie.
+  INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description,
+                      cost_grosz, accepted_payment_methods)
+  VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', org, n1, 'piłka nożna', 'Boisko Malta',
+    CURRENT_DATE - 1, '19:00', '20:30', 10, 'public',
+    'Wczoraj — płatny, numer BLIK odsłonięty',
+    '[WIZ] Uczestnik ma zobaczyć numer BLIK; ktoś spoza składu — zdanie, że zobaczy go po dołączeniu.',
+    1500, ARRAY['gotowka','blik']::text[])
+  RETURNING id INTO eid;
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '555111222');
+  INSERT INTO event_participants (event_id, user_id, name, payment_method)
+  VALUES (eid, org, n1, 'blik'), (eid, gracz, n_gracz, 'blik');
+
+  -- W12 — rozmowa meczu -------------------------------------------------
+  -- Zakładkę Rozmowa widzi uczestnik, organizator i członek ekipy meczu
+  -- (`czy_widzi_rozmowe_meczu()`, migracja `120`). Ten mecz nie należy do
+  -- żadnej ekipy, więc rozstrzyga sam skład: `gracz` jest w środku,
+  -- `drugiGracz` nie.
+  INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description)
+  VALUES ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', org, n1, 'piłka nożna', 'Orlik Rataje',
+    CURRENT_DATE + 12, '18:00', '19:30', 10, 'public',
+    'Za tydzień — rozmowa',
+    '[WIZ] Rozmowa meczu: uczestnik czyta i pisze, ktoś spoza składu nie ma nawet zakładki.')
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, org, n1), (eid, gracz, n_gracz);
+  INSERT INTO event_comments (event_id, user_id, user_name, body)
+  VALUES (eid, org, n1, 'Parkujemy od strony szkoły, brama otwarta od 17:45.');
 
 END $$;

@@ -53,6 +53,8 @@ const MECZ = {
   odwolany:       '88888888-8888-4888-8888-888888888888',
   prywatny:       '99999999-9999-4999-8999-999999999999',
   zagrany:        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  platnyZagrany:  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  zRozmowa:       'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
 };
 
 /** Treść strony, BEZ chmurki powiadomienia.
@@ -647,5 +649,95 @@ test.describe('kreator meczu — kolejne kroki', () => {
     // Krok 2 to termin i miejsce. Nie robimy zrzutu całej strony — pola dat
     // podpowiadają najbliższy termin, więc treść zmienia się z dnia na dzień.
     await expect(page.getByRole('button', { name: /wróć/i }).first()).toBeVisible();
+  });
+});
+
+/* ── Numer BLIK: kto go widzi, a kto tylko wyjaśnienie ──────────────────── */
+
+// Migracje `120`/`121` wyjęły numer z `events` do osobnej tabeli `event_blik`
+// z własną polityką RLS, bo `events` czyta każdy — także niezalogowany. Te dwa
+// scenariusze pilnują OBU stron tej zmiany przez interfejs: że numer dochodzi
+// do kogoś ze składu (czyli osadzenie `event_blik(blik_phone)` działa) i że
+// osoba spoza składu dostaje zdanie wyjaśniające zamiast pustki. Drugie jest
+// łatwe do zepsucia: warunek renderowania nie może pytać o sam numer, bo
+// wtedy wyjaśnienie znika dokładnie przed tym, komu jest potrzebne.
+
+test.describe('numer BLIK', () => {
+  test('uczestnik widzi numer', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.platnyZagrany);
+    await uspokoj(page);
+
+    // Mecz jest z wczoraj, więc reguła „dopiero na godzinę przed" (canSeeBlikPhone)
+    // przepuszcza numer — patrz komentarz przy W11 w seed_wizualne.sql.
+    await expect(tresc(page).getByText('555111222').first()).toBeVisible();
+  });
+
+  test('ktoś spoza składu dostaje wyjaśnienie, nie pustkę', async ({ page }) => {
+    await zaloguj(page, KONTA.drugiGracz);
+    await otworzMecz(page, MECZ.platnyZagrany);
+    await uspokoj(page);
+
+    await expect(tresc(page).getByText('555111222')).toHaveCount(0);
+    await expect(tresc(page).getByText(/numer do BLIKA zobaczysz, jeśli dołączysz/i))
+      .toBeVisible();
+  });
+
+  test('okno dołączania mówi, kiedy numer się pokaże', async ({ page }) => {
+    await zaloguj(page, KONTA.drugiGracz);
+    await otworzMecz(page, MECZ.platny);
+    await uspokoj(page);
+
+    await page.getByRole('button', { name: /^Dołącz/ }).first().click();
+    await page.getByRole('button', { name: /^BLIK$/i }).click();
+    // Dawniej w tym miejscu stał numer telefonu organizatora, pokazywany
+    // każdemu, kto otworzył okno — łącznie z osobą, która się nie zapisze.
+    await expect(page.getByText(/numer do BLIKA zobaczysz po zapisaniu się/i)).toBeVisible();
+  });
+});
+
+/* ── Rozmowa meczu ──────────────────────────────────────────────────────── */
+
+// Rozmowa jest od migracji `120` domknięta REGUŁĄ W BAZIE, nie tylko warunkiem
+// w komponencie. Tu sprawdzamy to od strony użytkownika: uczestnik czyta i
+// pisze, ktoś spoza składu nie ma nawet zakładki. Asercji na treść cudzej
+// wiadomości u obcego świadomie NIE ma — gdyby zakładka zniknęła, a dane
+// dalej wychodziły, test i tak by tego nie zobaczył; od tego jest
+// `supabase/test/rls.sql`, który pyta bazę wprost.
+
+test.describe('rozmowa meczu', () => {
+  test('uczestnik czyta i pisze', async ({ page }) => {
+    await zaloguj(page, KONTA.gracz);
+    await otworzMecz(page, MECZ.zRozmowa);
+    await uspokoj(page);
+
+    // Nie `/^Rozmowa$/`: przy nieprzeczytanych wiadomościach nazwa przycisku
+    // to „Rozmowa 1" (plakietka jest w środku), więc kotwica na końcu
+    // odpadałaby dokładnie wtedy, gdy jest co czytać.
+    await page.getByRole('button', { name: /^Rozmowa/ }).click();
+    await expect(page.getByText(/Parkujemy od strony szkoły/i)).toBeVisible();
+
+    // Znacznik czasu w treści, bo baza żyje przez cały przebieg i te same
+    // scenariusze lecą w dwóch rozmiarach okna — bez tego druga runda
+    // szukałaby wiadomości, których jest już kilka.
+    const tresc_ = `test ${Date.now()}`;
+    await page.getByPlaceholder(/Napisz do uczestników/i).fill(tresc_);
+    await page.getByRole('button', { name: /^Wyślij$/i }).click();
+    await expect(page.getByText(tresc_)).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('ktoś spoza składu widzi zakładkę, ale nie treść', async ({ page }) => {
+    await zaloguj(page, KONTA.drugiGracz);
+    await otworzMecz(page, MECZ.zRozmowa);
+    await uspokoj(page);
+
+    // Pierwsza wersja tego testu zakładała, że zakładki NIE MA. To była pomyłka
+    // co do produktu, nie błąd aplikacji: `widoczneZakladkiObiekty` filtruje
+    // Ustawienia, Wynik, Rozliczenia i Taktykę, ale Rozmowę pokazuje zawsze —
+    // bramkowana jest TREŚĆ, zdaniem wyjaśniającym, kto ją widzi. Tak jest
+    // lepiej: zakładka, która znika bez słowa, wygląda jak brak funkcji.
+    await page.getByRole('button', { name: /^Rozmowa/ }).click();
+    await expect(page.getByText(/widoczna wyłącznie dla uczestników/i)).toBeVisible();
+    await expect(page.getByText(/Parkujemy od strony szkoły/i)).toHaveCount(0);
   });
 });
