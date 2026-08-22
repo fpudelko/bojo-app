@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `118` · 39 tabel · 698 testy
+**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 704 testy
 
 ---
 
@@ -362,6 +362,32 @@ MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, 
 „Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 
+### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
+
+PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
+„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
+o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
+aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
+pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
+pokazał i użytkownik ją otworzył.
+
+ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
+z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
+listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
+o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
+prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
+Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
+w dzwonku.
+
+MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
+(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
+Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
+powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
+`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
+Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
+Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
+w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
+
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
 PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
@@ -524,37 +550,3 @@ w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty 
 używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
 nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
 stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
-
-### 2026-08-19 — Treść powiadomienia mówi, co się stało
-
-PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
-linijkach — i musi w tym czasie odpowiedzieć na pytanie „czy mnie to teraz obchodzi".
-Powiadomienia o wiadomościach nie odpowiadały wcale: tytuł brzmiał „Nowa wiadomość" (czyli
-to, co widać po ikonie), a treść mówiła „X napisał w rozmowie", czyli powtarzała tytuł
-innymi słowami. Trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10
-minut później", czy o „nie dam rady, szukajcie kogoś". Osobno: zachęta do włączenia
-powiadomień wracała przy każdym wejściu na mecz, w którym się gra.
-
-ROZWIĄZANIE BOJO: tytuł powiadomienia niesie konkret, którego dotyczy (nazwa meczu, nazwa
-ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wiadomość
-(`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
-i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
-do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
-pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
-ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
-aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
-(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
-drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
-widać go teraz na liście składów (litera „c" w okręgu przy nazwisku, `OznaczenieKapitana.tsx`). Na boisku w Taktyce widnieje pełne imię i nazwisko łamane na dwie linijki, a w kółku nazwa pozycji (BR, LO, ŚP, N…) — kółko mówi „gdzie", podpis mówi „kto"; samo imię nie rozróżniało dwóch Mateuszów w jednym składzie. Przy najbliższym meczu ekipy stoi ten sam panel „Zaproś znajomych" co w widoku meczu (udostępnienie + kopiowanie linku) zamiast pojedynczego „Udostępnij mecz" i przy nazwie drużyny w zakładce Taktyka.
-
-MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
-`powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
-`components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
-udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
-z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
-widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
-zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
-idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
-składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
-`teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
-opublikować.

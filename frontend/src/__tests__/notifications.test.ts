@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppNotification } from '@/types';
-import { otwarteSprawy, toNotif, WYMAGA_AKCJI } from '@/lib/notifications';
+import { otwarteSprawy, toNotif, WYMAGA_AKCJI, celPowiadomienia } from '@/lib/notifications';
 
 // Zapytania w `otwarteSprawy` różnią się TABELĄ tylko pozornie — trzy z nich
 // idą do `event_participants`. Rozróżniamy je po tym, czy w łańcuchu pada
@@ -213,5 +213,44 @@ describe('zaproszenie_na_mecz', () => {
       powiadomienie({ id: 'n1', type: 'zaproszenie_na_mecz', eventId: 'e1' }),
     ]);
     expect(wynik?.has('n1')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// celPowiadomienia (119) — wiadomość ma prowadzić WPROST na zakładkę
+// „Rozmowa"/„Tablica", nie na domyślną zakładkę meczu/grupy. Ta sama reguła
+// (typ → tab) jest zduplikowana po stronie Deno w send-push/index.ts, bo
+// dwa różne runtime'y nie mogą dzielić importu — stąd te testy pilnują
+// WYŁĄCZNIE strony klienta.
+// ---------------------------------------------------------------------------
+describe('celPowiadomienia', () => {
+  it('wiadomość w meczu prowadzi na zakładkę rozmowy, nie na skład', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'wiadomosc_w_meczu', eventId: 'e1' })))
+      .toBe('/wydarzenia/e1?tab=rozmowa');
+  });
+
+  it('wiadomość w grupie prowadzi na zakładkę tablicy, nie na listę meczów', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'wiadomosc_w_grupie', groupId: 'g1' })))
+      .toBe('/grupy/g1?tab=tablica');
+  });
+
+  it('ogłoszenie w grupie prowadzi na tę samą zakładkę tablicy', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'ogloszenie_w_grupie', groupId: 'g1' })))
+      .toBe('/grupy/g1?tab=tablica');
+  });
+
+  it('inne typy z event_id idą na domyślną stronę meczu, bez zakładki', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'nowy_mecz_w_grupie', eventId: 'e1' })))
+      .toBe('/wydarzenia/e1');
+  });
+
+  it('niepotwierdzony wpis gościa prowadzi do przejęcia, nie na stronę meczu', () => {
+    expect(celPowiadomienia(powiadomienie({
+      id: 'n1', type: 'niepotwierdzony_wpis_goscia', eventId: 'e1', claimToken: 'tok',
+    }))).toBe('/gracz/przejmij/tok');
+  });
+
+  it('typ bez event_id/group_id i bez wpisu w mapie tras nie prowadzi nigdzie', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'cos_nieznanego' }))).toBeNull();
   });
 });
