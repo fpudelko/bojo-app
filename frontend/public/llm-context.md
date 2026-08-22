@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 729 testów
+**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 734 testy
 
 ---
 
@@ -343,6 +343,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
+
+PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
+otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
+a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
+Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
+który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
+
+ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
+identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
+nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
+widzi w pasku adres, który da się wysłać dalej.
+
+MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
+`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
+linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
+na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
+
 ### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
 
 PROBLEM: powiadomienie o nowej wiadomości w rozmowie meczu/tablicy ekipy powstaje
@@ -547,20 +565,3 @@ MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_c
 (kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
 tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).
 
-### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
-
-PROBLEM: każdy udostępniony link do meczu pokazywał ten sam, generyczny baner Bojo — bez
-sportu, terminu, miejsca ani liczby wolnych miejsc. Podgląd linku robi połowę roboty przy
-przekonywaniu kogoś do kliknięcia, a Bojo tę połowę oddawało za darmo. Osobno: przycisk
-„Kopiuj link" (w odróżnieniu od „Udostępnij") kopiował sam goły adres, bez daty, miejsca
-i ceny.
-
-ROZWIĄZANIE BOJO: link do meczu ma teraz własną kartę podglądu — sport, nazwa, dzień
-i godzina, miejsce, liczba wolnych miejsc (albo „Komplet"), cena. „Kopiuj link" kopiuje
-to samo, co „Udostępnij": tekst z detalami meczu plus adres.
-
-MECHANIKA: `app/wydarzenia/[id]/opengraph-image.tsx` (konwencja Next.js, `runtime =
-'edge'`, generuje obrazek 1200×630 przez `next/og`), dane przez wspólny `getEventMeta()`
-wydzielony do `eventMeta.ts`. `textDoKopiowania()` w `lib/eventShare.ts` — jeden helper
-dla trzech miejsc kopiujących link (pasek meczu, panel „Zaproś znajomych", fallback
-`navigator.share`).
