@@ -74,6 +74,22 @@ i numer BLIK, gdy organizator akceptuje tę metodę płatności. Bez tego organi
 przepisywał to ręcznie na czat — goście bez konta w ogóle nie mają jak zobaczyć
 swojej kwoty w Bojo, więc wiadomość na czacie jest dla nich jedynym kanałem.
 
+**Numer BLIK mieszka w osobnej tabeli `event_blik`, nie w `events`** (migracje `120`/`121`).
+RLS w Postgresie jest WIERSZOWE, a `events` ma politykę SELECT `USING (true)` — dopóki numer
+siedział w tym wierszu, `canSeeBlikPhone()` chowało go w interfejsie, a baza i tak oddawała go
+w każdej odpowiedzi `select('*')`, każdemu, także niezalogowanemu. Odebranie uprawnienia do
+samej kolumny (`REVOKE SELECT (blik_phone)`) wywróciłoby wszystkie `select('*')` w repo, więc
+numer przeniósł się tam, gdzie da się go zamknąć polityką. Wiersz `event_blik` widzi
+organizator, delegat od płatności/edycji (`089`) i uczestnik meczu. Klient dociąga numer
+osadzeniem w `getEvent()` (`select('*, fields(address), event_blik(blik_phone)')`), zapisuje
+przez `zapiszNumerBlik()` (`lib/blik.ts`) — także dla całej serii cyklicznej naraz.
+**`anon` MUSI mieć GRANT SELECT** na tej tabeli, choć nie zobaczy ani jednego wiersza: bez
+tego PostgREST oddaje wylogowanemu „permission denied" i pada cała strona meczu.
+Reguła „numer dopiero na godzinę przed meczem" zostaje ŚWIADOMIE w UI — to wygoda dla
+uczestnika, nie ochrona przed nim. Kto nie jest w składzie, widzi zdanie „numer do BLIKA
+zobaczysz, jeśli dołączysz do składu" (nagłówek meczu) albo „Numer do BLIKA zobaczysz po
+zapisaniu się" (okno dołączania) — wcześniej okno pokazywało numer każdemu.
+
 **„Wszyscy oddali" — masowe oznaczenie płatności, nie klikanie po jednej osobie.**
 Przycisk w panelu „Podział kosztów" (`EventDetailClient.tsx`, `handleWszyscyOddali`) stoi
 **na górze panelu**, zaraz pod podsumowaniem „Zebrano" — nad listą uczestników z
@@ -1557,6 +1573,18 @@ renderują dokładnie ten sam JSX (`druzynySection`, wydzielony ze `skladWynikSe
 tym samym stanie z rodzica (`teamA`/`teamB`/handlery `TeamsPanel`), więc zmiana w jednym
 miejscu — przypisanie gracza, losowanie, publikacja — jest natychmiast widoczna w drugim
 bez żadnej synchronizacji: to dosłownie ten sam stan React, wyświetlony dwa razy.
+
+**Rozmowa meczu jest domknięta REGUŁĄ W BAZIE, nie tylko warunkiem w komponencie**
+(migracja `120`). Do tej pory polityka SELECT na `event_comments` brzmiała
+`USING (deleted_at IS NULL)` — bez warunku na osobę, więc treść rozmowy dowolnego meczu,
+także prywatnego, dało się pobrać jednym zapytaniem do REST-a bez zakładania konta.
+`czy_widzi_rozmowe_meczu()` jest lustrem `mozeWidziecRozmowe` z `EventDetailClient`
+(uczestnik — każdy wpis w `event_participants`, także oczekujący i obserwujący —
+organizator, członek ekipy meczu) i stoi teraz w politykach SELECT oraz INSERT: pisać
+w rozmowie może tylko ten, kto ma prawo ją czytać. Człon `OR auth.uid() = user_id`
+w polityce SELECT stoi POZA tym warunkiem — inaczej autor, który zdążył wypisać się
+z meczu, wpadłby przy kasowaniu własnej wiadomości w pułapkę opisaną w `100`
+(polityka SELECT rządzi też widocznością wiersza PO zmianie, a kasowanie jest miękkie).
 
 `RozmowaWydarzenia.tsx` to ten sam mechanizm i wygląd co `RozmowaGrupy.tsx` (chronologia
 rosnąca, grupowanie wiadomości tej samej osoby, separatory dni, własny scroll z

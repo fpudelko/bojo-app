@@ -309,7 +309,7 @@ BEGIN
   -- ---- 14. Bardzo długi opis ------------------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       max_players, visibility, title, description, cost_grosz, track_payments,
-                      accepted_payment_methods, blik_phone)
+                      accepted_payment_methods)
   VALUES (jan, jan_name, 'piłka nożna', 'Kompleks Sportowy Politechniki Poznańskiej',
           CURRENT_DATE + 8, '20:30', 14, 'public',
     'Cotygodniowe granie na Politechnice — zapisy do czwartku',
@@ -322,8 +322,10 @@ BEGIN
     'Kto się zapisze i nie przyjdzie bez odwołania do soboty wieczorem, następnym razem wchodzi na rezerwę. ' ||
     'Nie chodzi o karanie, tylko o to, że przy 14 miejscach dwie osoby mniej psują cały mecz. ' ||
     'Gramy do 22:00, potem trzeba zejść z boiska, bo światła gasną automatycznie.',
-    2500, true, ARRAY['blik','gotowka'], '600 700 800')
+    2500, true, ARRAY['blik','gotowka'])
   RETURNING id INTO eid;
+  -- Numer BLIK od migracji `120` mieszka w osobnej tabeli (RLS — patrz `121`).
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '600 700 800');
   INSERT INTO event_participants (event_id, user_id, name, has_paid, paid_amount) VALUES
     (eid, jan, jan_name, true,  2500),
     (eid, t1,  t1_name, true,  2500),

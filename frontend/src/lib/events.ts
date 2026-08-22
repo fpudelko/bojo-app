@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { zapiszNumerBlik, numerBlikZWiersza } from './blik';
 import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
 import { track } from './analytics';
@@ -57,7 +58,9 @@ export function toEvent(row: any): EventItem {
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
     reserveClaimMinutes: row.reserve_claim_minutes ?? 180,
     acceptedPaymentMethods: row.accepted_payment_methods ?? [],
-    blikPhone: row.blik_phone ?? undefined,
+    // Numer BLIK od migracji `120` siedzi w `event_blik` (RLS) i dociąga go
+    // `getEvent()`; zapytania listowe go nie pobierają i nie potrzebują.
+    blikPhone: numerBlikZWiersza(row),
     acceptedSportsCards: row.accepted_sports_cards ?? [],
     sportsCardDiscountGrosze: row.sports_card_discount_grosz ?? null,
     sportsCardOtherName: row.sports_card_other_name ?? undefined,
@@ -179,7 +182,6 @@ export async function createEvent(
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
-      blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       sports_card_other_name: data.sportsCardOtherName?.trim() || null,
@@ -192,6 +194,12 @@ export async function createEvent(
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Numer BLIK osobnym zapisem, bo od migracji `120` mieszka w `event_blik`.
+  // Błąd leci w górę tak samo jak z insertu meczu: mecz płatny bez numeru to
+  // mecz, na który nie da się zapłacić obiecaną metodą. Przy pustym numerze
+  // nie ma czego zapisywać ani czego kasować — świeży mecz nie ma wiersza.
+  if (data.blikPhone?.trim()) await zapiszNumerBlik([row.id], data.blikPhone);
 
   if (organizerParticipates) {
     // Błąd sprawdzany, nie połykany. Wcześniej wynik tego insertu leciał w
@@ -277,7 +285,6 @@ export async function updateEvent(
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
-      blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       sports_card_other_name: data.sportsCardOtherName?.trim() || null,
@@ -285,6 +292,8 @@ export async function updateEvent(
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  await zapiszNumerBlik([id], data.blikPhone);
 
   if (actorId) {
     logActivity(id, actorId, actorName ?? null, 'event_updated', { date: data.date }).catch(
@@ -298,7 +307,7 @@ export async function getEvent(
 ): Promise<{ event: EventItem; participants: EventParticipant[] }> {
   const { data: eventRow, error } = await supabase
     .from('events')
-    .select('*, fields(address)')
+    .select('*, fields(address), event_blik(blik_phone)')
     .eq('id', id)
     .single();
   if (error) throw new Error(error.message);

@@ -122,13 +122,15 @@ BEGIN
   -- W07 — mecz płatny ---------------------------------------------------
   INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       end_time, max_players, visibility, title, description,
-                      cost_grosz, accepted_payment_methods, blik_phone)
+                      cost_grosz, accepted_payment_methods)
   VALUES ('77777777-7777-4777-8777-777777777777', org, n1, 'piłka nożna', 'Orlik Rataje',
     CURRENT_DATE + 9, '18:00', '19:30', 10, 'public',
     'Środa — płatny',
     '[WIZ] Mecz płatny z dwiema metodami — okno dołączania wymaga wyboru.',
-    1500, ARRAY['gotowka','blik']::text[], '555111222')
+    1500, ARRAY['gotowka','blik']::text[])
   RETURNING id INTO eid;
+  -- Numer BLIK od migracji `120` mieszka w osobnej tabeli (RLS — patrz `121`).
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '555111222');
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, org, n1);
 
   -- W08 — mecz odwołany --------------------------------------------------

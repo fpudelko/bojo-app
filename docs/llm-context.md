@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 710 testów
+**Stan na:** 2026-08-22 · migracja `121` · 40 tabel · 722 testy
 
 ---
 
@@ -343,6 +343,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Rozmowa meczu i numer BLIK przestają być czytelne dla całego internetu
+
+PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą (Supabase)
+bezpośrednio, a klucz dostępu do API siedzi jawnie w kodzie strony. Jedyną granicą są
+reguły dostępu w bazie (RLS), a rozmowy meczów miały regułę bez żadnego warunku na osobę:
+treść rozmowy DOWOLNEGO meczu, także prywatnego, dało się pobrać jednym zapytaniem, bez
+zakładania konta. Interfejs pokazywał zakładkę „Rozmowa" wyłącznie uczestnikom, ale to
+była bramka w aplikacji, nie w bazie. Osobno to samo dotyczyło numeru BLIK organizatora:
+aplikacja chowała go do godziny przed meczem, a baza oddawała go w każdej odpowiedzi
+o mecz, bo reguły dostępu w Postgresie działają na całe wiersze, nie na kolumny.
+
+ROZWIĄZANIE BOJO: rozmowę meczu czyta i pisze wyłącznie ten, kto ma do niej prawo także
+w interfejsie — uczestnik meczu, organizator oraz, gdy mecz jest przypięty do ekipy,
+członek tej ekipy. Numer BLIK czyta organizator, jego delegat od płatności i uczestnik
+meczu; osoba spoza składu widzi zamiast numeru zdanie „numer do BLIKA zobaczysz, jeśli
+dołączysz do składu". Reguła „numer dopiero na godzinę przed meczem" zostaje wygodą
+interfejsu, nie ochroną. Niezalogowany nie dostaje z bazy ani jednej wiadomości i ani
+jednego numeru.
+
+MECHANIKA: migracje `120` i `121`. `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER) wchodzi
+do polityk SELECT i INSERT na `event_comments`. Numer BLIK przenosi się z kolumny
+`events.blik_phone` do osobnej tabeli `event_blik` z własną polityką, bo `events` czyta
+każdy; klient dociąga go osadzeniem `select('*, event_blik(blik_phone)')`
+(`lib/blik.ts`, `lib/events.ts`). Kolejność wdrożenia: `120` → deploy → `121`.
+
 ### 2026-08-22 — Mapa: organizowanie meczu prosto z kafelka i powrót do tego samego kadru
 
 PROBLEM: kafelek obiektu na mapie Bojo (`/mapa`) miał jedno wyjście — „Zobacz boisko" —
@@ -534,25 +559,3 @@ MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `115`) ustawia `pending
 = events.require_approval`, tak jak `dolacz_do_meczu()` (migracja `078`) dla zapisu
 zalogowanego. Organizator dostaje powiadomienie o prośbie tym samym mechanizmem co dla
 zalogowanych graczy.
-
-### 2026-08-20 — Powiadomienia o usunięciu ze składu, zmianie meczu i usunięciu meczu
-
-PROBLEM: trzy sytuacje w Bojo były całkowicie ciche. Organizator usuwający gracza z już
-zajętego miejsca w składzie (nie z listy oczekujących — to miało powiadomienie od dawna)
-nie zostawiał żadnego śladu — gracz dowiadywał się na boisku. Zmiana miejsca meczu albo
-ceny po publikacji nie generowała nic — na czacie grupowym taka informacja by padła.
-Twarde usunięcie całego meczu (nie odwołanie — realne skasowanie) nie mówiło nic
-nikomu, mimo że modal potwierdzenia ostrzega wprost „wszyscy uczestnicy stracą dostęp".
-
-ROZWIĄZANIE BOJO: wszystkie trzy sytuacje generują teraz powiadomienie pod dzwonkiem:
-„Usunięto Cię ze składu", „Zmiana w meczu" (miejsce lub koszt), „Mecz usunięty".
-
-MECHANIKA: trzy triggery SQL — `powiadom_o_usunieciu_uczestnika` (migracja `113`,
-`BEFORE DELETE` na `event_participants`, pomija samowypisanie i wiersze już objęte
-powiadomieniem o odrzuconej prośbie), `powiadom_o_zmianie_warunkow` (migracja `114`,
-`AFTER UPDATE` na `events`, jeden trigger dla miejsca i kosztu — `updateEvent()` zapisuje
-cały wiersz jedną instrukcją), `powiadom_o_usunieciu_meczu` (migracja `116`, `BEFORE
-DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `ON DELETE
-CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
-Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
-oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
