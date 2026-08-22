@@ -726,11 +726,18 @@ test.describe('rozmowa meczu', () => {
     await expect(page.getByText(tresc_)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('ktoś spoza składu nie ma zakładki Rozmowa', async ({ page }) => {
+  test('ktoś spoza składu widzi zakładkę, ale nie treść', async ({ page }) => {
     await zaloguj(page, KONTA.drugiGracz);
     await otworzMecz(page, MECZ.zRozmowa);
     await uspokoj(page);
 
-    await expect(page.getByRole('button', { name: /^Rozmowa/ })).toHaveCount(0);
+    // Pierwsza wersja tego testu zakładała, że zakładki NIE MA. To była pomyłka
+    // co do produktu, nie błąd aplikacji: `widoczneZakladkiObiekty` filtruje
+    // Ustawienia, Wynik, Rozliczenia i Taktykę, ale Rozmowę pokazuje zawsze —
+    // bramkowana jest TREŚĆ, zdaniem wyjaśniającym, kto ją widzi. Tak jest
+    // lepiej: zakładka, która znika bez słowa, wygląda jak brak funkcji.
+    await page.getByRole('button', { name: /^Rozmowa/ }).click();
+    await expect(page.getByText(/widoczna wyłącznie dla uczestników/i)).toBeVisible();
+    await expect(page.getByText(/Parkujemy od strony szkoły/i)).toHaveCount(0);
   });
 });
