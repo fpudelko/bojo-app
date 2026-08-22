@@ -1,9 +1,9 @@
 # Zrzuty — PR #246 · scenariusze-za-logowaniem
 
-Przebieg [`32580872055`](https://github.com/fpudelko/bojo-app/actions/runs/32580872055)
+Przebieg [`32582208341`](https://github.com/fpudelko/bojo-app/actions/runs/32582208341)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/246)
 
-Zmienione widoki: **7** · nowe widoki: **3**
+Zmienione widoki: **9** · nowe widoki: **5**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -78,6 +78,28 @@ w czytelnej skali, potem całe strony obok siebie.
 
 </details>
 
+### grupy-zly-kod
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__grupy-zly-kod__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__grupy-zly-kod__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__grupy-zly-kod__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__grupy-zly-kod__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__grupy-zly-kod__diff.png" width="100%">
+
+</details>
+
 ### karta-rezerwy
 
 <table><tr>
@@ -119,6 +141,28 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__kolejka-organizator__diff.png" width="100%">
+
+</details>
+
+### moje-gry-historia-pusto
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__moje-gry-historia-pusto__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__moje-gry-historia-pusto__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__moje-gry-historia-pusto__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__moje-gry-historia-pusto__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__moje-gry-historia-pusto__diff.png" width="100%">
 
 </details>
 
@@ -175,6 +219,10 @@ to jest po prostu to, co widzi użytkownik.
 
 ![scenariusze-komputer · mecz-odwolany-baner](nowy__scenariusze-komputer__mecz-odwolany-baner.png)
 
+### scenariusze-komputer · sklad-oznaczenie-pola
+
+![scenariusze-komputer · sklad-oznaczenie-pola](nowy__scenariusze-komputer__sklad-oznaczenie-pola.png)
+
 ### scenariusze-telefon · mecz-odwolany-baner
 
 ![scenariusze-telefon · mecz-odwolany-baner](nowy__scenariusze-telefon__mecz-odwolany-baner.png)
@@ -182,4 +230,8 @@ to jest po prostu to, co widzi użytkownik.
 ### scenariusze-telefon · okno-wypisania-telefon
 
 ![scenariusze-telefon · okno-wypisania-telefon](nowy__scenariusze-telefon__okno-wypisania-telefon.png)
+
+### scenariusze-telefon · sklad-oznaczenie-pola
+
+![scenariusze-telefon · sklad-oznaczenie-pola](nowy__scenariusze-telefon__sklad-oznaczenie-pola.png)
 
