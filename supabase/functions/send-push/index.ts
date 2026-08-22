@@ -83,6 +83,22 @@ serve(async (req) => {
 
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
+  // Liczba nieprzeczytanych na IKONĘ APLIKACJI (`public/sw.js` → Badging API).
+  // Liczymy ją TUTAJ, bo service worker nie ma dostępu do sesji Supabase, a
+  // strona przy zamkniętej aplikacji nie działa — czyli w jedynym momencie,
+  // w którym plakietka ma sens, nikt inny tej liczby nie zna.
+  //
+  // Wyzwalacz `trg_wyslij_push` odpala się PO wstawieniu wiersza, więc świeże
+  // powiadomienie już się tu liczy. Błąd zapytania daje `null` i pole nie
+  // jedzie w treści — worker zostawia wtedy plakietkę w spokoju, zamiast
+  // zgadywać (patrz komentarz w `public/sw.js`).
+  const { count: nieprzeczytane, error: bladLicznika } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', dane.user_id)
+    .is('read_at', null);
+  if (bladLicznika) console.error('[send-push] licznik nieprzeczytanych', bladLicznika.message);
+
   const tresc = JSON.stringify({
     tytul: dane.tytul ?? 'Bojo',
     tresc: dane.tresc ?? '',
@@ -94,6 +110,9 @@ serve(async (req) => {
     // dokleja go do adresu po kliknięciu, żeby `NotificationBell.tsx` mógł
     // oznaczyć TĘ pozycję jako przeczytaną w dzwonku.
     id: dane.id ?? null,
+    // Na ikonę aplikacji. `null` = nie policzyliśmy; worker plakietki wtedy
+    // nie dotyka.
+    nieprzeczytane: bladLicznika ? null : nieprzeczytane ?? null,
   });
 
   const martwe: string[] = [];

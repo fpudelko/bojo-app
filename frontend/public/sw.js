@@ -1,7 +1,8 @@
 /* Service worker Bojo — CELOWO MINIMALNY.
  *
- * Robi dwie rzeczy i nic więcej: odbiera powiadomienia push i otwiera stronę
- * po kliknięciu w powiadomienie.
+ * Robi trzy rzeczy i nic więcej: odbiera powiadomienia push, stawia liczbę
+ * nieprzeczytanych na ikonie aplikacji i otwiera stronę po kliknięciu
+ * w powiadomienie.
  *
  * DLACZEGO BEZ TRYBU OFFLINE. Service worker cache'ujący HTML potrafi serwować
  * stary build długo po deployu — a Bojo żyje z bazy, więc użytkownik oglądałby
@@ -46,7 +47,37 @@ self.addEventListener('push', (zdarzenie) => {
     data: { adres: dane.adres || '/', id: dane.id || null },
   };
 
-  zdarzenie.waitUntil(self.registration.showNotification(tytul, opcje));
+  // Liczba na ikonie aplikacji. Push jest sygnałem jednorazowym — znika
+  // z ekranu blokady i po nim nie zostaje ślad; plakietka zostaje, dopóki
+  // jest co przeczytać. Wyliczyć jej tutaj się NIE DA: worker nie ma dostępu
+  // do sesji Supabase (siedzi w localStorage strony), więc gotową liczbę
+  // dokleja do pusha funkcja brzegowa `send-push`.
+  //
+  // Brak `nieprzeczytane` w treści oznacza starszą wersję funkcji brzegowej —
+  // wtedy plakietki NIE RUSZAMY. Zdjęcie jej byłoby gorsze niż zostawienie
+  // nieaktualnej: przychodzi właśnie powiadomienie, więc nieprzeczytane na
+  // pewno są. Aplikacja i tak wyrówna liczbę przy najbliższym otwarciu
+  // (`NotificationBell.tsx`).
+  const zadania = [self.registration.showNotification(tytul, opcje)];
+  // `typeof === 'number'`, nie `Number(...)`: brakującą liczbę funkcja
+  // brzegowa wysyła jako `null`, a `Number(null)` to ZERO — plakietka
+  // zgasłaby dokładnie w chwili, w której przyszło powiadomienie.
+  const nieprzeczytane = typeof dane.nieprzeczytane === 'number' ? dane.nieprzeczytane : NaN;
+  if (Number.isFinite(nieprzeczytane) && self.navigator && 'setAppBadge' in self.navigator) {
+    const ile = Math.max(0, Math.floor(nieprzeczytane));
+    zadania.push(
+      // Ta sama logika co `ustawPlakietke()` w `lib/plakietkaAplikacji.ts` —
+      // osobny runtime, nie da się współdzielić importu (tak samo jak
+      // `adresPowiadomienia()` w `send-push`). Wywołanie owinięte, bo
+      // odrzucenie (iOS bez zgody na powiadomienia) nie ma prawa przewrócić
+      // `waitUntil` razem z samym powiadomieniem.
+      Promise.resolve()
+        .then(() => (ile === 0 ? self.navigator.clearAppBadge() : self.navigator.setAppBadge(ile)))
+        .catch(() => {}),
+    );
+  }
+
+  zdarzenie.waitUntil(Promise.all(zadania));
 });
 
 self.addEventListener('notificationclick', (zdarzenie) => {

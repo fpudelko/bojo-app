@@ -1841,6 +1841,38 @@ sam wykonać `UPDATE notifications`; wyzwalacz `wyslij_push_po_powiadomieniu()` 
 montażu i woła `markRead([id])`. Wcześniej dzwonek oznaczał wszystko na raz WYŁĄCZNIE przy
 otwarciu panelu w aplikacji — push to inna ścieżka, o której dzwonek nic nie wiedział.
 
+**Liczba nieprzeczytanych na IKONIE APLIKACJI** (Badging API, `lib/plakietkaAplikacji.ts`).
+Chmurka i dzwonek w nagłówku mówią o nieprzeczytanych dopiero temu, kto już otworzył Bojo;
+push jest sygnałem jednorazowym i po zniknięciu z ekranu blokady nie zostawia śladu.
+Plakietka z liczbą zostaje na ikonie, dopóki jest co przeczytać. Liczba to **suma obu
+paneli** (wiadomości + reszta) — na ikonie jest miejsce na jedną, a rozróżnienie niesie
+w aplikacji kolor (patrz konwencja w AGENTS.md), czego ikona systemowa i tak nie odda.
+
+Ustawiana w DWÓCH miejscach, bo żadne nie wystarcza samo:
+
+| Kiedy | Kto | Skąd liczba |
+|---|---|---|
+| aplikacja otwarta | `NotificationBell.tsx` (efekt na `unreadWiadomosci + unreadReszta`) | zna stan wprost, także po oznaczeniu jako przeczytane |
+| aplikacja zamknięta | `public/sw.js` przy zdarzeniu `push` | pole `nieprzeczytane` doklejone do payloadu przez `send-push` |
+
+Service worker nie ma dostępu do sesji Supabase, więc sam liczby nie policzy — funkcja
+brzegowa robi `count` na `notifications` (`read_at IS NULL`) tuż przed wysyłką; wyzwalacz
+`trg_wyslij_push` odpala się PO wstawieniu wiersza, więc świeże powiadomienie już się
+liczy. Gdy licznik padnie, pole jedzie jako `null` i worker **plakietki nie dotyka** —
+zdjęcie jej w chwili, gdy przychodzi powiadomienie, byłoby gorsze niż liczba nieaktualna
+o jeden; aplikacja wyrówna ją przy najbliższym otwarciu.
+
+Plakietka działa **wyłącznie w zainstalowanej aplikacji** (Android/Chromium po instalacji
+PWA; iOS 16.4+ po dodaniu do ekranu początkowego **i** zgodzie na powiadomienia). W karcie
+przeglądarki `setAppBadge()` odrzuca obietnicę albo metody w ogóle nie ma, dlatego każde
+wywołanie jest wykrywane i łykane po cichu — brak plakietki jest brakiem wygody, nie
+błędem, a wyjątek leciałby z efektu Reacta przy każdym powiadomieniu
+(`plakietkaAplikacji.test.ts` pilnuje, że żaden wariant nie rzuca).
+
+**Zmiana w `send-push` wymaga wdrożenia funkcji brzegowej** (Actions → „Wdróż funkcje
+brzegowe"). Sam merge jej nie wdraża — do tego czasu plakietka stawia się wyłącznie przy
+otwartej aplikacji.
+
 **Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
 `072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
 wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
