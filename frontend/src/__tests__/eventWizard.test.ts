@@ -90,14 +90,22 @@ describe('validatePayments', () => {
 });
 
 describe('validateStep (dispatcher used by attemptGoToStep)', () => {
+  // Od 2026-08-22 krok 1 pyta o TERMIN, a krok 2 o MIEJSCE — odwrotnie niż
+  // wcześniej. Powód w komentarzu przy `validateStep`: lokalizacja to najdroższa
+  // interakcja w całym kreatorze i stała na samym wejściu, przed jakimkolwiek
+  // rozpędem. `base` ma więc miejsce PUSTE i termin poprawny, żeby każdy
+  // przypadek mówił wprost, którego kroku dotyczy.
   const base = { location: { venue: null, lat: null }, date: '2099-01-01', time: '18:00' };
 
-  it('step 1 checks location only', () => {
-    expect(validateStep(1, base).location).toBeDefined();
+  it('krok 1 sprawdza TERMIN, nie miejsce', () => {
+    expect(validateStep(1, { ...base, date: '' }).date).toBeDefined();
+    // Puste miejsce nie może blokować pierwszego kroku — o nie pytamy dopiero
+    // w drugim.
+    expect(validateStep(1, base)).toEqual({});
   });
 
-  it('step 2 checks date only', () => {
-    expect(validateStep(2, { ...base, date: '' }).date).toBeDefined();
+  it('krok 2 sprawdza MIEJSCE', () => {
+    expect(validateStep(2, base).location).toBeDefined();
   });
 
   it('step 3 has no required fields', () => {
@@ -105,12 +113,17 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
   });
 
   it('step 2 also surfaces payment errors when payment fields are given', () => {
-    const errs = validateStep(2, { ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '' });
+    const errs = validateStep(2, {
+      ...base, location: { venue: {}, lat: 52 },
+      costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '',
+    });
     expect(errs.blikPhone).toBeDefined();
   });
 
   it('step 2 treats missing payment fields as a free match (no payment errors)', () => {
-    expect(validateStep(2, base)).toEqual({});
+    // Miejsce musi być wskazane, inaczej krok 2 zwróci błąd lokalizacji
+    // i przypadek przestanie mówić o płatnościach.
+    expect(validateStep(2, { ...base, location: { venue: {}, lat: 52 } })).toEqual({});
   });
 });
 

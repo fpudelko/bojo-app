@@ -97,10 +97,21 @@ export function validateStep(
     goalkeepersEnabled?: boolean | null;
   },
 ): FieldErrors {
-  if (n === 1) return validateStep1(v.location);
+  // KOLEJNOŚĆ KROKÓW ZMIENIŁA SIĘ (2026-08-22): najpierw KIEDY, potem GDZIE.
+  //
+  // Dotąd pierwszy krok pytał o lokalizację, czyli zaczynał od NAJDROŻSZEJ
+  // interakcji w całym kreatorze — mapa, szukanie, katalog — zanim powstał
+  // jakikolwiek rozpęd. Data i godzina to dwa dotknięcia i jedyne rzeczy,
+  // które organizator ma w głowie, otwierając kreator. Numery kroków zostają
+  // te same, zmienia się to, o co pytają.
+  //
+  // `validateStep1`/`validateStep2` NIE zamieniają się nazwami: mówią, co
+  // sprawdzają (lokalizacja / termin), a nie na którym ekranie stoją. Nazwa
+  // wiążąca funkcję z numerem ekranu psuje się przy każdej zmianie układu.
+  if (n === 1) return validateStep2(v.date, v.time);
   if (n === 2) {
     return {
-      ...validateStep2(v.date, v.time),
+      ...validateStep1(v.location),
       ...validatePayments({
         costPln: v.costPln ?? '',
         acceptedPaymentMethods: v.acceptedPaymentMethods ?? [],
