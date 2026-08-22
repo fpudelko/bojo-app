@@ -19,17 +19,30 @@ Geofabrik są już podzielone na województwa, więc `voivodeship` to po prostu
 CLI: uruchamia się per województwo, tak jak `import_osm_pbf.py`.
 
 Zapis idzie przez ten sam upsert co import (`on_conflict=source,external_id`,
-`Prefer: resolution=merge-duplicates`), tylko z węższym payloadem — PostgREST
-aktualizuje wyłącznie podane kolumny, więc reszta wiersza (nazwa, sport,
-zdjęcia, komentarze użytkowników…) zostaje nietknięta. To ma być UPDATE
-istniejących wierszy, nie tworzenie nowych — ale sam upsert tego nie
-gwarantuje: dla `external_id` bez dopasowania PostgREST robi INSERT z tylko
-tymi czterema kolumnami, a `name`/`address`/`lat`/`lng` są NOT NULL, więc cały
-batch (do 500 rekordów, wysyłane jednym multi-row INSERT-em) odrzuca się
-naraz. Świeży plik `.osm.pbf` nie jest gwarantowany identyczny z tym, na
-którym stał oryginalny import. Dlatego PRZED wysyłką skrypt pobiera zbiór
-`external_id` już obecnych w bazie (`source='osm'`) i odrzuca rekordy bez
-dopasowania — dopiero to czyni upsert faktycznym UPDATE-only.
+`Prefer: resolution=merge-duplicates`) — ale NIE z węższym payloadem, mimo że
+to brzmi jak naturalne uproszczenie ("aktualizujemy tylko city/voivodeship,
+więc po co wysyłać resztę"). Postgres sprawdza NOT NULL na skonstruowanym
+wierszu ZANIM w ogóle dotrze do sprawdzenia indeksu unikalnego i przekierowania
+na UPDATE — kolejność jest: (1) NOT NULL/CHECK na proponowanym wierszu,
+(2) dopiero próba wstawienia do indeksu, gdzie wykrywany jest konflikt.
+Payload bez `name`/`address`/`lat`/`lng` (NOT NULL w `fields`) pada więc na
+kroku (1) ZAWSZE — również dla wierszy, które istnieją i miały dostać zwykły
+UPDATE. To nie jest "insert dla brakujących, update dla istniejących" (tak
+zakładała wcześniejsza wersja tego skryptu i jej testy pokazały coś innego:
+100% batchy padało, łącznie z rekordami potwierdzonymi jako istniejące w
+osobnym zapytaniu SELECT). Zweryfikowane bezpośrednio w SQL: plain INSERT
+poprawnie wykrywa duplikat (`23505`), ale identyczny `INSERT ... ON CONFLICT
+DO UPDATE` z tym samym wąskim payloadem pada na `23502` — sam indeks działa,
+kolejność sprawdzania ograniczeń nie pozwala do niego dotrzeć.
+
+Naprawa: PRZED wysyłką skrypt pobiera z bazy (`source='osm'`) nie tylko zbiór
+`external_id`, ale też bieżące `name`/`address`/`lat`/`lng` każdego pasującego
+wiersza, i dokłada je do payloadu NIEZMIENIONE. NOT NULL jest wtedy spełnione
+niezależnie od tego, którą gałąź (insert/update) wybierze Postgres, a
+`Prefer: resolution=merge-duplicates` i tak nadpisuje realną wartością samą
+siebie — efektywny brak zmiany. Rekordy bez dopasowania w bazie są odrzucane
+przed wysyłką (nie tworzymy tu nowych wierszy — to zadanie importera, nie
+backfillu).
 
 Migracja `112` ma trigger `BEFORE UPDATE OF city ON fields`, więc zapisanie
 `city` tutaj automatycznie przelicza `seo_tier` tego wiersza — nie trzeba
@@ -165,30 +178,52 @@ def main() -> int:
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         # merge-duplicates: PostgREST aktualizuje WYŁĄCZNIE kolumny podane
-        # w payloadzie (source, external_id, city, voivodeship) — reszta
-        # wiersza (nazwa, zdjęcia, komentarze) zostaje nietknięta.
+        # w payloadzie — name/address/lat/lng jadą tu tylko żeby przejść
+        # NOT NULL (patrz docstring modułu), więc efektywnie nadpisują same
+        # siebie tą samą wartością. Kolumny spoza payloadu (sport, zdjęcia,
+        # komentarze użytkowników…) zostają nietknięte.
         "Prefer": "resolution=merge-duplicates,return=minimal",
     }
 
-    # Pre-fetch — patrz docstring modułu, akapit o NOT NULL i atomowości batcha.
-    znane_id: set[str] = set()
+    # Pre-fetch — patrz docstring modułu, akapit o kolejności sprawdzania
+    # NOT NULL. Pobieramy nie tylko "czy istnieje", ale realne wartości
+    # NOT NULL kolumn, żeby dołożyć je do payloadu niezmienione.
+    istniejace: dict[str, dict[str, object]] = {}
     with httpx.Client(timeout=60) as client:
         offset = 0
         while True:
             r = client.get(
                 f"{url}/rest/v1/fields",
-                params={"source": "eq.osm", "select": "external_id", "limit": 1000, "offset": offset},
+                params={
+                    "source": "eq.osm",
+                    "select": "external_id,name,address,lat,lng",
+                    "limit": 1000,
+                    "offset": offset,
+                },
                 headers={"apikey": key, "Authorization": f"Bearer {key}"},
             )
             r.raise_for_status()
             page = r.json()
-            znane_id.update(row["external_id"] for row in page if row["external_id"])
+            for row in page:
+                if row["external_id"]:
+                    istniejace[row["external_id"]] = row
             if len(page) < 1000:
                 break
             offset += 1000
-    log.info("W bazie jest %d obiektów source=osm z external_id.", len(znane_id))
+    log.info("W bazie jest %d obiektów source=osm z external_id.", len(istniejace))
 
-    do_zapisu = [rec for rec in records if rec["external_id"] in znane_id]
+    do_zapisu = []
+    for rec in records:
+        baza = istniejace.get(rec["external_id"])
+        if not baza:
+            continue
+        do_zapisu.append({
+            **rec,
+            "name": baza["name"],
+            "address": baza["address"],
+            "lat": baza["lat"],
+            "lng": baza["lng"],
+        })
     bez_dopasowania = len(records) - len(do_zapisu)
     if bez_dopasowania:
         log.info("   pominięto %d — external_id spoza bazy (nie tworzymy nowych wierszy tutaj)", bez_dopasowania)
