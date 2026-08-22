@@ -196,26 +196,34 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                 {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
                 {until && ` · ${until}`}
               </span>
-              {/* Nazwa obiektu bierze całą wolną szerokość wiersza, w którym
-                  wylądowała. Wcześniej miała `max-w-[120px]` — sztywny limit,
-                  który obcinał „Zespół Szkół Ogólno…" nawet wtedy, gdy chip
-                  zawinął się do własnego wiersza i miał do dyspozycji całą
-                  kartę. Kropki stały w połowie szerokości bez powodu.
-                  `min-w-0` na obu poziomach, bo bez tego element w kontenerze
-                  flex nie skurczy się poniżej swojej treści i zamiast obciąć
-                  tekst rozepchnie wiersz. */}
-              {location && (
-                <span className="flex min-w-0 flex-1 items-center gap-1 text-slate-500">
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="min-w-0 truncate">{location}</span>
-                </span>
-              )}
-              {distance !== undefined && (
-                <span className="shrink-0 text-primary-700 font-medium">
-                  {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
-                </span>
-              )}
             </div>
+
+            {/* MIEJSCE W WŁASNYM WIERSZU, nie obok godziny.
+                Dzieliło wiersz z „Organizujesz" i terminem, a `flex-1` znaczy
+                „weź, co zostanie" — przy meczu, który się organizuje, zostawało
+                jakieś 80 px i z nazwy obiektu robiło się „Kompleks …",
+                „Orlik …", „Orli…". Trzy karty pod sobą mówiły wtedy dokładnie
+                tyle samo o miejscu: nic. `flex-wrap` tego nie ratował, bo
+                element, który potrafi skurczyć się do zera, nigdy nie zawija.
+
+                Kosztem jest kilkanaście pikseli wysokości karty — tanio jak na
+                jedyną informację, która odpowiada na „czy mi po drodze".
+                Odległość stoi tutaj, przy nazwie obiektu, bo mówi o tym samym. */}
+            {(location || distance !== undefined) && (
+              <div className="mt-0.5 flex items-center gap-2 text-xs">
+                {location && (
+                  <span className="flex min-w-0 flex-1 items-center gap-1 text-slate-500">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="min-w-0 truncate">{location}</span>
+                  </span>
+                )}
+                {distance !== undefined && (
+                  <span className="shrink-0 font-medium text-primary-700">
+                    {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
