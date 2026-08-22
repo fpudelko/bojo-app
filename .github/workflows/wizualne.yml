@@ -10,11 +10,17 @@ name: Wizualne (informacyjne)
 # a wtedy czerwona bramka blokująca merge zmusza do „naprawiania" czegoś, co
 # jest w porządku. Zmiana wyglądu ma być DO PRZEJRZENIA, nie do naprawienia.
 #
-# ZADANIA NIGDY NIE ŚWIECĄ NA CZERWONO. Samo `continue-on-error` nie wystarcza:
-# workflow owszem kończy się zielono, ale przy PR-ze i tak widać czerwony
-# znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego same testy
-# lecą z `set +e`, a ich wynik jedzie dalej jako `outputs.wynik` i ląduje
+# ZADANIE ZE ZRZUTAMI NIGDY NIE ŚWIECI NA CZERWONO. Samo `continue-on-error`
+# nie wystarcza: workflow owszem kończy się zielono, ale przy PR-ze i tak widać
+# czerwony znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego same
+# testy lecą z `set +e`, a ich wynik jedzie dalej jako `outputs.wynik` i ląduje
 # w komentarzu. Raport jest POMOCĄ DLA CHĘTNYCH, nie bramką.
+#
+# ZADANIE ZE SCENARIUSZAMI — INACZEJ, od 2026-08-22. Ta sama osłona przykrywała
+# scenariusze FUNKCJONALNE i czternaście z nich padało przy zielonym znaczku.
+# `.github/bramka-scenariuszy.mjs` na końcu tamtego zadania rozdziela padające
+# testy: zmiana wyglądu (`toHaveScreenshot` i nic więcej) zostaje informacją,
+# wszystko inne zapala czerwono. Szczegóły przy samym zadaniu.
 #
 # JAK TO WYGLĄDA Z TELEFONU
 #   1. Workflow wystawia RAPORT — jedną stronę na PR, z obrazkami: nowe widoki
