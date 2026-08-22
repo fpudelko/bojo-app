@@ -17,6 +17,29 @@ błędem o nieznanej kolumnie, pierwsza hipoteza brzmi: migracja nie została pu
 **Stanu bazy produkcyjnej nie da się odczytać z repo.** Numer ostatniej migracji w repo
 mówi tylko, co zostało napisane — nie co zostało zastosowane.
 
+### ⚠️ Migracja przerwana w połowie zostaje w połowie
+
+Ręczne uruchamianie ma drugi, gorszy tryb awarii niż „nie puszczono migracji":
+**puszczono jej kawałek.** Realny przebieg (sierpień 2026): seed wywala się na
+`column reserve_claim_minutes does not exist`, ktoś puszcza z ręki samą pierwszą
+linijkę `118` (`ALTER TABLE … RENAME COLUMN`), żeby się odblokować — i baza
+zostaje ze stanem, którego nie przewiduje ani stara, ani nowa wersja kodu:
+kolumna ma nową nazwę, ale **`ALTER TABLE … RENAME COLUMN` nie zmienia nazwy
+ograniczenia**, więc wisi na niej dalej `CHECK 1..72` z `058`, wartość domyślna
+`3` i wartości liczone w godzinach. Następny komunikat brzmi już
+`violates check constraint events_reserve_claim_hours_check` i nie ma w nim ani
+słowa o tym, że przyczyną jest niedokończona migracja.
+
+Stąd dwie zasady, obie już wdrożone:
+
+- **migracja ma dać się puścić drugi raz** (patrz „Konwencja nowych migracji"),
+  i to tak, żeby doprowadziła bazę do stanu docelowego także ze stanu
+  połowicznego — `118` rozpoznaje dziś trzy stany i przelicza godziny na minuty
+  dokładnie raz,
+- **seedy sprawdzają schemat, zanim cokolwiek zapiszą** (patrz „Dane testowe") —
+  zamiast błędu Postgresa o nieznanej kolumnie dostajesz nazwę pliku migracji
+  do uruchomienia.
+
 ### ⚠️ Historia migracji w repo ≠ historia w Supabase (MCP)
 
 Od sesji z dostępem do Supabase przez MCP (`execute_sql`, `list_migrations`,
@@ -177,7 +200,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `115_gosc_wymaga_akceptacji` | `DROP`/`CREATE` `dolacz_do_meczu_jako_goscie()` (sygnatura i zwrotka bez zmian) — gość respektuje `require_approval` tak samo jak zalogowany zapis (`dolacz_do_meczu`, `078`): `pending_approval = event.require_approval`, wiersz pending nie zajmuje miejsca. Wcześniej wstawiała `pending_approval = false` na sztywno — gość z linku omijał akceptację zapisów, którą organizator świadomie włączył |
 | `116_powiadomienie_o_usunieciu_meczu` | Trigger `BEFORE DELETE ON events` — powiadomienie `mecz_usuniety` do uczestników (pending i potwierdzonych) przy twardym `deleteEvent()`. `event_id = NULL` w INSERT-cie — CELOWO, bo `notifications.event_id` ma `ON DELETE CASCADE` na `events(id)`, więc wiersz z `OLD.id` zostałby skasowany momenty po wstawieniu. Ta sama migracja naprawia odkryty przy tej okazji, wcześniej istniejący bug: `powiadom_o_odrzuceniu_prosby()` (`076`) nie sprawdzała, czy mecz nadrzędny wciąż istnieje — przy kaskadowym usuwaniu `event_participants` po `DELETE FROM events` z choćby jedną oczekującą prośbą, INSERT do `notifications` łamał FK i **cała transakcja usuwania meczu wywracała się błędem** |
 | `117_dopiecie_subskrypcji_push` | RPC `dopnij_subskrypcje_push()` (`SECURITY DEFINER`) — przypina istniejącą subskrypcję push (kluczowaną `endpoint`) do `auth.uid()` wołającego. Naprawia realny przypadek: subskrypcja dostaje `user_id` wyłącznie przy kliknięciu „Włącz" (`wlaczPush()`); na współdzielonym urządzeniu drugie konto nigdy tego nie klika (bo `stanPush()` widzi cudzą subskrypcję i pokazuje „Włączone"), więc powiadomienia PIERWSZEGO konta lądują na telefonie, na którym jest teraz zalogowane DRUGIE. Zwykły `.upsert()` by tego nie naprawił — polityka RLS UPDATE sprawdza właściciela ISTNIEJĄCEGO wiersza, więc po cichu odrzuciłaby reassignment (`053`-owa pułapka RLS) |
-| `118_rezerwa_czas_w_minutach` | `events.reserve_claim_hours` (SMALLINT, pełne godziny, `CHECK 1–72`) przenumerowana na `reserve_claim_minutes` (`CHECK 15–4320`, istniejące wartości × 60) — wybór w UI był „mocno ograniczony", godzina jako jednostka fizycznie nie mieściła 30 minut. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `110` poza jednostką i czytelnym formatem czasu w treści powiadomienia — „30 min." zamiast mylącego „0 godz.") |
+| `118_rezerwa_czas_w_minutach` | `events.reserve_claim_hours` (SMALLINT, pełne godziny, `CHECK 1–72`) przenumerowana na `reserve_claim_minutes` (`CHECK 15–4320`, istniejące wartości × 60; **plik jest odporny na powtórne uruchomienie i naprawia stan połowiczny** — patrz „Migracja przerwana w połowie zostaje w połowie" wyżej) — wybór w UI był „mocno ograniczony", godzina jako jednostka fizycznie nie mieściła 30 minut. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `110` poza jednostką i czytelnym formatem czasu w treści powiadomienia — „30 min." zamiast mylącego „0 godz.") |
 | `119_id_powiadomienia_w_push` | `wyslij_push_po_powiadomieniu()` (`CREATE OR REPLACE`, ciało jak w `109`) dokłada `'id', NEW.id` do payloadu wysyłanego do funkcji brzegowej `send-push`. Identyfikator jedzie do przeglądarki (`data.id` w `public/sw.js`) i wraca po kliknięciu jako `?przeczytaj=<id>` w adresie — service worker nie ma dostępu do sesji Supabase, więc nie może sam oznaczyć wiersza jako przeczytany; robi to `NotificationBell.tsx` po stronie klienta |
 | `120_rozmowa_i_blik_tylko_dla_swoich` | Domyka DWA wycieki widoczne z samego internetu, bez logowania. (1) `event_comments` miało politykę SELECT `USING (deleted_at IS NULL)` — bez warunku na osobę, więc treść rozmów WSZYSTKICH meczów, także prywatnych, dało się pobrać jednym zapytaniem do REST-a. Nowa funkcja `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER, lustro `mozeWidziecRozmowe` z `EventDetailClient`: uczestnik, organizator, członek ekipy meczu) wchodzi do polityk SELECT i INSERT. Człon `OR auth.uid() = user_id` stoi POZA warunkiem widoczności — inaczej autor wpadłby w pułapkę z `100` przy kasowaniu własnej wiadomości. (2) Numer BLIK przenosi się z `events.blik_phone` do nowej tabeli `event_blik` z własną polityką; `event_set_payment_settings()` (`090`) pisze już do niej |
 | `121_koniec_blik_phone_w_events` | `ALTER TABLE events DROP COLUMN blik_phone` — dopiero to zamyka wyciek numeru. URUCHAMIAĆ PO WDROŻENIU frontendu z tego samego PR-a: kolejność `120` → deploy → `121`. Przed skasowaniem kolumny dokłada do `event_blik` numery, które zdążyły wejść starym frontendem między `120` a deployem |
@@ -233,6 +256,15 @@ Kolejny numer + krótka nazwa: `058_nazwa_zmiany.sql`. W nagłówku komentarz m�
 Dodając kolumnę do tabeli, która ma politykę RLS na `UPDATE`, sprawdź, czy polityka
 obejmuje nową kolumnę.
 
+**Migracja ma przeżyć drugie uruchomienie.** Nie dlatego, że ktoś lubi klikać dwa
+razy, tylko dlatego, że przerwany przebieg zostawia bazę w połowie drogi i jedynym
+narzędziem naprawy jest ten sam plik (patrz „Migracja przerwana w połowie"). W praktyce:
+`IF NOT EXISTS` / `IF EXISTS` przy DDL, `DROP … IF EXISTS` przed `ADD CONSTRAINT`,
+a przeliczenia danych (`UPDATE … * 60`) w gałęzi warunkowej, po znaczniku, który
+mówi, czy przeliczenie już było. Uwaga na `ALTER TABLE … RENAME COLUMN`: zmienia
+nazwę kolumny, **nie** nazwę ograniczenia ani wartości domyślnej — sama zmiana nazwy
+nie jest migracją, tylko jej pierwszą trzecią.
+
 ---
 
 ## Osobna baza (dev / preview)
@@ -277,3 +309,12 @@ Od tego momentu preview pisze do własnej bazy, a `bojo.pl` zostaje nietknięte.
 | `supabase/seed-test-users.sql` | Konta `test1..test10@example.com`, hasło `test1234` |
 
 Oba uruchamiane ręcznie w SQL Editor.
+
+**Seedy sprawdzają schemat, zanim cokolwiek zapiszą.** `seed_test_data.sql`,
+`seed_regresja.sql` i `seed_przedpremiera.sql` zaczynają od sprawdzenia po jednym
+znaczniku na wymaganą migrację (kolumna `events.reserve_claim_minutes` dla `118`,
+tabela `event_blik` dla `120`) i przerywają komunikatem z **nazwą pliku migracji
+do uruchomienia** — zamiast wywrócić się w środku na `column … does not exist`.
+Rozpoznają też stan połowiczny `118` (patrz sekcja o migracjach wyżej). Kasowanie
+poprzedniego przebiegu siedzi ZA tym sprawdzeniem, więc nieudany seed zostawia bazę
+taką, jaką zastał. **Dopisując do seeda kolumnę z nowej migracji, dopisz znacznik.**

@@ -28,9 +28,6 @@
 -- testowych. Nie zostawiaj tego w bazie, do której wpuszczasz ludzi.
 -- ============================================================
 
-DELETE FROM events WHERE description LIKE '[PRZED]%';
-DELETE FROM groups WHERE name = '[PRZED] Ekipa testowa';
-
 DO $$
 DECLARE
   ja    UUID := (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com');
@@ -42,10 +39,52 @@ DECLARE
   -- bez tego przeliczenia „za 45 minut" wyszłoby na telefonie jako „za 2 godz.
   -- 45 min" i numer BLIK by się nie odsłonił (`canSeeBlikPhone`).
   teraz TIMESTAMP := (now() AT TIME ZONE 'Europe/Warsaw');
+  brak  TEXT[] := '{}';   -- migracje, których brakuje w bazie (patrz sprawdzenie niżej)
 BEGIN
+  -- SPRAWDZENIE SCHEMATU. Migracje uruchamia się w tym repo RĘCZNIE, więc baza
+  -- bywa starsza niż plik, który do niej wklejasz. Bez tego seed wywraca się
+  -- dopiero w środku, na pierwszym INSERT-cie dotykającym nowej kolumny,
+  -- komunikatem Postgresa „column ... does not exist" — a ten mówi, CZEGO nie
+  -- ma, i nie mówi ani DLACZEGO, ani co z tym zrobić. Przyczyna jest zawsze ta
+  -- sama: migracja nie została puszczona. Sprawdzamy więc po jednym znaczniku
+  -- na migrację i wypisujemy WSZYSTKIE braki naraz, żeby nie odkrywać ich po
+  -- jednym, przebieg po przebiegu.
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'events'
+                    AND column_name = 'reserve_claim_minutes') THEN
+    brak := brak || CASE
+      WHEN EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'events'
+                      AND column_name = 'reserve_claim_hours')
+      THEN '118_rezerwa_czas_w_minutach.sql — w bazie siedzi jeszcze stara kolumna reserve_claim_hours (godziny)'
+      ELSE '118_rezerwa_czas_w_minutach.sql — brak kolumny events.reserve_claim_minutes'
+    END::text;
+  ELSIF EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.events'::regclass
+                   AND conname = 'events_reserve_claim_hours_check') THEN
+    -- Kolumna ma nową nazwę, ale wisi na niej ograniczenie z `058` (CHECK 1..72)
+    -- — czyli `118` przeszła tylko w połowie (sama zmiana nazwy, bez
+    -- przeliczenia na minuty). Bez tej gałęzi seed wywala się dopiero na
+    -- „violates check constraint events_reserve_claim_hours_check".
+    brak := brak || '118_rezerwa_czas_w_minutach.sql — przeszła tylko w połowie: kolumna ma nową nazwę, ale zostało ograniczenie CHECK 1..72 i wartości w godzinach (puść CAŁY plik jeszcze raz, jest odporny na powtórzenie)'::text;
+  END IF;
+  IF to_regclass('public.event_blik') IS NULL THEN
+    brak := brak || '120_rozmowa_i_blik_tylko_dla_swoich.sql — brak tabeli event_blik'::text;
+  END IF;
+  IF cardinality(brak) > 0 THEN
+    RAISE EXCEPTION E'Baza nie ma zmian z migracji:\n  • %\n\nUruchom brakujące pliki z supabase/migrations w Supabase → SQL Editor (nic nie robi tego za Ciebie) i puść ten seed jeszcze raz.',
+      array_to_string(brak, E'\n  • ');
+  END IF;
+
   IF ja IS NULL THEN
     RAISE EXCEPTION 'Brak konta franekks@gmail.com w auth.users — zaloguj się raz w aplikacji.';
   END IF;
+  -- Kasowanie poprzedniego przebiegu siedzi ZA sprawdzeniami — nieudany seed
+  -- ma zostawić bazę taką, jaką zastał, zamiast wyczyścić stare dane i nie
+  -- postawić nowych.
+  DELETE FROM events WHERE description LIKE '[PRZED]%';
+  DELETE FROM groups WHERE name = '[PRZED] Ekipa testowa';
+
   ja_n := COALESCE((SELECT display_name FROM profiles WHERE id = ja), 'Organizator');
 
   -- P1 — mecz, do którego zaprosisz drugą osobę linkiem -----------------
