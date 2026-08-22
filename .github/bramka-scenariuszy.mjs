@@ -67,10 +67,25 @@ for (const { tytul, test } of wszystkie) {
     .flatMap((w) => [w.error?.message ?? '', ...(w.errors ?? []).map((e) => e.message ?? '')])
     .join('\n');
 
-  // Zrzut jest jedynym rodzajem błędu, który wolno przemilczeć — i tylko
-  // wtedy, gdy jest JEDYNYM błędem tego testu.
-  const tylkoZrzut = /toHaveScreenshot/.test(bledy)
-    && !/toBeVisible|toHaveCount|toBeEnabled|toHaveText|locator\.click|strict mode|Timeout of/.test(bledy);
+  // WYŁĄCZNIE wiersze zaczynające się od „Error:". Reszta komunikatu Playwrighta
+  // to `call log` i RAMKA KODU — a w ramce widać sąsiednie linijki testu.
+  // Pierwsza wersja czytała cały komunikat i przez to `expect(pusto).toBeVisible()`
+  // stojące dwie linijki NAD padającym `toHaveScreenshot` wystarczało, żeby
+  // uznać czystą zmianę wyglądu za regresję. Zdanie „Error:" jest jedynym
+  // miejscem, w którym Playwright mówi, co NAPRAWDĘ padło.
+  const przyczyny = bledy.split('\n')
+    .map((w) => w.trim())
+    .filter((w) => w.startsWith('Error: '))
+    .map((w) => w.slice('Error: '.length));
+
+  // Dwa rodzaje błędu wolno przemilczeć i oba znaczą to samo: „obejrzyj obrazek".
+  //   • różnica wobec wzorca,
+  //   • BRAK wzorca — nowy widok. To też nie jest regresja: nowy zrzut nie ma
+  //     z czym się różnić, a wzorzec przyjmuje ta sama etykieta. Bez tego
+  //     członu pierwszy przebieg nowego scenariusza zawsze świecił czerwono,
+  //     nawet gdy całe zachowanie przeszło.
+  const czyZrzut = (p) => /toHaveScreenshot/.test(p) || /A snapshot doesn't exist/.test(p);
+  const tylkoZrzut = przyczyny.length > 0 && przyczyny.every(czyZrzut);
 
   (tylkoZrzut ? wygladowe : zachowanie).push(tytul);
 }
