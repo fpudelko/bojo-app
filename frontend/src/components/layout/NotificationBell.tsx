@@ -337,6 +337,28 @@ export default function NotificationBell() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => setNotifs((prev) => [toNotif(payload.new), ...prev]),
       )
+      .on(
+        // Odświeżenie w oknie ciszy (migracja 122): druga wiadomość w tej
+        // samej rozmowie w ciągu godziny nie dostaje NOWEGO wiersza, tylko
+        // podmienia treść istniejącego (limit push/liczby wierszy zostaje).
+        // Bez tej subskrypcji panel „Wiadomości" pokazywałby zamrożoną
+        // pierwszą wiadomość z godziny, dopóki ktoś nie przeładuje strony.
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => setNotifs((prev) => {
+          const zaktualizowane = toNotif(payload.new);
+          const istniejace = prev.find((n) => n.id === zaktualizowane.id);
+          if (!istniejace) return prev;
+          // `created_at` bez zmiany = to `markRead` (albo inna zmiana bez
+          // nowej treści) odbite echem z bazy — podmieniamy w miejscu, żeby
+          // nie przeskakiwało na górę listy przy zwykłym oznaczeniu jako
+          // przeczytane.
+          if (istniejace.createdAt === zaktualizowane.createdAt) {
+            return prev.map((n) => (n.id === zaktualizowane.id ? zaktualizowane : n));
+          }
+          return [zaktualizowane, ...prev.filter((n) => n.id !== zaktualizowane.id)];
+        }),
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };

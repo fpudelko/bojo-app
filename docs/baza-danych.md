@@ -1,6 +1,6 @@
 # Baza danych
 
-119 migracji (`001`–`121`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+120 migracji (`001`–`122`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -181,6 +181,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `119_id_powiadomienia_w_push` | `wyslij_push_po_powiadomieniu()` (`CREATE OR REPLACE`, ciało jak w `109`) dokłada `'id', NEW.id` do payloadu wysyłanego do funkcji brzegowej `send-push`. Identyfikator jedzie do przeglądarki (`data.id` w `public/sw.js`) i wraca po kliknięciu jako `?przeczytaj=<id>` w adresie — service worker nie ma dostępu do sesji Supabase, więc nie może sam oznaczyć wiersza jako przeczytany; robi to `NotificationBell.tsx` po stronie klienta |
 | `120_rozmowa_i_blik_tylko_dla_swoich` | Domyka DWA wycieki widoczne z samego internetu, bez logowania. (1) `event_comments` miało politykę SELECT `USING (deleted_at IS NULL)` — bez warunku na osobę, więc treść rozmów WSZYSTKICH meczów, także prywatnych, dało się pobrać jednym zapytaniem do REST-a. Nowa funkcja `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER, lustro `mozeWidziecRozmowe` z `EventDetailClient`: uczestnik, organizator, członek ekipy meczu) wchodzi do polityk SELECT i INSERT. Człon `OR auth.uid() = user_id` stoi POZA warunkiem widoczności — inaczej autor wpadłby w pułapkę z `100` przy kasowaniu własnej wiadomości. (2) Numer BLIK przenosi się z `events.blik_phone` do nowej tabeli `event_blik` z własną polityką; `event_set_payment_settings()` (`090`) pisze już do niej |
 | `121_koniec_blik_phone_w_events` | `ALTER TABLE events DROP COLUMN blik_phone` — dopiero to zamyka wyciek numeru. URUCHAMIAĆ PO WDROŻENIU frontendu z tego samego PR-a: kolejność `120` → deploy → `121`. Przed skasowaniem kolumny dokłada do `event_blik` numery, które zdążyły wejść starym frontendem między `120` a deployem |
+| `122_odswiezenie_powiadomienia_o_wiadomosci` | `powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()` (`CREATE OR REPLACE`, ciało jak w `111`) — druga i kolejna wiadomość w tej samej rozmowie w oknie godziny (limit z `109`/`111`) już nie ginie bez śladu: zamiast pomijanego INSERT-u robi `UPDATE` istniejącego wiersza (nowa treść, świeży `created_at`, `read_at = NULL`) i dopiero `INSERT` dla odbiorców bez żadnego powiadomienia w tej godzinie. Push nie dubluje się — `trg_wyslij_push` (`102`) łapie wyłącznie `INSERT`, `UPDATE` go nie odpala |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `121` · 40 tabel · 722 testy
+**Stan na:** 2026-08-22 · migracja `122` · 40 tabel · 722 testy
 
 ---
 
@@ -343,6 +343,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
+
+PROBLEM: powiadomienie o nowej wiadomości w rozmowie meczu/tablicy ekipy powstaje
+najwyżej raz na godzinę na odbiorcę (celowa ochrona przed spamem — rozmowa przed meczem
+potrafi mieć trzydzieści wiadomości w kwadrans). Efekt uboczny: druga i kolejna wiadomość
+w tej samej godzinie nie zostawiała żadnego śladu — panel „Wiadomości" w dzwonku
+pokazywał zamrożoną treść PIERWSZEJ wiadomości z godziny, podczas gdy osobny panel
+„Nieprzeczytane rozmowy" (czyta bez throttlingu wprost z bazy) pokazywał już nowszą.
+
+ROZWIĄZANIE BOJO: kolejna wiadomość w oknie godziny nie ginie — podmienia treść
+istniejącego powiadomienia na najnowszą, przesuwa je na górę listy i cofa do stanu
+nieprzeczytanego. Limit (najwyżej jedno powiadomienie push/dzwonek na godzinę na
+rozmowę) zostaje bez zmian; zmienia się wyłącznie to, że to jedno powiadomienie zawsze
+pokazuje ostatnią wiadomość, nie pierwszą.
+
+MECHANIKA: migracja `122` zamienia pomijane wstawienie (`NOT EXISTS ... interval '60
+minutes'`) na `UPDATE` istniejącego wiersza + `INSERT` dla reszty w
+`powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()`. Push nie dubluje
+się — `trg_wyslij_push` (102) łapie wyłącznie `INSERT`. `NotificationBell.tsx` dostaje
+drugą subskrypcję real-time na `UPDATE`, rozróżnia odświeżenie treści od zwykłego
+oznaczenia jako przeczytane po tym, czy `created_at` się zmienił.
+
 ### 2026-08-22 — Rozmowa meczu i numer BLIK przestają być czytelne dla całego internetu
 
 PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą (Supabase)
@@ -542,20 +564,3 @@ MECHANIKA: `app/wydarzenia/[id]/opengraph-image.tsx` (konwencja Next.js, `runtim
 wydzielony do `eventMeta.ts`. `textDoKopiowania()` w `lib/eventShare.ts` — jeden helper
 dla trzech miejsc kopiujących link (pasek meczu, panel „Zaproś znajomych", fallback
 `navigator.share`).
-
-### 2026-08-20 — Zapis gościa bez konta respektuje akceptację zapisów
-
-PROBLEM: mecz z włączoną „akceptacją zapisów" miał furtkę — gość zapisujący się linkiem,
-bez zakładania konta, wchodził prosto do składu, podczas gdy zalogowany gracz na tym
-samym meczu czekał na zgodę organizatora. Kontrola składu, którą organizator świadomie
-włączył, nie obejmowała najprostszej ścieżki dołączenia.
-
-ROZWIĄZANIE BOJO: zapis gościa respektuje akceptację zapisów dokładnie tak samo jak zapis
-zalogowany — wpis czeka na zgodę i nie zajmuje miejsca, dopóki organizator go nie
-zaakceptuje. Formularz zapisu bez konta pokazuje to wprost, zanim gość kliknie „Zapisz
-się".
-
-MECHANIKA: RPC `dolacz_do_meczu_jako_goscie()` (migracja `115`) ustawia `pending_approval
-= events.require_approval`, tak jak `dolacz_do_meczu()` (migracja `078`) dla zapisu
-zalogowanego. Organizator dostaje powiadomienie o prośbie tym samym mechanizmem co dla
-zalogowanych graczy.
