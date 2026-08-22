@@ -332,6 +332,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-19 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
+
+PROBLEM: dwie rzeczy z listy testowej, obie tego samego rodzaju — stan widoczny przy
+akcji znikał zaraz po niej. Przy komplecie dolny pasek podmieniał się na samą rezerwę,
+więc jedyną drogą do śledzenia pełnego meczu było wejście do kolejki; kto nie chciał
+grać, blokował miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać
+było kwotę, zniżkę z karty i wybrany sposób płatności, a po zapisaniu nic z tego nie
+zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
+`show_payment_status`, które miało zasłaniać co innego.
+
+ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
+rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
+znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
+uczestnikowi ze składu: kwota, przekreślona cena przed zniżką z karty sportowej, wybrany
+sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
+„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
+
+MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
+„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
+z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
+
 ### 2026-08-19 — Treść powiadomienia mówi, co się stało
 
 PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
@@ -550,22 +571,3 @@ wyliczane ze schematu tekstowego, więc nowe ustawienie to jedna linia w katalog
 migracji), `lib/taktykaApi.ts`, `components/events/TaktykaDruzyny.tsx`. Zakładka jest na
 razie za bramką administratora — polityki w bazie są już docelowe (dla uczestników meczu),
 więc udostępnienie jej wszystkim to zdjęcie jednego warunku w interfejsie.
-
-### 2026-08-18 — Spójny pasek szukania i filtrów między „Znajdź grę" a „Mapa"
-
-PROBLEM: dwie zakładki tego samego dolnego paska wyglądały jak dwa różne ekrany. Pole
-szukania na mapie stało 8 px wyżej i miało inne zaokrąglenie, więc przy przełączaniu
-przeskakiwało. Podpowiedź w polu ucinała się w połowie słowa („Szukaj boiska po nazwie
-lub a…"). Pigułki filtrów zmieniały kolejność: sport stał raz przed „Filtry", raz po —
-przy przełączaniu Gry↔Obiekty palec trafiał w inny filtr niż sekundę wcześniej.
-
-ROZWIĄZANIE BOJO: pole szukania ma tę samą geometrię i ten sam odstęp od góry na obu
-zakładkach (na mapie zostaje białe tło z cieniem, bo leży na mapie). Podpowiedź jest
-krótka i mieści się w całości: „Nazwa boiska albo adres" dla obiektów, „Nazwa albo
-boisko" dla gier. Kolejność pigułek jest wspólna: najpierw zakres (sortowanie albo tryb
-mapy), potem sport, potem „Filtry", na końcu przełączniki.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (jeden dropdown sportów zamiast dwóch
-renderowanych w różnych miejscach zależnie od trybu; `px-4 pt-5` i `rounded-2xl` jak
-w `EventsListView`), `app/wydarzenia/EventsListView.tsx` (przycisk „Filtry" przeniesiony
-za dropdown sportów).
