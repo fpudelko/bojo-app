@@ -1570,10 +1570,28 @@ całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z
 zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
 o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
 `BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
-żeby czat sięgał do dołu ekranu. Klawiatura ekranowa nie zostawia już pustej przestrzeni
-pod composerem — `viewport.interactiveWidget: 'resizes-content'` w `app/layout.tsx` każe
-przeglądarce faktycznie skurczyć layout (a więc i `100dvh`) razem z klawiaturą, zamiast
-tylko przesuwać widoczny fragment stałej wysokości strony.
+żeby czat sięgał do dołu ekranu.
+
+**Wysokość ekranu czatu bierze się z `visualViewport`, nie z `100dvh`**
+(`lib/oknoCzatu.ts`, hak `useOknoCzatu()` w `EventDetailClient` i `GroupDetailClient`).
+`viewport.interactiveWidget: 'resizes-content'` w `app/layout.tsx` załatwia sprawę na
+Androidzie, ale na iOS-ie nie robi nic: `dvh` zostaje takie samo, a przeglądarka tylko
+przesuwa widoczne okno w górę, żeby odsłonić pole tekstowe — i przesuwa je z zapasem,
+przez co composer zatrzymywał się kilkadziesiąt pikseli NAD klawiaturą, a pod nim
+świeciło tło strony (zgłoszone na iPhonie 15 Pro). `visualViewport.height` kurczy się
+razem z klawiaturą na obu systemach, więc korzeń strony dostaje tę wysokość w pikselach
+i nie ma już czego przewijać. Bez pomiaru (SSR, brak API) styl jest `undefined`
+i zostaje `h-[100dvh]` z klasy.
+
+Ten sam hak mówi, czy klawiatura jest otwarta, a to rozstrzyga **odstęp na pasek gestów
+pod composerem**: przy schowanej klawiaturze kontener rozmowy dostaje
+`pb-[…env(safe-area-inset-bottom)]`, bo bez tego composer siedzi pod samą kreską na dole
+ekranu; przy otwartej odstęp znika, bo pasek gestów jest wtedy schowany za klawiaturą
+i ten sam margines zrobiłby dokładnie tę pustkę, której unikamy. Otwarcie klawiatury
+dociąga też listę na dół (`RozmowaWydarzenia`/`RozmowaGrupy`, prop `klawiatura`) — lista
+kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość uciekała pod
+krawędź dokładnie w chwili, gdy ktoś zaczynał na nią odpowiadać. Kto czytał starsze
+wiadomości (`atBottom === false`), zostaje przy nich.
 
 ## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
 

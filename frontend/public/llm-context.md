@@ -366,6 +366,30 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
+### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
+
+PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
+klawiatury pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli NAD
+klawiaturą, a pod nim świeciło puste tło strony. Przy schowanej klawiaturze to samo pole
+siedziało pod samą kreską paska gestów na dole ekranu. Do tego otwarcie klawiatury
+spychało najnowszą wiadomość pod krawędź — dokładnie w chwili, gdy ktoś zaczynał na nią
+odpowiadać.
+
+ROZWIĄZANIE BOJO: pole do pisania przykleja się dokładnie do górnej krawędzi klawiatury,
+a przy schowanej klawiaturze zostawia odstęp na pasek gestów telefonu. Otwarcie
+klawiatury dociąga listę wiadomości na dół, chyba że akurat czyta się starsze wiadomości
+wyżej — wtedy widok zostaje tam, gdzie był. Dotyczy tak samo rozmowy meczu, jak tablicy
+ekipy.
+
+MECHANIKA: `lib/oknoCzatu.ts` — `useOknoCzatu()` mierzy `visualViewport.height`
+i `styleOknaCzatu()` podstawia ją korzeniowi strony zamiast `100dvh`. Na iOS klawiatura
+nie kurczy layoutu (`viewport.interactiveWidget: 'resizes-content'` działa tylko na
+Androidzie), tylko przesuwa widoczne okno w górę z zapasem — stąd pusty pas pod
+composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
+`env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
+i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
+Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
+
 ### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
 
 PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
@@ -532,27 +556,3 @@ DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `
 CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
 Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
 oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
-
-### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
-
-PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony
-docelowej — `/boiska/[sport]` odpowiada „gdzie jest boisko" (katalog nationwide), a
-`/wydarzenia` to płaska lista bez adresu URL na sport ani miasto. Wartość #2 misji Bojo
-(„koniec z odwoływaniem meczu z braku 1-2 osób") nie miała własnego wejścia z wyszukiwarki.
-Osobno: `get_nearby_events()` (migracja `025`) istniała od dawna, ale poza wyłączoną flagą
-`SHOW_GAME_ALERTS` nic jej nie wołało — martwy kod.
-
-ROZWIĄZANIE BOJO: cztery nowe strony, `/graj/[sport]/poznan` (piłka nożna, siatkówka,
-siatkówka plażowa, koszykówka) — jedyne miasto z realnym pokryciem katalogu i ruchem.
-Każda pokazuje na żywo otwarte publiczne mecze danego sportu w promieniu 15 km od centrum
-(licznik + do 5 najbliższych, link do strony meczu), 3 kroki zakładania meczu, uczciwe
-zastrzeżenie gdy lista jest pusta, i CTA „Stwórz mecz publiczny" z prefillem sportu.
-`/boiska/[sport]` i `/wydarzenia/nowe` dostały linki do/z nowych stron.
-
-MECHANIKA: `app/graj/[sport]/[miasto]/page.tsx` (`generateStaticParams` — zbiór bounded,
-4 strony, `revalidate=3600`), `lib/events.ts#getNearbyEvents()` (odkurzone, RPC
-`get_nearby_events`), `lib/sports.ts#FOCUS_SPORT_BY_SLUG` (slug↔wartość w bazie, używane
-też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten parametr),
-`content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
-testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
-tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.

@@ -9,6 +9,7 @@ import {
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
+import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
@@ -84,6 +85,11 @@ export default function GroupDetailClient() {
     const t = searchParams.get('tab');
     return t === 'tablica' || t === 'sklad' || t === 'staty' ? t : 'mecze';
   });
+
+  // Pomiar widocznego okna dla zakładki Tablica — hak nad wczesnymi returnami
+  // (ładowanie, brak ekipy), bo hak nie może wisieć za `return`. Warunek na
+  // członkostwo dokłada `rozmowaPelnoekranowa` niżej.
+  const oknoCzatu = useOknoCzatu(tab === 'tablica');
 
   const goToTab = (t: Tab) => {
     setTab(t);
@@ -346,7 +352,10 @@ export default function GroupDetailClient() {
   const rozmowaPelnoekranowa = tab === 'tablica' && member;
 
   return (
-    <div className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
+    <div
+      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      style={rozmowaPelnoekranowa ? styleOknaCzatu(oknoCzatu) : undefined}
+    >
       {/* Na mobile Header oddaje swój pasek grupie — dokładnie jak na /mapa
           (`hideMobileBarForUser`): tożsamość (dzwonek+avatar) nie znika,
           tylko przenosi się do paska grupy niżej, żeby nie dublować się
@@ -567,8 +576,13 @@ export default function GroupDetailClient() {
                 może jeszcze rosnąć. Bez min-h-0 flex nie pozwoliłby
                 kontenerowi rozmowy skurczyć się poniżej wysokości jego
                 treści, co wyłączyłoby jego własny scroll. */}
-            <div className="min-h-0 flex-1">
-              <RozmowaGrupy groupId={group.id} permissions={perms} />
+            {/* Odstęp na pasek gestów — patrz ten sam zabieg w
+                EventDetailClient. Tutaj <main> ma już własne `py-5`, więc
+                dokładamy wyłącznie brakującą resztę wcięcia; przy otwartej
+                klawiaturze odstęp jest zbędny, bo pasek gestów chowa się
+                wtedy za nią. */}
+            <div className={`min-h-0 flex-1 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.25rem,calc(env(safe-area-inset-bottom)_-_1.25rem))]'}`}>
+              <RozmowaGrupy groupId={group.id} permissions={perms} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>
         ) : (
