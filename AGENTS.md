@@ -425,7 +425,7 @@ ponownie i zacommituj wynik.
   (`landingContent.test.ts`, `tresciStron.test.ts`).
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
-  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na
+  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na zakładce Rozmowy w
     dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
     ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`),
     plakietka na ikonie wiadomości obok dzwonka w nagłówku (`NotificationBell.tsx` —
@@ -451,11 +451,11 @@ ponownie i zacommituj wynik.
   - **Pomarańczowy (`orange-*`)** — zawsze i wyłącznie „nowość, o której jeszcze nie
     wiesz" (bez konkretnej wiadomości do przeczytania ani decyzji do podjęcia): kropka
     na ikonie ekipy, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`
-    (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Znajdź grę" na dolnej
+    (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Szukaj" na dolnej
     nawigacji, gdy w promieniu 5 km pojawiło się nowe wydarzenie
     (`KLUCZ_WYDARZENIA_WIDZIANO` w `lib/events.ts`). Nigdy nic innego.
 
-  **Liczba nadchodzących meczów** na ikonie „Moje" (dolna nawigacja) jest celowo
+  **Liczba nadchodzących meczów** na ikonie „Moje mecze" (dolna nawigacja) jest celowo
   ZIELONA (`primary-700`), poza tą trójką: nie znaczy ani „przeczytaj", ani
   „zdecyduj", ani „nowość" — to stan, nie zdarzenie. Niebieska kropka „prośba
   o dołączenie" schodzi wtedy do dolnego rogu ikony: akcja do wykonania nie może
