@@ -341,6 +341,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Mapa: organizowanie meczu prosto z kafelka i powrót do tego samego kadru
+
+PROBLEM: kafelek obiektu na mapie Bojo (`/mapa`) miał jedno wyjście — „Zobacz boisko" —
+mimo że mapa odpowiada na pytanie „gdzie zagrać", więc naturalnym następnym ruchem jest
+zrobienie tam meczu; drogi do kreatora trzeba było szukać samemu. Sam kafelek mówił mało:
+nazwa, typ, nawierzchnia i adres przycięty do dwóch członów (bez numeru budynku), bez ani
+słowa o tym, w co się tam gra. Powrót ze strony obiektu lądował na `/mapa?boisko=<id>` —
+czyli z widokiem całego kraju i bez filtrów, bo adres powrotu niósł jeden parametr, a
+reszta stanu mapy (sport, typ, nawierzchnia, tryb gier) siedzi właśnie w adresie.
+
+ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — „Zorganizuj tutaj" (kreator meczu z wybranym
+już obiektem, `/wydarzenia/nowe?fieldId=<id>`) i „Zobacz boisko". Kafelek pokazuje sporty
+obiektu i pełny adres w dwóch linijkach. Powrót ze strony obiektu odtwarza kadr,
+przybliżenie i wszystkie filtry sprzed wyjścia; kadr trafia też do adresu mapy przez
+`replaceState`, więc działa również systemowe „wstecz" na telefonie, a adres mapy da się
+wysłać komuś z konkretnym widokiem zamiast widoku całej Polski.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z bieżących
+`searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
+przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
+kanoniczny).
+
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
 PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
@@ -537,33 +559,3 @@ idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w b
 składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
 `teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
 opublikować.
-
-### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
-
-PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
-pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
-realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
-między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
-ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
-przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
-
-ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
-miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
-przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
-nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
-dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
-całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
-sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
-prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
-z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
-w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
-
-MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
-`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
-w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
-`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
-w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
-`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
-`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
-w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
-i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
