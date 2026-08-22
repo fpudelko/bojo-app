@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 734 testy
+**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 741 testów
 
 ---
 
@@ -343,6 +343,25 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
+
+PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
+rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
+z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
+nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
+„zapisali się na listę".
+
+ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
+znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
+miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
+niezależnie od tego ustawienia.
+
+MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
+`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
+z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
+przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
+komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
+
 ### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
 
 PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
@@ -547,21 +566,3 @@ w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każde
 trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
 karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
 (`lib/groupPosts.ts`).
-
-### 2026-08-22 — Czas na decyzję z rezerwy: gęściej 30 min – 3 godz., plus wartość własna
-
-PROBLEM: gdy zwolni się miejsce, Bojo oferuje je pierwszej osobie z rezerwy i daje jej
-czas na kliknięcie „Wchodzę" — ale organizator mógł wybrać wyłącznie pełną godzinę (1, 3,
-6, 12 albo 24 h). Typowy czas reakcji na telefon to kilkanaście–kilkadziesiąt minut, a tej
-wartości fizycznie nie dało się ustawić.
-
-ROZWIĄZANIE BOJO: lista wyboru ma teraz gęstsze opcje w przedziale 30 minut – 3 godziny
-(30 min, 1 h, 1 h 30 min, 2 h, 2 h 30 min, 3 h) obok dotychczasowych większych wartości,
-plus „Inny czas…" z polem liczbowym w minutach (15 min – 72 h). Domyślna wartość (3 h)
-bez zmian.
-
-MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_claim_hours`
-— pełne godziny, przenumerowana na minuty, istniejące wartości × 60). `EventCapacityFields.tsx`
-(kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
-tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).
-
