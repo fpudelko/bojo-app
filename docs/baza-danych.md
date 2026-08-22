@@ -1,6 +1,6 @@
 # Baza danych
 
-116 migracji (`001`–`118`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+117 migracji (`001`–`119`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -163,6 +163,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `116_powiadomienie_o_usunieciu_meczu` | Trigger `BEFORE DELETE ON events` — powiadomienie `mecz_usuniety` do uczestników (pending i potwierdzonych) przy twardym `deleteEvent()`. `event_id = NULL` w INSERT-cie — CELOWO, bo `notifications.event_id` ma `ON DELETE CASCADE` na `events(id)`, więc wiersz z `OLD.id` zostałby skasowany momenty po wstawieniu. Ta sama migracja naprawia odkryty przy tej okazji, wcześniej istniejący bug: `powiadom_o_odrzuceniu_prosby()` (`076`) nie sprawdzała, czy mecz nadrzędny wciąż istnieje — przy kaskadowym usuwaniu `event_participants` po `DELETE FROM events` z choćby jedną oczekującą prośbą, INSERT do `notifications` łamał FK i **cała transakcja usuwania meczu wywracała się błędem** |
 | `117_dopiecie_subskrypcji_push` | RPC `dopnij_subskrypcje_push()` (`SECURITY DEFINER`) — przypina istniejącą subskrypcję push (kluczowaną `endpoint`) do `auth.uid()` wołającego. Naprawia realny przypadek: subskrypcja dostaje `user_id` wyłącznie przy kliknięciu „Włącz" (`wlaczPush()`); na współdzielonym urządzeniu drugie konto nigdy tego nie klika (bo `stanPush()` widzi cudzą subskrypcję i pokazuje „Włączone"), więc powiadomienia PIERWSZEGO konta lądują na telefonie, na którym jest teraz zalogowane DRUGIE. Zwykły `.upsert()` by tego nie naprawił — polityka RLS UPDATE sprawdza właściciela ISTNIEJĄCEGO wiersza, więc po cichu odrzuciłaby reassignment (`053`-owa pułapka RLS) |
 | `118_rezerwa_czas_w_minutach` | `events.reserve_claim_hours` (SMALLINT, pełne godziny, `CHECK 1–72`) przenumerowana na `reserve_claim_minutes` (`CHECK 15–4320`, istniejące wartości × 60) — wybór w UI był „mocno ograniczony", godzina jako jednostka fizycznie nie mieściła 30 minut. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `110` poza jednostką i czytelnym formatem czasu w treści powiadomienia — „30 min." zamiast mylącego „0 godz.") |
+| `119_id_powiadomienia_w_push` | `wyslij_push_po_powiadomieniu()` (`CREATE OR REPLACE`, ciało jak w `109`) dokłada `'id', NEW.id` do payloadu wysyłanego do funkcji brzegowej `send-push`. Identyfikator jedzie do przeglądarki (`data.id` w `public/sw.js`) i wraca po kliknięciu jako `?przeczytaj=<id>` w adresie — service worker nie ma dostępu do sesji Supabase, więc nie może sam oznaczyć wiersza jako przeczytany; robi to `NotificationBell.tsx` po stronie klienta |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

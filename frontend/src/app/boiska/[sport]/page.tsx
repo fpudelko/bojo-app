@@ -207,7 +207,7 @@ export default async function SportCategoryPage(
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
           {FOCUS_SPORT_BY_SLUG[params.sport] && (
-            <Link href={`/graj/${params.sport}/poznan`} className="text-primary-600 hover:underline text-sm">
+            <Link href={`/${params.sport}/poznan`} className="text-primary-600 hover:underline text-sm">
               Szukasz gry w Poznaniu? Zobacz otwarte mecze →
             </Link>
           )}

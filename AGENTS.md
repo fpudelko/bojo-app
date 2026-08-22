@@ -380,7 +380,9 @@ ponownie i zacommituj wynik.
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
   - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na
     dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
-    ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`).
+    ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`),
+    plakietka na ikonie wiadomości obok dzwonka w nagłówku (`NotificationBell.tsx` —
+    dzwonek jest dziś DWA: chmurka dla wiadomości, dzwonek dla reszty, migracja `119`).
     Nigdy nic innego. **Wiadomości mają KSZTAŁT chmurki, nie kropki** — kropka mówi tylko
     „coś tu jest" i wymaga zapamiętania koloru, chmurka mówi „ktoś napisał" bez tłumaczenia
     (zgłoszone wprost). Kropka zostaje dla niebieskiego i pomarańczowego.

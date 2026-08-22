@@ -209,6 +209,22 @@ export const FAQ: readonly PytanieFaq[] = [
       'i w nim nie grać, np. gdy tylko rezerwujesz boisko dla ekipy.',
   },
 
+  {
+    kategoria: 'organizator',
+    q: 'Co zrobić, gdy brakuje osoby na mecz?',
+    a: 'Ustaw mecz jako publiczny — trafia wtedy na listę otwartych gier i na stronę ' +
+      'swojego sportu i miasta, więc może dopisać się ktoś spoza ekipy. Chętni ponad ' +
+      'limit ustawiają się w kolejce rezerwowej z widoczną kolejnością; gdy ktoś się ' +
+      'wypisze, zwolnione miejsce proponujesz wybranej osobie z rezerwy.',
+  },
+  {
+    kategoria: 'organizator',
+    q: 'Gdzie szukać ludzi do gry w piłkę?',
+    a: 'W Bojo otwarte mecze publiczne widać na liście wydarzeń oraz na stronach ' +
+      'poszczególnych sportów i miast. Możesz dołączyć do cudzego meczu albo założyć ' +
+      'własny i puścić link po znajomych — publiczny mecz zbiera jedno i drugie naraz.',
+  },
+
   // ── Pieniądze ────────────────────────────────────────────────────────────
   {
     kategoria: 'pieniadze',
@@ -221,9 +237,9 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'pieniadze',
     q: 'Jak Bojo dzieli koszt na graczy?',
-    a: 'Wpisujesz koszt obiektu, a Bojo dzieli go równo na liczbę miejsc i przelicza ' +
-      'automatycznie, gdy zmienisz liczbę graczy. Każdy zapisany widzi na stronie meczu, ' +
-      'ile ma zapłacić.',
+    a: 'Wpisujesz koszt obiektu, a Bojo dzieli go równo na liczbę miejsc: 150 zł za halę ' +
+      'przy 12 miejscach to 12,50 zł od osoby. Kwota przelicza się sama, gdy zmienisz ' +
+      'liczbę miejsc. Każdy zapisany widzi na stronie meczu, ile ma zapłacić.',
   },
   {
     kategoria: 'pieniadze',
@@ -231,6 +247,14 @@ export const FAQ: readonly PytanieFaq[] = [
     a: 'Tak — Multisport, FitProfit, Medicover Sport i „inna karta" z własną nazwą. ' +
       'Organizator wpisuje kwotę zniżki dla posiadaczy karty; bez podanej kwoty aplikacja ' +
       'pokazuje adnotację „zniżka z karty — ustal kwotę" zamiast zgadywać.',
+  },
+  {
+    kategoria: 'pieniadze',
+    q: 'Jak sprawiedliwie rozliczyć koszty wynajmu boiska?',
+    a: 'Wpisujesz w Bojo całkowity koszt obiektu, a aplikacja dzieli go przez liczbę ' +
+      'miejsc w składzie — 150 zł przy 12 miejscach daje 12,50 zł od osoby. Posiadaczom ' +
+      'kart Multisport, FitProfit i Medicover Sport odejmujesz zniżkę, a kto już oddał ' +
+      'pieniądze, odhaczasz jednym kliknięciem.',
   },
   {
     kategoria: 'pieniadze',

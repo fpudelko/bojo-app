@@ -41,6 +41,7 @@ export function siteJsonLd(base: string = SITE_URL) {
           'Dołączanie do meczu bez zakładania konta',
           'Lista rezerwowa z widoczną kolejnością',
           'Kalkulator podziału kosztów boiska między graczy',
+          'Zniżki z kart sportowych — Multisport, FitProfit, Medicover Sport',
           'Publiczne mecze widoczne dla graczy z okolicy, gdy brakuje składu',
           'Grupy i stałe ekipy z historią meczów',
         ],

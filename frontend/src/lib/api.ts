@@ -338,3 +338,38 @@ export async function updateField(
     .eq('id', fieldId);
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Liczba publicznych obiektów w kadrze wokół punktu — dla landingów lokalnych
+ * /[sport]/[miasto].
+ *
+ * Kadr jest PROSTOKĄTEM, nie kołem: PostgREST nie policzy odległości haversine,
+ * a RPC do tego nie ma. Stąd treść na stronie mówi "w okolicy", nie "w promieniu
+ * N km" — to nie jest ta sama liczba i nie wolno jej tak nazwać.
+ *
+ * Zwraca 0 przy błędzie, a strona pomija wtedy całą sekcję: brak liczby jest
+ * uczciwszy niż zero udające pustą okolicę.
+ */
+export async function policzBoiskaWOkolicy(
+  lat: number,
+  lng: number,
+  promienKm: number,
+): Promise<number> {
+  // Stopień szerokości to ~111 km wszędzie; stopień długości kurczy się wraz
+  // z cosinusem szerokości, więc bez tej poprawki kadr nad Polską byłby o jakąś
+  // trzecią za wąski w poziomie.
+  const dLat = promienKm / 111;
+  const dLng = promienKm / (111 * Math.cos((lat * Math.PI) / 180));
+
+  const { count, error } = await supabase
+    .from('fields')
+    .select('id', { count: 'exact', head: true })
+    .eq('map_visibility', 'public')
+    .gte('lat', lat - dLat)
+    .lte('lat', lat + dLat)
+    .gte('lng', lng - dLng)
+    .lte('lng', lng + dLng);
+
+  if (error) return 0;
+  return count ?? 0;
+}

@@ -26,23 +26,20 @@ const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:kontakt@bojo.pl';
 const SEKRET        = Deno.env.get('BOJO_PUSH_SEKRET') ?? '';
 
-/** Powiadomienie o nowej wiadomości otwiera od razu ROZMOWĘ, nie kartę meczu
- *  ani ekipy: push pokazuje treść wiadomości, więc kliknięcie ma prowadzić
- *  tam, gdzie się na nią odpowiada. */
-const TYP_NA_ZAKLADKE: Record<string, string> = {
-  wiadomosc_w_meczu: 'rozmowa',
-  wiadomosc_w_grupie: 'tablica',
-};
-
 /** Dokąd prowadzi kliknięcie w powiadomienie. Ta sama logika co
- *  `celPowiadomienia()` w `frontend/src/lib/notifications.ts` — powiadomienie
- *  na telefonie ma otwierać dokładnie to samo miejsce co powiadomienie
- *  w aplikacji. */
+ *  `celPowiadomienia()` w `NotificationBell.tsx` — powiadomienie na telefonie
+ *  ma otwierać dokładnie to samo miejsce co powiadomienie w aplikacji, łącznie
+ *  z zakładką: wiadomość prowadzi wprost na „Rozmowa"/„Tablica", nie na
+ *  domyślną zakładkę meczu/grupy (zgłoszone wprost). */
 function adresPowiadomienia(dane: Record<string, unknown>): string {
-  const zakladka = TYP_NA_ZAKLADKE[String(dane.typ ?? '')];
-  const parametr = zakladka ? `?tab=${zakladka}` : '';
-  if (dane.event_id) return `/wydarzenia/${dane.event_id}${parametr}`;
-  if (dane.group_id) return `/grupy/${dane.group_id}${parametr}`;
+  const typ = dane.typ;
+  if (dane.event_id) {
+    return typ === 'wiadomosc_w_meczu' ? `/wydarzenia/${dane.event_id}?tab=rozmowa` : `/wydarzenia/${dane.event_id}`;
+  }
+  if (dane.group_id) {
+    const naTablice = typ === 'wiadomosc_w_grupie' || typ === 'ogloszenie_w_grupie';
+    return naTablice ? `/grupy/${dane.group_id}?tab=tablica` : `/grupy/${dane.group_id}`;
+  }
   return '/';
 }
 
@@ -93,6 +90,10 @@ serve(async (req) => {
     // `tag` po meczu: kolejne powiadomienie o tym samym meczu PODMIENIA
     // poprzednie zamiast układać stos pięciu (patrz `public/sw.js`).
     tag: dane.event_id ? `mecz-${dane.event_id}` : dane.group_id ? `ekipa-${dane.group_id}` : 'bojo',
+    // Identyfikator wiersza `notifications` (migracja 119) — `public/sw.js`
+    // dokleja go do adresu po kliknięciu, żeby `NotificationBell.tsx` mógł
+    // oznaczyć TĘ pozycję jako przeczytaną w dzwonku.
+    id: dane.id ?? null,
   });
 
   const martwe: string[] = [];
