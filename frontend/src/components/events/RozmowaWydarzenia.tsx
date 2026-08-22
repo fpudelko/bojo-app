@@ -18,7 +18,7 @@ import type { EventComment } from '@/types';
  * meczu, więc każdy usuwa wyłącznie swoją wiadomość, tak jak w dawnym
  * EventComments, który ten komponent zastępuje.
  */
-export default function RozmowaWydarzenia({ eventId }: { eventId: string }) {
+export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eventId: string; klawiatura?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -49,6 +49,19 @@ export default function RozmowaWydarzenia({ eventId }: { eventId: string }) {
     requestAnimationFrame(() => scrollDoDolu(pierwszyRender.current ? 'auto' : 'smooth'));
     pierwszyRender.current = false;
   }, [loading, comments.length, scrollDoDolu]);
+
+  // Klawiatura zabiera pół ekranu: lista kurczy się od dołu, a `scrollTop`
+  // zostaje ten sam, więc najnowsza wiadomość ucieka pod krawędź dokładnie
+  // w chwili, gdy ktoś zaczyna na nią odpowiadać. Wracamy na dół, ale tylko
+  // jeśli użytkownik tam był — kto czyta starsze wiadomości, ma zostać przy nich.
+  useEffect(() => {
+    if (!klawiatura || !atBottom) return;
+    requestAnimationFrame(() => scrollDoDolu('auto'));
+    // Zależność wyłącznie od klawiatury: `atBottom` czytamy w momencie jej
+    // pojawienia się, a nie śledzimy — inaczej każdy powrót w okolice dołu
+    // dociągałby listę na siłę w trakcie czytania.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [klawiatura]);
 
   const handleScroll = () => {
     const el = listRef.current;

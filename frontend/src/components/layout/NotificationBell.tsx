@@ -7,7 +7,7 @@ import {
   TicketCheck, UserPlus, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI } from '@/lib/notifications';
+import { getMyNotifications, markRead, toNotif, otwarteSprawy, celPowiadomienia, WYMAGA_AKCJI } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
 import OdpowiedzJednymKlikiem from '@/components/events/OdpowiedzJednymKlikiem';
 import type { AppNotification } from '@/types';
@@ -80,28 +80,6 @@ function godzina(iso: string, grupa: string): string {
   const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   if (grupa !== 'Wcześniej') return hhmm;
   return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
-}
-
-/** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
- *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
- *  wiersz — czyli mówiło „zrób coś" i nie dawało jak. */
-const TYP_NA_TRASE: Record<string, string> = {
-  uzupelnij_profil: '/profil',
-};
-
-/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd.
- *
- *  `niepotwierdzony_wpis_goscia` niesie `event_id` (do treści: „mecz X"), ale
- *  kliknięcie ma prowadzić do przejęcia wpisu, nie od razu na stronę meczu —
- *  inaczej kliknięcie nie robiłoby tego, co obiecuje treść („Potwierdź"). */
-function celPowiadomienia(n: AppNotification): string | null {
-  if (n.type === 'niepotwierdzony_wpis_goscia' && n.claimToken) {
-    return `/gracz/przejmij/${n.claimToken}`;
-  }
-  if (n.eventId) return `/wydarzenia/${n.eventId}`;
-  // Ogłoszenie na tablicy grupy (093) nie ma meczu — prowadzi na samą grupę.
-  if (n.groupId) return `/grupy/${n.groupId}`;
-  return TYP_NA_TRASE[n.type] ?? null;
 }
 
 /** Treść wiersza — identyczna w wariancie klikalnym i nieklikalnym.

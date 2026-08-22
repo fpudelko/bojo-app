@@ -27,6 +27,46 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
   return (data ?? []).map(toNotif);
 }
 
+/** Trasy dla powiadomień, które nie dotyczą żadnego meczu. Bez tej mapy
+ *  powiadomienie bez `event_id` renderowało się jako martwy, nieklikalny
+ *  wiersz — czyli mówiło „zrób coś" i nie dawało jak. */
+const TYP_NA_TRASE: Record<string, string> = {
+  uzupelnij_profil: '/profil',
+};
+
+/** Powiadomienia o nowej wiadomości prowadzą PROSTO DO ROZMOWY, nie na kartę
+ *  meczu ani ekipy. Bez tego kliknięcie w „Jan: my już po śniadaniu" lądowało
+ *  na składzie meczu i trzeba było jeszcze trafić w zakładkę Rozmowa — czyli
+ *  powiadomienie pokazywało treść, której samo nie potrafiło otworzyć.
+ *  Zakładkę niesie `?tab=`, tak samo jak przy ręcznym przełączeniu
+ *  (`goToTab()` w EventDetailClient / GroupDetailClient). */
+const TYP_NA_ZAKLADKE: Record<string, string> = {
+  wiadomosc_w_meczu: 'rozmowa',
+  wiadomosc_w_grupie: 'tablica',
+};
+
+/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd.
+ *
+ *  `niepotwierdzony_wpis_goscia` niesie `event_id` (do treści: „mecz X"), ale
+ *  kliknięcie ma prowadzić do przejęcia wpisu, nie od razu na stronę meczu —
+ *  inaczej kliknięcie nie robiłoby tego, co obiecuje treść („Potwierdź").
+ *
+ *  BLIŹNIAK: `adresPowiadomienia()` w `supabase/functions/send-push/index.ts`.
+ *  Powiadomienie na telefonie ma otwierać dokładnie to samo miejsce co
+ *  powiadomienie w dzwonku — zmiana tutaj bez zmiany tam rozjeżdża te dwie
+ *  drogi do tego samego zdarzenia. */
+export function celPowiadomienia(n: AppNotification): string | null {
+  if (n.type === 'niepotwierdzony_wpis_goscia' && n.claimToken) {
+    return `/gracz/przejmij/${n.claimToken}`;
+  }
+  const zakladka = TYP_NA_ZAKLADKE[n.type];
+  const parametr = zakladka ? `?tab=${zakladka}` : '';
+  if (n.eventId) return `/wydarzenia/${n.eventId}${parametr}`;
+  // Ogłoszenie na tablicy grupy (093) nie ma meczu — prowadzi na samą grupę.
+  if (n.groupId) return `/grupy/${n.groupId}${parametr}`;
+  return TYP_NA_TRASE[n.type] ?? null;
+}
+
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
 export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz']);
 

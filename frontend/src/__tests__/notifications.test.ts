@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppNotification } from '@/types';
-import { otwarteSprawy, toNotif, WYMAGA_AKCJI } from '@/lib/notifications';
+import { otwarteSprawy, toNotif, celPowiadomienia, WYMAGA_AKCJI } from '@/lib/notifications';
 
 // Zapytania w `otwarteSprawy` różnią się TABELĄ tylko pozornie — trzy z nich
 // idą do `event_participants`. Rozróżniamy je po tym, czy w łańcuchu pada
@@ -213,5 +213,34 @@ describe('zaproszenie_na_mecz', () => {
       powiadomienie({ id: 'n1', type: 'zaproszenie_na_mecz', eventId: 'e1' }),
     ]);
     expect(wynik?.has('n1')).toBe(false);
+  });
+});
+
+describe('celPowiadomienia', () => {
+  it('wiadomość w meczu prowadzi PROSTO do rozmowy, nie na kartę meczu', () => {
+    // Powiadomienie pokazuje treść wiadomości („Jan: my już po śniadaniu"),
+    // więc kliknięcie ma otworzyć miejsce, w którym się na nią odpowiada.
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'wiadomosc_w_meczu', eventId: 'e1' })))
+      .toBe('/wydarzenia/e1?tab=rozmowa');
+  });
+
+  it('wiadomość na tablicy ekipy prowadzi prosto na tablicę', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'wiadomosc_w_grupie', groupId: 'g1' })))
+      .toBe('/grupy/g1?tab=tablica');
+  });
+
+  it('pozostałe powiadomienia o meczu zostają na karcie meczu', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'prosba_o_dolaczenie', eventId: 'e1' })))
+      .toBe('/wydarzenia/e1');
+  });
+
+  it('przejęcie wpisu gościa wygrywa z meczem, mimo że niesie event_id', () => {
+    expect(celPowiadomienia(powiadomienie({
+      id: 'n1', type: 'niepotwierdzony_wpis_goscia', eventId: 'e1', claimToken: 'tok',
+    }))).toBe('/gracz/przejmij/tok');
+  });
+
+  it('powiadomienie bez celu nie udaje klikalnego', () => {
+    expect(celPowiadomienia(powiadomienie({ id: 'n1', type: 'cokolwiek' }))).toBeNull();
   });
 });

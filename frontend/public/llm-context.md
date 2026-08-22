@@ -341,6 +341,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Powiadomienie o wiadomości otwiera rozmowę; composer trzyma się klawiatury
+
+PROBLEM: trzy rzeczy psuły pisanie wiadomości w Bojo na telefonie. (1) Kliknięcie
+powiadomienia o nowej wiadomości — w dzwonku albo na ekranie blokady telefonu —
+otwierało kartę meczu, czyli skład, i trzeba było jeszcze trafić w zakładkę „Rozmowa";
+powiadomienie pokazywało treść, której samo nie potrafiło otworzyć. (2) Po otwarciu
+klawiatury na iPhonie pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli
+NAD klawiaturą, a pod nim świeciło puste tło strony. (3) Przy schowanej klawiaturze to
+samo pole siedziało pod samą kreską paska gestów na dole ekranu.
+
+ROZWIĄZANIE BOJO: powiadomienie o wiadomości w meczu prowadzi teraz prosto do zakładki
+„Rozmowa", a powiadomienie o wiadomości w ekipie — prosto na „Tablicę"; dotyczy to
+zarówno dzwonka w aplikacji, jak i powiadomienia push na telefonie. Pole do pisania
+przykleja się dokładnie do górnej krawędzi klawiatury, a przy schowanej klawiaturze
+zostawia odstęp na pasek gestów. Otwarcie klawiatury dociąga listę wiadomości na dół,
+żeby najnowsza wiadomość nie uciekła pod krawędź w chwili, gdy ktoś zaczyna na nią
+odpowiadać — chyba że akurat czyta się starsze wiadomości wyżej.
+
+MECHANIKA: trasy powiadomień — `celPowiadomienia()` w `lib/notifications.ts` (mapa
+`TYP_NA_ZAKLADKE`: `wiadomosc_w_meczu` → `?tab=rozmowa`, `wiadomosc_w_grupie` →
+`?tab=tablica`), bliźniacza `adresPowiadomienia()` w
+`supabase/functions/send-push/index.ts` dla pusha. Wysokość ekranu czatu —
+`lib/oknoCzatu.ts` (`useOknoCzatu()`, `styleOknaCzatu()`) mierzy `visualViewport.height`
+i podstawia ją korzeniowi strony zamiast `100dvh`, bo na iOS klawiatura nie kurczy
+layoutu, tylko przesuwa widoczne okno z zapasem; ten sam hak mówi, czy klawiatura jest
+otwarta, co włącza `env(safe-area-inset-bottom)` pod kontenerem rozmowy i dociągnięcie
+listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`). Wpięte
+w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
+
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
 PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
@@ -537,33 +566,3 @@ idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w b
 składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
 `teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
 opublikować.
-
-### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
-
-PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
-pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
-realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
-między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
-ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
-przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
-
-ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
-miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
-przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
-nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
-dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
-całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
-sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
-prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
-z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
-w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
-
-MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
-`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
-w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
-`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
-w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
-`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
-`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
-w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
-i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
