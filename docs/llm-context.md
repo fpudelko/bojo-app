@@ -343,6 +343,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Liczba nieprzeczytanych na ikonie zainstalowanej aplikacji
+
+PROBLEM: o nieprzeczytanej wiadomości w rozmowie meczu albo o prośbie o dołączenie
+dowiadywał się dopiero ten, kto sam otworzył Bojo. Powiadomienie push jest sygnałem
+jednorazowym — znika z ekranu blokady i po nim nie zostaje żaden ślad, więc telefon
+leżący na stole przez godzinę nie mówił nic. Chmurka i dzwonek w nagłówku aplikacji
+niosą tę informację dopiero po wejściu do środka, czyli po decyzji, którą właśnie mają
+wywołać.
+
+ROZWIĄZANIE BOJO: ikona Bojo na ekranie początkowym telefonu nosi liczbę nieprzeczytanych
+— tak samo jak ikona poczty czy komunikatora. Liczba jest sumą wiadomości i pozostałych
+powiadomień, pojawia się także wtedy, gdy aplikacja jest zamknięta, i gaśnie po
+przeczytaniu. Działa wyłącznie w Bojo dodanym do ekranu początkowego (na iPhonie dodatkowo
+po zgodzie na powiadomienia); w zwykłej karcie przeglądarki plakietki nie ma i to nie jest
+błąd.
+
+MECHANIKA: `lib/plakietkaAplikacji.ts` (Badging API, `navigator.setAppBadge`/
+`clearAppBadge`, każde wywołanie wykrywane i łykane po cichu). Ustawiana z dwóch stron:
+`NotificationBell.tsx` przy otwartej aplikacji (suma nieprzeczytanych z obu paneli),
+`public/sw.js` przy zdarzeniu `push`, gdy aplikacja jest zamknięta. Service worker nie ma
+dostępu do sesji Supabase, więc liczbę dokleja do payloadu funkcja brzegowa `send-push`
+(`count` na `notifications` z `read_at IS NULL`); brak liczby oznacza `null` i wtedy worker
+plakietki nie dotyka. Wymaga wdrożenia funkcji brzegowej.
+
 ### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
 
 PROBLEM: powiadomienie o nowej wiadomości w rozmowie meczu/tablicy ekipy powstaje
@@ -546,21 +570,3 @@ MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_c
 — pełne godziny, przenumerowana na minuty, istniejące wartości × 60). `EventCapacityFields.tsx`
 (kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
 tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).
-
-### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
-
-PROBLEM: każdy udostępniony link do meczu pokazywał ten sam, generyczny baner Bojo — bez
-sportu, terminu, miejsca ani liczby wolnych miejsc. Podgląd linku robi połowę roboty przy
-przekonywaniu kogoś do kliknięcia, a Bojo tę połowę oddawało za darmo. Osobno: przycisk
-„Kopiuj link" (w odróżnieniu od „Udostępnij") kopiował sam goły adres, bez daty, miejsca
-i ceny.
-
-ROZWIĄZANIE BOJO: link do meczu ma teraz własną kartę podglądu — sport, nazwa, dzień
-i godzina, miejsce, liczba wolnych miejsc (albo „Komplet"), cena. „Kopiuj link" kopiuje
-to samo, co „Udostępnij": tekst z detalami meczu plus adres.
-
-MECHANIKA: `app/wydarzenia/[id]/opengraph-image.tsx` (konwencja Next.js, `runtime =
-'edge'`, generuje obrazek 1200×630 przez `next/og`), dane przez wspólny `getEventMeta()`
-wydzielony do `eventMeta.ts`. `textDoKopiowania()` w `lib/eventShare.ts` — jeden helper
-dla trzech miejsc kopiujących link (pasek meczu, panel „Zaproś znajomych", fallback
-`navigator.share`).

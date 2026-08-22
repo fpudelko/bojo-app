@@ -11,6 +11,7 @@ import {
   getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI, TYPY_WIADOMOSCI, celPowiadomienia,
 } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
+import { ustawPlakietke } from '@/lib/plakietkaAplikacji';
 import OdpowiedzJednymKlikiem from '@/components/events/OdpowiedzJednymKlikiem';
 import type { AppNotification } from '@/types';
 
@@ -418,6 +419,27 @@ export default function NotificationBell() {
     // zapytanie drugi raz zaraz po otwarciu panelu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, otwartyPanel, notifs.length]);
+
+  // Liczba na IKONIE APLIKACJI (`lib/plakietkaAplikacji.ts`). Dzwonek jest
+  // jedynym miejscem w aplikacji, które zna komplet nieprzeczytanych, więc
+  // stąd ją ustawiamy — na każdą zmianę stanu, także po oznaczeniu jako
+  // przeczytane (plakietka, która nie gaśnie, przestaje cokolwiek znaczyć).
+  //
+  // SUMA obu paneli, nie dwie liczby: na ikonie jest miejsce na jedną.
+  // Rozróżnienie „wiadomość / reszta" niesie w aplikacji kolor (różowa
+  // chmurka, czerwony dzwonek — patrz AGENTS.md), a tego ikona systemowa
+  // nie odda.
+  //
+  // Sufit `ILE_POWIADOMIEN` z definicji ogranicza tę liczbę — przy 50
+  // nieprzeczytanych plakietka i tak dawno przestała być licznikiem, a stała
+  // się kropką z cyframi.
+  //
+  // Dzwonek jest zamontowany DWA razy (nagłówek mobilny i desktopowy), więc
+  // ten efekt wykonuje się dwa razy z tą samą wartością. To jest bez skutków:
+  // ustawienie plakietki jest idempotentne.
+  useEffect(() => {
+    ustawPlakietke(user ? unreadWiadomosci + unreadReszta : 0);
+  }, [user, unreadWiadomosci, unreadReszta]);
 
   // Close on outside click
   useEffect(() => {
