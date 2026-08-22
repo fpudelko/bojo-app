@@ -1819,6 +1819,20 @@ plakietka różowa zgodnie z konwencją kolorów z AGENTS.md) obok dzwonka. Każ
 własne „otwarcie oznacza jako przeczytane" — otwarcie chmurki nie gasi nieprzeczytanej
 prośby o dołączenie w dzwonku, i odwrotnie.
 
+**Wiadomość w oknie ciszy odświeża powiadomienie, nie ginie** (migracja `122`).
+`powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()` (`109`/`111`) wstawiają
+najwyżej jedno powiadomienie na odbiorcę na rozmowę na godzinę — celowa ochrona przed
+spamem, rozmowa przed meczem potrafi mieć trzydzieści wiadomości w kwadrans. Do `122`
+druga i kolejna wiadomość w tej samej godzinie po prostu nie zostawiała śladu: istniejący
+wiersz zostawał z treścią PIERWSZEJ wiadomości z godziny (zgłoszone wprost — panel
+„Wiadomości" pokazywał starszą godzinę niż osobny, nieprzepustowany panel „Nieprzeczytane
+rozmowy"). Teraz kolejna wiadomość w oknie godziny podmienia treść istniejącego wiersza na
+najnowszą, przesuwa `created_at` na `now()` i cofa `read_at` do `NULL`. Limit (najwyżej
+jedno powiadomienie na godzinę) zostaje; push nie dubluje się, bo `trg_wyslij_push` (`102`)
+łapie wyłącznie `INSERT`, nie `UPDATE`. `NotificationBell.tsx` dostaje drugą subskrypcję
+real-time na `UPDATE` obok istniejącej na `INSERT`, żeby odświeżony wiersz pokazał się na
+żywo bez przeładowania panelu.
+
 **Kliknięcie w powiadomienie push oznacza je jako przeczytane w dzwonku** (migracja
 `119`). Service worker (`public/sw.js`) nie ma dostępu do sesji Supabase, więc nie może
 sam wykonać `UPDATE notifications`; wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada
