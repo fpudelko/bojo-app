@@ -5,7 +5,11 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
+<<<<<<< HEAD
 **Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
+=======
+**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 729 testów
+>>>>>>> 61f7346 (Migracja 123: lista rezerwowa staje się wyborem organizatora)
 
 ---
 
