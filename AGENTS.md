@@ -50,7 +50,26 @@ produkcyjny — `tsc` i Vitest tego nie widzą.
 Sprawdza to, czego nie widać na działającej bazie: czy migracje aplikują się
 **od zera**. Pierwsze uruchomienie znalazło `005`, która tworzyła politykę
 istniejącą już od `001` — na świeżej bazie odtworzenie schematu było niemożliwe.
-Atrapy Supabase (schemat `auth`, `storage`, pgcrypto) siedzą w `supabase/test/shim.sql`.
+Atrapy Supabase (schemat `auth`, `storage`, pgcrypto, domyślne uprawnienia
+`anon`/`authenticated`) siedzą w `supabase/test/shim.sql`.
+
+**Ten sam przebieg wykonuje TESTY REGUŁ DOSTĘPU** — `supabase/test/rls.sql`.
+Zakłada mecz prywatny przypięty do ekipy i sprawdza, kto co widzi, przełączając
+się na prawdziwe role (`SET ROLE anon`/`authenticated`) i podstawiając tożsamość
+tak jak PostgREST (`request.jwt.claim.sub`). To jedyne miejsce w repo, które
+sprawdza granicę dostępu **od strony bazy**: `tsc` i Vitest nie mają bazy,
+a Playwright chodzi przez interfejs, czyli po właściwej stronie bramki. RLS jest
+w Bojo jedyną realną granicą — klucz `anon` siedzi jawnie w paczce JS — więc
+**dopisując politykę, dopisz asercję**. Plik ma osobną sekcję „ZNANE, ŚWIADOMIE
+OTWARTE": pilnuje stanu faktycznego (`events` i `event_participants` nadal czyta
+każdy), żeby rozmowa o tym, co jeszcze zostało, nie opierała się na pamięci.
+Gdy ktoś domknie którąś z tych polityk, asercja spadnie — wtedy zmienia się
+oczekiwanie w pliku, nie cofa poprawkę.
+
+Uwaga na atrapę: bez `ALTER DEFAULT PRIVILEGES` w `shim.sql` baza testowa jest
+BARDZIEJ restrykcyjna niż produkcja (każde zapytanie kończy się „permission
+denied"), więc dziura w polityce chowa się za brakiem grantu i testy pokazują
+fałszywy spokój.
 
 **Ikony PWA** generuje `frontend/scripts/generuj-ikony.mjs` z logo w
 `components/Logo.tsx` (rasteryzuje Chromium z Playwrighta, bez dodatkowych paczek):

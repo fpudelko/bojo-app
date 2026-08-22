@@ -114,3 +114,20 @@ BEGIN
     CREATE PUBLICATION supabase_realtime;
   END IF;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- Domyślne uprawnienia do tabel — tak jak w prawdziwym projekcie Supabase.
+--
+-- DLACZEGO TO TU MUSI BYĆ. Supabase nadaje rolom `anon`/`authenticated` pełne
+-- uprawnienia do tabel w schemacie `public` i całą kontrolę dostępu opiera na
+-- RLS. Baza testowa bez tego jest BARDZIEJ restrykcyjna niż produkcja: każde
+-- zapytanie kończy się „permission denied", więc dziura w polityce chowa się
+-- za brakiem grantu i testy RLS pokazują fałszywy spokój.
+--
+-- `ALTER DEFAULT PRIVILEGES` obejmuje tabele tworzone PÓŹNIEJ przez tę samą
+-- rolę, czyli wszystkie z migracji — dlatego stoi w atrapie, przed nimi.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;

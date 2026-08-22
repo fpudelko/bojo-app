@@ -50,6 +50,20 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 
 **Jeśli zapis „nie działa" bez błędu — najpierw sprawdź polityki, potem kod.**
 
+### Testy reguł dostępu — `supabase/test/rls.sql`
+
+Odczyt psuje się jeszcze ciszej niż zapis: zła polityka SELECT nie zgłasza niczego,
+po prostu WYPUSZCZA dane. Dlatego `scripts/baza-testowa.sh` (a więc i zadanie
+„Migracje od zera" w CI) uruchamia po migracjach zestaw asercji: zakłada mecz
+prywatny przypięty do ekipy i sprawdza, ile wierszy widzi każda rola — niezalogowany,
+obcy zalogowany, uczestnik, organizator, członek ekipy. Role są prawdziwe
+(`SET ROLE`), tożsamość podstawiana tak jak robi to PostgREST
+(`request.jwt.claim.sub`); superusera świadomie nie używamy, bo omija RLS.
+
+**Dopisując politykę, dopisz asercję.** Osobna sekcja „ZNANE, ŚWIADOMIE OTWARTE"
+pilnuje stanu faktycznego — dziś `events` i `event_participants` czyta każdy — więc
+lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
+
 ---
 
 ## Tabele → migracja tworząca
