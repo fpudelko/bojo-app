@@ -7,6 +7,7 @@ import { track } from './analytics';
 import { zapamietajPowrot, odbierzPowrot } from './powrotPoLogowaniu';
 import { setHintCookie, clearHintCookie } from './sessionHint';
 import { displayName, isPelneImie } from './profileName';
+import { dopnijSubskrypcjePush } from './push';
 
 interface AuthContextValue {
   user: User | null;
@@ -106,6 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.setItem(key, '1');
           track('login').catch(() => {});
         }
+
+        // Dopnij ewentualną istniejącą subskrypcję push do TEGO konta — bez
+        // tego, na współdzielonym urządzeniu, zostaje przypięta do konta,
+        // które jako pierwsze kliknęło „Włącz" (patrz lib/push.ts). Celowo
+        // BEZ dedupowania jak wyżej: idempotentny UPSERT, tani nawet przy
+        // ponownym odpaleniu na odświeżeniu tokenu.
+        dopnijSubskrypcjePush().catch(() => {});
 
         // Fresh account (utworzone w ciągu ostatnich 10 minut) bez pełnego
         // imienia — zgłoś do dzwonka powiadomień. Nie dotyczy starych kont:

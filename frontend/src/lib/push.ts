@@ -132,6 +132,47 @@ export async function wlaczPush(userId: string): Promise<void> {
 }
 
 /**
+ * Dopina istniejącą w przeglądarce subskrypcję do AKTUALNIE zalogowanego
+ * konta — bez pytania o zgodę i bez tworzenia nowej subskrypcji.
+ *
+ * PO CO: subskrypcja jest per przeglądarka (patrz zasada 3 wyżej), a jej wiersz
+ * w bazie dostaje `user_id` wyłącznie w `wlaczPush()`, czyli po kliknięciu
+ * „Włącz". Na urządzeniu, na którym push włączyło wcześniej INNE konto Bojo
+ * (współdzielony telefon, konto testowe), `stanPush()` widzi istniejącą
+ * subskrypcję i od razu pokazuje „Włączone" — więc nowe konto nigdy nie klika
+ * „Włącz" i wiersz zostaje przypisany do POPRZEDNIEGO konta na zawsze. Efekt
+ * zgłoszony wprost: powiadomienie o CUDZEJ wiadomości (w tym o wiadomości
+ * właśnie napisanej przez aktualnie zalogowane konto — bo autor jest
+ * wykluczony z odbiorców, ale POPRZEDNIE konto na tym telefonie już nie)
+ * i tak ląduje na tym telefonie.
+ *
+ * Idzie przez RPC (`dopnij_subskrypcje_push`, migracja `117`), nie przez zwykły
+ * `.upsert()`: polityka RLS na UPDATE sprawdza właściciela ISTNIEJĄCEGO wiersza
+ * (poprzednie konto), więc zwykły upsert z klienta zostałby po cichu odrzucony
+ * — dokładnie ta sama pułapka, którą ta funkcja ma naprawić.
+ *
+ * Wołane po cichu przy każdym logowaniu (`lib/auth.tsx`) — nie wymaga
+ * interakcji, bo zgoda przeglądarki już jest udzielona.
+ */
+export async function dopnijSubskrypcjePush(): Promise<void> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  try {
+    const rejestracja = await navigator.serviceWorker.getRegistration();
+    const subskrypcja = await rejestracja?.pushManager.getSubscription();
+    if (!subskrypcja) return;
+    const dane = subskrypcja.toJSON();
+    await supabase.rpc('dopnij_subskrypcje_push', {
+      p_endpoint: subskrypcja.endpoint,
+      p_p256dh: dane.keys?.p256dh ?? '',
+      p_auth: dane.keys?.auth ?? '',
+      p_przegladarka: navigator.userAgent.slice(0, 300),
+    });
+  } catch {
+    // Cichy najlepszy wysiłek — błąd tutaj nie może zepsuć logowania.
+  }
+}
+
+/**
  * Wyłącza: odpina subskrypcję w przeglądarce i kasuje wiersz.
  *
  * OBA KROKI, nie jeden. Sam wiersz bez odpięcia = przeglądarka dalej trzyma
