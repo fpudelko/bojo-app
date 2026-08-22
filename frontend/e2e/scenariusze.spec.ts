@@ -219,7 +219,9 @@ test.describe('dołączanie do meczu', () => {
     await otworzMecz(page, MECZ.komplet);
     await uspokoj(page);
 
-    await page.getByRole('button', { name: /komplet — zapisz się na rezerwę/i }).click();
+    // Napis skrócony do „Komplet — na rezerwę", gdy obok stanął „Obserwuj"
+    // (dwa przyciski w jednym pasku muszą się zmieścić na telefonie).
+    await page.getByRole('button', { name: /komplet — na rezerwę/i }).click();
     await page.getByRole('button', { name: /zapisz mnie/i }).click();
 
     // Regresja z tej sesji: mówiło „Dołączyłeś do meczu!" komuś na rezerwie.
@@ -337,7 +339,11 @@ test.describe('obserwowanie', () => {
     // i przez to pokazywał się w kolejce rezerwowej.
     await expect(tresc(page).getByText(/rezerwa — kolejka/i)).toHaveCount(0);
 
-    await page.getByRole('button', { name: /przestań obserwować/i }).first().click();
+    // Dwa kliknięcia, nie jedno: karta ma krótkie „Przestań", a rezygnacja
+    // przechodzi przez to samo okno potwierdzenia co wypisanie się ze składu
+    // (tam przycisk nazywa się „Przestań obserwować").
+    await page.getByRole('button', { name: /^Przestań$/i }).first().click();
+    await page.getByRole('button', { name: /^Przestań obserwować$/i }).click();
     await expect(page.getByRole('button', { name: /^Obserwuj$/i })).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -353,7 +359,9 @@ test.describe('okna na telefonie', () => {
     await page.getByRole('button', { name: /wypisz się z meczu/i }).click();
     // Gdyby okno siedziało pod paskiem, Playwright zgłosi „intercepts pointer
     // events" właśnie tutaj — to jest test na tę konkretną regresję.
-    const potwierdz = page.getByRole('button', { name: /wypisz mnie/i });
+    // `exact`, bo w oknie stoi teraz także „Wypisz mnie, ale obserwuj" —
+    // wzorzec bez kotwicy trafiał w oba i Playwright przerywał na strict mode.
+    const potwierdz = page.getByRole('button', { name: 'Wypisz mnie', exact: true });
     await expect(potwierdz).toBeVisible();
     // Klikalność potwierdzenia to sedno tej regresji: gdyby okno siedziało pod
     // paskiem nawigacji, Playwright zgłosiłby „intercepts pointer events".
@@ -415,7 +423,7 @@ test.describe('udostępnianie meczu', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    await page.getByRole('button', { name: /^Kopiuj$/ }).click();
+    await page.getByRole('button', { name: /^Kopiuj link$/ }).click();
     await expect(page.getByRole('button', { name: /skopiowano/i })).toBeVisible();
   });
 });
@@ -469,16 +477,22 @@ test.describe('grupy', () => {
   test('bez grup — zachęta zamiast pustki', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/grupy');
-    await expect(page.getByText('Nie należysz jeszcze do żadnej grupy')).toBeVisible({ timeout: 20_000 });
+    // Produkt mówi „ekipa", nie „grupa" — trasa i kod zostały, treść nie.
+    const pusto = page.getByText('Nie masz jeszcze ekipy');
+    await expect(pusto).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    await expect(page.getByText('Nie należysz jeszcze do żadnej grupy')
-      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png');
+    await expect(pusto.locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png');
   });
 
   test('zły kod grupy — komunikat, nie cisza', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/grupy');
-    await expect(page.getByText('Masz kod grupy?')).toBeVisible({ timeout: 20_000 });
+    // Pole na kod przeniosło się do arkusza na dole ekranu. Wejście zależy od
+    // tego, czy masz już jakąś ekipę: bez ekip jest „Mam kod" w pustym stanie,
+    // z ekipami — „Masz kod zaproszenia?" pod listą. To konto nie ma żadnej.
+    await expect(page.getByText('Nie masz jeszcze ekipy')).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: /^Mam kod$/ }).click();
+    await expect(page.getByText('Masz kod zaproszenia?')).toBeVisible();
 
     await page.getByPlaceholder('K7QP4B').fill('ZZZZZZ');
     await page.getByRole('button', { name: /^Dołącz$/ }).click();
@@ -573,12 +587,16 @@ test.describe('skład', () => {
     // Zgłoszenie wprost: „gracz z pola ma mieć analogiczne oznaczenie jak
     // bramkarz ma BR". Bez tego lista wyglądała, jakby oznaczenie miały
     // wyłącznie bramkarze, a reszta była nieopisana.
-    await zaloguj(page, KONTA.gracz);
+    // Organizator, nie gracz: lista uczestników jest domyślnie ZWINIĘTA
+    // (`rosterOpen`), a rozwija się sama tylko właścicielowi meczu.
+    await zaloguj(page, KONTA.organizator);
     await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
+    // Wiersz to `div.py-2`, nie `li` — lista nigdy nie była `<ul>`, choć
+    // pierwsza wersja tego testu tak zakładała.
     const wiersz = tresc(page).getByText('Zawodnik 1', { exact: true })
-      .locator('xpath=ancestor::li[1]');
+      .locator('xpath=ancestor::div[contains(@class,"py-2")][1]');
     await expect(wiersz).toBeVisible();
     await expect(wiersz.getByText(/POLE/)).toBeVisible();
     await expect(wiersz).toHaveScreenshot('sklad-oznaczenie-pola.png');
@@ -614,7 +632,11 @@ test.describe('nowa grupa', () => {
   test('formularz zakładania grupy', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/grupy/nowe');
-    await expect(page.locator('form').first().or(page.locator('input').first()))
+    // Nie `form` ani „pierwszy input": strona nie ma elementu `form`, a
+    // pierwszym `input` jest UKRYTE pole na plik (okładka ekipy) — asercja
+    // widoczności padała na nim, nie na formularzu. Celujemy w pole, które
+    // człowiek naprawdę wypełnia.
+    await expect(page.getByPlaceholder('np. Czwartkowa gierka'))
       .toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
     await expect(page).toHaveScreenshot('grupa-nowa-formularz.png', { fullPage: true });
@@ -639,16 +661,21 @@ test.describe('profil', () => {
 /* ── Kreator meczu: dalsze kroki ────────────────────────────────────────── */
 
 test.describe('kreator meczu — kolejne kroki', () => {
-  test('krok drugi otwiera się po wybraniu sportu', async ({ page }) => {
+  test('bez miejsca kreator nie puszcza dalej i mówi dlaczego', async ({ page }) => {
+    // Pierwsza wersja tego testu klikała „Dalej" i oczekiwała kroku drugiego.
+    // To było błędne założenie: krok 1 wymaga LOKALIZACJI (`validateStep1`),
+    // a wybranie miejsca to wyszukiwarka boisk z siecią — czyli dokładnie ten
+    // rodzaj zależności, przez który scenariusz robi się kruchy. Sprawdzamy
+    // więc rzecz cenniejszą i stabilną: że bramka działa i tłumaczy się.
     await zaloguj(page, KONTA.organizator);
     await page.goto('/wydarzenia/nowe');
-    await expect(page.getByRole('button', { name: /dalej/i }).first())
-      .toBeVisible({ timeout: 20_000 });
+    const dalej = page.getByRole('button', { name: /^Dalej/ });
+    await expect(dalej).toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole('button', { name: /dalej/i }).first().click();
-    // Krok 2 to termin i miejsce. Nie robimy zrzutu całej strony — pola dat
-    // podpowiadają najbliższy termin, więc treść zmienia się z dnia na dzień.
-    await expect(page.getByRole('button', { name: /wróć/i }).first()).toBeVisible();
+    await dalej.click();
+    await expect(page.getByText(/wskaż lokalizację/i)).toBeVisible();
+    // I nie przeskoczyliśmy dalej — „Wróć" pojawia się dopiero od kroku 2.
+    await expect(page.getByRole('button', { name: /wróć/i })).toHaveCount(0);
   });
 });
 
