@@ -343,6 +343,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Mapa: organizowanie meczu prosto z kafelka i powrót do tego samego kadru
+
+PROBLEM: kafelek obiektu na mapie Bojo (`/mapa`) miał jedno wyjście — „Zobacz boisko" —
+mimo że mapa odpowiada na pytanie „gdzie zagrać", więc naturalnym następnym ruchem jest
+zrobienie tam meczu; drogi do kreatora trzeba było szukać samemu. Sam kafelek mówił mało:
+nazwa, typ, nawierzchnia i adres przycięty do dwóch członów (bez numeru budynku), bez ani
+słowa o tym, w co się tam gra. Powrót ze strony obiektu lądował na `/mapa?boisko=<id>` —
+czyli z widokiem całego kraju i bez filtrów, bo adres powrotu niósł jeden parametr, a
+reszta stanu mapy (sport, typ, nawierzchnia, tryb gier) siedzi właśnie w adresie.
+
+ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — główne „Zobacz boisko" i skrót „Zorganizuj tutaj"
+(kreator meczu z wybranym już obiektem, `/wydarzenia/nowe?fieldId=<id>`). Domyślna droga
+prowadzi przez stronę obiektu, bo mecz umawiany na niesprawdzonym boisku to ten, który się
+nie odbywa; strona obiektu ma własne, szerokie „Zorganizuj tutaj". Kafelek pokazuje sporty
+obiektu i pełny adres w dwóch linijkach. Powrót ze strony obiektu odtwarza kadr,
+przybliżenie i wszystkie filtry sprzed wyjścia; kadr trafia też do adresu mapy przez
+`replaceState`, więc działa również systemowe „wstecz" na telefonie, a adres mapy da się
+wysłać komuś z konkretnym widokiem zamiast widoku całej Polski.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z bieżących
+`searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
+przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
+kanoniczny).
 ### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
 
 PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
@@ -533,27 +556,3 @@ DELETE` na `events`, wstawia `event_id = NULL` — `notifications.event_id` ma `
 CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po wstawieniu).
 Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
 oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
-
-### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
-
-PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony
-docelowej — `/boiska/[sport]` odpowiada „gdzie jest boisko" (katalog nationwide), a
-`/wydarzenia` to płaska lista bez adresu URL na sport ani miasto. Wartość #2 misji Bojo
-(„koniec z odwoływaniem meczu z braku 1-2 osób") nie miała własnego wejścia z wyszukiwarki.
-Osobno: `get_nearby_events()` (migracja `025`) istniała od dawna, ale poza wyłączoną flagą
-`SHOW_GAME_ALERTS` nic jej nie wołało — martwy kod.
-
-ROZWIĄZANIE BOJO: cztery nowe strony, `/graj/[sport]/poznan` (piłka nożna, siatkówka,
-siatkówka plażowa, koszykówka) — jedyne miasto z realnym pokryciem katalogu i ruchem.
-Każda pokazuje na żywo otwarte publiczne mecze danego sportu w promieniu 15 km od centrum
-(licznik + do 5 najbliższych, link do strony meczu), 3 kroki zakładania meczu, uczciwe
-zastrzeżenie gdy lista jest pusta, i CTA „Stwórz mecz publiczny" z prefillem sportu.
-`/boiska/[sport]` i `/wydarzenia/nowe` dostały linki do/z nowych stron.
-
-MECHANIKA: `app/graj/[sport]/[miasto]/page.tsx` (`generateStaticParams` — zbiór bounded,
-4 strony, `revalidate=3600`), `lib/events.ts#getNearbyEvents()` (odkurzone, RPC
-`get_nearby_events`), `lib/sports.ts#FOCUS_SPORT_BY_SLUG` (slug↔wartość w bazie, używane
-też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten parametr),
-`content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
-testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
-tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.

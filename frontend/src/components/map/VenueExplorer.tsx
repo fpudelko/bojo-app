@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
-  Check, CalendarCheck, MapPin, Globe, Search, SlidersHorizontal, Ticket,
+  Check, CalendarCheck, CalendarPlus, MapPin, Globe, Search, SlidersHorizontal, Ticket,
   Wallet, X,
 } from 'lucide-react';
 import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
@@ -308,19 +308,20 @@ function MapLayer({ fields, selectedId, selectedSource, onSelect }: {
 // ---------------------------------------------------------------------------
 function VenueCard({ field, games, hasGameToday, selected, backTo }: {
   field: Field; games: number; hasGameToday: boolean; selected?: boolean;
-  /** Dokąd ma wrócić strzałka „wstecz" na stronie boiska — `/mapa?boisko=<id>`,
-   *  żeby powrót ustawił mapę z powrotem na tym obiekcie zamiast na widoku
-   *  całego kraju. Bez tego VenueDetailClient wraca na goły `/mapa`. */
-  backTo?: string;
+  /** Dokąd ma wrócić strzałka „wstecz" na stronie boiska.
+   *
+   *  FUNKCJA, NIE GOTOWY NAPIS: adres powrotu niesie bieżący środek i
+   *  przybliżenie mapy, a te zmieniają się przy każdym przesunięciu. Napis
+   *  policzony przy renderze byłby kadrem sprzed przewijania — czytamy go
+   *  dopiero w chwili kliknięcia. */
+  backTo?: () => string;
 }) {
   const thumb = fieldPhotoUrl(field, 320, 320);
   const slug = slugify(field.name);
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
   const typeLabel = field.venueType ? VENUE_TYPE_LABELS[field.venueType] ?? field.venueType : null;
-  const shortAddress = field.address
-    ? field.address.split(',').slice(0, 2).join(',').trim()
-    : null;
+  const fullAddress = field.address?.trim() || null;
 
   return (
     // `items-stretch` zamiast `h-full`: karta bierze wysokość z treści, a
@@ -344,16 +345,28 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
         <p className="font-display text-[14px] font-bold leading-tight text-primary-700 line-clamp-2">
           {name}
         </p>
+        {/* Sporty — pierwsza rzecz, o którą się pyta („da się tu zagrać w to,
+            w co gram?"), a kafelek jej dotąd nie mówił wcale. Pinezki
+            przychodzą okrojone; pełne dane dociąga `szczegoly` dla widocznych
+            kart, więc tu po prostu może ich jeszcze nie być. */}
+        {field.sport?.length > 0 && (
+          <p className="text-[11px] font-medium text-slate-600 truncate">
+            {field.sport.join(' · ')}
+          </p>
+        )}
         {(typeLabel || surface) && (
           <p className="text-[11px] text-slate-500 truncate">
-            {typeLabel && <span className="font-medium text-slate-600">{typeLabel}</span>}
+            {typeLabel && <span>{typeLabel}</span>}
             {typeLabel && surface && <span className="mx-1">·</span>}
             {surface && <span>{surface}</span>}
           </p>
         )}
-        {shortAddress && (
-          <p className="text-[11px] text-slate-400 truncate flex items-center gap-0.5">
-            <MapPin className="w-2.5 h-2.5 shrink-0" />{shortAddress}
+        {/* Adres w dwóch linijkach zamiast przyciętego do dwóch członów:
+            „Swarzędz, ul. Pawia" bez numeru nie prowadzi pod właściwy budynek,
+            a to jedyne miejsce na mapie, w którym adres w ogóle widać. */}
+        {fullAddress && (
+          <p className="text-[11px] text-slate-400 line-clamp-2 flex items-start gap-0.5">
+            <MapPin className="w-2.5 h-2.5 shrink-0 mt-[3px]" />{fullAddress}
           </p>
         )}
         {games > 0 && (
@@ -384,19 +397,46 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
             </a>
           )}
         </div>
-        <Link
-          href={`/boisko/${slug}`}
-          className="mt-auto flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Cel „wstecz" jedzie w sessionStorage, nie w URL-u — patrz
-            // lib/powrot.ts. Link do boiska zostaje czystym, kanonicznym
-            // adresem zamiast wariantu z ?wroc=.
-            if (backTo) zapiszPowrot(backTo);
-          }}
-        >
-          Zobacz boisko <span aria-hidden="true">›</span>
-        </Link>
+        {/* DWIE DROGI Z KAFELKA, nie jedna. Dotąd jedyne wyjście prowadziło do
+            opisu obiektu, skąd drogi do kreatora trzeba było szukać na własną
+            rękę — mimo że mapa odpowiada na pytanie „gdzie zagrać".
+
+            KOLEJNOŚĆ: „Zobacz boisko" zostaje główne, „Zorganizuj tutaj" jest
+            skrótem obok. Nie z ostrożności przed nadmiarem meczów — te i tak
+            rodzą się w wieloetapowym kreatorze, nie na kafelku — tylko dlatego,
+            że mecz umawiany na obiekcie, którego się nie sprawdziło, to
+            dokładnie ten mecz, który się nie odbędzie. Oświetlenie, nawierzchnia,
+            to czy obiekt wymaga rezerwacji i czy ktoś już tam gra o tej porze
+            — wszystko to stoi na stronie obiektu, a strona obiektu ma własne,
+            szerokie „Zorganizuj tutaj". Domyślna droga prowadzi więc przez
+            informację, skrót zostaje dla tych, którzy to boisko znają.
+
+            Jeden pod drugim, nie obok siebie: przy 100-pikselowej miniaturze
+            na wąskim telefonie na guziki zostaje ~185 px, w które dwa napisy
+            tej długości się nie mieszczą — a skracanie ich do „Zorganizuj"
+            i „Szczegóły" gubi to, co mówią. */}
+        <div className="mt-auto flex flex-col gap-1.5 pt-1">
+          <Link
+            href={`/boisko/${slug}`}
+            className="flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Cel „wstecz" jedzie w sessionStorage, nie w URL-u — patrz
+              // lib/powrot.ts. Link do boiska zostaje czystym, kanonicznym
+              // adresem zamiast wariantu z ?wroc=.
+              if (backTo) zapiszPowrot(backTo());
+            }}
+          >
+            Zobacz boisko <span aria-hidden="true">›</span>
+          </Link>
+          <Link
+            href={`/wydarzenia/nowe?fieldId=${field.id}`}
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CalendarPlus className="h-3.5 w-3.5" strokeWidth={2.5} /> Zorganizuj tutaj
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -537,6 +577,20 @@ export default function VenueExplorer({
   // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
   const boiskoZLinku = searchParams.get('boisko');
+  // Kadr zapamiętany przy wyjściu na stronę obiektu: `lat`, `lng`, `z`.
+  // Bez tego powrót lądował na widoku całego kraju z samą zaznaczoną kartą —
+  // filtry (sport, typ, nawierzchnia, tryb gier) też przepadały, bo adres
+  // powrotu składał się z jednego parametru `boisko`, a reszta stanu mapy
+  // siedzi właśnie w adresie.
+  const widokZLinku = useMemo(() => {
+    const lat = Number(searchParams.get('lat'));
+    const lng = Number(searchParams.get('lng'));
+    const z = Number(searchParams.get('z'));
+    const komplet = searchParams.has('lat') && searchParams.has('lng') && searchParams.has('z');
+    return komplet && Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(z)
+      ? { lat, lng, z }
+      : null;
+  }, [searchParams]);
 
   function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean }) {
     const p = new URLSearchParams(searchParams.toString());
@@ -670,7 +724,60 @@ export default function VenueExplorer({
   const onKadrZmiana = useCallback((k: Kadr, z: number) => {
     setKadr(k);
     setZoom(z);
+    // Kadr ląduje też w ADRESIE, przez `replaceState`.
+    //
+    // Po co, skoro „wstecz" w aplikacji dostaje gotowy cel z `budujPowrot`:
+    // bo na telefonie ludzie cofają się gestem i systemowym przyciskiem, a te
+    // wracają do adresu, który stał w historii — czyli do mapy bez kadru.
+    // `replaceState` nadpisuje BIEŻĄCY wpis historii zamiast dokładać nowy,
+    // więc przesuwanie mapy nie zapycha „wstecz" dziesiątkami kroków, a powrót
+    // trafia w kadr sprzed wyjścia. Przy okazji adres mapy staje się
+    // udostępnialny — dotąd wysłanie mapy komuś znaczyło wysłanie widoku
+    // całego kraju.
+    //
+    // Poza Reactem (`router.replace` przeładowałby dane przy każdym drgnięciu
+    // mapy), więc `searchParams` tego nie zobaczy — i nie musi: czytamy to
+    // wyłącznie przy wejściu na stronę.
+    if (typeof window === 'undefined') return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      p.set('lat', ((k.latMin + k.latMax) / 2).toFixed(5));
+      p.set('lng', ((k.lngMin + k.lngMax) / 2).toFixed(5));
+      p.set('z', String(z));
+      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`);
+    } catch { /* stary przeglądarkowy wyjątek — kadr po prostu się nie zapisze */ }
   }, []);
+
+  // Przywrócenie kadru z adresu — RAZ, przy pierwszym dostępnym Leaflecie.
+  // Później mapą rządzi już użytkownik; powtórzenie tego przy każdej zmianie
+  // adresu (a ten zmienia się przy każdym kliknięciu filtra) odrzucałoby go
+  // z powrotem tam, skąd wrócił.
+  const kadrPrzywrocony = useRef(false);
+  useEffect(() => {
+    if (!mapInstance || !widokZLinku || kadrPrzywrocony.current) return;
+    kadrPrzywrocony.current = true;
+    mapInstance.setView([widokZLinku.lat, widokZLinku.lng], widokZLinku.z);
+  }, [mapInstance, widokZLinku]);
+
+  /**
+   * Adres powrotu ze strony obiektu: CAŁY bieżący stan mapy, nie sam obiekt.
+   *
+   * Filtry siedzą w adresie (`sport`, `type`, `surface`, `today`, `gry`), więc
+   * przepisujemy je w komplecie; kadr i przybliżenie w adresie nie siedzą, więc
+   * dokładamy je ze świeżej instancji Leafleta. Pięć miejsc po przecinku to
+   * około metra — więcej nie ma sensu, a adres robi się nieczytelny.
+   */
+  const budujPowrot = useCallback((fieldId: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set('boisko', fieldId);
+    const srodek = mapInstance?.getCenter();
+    if (srodek) {
+      p.set('lat', srodek.lat.toFixed(5));
+      p.set('lng', srodek.lng.toFixed(5));
+      p.set('z', String(mapInstance!.getZoom()));
+    }
+    return `/mapa?${p.toString()}`;
+  }, [searchParams, mapInstance]);
 
   useEffect(() => {
     if (initialFields || initialEvents) return;
@@ -1152,7 +1259,7 @@ export default function VenueExplorer({
                   games={fieldStats[f.id]?.count ?? 0}
                   hasGameToday={fieldStats[f.id]?.today ?? false}
                   selected={f.id === selectedId}
-                  backTo={`/mapa?boisko=${f.id}`}
+                  backTo={() => budujPowrot(f.id)}
                 />
               </div>
             ))}
@@ -1273,7 +1380,7 @@ export default function VenueExplorer({
                 field={zKarta(selectedField)}
                 games={fieldStats[selectedField.id]?.count ?? 0}
                 hasGameToday={fieldStats[selectedField.id]?.today ?? false}
-                backTo={`/mapa?boisko=${selectedField.id}`}
+                backTo={() => budujPowrot(selectedField.id)}
               />
             </div>
           </div>

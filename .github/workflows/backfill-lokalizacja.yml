@@ -11,33 +11,24 @@ name: Backfill lokalizacji boisk (city/voivodeship)
 # Geofabrik nie lubi zbyt wielu równoległych pobrań, i jeden padnięty region
 # nie blokuje pozostałych piętnastu.
 #
-# ZACZNIJ OD dry_run=true. Dostaniesz 16 raportów bez dotykania bazy.
+# ZACZNIJ OD dry_run=true. Dostaniesz raporty bez dotykania bazy.
+#
+# JEDNO WOJEWÓDZTWO: ustaw `region`. Podsumowanie na dole od początku radziło
+# „uruchom workflow dla pojedynczych regionów", ale nie było czym — matryca
+# była wpisana na sztywno i szła zawsze przez wszystkie szesnaście. Przy
+# powtórce po poprawce w skrypcie albo po jednym padniętym regionie znaczyło
+# to piętnaście niepotrzebnych pobrań z Geofabrika.
 
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Tylko raporty — nic nie zapisuje'
-        default: true
-        required: false
-        type: boolean
-      rownolegle:
-        description: 'Ile województw naraz (Geofabrik nie lubi zbyt wielu naraz)'
-        default: '4'
+      region:
+        description: 'Województwo (albo wszystkie)'
+        default: 'wszystkie'
         required: false
         type: choice
-        options: ['2', '4', '8']
-
-jobs:
-  backfill:
-    name: ${{ matrix.region }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      max-parallel: ${{ fromJSON(inputs.rownolegle || '4') }}
-      matrix:
-        region:
+        options:
+          - wszystkie
           - dolnoslaskie
           - kujawsko-pomorskie
           - lubelskie
@@ -54,6 +45,54 @@ jobs:
           - warminsko-mazurskie
           - wielkopolskie
           - zachodniopomorskie
+      dry_run:
+        description: 'Tylko raporty — nic nie zapisuje'
+        default: true
+        required: false
+        type: boolean
+      rownolegle:
+        description: 'Ile województw naraz (Geofabrik nie lubi zbyt wielu naraz)'
+        default: '4'
+        required: false
+        type: choice
+        options: ['2', '4', '8']
+
+jobs:
+  # Matryca liczona w osobnym zadaniu, bo `strategy.matrix` nie przyjmuje
+  # warunku — przyjmuje wyłącznie gotową listę albo `fromJSON` z czegoś, co
+  # już policzył ktoś przed nim. Stąd ten jeden krok: zamienia wybór z pola
+  # `region` na listę jedno- albo szesnastoelementową.
+  regiony:
+    name: Wybór regionów
+    runs-on: ubuntu-latest
+    outputs:
+      lista: ${{ steps.wybor.outputs.lista }}
+    steps:
+      - id: wybor
+        env:
+          # Przez zmienną środowiskową, nie wprost w skrypcie: wartość z pola
+          # `choice` jest wprawdzie pilnowana przez GitHuba, ale wklejanie
+          # danych wejściowych do powłoki to nawyk, którego nie warto mieć.
+          REGION: ${{ inputs.region }}
+        run: |
+          if [ -z "$REGION" ] || [ "$REGION" = "wszystkie" ]; then
+            LISTA='["dolnoslaskie","kujawsko-pomorskie","lubelskie","lubuskie","lodzkie","malopolskie","mazowieckie","opolskie","podkarpackie","podlaskie","pomorskie","slaskie","swietokrzyskie","warminsko-mazurskie","wielkopolskie","zachodniopomorskie"]'
+          else
+            LISTA=$(jq -nc --arg r "$REGION" '[$r]')
+          fi
+          echo "lista=$LISTA" >> "$GITHUB_OUTPUT"
+          echo "Regiony do przetworzenia: $LISTA"
+
+  backfill:
+    name: ${{ matrix.region }}
+    needs: regiony
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.rownolegle || '4') }}
+      matrix:
+        region: ${{ fromJSON(needs.regiony.outputs.lista) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -92,5 +131,5 @@ jobs:
           if [ "${{ needs.backfill.result }}" != "success" ]; then
             echo ""
             echo "Część województw padła. Nie trzeba powtarzać całości:"
-            echo "uruchom workflow dla pojedynczych regionów."
+            echo "uruchom workflow ponownie z polem 'region' ustawionym na ten jeden."
           fi
