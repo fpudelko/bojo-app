@@ -647,7 +647,7 @@ export default function VenueDetailClient({
 
           <div className="mt-5 space-y-2 pt-4 border-t border-slate-100">
             <Link href={`/wydarzenia/nowe?fieldId=${field.id}`}>
-              <Button className="w-full">Stwórz mecz tutaj</Button>
+              <Button className="w-full">Zorganizuj tutaj</Button>
             </Link>
             {/* Powrót na mapę wycelowaną w TEN obiekt. Bez tego jedyną drogą
                 z opisu boiska do jego okolicy było wejście na mapę i szukanie

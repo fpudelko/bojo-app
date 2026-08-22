@@ -397,12 +397,19 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
             </a>
           )}
         </div>
-        {/* DWIE DROGI Z KAFELKA, nie jedna. Mapa odpowiada na pytanie „gdzie
-            zagrać", więc naturalnym następnym ruchem jest zrobienie tu meczu —
-            a dotąd jedyne wyjście prowadziło do opisu obiektu, skąd trzeba było
-            szukać drogi do kreatora na własną rękę. „Zorganizuj tutaj" jest
-            zielone, bo to ono jest powodem, dla którego ktoś przegląda mapę;
-            „Zobacz boisko" schodzi do obwódki jako krok informacyjny.
+        {/* DWIE DROGI Z KAFELKA, nie jedna. Dotąd jedyne wyjście prowadziło do
+            opisu obiektu, skąd drogi do kreatora trzeba było szukać na własną
+            rękę — mimo że mapa odpowiada na pytanie „gdzie zagrać".
+
+            KOLEJNOŚĆ: „Zobacz boisko" zostaje główne, „Zorganizuj tutaj" jest
+            skrótem obok. Nie z ostrożności przed nadmiarem meczów — te i tak
+            rodzą się w wieloetapowym kreatorze, nie na kafelku — tylko dlatego,
+            że mecz umawiany na obiekcie, którego się nie sprawdziło, to
+            dokładnie ten mecz, który się nie odbędzie. Oświetlenie, nawierzchnia,
+            to czy obiekt wymaga rezerwacji i czy ktoś już tam gra o tej porze
+            — wszystko to stoi na stronie obiektu, a strona obiektu ma własne,
+            szerokie „Zorganizuj tutaj". Domyślna droga prowadzi więc przez
+            informację, skrót zostaje dla tych, którzy to boisko znają.
 
             Jeden pod drugim, nie obok siebie: przy 100-pikselowej miniaturze
             na wąskim telefonie na guziki zostaje ~185 px, w które dwa napisy
@@ -410,15 +417,8 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
             i „Szczegóły" gubi to, co mówią. */}
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <Link
-            href={`/wydarzenia/nowe?fieldId=${field.id}`}
-            className="flex items-center justify-center gap-1.5 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <CalendarPlus className="h-3.5 w-3.5" strokeWidth={2.5} /> Zorganizuj tutaj
-          </Link>
-          <Link
             href={`/boisko/${slug}`}
-            className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="flex items-center justify-between gap-2 rounded-2xl bg-primary-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-primary-800"
             onClick={(e) => {
               e.stopPropagation();
               // Cel „wstecz" jedzie w sessionStorage, nie w URL-u — patrz
@@ -428,6 +428,13 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
             }}
           >
             Zobacz boisko <span aria-hidden="true">›</span>
+          </Link>
+          <Link
+            href={`/wydarzenia/nowe?fieldId=${field.id}`}
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CalendarPlus className="h-3.5 w-3.5" strokeWidth={2.5} /> Zorganizuj tutaj
           </Link>
         </div>
       </div>

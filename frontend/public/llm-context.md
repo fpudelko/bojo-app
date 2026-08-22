@@ -351,8 +351,10 @@ słowa o tym, w co się tam gra. Powrót ze strony obiektu lądował na `/mapa?b
 czyli z widokiem całego kraju i bez filtrów, bo adres powrotu niósł jeden parametr, a
 reszta stanu mapy (sport, typ, nawierzchnia, tryb gier) siedzi właśnie w adresie.
 
-ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — „Zorganizuj tutaj" (kreator meczu z wybranym
-już obiektem, `/wydarzenia/nowe?fieldId=<id>`) i „Zobacz boisko". Kafelek pokazuje sporty
+ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — główne „Zobacz boisko" i skrót „Zorganizuj tutaj"
+(kreator meczu z wybranym już obiektem, `/wydarzenia/nowe?fieldId=<id>`). Domyślna droga
+prowadzi przez stronę obiektu, bo mecz umawiany na niesprawdzonym boisku to ten, który się
+nie odbywa; strona obiektu ma własne, szerokie „Zorganizuj tutaj". Kafelek pokazuje sporty
 obiektu i pełny adres w dwóch linijkach. Powrót ze strony obiektu odtwarza kadr,
 przybliżenie i wszystkie filtry sprzed wyjścia; kadr trafia też do adresu mapy przez
 `replaceState`, więc działa również systemowe „wstecz" na telefonie, a adres mapy da się
