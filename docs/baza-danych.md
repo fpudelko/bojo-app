@@ -1,6 +1,6 @@
 # Baza danych
 
-114 migracji (`001`–`116`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+116 migracji (`001`–`118`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -58,7 +58,7 @@ w `event_participants` — naprawione w `053_own_participation_update.sql`.
 |---|---|---|
 | `fields` | `001` | Boiska i obiekty (32 684 wierszy po imporcie całej Polski z OSM, `scraper/import_osm_pbf.py` — dawne „~1400" opisywało wyłącznie katalog poznański). `city`/`voivodeship`/`seo_tier` (`112`) — patrz niżej |
 | `miasta_priorytetowe` | `112` | Statyczna lista ~100 dużych/średnich miast (dane GUS), wejście do `oblicz_seo_tier()`. WYŁĄCZNIE do tieringu indeksacji — nie mylić z hubami `/graj/[sport]/[miasto]` (dziś tylko Poznań, `content/graj.ts`) |
-| `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu |
+| `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu. `reserve_claim_minutes` (`118`, wcześniej `reserve_claim_hours`) — okno na przyjęcie zwolnionego miejsca, w minutach |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta. `zapisano_at` (`110`) — moment liczący się do kolejki rezerwowej, osobny od `created_at` |
 | `event_declines` | `097` | Jawne „nie gram" — NIE nieobecność. Klucz główny `(event_id, user_id)`, RLS: widoczna dla siebie/organizatora/członków grupy meczu, zapis wyłącznie za siebie |
 | `profiles` | `005` | Użytkownicy (+ flaga `is_admin`) |
@@ -161,6 +161,8 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `114_powiadomienie_o_zmianie_warunkow` | Trigger `AFTER UPDATE ON events` — powiadomienie `zmiana_warunkow_meczu`, gdy zmieni się miejsce (`field_id`/`field_name`/`custom_location_name`/`custom_address`/`lat`/`lng`) lub koszt (`cost_grosz`). Jeden trigger na oba pola, bo `updateEvent()` zapisuje cały wiersz jedną instrukcją — osobne triggery dawałyby dwa powiadomienia z jednego zapisu formularza |
 | `115_gosc_wymaga_akceptacji` | `DROP`/`CREATE` `dolacz_do_meczu_jako_goscie()` (sygnatura i zwrotka bez zmian) — gość respektuje `require_approval` tak samo jak zalogowany zapis (`dolacz_do_meczu`, `078`): `pending_approval = event.require_approval`, wiersz pending nie zajmuje miejsca. Wcześniej wstawiała `pending_approval = false` na sztywno — gość z linku omijał akceptację zapisów, którą organizator świadomie włączył |
 | `116_powiadomienie_o_usunieciu_meczu` | Trigger `BEFORE DELETE ON events` — powiadomienie `mecz_usuniety` do uczestników (pending i potwierdzonych) przy twardym `deleteEvent()`. `event_id = NULL` w INSERT-cie — CELOWO, bo `notifications.event_id` ma `ON DELETE CASCADE` na `events(id)`, więc wiersz z `OLD.id` zostałby skasowany momenty po wstawieniu. Ta sama migracja naprawia odkryty przy tej okazji, wcześniej istniejący bug: `powiadom_o_odrzuceniu_prosby()` (`076`) nie sprawdzała, czy mecz nadrzędny wciąż istnieje — przy kaskadowym usuwaniu `event_participants` po `DELETE FROM events` z choćby jedną oczekującą prośbą, INSERT do `notifications` łamał FK i **cała transakcja usuwania meczu wywracała się błędem** |
+| `117_dopiecie_subskrypcji_push` | RPC `dopnij_subskrypcje_push()` (`SECURITY DEFINER`) — przypina istniejącą subskrypcję push (kluczowaną `endpoint`) do `auth.uid()` wołającego. Naprawia realny przypadek: subskrypcja dostaje `user_id` wyłącznie przy kliknięciu „Włącz" (`wlaczPush()`); na współdzielonym urządzeniu drugie konto nigdy tego nie klika (bo `stanPush()` widzi cudzą subskrypcję i pokazuje „Włączone"), więc powiadomienia PIERWSZEGO konta lądują na telefonie, na którym jest teraz zalogowane DRUGIE. Zwykły `.upsert()` by tego nie naprawił — polityka RLS UPDATE sprawdza właściciela ISTNIEJĄCEGO wiersza, więc po cichu odrzuciłaby reassignment (`053`-owa pułapka RLS) |
+| `118_rezerwa_czas_w_minutach` | `events.reserve_claim_hours` (SMALLINT, pełne godziny, `CHECK 1–72`) przenumerowana na `reserve_claim_minutes` (`CHECK 15–4320`, istniejące wartości × 60) — wybór w UI był „mocno ograniczony", godzina jako jednostka fizycznie nie mieściła 30 minut. `sync_reserve_claim()` (`CREATE OR REPLACE`, ciało jak w `110` poza jednostką i czytelnym formatem czasu w treści powiadomienia — „30 min." zamiast mylącego „0 godz.") |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-21 · migracja `116` · 39 tabel · 692 testy
+**Stan na:** 2026-08-22 · migracja `118` · 39 tabel · 698 testy
 
 ---
 
@@ -341,6 +341,42 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
+
+PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
+listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
+w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
+razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
+
+ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
+panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
+z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
+wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
+co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
+
+MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
+w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
+trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
+karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
+(`lib/groupPosts.ts`).
+
+### 2026-08-22 — Czas na decyzję z rezerwy: gęściej 30 min – 3 godz., plus wartość własna
+
+PROBLEM: gdy zwolni się miejsce, Bojo oferuje je pierwszej osobie z rezerwy i daje jej
+czas na kliknięcie „Wchodzę" — ale organizator mógł wybrać wyłącznie pełną godzinę (1, 3,
+6, 12 albo 24 h). Typowy czas reakcji na telefon to kilkanaście–kilkadziesiąt minut, a tej
+wartości fizycznie nie dało się ustawić.
+
+ROZWIĄZANIE BOJO: lista wyboru ma teraz gęstsze opcje w przedziale 30 minut – 3 godziny
+(30 min, 1 h, 1 h 30 min, 2 h, 2 h 30 min, 3 h) obok dotychczasowych większych wartości,
+plus „Inny czas…" z polem liczbowym w minutach (15 min – 72 h). Domyślna wartość (3 h)
+bez zmian.
+
+MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_claim_hours`
+— pełne godziny, przenumerowana na minuty, istniejące wartości × 60). `EventCapacityFields.tsx`
+(kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
+tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).
+
 ### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
 
 PROBLEM: każdy udostępniony link do meczu pokazywał ten sam, generyczny baner Bojo — bez
@@ -531,30 +567,3 @@ w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawig
 `rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
 w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
 i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
-
-### 2026-08-19 — Ustawienia powiadomień i powiadomienia o wiadomościach
-
-PROBLEM: powiadomienia na telefon działały „wszystko albo nic" — jedyną reakcją na zbyt
-wiele było wyłączenie ich w całości, razem z tymi, które naprawdę mają znaczenie
-(zwolnione miejsce, odwołany mecz). Osobno: wiadomości w rozmowie meczu i na tablicy
-ekipy NIE miały żadnego powiadomienia — nieprzeczytane liczyła sama przeglądarka, więc
-o nowej wiadomości dowiadywał się tylko ten, kto i tak otworzył aplikację.
-
-ROZWIĄZANIE BOJO: w profilu, pod przełącznikiem powiadomień, jest rozwijana lista „O czym
-powiadamiać" z osobnym przełącznikiem dla każdego rodzaju: zwolnione miejsce, odwołany
-mecz, pytanie o udział, zaproszenie, prośba o dołączenie, składy, nowy mecz w ekipie,
-wiadomości w meczu, wiadomości w ekipie, ogłoszenia. Rzeczy wymagające reakcji stoją na
-górze i mają znacznik „ważne" — Bojo ostrzega, ale nie zabrania ich wyłączyć. Ustawienia
-dotyczą WYŁĄCZNIE telefonu: dzwonek w aplikacji pokazuje wszystko.
-
-Doszły powiadomienia o wiadomościach (w meczu i w ekipie) oraz o opublikowaniu składów.
-Wiadomości mają zaporę: najwyżej jedno powiadomienie na godzinę z danej rozmowy, bo
-rozmowa przed meczem potrafi mieć trzydzieści wpisów w kwadrans, a trzydzieści
-powiadomień kończy się wyłączeniem wszystkich.
-
-MECHANIKA: migracja `109` — `profiles.push_wylaczone` (lista WYŁĄCZONYCH, żeby nowy rodzaj
-był domyślnie aktywny), filtr w wyzwalaczu wysyłki, wyzwalacze na `event_comments`,
-`group_posts` i `events.teams_published`. Klient: `lib/ustawieniaPowiadomien.ts`
-i `components/PowiadomieniaPush.tsx`. Przy logowaniu przez Google Bojo prosi teraz zawsze
-o wybór konta (`prompt=select_account`) — bez tego przy kilku kontach Google logowało od
-razu na pierwsze z brzegu.
