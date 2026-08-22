@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { zapiszNumerBlik } from './blik';
 import type { EventCreate, EventItem } from '@/types';
 
 /**
@@ -127,13 +128,16 @@ export async function updateSeriesEvents(
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
-      blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       sports_card_other_name: data.sportsCardOtherName?.trim() || null,
     })
     .in('id', eventIds);
   if (error) throw new Error(error.message);
+
+  // Numer BLIK od migracji `120` mieszka w `event_blik` — jeden zapis na całą
+  // serię, tak samo jak reszta ustawień wyżej.
+  await zapiszNumerBlik(eventIds, data.blikPhone);
 }
 
 /**

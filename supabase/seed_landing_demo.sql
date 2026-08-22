@@ -35,7 +35,7 @@ BEGIN
     organizer_id, organizer_name, sport, field_id, field_name, lat, lng,
     title, description, event_date, event_time, end_time,
     max_players, visibility, goalkeepers_enabled, max_goalkeepers, goalkeeper_slots_reserved,
-    cost_grosz, accepted_payment_methods, blik_phone,
+    cost_grosz, accepted_payment_methods,
     accepted_sports_cards, sports_card_discount_grosz
   ) VALUES (
     org, org_name, 'piłka nożna', 'c0000000-0000-0000-0000-000000000008', 'Boisko Grunwald', 52.40492, 16.89920,
@@ -43,9 +43,12 @@ BEGIN
     '[DEMO-LANDING] Przykładowe wydarzenie do zrzutu ekranu na landing (widok „przed meczem"). Bezpieczne do usunięcia po zrobieniu screenshotów.',
     CURRENT_DATE + 1, '18:00', '19:30',
     14, 'public', true, 2, false,
-    1500, ARRAY['blik','gotowka']::text[], '500100200',
+    1500, ARRAY['blik','gotowka']::text[],
     ARRAY['multisport']::text[], 1000
   ) RETURNING id INTO eid_a;
+
+  -- Numer BLIK od migracji `120` mieszka w osobnej tabeli (RLS — patrz `121`).
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid_a, '500100200');
 
   INSERT INTO event_participants (event_id, user_id, name, is_guest, is_goalkeeper) VALUES
     (eid_a, org, org_name, false, false),
@@ -69,15 +72,17 @@ BEGIN
     organizer_id, organizer_name, sport, field_id, field_name, lat, lng,
     title, description, event_date, event_time, end_time,
     max_players, visibility, track_results, track_payments, show_payment_status,
-    cost_grosz, accepted_payment_methods, blik_phone
+    cost_grosz, accepted_payment_methods
   ) VALUES (
     org, org_name, 'piłka nożna', 'c0000000-0000-0000-0000-000000000001', 'Orlik Rataje', 52.39089, 16.94492,
     'Niedzielna liga',
     '[DEMO-LANDING] Przykładowe wydarzenie do zrzutu ekranu na landing (widok „po meczu"). Bezpieczne do usunięcia po zrobieniu screenshotów.',
     CURRENT_DATE - 3, '19:00', '20:30',
     14, 'public', true, true, true,
-    1500, ARRAY['blik','gotowka']::text[], '500100200'
+    1500, ARRAY['blik','gotowka']::text[]
   ) RETURNING id INTO eid_b;
+
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid_b, '500100200');
 
   INSERT INTO event_participants (event_id, user_id, name, is_guest, has_paid) VALUES
     (eid_b, org, org_name, false, true),

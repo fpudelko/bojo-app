@@ -344,12 +344,14 @@ BEGIN
   -- R22 --------------------------------------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
                       max_players, visibility, title, description,
-                      cost_grosz, accepted_payment_methods, blik_phone)
+                      cost_grosz, accepted_payment_methods)
   VALUES (ja, ja_n, 'piłka nożna', 'Orlik Winogrady', CURRENT_DATE + 12, '19:00', 10, 'public',
     'R22 — bez wyboru płatności nie da się zapisać',
     '[REG] SPRAWDŹ: mecz płatny (15 zł), dwie metody. Jako test1 otwórz okno dołączania i NIE wybieraj metody. OCZEKIWANE: przycisk „Zapisz mnie" jest NIEAKTYWNY, pod nim napis „Wybierz sposób płatności, żeby się zapisać". Po wybraniu BLIK pojawia się numer i przycisk się odblokowuje.',
-    1500, ARRAY['gotowka','blik']::text[], '555111222')
+    1500, ARRAY['gotowka','blik']::text[])
   RETURNING id INTO eid;
+  -- Numer BLIK od migracji `120` mieszka w osobnej tabeli (RLS — patrz `121`).
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '555111222');
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, ja, ja_n);
 
   -- R23 --------------------------------------------------------------

@@ -2607,8 +2607,13 @@ export default function EventDetailClient() {
               {event.acceptedPaymentMethods.length > 0 && (
                 <span>
                   Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
-                  {event.acceptedPaymentMethods.includes('blik') && event.blikPhone && (
-                    canSeeBlikPhone({
+                  {/* Warunek NIE pyta o `event.blikPhone`: od migracji `120`
+                      numeru po prostu nie ma w danych osoby spoza składu (RLS
+                      na `event_blik`), a to właśnie ona ma zobaczyć zdanie
+                      „zobaczysz, jeśli dołączysz". Pytanie o numer chowałoby
+                      wyjaśnienie dokładnie przed tym, komu jest potrzebne. */}
+                  {event.acceptedPaymentMethods.includes('blik') && (
+                    event.blikPhone && canSeeBlikPhone({
                       isOrganizer: isOwner || canManagePayments,
                       isInSquad: !!myParticipation,
                       minutesToStart: minutesUntilStart(event.date, event.time),
@@ -4164,9 +4169,16 @@ export default function EventDetailClient() {
                     </button>
                   ))}
                 </div>
-                {joinPaymentMethod === 'blik' && event.blikPhone && (
+                {joinPaymentMethod === 'blik' && (
                   <p className="mt-2 text-xs text-slate-500">
-                    BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span>
+                    {event.blikPhone ? (
+                      <>BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span></>
+                    ) : (
+                      // Numer należy do organizatora i od migracji `120` czyta go
+                      // wyłącznie skład (RLS na `event_blik`). Zapisujący widzi go
+                      // od razu po zapisaniu, na karcie „Twoja płatność".
+                      <>Numer do BLIKA zobaczysz po zapisaniu się.</>
+                    )}
                   </p>
                 )}
               </div>
