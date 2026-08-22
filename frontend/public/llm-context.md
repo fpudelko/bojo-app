@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-20 · migracja `116` · 39 tabel · 692 testy
+**Stan na:** 2026-08-21 · migracja `116` · 39 tabel · 692 testy
 
 ---
 
@@ -81,7 +81,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 | Status | Co obejmuje |
 |---|---|
 | **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -142,21 +142,23 @@ nie blokuje miejsca (migracja `048`). Bramkarze mają osobny limit `max_goalkeep
 nie wskakuje na jego miejsce — organizator powiadamia go ręcznie. To świadoma decyzja
 produktowa, nie brakująca funkcja.
 
-**„Czy gramy?"** Organizator może ustawić `min_players` — ile osób musi być w składzie,
-żeby mecz się odbył. Strona meczu pokazuje wprost werdykt („Gramy ✓" albo „Brakuje 2 do
-minimum"), zamiast zostawiać to liczeniu w głowie. Członek ekipy, który jeszcze nie
-dołączył do meczu przypiętego do jego grupy, może kliknąć **„Nie gram"** — jawna odmowa,
-osobna od zgłoszenia nieobecności po meczu i osobna od statystyki „Niezawodność".
+**„Nie gram".** Członek ekipy, który jeszcze nie dołączył do meczu przypiętego do jego
+grupy, może kliknąć **„Nie gram"** — jawna odmowa, osobna od zgłoszenia nieobecności po
+meczu i osobna od statystyki „Niezawodność".
 
 **„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator jednym
 kliknięciem zamienia go w publiczny, żeby dołączyli ludzie z sąsiedztwa — to jedyna
 rzecz z tego zestawu, której żaden komunikator nie potrafi.
 
+Próg minimum graczy (organizator ustawia `min_players`, strona meczu pokazuje werdykt
+„Gramy ✓" / „Brakuje N do minimum") jest **zbudowany, ale schowany** za
+`SHOW_MIN_PLAYERS_THRESHOLD` — patrz „Status funkcji" wyżej.
+
 **Pytania, na które odpowiada ta sekcja:** Co się dzieje, gdy mecz w Bojo jest pełny?
 Czy rezerwowy wskakuje automatycznie, gdy ktoś zrezygnuje? Czy „Obserwuję" zajmuje
 miejsce w składzie? Jak działa akceptacja zapisów przez organizatora? Ilu bramkarzy
-mieści się na mecz? Czy Bojo pilnuje minimalnej liczby graczy? Co się dzieje, gdy ekipie
-brakuje ludzi do kompletu? Czy da się jawnie odmówić udziału w meczu, zamiast milczeć?
+mieści się na mecz? Co się dzieje, gdy ekipie brakuje ludzi do kompletu? Czy da się
+jawnie odmówić udziału w meczu, zamiast milczeć?
 
 ---
 
@@ -296,9 +298,9 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
-alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów.
-Kod istnieje, wejścia w nawigacji nie ma. Aktualny stan flag →
-[docs/funkcje.md](./funkcje.md#flagi-funkcji).
+alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg
+minimum graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
+stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
 turnieje? Czy przez Bojo zapłacę za boisko? Czy Bojo poleci mi mecz na moim poziomie?
@@ -396,21 +398,6 @@ CASCADE`, więc wiersz z prawdziwym id zostałby skasowany kaskadą momenty po w
 Migracja `116` naprawia też odkryty przy tej okazji błąd: usunięcie meczu z choćby jedną
 oczekującą prośbą o dołączenie wcześniej zawsze kończyło się błędem klucza obcego.
 
-### 2026-08-20 — Próg „gra się odbędzie" działa już przy zakładaniu meczu
-
-PROBLEM: panel „Czy gramy?" (próg minimum graczy, migracja `097`) nigdy się nie pokazywał
-na nowo założonych meczach — kreator (`/wydarzenia/nowe`) nie miał kontrolki do ustawienia
-progu, miała ją tylko strona edycji. Organizator musiał najpierw opublikować mecz, potem
-wejść w edycję, żeby w ogóle zobaczyć tę funkcję.
-
-ROZWIĄZANIE BOJO: kreator ma teraz to samo pole „+ Ustaw minimum, żeby gra się odbyła" co
-edycja, tuż pod liczbą miejsc. Ustawiony próg widać od razu w podsumowaniu przed
-publikacją.
-
-MECHANIKA: `EventCapacityFields` w `app/wydarzenia/nowe/page.tsx` dostaje propsy
-`minPlayers`/`onMinPlayersChange` (wcześniej przekazywane tylko w `edytuj/page.tsx`);
-wartość idzie do `createEvent()` jako `minPlayers`, zapisuje się w szkicu
-(`lib/eventDraft.ts`) i w podsumowaniu (`lib/eventSummary.ts`).
 ### 2026-08-19 — SEO/GEO: strona /graj/[sport]/[miasto] dla Poznania
 
 PROBLEM: zapytania typu „gdzie szukać ludzi do gry w piłkę w Poznaniu" nie miały strony

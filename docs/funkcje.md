@@ -16,10 +16,11 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
+| `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
-Cztery pierwsze: `frontend/src/lib/features.ts` (stałe w kodzie).
-Piąta: `frontend/src/config/features.ts` (zmienna środowiskowa).
+Pierwszych pięć: `frontend/src/lib/features.ts` (stałe w kodzie).
+Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
 
 **Rezerwacje mają drugą furtkę per obiekt:** `showBookingForField()` zwraca `true`, jeśli
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
@@ -915,15 +916,16 @@ jeszcze ktoś się decyduje?".
 wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
 niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
 
-1. **Werdykt progu** — gdy organizator ustawił `min_players` (kompaktowy toggle „+ Ustaw
-   minimum, żeby gra się odbyła" w `EventCapacityFields.tsx`, obok stepperu liczby
-   miejsc): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
+1. **Werdykt progu** — **ukryte za `SHOW_MIN_PLAYERS_THRESHOLD`** (wyłączona 2026-08-21,
+   produktowa decyzja: nie chcemy tej funkcji w aplikacji). Gdy odkryta, działa tak: gdy
+   organizator ustawił `min_players` (kompaktowy toggle „+ Ustaw minimum, żeby gra się
+   odbyła" w `EventCapacityFields.tsx`, obok stepperu liczby miejsc, wspólny dla kreatora
+   i edycji): „Gramy ✓ 11 z 10 minimum" albo „Brakuje 2 do minimum — 8/10". Liczy to jedna
    czysta funkcja, `werdyktGry()` (`lib/events.ts`) — ten sam werdykt na stronie meczu
-   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`. Toggle żyje **wyłącznie
-   w edycji** (`/wydarzenia/[id]/edytuj`) od 2026-08-16 — kreator (`/wydarzenia/nowe`)
-   nie przekazuje `onMinPlayersChange` do `EventCapacityFields`, więc sekcja się tam
-   w ogóle nie renderuje (prop opcjonalny, komponent gasi ją sam). Zgłoszone wprost jako
-   zbędny krok przy zakładaniu meczu; istniejące progi i ich logika zostają nietknięte.
+   i w linijce pod „Najbliższym meczem" na `/grupy/[id]`. Flaga chowa wyłącznie toggle
+   i werdykt; `events.min_players`, `werdyktGry()`, RPC `zapytaj_milczacych()` i wyzwalacz
+   `powiadom_o_progu_gry()` (migracja `097`) zostają w bazie i w kodzie nietknięte —
+   istniejące mecze z ustawionym progiem po prostu przestają go pokazywać.
 2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
@@ -1735,7 +1737,11 @@ w `WYMAGA_AKCJI` z zamknięciem po DWÓCH stronach (dołączenie **albo** jawna 
 `event_declines` zamykają sprawę jednakowo). `gra_potwierdzona`/`gra_zagrozona` —
 wyzwalacz `powiadom_o_progu_gry()` na `event_participants`, wzorem `079`: reaguje na
 PRZEKROCZENIE `min_players` w obie strony, nie na każdy zapis, i pomija osobę, której
-własny zapis/wypis spowodował zmianę (ona już wie).
+własny zapis/wypis spowodował zmianę (ona już wie). Wszystkie trzy typy są dziś martwe
+w praktyce: `pytanie_o_udzial` bo nic już nie woła RPC (usunięte 2026-08-16), a
+`gra_potwierdzona`/`gra_zagrozona` bo UI do ustawienia `min_players` jest schowane za
+`SHOW_MIN_PLAYERS_THRESHOLD` (wyłączona 2026-08-21) — trigger i typy zostają w bazie,
+`lib/notifications.ts` nadal umie je wyświetlić, gdyby kiedyś powstał wpis.
 
 **Przypięty wpis na tablicy grupy też powiadamia** (`ogloszenie_w_grupie`, migracja
 `093`) — jedyny typ wpisu na tablicy, który to robi; zwykły wpis nikogo nie powiadamia,

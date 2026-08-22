@@ -182,7 +182,10 @@ oraz `FEATURE_RESERVATIONS` (`frontend/src/config/features.ts`) są dziś wyłą
 `SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji
 z gier cyklicznych/stałych gierek) — chowa wejścia w nawigacji i przełącznik
 „Wydarzenie cykliczne" w kreatorze; istniejące serie i ich strony zarządzania
-zostają w kodzie nietknięte.
+zostają w kodzie nietknięte. `SHOW_MIN_PLAYERS_THRESHOLD` jest **wyłączona** od
+2026-08-21 (produktowa decyzja) — chowa toggle progu „gra się odbędzie" w kreatorze
+i edycji oraz werdykt „Gramy ✓ / Brakuje N do minimum" na stronie meczu;
+`events.min_players` i logika (`werdyktGry()`, migracja `097`) zostają nietknięte.
 
 Flagi ukrywają **wejścia w nawigacji**, nie trasy. Pełna tabela z miejscami użycia →
 [docs/funkcje.md](./docs/funkcje.md#flagi-funkcji).

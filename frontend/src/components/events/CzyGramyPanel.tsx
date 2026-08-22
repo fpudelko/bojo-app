@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, Loader2, Radar } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { werdyktGry } from '@/lib/events';
+import { SHOW_MIN_PLAYERS_THRESHOLD } from '@/lib/features';
 import type { EventItem, EventParticipant } from '@/types';
 
 /**
@@ -21,6 +22,11 @@ import type { EventItem, EventParticipant } from '@/types';
  * wyraźną prośbę 2026-08-16: zamiast ścigać milczących, prostszą odpowiedzią
  * na „brakuje ludzi" jest „Otwórz dla okolicy" poniżej. RPC zostaje w bazie
  * nietknięty (`docs/funkcje.md § Czy gramy?`), po prostu nic już go nie woła.
+ *
+ * Werdykt progu („Gramy ✓" / „Brakuje N do minimum") schowany za
+ * `SHOW_MIN_PLAYERS_THRESHOLD` — wyłączona 2026-08-21, produktowa decyzja.
+ * `event.minPlayers` i `werdyktGry()` zostają nietknięte, „Otwórz dla
+ * okolicy" nie zależy od progu i renderuje się jak dotąd.
  */
 export default function CzyGramyPanel({ event, participants, canManage, busy, onOtworzDlaOkolicy }: {
   event: EventItem;
@@ -30,7 +36,7 @@ export default function CzyGramyPanel({ event, participants, canManage, busy, on
   onOtworzDlaOkolicy: () => void;
 }) {
   const wSkladzie = participants.filter((p) => !p.isReserve && !p.pendingApproval).length;
-  const werdykt = werdyktGry(event, wSkladzie);
+  const werdykt = SHOW_MIN_PLAYERS_THRESHOLD ? werdyktGry(event, wSkladzie) : { stan: 'brak-progu' as const, brakuje: 0 };
   const freeSpots = Math.max(0, event.maxPlayers - wSkladzie);
   const pokazOtworzDlaOkolicy = canManage && event.visibility === 'private' && freeSpots > 0;
 

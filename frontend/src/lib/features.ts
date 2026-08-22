@@ -37,3 +37,16 @@ export const SHOW_SMS_FEATURES = false;
  * i ich strony zarządzania zostają w kodzie nietknięte.
  */
 export const SHOW_RECURRING = false;
+
+/**
+ * Próg „gra się odbędzie" (`events.min_players`, migracja `097`) — toggle
+ * „+ Ustaw minimum, żeby gra się odbyła" w `EventCapacityFields.tsx` (kreator
+ * + edycja) i werdykt „Gramy ✓ / Brakuje N do minimum" w `CzyGramyPanel.tsx`.
+ *
+ * Wyłączona 2026-08-21 — produktowa decyzja: nie chcemy tej funkcji w apce.
+ * Flaga chowa wyłącznie kontrolkę progu i jego werdykt; „Otwórz dla okolicy"
+ * i „Nie gram" w tym samym panelu nie zależą od progu i zostają widoczne.
+ * `events.min_players`, RPC `zapytaj_milczacych()` i wyzwalacz
+ * `powiadom_o_progu_gry()` zostają w bazie nietknięte.
+ */
+export const SHOW_MIN_PLAYERS_THRESHOLD = false;
