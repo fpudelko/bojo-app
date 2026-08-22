@@ -1722,10 +1722,33 @@ mimo dziesiątek kont bez pełnej nazwy, przyczyna nieznana. Migracja `086` doda
 (`UzupelnijProfilBanner.tsx`) — niezawodny odpowiednik po stronie klienta. Wyzwalacz
 zostaje jako potencjalny drugi nadawca; `NOT EXISTS` w RPC chroni przed duplikatem.
 
-`NotificationBell` linkuje powiadomienie do meczu przez `event_id`; te bez `event_id`,
-ale z `group_id` (ogłoszenie na tablicy grupy, migracja `093`) — na `/grupy/{group_id}`;
-resztę bez żadnego z nich — przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` →
-`/profil`). Bez tego routingu renderowały się jako martwy, nieklikalny wiersz.
+`celPowiadomienia()` (`lib/notifications.ts`, użyta przez `NotificationBell`) linkuje
+powiadomienie do meczu przez `event_id`; te bez `event_id`, ale z `group_id` (ogłoszenie
+na tablicy grupy, migracja `093`) — na `/grupy/{group_id}`; resztę bez żadnego z nich —
+przez mapę `TYP_NA_TRASE` (dziś: `uzupelnij_profil` → `/profil`). Bez tego routingu
+renderowały się jako martwy, nieklikalny wiersz. **Wiadomość prowadzi wprost na
+zakładkę** (`wiadomosc_w_meczu` → `?tab=rozmowa`, `wiadomosc_w_grupie`/`ogloszenie_w_grupie`
+→ `?tab=tablica`, migracja `119`) — kliknięcie w powiadomienie o wiadomości ma otwierać
+rozmowę, nie domyślną zakładkę meczu/grupy. Ta sama reguła (typ → tab) jest
+zduplikowana w `adresPowiadomienia()` w `supabase/functions/send-push/index.ts` (Deno,
+osobny runtime — nie da się dzielić importu), żeby push prowadził dokładnie tam, gdzie
+dzwonek.
+
+**Dzwonek jest DWA — powiadomienia i wiadomości osobno** (zgłoszone wprost: „ktoś
+napisał" ginęło w tej samej liście co „nowy mecz w grupie"). `TYPY_WIADOMOSCI`
+(`lib/notifications.ts`: `wiadomosc_w_meczu`, `wiadomosc_w_grupie`, `ogloszenie_w_grupie`)
+dzieli listę na dwa niezależne panele w `NotificationBell.tsx` — chmurka (`MessageCircle`,
+plakietka różowa zgodnie z konwencją kolorów z AGENTS.md) obok dzwonka. Każdy panel ma
+własne „otwarcie oznacza jako przeczytane" — otwarcie chmurki nie gasi nieprzeczytanej
+prośby o dołączenie w dzwonku, i odwrotnie.
+
+**Kliknięcie w powiadomienie push oznacza je jako przeczytane w dzwonku** (migracja
+`119`). Service worker (`public/sw.js`) nie ma dostępu do sesji Supabase, więc nie może
+sam wykonać `UPDATE notifications`; wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada
+`id` wiersza do payloadu wysyłanego przez `send-push`, `sw.js` doczepia go do adresu jako
+`?przeczytaj=<id>` po kliknięciu, a `NotificationBell.tsx` czyta ten parametr przy
+montażu i woła `markRead([id])`. Wcześniej dzwonek oznaczał wszystko na raz WYŁĄCZNIE przy
+otwarciu panelu w aplikacji — push to inna ścieżka, o której dzwonek nic nie wiedział.
 
 **Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
 `072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie

@@ -1,6 +1,48 @@
 import { supabase } from './supabase';
 import type { AppNotification } from '@/types';
 
+/** Typy powiadomień o WIADOMOŚCIACH — dostają własną ikonę/panel w dzwonku
+ *  (`NotificationBell.tsx`, chmurka obok dzwonka) zamiast ginąć w tej samej
+ *  liście co „nowy mecz w grupie" czy „prośba o dołączenie" (zgłoszone
+ *  wprost). Zgodnie z AGENTS.md — różowy = wyłącznie wiadomości. */
+export const TYPY_WIADOMOSCI = new Set(['wiadomosc_w_meczu', 'wiadomosc_w_grupie', 'ogloszenie_w_grupie']);
+
+/** Trasy dla powiadomień, które nie dotyczą żadnego meczu ani grupy. Bez tej
+ *  mapy powiadomienie bez `event_id`/`group_id` renderowało się jako martwy,
+ *  nieklikalny wiersz — mówiło „zrób coś" i nie dawało jak. */
+const TYP_NA_TRASE: Record<string, string> = {
+  uzupelnij_profil: '/profil',
+};
+
+/** Dokąd prowadzi powiadomienie; `null`, gdy donikąd.
+ *
+ *  `niepotwierdzony_wpis_goscia` niesie `event_id` (do treści: „mecz X"), ale
+ *  kliknięcie ma prowadzić do przejęcia wpisu, nie od razu na stronę meczu —
+ *  inaczej kliknięcie nie robiłoby tego, co obiecuje treść („Potwierdź").
+ *
+ *  Powiadomienie o WIADOMOŚCI prowadzi wprost na zakładkę „Rozmowa"/„Tablica"
+ *  (`?tab=rozmowa` dla meczu, `?tab=tablica` dla grupy), nie na domyślną
+ *  zakładkę „Skład"/„Mecze" — zgłoszone wprost: kliknięcie w powiadomienie
+ *  o wiadomości ma otworzyć rozmowę, nie zmuszać do drugiego kliknięcia.
+ *  Ta sama reguła (typ → tab) żyje w `adresPowiadomienia()` funkcji brzegowej
+ *  `supabase/functions/send-push/index.ts` (Deno, osobny runtime — nie da się
+ *  współdzielić importu), bo push ma prowadzić dokładnie tam, gdzie dzwonek. */
+export function celPowiadomienia(n: AppNotification): string | null {
+  if (n.type === 'niepotwierdzony_wpis_goscia' && n.claimToken) {
+    return `/gracz/przejmij/${n.claimToken}`;
+  }
+  if (n.eventId) {
+    return n.type === 'wiadomosc_w_meczu' ? `/wydarzenia/${n.eventId}?tab=rozmowa` : `/wydarzenia/${n.eventId}`;
+  }
+  // Ogłoszenie i wiadomość na tablicy grupy (093/109) nie mają meczu —
+  // prowadzą na samą grupę, na zakładkę „Rozmowa" (`tablica` w URL-u).
+  if (n.groupId) {
+    const naTablice = n.type === 'wiadomosc_w_grupie' || n.type === 'ogloszenie_w_grupie';
+    return naTablice ? `/grupy/${n.groupId}?tab=tablica` : `/grupy/${n.groupId}`;
+  }
+  return TYP_NA_TRASE[n.type] ?? null;
+}
+
 export function toNotif(row: any): AppNotification {
   return {
     id:        row.id,
