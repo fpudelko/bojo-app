@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `118` · 39 tabel · 704 testy
+**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 710 testów
 
 ---
 
@@ -391,6 +391,32 @@ MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, 
 „Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 
+### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
+
+PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
+„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
+o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
+aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
+pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
+pokazał i użytkownik ją otworzył.
+
+ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
+z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
+listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
+o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
+prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
+Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
+w dzwonku.
+
+MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
+(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
+Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
+powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
+`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
+Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
+Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
+w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
+
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
 PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
@@ -527,29 +553,3 @@ MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` do
 jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
 selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
 `app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
-
-### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
-
-PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
-(„jak rozliczyć mecz ze znajomymi”, „gdzie szukać brakujących graczy”, „czym Bojo różni się
-od grupy na WhatsAppie”), ale nagłówki i meta-opisy nie używały tych fraz wprost — wyszukiwarki
-i asystenci AI składają odpowiedź z fragmentu najbliższego pytaniu, więc sekcja bez pytania
-w nagłówku ginęła, mimo że odpowiedź w treści już tam była. Osobno: strony treści nie miały
-żadnej danej strukturalnej poza `BreadcrumbList` — `siteJsonLd()` opisywał Bojo tylko jako
-`Organization`/`WebSite`, bez listy funkcji czytelnej dla modeli.
-
-ROZWIĄZANIE BOJO: nagłówek sekcji „Kto ile płaci” brzmi teraz „Jak rozliczyć mecz ze
-znajomymi — kalkulator kosztów boiska” (treść bez zmian — pierwsze zdanie już było gotową
-odpowiedzią). Nowa sekcja „Co zrobić, gdy brakuje 1-2 graczy do składu” tłumaczy przełącznik
-„mecz publiczny” z kroku 3 kreatora i uczciwie zastrzega, że publicznych gier bywa dziś
-niewiele. `/jak-dziala-bojo` i `/dlaczego-bojo` dostały każda mały, tematyczny blok FAQ
-(accordion) pod koniec strony — inny podzbiór pytań na każdej, żeby się nie dublowały.
-`siteJsonLd()` niesie teraz też węzeł `SoftwareApplication` z listą funkcji, a
-`/jak-dziala-bojo` emituje `HowTo` nad trzema krokami zakładania meczu.
-
-MECHANIKA: `content/jakDziala.ts` (sekcja `pieniadze` przemianowana, nowa sekcja
-`brakuje-graczy`), `lib/structuredData.ts` (`howToJsonLd()`, węzeł `SoftwareApplication`
-w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty z `/faq`,
-używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
-nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
-stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
