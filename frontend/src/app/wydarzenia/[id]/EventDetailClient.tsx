@@ -3408,6 +3408,35 @@ export default function EventDetailClient() {
                     </button>
                   )}
                 </div>
+              ) : user && isFull && !event.reserveEnabled ? (
+                /* KOMPLET BEZ REZERWY (migracja `123`). Przycisk „Komplet —
+                   na rezerwę" byłby tu obietnicą, której baza nie dotrzyma:
+                   wyzwalacz `pilnuj_wylaczonej_rezerwy()` odbije taki zapis.
+                   Zamiast wyłączonego guzika, który każe zgadywać dlaczego —
+                   zdanie mówiące, co się stało, i „Obserwuj" jako jedyne
+                   sensowne wyjście: mecz może się jeszcze zwolnić. */
+                <div className="flex gap-2">
+                  <div className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 px-4 text-center text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+                    Komplet — zapisy zamknięte
+                  </div>
+                  {myMaybe ? (
+                    <button
+                      onClick={() => setLeaveConfirmOpen(true)}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-5 text-[14px] font-semibold text-amber-800 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      <Eye className="h-4 w-4" strokeWidth={2.25} /> Obserwujesz
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleMaybe}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      Obserwuj
+                    </button>
+                  )}
+                </div>
               ) : user && isFull ? (
                 <>
                   {/* „Obserwuj" MUSI być także przy komplecie. Wcześniej pasek

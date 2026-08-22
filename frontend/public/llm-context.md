@@ -6,10 +6,14 @@
 > Google lub e-mail.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 **Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
 =======
 **Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 729 testów
 >>>>>>> 61f7346 (Migracja 123: lista rezerwowa staje się wyborem organizatora)
+=======
+**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 741 testów
+>>>>>>> a989017 (Lista rezerwowa: przełącznik zamiast stałej reguły)
 
 ---
 
@@ -347,7 +351,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+<<<<<<< HEAD
 ### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
+=======
+### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
+
+PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
+rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
+z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
+nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
+„zapisali się na listę".
+
+ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
+znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
+miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
+niezależnie od tego ustawienia.
+
+MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
+`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
+z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
+przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
+komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
+
+### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
+>>>>>>> a989017 (Lista rezerwowa: przełącznik zamiast stałej reguły)
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
 jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o

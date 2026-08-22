@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import ToggleRow from '@/components/ui/ToggleRow';
 import { GK_SPORTS } from '@/lib/sports';
 import { SHOW_MIN_PLAYERS_THRESHOLD } from '@/lib/features';
 import { czasRezerwyTekst } from '@/lib/events';
@@ -59,6 +60,7 @@ export default function EventCapacityFields({
   minPlayers = null, onMinPlayersChange,
   goalkeepersEnabled, setGoalkeepersEnabled,
   reserveClaimMinutes, setReserveClaimMinutes,
+  reserveEnabled = true, setReserveEnabled,
   slotyZarezerwowane = true, setSlotyZarezerwowane,
   blad,
 }: {
@@ -74,6 +76,9 @@ export default function EventCapacityFields({
   /** Minuty — migracja `118` (wcześniej `reserveClaimHours`, pełne godziny). */
   reserveClaimMinutes: number;
   setReserveClaimMinutes: (v: number) => void;
+  /** Czy mecz w ogóle prowadzi listę rezerwową (migracja `123`). */
+  reserveEnabled?: boolean;
+  setReserveEnabled?: (v: boolean) => void;
   /** Czy miejsca dla bramkarzy są zarezerwowane (migracja `077`). */
   slotyZarezerwowane?: boolean;
   setSlotyZarezerwowane?: (v: boolean) => void;
@@ -123,7 +128,14 @@ export default function EventCapacityFields({
                 +
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">Kolejni chętni trafią na listę rezerwową.</p>
+            {/* Zdanie opisuje ZACHOWANIE, więc nie może stać, gdy zachowanie
+                jest inne. Przy wyłączonej rezerwie mówi, co się naprawdę
+                stanie — cisza w tym miejscu kazałaby zgadywać. */}
+            <p className="mt-1.5 text-xs text-slate-500">
+              {reserveEnabled
+                ? 'Kolejni chętni trafią na listę rezerwową.'
+                : 'Przy komplecie zapisy będą zamknięte.'}
+            </p>
           </div>
           <p className="min-w-0 text-xs text-slate-500 sm:flex-1 sm:text-right">
             Masz już graczy? Dopiszesz ich zaraz po utworzeniu — na stronie meczu, też bez konta.
@@ -167,11 +179,34 @@ export default function EventCapacityFields({
         )}
       </div>
 
+      {/* PRZEŁĄCZNIK LISTY REZERWOWEJ (migracja `123`).
+          Do tej pory rezerwa była stałą regułą: kreator ogłaszał „Kolejni
+          chętni trafią na listę rezerwową" i nie dało się tego zmienić, a niżej
+          stało jeszcze ustawienie czasu na decyzję. Mecz na zamkniętą ekipę,
+          halę opłaconą z góry albo ustaloną dwunastkę rezerwy nie potrzebuje —
+          i organizator musiał tłumaczyć ludziom, po co się „zapisali na listę".
+
+          Stoi PRZED czasem na decyzję, bo tamto ustawienie ma sens wyłącznie
+          przy włączonej rezerwie i chowa się razem z nią. */}
+      {setReserveEnabled && (
+        <ToggleRow
+          label="Lista rezerwowa"
+          desc="Przy komplecie kolejni chętni czekają w kolejce i wchodzą, gdy ktoś się wypisze."
+          checked={reserveEnabled}
+          onChange={setReserveEnabled}
+        />
+      )}
+
       {/* Czas na decyzję z rezerwy — widoczny wprost, nie pod „Więcej opcji".
           To ustawienie reguły, wedle której Bojo rozdaje zwolnione miejsca,
           więc organizator ma je widzieć, gdy ustala skład. Opis stoi OBOK
           dropdowna (ten sam wzorzec co `ToggleRow`: opis po lewej, kontrolka
-          po prawej), nie nad nim. */}
+          po prawej), nie nad nim.
+
+          Chowa się razem z rezerwą: przy wyłączonej nie ma czego rozdawać,
+          więc pytanie „ile czasu na przyjęcie miejsca" jest wtedy pytaniem
+          bez treści. */}
+      {reserveEnabled && (
       <div>
         <label htmlFor="czas-rezerwy" className="block text-sm font-medium text-slate-700 mb-2">
           Czas na decyzję z rezerwy
@@ -221,6 +256,7 @@ export default function EventCapacityFields({
           </div>
         </div>
       </div>
+      )}
 
       {/* Bramkarze — trzy stany, nie przełącznik.
           Przełącznik odpowiadał wyłącznie na pytanie „rozróżniać?", a to za mało:

@@ -202,6 +202,10 @@ export interface EventItem {
   goalkeepersEnabled: boolean;
   /** How long (minutes) a reserve has to accept a freed spot before it passes on. */
   reserveClaimMinutes: number;
+  /** Czy przy komplecie chętni trafiają na listę rezerwową (migracja `123`).
+   *  `false` = mecz przy komplecie jest ZAMKNIĘTY; kto chce więcej ludzi,
+   *  podnosi `maxPlayers`. Wyłączenie nie kasuje kolejki, która już powstała. */
+  reserveEnabled: boolean;
   /** Ways participants may pay when the match costs money. */
   acceptedPaymentMethods: PaymentMethod[];
   /** Phone number for BLIK transfers — shown when 'blik' is accepted. */
@@ -298,6 +302,7 @@ export interface EventCreate {
   goalkeeperSlotsReserved?: boolean;
   goalkeepersEnabled?: boolean;
   reserveClaimMinutes?: number;
+  reserveEnabled?: boolean;
   acceptedPaymentMethods?: PaymentMethod[];
   blikPhone?: string;
   acceptedSportsCards?: SportsCardProvider[];
