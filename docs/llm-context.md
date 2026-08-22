@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 704 testy
+**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 710 testów
 
 ---
 
@@ -59,11 +59,13 @@ imię i e-mail i jest w składzie (funkcja RPC `dolacz_do_meczu_jako_goscie()`, 
 `082`–`088`, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)); konto może
 dokończyć dopiero po zapisie, jeśli chce mieć historię i statystyki.
 
-Jedno miasto ma dziś dedykowaną stronę pod konkretny sport: `/graj/[sport]/poznan`
-(cztery sporty × Poznań), z licznikiem otwartych meczów w promieniu ok. 15 km na żywo —
-patrz [funkcje.md](./funkcje.md#strona-grajsportmiasto--poznań). To pilotaż, nie ograniczenie
-produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, Poznań ma tylko osobną stronę
-wejściową.
+Trzy miasta mają dziś dedykowane strony pod konkretny sport: `/[sport]/[miasto]` dla
+Poznania, Warszawy i Krakowa (cztery sporty × trzy miasta = dwanaście stron), z licznikiem
+otwartych meczów w promieniu ok. 15 km na żywo i liczbą obiektów katalogu w okolicy —
+patrz [funkcje.md](./funkcje.md#strona-sportmiasto--poznań-warszawa-kraków). To pilotaż,
+nie ograniczenie produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, te trzy
+miasta mają tylko osobną stronę wejściową. Starsze adresy `/graj/[sport]/[miasto]`
+przekierowują trwale (301) na nowe.
 
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
 dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
@@ -341,6 +343,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
+
+PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
+dopiero po przewinięciu — modele generatywne cytują krótkie, faktograficzne akapity, a
+takich nie było. Odpowiedź o podziale kosztów nie podawała żadnej liczby, więc nie dawała
+się zacytować jako konkret. Landingi lokalne obsługiwały jedno miasto i siedziały pod
+prefiksem `/graj/`, a nic na stronie nie mówiło wprost, że Bojo nie jest systemem
+rezerwacji obiektów — przez co trafiało do odpowiedzi na zapytania o wynajem boiska,
+gdzie nic nie wnosi.
+
+ROZWIĄZANIE BOJO: Direct Answer (40–50 słów) nad treścią `/dlaczego-bojo`,
+`/jak-dziala-bojo` i każdej strony sport+miasto. Odpowiedź o kosztach niesie rachunek
+(150 zł ÷ 12 miejsc = 12,50 zł od osoby — dzielnikiem jest liczba MIEJSC, nie liczba
+zapisanych). Trzy nowe pytania FAQ: o sprawiedliwe rozliczenie wynajmu, o brakującą osobę
+na mecz i o szukanie ludzi do gry. Landingi lokalne przeniesione z `/graj/[sport]/[miasto]`
+na `/[sport]/[miasto]` (301 ze starych adresów) i rozszerzone o Warszawę i Kraków —
+dwanaście stron. Każda dostała blok „Czym Bojo nie jest", liczbę obiektów katalogu
+w okolicy, `MiniFaq` z czterema pytaniami i link do mapy.
+
+MECHANIKA: `content/miasta.ts` (nowy — slug, mianownik, miejscownik z przyimkiem,
+współrzędne, szablony Direct Answer i `CZYM_BOJO_NIE_JEST`), `app/[sport]/[miasto]/page.tsx`
+(przeniesiony, `dynamicParams = false` — trasa siedzi na pierwszym segmencie ścieżki),
+`next.config.mjs#redirects()`, `lib/api.ts#policzBoiskaWOkolicy()` (kadr prostokątny, nie
+haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPOWIEDZ`,
+`content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
+stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
+`scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
 ### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
 
 PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
@@ -524,29 +553,3 @@ MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` do
 jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
 selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
 `app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
-
-### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
-
-PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
-(„jak rozliczyć mecz ze znajomymi”, „gdzie szukać brakujących graczy”, „czym Bojo różni się
-od grupy na WhatsAppie”), ale nagłówki i meta-opisy nie używały tych fraz wprost — wyszukiwarki
-i asystenci AI składają odpowiedź z fragmentu najbliższego pytaniu, więc sekcja bez pytania
-w nagłówku ginęła, mimo że odpowiedź w treści już tam była. Osobno: strony treści nie miały
-żadnej danej strukturalnej poza `BreadcrumbList` — `siteJsonLd()` opisywał Bojo tylko jako
-`Organization`/`WebSite`, bez listy funkcji czytelnej dla modeli.
-
-ROZWIĄZANIE BOJO: nagłówek sekcji „Kto ile płaci” brzmi teraz „Jak rozliczyć mecz ze
-znajomymi — kalkulator kosztów boiska” (treść bez zmian — pierwsze zdanie już było gotową
-odpowiedzią). Nowa sekcja „Co zrobić, gdy brakuje 1-2 graczy do składu” tłumaczy przełącznik
-„mecz publiczny” z kroku 3 kreatora i uczciwie zastrzega, że publicznych gier bywa dziś
-niewiele. `/jak-dziala-bojo` i `/dlaczego-bojo` dostały każda mały, tematyczny blok FAQ
-(accordion) pod koniec strony — inny podzbiór pytań na każdej, żeby się nie dublowały.
-`siteJsonLd()` niesie teraz też węzeł `SoftwareApplication` z listą funkcji, a
-`/jak-dziala-bojo` emituje `HowTo` nad trzema krokami zakładania meczu.
-
-MECHANIKA: `content/jakDziala.ts` (sekcja `pieniadze` przemianowana, nowa sekcja
-`brakuje-graczy`), `lib/structuredData.ts` (`howToJsonLd()`, węzeł `SoftwareApplication`
-w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty z `/faq`,
-używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
-nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
-stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.

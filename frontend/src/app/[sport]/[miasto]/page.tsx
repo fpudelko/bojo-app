@@ -6,32 +6,37 @@ import { pl } from 'date-fns/locale';
 import { MapPin } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
+import MiniFaq from '@/components/tresc/MiniFaq';
 import { getNearbyEvents } from '@/lib/events';
+import { policzBoiskaWOkolicy } from '@/lib/api';
 import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { withCount } from '@/lib/plural';
-import { breadcrumbsJsonLd, howToJsonLd } from '@/lib/structuredData';
+import { breadcrumbsJsonLd, howToJsonLd, faqJsonLd } from '@/lib/structuredData';
 import { JAK_DZIALA } from '@/content/jakDziala';
+import { FAQ } from '@/content/faq';
 import { SPORT_ODMIANA, GRAJ_LEAD, GRAJ_BRAK_MECZY } from '@/content/graj';
-
-// Tożsame ze components/map/mapIcons.ts#POZNAN, ale zdefiniowane lokalnie —
-// mapIcons.ts importuje Leaflet, którego nie chcemy ciągnąć do komponentu
-// serwerowego bez żadnej potrzeby renderowania mapy.
-const POZNAN: [number, number] = [52.37, 16.97];
-
-// Promień przybliżający obszar zabudowany Poznania — na tyle szeroki, żeby
-// nie gubić meczów na obrzeżach, na tyle wąski, żeby "w Poznaniu" zostało
-// prawdą, nie marketingowym naciąganiem.
-const PROMIEN_KM = 15;
-
-// Tylko Poznań — jedyne miasto z realnym pokryciem katalogu i ruchem
-// (patrz docs/wizja.md, content/dlaczego.ts#wczesny-etap). Rozszerzenie na
-// kolejne miasta jest decyzją produktową, nie dopiskiem tutaj — patrz
-// docs/funkcje.md.
-const MIASTA = ['poznan'] as const;
+import {
+  MIASTA,
+  PROMIEN_KM,
+  znajdzMiasto,
+  odpowiedzMiasta,
+  CZYM_BOJO_NIE_JEST,
+  zdanieOKatalogu,
+} from '@/content/miasta';
 
 const KROKI_ZAKLADANIA = JAK_DZIALA.find((s) => s.id === 'zakladasz-mecz')!.akapity;
-const CZEGO_NIE_ROBI = JAK_DZIALA.find((s) => s.id === 'czego-bojo-nie-robi')!.akapity[0];
+
+// Pytania, na które ta strona realnie odpowiada — te same, które trafiają do
+// FAQPage. Renderowane widocznie, bo schema bez pokrycia w tekście to sygnał
+// spamu, nie boost (patrz lib/structuredData.ts#faqJsonLd).
+const PYTANIA_TUTAJ = [
+  'Co zrobić, gdy brakuje osoby na mecz?',
+  'Czy gracze muszą zakładać konto, żeby dołączyć do mojego meczu?',
+  'Jak sprawiedliwie rozliczyć koszty wynajmu boiska?',
+  'Czym różni się mecz publiczny od prywatnego?',
+];
+const FAQ_TUTAJ = FAQ.filter((p) => PYTANIA_TUTAJ.includes(p.q));
 
 function znajdzSport(slug: string) {
   const db = FOCUS_SPORT_BY_SLUG[slug];
@@ -42,9 +47,14 @@ function znajdzSport(slug: string) {
 
 export function generateStaticParams() {
   return Object.keys(FOCUS_SPORT_BY_SLUG).flatMap((sport) =>
-    MIASTA.map((miasto) => ({ sport, miasto })),
+    MIASTA.map((m) => ({ sport, miasto: m.slug })),
   );
 }
+
+// Trasa siedzi na pierwszym segmencie ścieżki, więc bez tego łapałaby KAŻDY
+// nieznany adres dwuczłonowy i renderowała go na żądanie. Z dynamicParams=false
+// istnieją wyłącznie kombinacje z generateStaticParams, a reszta dostaje 404.
+export const dynamicParams = false;
 
 // Lista otwartych meczów zmienia się z dnia na dzień — godzinny TTL zamiast
 // budowania na nowo przy każdym żądaniu, ale bez ryzyka pokazywania
@@ -55,13 +65,14 @@ export async function generateMetadata(
   { params }: { params: { sport: string; miasto: string } },
 ): Promise<Metadata> {
   const sport = znajdzSport(params.sport);
-  if (!sport || params.miasto !== 'poznan') return { title: 'Nie znaleziono' };
+  const miasto = znajdzMiasto(params.miasto);
+  if (!sport || !miasto) return { title: 'Nie znaleziono' };
   return {
-    title: `Graj w ${sport.biernik} w Poznaniu`,
+    title: `Graj w ${sport.biernik} ${miasto.miejscownik}`,
     description:
-      `Dołącz do otwartego meczu ${sport.dopelniacz} w Poznaniu albo ` +
+      `Dołącz do otwartego meczu ${sport.dopelniacz} ${miasto.miejscownik} albo ` +
       `stwórz własny i zbierz skład przez Bojo — bez zakładania konta dla graczy.`,
-    alternates: { canonical: `/graj/${params.sport}/poznan` },
+    alternates: { canonical: `/${params.sport}/${params.miasto}` },
   };
 }
 
@@ -69,22 +80,27 @@ export default async function GrajPage(
   { params }: { params: { sport: string; miasto: string } },
 ) {
   const sport = znajdzSport(params.sport);
-  if (!sport || params.miasto !== 'poznan') notFound();
+  const miasto = znajdzMiasto(params.miasto);
+  if (!sport || !miasto) notFound();
 
-  const nearby = await getNearbyEvents(POZNAN[0], POZNAN[1], PROMIEN_KM, 30);
+  const [nearby, liczbaBoisk] = await Promise.all([
+    getNearbyEvents(miasto.lat, miasto.lng, PROMIEN_KM, 30),
+    policzBoiskaWOkolicy(miasto.lat, miasto.lng, PROMIEN_KM),
+  ]);
   const meczeWszystkie = nearby.filter((e) => e.sport === sport.db);
   const mecze = meczeWszystkie.slice(0, 5);
 
   const jsonLd = [
     breadcrumbsJsonLd([
       { name: 'Bojo', path: '/' },
-      { name: `Graj w ${sport.biernik} w Poznaniu` },
+      { name: `Graj w ${sport.biernik} ${miasto.miejscownik}` },
     ]),
     howToJsonLd('Jak zorganizować mecz w Bojo', [
       { name: 'Sport i miejsce', text: KROKI_ZAKLADANIA[0] },
       { name: 'Termin i liczba miejsc', text: KROKI_ZAKLADANIA[1] },
       { name: 'Opcje i publikacja', text: KROKI_ZAKLADANIA[2] },
     ]),
+    faqJsonLd(FAQ_TUTAJ),
   ];
 
   return (
@@ -100,9 +116,17 @@ export default async function GrajPage(
       <Header />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         <h1 className="text-2xl font-bold text-slate-900">
-          Graj w {sport.biernik} w Poznaniu
+          Graj w {sport.biernik} {miasto.miejscownik}
         </h1>
-        <p className="mt-2 text-slate-600 text-sm">{GRAJ_LEAD}</p>
+
+        {/* Direct Answer — odpowiedź wprost, przed jakąkolwiek nawigacją po
+            stronie. Czytelnik, który przyszedł z wyszukiwarki z konkretnym
+            pytaniem, dostaje odpowiedź w pierwszym akapicie. */}
+        <p className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700">
+          {odpowiedzMiasta(sport.dopelniacz, miasto.miejscownik)}
+        </p>
+
+        <p className="mt-3 text-slate-600 text-sm">{GRAJ_LEAD}</p>
 
         <section className="mt-8">
           {meczeWszystkie.length > 0 ? (
@@ -110,9 +134,9 @@ export default async function GrajPage(
               <p className="font-semibold text-ink">
                 {withCount(
                   meczeWszystkie.length,
-                  'otwarty mecz publiczny w Poznaniu',
-                  'otwarte mecze publiczne w Poznaniu',
-                  'otwartych meczów publicznych w Poznaniu',
+                  `otwarty mecz publiczny ${miasto.miejscownik}`,
+                  `otwarte mecze publiczne ${miasto.miejscownik}`,
+                  `otwartych meczów publicznych ${miasto.miejscownik}`,
                 )}
               </p>
               <ul className="mt-3 space-y-3">
@@ -158,8 +182,41 @@ export default async function GrajPage(
           </div>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-600">{CZEGO_NIE_ROBI}</p>
+        {/* Odróżnienie od systemów rezerwacji — bez tego bloku modele mieszają
+            Bojo z platformami wynajmu obiektów. */}
+        <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="font-display text-lg font-bold text-ink">
+            Czym Bojo nie jest
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{CZYM_BOJO_NIE_JEST}</p>
+        </section>
+
+        {liczbaBoisk > 0 && (
+          <section className="mt-8">
+            <h2 className="font-display text-xl font-bold tracking-tight text-ink">
+              Gdzie zagrać {miasto.miejscownik}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-700">
+              {zdanieOKatalogu(liczbaBoisk, miasto.miejscownik)}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3 text-sm">
+              <Link href="/mapa" className="text-primary-600 hover:underline">
+                Mapa boisk
+              </Link>
+              <Link href={`/boiska/${sport.slug}`} className="text-primary-600 hover:underline">
+                Boiska do {sport.dopelniacz}
+              </Link>
+            </div>
+          </section>
+        )}
+
+        <section id="pytania" className="mt-10 scroll-mt-20">
+          <h2 className="font-display text-xl font-bold tracking-tight text-ink">
+            Częste pytania
+          </h2>
+          <div className="mt-3">
+            <MiniFaq pytania={FAQ_TUTAJ} />
+          </div>
         </section>
 
         <section className="mt-10 rounded-2xl border border-primary-200 bg-primary-50 p-5">
@@ -172,10 +229,10 @@ export default async function GrajPage(
               Stwórz mecz publiczny
             </Link>
             <Link
-              href={`/boiska/${sport.slug}`}
+              href="/mapa"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Zobacz boiska
+              Mapa boisk
             </Link>
             <Link
               href="/jak-dziala-bojo"
@@ -186,11 +243,26 @@ export default async function GrajPage(
           </div>
         </section>
 
-        <nav className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm" aria-label="Inne sporty w Poznaniu">
-          <span className="text-slate-500">Inne sporty w Poznaniu:</span>
+        <nav
+          className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
+          aria-label={`Inne sporty ${miasto.miejscownik}`}
+        >
+          <span className="text-slate-500">Inne sporty {miasto.miejscownik}:</span>
           {SPORT_ODMIANA.filter((s) => s.slug !== sport.slug).map((s) => (
-            <Link key={s.slug} href={`/graj/${s.slug}/poznan`} className="text-primary-600 hover:underline">
+            <Link key={s.slug} href={`/${s.slug}/${miasto.slug}`} className="text-primary-600 hover:underline">
               {s.biernik}
+            </Link>
+          ))}
+        </nav>
+
+        <nav
+          className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
+          aria-label="Ten sam sport w innych miastach"
+        >
+          <span className="text-slate-500">Ten sam sport gdzie indziej:</span>
+          {MIASTA.filter((m) => m.slug !== miasto.slug).map((m) => (
+            <Link key={m.slug} href={`/${sport.slug}/${m.slug}`} className="text-primary-600 hover:underline">
+              {m.mianownik}
             </Link>
           ))}
         </nav>

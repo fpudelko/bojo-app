@@ -1043,24 +1043,45 @@ w grupie „Bojo". Główna nawigacja (`Header.tsx`) zostaje bez zmian — dwie 
 
 ---
 
-## Strona `/graj/[sport]/[miasto]` — Poznań
+## Strona `/[sport]/[miasto]` — Poznań, Warszawa, Kraków
 
 Landing pod SEO/GEO ([strategia.md](./strategia.md)), osobny wzorzec od katalogu boisk:
-`/boiska/[sport]` odpowiada „gdzie jest boisko", `/graj/[sport]/[miasto]` — „dołącz do
+`/boiska/[sport]` odpowiada „gdzie jest boisko", `/[sport]/[miasto]` — „dołącz do
 meczu albo znajdź brakujących graczy" w konkretnym mieście. Cztery sporty (`FOCUS_SPORTS`
-z `lib/sports.ts`, te same co w kreatorze meczu) × jedno miasto = cztery strony, generowane
+z `lib/sports.ts`, te same co w kreatorze meczu) × trzy miasta = dwanaście stron, generowane
 statycznie (`generateStaticParams`) z `revalidate = 3600` — bo zbiór jest z góry
 ograniczony, w przeciwieństwie do `/boiska/[sport]`, który celowo renderuje się na żądanie
 (katalog rośnie z każdym importem, patrz AGENTS.md).
 
-**Tylko Poznań.** Jedyne miasto z realnym pokryciem katalogu i ruchem
-(`content/dlaczego.ts#wczesny-etap`). Rozszerzenie na kolejne miasta wymaga rewizji
-`content/zakazaneFrazy.ts` (dziś zakazuje nazw miast na landingu) i jest świadomą decyzją
-produktową, nie dopiskiem do tej strony — patrz `strategia.md` pozycja roadmapy #10.
+**Trasa siedzi na PIERWSZYM segmencie ścieżki, więc ma `dynamicParams = false`.** Bez tego
+`/[sport]/[miasto]` łapałby każdy nieznany adres dwuczłonowy i renderował go na żądanie;
+z tym istnieją wyłącznie kombinacje z `generateStaticParams`, a reszta dostaje 404.
+Istniejące trasy są bezpieczne, bo w App Routerze segment statyczny ma pierwszeństwo nad
+dynamicznym — `/boiska/…`, `/wydarzenia/…`, `/grupy/…` wygrywają z `[sport]`. W `src/app`
+nie ma żadnej innej trasy z dynamicznym pierwszym segmentem i **nie wolno takiej dodać**
+bez rozstrzygnięcia kolizji.
+
+Strony mieszkały wcześniej pod `/graj/[sport]/[miasto]`; `next.config.mjs` trzyma trwałe
+przekierowanie 301 ze starych adresów, bo były w sitemapie od 2026-08-19.
+
+**Miasta w `content/miasta.ts`** — slug, mianownik, miejscownik z przyimkiem (bo „we
+Wrocławiu" łamie regułę „w " + forma) i współrzędne centrum. Dodanie miasta to jeden wpis
+w tej tablicy; `sitemap.ts`, `generateStaticParams` i walidator `check-docs.mjs` czytają
+z niej, więc nie mają jak się rozjechać. Blokada nazw miast w `content/zakazaneFrazy.ts`
+**zostaje** i nie stała temu na przeszkodzie: dotyczy `ZAKAZANE_NA_LANDINGU`, czyli
+wyłącznie `components/home/landing/content.ts` — landing ma pozostać ogólnopolski, a
+strony miejskie żyją w `content/miasta.ts` i podlegają `ZAKAZANE_WSZEDZIE`.
+
+**Liczba obiektów w okolicy** — `lib/api.ts#policzBoiskaWOkolicy()`, kadr **prostokątny**
+wokół centrum (PostgREST nie policzy haversine, a RPC do tego nie ma), stąd treść mówi
+„w okolicy", nie „w promieniu N km". Przy błędzie zapytania funkcja zwraca 0, a strona
+pomija całą sekcję — brak liczby jest uczciwszy niż zero udające pustą okolicę.
+Sekcja **nie** opiera się na `fields.city`: ta kolumna jest pusta we wszystkich wierszach,
+dopóki nie przejdzie `scraper/backfill_lokalizacja.py`.
 
 **Dane na żywo, nie zaszyte.** Strona woła `getNearbyEvents()` (`lib/events.ts`, RPC
 `get_nearby_events` z `025_game_alerts.sql`, wcześniej nieużywane w kodzie poza wyłączoną
-flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od środka Poznania, filtruje wynik po sporcie
+flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od centrum danego miasta, filtruje wynik po sporcie
 i pokazuje do 5 najbliższych meczów jako listę z linkami do `/wydarzenia/[id]`. Licznik
 u góry pokazuje pełną liczbę dopasowań, nie tylko wyświetloną piątkę. Gdy lista jest pusta,
 strona pokazuje uczciwe zastrzeżenie (`content/graj.ts#GRAJ_BRAK_MECZY`) zamiast chować
@@ -1079,9 +1100,19 @@ istniejący `selectSport()`, tym samym mechanizmem co ręczny wybór w UI (więc
 liczba miejsc też się dostraja). Wcześniej `?sport=` było ignorowane.
 
 **Cross-linki (dopełnienie roadmapy #9):** `/boiska/[sport]` linkuje do
-`/graj/[sport]/poznan` dla czterech sportów, które tę stronę mają; `sitemap.ts` ma osobny,
-bounded blok `grajPages` z tego samego źródła (`FOCUS_SPORT_BY_SLUG`), więc nie może się
-rozjechać z `generateStaticParams`.
+`/[sport]/poznan` dla czterech sportów, które tę stronę mają; `sitemap.ts` ma osobny,
+bounded blok `grajPages` z iloczynu `FOCUS_SPORT_BY_SLUG` × `MIASTA`, więc nie może się
+rozjechać z `generateStaticParams`. Sama strona linkuje w dół do `/mapa`,
+`/boiska/[sport]`, do pozostałych sportów w tym mieście i do tego samego sportu
+w pozostałych miastach.
+
+**Treść pod odpowiedzi generatywne.** Pod H1 stoi Direct Answer
+(`content/miasta.ts#odpowiedzMiasta()`, 40–50 słów), niżej blok „Czym Bojo nie jest"
+(`CZYM_BOJO_NIE_JEST`) odróżniający Bojo od systemów rezerwacji obiektów, a na dole
+`MiniFaq` z czterema pytaniami z `content/faq.ts` — te same pytania idą do `FAQPage`
+JSON-LD, bo schema bez pokrycia w widocznym tekście to sygnał spamu, nie boost
+(`lib/structuredData.ts#faqJsonLd`). Cały tekst, łącznie z szablonami składanymi per
+sport i miasto, jest dopisany do `tresciStron.test.ts`.
 
 ---
 
@@ -1118,7 +1149,7 @@ z parsowania tekstu zgadywankę). Świeżo zaaplikowana migracja `112` zostawia 
 — dopóki backfill nie przejdzie, wszystkie boiska są w Tier 3.
 
 **Sitemap partycjonowany per województwo**, nie jeden rosnący bez końca plik:
-`sitemap.ts` (strony statyczne, huby sportów, `/graj/…`) + 16×
+`sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`) + 16×
 `sitemap-boiska/[plik]/route.ts` (po jednym na województwo, tylko Tier 1/2 — Tier 3 ma
 `noindex`, więc wpis w sitemapie byłby sprzeczną instrukcją dla Googlebota), zebrane
 w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje na ten indeks, nie na goły

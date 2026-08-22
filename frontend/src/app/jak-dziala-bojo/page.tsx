@@ -4,7 +4,7 @@ import StronaTresci from '@/components/tresc/StronaTresci';
 import SpisTresci from '@/components/tresc/SpisTresci';
 import SekcjaTresci from '@/components/tresc/SekcjaTresci';
 import MiniFaq from '@/components/tresc/MiniFaq';
-import { JAK_DZIALA } from '@/content/jakDziala';
+import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
 import { FAQ } from '@/content/faq';
 import { faqJsonLd, howToJsonLd } from '@/lib/structuredData';
 
@@ -41,6 +41,12 @@ export default function JakDzialaBojoPage() {
       lead="Krok po kroku, bez niedomówień: co ustawiasz, co widzi zaproszony i co Bojo robi samo."
       tytulDlaOkruszkow="Jak działa Bojo"
     >
+      {/* Direct Answer przed spisem treści — pełna mechanika w jednym akapicie,
+          zanim czytelnik zdecyduje, którą sekcję otworzyć. */}
+      <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-900">
+        {JAK_DZIALA_ODPOWIEDZ}
+      </p>
+
       <SpisTresci pozycje={JAK_DZIALA.map((s) => ({ id: s.id, label: s.label }))} />
 
       {JAK_DZIALA.map((sekcja) => (

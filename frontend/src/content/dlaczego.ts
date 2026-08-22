@@ -1,6 +1,20 @@
 // Treść /dlaczego-bojo — argumenty, którymi organizator przebija ścianę
 // "moi gracze nie założą konta w kolejnej apce" i nawyk grupy na Messengerze.
 
+/**
+ * Direct Answer — 40-50 słów odpowiadające wprost na zapytanie "alternatywa dla
+ * grupy na Facebooku / ankiety na WhatsAppie do organizowania meczów", zanim
+ * czytelnik przewinie do listy bolączek. Wymienia encje wprost ("Bojo", nazwy
+ * kart), bo w wynikach generatywnych ten akapit trafia do modelu wyrwany
+ * z kontekstu reszty strony.
+ */
+export const DLACZEGO_ODPOWIEDZ =
+  'Bojo to aplikacja webowa do organizowania amatorskich meczów, używana zamiast ' +
+  'grupy na Facebooku i ankiety na WhatsAppie. Liczy zajęte miejsca zamiast „+1" ' +
+  'w komentarzach, prowadzi listę rezerwową z kolejnością, dzieli koszt wynajmu ' +
+  'obiektu i uwzględnia zniżki z kart Multisport, FitProfit i Medicover Sport. ' +
+  'Organizator wysyła jeden link na czat ekipy.';
+
 export const CO_UWIERA: readonly string[] = [
   'Liczenie „+1" w komentarzach pod postem — trzeba przewinąć cały wątek, żeby wiedzieć, ' +
   'ile osób realnie przyjdzie.',

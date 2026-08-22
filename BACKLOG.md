@@ -8,7 +8,7 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-15_
+_Ostatnia aktualizacja: 2026-08-22_
 
 ---
 
@@ -455,15 +455,20 @@ i w sekcji „Tierowanie indeksacji katalogu boisk" w [funkcje.md](./docs/funkcj
       (`SportsActivityLocation`). Musi przechodzić przez `content/zakazaneFrazy.ts` —
       nowy test na próbce syntetycznych rekordów, wzorem `tresciStron.test.ts`, bo przy
       32k+ generowanych opisów nie da się tego wyrywkowo przeczytać.
-- [ ] **Faza 2 — huby miast poza Poznań.** Użytkownik potwierdził (2026-08-20) świadome
-      odblokowanie: uogólnienie `/graj/[sport]/[miasto]` poza dzisiejsze
-      `MIASTA = ['poznan']` (`content/graj.ts`) i usunięcie blokady „warszaw"/„krak[oó]w"
-      z `content/zakazaneFrazy.ts`. Realny zakres miast do wygenerowania zależy od
-      rozkładu `city`/`seo_tier` PO przebiegu backfillu z Fazy 0 — sprawdzić
-      `SELECT city, count(*) FROM fields WHERE seo_tier IN (1,2) GROUP BY city ORDER BY 2 DESC`
-      zanim się wybierze próg. Huby wojewódzkie `/boiska/[wojewodztwo]` wzorem
-      dzisiejszego `force-dynamic` `/boiska/[sport]` (bez prerenderu — te same powody
-      skalowania co `/boisko/[id]`, patrz AGENTS.md).
+- [x] **Faza 2 — huby miast poza Poznań** (zrobione 2026-08-22). Trasa przeniesiona
+      z `/graj/[sport]/[miasto]` na `/[sport]/[miasto]` (301 ze starych adresów),
+      miasta wyniesione do `content/miasta.ts` i rozszerzone o Warszawę i Kraków —
+      dwanaście stron. **Blokada „warszaw"/„krak[oó]w" ZOSTAJE** wbrew wcześniejszemu
+      zapisowi: siedzi w `ZAKAZANE_NA_LANDINGU`, a ta lista jest sprawdzana wyłącznie
+      przeciw `components/home/landing/content.ts` — landing ma pozostać ogólnopolski,
+      a strony miejskie żyją w `content/miasta.ts` i podlegają `ZAKAZANE_WSZEDZIE`.
+      Pokrycie katalogu liczone geograficznie (`lib/api.ts#policzBoiskaWOkolicy`), **nie**
+      z `city`/`seo_tier` — te są dziś puste w całej tabeli, patrz Faza 0.
+- [ ] **Faza 2b — huby wojewódzkie.** `/boiska/[wojewodztwo]` wzorem dzisiejszego
+      `force-dynamic` `/boiska/[sport]` (bez prerenderu — te same powody skalowania co
+      `/boisko/[id]`, patrz AGENTS.md). Kolejne miasta dla `/[sport]/[miasto]` to dziś
+      jeden wpis w `content/miasta.ts`; wybór progu nadal zależy od rozkładu
+      `city`/`seo_tier` PO backfillu z Fazy 0.
 - [ ] **Faza 3 — mikro-ankiety UGC.** Nawierzchnia/oświetlenie jako pytania tak/nie/nie
       wiem, rozszerzające istniejący `ZglosBladObiektu.tsx`/`lib/bledy.ts`/
       `field_comments`, z progiem quorum do wyświetlenia „potwierdzone przez N graczy" —

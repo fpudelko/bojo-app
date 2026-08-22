@@ -504,6 +504,8 @@ const TRASY: Array<[nazwa: string, adres: string]> = [
   ['turniej-rejestracja',  '/turniej/rejestracja'],
   ['zaproszenie-do-gry',   '/d/NIEISTNIEJE'],
   ['zaproszenie-do-grupy', '/g/NIEISTNIEJE'],
+  ['sport-miasto-poznan',  '/pilka-nozna/poznan'],
+  ['sport-miasto-warszawa', '/koszykowka/warszawa'],
   ['nie-ma-strony',        '/takiej-strony-nie-ma'],
 ];
 

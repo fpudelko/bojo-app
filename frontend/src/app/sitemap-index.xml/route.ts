@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 
 // Indeks sitemapów — jeden adres do zgłoszenia w Search Console i w robots.ts,
-// wskazujący na /sitemap.xml (strony statyczne, huby sportów, /graj/…) i na
+// wskazujący na /sitemap.xml (strony statyczne, huby sportów, /[sport]/[miasto]…) i na
 // 16 sitemapów boisk, po jednym na województwo (sitemap-boiska/[plik]/route.ts).
 //
 // Next.js ma wbudowany mechanizm `generateSitemaps()`, ale w wersji 14

@@ -42,17 +42,25 @@
 Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
 zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
 
-## Graj w Poznaniu
+## Strony sport + miasto
 
-Jedyne miasto z dedykowaną stroną dziś — realne pokrycie katalogu i ruchu, patrz
-[Dlaczego Bojo](/dlaczego-bojo). Każda strona pokazuje otwarte publiczne mecze w danym
-sporcie w promieniu ok. 15 km od centrum Poznania (na żywo, licznik) i prowadzi do
-stworzenia własnego meczu.
+Trzy miasta z dedykowanymi stronami. Każda pokazuje otwarte publiczne mecze w danym
+sporcie w promieniu ok. 15 km od centrum miasta (na żywo, licznik), liczbę obiektów
+w katalogu w okolicy i prowadzi do stworzenia własnego meczu. Bojo nie jest systemem
+do rezerwacji boisk — te strony służą zebraniu składu na obiekt już zarezerwowany.
 
-- [Piłka nożna w Poznaniu](/graj/pilka-nozna/poznan)
-- [Siatkówka w Poznaniu](/graj/siatkowka/poznan)
-- [Siatkówka plażowa w Poznaniu](/graj/siatkowka-plazowa/poznan)
-- [Koszykówka w Poznaniu](/graj/koszykowka/poznan)
+- [Piłka nożna w Poznaniu](/pilka-nozna/poznan)
+- [Siatkówka w Poznaniu](/siatkowka/poznan)
+- [Siatkówka plażowa w Poznaniu](/siatkowka-plazowa/poznan)
+- [Koszykówka w Poznaniu](/koszykowka/poznan)
+- [Piłka nożna w Warszawie](/pilka-nozna/warszawa)
+- [Siatkówka w Warszawie](/siatkowka/warszawa)
+- [Siatkówka plażowa w Warszawie](/siatkowka-plazowa/warszawa)
+- [Koszykówka w Warszawie](/koszykowka/warszawa)
+- [Piłka nożna w Krakowie](/pilka-nozna/krakow)
+- [Siatkówka w Krakowie](/siatkowka/krakow)
+- [Siatkówka plażowa w Krakowie](/siatkowka-plazowa/krakow)
+- [Koszykówka w Krakowie](/koszykowka/krakow)
 
 ## Jak działa Bojo
 

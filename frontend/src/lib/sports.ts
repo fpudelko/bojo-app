@@ -31,7 +31,7 @@ export const FOCUS_SPORTS = [
 ] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
 
 /** URL-slug → wartość w bazie, dla FOCUS_SPORTS, np. 'pilka-nozna' → 'piłka nożna'.
- *  Używane przez `/graj/[sport]/[miasto]` i przez prefill `?sport=` w kreatorze. */
+ *  Używane przez `/[sport]/[miasto]` i przez prefill `?sport=` w kreatorze. */
 export const FOCUS_SPORT_BY_SLUG: Record<string, (typeof FOCUS_SPORTS)[number]> =
   Object.fromEntries(FOCUS_SPORTS.map((s) => [slugify(s), s])) as Record<
     string,

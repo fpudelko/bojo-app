@@ -1,6 +1,5 @@
-// Treść /graj/[sport]/[miasto] — jedyne miasto dziś to Poznań (jedyne z realnym
-// pokryciem katalogu i ruchem, patrz docs/wizja.md). Rozszerzenie na kolejne
-// miasta to decyzja produktowa, nie cichy dopisek tutaj.
+// Odmiana sportów dla landingów lokalnych /[sport]/[miasto]. Lista miast żyje
+// osobno, w content/miasta.ts — ten plik odpowiada wyłącznie za sport.
 //
 // Kroki zakładania meczu i zastrzeżenie "czego Bojo nie robi" są importowane
 // z content/jakDziala.ts zamiast przepisywane — jedno źródło prawdy, testy
