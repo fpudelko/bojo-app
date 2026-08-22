@@ -16,8 +16,12 @@ jest kolejnością, w jakiej przejdzie je realna ekipa.
 
 ## 0. Przygotowanie (5 minut, dzień wcześniej)
 
-1. **Migracje `120` i `121`** — Supabase → SQL Editor, w tej kolejności:
-   `120` → poczekaj na deploy Vercela → `121`. Uzasadnienie w nagłówkach plików.
+1. **Migracje `120`, `121`, `122`** — Supabase → SQL Editor, w tej kolejności:
+   `120` → **poczekaj na deploy Vercela** → `121` → `122`. Kolejność `120`/`121`
+   nie jest kosmetyczna: `120` zakłada nową tabelę `event_blik` i politykę
+   rozmowy, `121` dopiero wtedy kasuje `events.blik_phone`. Odwrotnie —
+   albo w trakcie, gdy na produkcji stoi jeszcze stara paczka JS — numer BLIK
+   znika uczestnikom, którzy mają do niego prawo. Uzasadnienie w nagłówkach plików.
 2. **Funkcje brzegowe** — Actions → „Wdróż funkcje brzegowe" → Run workflow.
    Bez tego kliknięcie powiadomienia push nie oznaczy go jako przeczytanego.
 3. **Seed** — wklej `supabase/seed_przedpremiera.sql` do SQL Editora. Dostaniesz
@@ -178,7 +182,7 @@ Nie powtarzaj ręcznie tego, co i tak leci przy każdym PR-ze:
 | `npm test` (722 testy) | logika domenowa: ceny, pojemność, kolejka, daty, treści |
 | `supabase/test/rls.sql` | **kto co widzi w bazie** — rozmowa, numer BLIK, tablica ekipy, z perspektywy anonima, obcego, uczestnika i organizatora |
 | `e2e/klikalnosc.spec.ts` | czy da się kliknąć — modale, warstwy, martwe przyciski |
-| `e2e/scenariusze.spec.ts` | przejścia gracza na realnej bazie: dołączanie, rezerwa, bramkarze, prośby, płatności, rozmowa, numer BLIK |
+| `e2e/scenariusze.spec.ts` | przejścia gracza na realnej bazie: dołączanie, rezerwa, bramkarze, prośby, płatności, rozmowa, numer BLIK — **czerwono, gdy zachowanie padnie** |
 | `e2e/wizualne.spec.ts` | zmiany wyglądu na wszystkich trasach (raport w PR-ze, nie bramka) |
 | `scripts/baza-testowa.sh` | czy migracje aplikują się od zera + testy reguł dostępu |
 

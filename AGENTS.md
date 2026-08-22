@@ -96,11 +96,29 @@ się w PR-ze jako różnica obrazków. Workflow `wizualne.yml` **celowo nie blok
 merge'a ani deployu — zmiana wyglądu bywa zamierzona i ma być do przejrzenia,
 nie do naprawienia.
 
-Co więcej, **te zadania nigdy nie świecą na czerwono**. Samo `continue-on-error`
-nie wystarcza: workflow kończy się wtedy zielono, ale przy PR-ze i tak widać
-czerwony znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego testy
-lecą z `set +e`, a wynik jedzie do komentarza jako informacja. To jest pomoc dla
-chętnych, nie bramka.
+Co więcej, **zadanie ze zrzutami nigdy nie świeci na czerwono**. Samo
+`continue-on-error` nie wystarcza: workflow kończy się wtedy zielono, ale przy
+PR-ze i tak widać czerwony znaczek przy zadaniu — a to czyta się jak zepsuty
+build. Dlatego testy lecą z `set +e`, a wynik jedzie do komentarza jako
+informacja. To jest pomoc dla chętnych, nie bramka.
+
+**Ale zadanie „Scenariusze za logowaniem" JEST bramką — od 2026-08-22.** Ta
+sama osłona przykrywała wcześniej scenariusze funkcjonalne i czternaście
+z nich padało od miesięcy przy zielonym znaczku; prawdziwy wynik siedział
+w zmiennej `UDANE` w środku logu, więc nikt go nie czytał. Dziś
+`.github/bramka-scenariuszy.mjs` czyta raport JSON Playwrighta i dzieli
+padające testy na dwie kupki:
+
+- padł **wyłącznie** na `toHaveScreenshot` → zmiana wyglądu, do obejrzenia;
+  wzorce przyjmuje etykieta `zrzuty:zaakceptuj`, nie poprawka w kodzie,
+- cokolwiek innego (`toBeVisible`, `toHaveCount`, kliknięcie, strict mode,
+  timeout) → regresja, **czerwono**.
+
+Brak raportu JSON też jest czerwony: znaczy, że przebieg wywrócił się przed
+pierwszym testem (stos Supabase, build, przeglądarka), a cisza byłaby wtedy
+najgorszą możliwą odpowiedzią. Wniosek dla piszącego nowy scenariusz:
+`scenariusze.spec.ts` miesza asercje zachowania i wyglądu w jednym pliku
+i to jest w porządku — rozróżnia je bramka, nie podział na pliki.
 
 **Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
