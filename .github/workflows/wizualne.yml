@@ -10,11 +10,17 @@ name: Wizualne (informacyjne)
 # a wtedy czerwona bramka blokująca merge zmusza do „naprawiania" czegoś, co
 # jest w porządku. Zmiana wyglądu ma być DO PRZEJRZENIA, nie do naprawienia.
 #
-# ZADANIA NIGDY NIE ŚWIECĄ NA CZERWONO. Samo `continue-on-error` nie wystarcza:
-# workflow owszem kończy się zielono, ale przy PR-ze i tak widać czerwony
-# znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego same testy
-# lecą z `set +e`, a ich wynik jedzie dalej jako `outputs.wynik` i ląduje
+# ZADANIE ZE ZRZUTAMI NIGDY NIE ŚWIECI NA CZERWONO. Samo `continue-on-error`
+# nie wystarcza: workflow owszem kończy się zielono, ale przy PR-ze i tak widać
+# czerwony znaczek przy zadaniu — a to czyta się jak zepsuty build. Dlatego same
+# testy lecą z `set +e`, a ich wynik jedzie dalej jako `outputs.wynik` i ląduje
 # w komentarzu. Raport jest POMOCĄ DLA CHĘTNYCH, nie bramką.
+#
+# ZADANIE ZE SCENARIUSZAMI — INACZEJ, od 2026-08-22. Ta sama osłona przykrywała
+# scenariusze FUNKCJONALNE i czternaście z nich padało przy zielonym znaczku.
+# `.github/bramka-scenariuszy.mjs` na końcu tamtego zadania rozdziela padające
+# testy: zmiana wyglądu (`toHaveScreenshot` i nic więcej) zostaje informacją,
+# wszystko inne zapala czerwono. Szczegóły przy samym zadaniu.
 #
 # JAK TO WYGLĄDA Z TELEFONU
 #   1. Workflow wystawia RAPORT — jedną stronę na PR, z obrazkami: nowe widoki
@@ -198,8 +204,15 @@ jobs:
     needs: kontekst
     if: needs.kontekst.outputs.uruchamiac == 'tak'
     runs-on: ubuntu-latest
-    # Tak samo nieblokujące jak zrzuty widoków publicznych.
-    continue-on-error: true
+    # ŚWIADOMIE BEZ `continue-on-error` — inaczej niż zrzuty widoków
+    # publicznych. Ten zestaw sprawdza dwie różne rzeczy naraz: ZACHOWANIE
+    # (czy da się dołączyć, czy komunikat mówi prawdę) i WYGLĄD (porównanie
+    # zrzutów). Osłona pisana dla wyglądu przykryła zachowanie i czternaście
+    # scenariuszy padało miesiącami przy zielonym znaczku — nikt się nie
+    # dowiedział, bo prawdziwy wynik siedział w środku logu.
+    #
+    # Rozróżnienie robi teraz `.github/bramka-scenariuszy.mjs` (ostatni krok):
+    # zmieniony wygląd zostaje informacją, zepsute zachowanie zapala czerwone.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -233,16 +246,20 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      # Jak wyżej: to zadanie nigdy nie świeci na czerwono.
+      # `set +e` zostaje: sam przebieg ma dojść do końca i wystawić raport oraz
+      # komentarz, nawet gdy testy padły. O czerwieni decyduje dopiero bramka
+      # na końcu zadania — po rozróżnieniu wyglądu od zachowania.
       - name: Scenariusze
         id: test
         working-directory: frontend
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: wynik-scenariuszy.json
         run: |
           set +e
           if [[ "${{ needs.kontekst.outputs.akceptuj }}" == "1" ]]; then
-            npm run scenariusze:akceptuj
+            npm run scenariusze:akceptuj -- --reporter=github,json
           else
-            npm run scenariusze
+            npm run scenariusze -- --reporter=github,json
           fi
           echo "wynik=$?" >> "$GITHUB_OUTPUT"
           exit 0
@@ -294,3 +311,10 @@ jobs:
               obrazki: czytaj('frontend/podglad-zrzutow.md'),
               numer: Number(process.env.PR),
             });
+
+      # OSTATNI krok zadania, świadomie po komentarzu i raporcie: dopiero on
+      # rozstrzyga o kolorze znaczka. Zmieniony wygląd zostaje informacją,
+      # zepsute zachowanie zapala czerwone — patrz nagłówek skryptu.
+      - name: Bramka — czerwono tylko za zachowanie
+        if: always()
+        run: node .github/bramka-scenariuszy.mjs frontend/wynik-scenariuszy.json

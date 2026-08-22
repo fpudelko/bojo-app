@@ -1758,7 +1758,12 @@ export default function EventDetailClient() {
   // Drives both the sticky join bar below and hiding the bottom nav while
   // it's up — the nav would otherwise cover "Dołącz"/"Obserwuj". Stays true
   // while merely observing (myMaybe), matching the join bar's own comment.
-  const joinBarVisible = !(user && (myParticipation || myPendingRequest)) && !eventStarted;
+  // `!isCancelled` NIE jest kosmetyką: bez tego warunku odwołany mecz nadal
+  // wystawiał dolny pasek z „Dołącz" — tuż pod banerem mówiącym, że mecz się
+  // nie odbędzie. Złapane przez scenariusz „odwołany — baner zamiast zapisu",
+  // który sprawdzał dokładnie to i padał, odkąd baner powstał.
+  const joinBarVisible = !(user && (myParticipation || myPendingRequest))
+    && !eventStarted && !isCancelled;
   // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
   // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
   // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
