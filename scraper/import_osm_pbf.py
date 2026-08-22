@@ -38,9 +38,11 @@ import argparse
 import logging
 import math
 import os
+import re
 import time
 import sys
 from collections import Counter
+from datetime import date
 from dataclasses import dataclass, field as dc_field
 from typing import Any
 
@@ -278,6 +280,35 @@ def locality_already_in(base: str, locality: str) -> bool:
     if not loc_words:
         return locality.lower() in base.lower()
     return all(_stem(w) in base_stems for w in loc_words)
+
+
+def data_sprawdzenia(tags: dict[str, str]) -> str | None:
+    """`check_date` / `survey:date` sprowadzone do pełnej daty ISO albo None.
+
+    Kolumna `fields.osm_checked_at` jest typu DATE, a OSM w tych tagach trzyma
+    zwykły tekst — obok „2026-05-13" siedzi „2026-05" (sam miesiąc), „2026"
+    (sam rok), „2026-05-13T00:00:00Z" i literówki w rodzaju „2026-02-30".
+    Wcześniejsze `[:10]` przepuszczało to bez zmian i PostgREST odrzucał CAŁĄ
+    partię 500 wierszy błędem `22007 invalid input syntax for type date`,
+    przez co import całego województwa kończył się kodem 1 po pięciu minutach
+    czytania pliku (dolnośląskie, 2026-08-07).
+
+    Niepełne daty domykamy do pierwszego dnia okresu — „sprawdzone w maju 2026"
+    jest informacją wartą zapisania, a dzień i tak nikogo nie interesuje.
+    Czego nie da się przeczytać jako daty, wyrzucamy: jeden pusty rekord jest
+    tańszy niż wywrócony import.
+    """
+    raw = (tags.get("check_date") or tags.get("survey:date") or "").strip()
+    if not raw:
+        return None
+    m = re.match(r"^(\d{4})(?:[-/.](\d{1,2})(?:[-/.](\d{1,2}))?)?(?:[T ].*)?$", raw)
+    if not m:
+        return None
+    rok, miesiac, dzien = int(m[1]), int(m[2] or 1), int(m[3] or 1)
+    try:
+        return date(rok, miesiac, dzien).isoformat()
+    except ValueError:  # 2026-02-30, 2026-13-01 — data z tabliczki, nie z kalendarza
+        return None
 
 
 def sports_pl(tags: dict[str, str]) -> list[str] | None:
@@ -630,7 +661,7 @@ def main() -> int:
             kosze_n = int(kosze) if kosze else None
         except ValueError:
             kosze_n = None
-        sprawdzone = (p.tags.get("check_date") or p.tags.get("survey:date") or "").strip()[:10] or None
+        sprawdzone = data_sprawdzenia(p.tags)
 
         # Nazwy potoczne — ludzie szukają „Orlik na Górczynie", nie nazwy
         # z tabliczki. Puste odsiewamy, duplikaty też.

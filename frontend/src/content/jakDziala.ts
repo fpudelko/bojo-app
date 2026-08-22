@@ -10,6 +10,17 @@ export interface SekcjaJakDziala {
   akapity: readonly string[];
 }
 
+/**
+ * Direct Answer — odpowiedź wprost na "jak to działa", przed spisem treści.
+ * Ten sam wymóg samodzielności co DLACZEGO_ODPOWIEDZ: nazywa Bojo z nazwy
+ * i podaje mechanikę, nie zapowiada jej.
+ */
+export const JAK_DZIALA_ODPOWIEDZ =
+  'Organizator zakłada w Bojo mecz — sport, boisko z mapy, termin i liczba miejsc — ' +
+  'i wysyła jeden link. Osoba z linkiem dołącza bez zakładania konta, podając imię ' +
+  'i e-mail. Bojo liczy skład, ustawia chętnych ponad limit w kolejce rezerwowej ' +
+  'i dzieli koszt obiektu na liczbę miejsc, uwzględniając zniżki z kart sportowych.';
+
 export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
   {
     id: 'w-skrocie',

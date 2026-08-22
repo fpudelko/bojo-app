@@ -28,10 +28,18 @@ const SEKRET        = Deno.env.get('BOJO_PUSH_SEKRET') ?? '';
 
 /** Dokąd prowadzi kliknięcie w powiadomienie. Ta sama logika co
  *  `celPowiadomienia()` w `NotificationBell.tsx` — powiadomienie na telefonie
- *  ma otwierać dokładnie to samo miejsce co powiadomienie w aplikacji. */
+ *  ma otwierać dokładnie to samo miejsce co powiadomienie w aplikacji, łącznie
+ *  z zakładką: wiadomość prowadzi wprost na „Rozmowa"/„Tablica", nie na
+ *  domyślną zakładkę meczu/grupy (zgłoszone wprost). */
 function adresPowiadomienia(dane: Record<string, unknown>): string {
-  if (dane.event_id) return `/wydarzenia/${dane.event_id}`;
-  if (dane.group_id) return `/grupy/${dane.group_id}`;
+  const typ = dane.typ;
+  if (dane.event_id) {
+    return typ === 'wiadomosc_w_meczu' ? `/wydarzenia/${dane.event_id}?tab=rozmowa` : `/wydarzenia/${dane.event_id}`;
+  }
+  if (dane.group_id) {
+    const naTablice = typ === 'wiadomosc_w_grupie' || typ === 'ogloszenie_w_grupie';
+    return naTablice ? `/grupy/${dane.group_id}?tab=tablica` : `/grupy/${dane.group_id}`;
+  }
   return '/';
 }
 
@@ -82,6 +90,10 @@ serve(async (req) => {
     // `tag` po meczu: kolejne powiadomienie o tym samym meczu PODMIENIA
     // poprzednie zamiast układać stos pięciu (patrz `public/sw.js`).
     tag: dane.event_id ? `mecz-${dane.event_id}` : dane.group_id ? `ekipa-${dane.group_id}` : 'bojo',
+    // Identyfikator wiersza `notifications` (migracja 119) — `public/sw.js`
+    // dokleja go do adresu po kliknięciu, żeby `NotificationBell.tsx` mógł
+    // oznaczyć TĘ pozycję jako przeczytaną w dzwonku.
+    id: dane.id ?? null,
   });
 
   const martwe: string[] = [];

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import StronaTresci from '@/components/tresc/StronaTresci';
 import SekcjaTresci from '@/components/tresc/SekcjaTresci';
 import MiniFaq from '@/components/tresc/MiniFaq';
-import { CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
 import { FAQ } from '@/content/faq';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -31,6 +31,12 @@ export default function DlaczegoBojoPage() {
       lead="Argumenty na wypadek, gdy ktoś z ekipy zapyta, po co kolejna aplikacja."
       tytulDlaOkruszkow="Dlaczego Bojo"
     >
+      {/* Direct Answer nad pierwszą sekcją — odpowiedź wprost dla kogoś, kto
+          przyszedł z zapytania o alternatywę dla grupy na czacie. */}
+      <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-900">
+        {DLACZEGO_ODPOWIEDZ}
+      </p>
+
       <SekcjaTresci id="co-uwiera" tytul="Co uwiera w grupie na Facebooku i w ankiecie na WhatsAppie">
         <ul className="list-disc space-y-2 pl-5">
           {CO_UWIERA.map((p) => <li key={p}>{p}</li>)}

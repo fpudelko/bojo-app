@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `118` · 39 tabel · 698 testy
+**Stan na:** 2026-08-22 · migracja `119` · 39 tabel · 710 testów
 
 ---
 
@@ -59,11 +59,13 @@ imię i e-mail i jest w składzie (funkcja RPC `dolacz_do_meczu_jako_goscie()`, 
 `082`–`088`, patrz [funkcje.md](./funkcje.md#zapis-na-mecz-bez-logowania)); konto może
 dokończyć dopiero po zapisie, jeśli chce mieć historię i statystyki.
 
-Jedno miasto ma dziś dedykowaną stronę pod konkretny sport: `/graj/[sport]/poznan`
-(cztery sporty × Poznań), z licznikiem otwartych meczów w promieniu ok. 15 km na żywo —
-patrz [funkcje.md](./funkcje.md#strona-grajsportmiasto--poznań). To pilotaż, nie ograniczenie
-produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, Poznań ma tylko osobną stronę
-wejściową.
+Trzy miasta mają dziś dedykowane strony pod konkretny sport: `/[sport]/[miasto]` dla
+Poznania, Warszawy i Krakowa (cztery sporty × trzy miasta = dwanaście stron), z licznikiem
+otwartych meczów w promieniu ok. 15 km na żywo i liczbą obiektów katalogu w okolicy —
+patrz [funkcje.md](./funkcje.md#strona-sportmiasto--poznań-warszawa-kraków). To pilotaż,
+nie ograniczenie produktu: mecz nadal da się stworzyć gdziekolwiek w Polsce, te trzy
+miasta mają tylko osobną stronę wejściową. Starsze adresy `/graj/[sport]/[miasto]`
+przekierowują trwale (301) na nowe.
 
 **Pytania, na które odpowiada ta sekcja:** W jakich miastach działa Bojo? Czy Bojo jest
 dostępne w moim mieście? Ile boisk ma Bojo? Jakie sporty obsługuje Bojo? Czy trzeba mieć
@@ -364,6 +366,79 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
+### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
+
+PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
+dopiero po przewinięciu — modele generatywne cytują krótkie, faktograficzne akapity, a
+takich nie było. Odpowiedź o podziale kosztów nie podawała żadnej liczby, więc nie dawała
+się zacytować jako konkret. Landingi lokalne obsługiwały jedno miasto i siedziały pod
+prefiksem `/graj/`, a nic na stronie nie mówiło wprost, że Bojo nie jest systemem
+rezerwacji obiektów — przez co trafiało do odpowiedzi na zapytania o wynajem boiska,
+gdzie nic nie wnosi.
+
+ROZWIĄZANIE BOJO: Direct Answer (40–50 słów) nad treścią `/dlaczego-bojo`,
+`/jak-dziala-bojo` i każdej strony sport+miasto. Odpowiedź o kosztach niesie rachunek
+(150 zł ÷ 12 miejsc = 12,50 zł od osoby — dzielnikiem jest liczba MIEJSC, nie liczba
+zapisanych). Trzy nowe pytania FAQ: o sprawiedliwe rozliczenie wynajmu, o brakującą osobę
+na mecz i o szukanie ludzi do gry. Landingi lokalne przeniesione z `/graj/[sport]/[miasto]`
+na `/[sport]/[miasto]` (301 ze starych adresów) i rozszerzone o Warszawę i Kraków —
+dwanaście stron. Każda dostała blok „Czym Bojo nie jest", liczbę obiektów katalogu
+w okolicy, `MiniFaq` z czterema pytaniami i link do mapy.
+
+MECHANIKA: `content/miasta.ts` (nowy — slug, mianownik, miejscownik z przyimkiem,
+współrzędne, szablony Direct Answer i `CZYM_BOJO_NIE_JEST`), `app/[sport]/[miasto]/page.tsx`
+(przeniesiony, `dynamicParams = false` — trasa siedzi na pierwszym segmencie ścieżki),
+`next.config.mjs#redirects()`, `lib/api.ts#policzBoiskaWOkolicy()` (kadr prostokątny, nie
+haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPOWIEDZ`,
+`content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
+stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
+`scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
+### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
+
+PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
+Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
+pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
+miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
+zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
+zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
+`show_payment_status`, które miało zasłaniać co innego.
+
+ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
+rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
+znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
+uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
+sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
+„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
+
+MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
+„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
+z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
+
+### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
+
+PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
+„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
+o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
+aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
+pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
+pokazał i użytkownik ją otworzył.
+
+ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
+z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
+listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
+o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
+prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
+Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
+w dzwonku.
+
+MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
+(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
+Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
+powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
+`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
+Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
+Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
+w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
 
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
@@ -481,83 +556,3 @@ też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten p
 `content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
 testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
 tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.
-
-### 2026-08-19 — SEO/GEO: współrzędne meczu w danych strukturalnych, linki między boiskami a treścią
-
-PROBLEM: dane strukturalne meczu (`SportsEvent`) nie niosły współrzędnych, mimo że `events.lat`
-i `events.lng` są zapisywane przy każdym utworzeniu meczu — wyszukiwarki i asystenci AI nie
-mieli sygnału geograficznego do lokalnych zapytań („mecze w mojej okolicy”). Osobno: katalog
-boisk (`/boiska/[sport]`) i strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`) nie linkowały
-do siebie nawzajem — ktoś szukający boiska nie trafiał na wyjaśnienie, jak zorganizować na nim
-mecz, i odwrotnie.
-
-ROZWIĄZANIE BOJO: `location.geo` (`GeoCoordinates`) w danych strukturalnych meczu, gdy
-współrzędne są znane — dotyczy zarówno boiska z katalogu, jak i przypiętej pinezki, bo obie
-ścieżki zapisują `events.lat`/`events.lng`. `/boiska/[sport]` dostało link „Jak działa Bojo —
-zbierz skład na to boisko”, a `/jak-dziala-bojo` i `/dlaczego-bojo` dostały link „Mapa boisk”
-w swoich CTA-boxach.
-
-MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` dokłada `geo`
-jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
-selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
-`app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).
-
-### 2026-08-19 — SEO/GEO: kalkulator kosztów w nagłówku, sekcja o brakujących graczach, mini-FAQ
-
-PROBLEM: `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na realne pytania organizatorów
-(„jak rozliczyć mecz ze znajomymi”, „gdzie szukać brakujących graczy”, „czym Bojo różni się
-od grupy na WhatsAppie”), ale nagłówki i meta-opisy nie używały tych fraz wprost — wyszukiwarki
-i asystenci AI składają odpowiedź z fragmentu najbliższego pytaniu, więc sekcja bez pytania
-w nagłówku ginęła, mimo że odpowiedź w treści już tam była. Osobno: strony treści nie miały
-żadnej danej strukturalnej poza `BreadcrumbList` — `siteJsonLd()` opisywał Bojo tylko jako
-`Organization`/`WebSite`, bez listy funkcji czytelnej dla modeli.
-
-ROZWIĄZANIE BOJO: nagłówek sekcji „Kto ile płaci” brzmi teraz „Jak rozliczyć mecz ze
-znajomymi — kalkulator kosztów boiska” (treść bez zmian — pierwsze zdanie już było gotową
-odpowiedzią). Nowa sekcja „Co zrobić, gdy brakuje 1-2 graczy do składu” tłumaczy przełącznik
-„mecz publiczny” z kroku 3 kreatora i uczciwie zastrzega, że publicznych gier bywa dziś
-niewiele. `/jak-dziala-bojo` i `/dlaczego-bojo` dostały każda mały, tematyczny blok FAQ
-(accordion) pod koniec strony — inny podzbiór pytań na każdej, żeby się nie dublowały.
-`siteJsonLd()` niesie teraz też węzeł `SoftwareApplication` z listą funkcji, a
-`/jak-dziala-bojo` emituje `HowTo` nad trzema krokami zakładania meczu.
-
-MECHANIKA: `content/jakDziala.ts` (sekcja `pieniadze` przemianowana, nowa sekcja
-`brakuje-graczy`), `lib/structuredData.ts` (`howToJsonLd()`, węzeł `SoftwareApplication`
-w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty z `/faq`,
-używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
-nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
-stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
-
-### 2026-08-19 — Treść powiadomienia mówi, co się stało
-
-PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
-linijkach — i musi w tym czasie odpowiedzieć na pytanie „czy mnie to teraz obchodzi".
-Powiadomienia o wiadomościach nie odpowiadały wcale: tytuł brzmiał „Nowa wiadomość" (czyli
-to, co widać po ikonie), a treść mówiła „X napisał w rozmowie", czyli powtarzała tytuł
-innymi słowami. Trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10
-minut później", czy o „nie dam rady, szukajcie kogoś". Osobno: zachęta do włączenia
-powiadomień wracała przy każdym wejściu na mecz, w którym się gra.
-
-ROZWIĄZANIE BOJO: tytuł powiadomienia niesie konkret, którego dotyczy (nazwa meczu, nazwa
-ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wiadomość
-(`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
-i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
-do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
-pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
-ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
-aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
-(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
-drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
-widać go teraz na liście składów (litera „c" w okręgu przy nazwisku, `OznaczenieKapitana.tsx`). Na boisku w Taktyce widnieje pełne imię i nazwisko łamane na dwie linijki, a w kółku nazwa pozycji (BR, LO, ŚP, N…) — kółko mówi „gdzie", podpis mówi „kto"; samo imię nie rozróżniało dwóch Mateuszów w jednym składzie. Przy najbliższym meczu ekipy stoi ten sam panel „Zaproś znajomych" co w widoku meczu (udostępnienie + kopiowanie linku) zamiast pojedynczego „Udostępnij mecz" i przy nazwie drużyny w zakładce Taktyka.
-
-MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
-`powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
-`components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
-udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
-z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
-widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
-zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
-idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
-składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
-`teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
-opublikować.

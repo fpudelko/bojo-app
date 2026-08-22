@@ -39,7 +39,11 @@ self.addEventListener('push', (zdarzenie) => {
     // `tag` sprawia, że kolejne powiadomienie o TYM SAMYM meczu podmienia
     // poprzednie, zamiast układać stos pięciu identycznych.
     tag: dane.tag || 'bojo',
-    data: { adres: dane.adres || '/' },
+    // `id` — identyfikator wiersza w `notifications` (migracja 119) — jedzie
+    // do `notificationclick` niżej, żeby kliknięcie oznaczyło TĘ konkretną
+    // pozycję jako przeczytaną w dzwonku. Bez tego dzwonek nie wiedział, że
+    // telefon już to pokazał i użytkownik już to otworzył.
+    data: { adres: dane.adres || '/', id: dane.id || null },
   };
 
   zdarzenie.waitUntil(self.registration.showNotification(tytul, opcje));
@@ -47,7 +51,16 @@ self.addEventListener('push', (zdarzenie) => {
 
 self.addEventListener('notificationclick', (zdarzenie) => {
   zdarzenie.notification.close();
-  const adres = (zdarzenie.notification.data && zdarzenie.notification.data.adres) || '/';
+  const dane = zdarzenie.notification.data || {};
+  let adres = dane.adres || '/';
+  // Service worker nie ma dostępu do sesji Supabase (localStorage strony), więc
+  // nie może sam oznaczyć wiersza jako przeczytany — dokleja identyfikator do
+  // adresu, a `NotificationBell.tsx` odczytuje go po stronie klienta i woła
+  // `markRead()`. `adres` może już nieść `?tab=rozmowa` (patrz `adresPowiadomienia`
+  // w `send-push`), stąd sprawdzenie, czy doklejać `?` czy `&`.
+  if (dane.id) {
+    adres += (adres.includes('?') ? '&' : '?') + 'przeczytaj=' + encodeURIComponent(dane.id);
+  }
 
   zdarzenie.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((okna) => {
