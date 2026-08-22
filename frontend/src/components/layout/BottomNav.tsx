@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Map, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import IkonaWiadomosci from './IkonaWiadomosci';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, policzNadchodzaceMoje, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
-import { getMyGroups, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
-import { hasUnreadGroupMessages, getUnreadGroupName } from '@/lib/groupPosts';
+import { getMyGroups, getMyGroupsZTerminem, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
+import { hasUnreadGroupMessages, getUnreadGroupName, rozmowyGrupZNieprzeczytanymi } from '@/lib/groupPosts';
 import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
@@ -55,6 +55,7 @@ function groupIdFromPathname(pathname: string): string | null {
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const groupId = groupIdFromPathname(pathname);
   const nowyHref = groupId ? `/wydarzenia/nowe?group=${groupId}` : '/wydarzenia/nowe';
@@ -123,10 +124,15 @@ export default function BottomNav() {
   // Nazwa ekipy z nieprzeczytaną wiadomością — do dymka „Nowa wiadomość
   // w grupie {nazwa}". Sam wskaźnik jej nie potrzebuje, tylko bool.
   const [unreadGroupName, setUnreadGroupName] = useState<string | null>(null);
+  // Czy w ogóle ma jakąkolwiek ekipę — samo `boolean`, do dymka odkrywającego
+  // gest przytrzymania „Grupy" (patrz `gestGrupy` niżej). Bez ekipy gest i tak
+  // nic ciekawego nie robi, więc nie ma sensu go zapowiadać.
+  const [maGrupy, setMaGrupy] = useState(false);
   useEffect(() => {
-    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); return; }
+    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); setMaGrupy(false); return; }
     let aktualne = true;
     getMyGroups(user.id).then((groups) => {
+      if (aktualne) setMaGrupy(groups.length > 0);
       const ids = groups.map((g) => g.id);
       hasUnreadGroupMessages(user.id, ids)
         .then((v) => { if (aktualne) setUnreadGroups(v); })
@@ -140,7 +146,7 @@ export default function BottomNav() {
       getUnreadGroupName(user.id, groups)
         .then((v) => { if (aktualne) setUnreadGroupName(v); })
         .catch(() => { if (aktualne) setUnreadGroupName(null); });
-    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); } });
+    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); setMaGrupy(false); } });
     return () => { aktualne = false; };
   }, [user, pathname]);
 
@@ -169,6 +175,32 @@ export default function BottomNav() {
   // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
   const [panelRozmowOtwarty, setPanelRozmowOtwarty] = useState(false);
   const gestMoje = useDlugieWcisniecie(() => setPanelRozmowOtwarty(true));
+
+  // Przytrzymanie „Grupy" → od razu ekipa, o którą chodzi, zamiast listy
+  // wszystkich (zgłoszone wprost). Priorytet: 1) ekipa z NAJBLIŻSZYM
+  // wydarzeniem (`getMyGroupsZTerminem` sortuje dokładnie w tej kolejności —
+  // ta sama funkcja karmi karty na `/grupy`), 2) w jej braku — ekipa
+  // z najświeższą nieprzeczytaną wiadomością, 3) bez żadnego z tych dwóch —
+  // zwykła lista `/grupy`, czyli to samo, co zrobiłoby tapnięcie. Zapytania
+  // lecą NA ŻĄDANIE gestu, nie przy każdej zmianie trasy — inaczej doszłyby
+  // dwa kolejne zapytania do i tak już długiej listy w tym pliku.
+  const idacDoGrupy = useRef(false);
+  const otworzNajlepszaGrupe = async () => {
+    if (!user || idacDoGrupy.current) return;
+    idacDoGrupy.current = true;
+    try {
+      const grupy = await getMyGroupsZTerminem(user.id);
+      const zNajblizszym = grupy.find((g) => g.nextEvent);
+      if (zNajblizszym) { router.push(`/grupy/${zNajblizszym.id}`); return; }
+      const nieprzeczytane = await rozmowyGrupZNieprzeczytanymi(user.id, grupy);
+      router.push(nieprzeczytane[0] ? `/grupy/${nieprzeczytane[0].id}` : '/grupy');
+    } catch {
+      router.push('/grupy');
+    } finally {
+      idacDoGrupy.current = false;
+    }
+  };
+  const gestGrupy = useDlugieWcisniecie(otworzNajlepszaGrupe);
 
   // Dymki — krótkie wyjaśnienie znaczenia kropki, na moment, gdy się zapala.
   // Zawsze przypięty do konkretnej ikony (`href`) — stąd osobne typy dla
@@ -248,6 +280,9 @@ export default function BottomNav() {
       // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
       // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
       ['przytrzymaj-rozmowy', unreadEvents || unreadGroups, 'Przytrzymaj „Moje" → wszystkie rozmowy', '/moje-gry'],
+      // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
+      // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
+      ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
     ];
     for (const [typ, aktywny, tekst, href] of proby) {
       const byloAktywne = poprzednieAktywne.current[typ] ?? false;
@@ -261,7 +296,7 @@ export default function BottomNav() {
     }
     if (!dymekWidoczny && !timerDymka.current && kolejkaDymkow.current.length > 0) pokazNastepnyDymek();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingApproval, unreadEvents, unreadEventTitle, unreadGroups, newGroupEvents, newGroup, unreadGroupName, nearbyNew]);
+  }, [pendingApproval, unreadEvents, unreadEventTitle, unreadGroups, newGroupEvents, newGroup, unreadGroupName, nearbyNew, maGrupy]);
 
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
@@ -304,8 +339,9 @@ export default function BottomNav() {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
-    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś wyłącznie na
-        „Moje", stąd opcjonalne. Rozłożone wprost na `<Link>`. */
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — na „Moje" (panel
+        wszystkich nieprzeczytanych rozmów) i na „Grupy" (od razu najbliższa
+        ekipa, patrz `gestGrupy`), stąd opcjonalne. Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
   }) {
     const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
@@ -459,7 +495,7 @@ export default function BottomNav() {
               dymek={dymek}
               dymekAlign={dymekAlign}
               licznik={item.href === '/moje-gry' ? ileMoich : 0}
-              gest={item.href === '/moje-gry' ? gestMoje : undefined}
+              gest={item.href === '/moje-gry' ? gestMoje : item.href === '/grupy' ? gestGrupy : undefined}
             />
           );
         })}

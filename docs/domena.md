@@ -243,11 +243,18 @@ Mechanika (migracja `058`):
 
 | Element | Gdzie |
 |---|---|
-| Okno na decyzję | `events.reserve_claim_hours` (1–72 h, domyślnie 3) |
+| Okno na decyzję | `events.reserve_claim_minutes` (15 min – 72 h, domyślnie 180 min = 3 h) |
 | Aktywna oferta | `event_participants.claim_offered_at` |
 | Przepuścił (odrzucił lub nie zdążył) | `event_participants.claim_passed` |
 | Utrzymanie kolejki | funkcja `sync_reserve_claim(event_id)`, `SECURITY DEFINER` |
 | Kolejność w kolejce | `event_participants.zapisano_at` (migracja `110`) |
+
+Kolumna nazywała się `reserve_claim_hours` (pełne godziny) do migracji `118` —
+przenumerowana na minuty, bo wybór był „mocno ograniczony": godzina jako
+jednostka fizycznie nie mieściła „30 minut", typowego czasu reakcji na telefon
+(zgłoszone wprost). Kreator/edycja (`EventCapacityFields.tsx`) mają gęstsze
+presety w przedziale 30 min – 3 h plus pole „Inny czas…" bez górnego ograniczenia
+poza CHECK-iem bazy.
 
 Kolejka rusza się przy **wejściu na stronę meczu** — nie ma backendu ani crona, więc
 `sync_reserve_claim` jest wołane z klienta (`syncReserveClaim` w `lib/events.ts`) i musi

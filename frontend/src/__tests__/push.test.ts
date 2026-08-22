@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // w `beforeEach` byłoby już spóźnione.
 vi.hoisted(() => { process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'test-klucz'; });
 
-vi.mock('@/lib/supabase', () => ({ supabase: { from: vi.fn() } }));
+vi.mock('@/lib/supabase', () => ({ supabase: { from: vi.fn(), rpc: vi.fn().mockResolvedValue({ error: null }) } }));
 
 const stanPrzegladarki = vi.hoisted(() => ({
   wartosc: {
@@ -19,7 +19,8 @@ vi.mock('@/lib/instalacja', () => ({
   czytajStanPrzegladarki: () => stanPrzegladarki.wartosc,
 }));
 
-import { stanPush } from '@/lib/push';
+import { supabase } from '@/lib/supabase';
+import { stanPush, dopnijSubskrypcjePush } from '@/lib/push';
 
 /** Podstawia API przeglądarki, którego jsdom nie ma. */
 function ustawPrzegladarke({ api, zgoda, subskrypcja }: {
@@ -42,7 +43,11 @@ function ustawPrzegladarke({ api, zgoda, subskrypcja }: {
     configurable: true,
     value: {
       getRegistration: async () => ({
-        pushManager: { getSubscription: async () => (subskrypcja ? { endpoint: 'https://x' } : null) },
+        pushManager: {
+          getSubscription: async () => (subskrypcja
+            ? { endpoint: 'https://x', toJSON: () => ({ endpoint: 'https://x', keys: { p256dh: 'p', auth: 'a' } }) }
+            : null),
+        },
       }),
     },
   });
@@ -86,5 +91,34 @@ describe('stanPush', () => {
     const { stanPush: swiezy } = await import('@/lib/push');
     ustawPrzegladarke({ api: true, zgoda: 'default', subskrypcja: false });
     expect(await swiezy()).toBe('nieobslugiwane');
+  });
+});
+
+// Naprawa migracji 117: subskrypcja przeglądarki dostaje user_id wyłącznie
+// przy kliknięciu „Włącz" — na współdzielonym urządzeniu zostawała przypięta
+// do PIERWSZEGO konta na zawsze. `dopnijSubskrypcjePush()` woła się po cichu
+// przy logowaniu i przez RPC (nie zwykły upsert — RLS UPDATE sprawdzałby
+// właściciela STAREGO wiersza i po cichu blokował reassignment).
+describe('dopnijSubskrypcjePush', () => {
+  it('bez istniejącej subskrypcji nic nie woła — nie ma czego dopinać', async () => {
+    ustawPrzegladarke({ api: true, zgoda: 'default', subskrypcja: false });
+    await dopnijSubskrypcjePush();
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('z istniejącą subskrypcją woła RPC z jej endpointem i kluczami', async () => {
+    ustawPrzegladarke({ api: true, zgoda: 'granted', subskrypcja: true });
+    await dopnijSubskrypcjePush();
+    expect(supabase.rpc).toHaveBeenCalledWith('dopnij_subskrypcje_push', expect.objectContaining({
+      p_endpoint: 'https://x',
+    }));
+  });
+
+  it('błąd przeglądarki nie rzuca — logowanie nie może się wywrócić', async () => {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { getRegistration: async () => { throw new Error('brak'); } },
+    });
+    await expect(dopnijSubskrypcjePush()).resolves.toBeUndefined();
   });
 });

@@ -125,7 +125,7 @@ export async function updateSeriesEvents(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_hours: data.reserveClaimHours ?? 3,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],

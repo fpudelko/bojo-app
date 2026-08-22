@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
 import { supabase } from '@/lib/supabase';
 import {
   createEvent, joinEvent, joinEventAsGuest, removeParticipant, getMyParticipationMap,
-  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry,
+  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst,
 } from '@/lib/events';
 import type { EventItem } from '@/types';
 
@@ -109,7 +109,7 @@ describe('repeatEvent', () => {
     showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
     teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
     maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,
-    reserveClaimHours: 2, acceptedPaymentMethods: [], acceptedSportsCards: [],
+    reserveClaimMinutes: 120, acceptedPaymentMethods: [], acceptedSportsCards: [],
     sportsCardDiscountGrosze: null,
   };
 
@@ -624,5 +624,25 @@ describe('werdyktGry', () => {
   it('błędna konfiguracja (min > max, tu tylko sam próg) nie wywraca funkcji', () => {
     expect(() => werdyktGry({ minPlayers: 99 }, 3)).not.toThrow();
     expect(werdyktGry({ minPlayers: 99 }, 3).brakuje).toBe(96);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// czasRezerwyTekst (118) — ta sama reguła formatu co sync_reserve_claim()
+// w SQL, więc treść push i tekst na stronie meczu nigdy się nie rozjadą.
+// ---------------------------------------------------------------------------
+describe('czasRezerwyTekst', () => {
+  it('poniżej godziny pokazuje same minuty', () => {
+    expect(czasRezerwyTekst(30)).toBe('30 min.');
+  });
+
+  it('pełna godzina bez zbędnych "0 min."', () => {
+    expect(czasRezerwyTekst(60)).toBe('1 godz.');
+    expect(czasRezerwyTekst(180)).toBe('3 godz.');
+  });
+
+  it('niepełna godzina łączy oba człony', () => {
+    expect(czasRezerwyTekst(90)).toBe('1 godz. 30 min.');
+    expect(czasRezerwyTekst(150)).toBe('2 godz. 30 min.');
   });
 });

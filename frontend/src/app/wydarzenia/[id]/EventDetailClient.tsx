@@ -43,7 +43,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
-  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu,
+  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
@@ -854,7 +854,7 @@ export default function EventDetailClient() {
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer?.claimOfferedAt
-    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimHours * 3600_000)
+    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimMinutes * 60_000)
     : null;
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
@@ -3203,8 +3203,8 @@ export default function EventDetailClient() {
                     </li>
                     <li>
                       Na przyjęcie miejsca masz{' '}
-                      <span className="font-semibold">{event.reserveClaimHours} h</span>; po tym czasie
-                      przechodzi do kolejnej osoby.
+                      <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
+                      czasie przechodzi do kolejnej osoby.
                     </li>
                     <li>
                       Powiadomienie zobaczysz w Bojo, pod dzwonkiem.{' '}

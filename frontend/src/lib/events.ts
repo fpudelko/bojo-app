@@ -55,7 +55,7 @@ export function toEvent(row: any): EventItem {
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
-    reserveClaimHours: row.reserve_claim_hours ?? 3,
+    reserveClaimMinutes: row.reserve_claim_minutes ?? 180,
     acceptedPaymentMethods: row.accepted_payment_methods ?? [],
     blikPhone: row.blik_phone ?? undefined,
     acceptedSportsCards: row.accepted_sports_cards ?? [],
@@ -177,7 +177,7 @@ export async function createEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_hours: data.reserveClaimHours ?? 3,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -275,7 +275,7 @@ export async function updateEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_hours: data.reserveClaimHours ?? 3,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       blik_phone: data.blikPhone?.trim() || null,
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -508,6 +508,17 @@ export function werdyktGry(
   if (!event.minPlayers || event.minPlayers <= 0) return { stan: 'brak-progu', brakuje: 0 };
   const brakuje = Math.max(0, event.minPlayers - wSkladzie);
   return { stan: brakuje === 0 ? 'gramy' : 'zagrozona', brakuje };
+}
+
+/** Minuty → czytelny tekst po polsku ("30 min.", "2 godz.", "1 godz. 30 min.").
+ *  Ta sama funkcja, którą buduje `sync_reserve_claim()` w migracji `118` —
+ *  jedna reguła formatu, więc treść powiadomienia push i tekst na stronie
+ *  meczu nigdy się nie rozjadą. */
+export function czasRezerwyTekst(minuty: number): string {
+  if (minuty < 60) return `${minuty} min.`;
+  const godz = Math.floor(minuty / 60);
+  const reszta = minuty % 60;
+  return reszta === 0 ? `${godz} godz.` : `${godz} godz. ${reszta} min.`;
 }
 
 /** Pyta bazę, czy zapis w tej roli trafiłby teraz na rezerwę.
@@ -1167,7 +1178,7 @@ export async function repeatEvent(
       costGrosze: source.costGrosze,
       maxGoalkeepers: source.maxGoalkeepers,
       goalkeepersEnabled: source.goalkeepersEnabled,
-      reserveClaimHours: source.reserveClaimHours,
+      reserveClaimMinutes: source.reserveClaimMinutes,
       acceptedPaymentMethods: source.acceptedPaymentMethods,
       blikPhone: source.blikPhone,
       acceptedSportsCards: source.acceptedSportsCards,

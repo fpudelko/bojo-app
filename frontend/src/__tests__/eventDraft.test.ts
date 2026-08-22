@@ -18,7 +18,7 @@ const VALUES: EventDraftValues = {
   maxPlayers: 14,
   maxPlayersTouched: false,
   goalkeepersEnabled: true,
-  reserveClaimHours: 3,
+  reserveClaimMinutes: 180,
   title: '',
   description: '',
   descriptionEnabled: false,
