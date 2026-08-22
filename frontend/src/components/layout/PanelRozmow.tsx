@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { clsx } from 'clsx';
 import { X, Users as UsersIcon, MessageCircle } from 'lucide-react';
 import { WARSTWA } from '@/lib/warstwy';
 import { etykietaZapisu } from '@/lib/time';
-import { rozmowyZNieprzeczytanymi, type RozmowaNieprzeczytana } from '@/lib/comments';
-import { rozmowyGrupZNieprzeczytanymi } from '@/lib/groupPosts';
+import { wszystkieRozmowyMeczow, type RozmowaNaLiscie } from '@/lib/comments';
+import { wszystkieRozmowyGrup } from '@/lib/groupPosts';
 import { getMyGroups } from '@/lib/groups';
 
-interface Wpis extends RozmowaNieprzeczytana {
+interface Wpis extends RozmowaNaLiscie {
   typ: 'mecz' | 'grupa';
 }
 
@@ -44,8 +45,8 @@ export default function PanelRozmow({
     (async () => {
       const grupy = await getMyGroups(userId);
       const [mecze, ekipy] = await Promise.all([
-        rozmowyZNieprzeczytanymi(userId),
-        rozmowyGrupZNieprzeczytanymi(userId, grupy),
+        wszystkieRozmowyMeczow(userId),
+        wszystkieRozmowyGrup(userId, grupy),
       ]);
       if (!aktualne) return;
       const polaczone: Wpis[] = [
@@ -73,12 +74,12 @@ export default function PanelRozmow({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Nieprzeczytane rozmowy"
+        aria-label="Rozmowy"
         className="fixed inset-x-0 bottom-0 flex max-h-[70dvh] flex-col rounded-t-2xl bg-white shadow-xl dark:bg-slate-800"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3.5 dark:border-slate-700">
-          <h2 className="text-base font-bold text-ink">Nieprzeczytane rozmowy</h2>
+          <h2 className="text-base font-bold text-ink">Rozmowy</h2>
           <button
             type="button"
             onClick={naZamknij}
@@ -99,7 +100,10 @@ export default function PanelRozmow({
           ) : wpisy.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-3xl">💬</p>
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Nic nowego do przeczytania</p>
+              <p className="mt-2 text-sm font-semibold text-ink">Jeszcze cicho</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Rozmowy z Twoich meczów i ekip pojawią się tutaj — razem, od najnowszej.
+              </p>
             </div>
           ) : (
             <ul className="divide-y divide-slate-50 dark:divide-slate-700">
@@ -108,18 +112,40 @@ export default function PanelRozmow({
                   <Link
                     href={w.typ === 'mecz' ? `/wydarzenia/${w.id}?tab=rozmowa` : `/grupy/${w.id}?tab=tablica`}
                     onClick={naZamknij}
-                    className="flex items-center gap-3 py-3 active:opacity-70"
+                    className="flex items-start gap-3 py-3 active:opacity-70"
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg dark:bg-slate-700" aria-hidden="true">
                       {w.typ === 'mecz' ? '⚽' : <UsersIcon className="h-4 w-4 text-slate-500" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-ink">{w.tytul || 'Bez nazwy'}</span>
-                      <span className="block text-[11px] text-slate-400">{etykietaZapisu(w.najnowsza)}</span>
+                      <span className="flex items-baseline gap-2">
+                        <span className={clsx(
+                          'min-w-0 flex-1 truncate text-sm text-ink',
+                          w.ile > 0 ? 'font-bold' : 'font-semibold',
+                        )}>
+                          {w.tytul}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-slate-400">{etykietaZapisu(w.najnowsza)}</span>
+                      </span>
+                      {/* Zajawka ostatniej wiadomości — bez niej lista mówi
+                          wyłącznie „coś tu jest" i za każdym razem trzeba
+                          wejść, żeby się dowiedzieć, czy warto. Nieprzeczytana
+                          rozmowa jest CIEMNIEJSZA i pogrubiona; to ten sam
+                          sygnał, który każdy zna z komunikatora. */}
+                      <span className={clsx(
+                        'mt-0.5 block truncate text-[13px]',
+                        w.ile > 0 ? 'font-medium text-slate-600 dark:text-slate-300' : 'text-slate-400',
+                      )}>
+                        {w.ostatnia
+                          ? `${w.moja ? 'Ty' : w.autor.split(' ')[0]}: ${w.ostatnia}`
+                          : 'Brak wiadomości'}
+                      </span>
                     </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
-                      <MessageCircle className="h-3 w-3" /> {w.ile}
-                    </span>
+                    {w.ile > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-1 self-center rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                        <MessageCircle className="h-3 w-3" /> {w.ile}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
