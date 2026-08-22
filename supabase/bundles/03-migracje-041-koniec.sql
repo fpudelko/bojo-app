@@ -7605,10 +7605,56 @@ COMMENT ON FUNCTION dopnij_subskrypcje_push IS
 -- który ktoś prędzej czy później przeczyta z niewłaściwej. Istniejące wartości
 -- (pełne godziny) mnożymy razy 60 — zero zmiany faktycznego czasu dla już
 -- ustawionych meczów.
-ALTER TABLE events RENAME COLUMN reserve_claim_hours TO reserve_claim_minutes;
-UPDATE events SET reserve_claim_minutes = reserve_claim_minutes * 60;
+--
+-- DA SIĘ PUŚCIĆ DRUGI RAZ — i to nie jest higiena na zapas. Pierwsza wersja
+-- tej migracji zaczynała się gołym `ALTER TABLE … RENAME COLUMN`, więc
+-- każde kolejne uruchomienie wywracało się na pierwszej linijce i NIE dochodziło
+-- do reszty. Kosztowało to prawdziwą bazę w stanie połowicznym: ktoś puszcza
+-- seed, dostaje „column reserve_claim_minutes does not exist", puszcza z ręki
+-- SAMĄ zmianę nazwy żeby się odblokować — i zostaje z kolumną o nowej nazwie,
+-- ale ze STARYM ograniczeniem `CHECK 1..72`, starą wartością domyślną `3`
+-- i wartościami nadal w godzinach. Następny błąd brzmi już
+-- „violates check constraint events_reserve_claim_hours_check".
+--
+-- Stąd każdy krok niżej jest warunkowy, a całość rozpoznaje trzy stany:
+-- przed migracją, po połowicznej migracji i po pełnej.
+DO $mig118$
+DECLARE
+  -- Stan sprzed migracji: kolumna nazywa się jeszcze po staremu.
+  stara_kolumna boolean := EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'events'
+       AND column_name = 'reserve_claim_hours');
+  -- Ograniczenie z `058` PRZEŻYWA zmianę nazwy kolumny — Postgres zmienia
+  -- nazwę kolumny, nie nazwę ograniczenia. Dlatego jego obecność jest
+  -- jedynym pewnym znakiem, że w kolumnie siedzą jeszcze GODZINY: dopóki
+  -- `CHECK 1..72` wisi na tabeli, nic większego niż 72 nie miało prawa wejść.
+  stary_check boolean := EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conrelid = 'public.events'::regclass
+       AND conname = 'events_reserve_claim_hours_check');
+  przeliczone integer := 0;
+BEGIN
+  IF stara_kolumna THEN
+    ALTER TABLE events RENAME COLUMN reserve_claim_hours TO reserve_claim_minutes;
+  END IF;
 
-ALTER TABLE events DROP CONSTRAINT IF EXISTS events_reserve_claim_hours_check;
+  -- Stare ograniczenie musi zniknąć PRZED przeliczeniem: 3 godziny to 180
+  -- minut, a 180 nie mieści się w `1..72`.
+  ALTER TABLE events DROP CONSTRAINT IF EXISTS events_reserve_claim_hours_check;
+
+  -- Mnożenie razy 60 wykonuje się DOKŁADNIE RAZ — drugie zamieniłoby trzy
+  -- godziny w sto osiemdziesiąt.
+  IF stara_kolumna OR stary_check THEN
+    UPDATE events SET reserve_claim_minutes = reserve_claim_minutes * 60;
+    GET DIAGNOSTICS przeliczone = ROW_COUNT;
+  END IF;
+
+  RAISE NOTICE 'Migracja 118: przeliczono % wierszy z godzin na minuty.', przeliczone;
+END
+$mig118$;
+
+ALTER TABLE events DROP CONSTRAINT IF EXISTS events_reserve_claim_minutes_check;
 ALTER TABLE events ADD CONSTRAINT events_reserve_claim_minutes_check
   CHECK (reserve_claim_minutes BETWEEN 15 AND 4320);  -- 15 min .. 72 h (górna granica bez zmian)
 ALTER TABLE events ALTER COLUMN reserve_claim_minutes SET DEFAULT 180;  -- było DEFAULT 3 (godziny)
