@@ -38,7 +38,7 @@ export interface EventDraftValues {
   goalkeepersEnabled: boolean | null;
   /** Tryb miejsc dla bramkarzy — patrz migracja `077`. */
   slotyZarezerwowane?: boolean;
-  reserveClaimHours: number;
+  reserveClaimMinutes: number;
   title: string;
   description: string;
   descriptionEnabled: boolean;

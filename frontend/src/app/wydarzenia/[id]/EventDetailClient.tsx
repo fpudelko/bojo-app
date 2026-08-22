@@ -43,7 +43,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
-  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu,
+  awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
 import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
@@ -854,7 +854,7 @@ export default function EventDetailClient() {
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer?.claimOfferedAt
-    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimHours * 3600_000)
+    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimMinutes * 60_000)
     : null;
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
@@ -2090,12 +2090,17 @@ export default function EventDetailClient() {
       )}
 
       {/* Uczestnik nigdy nie widział, ile ma zapłacić — widział to tylko
-          organizator w „Podziale kosztów" wyżej. `showPaymentStatus`
-          („Pokaż status płatności uczestnikom") było od dawna zapisywane
-          przez formularz edycji i nigdzie nieodczytywane; to pierwsze
-          miejsce, które je respektuje. Rezerwowy nie widzi tej karty —
-          jeszcze nie ma za co płacić, dopóki nie wejdzie do składu. */}
-      {event.costGrosze > 0 && !isOwner && !canManagePayments && event.showPaymentStatus
+          organizator w „Podziale kosztów" wyżej. Rezerwowy nie widzi tej
+          karty — jeszcze nie ma za co płacić, dopóki nie wejdzie do składu.
+
+          `showPaymentStatus` NIE zasłania już kwoty ani sposobu płatności,
+          tylko sam znacznik „opłacone / nieopłacone". To rozróżnienie zgłosił
+          właściciel: przy zapisie wszystko było jasne, a po zapisaniu nie dało
+          się sprawdzić, co się zaznaczyło i ile się płaci. Kwota i sposób to
+          WŁASNE dane uczestnika — widział je w oknie zapisu i musi mieć jak do
+          nich wrócić. Ukrywać da się wyłącznie księgowość organizatora, czyli
+          kto już zapłacił. */}
+      {event.costGrosze > 0 && !isOwner && !canManagePayments
         && myConfirmed && !myConfirmed.isReserve && (() => {
           const price = priceForParticipant(
             event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
@@ -2113,23 +2118,48 @@ export default function EventDetailClient() {
                     : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
                 </span>
               </div>
+              {myConfirmed.hasSportsCard && !price.discountUnspecified && price.priceGrosze < event.costGrosze && (
+                <p className="mt-1 text-right text-xs text-slate-400">
+                  <span className="line-through">{(event.costGrosze / 100).toFixed(2)} PLN</span>
+                  {' '}— zniżka z karty sportowej
+                </p>
+              )}
               {myConfirmed.paymentMethod && (
                 <div className="mt-2 flex items-center justify-between text-sm">
                   <span className="text-slate-500">Sposób</span>
                   <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
                 </div>
               )}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                {myConfirmed.hasPaid ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                    <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                    <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
-                  </span>
-                )}
-              </div>
+              {/* Numer do BLIKA tuż przy kwocie, a nie tylko w nagłówku meczu:
+                  „ile" i „na co przelać" to jedna czynność. Widoczność rządzi
+                  się tą samą regułą co wszędzie (`canSeeBlikPhone`). */}
+              {myConfirmed.paymentMethod === 'blik' && event.blikPhone && (
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Numer BLIK</span>
+                  {canSeeBlikPhone({
+                    isOrganizer: false,
+                    isInSquad: true,
+                    minutesToStart: minutesUntilStart(event.date, event.time),
+                  }) ? (
+                    <span className="font-semibold text-ink">{event.blikPhone}</span>
+                  ) : (
+                    <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
+                  )}
+                </div>
+              )}
+              {event.showPaymentStatus && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  {myConfirmed.hasPaid ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                      <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                      <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -3203,8 +3233,8 @@ export default function EventDetailClient() {
                     </li>
                     <li>
                       Na przyjęcie miejsca masz{' '}
-                      <span className="font-semibold">{event.reserveClaimHours} h</span>; po tym czasie
-                      przechodzi do kolejnej osoby.
+                      <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
+                      czasie przechodzi do kolejnej osoby.
                     </li>
                     <li>
                       Powiadomienie zobaczysz w Bojo, pod dzwonkiem.{' '}
@@ -3360,13 +3390,40 @@ export default function EventDetailClient() {
                 </div>
               ) : user && isFull ? (
                 <>
-                  <button
-                    onClick={() => { setJoinRole('player'); setJoinAsReserve(true); otworzOknoZapisu(); }}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
-                  >
-                    Komplet — zapisz się na rezerwę
-                  </button>
-                  <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400">Zostaniesz powiadomiony jeśli zwolni się miejsce</p>
+                  {/* „Obserwuj" MUSI być także przy komplecie. Wcześniej pasek
+                      podmieniał się wtedy na samą rezerwę, więc jedyną drogą
+                      do śledzenia pełnego meczu było wejście do kolejki — a to
+                      nie to samo. Rezerwa mówi „chcę zagrać, jak się zwolni";
+                      obserwowanie mówi „nie gram, ale chcę wiedzieć, co się
+                      dzieje" (mecz ląduje w Twoich meczach, widać rozmowę).
+                      Kto nie chce grać, nie powinien blokować miejsca w kolejce
+                      tylko po to, żeby mieć mecz na oku. */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setJoinRole('player'); setJoinAsReserve(true); otworzOknoZapisu(); }}
+                      className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
+                    >
+                      Komplet — na rezerwę
+                    </button>
+                    {myMaybe ? (
+                      <button
+                        onClick={() => setLeaveConfirmOpen(true)}
+                        disabled={busy}
+                        className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-5 text-[14px] font-semibold text-amber-800 transition active:scale-[0.99] disabled:opacity-50"
+                      >
+                        <Eye className="h-4 w-4" strokeWidth={2.25} /> Obserwujesz
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleMaybe}
+                        disabled={busy}
+                        className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
+                      >
+                        Obserwuj
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400">Na rezerwie dostaniesz znać, jeśli zwolni się miejsce</p>
                 </>
               ) : null}
             </div>

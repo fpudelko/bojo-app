@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `116` · 39 tabel · 698 testów
+**Stan na:** 2026-08-22 · migracja `118` · 39 tabel · 704 testy
 
 ---
 
@@ -370,6 +370,62 @@ haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPO
 `content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
 stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
 `scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
+### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
+
+PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
+Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
+pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
+miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
+zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
+zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
+`show_payment_status`, które miało zasłaniać co innego.
+
+ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
+rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
+znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
+uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
+sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
+„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
+
+MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
+„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
+z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
+
+### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
+
+PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
+listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
+w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
+razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
+
+ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
+panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
+z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
+wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
+co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
+
+MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
+w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
+trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
+karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
+(`lib/groupPosts.ts`).
+
+### 2026-08-22 — Czas na decyzję z rezerwy: gęściej 30 min – 3 godz., plus wartość własna
+
+PROBLEM: gdy zwolni się miejsce, Bojo oferuje je pierwszej osobie z rezerwy i daje jej
+czas na kliknięcie „Wchodzę" — ale organizator mógł wybrać wyłącznie pełną godzinę (1, 3,
+6, 12 albo 24 h). Typowy czas reakcji na telefon to kilkanaście–kilkadziesiąt minut, a tej
+wartości fizycznie nie dało się ustawić.
+
+ROZWIĄZANIE BOJO: lista wyboru ma teraz gęstsze opcje w przedziale 30 minut – 3 godziny
+(30 min, 1 h, 1 h 30 min, 2 h, 2 h 30 min, 3 h) obok dotychczasowych większych wartości,
+plus „Inny czas…" z polem liczbowym w minutach (15 min – 72 h). Domyślna wartość (3 h)
+bez zmian.
+
+MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_claim_hours`
+— pełne godziny, przenumerowana na minuty, istniejące wartości × 60). `EventCapacityFields.tsx`
+(kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
+tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).
 
 ### 2026-08-20 — Link do meczu pokazuje jego szczegóły na WhatsAppie i Messengerze
 
@@ -497,94 +553,3 @@ w `siteJsonLd()`), nowy `components/tresc/MiniFaq.tsx` (accordion wyciągnięty 
 używany też tam zamiast zduplikowanego JSX). Reguła bez zmian: schema `faqJsonLd()` zawsze
 nad dokładnie tym podzbiorem `content/faq.ts`, który jest faktycznie widoczny jako tekst na
 stronie — inaczej to sygnał spamu dla wyszukiwarek, nie boost.
-
-### 2026-08-19 — Treść powiadomienia mówi, co się stało
-
-PROBLEM: powiadomienie na telefonie widać przez sekundę, na zablokowanym ekranie, w dwóch
-linijkach — i musi w tym czasie odpowiedzieć na pytanie „czy mnie to teraz obchodzi".
-Powiadomienia o wiadomościach nie odpowiadały wcale: tytuł brzmiał „Nowa wiadomość" (czyli
-to, co widać po ikonie), a treść mówiła „X napisał w rozmowie", czyli powtarzała tytuł
-innymi słowami. Trzeba było otworzyć aplikację, żeby dowiedzieć się, czy chodzi o „będę 10
-minut później", czy o „nie dam rady, szukajcie kogoś". Osobno: zachęta do włączenia
-powiadomień wracała przy każdym wejściu na mecz, w którym się gra.
-
-ROZWIĄZANIE BOJO: tytuł powiadomienia niesie konkret, którego dotyczy (nazwa meczu, nazwa
-ekipy), a treść mówi, co się wydarzyło — przy wiadomości jest to sama wiadomość
-(`Kuba Nowak: Będę 10 minut później`), ucięta do 140 znaków z wielokropkiem. „Są składy"
-i „nowy mecz w ekipie" dostały nazwę meczu w tytule oraz termin i miejsce w treści. Zachęta
-do włączenia powiadomień pokazuje się teraz WYŁĄCZNIE w chwili zapisania się na mecz, jako
-pasek wysuwany z dołu ekranu — nie jako kafelek w treści strony. Propozycja dodania Bojo do
-ekranu głównego jest arkuszem z przyciemnionym tłem, a nie wąskim paskiem: duża ikona
-aplikacji, nagłówek „Miej Bojo na ekranie głównym" i trzy korzyści zamiast jednego zdania
-(zwolnione miejsce w meczu jako pierwsza, bo tylko ona przepada w kilka minut). Kapitana
-drużyny da się wskazać w KAŻDYM trybie dzielenia składu, a nie tylko w trybie „kapitanowie";
-widać go teraz na liście składów (litera „c" w okręgu przy nazwisku, `OznaczenieKapitana.tsx`). Na boisku w Taktyce widnieje pełne imię i nazwisko łamane na dwie linijki, a w kółku nazwa pozycji (BR, LO, ŚP, N…) — kółko mówi „gdzie", podpis mówi „kto"; samo imię nie rozróżniało dwóch Mateuszów w jednym składzie. Przy najbliższym meczu ekipy stoi ten sam panel „Zaproś znajomych" co w widoku meczu (udostępnienie + kopiowanie linku) zamiast pojedynczego „Udostępnij mecz" i przy nazwie drużyny w zakładce Taktyka.
-
-MECHANIKA: migracja `111` (funkcje `powiadom_o_wiadomosci_w_meczu`,
-`powiadom_o_wiadomosci_w_grupie`, `powiadom_o_skladach`, `powiadom_o_nowym_meczu_w_grupie`),
-`components/events/ZachetaPush.tsx` (zdarzenie `zaproponujPowiadomienia()`, wołane po
-udanym zapisie — ten sam wzorzec co `zaproponujInstalacje()`), `components/ZachetaInstalacji.tsx`
-z listą korzyści w `lib/instalacja.ts` (`korzysciInstalacji()` — reguła produktowa poza
-widokiem, więc sprawdzalna testem bez renderowania). Gwiazdka kapitana w `TeamsPanel.tsx`
-zależy od `variant === 'manage'`, nie od `team_mode`; `setCaptain()` (`lib/eventFeatures.ts`)
-idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w błąd. Zatwierdzenie propozycji
-składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
-`teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
-opublikować.
-
-### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
-
-PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
-pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
-realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
-między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
-ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
-przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
-
-ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
-miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
-przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
-nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
-dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
-całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
-sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
-prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
-z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
-w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
-
-MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
-`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
-w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
-`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
-w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
-`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
-`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
-w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
-i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
-
-### 2026-08-19 — Ustawienia powiadomień i powiadomienia o wiadomościach
-
-PROBLEM: powiadomienia na telefon działały „wszystko albo nic" — jedyną reakcją na zbyt
-wiele było wyłączenie ich w całości, razem z tymi, które naprawdę mają znaczenie
-(zwolnione miejsce, odwołany mecz). Osobno: wiadomości w rozmowie meczu i na tablicy
-ekipy NIE miały żadnego powiadomienia — nieprzeczytane liczyła sama przeglądarka, więc
-o nowej wiadomości dowiadywał się tylko ten, kto i tak otworzył aplikację.
-
-ROZWIĄZANIE BOJO: w profilu, pod przełącznikiem powiadomień, jest rozwijana lista „O czym
-powiadamiać" z osobnym przełącznikiem dla każdego rodzaju: zwolnione miejsce, odwołany
-mecz, pytanie o udział, zaproszenie, prośba o dołączenie, składy, nowy mecz w ekipie,
-wiadomości w meczu, wiadomości w ekipie, ogłoszenia. Rzeczy wymagające reakcji stoją na
-górze i mają znacznik „ważne" — Bojo ostrzega, ale nie zabrania ich wyłączyć. Ustawienia
-dotyczą WYŁĄCZNIE telefonu: dzwonek w aplikacji pokazuje wszystko.
-
-Doszły powiadomienia o wiadomościach (w meczu i w ekipie) oraz o opublikowaniu składów.
-Wiadomości mają zaporę: najwyżej jedno powiadomienie na godzinę z danej rozmowy, bo
-rozmowa przed meczem potrafi mieć trzydzieści wpisów w kwadrans, a trzydzieści
-powiadomień kończy się wyłączeniem wszystkich.
-
-MECHANIKA: migracja `109` — `profiles.push_wylaczone` (lista WYŁĄCZONYCH, żeby nowy rodzaj
-był domyślnie aktywny), filtr w wyzwalaczu wysyłki, wyzwalacze na `event_comments`,
-`group_posts` i `events.teams_published`. Klient: `lib/ustawieniaPowiadomien.ts`
-i `components/PowiadomieniaPush.tsx`. Przy logowaniu przez Google Bojo prosi teraz zawsze
-o wybór konta (`prompt=select_account`) — bez tego przy kilku kontach Google logowało od
-razu na pierwsze z brzegu.

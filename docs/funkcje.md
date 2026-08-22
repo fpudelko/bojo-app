@@ -589,11 +589,14 @@ miejsce nie jest jeszcze wybrane. To **propozycja, nie autowybór**: ciche ustaw
 miejsca meczu jest najgorszą możliwą pomyłką do przeoczenia.
 
 **Krok 2 — „Czas na decyzję z rezerwy" bez chowania.** Pole stoi na stałe pod „Liczbą
-miejsc" (opcje 1/3/6/12/24 h, domyślnie 3). Wcześniej siedziało pod rozwijanym „Więcej
-opcji" — sekcja została w kodzie, ale nie ma dziś czego pokazać i się nie renderuje.
-Odwrócenie ustalenia O-11 audytu, patrz [przeplyw-organizatora.md](./przeplyw-organizatora.md).
-Obok steppera liczby miejsc stoi podpowiedź, że graczy dopisuje się po utworzeniu meczu,
-na jego stronie, także bez konta.
+miejsc" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
+z polem liczbowym w minutach, 15 min – 72 h; domyślnie 180 min = 3 h). Wcześniej
+siedziało pod rozwijanym „Więcej opcji" — sekcja została w kodzie, ale nie ma dziś czego
+pokazać i się nie renderuje. Odwrócenie ustalenia O-11 audytu, patrz
+[przeplyw-organizatora.md](./przeplyw-organizatora.md). Kolumna `events.reserve_claim_minutes`
+(do migracji `118` — `reserve_claim_hours`, wyłącznie pełne godziny) opisana w
+[domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans). Obok steppera liczby miejsc stoi podpowiedź,
+że graczy dopisuje się po utworzeniu meczu, na jego stronie, także bez konta.
 
 **Krok 2 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
 `components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej

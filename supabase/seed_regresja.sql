@@ -199,11 +199,11 @@ BEGIN
 
   -- R11 --------------------------------------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                      max_players, visibility, title, description, reserve_claim_hours)
+                      max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (ja, ja_n, 'piłka nożna', 'Orlik Rataje', CURRENT_DATE + 8, '18:00', 3, 'public',
     'R11 — zwolnienie miejsca uruchamia kolejkę',
     '[REG] SPRAWDŹ: skład pełny (3/3), w kolejce rezerwowej stoi test5, za nim test6. Jako test1 kliknij „Wypisz się z meczu". OCZEKIWANE: test5 dostaje ofertę — zaloguj się na test5 i sprawdź: zielona karta „Zwolniło się miejsce — jesteś następny!", powiadomienie pod dzwonkiem, licznik nadal 3/3 (miejsce jest TRZYMANE, nie wolne). Przyjmij ofertę — wchodzisz do składu.',
-    3)
+    180)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, ja, ja_n), (eid, t1, n1), (eid, t2, n2);
   INSERT INTO event_participants (event_id, user_id, name, is_reserve, created_at)
@@ -212,11 +212,11 @@ BEGIN
 
   -- R12 --------------------------------------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                      max_players, visibility, title, description, reserve_claim_hours)
+                      max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (ja, ja_n, 'piłka nożna', 'Boisko Malta', CURRENT_DATE + 8, '19:00', 4, 'public',
     'R12 — ręczny awans z rezerwy (organizator)',
     '[REG] SPRAWDŹ: jesteś organizatorem, jest jedno wolne miejsce, a w kolejce trzy osoby. OCZEKIWANE: przy każdej osobie na liście rezerwowej widzisz przycisk „Do składu". Kliknij go przy test7 (TRZECIEJ w kolejce, poza kolejnością) — wchodzi do składu bez pytania, licznik rośnie. To była funkcja, której brakowało.',
-    3)
+    180)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, ja, ja_n), (eid, t1, n1), (eid, t2, n2);
   INSERT INTO event_participants (event_id, user_id, name, is_reserve, created_at)
@@ -261,11 +261,11 @@ BEGIN
 
   -- R16 --------------------------------------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
-                      max_players, visibility, title, description, reserve_claim_hours)
+                      max_players, visibility, title, description, reserve_claim_minutes)
   VALUES (ja, ja_n, 'piłka nożna', 'Orlik Winogrady', CURRENT_DATE + 9, '20:00', 4, 'public',
     'R16 — ktoś przepuścił swoją kolej',
     '[REG] SPRAWDŹ: test5 dostał ofertę i ją odpuścił (chip „przepuścił(a)"), więc kolejka poszła dalej. OCZEKIWANE: test5 ma szary chip „przepuścił(a)" i NIE blokuje kolejki, ale organizator nadal może go awansować ręcznie przyciskiem „Do składu".',
-    3)
+    180)
   RETURNING id INTO eid;
   INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, ja, ja_n), (eid, t1, n1), (eid, t2, n2), (eid, t3, n3);
   INSERT INTO event_participants (event_id, user_id, name, is_reserve, claim_passed, created_at)

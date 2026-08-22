@@ -1,7 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { GK_SPORTS } from '@/lib/sports';
 import { SHOW_MIN_PLAYERS_THRESHOLD } from '@/lib/features';
+import { czasRezerwyTekst } from '@/lib/events';
+
+/** Presety w minutach — gęściej w przedziale 30 min–3 godz. (typowy czas
+ *  reakcji na telefon, zgłoszone wprost jako zbyt ograniczony wybór), rzadziej
+ *  wyżej. Wszystkie pięć dawnych wartości godzinowych (1/3/6/12/24 h) ma tu
+ *  dokładny odpowiednik w minutach — migracja `118` nie zamienia w „Inny czas"
+ *  żadnego istniejącego meczu. */
+const PRESETY_REZERWY = [30, 60, 90, 120, 150, 180, 360, 720, 1440] as const;
 
 /** Ilu bramkarzy naraz. Stała, nie ustawienie — dwie drużyny, dwie bramki. */
 const LIMIT_BRAMKARZY = 2;
@@ -49,7 +58,7 @@ export default function EventCapacityFields({
   maxPlayers, onMaxPlayersChange,
   minPlayers = null, onMinPlayersChange,
   goalkeepersEnabled, setGoalkeepersEnabled,
-  reserveClaimHours, setReserveClaimHours,
+  reserveClaimMinutes, setReserveClaimMinutes,
   slotyZarezerwowane = true, setSlotyZarezerwowane,
   blad,
 }: {
@@ -62,13 +71,22 @@ export default function EventCapacityFields({
   /** `null` = organizator jeszcze nie zdecydował (tylko kreator). */
   goalkeepersEnabled: boolean | null;
   setGoalkeepersEnabled: (v: boolean) => void;
-  reserveClaimHours: number;
-  setReserveClaimHours: (v: number) => void;
+  /** Minuty — migracja `118` (wcześniej `reserveClaimHours`, pełne godziny). */
+  reserveClaimMinutes: number;
+  setReserveClaimMinutes: (v: number) => void;
   /** Czy miejsca dla bramkarzy są zarezerwowane (migracja `077`). */
   slotyZarezerwowane?: boolean;
   setSlotyZarezerwowane?: (v: boolean) => void;
   blad?: string;
 }) {
+  // Tryb „Inny czas" jest stanem WIDOKU, nie danych — decyduje, czy pokazać
+  // pole liczbowe zamiast selecta, niezależnie od tego, czy aktualna wartość
+  // akurat pasuje do presetu (żeby wybranie „Inny czas…" i wpisanie 180
+  // nie zamknęło z powrotem pola samo z siebie, bo 180 jest też presetem).
+  const [trybInny, setTrybInny] = useState<boolean>(
+    () => !(PRESETY_REZERWY as readonly number[]).includes(reserveClaimMinutes),
+  );
+
   return (
     <>
       {/* Stepper po lewej, dopisek „masz już graczy" obok — ale OBOK dopiero
@@ -163,18 +181,44 @@ export default function EventCapacityFields({
             Gdy ktoś się wypisze, miejsce dostaje pierwsza osoba z rezerwy. Tyle ma na
             kliknięcie „Wchodzę", zanim przejdzie do kolejnej.
           </p>
-          <select
-            id="czas-rezerwy"
-            value={reserveClaimHours}
-            onChange={(e) => setReserveClaimHours(Number(e.target.value))}
-            className="w-full shrink-0 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-32"
-          >
-            <option value={1}>1 godzina</option>
-            <option value={3}>3 godziny</option>
-            <option value={6}>6 godzin</option>
-            <option value={12}>12 godzin</option>
-            <option value={24}>24 godziny</option>
-          </select>
+          <div className="w-full shrink-0 sm:w-40">
+            <select
+              id="czas-rezerwy"
+              value={trybInny ? 'inny' : reserveClaimMinutes}
+              onChange={(e) => {
+                if (e.target.value === 'inny') { setTrybInny(true); return; }
+                setTrybInny(false);
+                setReserveClaimMinutes(Number(e.target.value));
+              }}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value={30}>30 minut</option>
+              <option value={60}>1 godzina</option>
+              <option value={90}>1 godz. 30 min.</option>
+              <option value={120}>2 godziny</option>
+              <option value={150}>2 godz. 30 min.</option>
+              <option value={180}>3 godziny</option>
+              <option value={360}>6 godzin</option>
+              <option value={720}>12 godzin</option>
+              <option value={1440}>24 godziny</option>
+              <option value="inny">Inny czas…</option>
+            </select>
+            {trybInny && (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={15}
+                  max={4320}
+                  step={5}
+                  value={reserveClaimMinutes}
+                  onChange={(e) => setReserveClaimMinutes(Math.min(4320, Math.max(15, Number(e.target.value) || 15)))}
+                  className="w-20 rounded-xl border border-slate-300 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Czas na decyzję z rezerwy, w minutach"
+                />
+                <span className="text-xs text-slate-500">min. ({czasRezerwyTekst(reserveClaimMinutes)})</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
