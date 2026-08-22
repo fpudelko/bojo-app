@@ -13,6 +13,11 @@ name: Import boisk z OSM — CAŁA POLSKA
 #
 # ZACZNIJ OD dry_run=true. Dostaniesz 16 raportów bez dotykania bazy.
 #
+# JEDNO WOJEWÓDZTWO: ustaw `region`. Powtórka po poprawce w skrypcie albo po
+# jednym padniętym regionie nie musi ciągnąć pozostałych piętnastu plików
+# z Geofabrika. Alternatywa dla pojedynczego regionu z dodatkowym limitem
+# obiektów to workflow „Import boisk z OSM (Geofabrik, bezpłatnie)".
+#
 # UWAGA co do Poznania: przed importem wielkopolskiego uruchom
 # `supabase/ukryj-stary-poznan.sql`, inaczej na mapie staną dwie pinezki na
 # każdym poznańskim boisku — stary wiersz i nowy z OSM to dla bazy dwa różne
@@ -21,6 +26,29 @@ name: Import boisk z OSM — CAŁA POLSKA
 on:
   workflow_dispatch:
     inputs:
+      region:
+        description: 'Województwo (albo wszystkie)'
+        default: 'wszystkie'
+        required: false
+        type: choice
+        options:
+          - wszystkie
+          - dolnoslaskie
+          - kujawsko-pomorskie
+          - lubelskie
+          - lubuskie
+          - lodzkie
+          - malopolskie
+          - mazowieckie
+          - opolskie
+          - podkarpackie
+          - podlaskie
+          - pomorskie
+          - slaskie
+          - swietokrzyskie
+          - warminsko-mazurskie
+          - wielkopolskie
+          - zachodniopomorskie
       dry_run:
         description: 'Tylko raporty — nic nie zapisuje'
         default: true
@@ -43,8 +71,35 @@ on:
         options: ['2', '4', '8']
 
 jobs:
+  # Matryca liczona w osobnym zadaniu, bo `strategy.matrix` nie przyjmuje
+  # warunku — przyjmuje wyłącznie gotową listę albo `fromJSON` z czegoś, co
+  # policzył ktoś przed nim. Ten krok zamienia wybór z pola `region` na listę
+  # jedno- albo szesnastoelementową. Ten sam wzorzec co w
+  # `backfill-lokalizacja.yml`.
+  regiony:
+    name: Wybór regionów
+    runs-on: ubuntu-latest
+    outputs:
+      lista: ${{ steps.wybor.outputs.lista }}
+    steps:
+      - id: wybor
+        env:
+          # Przez zmienną środowiskową, nie wprost w skrypcie: wartość z pola
+          # `choice` jest wprawdzie pilnowana przez GitHuba, ale wklejanie
+          # danych wejściowych do powłoki to nawyk, którego nie warto mieć.
+          REGION: ${{ inputs.region }}
+        run: |
+          if [ -z "$REGION" ] || [ "$REGION" = "wszystkie" ]; then
+            LISTA='["dolnoslaskie","kujawsko-pomorskie","lubelskie","lubuskie","lodzkie","malopolskie","mazowieckie","opolskie","podkarpackie","podlaskie","pomorskie","slaskie","swietokrzyskie","warminsko-mazurskie","wielkopolskie","zachodniopomorskie"]'
+          else
+            LISTA=$(jq -nc --arg r "$REGION" '[$r]')
+          fi
+          echo "lista=$LISTA" >> "$GITHUB_OUTPUT"
+          echo "Regiony do przetworzenia: $LISTA"
+
   import:
     name: ${{ matrix.region }}
+    needs: regiony
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -55,23 +110,7 @@ jobs:
       # prosta droga do odcięcia.
       max-parallel: ${{ fromJSON(inputs.rownolegle || '4') }}
       matrix:
-        region:
-          - dolnoslaskie
-          - kujawsko-pomorskie
-          - lubelskie
-          - lubuskie
-          - lodzkie
-          - malopolskie
-          - mazowieckie
-          - opolskie
-          - podkarpackie
-          - podlaskie
-          - pomorskie
-          - slaskie
-          - swietokrzyskie
-          - warminsko-mazurskie
-          - wielkopolskie
-          - zachodniopomorskie
+        region: ${{ fromJSON(needs.regiony.outputs.lista) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -113,5 +152,7 @@ jobs:
           if [ "${{ needs.import.result }}" != "success" ]; then
             echo ""
             echo "Część województw padła. Nie trzeba powtarzać całości:"
-            echo "uruchom workflow 'Import boisk z OSM' dla pojedynczych regionów."
+            echo "uruchom ten workflow ponownie z polem 'region' ustawionym"
+            echo "na ten jeden — albo workflow 'Import boisk z OSM',"
+            echo "który dodatkowo przyjmuje limit obiektów."
           fi

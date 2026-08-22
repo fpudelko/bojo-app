@@ -38,6 +38,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation } from '@/lib/utils';
 import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
+import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
   getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
@@ -430,6 +431,12 @@ export default function EventDetailClient() {
     const t = new URLSearchParams(window.location.search).get('tab');
     if (t === 'taktyka' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
   }, []);
+  // Pomiar widocznego okna dla zakładki Rozmowa — hak siedzi tutaj, nad
+  // wczesnymi returnami niżej (ładowanie, brak meczu), bo hak nie może wisieć
+  // za `return`. `rozmowaPelnoekranowa` (dalej) dokłada warunek na prawo do
+  // rozmowy; sam pomiar jest tani i nikomu nie szkodzi.
+  const oknoCzatu = useOknoCzatu(tab === 'rozmowa');
+
   const goToTab = (t: EventTab) => {
     setTab(t);
     if (typeof window === 'undefined') return;
@@ -2167,7 +2174,10 @@ export default function EventDetailClient() {
   );
 
   return (
-    <div className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
+    <div
+      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      style={rozmowaPelnoekranowa ? styleOknaCzatu(oknoCzatu) : undefined}
+    >
       <Header showMobileWordmark />
       {/* pb-32 kompensował fixed pasek "Dołącz"/"Obserwuj" — a ten pokazuje
           się tylko dopóki joinBarVisible. Bez niego 128 px to czysta pustka
@@ -3757,8 +3767,12 @@ export default function EventDetailClient() {
             {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
                 dokumencie — bez tego zasłaniałby composer na dole rozmowy. */}
             <HideBottomNav />
-            <div className="min-h-0 flex-1 px-4">
-              <RozmowaWydarzenia eventId={event.id} />
+            {/* Odstęp na pasek gestów — bez niego composer siedzi pod samą
+                kreską na dole ekranu. Przy otwartej klawiaturze pasek gestów
+                jest schowany za nią, więc ten sam odstęp zrobiłby wtedy
+                dokładnie to, czego tu unikamy: pustkę pod composerem. */}
+            <div className={`min-h-0 flex-1 px-4 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.5rem,env(safe-area-inset-bottom))]'}`}>
+              <RozmowaWydarzenia eventId={event.id} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>
         ) : (

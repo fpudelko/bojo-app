@@ -343,6 +343,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
+
+PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
+klawiatury pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli NAD
+klawiaturą, a pod nim świeciło puste tło strony. Przy schowanej klawiaturze to samo pole
+siedziało pod samą kreską paska gestów na dole ekranu. Do tego otwarcie klawiatury
+spychało najnowszą wiadomość pod krawędź — dokładnie w chwili, gdy ktoś zaczynał na nią
+odpowiadać.
+
+ROZWIĄZANIE BOJO: pole do pisania przykleja się dokładnie do górnej krawędzi klawiatury,
+a przy schowanej klawiaturze zostawia odstęp na pasek gestów telefonu. Otwarcie
+klawiatury dociąga listę wiadomości na dół, chyba że akurat czyta się starsze wiadomości
+wyżej — wtedy widok zostaje tam, gdzie był. Dotyczy tak samo rozmowy meczu, jak tablicy
+ekipy.
+
+MECHANIKA: `lib/oknoCzatu.ts` — `useOknoCzatu()` mierzy `visualViewport.height`
+i `styleOknaCzatu()` podstawia ją korzeniowi strony zamiast `100dvh`. Na iOS klawiatura
+nie kurczy layoutu (`viewport.interactiveWidget: 'resizes-content'` działa tylko na
+Androidzie), tylko przesuwa widoczne okno w górę z zapasem — stąd pusty pas pod
+composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
+`env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
+i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
+Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
+
 ### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
 
 PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
@@ -533,23 +557,3 @@ też przez `?sport=` w `wydarzenia/nowe` — kreator wcześniej ignorował ten p
 `content/graj.ts` (nowa treść + import kroków z `content/jakDziala.ts`, pokryte tym samym
 testem `tresciStron.test.ts` co pozostałe strony treści, mimo że AGENTS.md nie wymusza
 tego automatycznie dla nowych tras), `sitemap.ts#grajPages`.
-
-### 2026-08-19 — SEO/GEO: współrzędne meczu w danych strukturalnych, linki między boiskami a treścią
-
-PROBLEM: dane strukturalne meczu (`SportsEvent`) nie niosły współrzędnych, mimo że `events.lat`
-i `events.lng` są zapisywane przy każdym utworzeniu meczu — wyszukiwarki i asystenci AI nie
-mieli sygnału geograficznego do lokalnych zapytań („mecze w mojej okolicy”). Osobno: katalog
-boisk (`/boiska/[sport]`) i strony treści (`/jak-dziala-bojo`, `/dlaczego-bojo`) nie linkowały
-do siebie nawzajem — ktoś szukający boiska nie trafiał na wyjaśnienie, jak zorganizować na nim
-mecz, i odwrotnie.
-
-ROZWIĄZANIE BOJO: `location.geo` (`GeoCoordinates`) w danych strukturalnych meczu, gdy
-współrzędne są znane — dotyczy zarówno boiska z katalogu, jak i przypiętej pinezki, bo obie
-ścieżki zapisują `events.lat`/`events.lng`. `/boiska/[sport]` dostało link „Jak działa Bojo —
-zbierz skład na to boisko”, a `/jak-dziala-bojo` i `/dlaczego-bojo` dostały link „Mapa boisk”
-w swoich CTA-boxach.
-
-MECHANIKA: `lib/structuredData.ts` (`EventForJsonLd.lat/lng`, `eventJsonLd()` dokłada `geo`
-jako rodzeństwo `address` wewnątrz `location`), `app/wydarzenia/[id]/page.tsx` (`getEventMeta()`
-selektuje teraz `lat, lng`), `app/boiska/[sport]/page.tsx`, `app/jak-dziala-bojo/page.tsx`,
-`app/dlaczego-bojo/page.tsx` (nowe `<Link>`, bez zmian treści).

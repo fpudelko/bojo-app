@@ -22,7 +22,7 @@ import type { GroupPost, GroupPermissions } from '@/types';
  * do wyświetlenia osobno, żeby nie dotykać kontraktu funkcji ani testu, który
  * go przypina.
  */
-export default function RozmowaGrupy({ groupId, permissions }: { groupId: string; permissions: GroupPermissions }) {
+export default function RozmowaGrupy({ groupId, permissions, klawiatura = false }: { groupId: string; permissions: GroupPermissions; klawiatura?: boolean }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<GroupPost[]>([]);
@@ -69,6 +69,19 @@ export default function RozmowaGrupy({ groupId, permissions }: { groupId: string
     requestAnimationFrame(() => scrollDoDolu(pierwszyRender.current ? 'auto' : 'smooth'));
     pierwszyRender.current = false;
   }, [loading, chronologicznie.length, scrollDoDolu]);
+
+  // Klawiatura zabiera pół ekranu: lista kurczy się od dołu, a `scrollTop`
+  // zostaje ten sam, więc najnowsza wiadomość ucieka pod krawędź dokładnie
+  // w chwili, gdy ktoś zaczyna na nią odpowiadać. Wracamy na dół, ale tylko
+  // jeśli użytkownik tam był — kto czyta starsze wiadomości, ma zostać przy nich.
+  useEffect(() => {
+    if (!klawiatura || !atBottom) return;
+    requestAnimationFrame(() => scrollDoDolu('auto'));
+    // Zależność wyłącznie od klawiatury: `atBottom` czytamy w momencie jej
+    // pojawienia się, a nie śledzimy — inaczej każdy powrót w okolice dołu
+    // dociągałby listę na siłę w trakcie czytania.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [klawiatura]);
 
   const handleScroll = () => {
     const el = listRef.current;
