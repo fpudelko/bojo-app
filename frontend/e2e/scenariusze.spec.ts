@@ -133,6 +133,25 @@ async function pokazSie(page: Page, cel: Locator, opis: string) {
   }
 }
 
+/**
+ * Doprowadza otwarty mecz do stanu „nie jestem zapisany".
+ *
+ * PO CO. Baza jest jedna na cały przebieg, a każdy zapisujący się test sprząta
+ * po sobie sam (`wypiszSie`) — dopóki nie padnie WCZEŚNIEJ. Wtedy zostaje
+ * zapisany, a ponowienie i drugi rozmiar okna zastają stan, w którym paska
+ * z „Dołącz" nie ma wcale, bo `joinBarVisible` chowa go uczestnikowi.
+ *
+ * Objawem jest wtedy „nie ma przycisku", a przyczyną — poprzednia porażka
+ * tego samego testu. Realnie kosztowało to dwa przebiegi CI i wyglądało jak
+ * zepsuty przycisk: dopiero zrzut treści strony pokazał „Jesteś na liście
+ * rezerwowej". Ten helper odcina kaskadę — jedna zepsuta rzecz ma dawać jedną
+ * czerwoną kropkę, nie trzy.
+ */
+async function niezapisany(page: Page) {
+  const wyjscie = page.getByRole('button', { name: /wypisz się z (meczu|rezerwy)/i });
+  if (await wyjscie.isVisible().catch(() => false)) await wypiszSie(page);
+}
+
 async function uspokoj(page: Page) {
   await page.addStyleTag({
     content: `*, *::before, *::after {
@@ -232,6 +251,7 @@ test.describe('dołączanie do meczu', () => {
   test('wolne miejsca — wchodzi do składu i komunikat to potwierdza', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await otworzMecz(page, MECZ.wolneMiejsca);
+    await niezapisany(page);
     await uspokoj(page);
 
     const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
@@ -256,6 +276,7 @@ test.describe('dołączanie do meczu', () => {
   test('komplet — komunikat mówi WPROST o rezerwie', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await otworzMecz(page, MECZ.komplet);
+    await niezapisany(page);
     await uspokoj(page);
 
     // Napis skrócony do „Komplet — na rezerwę", gdy obok stanął „Obserwuj"
@@ -497,7 +518,12 @@ test.describe('moje gry', () => {
   });
 
   test('historia — stan pusty ma własny komunikat', async ({ page }) => {
-    await zaloguj(page, KONTA.gracz);
+    // `drugiGracz`, nie `gracz`. Konto `gracz` siedzi w składzie W11 — meczu
+    // płatnego, KTÓRY JUŻ SIĘ ODBYŁ (doszedł razem ze scenariuszami o numerze
+    // BLIK) — więc jego historia przestała być pusta i test o STANIE PUSTYM
+    // padał, choć stan pusty działa. `drugiGracz` jest w tym pliku kontem
+    // „kogoś z zewnątrz" i seed nie wpisuje go do żadnego meczu.
+    await zaloguj(page, KONTA.drugiGracz);
     await page.goto('/moje-gry?tab=historia');
     await expect(page.getByText('Brak historii meczy')).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
