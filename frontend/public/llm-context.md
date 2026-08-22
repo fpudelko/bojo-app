@@ -341,6 +341,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
+
+PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
+Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
+pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
+miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
+zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
+zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
+`show_payment_status`, które miało zasłaniać co innego.
+
+ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
+rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
+znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
+uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
+sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
+„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
+
+MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
+„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
+z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
+
 ### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
 
 PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
@@ -537,33 +558,3 @@ idzie przez `zaktualizujJedenWiersz()`, więc cicha odmowa RLS zamienia się w b
 składów nie publikuje ich automatycznie (`accept_team_proposal` z `059` nie rusza
 `teams_published`), więc komunikat po zatwierdzeniu mówi wprost, że trzeba jeszcze
 opublikować.
-
-### 2026-08-19 — Kolejka rezerwowa liczyła czas od obserwowania, nie od zapisu
-
-PROBLEM: gracz, który najpierw kliknął „Obserwuj", a dopiero później „Dołącz", widział
-pod swoim nazwiskiem na liście rezerwowej moment rozpoczęcia obserwowania, nie moment
-realnego zapisu — bo „Obserwuję" i zwykły zapis to w bazie ten sam wiersz, a przejście
-między nimi jest aktualizacją, nie nowym wpisem. Poważniejsze niż zła etykieta: dokładnie
-ten sam znacznik ustawia kolejność w kolejce rezerwowej, więc taka osoba wskakiwała
-przed każdego, kto zapisał się w międzyczasie, i to ona dostawała każde zwolnione miejsce.
-
-ROZWIĄZANIE BOJO: osobna kolumna `zapisano_at` — wyłącznie moment, od którego liczy się
-miejsce w kolejce. Trigger ustawia ją na `now()` (zegar serwera) dokładnie w chwili
-przejścia z „obserwuję" na „dołączam", nigdy przy samym obserwowaniu. `created_at` zostaje
-nietknięte i nadal znaczy „kiedy powstał wiersz". Rozliczenia w zakładce „Rozliczenia"
-dostały przycisk „Wszyscy oddali" (i „Cofnij", gdy już wszyscy oddali) — masowe oznaczenie
-całego składu zamiast klikania po jednej osobie, z kwotą liczoną per osoba (zniżka z karty
-sportowej). Różowa plakietka z liczbą nieprzeczytanych na karcie meczu prowadzi teraz
-prosto do zakładki „Rozmowa"; przytrzymanie „Moje" na dolnej nawigacji otwiera panel
-z listą wszystkich rozmów z nieprzeczytanymi (mecze i ekipy razem, od najnowszej). Swipe
-w bok przełącza zakładki na `/moje-gry`, `/grupy/[id]` i `/wydarzenia/[id]`.
-
-MECHANIKA: migracja `110` — `event_participants.zapisano_at`, trigger `trg_moment_zapisu`,
-`sync_reserve_claim()` sortuje kolejkę po `zapisano_at`. Klient: `momentZapisu()`
-w `lib/events.ts` (fallback na `created_at` dla bazy bez migracji). Rozliczenia:
-`ustawPlatnoscWszystkim()` w `lib/eventFeatures.ts`, helper `zaktualizujWiersze()`
-w `lib/zapytania.ts`. Skrót do rozmowy: plakietka w `EventBrowseCard.tsx` nawiguje na
-`?tab=rozmowa`. Panel rozmów: `useDlugieWcisniecie()`, `components/layout/PanelRozmow.tsx`,
-`rozmowyZNieprzeczytanymi()`/`rozmowyGrupZNieprzeczytanymi()`. Swipe: `useSwipeZakladek()`
-w `lib/useSwipeZakladek.ts`, bez zawijania na krańcach, wyłączony na pasku zakładek
-i w miejscach z własnym gestem (podział na drużyny, pole tekstowe rozmowy).
