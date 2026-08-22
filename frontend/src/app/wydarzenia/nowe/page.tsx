@@ -167,7 +167,7 @@ function NewEventForm() {
   // Attach the new event to a group when arriving via ?group=
   const groupId = searchParams.get('group') || undefined;
   const preFieldId = searchParams.get('fieldId');
-  // Preselect sport when arriving from /graj/[sport]/[miasto] via ?sport=<slug>.
+  // Preselect sport when arriving from /[sport]/[miasto] via ?sport=<slug>.
   const preSport = searchParams.get('sport');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [groupMemberCount, setGroupMemberCount] = useState<number | undefined>(undefined);
@@ -203,7 +203,7 @@ function NewEventForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preFieldId]);
 
-  // Preselect sport from URL ?sport=<slug> (arriving from /graj/[sport]/[miasto]).
+  // Preselect sport from URL ?sport=<slug> (arriving from /[sport]/[miasto]).
   // `selectSport` is defined further down in this component but the effect
   // callback only runs after render commits, once the closure is populated.
   useEffect(() => {

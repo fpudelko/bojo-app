@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { FAQ, FAQ_LANDING, KATEGORIE_FAQ } from '@/content/faq';
-import { JAK_DZIALA } from '@/content/jakDziala';
-import { CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
-import { GRAJ_LEAD, GRAJ_BRAK_MECZY } from '@/content/graj';
+import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
+import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
+import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -36,6 +37,23 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   }
   jednostki.push({ etykieta: 'graj#lead', tekst: GRAJ_LEAD });
   jednostki.push({ etykieta: 'graj#brak-meczy', tekst: GRAJ_BRAK_MECZY });
+  jednostki.push({ etykieta: 'dlaczego#odpowiedz', tekst: DLACZEGO_ODPOWIEDZ });
+  jednostki.push({ etykieta: 'jakDziala#odpowiedz', tekst: JAK_DZIALA_ODPOWIEDZ });
+  jednostki.push({ etykieta: 'miasta#czym-nie-jest', tekst: CZYM_BOJO_NIE_JEST });
+  // Direct Answer i zdanie o katalogu są szablonami — sprawdzamy je w każdej
+  // realnej kombinacji sportu i miasta, bo to ten tekst trafia na stronę.
+  for (const miasto of MIASTA) {
+    for (const sport of SPORT_ODMIANA) {
+      jednostki.push({
+        etykieta: `miasta#odpowiedz/${sport.slug}/${miasto.slug}`,
+        tekst: odpowiedzMiasta(sport.dopelniacz, miasto.miejscownik),
+      });
+    }
+    jednostki.push({
+      etykieta: `miasta#katalog/${miasto.slug}`,
+      tekst: zdanieOKatalogu(824, miasto.miejscownik),
+    });
+  }
 
   return jednostki;
 }

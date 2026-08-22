@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
+import { MIASTA } from '@/content/miasta';
 
 const SPORT_SLUGS = [
   'pilka-nozna',
@@ -35,15 +36,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // Tylko Poznań dziś — /graj/[sport]/[miasto] generuje statycznie wyłącznie
-  // te kombinacje (patrz generateStaticParams w tej trasie), więc sitemap
-  // trzyma się tego samego, bounded źródła zamiast zgadywać miasta.
-  const grajPages: MetadataRoute.Sitemap = Object.keys(FOCUS_SPORT_BY_SLUG).map((slug) => ({
-    url: `${base}/graj/${slug}/poznan`,
-    lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 0.6,
-  }));
+  // Iloczyn sportów i miast — dokładnie to, co generuje generateStaticParams
+  // w /[sport]/[miasto]. Oba czytają z tych samych, bounded list, więc sitemap
+  // nie ma jak obiecać adresu, którego trasa nie zbuduje.
+  const grajPages: MetadataRoute.Sitemap = Object.keys(FOCUS_SPORT_BY_SLUG).flatMap((slug) =>
+    MIASTA.map((miasto) => ({
+      url: `${base}/${slug}/${miasto.slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'daily' as const,
+      priority: 0.6,
+    })),
+  );
 
   // Boiska NIE są tu wypisywane — katalog ma 32 684+ wiersze, więc żyją
   // w osobnych sitemapach per województwo (sitemap-boiska/[plik]/route.ts),
