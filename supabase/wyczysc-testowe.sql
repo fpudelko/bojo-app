@@ -73,7 +73,7 @@ DELETE FROM events
 -- Ekipy z seedów. Nazwy, nie markery — grupy nie mają kolumny na opis testu
 -- w tym samym kształcie, a te nazwy są jednoznaczne.
 DELETE FROM groups WHERE name IN (
-  '[PRZED] Ekipa testowa',
+  '[PRZED] Ekipa testowa', '[PRZED] Ekipa Jakuba',
   'Czwartkowa Ekipa', 'Poranne Bieganie', 'Koszykarze z Wildy', 'Siatkarze Poznań'
 );
 

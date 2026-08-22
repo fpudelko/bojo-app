@@ -1,4 +1,4 @@
-# Sesja przedpremierowa — jedna historia, dwa telefony, ~45 minut
+# Sesja przedpremierowa — jedna historia, dwa telefony, ~60 minut
 
 Skrypt do przejścia PRZED wpuszczeniem ludzi. Nie jest to lista wszystkiego, co
 aplikacja umie — od tego są [testy automatyczne](#co-sprawdza-automat-i-czego-tu-nie-ma).
@@ -24,13 +24,16 @@ jest kolejnością, w jakiej przejdzie je realna ekipa.
    znika uczestnikom, którzy mają do niego prawo. Uzasadnienie w nagłówkach plików.
 2. **Funkcje brzegowe** — Actions → „Wdróż funkcje brzegowe" → Run workflow.
    Bez tego kliknięcie powiadomienia push nie oznaczy go jako przeczytanego.
-3. **Seed** — wklej `supabase/seed_przedpremiera.sql` do SQL Editora. Dostaniesz
-   siedem stanów startowych i listę adresów na końcu. Zapisz ją — będzie
-   potrzebna niżej.
-4. **Drugi telefon i druga osoba.** Najlepiej ktoś, kto Bojo nie widział na oczy;
+3. **Konta testowe** — `supabase/seed-test-users.sql` (hasło `test1234`).
+   Potrzebne, bo `test1@example.com` (Jakub Kowalski) organizuje mecze
+   z bloku B. Bez tego seed przerwie się z komunikatem.
+4. **Seed** — wklej `supabase/seed_przedpremiera.sql` do SQL Editora. Dostaniesz
+   trzynaście stanów startowych i listę adresów na końcu, z kolumną
+   **organizator** (TY / Jakub). Zapisz ją — będzie potrzebna niżej.
+5. **Drugi telefon i druga osoba.** Najlepiej ktoś, kto Bojo nie widział na oczy;
    drugie konto na Twoim drugim telefonie jest gorsze, ale wystarczy. Ważne, żeby
    to był **inny system niż Twój** (Ty iOS → oni Android, albo odwrotnie).
-5. **Zainstaluj aplikację na obu telefonach** (dodaj do ekranu początkowego).
+6. **Zainstaluj aplikację na obu telefonach** (dodaj do ekranu początkowego).
    Push na iOS działa **wyłącznie** po instalacji — w karcie przeglądarki nie
    przyjdzie i to nie jest błąd.
 
@@ -142,6 +145,37 @@ Dostaje powiadomienie o wpisie na tablicy.
 wylogowuje się.
 
 Ma się stać: wszystkie trzy rzeczy są **do znalezienia bez pytania Ciebie**.
+
+---
+
+## 1b. Blok B — Ty jako zwykły gracz (~15 minut, sam, bez drugiej osoby)
+
+**Po co osobno.** Kroki 1–10 pokazują Bojo z fotela organizatora. W tym fotelu
+siedzi **jedna osoba z ekipy** — pozostałych dziesięć widzi zupełnie inną
+aplikację: bez ustawień, bez kontrolek składu, za to z pytaniami „czy ja tu
+w ogóle jestem zapisany" i „ile mam zapłacić". Będąc właścicielem wszystkich
+meczów, nie zobaczysz tych ekranów ani razu.
+
+Mecze `P8`–`P13` zakłada **Jakub Kowalski** (`test1@example.com`), a Ty jesteś
+w nich po drugiej stronie. Klikasz je swoim kontem, druga osoba nie jest
+potrzebna. To jest głównie **patrzenie**, nie klikanie.
+
+| Mecz | Kim jesteś | Na co patrzysz |
+|---|---|---|
+| `P8` | zwykły gracz w składzie, mecz płatny | karta „Twoja płatność", numer BLIK, **brak** jakichkolwiek kontrolek organizatora, działające wypisanie się |
+| `P9` | rezerwowy z **ofertą** zwolnionego miejsca | widać, że miejsce czeka, i ile czasu zostało; przyjmij je |
+| `P10` | czekasz na cudzą akceptację | czy widać, że prośba wisi, i jak się dowiesz o decyzji |
+| `P11` | **dłużnik** po zagranym meczu | ile, komu, czym zapłacić — ten ekran musi zgadzać się z `P5`, który pokazuje to samo od strony organizatora |
+| `P12` | członek **cudzej** ekipy | prywatny mecz widoczny przez ekipę; sprawdź, czego **nie możesz** (edycja ekipy, kod, usuwanie ludzi) |
+| `P13` | **delegat** od składu | dopisanie i usunięcie gracza MA działać; termin, cena, ustawienia i odwołanie meczu NIE |
+
+`P13` warto obejrzeć najuważniej: delegaci (migracje `089`/`090`) to funkcja,
+której chyba nikt nigdy nie klikał ręcznie, a nadmiar uprawnień jest tu
+groźniejszy niż ich brak.
+
+> Konta testowe `test1..test10@example.com` zostają w bazie po sprzątaniu —
+> `wyczysc-testowe.sql` **świadomie ich nie kasuje**. Przed wpuszczeniem ludzi
+> usuń je ręcznie: Supabase → Authentication, patrząc na listę.
 
 ---
 

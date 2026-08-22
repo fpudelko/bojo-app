@@ -35,6 +35,12 @@ DO $$
 DECLARE
   ja    UUID := (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com');
   ja_n  TEXT;
+  -- DRUGI ORGANIZATOR. Bez niego cała sesja pokazuje Bojo wyłącznie oczami
+  -- osoby, która wszystko założyła — a to jest mniejszość użytkowników.
+  -- Blok B (P8–P13) odwraca role: mecze zakłada Jakub, Ty jesteś w nich
+  -- zwykłym graczem, rezerwowym, dłużnikiem, członkiem cudzej ekipy.
+  on_   UUID := (SELECT id FROM auth.users WHERE email = 'test1@example.com');
+  on_n  TEXT;
   eid   UUID;
   gid   UUID;
   -- Godzina meczu jest czytana w strefie PRZEGLĄDARKI, a `event_time` siedzi
@@ -46,7 +52,11 @@ BEGIN
   IF ja IS NULL THEN
     RAISE EXCEPTION 'Brak konta franekks@gmail.com w auth.users — zaloguj się raz w aplikacji.';
   END IF;
+  IF on_ IS NULL THEN
+    RAISE EXCEPTION 'Brak konta test1@example.com — uruchom najpierw supabase/seed-test-users.sql (hasło: test1234).';
+  END IF;
   ja_n := COALESCE((SELECT display_name FROM profiles WHERE id = ja), 'Organizator');
+  on_n := COALESCE((SELECT display_name FROM profiles WHERE id = on_), 'Jakub Kowalski');
 
   -- P1 — mecz, do którego zaprosisz drugą osobę linkiem -----------------
   -- Wolne miejsca, nic nadzwyczajnego. To jest wejście do historii: wysyłasz
@@ -148,7 +158,113 @@ BEGIN
   INSERT INTO event_comments (event_id, user_id, user_name, body)
   VALUES (eid, ja, ja_n, 'Zbieramy się 10 minut wcześniej, brama od strony parkingu.');
 
-  RAISE NOTICE 'Gotowe: 7 stanów startowych + ekipa. Scenariusz sesji: docs/testy-przedpremierowe.md';
+
+  -- ══════════════════════════════════════════════════════════════════
+  -- BLOK B — TY JAKO ZWYKŁY CZŁOWIEK (organizuje Jakub, nie Ty)
+  -- ══════════════════════════════════════════════════════════════════
+  -- P1–P7 pokazują Bojo z fotela organizatora. To jest fotel, w którym
+  -- siedzi JEDNA osoba z ekipy — pozostałych dziesięć widzi aplikację
+  -- zupełnie inaczej: bez kontrolek, bez ustawień, za to z pytaniami
+  -- „czy ja tu w ogóle jestem zapisany" i „ile mam zapłacić".
+  -- Tych ekranów nie da się zobaczyć, będąc właścicielem wszystkiego.
+  --
+  -- Klikasz to SWOIM kontem. Druga osoba nie jest tu potrzebna.
+
+  -- P8 — jestem w składzie cudzego meczu, płatnego ---------------------
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description,
+                      cost_grosz, accepted_payment_methods,
+                      accepted_sports_cards, sports_card_discount_grosz, track_payments)
+  VALUES (on_, on_n, 'piłka nożna', 'Hala — sesja testowa',
+    (teraz + interval '45 minutes')::date,
+    date_trunc('minute', teraz + interval '45 minutes')::time, NULL, 10, 'public',
+    'P8 — cudzy mecz, jestem w składzie',
+    '[PRZED] SPRAWDŹ (Twoim kontem): karta „Twoja płatność" z kwotą i numerem BLIK, brak JAKICHKOLWIEK kontrolek organizatora (ustawienia, wynik, usuwanie ludzi ze składu), działające „Wypisz się z meczu". To jest widok, który ma dziewięć osób na dziesięć.',
+    2500, ARRAY['blik','gotowka']::text[], ARRAY['multisport']::text[], 1000, true)
+  RETURNING id INTO eid;
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '600 300 400');
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, on_, on_n);
+  INSERT INTO event_participants (event_id, user_id, name, payment_method)
+  VALUES (eid, ja, ja_n, 'blik');
+
+  -- P9 — jestem na rezerwie i DOSTAŁEM ofertę zwolnionego miejsca ------
+  -- Stanu „masz 45 minut na przyjęcie miejsca" nie da się zobaczyć bez
+  -- drugiej osoby, która wypisze się w odpowiednim momencie — a to jest
+  -- dokładnie ten ekran, na którym gracz podejmuje decyzję z zegarem.
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, reserve_claim_minutes)
+  VALUES (on_, on_n, 'piłka nożna', 'Orlik — sesja testowa',
+    (teraz + interval '2 days')::date, '19:00', '20:30', 2, 'public',
+    'P9 — mam ofertę miejsca z rezerwy',
+    '[PRZED] SPRAWDŹ (Twoim kontem): widać, że zwolniło się miejsce i ILE CZASU zostało na decyzję. Przyjmij je i sprawdź, czy wchodzisz do składu. Zegar tyka od 15 minut, masz 60 — czyli ok. 45 minut.', 60)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, on_, on_n);
+  INSERT INTO event_participants (event_id, user_id, name, is_reserve, claim_offered_at)
+  VALUES (eid, ja, ja_n, true, now() - interval '15 minutes');
+
+  -- P10 — czekam na cudzą decyzję --------------------------------------
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, require_approval)
+  VALUES (on_, on_n, 'piłka nożna', 'Boisko — sesja testowa',
+    (teraz + interval '3 days')::date, '18:00', '19:30', 10, 'public',
+    'P10 — czekam na akceptację',
+    '[PRZED] SPRAWDŹ (Twoim kontem): czy WIDAĆ, że prośba wisi, i czy wiadomo, jak się dowiesz o decyzji. P3 sprawdza to samo od strony organizatora — tu chodzi o stronę czekającego, czyli o niepewność.', true)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, on_, on_n);
+  INSERT INTO event_participants (event_id, user_id, name, pending_approval)
+  VALUES (eid, ja, ja_n, true);
+
+  -- P11 — mecz zagrany, ZALEGAM z kasą ---------------------------------
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description,
+                      cost_grosz, accepted_payment_methods, track_payments, track_results)
+  VALUES (on_, on_n, 'piłka nożna', 'Orlik — sesja testowa',
+    (teraz - interval '2 days')::date, '20:00', '21:30', 6, 'public',
+    'P11 — zalegam za zagrany mecz',
+    '[PRZED] SPRAWDŹ (Twoim kontem): co widzi DŁUŻNIK. Czy wiadomo, ile i komu; czy jest numer do przelewu; czy da się oznaczyć, że zapłaciłeś. P5 pokazuje tę samą sytuację oczami organizatora — te dwa ekrany muszą się zgadzać.',
+    2000, ARRAY['blik','gotowka']::text[], true, true)
+  RETURNING id INTO eid;
+  INSERT INTO event_blik (event_id, blik_phone) VALUES (eid, '600 300 400');
+  INSERT INTO event_participants (event_id, user_id, name, payment_method, has_paid) VALUES
+    (eid, on_, on_n, 'blik', true),
+    (eid, ja,  ja_n, 'blik', false);
+
+  -- P12 — ekipa, w której jestem TYLKO członkiem ------------------------
+  INSERT INTO groups (name, created_by, description)
+  VALUES ('[PRZED] Ekipa Jakuba', on_, 'Ekipa, której NIE jesteś założycielem — sprawdzasz, czego nie możesz.')
+  RETURNING id INTO gid;
+  INSERT INTO group_members (group_id, user_id, role)
+  VALUES (gid, ja, 'member') ON CONFLICT DO NOTHING;
+
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, group_id)
+  VALUES (on_, on_n, 'piłka nożna', 'Boisko — sesja testowa',
+    (teraz + interval '6 days')::date, '19:30', '21:00', 10, 'private',
+    'P12 — mecz cudzej ekipy',
+    '[PRZED] SPRAWDŹ (Twoim kontem): mecz PRYWATNY, widzisz go tylko dlatego, że jesteś w ekipie. Wejdź w ekipę i sprawdź, czego NIE MOŻESZ: edycji ekipy, kodu zaproszenia, usuwania ludzi. Jeśli któraś z tych rzeczy jest klikalna, to jest błąd uprawnień, nie kosmetyka.', gid)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, on_, on_n), (eid, ja, ja_n);
+  INSERT INTO group_posts (group_id, user_id, user_name, body)
+  VALUES (gid, on_, on_n, 'Cześć wszystkim — w piątek gramy o 19:30.');
+
+  -- P13 — jestem DELEGATEM od składu na cudzym meczu --------------------
+  -- Delegaci (migracje 089/090) to funkcja, której chyba nikt nigdy nie
+  -- kliknął ręcznie: uprawnienia są cząstkowe, więc łatwo o ekran, który
+  -- albo pokazuje za dużo, albo za mało.
+  INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time,
+                      end_time, max_players, visibility, title, description, allow_guest_adds)
+  VALUES (on_, on_n, 'piłka nożna', 'Orlik — sesja testowa',
+    (teraz + interval '7 days')::date, '20:00', '21:30', 10, 'public',
+    'P13 — jestem delegatem od składu',
+    '[PRZED] SPRAWDŹ (Twoim kontem): masz zarządzać SKŁADEM i niczym więcej. Dopisanie gościa i usunięcie kogoś ze składu MA działać; zmiana terminu, ceny, ustawień i odwołanie meczu NIE. Nadmiar uprawnień jest tu groźniejszy niż ich brak.', true)
+  RETURNING id INTO eid;
+  INSERT INTO event_participants (event_id, user_id, name) VALUES (eid, on_, on_n), (eid, ja, ja_n);
+  INSERT INTO event_participants (event_id, user_id, name, is_guest)
+  VALUES (eid, NULL, 'Bartek (gość Jakuba)', true);
+  INSERT INTO event_delegates (event_id, user_id, can_manage_squad, granted_by)
+  VALUES (eid, ja, true, on_) ON CONFLICT DO NOTHING;
+
+  RAISE NOTICE 'Gotowe: 13 stanów + dwie ekipy. P1-P7 z fotela organizatora, P8-P13 z fotela zwykłego gracza. Scenariusz: docs/testy-przedpremierowe.md';
 END $$;
 
 -- ============================================================
@@ -156,6 +272,10 @@ END $$;
 -- ============================================================
 SELECT
   split_part(title, ' — ', 1)  AS nr,
+  -- Najważniejsza kolumna w tej tabeli: czyj to mecz. P1–P7 są Twoje,
+  -- P8–P13 cudze — i o to w blokach chodzi.
+  CASE WHEN e.organizer_id = (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com')
+       THEN 'TY' ELSE 'Jakub' END AS organizator,
   split_part(title, ' — ', 2)  AS stan,
   event_date                   AS termin,
   event_time                   AS godzina,
@@ -166,4 +286,5 @@ SELECT
   '/wydarzenia/' || e.id       AS adres
 FROM events e
 WHERE description LIKE '[PRZED]%'
-ORDER BY title;
+-- Po LICZBIE, nie po tekście: sortowanie tekstowe wstawia P10 między P1 a P2.
+ORDER BY substring(split_part(title, ' — ', 1) FROM 2)::int;
