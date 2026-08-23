@@ -50,11 +50,12 @@ export async function generateMetadata(
   { params, searchParams }: { params: { wojewodztwo: string }; searchParams?: { strona?: string } },
 ): Promise<Metadata> {
   const label = WOJEWODZTWO_LABEL[params.wojewodztwo as Wojewodztwo];
-  if (!label) return { title: 'Nie znaleziono | Bojo' };
+  if (!label) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
   return {
-    title: `Boiska sportowe — województwo ${label}${sufiks} | Bojo`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `Boiska sportowe — województwo ${label}${sufiks}`,
     description: `Katalog boisk i obiektów sportowych w województwie ${label}. Adresy, sporty, nawierzchnia. Zbierz skład i zagraj przez Bojo.`,
     alternates: {
       canonical: strona > 1

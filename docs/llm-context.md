@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
+**Stan na:** 2026-08-23 · migracja `123` · 41 tabel · 749 testów
 
 ---
 
@@ -343,6 +343,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Prywatny mecz przestaje zdradzać szczegóły w podglądzie linku
+
+PROBLEM: strona prywatnego meczu podawała w metadanych nazwę meczu, sport, datę, godzinę
+i nazwę obiektu, a pod adresem `/wydarzenia/<id>/opengraph-image` generowała publicznie
+dostępną kartę z ceną i liczbą wolnych miejsc. Dane strukturalne (JSON-LD) były przed tym
+chronione od początku, metadane nie — więc wystarczyło, żeby link do prywatnego meczu raz
+trafił w publiczne miejsce, a jego szczegóły mogły wejść do wyszukiwarki. Kod dołączenia
+jest jedyną kontrolą dostępu do prywatnego meczu i to właśnie on był obchodzony.
+
+ROZWIĄZANIE BOJO: mecz niepubliczny zwraca w metadanych sam tytuł „Mecz" i `noindex`,
+a jego obrazek podglądu to karta ogólna Bojo, bez żadnych danych meczu. Mecz, którego nie
+ma, wygląda dokładnie tak samo — po metadanych nie da się odróżnić „nie ma takiego meczu"
+od „jest, ale nie dla ciebie". Dla meczu publicznego nic się nie zmienia. Przy okazji
+z tytułów zniknął podwojony sufiks „| Bojo", a opis stron obiektów przestał obiecywać
+rezerwację terminu, której Bojo nie robi.
+
+MECHANIKA: `metadataDlaMeczu()` w `app/wydarzenia/[id]/eventMeta.ts` — czysta funkcja
+obok `getEventMeta()`, testowana bez bazy (`__tests__/eventMetadata.test.ts`), wzorem
+`eventJsonLd()` w `lib/structuredData.ts`. Ten sam próg widoczności powtórzony
+w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi flagami
+(`/auth/`, `/turniej`, `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`) wypadły ze
+skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
+`metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
+
 ### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
@@ -557,22 +581,3 @@ powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
 Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
 Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
 w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
-
-### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
-
-PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
-listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
-w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
-razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
-
-ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
-panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
-z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
-wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
-co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
-
-MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
-w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
-trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
-karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`).

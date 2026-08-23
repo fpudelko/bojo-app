@@ -68,11 +68,12 @@ export async function generateMetadata(
   { params, searchParams }: { params: { sport: string }; searchParams?: { strona?: string } },
 ): Promise<Metadata> {
   const entry = SPORT_MAP[params.sport];
-  if (!entry) return { title: 'Nie znaleziono | Bojo' };
+  if (!entry) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
   return {
-    title: `Boiska do ${entry.label} w Polsce${sufiks} | Bojo`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `Boiska do ${entry.label} w Polsce${sufiks}`,
     description: `Znajdź boiska do ${entry.label} w Polsce. Lista obiektów, lokalizacje, dostępność. Bojo — zbierz skład i zagraj.`,
     alternates: {
       canonical: strona > 1 ? `/boiska/${params.sport}?strona=${strona}` : `/boiska/${params.sport}`,

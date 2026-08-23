@@ -3,7 +3,7 @@ import PrzejmijClient from './PrzejmijClient';
 
 // Strona jest osobista i jednorazowa — nie ma czego indeksować ani cache'ować.
 export const metadata: Metadata = {
-  title: 'Przejmij swój wpis | Bojo',
+  title: 'Przejmij swój wpis',
   robots: { index: false, follow: false },
 };
 
