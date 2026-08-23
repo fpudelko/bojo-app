@@ -52,7 +52,7 @@ function BallIcon({ className }: { className?: string }) {
 // nie odkryje sam. Różowa chmurka wisiała nad ikonami, które o wiadomościach
 // nie mówiły nic.
 const LEFT_ITEMS = [
-  { href: '/wydarzenia', label: 'Szukaj', Icon: BallIcon },
+  { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -289,7 +289,7 @@ export default function BottomNav() {
         '/moje-gry'],
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
-      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
+      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
       // Odkrywalność gestu przytrzymania — bez tego nikt by się nie
       // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
       // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
@@ -364,8 +364,10 @@ export default function BottomNav() {
     /** Stan „wybrane" dla pozycji bez trasy. */
     aktywny?: boolean;
   }) {
+    // `/mapa` (Szukaj) nie ma dziś podtras — wyłączenie zostaje na wszelki
+    // wypadek, gdyby kiedyś dostała (np. szczegóły obiektu pod tym prefiksem).
     const active = aktywny
-      ?? (pathname === href || (!!href && href !== '/wydarzenia' && pathname.startsWith(href + '/')));
+      ?? (pathname === href || (!!href && href !== '/mapa' && pathname.startsWith(href + '/')));
     const widoczne = dots.filter(Boolean);
     const opisy = [
       ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
@@ -479,7 +481,7 @@ export default function BottomNav() {
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
-          if (item.href === '/wydarzenia' && nearbyNew) {
+          if (item.href === '/mapa' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
