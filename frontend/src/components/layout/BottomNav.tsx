@@ -40,7 +40,8 @@ function BallIcon({ className }: { className?: string }) {
 //  • „Znajdź grę" i „Mapa" odpowiadały na to samo pytanie — gdzie coś dla mnie
 //    jest — tylko innym widokiem tych samych danych. Widok listy kontra mapy to
 //    przełącznik WEWNĄTRZ jednego ekranu, nie dwa miejsca w pasku; zjadały 40%
-//    nawigacji. Mapa ma teraz przełącznik na `/wydarzenia`.
+//    nawigacji. „Szukaj" prowadzi dziś na `/mapa` (Lista/Mapa i Gry/Obiekty
+//    w jednym pasku), `/wydarzenia` zostaje żywe, ale przestaje być celem paska.
 //  • „Znajdź grę" było czasownikiem wśród samych miejsc.
 //  • „Moje" nie miało dopełnienia (moje co?), a „Grupy" kłóciło się z „ekipą",
 //    której produkt używa wszędzie indziej.
@@ -65,7 +66,7 @@ function BallIcon({ className }: { className?: string }) {
 // nadrobić niczym.
 const LEFT_ITEMS = [
   { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
-  { href: '/wydarzenia', label: 'Szukaj', Icon: BallIcon },
+  { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -301,7 +302,7 @@ export default function BottomNav() {
         '/moje-gry'],
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
-      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
+      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
       // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
       ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
@@ -366,7 +367,7 @@ export default function BottomNav() {
         Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
   }) {
-    const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
+    const active = pathname === href || (href !== '/mapa' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
     const opisy = [
       ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
@@ -476,7 +477,7 @@ export default function BottomNav() {
           if (item.href === '/moje-gry' && pendingApproval) {
             dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
           }
-          if (item.href === '/wydarzenia' && nearbyNew) {
+          if (item.href === '/mapa' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
