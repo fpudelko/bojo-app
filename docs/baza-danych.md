@@ -1,6 +1,6 @@
 # Baza danych
 
-120 migracji (`001`–`122`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+121 migracji (`001`–`123`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -93,8 +93,9 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 
 | Tabela | Powstała w | Rola |
 |---|---|---|
-| `fields` | `001` | Boiska i obiekty (32 684 wierszy po imporcie całej Polski z OSM, `scraper/import_osm_pbf.py` — dawne „~1400" opisywało wyłącznie katalog poznański). `city`/`voivodeship`/`seo_tier` (`112`) — patrz niżej |
-| `miasta_priorytetowe` | `112` | Statyczna lista ~100 dużych/średnich miast (dane GUS), wejście do `oblicz_seo_tier()`. WYŁĄCZNIE do tieringu indeksacji — nie mylić z hubami `/graj/[sport]/[miasto]` (dziś tylko Poznań, `content/graj.ts`) |
+| `fields` | `001` | Boiska i obiekty (36 268 wierszy po kolejnym imporcie z OSM, `scraper/import_osm_pbf.py` — dawne „~1400" opisywało wyłącznie katalog poznański). `city`/`voivodeship`/`seo_tier` (`112`) — patrz niżej. Backfill `city`/`voivodeship` realnie przeszedł (`scraper/backfill_lokalizacja.py` przez `.github/workflows/backfill-lokalizacja.yml`): 3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3 |
+| `miasta_priorytetowe` | `112` | Statyczna lista ~100 dużych/średnich miast (dane GUS), wejście do `oblicz_seo_tier()`. WYŁĄCZNIE do tieringu indeksacji — nie mylić z hubami `/[sport]/[miasto]` (`content/miasta.ts`, dziś Poznań/Warszawa/Kraków) |
+| `potwierdzenia_obiektu` | `123` | Mikro-ankiety UGC pod obiektem („czy oświetlone?", „jaka nawierzchnia?") — jeden głos na fakt na osobę (`UNIQUE (field_id, user_id, fakt)`), publiczny odczyt, zapis wyłącznie we własnym imieniu. Świadomie NIE nadpisuje `fields.lit`/`fields.surface` — pokazywane obok danych z OSM, nie zamiast nich |
 | `events` | `002` | Mecze. `recurring_event_id` (`073`) wiąże termin z szablonem — patrz sekcja o seriach niżej. `min_players` (`097`) — próg „gra się odbędzie", `NULL` = brak progu. `reserve_claim_minutes` (`118`, wcześniej `reserve_claim_hours`) — okno na przyjęcie zwolnionego miejsca, w minutach |
 | `event_participants` | `002` | Zapisy na mecz. Kolumny `status` i `confirmed_at` usunięte w `064` — relację gracza do meczu opisują `pending_approval` i `rsvp`. `claim_token` (`066`) pozwala gościowi przejąć wpis po założeniu konta. `zapisano_at` (`110`) — moment liczący się do kolejki rezerwowej, osobny od `created_at` |
 | `event_blik` | `120` | Numer BLIK organizatora, jeden wiersz na mecz (PK = FK do `events`). OSOBNA TABELA, bo RLS w Postgresie jest wierszowe, a `events` czyta każdy — dopóki numer siedział w tamtym wierszu, leciał w każdym `select('*')` do kogokolwiek. Widzi go organizator, delegat (`089`) i uczestnik meczu; reguła „dopiero godzinę przed meczem" (`canSeeBlikPhone`) zostaje w UI |
@@ -205,6 +206,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `120_rozmowa_i_blik_tylko_dla_swoich` | Domyka DWA wycieki widoczne z samego internetu, bez logowania. (1) `event_comments` miało politykę SELECT `USING (deleted_at IS NULL)` — bez warunku na osobę, więc treść rozmów WSZYSTKICH meczów, także prywatnych, dało się pobrać jednym zapytaniem do REST-a. Nowa funkcja `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER, lustro `mozeWidziecRozmowe` z `EventDetailClient`: uczestnik, organizator, członek ekipy meczu) wchodzi do polityk SELECT i INSERT. Człon `OR auth.uid() = user_id` stoi POZA warunkiem widoczności — inaczej autor wpadłby w pułapkę z `100` przy kasowaniu własnej wiadomości. (2) Numer BLIK przenosi się z `events.blik_phone` do nowej tabeli `event_blik` z własną polityką; `event_set_payment_settings()` (`090`) pisze już do niej |
 | `121_koniec_blik_phone_w_events` | `ALTER TABLE events DROP COLUMN blik_phone` — dopiero to zamyka wyciek numeru. URUCHAMIAĆ PO WDROŻENIU frontendu z tego samego PR-a: kolejność `120` → deploy → `121`. Przed skasowaniem kolumny dokłada do `event_blik` numery, które zdążyły wejść starym frontendem między `120` a deployem |
 | `122_odswiezenie_powiadomienia_o_wiadomosci` | `powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()` (`CREATE OR REPLACE`, ciało jak w `111`) — druga i kolejna wiadomość w tej samej rozmowie w oknie godziny (limit z `109`/`111`) już nie ginie bez śladu: zamiast pomijanego INSERT-u robi `UPDATE` istniejącego wiersza (nowa treść, świeży `created_at`, `read_at = NULL`) i dopiero `INSERT` dla odbiorców bez żadnego powiadomienia w tej godzinie. Push nie dubluje się — `trg_wyslij_push` (`102`) łapie wyłącznie `INSERT`, `UPDATE` go nie odpala |
+| `123_potwierdzenia_obiektu` | Faza 3 SEO/GEO (BACKLOG.md §7a). Tabela `potwierdzenia_obiektu` — mikro-ankiety UGC pod obiektem (oświetlenie, nawierzchnia), bliźniacza RLS do `field_comments` (`063`). Zapis idzie wprost przez klienta (`.upsert()` z `onConflict`), nie przez RPC — nie ma tu nic do ukrycia przed klientem, w przeciwieństwie do `zgloszenia_bledow` (`099`), które trzyma `status`/`liczba` poza jego zasięgiem |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a
