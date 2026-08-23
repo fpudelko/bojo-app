@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// Lista rezerwowa przestała być stałą regułą (migracja 123). Reguła ma DWIE
+// Lista rezerwowa przestała być stałą regułą (migracja 124). Reguła ma DWIE
 // strony — interfejs i bazę — i to baza jest tą prawdziwą: Bojo nie ma
 // własnego backendu, a klucz `anon` siedzi jawnie w paczce JS, więc schowanie
 // przycisku niczego nie pilnuje. Ten plik sprawdza, czy obie strony mówią to

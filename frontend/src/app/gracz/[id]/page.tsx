@@ -101,7 +101,7 @@ export default function PublicPlayerPage() {
                   </p>
                 </div>
               </div>
-              {/* Wejście do rozmowy prywatnej (migracja 124). Do tej pory
+              {/* Wejście do rozmowy prywatnej (migracja 125). Do tej pory
                   jedyny kontakt z graczem znanym TYLKO z boiska szedł poza
                   aplikację — na Messengera, do kogoś, kogo nie ma się
                   w kontaktach. Na WŁASNYM profilu przycisku nie ma: rozmowa

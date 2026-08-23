@@ -13,7 +13,7 @@ describe('para rozmowy prywatnej', () => {
   });
 
   it('mniejszy identyfikator jest zawsze `low`', () => {
-    // CHECK w migracji 124 pilnuje tego samego po stronie bazy.
+    // CHECK w migracji 125 pilnuje tego samego po stronie bazy.
     expect(paraRozmowy(B, A)).toEqual({ low: A, high: B });
   });
 
