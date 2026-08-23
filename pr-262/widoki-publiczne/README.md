@@ -1,9 +1,9 @@
 # Zrzuty — PR #262 · widoki-publiczne
 
-Przebieg [`32651602595`](https://github.com/fpudelko/bojo-app/actions/runs/32651602595)
+Przebieg [`32655194910`](https://github.com/fpudelko/bojo-app/actions/runs/32655194910)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/262)
 
-Zmienione widoki: **15** · nowe widoki: **4**
+Zmienione widoki: **16** · nowe widoki: **8**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -276,6 +276,28 @@ w czytelnej skali, potem całe strony obok siebie.
 
 </details>
 
+### trasa-wydarzenia
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__trasa-wydarzenia__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__trasa-wydarzenia__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__trasa-wydarzenia__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__trasa-wydarzenia__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__trasa-wydarzenia__diff.png" width="100%">
+
+</details>
+
 ### wylogowany-grupy
 
 <table><tr>
@@ -347,6 +369,14 @@ w czytelnej skali, potem całe strony obok siebie.
 Nie było ich wcześniej, więc nie ma z czym porównywać —
 to jest po prostu to, co widzi użytkownik.
 
+### zrzuty-komputer · trasa-rozmowa-prywatna
+
+![zrzuty-komputer · trasa-rozmowa-prywatna](nowy__zrzuty-komputer__trasa-rozmowa-prywatna.png)
+
+### zrzuty-komputer · trasa-rozmowy
+
+![zrzuty-komputer · trasa-rozmowy](nowy__zrzuty-komputer__trasa-rozmowy.png)
+
 ### zrzuty-komputer · trasa-sport-miasto-poznan
 
 ![zrzuty-komputer · trasa-sport-miasto-poznan](nowy__zrzuty-komputer__trasa-sport-miasto-poznan.png)
@@ -354,6 +384,14 @@ to jest po prostu to, co widzi użytkownik.
 ### zrzuty-komputer · trasa-sport-miasto-warszawa
 
 ![zrzuty-komputer · trasa-sport-miasto-warszawa](nowy__zrzuty-komputer__trasa-sport-miasto-warszawa.png)
+
+### zrzuty-telefon · trasa-rozmowa-prywatna
+
+![zrzuty-telefon · trasa-rozmowa-prywatna](nowy__zrzuty-telefon__trasa-rozmowa-prywatna.png)
+
+### zrzuty-telefon · trasa-rozmowy
+
+![zrzuty-telefon · trasa-rozmowy](nowy__zrzuty-telefon__trasa-rozmowy.png)
 
 ### zrzuty-telefon · trasa-sport-miasto-poznan
 
