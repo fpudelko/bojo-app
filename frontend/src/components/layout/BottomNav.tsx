@@ -50,13 +50,27 @@ function BallIcon({ className }: { className?: string }) {
 // nieprzeczytanych otwierało PRZYTRZYMANIE „Moje", czyli gest, którego nikt
 // nie odkryje sam. Różowa chmurka wisiała nad ikonami, które o wiadomościach
 // nie mówiły nic.
+// KOLEJNOŚĆ: Mecze · Szukaj · ＋ · Rozmowy · Ekipy.
+//
+// „Moje mecze" na PIERWSZEJ pozycji, bo to jest dom zalogowanego. Człowiek
+// wraca do Bojo, żeby zobaczyć SWOJĄ grę — czy się odbędzie, kto doszedł, o
+// której się zbieramy — a nie żeby szukać nowej. Szukanie to czynność
+// jednorazowa na ekipę; oglądanie swojego meczu powtarza się co drugi dzień.
+//
+// „Rozmowy" tuż przy środkowym „＋", bo to drugi najczęstszy powód otwarcia
+// aplikacji („ktoś wypadł?", „o której jutro?").
+//
+// Zastrzeżenie, świadomie przyjęte: świeże konto zobaczy na pierwszej pozycji
+// pusty ekran. Pusty stan da się napisać dobrze — złej kolejności nie da się
+// nadrobić niczym.
 const LEFT_ITEMS = [
+  { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
   { href: '/wydarzenia', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
-  { href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays },
-  { href: '/grupy',    label: 'Ekipy',      Icon: UsersIcon },
+  { href: '/rozmowy', label: 'Rozmowy', Icon: MessageCircle },
+  { href: '/grupy',   label: 'Ekipy',   Icon: UsersIcon },
 ] as const;
 
 /** `/grupy/<uuid>` (nie `/grupy/nowe`, nie `/grupy/<uuid>/edytuj`) — wyłącznie
@@ -459,33 +473,27 @@ export default function BottomNav() {
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
+          if (item.href === '/moje-gry' && pendingApproval) {
+            dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
+          }
           if (item.href === '/wydarzenia' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Pierwsza kolumna to lewa krawędź ekranu — dymek wystawałby poza nią.
           const dymekAlign = i === 0 ? 'left' : 'center';
-          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} dymekAlign={dymekAlign} />;
+          return (
+            <NavLink
+              key={item.href}
+              {...item}
+              dots={dots}
+              dymek={dymek}
+              dymekAlign={dymekAlign}
+              licznik={item.href === '/moje-gry' ? ileMoich : 0}
+            />
+          );
         })}
 
-        {/* ROZMOWY. Panel istniał od dawna, ale otwierało go PRZYTRZYMANIE
-            „Moje" — gest, którego nikt nie odkryje sam, więc funkcja praktycznie
-            nie istniała. Chmurki nieprzeczytanych wisiały tymczasem nad „Moje"
-            i „Grupy", czyli nad ikonami, które o wiadomościach nie mówią nic;
-            teraz obie schodzą tutaj, na ikonę, która mówi wprost.
-
-            Otwiera arkusz, nie prowadzi do trasy: panel pokazuje rozmowy
-            z NIEPRZECZYTANYMI, więc jako osobny ekran bywałby pusty. Osobna
-            strona ze WSZYSTKIMI rozmowami to zmiana na inny dzień — wymaga
-            zapytań, których dziś nie ma. */}
-        <NavLink
-          href="/rozmowy"
-          label="Rozmowy"
-          Icon={MessageCircle}
-          dots={(unreadEvents || unreadGroups)
-            ? [{ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' }]
-            : []}
-        />
 
         {/* Centre FAB — always accessible, can't be deselected. Na stronie
             konkretnej ekipy prowadzi do kreatora z już wybraną grupą — to jest
@@ -503,11 +511,14 @@ export default function BottomNav() {
 
         {RIGHT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
-          if (item.href === '/moje-gry') {
-            if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
+          // Chmurka nieprzeczytanych wisiała dawniej nad „Moje" i „Grupy" —
+          // nad ikonami, które o wiadomościach nie mówią nic. Teraz obie
+          // schodzą na ikonę, która mówi wprost, i jest ich JEDNA.
+          if (item.href === '/rozmowy' && (unreadEvents || unreadGroups)) {
+            dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
           }
-          if (item.href === '/grupy') {
-            if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
+          if (item.href === '/grupy' && newGroupEvents) {
+            dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
@@ -519,7 +530,6 @@ export default function BottomNav() {
               dots={dots}
               dymek={dymek}
               dymekAlign={dymekAlign}
-              licznik={item.href === '/moje-gry' ? ileMoich : 0}
               gest={item.href === '/grupy' ? gestGrupy : undefined}
             />
           );
