@@ -168,3 +168,25 @@ export async function markRead(ids: string[]): Promise<void> {
     .in('id', ids)
     .is('read_at', null);
 }
+
+/**
+ * Oznacza jako przeczytane WSZYSTKIE powiadomienia o wiadomościach.
+ *
+ * Woła to ekran `/rozmowy` przy wejściu — jeden do jednego z tym, co robił
+ * panel chmurki w nagłówku, zanim panel odszedł. Bez tego wiersze
+ * `TYPY_WIADOMOSCI` nie mają już w aplikacji ŻADNEJ drogi do przeczytania:
+ * zostają w bazie na zawsze, a plakietka na ikonie aplikacji (liczona z
+ * `notifications` — tak samo w `public/sw.js`) nigdy nie gaśnie.
+ *
+ * Stan „nieprzeczytane" samej rozmowy tego nie dotyczy — ten liczy się ze
+ * znaczników ostatniej wizyty (`nieprzeczytaneWMeczach`,
+ * `rozmowyGrupZNieprzeczytanymi`, `dm`), nie z tabeli powiadomień.
+ */
+export async function oznaczWiadomosciPrzeczytane(userId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .in('type', Array.from(TYPY_WIADOMOSCI))
+    .is('read_at', null);
+}

@@ -36,11 +36,26 @@ const TAB_TO_SLUG: Record<Tab, string> = {
 const TABS: Tab[] = ['upcoming', 'history', 'invites', 'observing'];
 
 function tabButtonCls(active: boolean) {
-  return `pb-2.5 text-sm transition-colors ${
+  // `border-b-2 border-transparent` także dla NIEAKTYWNEJ: bez tego aktywna
+  // zakładka jest o 2 px wyższa i cały rząd podskakuje przy każdym przełączeniu.
+  // `min-h-[44px]` — cel dotykowy, nie estetyka.
+  return `relative flex min-h-[44px] items-center justify-center border-b-2 pb-2 text-[13px] transition-colors ${
     active
-      ? 'border-b-2 border-primary-700 text-primary-700 font-semibold'
-      : 'text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
+      ? 'border-primary-700 text-primary-700 font-semibold'
+      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-ink dark:hover:text-slate-100'
   }`;
+}
+
+/** Plakietka liczby przy zakładce — ABSOLUTNA, nie w rzędzie z napisem.
+ *  W rzędzie poszerzała zakładkę o swoją szerokość, więc dwie zakładki
+ *  z liczbami rozpychały czwartą poza ekran. */
+function PlakietkaZakladki({ ile }: { ile: number }) {
+  if (ile <= 0) return null;
+  return (
+    <span className="absolute -top-0.5 right-0 rounded-full bg-primary-700 px-1.5 text-[10px] font-bold leading-[15px] text-white tabular-nums">
+      {ile > 9 ? '9+' : ile}
+    </span>
+  );
 }
 
 function MojeGryContent() {
@@ -204,31 +219,27 @@ function MojeGryContent() {
           </Link>
         )}
 
-        {/* Tabs — poziomy scroll z ukrytym scrollbarem: cztery zakładki +
-            dwie plakietki nie mieszczą się zawsze na 360px. */}
+        {/* CZTERY RÓWNE KOLUMNY, ZERO PRZEWIJANIA W BOK.
+            Rząd przewijał się poziomo, więc na 360-pikselowym telefonie
+            „Obserwowane" po prostu nie było widać — a zakładki, w odróżnieniu
+            od filtrów, są całą nawigacją tego ekranu. Siatka mieści wszystkie
+            cztery, bo napisy są krótsze o jedno słowo, a liczby zeszły
+            z rzędu do rogu (`PlakietkaZakladki`). */}
         <div className="border-b border-slate-100 dark:border-slate-700">
-          <div className="flex gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => goToTab('upcoming')} className={`${tabButtonCls(tab === 'upcoming')} shrink-0 whitespace-nowrap`}>
-              Nadchodzące
+          <div className="grid grid-cols-4">
+            <button onClick={() => goToTab('upcoming')} className={tabButtonCls(tab === 'upcoming')}>
+              Najbliższe
             </button>
-            <button onClick={() => goToTab('history')} className={`${tabButtonCls(tab === 'history')} shrink-0 whitespace-nowrap`}>
+            <button onClick={() => goToTab('history')} className={tabButtonCls(tab === 'history')}>
               Historia
             </button>
-            <button onClick={() => goToTab('invites')} className={`${tabButtonCls(tab === 'invites')} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap`}>
+            <button onClick={() => goToTab('invites')} className={tabButtonCls(tab === 'invites')}>
               Zaproszenia
-              {visibleInviteCount > 0 && (
-                <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
-                  {visibleInviteCount}
-                </span>
-              )}
+              <PlakietkaZakladki ile={visibleInviteCount} />
             </button>
-            <button onClick={() => goToTab('observing')} className={`${tabButtonCls(tab === 'observing')} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap`}>
-              Obserwowane
-              {observing.length > 0 && (
-                <span className="rounded-full bg-primary-700 px-1.5 py-0.5 text-[11px] font-bold text-white tabular-nums">
-                  {observing.length}
-                </span>
-              )}
+            <button onClick={() => goToTab('observing')} className={tabButtonCls(tab === 'observing')}>
+              Obserwuję
+              <PlakietkaZakladki ile={observing.length} />
             </button>
           </div>
         </div>

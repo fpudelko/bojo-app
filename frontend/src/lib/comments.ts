@@ -149,6 +149,87 @@ export interface RozmowaNieprzeczytana {
   najnowsza: string;
 }
 
+/** Jedna rozmowa na liście „Rozmowy" — także taka, w której wszystko
+ *  przeczytane. */
+export interface RozmowaNaLiscie extends RozmowaNieprzeczytana {
+  /** Początek ostatniej wiadomości, kto ją napisał — jak w komunikatorze. */
+  ostatnia: string;
+  autor: string;
+  /** Czy ostatnia wiadomość jest moja („Ty: …"). */
+  moja: boolean;
+}
+
+/**
+ * WSZYSTKIE rozmowy moich nadchodzących meczów, od najświeższej — nie tylko te
+ * z nieprzeczytanymi.
+ *
+ * Panel pokazywał wcześniej wyłącznie nieprzeczytane i nazywał się „Nieprzeczytane
+ * rozmowy". Skutek: po przeczytaniu wszystkiego ekran był PUSTY, więc jedyny
+ * moment, w którym dało się wrócić do rozmowy sprzed dwóch dni, to był moment,
+ * w którym akurat ktoś napisał coś nowego. Komunikator działa odwrotnie:
+ * rozmowa zostaje na liście, a nieprzeczytane są jej STANEM, nie warunkiem
+ * istnienia.
+ *
+ * Mecze BEZ ANI JEDNEJ wiadomości nie wchodzą — to nie są rozmowy, tylko mecze,
+ * i mają własną listę na `/moje-gry`.
+ */
+export async function wszystkieRozmowyMeczow(userId: string): Promise<RozmowaNaLiscie[]> {
+  const eventIds = await getMyActiveEventIds(userId);
+  if (eventIds.length === 0) return [];
+
+  const dzis = new Date().toISOString().slice(0, 10);
+  const { data: mecze, error } = await supabase
+    .from('events')
+    .select('id, title, sport, event_date, event_time')
+    .in('id', eventIds)
+    .neq('status', 'cancelled')
+    .gte('event_date', dzis);
+  if (error || !mecze || mecze.length === 0) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const opis = new Map((mecze as any[]).map((m) => [m.id as string, {
+    // Mecz bez tytułu wyświetlał się jako „Bez nazwy" — napis, który nie mówi
+    // nic o tym, którą rozmowę otwierasz. Sport i data mówią.
+    tytul: (m.title as string | null)?.trim() || `${m.sport ?? 'Mecz'} · ${m.event_date}`,
+  }]));
+
+  const { data: wiersze } = await supabase
+    .from('event_comments')
+    .select('event_id, user_id, user_name, body, created_at')
+    .in('event_id', Array.from(opis.keys()))
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const komentarze = ((wiersze ?? []) as any[]).filter((c) => opis.has(c.event_id));
+  if (komentarze.length === 0) return [];
+
+  const widzianoByEvent = (eventId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczRozmowyWidziano(eventId)) : null
+  );
+  const counts = policzNieprzeczytanePerWydarzenie(
+    komentarze.map((c) => ({ eventId: c.event_id, userId: c.user_id, createdAt: c.created_at })),
+    userId, widzianoByEvent,
+  );
+
+  // Zapytanie jest posortowane malejąco, więc PIERWSZY napotkany wiersz danego
+  // meczu jest jego ostatnią wiadomością — bez drugiego przebiegu po tablicy.
+  const ostatnie = new Map<string, (typeof komentarze)[number]>();
+  for (const c of komentarze) if (!ostatnie.has(c.event_id)) ostatnie.set(c.event_id, c);
+
+  return Array.from(ostatnie.entries())
+    .map(([eventId, c]) => ({
+      id: eventId,
+      tytul: opis.get(eventId)!.tytul,
+      ile: counts[eventId] ?? 0,
+      najnowsza: c.created_at as string,
+      ostatnia: (c.body as string | null)?.replace(/\s+/g, ' ').trim() ?? '',
+      autor: (c.user_name as string | null) ?? 'Ktoś',
+      moja: c.user_id === userId,
+    }))
+    .sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
+}
+
 /** Moje NADCHODZĄCE mecze z nieprzeczytanymi wiadomościami, od najświeższej.
  *  Ta sama reguła „tylko nadchodzące" co niżej — wskaźnik wolno zapalić
  *  wyłącznie za coś, do czego da się dojść z ekranu, na który wskazuje.

@@ -14,7 +14,6 @@ import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
 import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
-import PanelRozmow from './PanelRozmow';
 
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
@@ -41,7 +40,8 @@ function BallIcon({ className }: { className?: string }) {
 //  • „Znajdź grę" i „Mapa" odpowiadały na to samo pytanie — gdzie coś dla mnie
 //    jest — tylko innym widokiem tych samych danych. Widok listy kontra mapy to
 //    przełącznik WEWNĄTRZ jednego ekranu, nie dwa miejsca w pasku; zjadały 40%
-//    nawigacji. Mapa ma teraz przełącznik na `/wydarzenia`.
+//    nawigacji. „Szukaj" prowadzi dziś na `/mapa` (Lista/Mapa i Gry/Obiekty
+//    w jednym pasku), `/wydarzenia` zostaje żywe, ale przestaje być celem paska.
 //  • „Znajdź grę" było czasownikiem wśród samych miejsc.
 //  • „Moje" nie miało dopełnienia (moje co?), a „Grupy" kłóciło się z „ekipą",
 //    której produkt używa wszędzie indziej.
@@ -51,13 +51,27 @@ function BallIcon({ className }: { className?: string }) {
 // nieprzeczytanych otwierało PRZYTRZYMANIE „Moje", czyli gest, którego nikt
 // nie odkryje sam. Różowa chmurka wisiała nad ikonami, które o wiadomościach
 // nie mówiły nic.
+// KOLEJNOŚĆ: Mecze · Szukaj · ＋ · Rozmowy · Ekipy.
+//
+// „Moje mecze" na PIERWSZEJ pozycji, bo to jest dom zalogowanego. Człowiek
+// wraca do Bojo, żeby zobaczyć SWOJĄ grę — czy się odbędzie, kto doszedł, o
+// której się zbieramy — a nie żeby szukać nowej. Szukanie to czynność
+// jednorazowa na ekipę; oglądanie swojego meczu powtarza się co drugi dzień.
+//
+// „Rozmowy" tuż przy środkowym „＋", bo to drugi najczęstszy powód otwarcia
+// aplikacji („ktoś wypadł?", „o której jutro?").
+//
+// Zastrzeżenie, świadomie przyjęte: świeże konto zobaczy na pierwszej pozycji
+// pusty ekran. Pusty stan da się napisać dobrze — złej kolejności nie da się
+// nadrobić niczym.
 const LEFT_ITEMS = [
+  { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
   { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
-  { href: '/moje-gry', label: 'Moje mecze', Icon: CalendarDays },
-  { href: '/grupy',    label: 'Ekipy',      Icon: UsersIcon },
+  { href: '/rozmowy', label: 'Rozmowy', Icon: MessageCircle },
+  { href: '/grupy',   label: 'Ekipy',   Icon: UsersIcon },
 ] as const;
 
 /** `/grupy/<uuid>` (nie `/grupy/nowe`, nie `/grupy/<uuid>/edytuj`) — wyłącznie
@@ -188,7 +202,6 @@ export default function BottomNav() {
   // (mecze + ekipy), zgłoszone wprost. Hak żyje na poziomie komponentu, nie
   // wewnątrz `NavLink` — `NavLink` jest funkcją definiowaną w ciele
   // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
-  const [panelRozmowOtwarty, setPanelRozmowOtwarty] = useState(false);
 
   // Przytrzymanie „Grupy" → od razu ekipa, o którą chodzi, zamiast listy
   // wszystkich (zgłoszone wprost). Priorytet: 1) ekipa z NAJBLIŻSZYM
@@ -290,10 +303,6 @@ export default function BottomNav() {
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
-      // Odkrywalność gestu przytrzymania — bez tego nikt by się nie
-      // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
-      // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
-      ['przytrzymaj-rozmowy', unreadEvents || unreadGroups, 'Przytrzymaj „Moje" → wszystkie rozmowy', '/moje-gry'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
       // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
       ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
@@ -316,10 +325,8 @@ export default function BottomNav() {
 
   function NavLink({
     href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, gest,
-    naKlik, aktywny,
   }: {
-    /** Pusty, gdy pozycja nie prowadzi do trasy (Rozmowy otwierają arkusz). */
-    href?: string; label: string; Icon: React.ComponentType<{ className?: string }>;
+    href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
         z prawej; różowa CHMURKA: nieprzeczytane wiadomości z lewej), "Grupy"
         (różowa chmurka z lewej; pomarańczowa kropka: nowy mecz w ekipie z prawej)
@@ -355,35 +362,21 @@ export default function BottomNav() {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
-    /** Handlery przytrzymania (`useDlugieWcisniecie`) — na „Moje" (panel
-        wszystkich nieprzeczytanych rozmów) i na „Grupy" (od razu najbliższa
-        ekipa, patrz `gestGrupy`), stąd opcjonalne. Rozłożone wprost na `<Link>`. */
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś tylko na „Ekipy"
+        (skok do najbliższej ekipy, patrz `gestGrupy`), stąd opcjonalne.
+        Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
-    /** Zamiast przejścia — otwarcie arkusza. Wyklucza się z `href`. */
-    naKlik?: () => void;
-    /** Stan „wybrane" dla pozycji bez trasy. */
-    aktywny?: boolean;
   }) {
-    // `/mapa` (Szukaj) nie ma dziś podtras — wyłączenie zostaje na wszelki
-    // wypadek, gdyby kiedyś dostała (np. szczegóły obiektu pod tym prefiksem).
-    const active = aktywny
-      ?? (pathname === href || (!!href && href !== '/mapa' && pathname.startsWith(href + '/')));
+    const active = pathname === href || (href !== '/mapa' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
     const opisy = [
       ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
       ...widoczne.map((d) => d.label),
     ];
     const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
-    // Ten sam kształt, dwa elementy: pozycja z trasą to `<Link>`, pozycja
-    // otwierająca arkusz to `<button>` — a nie `<Link href="#">`, bo tamto
-    // kłamie czytnikom ekranu i podmienia adres w pasku.
-    const Element = (naKlik ? 'button' : Link) as React.ElementType;
-    const wlasciwosci = naKlik
-      ? { type: 'button' as const, onClick: naKlik, 'aria-expanded': !!aktywny }
-      : { href: href! };
     return (
-      <Element
-        {...wlasciwosci}
+      <Link
+        href={href}
         aria-label={ariaSuffix ? `${label}${ariaSuffix}` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
@@ -462,7 +455,7 @@ export default function BottomNav() {
           )}
         </span>
         <span className="whitespace-nowrap">{label}</span>
-      </Element>
+      </Link>
     );
   }
 
@@ -481,34 +474,27 @@ export default function BottomNav() {
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
+          if (item.href === '/moje-gry' && pendingApproval) {
+            dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
+          }
           if (item.href === '/mapa' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Pierwsza kolumna to lewa krawędź ekranu — dymek wystawałby poza nią.
           const dymekAlign = i === 0 ? 'left' : 'center';
-          return <NavLink key={item.href} {...item} dots={dots} dymek={dymek} dymekAlign={dymekAlign} />;
+          return (
+            <NavLink
+              key={item.href}
+              {...item}
+              dots={dots}
+              dymek={dymek}
+              dymekAlign={dymekAlign}
+              licznik={item.href === '/moje-gry' ? ileMoich : 0}
+            />
+          );
         })}
 
-        {/* ROZMOWY. Panel istniał od dawna, ale otwierało go PRZYTRZYMANIE
-            „Moje" — gest, którego nikt nie odkryje sam, więc funkcja praktycznie
-            nie istniała. Chmurki nieprzeczytanych wisiały tymczasem nad „Moje"
-            i „Grupy", czyli nad ikonami, które o wiadomościach nie mówią nic;
-            teraz obie schodzą tutaj, na ikonę, która mówi wprost.
-
-            Otwiera arkusz, nie prowadzi do trasy: panel pokazuje rozmowy
-            z NIEPRZECZYTANYMI, więc jako osobny ekran bywałby pusty. Osobna
-            strona ze WSZYSTKIMI rozmowami to zmiana na inny dzień — wymaga
-            zapytań, których dziś nie ma. */}
-        <NavLink
-          label="Rozmowy"
-          Icon={MessageCircle}
-          naKlik={() => setPanelRozmowOtwarty(true)}
-          aktywny={panelRozmowOtwarty}
-          dots={(unreadEvents || unreadGroups)
-            ? [{ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' }]
-            : []}
-        />
 
         {/* Centre FAB — always accessible, can't be deselected. Na stronie
             konkretnej ekipy prowadzi do kreatora z już wybraną grupą — to jest
@@ -526,11 +512,14 @@ export default function BottomNav() {
 
         {RIGHT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
-          if (item.href === '/moje-gry') {
-            if (pendingApproval) dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
+          // Chmurka nieprzeczytanych wisiała dawniej nad „Moje" i „Grupy" —
+          // nad ikonami, które o wiadomościach nie mówią nic. Teraz obie
+          // schodzą na ikonę, która mówi wprost, i jest ich JEDNA.
+          if (item.href === '/rozmowy' && (unreadEvents || unreadGroups)) {
+            dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
           }
-          if (item.href === '/grupy') {
-            if (newGroupEvents) dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
+          if (item.href === '/grupy' && newGroupEvents) {
+            dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
@@ -542,19 +531,11 @@ export default function BottomNav() {
               dots={dots}
               dymek={dymek}
               dymekAlign={dymekAlign}
-              licznik={item.href === '/moje-gry' ? ileMoich : 0}
               gest={item.href === '/grupy' ? gestGrupy : undefined}
             />
           );
         })}
       </div>
-      {user && (
-        <PanelRozmow
-          otwarty={panelRozmowOtwarty}
-          naZamknij={() => setPanelRozmowOtwarty(false)}
-          userId={user.id}
-        />
-      )}
     </nav>
   );
 }

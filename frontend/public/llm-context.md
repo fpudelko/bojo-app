@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `124` · 41 tabel · 747 testy
+**Stan na:** 2026-08-22 · migracja `125` · 45 tabel · 761 testów
 
 ---
 
@@ -343,6 +343,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
+
+PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
+(logo, „Znajdź grę", dzwonek) — na telefonie ekran wyglądał jak strona ze wstawionym
+czatem pod nawigacją, nie jak własna aplikacja do pisania. Lista rozmów nie miała też
+szukajki — jedynym sposobem znalezienia konkretnej rozmowy było przewijanie.
+
+ROZWIĄZANIE BOJO: na mobile dla zalogowanego generyczny pasek Header znika CAŁKOWICIE
+na obu ekranach (`hideMobileBarForUser`, ten sam wzorzec co `/mapa`) — jego miejsce
+zajmuje WŁASNY nagłówek ekranu: tytuł + tożsamość + szukajka na liście, strzałka wstecz
++ imię + menu (blokuj/zgłoś) w rozmowie. Szukajka na `/rozmowy` filtruje w pamięci po
+tytule ORAZ zajawce ostatniej wiadomości — cała lista jest już wczytana, więc nie ma po
+co wracać do bazy drugi raz. Desktop bez zmian (Header tam nikt nie prosił chować).
+
+MECHANIKA: `RozmowyClient.tsx` (stan `szukane`, filtr przez `foldText()` z
+`lib/searchText.ts`, `MobileIdentityRow` zamiast paska Header na mobile);
+`DmRozmowaClient.tsx` (`<Header hideMobileBarForUser />`). Bez migracji.
+
+### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
+
+PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
+grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
+Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
+
+ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
+wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
+Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
+właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
+Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
+
+MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
+`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
+`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
+
 ### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
 
 PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
@@ -523,55 +557,3 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
-
-### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
-
-PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
-klawiatury pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli NAD
-klawiaturą, a pod nim świeciło puste tło strony. Przy schowanej klawiaturze to samo pole
-siedziało pod samą kreską paska gestów na dole ekranu. Do tego otwarcie klawiatury
-spychało najnowszą wiadomość pod krawędź — dokładnie w chwili, gdy ktoś zaczynał na nią
-odpowiadać.
-
-ROZWIĄZANIE BOJO: pole do pisania przykleja się dokładnie do górnej krawędzi klawiatury,
-a przy schowanej klawiaturze zostawia odstęp na pasek gestów telefonu. Otwarcie
-klawiatury dociąga listę wiadomości na dół, chyba że akurat czyta się starsze wiadomości
-wyżej — wtedy widok zostaje tam, gdzie był. Dotyczy tak samo rozmowy meczu, jak tablicy
-ekipy.
-
-MECHANIKA: `lib/oknoCzatu.ts` — `useOknoCzatu()` mierzy `visualViewport.height`
-i `styleOknaCzatu()` podstawia ją korzeniowi strony zamiast `100dvh`. Na iOS klawiatura
-nie kurczy layoutu (`viewport.interactiveWidget: 'resizes-content'` działa tylko na
-Androidzie), tylko przesuwa widoczne okno w górę z zapasem — stąd pusty pas pod
-composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
-`env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
-i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
-Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
-
-### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
-
-PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
-dopiero po przewinięciu — modele generatywne cytują krótkie, faktograficzne akapity, a
-takich nie było. Odpowiedź o podziale kosztów nie podawała żadnej liczby, więc nie dawała
-się zacytować jako konkret. Landingi lokalne obsługiwały jedno miasto i siedziały pod
-prefiksem `/graj/`, a nic na stronie nie mówiło wprost, że Bojo nie jest systemem
-rezerwacji obiektów — przez co trafiało do odpowiedzi na zapytania o wynajem boiska,
-gdzie nic nie wnosi.
-
-ROZWIĄZANIE BOJO: Direct Answer (40–50 słów) nad treścią `/dlaczego-bojo`,
-`/jak-dziala-bojo` i każdej strony sport+miasto. Odpowiedź o kosztach niesie rachunek
-(150 zł ÷ 12 miejsc = 12,50 zł od osoby — dzielnikiem jest liczba MIEJSC, nie liczba
-zapisanych). Trzy nowe pytania FAQ: o sprawiedliwe rozliczenie wynajmu, o brakującą osobę
-na mecz i o szukanie ludzi do gry. Landingi lokalne przeniesione z `/graj/[sport]/[miasto]`
-na `/[sport]/[miasto]` (301 ze starych adresów) i rozszerzone o Warszawę i Kraków —
-dwanaście stron. Każda dostała blok „Czym Bojo nie jest", liczbę obiektów katalogu
-w okolicy, `MiniFaq` z czterema pytaniami i link do mapy.
-
-MECHANIKA: `content/miasta.ts` (nowy — slug, mianownik, miejscownik z przyimkiem,
-współrzędne, szablony Direct Answer i `CZYM_BOJO_NIE_JEST`), `app/[sport]/[miasto]/page.tsx`
-(przeniesiony, `dynamicParams = false` — trasa siedzi na pierwszym segmencie ścieżki),
-`next.config.mjs#redirects()`, `lib/api.ts#policzBoiskaWOkolicy()` (kadr prostokątny, nie
-haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPOWIEDZ`,
-`content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
-stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
-`scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
