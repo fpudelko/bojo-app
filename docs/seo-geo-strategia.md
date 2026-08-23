@@ -194,11 +194,16 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
 - **D7.** **Huby wojewódzkie osierocone** (0 linków przychodzących), a komentarz
   w kodzie twierdzi, że link jest „widoczny, żeby crawler mógł go realnie przejść".
   Komentarz opisuje intencję, nie stan.
-- **D8.** **`/boiska/[sport]` i `/[sport]/[miasto]` to zamknięta pętla bez drzwi** —
+- **D8.** **Częściowo naprawione 2026-08-23** — grupa „Boiska" w stopce daje sześć
+  hubów sportowych z każdej strony ze stopką. Zostaje zahardkodowany Poznań w linku
+  z hubu sportu. Stan sprzed poprawki: **`/boiska/[sport]` i `/[sport]/[miasto]` to
+  zamknięta pętla bez drzwi** —
   żadnego wejścia ze strony głównej, nagłówka ani stopki. Do tego link z hubu sportu
   prowadzi zawsze do Poznania, więc osiem kombinacji z Warszawą i Krakowem nie ma
   wejścia spoza własnego rodzeństwa.
-- **D9.** **Stopka jest tylko na czterech typach stron** (`app/page.tsx`,
+- **D9.** ~~**Stopka jest tylko na czterech typach stron**~~ **(naprawione 2026-08-23:
+  doszła na huby katalogu oraz `/wydarzenia` i `/grupy`; `/mapa` świadomie bez niej —
+  `h-[100dvh] overflow-hidden` by ją przyciął).** Stan sprzed poprawki: (`app/page.tsx`,
   `/[sport]/[miasto]`, `/profil`, strony treści przez `StronaTresci`). Huby boisk,
   strona obiektu, `/mapa`, `/wydarzenia` i `/grupy` nie mają jej wcale — a stopka jest
   jedynym miejscem w serwisie z linkami do `/jak-dziala-bojo`, `/dlaczego-bojo` i `/faq`.
@@ -601,9 +606,8 @@ wojewódzki linkuje do pozostałych piętnastu województw i do hubów sportowyc
 sportu linkuje do szesnastu województw zamiast do jednego zahardkodowanego miasta.
 Szczegóły w 4b.
 
-**Stopka:** obie strony jej nie mają (D9), więc nie prowadzą do `/jak-dziala-bojo`,
-`/dlaczego-bojo` ani `/faq`. Dodanie `<SiteFooter />` to jedna linijka na plik
-i natychmiastowy zysk w sieci linków.
+**Stopka:** ~~obie strony jej nie mają~~ — dodana 2026-08-23 (D9), razem z grupą
+„Boiska" prowadzącą do sześciu hubów sportowych z każdej strony, która stopkę ma.
 
 ---
 

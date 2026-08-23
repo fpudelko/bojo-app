@@ -456,10 +456,16 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
 
 - [ ] **Serwerowy `<h1>`, opis i nawigacja na `/boisko/[id]`** (D5, D6) — jedna zmiana,
       32 tys. stron; zamyka też Fazę 1 i odblokowuje Fazę 2b.
-- [ ] **Stopka na wszystkich stronach publicznych** (D9) — dziś jest na czterech typach
-      stron, a to jedyne miejsce z linkami do `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
-- [ ] **Link z landingu do hubów katalogu** (D8, D18) — dziś katalog nie ma wejścia
-      ze strony głównej w HTML.
+- [x] **Stopka na wszystkich stronach publicznych** (D9, zrobione 2026-08-23) — doszła na
+      `/boiska/[sport]`, `/boiska/woj/[x]`, `/wydarzenia` i `/grupy`. **Bez `/mapa`**: ta trasa
+      ma `h-[100dvh] overflow-hidden`, więc stopka byłaby tam przycięta — mapa potrzebuje
+      innego rozwiązania niż stopka. `/boisko/[id]` dostaje ją razem z serwerowym renderem
+      (pozycja niżej).
+- [x] **Link z landingu do hubów katalogu** (D8, zrobione 2026-08-23) — rozwiązane grupą
+      „Boiska" w `SiteFooter`: sześć hubów sportowych z KAŻDEJ strony ze stopką, nie tylko
+      z landingu. Zostaje otwarte: link z hubu sportu prowadzi nadal zawsze do
+      `/[sport]/poznan` (`boiska/[sport]/page.tsx`), a D18 (serwerowy render otwartych gier
+      i boisk na landingu) to osobna pozycja niżej.
 - [ ] **Pomiar bazowy przed jakąkolwiek optymalizacją** — Search Console + 40 promptów
       (Załączniki A i B strategii).
 - [ ] **Ujednolicić liczbę obiektów w katalogu** (D13) — dziś cztery różne wartości
@@ -470,9 +476,13 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
 
 **Średnioterminowe:**
 
-- [ ] **Bramka `scripts/audyt-robota.mjs` w CI** — pobiera stronę bez JS i sprawdza
-      `<h1>`, tytuł, `description`, linki wewnętrzne i `noindex`. To jedyna bramka,
-      która cofnęłaby dzisiejszy stan; Playwright jej nie zastąpi, bo wykonuje JS.
+- [x] **Bramka `scripts/audyt-robota.mjs` w CI** (zrobione 2026-08-23) — pobiera stronę
+      zwykłym `fetch`, bez JS, i sprawdza `<h1>`, podwojony sufiks w tytule, `description`
+      wraz z frazami zakazanymi (parsowanymi z `content/zakazaneFrazy.ts`, jedno źródło),
+      linki wewnętrzne i `noindex`. Krok w zadaniu `test` w `ci.yml`, reużywa builda.
+      **Ograniczenie:** na atrapach kluczy trasy żyjące z danych sprawdzane są miękko —
+      stronę obiektu twardo weryfikuje dopiero przebieg przeciwko produkcji
+      (`node scripts/audyt-robota.mjs --baza https://bojo.pl`).
 - [ ] **Akapit bezpośredniej odpowiedzi na landingu** — dziś pierwszy ekran ani razu
       nie mówi, czym Bojo jest.
 - [ ] **Sekcje odróżniające Bojo od systemów rezerwacji** w `/jak-dziala-bojo`,

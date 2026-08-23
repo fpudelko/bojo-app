@@ -6,6 +6,7 @@
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "check:docs": "node scripts/check-docs.mjs",
-    "sync:llm-context": "node scripts/sync-llm-context.mjs"
+    "sync:llm-context": "node scripts/sync-llm-context.mjs",
+    "audyt:robota": "node scripts/audyt-robota.mjs"
   }
 }

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MapPin, Landmark } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import SiteFooter from '@/components/layout/SiteFooter';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
@@ -182,6 +183,7 @@ export default async function WojewodztwoPage(
           </Link>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
