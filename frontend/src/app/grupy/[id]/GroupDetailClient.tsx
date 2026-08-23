@@ -13,6 +13,7 @@ import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
+import { useWstecz } from '@/lib/historia';
 import SkladGrupy from '@/components/groups/SkladGrupy';
 import StatystykiGrupy from '@/components/groups/StatystykiGrupy';
 import ZaprosDoGrupySheet from '@/components/groups/ZaprosDoGrupySheet';
@@ -58,6 +59,9 @@ function tabCls(active: boolean) {
 export default function GroupDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  // Do ekipy wchodzi się z siedmiu miejsc — sztywne `/grupy` było prawie
+  // zawsze złą odpowiedzią (patrz lib/historia.tsx).
+  const wstecz = useWstecz('/grupy');
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -395,8 +399,8 @@ export default function GroupDetailClient() {
           <div className="relative space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
             <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <button
-                onClick={() => router.push('/grupy')}
-                aria-label="Wróć do ekip"
+                onClick={wstecz}
+                aria-label="Wróć"
                 className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-50 hover:text-ink dark:hover:bg-slate-700"
               >
                 <ArrowLeft className="h-4 w-4" />

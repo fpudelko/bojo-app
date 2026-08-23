@@ -451,6 +451,13 @@ ponownie i zacommituj wynik.
 - Nie commituj `.env` (jest w `.gitignore`).
 - Domena kanoniczna to `bojo.pl` — jeśli dodajesz miejsce z fallbackiem URL, użyj tej
   samej wartości co `layout.tsx`, `robots.ts` i `sitemap.ts`.
+- **„Wstecz" na ekranie szczegółowym: `useWstecz(rodzic)` z `lib/historia.tsx`, nigdy
+  `router.push(rodzic)`.** Sztywny rodzic jest poprawną odpowiedzią tylko wtedy, gdy do
+  ekranu prowadzi dokładnie jedna droga — a to prawie nigdy nie jest prawda i nikt tego
+  nie zauważa, dopóki nie dołoży drugiego wejścia. `useWstecz` wraca do POPRZEDNIEGO
+  ekranu, a rodzica używa wyłącznie przy wejściu z linku (pusta historia). Do tego `push`
+  na rodzica dokłada wpis do historii, więc systemowe „wstecz" odbija z powrotem na ekran,
+  z którego się właśnie wyszło. Szczegóły → [docs/funkcje.md](./docs/funkcje.md#wstecz-wraca-do-poprzedniego-ekranu-nie-do-sztywnego-rodzica).
 - **Mobile-first bezwzględnie.** Style bazowe (bez media query) opisują najmniejszy
   telefon; rozszerzanie widoku do tabletu/desktopu wyłącznie progresywnie, przez
   warianty `min-width` (`sm:`/`md:`/`lg:`/`xl:` Tailwinda). Breakpointy `max-*:`
@@ -462,14 +469,28 @@ ponownie i zacommituj wynik.
   (`landingContent.test.ts`, `tresciStron.test.ts`).
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
-  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na zakładce Rozmowy w
-    dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
-    ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`),
-    plakietka na ikonie wiadomości obok dzwonka w nagłówku (`NotificationBell.tsx` —
-    dzwonek jest dziś DWA: chmurka dla wiadomości, dzwonek dla reszty, migracja `119`).
-    Nigdy nic innego. **Wiadomości mają KSZTAŁT chmurki, nie kropki** — kropka mówi tylko
-    „coś tu jest" i wymaga zapamiętania koloru, chmurka mówi „ktoś napisał" bez tłumaczenia
-    (zgłoszone wprost). Kropka zostaje dla niebieskiego i pomarańczowego.
+  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: plakietka
+    z liczbą nieprzeczytanych na zakładce Rozmowy w dolnej nawigacji i na zakładce
+    Rozmowa/Tablica, ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy
+    (karta na `/grupy`), plakietka na ikonie wiadomości obok dzwonka w nagłówku
+    (`NotificationBell.tsx` — dzwonek jest dziś DWA: chmurka dla wiadomości, dzwonek
+    dla reszty, migracja `119`). Nigdy nic innego.
+
+    **Kształt zależy od tego, czy da się to policzyć — od 2026-08-23.** Wcześniej
+    stało tu, że wiadomości mają zawsze KSZTAŁT chmurki, nie kropki; powodem było
+    to, że kropka mówi tylko „coś tu jest" i wymaga zapamiętania koloru. Ten powód
+    dalej obowiązuje wobec KROPKI, ale nie wobec liczby:
+
+    - **Liczba (plakietka)** tam, gdzie policzalność coś znaczy — zakładka Rozmowy
+      w dolnej nawigacji, karty meczu i ekipy. Nad ikoną podpisaną „Rozmowy" chmurka
+      powtarzała słowo stojące obok; liczba odpowiada na pytanie, które człowiek
+      naprawdę zadaje przed dotknięciem: ILE tego jest (zgłoszone wprost).
+      Geometria plakietki jest ta sama co zielonej z liczbą meczów — kształt mówi
+      „policzalna rzecz", kolor mówi jaka.
+    - **Chmurka** tam, gdzie liczby nie ma albo nie niesie nic — ikona ekipy na
+      `/grupy`, ikona wiadomości w nagłówku.
+    - **Kropka** zostaje dla niebieskiego i pomarańczowego, czyli dla rzeczy
+      z natury niepoliczalnych („coś nowego jest w pobliżu" nie ma sensownej liczby).
   - **Niebieski (`blue-*`)** — „wymaga akceptacji uczestnictwa": prośba o dołączenie,
     oferta zwolnionego miejsca z rezerwy, pytanie o udział (`WYMAGA_AKCJI`
     w `lib/notifications.ts`), plakietka „Wymaga akceptacji" na karcie meczu.

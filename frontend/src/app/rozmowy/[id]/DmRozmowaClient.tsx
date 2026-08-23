@@ -10,6 +10,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getPublicPlayer } from '@/lib/players';
 import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
+import { useWstecz } from '@/lib/historia';
 import {
   pobierzDm, wyslijDm, usunDm, zablokuj, odblokuj, czyZablokowalem, zglos,
   kluczDmWidziano, type DmWiadomosc,
@@ -29,6 +30,7 @@ import {
 export default function DmRozmowaClient() {
   const { id: drugiId } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
+  const wstecz = useWstecz('/rozmowy');
   const { toast } = useToast();
 
   const [drugaNazwa, setDrugaNazwa] = useState<string | null>(null);
@@ -140,13 +142,18 @@ export default function DmRozmowaClient() {
       <Header hideMobileBarForUser />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
         <div className="flex items-center gap-1">
-          <Link
-            href="/rozmowy"
-            aria-label="Wróć do listy rozmów"
+          {/* Wstecz = poprzedni ekran, nie zawsze `/rozmowy`. Do rozmowy
+              prywatnej wchodzi się TAKŻE z profilu gracza („Napisz
+              wiadomość"), a stała strzałka na listę rozmów wyrzucała wtedy na
+              ekran, na którym człowiek nigdy nie był (lib/historia.tsx). */}
+          <button
+            type="button"
+            onClick={wstecz}
+            aria-label="Wróć"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-5 w-5" />
-          </Link>
+          </button>
           {/* Nazwa prowadzi do profilu — w rozmowie z kimś znanym tylko
               z boiska „kto to właściwie jest" to pierwsze pytanie. */}
           <Link href={`/gracz/${drugiId}`} className="min-w-0 flex-1 truncate text-base font-bold text-ink hover:underline">

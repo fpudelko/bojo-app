@@ -20,6 +20,7 @@ import PoMeczuCard from '@/components/events/PoMeczuCard';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
 import { zapiszPowrot } from '@/lib/powrot';
+import { useWstecz } from '@/lib/historia';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
@@ -409,6 +410,9 @@ function Switch({ checked, onChange, disabled, label }: {
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  // Mecz otwiera się najczęściej z linku (powiadomienie, WhatsApp) — wtedy
+  // historii w aplikacji nie ma i goły `router.back()` wyprowadzał z Bojo.
+  const wstecz = useWstecz('/moje-gry');
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { toast } = useToast();
 
@@ -2209,7 +2213,7 @@ export default function EventDetailClient() {
               // Prosto z kreatora „wstecz" wracałoby do wypełnionego formularza —
               // najgorsze możliwe miejsce tuż po opublikowaniu meczu. `replace`,
               // a nie `push`, żeby kreator zniknął też z historii przeglądarki.
-              onClick={() => { if (swiezoUtworzony) router.replace('/moje-gry'); else router.back(); }}
+              onClick={() => { if (swiezoUtworzony) router.replace('/moje-gry'); else wstecz(); }}
               aria-label="Wróć"
               className="-ml-2 shrink-0 inline-flex items-center rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 active:scale-95"
             >

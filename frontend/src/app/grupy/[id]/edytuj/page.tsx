@@ -18,6 +18,7 @@ import {
 } from '@/lib/groups';
 import { linkDoGrupy } from '@/lib/groupShare';
 import { useToast } from '@/lib/toast';
+import { useWstecz } from '@/lib/historia';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Group, GroupMember, GroupPermissions } from '@/types';
 
@@ -26,6 +27,7 @@ type UstawieniaTab = 'ogolne' | 'zaproszenia' | 'uprawnienia';
 export default function EditGroupPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const wstecz = useWstecz(`/grupy/${id}`);
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -185,7 +187,7 @@ export default function EditGroupPage() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
       <main className="mx-auto w-full max-w-lg flex-1 space-y-5 px-4 py-8">
-        <button onClick={() => router.push(`/grupy/${id}`)} className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-ink">
+        <button onClick={wstecz} className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-ink">
           <ArrowLeft className="h-4 w-4" /> Wróć
         </button>
 

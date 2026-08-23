@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `125` · 45 tabel · 761 testów
+**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 761 testów
 
 ---
 
@@ -343,6 +343,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
+
+PROBLEM: dotknięcie rozmowy ekipy na liście `/rozmowy` przenosiło na stronę ekipy
+z paskiem zakładek, składem i zarządzaniem — z komunikatora wyrzucało na panel
+administracyjny, a „wstecz" wracało stamtąd na listę ekip, nie do rozmów. Szerzej:
+ekrany szczegółowe w Bojo miały „wstecz" zapisane na sztywno do jednego rodzica, mimo
+że wchodzi się na nie z wielu miejsc (do strony ekipy prowadzi siedem dróg, do rozmowy
+prywatnej także profil gracza), więc powrót lądował na ekranie, na którym człowiek nigdy
+nie był. Profil gracza nie miał wyjścia w ogóle. Do tego wskaźnik nieprzeczytanych
+wiadomości w dolnej nawigacji był chmurką bez liczby i nie liczył rozmów prywatnych.
+
+ROZWIĄZANIE BOJO: rozmowa ekipy i rozmowa meczu mają własne pełnoekranowe trasy pod
+`/rozmowy`, o układzie identycznym z rozmową prywatną; kontekst ekipy/meczu jest w nich
+odnośnikiem w nagłówku („Otwórz ekipę", „Otwórz mecz · jutro · 18:00"), nie paskiem
+zakładek. Rozmowy zostają dostępne także jako zakładka na stronie ekipy i meczu — kto
+przyszedł zarządzać, ma je tam, gdzie były. „Wstecz" znaczy teraz wstecz: wraca do
+poprzedniego ekranu, a sztywnego rodzica używa wyłącznie wtedy, gdy nie ma dokąd wracać
+(wejście z powiadomienia push, z linku, z ikony aplikacji). Zakładka Rozmowy w dolnej
+nawigacji pokazuje różową plakietkę z LICZBĄ nieprzeczytanych wiadomości ze wszystkich
+trzech źródeł — meczów, ekip i rozmów prywatnych.
+
+MECHANIKA: trasy `/rozmowy/grupa/[id]` i `/rozmowy/mecz/[id]` (`noindex`, treść przez
+istniejące `RozmowaGrupy`/`RozmowaWydarzenia`), wspólny nagłówek
+`components/rozmowy/NaglowekRozmowy.tsx`; `frontend/src/lib/historia.tsx`
+(`SledzenieHistorii` w `app/layout.tsx`, hak `useWstecz(zapasowyCel)`);
+`frontend/src/lib/rozmowy.ts` — jedno źródło listy rozmów i liczby nieprzeczytanych dla
+ekranu `/rozmowy` i dla dolnej nawigacji. Bez migracji.
+
 ### 2026-08-23 — „Szukaj" otwiera listę otwartych meczów, nie mapę boisk
 
 PROBLEM: zakładka „Szukaj" w dolnej nawigacji Bojo prowadziła na mapę KATALOGU BOISK.
@@ -541,24 +569,3 @@ dostępu do sesji Supabase, więc liczbę dokleja do payloadu funkcja brzegowa `
 (`count` na `notifications` z `read_at IS NULL`); brak liczby oznacza `null` i wtedy worker
 plakietki nie dotyka. Wymaga wdrożenia funkcji brzegowej.
 
-### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
-
-PROBLEM: powiadomienie o nowej wiadomości w rozmowie meczu/tablicy ekipy powstaje
-najwyżej raz na godzinę na odbiorcę (celowa ochrona przed spamem — rozmowa przed meczem
-potrafi mieć trzydzieści wiadomości w kwadrans). Efekt uboczny: druga i kolejna wiadomość
-w tej samej godzinie nie zostawiała żadnego śladu — panel „Wiadomości" w dzwonku
-pokazywał zamrożoną treść PIERWSZEJ wiadomości z godziny, podczas gdy osobny panel
-„Nieprzeczytane rozmowy" (czyta bez throttlingu wprost z bazy) pokazywał już nowszą.
-
-ROZWIĄZANIE BOJO: kolejna wiadomość w oknie godziny nie ginie — podmienia treść
-istniejącego powiadomienia na najnowszą, przesuwa je na górę listy i cofa do stanu
-nieprzeczytanego. Limit (najwyżej jedno powiadomienie push/dzwonek na godzinę na
-rozmowę) zostaje bez zmian; zmienia się wyłącznie to, że to jedno powiadomienie zawsze
-pokazuje ostatnią wiadomość, nie pierwszą.
-
-MECHANIKA: migracja `122` zamienia pomijane wstawienie (`NOT EXISTS ... interval '60
-minutes'`) na `UPDATE` istniejącego wiersza + `INSERT` dla reszty w
-`powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()`. Push nie dubluje
-się — `trg_wyslij_push` (102) łapie wyłącznie `INSERT`. `NotificationBell.tsx` dostaje
-drugą subskrypcję real-time na `UPDATE`, rozróżnia odświeżenie treści od zwykłego
-oznaczenia jako przeczytane po tym, czy `created_at` się zmienił.
