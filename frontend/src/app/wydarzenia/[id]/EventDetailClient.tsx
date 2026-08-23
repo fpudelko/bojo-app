@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck,
+  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Wallet, MessageCircle, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -79,9 +79,15 @@ import { WARSTWA } from '@/lib/warstwy';
 import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
-import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
+import SekcjaMeczu from '@/components/events/SekcjaMeczu';
+import { sekcjeRozwiniete, godzinDoMeczu } from '@/lib/sekcjeMeczu';
 
-type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
+/** Została JEDNA oś: treść meczu albo rozmowa. Reszta dawnych zakładek to
+ *  dziś sekcje na tej samej stronie (`SekcjaMeczu`). Klucz `sklad` zostaje
+ *  bez zmian mimo zmiany znaczenia — siedzi w adresach (`?tab=`), w kotwicy
+ *  `#sklad` i w testach, a przenumerowanie go nie dałoby nic poza zepsutymi
+ *  linkami, które ktoś komuś wysłał. */
+type EventTab = 'sklad' | 'rozmowa';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
 // nie w zwijanej sekcji i nie w osobnej zakładce. Obie te wersje były po
 // drodze i obie okazały się gorsze: zwinięta chowała rzecz, po którą się tam
@@ -91,27 +97,6 @@ type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ust
 // nie ma czego wpisywać, a zakładka i tak pokazywała wyłącznie notkę „wynik
 // można wpisać po rozpoczęciu". Rozliczenia znikają, gdy mecz jest za darmo —
 // wcześniej otwierały się puste.
-const EVENT_TAB_LABELS: [EventTab, string][] = [
-  // „Mecz", nie „Skład": ta zakładka trzyma opis, termin, miejsce, licznik
-  // wolnych miejsc, listę graczy, podział na drużyny i zapisy — czyli cały
-  // mecz, a nie sam skład. Nazwa opisywała jedną z siedmiu rzeczy, które tam
-  // są (zgłoszone wprost). Klucz `sklad` zostaje bez zmian: siedzi w adresach
-  // (`?tab=`), w kotwicy `#sklad` i w testach.
-  ['sklad', 'Mecz'],
-  // „Taktyka" pojawia się DOPIERO po opublikowaniu składów — przed podziałem
-  // na drużyny nie ma czego ustawiać, a zakładka pokazywałaby puste boisko.
-  //
-  // Widzi ją ten, kto GRA w tym meczu i ma przypisaną drużynę — i widzi
-  // WYŁĄCZNIE swoją. Wcześniej bramką był `isAdmin`, co dawało dwa złe skutki
-  // naraz: administrator oglądał obie drużyny (czyli też cudzą taktykę
-  // i cudzy czat), a zwykły gracz nie widział własnej. Ustawia kapitan,
-  // reszta czyta — patrz `TaktykaDruzyny`.
-  ['taktyka', 'Taktyka'],
-  ['rozmowa', 'Rozmowa'],
-  ['wynik', 'Wynik'],
-  ['rozliczenia', 'Rozliczenia'],
-  ['ustawienia', 'Ustawienia'],
-];
 
 /** A labelled on/off switch — shows the current state clearly, unlike an
  *  action button whose label flips on every click. */
@@ -429,13 +414,35 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'taktyka' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia') setTab(t);
+    if (t === 'rozmowa') { setTab('rozmowa'); return; }
+    // STARE ADRESY Z ZAKŁADEK. `?tab=wynik` i spółka krążą po czatach i
+    // powiadomieniach push — po zamianie zakładek na sekcje nie mogą prowadzić
+    // donikąd. Zamiast przełączać widok, rozwijają i przewijają do sekcji.
+    const sekcja = { taktyka: 'druzyny', wynik: 'wynik', rozliczenia: 'kasa', ustawienia: 'ustawienia' }[t ?? ''];
+    if (sekcja) pokazSekcje(sekcja);
   }, []);
   // Pomiar widocznego okna dla zakładki Rozmowa — hak siedzi tutaj, nad
   // wczesnymi returnami niżej (ładowanie, brak meczu), bo hak nie może wisieć
   // za `return`. `rozmowaPelnoekranowa` (dalej) dokłada warunek na prawo do
   // rozmowy; sam pomiar jest tani i nikomu nie szkodzi.
   const oknoCzatu = useOknoCzatu(tab === 'rozmowa');
+
+  /** Rozwija sekcję i przewija do niej.
+   *
+   *  Zapis do `localStorage` przed przewinięciem, nie przez stan Reacta:
+   *  `SekcjaMeczu` czyta zapamiętany wybór przy montażu, więc to jedyny sposób
+   *  otwarcia sekcji „z zewnątrz", który nie wymaga przeciągania stanu przez
+   *  pół komponentu. Przy okazji decyzja zostaje zapamiętana tak samo, jak
+   *  gdyby człowiek rozwinął ją palcem. */
+  const pokazSekcje = (sekcjaId: string) => {
+    if (typeof window === 'undefined' || !id) return;
+    try { window.localStorage.setItem(`bojo:sekcja:${id}:${sekcjaId}`, '1'); } catch { /* prywatne okno */ }
+    setTab('sklad');
+    // Dwie klatki: sekcja musi się najpierw przemontować z nowym stanem.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.getElementById(sekcjaId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  };
 
   const goToTab = (t: EventTab) => {
     setTab(t);
@@ -728,38 +735,6 @@ export default function EventDetailClient() {
   // i wywaliłyby się, dopóki `event` jest `null`. ZMIENIAJĄC REGUŁĘ WIDOCZNOŚCI
   // ZAKŁADKI, ZMIEŃ OBA MIEJSCA — ten sam wzorzec celowego zdublowania co
   // `joinEvent`/`addGuest`/`confirmFromMaybe` (patrz docs/domena.md).
-  const widoczneZakladkiObiekty = useMemo<[EventTab, string][]>(() => {
-    if (!event) return [EVENT_TAB_LABELS[0]];
-    const canManageEventWczesnie = !!user && (user.id === event.organizerId || !!myDelegate?.canEdit);
-    const isCancelledWczesnie = event.status === 'cancelled';
-    // resultsAvailable: event started + 30 min buffer before result form is shown
-    const resultsAvailableWczesnie = (() => {
-      try {
-        const [y, m, d] = event.date.split('-').map(Number);
-        const [h, min] = (event.time ?? '00:00').split(':').map(Number);
-        return Date.now() >= new Date(y, m - 1, d, h, min).getTime() + 30 * 60 * 1000;
-      } catch { return true; }
-    })();
-    const mojaDruzynaWczesnie = (() => {
-      const rzad = participants.find((p) => p.userId && p.userId === user?.id && !p.pendingApproval && p.rsvp !== 'maybe');
-      return rzad?.team === 'A' || rzad?.team === 'B' ? rzad.team : null;
-    })();
-    return EVENT_TAB_LABELS.filter(([t]) => {
-      if (t === 'ustawienia') return canManageEventWczesnie;
-      // Wynik pojawia się DOPIERO po meczu. Wcześniej zakładka istniała od
-      // stworzenia meczu i po kliknięciu mówiła tylko, że wyniku jeszcze nie
-      // ma — czyli zajmowała miejsce w pasku, nie dając nic w zamian.
-      if (t === 'wynik') return resultsAvailableWczesnie && !isCancelledWczesnie;
-      // Rozliczenia bez kosztu to pusta zakładka — mecz za darmo nie ma
-      // czego dzielić. Zgłoszone wprost: „rozliczenia są puste".
-      if (t === 'rozliczenia') return event.costGrosze > 0;
-      // Taktyka: po publikacji składów i tylko dla kogoś, kto ma drużynę
-      // w tym meczu — patrz komentarz przy EVENT_TAB_LABELS.
-      if (t === 'taktyka') return !!mojaDruzynaWczesnie && event.teamsPublished && !isCancelledWczesnie;
-      return true;
-    });
-  }, [event, user, myDelegate, participants]);
-  const gestSwipe = useSwipeZakladek(widoczneZakladkiObiekty.map(([t]) => t), tab, goToTab);
 
   if (loading) {
     return (
@@ -1769,7 +1744,13 @@ export default function EventDetailClient() {
   // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
   // zostawiać pod sobą pustą przestrzeń. Ta sama sztuczka co w GroupDetailClient.
   const mozeWidziecRozmowe = !!myParticipation || isOwner || czlonekGrupyMeczu;
-  const rozmowaPelnoekranowa = tab === 'rozmowa' && mozeWidziecRozmowe;
+  // ZAKŁADKI ZNIKNĘŁY — treść meczu jest jedną stroną z sekcjami (patrz
+  // `lib/sekcjeMeczu.ts`). Została jedna oś: albo oglądasz mecz, albo czytasz
+  // rozmowę. `czat` zastąpił dawne `tab === 'sklad'` w kilkunastu miejscach.
+  const czat = tab === 'rozmowa';
+
+
+  const rozmowaPelnoekranowa = czat && mozeWidziecRozmowe;
   // resultsAvailable: event started + 30 min buffer before result form is shown
   const resultsAvailable = (() => {
     try {
@@ -1778,6 +1759,40 @@ export default function EventDetailClient() {
       return Date.now() >= new Date(y, m - 1, d, h, min).getTime() + 30 * 60 * 1000;
     } catch { return true; }
   })();
+
+  /** Które sekcje są rozwinięte na wejściu — reguła i jej uzasadnienie
+   *  w `lib/sekcjeMeczu.ts`. Tu tylko zebranie stanu, bo tylko ta strona wie,
+   *  kto patrzy i co już zrobił. */
+  const doMeczu = godzinDoMeczu(event.date, event.time);
+  const rozwiniete = sekcjeRozwiniete({
+    godzinDoMeczu: doMeczu,
+    poMeczu: resultsAvailable,
+    odwolany: isCancelled,
+    zarzadza: canManageEvent || canManageSquad,
+    prosbyDoDecyzji: pendingRequests.length,
+    druzynyOpublikowane: !!event.teamsPublished,
+    // Propozycje składu od graczy jeszcze nie istnieją — reguła ma na nie
+    // miejsce, żeby dołożenie funkcji nie wymagało ruszania tego wywołania.
+    propozycjeSkladu: 0,
+    platny: event.costGrosze > 0,
+    zalegam: !!myParticipation && !myParticipation.hasPaid && event.costGrosze > 0,
+    ktosNieOddal: regulars.some((p) => !p.hasPaid) && event.costGrosze > 0,
+    wynikBrakuje: !matchResult,
+  });
+
+  /* Zwinięta sekcja MUSI mówić, co w sobie ma. Inaczej jest napisem, po który
+     trzeba kliknąć, żeby się dowiedzieć, czy warto było klikać. */
+  const podsumowanieDruzyn = event.teamsPublished
+    ? (mojaDruzyna ? `Jesteś w drużynie ${TEAM_LETTERS[mojaDruzyna]}` : 'Składy opublikowane')
+    : 'Podziału jeszcze nie ma';
+  const podsumowanieKasy = event.costGrosze > 0
+    ? (myParticipation
+        ? (myParticipation.hasPaid ? 'Masz zapłacone' : `Do zapłaty ${(event.costGrosze / 100).toFixed(2)} zł`)
+        : `${(event.costGrosze / 100).toFixed(2)} zł od osoby`)
+    : 'Mecz za darmo';
+  const podsumowanieWyniku = matchResult
+    ? `${matchResult.scoreA} — ${matchResult.scoreB}`
+    : 'Wynik jeszcze niewpisany';
 
   /** Helper — initials from "Imię N." */
   function initials(name: string) {
@@ -2192,7 +2207,6 @@ export default function EventDetailClient() {
         className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
           rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
         }`}
-        {...gestSwipe}
       >
 
         {/* Nazwa meczu i zakładki razem w jednym sticky kontenerze — tak jak
@@ -2229,35 +2243,21 @@ export default function EventDetailClient() {
               meczu i sticky pasek dołączenia są uniwersalne — widoczne na każdej
               zakładce oprócz Rozmowy. `scrollbar-hide`: przewijanie zakładek
               w bok nie ma pokazywać poziomego paska przewijania. */}
-          <div className="border-b border-slate-100 px-4">
-            <div className="scrollbar-hide flex gap-5 overflow-x-auto">
-              {/* „Ustawienia" to panel organizatora (treść niżej i tak
-                  wymaga `canManageEvent`) — sam przycisk zakładki musi
-                  zniknąć razem z nią, inaczej ktoś bez żadnej roli w meczu
-                  widzi zakładkę, która po kliknięciu jest pusta. Zgłoszone
-                  wprost, ten sam wyciek co w `/grupy/[id]` (patrz commit
-                  o zerowaniu `permissions`). */}
-              {widoczneZakladkiObiekty.map(([t, label]) => (
-                <button
-                  key={t}
-                  onClick={() => goToTab(t)}
-                  className={`pb-2.5 text-sm transition-colors whitespace-nowrap ${
-                    tab === t
-                      ? 'border-b-2 border-primary-700 font-semibold text-primary-700'
-                      : 'text-slate-500 hover:text-ink'
-                  }`}
-                >
-                  {label}
-                  {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md,
-                      Konwencje). Własne komentarze nigdy nie liczą się jako
-                      nieprzeczytane. */}
-                  {t === 'rozmowa' && nieprzeczytaneRozmowa > 0 && (
-                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneRozmowa}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* ZAKŁADKI ZNIKNĘŁY. Pasek potrafił mieć od dwóch do sześciu
+              pozycji: cztery z sześciu pojawiały się warunkowo (rola, koszt,
+              czy mecz się odbył, czy składy stoją). Nawigacja, która zmienia
+              kształt pod palcem, nie daje się nauczyć — a najgorszy przypadek
+              był w „Taktyce": pokazywała się dopiero komuś, kto MA już
+              przypisaną drużynę, więc gracz, który nie wiedział, w której
+              jest, nie miał jak sprawdzić.
+
+              Treść meczu jest teraz jedną stroną z sekcjami (`SekcjaMeczu`),
+              w STAŁEJ kolejności — zmienia się tylko to, co rozwinięte.
+              Uzasadnienie reguły: `lib/sekcjeMeczu.ts`.
+
+              Rozmowa zostaje osobnym widokiem, bo wchodzi się do niej z innym
+              zamiarem („napisać") i wraca wielokrotnie — ale nie jako zakładka,
+              tylko jako WIERSZ z ostatnią wiadomością, niżej w treści. */}
         </div>
 
         {/* Uniwersalne — widoczne na każdej zakładce, bo to podstawowy status
@@ -2284,7 +2284,7 @@ export default function EventDetailClient() {
             `resultsAvailable` = start meczu + 30 min, ten sam próg, który
             już odsłania formularz wyniku niżej — przed nim nic nie jest
             jeszcze "po meczu". */}
-        {tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
+        {!czat && (isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
             liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
@@ -2294,7 +2294,7 @@ export default function EventDetailClient() {
             busy={busy}
             trackResults={event.trackResults}
             wynikWpisany={matchResult != null}
-            onWpiszWynik={() => goToTab('wynik')}
+            onWpiszWynik={() => pokazSekcje('wynik')}
             liczbaGosciDoZaproszenia={niePrzejeciGoscie.length}
             onZaprosGoscia={handleZaprosGosciaPoMeczu}
             onOznaczNieobecnych={(isOwner || canManageSquad) ? handleOpenNieobecni : undefined}
@@ -2373,7 +2373,7 @@ export default function EventDetailClient() {
             zanim zobaczyło się to, po co się tam weszło. Zgłoszone wprost.
             Zasada: szczegóły meczu mieszkają w „Składzie", zakładki pokazują
             swoją treść. */}
-        {tab === 'sklad' && (
+        {!czat && (
         <div className="px-4">
           {event.description && (
             <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
@@ -2644,7 +2644,7 @@ export default function EventDetailClient() {
         </div>
         )}
 
-        {tab === 'sklad' && (<>
+        {!czat && (<>
 
         {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
         {/* Shown whenever the organizer requires approval — even with zero
@@ -2729,14 +2729,14 @@ export default function EventDetailClient() {
             Pasek jest `fixed`, więc miejsce w drzewie nie ma znaczenia dla
             wyglądu — ale gate na zakładkę zostaje: w „Rozmowie" przykryłby
             pole pisania wiadomości, które też siedzi przy dolnej krawędzi. */}
-        {tab === 'sklad' && (
+        {!czat && (
           <ZachetaPush widoczna={!!user && !!myParticipation && !eventStarted && !isCancelled} />
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}
         {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo").
             Też wyłącznie w „Składzie" — patrz komentarz przy nagłówku wyżej. */}
-        {tab === 'sklad' && (
+        {!czat && (
         <div id="sklad" className="px-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
             <div className="text-center">
@@ -3479,7 +3479,7 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {tab === 'sklad' && (<>
+        {!czat && (<>
 
         {/* ── MECZ JUŻ TRWA / PO MECZU — komunikat zamiast przycisku dołączania ── */}
         {!(user && myParticipation) && eventStarted && (
@@ -3550,8 +3550,61 @@ export default function EventDetailClient() {
 
         {/* Wynik — sam formularz, bez drużyn. Drużyny renderują się wyżej,
             w zakładce Skład. */}
-        {tab === 'taktyka' && mojaDruzyna && event.teamsPublished && (
-          <div className="px-4 py-4">
+        {/* ROZMOWA — wiersz, nie zakładka (zgłoszone wprost). Zakładka
+            zajmowała miejsce w pasku niezależnie od tego, czy ktokolwiek coś
+            napisał; wiersz pokazuje OSTATNIĄ WIADOMOŚĆ, więc mówi, czy warto
+            wchodzić. Komu rozmowa się nie należy, ten dostaje zdanie
+            wyjaśniające zamiast pustki — zakładka znikająca bez słowa wygląda
+            jak brak funkcji. */}
+        {!czat && (
+        <section className="px-4">
+          {mozeWidziecRozmowe ? (
+            <button
+              type="button"
+              onClick={() => goToTab('rozmowa')}
+              className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3.5 text-left transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700/50"
+            >
+              <MessageCircle className="h-4 w-4 shrink-0 text-slate-400" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-ink">Rozmowa</span>
+                <span className="mt-0.5 block truncate text-[13px] text-slate-500 dark:text-slate-400">
+                  {nieprzeczytaneRozmowa > 0
+                    ? `${withCount(nieprzeczytaneRozmowa, 'nowa wiadomość', 'nowe wiadomości', 'nowych wiadomości')}`
+                    : 'Napisz do składu'}
+                </span>
+              </span>
+              {nieprzeczytaneRozmowa > 0 && (
+                <span className="shrink-0 rounded-full bg-pink-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  {nieprzeczytaneRozmowa}
+                </span>
+              )}
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3.5 dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-sm font-bold text-ink">Rozmowa</p>
+              <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">
+                Widoczna dla uczestników meczu, organizatora i — jeśli mecz należy
+                do ekipy — jej członków.
+              </p>
+            </div>
+          )}
+        </section>
+        )}
+
+        {/* DRUŻYNY — dawna zakładka „Taktyka". Pokazywała się DOPIERO komuś,
+            kto ma już przypisaną drużynę, więc gracz, który nie wiedział,
+            w której jest, nie miał jak tego sprawdzić. Teraz sekcja jest
+            zawsze; treść zależy od tego, czy składy stoją. */}
+        {!czat && !isCancelled && (
+        <SekcjaMeczu
+          id="druzyny" eventId={event.id}
+          tytul="Drużyny" podsumowanie={podsumowanieDruzyn}
+          ikona={<Users className="h-4 w-4" />}
+          domyslnieOtwarta={rozwiniete.has('druzyny')}
+        >
+          {mojaDruzyna && event.teamsPublished ? (
+          <div>
             {/* JEDNA drużyna — moja. Rywal ma swoje ustawienie i swój czat,
                 i nie ma powodu, żebym je czytał: to jest ekran do uzgodnienia
                 gry ze swoimi, a nie podgląd cudzej szatni. */}
@@ -3582,13 +3635,53 @@ export default function EventDetailClient() {
               mozeWskazacKapitana={isOwner || canManageSquad}
             />
           </div>
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {event.teamsPublished
+                ? 'Składy są opublikowane, ale nie masz jeszcze przypisanej drużyny.'
+                : 'Podział na drużyny jeszcze nie powstał. Ustawia go organizator — na liście składu.'}
+            </p>
+          )}
+        </SekcjaMeczu>
         )}
 
-        {tab === 'wynik' && wynikFormSection}
+        {/* WYNIK — dochodzi po meczu. Wcześniej zakładka istniała od chwili
+            utworzenia meczu i po kliknięciu mówiła tylko, że wyniku jeszcze
+            nie ma. */}
+        {!czat && resultsAvailable && !isCancelled && (
+        <SekcjaMeczu
+          id="wynik" eventId={event.id}
+          tytul="Wynik" podsumowanie={podsumowanieWyniku}
+          ikona={<Trophy className="h-4 w-4" />}
+          domyslnieOtwarta={rozwiniete.has('wynik')}
+        >
+          {wynikFormSection}
+        </SekcjaMeczu>
+        )}
 
         {/* Podział kosztów — dawniej `platnosciSection`, dziś cała treść
             zakładki Rozliczenia. */}
-        {tab === 'rozliczenia' && platnosciSection}
+        {/* KASA — rozwija się temu, kto ZALEGA, i organizatorowi po meczu,
+            gdy ktoś nie oddał. Sam fakt, że mecz jest płatny, nie wystarcza:
+            opłacony mecz niczego od nikogo nie chce.
+
+            Przy meczu za darmo sekcja NIE ZNIKA, tylko mówi, że nie ma czego
+            dzielić. Znikające elementy to najgorszy rodzaj interfejsu: uczysz
+            się, gdzie coś jest, a potem tego nie ma. */}
+        {!czat && (
+        <SekcjaMeczu
+          id="kasa" eventId={event.id}
+          tytul="Kasa" podsumowanie={podsumowanieKasy}
+          ikona={<Wallet className="h-4 w-4" />}
+          domyslnieOtwarta={rozwiniete.has('kasa')}
+        >
+          {event.costGrosze > 0 ? platnosciSection : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Mecz jest za darmo — nie ma czego dzielić.
+            </p>
+          )}
+        </SekcjaMeczu>
+        )}
 
         {/* Organizer controls — hidden until "Edytuj" so they don't clutter the
             page or invite accidental clicks on cancel/delete. `canManageEvent`
@@ -3596,7 +3689,18 @@ export default function EventDetailClient() {
             i "Uprawnienia" niżej zostają dodatkowo zawężone do `isOwner` —
             fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
             prawdziwy organizator, nie admin ani żaden delegat. */}
-        {tab === 'ustawienia' && canManageEvent && (
+        {/* USTAWIENIA — sekcja, która NIGDY nie rozwija się sama. To nie jest
+            decyzja, która na Ciebie czeka, tylko szuflada, do której wchodzi
+            się z zamiarem. Wcześniej była zakładką widoczną wyłącznie
+            zarządzającemu — czyli pasek zakładek zmieniał szerokość zależnie
+            od tego, kto patrzy. */}
+        {!czat && canManageEvent && (
+        <SekcjaMeczu
+          id="ustawienia" eventId={event.id}
+          tytul="Ustawienia" podsumowanie="Termin, miejsce, koszt, odwołanie meczu"
+          ikona={<Settings className="h-4 w-4" />}
+        >
+          <>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
@@ -3685,9 +3789,11 @@ export default function EventDetailClient() {
               </div>
             )}
           </div>
+          </>
+        </SekcjaMeczu>
         )}
 
-        {tab === 'sklad' && (<>
+        {!czat && (<>
 
         {/* ── Zaproś znajomych — tylko dla uczestników ──
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
@@ -3759,7 +3865,7 @@ export default function EventDetailClient() {
           />
         )}
 
-        {tab === 'sklad' && (<>
+        {!czat && (<>
 
         {/* ── Organizator (zawsze na dole, widoczne dla wszystkich) ── */}
         {(() => {
@@ -3801,16 +3907,27 @@ export default function EventDetailClient() {
         })()}
         </>)}
 
-        {tab === 'rozmowa' && (mozeWidziecRozmowe ? (
+        {czat && (mozeWidziecRozmowe ? (
           <>
-            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
-                dokumencie — bez tego zasłaniałby composer na dole rozmowy. */}
-            <HideBottomNav />
-            {/* Odstęp na pasek gestów — bez niego composer siedzi pod samą
-                kreską na dole ekranu. Przy otwartej klawiaturze pasek gestów
-                jest schowany za nią, więc ten sam odstęp zrobiłby wtedy
-                dokładnie to, czego tu unikamy: pustkę pod composerem. */}
-            <div className={`min-h-0 flex-1 px-4 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.5rem,env(safe-area-inset-bottom))]'}`}>
+            {/* DOLNE MENU ZOSTAJE (zgłoszone wprost: „niech ją wyświetla ciągle
+                w tym ekranie z menu"). Wcześniej rozmowa chowała nawigację
+                przez `HideBottomNav` i stawała się osobnym, pełnoekranowym
+                trybem — z którego jedyną drogą powrotu była strzałka w lewym
+                górnym rogu. Czat jest miejscem, w którym siedzi się długo
+                i z którego skacze się do innej rozmowy; odcinanie od reszty
+                aplikacji na ten czas było karą za czytanie wiadomości.
+                BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca
+                w dokumencie, więc odstęp pod composerem robi `--bottom-nav-h`.
+
+                Przy OTWARTEJ KLAWIATURZE odstęp znika: nawigacja jest wtedy
+                schowana za klawiaturą, więc rezerwowanie na nią miejsca
+                zrobiłoby dokładnie tę pustkę, której unikamy. */}
+            <div
+              className="min-h-0 flex-1 px-4"
+              style={oknoCzatu.klawiatura
+                ? undefined
+                : { paddingBottom: 'calc(var(--bottom-nav-h, 0px) + max(0.5rem, env(safe-area-inset-bottom)))' }}
+            >
               <RozmowaWydarzenia eventId={event.id} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>
