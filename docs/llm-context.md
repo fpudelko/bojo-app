@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `125` · 45 tabel · 761 testów
+**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 761 testów
 
 ---
 
@@ -343,6 +343,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
+
+PROBLEM: dotknięcie rozmowy ekipy na liście `/rozmowy` przenosiło na stronę ekipy
+z paskiem zakładek, składem i zarządzaniem — z komunikatora wyrzucało na panel
+administracyjny, a „wstecz" wracało stamtąd na listę ekip, nie do rozmów. Szerzej:
+ekrany szczegółowe w Bojo miały „wstecz" zapisane na sztywno do jednego rodzica, mimo
+że wchodzi się na nie z wielu miejsc (do strony ekipy prowadzi siedem dróg, do rozmowy
+prywatnej także profil gracza), więc powrót lądował na ekranie, na którym człowiek nigdy
+nie był. Profil gracza nie miał wyjścia w ogóle. Do tego wskaźnik nieprzeczytanych
+wiadomości w dolnej nawigacji był chmurką bez liczby i nie liczył rozmów prywatnych.
+
+ROZWIĄZANIE BOJO: rozmowa ekipy i rozmowa meczu mają własne pełnoekranowe trasy pod
+`/rozmowy`, o układzie identycznym z rozmową prywatną; kontekst ekipy/meczu jest w nich
+odnośnikiem w nagłówku („Otwórz ekipę", „Otwórz mecz · jutro · 18:00"), nie paskiem
+zakładek. Rozmowy zostają dostępne także jako zakładka na stronie ekipy i meczu — kto
+przyszedł zarządzać, ma je tam, gdzie były. „Wstecz" znaczy teraz wstecz: wraca do
+poprzedniego ekranu, a sztywnego rodzica używa wyłącznie wtedy, gdy nie ma dokąd wracać
+(wejście z powiadomienia push, z linku, z ikony aplikacji). Zakładka Rozmowy w dolnej
+nawigacji pokazuje różową plakietkę z LICZBĄ nieprzeczytanych wiadomości ze wszystkich
+trzech źródeł — meczów, ekip i rozmów prywatnych.
+
+MECHANIKA: trasy `/rozmowy/grupa/[id]` i `/rozmowy/mecz/[id]` (`noindex`, treść przez
+istniejące `RozmowaGrupy`/`RozmowaWydarzenia`), wspólny nagłówek
+`components/rozmowy/NaglowekRozmowy.tsx`; `frontend/src/lib/historia.tsx`
+(`SledzenieHistorii` w `app/layout.tsx`, hak `useWstecz(zapasowyCel)`);
+`frontend/src/lib/rozmowy.ts` — jedno źródło listy rozmów i liczby nieprzeczytanych dla
+ekranu `/rozmowy` i dla dolnej nawigacji. Bez migracji.
+
 ### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
 
 PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
@@ -534,26 +562,3 @@ do polityk SELECT i INSERT na `event_comments`. Numer BLIK przenosi się z kolum
 każdy; klient dociąga go osadzeniem `select('*, event_blik(blik_phone)')`
 (`lib/blik.ts`, `lib/events.ts`). Kolejność wdrożenia: `120` → deploy → `121`.
 
-### 2026-08-22 — Mapa: organizowanie meczu prosto z kafelka i powrót do tego samego kadru
-
-PROBLEM: kafelek obiektu na mapie Bojo (`/mapa`) miał jedno wyjście — „Zobacz boisko" —
-mimo że mapa odpowiada na pytanie „gdzie zagrać", więc naturalnym następnym ruchem jest
-zrobienie tam meczu; drogi do kreatora trzeba było szukać samemu. Sam kafelek mówił mało:
-nazwa, typ, nawierzchnia i adres przycięty do dwóch członów (bez numeru budynku), bez ani
-słowa o tym, w co się tam gra. Powrót ze strony obiektu lądował na `/mapa?boisko=<id>` —
-czyli z widokiem całego kraju i bez filtrów, bo adres powrotu niósł jeden parametr, a
-reszta stanu mapy (sport, typ, nawierzchnia, tryb gier) siedzi właśnie w adresie.
-
-ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — główne „Zobacz boisko" i skrót „Zorganizuj tutaj"
-(kreator meczu z wybranym już obiektem, `/wydarzenia/nowe?fieldId=<id>`). Domyślna droga
-prowadzi przez stronę obiektu, bo mecz umawiany na niesprawdzonym boisku to ten, który się
-nie odbywa; strona obiektu ma własne, szerokie „Zorganizuj tutaj". Kafelek pokazuje sporty
-obiektu i pełny adres w dwóch linijkach. Powrót ze strony obiektu odtwarza kadr,
-przybliżenie i wszystkie filtry sprzed wyjścia; kadr trafia też do adresu mapy przez
-`replaceState`, więc działa również systemowe „wstecz" na telefonie, a adres mapy da się
-wysłać komuś z konkretnym widokiem zamiast widoku całej Polski.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z bieżących
-`searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
-przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
-kanoniczny).

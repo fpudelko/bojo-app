@@ -488,6 +488,8 @@ const TRASY: Array<[nazwa: string, adres: string]> = [
   ['moje-gry',             '/moje-gry'],
   ['rozmowy',              '/rozmowy'],
   ['rozmowa-prywatna',     '/rozmowy/00000000-0000-4000-8000-000000000000'],
+  ['rozmowa-ekipy',        '/rozmowy/grupa/00000000-0000-4000-8000-000000000000'],
+  ['rozmowa-meczu',        '/rozmowy/mecz/00000000-0000-4000-8000-000000000000'],
   ['grupy',                '/grupy'],
   ['grupy-nowe',           '/grupy/nowe'],
   ['grupa-nieznana',       '/grupy/00000000-0000-4000-8000-000000000000'],

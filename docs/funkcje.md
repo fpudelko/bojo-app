@@ -310,18 +310,33 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
-**Kropki na „Moje", „Grupy" i „Znajdź grę".** Niebieska na „Moje" (prawy górny róg) —
-oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`). Różowa na
-„Moje" (lewy górny róg) i na „Grupy" (lewy górny róg) — nieprzeczytane wiadomości
-(`hasUnreadEventMessages()` w `lib/comments.ts`, `hasUnreadGroupMessages()` w
-`lib/groupPosts.ts`). Pomarańczowa na „Grupy" (prawy górny róg) — nowy mecz w
-którejkolwiek mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()`
-w `lib/groups.ts`, ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej).
-Pomarańczowa na „Znajdź grę" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od
-ostatniej wizyty na `/wydarzenia` (`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik
-`KLUCZ_WYDARZENIA_WIDZIANO`). Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` →
-Konwencje. Każda ikona może nosić dwie kropki naraz (różową i pomarańczową na „Grupy";
-różową i niebieską na „Moje") — lewy i prawy róg, żeby się nie nakładały.
+**Kropki na „Mecze", „Ekipy" i „Szukaj".** Niebieska na „Mecze" (dolny róg, pod
+zieloną plakietką) — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`,
+`lib/events.ts`). Pomarańczowa na „Ekipy" (prawy górny róg) — nowy mecz w którejkolwiek
+mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()` w `lib/groups.ts`,
+ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej). Pomarańczowa na
+„Szukaj" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od ostatniej wizyty
+(`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik `KLUCZ_WYDARZENIA_WIDZIANO`).
+Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` → Konwencje.
+
+**Nieprzeczytane wiadomości to LICZBA na „Rozmowy", nie kropka ani chmurka —
+od 2026-08-23.** Wcześniej wisiała tam różowa chmurka: bez liczby i tylko dla meczów
+i ekip. Trzy rzeczy były z tym nie tak. Po pierwsze, nad ikoną podpisaną „Rozmowy"
+chmurka powtarzała słowo stojące tuż obok, zamiast dokładać cokolwiek nowego. Po drugie,
+człowiek przed dotknięciem pyta ILE tego jest — czy to moment na przeczytanie, czy na
+później — a chmurka na to nie odpowiadała. Po trzecie, **rozmowy prywatne nie były
+liczone w ogóle**, więc DM (jedyna wiadomość skierowana wprost do jednej osoby) nie
+zapalał wskaźnika. Dziś stoi tam różowa plakietka z sumą nieprzeczytanych wiadomości ze
+WSZYSTKICH trzech źródeł, o tej samej geometrii co zielona plakietka z liczbą meczów na
+„Mecze" (`h-[15px]`, „9+" powyżej dziewięciu): kształt mówi „policzalna rzecz", kolor
+mówi jaka.
+
+Liczbę daje `policzNieprzeczytane()` z **`lib/rozmowy.ts`** — tej samej funkcji używa
+nagłówek ekranu `/rozmowy`, więc plakietka nie może pokazać czegoś innego, niż człowiek
+zobaczy po jej dotknięciu. Wcześniej były na to trzy różne odpowiedzi w dwóch miejscach
+interfejsu: `nieprzeczytaneWMeczach()` liczyło MECZE z nieprzeczytanymi (nie wiadomości),
+`hasUnreadGroupMessages()` zwracało samo `true/false`, a ekran rozmów sumował wiadomości.
+`pobierzRozmowy()` zastąpiło w `BottomNav.tsx` trzy zapytania jednym.
 
 **Każde zapytanie ignoruje odpowiedź, która wróciła po zmianie trasy.** Wszystkie cztery
 efekty w `BottomNav.tsx` (prośby, wiadomości „Moje", wiadomości+nowość „Grupy", pobliskie
@@ -363,13 +378,13 @@ rogami i ogonkiem, bez detali w środku, z białą obwódką wpisaną w kształt
 **Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
 wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
 w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna
-etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowa
-wiadomość w Twoim meczu" (różowa, „Moje"), „Nowa wiadomość w grupie {nazwa}" (różowa,
-„Grupy" — nazwa z `getUnreadGroupName()` w `lib/groupPosts.ts`, ekipa z najświeższym
-nieprzeczytanym wpisem; osobny typ/licznik od dymka na „Moje", żeby dymek jednoznacznie
-wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Grupy"
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Mecze"), „Nowa
+wiadomość w meczu {tytuł}" i „Nowa wiadomość w grupie {nazwa}" (obie kierowane na
+„Rozmowy" — tytuł i nazwa z `najswiezszaNieprzeczytana()` w `lib/rozmowy.ts`, czyli
+z tej samej listy, która karmi plakietkę; osobne typy/liczniki, żeby dymek jednoznacznie
+wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Ekipy"
 — `getNewGroupEventGroup()` w `lib/groups.ts`, ekipa z najświeższym nowym meczem, gdy
-nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Znajdź grę").
+nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Szukaj").
 Licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`) jest per typ — po 5
 pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie,
 co ten wskaźnik znaczy.
@@ -379,7 +394,7 @@ co ten wskaźnik znaczy.
 (`kluczGrupyWidziano(id)` dla nowego meczu w ekipie, `KLUCZ_WYDARZENIA_WIDZIANO` dla gier
 w pobliżu) — więc gaśnie też kropka na karcie ekipy na `/grupy`. Uzasadnienie wprost
 z konwencji kolorów: pomarańczowy znaczy „nowość, o której jeszcze nie wiesz", a dymek
-wymieniający ekipę z nazwy tę wiadomość właśnie dostarczył. Różowa chmurka NIE gaśnie —
+wymieniający ekipę z nazwy tę wiadomość właśnie dostarczył. Różowa plakietka NIE gaśnie —
 ona nie mówi „jest nowość", tylko „jest coś do przeczytania", co znika dopiero po
 przeczytaniu; dymek trwa 4 s i można na niego nie patrzeć, a zgubiona w ten sposób
 wiadomość nie ma jak się upomnieć.
@@ -407,21 +422,12 @@ z liczbą nieprzeczytanych wewnątrz niej przejmuje kliknięcie (`stopPropagatio
 `role="link"` + `onKeyDown` (Enter/Spacja), żeby plakietka została osiągalna
 z klawiatury mimo że nie jest osobnym `<a>`.
 
-**Przytrzymanie „Moje" otwiera panel ze wszystkimi rozmowami z nieprzeczytanymi.**
-Krótkie tapnięcie działa jak dotąd (nawiguje na `/moje-gry`); przytrzymanie ~0,5 s
-(`useDlugieWcisniecie()`, `lib/useDlugieWcisniecie.ts` — timer + tolerancja 10 px na
-drgnięcie palca, `onClickCapture` połyka klik, który przeglądarka i tak wyśle po
-długim dotyku) otwiera `components/layout/PanelRozmow.tsx`: wysuwany od dołu arkusz
-z listą meczów I ekip z nieprzeczytanymi razem, od najświeższej wiadomości. Dane
-dopiero przy otwarciu — zwykłe tapnięcie nie robi ani jednego dodatkowego zapytania.
-Wiersz meczu prowadzi na `?tab=rozmowa`, wiersz ekipy na `?tab=tablica`. Lista składana
-z `rozmowyZNieprzeczytanymi()` (`lib/comments.ts`) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`) — obie to cienkie nakładki na tę samą logikę, która wcześniej
-liczyła tylko `{ ile, tytul }` dla dymka (`nieprzeczytaneWMeczach()`/
-`getUnreadGroupName()`, zostają, zachowanie bez zmian). Panel NIE zastępuje przycisku
--filtra „tylko nieprzeczytane" na `/moje-gry` (linijka wyżej, chmurka obok pola
-wyszukiwania): filtr zawęża listę meczów, panel przeskakuje wprost do rozmowy, także
-w ekipie, do której `/moje-gry` w ogóle nie prowadzi.
+**Panel rozmów pod przytrzymaniem „Moje" już nie istnieje — zastąpił go ekran
+`/rozmowy`.** Wysuwany arkusz (`components/layout/PanelRozmow.tsx`) miał dwa
+ograniczenia nie do naprawienia bez zmiany formy: otwierał go GEST, którego nikt nie
+odkryje sam, i jako warstwa nad inną stroną nie miał własnego adresu — nie dało się
+do niego wrócić „wstecz" ani wysłać linku. Rozmowy mają dziś własne miejsce w dolnej
+nawigacji, własną trasę i plakietkę z liczbą nieprzeczytanych (wyżej).
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
@@ -473,6 +479,84 @@ tamte sekcje nic nie pokazują naraz. Widoczna tylko, gdy jest choć jeden niepr
 mecz w ogóle. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy", najbliższy mecz
 i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia i stałe
 gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
+
+---
+
+## Rozmowa otwarta z listy rozmów zostaje rozmową
+
+`/rozmowy/grupa/[id]` (`RozmowaGrupyClient.tsx`) i `/rozmowy/mecz/[id]`
+(`RozmowaMeczuClient.tsx`) — od 2026-08-23. Wcześniej lista rozmów prowadziła na
+`/grupy/[id]?tab=tablica` i `/wydarzenia/[id]?tab=rozmowa`, czyli **dotknięcie rozmowy
+wyrzucało z komunikatora na stronę ekipy albo meczu** — z paskiem zakładek, składem,
+statystykami i zarządzaniem. Człowiek dotykał wiadomości, a dostawał panel administracyjny;
+„wstecz" wracało stamtąd na `/grupy`, nie do listy rozmów, więc z komunikatora nie dało się
+wyjść tam, skąd się weszło (zgłoszone wprost).
+
+Obie trasy to pełny ekran o układzie 1:1 z rozmową prywatną `/rozmowy/[id]`: własny
+nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), `HideBottomNav`,
+wysokość liczona z widocznego okna (`useOknoCzatu` — inaczej composer ucieka nad
+klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
+(`RozmowaGrupy`, `RozmowaWydarzenia`) i te same tabele — nic się nie duplikuje.
+
+**Kontekst jest ODNOŚNIKIEM, nie paskiem zakładek.** `components/rozmowy/NaglowekRozmowy.tsx`
+daje jeden wiersz: strzałka wstecz, awatar (okładka ekipy albo emoji sportu), nazwa,
+podpis mówiący dokąd prowadzi („Otwórz ekipę", „Otwórz mecz · jutro · 18:00") i strzałka
+w prawo. Cały wiersz jest celem dotknięcia (44 px) — na telefonie sama nazwa to za mały
+cel. Wyjście do ekipy/meczu jest więc na żądanie, a nie nad każdą wiadomością.
+
+Rozmowy pozostają dostępne **także** jako zakładka na stronie ekipy i meczu — kto przyszedł
+zarządzać, ma je tam, gdzie były. Nowe trasy obsługują drugą drogę wejścia.
+
+**Kto widzi.** Ekipa: członkowie (`getMyGroupPermissions()` zwraca `null` dla nieczłonka).
+Mecz: uczestnicy — gram / rezerwa / organizuję (`getMyActiveEventIds()`, ten sam zbiór,
+z którego bierze się lista rozmów). Prawdziwą bramką jest RLS (`group_posts`,
+`event_comments`, migracja `120`); warunek w komponencie istnieje po to, żeby ktoś
+z linku dostał zdanie wyjaśnienia i przycisk do ekipy/meczu zamiast pustego czatu z polem
+do pisania, które i tak odbije baza. Obie trasy są `noindex`.
+
+---
+
+## „Wstecz" wraca do poprzedniego ekranu, nie do sztywnego rodzica
+
+`lib/historia.tsx` — od 2026-08-23. Ekrany szczegółowe miały wstecz zapisane na sztywno
+do JEDNEGO rodzica, mimo że wchodzi się na nie z wielu miejsc. Do `/grupy/[id]` prowadzi
+siedem dróg (kafelek na stronie głównej, `/moje-gry`, lista rozmów, strona meczu,
+przytrzymanie „Ekipy", kod zaproszenia, przełącznik ekip), a wstecz zawsze szło na
+`/grupy`; do `/rozmowy/[id]` wchodzi się też z profilu gracza, a wstecz zawsze szło na
+`/rozmowy`. Opisane przez użytkownika jako „wstecz prowadzi w losowe miejsca" — nie było
+losowe, było stałe i przez to prawie zawsze złe.
+
+Druga połowa problemu: te ekrany robiły `router.push()`, nie `back()`. Push **dokłada**
+wpis do historii, więc systemowe „wstecz" tuż po naszym „wstecz" wracało na ekran, z
+którego się właśnie wyszło — pętla.
+
+**Mechanika.** `SledzenieHistorii` (montowane w `app/layout.tsx`) liczy przejścia między
+ekranami w tej karcie przeglądarki. `useWstecz(zapasowyCel)` woła `router.back()`, gdy
+jest dokąd wracać w aplikacji, a `router.replace(zapasowyCel)`, gdy nie ma — czyli po
+wejściu z powiadomienia push, z linku od kolegi albo z ikony PWA, gdzie kontekst JS jest
+świeży, a historia pusta albo cudza. `replace`, nie `push`, właśnie po to: po wejściu
+z linku systemowe „wstecz" ma wyprowadzić z aplikacji, a nie odbić z powrotem.
+
+Powrót ZDEJMUJE poziom licznika zamiast go dokładać (`oznaczPowrot()` przed `router.back()`)
+— bez tego licznik tylko by rósł, bo `back()` też zmienia trasę, i po dojściu do korzenia
+aplikacja dalej twierdziłaby, że jest gdzie cofać.
+
+**Ograniczenie, świadome:** licznik żyje w pamięci modułu, więc twarde przeładowanie (F5)
+zeruje go i wstecz użyje rodzica zamiast prawdziwej historii. To bezpieczna strona pomyłki
+— rodzic zawsze istnieje i jest sensowny, a `router.back()` na cudzy wpis w historii
+wyprowadziłby z aplikacji bez ostrzeżenia.
+
+**Gdzie działa:** `/grupy/[id]`, `/grupy/[id]/edytuj`, `/grupy/nowe`, `/wydarzenia/[id]`
+(z zachowanym wyjątkiem „prosto z kreatora" → `replace('/moje-gry')`, żeby wstecz nie
+wracało do wypełnionego formularza), `/rozmowy/[id]`, obie nowe trasy rozmów oraz
+`/gracz/[id]` — ten ostatni **nie miał wcześniej ŻADNEGO wyjścia**, mimo że otwiera się
+ze składu meczu, z awatara w rozmowie i z listy ekipy.
+
+`/boisko/[id]` zostaje przy własnym mechanizmie (`lib/powrot.ts`, `sessionStorage`):
+trasa jest prerenderowana i cel powrotu niesie tam pełny stan mapy, którego sama historia
+nie odda.
+
+**Pisząc nowy ekran szczegółowy: `useWstecz(rodzic)`, nie `router.push(rodzic)`.**
 
 ---
 

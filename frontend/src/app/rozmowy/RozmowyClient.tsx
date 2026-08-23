@@ -9,34 +9,10 @@ import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import { useAuth } from '@/lib/auth';
 import { etykietaZapisu } from '@/lib/time';
 import { foldText } from '@/lib/searchText';
-import { wszystkieRozmowyMeczow, type RozmowaNaLiscie } from '@/lib/comments';
-import { wszystkieRozmowyGrup } from '@/lib/groupPosts';
-import { wszystkieRozmowyDm } from '@/lib/dm';
 import { getMyGroups } from '@/lib/groups';
+import { pobierzRozmowy, policzNieprzeczytane, type WpisRozmowy } from '@/lib/rozmowy';
 import { withCount } from '@/lib/plural';
 import { oznaczWiadomosciPrzeczytane } from '@/lib/notifications';
-
-/** Jedna rozmowa na liście `/rozmowy`. `typ` jest po to, żeby lista nie musiała
- *  zgadywać adresu z samego id — mecz i ekipa mają różne trasy. */
-export interface WpisRozmowy extends RozmowaNaLiscie {
-  typ: 'mecz' | 'grupa' | 'dm';
-  href: string;
-}
-
-/** Mecze i ekipy w JEDNĄ listę, od najnowszej. Komunikator nie pyta, skąd
- *  wiadomość przyszła — pokazuje, co się ostatnio działo. Wydzielone z komponentu,
- *  żeby dało się to sprawdzić bez renderowania. */
-export function polaczRozmowy(
-  mecze: RozmowaNaLiscie[],
-  ekipy: RozmowaNaLiscie[],
-  prywatne: RozmowaNaLiscie[] = [],
-): WpisRozmowy[] {
-  return [
-    ...mecze.map((r) => ({ ...r, typ: 'mecz' as const, href: `/wydarzenia/${r.id}?tab=rozmowa` })),
-    ...ekipy.map((r) => ({ ...r, typ: 'grupa' as const, href: `/grupy/${r.id}?tab=tablica` })),
-    ...prywatne.map((r) => ({ ...r, typ: 'dm' as const, href: `/rozmowy/${r.id}` })),
-  ].sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
-}
 
 /**
  * `/rozmowy` — pełny ekran, który zastąpił arkusz otwierany z dolnej nawigacji.
@@ -61,12 +37,7 @@ export default function RozmowyClient() {
 
   const zaladuj = useCallback(async (userId: string) => {
     const grupy = await getMyGroups(userId);
-    const [mecze, ekipy, prywatne] = await Promise.all([
-      wszystkieRozmowyMeczow(userId),
-      wszystkieRozmowyGrup(userId, grupy),
-      wszystkieRozmowyDm(userId),
-    ]);
-    setWpisy(polaczRozmowy(mecze, ekipy, prywatne));
+    setWpisy(await pobierzRozmowy(userId, grupy));
   }, []);
 
   useEffect(() => {
@@ -101,7 +72,7 @@ export default function RozmowyClient() {
     return () => document.removeEventListener('visibilitychange', odswiez);
   }, [user, zaladuj]);
 
-  const nieprzeczytane = wpisy.reduce((suma, w) => suma + w.ile, 0);
+  const nieprzeczytane = policzNieprzeczytane(wpisy);
 
   // Szukajka filtruje w pamięci — cała lista jest już wczytana, więc nie ma
   // po co iść po nią do bazy drugi raz. Dopasowuje tytuł ORAZ zajawkę
