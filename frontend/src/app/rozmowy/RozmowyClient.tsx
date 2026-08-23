@@ -14,6 +14,7 @@ import { wszystkieRozmowyGrup } from '@/lib/groupPosts';
 import { wszystkieRozmowyDm } from '@/lib/dm';
 import { getMyGroups } from '@/lib/groups';
 import { withCount } from '@/lib/plural';
+import { oznaczWiadomosciPrzeczytane } from '@/lib/notifications';
 
 /** Jedna rozmowa na liście `/rozmowy`. `typ` jest po to, żeby lista nie musiała
  *  zgadywać adresu z samego id — mecz i ekipa mają różne trasy. */
@@ -76,6 +77,14 @@ export default function RozmowyClient() {
     zaladuj(user.id)
       .catch((e) => console.warn('[Rozmowy]', e))
       .finally(() => { if (aktualne) setLadowanie(false); });
+    // Wejście na ekran rozmów gasi powiadomienia o wiadomościach — dawniej
+    // robiło to otwarcie panelu chmurki w nagłówku, który odszedł razem z tą
+    // trasą. Bez tego wiersze `TYPY_WIADOMOSCI` nie mają już ŻADNEJ drogi do
+    // przeczytania: zostają w bazie na zawsze, a plakietka na ikonie aplikacji
+    // (liczona z `notifications`, tak samo w `public/sw.js`) nigdy nie gaśnie.
+    // Stan nieprzeczytania samej rozmowy liczy się osobno, ze znaczników
+    // „widziano" — lista nadal pokazuje, czego nie czytano.
+    oznaczWiadomosciPrzeczytane(user.id).catch(() => {});
     return () => { aktualne = false; };
   }, [user, authLoading, zaladuj]);
 

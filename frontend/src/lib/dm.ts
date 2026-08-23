@@ -116,7 +116,7 @@ export async function usunDm(wiadomoscId: string): Promise<void> {
 }
 
 /** Blokada jest kierunkowa w zapisie, ale obowiązuje w OBIE strony przy
- *  pisaniu (`czy_zablokowani()` w migracji `124`). */
+ *  pisaniu (`czy_zablokowani()` w migracji `125`). */
 export async function zablokuj(mojId: string, drugiId: string): Promise<void> {
   const { error } = await supabase
     .from('user_blocks')

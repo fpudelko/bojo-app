@@ -305,6 +305,9 @@ export default function NotificationBell() {
   // byłby trzeci z rzędu dla tej samej rzeczy.
   const reszta = notifs.filter((n) => !TYPY_WIADOMOSCI.has(n.type));
   const unreadReszta = reszta.filter((n) => !n.readAt).length;
+  // Do plakietki na ikonie aplikacji — WSZYSTKIE nieprzeczytane, nie tylko
+  // te z dzwonka (patrz komentarz przy `ustawPlakietke` niżej).
+  const nieprzeczytaneRazem = notifs.filter((n) => !n.readAt).length;
 
   // Otwarcie panelu zawsze pokazuje GÓRĘ listy, czyli najnowsze powiadomienie.
   // Przeglądarka potrafi zapamiętać poprzednią pozycję przewijania i wtedy
@@ -425,10 +428,11 @@ export default function NotificationBell() {
   // stąd ją ustawiamy — na każdą zmianę stanu, także po oznaczeniu jako
   // przeczytane (plakietka, która nie gaśnie, przestaje cokolwiek znaczyć).
   //
-  // SUMA obu paneli, nie dwie liczby: na ikonie jest miejsce na jedną.
-  // Rozróżnienie „wiadomość / reszta" niesie w aplikacji kolor (różowa
-  // chmurka, czerwony dzwonek — patrz AGENTS.md), a tego ikona systemowa
-  // nie odda.
+  // WSZYSTKIE nieprzeczytane, nie tylko te z dzwonka: na ikonie jest miejsce
+  // na jedną liczbę, a rozróżnienie „wiadomość / reszta" niesie w aplikacji
+  // kolor (różowa chmurka, czerwony dzwonek — patrz AGENTS.md), czego ikona
+  // systemowa nie odda. Powiadomienia o wiadomościach gasi wejście na
+  // `/rozmowy` (`oznaczWiadomosciPrzeczytane`).
   //
   // Sufit `ILE_POWIADOMIEN` z definicji ogranicza tę liczbę — przy 50
   // nieprzeczytanych plakietka i tak dawno przestała być licznikiem, a stała
@@ -438,8 +442,8 @@ export default function NotificationBell() {
   // ten efekt wykonuje się dwa razy z tą samą wartością. To jest bez skutków:
   // ustawienie plakietki jest idempotentne.
   useEffect(() => {
-    ustawPlakietke(user ? unreadWiadomosci + unreadReszta : 0);
-  }, [user, unreadWiadomosci, unreadReszta]);
+    ustawPlakietke(user ? nieprzeczytaneRazem : 0);
+  }, [user, nieprzeczytaneRazem]);
 
   // Close on outside click
   useEffect(() => {
