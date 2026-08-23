@@ -1328,11 +1328,19 @@ export default function VenueExplorer({
           )}
         </div>
 
-        {/* Licznik */}
+        {/* Licznik.
+
+            `wKadrze`, nie `fields.length`: przy oddaleniu mapa pobiera SKUPISKA
+            zamiast pojedynczych obiektów, więc `allFields` jest wtedy celowo
+            puste (patrz efekt z `getExplorerClusters`). Licznik liczony z
+            `fields` pokazywał w tej sytuacji „0 boisk" nad listą, choć w kadrze
+            stoi ich kilka tysięcy — a mapa obok rysowała je poprawnie jako
+            kółka z liczbami. `wKadrze` sumuje skupiska, a poza trybem skupisk
+            jest po prostu równe `fields.length`. */}
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
           {showGames
             ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
-            : `${fields.length} ${boiskoSlowo(fields.length)}`}
+            : `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)}`}
         </div>
 
         {/* Scrollable list */}
@@ -1373,12 +1381,45 @@ export default function VenueExplorer({
                 Pokaż więcej ({fields.length - visibleFields.length})
               </button>
             )}
-            {fields.length === 0 && (searchResults ?? allFields).length > 0 && (
-              <p className="text-sm text-slate-400 text-center pt-8">
-                {trybSkupisk
-                  ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
-                  : 'Brak boisk dla tych filtrów'}
-              </p>
+            {/* W TRYBIE SKUPISK LISTA JEST PUSTA Z ZAŁOŻENIA, nie z braku
+                wyników. Warunek `(searchResults ?? allFields).length > 0`
+                wykluczał dokładnie ten przypadek — `allFields` jest wtedy
+                celowo puste — więc gałąź `trybSkupisk` poniżej nigdy się nie
+                renderowała i zostawała goła lista pod napisem „0 boisk".
+
+                „Przybliż" jest przyciskiem, nie zdaniem: w widoku „Lista" mapa
+                jest schowana (`display: none`), więc rada „przybliż mapę" nie
+                ma czego dotyczyć — nie ma czego chwycić palcem. Przycisk
+                przybliża instancję Leafleta do progu, przy którym pobierają
+                się pojedyncze obiekty, i lista wypełnia się bez wychodzenia
+                z listy. */}
+            {fields.length === 0 && trybSkupisk && (
+              <div className="pt-8 text-center">
+                <p className="text-sm text-slate-400">
+                  {wKadrze.toLocaleString('pl-PL')} {boiskoSlowo(wKadrze)} w tym widoku
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!mapInstance) return;
+                    // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
+                    // Samo `setZoom` trzyma środek, a środek widoku całej
+                    // Polski to pole pod Łodzią — przybliżenie kończyłoby się
+                    // wtedy listą „0 boisk", czyli dokładnie tym, co ten
+                    // przycisk ma naprawić.
+                    const najwieksze = skupiska.reduce<Skupisko | null>(
+                      (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
+                    if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
+                    else mapInstance.setZoom(ZOOM_SKUPISK);
+                  }}
+                  className="mt-3 rounded-xl border border-primary-700 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
+                >
+                  Przybliż tam, gdzie jest ich najwięcej
+                </button>
+              </div>
+            )}
+            {fields.length === 0 && !trybSkupisk && (searchResults ?? allFields).length > 0 && (
+              <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
             )}
           </div>
         )}
