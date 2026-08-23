@@ -47,6 +47,12 @@ export function validateGoalkeepers(v: {
   return {};
 }
 
+// UWAGA NA PRZYSZŁOŚĆ: od czasu, gdy kreator ma widoczny przełącznik
+// „Bramkarze osobno” (domyślnie WYŁĄCZONY), stan `null` w kreatorze nie
+// występuje — wyłączenie jest decyzją, nie brakiem decyzji. Reguła zostaje,
+// bo strona edycji nadal potrafi mieć `null` przy meczach sprzed migracji
+// `077`, a usunięcie jej odblokowałoby zapis meczu bez rozstrzygniętej roli.
+
 /** Step 3 (Opcje) has no required fields. */
 export function validateStep3(): FieldErrors {
   return {};
@@ -108,10 +114,13 @@ export function validateStep(
   // `validateStep1`/`validateStep2` NIE zamieniają się nazwami: mówią, co
   // sprawdzają (lokalizacja / termin), a nie na którym ekranie stoją. Nazwa
   // wiążąca funkcję z numerem ekranu psuje się przy każdej zmianie układu.
-  if (n === 1) return validateStep2(v.date, v.time);
-  if (n === 2) {
+  if (n === 1) {
+    // KOSZT I BRAMKARZE PRZENIOSŁY SIĘ NA KROK 1 (2026-08-23) — razem z liczbą
+    // miejsc, pod przełączniki „Mecz płatny" i „Bramkarze osobno". Walidacja
+    // idzie za polem, nie za numerem ekranu: błąd numeru BLIKA zgłoszony przy
+    // wyjściu z kroku 2 wskazywałby pole, którego nie ma już na ekranie.
     return {
-      ...validateStep1(v.location),
+      ...validateStep2(v.date, v.time),
       ...validatePayments({
         costPln: v.costPln ?? '',
         acceptedPaymentMethods: v.acceptedPaymentMethods ?? [],
@@ -125,5 +134,6 @@ export function validateStep(
       }),
     };
   }
+  if (n === 2) return validateStep1(v.location);
   return validateStep3();
 }

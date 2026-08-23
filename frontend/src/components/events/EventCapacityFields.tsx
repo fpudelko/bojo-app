@@ -53,45 +53,26 @@ const TRYBY = [
  * Liczba miejsc (stepper +/−) + „Rozróżniaj bramkarzy” + „Czas na decyzję z
  * rezerwy”. Wspólne dla kreatora (`wydarzenia/nowe`) i edycji wydarzenia —
  * edycja miała dotąd osobny slider zamiast steppera.
+
+/**
+ * MIEJSCA W SKŁADZIE — stepper i (za flagą) próg „gra się odbędzie".
+ *
+ * Wydzielone z `EventCapacityFields`, bo kreator pyta o liczbę miejsc na
+ * pierwszym kroku, razem z terminem, a resztę ustawień chowa za przełącznikami
+ * („Rezerwa", „Płatne", „Bramkarze"). Strona edycji nadal składa wszystko
+ * razem — patrz `EventCapacityFields` niżej.
  */
-export default function EventCapacityFields({
-  sport,
-  maxPlayers, onMaxPlayersChange,
-  minPlayers = null, onMinPlayersChange,
-  goalkeepersEnabled, setGoalkeepersEnabled,
-  reserveClaimMinutes, setReserveClaimMinutes,
-  reserveEnabled = true, setReserveEnabled,
-  slotyZarezerwowane = true, setSlotyZarezerwowane,
-  blad,
+export function MiejscaWSkladzie({
+  maxPlayers, onMaxPlayersChange, minPlayers = null, onMinPlayersChange,
+  reserveEnabled = false,
 }: {
-  sport: string;
   maxPlayers: number;
   onMaxPlayersChange: (v: number) => void;
-  /** Próg "gra się odbędzie" (097). `null` = organizator go nie ustawił. */
   minPlayers?: number | null;
   onMinPlayersChange?: (v: number | null) => void;
-  /** `null` = organizator jeszcze nie zdecydował (tylko kreator). */
-  goalkeepersEnabled: boolean | null;
-  setGoalkeepersEnabled: (v: boolean) => void;
-  /** Minuty — migracja `118` (wcześniej `reserveClaimHours`, pełne godziny). */
-  reserveClaimMinutes: number;
-  setReserveClaimMinutes: (v: number) => void;
-  /** Czy mecz w ogóle prowadzi listę rezerwową (migracja `123`). */
+  /** Zmienia wyłącznie ZDANIE pod stepperem — nie samą kontrolkę. */
   reserveEnabled?: boolean;
-  setReserveEnabled?: (v: boolean) => void;
-  /** Czy miejsca dla bramkarzy są zarezerwowane (migracja `077`). */
-  slotyZarezerwowane?: boolean;
-  setSlotyZarezerwowane?: (v: boolean) => void;
-  blad?: string;
 }) {
-  // Tryb „Inny czas" jest stanem WIDOKU, nie danych — decyduje, czy pokazać
-  // pole liczbowe zamiast selecta, niezależnie od tego, czy aktualna wartość
-  // akurat pasuje do presetu (żeby wybranie „Inny czas…" i wpisanie 180
-  // nie zamknęło z powrotem pola samo z siebie, bo 180 jest też presetem).
-  const [trybInny, setTrybInny] = useState<boolean>(
-    () => !(PRESETY_REZERWY as readonly number[]).includes(reserveClaimMinutes),
-  );
-
   return (
     <>
       {/* Stepper po lewej, dopisek „masz już graczy" obok — ale OBOK dopiero
@@ -179,24 +160,26 @@ export default function EventCapacityFields({
         )}
       </div>
 
-      {/* PRZEŁĄCZNIK LISTY REZERWOWEJ (migracja `123`).
-          Do tej pory rezerwa była stałą regułą: kreator ogłaszał „Kolejni
-          chętni trafią na listę rezerwową" i nie dało się tego zmienić, a niżej
-          stało jeszcze ustawienie czasu na decyzję. Mecz na zamkniętą ekipę,
-          halę opłaconą z góry albo ustaloną dwunastkę rezerwy nie potrzebuje —
-          i organizator musiał tłumaczyć ludziom, po co się „zapisali na listę".
+    </>
+  );
+}
 
-          Stoi PRZED czasem na decyzję, bo tamto ustawienie ma sens wyłącznie
-          przy włączonej rezerwie i chowa się razem z nią. */}
-      {setReserveEnabled && (
-        <ToggleRow
-          label="Lista rezerwowa"
-          desc="Przy komplecie kolejni chętni czekają w kolejce i wchodzą, gdy ktoś się wypisze."
-          checked={reserveEnabled}
-          onChange={setReserveEnabled}
-        />
-      )}
-
+/** CZAS NA DECYZJĘ Z REZERWY. O tym, czy w ogóle się pokazuje, decyduje
+ *  wywołujący (przełącznik „Rezerwa"), nie ten komponent. */
+export function UstawieniaRezerwy({
+  reserveClaimMinutes, setReserveClaimMinutes,
+}: {
+  reserveClaimMinutes: number;
+  setReserveClaimMinutes: (v: number) => void;
+}) {
+  // Tryb „Inny czas" jest stanem WIDOKU, nie danych — decyduje, czy pokazać
+  // pole liczbowe zamiast selecta, niezależnie od tego, czy aktualna wartość
+  // akurat pasuje do presetu.
+  const [trybInny, setTrybInny] = useState<boolean>(
+    () => !(PRESETY_REZERWY as readonly number[]).includes(reserveClaimMinutes),
+  );
+  return (
+    <>
       {/* Czas na decyzję z rezerwy — widoczny wprost, nie pod „Więcej opcji".
           To ustawienie reguły, wedle której Bojo rozdaje zwolnione miejsca,
           więc organizator ma je widzieć, gdy ustala skład. Opis stoi OBOK
@@ -206,7 +189,6 @@ export default function EventCapacityFields({
           Chowa się razem z rezerwą: przy wyłączonej nie ma czego rozdawać,
           więc pytanie „ile czasu na przyjęcie miejsca" jest wtedy pytaniem
           bez treści. */}
-      {reserveEnabled && (
       <div>
         <label htmlFor="czas-rezerwy" className="block text-sm font-medium text-slate-700 mb-2">
           Czas na decyzję z rezerwy
@@ -256,8 +238,26 @@ export default function EventCapacityFields({
           </div>
         </div>
       </div>
-      )}
+    </>
+  );
+}
 
+/** TRYBY MIEJSC DLA BRAMKARZY. Sam warunek „czy sport ma bramkarza" zostaje
+ *  w środku — wywołujący nie musi znać `GK_SPORTS`. */
+export function UstawieniaBramkarzy({
+  sport, maxPlayers, goalkeepersEnabled, setGoalkeepersEnabled,
+  slotyZarezerwowane = true, setSlotyZarezerwowane, blad,
+}: {
+  sport: string;
+  maxPlayers: number;
+  goalkeepersEnabled: boolean | null;
+  setGoalkeepersEnabled: (v: boolean) => void;
+  slotyZarezerwowane?: boolean;
+  setSlotyZarezerwowane?: (v: boolean) => void;
+  blad?: string;
+}) {
+  return (
+    <>
       {/* Bramkarze — trzy stany, nie przełącznik.
           Przełącznik odpowiadał wyłącznie na pytanie „rozróżniać?", a to za mało:
           organizator, który rozróżnia, musi jeszcze zdecydować, CZY miejsca dla
@@ -317,6 +317,76 @@ export default function EventCapacityFields({
           )}
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * Komplet ustawień pojemności — stepper, przełącznik rezerwy z czasem na
+ * decyzję i tryby miejsc dla bramkarzy. Używa go STRONA EDYCJI, gdzie mecz już
+ * istnieje i wszystkie ustawienia są równorzędne. Kreator składa te same części
+ * inaczej: liczba miejsc na pierwszym kroku, reszta za przełącznikami.
+ */
+export default function EventCapacityFields({
+  sport,
+  maxPlayers, onMaxPlayersChange,
+  minPlayers = null, onMinPlayersChange,
+  goalkeepersEnabled, setGoalkeepersEnabled,
+  reserveClaimMinutes, setReserveClaimMinutes,
+  reserveEnabled = true, setReserveEnabled,
+  slotyZarezerwowane = true, setSlotyZarezerwowane,
+  blad,
+}: {
+  sport: string;
+  maxPlayers: number;
+  onMaxPlayersChange: (v: number) => void;
+  minPlayers?: number | null;
+  onMinPlayersChange?: (v: number | null) => void;
+  goalkeepersEnabled: boolean | null;
+  setGoalkeepersEnabled: (v: boolean) => void;
+  reserveClaimMinutes: number;
+  setReserveClaimMinutes: (v: number) => void;
+  reserveEnabled?: boolean;
+  setReserveEnabled?: (v: boolean) => void;
+  slotyZarezerwowane?: boolean;
+  setSlotyZarezerwowane?: (v: boolean) => void;
+  blad?: string;
+}) {
+  return (
+    <>
+      <MiejscaWSkladzie
+        maxPlayers={maxPlayers}
+        onMaxPlayersChange={onMaxPlayersChange}
+        minPlayers={minPlayers}
+        onMinPlayersChange={onMinPlayersChange}
+        reserveEnabled={reserveEnabled}
+      />
+
+      {setReserveEnabled && (
+        <ToggleRow
+          label="Lista rezerwowa"
+          desc="Przy komplecie kolejni chętni czekają w kolejce i wchodzą, gdy ktoś się wypisze."
+          checked={reserveEnabled}
+          onChange={setReserveEnabled}
+        />
+      )}
+
+      {reserveEnabled && (
+        <UstawieniaRezerwy
+          reserveClaimMinutes={reserveClaimMinutes}
+          setReserveClaimMinutes={setReserveClaimMinutes}
+        />
+      )}
+
+      <UstawieniaBramkarzy
+        sport={sport}
+        maxPlayers={maxPlayers}
+        goalkeepersEnabled={goalkeepersEnabled}
+        setGoalkeepersEnabled={setGoalkeepersEnabled}
+        slotyZarezerwowane={slotyZarezerwowane}
+        setSlotyZarezerwowane={setSlotyZarezerwowane}
+        blad={blad}
+      />
     </>
   );
 }
