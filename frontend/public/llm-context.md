@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
+**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 740 testy
 
 ---
 
@@ -369,6 +369,24 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
 kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
 już celem „Szukaj". Bez migracji.
 
+### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
+
+PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
+otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
+a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
+Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
+który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
+
+ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
+identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
+nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
+widzi w pasku adres, który da się wysłać dalej.
+
+MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
+`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
+linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
+na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
+
 ### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
@@ -486,6 +504,7 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
+
 ### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
 
 PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
@@ -537,6 +556,7 @@ haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPO
 `content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
 stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
 `scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
+
 ### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
 
 PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
@@ -557,30 +577,3 @@ sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłączn
 MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
 „Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
-
-### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
-
-PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
-„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
-o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
-aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
-pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
-pokazał i użytkownik ją otworzył.
-
-ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
-z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
-listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
-o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
-prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
-Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
-w dzwonku.
-
-MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
-(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
-Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
-powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
-`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
-Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
-Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
-w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
-
