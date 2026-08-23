@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 import { MIASTA } from '@/content/miasta';
+import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 
 const SPORT_SLUGS = [
   'pilka-nozna',
@@ -48,9 +49,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
+  // Faza 2b: 16 hubów wojewódzkich — bounded lista jak sportPages, w
+  // przeciwieństwie do samych boisk pod spodem (patrz niżej).
+  const wojewodztwoPages: MetadataRoute.Sitemap = WOJEWODZTWA.map((slug) => ({
+    url: `${base}/boiska/woj/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.5,
+  }));
+
   // Boiska NIE są tu wypisywane — katalog ma 32 684+ wiersze, więc żyją
   // w osobnych sitemapach per województwo (sitemap-boiska/[plik]/route.ts),
   // zebranych w sitemap-index.xml razem z tym plikiem. Trzymanie ich tutaj
   // znaczyłoby jeden rosnący bez końca plik zamiast partycji.
-  return [...staticPages, ...sportPages, ...grajPages];
+  return [...staticPages, ...sportPages, ...grajPages, ...wojewodztwoPages];
 }

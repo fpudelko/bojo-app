@@ -676,10 +676,6 @@ end $$;
 -- składów od uczestników (24–25).
 -- ============================================================
 
--- Matches both the current marker (description) and the older format from
--- an earlier version of this script (title), so stale rows never pile up.
-DELETE FROM events WHERE title LIKE '[TEST]%' OR description LIKE '[TEST]%';
-
 DO $$
 DECLARE
   org1 UUID := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
@@ -711,7 +707,43 @@ DECLARE
   eid UUID; -- scratch var: id of the event currently being built
   prop UUID; -- scratch var: id of the team proposal currently being built
   pa UUID; pb UUID; pc UUID; pd UUID; -- participant ids, for proposal picks
+  brak TEXT[] := '{}'; -- migrations missing from the database (see the check below)
 BEGIN
+  -- SCHEMA CHECK. Migrations in this repo are run BY HAND, so the database is
+  -- often older than the file being pasted into it. Without this check the seed
+  -- dies halfway through, on the first INSERT touching a newer column, with
+  -- Postgres' "column ... does not exist" — which says WHAT is missing but
+  -- neither why nor what to do about it. The cause is always the same: an
+  -- unapplied migration. One sentinel per migration, all gaps reported at once
+  -- so they are not discovered one run at a time. Message stays Polish, like
+  -- every other RAISE in this file.
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'events'
+                    AND column_name = 'reserve_claim_minutes') THEN
+    brak := brak || CASE
+      WHEN EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'events'
+                      AND column_name = 'reserve_claim_hours')
+      THEN '118_rezerwa_czas_w_minutach.sql — w bazie siedzi jeszcze stara kolumna reserve_claim_hours (godziny)'
+      ELSE '118_rezerwa_czas_w_minutach.sql — brak kolumny events.reserve_claim_minutes'
+    END::text;
+  ELSIF EXISTS (SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'public.events'::regclass
+                   AND conname = 'events_reserve_claim_hours_check') THEN
+    -- New column name, but the CHECK from `058` (1..72) is still attached —
+    -- migration `118` only got halfway (rename without the conversion to
+    -- minutes). Without this branch the seed only fails later, on
+    -- "violates check constraint events_reserve_claim_hours_check".
+    brak := brak || '118_rezerwa_czas_w_minutach.sql — przeszła tylko w połowie: kolumna ma nową nazwę, ale zostało ograniczenie CHECK 1..72 i wartości w godzinach (puść CAŁY plik jeszcze raz, jest odporny na powtórzenie)'::text;
+  END IF;
+  IF to_regclass('public.event_blik') IS NULL THEN
+    brak := brak || '120_rozmowa_i_blik_tylko_dla_swoich.sql — brak tabeli event_blik'::text;
+  END IF;
+  IF cardinality(brak) > 0 THEN
+    RAISE EXCEPTION E'Baza nie ma zmian z migracji:\n  • %\n\nUruchom brakujące pliki z supabase/migrations w Supabase → SQL Editor (nic nie robi tego za Ciebie) i puść ten seed jeszcze raz.',
+      array_to_string(brak, E'\n  • ');
+  END IF;
+
   IF org1 IS NULL OR org2 IS NULL OR org3 IS NULL THEN
     RAISE EXCEPTION 'Brakuje jednego z kont organizatora w auth.users — sprawdź e-maile (franciszekpudelko@gmail.com / franekks@gmail.com / j4n.brz0@gmail.com).';
   END IF;
@@ -719,6 +751,13 @@ BEGIN
      OR t6 IS NULL OR t7 IS NULL OR t8 IS NULL OR t9 IS NULL OR t10 IS NULL THEN
     RAISE EXCEPTION 'Brakuje jednego z kont test1..test10@example.com w auth.users.';
   END IF;
+
+  -- Wiping the previous run happens AFTER the checks above: a seed that fails
+  -- must leave the database as it found it, not clear the old rows and then
+  -- fail to write the new ones. Matches both the current marker (description)
+  -- and the older format from an earlier version of this script (title), so
+  -- stale rows never pile up.
+  DELETE FROM events WHERE title LIKE '[TEST]%' OR description LIKE '[TEST]%';
 
   -- Real display names from profiles (set by seed-test-users.sql for the
   -- test accounts) so seeded participants look like real players, not

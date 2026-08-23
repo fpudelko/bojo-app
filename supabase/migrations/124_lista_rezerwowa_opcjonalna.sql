@@ -1,4 +1,4 @@
--- 123: Lista rezerwowa staje się WYBOREM organizatora, nie stałą regułą.
+-- 124: Lista rezerwowa staje się WYBOREM organizatora, nie stałą regułą.
 --
 -- PO CO. Kreator mówił pod licznikiem miejsc: „Kolejni chętni trafią na listę
 -- rezerwową." — zdanie o zachowaniu, którego nie dało się zmienić. Zaraz pod
@@ -26,7 +26,7 @@ ALTER TABLE events
   ADD COLUMN IF NOT EXISTS reserve_enabled BOOLEAN NOT NULL DEFAULT true;
 
 COMMENT ON COLUMN events.reserve_enabled IS
-  'Czy przy komplecie chętni trafiają na listę rezerwową (migracja 123). false = mecz przy komplecie jest zamknięty. Istniejące wpisy is_reserve zostają — wyłączenie nie kasuje kolejki, która już powstała.';
+  'Czy przy komplecie chętni trafiają na listę rezerwową (migracja 124). false = mecz przy komplecie jest zamknięty. Istniejące wpisy is_reserve zostają — wyłączenie nie kasuje kolejki, która już powstała.';
 
 -- ---------------------------------------------------------------------------
 -- Bramka po stronie BAZY, nie interfejsu
@@ -78,4 +78,4 @@ CREATE TRIGGER trg_pilnuj_wylaczonej_rezerwy
   EXECUTE FUNCTION pilnuj_wylaczonej_rezerwy();
 
 COMMENT ON FUNCTION pilnuj_wylaczonej_rezerwy() IS
-  'Nie wpuszcza nikogo na listę rezerwową meczu z reserve_enabled = false (migracja 123). Wyzwalacz zamiast poprawki w dolacz_do_meczu(), bo na rezerwę wchodzi się kilkoma drogami.';
+  'Nie wpuszcza nikogo na listę rezerwową meczu z reserve_enabled = false (migracja 124). Wyzwalacz zamiast poprawki w dolacz_do_meczu(), bo na rezerwę wchodzi się kilkoma drogami.';

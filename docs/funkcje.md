@@ -596,7 +596,24 @@ w `app/wydarzenia/nowe/page.tsx` (brama logowania i właściwy kreator) dostają
 `showMobileWordmark` — ten sam prop co `/moje-gry`, `/grupy`, `/wydarzenia/[id]`.
 Wysokość paska bez zmian (`h-12`, sticky stepper na `top-12`).
 
-**Krok 1 — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
+**Krok 1 „Kiedy" — termin, liczba miejsc, trzy przełączniki.** Ekran niesie datę,
+godzinę, czas trwania i liczbę miejsc, a pod nimi trzy przełączniki **domyślnie
+wyłączone** (`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny",
+„Bramkarze osobno" (ostatni tylko dla sportów z `GK_SPORTS`). Szczegóły każdego —
+czas na decyzję z rezerwy, kwota i metody płatności, tryb miejsc dla bramkarzy —
+**montują się dopiero po włączeniu**, nie są chowane CSS-em: ukryte pole nadal
+wysyła wartość i nadal się waliduje. Wyłączenie „Mecz płatny" CZYŚCI kwotę i metody.
+Na dole kroku stoi „Biorę udział" (z wyborem bramkarz/z pola, gdy podział jest
+włączony) — pod przełącznikiem, który tę kontrolkę włącza, nie nad nim.
+
+Konsekwencja domyślnie wyłączonej rezerwy: **nowy mecz przy komplecie zamyka zapisy**.
+Kolejka jest wyborem, patrz `events.reserve_enabled` (migracja `124`).
+
+`STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx` mapuje pole → krok dla skoku steppera
+przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
+rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
+
+**Krok 2 „Gdzie" — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
 wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
 guardowany `try/catch` jak `eventDraft.ts`). Zapis następuje po udanej publikacji,
 **przed** `clearEventDraft()`, i tylko gdy miejsce pochodziło z katalogu — pinezka własna
@@ -604,17 +621,18 @@ nie ma `id`. Odczyt pokazuje chip „Ostatnio: «nazwa» — Użyj", widoczny wy
 miejsce nie jest jeszcze wybrane. To **propozycja, nie autowybór**: ciche ustawienie
 miejsca meczu jest najgorszą możliwą pomyłką do przeoczenia.
 
-**Krok 2 — „Czas na decyzję z rezerwy" bez chowania.** Pole stoi na stałe pod „Liczbą
-miejsc" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
+**„Czas na decyzję z rezerwy" (krok 1, pod przełącznikiem rezerwy).** Pole stoi tuż pod
+przełącznikiem „Lista rezerwowa" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
 z polem liczbowym w minutach, 15 min – 72 h; domyślnie 180 min = 3 h). Wcześniej
 siedziało pod rozwijanym „Więcej opcji" — sekcja została w kodzie, ale nie ma dziś czego
-pokazać i się nie renderuje. Odwrócenie ustalenia O-11 audytu, patrz
+pokazać i się nie renderuje. Od 2026-08-23 całość jest za przełącznikiem: mecz bez
+rezerwy nie pokazuje ani tego pola, ani zdania o kolejce. Odwrócenie ustalenia O-11 audytu, patrz
 [przeplyw-organizatora.md](./przeplyw-organizatora.md). Kolumna `events.reserve_claim_minutes`
 (do migracji `118` — `reserve_claim_hours`, wyłącznie pełne godziny) opisana w
 [domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans). Obok steppera liczby miejsc stoi podpowiedź,
 że graczy dopisuje się po utworzeniu meczu, na jego stronie, także bez konta.
 
-**Krok 2 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
+**Krok 1 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
 `components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej
 daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „otwieraj zapisy X dni przed
 terminem" (dawniej „powiadamiaj" — od migracji `073` ta wartość steruje AUTOMATYCZNYM
@@ -626,6 +644,9 @@ pierwszy mecz przez `events.recurring_event_id`. Po publikacji strona meczu poka
 jednorazowy link do panelu serii (`/cykliczne/{id}`) przez `?cykliczne=<id>`, a stały badge
 „Stała gierka" (organizator, w pasku u góry strony meczu) prowadzi tam samo z powrotem.
 Patrz „Serie wydarzeń cyklicznych" niżej.
+
+**Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
+wymaganych (`validateStep3` zwraca `{}`).
 
 **Krok 3 — mecz w ramach grupy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
@@ -649,10 +670,19 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 
 ## Podsumowanie przed publikacją
 
-Ostatni krok kreatora kończy się kartą **„Tak zobaczą to gracze"**
-(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`). Powód:
-przycisk „Opublikuj mecz" stoi na kroku 3, a data, miejsce, skład i cena były ustawiane na
-krokach 1–2 i w chwili publikacji nie były widoczne.
+„Opublikuj mecz →" na kroku 3 **nie publikuje** — otwiera okno **„Tak zobaczą to gracze"**
+(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`) z dwoma
+przyciskami: „Popraw" i „Publikuję". Powód: data, miejsce, skład i cena są ustawiane na
+krokach 1–2 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po
+utworzeniu i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej,
+niż da się ją poprawić.
+
+Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
+zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
+że jedną z nich się przewija bez czytania. Okno stoi POZA `<form>` — każdy `<button>`
+w formularzu bez `type` jest przyciskiem wysyłającym. Błąd walidacji i błąd zapisu
+zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek „Publikuję" zostaje
+widoczny na czas zapisu.
 
 Sześć wierszy — Co / Kiedy / Gdzie / Skład / Koszt / Kto widzi — każdy z przyciskiem
 „Zmień" wołającym `attemptGoToStep`. Cofanie nigdy nie waliduje, więc skok jest bezpieczny
@@ -680,7 +710,7 @@ Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
 produkcyjny build (pułapka opisana w `AGENTS.md`). Zaraz po odczycie parametr znika
 z adresu przez `history.replaceState`, więc odświeżenie nie pokazuje panelu drugi raz.
 
-Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 2), doszedł
+Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 1), doszedł
 `?cykliczne=<id>` — czytany tym samym `useEffect` i zdejmowany tak samo. Panel dostaje
 wtedy dodatkowy link „Ustawiłeś powtarzanie co tydzień — zarządzaj serią" do
 `/cykliczne/{id}`.
@@ -1134,7 +1164,7 @@ sport i miasto, jest dopisany do `tresciStron.test.ts`.
 
 ## Tierowanie indeksacji katalogu boisk (SEO/GEO, migracja `112`)
 
-Katalog ma dziś **32 684 wiersze** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
+Katalog ma dziś **36 268 wierszy** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
 i rośnie z każdym kolejnym importem. Indeksowanie wszystkich naraz ryzykuje karę Google za
 cienką treść (thin content) — większość obiektów ma tylko nazwę, adres i sport, bez
 żadnego realnego ruchu: audyt produkcyjnej bazy przy wdrożeniu pokazał, że **tylko 40
@@ -1161,15 +1191,56 @@ uruchamiany skrypt `scraper/backfill_lokalizacja.py` (reużywa `nearest_place()`
 `import_osm_pbf.py` — ten sam plik `.osm.pbf`, ten sam najbliższy węzeł `place=`), nie
 funkcja `miejscowoscZAdresu()` w `boisko/[id]/page.tsx` (ta zostaje jako fallback dla
 wierszy sprzed backfillu — 169 duplikatów nazw i niejednoznaczny format adresu robią
-z parsowania tekstu zgadywankę). Świeżo zaaplikowana migracja `112` zostawia `city` puste
-— dopóki backfill nie przejdzie, wszystkie boiska są w Tier 3.
+z parsowania tekstu zgadywankę). Backfill przeszedł realnie przez
+`.github/workflows/backfill-lokalizacja.yml` (sesja agenta nie ma dostępu do
+`download.geofabrik.de` — polityka sieciowa środowiska — więc backfill uruchamia się z
+GitHub Actions, tym samym mechanizmem co import). Rozkład na produkcji: **3 605 w Tier 1,
+28 491 w Tier 2, 4 172 w Tier 3**.
 
 **Sitemap partycjonowany per województwo**, nie jeden rosnący bez końca plik:
-`sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`) + 16×
-`sitemap-boiska/[plik]/route.ts` (po jednym na województwo, tylko Tier 1/2 — Tier 3 ma
-`noindex`, więc wpis w sitemapie byłby sprzeczną instrukcją dla Googlebota), zebrane
-w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje na ten indeks, nie na goły
-`sitemap.xml`.
+`sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`, 16 hubów wojewódzkich
+`/boiska/woj/[wojewodztwo]`) + 16× `sitemap-boiska/[plik]/route.ts` (po jednym na
+województwo, tylko boiska — Tier 3 ma `noindex`, więc wpis w sitemapie byłby sprzeczną
+instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje
+na ten indeks, nie na goły `sitemap.xml`.
+
+### Faza 1 — fact-dense opis obiektu
+
+`content/opisObiektu.ts#opisObiektu()` buduje jeden akapit z danych katalogu (sport,
+miejscowość, kryty/odkryty, nawierzchnia, oświetlenie) — ten sam tekst widoczny na górze
+`/boisko/[id]` (`VenueDetailClient.tsx`, tuż pod nagłówkiem) i jako `description` w JSON-LD
+`SportsActivityLocation` (`boisko/[id]/page.tsx`), jedno źródło. Podlega
+`content/zakazaneFrazy.ts` tak samo jak `/faq`/`/jak-dziala-bojo`/`/dlaczego-bojo` —
+próbka reprezentatywnych obiektów (różne miasto/nawierzchnia/kryte-odkryte/oświetlenie)
+jest dopisana do wspólnej listy jednostek treści w `tresciStron.test.ts`, bo to czysty
+szablon: jeśli zakazana fraza nie wchodzi w kilka kombinacji, nie wejdzie w żadną inną
+(interpolowane są dane katalogu, nie nasza proza).
+
+### Faza 2b — huby wojewódzkie
+
+`/boiska/woj/[wojewodztwo]` — 16 stron, wzorem `/boiska/[sport]`: `force-dynamic`,
+paginacja `?strona=` po 60 obiektów (katalog per województwo bywa duży, np. mazowieckie
+ma ponad 8 tysięcy boisk w samym pliku PBF), bez prerenderu z tych samych powodów co
+`/boisko/[id]`. Adres celowo NIE jest `/boiska/[wojewodztwo]` — Next.js nie pozwala dwóm
+dynamicznym segmentom na tym samym poziomie katalogu mieć różne nazwy (`[sport]` już
+zajmuje `/boiska/[cokolwiek]`), więc `woj` jest literalnym segmentem pośrednim. Nazwy do
+wyświetlenia w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL` — mianownik z wielkiej litery,
+świadomie bez odmiany przez przypadki (nagłówek składa się jako „Województwo {Nazwa} —
+…", więc fleksja przymiotnika nigdy nie wchodzi w grę). `/boisko/[id]` linkuje do swojego
+huba wojewódzkiego (widoczny link pod „direct answer" i okruszek w JSON-LD breadcrumbs),
+gdy `field.voivodeship` jest wypełnione.
+
+### Faza 3 — mikro-ankiety UGC
+
+`AnkietyObiektu.tsx` na `/boisko/[id]` (nad `VenueComments`) — dwa pytania: „czy
+oświetlone?" (tak/nie) i „jaka nawierzchnia?" (te same sześć wartości co `SURFACE_MAP` w
+`import_osm_pbf.py`). Tabela `potwierdzenia_obiektu` (migracja `123`), jeden głos na fakt
+na osobę (`UNIQUE (field_id, user_id, fakt)`, `.upsert()` pozwala zmienić zdanie). Wynik
+pokazuje się jako „potwierdzone przez N graczy" dopiero od **quorum = 2** — jeden klik to
+czyjaś opinia, nie potwierdzony fakt. Świadomie **nic nie nadpisuje** w `fields` (`lit`,
+`surface` z OSM zostają nietknięte) — głos graczy pokazuje się OBOK danych z katalogu, nie
+zamiast nich; decyzja o ewentualnym nadpisywaniu kolumn zostaje otwartym punktem (patrz
+„Zgłaszanie błędów: w aplikacji i w danych obiektu" w BACKLOG.md).
 
 ---
 
@@ -1253,6 +1324,11 @@ wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki fi
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
+
+**Od 2026-08-23 `/wydarzenia` nie jest już celem „Szukaj" na dolnej nawigacji —
+zastąpił ją `/mapa`, patrz „Scalona wyszukiwarka" niżej.** Trasa i `EventsListView`
+zostają żywe (linki z `/gracz`, głębokie linki, tło ekranu logowania —
+`LoginBackdrop.tsx`), ale to już nie jest ekran, na który trafia dotknięcie „Szukaj".
 
 Przycisk obok dzwonka powiadomień (mobile, zalogowany) przełącza treść strony między
 listą a mapą — **to nie jest nawigacja na `/mapa`**, tylko stan komponentu
@@ -1656,6 +1732,48 @@ zastępuje je `joinGroupByCode()`.
 
 ---
 
+## Scalona wyszukiwarka: `/mapa` jest dziś celem „Szukaj"
+
+Od 2026-08-23 dolna nawigacja prowadzi „Szukaj" na `/mapa` (dawniej `/wydarzenia`) —
+`BottomNav.tsx` zmienia href, `MapaClient.tsx` przejmuje po `EventsListClient.tsx`
+gaszenie pomarańczowej kropki „nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`)
+i plakietkę „Nowość" na kartach meczów (`isNew`/`widzianoWczesniej`, ten sam wzorzec).
+Powód: dawne `/wydarzenia` i `/mapa` były dwoma osobnymi implementacjami tego samego
+pytania („co jest grane / gdzie się gra") — Gry↔Obiekty na `/wydarzenia` NAWIGOWAŁO na
+`/mapa`, więc przełączenie kosztowało przeskok strony i gubiło ustawienia.
+
+**Pasek ma dziś JEDEN, stały kształt niezależnie od trybu** (`SearchToolbar` w
+`VenueExplorer.tsx`) — trzy kontrolki, bo odpowiadają na trzy różne pytania:
+
+| Kontrolka | Pytanie | Uwaga |
+|---|---|---|
+| `Gry \| Obiekty` (`SegmentedToggle`) | NA CO patrzę | pełny przełącznik, zmienia dane |
+| `Lista \| Mapa` (`SegmentedToggle size="sm"`) | JAK patrzę | mniejszy wariant — świadomie WIDOCZNY, podpisany przełącznik, nie mały guzik z ikoną (guzik nie mówił, w jakim stanie jest teraz) |
+| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (sport, cena, odległość, typ obiektu, nawierzchnia, „Gry dziś", „Wolne miejsca", „Za darmo") zjeżdża do arkusza |
+
+Sport, „Wolne miejsca"/„Za darmo" (tryb gier) i „Gry dziś" (tryb obiektów) **przeniosły
+się z paska do arkusza filtrów** — wcześniej stały jako osobne pigułki i przełączenie
+Gry↔Obiekty przestawiało je miejscami (zgłoszone wprost). Sport aplikuje się teraz na
+szkicu, razem z resztą arkusza (`draftSports`), zamiast natychmiast po kliknięciu —
+jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
+
+### Widok listy (mobile) — nowość
+
+Do 2026-08-23 `/mapa` na telefonie było wyłącznie mapą: przewijana lista obiektów/meczów
+istniała tylko na desktopie (`<aside>`, `hidden md:flex`), bo tam jest miejsce na pasek
+boczny obok mapy. Telefon dostawał jedną kartę — tę, której pinezkę dotknięto — i żadnego
+sposobu przejrzenia wyników jak listy.
+
+`widok: 'lista' | 'mapa'` (lokalny stan, bez synchronizacji z URL — nie ma tu nawigacji
+do zachowania) rządzi tym samym `<aside>`, który wcześniej był desktop-only:
+`widok === 'lista'` pokazuje go na PEŁNĄ szerokość na obu breakpointach (bez mapy obok);
+`widok === 'mapa'` wraca do dotychczasowego układu (mobile: mapa + jedna karta; desktop:
+lista + mapa obok siebie, bez zmian). Mapa **nie jest odmontowywana** przy przełączeniu
+na listę (`hidden`, nie unmount) — Leaflet trzyma kadr/zoom we własnej instancji, a nie
+w stanie Reacta, więc odmontowanie zerowałoby widok do całej Polski przy każdym powrocie.
+`mapInstance.invalidateSize()` (w `useEffect` po `widok`) doprowadza canvas do właściwego
+rozmiaru po powrocie z `display: none`, gdzie miał zerowy rozmiar.
+
 ## Układ `/mapa` — szukanie, filtry, powrót z boiska
 
 **Szukanie po tekście działa poza bieżącym kadrem.** Wcześniej pole szukania filtrowało
@@ -1678,17 +1796,17 @@ zamontowaniu, `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu
 (`boiskoZLinku`) — brakowało tylko połączenia obu gotowych mechanizmów. Link ze strony
 meczu (`EventDetailClient.tsx`) do boiska działa tak samo.
 
-**Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i przełącznik
-„Gry dziś" zostają zawsze widoczne; Typ obiektu i Nawierzchnia przenoszą się do
-`FilterSheet` (ten sam współdzielony komponent, patrz „Układ `/wydarzenia`"), bo są
-drugorzędne i rzadziej dotykane:
+**Filtry — ikona „Filtry" + modal, jak na `/wydarzenia`.** Od 2026-08-23 WSZYSTKO
+(Sport, „Gry dziś", Typ obiektu, Nawierzchnia) siedzi w `FilterSheet` — patrz „Scalona
+wyszukiwarka" wyżej. Nic z tego nie stoi już w pasku jako osobna, zawsze-widoczna
+pigułka:
 
 | Filtr | Gdzie | Uwaga |
 |---|---|---|
-| Sport | inline, dropdown | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
-| „Gry dziś" | inline, przełącznik | bez zmian |
+| Sport | w modalu, sekcja „Sport" | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
+| „Gry dziś" | w modalu, `TogglePill` | bez zmian w działaniu, tylko przeniesiona z paska |
 | Typ obiektu | w modalu | lista bez zmian, tylko przeniesiona z zawsze-widocznego dropdownu |
-| Nawierzchnia *(nowość)* | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
+| Nawierzchnia | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
 
 „Otwarte gry" (obiekt ma co najmniej jeden mecz, na który da się jeszcze dołączyć) było
 tu przez chwilę jako osobny przełącznik — usunięte jako zbędne obok „Gry dziś" i trybu
@@ -1747,17 +1865,17 @@ przy `flex` szerszy tekst przesunąłby podświetlenie obok przycisku, który po
 
 | | „Obiekty" (domyślnie) | „Gry" |
 |---|---|---|
-| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo |
-| Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej — emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
+| Pasek | `Gry\|Obiekty` / `Lista\|Mapa` / Filtry (patrz „Scalona wyszukiwarka" wyżej — identyczny kształt w obu trybach) | jw. |
+| Modal „Filtry" | Sport(6) / „Gry dziś" / Typ obiektu / Nawierzchnia | Sport(4) / „Wolne miejsca" / „Za darmo" / Kiedy / Odległość / Cena / Wolne miejsca (suwak) |
+| Pinezki (widok „Mapa") | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
-| Karta wyniku (mobile/sidebar) | `VenueCard` | `EventBrowseCard` |
-| Modal „Filtry" | Typ obiektu + Nawierzchnia (bez zmian) | Kiedy / Odległość / Cena / Wolne miejsca (te same suwaki co `/wydarzenia`) |
+| Karta wyniku (lista/sidebar/karta wybranej pinezki) | `VenueCard` | `EventBrowseCard`, z plakietką „Nowość" (`isNew`) na liście — patrz „Scalona wyszukiwarka" |
 
-**Sortuj nie pojawia się w tym trybie** — `/mapa` jest zawsze widokiem mapy (w
-odróżnieniu od `/wydarzenia`, gdzie ta sama pigułka ma sens na liście), więc kolejność
-pinezek/karty sidebara zostaje na stałe chronologiczna (`gamesSort` to dziś stała
-`'termin'`, bez UI do zmiany) — nie warto było duplikować UI, którego i tak nie ma gdzie
-sensownie użyć na mapie.
+**Sortuj nie ma tu UI** — kolejność pinezek/karty listy zostaje na stałe chronologiczna
+(`gamesSort` to dziś stała `'termin'`), niezależnie od tego, czy widok jest listą czy
+mapą: to jedyna kolejność, która ma sens w OBU. Nie mylić z widokiem „Lista" (2026-08-23,
+wyżej) — ten pokazuje wyniki jako przewijaną listę zamiast pinezek, ale nie dokłada
+wyboru KOLEJNOŚCI.
 
 Stan trybu gier (`gamesSort`, `gamesDate`, `gamesRadius`, `gamesMaxPriceGrosze`,
 `gamesMinFreeSpots`, `gamesOnlyFreeSpots`, `gamesOnlyNoCost`) jest **lokalny**, nie w URL
@@ -1840,6 +1958,38 @@ sam wykonać `UPDATE notifications`; wyzwalacz `wyslij_push_po_powiadomieniu()` 
 `?przeczytaj=<id>` po kliknięciu, a `NotificationBell.tsx` czyta ten parametr przy
 montażu i woła `markRead([id])`. Wcześniej dzwonek oznaczał wszystko na raz WYŁĄCZNIE przy
 otwarciu panelu w aplikacji — push to inna ścieżka, o której dzwonek nic nie wiedział.
+
+**Liczba nieprzeczytanych na IKONIE APLIKACJI** (Badging API, `lib/plakietkaAplikacji.ts`).
+Chmurka i dzwonek w nagłówku mówią o nieprzeczytanych dopiero temu, kto już otworzył Bojo;
+push jest sygnałem jednorazowym i po zniknięciu z ekranu blokady nie zostawia śladu.
+Plakietka z liczbą zostaje na ikonie, dopóki jest co przeczytać. Liczba to **suma obu
+paneli** (wiadomości + reszta) — na ikonie jest miejsce na jedną, a rozróżnienie niesie
+w aplikacji kolor (patrz konwencja w AGENTS.md), czego ikona systemowa i tak nie odda.
+
+Ustawiana w DWÓCH miejscach, bo żadne nie wystarcza samo:
+
+| Kiedy | Kto | Skąd liczba |
+|---|---|---|
+| aplikacja otwarta | `NotificationBell.tsx` (efekt na `unreadWiadomosci + unreadReszta`) | zna stan wprost, także po oznaczeniu jako przeczytane |
+| aplikacja zamknięta | `public/sw.js` przy zdarzeniu `push` | pole `nieprzeczytane` doklejone do payloadu przez `send-push` |
+
+Service worker nie ma dostępu do sesji Supabase, więc sam liczby nie policzy — funkcja
+brzegowa robi `count` na `notifications` (`read_at IS NULL`) tuż przed wysyłką; wyzwalacz
+`trg_wyslij_push` odpala się PO wstawieniu wiersza, więc świeże powiadomienie już się
+liczy. Gdy licznik padnie, pole jedzie jako `null` i worker **plakietki nie dotyka** —
+zdjęcie jej w chwili, gdy przychodzi powiadomienie, byłoby gorsze niż liczba nieaktualna
+o jeden; aplikacja wyrówna ją przy najbliższym otwarciu.
+
+Plakietka działa **wyłącznie w zainstalowanej aplikacji** (Android/Chromium po instalacji
+PWA; iOS 16.4+ po dodaniu do ekranu początkowego **i** zgodzie na powiadomienia). W karcie
+przeglądarki `setAppBadge()` odrzuca obietnicę albo metody w ogóle nie ma, dlatego każde
+wywołanie jest wykrywane i łykane po cichu — brak plakietki jest brakiem wygody, nie
+błędem, a wyjątek leciałby z efektu Reacta przy każdym powiadomieniu
+(`plakietkaAplikacji.test.ts` pilnuje, że żaden wariant nie rzuca).
+
+**Zmiana w `send-push` wymaga wdrożenia funkcji brzegowej** (Actions → „Wdróż funkcje
+brzegowe"). Sam merge jej nie wdraża — do tego czasu plakietka stawia się wyłącznie przy
+otwartej aplikacji.
 
 **Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
 `072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie

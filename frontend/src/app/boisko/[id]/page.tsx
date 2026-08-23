@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd } from '@/lib/structuredData';
+import { opisObiektu } from '@/content/opisObiektu';
+import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
 import { pobierzWszystkie } from '@/lib/zapytania';
@@ -36,6 +38,7 @@ function toField(row: any): Field {
     city: row.city ?? undefined,
     voivodeship: row.voivodeship ?? undefined,
     seoTier: row.seo_tier ?? 3,
+    lit: row.lit ?? undefined,
   };
 }
 
@@ -263,11 +266,15 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   const slug = kanoniczny;
 
   const miasto = field.city ?? miejscowoscZAdresu(field.address);
+  // Faza 1 SEO/GEO: ten sam akapit widoczny na stronie (VenueDetailClient,
+  // prop `opis`) i tutaj, w danych strukturalnych — jedno źródło, żeby oba
+  // nigdy się nie rozjechały.
+  const opis = opisObiektu(field);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: field.name,
-    description: `Boisko sportowe${miasto ? ` w ${miasto}` : ''}. Sporty: ${field.sport.join(', ')}.`,
+    description: opis,
     address: {
       '@type': 'PostalAddress',
       streetAddress: field.address,
@@ -288,8 +295,16 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // like "gokarty" would otherwise link to a 404.
   const SPORT_PAGE_SLUGS = ['pilka-nozna', 'koszykowka', 'siatkowka', 'siatkowka-plazowa', 'futsal', 'pilka-reczna', 'inne'];
   const sportSlug = field.sport.length ? slugify(field.sport[0]) : null;
+  // Faza 2b SEO/GEO: okruszek województwa, gdy backfill (scraper/backfill_lokalizacja.py)
+  // już wypełnił tę kolumnę — dowiązanie do huba /boiska/woj/[wojewodztwo].
+  const wojewodztwoLabel = field.voivodeship
+    ? WOJEWODZTWO_LABEL[field.voivodeship as Wojewodztwo]
+    : undefined;
   const breadcrumbs = breadcrumbsJsonLd([
     { name: 'Strona główna', path: '/' },
+    ...(wojewodztwoLabel
+      ? [{ name: `Województwo ${wojewodztwoLabel}`, path: `/boiska/woj/${field.voivodeship}` }]
+      : []),
     ...(sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug)
       ? [{ name: `Boiska: ${sportLabel(field.sport[0])}`, path: `/boiska/${sportSlug}` }]
       : []),
@@ -317,7 +332,13 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         </div>
       )}
 
-      <VenueDetailClient fieldId={field.id} upcomingEvents={upcomingEvents} />
+      <VenueDetailClient
+        fieldId={field.id}
+        upcomingEvents={upcomingEvents}
+        opis={opis}
+        wojewodztwoSlug={field.voivodeship}
+        wojewodztwoLabel={wojewodztwoLabel}
+      />
     </>
   );
 }

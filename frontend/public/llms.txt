@@ -26,6 +26,7 @@
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
+- [Rozmowy](/rozmowy): wszystkie rozmowy — mecze, ekipy i wiadomości prywatne — w jednym miejscu, od najnowszej
 - [Grupy](/grupy): stałe ekipy — mecze, rozmowa, statystyki i uprawnienia
   współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
@@ -41,6 +42,9 @@
 
 Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
 zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
+
+Huby wojewódzkie: `/boiska/woj/<wojewodztwo>` (16 stron, po jednej na województwo) —
+pełna lista boisk w danym regionie.
 
 ## Strony sport + miasto
 

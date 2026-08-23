@@ -202,7 +202,7 @@ export interface EventItem {
   goalkeepersEnabled: boolean;
   /** How long (minutes) a reserve has to accept a freed spot before it passes on. */
   reserveClaimMinutes: number;
-  /** Czy przy komplecie chętni trafiają na listę rezerwową (migracja `123`).
+  /** Czy przy komplecie chętni trafiają na listę rezerwową (migracja `124`).
    *  `false` = mecz przy komplecie jest ZAMKNIĘTY; kto chce więcej ludzi,
    *  podnosi `maxPlayers`. Wyłączenie nie kasuje kolejki, która już powstała. */
   reserveEnabled: boolean;
