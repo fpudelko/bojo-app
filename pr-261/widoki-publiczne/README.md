@@ -1,9 +1,9 @@
 # Zrzuty — PR #261 · widoki-publiczne
 
-Przebieg [`32645741345`](https://github.com/fpudelko/bojo-app/actions/runs/32645741345)
+Przebieg [`32654538263`](https://github.com/fpudelko/bojo-app/actions/runs/32654538263)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/261)
 
-Zmienione widoki: **15** · nowe widoki: **8**
+Zmienione widoki: **16** · nowe widoki: **8**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -273,6 +273,28 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__trasa-strona-glowna__diff.png" width="100%">
+
+</details>
+
+### trasa-wydarzenia
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__trasa-wydarzenia__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__trasa-wydarzenia__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__trasa-wydarzenia__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__trasa-wydarzenia__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__trasa-wydarzenia__diff.png" width="100%">
 
 </details>
 
