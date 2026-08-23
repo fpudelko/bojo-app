@@ -600,7 +600,17 @@ export default function EventsListView({ widzianoWczesniej }: {
       <div className="flex items-center gap-2 px-4 pb-1 pt-3">
         <SegmentedToggle
           value="gry"
-          onChange={(v) => { if (v === 'obiekty') router.push('/mapa'); }}
+          onChange={(v) => {
+            if (v !== 'obiekty') return;
+            // FILTR JEDZIE RAZEM Z PRZEŁĄCZENIEM. Dotąd „Obiekty" prowadziło
+            // na goły `/mapa`, więc wybrany sport przepadał i trzeba go było
+            // wyklikać drugi raz, tą samą pigułką w innym miejscu. Katalog
+            // czyta powtarzalny `?sport=`, więc wystarczy go dopisać.
+            const qs = new URLSearchParams();
+            for (const sport of sports) qs.append('sport', sport);
+            const query = qs.toString();
+            router.push(query ? `/mapa?${query}` : '/mapa');
+          }}
           options={[{ value: 'gry', label: 'Gry' }, { value: 'obiekty', label: 'Obiekty' }] as const}
           ariaLabel="Gry albo obiekty"
         />
@@ -824,12 +834,31 @@ export default function EventsListView({ widzianoWczesniej }: {
         </div>
       )}
 
-      {/* Desktop: zawsze lista, bez zmian. Mobile: przełącznik lista/mapa (D9),
-          ten sam listContent wstawiony w obu miejscach jako referencja, nie
-          duplikat. */}
-      <div className="hidden md:block">{listContent}</div>
-      <div className="md:hidden">
-        {viewMode === 'lista' ? listContent : <GamesMapCanvas rows={sorted} statusFor={statusFor} />}
+      {/* PRZEŁĄCZNIK LISTA/MAPA DZIAŁA NA KAŻDEJ SZEROKOŚCI.
+          Dotąd na desktopie ignorowaliśmy go całkiem: mapa istniała wyłącznie
+          na telefonie, a szeroki ekran zawsze dostawał listę — czyli jedyne
+          urządzenie, na którym mapa i lista MIESZCZĄ SIĘ RAZEM, nie widziało
+          mapy w ogóle.
+
+          Telefon: jeden widok naraz, bo na 360 px podział na dwie kolumny daje
+          dwie bezużyteczne kolumny.
+
+          Desktop przy wybranej mapie: mapa nie ZASTĘPUJE listy, tylko staje
+          obok niej — lista po lewej, przyklejona mapa po prawej. Kliknięcie
+          pinezki nie kosztuje wtedy utraty miejsca na liście (wzorzec znany
+          z Booking i Airbnb). Ten sam `listContent` wstawiony jako
+          REFERENCJA, nie kopia — inaczej dwa drzewa Reacta rozjeżdżałyby się
+          stanem rozwinięcia kart. */}
+      <div className={viewMode === 'mapa'
+        ? 'md:grid md:grid-cols-[minmax(0,26rem)_1fr] md:items-start md:gap-4 md:px-4'
+        : undefined}
+      >
+        <div className={viewMode === 'mapa' ? 'hidden md:block' : undefined}>{listContent}</div>
+        {viewMode === 'mapa' && (
+          <div className="md:sticky md:top-20 md:h-[calc(100vh-6rem)] md:min-h-[420px] md:overflow-hidden md:rounded-2xl md:border md:border-slate-200 md:shadow-sm dark:md:border-slate-700">
+            <GamesMapCanvas rows={sorted} statusFor={statusFor} />
+          </div>
+        )}
       </div>
     </div>
   );
