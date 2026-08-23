@@ -8,6 +8,34 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Adres strony obiektu: czytelna nazwa + KOŃCÓWKA IDENTYFIKATORA.
+ *
+ * PO CO KOŃCÓWKA. Katalog boisk pochodzi z OpenStreetMap, a boisko bez nazwy
+ * własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie",
+ * `SPORT_NOUN` w `scraper/import_osm_pbf.py`). Takich obiektów są tysiące
+ * i wszystkie dawały ten sam slug `boisko-pilkarskie`, więc `/boisko/<slug>`
+ * otwierało ZAWSZE TO SAMO boisko — pierwsze z brzegu, zwykle w innym mieście.
+ * Zgłoszone wprost: kafelek na mapie pokazywał obiekt na Piotrowie w Poznaniu,
+ * a „Zobacz boisko" prowadziło na Mokotów w Warszawie.
+ *
+ * Indeks slug→id znał ten problem od początku („Pierwszy wygrywa"), ale przy
+ * katalogu poznańskim dotyczył 169 duplikatów nazw własnych. Po imporcie z OSM
+ * przestał być drobiazgiem: to już nie kolizja, tylko reguła.
+ *
+ * DWANAŚCIE ZNAKÓW, nie osiem. Przy docelowych dziesiątkach tysięcy obiektów
+ * ośmioznakowa końcówka (32 bity) daje ok. 25% szans, że gdzieś w katalogu
+ * trafią się dwa te same skróty — czyli „prawie na pewno jedno boisko będzie
+ * złe". Dwanaście znaków (48 bitów) sprowadza to do jednej szansy na ćwierć
+ * miliona przebiegów. Adres jest o cztery znaki dłuższy i o to całe ryzyko
+ * krótszy.
+ */
+export function slugBoiska(name: string, id: string): string {
+  const nazwa = slugify(name);
+  const koncowka = id.replace(/-/g, '').slice(0, 12);
+  return nazwa ? `${nazwa}-${koncowka}` : koncowka;
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isUuid(s: string): boolean {

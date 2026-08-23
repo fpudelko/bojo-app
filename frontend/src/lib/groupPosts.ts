@@ -5,7 +5,7 @@
 // po cichu nie zmieniło żadnego wiersza.
 import { supabase } from './supabase';
 import { zPonowieniemPoOdswiezeniu, zaktualizujJedenWiersz } from './zapytania';
-import type { RozmowaNieprzeczytana } from './comments';
+import type { RozmowaNaLiscie, RozmowaNieprzeczytana } from './comments';
 import type { GroupPost } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -180,6 +180,49 @@ export async function hasUnreadGroupMessages(userId: string, groupIds: string[])
  *  meczów. Karmi panel rozmów otwierany przytrzymaniem „Moje" (`BottomNav.tsx`).
  *  Parametr strukturalny, nie `Group` — import typu z `groups.ts` zamknąłby
  *  cykl `groups.ts` ↔ `groupPosts.ts`. */
+/** WSZYSTKIE tablice moich ekip, od najświeższej — także przeczytane.
+ *  Bliźniak `wszystkieRozmowyMeczow()`; uzasadnienie tam. */
+export async function wszystkieRozmowyGrup(
+  userId: string,
+  groups: { id: string; name: string }[],
+): Promise<RozmowaNaLiscie[]> {
+  if (groups.length === 0) return [];
+
+  const { data: wiersze } = await supabase
+    .from('group_posts')
+    .select('group_id, user_id, user_name, body, created_at')
+    .in('group_id', groups.map((g) => g.id))
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wpisy = ((wiersze ?? []) as any[]);
+  if (wpisy.length === 0) return [];
+
+  const widziano = (groupId: string) => (
+    typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(groupId)) : null
+  );
+  const counts = policzNieprzeczytanePerGrupa(
+    wpisy.map((p) => ({ groupId: p.group_id, userId: p.user_id, createdAt: p.created_at })),
+    userId, widziano,
+  );
+
+  const ostatnie = new Map<string, (typeof wpisy)[number]>();
+  for (const p of wpisy) if (!ostatnie.has(p.group_id)) ostatnie.set(p.group_id, p);
+
+  return Array.from(ostatnie.entries())
+    .map(([groupId, p]) => ({
+      id: groupId,
+      tytul: groups.find((g) => g.id === groupId)?.name ?? '',
+      ile: counts[groupId] ?? 0,
+      najnowsza: p.created_at as string,
+      ostatnia: (p.body as string | null)?.replace(/\s+/g, ' ').trim() ?? '',
+      autor: (p.user_name as string | null) ?? 'Ktoś',
+      moja: p.user_id === userId,
+    }))
+    .sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
+}
+
 export async function rozmowyGrupZNieprzeczytanymi(
   userId: string,
   groups: { id: string; name: string }[],

@@ -14,7 +14,7 @@ import {
   Check, CalendarCheck, CalendarPlus, MapPin, Globe, Search, SlidersHorizontal, Ticket,
   Wallet, X,
 } from 'lucide-react';
-import { PillDropdown, TogglePill } from '@/components/ui/FilterPill';
+import { TogglePill } from '@/components/ui/FilterPill';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
@@ -30,12 +30,12 @@ import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
 import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
-import { slugify, externalUrl } from '@/lib/utils';
+import { slugBoiska, externalUrl } from '@/lib/utils';
 import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import {
-  filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter, multiLabel,
+  filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter,
   sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
@@ -317,7 +317,9 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
   backTo?: () => string;
 }) {
   const thumb = fieldPhotoUrl(field, 320, 320);
-  const slug = slugify(field.name);
+  // Nazwa + końcówka id: nazwy rodzajowe z OSM powtarzają się tysiące razy,
+  // więc sam slug otwierał zawsze to samo boisko. Patrz `slugBoiska`.
+  const slug = slugBoiska(field.name, field.id);
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
   const typeLabel = field.venueType ? VENUE_TYPE_LABELS[field.venueType] ?? field.venueType : null;
@@ -443,106 +445,75 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
 }
 
 // ---------------------------------------------------------------------------
-// Shared filter pills — rendered both in sidebar and mobile overlay
+// Pasek wyszukiwarki — JEDEN wiersz, rendered zarówno w sidebarze desktopu,
+// jak i w nakładce mobile.
 // ---------------------------------------------------------------------------
-function FilterPills({
+// Trzy kontrolki, bo odpowiadają na trzy różne pytania — ten sam podział co
+// na dawnym /wydarzenia (poz. 8 przeglądu), teraz wspólny dla gier i obiektów:
+//  • `Gry | Obiekty` — NA CO patrzę. Zmienia dane, dostaje pełny przełącznik.
+//  • `Lista | Mapa` — JAK patrzę. Świadomie ODRĘBNY, WIDOCZNY przełącznik
+//    (ten sam komponent co powyżej, w mniejszym wariancie), nie mały guzik
+//    z ikoną — guzik nie mówił, w jakim stanie jest teraz, przełącznik mówi
+//    to od razu, dwoma podpisanymi opcjami naraz.
+//  • Ikona filtrów — CZEGO SZUKAM. Reszta (sport, cena, odległość, typ
+//    obiektu…) zjeżdża do arkusza; ikona niesie LICZBĘ aktywnych, żeby
+//    schowanie ich nie znaczyło „zapomnij, co ustawiłeś".
+// Sport, „Wolne miejsca", „Za darmo", „Gry dziś" i Typ/Nawierzchnia siedzą
+// dziś WYŁĄCZNIE w arkuszu filtrów (patrz `filtersModal` niżej) — nie w tym
+// pasku. Przełączenie Gry↔Obiekty nie przestawia już kontrolek miejscami.
+function SearchToolbar({
   showGames, onToggleShowGames,
-  sports, setSports,
-  onlyGamesToday, setOnlyGamesToday,
-  filtersActive, onOpenFilters,
-  gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
-  gamesOnlyNoCost, setGamesOnlyNoCost,
+  widok, setWidok,
+  liczbaFiltrow, onOpenFilters,
   wrap,
 }: {
-  /** Przełącznik „Gry | Obiekty" — przełącza cały pasek między trybem obiektów
-   *  (dzisiejsze zachowanie) a trybem gier (identyczny układ co /wydarzenia). */
   showGames: boolean;
   onToggleShowGames: () => void;
-  sports: string[]; setSports: (v: string[]) => void;
-  onlyGamesToday: boolean; setOnlyGamesToday: (v: boolean) => void;
-  /** Czy modal (Typ+Nawierzchnia w trybie obiektów, suwaki w trybie gier) ma
-   *  dziś jakikolwiek wybór — steruje wyglądem przycisku „Filtry". */
-  filtersActive: boolean;
+  widok: 'lista' | 'mapa';
+  setWidok: (v: 'lista' | 'mapa') => void;
+  liczbaFiltrow: number;
   onOpenFilters: () => void;
-  gamesOnlyFreeSpots: boolean; setGamesOnlyFreeSpots: (v: boolean) => void;
-  gamesOnlyNoCost: boolean; setGamesOnlyNoCost: (v: boolean) => void;
   wrap?: boolean;
 }) {
-  const sportOptions = showGames ? GAMES_SPORT_OPTIONS : SPORT_OPTIONS;
-  const sportPillLabel = multiLabel(sports, 'Wszystkie sporty', sportOptions);
-
   return (
-    <div className={wrap
-      ? 'flex flex-wrap gap-2'
-      : 'flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-    }>
+    <div className={wrap ? 'flex flex-wrap items-center gap-2' : 'flex items-center gap-2'}>
       {/* Dwa tryby mapy są równorzędne — przełącznik pokazuje oba naraz zamiast
           chować „obiekty" za wyłączonym pillem „Pokaż gry". Semantyka i URL
           (`?gry=1`) bez zmian: „Gry" to dotychczasowe `showGames === true`. */}
       <SegmentedToggle
-        ariaLabel="Co pokazać na mapie"
+        ariaLabel="Co pokazać"
         value={showGames ? 'gry' : 'obiekty'}
         onChange={(v) => { if ((v === 'gry') !== showGames) onToggleShowGames(); }}
         options={[{ value: 'gry', label: 'Gry' }, { value: 'obiekty', label: 'Obiekty' }] as const}
       />
 
-      {/* Sortuj nie pojawia się w trybie gier — /mapa jest zawsze widokiem
-          mapy (w odróżnieniu od /wydarzenia, gdzie sortowanie ma sens na
-          liście), więc kolejność pinezek nie jest tu czymś do wyboru. */}
+      <div className="ml-auto flex items-center gap-2">
+        <SegmentedToggle
+          ariaLabel="Jak pokazać"
+          size="sm"
+          value={widok}
+          onChange={setWidok}
+          options={[{ value: 'lista', label: 'Lista' }, { value: 'mapa', label: 'Mapa' }] as const}
+        />
 
-      {/* Sporty ZAWSZE w tym samym miejscu paska — przed „Filtry", w obu
-          trybach. Wcześniej były dwa osobne dropdowny: jeden renderowany dla
-          obiektów PRZED „Filtry", drugi dla gier PO nim. Efekt: przełączenie
-          Gry↔Obiekty zamieniało pigułki miejscami, więc palec trafiał w inny
-          filtr niż sekundę wcześniej (zgłoszone wprost). Różni się wyłącznie
-          lista sportów (`sportOptions`), a nie pozycja kontrolki. */}
-      <PillDropdown label={sportPillLabel} active={sports.length > 0}>
-        {() => (
-          <>
-            <button onClick={() => setSports([])}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 border-b border-slate-50">
-              <span className="text-base">🏟️</span>
-              <span className="flex-1 text-left">Wszystkie sporty</span>
-              {sports.length === 0 && <Check className="h-4 w-4 text-primary-700" />}
-            </button>
-            {sportOptions.map((o) => (
-              <button key={o.value} onClick={() => setSports(toggleInArray(sports, o.value))}
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-ink hover:bg-slate-50">
-                <span className="text-base">{o.emoji}</span>
-                <span className="flex-1 text-left">{o.label}</span>
-                {sports.includes(o.value) && <Check className="h-4 w-4 text-primary-700" />}
-              </button>
-            ))}
-          </>
-        )}
-      </PillDropdown>
-
-      {/* Typ obiektu przeniesiony do modala (D9): venue_type ma dziś 98,3%
-          wierszy NULL, jako zawsze widoczny dropdown wyglądał jak zepsuty
-          filtr. Nawierzchnia (nowa, dane w 37% wierszy) dołącza tam samo. */}
-      <button
-        type="button"
-        onClick={onOpenFilters}
-        aria-haspopup="dialog"
-        className={clsx(
-          'inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
-          filtersActive ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
-        )}
-      >
-        <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" /> Filtry
-      </button>
-
-      {showGames ? (
-        <>
-          <TogglePill label="Wolne miejsca" icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
-            active={gamesOnlyFreeSpots} onClick={() => setGamesOnlyFreeSpots(!gamesOnlyFreeSpots)} />
-          <TogglePill label="Za darmo" icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
-            active={gamesOnlyNoCost} onClick={() => setGamesOnlyNoCost(!gamesOnlyNoCost)} />
-        </>
-      ) : (
-        <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
-          active={onlyGamesToday} onClick={() => setOnlyGamesToday(!onlyGamesToday)} />
-      )}
+        <button
+          type="button"
+          onClick={onOpenFilters}
+          aria-haspopup="dialog"
+          aria-label={liczbaFiltrow > 0 ? `Filtry — ${liczbaFiltrow} aktywne` : 'Filtry'}
+          className={clsx(
+            'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white shadow-md transition-colors',
+            liczbaFiltrow > 0 ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
+          )}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          {liczbaFiltrow > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white">
+              {liczbaFiltrow}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -551,8 +522,15 @@ function FilterPills({
 // Main explorer
 // ---------------------------------------------------------------------------
 export default function VenueExplorer({
-  initialFields, initialEvents,
-}: { initialFields?: Field[]; initialEvents?: EventItem[]; } = {}) {
+  initialFields, initialEvents, widzianoWczesniej,
+}: {
+  initialFields?: Field[]; initialEvents?: EventItem[];
+  /** Ostatnia wizyta na tej trasie (`KLUCZ_WYDARZENIA_WIDZIANO`) — mecz
+   *  powstały PO tym znaczniku dostaje plakietkę „Nowość" w trybie gier.
+   *  Ta sama reguła co dawniej na /wydarzenia (`EventsListView`), teraz
+   *  tutaj, bo to ta trasa gasi pomarańczową kropkę „Szukaj" na dole. */
+  widzianoWczesniej?: string | null;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { statusFor } = useMyInvites();
@@ -632,11 +610,21 @@ export default function VenueExplorer({
     updateParams({ gry: next });
   }
 
-  // Modal Typ obiektu/Nawierzchnia — szkic w tym samym stylu co na
-  // /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
+  // JAK patrzę — lista czy mapa. Wyłącznie lokalny stan (bez zmiany trybu
+  // nie ma nawigacji między trasami, więc nie ma czego synchronizować z URL).
+  // Domyślnie mapa: to jest dotychczasowe zachowanie tej trasy, a lista jest
+  // teraz o dotknięcie dalej, nie odwrotnie.
+  const [widok, setWidok] = useState<'lista' | 'mapa'>('mapa');
+
+  // Modal Typ obiektu/Nawierzchnia/Sport — szkic w tym samym stylu co na
+  // dawnym /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
+  // Sport dołączył tu z paska (D-scalenie): przełączenie Gry↔Obiekty
+  // przestawiało dawniej pigułkę sportu razem z resztą paska, a teraz pasek
+  // ma stały kształt niezależnie od trybu.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draftTypes, setDraftTypes] = useState<string[]>(venueTypes);
   const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
+  const [draftSports, setDraftSports] = useState<string[]>(sports);
 
   // Tryb gier (D11/D12) — lokalny stan filtrów, ten sam kształt co na
   // /wydarzenia, minus Sortuj: /mapa jest zawsze mapą, więc kolejność
@@ -659,22 +647,32 @@ export default function VenueExplorer({
     gamesMaxPriceGrosze == null ? null : gamesMaxPriceGrosze / 100,
   );
   const [draftGamesMinFreeSpots, setDraftGamesMinFreeSpots] = useState(gamesMinFreeSpots);
+  const [draftOnlyGamesToday, setDraftOnlyGamesToday] = useState(onlyGamesToday);
+  const [draftGamesOnlyFreeSpots, setDraftGamesOnlyFreeSpots] = useState(gamesOnlyFreeSpots);
+  const [draftGamesOnlyNoCost, setDraftGamesOnlyNoCost] = useState(gamesOnlyNoCost);
 
   const openSheet = () => {
     setDraftTypes(venueTypes);
     setDraftSurfaces(surfaces);
+    setDraftSports(sports);
+    setDraftOnlyGamesToday(onlyGamesToday);
     setDraftGamesDate(gamesDate);
     setDraftGamesRadius(gamesRadius);
     setDraftGamesMaxPricePln(gamesMaxPriceGrosze == null ? null : gamesMaxPriceGrosze / 100);
     setDraftGamesMinFreeSpots(gamesMinFreeSpots);
+    setDraftGamesOnlyFreeSpots(gamesOnlyFreeSpots);
+    setDraftGamesOnlyNoCost(gamesOnlyNoCost);
     setSheetOpen(true);
   };
 
   const applyGamesDraft = async () => {
     setGamesGeoError(null);
+    setSports(draftSports);
     setGamesDate(draftGamesDate);
     setGamesMaxPriceGrosze(draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     setGamesMinFreeSpots(draftGamesMinFreeSpots);
+    setGamesOnlyFreeSpots(draftGamesOnlyFreeSpots);
+    setGamesOnlyNoCost(draftGamesOnlyNoCost);
     const needsGeo = draftGamesRadius != null && !gamesUserPos;
     if (!needsGeo) { setGamesRadius(draftGamesRadius); return; }
     setGamesGeoBusy(true);
@@ -690,15 +688,30 @@ export default function VenueExplorer({
   };
 
   const clearGamesDraft = () => {
+    setDraftSports([]);
     setDraftGamesDate('wszystkie');
     setDraftGamesRadius(null);
     setDraftGamesMaxPricePln(null);
     setDraftGamesMinFreeSpots(0);
+    setDraftGamesOnlyFreeSpots(false);
+    setDraftGamesOnlyNoCost(false);
   };
 
   // Instancja Leafleta wyciągnięta z MapContainera — potrzebna
   // LocateMeButton, który stoi poza mapą i nie ma useMap().
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+
+  // Powrót z widoku „Lista": kontener mapy miał przez chwilę `display: none`
+  // (zerowy rozmiar), a Leaflet mierzy go raz przy montowaniu i potem ufa
+  // własnemu cache'owi. Bez `invalidateSize()` mapa zostawała ucięta do
+  // rozmiaru sprzed schowania — kafelki renderowały się tylko w lewym górnym
+  // rogu. `setTimeout(0)`: przełącznik musi najpierw zdjąć klasę `hidden`
+  // (przeglądarka przeliczyć layout), zanim Leaflet zmierzy nowy rozmiar.
+  useEffect(() => {
+    if (widok !== 'mapa' || !mapInstance) return;
+    const id = setTimeout(() => mapInstance.invalidateSize(), 0);
+    return () => clearTimeout(id);
+  }, [widok, mapInstance]);
 
   // Kadr i przybliżenie mapy. Od nich zależy, CO w ogóle pobieramy: przy
   // oddaleniu same liczby w siatce, przy przybliżeniu konkretne obiekty.
@@ -918,6 +931,10 @@ export default function VenueExplorer({
   const gamesSpotsFiltered = useMemo(() => filterByMinFreeSpots(gamesPriceFiltered, gamesMinFreeSpots), [gamesPriceFiltered, gamesMinFreeSpots]);
   const gamesRows = useMemo(() => sortEvents(gamesSpotsFiltered, gamesSort), [gamesSpotsFiltered, gamesSort]);
 
+  const jestNowe = (event: EventItem) => (
+    widzianoWczesniej != null && new Date(event.createdAt).getTime() > new Date(widzianoWczesniej).getTime()
+  );
+
   const gamesPreviewCount = useMemo(() => {
     let list = gamesBaseFiltered;
     if (draftGamesDate !== 'wszystkie') list = list.filter((e) => matchesDateFilter(e.date, draftGamesDate));
@@ -1052,12 +1069,13 @@ export default function VenueExplorer({
     c.scrollTo({ top: targetTop, behavior: 'smooth' });
   }, [selectedId, visibleCount]);
 
-  // Modal aktywny: w trybie obiektów gdy Typ/Nawierzchnia mają wybór, w
-  // trybie gier gdy którykolwiek z suwaków odbiega od wartości domyślnej —
-  // steruje wyglądem przycisku „Filtry" w FilterPills.
-  const modalFiltersActive = showGames
-    ? (gamesDate !== 'wszystkie' || gamesRadius !== null || gamesMaxPriceGrosze !== null || gamesMinFreeSpots > 0)
-    : (venueTypes.length > 0 || surfaces.length > 0);
+  // Liczba aktywnych filtrów — steruje plakietką na ikonie „Filtry" w
+  // `SearchToolbar` (ten sam wzorzec co dawne /wydarzenia). Sport dołączył
+  // tu razem z przenosinami do arkusza (patrz komentarz przy `draftSports`).
+  const liczbaFiltrow = showGames
+    ? [sports.length > 0, gamesOnlyFreeSpots, gamesOnlyNoCost, gamesDate !== 'wszystkie',
+        gamesRadius !== null, gamesMaxPriceGrosze !== null, gamesMinFreeSpots > 0].filter(Boolean).length
+    : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday].filter(Boolean).length;
   // W trybie skupisk (oddalona mapa) `allFields` jest zawsze puste — obiekty
   // pobiera się dopiero po przybliżeniu (patrz komentarz przy `trybSkupisk`).
   // Liczenie z pustej tablicy dawało zawsze „Pokaż 0 boisk", nawet gdy w
@@ -1065,24 +1083,18 @@ export default function VenueExplorer({
   // efektu w tym trybie (nie ma per-obiektowego rozbicia w danych ze skupisk),
   // więc podgląd pokazuje `wKadrze` — sumę z kółek, uwzględniającą już sport
   // (jedyny filtr, który RPC `mapa_skupiska` faktycznie stosuje).
+  //
+  // `draftSports`, nie `sports`: sport jest teraz częścią tego samego arkusza
+  // co Typ/Nawierzchnia, więc podgląd „Pokaż N" ma liczyć to, co user WŁAŚNIE
+  // wybiera w arkuszu, nie to, co było zastosowane przed jego otwarciem.
   const previewFieldsCount = useMemo(() => {
     if (trybSkupisk) return wKadrze;
     let list = searchResults ?? allFields;
-    if (sports.length > 0) list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
+    if (draftSports.length > 0) list = list.filter((f) => f.sport.some((s) => draftSports.includes(s)));
     if (draftTypes.length > 0) list = list.filter((f) => draftTypes.includes(f.venueType ?? ''));
     if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
     return list.length;
-  }, [trybSkupisk, wKadrze, allFields, searchResults, sports, draftTypes, draftSurfaces]);
-
-  const filterProps = {
-    showGames, onToggleShowGames: toggleShowGames,
-    sports, setSports,
-    onlyGamesToday, setOnlyGamesToday,
-    filtersActive: modalFiltersActive,
-    onOpenFilters: openSheet,
-    gamesOnlyFreeSpots, setGamesOnlyFreeSpots,
-    gamesOnlyNoCost, setGamesOnlyNoCost,
-  };
+  }, [trybSkupisk, wKadrze, allFields, searchResults, draftSports, draftTypes, draftSurfaces]);
 
   const filtersModal = showGames ? (
     <FilterSheet
@@ -1094,6 +1106,38 @@ export default function VenueExplorer({
       applyLabel={gamesGeoBusy ? 'Szukam Cię…' : `Pokaż ${gamesPreviewCount} ${plural(gamesPreviewCount, 'mecz', 'mecze', 'meczy')}`}
     >
       <div className="space-y-6">
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
+          <button
+            type="button"
+            onClick={() => setDraftSports([])}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+          >
+            <span className="text-base">🏟️</span>
+            <span className="flex-1 text-left">Wszystkie sporty</span>
+            {draftSports.length === 0 && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+          </button>
+          {GAMES_SPORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+            >
+              <span className="text-base">{o.emoji}</span>
+              <span className="flex-1 text-left">{o.label}</span>
+              {draftSports.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+            </button>
+          ))}
+        </section>
+
+        <section className="flex flex-wrap gap-2">
+          <TogglePill label="Wolne miejsca" icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
+            active={draftGamesOnlyFreeSpots} onClick={() => setDraftGamesOnlyFreeSpots((v) => !v)} />
+          <TogglePill label="Za darmo" icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
+            active={draftGamesOnlyNoCost} onClick={() => setDraftGamesOnlyNoCost((v) => !v)} />
+        </section>
+
         <RangeSlider
           label="Kiedy"
           min={0} max={4} step={1}
@@ -1133,11 +1177,46 @@ export default function VenueExplorer({
       open={sheetOpen}
       onClose={() => setSheetOpen(false)}
       title="Filtry"
-      onApply={() => { setVenueTypes(draftTypes); setSurfaces(draftSurfaces); }}
-      onClear={() => { setDraftTypes([]); setDraftSurfaces([]); }}
+      onApply={() => {
+        setVenueTypes(draftTypes);
+        setSurfaces(draftSurfaces);
+        setSports(draftSports);
+        setOnlyGamesToday(draftOnlyGamesToday);
+      }}
+      onClear={() => { setDraftTypes([]); setDraftSurfaces([]); setDraftSports([]); setDraftOnlyGamesToday(false); }}
       applyLabel={`Pokaż ${previewFieldsCount} ${boiskoSlowo(previewFieldsCount)}`}
     >
       <div className="space-y-6">
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
+          <button
+            type="button"
+            onClick={() => setDraftSports([])}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+          >
+            <span className="text-base">🏟️</span>
+            <span className="flex-1 text-left">Wszystkie sporty</span>
+            {draftSports.length === 0 && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+          </button>
+          {SPORT_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
+            >
+              <span className="text-base">{o.emoji}</span>
+              <span className="flex-1 text-left">{o.label}</span>
+              {draftSports.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
+            </button>
+          ))}
+        </section>
+
+        <section>
+          <TogglePill label="Gry dziś" icon={<CalendarCheck className="h-3.5 w-3.5 shrink-0" />}
+            active={draftOnlyGamesToday} onClick={() => setDraftOnlyGamesToday((v) => !v)} />
+        </section>
+
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Typ obiektu</h3>
           {VENUE_TYPE_OPTIONS.map((o) => (
@@ -1172,10 +1251,10 @@ export default function VenueExplorer({
   );
 
   /* Geometria pola (zaokrąglenie, wcięcia, pozycja lupki) CELOWO taka sama
-     jak w „Znajdź grę" (`EventsListView`), bo `/mapa` i `/wydarzenia` to dwie
-     zakładki tego samego paska i przełączanie między nimi przesuwało pole
-     o kilka pikseli — wyglądało jak przeskok. Różni się tylko tło: tutaj białe
-     z cieniem, bo pole leży NA mapie i musi się od niej odciąć.
+     jak w `EventsListView` — komponent, który do 2026-08-23 stał pod „Szukaj"
+     na dolnej nawigacji, zanim scaliła się z tą trasą (patrz komentarz przy
+     `MapaPage`/`BottomNav`). Różni się tylko tło: tutaj białe z cieniem, bo
+     pole leży NA mapie i musi się od niej odciąć.
 
      Tekst podpowiedzi jest krótki, bo długi się ucinał w połowie słowa
      („Szukaj boiska po nazwie lub a…") — czyli mówił mniej niż krótszy, który
@@ -1215,12 +1294,35 @@ export default function VenueExplorer({
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-[380px] shrink-0 border-r border-slate-100 bg-[#FAF9F6] overflow-hidden">
-        {/* Search + Filters */}
+      {/* ── Sidebar / lista ──────────────────────────────────────────
+          Na desktopie widoczna zawsze (mapa dokłada się obok niej, wzorem
+          Booking/Airbnb). Na mobile widoczna WYŁĄCZNIE w widoku „Lista" —
+          w widoku „Mapa" mobile dostaje mapę na cały ekran plus jedną kartę
+          wybranego obiektu (patrz niżej), bo przewijana lista NIE mieści się
+          obok mapy na 360 px. */}
+      <aside className={clsx(
+        'flex-col overflow-hidden bg-[#FAF9F6]',
+        widok === 'lista'
+          ? 'flex w-full'
+          : 'hidden md:flex md:w-[380px] md:shrink-0 md:border-r md:border-slate-100',
+      )}>
+        {/* Search + Filters. Wiersz tożsamości (dzwonek+awatar) dokłada się
+            WYŁĄCZNIE na mobile: na desktopie ten sam zestaw pokazuje już
+            Header, a tu byłby zdublowany. Na mobile ten pasek jest teraz
+            jedynym miejscem, gdzie widok „Lista" pokazuje tożsamość — mapa ma
+            swoją WŁASNĄ kopię niżej (nakładka nad canvasem), bo canvas nie
+            może być rodzicem elementów DOM w tym samym miejscu co lista. */}
         <div className="px-3 pt-3 pb-3 border-b border-slate-100 space-y-3">
-          {searchBox}
-          <FilterPills {...filterProps} wrap />
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">{searchBox}</div>
+            <div className="md:hidden"><MobileIdentityRow /></div>
+          </div>
+          <SearchToolbar
+            showGames={showGames} onToggleShowGames={toggleShowGames}
+            widok={widok} setWidok={setWidok}
+            liczbaFiltrow={liczbaFiltrow} onOpenFilters={openSheet}
+            wrap
+          />
           {showGames && gamesGeoError && (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{gamesGeoError}</p>
           )}
@@ -1238,7 +1340,7 @@ export default function VenueExplorer({
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {gamesRows.map(({ event, distance }) => (
               <div key={event.id} onClick={() => setSelectedEventId(event.id)} className="cursor-pointer">
-                <EventBrowseCard event={event} distance={distance} relation={statusFor(event)} />
+                <EventBrowseCard event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
               </div>
             ))}
             {gamesRows.length === 0 && (
@@ -1288,7 +1390,12 @@ export default function VenueExplorer({
       {filtersModal}
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
-      <div className="relative flex-1 min-w-0 min-h-0">
+      {/* `hidden`, nie unmount: Leaflet trzyma tu kadr i przybliżenie w swojej
+          WŁASNEJ instancji (nie w React state), więc odmontowanie zerowałoby
+          widok do `POLSKA`/`POLSKA_ZOOM` przy każdym powrocie z listy.
+          `invalidateSize()` niżej doprowadza canvas do stanu po powrocie z
+          `display: none`, gdzie miał zerowy rozmiar. */}
+      <div className={clsx('relative flex-1 min-w-0 min-h-0', widok === 'lista' && 'hidden')}>
         <MapContainer
           center={POLSKA}
           zoom={POLSKA_ZOOM}
@@ -1329,7 +1436,11 @@ export default function VenueExplorer({
             <MobileIdentityRow />
           </div>
           <div className="pointer-events-auto">
-            <FilterPills {...filterProps} />
+            <SearchToolbar
+              showGames={showGames} onToggleShowGames={toggleShowGames}
+              widok={widok} setWidok={setWidok}
+              liczbaFiltrow={liczbaFiltrow} onOpenFilters={openSheet}
+            />
           </div>
           {showGames && gamesGeoError && (
             <p className="pointer-events-auto rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-md">
@@ -1345,9 +1456,11 @@ export default function VenueExplorer({
             przewijał listę z powrotem — ruch palcem walczył z automatycznym
             przewijaniem.
 
-            Karta jednego obiektu odpowiada na pytanie, które człowiek ma na
-            mapie naprawdę: „co to za boisko?". Przeglądanie listą zostaje na
-            desktopie, gdzie jest miejsce na pasek boczny.
+            Karta jednego obiektu odpowiada na pytanie, które człowiek ma
+            NA MAPIE naprawdę: „co to za boisko?" — dotyczy wyłącznie widoku
+            „Mapa" (`widok === 'mapa'`). Przeglądanie listą ma dziś WŁASNY,
+            pełnoekranowy widok na telefonie (przełącznik „Lista | Mapa" w
+            pasku wyżej), nie jest już wyłącznością desktopu.
 
             Dolne dopełnienie liczy się od krawędzi EKRANU, nie kontenera mapy:
             karta jest `fixed`, tak jak dolna nawigacja, więc obie mierzą od tego

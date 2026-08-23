@@ -1325,6 +1325,11 @@ wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki fi
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
 
+**Od 2026-08-23 `/wydarzenia` nie jest już celem „Szukaj" na dolnej nawigacji —
+zastąpił ją `/mapa`, patrz „Scalona wyszukiwarka" niżej.** Trasa i `EventsListView`
+zostają żywe (linki z `/gracz`, głębokie linki, tło ekranu logowania —
+`LoginBackdrop.tsx`), ale to już nie jest ekran, na który trafia dotknięcie „Szukaj".
+
 Przycisk obok dzwonka powiadomień (mobile, zalogowany) przełącza treść strony między
 listą a mapą — **to nie jest nawigacja na `/mapa`**, tylko stan komponentu
 (`viewMode: 'lista' | 'mapa'`) w tym samym `EventsListView`. Desktop zawsze pokazuje
@@ -1727,6 +1732,48 @@ zastępuje je `joinGroupByCode()`.
 
 ---
 
+## Scalona wyszukiwarka: `/mapa` jest dziś celem „Szukaj"
+
+Od 2026-08-23 dolna nawigacja prowadzi „Szukaj" na `/mapa` (dawniej `/wydarzenia`) —
+`BottomNav.tsx` zmienia href, `MapaClient.tsx` przejmuje po `EventsListClient.tsx`
+gaszenie pomarańczowej kropki „nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`)
+i plakietkę „Nowość" na kartach meczów (`isNew`/`widzianoWczesniej`, ten sam wzorzec).
+Powód: dawne `/wydarzenia` i `/mapa` były dwoma osobnymi implementacjami tego samego
+pytania („co jest grane / gdzie się gra") — Gry↔Obiekty na `/wydarzenia` NAWIGOWAŁO na
+`/mapa`, więc przełączenie kosztowało przeskok strony i gubiło ustawienia.
+
+**Pasek ma dziś JEDEN, stały kształt niezależnie od trybu** (`SearchToolbar` w
+`VenueExplorer.tsx`) — trzy kontrolki, bo odpowiadają na trzy różne pytania:
+
+| Kontrolka | Pytanie | Uwaga |
+|---|---|---|
+| `Gry \| Obiekty` (`SegmentedToggle`) | NA CO patrzę | pełny przełącznik, zmienia dane |
+| `Lista \| Mapa` (`SegmentedToggle size="sm"`) | JAK patrzę | mniejszy wariant — świadomie WIDOCZNY, podpisany przełącznik, nie mały guzik z ikoną (guzik nie mówił, w jakim stanie jest teraz) |
+| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (sport, cena, odległość, typ obiektu, nawierzchnia, „Gry dziś", „Wolne miejsca", „Za darmo") zjeżdża do arkusza |
+
+Sport, „Wolne miejsca"/„Za darmo" (tryb gier) i „Gry dziś" (tryb obiektów) **przeniosły
+się z paska do arkusza filtrów** — wcześniej stały jako osobne pigułki i przełączenie
+Gry↔Obiekty przestawiało je miejscami (zgłoszone wprost). Sport aplikuje się teraz na
+szkicu, razem z resztą arkusza (`draftSports`), zamiast natychmiast po kliknięciu —
+jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
+
+### Widok listy (mobile) — nowość
+
+Do 2026-08-23 `/mapa` na telefonie było wyłącznie mapą: przewijana lista obiektów/meczów
+istniała tylko na desktopie (`<aside>`, `hidden md:flex`), bo tam jest miejsce na pasek
+boczny obok mapy. Telefon dostawał jedną kartę — tę, której pinezkę dotknięto — i żadnego
+sposobu przejrzenia wyników jak listy.
+
+`widok: 'lista' | 'mapa'` (lokalny stan, bez synchronizacji z URL — nie ma tu nawigacji
+do zachowania) rządzi tym samym `<aside>`, który wcześniej był desktop-only:
+`widok === 'lista'` pokazuje go na PEŁNĄ szerokość na obu breakpointach (bez mapy obok);
+`widok === 'mapa'` wraca do dotychczasowego układu (mobile: mapa + jedna karta; desktop:
+lista + mapa obok siebie, bez zmian). Mapa **nie jest odmontowywana** przy przełączeniu
+na listę (`hidden`, nie unmount) — Leaflet trzyma kadr/zoom we własnej instancji, a nie
+w stanie Reacta, więc odmontowanie zerowałoby widok do całej Polski przy każdym powrocie.
+`mapInstance.invalidateSize()` (w `useEffect` po `widok`) doprowadza canvas do właściwego
+rozmiaru po powrocie z `display: none`, gdzie miał zerowy rozmiar.
+
 ## Układ `/mapa` — szukanie, filtry, powrót z boiska
 
 **Szukanie po tekście działa poza bieżącym kadrem.** Wcześniej pole szukania filtrowało
@@ -1749,17 +1796,17 @@ zamontowaniu, `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu
 (`boiskoZLinku`) — brakowało tylko połączenia obu gotowych mechanizmów. Link ze strony
 meczu (`EventDetailClient.tsx`) do boiska działa tak samo.
 
-**Filtry — przycisk „Filtry" + modal, jak na `/wydarzenia`.** Sport i przełącznik
-„Gry dziś" zostają zawsze widoczne; Typ obiektu i Nawierzchnia przenoszą się do
-`FilterSheet` (ten sam współdzielony komponent, patrz „Układ `/wydarzenia`"), bo są
-drugorzędne i rzadziej dotykane:
+**Filtry — ikona „Filtry" + modal, jak na `/wydarzenia`.** Od 2026-08-23 WSZYSTKO
+(Sport, „Gry dziś", Typ obiektu, Nawierzchnia) siedzi w `FilterSheet` — patrz „Scalona
+wyszukiwarka" wyżej. Nic z tego nie stoi już w pasku jako osobna, zawsze-widoczna
+pigułka:
 
 | Filtr | Gdzie | Uwaga |
 |---|---|---|
-| Sport | inline, dropdown | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
-| „Gry dziś" | inline, przełącznik | bez zmian |
+| Sport | w modalu, sekcja „Sport" | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
+| „Gry dziś" | w modalu, `TogglePill` | bez zmian w działaniu, tylko przeniesiona z paska |
 | Typ obiektu | w modalu | lista bez zmian, tylko przeniesiona z zawsze-widocznego dropdownu |
-| Nawierzchnia *(nowość)* | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
+| Nawierzchnia | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
 
 „Otwarte gry" (obiekt ma co najmniej jeden mecz, na który da się jeszcze dołączyć) było
 tu przez chwilę jako osobny przełącznik — usunięte jako zbędne obok „Gry dziś" i trybu
@@ -1818,17 +1865,17 @@ przy `flex` szerszy tekst przesunąłby podświetlenie obok przycisku, który po
 
 | | „Obiekty" (domyślnie) | „Gry" |
 |---|---|---|
-| Pasek | Sport(6, `MAP_FILTER_SPORTS`) / Filtry (Typ+Nawierzchnia) / Gry dziś | Filtry (suwaki) / Sport(4, `FOCUS_SPORTS`) / Wolne miejsca / Za darmo |
-| Pinezki | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (współdzielony z widokiem mapy w `/wydarzenia`, patrz wyżej — emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
+| Pasek | `Gry\|Obiekty` / `Lista\|Mapa` / Filtry (patrz „Scalona wyszukiwarka" wyżej — identyczny kształt w obu trybach) | jw. |
+| Modal „Filtry" | Sport(6) / „Gry dziś" / Typ obiektu / Nawierzchnia | Sport(4) / „Wolne miejsca" / „Za darmo" / Kiedy / Odległość / Cena / Wolne miejsca (suwak) |
+| Pinezki (widok „Mapa") | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
-| Karta wyniku (mobile/sidebar) | `VenueCard` | `EventBrowseCard` |
-| Modal „Filtry" | Typ obiektu + Nawierzchnia (bez zmian) | Kiedy / Odległość / Cena / Wolne miejsca (te same suwaki co `/wydarzenia`) |
+| Karta wyniku (lista/sidebar/karta wybranej pinezki) | `VenueCard` | `EventBrowseCard`, z plakietką „Nowość" (`isNew`) na liście — patrz „Scalona wyszukiwarka" |
 
-**Sortuj nie pojawia się w tym trybie** — `/mapa` jest zawsze widokiem mapy (w
-odróżnieniu od `/wydarzenia`, gdzie ta sama pigułka ma sens na liście), więc kolejność
-pinezek/karty sidebara zostaje na stałe chronologiczna (`gamesSort` to dziś stała
-`'termin'`, bez UI do zmiany) — nie warto było duplikować UI, którego i tak nie ma gdzie
-sensownie użyć na mapie.
+**Sortuj nie ma tu UI** — kolejność pinezek/karty listy zostaje na stałe chronologiczna
+(`gamesSort` to dziś stała `'termin'`), niezależnie od tego, czy widok jest listą czy
+mapą: to jedyna kolejność, która ma sens w OBU. Nie mylić z widokiem „Lista" (2026-08-23,
+wyżej) — ten pokazuje wyniki jako przewijaną listę zamiast pinezek, ale nie dokłada
+wyboru KOLEJNOŚCI.
 
 Stan trybu gier (`gamesSort`, `gamesDate`, `gamesRadius`, `gamesMaxPriceGrosze`,
 `gamesMinFreeSpots`, `gamesOnlyFreeSpots`, `gamesOnlyNoCost`) jest **lokalny**, nie w URL
