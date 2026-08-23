@@ -30,7 +30,7 @@ import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
 import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
-import { slugify, externalUrl } from '@/lib/utils';
+import { slugBoiska, externalUrl } from '@/lib/utils';
 import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
@@ -317,7 +317,9 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
   backTo?: () => string;
 }) {
   const thumb = fieldPhotoUrl(field, 320, 320);
-  const slug = slugify(field.name);
+  // Nazwa + końcówka id: nazwy rodzajowe z OSM powtarzają się tysiące razy,
+  // więc sam slug otwierał zawsze to samo boisko. Patrz `slugBoiska`.
+  const slug = slugBoiska(field.name, field.id);
   const name = displayName(field.name);
   const surface = field.surface ? surfaceLabel(field.surface) : null;
   const typeLabel = field.venueType ? VENUE_TYPE_LABELS[field.venueType] ?? field.venueType : null;
