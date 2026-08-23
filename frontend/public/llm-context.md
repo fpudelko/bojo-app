@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 767 testów
+**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 773 testy
 
 ---
 
@@ -343,6 +343,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
+
+PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
+cel „Szukaj" na dolnej nawigacji) i `/mapa` (mapa, z własnym przełącznikiem Gry|Obiekty).
+Dotknięcie „Obiekty" na `/wydarzenia` NAWIGOWAŁO na `/mapa`, gubiąc kontekst — przełączenie
+kosztowało przeskok strony. Do tego `/mapa` na telefonie nie miało w ogóle widoku listy:
+wyłącznie mapa plus jedna karta wybranej pinezki, bo przewijana lista istniała tylko na
+desktopie, obok mapy.
+
+ROZWIĄZANIE BOJO: „Szukaj" prowadzi dziś na `/mapa`, które ma WSPÓLNY, stały pasek dla
+obu trybów: przełącznik `Gry | Obiekty` (co pokazać), osobny, WIDOCZNY przełącznik
+`Lista | Mapa` (mniejszy wariant tego samego komponentu — nie mały guzik z ikoną), i ikonę
+filtrów z plakietką liczby aktywnych. Sport, „Wolne miejsca", „Za darmo" i „Gry dziś"
+przeniosły się z paska do arkusza filtrów — przełączenie trybu nie przestawia już
+kontrolek miejscami. Telefon dostał pełnoekranowy widok listy w OBU trybach (dawniej
+wyłącznie na desktopie); przełączenie na mapę nie odmontowuje jej — Leaflet trzyma
+kadr/zoom we własnej instancji, więc powrót z listy wraca do dokładnie tego samego
+miejsca na mapie, nie do widoku całej Polski.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
+`SegmentedToggle` z nowym `size="sm"`); `BottomNav.tsx` (href „Szukaj" → `/mapa`);
+`MapaClient.tsx` przejmuje po `EventsListClient.tsx` gaszenie pomarańczowej kropki
+„nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`) i plakietkę „Nowość" na
+kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
+już celem „Szukaj". Bez migracji.
+
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 
 PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
@@ -540,27 +566,3 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
-### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
-
-PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
-klawiatury pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli NAD
-klawiaturą, a pod nim świeciło puste tło strony. Przy schowanej klawiaturze to samo pole
-siedziało pod samą kreską paska gestów na dole ekranu. Do tego otwarcie klawiatury
-spychało najnowszą wiadomość pod krawędź — dokładnie w chwili, gdy ktoś zaczynał na nią
-odpowiadać.
-
-ROZWIĄZANIE BOJO: pole do pisania przykleja się dokładnie do górnej krawędzi klawiatury,
-a przy schowanej klawiaturze zostawia odstęp na pasek gestów telefonu. Otwarcie
-klawiatury dociąga listę wiadomości na dół, chyba że akurat czyta się starsze wiadomości
-wyżej — wtedy widok zostaje tam, gdzie był. Dotyczy tak samo rozmowy meczu, jak tablicy
-ekipy.
-
-MECHANIKA: `lib/oknoCzatu.ts` — `useOknoCzatu()` mierzy `visualViewport.height`
-i `styleOknaCzatu()` podstawia ją korzeniowi strony zamiast `100dvh`. Na iOS klawiatura
-nie kurczy layoutu (`viewport.interactiveWidget: 'resizes-content'` działa tylko na
-Androidzie), tylko przesuwa widoczne okno w górę z zapasem — stąd pusty pas pod
-composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
-`env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
-i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
-Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
-

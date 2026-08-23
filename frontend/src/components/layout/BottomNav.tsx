@@ -65,7 +65,7 @@ function BallIcon({ className }: { className?: string }) {
 // nadrobić niczym.
 const LEFT_ITEMS = [
   { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
-  { href: '/wydarzenia', label: 'Szukaj', Icon: BallIcon },
+  { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -301,7 +301,7 @@ export default function BottomNav() {
         '/moje-gry'],
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
-      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
+      ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
       // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
       ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
@@ -366,7 +366,9 @@ export default function BottomNav() {
         Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
   }) {
-    const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
+    // `/mapa` (Szukaj) nie ma dziś podtras — wyłączenie zostaje na wszelki
+    // wypadek, gdyby kiedyś dostała (np. szczegóły obiektu pod tym prefiksem).
+    const active = pathname === href || (href !== '/mapa' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
     const opisy = [
       ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
@@ -476,7 +478,7 @@ export default function BottomNav() {
           if (item.href === '/moje-gry' && pendingApproval) {
             dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
           }
-          if (item.href === '/wydarzenia' && nearbyNew) {
+          if (item.href === '/mapa' && nearbyNew) {
             dots.push({ color: 'bg-orange-500', label: 'nowe wydarzenia w pobliżu', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
