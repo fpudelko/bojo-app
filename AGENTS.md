@@ -288,6 +288,48 @@ Nie „naprawiaj" tego.
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
 
+## Strona meczu: sekcje, nie zakładki
+
+Od 2026-08-23 `EventDetailClient` nie ma paska zakładek. Powód: pasek potrafił
+mieć od dwóch do sześciu pozycji — cztery z sześciu pojawiały się warunkowo
+(rola, koszt meczu, czy się odbył, czy składy stoją). Nawigacja zmieniająca
+kształt pod palcem nie daje się nauczyć, a najgorszy przypadek był w „Taktyce":
+pokazywała się dopiero komuś, kto MA już przypisaną drużynę — więc gracz, który
+nie wiedział, w której jest, nie miał jak sprawdzić.
+
+Została **jedna oś**: treść meczu albo rozmowa (`type EventTab = 'sklad' | 'rozmowa'`).
+Reszta to sekcje `SekcjaMeczu` na tej samej stronie: **Drużyny · Wynik · Kasa ·
+Ustawienia**, w STAŁEJ kolejności.
+
+**Kolejność sekcji jest stała, zmienia się tylko to, co rozwinięte.**
+Przestawianie sekcji zależnie od fazy meczu było rozważane i odrzucone: ludzie
+zapamiętują położenie („kasa jest na dole"), a ruchoma kolejność psuje tę
+pamięć, powrót na tę samą pozycję po przewinięciu i każdą instrukcję
+zaczynającą się od „przewiń do…".
+
+Regułę rozwijania trzyma [`lib/sekcjeMeczu.ts`](./frontend/src/lib/sekcjeMeczu.ts)
+i mieści się w jednym zdaniu: **rozwinięte jest to, co czeka na decyzję TWOJĄ;
+zwinięte — to, co załatwione albo puste.** Nie „co ważne ogólnie", tylko „co
+moje" — dzięki temu ta sama reguła daje inny ekran organizatorowi i graczowi,
+bez ani jednego wyjątku per rola.
+
+Trzy zasady, których nie łamiemy:
+
+- **Żadna sekcja nie znika.** Zwinięta „Kasa" przy meczu za darmo mówi, że nie
+  ma czego dzielić. Znikające elementy uczą, gdzie coś jest, a potem tego nie ma.
+- **Nigdy nie zwijamy tego, co człowiek sam otworzył.** Automat ustala wyłącznie
+  stan startowy.
+- **Zwinięcie jest zapamiętane** per mecz i sekcja (`bojo:sekcja:<eventId>:<id>`),
+  więc decyzja człowieka wygrywa z regułą przy następnym wejściu.
+
+Rozmowa jest osobnym widokiem, ale **nie zakładką** — wchodzi się do niej
+wierszem z ostatnią wiadomością. Czat **nie chowa już dolnej nawigacji**:
+pełnoekranowy tryb odcinał od reszty aplikacji na czas czytania wiadomości.
+
+Stare adresy `?tab=wynik|rozliczenia|taktyka|ustawienia` krążą po czatach
+i powiadomieniach push — `pokazSekcje()` rozwija odpowiednią sekcję i przewija
+do niej zamiast prowadzić donikąd.
+
 ## Modele domenowe
 
 Przed zmianą w `lib/events.ts`, `lib/payments.ts` lub logice zapisów przeczytaj
