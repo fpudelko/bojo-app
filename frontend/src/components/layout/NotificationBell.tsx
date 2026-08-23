@@ -297,12 +297,12 @@ export default function NotificationBell() {
   // lista otwarta o 23:59:59 mogłaby mieć dwie różne granice „Dziś".
   const teraz = new Date();
 
-  // Rozdział na dwa panele — WIADOMOŚCI dostają własną ikonę (chmurka obok
-  // dzwonka), reszta zostaje w dzwonku. Zgłoszone wprost: „ktoś napisał"
-  // ginęło w tej samej liście co „nowy mecz w grupie".
-  const wiadomosci = notifs.filter((n) => TYPY_WIADOMOSCI.has(n.type));
+  // Powiadomienia o WIADOMOŚCIACH wypadają z dzwonka — mają własne miejsce
+  // w nawigacji (zakładka „Rozmowy" z chmurką). Dzwonek zostaje wyłącznie dla
+  // rzeczy wymagających działania; bez tego filtru „ktoś napisał" ginęłoby
+  // w tej samej liście co „prośba o dołączenie", a licznik nieprzeczytanych
+  // byłby trzeci z rzędu dla tej samej rzeczy.
   const reszta = notifs.filter((n) => !TYPY_WIADOMOSCI.has(n.type));
-  const unreadWiadomosci = wiadomosci.filter((n) => !n.readAt).length;
   const unreadReszta = reszta.filter((n) => !n.readAt).length;
 
   // Otwarcie panelu zawsze pokazuje GÓRĘ listy, czyli najnowsze powiadomienie.
@@ -429,15 +429,15 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handle);
   }, [otwartyPanel]);
 
-  /** Otwiera/zamyka JEDEN z dwóch paneli i oznacza jako przeczytane WYŁĄCZNIE
-   *  powiadomienia z tego panelu — otwarcie chmurki wiadomości nie ma gasić
-   *  nieprzeczytanej „Prośby o dołączenie" w dzwonku, i odwrotnie. */
+  /** Otwiera/zamyka panel dzwonka i oznacza jego powiadomienia jako
+   *  przeczytane. Panel wiadomości odszedł razem z ikoną w nagłówku —
+   *  `panel` zostaje parametrem, bo `otwartyPanel` niesie ten sam typ i wolę
+   *  jedno miejsce do rozszerzenia niż dwie ścieżki do zsynchronizowania. */
   const handleToggle = async (panel: 'dzwonek' | 'wiadomosci') => {
     const opening = otwartyPanel !== panel;
     setOtwartyPanel(opening ? panel : null);
     if (!opening) return;
-    const lista = panel === 'wiadomosci' ? wiadomosci : reszta;
-    const ids = lista.filter((n) => !n.readAt).map((n) => n.id);
+    const ids = reszta.filter((n) => !n.readAt).map((n) => n.id);
     if (ids.length === 0) return;
     await markRead(ids);
     const zbior = new Set(ids);
@@ -448,35 +448,20 @@ export default function NotificationBell() {
 
   return (
     <div className="flex items-center" ref={ref}>
-      <div className="relative">
-        <button
-          onClick={() => handleToggle('wiadomosci')}
-          aria-label={`Wiadomości${unreadWiadomosci > 0 ? ` · ${unreadWiadomosci} nowych` : ''}`}
-          className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-        >
-          <MessageCircle className="w-5 h-5" />
-          {unreadWiadomosci > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] font-bold text-white leading-none">
-              {unreadWiadomosci > 9 ? '9+' : unreadWiadomosci}
-            </span>
-          )}
-        </button>
+      {/* IKONA WIADOMOŚCI ZNIKŁA Z NAGŁÓWKA (2026-08-23).
+          Migracja `119` rozdzieliła jeden dzwonek na dwa — chmurkę dla
+          wiadomości i dzwonek dla reszty — bo w dolnym pasku „wszystkie pięć
+          miejsc było zajętych", a wiadomości musiały być widoczne wszędzie.
+          Od czasu, gdy Rozmowy dostały własną zakładkę z chmurką, to samo
+          nieprzeczytane było liczone w DWÓCH miejscach naraz: ikona w nagłówku
+          pokazywała „7", a plakietka na zakładce swoje. Dwa liczniki tej samej
+          rzeczy nie dają dwa razy więcej informacji — dają pytanie, który
+          z nich jest prawdziwy.
 
-        {otwartyPanel === 'wiadomosci' && (
-          <PanelPowiadomien
-            lista={wiadomosci}
-            otwarte={otwarte}
-            teraz={teraz}
-            listaRef={listaWiadomosciRef}
-            naZamknij={() => setOtwartyPanel(null)}
-            odswiezPoOdpowiedzi={odswiezPoOdpowiedzi}
-            tytul="Wiadomości"
-            PustaIkona={MessageCircle}
-            pustyTytul="Brak wiadomości"
-            pustyOpis="Damy znać, gdy ktoś napisze w meczu albo w ekipie."
-          />
-        )}
-      </div>
+          Zostaje DZWONEK, i to jest cała jego rola: rzeczy WYMAGAJĄCE DZIAŁANIA
+          (prośby o dołączenie, oferty miejsca z rezerwy, rozliczenia — patrz
+          `WYMAGA_AKCJI` w `lib/notifications.ts`). Wiadomości mają swoje
+          miejsce w nawigacji. */}
 
       <div className="relative">
         <button

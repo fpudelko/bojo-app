@@ -14,7 +14,6 @@ import { nieprzeczytaneWMeczach } from '@/lib/comments';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
 import { WARSTWA } from '@/lib/warstwy';
 import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
-import PanelRozmow from './PanelRozmow';
 
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
@@ -188,7 +187,6 @@ export default function BottomNav() {
   // (mecze + ekipy), zgłoszone wprost. Hak żyje na poziomie komponentu, nie
   // wewnątrz `NavLink` — `NavLink` jest funkcją definiowaną w ciele
   // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
-  const [panelRozmowOtwarty, setPanelRozmowOtwarty] = useState(false);
 
   // Przytrzymanie „Grupy" → od razu ekipa, o którą chodzi, zamiast listy
   // wszystkich (zgłoszone wprost). Priorytet: 1) ekipa z NAJBLIŻSZYM
@@ -290,10 +288,6 @@ export default function BottomNav() {
       ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/wydarzenia'],
-      // Odkrywalność gestu przytrzymania — bez tego nikt by się nie
-      // dowiedział, że panel istnieje. Zapala się razem z pierwszą chmurką
-      // wiadomości (mecz albo ekipa), najwyżej `LIMIT_DYMKA` razy w życiu.
-      ['przytrzymaj-rozmowy', unreadEvents || unreadGroups, 'Przytrzymaj „Moje" → wszystkie rozmowy', '/moje-gry'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
       // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
       ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
@@ -316,10 +310,8 @@ export default function BottomNav() {
 
   function NavLink({
     href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, gest,
-    naKlik, aktywny,
   }: {
-    /** Pusty, gdy pozycja nie prowadzi do trasy (Rozmowy otwierają arkusz). */
-    href?: string; label: string; Icon: React.ComponentType<{ className?: string }>;
+    href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
         z prawej; różowa CHMURKA: nieprzeczytane wiadomości z lewej), "Grupy"
         (różowa chmurka z lewej; pomarańczowa kropka: nowy mecz w ekipie z prawej)
@@ -355,33 +347,21 @@ export default function BottomNav() {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
-    /** Handlery przytrzymania (`useDlugieWcisniecie`) — na „Moje" (panel
-        wszystkich nieprzeczytanych rozmów) i na „Grupy" (od razu najbliższa
-        ekipa, patrz `gestGrupy`), stąd opcjonalne. Rozłożone wprost na `<Link>`. */
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś tylko na „Ekipy"
+        (skok do najbliższej ekipy, patrz `gestGrupy`), stąd opcjonalne.
+        Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
-    /** Zamiast przejścia — otwarcie arkusza. Wyklucza się z `href`. */
-    naKlik?: () => void;
-    /** Stan „wybrane" dla pozycji bez trasy. */
-    aktywny?: boolean;
   }) {
-    const active = aktywny
-      ?? (pathname === href || (!!href && href !== '/wydarzenia' && pathname.startsWith(href + '/')));
+    const active = pathname === href || (href !== '/wydarzenia' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
     const opisy = [
       ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
       ...widoczne.map((d) => d.label),
     ];
     const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
-    // Ten sam kształt, dwa elementy: pozycja z trasą to `<Link>`, pozycja
-    // otwierająca arkusz to `<button>` — a nie `<Link href="#">`, bo tamto
-    // kłamie czytnikom ekranu i podmienia adres w pasku.
-    const Element = (naKlik ? 'button' : Link) as React.ElementType;
-    const wlasciwosci = naKlik
-      ? { type: 'button' as const, onClick: naKlik, 'aria-expanded': !!aktywny }
-      : { href: href! };
     return (
-      <Element
-        {...wlasciwosci}
+      <Link
+        href={href}
         aria-label={ariaSuffix ? `${label}${ariaSuffix}` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
@@ -460,7 +440,7 @@ export default function BottomNav() {
           )}
         </span>
         <span className="whitespace-nowrap">{label}</span>
-      </Element>
+      </Link>
     );
   }
 
@@ -499,10 +479,9 @@ export default function BottomNav() {
             strona ze WSZYSTKIMI rozmowami to zmiana na inny dzień — wymaga
             zapytań, których dziś nie ma. */}
         <NavLink
+          href="/rozmowy"
           label="Rozmowy"
           Icon={MessageCircle}
-          naKlik={() => setPanelRozmowOtwarty(true)}
-          aktywny={panelRozmowOtwarty}
           dots={(unreadEvents || unreadGroups)
             ? [{ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' }]
             : []}
@@ -546,13 +525,6 @@ export default function BottomNav() {
           );
         })}
       </div>
-      {user && (
-        <PanelRozmow
-          otwarty={panelRozmowOtwarty}
-          naZamknij={() => setPanelRozmowOtwarty(false)}
-          userId={user.id}
-        />
-      )}
     </nav>
   );
 }
