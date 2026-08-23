@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
-import { ChevronRight, LogIn, MessageCircle, Users as UsersIcon } from 'lucide-react';
+import { ChevronRight, LogIn, MessageCircle, Search, Users as UsersIcon, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import { useAuth } from '@/lib/auth';
 import { etykietaZapisu } from '@/lib/time';
+import { foldText } from '@/lib/searchText';
 import { wszystkieRozmowyMeczow, type RozmowaNaLiscie } from '@/lib/comments';
 import { wszystkieRozmowyGrup } from '@/lib/groupPosts';
 import { wszystkieRozmowyDm } from '@/lib/dm';
@@ -43,11 +45,18 @@ export function polaczRozmowy(
  * miejsca na rozmowy prywatne), a jako warstwa nad inną stroną nie miał
  * własnego adresu — więc nie dało się do rozmów wrócić przyciskiem „wstecz"
  * ani wysłać linku.
+ *
+ * `hideMobileBarForUser`: na mobile dla zalogowanego pasek Header znika
+ * całkiem, a jego miejsce zajmuje WŁASNY, kompaktowy nagłówek ekranu (tytuł +
+ * `MobileIdentityRow` + szukajka) — ten sam wzorzec co `/mapa`, `/wydarzenia`.
+ * Bez tego ekran wyglądał jak strona ze wstawionym czatem, nie jak
+ * komunikator: generyczny pasek serwisu nad listą rozmów.
  */
 export default function RozmowyClient() {
   const { user, loading: authLoading } = useAuth();
   const [ladowanie, setLadowanie] = useState(true);
   const [wpisy, setWpisy] = useState<WpisRozmowy[]>([]);
+  const [szukane, setSzukane] = useState('');
 
   const zaladuj = useCallback(async (userId: string) => {
     const grupy = await getMyGroups(userId);
@@ -85,16 +94,57 @@ export default function RozmowyClient() {
 
   const nieprzeczytane = wpisy.reduce((suma, w) => suma + w.ile, 0);
 
+  // Szukajka filtruje w pamięci — cała lista jest już wczytana, więc nie ma
+  // po co iść po nią do bazy drugi raz. Dopasowuje tytuł ORAZ zajawkę
+  // ostatniej wiadomości (`ostatnia`): „Boisko" znajdzie „Widzimy się na
+  // boisku o 18", nie tylko rozmowę zatytułowaną tak samo.
+  const wpisyPrzefiltrowane = useMemo(() => {
+    const wzorzec = foldText(szukane.trim());
+    if (!wzorzec) return wpisy;
+    return wpisy.filter((w) => foldText(w.tytul).includes(wzorzec) || foldText(w.ostatnia ?? '').includes(wzorzec));
+  }, [wpisy, szukane]);
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6">
-        <h1 className="font-display text-2xl font-bold text-ink">Rozmowy</h1>
-        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-          {nieprzeczytane > 0
-            ? withCount(nieprzeczytane, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')
-            : 'Mecze, ekipy i wiadomości prywatne — od najnowszej.'}
-        </p>
+      <Header hideMobileBarForUser />
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-4 md:py-6">
+        {/* Nagłówek komunikatora: na mobile zastępuje CAŁY pasek Header
+            (`hideMobileBarForUser` wyżej) — tytuł, tożsamość i szukajka w
+            jednym miejscu, jak w prawdziwym komunikatorze, nie jak strona ze
+            wstawionym czatem pod nawigacją serwisu. */}
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="font-display text-xl font-bold text-ink md:text-2xl">Rozmowy</h1>
+            {nieprzeczytane > 0 && (
+              <p className="text-[13px] font-medium text-pink-600 dark:text-pink-400">
+                {withCount(nieprzeczytane, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}
+              </p>
+            )}
+          </div>
+          <div className="md:hidden"><MobileIdentityRow /></div>
+        </div>
+
+        {user && wpisy.length > 0 && (
+          <div className="relative mt-3">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={szukane}
+              onChange={(e) => setSzukane(e.target.value)}
+              placeholder="Szukaj w rozmowach"
+              className="w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-primary-900"
+            />
+            {szukane && (
+              <button
+                type="button"
+                onClick={() => setSzukane('')}
+                aria-label="Wyczyść szukanie"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {authLoading || ladowanie ? (
           <div className="mt-4 space-y-3">
@@ -138,9 +188,13 @@ export default function RozmowyClient() {
               </Link>
             </div>
           </div>
+        ) : wpisyPrzefiltrowane.length === 0 ? (
+          <p className="mt-10 text-center text-sm text-slate-500 dark:text-slate-400">
+            Nic nie pasuje do „{szukane}".
+          </p>
         ) : (
           <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
-            {wpisy.map((w) => (
+            {wpisyPrzefiltrowane.map((w) => (
               <li key={`${w.typ}-${w.id}`}>
                 <Link href={w.href} className="flex min-h-[44px] items-center gap-3 py-3 active:opacity-70">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl dark:bg-slate-700" aria-hidden="true">

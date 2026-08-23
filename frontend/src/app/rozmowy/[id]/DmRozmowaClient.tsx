@@ -132,7 +132,12 @@ export default function DmRozmowaClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      {/* Na mobile dla zalogowanego znika CAŁY pasek Header — wiersz niżej
+          (strzałka wstecz + imię + menu) jest wtedy jedynym nagłówkiem tego
+          ekranu, dokładnie jak w prawdziwym komunikatorze: „jesteś w
+          rozmowie", nie „jesteś na stronie z czatem wstawionym pod paskiem
+          serwisu". Desktop bez zmian (Header tam nikt nie prosił chować). */}
+      <Header hideMobileBarForUser />
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
         <div className="flex items-center gap-1">
           <Link

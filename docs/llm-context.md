@@ -343,6 +343,24 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
+
+PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
+(logo, „Znajdź grę", dzwonek) — na telefonie ekran wyglądał jak strona ze wstawionym
+czatem pod nawigacją, nie jak własna aplikacja do pisania. Lista rozmów nie miała też
+szukajki — jedynym sposobem znalezienia konkretnej rozmowy było przewijanie.
+
+ROZWIĄZANIE BOJO: na mobile dla zalogowanego generyczny pasek Header znika CAŁKOWICIE
+na obu ekranach (`hideMobileBarForUser`, ten sam wzorzec co `/mapa`) — jego miejsce
+zajmuje WŁASNY nagłówek ekranu: tytuł + tożsamość + szukajka na liście, strzałka wstecz
++ imię + menu (blokuj/zgłoś) w rozmowie. Szukajka na `/rozmowy` filtruje w pamięci po
+tytule ORAZ zajawce ostatniej wiadomości — cała lista jest już wczytana, więc nie ma po
+co wracać do bazy drugi raz. Desktop bez zmian (Header tam nikt nie prosił chować).
+
+MECHANIKA: `RozmowyClient.tsx` (stan `szukane`, filtr przez `foldText()` z
+`lib/searchText.ts`, `MobileIdentityRow` zamiast paska Header na mobile);
+`DmRozmowaClient.tsx` (`<Header hideMobileBarForUser />`). Bez migracji.
+
 ### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
 
 PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
@@ -548,28 +566,3 @@ MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, 
 „Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 
-### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
-
-PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
-„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
-o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
-aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
-pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
-pokazał i użytkownik ją otworzył.
-
-ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
-z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
-listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
-o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
-prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
-Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
-w dzwonku.
-
-MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
-(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
-Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
-powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
-`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
-Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
-Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
-w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
