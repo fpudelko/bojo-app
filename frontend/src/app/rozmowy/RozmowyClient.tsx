@@ -9,23 +9,29 @@ import { useAuth } from '@/lib/auth';
 import { etykietaZapisu } from '@/lib/time';
 import { wszystkieRozmowyMeczow, type RozmowaNaLiscie } from '@/lib/comments';
 import { wszystkieRozmowyGrup } from '@/lib/groupPosts';
+import { wszystkieRozmowyDm } from '@/lib/dm';
 import { getMyGroups } from '@/lib/groups';
 import { withCount } from '@/lib/plural';
 
 /** Jedna rozmowa na liście `/rozmowy`. `typ` jest po to, żeby lista nie musiała
  *  zgadywać adresu z samego id — mecz i ekipa mają różne trasy. */
 export interface WpisRozmowy extends RozmowaNaLiscie {
-  typ: 'mecz' | 'grupa';
+  typ: 'mecz' | 'grupa' | 'dm';
   href: string;
 }
 
 /** Mecze i ekipy w JEDNĄ listę, od najnowszej. Komunikator nie pyta, skąd
  *  wiadomość przyszła — pokazuje, co się ostatnio działo. Wydzielone z komponentu,
  *  żeby dało się to sprawdzić bez renderowania. */
-export function polaczRozmowy(mecze: RozmowaNaLiscie[], ekipy: RozmowaNaLiscie[]): WpisRozmowy[] {
+export function polaczRozmowy(
+  mecze: RozmowaNaLiscie[],
+  ekipy: RozmowaNaLiscie[],
+  prywatne: RozmowaNaLiscie[] = [],
+): WpisRozmowy[] {
   return [
     ...mecze.map((r) => ({ ...r, typ: 'mecz' as const, href: `/wydarzenia/${r.id}?tab=rozmowa` })),
     ...ekipy.map((r) => ({ ...r, typ: 'grupa' as const, href: `/grupy/${r.id}?tab=tablica` })),
+    ...prywatne.map((r) => ({ ...r, typ: 'dm' as const, href: `/rozmowy/${r.id}` })),
   ].sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
 }
 
@@ -45,11 +51,12 @@ export default function RozmowyClient() {
 
   const zaladuj = useCallback(async (userId: string) => {
     const grupy = await getMyGroups(userId);
-    const [mecze, ekipy] = await Promise.all([
+    const [mecze, ekipy, prywatne] = await Promise.all([
       wszystkieRozmowyMeczow(userId),
       wszystkieRozmowyGrup(userId, grupy),
+      wszystkieRozmowyDm(userId),
     ]);
-    setWpisy(polaczRozmowy(mecze, ekipy));
+    setWpisy(polaczRozmowy(mecze, ekipy, prywatne));
   }, []);
 
   useEffect(() => {
@@ -86,7 +93,7 @@ export default function RozmowyClient() {
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
           {nieprzeczytane > 0
             ? withCount(nieprzeczytane, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')
-            : 'Mecze i ekipy — wszystkie w jednym miejscu, od najnowszej.'}
+            : 'Mecze, ekipy i wiadomości prywatne — od najnowszej.'}
         </p>
 
         {authLoading || ladowanie ? (
@@ -137,7 +144,13 @@ export default function RozmowyClient() {
               <li key={`${w.typ}-${w.id}`}>
                 <Link href={w.href} className="flex min-h-[44px] items-center gap-3 py-3 active:opacity-70">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl dark:bg-slate-700" aria-hidden="true">
-                    {w.typ === 'mecz' ? '⚽' : <UsersIcon className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
+                    {w.typ === 'mecz' ? '⚽' : w.typ === 'dm' ? (
+                      /* Inicjał jak w bąbelkach czatu — rozmowa prywatna to
+                         OSOBA, a nie „rzecz" z ikoną kategorii. */
+                      <span className="flex h-full w-full items-center justify-center rounded-full bg-primary-100 text-base font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                        {w.tytul.charAt(0).toUpperCase()}
+                      </span>
+                    ) : <UsersIcon className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">
