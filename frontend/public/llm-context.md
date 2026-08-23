@@ -343,8 +343,6 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-<<<<<<< HEAD
-=======
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 
 PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
@@ -373,23 +371,6 @@ chowający ich CSS-em — ukryte pole nadal wysyła wartość);
 `UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
 w `lib/eventWizard.ts`. Bez migracji.
 
-### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
-
-PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
-grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
-Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
-
-ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
-wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
-Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
-właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
-Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
-
-MECHANIKA: migracja `124` (`dm_conversations` z parą kanoniczną `low < high`,
-`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
-`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
-
->>>>>>> c0d82e1 (Kreator: trzy przełączniki zamiast ściany ustawień, publikacja przez okno)
 ### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
 
 PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
@@ -598,32 +579,3 @@ MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, 
 „Twoja płatność" w sekcji Kasa), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 
-<<<<<<< HEAD
-### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
-
-PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
-„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
-o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
-aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
-pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
-pokazał i użytkownik ją otworzył.
-
-ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
-z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
-listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
-o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
-prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
-Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
-w dzwonku.
-
-MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
-(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
-Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
-powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
-`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
-Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
-Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
-w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
-
-=======
->>>>>>> c0d82e1 (Kreator: trzy przełączniki zamiast ściany ustawień, publikacja przez okno)
