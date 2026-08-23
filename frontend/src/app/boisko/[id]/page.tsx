@@ -174,7 +174,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   // Katalog obejmuje dziś całą Polskę, więc tytuł boiska w Lublinie mówiący
   // „w Poznaniu" był po prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
   const miejscowosc = field.city ?? miejscowoscZAdresu(field.address);
-  const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
+  // Przecinek, nie „w ${miasto}": miejscownik wymaga odmiany („w Poznaniu",
+  // nie „w Poznań"), a tej nie da się wyprowadzić regułą — content/miasta.ts
+  // trzyma ją jako DANE dokładnie z tego powodu. Katalog ma dziesiątki tysięcy
+  // miejscowości, więc słownika odmian tu nie będzie; przecinek jest poprawny
+  // przy każdej nazwie. (Opis obiektu omija to inaczej: „w miejscowości X".)
+  const gdzie = miejscowosc ? `, ${miejscowosc}` : '';
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `${field.name} — ${sportsStr}${gdzie}`,
@@ -313,22 +318,22 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
 
-      {/* Upcoming events section — server-rendered for SEO */}
-      {upcomingEvents.length > 0 && (
-        <div className="hidden">
-          {/* Structured data hint for crawlers */}
-          <span itemProp="name">{field.name}</span>
-          <span itemProp="address">{field.address}</span>
-          {field.sport.map((s) => <span key={s} itemProp="sport">{s}</span>)}
-        </div>
-      )}
-
+      {/* Ukryty blok z `itemProp` (nazwa, adres, sporty) USUNIĘTY 2026-08-23.
+          Był obejściem tego, że strona nie renderowała treści serwerowo —
+          i to obejściem słabym: treść schowana przed człowiekiem, a podana
+          robotowi, jest sygnałem spamu, nie pomocą. Dziś nazwa, opis i adres
+          idą do `VenueDetailClient` propsami i renderują się NORMALNIE, także
+          w stanie ładowania, czyli w HTML, który dostaje crawler. */}
       <VenueDetailClient
         fieldId={field.id}
+        nazwa={field.name}
+        adres={field.address}
         upcomingEvents={upcomingEvents}
         opis={opis}
         wojewodztwoSlug={field.voivodeship}
         wojewodztwoLabel={wojewodztwoLabel}
+        sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}
+        sportEtykieta={field.sport.length ? sportLabel(field.sport[0]) : undefined}
       />
     </>
   );

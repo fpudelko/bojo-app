@@ -14,7 +14,8 @@
 // Użycie:
 //   node scripts/audyt-robota.mjs                      # http://localhost:3000
 //   node scripts/audyt-robota.mjs --baza https://bojo.pl
-//   node scripts/audyt-robota.mjs --bez-bazy           # pomija trasy wymagające danych
+//   node scripts/audyt-robota.mjs --bez-bazy           # trasy z danych sprawdzane miękko
+//   node scripts/audyt-robota.mjs --baza https://bojo.pl --boisko orlik-rataje
 //
 // OGRANICZENIE, które trzeba znać: `--bez-bazy` (tryb CI, atrapy kluczy
 // Supabase) NIE sprawdzi stron obiektu ani hubów wypełnionych danymi — bez bazy
@@ -30,6 +31,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const BAZA = (args.includes('--baza') ? args[args.indexOf('--baza') + 1] : 'http://localhost:3000').replace(/\/$/, '');
 const BEZ_BAZY = args.includes('--bez-bazy');
+// Slug istniejącego obiektu. Bez niego strony obiektu nie da się sprawdzić —
+// a to ONA jest powodem, dla którego ten skrypt powstał (30 tys. stron, które
+// oddawały robotowi pusty szkielet). Przy przebiegu na produkcji podaj dowolny
+// realny slug z katalogu.
+const BOISKO = args.includes('--boisko') ? args[args.indexOf('--boisko') + 1] : null;
 
 // ---------------------------------------------------------------------------
 // Frazy zakazane — JEDNO źródło z treścią stron. Parsowane z pliku TS zamiast
@@ -63,8 +69,8 @@ const TRASY = [
   // Mecz, którego nie ma, wygląda tak samo jak prywatny — i jeden, i drugi ma
   // zostać poza indeksem (docs/seo-geo-strategia.md, P1).
   { adres: '/wydarzenia/00000000-0000-4000-8000-000000000000', h1: false, linki: false, noindex: true },
-  // Strona obiektu: sedno sprawy, ale bez bazy nie ma czego wyrenderować.
-  { adres: '/boisko/PRZYKLAD',      h1: true,  linki: true, wymagaBazy: true },
+  // Strona obiektu: sedno sprawy, ale bez danych nie ma czego wyrenderować.
+  ...(BOISKO ? [{ adres: `/boisko/${BOISKO}`, h1: true, linki: true, wymagaBazy: true }] : []),
 ];
 
 // ---------------------------------------------------------------------------
@@ -132,6 +138,7 @@ async function sprawdz(trasa) {
 }
 
 console.log(`audyt-robota — ${BAZA}${BEZ_BAZY ? ' (bez bazy)' : ''}\n`);
+if (!BOISKO) console.log('  – strona obiektu pominięta (podaj --boisko <slug>, żeby ją sprawdzić)');
 for (const trasa of TRASY) await sprawdz(trasa);
 
 console.log('');
