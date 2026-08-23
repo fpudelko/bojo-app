@@ -612,9 +612,22 @@ export default function VenueExplorer({
 
   // JAK patrzę — lista czy mapa. Wyłącznie lokalny stan (bez zmiany trybu
   // nie ma nawigacji między trasami, więc nie ma czego synchronizować z URL).
-  // Domyślnie mapa: to jest dotychczasowe zachowanie tej trasy, a lista jest
-  // teraz o dotknięcie dalej, nie odwrotnie.
-  const [widok, setWidok] = useState<'lista' | 'mapa'>('mapa');
+  //
+  // DOMYŚLNY WIDOK IDZIE ZA RODZAJEM DANYCH, nie jest jeden dla całej trasy:
+  //
+  // • GRY → lista. Mecz to przede wszystkim TERMIN i wolne miejsca, a tego
+  //   pinezka nie mówi — trzeba w nią kliknąć, żeby się dowiedzieć, czy w ogóle
+  //   jest o czym rozmawiać. Lista odpowiada na „w co mogę zagrać" od razu,
+  //   bez przybliżania i bez zgody na lokalizację: `getPublicEvents()` pobiera
+  //   wszystkie otwarte mecze naraz, niezależnie od kadru mapy. Otwartych
+  //   meczów są dziesiątki, więc lista się nie zapycha.
+  // • OBIEKTY → mapa. „Gdzie jest boisko" to pytanie z gruntu przestrzenne,
+  //   a katalog liczy dziesiątki tysięcy pozycji — lista jest tu narzędziem
+  //   drugiego wyboru, nie pierwszego.
+  //
+  // Wejście z dolnej nawigacji („Szukaj" → `/mapa?gry=1`) trafia więc od razu
+  // na listę otwartych meczów.
+  const [widok, setWidok] = useState<'lista' | 'mapa'>(showGames ? 'lista' : 'mapa');
 
   // Modal Typ obiektu/Nawierzchnia/Sport — szkic w tym samym stylu co na
   // dawnym /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
@@ -1328,11 +1341,19 @@ export default function VenueExplorer({
           )}
         </div>
 
-        {/* Licznik */}
+        {/* Licznik.
+
+            `wKadrze`, nie `fields.length`: przy oddaleniu mapa pobiera SKUPISKA
+            zamiast pojedynczych obiektów, więc `allFields` jest wtedy celowo
+            puste (patrz efekt z `getExplorerClusters`). Licznik liczony z
+            `fields` pokazywał w tej sytuacji „0 boisk" nad listą, choć w kadrze
+            stoi ich kilka tysięcy — a mapa obok rysowała je poprawnie jako
+            kółka z liczbami. `wKadrze` sumuje skupiska, a poza trybem skupisk
+            jest po prostu równe `fields.length`. */}
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
           {showGames
             ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
-            : `${fields.length} ${boiskoSlowo(fields.length)}`}
+            : `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)}`}
         </div>
 
         {/* Scrollable list */}
@@ -1343,8 +1364,40 @@ export default function VenueExplorer({
                 <EventBrowseCard event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
               </div>
             ))}
+            {/* PUSTA LISTA GIER JEST TERAZ EKRANEM POWITALNYM, nie skrajnym
+                przypadkiem: „Szukaj" wchodzi wprost tutaj, więc ktoś bez
+                otwartych meczów w okolicy zobaczy to jako PIERWSZĄ rzecz
+                w aplikacji. Samo „Brak meczów" byłoby wtedy ślepym końcem
+                dokładnie w chwili największej ciekawości.
+                Rozdzielamy dwie różne przyczyny pustki — własne filtry (do
+                zdjęcia) kontra brak meczów w ogóle (nie ma czego zdejmować) —
+                i w obu wypadkach dajemy wyjście dalej. */}
             {gamesRows.length === 0 && (
-              <p className="text-sm text-slate-400 text-center pt-8">Brak meczów dla tych filtrów</p>
+              <div className="pt-10 text-center">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {liczbaFiltrow > 0 ? 'Żaden mecz nie pasuje do filtrów' : 'Nie ma teraz otwartych meczów'}
+                </p>
+                <p className="mx-auto mt-1 max-w-[15rem] text-xs text-slate-400">
+                  {liczbaFiltrow > 0
+                    ? 'Poluzuj filtry albo zorganizuj własny mecz.'
+                    : 'Zorganizuj własny — zajmie minutę i pokaże się tu innym.'}
+                </p>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <Link
+                    href="/wydarzenia/nowe"
+                    className="rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                  >
+                    Zorganizuj mecz
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={toggleShowGames}
+                    className="text-sm font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800"
+                  >
+                    Zobacz boiska w okolicy
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -1373,12 +1426,45 @@ export default function VenueExplorer({
                 Pokaż więcej ({fields.length - visibleFields.length})
               </button>
             )}
-            {fields.length === 0 && (searchResults ?? allFields).length > 0 && (
-              <p className="text-sm text-slate-400 text-center pt-8">
-                {trybSkupisk
-                  ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku — przybliż mapę, żeby zobaczyć pojedyncze`
-                  : 'Brak boisk dla tych filtrów'}
-              </p>
+            {/* W TRYBIE SKUPISK LISTA JEST PUSTA Z ZAŁOŻENIA, nie z braku
+                wyników. Warunek `(searchResults ?? allFields).length > 0`
+                wykluczał dokładnie ten przypadek — `allFields` jest wtedy
+                celowo puste — więc gałąź `trybSkupisk` poniżej nigdy się nie
+                renderowała i zostawała goła lista pod napisem „0 boisk".
+
+                „Przybliż" jest przyciskiem, nie zdaniem: w widoku „Lista" mapa
+                jest schowana (`display: none`), więc rada „przybliż mapę" nie
+                ma czego dotyczyć — nie ma czego chwycić palcem. Przycisk
+                przybliża instancję Leafleta do progu, przy którym pobierają
+                się pojedyncze obiekty, i lista wypełnia się bez wychodzenia
+                z listy. */}
+            {fields.length === 0 && trybSkupisk && (
+              <div className="pt-8 text-center">
+                <p className="text-sm text-slate-400">
+                  {wKadrze.toLocaleString('pl-PL')} {boiskoSlowo(wKadrze)} w tym widoku
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!mapInstance) return;
+                    // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
+                    // Samo `setZoom` trzyma środek, a środek widoku całej
+                    // Polski to pole pod Łodzią — przybliżenie kończyłoby się
+                    // wtedy listą „0 boisk", czyli dokładnie tym, co ten
+                    // przycisk ma naprawić.
+                    const najwieksze = skupiska.reduce<Skupisko | null>(
+                      (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
+                    if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
+                    else mapInstance.setZoom(ZOOM_SKUPISK);
+                  }}
+                  className="mt-3 rounded-xl border border-primary-700 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
+                >
+                  Przybliż tam, gdzie jest ich najwięcej
+                </button>
+              </div>
+            )}
+            {fields.length === 0 && !trybSkupisk && (searchResults ?? allFields).length > 0 && (
+              <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
             )}
           </div>
         )}

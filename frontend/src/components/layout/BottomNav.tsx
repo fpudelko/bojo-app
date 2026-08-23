@@ -65,9 +65,19 @@ function BallIcon({ className }: { className?: string }) {
 // Zastrzeżenie, świadomie przyjęte: świeże konto zobaczy na pierwszej pozycji
 // pusty ekran. Pusty stan da się napisać dobrze — złej kolejności nie da się
 // nadrobić niczym.
+// „Szukaj" prowadzi na `/mapa?gry=1`, czyli od razu do OTWARTYCH MECZÓW, nie do
+// katalogu boisk. Pytanie, z którym człowiek tu wchodzi, brzmi „w co mogę dziś
+// zagrać", a nie „jakie są w okolicy boiska" — boisko bez meczu to informacja
+// dopiero na drugim kroku. Lista gier jest przy tym gotowa od razu:
+// `getPublicEvents()` pobiera wszystkie otwarte mecze naraz, niezależnie od
+// kadru mapy, więc nie wymaga ani przybliżania, ani zgody na lokalizację.
+//
+// `href` zostaje CZYSTĄ ŚCIEŻKĄ (`/mapa`) — po nim idzie dopasowanie stanu
+// „wybrane", kropki i dymki niżej. Adres z parametrem siedzi osobno, w
+// `hrefPelny`, żeby `?gry=1` nie rozsypało tamtych porównań.
 const LEFT_ITEMS = [
   { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
-  { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
+  { href: '/mapa', hrefPelny: '/mapa?gry=1', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -318,9 +328,14 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, licznikKolor = 'bg-primary-700', licznikOpis, gest,
+    href, hrefPelny, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, licznikKolor = 'bg-primary-700', licznikOpis, gest,
   }: {
-    href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
+    href: string;
+    /** Adres do przejścia, gdy różni się od `href` — bo `href` służy tu także
+        za tożsamość pozycji (stan „wybrane", kropki, dymki) i musi zostać
+        czystą ścieżką. Dziś tylko „Szukaj": `/mapa` kontra `/mapa?gry=1`. */
+    hrefPelny?: string;
+    label: string; Icon: React.ComponentType<{ className?: string }>;
     /** Kropki — dziś "Mecze" (niebieska: oczekujące prośby o dołączenie,
         dolny róg), "Ekipy" (pomarańczowa: nowy mecz w ekipie) i "Szukaj"
         (pomarańczowa: nowe wydarzenia w pobliżu). Kolor niesie znaczenie
@@ -378,7 +393,7 @@ export default function BottomNav() {
     const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
     return (
       <Link
-        href={href}
+        href={hrefPelny ?? href}
         aria-label={ariaSuffix ? `${label}${ariaSuffix}` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
