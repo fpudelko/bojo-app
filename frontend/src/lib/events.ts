@@ -10,6 +10,14 @@ import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus,
 // Row mappers
 // ---------------------------------------------------------------------------
 
+/** Współrzędna meczu, z obiektu jako zapasowe źródło. `undefined` = brak
+ *  położenia, czyli mecz nie ma jak trafić na mapę. */
+function wspolrzedna(wlasna: unknown, zObiektu: unknown): number | undefined {
+  if (wlasna != null) return Number(wlasna);
+  if (zObiektu != null) return Number(zObiektu);
+  return undefined;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function toEvent(row: any): EventItem {
   return {
@@ -19,8 +27,16 @@ export function toEvent(row: any): EventItem {
     sport: row.sport,
     fieldId: row.field_id ?? undefined,
     fieldName: row.field_name,
-    lat: row.lat != null ? Number(row.lat) : undefined,
-    lng: row.lng != null ? Number(row.lng) : undefined,
+    // WSPÓŁRZĘDNE Z OBIEKTU, GDY MECZ ICH NIE MA. `events.lat/lng` wypełnia
+    // kreator z pickera lokalizacji, ale wiersz może ich nie mieć: mecze
+    // zakładane skryptem (seedy), starsze wiersze sprzed pickera, import.
+    // Taki mecz jest na liście i znika z mapy BEZ ŚLADU — a jeśli wisi przy
+    // obiekcie z katalogu, jego położenie jest doskonale znane, tylko w innej
+    // tabeli. Stąd `fields(lat, lng)` w zapytaniach listowych i to sięgnięcie.
+    // Pinezka postawiona ręcznie (bez `field_id`) fallbacku nie ma i mieć nie
+    // może — nie ma do czego sięgnąć.
+    lat: wspolrzedna(row.lat, row.fields?.lat),
+    lng: wspolrzedna(row.lng, row.fields?.lng),
     title: row.title ?? undefined,
     description: row.description ?? undefined,
     date: row.event_date,
@@ -379,7 +395,7 @@ export async function getEventsByGroup(groupId: string): Promise<EventItem[]> {
 export async function getPublicEvents(): Promise<EventItem[]> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, fields(district), event_participants(id, is_reserve, pending_approval)')
+    .select('*, fields(district, lat, lng), event_participants(id, is_reserve, pending_approval)')
     .eq('visibility', 'public')
     .gte('event_date', new Date().toISOString().slice(0, 10))
     .order('event_date', { ascending: true });
@@ -416,7 +432,7 @@ export async function getMyGroupEvents(userId: string): Promise<EventItem[]> {
 
   const { data, error } = await supabase
     .from('events')
-    .select('*, fields(district), event_participants(id, is_reserve, pending_approval)')
+    .select('*, fields(district, lat, lng), event_participants(id, is_reserve, pending_approval)')
     .in('group_id', groupIds)
     .eq('status', 'active')
     .gte('event_date', new Date().toISOString().slice(0, 10))

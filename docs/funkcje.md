@@ -1348,6 +1348,30 @@ przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 `VenueExplorer.tsx` w trybie „Gry", patrz „Układ `/mapa`" niżej. Mapa robi
 `fitBounds` na cały zbiór przy każdej zmianie filtrów.
 
+**Mecz bez współrzędnych nie trafia na mapę — i mapa musi to POWIEDZIEĆ.** Pinezka
+potrzebuje `lat`/`lng`; wiersz bez nich `GamesMarkersLayer` pomija. Zgłoszone wprost:
+„na liście są, na mapie pusto". Złożyły się na to trzy rzeczy i każda jest naprawiona
+osobno:
+
+1. **Współrzędne z obiektu jako zapasowe źródło** (`wspolrzedna()` w `toEvent()`,
+   `lib/events.ts`). Mecz przypięty do obiektu z katalogu ma znane położenie — tylko
+   w tabeli `fields`, nie w swoim wierszu. Zapytania listowe ciągną więc
+   `fields(district, lat, lng)`, a mapper sięga po nie, gdy mecz nie ma własnych.
+   Pinezka postawiona ręcznie (bez `field_id`) fallbacku nie ma i mieć nie może.
+2. **Licznik liczy PINEZKI, nie wiersze** (`GamesMapCanvas`). Brał `rows.length`, więc
+   nad pustą mapą stało „12 meczy na mapie" — brak danych czytał się jak zepsuta mapa.
+   Dziś liczy zlokalizowane i dopisuje „· N bez lokalizacji", gdy któreś wypadły.
+3. **Pusta mapa tłumaczy się sama** — gdy ani jeden mecz nie ma lokalizacji, na
+   kafelkach stoi zdanie, że to brak danych, a nie awaria, i że na liście są wszystkie.
+
+Pilnuje tego `e2e/mapa-bez-wspolrzednych.klikalnosc.spec.ts` (atrapa PostgREST, bez bazy).
+
+**Seedy ustawiają współrzędne** — do 2026-08-23 nie robił tego żaden, więc KAŻDY widok
+mapy na danych testowych był pusty (111 ze 112 zaseedowanych meczów bez `lat`). Każdy
+seed kończy się jednym `UPDATE` rozrzucającym mecze wokół centrum Poznania,
+deterministycznie z tytułu (ten sam mecz zawsze w tym samym punkcie, więc zrzuty ekranu
+się nie ruszają; różne mecze w różnych, więc pinezki nie siedzą jedna na drugiej).
+
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
 sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
 „kiedy + godzina" pod spodem (`matchWhenLabel(date, time)`: dziś · 18:00 / jutro · 18:00
