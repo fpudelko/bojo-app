@@ -343,6 +343,53 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+<<<<<<< HEAD
+=======
+### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
+
+PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
+liczbę miejsc, czas na decyzję z rezerwy, koszt, metody płatności, zniżkę karty sportowej
+i tryb miejsc dla bramkarzy. Typowy mecz — darmowy, bez rezerwy, bez podziału na
+bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było przewinąć przez
+wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
+
+ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
+trzy przełączniki DOMYŚLNIE WYŁĄCZONE — „Lista rezerwowa", „Mecz płatny", „Bramkarze
+osobno". Szczegóły każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny"
+czyści kwotę i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa
+i „Biorę udział"), krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis).
+Publikacja przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu —
+mecz jest widoczny natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się
+szybciej, niż da się ją poprawić.
+
+SKUTEK DLA NOWYCH MECZÓW: przełącznik rezerwy wyłączony domyślnie znaczy, że nowy mecz
+przy komplecie ZAMYKA zapisy zamiast ustawiać kolejkę. Kto chce kolejkę, włącza ją
+w kreatorze albo później w edycji meczu.
+
+MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
+`frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie
+chowający ich CSS-em — ukryte pole nadal wysyła wartość);
+`EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
+`UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
+w `lib/eventWizard.ts`. Bez migracji.
+
+### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
+
+PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
+grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
+Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
+
+ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
+wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
+Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
+właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
+Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
+
+MECHANIKA: migracja `124` (`dm_conversations` z parą kanoniczną `low < high`,
+`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
+`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
+
+>>>>>>> c0d82e1 (Kreator: trzy przełączniki zamiast ściany ustawień, publikacja przez okno)
 ### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
 
 PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
@@ -356,7 +403,7 @@ znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi 
 miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
 niezależnie od tego ustawienia.
 
-MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
+MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
 `trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
 z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
 przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
@@ -437,7 +484,7 @@ PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą (Supa
 bezpośrednio, a klucz dostępu do API siedzi jawnie w kodzie strony. Jedyną granicą są
 reguły dostępu w bazie (RLS), a rozmowy meczów miały regułę bez żadnego warunku na osobę:
 treść rozmowy DOWOLNEGO meczu, także prywatnego, dało się pobrać jednym zapytaniem, bez
-zakładania konta. Interfejs pokazywał zakładkę „Rozmowa" wyłącznie uczestnikom, ale to
+zakładania konta. Interfejs pokazywał wejście do rozmowy wyłącznie uczestnikom, ale to
 była bramka w aplikacji, nie w bazie. Osobno to samo dotyczyło numeru BLIK organizatora:
 aplikacja chowała go do godziny przed meczem, a baza oddawała go w każdej odpowiedzi
 o mecz, bo reguły dostępu w Postgresie działają na całe wiersze, nie na kolumny.
@@ -548,9 +595,10 @@ sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłączn
 „opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
 
 MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
-„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
+„Twoja płatność" w sekcji Kasa), `canSeeBlikPhone()` i `priceForParticipant()`
 z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 
+<<<<<<< HEAD
 ### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
 
 PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
@@ -577,3 +625,5 @@ Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu
 Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
 w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
 
+=======
+>>>>>>> c0d82e1 (Kreator: trzy przełączniki zamiast ściany ustawień, publikacja przez okno)

@@ -596,7 +596,24 @@ w `app/wydarzenia/nowe/page.tsx` (brama logowania i właściwy kreator) dostają
 `showMobileWordmark` — ten sam prop co `/moje-gry`, `/grupy`, `/wydarzenia/[id]`.
 Wysokość paska bez zmian (`h-12`, sticky stepper na `top-12`).
 
-**Krok 1 — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
+**Krok 1 „Kiedy" — termin, liczba miejsc, trzy przełączniki.** Ekran niesie datę,
+godzinę, czas trwania i liczbę miejsc, a pod nimi trzy przełączniki **domyślnie
+wyłączone** (`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny",
+„Bramkarze osobno" (ostatni tylko dla sportów z `GK_SPORTS`). Szczegóły każdego —
+czas na decyzję z rezerwy, kwota i metody płatności, tryb miejsc dla bramkarzy —
+**montują się dopiero po włączeniu**, nie są chowane CSS-em: ukryte pole nadal
+wysyła wartość i nadal się waliduje. Wyłączenie „Mecz płatny" CZYŚCI kwotę i metody.
+Na dole kroku stoi „Biorę udział" (z wyborem bramkarz/z pola, gdy podział jest
+włączony) — pod przełącznikiem, który tę kontrolkę włącza, nie nad nim.
+
+Konsekwencja domyślnie wyłączonej rezerwy: **nowy mecz przy komplecie zamyka zapisy**.
+Kolejka jest wyborem, patrz `events.reserve_enabled` (migracja `123`).
+
+`STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx` mapuje pole → krok dla skoku steppera
+przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
+rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
+
+**Krok 2 „Gdzie" — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
 wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
 guardowany `try/catch` jak `eventDraft.ts`). Zapis następuje po udanej publikacji,
 **przed** `clearEventDraft()`, i tylko gdy miejsce pochodziło z katalogu — pinezka własna
@@ -604,17 +621,18 @@ nie ma `id`. Odczyt pokazuje chip „Ostatnio: «nazwa» — Użyj", widoczny wy
 miejsce nie jest jeszcze wybrane. To **propozycja, nie autowybór**: ciche ustawienie
 miejsca meczu jest najgorszą możliwą pomyłką do przeoczenia.
 
-**Krok 2 — „Czas na decyzję z rezerwy" bez chowania.** Pole stoi na stałe pod „Liczbą
-miejsc" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
+**„Czas na decyzję z rezerwy" (krok 1, pod przełącznikiem rezerwy).** Pole stoi tuż pod
+przełącznikiem „Lista rezerwowa" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
 z polem liczbowym w minutach, 15 min – 72 h; domyślnie 180 min = 3 h). Wcześniej
 siedziało pod rozwijanym „Więcej opcji" — sekcja została w kodzie, ale nie ma dziś czego
-pokazać i się nie renderuje. Odwrócenie ustalenia O-11 audytu, patrz
+pokazać i się nie renderuje. Od 2026-08-23 całość jest za przełącznikiem: mecz bez
+rezerwy nie pokazuje ani tego pola, ani zdania o kolejce. Odwrócenie ustalenia O-11 audytu, patrz
 [przeplyw-organizatora.md](./przeplyw-organizatora.md). Kolumna `events.reserve_claim_minutes`
 (do migracji `118` — `reserve_claim_hours`, wyłącznie pełne godziny) opisana w
 [domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans). Obok steppera liczby miejsc stoi podpowiedź,
 że graczy dopisuje się po utworzeniu meczu, na jego stronie, także bez konta.
 
-**Krok 2 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
+**Krok 1 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
 `components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej
 daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „otwieraj zapisy X dni przed
 terminem" (dawniej „powiadamiaj" — od migracji `073` ta wartość steruje AUTOMATYCZNYM
@@ -626,6 +644,9 @@ pierwszy mecz przez `events.recurring_event_id`. Po publikacji strona meczu poka
 jednorazowy link do panelu serii (`/cykliczne/{id}`) przez `?cykliczne=<id>`, a stały badge
 „Stała gierka" (organizator, w pasku u góry strony meczu) prowadzi tam samo z powrotem.
 Patrz „Serie wydarzeń cyklicznych" niżej.
+
+**Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
+wymaganych (`validateStep3` zwraca `{}`).
 
 **Krok 3 — mecz w ramach grupy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
@@ -649,10 +670,19 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 
 ## Podsumowanie przed publikacją
 
-Ostatni krok kreatora kończy się kartą **„Tak zobaczą to gracze"**
-(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`). Powód:
-przycisk „Opublikuj mecz" stoi na kroku 3, a data, miejsce, skład i cena były ustawiane na
-krokach 1–2 i w chwili publikacji nie były widoczne.
+„Opublikuj mecz →" na kroku 3 **nie publikuje** — otwiera okno **„Tak zobaczą to gracze"**
+(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`) z dwoma
+przyciskami: „Popraw" i „Publikuję". Powód: data, miejsce, skład i cena są ustawiane na
+krokach 1–2 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po
+utworzeniu i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej,
+niż da się ją poprawić.
+
+Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
+zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
+że jedną z nich się przewija bez czytania. Okno stoi POZA `<form>` — każdy `<button>`
+w formularzu bez `type` jest przyciskiem wysyłającym. Błąd walidacji i błąd zapisu
+zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek „Publikuję" zostaje
+widoczny na czas zapisu.
 
 Sześć wierszy — Co / Kiedy / Gdzie / Skład / Koszt / Kto widzi — każdy z przyciskiem
 „Zmień" wołającym `attemptGoToStep`. Cofanie nigdy nie waliduje, więc skok jest bezpieczny
@@ -680,7 +710,7 @@ Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
 produkcyjny build (pułapka opisana w `AGENTS.md`). Zaraz po odczycie parametr znika
 z adresu przez `history.replaceState`, więc odświeżenie nie pokazuje panelu drugi raz.
 
-Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 2), doszedł
+Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 1), doszedł
 `?cykliczne=<id>` — czytany tym samym `useEffect` i zdejmowany tak samo. Panel dostaje
 wtedy dodatkowy link „Ustawiłeś powtarzanie co tydzień — zarządzaj serią" do
 `/cykliczne/{id}`.

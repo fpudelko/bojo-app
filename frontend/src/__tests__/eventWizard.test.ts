@@ -112,18 +112,18 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
     expect(validateStep(3, base)).toEqual({});
   });
 
-  it('step 2 also surfaces payment errors when payment fields are given', () => {
-    const errs = validateStep(2, {
-      ...base, location: { venue: {}, lat: 52 },
-      costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '',
+  // Koszt przeniósł się na krok 1 (pod przełącznik „Mecz płatny"), więc jego
+  // walidacja musiała pójść za polem. Zgłoszona krok później wskazywałaby pole,
+  // którego na ekranie już nie ma.
+  it('krok 1 pokazuje błędy płatności, gdy podano pola płatności', () => {
+    const errs = validateStep(1, {
+      ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '',
     });
     expect(errs.blikPhone).toBeDefined();
   });
 
-  it('step 2 treats missing payment fields as a free match (no payment errors)', () => {
-    // Miejsce musi być wskazane, inaczej krok 2 zwróci błąd lokalizacji
-    // i przypadek przestanie mówić o płatnościach.
-    expect(validateStep(2, { ...base, location: { venue: {}, lat: 52 } })).toEqual({});
+  it('krok 1 bez pól płatności traktuje mecz jak darmowy', () => {
+    expect(validateStep(1, base)).toEqual({});
   });
 });
 
@@ -146,8 +146,8 @@ describe('validateGoalkeepers', () => {
     expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: false })).toEqual({});
   });
 
-  it('krok 2 blokuje przejście dalej bez decyzji', () => {
-    const errs = validateStep(2, {
+  it('krok 1 blokuje przejście dalej bez decyzji', () => {
+    const errs = validateStep(1, {
       location: { venue: {}, lat: 52, lng: 17 } as never,
       date: '2099-01-01', time: '18:00',
       sportMaBramkarza: true, goalkeepersEnabled: null,
