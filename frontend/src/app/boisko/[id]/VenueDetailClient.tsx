@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase';
 import { getOutreach } from '@/lib/outreach';
 import type { Outreach } from '@/lib/outreach';
 import ZglosBladObiektu from '@/components/venues/ZglosBladObiektu';
+import AnkietyObiektu from '@/components/venues/AnkietyObiektu';
 import VenueComments from '@/components/venue/VenueComments';
 import { odczytajPowrot } from '@/lib/powrot';
 import type { Field, TimeSlot } from '@/types';
@@ -59,9 +60,19 @@ function formatDatePl(iso: string): string {
 export default function VenueDetailClient({
   fieldId,
   upcomingEvents = [],
+  opis,
+  wojewodztwoSlug,
+  wojewodztwoLabel,
 }: {
   fieldId: string;
   upcomingEvents?: UpcomingEvent[];
+  /** Akapit z content/opisObiektu.ts, liczony server-side w page.tsx — ten
+   *  sam tekst, co w JSON-LD description. */
+  opis?: string;
+  /** Faza 2b SEO/GEO: link do huba /boiska/woj/[wojewodztwo], gdy backfill
+   *  lokalizacji (migracja 112) już wypełnił tę kolumnę dla tego obiektu. */
+  wojewodztwoSlug?: string;
+  wojewodztwoLabel?: string;
 }) {
   const id = fieldId;
   const { user, loading: authLoading } = useAuth();
@@ -233,6 +244,21 @@ export default function VenueDetailClient({
           </Link>
           <h1 className="text-xl font-bold text-slate-900 truncate">{field.name}</h1>
         </div>
+
+        {/* Direct answer — fact-dense akapit pod SEO/GEO (Faza 1, BACKLOG.md §7a),
+            ten sam tekst co w description JSON-LD niżej na stronie. */}
+        {opis && <p className="text-sm text-slate-600 dark:text-slate-400">{opis}</p>}
+
+        {/* Link do huba wojewódzkiego (Faza 2b) — widoczny, nie tylko w JSON-LD
+            breadcrumbs (page.tsx), żeby crawler mógł go realnie przejść. */}
+        {wojewodztwoSlug && wojewodztwoLabel && (
+          <Link
+            href={`/boiska/woj/${wojewodztwoSlug}`}
+            className="inline-block text-xs text-primary-600 hover:underline"
+          >
+            Więcej boisk w województwie {wojewodztwoLabel} →
+          </Link>
+        )}
 
         {/* Field info card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -661,6 +687,8 @@ export default function VenueDetailClient({
             </Link>
           </div>
         </div>
+
+        <AnkietyObiektu fieldId={field.id} />
 
         <VenueComments fieldId={field.id} />
 

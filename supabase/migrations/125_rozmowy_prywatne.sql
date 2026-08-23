@@ -1,4 +1,4 @@
--- 124: Rozmowy prywatne między graczami (1-na-1) wraz z blokowaniem
+-- 125: Rozmowy prywatne między graczami (1-na-1) wraz z blokowaniem
 --      i zgłaszaniem.
 --
 -- PO CO. Jedynym pisemnym kanałem w Bojo były dotąd rozmowy POD meczem
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS dm_conversations (
 );
 
 COMMENT ON TABLE dm_conversations IS
-  'Rozmowy prywatne 1-na-1 (migracja 124). Para kanoniczna low < high: rozmowa A↔B to jeden wiersz bez względu na to, kto pisze pierwszy.';
+  'Rozmowy prywatne 1-na-1 (migracja 125). Para kanoniczna low < high: rozmowa A↔B to jeden wiersz bez względu na to, kto pisze pierwszy.';
 
 CREATE TABLE IF NOT EXISTS dm_messages (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS dm_messages (
 );
 
 COMMENT ON TABLE dm_messages IS
-  'Wiadomości prywatne (migracja 124). Miękkie kasowanie przez deleted_at, jak event_comments.';
+  'Wiadomości prywatne (migracja 125). Miękkie kasowanie przez deleted_at, jak event_comments.';
 
 CREATE INDEX IF NOT EXISTS dm_messages_rozmowa_czas
   ON dm_messages (low_user_id, high_user_id, created_at);
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS user_blocks (
 );
 
 COMMENT ON TABLE user_blocks IS
-  'Kto kogo zablokował (migracja 124). Wpis kierunkowy, ale przy pisaniu obowiązuje w obie strony — patrz czy_zablokowani().';
+  'Kto kogo zablokował (migracja 125). Wpis kierunkowy, ale przy pisaniu obowiązuje w obie strony — patrz czy_zablokowani().';
 
 CREATE TABLE IF NOT EXISTS user_reports (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS user_reports (
 );
 
 COMMENT ON TABLE user_reports IS
-  'Zgłoszenia użytkowników (migracja 124). Czyta wyłącznie administracja — zgłaszający nie widzi cudzych zgłoszeń, a zgłoszony nie widzi żadnego.';
+  'Zgłoszenia użytkowników (migracja 125). Czyta wyłącznie administracja — zgłaszający nie widzi cudzych zgłoszeń, a zgłoszony nie widzi żadnego.';
 
 /**
  * Czy między tą parą stoi blokada — W KTÓRĄKOLWIEK stronę.

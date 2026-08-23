@@ -16,7 +16,7 @@ import {
 } from '@/lib/dm';
 
 /**
- * `/rozmowy/[id]` — rozmowa prywatna z graczem o podanym id (migracja `124`).
+ * `/rozmowy/[id]` — rozmowa prywatna z graczem o podanym id (migracja `125`).
  *
  * Wygląd celowo identyczny z rozmową meczu i tablicą ekipy — wspólne reguły
  * siedzą w `lib/czat.ts`, więc trzy ekrany nie rozjeżdżają się w detalach,

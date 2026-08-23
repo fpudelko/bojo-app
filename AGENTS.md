@@ -234,6 +234,16 @@ trzeba wkleić do Supabase → SQL Editor. Nic nie robi tego automatycznie. Doda
 w migracji ≠ kolumna istnieje w bazie — jeśli apka rzuca błędem o nieznanej kolumnie,
 najpewniej migracja nie została puszczona.
 
+**Gorsza wersja tej samej pułapki: migracja puszczona w POŁOWIE.** Gdy seed wywala się
+na nieznanej kolumnie, odruch brzmi „puszczę z ręki tę jedną linijkę, żeby się
+odblokować". Po `ALTER TABLE … RENAME COLUMN` baza zostaje wtedy w stanie, którego nie
+przewiduje żadna wersja kodu: kolumna ma nową nazwę, ale **nazwa ograniczenia się nie
+zmienia**, więc dalej wisi stary `CHECK` i stara wartość domyślna, a dane są w starej
+jednostce. Dlatego **migracja ma dać się puścić drugi raz** i naprawić stan połowiczny
+(wzorzec: `118_rezerwa_czas_w_minutach.sql`), a seedy sprawdzają schemat przed pierwszym
+zapisem i mówią, którego pliku migracji brakuje. Szczegóły →
+[docs/baza-danych.md](./docs/baza-danych.md#-migracja-przerwana-w-połowie-zostaje-w-połowie).
+
 **Do UPDATE-ów używaj `zaktualizujJedenWiersz()`, do dużych list `pobierzWszystkie()`**
 (`frontend/src/lib/zapytania.ts`). Oba istnieją po to, żeby cisza opisana w dwóch
 pułapkach niżej zamieniła się w wyjątek. Nowy kod, który omija te helpery, odtwarza
@@ -281,7 +291,7 @@ Nie „naprawiaj" tego.
 ## Rozmowy: jedna lista, trzy źródła — i dlaczego NIE jedna tabela
 
 `/rozmowy` łączy w jedną listę rozmowy meczów (`event_comments`), tablice ekip
-(`group_posts`) i wiadomości prywatne (`dm_messages`, migracja `124`).
+(`group_posts`) i wiadomości prywatne (`dm_messages`, migracja `125`).
 Rozróżnia je pole `typ` w `WpisRozmowy`, nadawane przy łączeniu
 (`polaczRozmowy()` w `app/rozmowy/RozmowyClient.tsx`).
 

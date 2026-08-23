@@ -11,3 +11,27 @@ export const WOJEWODZTWA = [
 ] as const;
 
 export type Wojewodztwo = (typeof WOJEWODZTWA)[number];
+
+// Nazwa do wyświetlenia, mianownik z wielkiej litery. Celowo BEZ odmiany przez
+// przypadki (np. "w województwie wielkopolskim" wymagałoby fleksji przymiotnika,
+// nie tylko rzeczownika) — nagłówek huba wojewódzkiego składa się jako
+// "Województwo {Nazwa} — …", gdzie nazwa zawsze stoi w mianowniku, więc błędna
+// odmiana nie ma jak się wkraść (patrz app/boiska/woj/[wojewodztwo]/page.tsx).
+export const WOJEWODZTWO_LABEL: Record<Wojewodztwo, string> = {
+  'dolnoslaskie': 'Dolnośląskie',
+  'kujawsko-pomorskie': 'Kujawsko-Pomorskie',
+  'lubelskie': 'Lubelskie',
+  'lubuskie': 'Lubuskie',
+  'lodzkie': 'Łódzkie',
+  'malopolskie': 'Małopolskie',
+  'mazowieckie': 'Mazowieckie',
+  'opolskie': 'Opolskie',
+  'podkarpackie': 'Podkarpackie',
+  'podlaskie': 'Podlaskie',
+  'pomorskie': 'Pomorskie',
+  'slaskie': 'Śląskie',
+  'swietokrzyskie': 'Świętokrzyskie',
+  'warminsko-mazurskie': 'Warmińsko-Mazurskie',
+  'wielkopolskie': 'Wielkopolskie',
+  'zachodniopomorskie': 'Zachodniopomorskie',
+};

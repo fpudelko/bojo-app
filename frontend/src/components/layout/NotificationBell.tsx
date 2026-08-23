@@ -11,6 +11,7 @@ import {
   getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI, TYPY_WIADOMOSCI, celPowiadomienia,
 } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
+import { ustawPlakietke } from '@/lib/plakietkaAplikacji';
 import OdpowiedzJednymKlikiem from '@/components/events/OdpowiedzJednymKlikiem';
 import type { AppNotification } from '@/types';
 
@@ -304,6 +305,7 @@ export default function NotificationBell() {
   // byłby trzeci z rzędu dla tej samej rzeczy.
   const reszta = notifs.filter((n) => !TYPY_WIADOMOSCI.has(n.type));
   const unreadReszta = reszta.filter((n) => !n.readAt).length;
+  const nieprzeczytaneRazem = notifs.filter((n) => !n.readAt).length;
 
   // Otwarcie panelu zawsze pokazuje GÓRĘ listy, czyli najnowsze powiadomienie.
   // Przeglądarka potrafi zapamiętać poprzednią pozycję przewijania i wtedy
@@ -418,6 +420,31 @@ export default function NotificationBell() {
     // zapytanie drugi raz zaraz po otwarciu panelu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, otwartyPanel, notifs.length]);
+
+  // Liczba na IKONIE APLIKACJI (`lib/plakietkaAplikacji.ts`). Dzwonek jest
+  // jedynym miejscem w aplikacji, które zna komplet nieprzeczytanych, więc
+  // stąd ją ustawiamy — na każdą zmianę stanu, także po oznaczeniu jako
+  // przeczytane (plakietka, która nie gaśnie, przestaje cokolwiek znaczyć).
+  //
+  // WSZYSTKIE nieprzeczytane, nie tylko te z dzwonka: na ikonie jest miejsce
+  // na jedną liczbę, a rozróżnienie „wiadomość / reszta" niesie w aplikacji
+  // kolor (różowa chmurka, czerwony dzwonek — patrz AGENTS.md), czego ikona
+  // systemowa nie odda. Ta sama definicja co w `public/sw.js` i w funkcji
+  // brzegowej `send-push` — obie liczą wiersze `notifications` bez `read_at`.
+  // Powiadomienia o wiadomościach gasi wejście na `/rozmowy`
+  // (`oznaczWiadomosciPrzeczytane`), bo panel chmurki w nagłówku już nie
+  // istnieje.
+  //
+  // Sufit `ILE_POWIADOMIEN` z definicji ogranicza tę liczbę — przy 50
+  // nieprzeczytanych plakietka i tak dawno przestała być licznikiem, a stała
+  // się kropką z cyframi.
+  //
+  // Dzwonek jest zamontowany DWA razy (nagłówek mobilny i desktopowy), więc
+  // ten efekt wykonuje się dwa razy z tą samą wartością. To jest bez skutków:
+  // ustawienie plakietki jest idempotentne.
+  useEffect(() => {
+    ustawPlakietke(user ? nieprzeczytaneRazem : 0);
+  }, [user, nieprzeczytaneRazem]);
 
   // Close on outside click
   useEffect(() => {

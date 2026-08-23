@@ -121,7 +121,7 @@ function NewEventForm() {
   // Dotąd każdy mecz prowadził rezerwę, bo nie było jak jej nie prowadzić.
   // Mecz na zamkniętą ekipę albo halę opłaconą z góry rezerwy nie potrzebuje,
   // a „zapisałem się na listę" wymagało od organizatora tłumaczenia. Istniejące
-  // mecze zachowują rezerwę (`reserve_enabled` DEFAULT true w migracji `123`).
+  // mecze zachowują rezerwę (`reserve_enabled` DEFAULT true w migracji `124`).
   const [reserveEnabled, setReserveEnabled] = useState(false);
   // Tryb miejsc dla bramkarzy (migracja `077`). Wartość ma znaczenie tylko
   // wtedy, gdy `goalkeepersEnabled` jest włączone.

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 // przycisku niczego nie pilnuje. Ten plik sprawdza, czy obie strony mówią to
 // samo; samo zachowanie bazy sprawdza `supabase/test/rls.sql` i wyzwalacz.
 const migracja = readFileSync(
-  resolve(__dirname, '../../../supabase/migrations/123_lista_rezerwowa_opcjonalna.sql'), 'utf8');
+  resolve(__dirname, '../../../supabase/migrations/124_lista_rezerwowa_opcjonalna.sql'), 'utf8');
 const stronaMeczu = readFileSync(
   resolve(__dirname, '../app/wydarzenia/[id]/EventDetailClient.tsx'), 'utf8');
 const kreator = readFileSync(

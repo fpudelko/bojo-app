@@ -120,7 +120,7 @@ VALUES (:MECZ::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Numer do bramy to
 INSERT INTO group_posts (group_id, user_id, user_name, body)
 VALUES (:EKIPA::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Składka 20 zł od osoby');
 
--- Rozmowa prywatna (migracja 124). Para kanoniczna `low < high` — liczy ją
+-- Rozmowa prywatna (migracja 125). Para kanoniczna `low < high` — liczy ją
 -- `LEAST/GREATEST`, żeby fixture nie zakładał kolejności identyfikatorów.
 INSERT INTO dm_conversations (low_user_id, high_user_id)
 VALUES (LEAST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid), GREATEST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid));
@@ -233,7 +233,7 @@ SELECT _oczekuj('członek ekipy widzi tablicę',
                 (SELECT count(*) FROM group_posts WHERE group_id = :EKIPA::uuid), 1);
 RESET ROLE;
 
-SELECT _sekcja('RLS: rozmowy prywatne (dm_messages, migracja 124)');
+SELECT _sekcja('RLS: rozmowy prywatne (dm_messages, migracja 125)');
 
 -- Ta sekcja jest ważniejsza od pozostałych: rozmowa meczu jest półpubliczna
 -- z natury, a prywatna korespondencja nie ma ŻADNEJ dopuszczalnej ścieżki
@@ -266,7 +266,7 @@ SELECT _oczekuj_odmowe('obcy nie dopisze się do cudzej rozmowy prywatnej',
             (SELECT ' || quote_literal(:UCZESTNIK) || '::uuid AS id) u');
 RESET ROLE;
 
-SELECT _sekcja('RLS: blokady i zgłoszenia (migracja 124)');
+SELECT _sekcja('RLS: blokady i zgłoszenia (migracja 125)');
 
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);

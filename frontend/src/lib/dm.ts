@@ -1,5 +1,5 @@
 /**
- * Rozmowy prywatne 1-na-1 między graczami (migracja `124`).
+ * Rozmowy prywatne 1-na-1 między graczami (migracja `125`).
  *
  * PO CO. Jedynym pisemnym kanałem były dotąd rozmowy pod meczem
  * (`lib/comments.ts`) i tablica ekipy (`lib/groupPosts.ts`) — obie grupowe.
@@ -116,7 +116,7 @@ export async function usunDm(wiadomoscId: string): Promise<void> {
 }
 
 /** Blokada jest kierunkowa w zapisie, ale obowiązuje w OBIE strony przy
- *  pisaniu (`czy_zablokowani()` w migracji `124`). */
+ *  pisaniu (`czy_zablokowani()` w migracji `125`). */
 export async function zablokuj(mojId: string, drugiId: string): Promise<void> {
   const { error } = await supabase
     .from('user_blocks')

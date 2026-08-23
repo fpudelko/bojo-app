@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `124` · 44 tabele · 767 testów
+**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 767 testów
 
 ---
 
@@ -383,7 +383,7 @@ Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowie
 właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
 Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
 
-MECHANIKA: migracja `124` (`dm_conversations` z parą kanoniczną `low < high`,
+MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
 `dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
 `frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
 
@@ -400,7 +400,7 @@ znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi 
 miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
 niezależnie od tego ustawienia.
 
-MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
+MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
 `trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
 z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
 przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
@@ -423,6 +423,52 @@ MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
 `frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
 linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
 na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
+### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
+
+PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
+jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o
+konkretny obiekt. Katalog nie miał też punktu wejścia na poziomie województwa — tylko
+per sport albo per miasto (Poznań/Warszawa/Kraków) — a stan infrastruktury (oświetlenie,
+nawierzchnia) opierał się wyłącznie na danych z OpenStreetMap, czasem nieaktualnych.
+
+ROZWIĄZANIE BOJO: każda strona boiska ma teraz jeden gęsty akapit na górze („[Nazwa] to
+obiekt sportowy w [miejscowość] do gry w: [sporty]. [kryty/odkryty], nawierzchnia:
+[…], oświetlenie.") — ten sam tekst trafia do danych strukturalnych dla wyszukiwarek.
+Doszło 16 stron „Boiska sportowe — województwo [Nazwa]" z pełną listą obiektów.
+Gracze mogą potwierdzić dwa fakty o obiekcie — czy jest oświetlony, jaka jest
+nawierzchnia — i wynik pokazuje się jako „potwierdzone przez N graczy" dopiero po
+dwóch niezależnych głosach; to NIE nadpisuje danych z OpenStreetMap, pokazuje się obok.
+
+MECHANIKA: `content/opisObiektu.ts#opisObiektu()`, wpięty w `VenueDetailClient.tsx`
+i w `description` JSON-LD (`SportsActivityLocation`). Huby wojewódzkie:
+`/boiska/woj/[wojewodztwo]` (`force-dynamic`, bez prerenderu — katalog jest za duży),
+nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL`. Ankiety: `AnkietyObiektu.tsx`, tabela
+`potwierdzenia_obiektu` (migracja `123`, jeden głos na fakt na osobę, publiczny odczyt).
+Kontynuacja Fazy 0 (migracja `112`, tiering indeksacji, `seo_tier`).
+
+### 2026-08-22 — Liczba nieprzeczytanych na ikonie zainstalowanej aplikacji
+
+PROBLEM: o nieprzeczytanej wiadomości w rozmowie meczu albo o prośbie o dołączenie
+dowiadywał się dopiero ten, kto sam otworzył Bojo. Powiadomienie push jest sygnałem
+jednorazowym — znika z ekranu blokady i po nim nie zostaje żaden ślad, więc telefon
+leżący na stole przez godzinę nie mówił nic. Chmurka i dzwonek w nagłówku aplikacji
+niosą tę informację dopiero po wejściu do środka, czyli po decyzji, którą właśnie mają
+wywołać.
+
+ROZWIĄZANIE BOJO: ikona Bojo na ekranie początkowym telefonu nosi liczbę nieprzeczytanych
+— tak samo jak ikona poczty czy komunikatora. Liczba jest sumą wiadomości i pozostałych
+powiadomień, pojawia się także wtedy, gdy aplikacja jest zamknięta, i gaśnie po
+przeczytaniu. Działa wyłącznie w Bojo dodanym do ekranu początkowego (na iPhonie dodatkowo
+po zgodzie na powiadomienia); w zwykłej karcie przeglądarki plakietki nie ma i to nie jest
+błąd.
+
+MECHANIKA: `lib/plakietkaAplikacji.ts` (Badging API, `navigator.setAppBadge`/
+`clearAppBadge`, każde wywołanie wykrywane i łykane po cichu). Ustawiana z dwóch stron:
+`NotificationBell.tsx` przy otwartej aplikacji (suma nieprzeczytanych z obu paneli),
+`public/sw.js` przy zdarzeniu `push`, gdy aplikacja jest zamknięta. Service worker nie ma
+dostępu do sesji Supabase, więc liczbę dokleja do payloadu funkcja brzegowa `send-push`
+(`count` na `notifications` z `read_at IS NULL`); brak liczby oznacza `null` i wtedy worker
+plakietki nie dotyka. Wymaga wdrożenia funkcji brzegowej.
 
 ### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
 
@@ -517,52 +563,4 @@ composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
 `env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
 i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
 Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
-
-### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
-
-PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
-dopiero po przewinięciu — modele generatywne cytują krótkie, faktograficzne akapity, a
-takich nie było. Odpowiedź o podziale kosztów nie podawała żadnej liczby, więc nie dawała
-się zacytować jako konkret. Landingi lokalne obsługiwały jedno miasto i siedziały pod
-prefiksem `/graj/`, a nic na stronie nie mówiło wprost, że Bojo nie jest systemem
-rezerwacji obiektów — przez co trafiało do odpowiedzi na zapytania o wynajem boiska,
-gdzie nic nie wnosi.
-
-ROZWIĄZANIE BOJO: Direct Answer (40–50 słów) nad treścią `/dlaczego-bojo`,
-`/jak-dziala-bojo` i każdej strony sport+miasto. Odpowiedź o kosztach niesie rachunek
-(150 zł ÷ 12 miejsc = 12,50 zł od osoby — dzielnikiem jest liczba MIEJSC, nie liczba
-zapisanych). Trzy nowe pytania FAQ: o sprawiedliwe rozliczenie wynajmu, o brakującą osobę
-na mecz i o szukanie ludzi do gry. Landingi lokalne przeniesione z `/graj/[sport]/[miasto]`
-na `/[sport]/[miasto]` (301 ze starych adresów) i rozszerzone o Warszawę i Kraków —
-dwanaście stron. Każda dostała blok „Czym Bojo nie jest", liczbę obiektów katalogu
-w okolicy, `MiniFaq` z czterema pytaniami i link do mapy.
-
-MECHANIKA: `content/miasta.ts` (nowy — slug, mianownik, miejscownik z przyimkiem,
-współrzędne, szablony Direct Answer i `CZYM_BOJO_NIE_JEST`), `app/[sport]/[miasto]/page.tsx`
-(przeniesiony, `dynamicParams = false` — trasa siedzi na pierwszym segmencie ścieżki),
-`next.config.mjs#redirects()`, `lib/api.ts#policzBoiskaWOkolicy()` (kadr prostokątny, nie
-haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPOWIEDZ`,
-`content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
-stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
-`scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
-### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
-
-PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
-Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
-pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
-miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
-zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
-zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
-`show_payment_status`, które miało zasłaniać co innego.
-
-ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
-rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
-znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
-uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
-sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
-„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
-
-MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
-„Twoja płatność" w sekcji Kasa), `canSeeBlikPhone()` i `priceForParticipant()`
-z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
 

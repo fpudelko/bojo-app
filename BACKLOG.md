@@ -432,14 +432,16 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 - [ ] **Core Web Vitals** — zmierzyć po wdrożeniu (PageSpeed Insights) i dopiero na
       podstawie pomiaru decydować o optymalizacjach.
 
-### 7a. Tierowanie katalogu boisk — Fazy 1-3 (Faza 0 zrobiona, 2026-08-20)
+### 7a. Tierowanie katalogu boisk — Fazy 0-3 ZROBIONE (2026-08-20 → 2026-08-22)
 
 Użytkownik wkleił obszerny plan SEO/GEO (tiered indexing, huby miast, programmatic
 content, JSON-LD, crowdsourcing) dla katalogu boisk. Audyt kodu i produkcyjnej bazy
-(32 684 wiersze w `fields`, tylko 40 z meczem w całej historii, brak kolumn
+(wtedy 32 684 wiersze w `fields`, tylko 40 z meczem w całej historii, brak kolumn
 city/voivodeship) pokazał, że część liczb z wklejonego planu nie zgadzała się
 z rzeczywistością — pełne uzasadnienie w migracji `112_seo_tier_i_lokalizacja.sql`
 i w sekcji „Tierowanie indeksacji katalogu boisk" w [funkcje.md](./docs/funkcje.md).
+Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł realnie
+(3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3).
 
 - [x] **Faza 0 — fundament danych i higiena.** `fields.city`/`voivodeship`/`seo_tier`,
       tabela `miasta_priorytetowe`, funkcja `oblicz_seo_tier()` + triggery promocji,
@@ -449,12 +451,16 @@ i w sekcji „Tierowanie indeksacji katalogu boisk" w [funkcje.md](./docs/funkcj
       zamiast query stringa). **Migracja `112` wymaga ręcznego uruchomienia na Supabase
       + ręcznego przebiegu `scraper/backfill_lokalizacja.py` per województwo** — bez
       backfillu wszystkie boiska zostają w Tier 3 (`noindex`).
-- [ ] **Faza 1 — fact-dense opis obiektu.** Generator (`lib/opisObiektu.ts`) budujący
-      „direct answer" akapit z danych obiektu (sport, miasto, nawierzchnia, oświetlenie,
-      kryty/odkryty), wpięty w `/boisko/[id]` i w `description` JSON-LD
-      (`SportsActivityLocation`). Musi przechodzić przez `content/zakazaneFrazy.ts` —
-      nowy test na próbce syntetycznych rekordów, wzorem `tresciStron.test.ts`, bo przy
-      32k+ generowanych opisów nie da się tego wyrywkowo przeczytać.
+- [x] **Faza 1 — fact-dense opis obiektu** (zrobione 2026-08-22). Generator
+      `content/opisObiektu.ts#opisObiektu()` — nie `lib/`, wzorem `content/miasta.ts`
+      (`odpowiedzMiasta()`/`zdanieOKatalogu()`), bo to ta sama klasa: funkcja tworząca
+      treść, nie logika domenowa. „Direct answer" akapit z danych obiektu (sport,
+      miasto, nawierzchnia, oświetlenie, kryty/odkryty), wpięty w `/boisko/[id]`
+      (`VenueDetailClient.tsx`, pod nagłówkiem) i w `description` JSON-LD
+      (`SportsActivityLocation`) — jedno źródło. Próbka reprezentatywnych obiektów
+      dopisana do wspólnej listy jednostek treści w `tresciStron.test.ts`
+      (`content/zakazaneFrazy.ts`), nie osobny test — to czysty szablon, nie każdy
+      z 36k+ wierszy wymaga sprawdzenia z osobna.
 - [x] **Faza 2 — huby miast poza Poznań** (zrobione 2026-08-22). Trasa przeniesiona
       z `/graj/[sport]/[miasto]` na `/[sport]/[miasto]` (301 ze starych adresów),
       miasta wyniesione do `content/miasta.ts` i rozszerzone o Warszawę i Kraków —
@@ -464,16 +470,25 @@ i w sekcji „Tierowanie indeksacji katalogu boisk" w [funkcje.md](./docs/funkcj
       a strony miejskie żyją w `content/miasta.ts` i podlegają `ZAKAZANE_WSZEDZIE`.
       Pokrycie katalogu liczone geograficznie (`lib/api.ts#policzBoiskaWOkolicy`), **nie**
       z `city`/`seo_tier` — te są dziś puste w całej tabeli, patrz Faza 0.
-- [ ] **Faza 2b — huby wojewódzkie.** `/boiska/[wojewodztwo]` wzorem dzisiejszego
-      `force-dynamic` `/boiska/[sport]` (bez prerenderu — te same powody skalowania co
-      `/boisko/[id]`, patrz AGENTS.md). Kolejne miasta dla `/[sport]/[miasto]` to dziś
-      jeden wpis w `content/miasta.ts`; wybór progu nadal zależy od rozkładu
-      `city`/`seo_tier` PO backfillu z Fazy 0.
-- [ ] **Faza 3 — mikro-ankiety UGC.** Nawierzchnia/oświetlenie jako pytania tak/nie/nie
-      wiem, rozszerzające istniejący `ZglosBladObiektu.tsx`/`lib/bledy.ts`/
-      `field_comments`, z progiem quorum do wyświetlenia „potwierdzone przez N graczy" —
-      dowiązuje do otwartego punktu „Zgłaszanie błędów: w aplikacji i w danych obiektu" niżej
-      (override kolumn vs. oddawanie poprawek do OSM, próg liczby zgłoszeń).
+- [x] **Faza 2b — huby wojewódzkie** (zrobione 2026-08-22). `/boiska/woj/[wojewodztwo]`
+      — NIE `/boiska/[wojewodztwo]`: Next.js nie pozwala dwóm dynamicznym segmentom na
+      tym samym poziomie katalogu mieć różne nazwy, a `[sport]` już zajmuje
+      `/boiska/[cokolwiek]`, więc `woj` jest literalnym segmentem pośrednim. Wzorem
+      dzisiejszego `force-dynamic` `/boiska/[sport]` (bez prerenderu — te same powody
+      skalowania co `/boisko/[id]`, patrz AGENTS.md; mazowieckie samo ma ponad 8 tysięcy
+      boisk w pliku PBF). Nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL` (mianownik,
+      bez odmiany przez przypadki — nagłówek unika fleksji przymiotnika z rozmysłem).
+      16 stron dopisanych do `sitemap.ts`; `/boisko/[id]` linkuje do swojego huba
+      (widoczny link + okruszek JSON-LD), gdy `city`/`voivodeship` już wypełnione.
+- [x] **Faza 3 — mikro-ankiety UGC** (zrobione 2026-08-22). `AnkietyObiektu.tsx` na
+      `/boisko/[id]`, dwa pytania (oświetlenie tak/nie, nawierzchnia — sześć wartości
+      jak `SURFACE_MAP`). NOWA tabela `potwierdzenia_obiektu` (migracja `123`), nie
+      rozszerzenie `zgloszenia_bledow` (`099`) — inny odbiorca: tamto jest widoczne
+      wyłącznie dla admina i trafia do moderacji, to jest publiczny zagregowany głos
+      bez moderacji. Jeden głos na fakt na osobę (`UNIQUE`, `.upsert()`), wyświetlenie
+      „potwierdzone przez N graczy" dopiero od quorum = 2. Świadomie **nic nie
+      nadpisuje** w `fields` — decyzja o override zostaje otwartym punktem, patrz
+      „Zgłaszanie błędów: w aplikacji i w danych obiektu" niżej.
 
 ## 8. Pomysły jeszcze niezbudowane
 
