@@ -343,6 +343,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
+
+PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
+liczbę miejsc, czas na decyzję z rezerwy, koszt, metody płatności, zniżkę karty sportowej
+i tryb miejsc dla bramkarzy. Typowy mecz — darmowy, bez rezerwy, bez podziału na
+bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było przewinąć przez
+wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
+
+ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
+trzy przełączniki DOMYŚLNIE WYŁĄCZONE — „Lista rezerwowa", „Mecz płatny", „Bramkarze
+osobno". Szczegóły każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny"
+czyści kwotę i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa
+i „Biorę udział"), krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis).
+Publikacja przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu —
+mecz jest widoczny natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się
+szybciej, niż da się ją poprawić.
+
+SKUTEK DLA NOWYCH MECZÓW: przełącznik rezerwy wyłączony domyślnie znaczy, że nowy mecz
+przy komplecie ZAMYKA zapisy zamiast ustawiać kolejkę. Kto chce kolejkę, włącza ją
+w kreatorze albo później w edycji meczu.
+
+MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
+`frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie
+chowający ich CSS-em — ukryte pole nadal wysyła wartość);
+`EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
+`UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
+w `lib/eventWizard.ts`. Bez migracji.
+
 ### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
 
 PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
@@ -533,27 +561,3 @@ do polityk SELECT i INSERT na `event_comments`. Numer BLIK przenosi się z kolum
 `events.blik_phone` do osobnej tabeli `event_blik` z własną polityką, bo `events` czyta
 każdy; klient dociąga go osadzeniem `select('*, event_blik(blik_phone)')`
 (`lib/blik.ts`, `lib/events.ts`). Kolejność wdrożenia: `120` → deploy → `121`.
-
-### 2026-08-22 — Mapa: organizowanie meczu prosto z kafelka i powrót do tego samego kadru
-
-PROBLEM: kafelek obiektu na mapie Bojo (`/mapa`) miał jedno wyjście — „Zobacz boisko" —
-mimo że mapa odpowiada na pytanie „gdzie zagrać", więc naturalnym następnym ruchem jest
-zrobienie tam meczu; drogi do kreatora trzeba było szukać samemu. Sam kafelek mówił mało:
-nazwa, typ, nawierzchnia i adres przycięty do dwóch członów (bez numeru budynku), bez ani
-słowa o tym, w co się tam gra. Powrót ze strony obiektu lądował na `/mapa?boisko=<id>` —
-czyli z widokiem całego kraju i bez filtrów, bo adres powrotu niósł jeden parametr, a
-reszta stanu mapy (sport, typ, nawierzchnia, tryb gier) siedzi właśnie w adresie.
-
-ROZWIĄZANIE BOJO: kafelek ma dwa wyjścia — główne „Zobacz boisko" i skrót „Zorganizuj tutaj"
-(kreator meczu z wybranym już obiektem, `/wydarzenia/nowe?fieldId=<id>`). Domyślna droga
-prowadzi przez stronę obiektu, bo mecz umawiany na niesprawdzonym boisku to ten, który się
-nie odbywa; strona obiektu ma własne, szerokie „Zorganizuj tutaj". Kafelek pokazuje sporty
-obiektu i pełny adres w dwóch linijkach. Powrót ze strony obiektu odtwarza kadr,
-przybliżenie i wszystkie filtry sprzed wyjścia; kadr trafia też do adresu mapy przez
-`replaceState`, więc działa również systemowe „wstecz" na telefonie, a adres mapy da się
-wysłać komuś z konkretnym widokiem zamiast widoku całej Polski.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z bieżących
-`searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
-przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
-kanoniczny).

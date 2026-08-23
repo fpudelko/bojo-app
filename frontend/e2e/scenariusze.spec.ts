@@ -756,20 +756,28 @@ test.describe('profil', () => {
 
 test.describe('kreator meczu — kolejne kroki', () => {
   test('bez miejsca kreator nie puszcza dalej i mówi dlaczego', async ({ page }) => {
-    // Pierwsza wersja tego testu klikała „Dalej" i oczekiwała kroku drugiego.
-    // To było błędne założenie: krok 1 wymaga LOKALIZACJI (`validateStep1`),
-    // a wybranie miejsca to wyszukiwarka boisk z siecią — czyli dokładnie ten
-    // rodzaj zależności, przez który scenariusz robi się kruchy. Sprawdzamy
-    // więc rzecz cenniejszą i stabilną: że bramka działa i tłumaczy się.
+    // KROKI ZAMIENIŁY SIĘ MIEJSCAMI: krok 1 to dziś „Kiedy" (termin ma wartości
+    // domyślne — jutro, 18:00 — więc przechodzi bez dotykania), a lokalizacji
+    // pilnuje dopiero krok 2 „Gdzie". Bramka jest ta sama, stoi krok dalej.
+    //
+    // Świadomie NIE wybieramy miejsca: wyszukiwarka boisk chodzi po sieci,
+    // czyli dokładnie ten rodzaj zależności, przez który scenariusz robi się
+    // kruchy. Sprawdzamy rzecz stabilną — że bramka działa i tłumaczy się.
     await zaloguj(page, KONTA.organizator);
     await page.goto('/wydarzenia/nowe');
     const dalej = page.getByRole('button', { name: /^Dalej/ });
     await expect(dalej).toBeVisible({ timeout: 20_000 });
 
+    // Krok 1 → 2. Że naprawdę przeszliśmy, poznajemy po „Wróć": pojawia się
+    // dopiero od kroku 2.
+    await dalej.click();
+    await expect(page.getByRole('button', { name: /wróć/i })).toBeVisible();
+
+    // Krok 2 bez lokalizacji — nie puszcza i mówi dlaczego.
     await dalej.click();
     await expect(page.getByText(/wskaż lokalizację/i)).toBeVisible();
-    // I nie przeskoczyliśmy dalej — „Wróć" pojawia się dopiero od kroku 2.
-    await expect(page.getByRole('button', { name: /wróć/i })).toHaveCount(0);
+    // I dalej stoimy na kroku 2, nie na trzecim.
+    await expect(page.getByRole('button', { name: /^Dalej/ })).toBeVisible();
   });
 });
 
