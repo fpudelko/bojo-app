@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `122` · 40 tabel · 722 testy
+**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
 
 ---
 
@@ -343,6 +343,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
+
+PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
+jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o
+konkretny obiekt. Katalog nie miał też punktu wejścia na poziomie województwa — tylko
+per sport albo per miasto (Poznań/Warszawa/Kraków) — a stan infrastruktury (oświetlenie,
+nawierzchnia) opierał się wyłącznie na danych z OpenStreetMap, czasem nieaktualnych.
+
+ROZWIĄZANIE BOJO: każda strona boiska ma teraz jeden gęsty akapit na górze („[Nazwa] to
+obiekt sportowy w [miejscowość] do gry w: [sporty]. [kryty/odkryty], nawierzchnia:
+[…], oświetlenie.") — ten sam tekst trafia do danych strukturalnych dla wyszukiwarek.
+Doszło 16 stron „Boiska sportowe — województwo [Nazwa]" z pełną listą obiektów.
+Gracze mogą potwierdzić dwa fakty o obiekcie — czy jest oświetlony, jaka jest
+nawierzchnia — i wynik pokazuje się jako „potwierdzone przez N graczy" dopiero po
+dwóch niezależnych głosach; to NIE nadpisuje danych z OpenStreetMap, pokazuje się obok.
+
+MECHANIKA: `content/opisObiektu.ts#opisObiektu()`, wpięty w `VenueDetailClient.tsx`
+i w `description` JSON-LD (`SportsActivityLocation`). Huby wojewódzkie:
+`/boiska/woj/[wojewodztwo]` (`force-dynamic`, bez prerenderu — katalog jest za duży),
+nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL`. Ankiety: `AnkietyObiektu.tsx`, tabela
+`potwierdzenia_obiektu` (migracja `123`, jeden głos na fakt na osobę, publiczny odczyt).
+Kontynuacja Fazy 0 (migracja `112`, tiering indeksacji, `seo_tier`).
+
 ### 2026-08-22 — Liczba nieprzeczytanych na ikonie zainstalowanej aplikacji
 
 PROBLEM: o nieprzeczytanej wiadomości w rozmowie meczu albo o prośbie o dołączenie
@@ -553,20 +576,3 @@ w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każde
 trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
 karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
 (`lib/groupPosts.ts`).
-
-### 2026-08-22 — Czas na decyzję z rezerwy: gęściej 30 min – 3 godz., plus wartość własna
-
-PROBLEM: gdy zwolni się miejsce, Bojo oferuje je pierwszej osobie z rezerwy i daje jej
-czas na kliknięcie „Wchodzę" — ale organizator mógł wybrać wyłącznie pełną godzinę (1, 3,
-6, 12 albo 24 h). Typowy czas reakcji na telefon to kilkanaście–kilkadziesiąt minut, a tej
-wartości fizycznie nie dało się ustawić.
-
-ROZWIĄZANIE BOJO: lista wyboru ma teraz gęstsze opcje w przedziale 30 minut – 3 godziny
-(30 min, 1 h, 1 h 30 min, 2 h, 2 h 30 min, 3 h) obok dotychczasowych większych wartości,
-plus „Inny czas…" z polem liczbowym w minutach (15 min – 72 h). Domyślna wartość (3 h)
-bez zmian.
-
-MECHANIKA: `events.reserve_claim_minutes` (migracja `118`, wcześniej `reserve_claim_hours`
-— pełne godziny, przenumerowana na minuty, istniejące wartości × 60). `EventCapacityFields.tsx`
-(kreator + edycja), `czasRezerwyTekst()` (`lib/events.ts`) formatuje minuty na czytelny
-tekst — ta sama reguła w treści powiadomienia push (`sync_reserve_claim()`).

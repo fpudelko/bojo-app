@@ -1134,7 +1134,7 @@ sport i miasto, jest dopisany do `tresciStron.test.ts`.
 
 ## Tierowanie indeksacji katalogu boisk (SEO/GEO, migracja `112`)
 
-Katalog ma dziś **32 684 wiersze** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
+Katalog ma dziś **36 268 wierszy** (import całej Polski z OSM, `scraper/import_osm_pbf.py`)
 i rośnie z każdym kolejnym importem. Indeksowanie wszystkich naraz ryzykuje karę Google za
 cienką treść (thin content) — większość obiektów ma tylko nazwę, adres i sport, bez
 żadnego realnego ruchu: audyt produkcyjnej bazy przy wdrożeniu pokazał, że **tylko 40
@@ -1161,15 +1161,56 @@ uruchamiany skrypt `scraper/backfill_lokalizacja.py` (reużywa `nearest_place()`
 `import_osm_pbf.py` — ten sam plik `.osm.pbf`, ten sam najbliższy węzeł `place=`), nie
 funkcja `miejscowoscZAdresu()` w `boisko/[id]/page.tsx` (ta zostaje jako fallback dla
 wierszy sprzed backfillu — 169 duplikatów nazw i niejednoznaczny format adresu robią
-z parsowania tekstu zgadywankę). Świeżo zaaplikowana migracja `112` zostawia `city` puste
-— dopóki backfill nie przejdzie, wszystkie boiska są w Tier 3.
+z parsowania tekstu zgadywankę). Backfill przeszedł realnie przez
+`.github/workflows/backfill-lokalizacja.yml` (sesja agenta nie ma dostępu do
+`download.geofabrik.de` — polityka sieciowa środowiska — więc backfill uruchamia się z
+GitHub Actions, tym samym mechanizmem co import). Rozkład na produkcji: **3 605 w Tier 1,
+28 491 w Tier 2, 4 172 w Tier 3**.
 
 **Sitemap partycjonowany per województwo**, nie jeden rosnący bez końca plik:
-`sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`) + 16×
-`sitemap-boiska/[plik]/route.ts` (po jednym na województwo, tylko Tier 1/2 — Tier 3 ma
-`noindex`, więc wpis w sitemapie byłby sprzeczną instrukcją dla Googlebota), zebrane
-w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje na ten indeks, nie na goły
-`sitemap.xml`.
+`sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`, 16 hubów wojewódzkich
+`/boiska/woj/[wojewodztwo]`) + 16× `sitemap-boiska/[plik]/route.ts` (po jednym na
+województwo, tylko boiska — Tier 3 ma `noindex`, więc wpis w sitemapie byłby sprzeczną
+instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje
+na ten indeks, nie na goły `sitemap.xml`.
+
+### Faza 1 — fact-dense opis obiektu
+
+`content/opisObiektu.ts#opisObiektu()` buduje jeden akapit z danych katalogu (sport,
+miejscowość, kryty/odkryty, nawierzchnia, oświetlenie) — ten sam tekst widoczny na górze
+`/boisko/[id]` (`VenueDetailClient.tsx`, tuż pod nagłówkiem) i jako `description` w JSON-LD
+`SportsActivityLocation` (`boisko/[id]/page.tsx`), jedno źródło. Podlega
+`content/zakazaneFrazy.ts` tak samo jak `/faq`/`/jak-dziala-bojo`/`/dlaczego-bojo` —
+próbka reprezentatywnych obiektów (różne miasto/nawierzchnia/kryte-odkryte/oświetlenie)
+jest dopisana do wspólnej listy jednostek treści w `tresciStron.test.ts`, bo to czysty
+szablon: jeśli zakazana fraza nie wchodzi w kilka kombinacji, nie wejdzie w żadną inną
+(interpolowane są dane katalogu, nie nasza proza).
+
+### Faza 2b — huby wojewódzkie
+
+`/boiska/woj/[wojewodztwo]` — 16 stron, wzorem `/boiska/[sport]`: `force-dynamic`,
+paginacja `?strona=` po 60 obiektów (katalog per województwo bywa duży, np. mazowieckie
+ma ponad 8 tysięcy boisk w samym pliku PBF), bez prerenderu z tych samych powodów co
+`/boisko/[id]`. Adres celowo NIE jest `/boiska/[wojewodztwo]` — Next.js nie pozwala dwóm
+dynamicznym segmentom na tym samym poziomie katalogu mieć różne nazwy (`[sport]` już
+zajmuje `/boiska/[cokolwiek]`), więc `woj` jest literalnym segmentem pośrednim. Nazwy do
+wyświetlenia w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL` — mianownik z wielkiej litery,
+świadomie bez odmiany przez przypadki (nagłówek składa się jako „Województwo {Nazwa} —
+…", więc fleksja przymiotnika nigdy nie wchodzi w grę). `/boisko/[id]` linkuje do swojego
+huba wojewódzkiego (widoczny link pod „direct answer" i okruszek w JSON-LD breadcrumbs),
+gdy `field.voivodeship` jest wypełnione.
+
+### Faza 3 — mikro-ankiety UGC
+
+`AnkietyObiektu.tsx` na `/boisko/[id]` (nad `VenueComments`) — dwa pytania: „czy
+oświetlone?" (tak/nie) i „jaka nawierzchnia?" (te same sześć wartości co `SURFACE_MAP` w
+`import_osm_pbf.py`). Tabela `potwierdzenia_obiektu` (migracja `123`), jeden głos na fakt
+na osobę (`UNIQUE (field_id, user_id, fakt)`, `.upsert()` pozwala zmienić zdanie). Wynik
+pokazuje się jako „potwierdzone przez N graczy" dopiero od **quorum = 2** — jeden klik to
+czyjaś opinia, nie potwierdzony fakt. Świadomie **nic nie nadpisuje** w `fields` (`lit`,
+`surface` z OSM zostają nietknięte) — głos graczy pokazuje się OBOK danych z katalogu, nie
+zamiast nich; decyzja o ewentualnym nadpisywaniu kolumn zostaje otwartym punktem (patrz
+„Zgłaszanie błędów: w aplikacji i w danych obiektu" w BACKLOG.md).
 
 ---
 

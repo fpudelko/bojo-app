@@ -42,6 +42,9 @@
 Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
 zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
 
+Huby wojewódzkie: `/boiska/woj/<wojewodztwo>` (16 stron, po jednej na województwo) —
+pełna lista boisk w danym regionie.
+
 ## Strony sport + miasto
 
 Trzy miasta z dedykowanymi stronami. Każda pokazuje otwarte publiczne mecze w danym

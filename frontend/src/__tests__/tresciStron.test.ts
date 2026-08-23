@@ -6,6 +6,7 @@ import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
 import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
+import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -53,6 +54,20 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
       etykieta: `miasta#katalog/${miasto.slug}`,
       tekst: zdanieOKatalogu(824, miasto.miejscownik),
     });
+  }
+
+  // opisObiektu() jest szablonem złożonym z danych katalogu (nazwa, miejscowość,
+  // sport, nawierzchnia) — próbka kombinacji, nie każdy z 36k+ wierszy, bo to
+  // czysty szablon: jeśli ZAKAZANE_WSZEDZIE nie wchodzi w te kilka kombinacji,
+  // nie wejdzie w żadną inną (dane katalogu, nie nasza proza, są tu wyłącznie
+  // interpolowane — same nigdy nie dodają zakazanych fraz).
+  const PROBKA_OBIEKTOW: ObiektDoOpisu[] = [
+    { name: 'Orlik przy SP nr 3', sport: ['piłka nożna'], city: 'Poznań', surface: 'artificial', isIndoor: false, lit: true },
+    { name: 'Hala sportowa MOSiR', sport: ['koszykówka', 'siatkówka'], city: undefined, surface: '', isIndoor: true, lit: undefined },
+    { name: 'Boisko wielofunkcyjne', sport: ['piłka ręczna'], city: 'Tuchorza', surface: 'concrete', isIndoor: false, lit: false },
+  ];
+  for (const obiekt of PROBKA_OBIEKTOW) {
+    jednostki.push({ etykieta: `opisObiektu#${obiekt.name}`, tekst: opisObiektu(obiekt) });
   }
 
   return jednostki;
