@@ -709,10 +709,14 @@ test.describe('lista gier — narzędzia', () => {
   test('menu sortowania', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/wydarzenia');
-    await page.getByRole('button', { name: 'Sortuj' }).click();
-    // Menu rozwija się pod pigułką — sprawdzamy, że w ogóle się otwiera
-    // i że ma pozycję domyślną.
-    await expect(page.getByText(/termin/i).first()).toBeVisible();
+    // Sortowanie nie ma już własnej pigułki — zjechało do arkusza filtrów
+    // (sekcja „Kolejność"). Sprawdzamy, że arkusz się otwiera i ma pozycję
+    // domyślną.
+    await page.getByRole('button', { name: 'Filtry' }).click();
+    const okno = page.getByRole('dialog');
+    await expect(okno).toBeVisible();
+    await expect(okno.getByText('Kolejność')).toBeVisible();
+    await expect(okno.getByText('Najbliższy termin')).toBeVisible();
   });
 });
 
