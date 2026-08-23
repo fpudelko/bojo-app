@@ -1,9 +1,9 @@
 # Zrzuty — PR #260 · widoki-publiczne
 
-Przebieg [`32651587909`](https://github.com/fpudelko/bojo-app/actions/runs/32651587909)
+Przebieg [`32651862296`](https://github.com/fpudelko/bojo-app/actions/runs/32651862296)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/260)
 
-Zmienione widoki: **16** · nowe widoki: **2**
+Zmienione widoki: **16** · nowe widoki: **4**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -368,6 +368,14 @@ w czytelnej skali, potem całe strony obok siebie.
 
 Nie było ich wcześniej, więc nie ma z czym porównywać —
 to jest po prostu to, co widzi użytkownik.
+
+### zrzuty-komputer · trasa-sport-miasto-poznan
+
+![zrzuty-komputer · trasa-sport-miasto-poznan](nowy__zrzuty-komputer__trasa-sport-miasto-poznan.png)
+
+### zrzuty-komputer · trasa-sport-miasto-warszawa
+
+![zrzuty-komputer · trasa-sport-miasto-warszawa](nowy__zrzuty-komputer__trasa-sport-miasto-warszawa.png)
 
 ### zrzuty-telefon · trasa-sport-miasto-poznan
 
