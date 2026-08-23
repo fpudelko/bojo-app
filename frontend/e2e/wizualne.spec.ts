@@ -486,6 +486,7 @@ const TRASY: Array<[nazwa: string, adres: string]> = [
   ['wydarzenia-nowe',      '/wydarzenia/nowe'],
   ['wydarzenie-nieznane',  '/wydarzenia/00000000-0000-4000-8000-000000000000'],
   ['moje-gry',             '/moje-gry'],
+  ['rozmowy',              '/rozmowy'],
   ['grupy',                '/grupy'],
   ['grupy-nowe',           '/grupy/nowe'],
   ['grupa-nieznana',       '/grupy/00000000-0000-4000-8000-000000000000'],

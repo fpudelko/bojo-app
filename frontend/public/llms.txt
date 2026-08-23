@@ -26,6 +26,7 @@
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
+- [Rozmowy](/rozmowy): wszystkie rozmowy z Twoich meczów i ekip w jednym miejscu, od najnowszej
 - [Grupy](/grupy): stałe ekipy — mecze, rozmowa, statystyki i uprawnienia
   współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
