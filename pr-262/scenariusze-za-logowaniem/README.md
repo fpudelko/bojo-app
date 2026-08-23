@@ -1,9 +1,9 @@
 # Zrzuty — PR #262 · scenariusze-za-logowaniem
 
-Przebieg [`32651602595`](https://github.com/fpudelko/bojo-app/actions/runs/32651602595)
+Przebieg [`32655194910`](https://github.com/fpudelko/bojo-app/actions/runs/32655194910)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/262)
 
-Zmienione widoki: **9** · nowe widoki: **5**
+Zmienione widoki: **11** · nowe widoki: **5**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -163,6 +163,50 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__kreator-krok-1__diff.png" width="100%">
+
+</details>
+
+### moje-gry-zakladki
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__moje-gry-zakladki__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__moje-gry-zakladki__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__moje-gry-zakladki__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__moje-gry-zakladki__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__moje-gry-zakladki__diff.png" width="100%">
+
+</details>
+
+### okno-filtrow
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__okno-filtrow__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__okno-filtrow__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__okno-filtrow__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__okno-filtrow__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__okno-filtrow__diff.png" width="100%">
 
 </details>
 
