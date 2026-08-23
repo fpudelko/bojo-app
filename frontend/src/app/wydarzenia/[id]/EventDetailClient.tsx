@@ -3409,7 +3409,7 @@ export default function EventDetailClient() {
                   )}
                 </div>
               ) : user && isFull && !event.reserveEnabled ? (
-                /* KOMPLET BEZ REZERWY (migracja `123`). Przycisk „Komplet —
+                /* KOMPLET BEZ REZERWY (migracja `124`). Przycisk „Komplet —
                    na rezerwę" byłby tu obietnicą, której baza nie dotrzyma:
                    wyzwalacz `pilnuj_wylaczonej_rezerwy()` odbije taki zapis.
                    Zamiast wyłączonego guzika, który każe zgadywać dlaczego —

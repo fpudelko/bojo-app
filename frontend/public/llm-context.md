@@ -5,15 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
-=======
-**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 729 testów
->>>>>>> 61f7346 (Migracja 123: lista rezerwowa staje się wyborem organizatora)
-=======
-**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 741 testów
->>>>>>> a989017 (Lista rezerwowa: przełącznik zamiast stałej reguły)
+**Stan na:** 2026-08-22 · migracja `124` · 41 tabel · 742 testy
 
 ---
 
@@ -351,9 +343,6 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-<<<<<<< HEAD
-### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
-=======
 ### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
 
 PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
@@ -367,14 +356,13 @@ znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi 
 miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
 niezależnie od tego ustawienia.
 
-MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
+MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
 `trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
 z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
 przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
 komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
 
-### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
->>>>>>> a989017 (Lista rezerwowa: przełącznik zamiast stałej reguły)
+### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
 jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o
@@ -589,21 +577,3 @@ Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu
 Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
 w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
 
-### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
-
-PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
-listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
-w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
-razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
-
-ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
-panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
-z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
-wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
-co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
-
-MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
-w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
-trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
-karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`).

@@ -76,7 +76,7 @@ export default function EventCapacityFields({
   /** Minuty — migracja `118` (wcześniej `reserveClaimHours`, pełne godziny). */
   reserveClaimMinutes: number;
   setReserveClaimMinutes: (v: number) => void;
-  /** Czy mecz w ogóle prowadzi listę rezerwową (migracja `123`). */
+  /** Czy mecz w ogóle prowadzi listę rezerwową (migracja `124`). */
   reserveEnabled?: boolean;
   setReserveEnabled?: (v: boolean) => void;
   /** Czy miejsca dla bramkarzy są zarezerwowane (migracja `077`). */
@@ -179,7 +179,7 @@ export default function EventCapacityFields({
         )}
       </div>
 
-      {/* PRZEŁĄCZNIK LISTY REZERWOWEJ (migracja `123`).
+      {/* PRZEŁĄCZNIK LISTY REZERWOWEJ (migracja `124`).
           Do tej pory rezerwa była stałą regułą: kreator ogłaszał „Kolejni
           chętni trafią na listę rezerwową" i nie dało się tego zmienić, a niżej
           stało jeszcze ustawienie czasu na decyzję. Mecz na zamkniętą ekipę,
