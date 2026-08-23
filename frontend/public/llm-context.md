@@ -5,11 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-<<<<<<< HEAD
 **Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
-=======
-**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 773 testy
->>>>>>> 292c1b0 (Scalona wyszukiwarka: „Szukaj" prowadzi na /mapa, obiekty mają listę)
 
 ---
 
@@ -347,8 +343,6 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-<<<<<<< HEAD
-=======
 ### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
 
 PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
@@ -375,87 +369,6 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
 kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
 już celem „Szukaj". Bez migracji.
 
-### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
-
-PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
-liczbę miejsc, czas na decyzję z rezerwy, koszt, metody płatności, zniżkę karty sportowej
-i tryb miejsc dla bramkarzy. Typowy mecz — darmowy, bez rezerwy, bez podziału na
-bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było przewinąć przez
-wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
-
-ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
-trzy przełączniki DOMYŚLNIE WYŁĄCZONE — „Lista rezerwowa", „Mecz płatny", „Bramkarze
-osobno". Szczegóły każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny"
-czyści kwotę i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa
-i „Biorę udział"), krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis).
-Publikacja przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu —
-mecz jest widoczny natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się
-szybciej, niż da się ją poprawić.
-
-SKUTEK DLA NOWYCH MECZÓW: przełącznik rezerwy wyłączony domyślnie znaczy, że nowy mecz
-przy komplecie ZAMYKA zapisy zamiast ustawiać kolejkę. Kto chce kolejkę, włącza ją
-w kreatorze albo później w edycji meczu.
-
-MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
-`frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie
-chowający ich CSS-em — ukryte pole nadal wysyła wartość);
-`EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
-`UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
-w `lib/eventWizard.ts`. Bez migracji.
-
-### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
-
-PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
-grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
-Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
-
-ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
-wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
-Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
-właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
-Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
-
-MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
-`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
-`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
-
-### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
-
-PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
-rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
-z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
-nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
-„zapisali się na listę".
-
-ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
-znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
-miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
-niezależnie od tego ustawienia.
-
-MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
-`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
-z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
-przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
-komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
-
-### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
-
-PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
-otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
-a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
-Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
-który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
-
-ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
-identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
-nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
-widzi w pasku adres, który da się wysłać dalej.
-
-MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
-`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
-linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
-na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
->>>>>>> 292c1b0 (Scalona wyszukiwarka: „Szukaj" prowadzi na /mapa, obiekty mają listę)
 ### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
@@ -573,7 +486,6 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
-<<<<<<< HEAD
 ### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
 
 PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
@@ -672,23 +584,3 @@ Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu
 Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
 w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
 
-### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
-
-PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
-listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
-w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
-razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
-
-ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
-panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
-z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
-wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
-co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
-
-MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
-w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
-trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
-karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`).
-=======
->>>>>>> 292c1b0 (Scalona wyszukiwarka: „Szukaj" prowadzi na /mapa, obiekty mają listę)
