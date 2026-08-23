@@ -288,6 +288,33 @@ Nie „naprawiaj" tego.
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
 
+## Rozmowy: jedna lista, trzy źródła — i dlaczego NIE jedna tabela
+
+`/rozmowy` łączy w jedną listę rozmowy meczów (`event_comments`), tablice ekip
+(`group_posts`) i wiadomości prywatne (`dm_messages`, migracja `125`).
+Rozróżnia je pole `typ` w `WpisRozmowy`, nadawane przy łączeniu
+(`polaczRozmowy()` w `app/rozmowy/RozmowyClient.tsx`).
+
+**Rozważaliśmy jedną tabelę `conversations` z kolumną `type` i odrzuciliśmy to
+świadomie.** Argument za brzmiał: „rozmowa jako encja pierwszej klasy, DM to
+tylko nowy typ". Argumenty przeciw, które wygrały:
+
+- **Widoczność różni się o klasę.** Komentarz meczowy czyta każdy uczestnik
+  meczu, wpis na tablicy — członek ekipy, wiadomość prywatną — dokładnie dwie
+  osoby. Wspólna tabela znaczy jedną politykę RLS obsługującą trzy różne
+  reguły, a jej błąd to cudza korespondencja na wyciągnięcie ręki. Polityki dla
+  DM muszą dać się przeczytać na jeden rzut oka.
+- **Migracja trzech działających systemów tuż przed startem** to ryzyko bez
+  odpowiadającej mu korzyści: użytkownik dostaje dokładnie to samo (jedna lista,
+  jedno miejsce), a my — jeden refaktor, którego nie da się cofnąć.
+- Trzy tabele o podobnym kształcie są w tym repo **świadomą powtarzalnością**,
+  uzasadnioną przy migracji `063`.
+
+Wspólne jest to, co widzi użytkownik: kształt wiersza na liście
+(`RozmowaNaLiscie`) i reguły wyglądu czatu (`lib/czat.ts` — separator dnia,
+grupowanie bąbelków, awatar zamykający grupę). Nowy rodzaj rozmowy dokłada się
+przez te dwa punkty, bez ruszania schematu.
+
 ## Modele domenowe
 
 Przed zmianą w `lib/events.ts`, `lib/payments.ts` lub logice zapisów przeczytaj
@@ -435,7 +462,7 @@ ponownie i zacommituj wynik.
   (`landingContent.test.ts`, `tresciStron.test.ts`).
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
-  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na
+  - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: chmurka na zakładce Rozmowy w
     dolnej nawigacji, plakietka z liczbą nieprzeczytanych na zakładce Rozmowa/Tablica,
     ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy (karta na `/grupy`),
     plakietka na ikonie wiadomości obok dzwonka w nagłówku (`NotificationBell.tsx` —
@@ -461,11 +488,11 @@ ponownie i zacommituj wynik.
   - **Pomarańczowy (`orange-*`)** — zawsze i wyłącznie „nowość, o której jeszcze nie
     wiesz" (bez konkretnej wiadomości do przeczytania ani decyzji do podjęcia): kropka
     na ikonie ekipy, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`
-    (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Znajdź grę" na dolnej
+    (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Szukaj" na dolnej
     nawigacji, gdy w promieniu 5 km pojawiło się nowe wydarzenie
     (`KLUCZ_WYDARZENIA_WIDZIANO` w `lib/events.ts`). Nigdy nic innego.
 
-  **Liczba nadchodzących meczów** na ikonie „Moje" (dolna nawigacja) jest celowo
+  **Liczba nadchodzących meczów** na ikonie „Mecze" (pierwsza pozycja dolnej nawigacji) jest celowo
   ZIELONA (`primary-700`), poza tą trójką: nie znaczy ani „przeczytaj", ani
   „zdecyduj", ani „nowość" — to stan, nie zdarzenie. Niebieska kropka „prośba
   o dołączenie" schodzi wtedy do dolnego rogu ikony: akcja do wykonania nie może

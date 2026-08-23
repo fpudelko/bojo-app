@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { getFields } from '@/lib/api';
-import { slugify } from '@/lib/utils';
+import { slugBoiska } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
 import type { Field } from '@/types';
 
@@ -57,7 +57,7 @@ export default function LandingVenues() {
           {fields.map((f) => (
             <li key={f.id}>
               <Link
-                href={`/boisko/${slugify(f.name)}`}
+                href={`/boisko/${slugBoiska(f.name, f.id)}`}
                 className="flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card transition-colors duration-200 hover:border-primary-200 hover:shadow-card-hover"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-xl">

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { format, parseISO, isToday, isYesterday } from 'date-fns';
-import { pl } from 'date-fns/locale';
+import { format, parseISO } from 'date-fns';
 import { ArrowDown, Loader2, Send, Trash2 } from 'lucide-react';
+import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getComments, addComment, deleteComment } from '@/lib/comments';
@@ -100,13 +100,6 @@ export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eve
     }
   };
 
-  const etykietaDnia = (iso: string) => {
-    const d = parseISO(iso);
-    if (isToday(d)) return 'Dzisiaj';
-    if (isYesterday(d)) return 'Wczoraj';
-    return format(d, 'd MMMM', { locale: pl });
-  };
-
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
       <div ref={listRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto px-3 py-3">
@@ -123,8 +116,13 @@ export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eve
           <div>
             {comments.map((c, i) => {
               const poprzedni = comments[i - 1];
-              const nowyDzien = !poprzedni || etykietaDnia(c.createdAt) !== etykietaDnia(poprzedni.createdAt);
-              const tenSamNadawca = !nowyDzien && poprzedni?.userId === c.userId;
+              const nastepny = comments[i + 1];
+              const nowyDzien = !poprzedni || etykietaDniaCzatu(c.createdAt) !== etykietaDniaCzatu(poprzedni.createdAt);
+              // Grupowanie pyta teraz TAKŻE o czas (`lib/czat.ts`): dotąd
+              // wystarczał ten sam autor, więc wiadomość z rana i odpowiedź
+              // z wieczora zlewały się w jeden blok.
+              const tenSamNadawca = !nowyDzien && taSamaGrupaWiadomosci(poprzedni, c);
+              const koniecGrupy = koniecGrupyWiadomosci(c, nastepny);
               const wlasny = user?.id === c.userId;
 
               return (
@@ -132,11 +130,23 @@ export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eve
                   {nowyDzien && (
                     <div className="my-3 flex justify-center">
                       <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                        {etykietaDnia(c.createdAt)}
+                        {etykietaDniaCzatu(c.createdAt)}
                       </span>
                     </div>
                   )}
-                  <div className={`flex ${wlasny ? 'justify-end' : 'justify-start'} ${tenSamNadawca ? 'mt-0.5' : 'mt-2.5'}`}>
+                  <div className={`flex items-end ${wlasny ? 'justify-end' : 'justify-start'} ${tenSamNadawca ? 'mt-0.5' : 'mt-2.5'}`}>
+                    {/* Awatar przy OSTATNIM bąbelku grupy, nie przy pierwszym —
+                        tak robią komunikatory: inicjał ZAMYKA cudzą wypowiedź.
+                        Gdy grupa trwa, w tym samym miejscu stoi pusty dystans
+                        o tej samej szerokości, żeby lewy brzeg bąbelków został
+                        równo w linii zamiast skakać. */}
+                    {!wlasny && (koniecGrupy ? (
+                      <span className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
+                        {c.userName.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <span className="mr-1.5 w-7 shrink-0" aria-hidden="true" />
+                    ))}
                     <div className="group relative max-w-[78%]">
                       {!wlasny && !tenSamNadawca && (
                         <p className="mb-0.5 px-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{c.userName}</p>

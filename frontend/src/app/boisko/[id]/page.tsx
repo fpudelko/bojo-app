@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 
 
 import { supabase } from '@/lib/supabase';
-import { slugify, isUuid } from '@/lib/utils';
+import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd } from '@/lib/structuredData';
 import { opisObiektu } from '@/content/opisObiektu';
@@ -74,10 +74,16 @@ async function fetchSlugIndex(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (const row of rows) {
     if (!row.name) continue;
-    const slug = slugify(row.name);
-    // Nazwy się powtarzają (169 duplikatów w katalogu). Pierwszy wygrywa —
-    // tak samo jak wcześniejsze `.find()`.
-    if (!map.has(slug)) map.set(slug, row.id);
+    // Klucz KANONICZNY — nazwa + końcówka identyfikatora, jeden na obiekt.
+    // To on stoi we wszystkich linkach i w `canonical`.
+    map.set(slugBoiska(row.name, row.id), row.id);
+    // Klucz HISTORYCZNY — sama nazwa. Zostaje wyłącznie po to, żeby adresy
+    // wysłane komuś przed tą zmianą nie zaczęły zwracać 404. Nazwy rodzajowe
+    // z importu OSM („Boisko piłkarskie") powtarzają się tysiące razy, więc
+    // ten klucz z definicji trafia w PRZYPADKOWY obiekt — dlatego strona
+    // przekierowuje z niego na adres kanoniczny zamiast go renderować.
+    const historyczny = slugify(row.name);
+    if (!map.has(historyczny)) map.set(historyczny, row.id);
   }
   return map;
 }
@@ -185,7 +191,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Zobacz nadchodzące mecze i zbierz skład na Bojo.`,
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
-    alternates: { canonical: `/boisko/${slugify(field.name)}` },
+    alternates: { canonical: `/boisko/${slugBoiska(field.name, field.id)}` },
     // Tier 3 (dane skąpe/niepotwierdzone, patrz migracja 112) zostaje w serwisie
     // dla użytkowników (mapa, wyszukiwanie), ale nie marnuje budżetu skanowania —
     // `follow: true`, żeby boty dalej szły po linkach wewnętrznych do hubów.
@@ -252,9 +258,17 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   const field = await resolveField(params.id);
   if (!field) notFound();
 
+  // Wejście starym adresem (sama nazwa) prowadzi do PRZYPADKOWEGO obiektu
+  // spośród tysięcy o tej samej nazwie rodzajowej z OSM — nie renderujemy go,
+  // tylko przekierowujemy na adres kanoniczny. Dzięki temu ktoś, kto trafił tu
+  // ze starego linku, widzi w pasku adres, który da się wysłać dalej, a nie
+  // taki, który jutro otworzy inne boisko.
+  const kanoniczny = slugBoiska(field.name, field.id);
+  if (params.id !== kanoniczny && !isUuid(params.id)) redirect(`/boisko/${kanoniczny}`);
+
   const upcomingEvents = await getUpcomingEvents(field.id);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
-  const slug = slugify(field.name);
+  const slug = kanoniczny;
 
   const miasto = field.city ?? miejscowoscZAdresu(field.address);
   // Faza 1 SEO/GEO: ten sam akapit widoczny na stronie (VenueDetailClient,
