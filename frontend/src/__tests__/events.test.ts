@@ -109,7 +109,7 @@ describe('repeatEvent', () => {
     showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
     teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
     maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,
-    reserveClaimMinutes: 120, acceptedPaymentMethods: [], acceptedSportsCards: [],
+    reserveClaimMinutes: 120, reserveEnabled: true, acceptedPaymentMethods: [], acceptedSportsCards: [],
     sportsCardDiscountGrosze: null,
   };
 
