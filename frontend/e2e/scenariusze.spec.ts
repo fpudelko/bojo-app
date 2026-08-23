@@ -505,14 +505,14 @@ test.describe('udostępnianie meczu', () => {
 test.describe('moje gry', () => {
   // Każda zakładka ma własny stan pusty i własny układ. Do dziś nie pilnowało
   // ich nic — a to jest ekran, na który gracz wraca najczęściej.
-  test('nadchodzące — mecze organizatora', async ({ page }) => {
+  test('najbliższe — mecze organizatora', async ({ page }) => {
     await zaloguj(page, KONTA.organizator);
     await page.goto('/moje-gry');
-    await expect(page.getByRole('button', { name: 'Nadchodzące' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Najbliższe' })).toBeVisible();
     await uspokoj(page);
     // Same zakładki, bez listy: karty meczów niosą daty, które zmieniają się
     // z dnia na dzień.
-    const zakladki = page.getByRole('button', { name: 'Nadchodzące' })
+    const zakladki = page.getByRole('button', { name: 'Najbliższe' })
       .locator('xpath=ancestor::div[1]');
     await expect(zakladki).toHaveScreenshot('moje-gry-zakladki.png');
   });
@@ -544,7 +544,7 @@ test.describe('moje gry', () => {
   test('obserwowane — zakładka się otwiera', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/moje-gry?tab=obserwowane');
-    await expect(page.getByRole('button', { name: /Obserwowane/ })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /Obserwuję/ })).toBeVisible({ timeout: 20_000 });
   });
 });
 
@@ -709,10 +709,14 @@ test.describe('lista gier — narzędzia', () => {
   test('menu sortowania', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/wydarzenia');
-    await page.getByRole('button', { name: 'Sortuj' }).click();
-    // Menu rozwija się pod pigułką — sprawdzamy, że w ogóle się otwiera
-    // i że ma pozycję domyślną.
-    await expect(page.getByText(/termin/i).first()).toBeVisible();
+    // Sortowanie nie ma już własnej pigułki — zjechało do arkusza filtrów
+    // (sekcja „Kolejność"). Sprawdzamy, że arkusz się otwiera i ma pozycję
+    // domyślną.
+    await page.getByRole('button', { name: 'Filtry' }).click();
+    const okno = page.getByRole('dialog');
+    await expect(okno).toBeVisible();
+    await expect(okno.getByText('Kolejność')).toBeVisible();
+    await expect(okno.getByText('Najbliższy termin')).toBeVisible();
   });
 });
 

@@ -120,6 +120,15 @@ VALUES (:MECZ::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Numer do bramy to
 INSERT INTO group_posts (group_id, user_id, user_name, body)
 VALUES (:EKIPA::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Składka 20 zł od osoby');
 
+-- Rozmowa prywatna (migracja 125). Para kanoniczna `low < high` — liczy ją
+-- `LEAST/GREATEST`, żeby fixture nie zakładał kolejności identyfikatorów.
+INSERT INTO dm_conversations (low_user_id, high_user_id)
+VALUES (LEAST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid), GREATEST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid));
+
+INSERT INTO dm_messages (low_user_id, high_user_id, sender_id, sender_name, content)
+VALUES (LEAST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid), GREATEST(:ORGANIZATOR::uuid, :UCZESTNIK::uuid),
+        :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Numer mojego konta: 11 2222 3333');
+
 SELECT _sekcja('RLS: rozmowa meczu (event_comments)');
 
 SET ROLE anon;
@@ -222,6 +231,69 @@ SELECT _oczekuj('obcy nie widzi tablicy ekipy',
 SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
 SELECT _oczekuj('członek ekipy widzi tablicę',
                 (SELECT count(*) FROM group_posts WHERE group_id = :EKIPA::uuid), 1);
+RESET ROLE;
+
+SELECT _sekcja('RLS: rozmowy prywatne (dm_messages, migracja 125)');
+
+-- Ta sekcja jest ważniejsza od pozostałych: rozmowa meczu jest półpubliczna
+-- z natury, a prywatna korespondencja nie ma ŻADNEJ dopuszczalnej ścieżki
+-- wycieku. Anonim nie ma tu nawet grantu; obcy zalogowany widzi zero wierszy.
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany nie widzi żadnej rozmowy prywatnej',
+                (SELECT count(*) FROM dm_messages), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('obcy nie widzi CUDZEJ rozmowy prywatnej',
+                (SELECT count(*) FROM dm_messages), 0);
+SELECT _oczekuj('obcy nie widzi nawet tego, że rozmowa istnieje',
+                (SELECT count(*) FROM dm_conversations), 0);
+
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('strona rozmowy widzi swoją korespondencję',
+                (SELECT count(*) FROM dm_messages), 1);
+
+-- Dopisanie się do cudzej rozmowy — obcy nie jest ani `low`, ani `high`,
+-- więc odbija go i CHECK, i polityka INSERT.
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze się do cudzej rozmowy prywatnej',
+  'INSERT INTO dm_messages (low_user_id, high_user_id, sender_id, sender_name, content)
+     SELECT LEAST(o.id, u.id), GREATEST(o.id, u.id), ' || quote_literal(:OBCY) || '::uuid, ''Obcy'', ''wcinam się''
+       FROM (SELECT ' || quote_literal(:ORGANIZATOR) || '::uuid AS id) o,
+            (SELECT ' || quote_literal(:UCZESTNIK) || '::uuid AS id) u');
+RESET ROLE;
+
+SELECT _sekcja('RLS: blokady i zgłoszenia (migracja 125)');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+INSERT INTO user_blocks (blocker_id, blocked_id) VALUES (:UCZESTNIK::uuid, :ORGANIZATOR::uuid);
+SELECT _oczekuj('zakładam własną blokadę i ją widzę',
+                (SELECT count(*) FROM user_blocks), 1);
+
+-- Po zablokowaniu ŻADNA ze stron nie napisze — kanał działający w jedną stronę
+-- jest gorszy niż brak blokady, bo daje złudzenie kontaktu.
+SELECT _oczekuj_odmowe('zablokowany nie napisze do blokującego',
+  'INSERT INTO dm_messages (low_user_id, high_user_id, sender_id, sender_name, content)
+     VALUES (LEAST(' || quote_literal(:ORGANIZATOR) || '::uuid, ' || quote_literal(:UCZESTNIK) || '::uuid),
+             GREATEST(' || quote_literal(:ORGANIZATOR) || '::uuid, ' || quote_literal(:UCZESTNIK) || '::uuid),
+             ' || quote_literal(:UCZESTNIK) || '::uuid, ''Ula'', ''jednak napiszę'')');
+
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('zablokowany NIE WIDZI, że został zablokowany',
+                (SELECT count(*) FROM user_blocks), 0);
+SELECT _oczekuj('historia sprzed blokady zostaje widoczna obu stronom',
+                (SELECT count(*) FROM dm_messages), 1);
+
+-- Zgłoszenia są tylko do zapisu: możliwość sprawdzenia „czy ktoś mnie zgłosił"
+-- zamieniłaby narzędzie ochrony w narzędzie nacisku.
+INSERT INTO user_reports (reporter_id, reported_id, powod)
+VALUES (:ORGANIZATOR::uuid, :OBCY::uuid, 'spam w rozmowie');
+SELECT _oczekuj('nikt nie czyta zgłoszeń — także własnych',
+                (SELECT count(*) FROM user_reports), 0);
 RESET ROLE;
 
 SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)');

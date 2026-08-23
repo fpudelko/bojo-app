@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 735 testy
+**Stan na:** 2026-08-22 · migracja `125` · 45 tabel · 773 testy
 
 ---
 
@@ -343,6 +343,103 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
+
+PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
+(logo, „Znajdź grę", dzwonek) — na telefonie ekran wyglądał jak strona ze wstawionym
+czatem pod nawigacją, nie jak własna aplikacja do pisania. Lista rozmów nie miała też
+szukajki — jedynym sposobem znalezienia konkretnej rozmowy było przewijanie.
+
+ROZWIĄZANIE BOJO: na mobile dla zalogowanego generyczny pasek Header znika CAŁKOWICIE
+na obu ekranach (`hideMobileBarForUser`, ten sam wzorzec co `/mapa`) — jego miejsce
+zajmuje WŁASNY nagłówek ekranu: tytuł + tożsamość + szukajka na liście, strzałka wstecz
++ imię + menu (blokuj/zgłoś) w rozmowie. Szukajka na `/rozmowy` filtruje w pamięci po
+tytule ORAZ zajawce ostatniej wiadomości — cała lista jest już wczytana, więc nie ma po
+co wracać do bazy drugi raz. Desktop bez zmian (Header tam nikt nie prosił chować).
+
+MECHANIKA: `RozmowyClient.tsx` (stan `szukane`, filtr przez `foldText()` z
+`lib/searchText.ts`, `MobileIdentityRow` zamiast paska Header na mobile);
+`DmRozmowaClient.tsx` (`<Header hideMobileBarForUser />`). Bez migracji.
+
+### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
+
+PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
+grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
+Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
+
+ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
+wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
+Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
+właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
+Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
+
+MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
+`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
+`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
+
+### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
+
+PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
+cel „Szukaj" na dolnej nawigacji) i `/mapa` (mapa, z własnym przełącznikiem Gry|Obiekty).
+Dotknięcie „Obiekty" na `/wydarzenia` NAWIGOWAŁO na `/mapa`, gubiąc kontekst — przełączenie
+kosztowało przeskok strony. Do tego `/mapa` na telefonie nie miało w ogóle widoku listy:
+wyłącznie mapa plus jedna karta wybranej pinezki, bo przewijana lista istniała tylko na
+desktopie, obok mapy.
+
+ROZWIĄZANIE BOJO: „Szukaj" prowadzi dziś na `/mapa`, które ma WSPÓLNY, stały pasek dla
+obu trybów: przełącznik `Gry | Obiekty` (co pokazać), osobny, WIDOCZNY przełącznik
+`Lista | Mapa` (mniejszy wariant tego samego komponentu — nie mały guzik z ikoną), i ikonę
+filtrów z plakietką liczby aktywnych. Sport, „Wolne miejsca", „Za darmo" i „Gry dziś"
+przeniosły się z paska do arkusza filtrów — przełączenie trybu nie przestawia już
+kontrolek miejscami. Telefon dostał pełnoekranowy widok listy w OBU trybach (dawniej
+wyłącznie na desktopie); przełączenie na mapę nie odmontowuje jej — Leaflet trzyma
+kadr/zoom we własnej instancji, więc powrót z listy wraca do dokładnie tego samego
+miejsca na mapie, nie do widoku całej Polski.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
+`SegmentedToggle` z nowym `size="sm"`); `BottomNav.tsx` (href „Szukaj" → `/mapa`);
+`MapaClient.tsx` przejmuje po `EventsListClient.tsx` gaszenie pomarańczowej kropki
+„nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`) i plakietkę „Nowość" na
+kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
+już celem „Szukaj". Bez migracji.
+
+### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
+
+PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
+rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
+z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
+nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
+„zapisali się na listę".
+
+ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
+znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
+miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
+niezależnie od tego ustawienia.
+
+MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
+`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
+z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
+przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
+komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
+
+### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
+
+PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
+otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
+a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
+Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
+który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
+
+ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
+identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
+nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
+widzi w pasku adres, który da się wysłać dalej.
+
+MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
+`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
+linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
+na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
+
 ### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
 
 PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
@@ -460,119 +557,3 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`budujPowrot()` składa adres z b
 `searchParams` plus `lat`/`lng`/`z` z instancji Leafleta; `widokZLinku` przywraca go raz
 przy wejściu), `lib/powrot.ts` (cel „wstecz" w `sessionStorage`, link do obiektu zostaje
 kanoniczny).
-### 2026-08-22 — Pole do pisania trzyma się klawiatury, a nie środka ekranu
-
-PROBLEM: na iPhonie pisanie wiadomości w Bojo wyglądało źle w obie strony. Po otwarciu
-klawiatury pole „Napisz do uczestników" zatrzymywało się kilkadziesiąt pikseli NAD
-klawiaturą, a pod nim świeciło puste tło strony. Przy schowanej klawiaturze to samo pole
-siedziało pod samą kreską paska gestów na dole ekranu. Do tego otwarcie klawiatury
-spychało najnowszą wiadomość pod krawędź — dokładnie w chwili, gdy ktoś zaczynał na nią
-odpowiadać.
-
-ROZWIĄZANIE BOJO: pole do pisania przykleja się dokładnie do górnej krawędzi klawiatury,
-a przy schowanej klawiaturze zostawia odstęp na pasek gestów telefonu. Otwarcie
-klawiatury dociąga listę wiadomości na dół, chyba że akurat czyta się starsze wiadomości
-wyżej — wtedy widok zostaje tam, gdzie był. Dotyczy tak samo rozmowy meczu, jak tablicy
-ekipy.
-
-MECHANIKA: `lib/oknoCzatu.ts` — `useOknoCzatu()` mierzy `visualViewport.height`
-i `styleOknaCzatu()` podstawia ją korzeniowi strony zamiast `100dvh`. Na iOS klawiatura
-nie kurczy layoutu (`viewport.interactiveWidget: 'resizes-content'` działa tylko na
-Androidzie), tylko przesuwa widoczne okno w górę z zapasem — stąd pusty pas pod
-composerem. Ten sam hak mówi, czy klawiatura jest otwarta: włącza
-`env(safe-area-inset-bottom)` pod kontenerem rozmowy przy schowanej klawiaturze
-i dociągnięcie listy (prop `klawiatura` w `RozmowaWydarzenia.tsx`/`RozmowaGrupy.tsx`).
-Wpięte w `EventDetailClient.tsx` i `GroupDetailClient.tsx`.
-
-### 2026-08-22 — SEO/GEO: odpowiedzi wprost, strony sport+miasto na Warszawę i Kraków
-
-PROBLEM: strony `/jak-dziala-bojo` i `/dlaczego-bojo` odpowiadały na pytanie użytkownika
-dopiero po przewinięciu — modele generatywne cytują krótkie, faktograficzne akapity, a
-takich nie było. Odpowiedź o podziale kosztów nie podawała żadnej liczby, więc nie dawała
-się zacytować jako konkret. Landingi lokalne obsługiwały jedno miasto i siedziały pod
-prefiksem `/graj/`, a nic na stronie nie mówiło wprost, że Bojo nie jest systemem
-rezerwacji obiektów — przez co trafiało do odpowiedzi na zapytania o wynajem boiska,
-gdzie nic nie wnosi.
-
-ROZWIĄZANIE BOJO: Direct Answer (40–50 słów) nad treścią `/dlaczego-bojo`,
-`/jak-dziala-bojo` i każdej strony sport+miasto. Odpowiedź o kosztach niesie rachunek
-(150 zł ÷ 12 miejsc = 12,50 zł od osoby — dzielnikiem jest liczba MIEJSC, nie liczba
-zapisanych). Trzy nowe pytania FAQ: o sprawiedliwe rozliczenie wynajmu, o brakującą osobę
-na mecz i o szukanie ludzi do gry. Landingi lokalne przeniesione z `/graj/[sport]/[miasto]`
-na `/[sport]/[miasto]` (301 ze starych adresów) i rozszerzone o Warszawę i Kraków —
-dwanaście stron. Każda dostała blok „Czym Bojo nie jest", liczbę obiektów katalogu
-w okolicy, `MiniFaq` z czterema pytaniami i link do mapy.
-
-MECHANIKA: `content/miasta.ts` (nowy — slug, mianownik, miejscownik z przyimkiem,
-współrzędne, szablony Direct Answer i `CZYM_BOJO_NIE_JEST`), `app/[sport]/[miasto]/page.tsx`
-(przeniesiony, `dynamicParams = false` — trasa siedzi na pierwszym segmencie ścieżki),
-`next.config.mjs#redirects()`, `lib/api.ts#policzBoiskaWOkolicy()` (kadr prostokątny, nie
-haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPOWIEDZ`,
-`content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
-stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
-`scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
-### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
-
-PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
-Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
-pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
-miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
-zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
-zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
-`show_payment_status`, które miało zasłaniać co innego.
-
-ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
-rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
-znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
-uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
-sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
-„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
-
-MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
-„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
-z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
-
-### 2026-08-22 — Dzwonek powiadomień rozdzielony na wiadomości i resztę
-
-PROBLEM: dzwonek w nagłówku pokazywał wszystkie powiadomienia w jednej liście —
-„ktoś napisał w rozmowie meczu" ginęło obok „nowy mecz w grupie" czy „prośba
-o dołączenie". Osobno: kliknięcie w powiadomienie push na telefonie (poza
-aplikacją) otwierało domyślną zakładkę meczu/grupy zamiast rozmowy, a ta sama
-pozycja i tak zostawała nieprzeczytana w dzwonku, mimo że telefon właśnie ją
-pokazał i użytkownik ją otworzył.
-
-ROZWIĄZANIE BOJO: dwie niezależne ikony w nagłówku — chmurka (wiadomości
-z meczów i ekip, ogłoszenia na tablicy) i dzwonek (reszta), każda z własną
-listą i własnym „otwarcie oznacza jako przeczytane". Kliknięcie w powiadomienie
-o wiadomości — czy to w dzwonku, czy z push notification na telefonie —
-prowadzi wprost na zakładkę „Rozmowa"/„Tablica", nie na domyślny widok.
-Kliknięcie push notification oznacza teraz tę samą pozycję jako przeczytaną
-w dzwonku.
-
-MECHANIKA: `TYPY_WIADOMOSCI`/`celPowiadomienia()` w `lib/notifications.ts`
-(używane przez `NotificationBell.tsx`, dwa panele: chmurka + dzwonek).
-Migracja `119`: wyzwalacz `wyslij_push_po_powiadomieniu()` dokłada `id`
-powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
-`?przeczytaj=<id>` po kliknięciu (service worker nie ma dostępu do sesji
-Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
-Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
-w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
-
-### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
-
-PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
-listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
-w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
-razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
-
-ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
-panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
-z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
-wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
-co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
-
-MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
-w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
-trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
-karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`).

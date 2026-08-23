@@ -61,6 +61,7 @@ export default function EditEventPage() {
   // wartość z bazy, więc bez stanu „nie zdecydowano".
   const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
   const [reserveClaimMinutes, setReserveClaimMinutes] = useState(180);
+  const [reserveEnabled, setReserveEnabled] = useState(true);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [descriptionEnabled, setDescriptionEnabled] = useState(false);
@@ -131,6 +132,7 @@ export default function EditEventPage() {
         setGoalkeepersEnabled(ev.goalkeepersEnabled ?? false);
         setSlotyZarezerwowane(ev.goalkeeperSlotsReserved ?? true);
         setReserveClaimMinutes(ev.reserveClaimMinutes ?? 180);
+        setReserveEnabled(ev.reserveEnabled ?? true);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
         setDescriptionEnabled(!!ev.description);
@@ -219,6 +221,7 @@ export default function EditEventPage() {
       goalkeepersEnabled: GK_SPORTS.includes(sport) ? goalkeepersEnabled : false,
       goalkeeperSlotsReserved: slotyZarezerwowane,
       reserveClaimMinutes,
+      reserveEnabled,
       visibility,
       requireApproval,
       requireSmsConfirmation,
@@ -452,6 +455,8 @@ export default function EditEventPage() {
             slotyZarezerwowane={slotyZarezerwowane}
             setSlotyZarezerwowane={setSlotyZarezerwowane}
             setGoalkeepersEnabled={setGoalkeepersEnabled}
+            reserveEnabled={reserveEnabled}
+            setReserveEnabled={setReserveEnabled}
             reserveClaimMinutes={reserveClaimMinutes}
             setReserveClaimMinutes={setReserveClaimMinutes}
           />

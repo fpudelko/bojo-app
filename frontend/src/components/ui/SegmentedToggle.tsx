@@ -12,14 +12,20 @@ import { clsx } from 'clsx';
  * podświetlenie obok przycisku, który podświetla.
  */
 export default function SegmentedToggle<T extends string>({
-  value, onChange, options, ariaLabel,
+  value, onChange, options, ariaLabel, size = 'md',
 }: {
   value: T;
   onChange: (v: T) => void;
   options: readonly [{ value: T; label: string }, { value: T; label: string }];
   ariaLabel: string;
+  /** `sm` — dla przełącznika drugorzędnego obok głównego wyboru (np. „Lista |
+   *  Mapa" przy „Gry | Obiekty" w scalonej wyszukiwarce). Mniejsza plakietka
+   *  odróżnia „JAK patrzę" od „NA CO patrzę", więc oba naraz nie konkurują
+   *  o uwagę. */
+  size?: 'md' | 'sm';
 }) {
   const drugaAktywna = value === options[1].value;
+  const maly = size === 'sm';
   return (
     <div
       role="radiogroup"
@@ -41,7 +47,8 @@ export default function SegmentedToggle<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={clsx(
-            'relative z-10 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors',
+            'relative z-10 whitespace-nowrap rounded-full font-medium transition-colors',
+            maly ? 'px-2.5 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]',
             value === o.value ? 'text-primary-700' : 'text-slate-500 hover:text-slate-700',
           )}
         >
