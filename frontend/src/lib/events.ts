@@ -57,6 +57,9 @@ export function toEvent(row: any): EventItem {
     goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
     reserveClaimMinutes: row.reserve_claim_minutes ?? 180,
+    // `?? true` nie jest ostrożnością: kolumna doszła w `123` i mecze
+    // sprzed migracji mają zachowywać się dokładnie jak dotąd.
+    reserveEnabled: row.reserve_enabled ?? true,
     acceptedPaymentMethods: row.accepted_payment_methods ?? [],
     // Numer BLIK od migracji `120` siedzi w `event_blik` (RLS) i dociąga go
     // `getEvent()`; zapytania listowe go nie pobierają i nie potrzebują.
@@ -181,6 +184,7 @@ export async function createEvent(
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
@@ -284,6 +288,7 @@ export async function updateEvent(
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
       reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
