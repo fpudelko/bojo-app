@@ -367,6 +367,34 @@ w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi f
 skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
 `metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
 
+### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
+
+PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
+liczbę miejsc, czas na decyzję z rezerwy, koszt, metody płatności, zniżkę karty sportowej
+i tryb miejsc dla bramkarzy. Typowy mecz — darmowy, bez rezerwy, bez podziału na
+bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było przewinąć przez
+wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
+
+ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
+trzy przełączniki DOMYŚLNIE WYŁĄCZONE — „Lista rezerwowa", „Mecz płatny", „Bramkarze
+osobno". Szczegóły każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny"
+czyści kwotę i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa
+i „Biorę udział"), krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis).
+Publikacja przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu —
+mecz jest widoczny natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się
+szybciej, niż da się ją poprawić.
+
+SKUTEK DLA NOWYCH MECZÓW: przełącznik rezerwy wyłączony domyślnie znaczy, że nowy mecz
+przy komplecie ZAMYKA zapisy zamiast ustawiać kolejkę. Kto chce kolejkę, włącza ją
+w kreatorze albo później w edycji meczu.
+
+MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
+`frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie
+chowający ich CSS-em — ukryte pole nadal wysyła wartość);
+`EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
+`UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
+w `lib/eventWizard.ts`. Bez migracji.
+
 ### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
 
 PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
@@ -532,28 +560,3 @@ minutes'`) na `UPDATE` istniejącego wiersza + `INSERT` dla reszty w
 się — `trg_wyslij_push` (102) łapie wyłącznie `INSERT`. `NotificationBell.tsx` dostaje
 drugą subskrypcję real-time na `UPDATE`, rozróżnia odświeżenie treści od zwykłego
 oznaczenia jako przeczytane po tym, czy `created_at` się zmienił.
-
-### 2026-08-22 — Rozmowa meczu i numer BLIK przestają być czytelne dla całego internetu
-
-PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą (Supabase)
-bezpośrednio, a klucz dostępu do API siedzi jawnie w kodzie strony. Jedyną granicą są
-reguły dostępu w bazie (RLS), a rozmowy meczów miały regułę bez żadnego warunku na osobę:
-treść rozmowy DOWOLNEGO meczu, także prywatnego, dało się pobrać jednym zapytaniem, bez
-zakładania konta. Interfejs pokazywał zakładkę „Rozmowa" wyłącznie uczestnikom, ale to
-była bramka w aplikacji, nie w bazie. Osobno to samo dotyczyło numeru BLIK organizatora:
-aplikacja chowała go do godziny przed meczem, a baza oddawała go w każdej odpowiedzi
-o mecz, bo reguły dostępu w Postgresie działają na całe wiersze, nie na kolumny.
-
-ROZWIĄZANIE BOJO: rozmowę meczu czyta i pisze wyłącznie ten, kto ma do niej prawo także
-w interfejsie — uczestnik meczu, organizator oraz, gdy mecz jest przypięty do ekipy,
-członek tej ekipy. Numer BLIK czyta organizator, jego delegat od płatności i uczestnik
-meczu; osoba spoza składu widzi zamiast numeru zdanie „numer do BLIKA zobaczysz, jeśli
-dołączysz do składu". Reguła „numer dopiero na godzinę przed meczem" zostaje wygodą
-interfejsu, nie ochroną. Niezalogowany nie dostaje z bazy ani jednej wiadomości i ani
-jednego numeru.
-
-MECHANIKA: migracje `120` i `121`. `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER) wchodzi
-do polityk SELECT i INSERT na `event_comments`. Numer BLIK przenosi się z kolumny
-`events.blik_phone` do osobnej tabeli `event_blik` z własną polityką, bo `events` czyta
-każdy; klient dociąga go osadzeniem `select('*, event_blik(blik_phone)')`
-(`lib/blik.ts`, `lib/events.ts`). Kolejność wdrożenia: `120` → deploy → `121`.
