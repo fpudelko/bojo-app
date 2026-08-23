@@ -497,7 +497,7 @@ ponownie i zacommituj wynik.
     nawigacji, gdy w promieniu 5 km pojawiło się nowe wydarzenie
     (`KLUCZ_WYDARZENIA_WIDZIANO` w `lib/events.ts`). Nigdy nic innego.
 
-  **Liczba nadchodzących meczów** na ikonie „Moje mecze" (dolna nawigacja) jest celowo
+  **Liczba nadchodzących meczów** na ikonie „Mecze" (pierwsza pozycja dolnej nawigacji) jest celowo
   ZIELONA (`primary-700`), poza tą trójką: nie znaczy ani „przeczytaj", ani
   „zdecyduj", ani „nowość" — to stan, nie zdarzenie. Niebieska kropka „prośba
   o dołączenie" schodzi wtedy do dolnego rogu ikony: akcja do wykonania nie może
