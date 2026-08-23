@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 40 tabel · 741 testów
+**Stan na:** 2026-08-22 · migracja `124` · 44 tabele · 767 testów
 
 ---
 
@@ -343,6 +343,22 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
+
+PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
+grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
+Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
+
+ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
+wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
+Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
+właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
+Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
+
+MECHANIKA: migracja `124` (`dm_conversations` z parą kanoniczną `low < high`,
+`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
+`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
+
 ### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
 
 PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
@@ -356,7 +372,7 @@ znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi 
 miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
 niezależnie od tego ustawienia.
 
-MECHANIKA: `events.reserve_enabled` (migracja `123`, DEFAULT `true`); wyzwalacz
+MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
 `trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
 z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
 przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
@@ -547,22 +563,3 @@ powiadomienia do payloadu push; `public/sw.js` doczepia go do adresu jako
 Supabase, więc nie może sam oznaczyć wiersza — robi to klient przy montażu).
 Ta sama reguła „typ → zakładka" zduplikowana w `adresPowiadomienia()`
 w `supabase/functions/send-push/index.ts` (Deno, osobny runtime).
-
-### 2026-08-22 — Przytrzymanie „Grupy" na dolnej nawigacji otwiera najbliższą ekipę
-
-PROBLEM: dolna nawigacja ma pięć kolumn — jedna z nich, „Grupy", zawsze prowadziła do
-listy wszystkich ekip użytkownika, nawet gdy chodziło o jedną konkretną, tę z meczem
-w ten weekend. Kto ma dwie-trzy ekipy, robił dwa kliknięcia zamiast jednego za każdym
-razem, gdy chciał sprawdzić najbliższy mecz swojej drużyny.
-
-ROZWIĄZANIE BOJO: przytrzymanie ikony „Grupy" (pół sekundy, ten sam gest co „Moje" →
-panel rozmów) przenosi od razu do NAJLEPSZEJ ekipy: w pierwszej kolejności tej
-z najbliższym nadchodzącym meczem, w jego braku — tej z najświeższą nieprzeczytaną
-wiadomością, a bez żadnego z tych dwóch — do zwykłej listy `/grupy` (czyli tego samego,
-co zwykłe tapnięcie). Zwykłe tapnięcie działa jak dotąd.
-
-MECHANIKA: `useDlugieWcisniecie()` (`lib/useDlugieWcisniecie.ts`) na ikonie „Grupy"
-w `components/layout/BottomNav.tsx`, wołane na żądanie gestu (nie przy każdej zmianie
-trasy). Priorytet liczy `getMyGroupsZTerminem()` (`lib/groups.ts`, ta sama funkcja co
-karty na `/grupy` — sortuje ekipy po najbliższym terminie) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`).

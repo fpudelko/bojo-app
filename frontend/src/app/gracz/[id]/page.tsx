@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, User, Trophy, Calendar, Star, ChevronRight } from 'lucide-react';
+import { Loader2, User, Trophy, Calendar, Star, ChevronRight, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
+import { useAuth } from '@/lib/auth';
 import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } from '@/lib/players';
 import { sportEmoji } from '@/lib/sports';
 import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
@@ -14,6 +15,7 @@ import { withCount } from '@/lib/plural';
 
 export default function PublicPlayerPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<PublicPlayer | null>(null);
   const [stats, setStats] = useState<PlayerAggregateStats | null>(null);
   const [history, setHistory] = useState<PlayerHistoryItem[]>([]);
@@ -99,6 +101,19 @@ export default function PublicPlayerPage() {
                   </p>
                 </div>
               </div>
+              {/* Wejście do rozmowy prywatnej (migracja 124). Do tej pory
+                  jedyny kontakt z graczem znanym TYLKO z boiska szedł poza
+                  aplikację — na Messengera, do kogoś, kogo nie ma się
+                  w kontaktach. Na WŁASNYM profilu przycisku nie ma: rozmowa
+                  z samym sobą nie istnieje (CHECK w migracji też jej broni). */}
+              {user && user.id !== profile.id && (
+                <Link
+                  href={`/rozmowy/${profile.id}`}
+                  className="mt-4 flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <MessageCircle className="h-4 w-4" /> Napisz wiadomość
+                </Link>
+              )}
             </div>
 
             {/* Stats */}
