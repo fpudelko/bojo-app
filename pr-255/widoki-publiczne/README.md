@@ -1,9 +1,9 @@
 # Zrzuty — PR #255 · widoki-publiczne
 
-Przebieg [`32644192892`](https://github.com/fpudelko/bojo-app/actions/runs/32644192892)
+Przebieg [`32656427014`](https://github.com/fpudelko/bojo-app/actions/runs/32656427014)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/255)
 
-Zmienione widoki: **17** · nowe widoki: **4**
+Zmienione widoki: **17** · nowe widoki: **8**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -391,6 +391,14 @@ w czytelnej skali, potem całe strony obok siebie.
 Nie było ich wcześniej, więc nie ma z czym porównywać —
 to jest po prostu to, co widzi użytkownik.
 
+### zrzuty-komputer · trasa-rozmowa-prywatna
+
+![zrzuty-komputer · trasa-rozmowa-prywatna](nowy__zrzuty-komputer__trasa-rozmowa-prywatna.png)
+
+### zrzuty-komputer · trasa-rozmowy
+
+![zrzuty-komputer · trasa-rozmowy](nowy__zrzuty-komputer__trasa-rozmowy.png)
+
 ### zrzuty-komputer · trasa-sport-miasto-poznan
 
 ![zrzuty-komputer · trasa-sport-miasto-poznan](nowy__zrzuty-komputer__trasa-sport-miasto-poznan.png)
@@ -398,6 +406,14 @@ to jest po prostu to, co widzi użytkownik.
 ### zrzuty-komputer · trasa-sport-miasto-warszawa
 
 ![zrzuty-komputer · trasa-sport-miasto-warszawa](nowy__zrzuty-komputer__trasa-sport-miasto-warszawa.png)
+
+### zrzuty-telefon · trasa-rozmowa-prywatna
+
+![zrzuty-telefon · trasa-rozmowa-prywatna](nowy__zrzuty-telefon__trasa-rozmowa-prywatna.png)
+
+### zrzuty-telefon · trasa-rozmowy
+
+![zrzuty-telefon · trasa-rozmowy](nowy__zrzuty-telefon__trasa-rozmowy.png)
 
 ### zrzuty-telefon · trasa-sport-miasto-poznan
 
