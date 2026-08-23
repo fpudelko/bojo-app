@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-22 · migracja `123` · 41 tabel · 740 testy
+**Stan na:** 2026-08-22 · migracja `124` · 41 tabel · 747 testy
 
 ---
 
@@ -369,6 +369,25 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
 kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
 już celem „Szukaj". Bez migracji.
 
+### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
+
+PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
+rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
+z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
+nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
+„zapisali się na listę".
+
+ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
+znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
+miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
+niezależnie od tego ustawienia.
+
+MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
+`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
+z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
+przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
+komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
+
 ### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
 
 PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
@@ -556,24 +575,3 @@ haversine — stąd „w okolicy" w treści), `content/dlaczego.ts#DLACZEGO_ODPO
 `content/jakDziala.ts#JAK_DZIALA_ODPOWIEDZ`, `lib/structuredData.ts` (`FAQPage` na
 stronach miejskich, karty sportowe w `featureList`), `sitemap.ts#grajPages`,
 `scripts/check-docs.mjs` (walidacja nowego kształtu URL), `__tests__/miasta.test.ts`.
-
-### 2026-08-22 — Obserwowanie pełnego meczu i własna płatność po zapisaniu
-
-PROBLEM: dwie rzeczy tego samego rodzaju — stan widoczny przy akcji znikał zaraz po niej.
-Przy komplecie dolny pasek podmieniał się na samą rezerwę, więc jedyną drogą do śledzenia
-pełnego meczu w Bojo było wejście do kolejki rezerwowej; kto nie chciał grać, blokował
-miejsce tylko po to, żeby mieć mecz na oku. Osobno: w oknie zapisu widać było kwotę,
-zniżkę z karty sportowej i wybrany sposób płatności, a po zapisaniu nic z tego nie
-zostawało — karta „Twoja płatność" była schowana za ustawieniem organizatora
-`show_payment_status`, które miało zasłaniać co innego.
-
-ROZWIĄZANIE BOJO: przy komplecie pasek pokazuje obie drogi obok siebie — „Komplet — na
-rezerwę" oraz „Obserwuj". Rezerwa znaczy „chcę zagrać, jak się zwolni", obserwowanie
-znaczy „nie gram, ale chcę wiedzieć". Karta „Twoja płatność" pokazuje się każdemu
-uczestnikowi ze składu: kwota, przekreślona cena sprzed zniżki z karty sportowej, wybrany
-sposób płatności i numer BLIK. `show_payment_status` zasłania już wyłącznie znacznik
-„opłacone / nieopłacone", czyli księgowość organizatora — nie własne dane uczestnika.
-
-MECHANIKA: `EventDetailClient.tsx` (pasek `joinBarVisible` w gałęzi `isFull`, sekcja
-„Twoja płatność" w zakładce Rozliczenia), `canSeeBlikPhone()` i `priceForParticipant()`
-z `lib/payments.ts` — numer BLIK rządzi się tą samą regułą co w nagłówku meczu.
