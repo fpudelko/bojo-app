@@ -188,6 +188,18 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     ],
   },
   {
+    id: 'bojo-a-rezerwacje',
+    label: 'Bojo a systemy rezerwacji obiektów',
+    tytul: 'Bojo a systemy rezerwacji obiektów',
+    akapity: [
+      'Bojo nie wynajmuje obiektów i nie pośredniczy w opłatach za termin. Halę czy ' +
+      'orlik załatwiasz tak jak dotąd — bezpośrednio z obiektem. Bojo zaczyna się krok ' +
+      'później: gdy termin jest już Twój, a trzeba zebrać na niego ludzi, policzyć ' +
+      'miejsca i podzielić rachunek. Dlatego Bojo bywa używane razem z systemem ' +
+      'rezerwacji tego samego obiektu, nie zamiast niego.',
+    ],
+  },
+  {
     id: 'czego-bojo-nie-robi',
     label: 'Czego Bojo nie robi',
     tytul: 'Czego Bojo nie robi',

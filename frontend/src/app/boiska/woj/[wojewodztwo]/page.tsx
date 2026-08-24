@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
-import { sportEmoji } from '@/lib/sports';
+import { sportEmoji, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
+import { wstepHubuWojewodztwa } from '@/content/boiska';
 import type { Field } from '@/types';
 
 // Faza 2b SEO/GEO (BACKLOG.md §7a) — hub wojewódzki, wzorem `/boiska/[sport]`:
@@ -115,6 +116,16 @@ export default async function WojewodztwoPage(
             Województwo {label} — boiska sportowe
           </h1>
         </div>
+
+        {/* Bezpośrednia odpowiedź nad listą — bez niej strona jest samym
+            listingiem (docs/seo-geo-strategia.md, 3g). Tylko strona 1: dalsze
+            strony paginacji nie powinny powielać ten sam akapit. */}
+        {wszystkich > 0 && strona === 1 && (
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
+            {wstepHubuWojewodztwa(wszystkich, label)}
+          </p>
+        )}
+
         <p className="text-slate-500 text-sm mb-8">
           {wszystkich > 0
             ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
@@ -182,6 +193,47 @@ export default async function WojewodztwoPage(
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
         </div>
+
+        {/* Linkowanie poziome (docs/seo-geo-strategia.md, 4b/16): bez tego hub
+            wojewódzki był OSIEROCONY poza wejściem z sitemapa — zero linków
+            przychodzących I wychodzących. Tylko strona 1, z tego samego powodu
+            co w /boiska/[sport]. */}
+        {strona === 1 && (
+          <div className="mt-10 space-y-6 border-t border-slate-200 pt-6">
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Boiska według sportu
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {HUBY_KATALOGU_SPORTOWYCH.map((h) => (
+                  <Link
+                    key={h.slug}
+                    href={`/boiska/${h.slug}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {h.etykieta}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Inne województwa
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {WOJEWODZTWA.filter((w) => w !== slug).map((woj) => (
+                  <Link
+                    key={woj}
+                    href={`/boiska/woj/${woj}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {WOJEWODZTWO_LABEL[woj]}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <SiteFooter />
     </div>

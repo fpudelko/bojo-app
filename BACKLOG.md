@@ -478,11 +478,17 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       i boisk na landingu) to osobna pozycja niżej.
 - [ ] **Pomiar bazowy przed jakąkolwiek optymalizacją** — Search Console + 40 promptów
       (Załączniki A i B strategii).
-- [ ] **Ujednolicić liczbę obiektów w katalogu** (D13) — dziś cztery różne wartości
-      w czterech miejscach.
-- [ ] **`.in('seo_tier',[1,2])` zamiast `.neq(…, 3)`** (D12) — dzisiejszy warunek gubi
-      wiersze `NULL`, przez co gałąź w `lib/sitemapTier.ts:13` i jej test opisują
-      zachowanie, które nie może zajść.
+- [x] **Ujednolicić liczbę obiektów w katalogu** (D13, zrobione 2026-08-24) —
+      dwa komentarze w kodzie ze sztywną, już nieaktualną liczbą „32 684" zastąpione
+      tą samą frazą „ponad 30 000" co w treści widocznej dla użytkownika
+      (`content/dlaczego.ts`, `llms.txt`). Datowany zapis w BACKLOG (36 268, ten wpis)
+      zostaje jako historia, nie konkuruje z liczbą bieżącą.
+- [x] **`.in('seo_tier',[1,2])` zamiast `.neq(…, 3)`** (D12, zrobione 2026-08-24) —
+      przy okazji zweryfikowane wprost w migracji `112`: `fields.seo_tier` jest
+      `SMALLINT NOT NULL DEFAULT 3` z `CHECK IN (1, 2, 3)`, więc `NULL` jest niemożliwy
+      na poziomie bazy, nie tylko przefiltrowany tym zapytaniem — silniejsze uzasadnienie
+      niż w pierwotnym D12. `priorytetDlaTier()` zawężone do `1 | 2`, martwa gałąź
+      i jej test usunięte.
 
 **Średnioterminowe:**
 
@@ -493,19 +499,29 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       **Ograniczenie:** na atrapach kluczy trasy żyjące z danych sprawdzane są miękko —
       stronę obiektu twardo weryfikuje dopiero przebieg przeciwko produkcji
       (`node scripts/audyt-robota.mjs --baza https://bojo.pl`).
-- [ ] **Akapit bezpośredniej odpowiedzi na landingu** — dziś pierwszy ekran ani razu
-      nie mówi, czym Bojo jest.
-- [ ] **Sekcje odróżniające Bojo od systemów rezerwacji** w `/jak-dziala-bojo`,
-      `/dlaczego-bojo` i `/faq` (dziś tylko na stronach miejskich).
+- [x] **Akapit bezpośredniej odpowiedzi na landingu** (zrobione 2026-08-24) —
+      `LandingDirectAnswer.tsx`, komponent serwerowy zaraz pod hero, przed statystykami.
+- [x] **Sekcje odróżniające Bojo od systemów rezerwacji** (zrobione 2026-08-24) —
+      nowa sekcja w `content/jakDziala.ts` (`bojo-a-rezerwacje`), nowa sekcja w
+      `content/dlaczego.ts` (`trzy-rzeczy`), nowe pytanie w `content/faq.ts` (kategoria
+      `podstawy`).
 - [ ] **Strona kalkulatora podziału kosztu boiska** — jedyna strona w planie, która
       nie potrzebuje ani jednego użytkownika, żeby być użyteczna; liczy
-      `priceForParticipant()`, nie własnym wzorem.
+      `priceForParticipant()`, nie własnym wzorem. *(zaplanowana jako kolejny, osobny PR)*
 - [ ] **`alternateName` + `disambiguatingDescription` w `Organization`** — nazwa „Bojo"
       koliduje z potocznym słowem oznaczającym boisko, więc zapytania markowe trafiają
-      dziś w słownik.
-- [ ] **Potwierdzenia graczy w `amenityFeature`** — Faza 3 stworzyła dane, których nie ma
-      nikt inny, i nie wystawiła ich maszynom.
-- [ ] **Linkowanie poziome hubów** i akapity wprowadzające na `/boiska/*`.
+      dziś w słownik. **Czeka na pozycję „Trzy profile poza domeną" (Jan)** — puste albo
+      zmyślone `sameAs` jest gorsze niż jego brak (docs/seo-geo-strategia.md, 5a).
+- [x] **Potwierdzenia graczy w `amenityFeature`** (zrobione 2026-08-24) —
+      `venueAmenityFeatures()` w `lib/structuredData.ts`, quorum współdzielone z
+      `AnkietyObiektu.tsx` przez `lib/potwierdzeniaObiektu.ts#najlepszePotwierdzenie`/
+      `QUORUM_POTWIERDZEN` — jeden próg dla treści widocznej i danych strukturalnych.
+- [x] **Linkowanie poziome hubów i akapity wprowadzające na `/boiska/*`**
+      (zrobione 2026-08-24) — `/boiska/[sport]` linkuje do 16 województw,
+      `/boiska/woj/[x]` linkuje do pozostałych 15 województw i sześciu hubów
+      sportowych (wspólne źródło `HUBY_KATALOGU_SPORTOWYCH` w `lib/sports.ts`,
+      zastępujące trzy niezależne kopie tej samej listy). Akapit generowany
+      z danych w `content/boiska.ts`, wzorem `content/miasta.ts`.
 
 **Długoterminowe:**
 

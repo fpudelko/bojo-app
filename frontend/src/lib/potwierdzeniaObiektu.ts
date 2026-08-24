@@ -20,6 +20,25 @@ export interface PotwierdzeniaZliczone {
   liczba: number;
 }
 
+/** Ile niezależnych głosów uzasadnia pokazanie "potwierdzone przez graczy" —
+ *  jeden klik nie jest jeszcze potwierdzeniem, tylko czyjąś opinią. Współdzielone
+ *  między `AnkietyObiektu.tsx` (widoczna treść) i `lib/structuredData.ts`
+ *  (dane strukturalne na tej samej stronie) — jeden próg, żeby fakt pokazany
+ *  robotowi nigdy nie wyprzedzał tego, co widzi człowiek. */
+export const QUORUM_POTWIERDZEN = 2;
+
+/** Najliczniej potwierdzona wartość dla danego faktu, albo `null`, gdy nikt
+ *  jeszcze nie głosował. Nie sprawdza quorum — wołający decyduje, czy
+ *  `liczba >= QUORUM_POTWIERDZEN` uzasadnia pokazanie wyniku. */
+export function najlepszePotwierdzenie(
+  zliczone: readonly PotwierdzeniaZliczone[],
+  fakt: FaktObiektu,
+): PotwierdzeniaZliczone | null {
+  const dlaFaktu = zliczone.filter((z) => z.fakt === fakt);
+  if (dlaFaktu.length === 0) return null;
+  return dlaFaktu.reduce((a, b) => (b.liczba > a.liczba ? b : a));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toPotwierdzenie(row: any): Potwierdzenie {
   return { fakt: row.fakt, wartosc: row.wartosc };

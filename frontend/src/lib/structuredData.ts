@@ -3,6 +3,10 @@
 // standing up Supabase.
 
 import { defaultEventTitle } from './eventTitle';
+import {
+  najlepszePotwierdzenie, QUORUM_POTWIERDZEN, type PotwierdzeniaZliczone,
+} from './potwierdzeniaObiektu';
+import { SURFACE_LABELS } from './labels';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
@@ -205,4 +209,45 @@ export function venueListJsonLd(
       name: v.name,
     })),
   };
+}
+
+/**
+ * `amenityFeature` z potwierdzeń graczy (migracja 123, Faza 3 SEO/GEO) —
+ * dane, których nie ma żaden katalog importujący z OpenStreetMap, bo wymagają
+ * ludzi, którzy na obiekcie realnie byli. Wystawiane maszynom TYLKO po
+ * osiągnięciu tego samego quorum, które pokazuje je człowiekowi
+ * (`AnkietyObiektu.tsx`) — schema bez pokrycia w widocznej treści jest
+ * sygnałem spamu, nie przewagi (ta sama zasada co przy `faqJsonLd()`
+ * i `howToJsonLd()` w tym pliku).
+ *
+ * Zwraca pustą tablicę, gdy żaden fakt nie osiągnął quorum — wołający
+ * pomija wtedy `amenityFeature` w całości, zamiast emitować pusty klucz.
+ */
+export function venueAmenityFeatures(
+  zliczone: readonly PotwierdzeniaZliczone[],
+): Record<string, unknown>[] {
+  const cechy: Record<string, unknown>[] = [];
+
+  const oswietlenie = najlepszePotwierdzenie(zliczone, 'oswietlenie');
+  if (oswietlenie && oswietlenie.liczba >= QUORUM_POTWIERDZEN) {
+    cechy.push({
+      '@type': 'LocationFeatureSpecification',
+      name: 'Oświetlenie',
+      value: oswietlenie.wartosc === 'tak',
+      description: `Potwierdzone przez ${oswietlenie.liczba} graczy w Bojo`,
+    });
+  }
+
+  const nawierzchnia = najlepszePotwierdzenie(zliczone, 'nawierzchnia');
+  if (nawierzchnia && nawierzchnia.liczba >= QUORUM_POTWIERDZEN) {
+    const etykieta = SURFACE_LABELS[nawierzchnia.wartosc] ?? nawierzchnia.wartosc;
+    cechy.push({
+      '@type': 'LocationFeatureSpecification',
+      name: `Nawierzchnia: ${etykieta.toLowerCase()}`,
+      value: true,
+      description: `Potwierdzone przez ${nawierzchnia.liczba} graczy w Bojo`,
+    });
+  }
+
+  return cechy;
 }

@@ -214,17 +214,23 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
   na stronę, bez filtra po `seo_tier` (`boiska/[sport]/page.tsx:98-104`,
   `boiska/woj/[wojewodztwo]/page.tsx:81-87`). Budżet skanowania, którego broni tiering,
   wydają własne huby.
-- **D12.** **`.neq('seo_tier', 3)` gubi wiersze `NULL`** — w SQL `NULL <> 3` daje
-  `NULL`, nie `TRUE`. Efekt netto jest poprawny (bo `page.tsx:40` mapuje `NULL → 3`),
-  ale gałąź `NULL` w `lib/sitemapTier.ts:13` jest nieosiągalna, a test
-  `sitemapBoiska.test.ts:17-19` sprawdza scenariusz, który nie może zajść. Kod i test
-  opisują zachowanie, którego nie ma. Poprawka: `.in('seo_tier', [1, 2])` i usunięcie
-  martwej gałęzi razem z jej testem.
-- **D13.** **Liczba obiektów rozjeżdża się między powierzchniami.** `content/dlaczego.ts:86`
-  i `llms.txt` mówią „ponad 30 000", landing „dziesiątki tysięcy”, BACKLOG 36 268
-  (3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3), a `llm-context.md` nie podaje liczby
-  wcale. Modele cytują liczby dosłownie — cztery wersje to gwarancja, że któraś
-  zostanie zacytowana jako nieprawdziwa.
+- **D12.** ~~**`.neq('seo_tier', 3)` gubi wiersze `NULL`**~~ **(naprawione 2026-08-24,
+  i uzasadnienie okazało się mocniejsze, niż tu napisano: `fields.seo_tier` jest
+  `SMALLINT NOT NULL` z `CHECK IN (1, 2, 3)`, migracja `112` — `NULL` jest niemożliwy
+  na poziomie bazy, nie tylko przefiltrowany tym zapytaniem. `.in('seo_tier', [1, 2])`
+  i sygnatura `priorytetDlaTier(tier: 1 | 2)` mówią to wprost zamiast przez domysł.)**
+  Stan sprzed poprawki: w SQL `NULL <> 3` daje `NULL`, nie `TRUE`. Efekt netto był
+  poprawny (bo `page.tsx:40` mapuje `NULL → 3`), ale gałąź `NULL` w
+  `lib/sitemapTier.ts:13` była nieosiągalna, a test `sitemapBoiska.test.ts:17-19`
+  sprawdzał scenariusz, który nie mógł zajść.
+- **D13.** ~~**Liczba obiektów rozjeżdża się między powierzchniami.**~~ **(naprawione
+  2026-08-24: dwa komentarze w kodzie ze sztywną liczbą „32 684" — już nieaktualną,
+  katalog urósł do 36 268 — zastąpione tą samą frazą „ponad 30 000" co w treści
+  widocznej dla użytkownika. Datowany zapis w BACKLOG zostaje jako historia, nie
+  konkuruje z liczbą bieżącą.)** Stan sprzed poprawki: `content/dlaczego.ts:86`
+  i `llms.txt` mówiły „ponad 30 000", dwa komentarze w kodzie sztywne „32 684",
+  BACKLOG 36 268 (3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3), a `llm-context.md`
+  nie podawał liczby wcale.
 - **D14.** **`/boiska/inne` istnieje, jest indeksowalne i linkowane z breadcrumbów
   obiektu, ale nie ma go w `sitemap.ts`** (`SPORT_SLUGS` wymienia sześć slugów).
 - **D15.** **Paginacja hubów bez ograniczeń** — `?strona=N` z self-referencing
@@ -236,10 +242,12 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
   przed `metadata.openGraph.images` z `layout.tsx:77`, więc `poznan-satellite.jpg`
   (215 KB w `public/`) prawdopodobnie nie jest nigdy serwowany. Dwa sprzeczne źródła
   obrazka podglądu.
-- **D18.** **Jedyny „żywy" dowód aktywności nie istnieje dla robota.** `LandingOpenGames`
-  jest komponentem klienckim i zwraca `null`, gdy otwartych gier nie ma — a `LandingVenues`
-  tak samo. W pierwszej odpowiedzi serwera strona główna nie zawiera ani jednego linku
-  do meczu ani do obiektu.
+- **D18.** ~~**Jedyny „żywy" dowód aktywności nie istnieje dla robota.**~~ **(naprawione
+  2026-08-24: oba komponenty są dziś komponentami serwerowymi, zweryfikowane na atrapie
+  PostgREST-a — landing oddaje w HTML link do realnego meczu i realnego obiektu.)**
+  Stan sprzed poprawki: `LandingOpenGames` był komponentem klienckim i zwracał `null`,
+  gdy otwartych gier nie było — a `LandingVenues` tak samo. W pierwszej odpowiedzi
+  serwera strona główna nie zawierała ani jednego linku do meczu ani do obiektu.
 
 ---
 
@@ -1134,23 +1142,23 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 7 | Stopka na wszystkich stronach publicznych (D9) | QUICK WIN | wysoki | łatwa | Franek | `app/boiska/**`, `app/boisko/**` | każda strona publiczna prowadzi do stron treści |
 | 8 | Link z landingu do hubów sportowych (4b.2) | QUICK WIN | wysoki | łatwa | Franek | `components/home/landing/` | katalog ma wejście z landingu w HTML |
 | 9 | `scripts/audyt-robota.mjs` jako bramka CI (7c) | ŚREDNI | wysoki | średnia | Franek | `scripts/`, `.github/workflows/` | PR z pustą stroną nie przechodzi |
-| 10 | Akapit bezpośredniej odpowiedzi na landingu (3a) | ŚREDNI | wysoki | łatwa | Franek | `components/home/landing/content.ts` | koszyk markowy w Załączniku A zwraca opis aplikacji |
-| 11 | Sekcje odróżniające od systemów rezerwacji (3b, 3c, 3d, 4d) | ŚREDNI | wysoki | łatwa | Franek | `content/{jakDziala,dlaczego,faq}.ts` | model pytany „czym to się różni od rezerwacji" odpowiada poprawnie |
+| 10 | ~~Akapit bezpośredniej odpowiedzi na landingu (3a)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `LandingDirectAnswer.tsx` | do zmierzenia w Załączniku A |
+| 11 | ~~Sekcje odróżniające od systemów rezerwacji (3b, 3c, 3d, 4d)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `content/{jakDziala,dlaczego,faq}.ts` | do zmierzenia w Załączniku A |
 | 12 | Strona kalkulatora kosztów (N1) | ŚREDNI | wysoki | średnia | Franek | nowa trasa + `lib/payments.ts` | niezerowe wyświetlenia na klaster „Rozliczenie" |
 | 13 | `sameAs` + `disambiguatingDescription` w `Organization` (5a) | ŚREDNI | wysoki | łatwa | Franek po pkt. 15 | `lib/structuredData.ts` | zapytanie markowe przestaje zwracać definicję słownikową |
-| 14 | Serwerowy render otwartych gier i boisk na landingu (D18) | ŚREDNI | średni | średnia | Franek | `components/home/landing/` | landing ma w HTML linki do meczów i obiektów |
+| 14 | ~~Serwerowy render otwartych gier i boisk na landingu (D18)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `LandingOpenGames.tsx`, `LandingVenues.tsx` | zweryfikowane na atrapie: linki do meczu i obiektu w HTML |
 | 15 | Trzy profile poza domeną (6.2) | ŚREDNI | wysoki | łatwa | Jan | poza repo | jest co wpisać w `sameAs` |
-| 16 | Linkowanie poziome hubów (4b) | ŚREDNI | średni | średnia | Franek | `app/boiska/**` | zero stron osieroconych w `sitemap.ts` |
-| 17 | Akapity wprowadzające na hubach (3g) | ŚREDNI | średni | łatwa | Franek | nowa funkcja w `content/` | huby przestają być samą listą |
-| 18 | Potwierdzenia graczy w `amenityFeature` (5b) | ŚREDNI | średni | średnia | Franek | `app/boisko/[id]/page.tsx` | dane z kworum widoczne dla maszyn |
+| 16 | ~~Linkowanie poziome hubów (4b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `app/boiska/**`, `lib/sports.ts` | zero stron osieroconych w `sitemap.ts` |
+| 17 | ~~Akapity wprowadzające na hubach (3g)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | łatwa | Franek | `content/boiska.ts` | huby przestają być samą listą |
+| 18 | ~~Potwierdzenia graczy w `amenityFeature` (5b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `lib/structuredData.ts#venueAmenityFeatures` | zweryfikowane na atrapie: quorum ≥2 w JSON-LD |
 | 19 | Nowy próg indeksacji obiektów (4c) | DŁUGI | wysoki | trudna | Franek | migracja + `oblicz_seo_tier()` | liczba stron w indeksie spada, udział stron z treścią rośnie |
 | 20 | `/boiska/[sport]/[miasto]` (N2) | DŁUGI | średni | trudna | Franek | nowa trasa + `sitemap.ts` | klaster lokalny obiektowy przestaje kanibalizować |
 | 21 | Polityka cyklu życia strony meczu (F3) | DŁUGI | średni | średnia | Franek | `app/wydarzenia/[id]/` | miniony mecz nie zostaje w indeksie |
 | 22 | Jeden kontakt tygodniowo o wzmiankę (6.4) | DŁUGI | wysoki | średnia | Jan | `/admin/outreach`, poza repo | pierwszy link spoza własnych profili w 90 dni |
 | 23 | Wkład zwrotny do OSM (6.3, F1) | DŁUGI | średni | trudna | oboje | do rozstrzygnięcia licencyjnie | Bojo wymienione jako aplikacja wnosząca poprawki |
 | 24 | Widget dla zarządców obiektów (F5) | DŁUGI | średni | trudna | Franek | nowa trasa osadzalna | pierwszy obiekt z osadzonym widokiem |
-| 25 | Ujednolicenie liczby obiektów (D13) | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
-| 26 | `.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12) | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
+| 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
+| 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
 
 ### Pierwszy tydzień — pięć rzeczy, po kolei

@@ -9,6 +9,22 @@
 // still Poznań-heavy. Only the FAQ names Poznań, and only to disclose that
 // honestly — see landingContent.test.ts, describe("zasięg — …").
 
+// Bezpośrednia odpowiedź na "czym jest Bojo" — renderowana serwerowo zaraz
+// pod hero (LandingDirectAnswer.tsx), zanim cokolwiek inne na stronie mówi
+// wprost, co to jest. Do 2026-08-24 pierwszy ekran ani razu nie nazywał
+// produktu po imieniu w zdaniu opisowym: hero mówi "Zorganizuj mecz",
+// nie "czym Bojo jest" — przy nazwie kolidującej z potocznym słowem "bojo"
+// (= boisko, patrz docs/seo-geo-strategia.md §2c) to był najgorszy możliwy
+// start dla modelu cytującego pierwszy fragment strony. Ten akapit jest
+// tym fragmentem: nazwa encji na początku, cztery fakty, zero przymiotników.
+export const LANDING_DIRECT_ANSWER =
+  'Bojo to darmowa aplikacja webowa do organizowania amatorskich meczów. ' +
+  'Zakładasz grę — sport, boisko z mapy, termin i liczba miejsc — i wysyłasz ' +
+  'jeden link tam, gdzie Twoja ekipa już rozmawia. Osoba z linkiem zapisuje ' +
+  'się bez zakładania konta, podając imię i e-mail. Bojo liczy zajęte ' +
+  'miejsca, prowadzi listę rezerwową z widoczną kolejnością i dzieli koszt ' +
+  'wynajmu obiektu na graczy.';
+
 export const LANDING_CTA = {
   primary: { label: 'Zorganizuj mecz', href: '/wydarzenia/nowe' },
   secondary: { label: 'albo przejrzyj otwarte gry', href: '/wydarzenia' },

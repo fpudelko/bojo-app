@@ -7,6 +7,7 @@ import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } fro
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
 import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
+import { wstepHubuSportu, wstepHubuWojewodztwa } from '@/content/boiska';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -69,6 +70,17 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   for (const obiekt of PROBKA_OBIEKTOW) {
     jednostki.push({ etykieta: `opisObiektu#${obiekt.name}`, tekst: opisObiektu(obiekt) });
   }
+
+  // Wstępy hubów: te same generatory co na /boiska/[sport] i /boiska/woj/[x],
+  // sprawdzone dla reprezentatywnych wartości — czysty szablon, jak wyżej.
+  jednostki.push({
+    etykieta: 'boiska#wstep-sportu',
+    tekst: wstepHubuSportu(1234, 'piłki nożnej'),
+  });
+  jednostki.push({
+    etykieta: 'boiska#wstep-wojewodztwa',
+    tekst: wstepHubuWojewodztwa(1234, 'wielkopolskie'),
+  });
 
   return jednostki;
 }

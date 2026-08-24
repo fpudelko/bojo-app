@@ -40,6 +40,14 @@ export const FAQ: readonly PytanieFaq[] = [
   },
   {
     kategoria: 'podstawy',
+    q: 'Czym Bojo różni się od systemu rezerwacji boisk?',
+    a: 'System rezerwacji odpowiada na pytanie, czy obiekt jest wolny, i przyjmuje ' +
+      'opłatę za termin. Bojo tego nie robi — zaczyna się tam, gdzie termin jest już ' +
+      'załatwiony, i zajmuje się zebraniem składu, listą rezerwową i podziałem kosztu ' +
+      'między graczy.',
+  },
+  {
+    kategoria: 'podstawy',
     naLandingu: true,
     q: 'Czy Bojo jest darmowe?',
     a: 'Tak. Tworzenie meczów, dołączanie do gier, grupy i mapa boisk są bezpłatne. ' +

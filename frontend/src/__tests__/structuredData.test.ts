@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { breadcrumbsJsonLd, eventJsonLd, siteJsonLd, venueListJsonLd, type EventForJsonLd } from '@/lib/structuredData';
+import { breadcrumbsJsonLd, eventJsonLd, siteJsonLd, venueListJsonLd, venueAmenityFeatures, type EventForJsonLd } from '@/lib/structuredData';
+import type { PotwierdzeniaZliczone } from '@/lib/potwierdzeniaObiektu';
 
 const BASE = 'https://bojo.pl';
 
@@ -178,5 +179,59 @@ describe('venueListJsonLd', () => {
     const out = venueListJsonLd('Boiska', [], BASE);
     expect(out.numberOfItems).toBe(0);
     expect(out.itemListElement).toEqual([]);
+  });
+});
+
+describe('venueAmenityFeatures — quorum graczy', () => {
+  function glosy(overrides: PotwierdzeniaZliczone[]): PotwierdzeniaZliczone[] {
+    return overrides;
+  }
+
+  it('nic nie zwraca, gdy żaden fakt nie ma quorum', () => {
+    const out = venueAmenityFeatures(glosy([
+      { fakt: 'oswietlenie', wartosc: 'tak', liczba: 1 },
+      { fakt: 'nawierzchnia', wartosc: 'grass', liczba: 1 },
+    ]));
+    expect(out).toEqual([]);
+  });
+
+  it('dokładnie na progu quorum fakt się pojawia', () => {
+    const out = venueAmenityFeatures(glosy([
+      { fakt: 'oswietlenie', wartosc: 'tak', liczba: 2 },
+    ]));
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      '@type': 'LocationFeatureSpecification',
+      name: 'Oświetlenie',
+      value: true,
+      description: 'Potwierdzone przez 2 graczy w Bojo',
+    });
+  });
+
+  it('oświetlenie "nie" ma value: false, nie znika', () => {
+    const out = venueAmenityFeatures(glosy([
+      { fakt: 'oswietlenie', wartosc: 'nie', liczba: 3 },
+    ]));
+    expect(out[0]).toMatchObject({ name: 'Oświetlenie', value: false });
+  });
+
+  it('bierze najliczniejszą wartość, gdy głosy są podzielone', () => {
+    const out = venueAmenityFeatures(glosy([
+      { fakt: 'nawierzchnia', wartosc: 'grass', liczba: 2 },
+      { fakt: 'nawierzchnia', wartosc: 'artificial', liczba: 5 },
+    ]));
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toContain('sztuczna');
+  });
+
+  it('oba fakty naraz dają dwa wpisy, oba z liczbą graczy w opisie', () => {
+    const out = venueAmenityFeatures(glosy([
+      { fakt: 'oswietlenie', wartosc: 'tak', liczba: 4 },
+      { fakt: 'nawierzchnia', wartosc: 'grass', liczba: 2 },
+    ]));
+    expect(out).toHaveLength(2);
+    for (const cecha of out) {
+      expect(cecha.description).toMatch(/^Potwierdzone przez \d+ graczy w Bojo$/);
+    }
   });
 });

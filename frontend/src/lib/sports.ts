@@ -38,6 +38,22 @@ export const FOCUS_SPORT_BY_SLUG: Record<string, (typeof FOCUS_SPORTS)[number]> 
     (typeof FOCUS_SPORTS)[number]
   >;
 
+/** Sześć hubów katalogu boisk pod `/boiska/[slug]` — jedno źródło dla stopki
+ *  (SiteFooter.tsx), sitemapa (app/sitemap.ts) i linkowania poziomego między
+ *  hubami (boiska/[sport]/page.tsx, boiska/woj/[wojewodztwo]/page.tsx).
+ *  Do 2026-08-24 ta sama szóstka była przepisana ręcznie w trzech miejscach —
+ *  dodanie siódmego huba wymagałoby pamiętać o wszystkich naraz. "Inne"
+ *  (SPORT_CONFIG.inne) celowo poza tą listą: to kosz na sporty bez własnej
+ *  kategorii, nie sport, do którego ktoś szuka huba po nazwie. */
+export const HUBY_KATALOGU_SPORTOWYCH: readonly { slug: string; etykieta: string }[] = [
+  { slug: 'pilka-nozna', etykieta: 'Piłka nożna' },
+  { slug: 'koszykowka', etykieta: 'Koszykówka' },
+  { slug: 'siatkowka', etykieta: 'Siatkówka' },
+  { slug: 'siatkowka-plazowa', etykieta: 'Siatkówka plażowa' },
+  { slug: 'futsal', etykieta: 'Futsal' },
+  { slug: 'pilka-reczna', etykieta: 'Piłka ręczna' },
+] as const;
+
 /** Sporty jako filtr FACYLITÓW na mapie — szerszy niż FOCUS_SPORTS (ten dotyczy
  *  sportów, w które da się zorganizować mecz). `wielofunkcyjne` i `piłka ręczna`
  *  mają po kilkaset/kilka tysięcy pinezek na mapie (import OSM), a nie dało się
