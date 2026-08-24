@@ -17,6 +17,13 @@ błędem o nieznanej kolumnie, pierwsza hipoteza brzmi: migracja nie została pu
 **Stanu bazy produkcyjnej nie da się odczytać z repo.** Numer ostatniej migracji w repo
 mówi tylko, co zostało napisane — nie co zostało zastosowane.
 
+Da się natomiast zapytać samą bazę: **`supabase/zapytania/stan-migracji.sql`** wypisuje,
+których migracji w niej brakuje (po jednym znaczniku na migrację — tabela albo kolumna),
+brakujące na górze. Wklej do SQL Editora, gdy aplikacja mówi „Could not find the '…'
+column of '…' in the schema cache" — ten komunikat pochodzi od PostgRESTa i znaczy albo
+„migracja nie została puszczona", albo „została, ale API nie odświeżyło schematu"
+(wtedy: `NOTIFY pgrst, 'reload schema';`).
+
 ### ⚠️ Migracja przerwana w połowie zostaje w połowie
 
 Ręczne uruchamianie ma drugi, gorszy tryb awarii niż „nie puszczono migracji":
