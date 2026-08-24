@@ -240,7 +240,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
             )}
             {/* Ta sama plakietka nieprzeczytanych co w karcie nadchodzącego meczu
                 niżej — bez niej mecz z Historii z nieprzeczytaną wiadomością
-                zapalał różową kropkę na „Moje" (patrz `nieprzeczytaneWMeczach()`,
+                zapalał wskaźnik nieprzeczytanych w nawigacji (patrz `lib/rozmowy.ts`,
                 nie filtruje po dacie), ale nigdzie na karcie tego nie było widać:
                 ten branch JSX w ogóle nie renderował plakietki, niezależnie od
                 propa `unreadMessages`. Zgłoszone wprost — „mam kropkę, nie mam

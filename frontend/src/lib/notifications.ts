@@ -179,7 +179,7 @@ export async function markRead(ids: string[]): Promise<void> {
  * `notifications` — tak samo w `public/sw.js`) nigdy nie gaśnie.
  *
  * Stan „nieprzeczytane" samej rozmowy tego nie dotyczy — ten liczy się ze
- * znaczników ostatniej wizyty (`nieprzeczytaneWMeczach`,
+ * znaczników ostatniej wizyty (`wszystkieRozmowyMeczow`,
  * `rozmowyGrupZNieprzeczytanymi`, `dm`), nie z tabeli powiadomień.
  */
 export async function oznaczWiadomosciPrzeczytane(userId: string): Promise<void> {

@@ -12,6 +12,7 @@ import RejestracjaSW from '@/components/RejestracjaSW';
 import PrzechwytywanieBledow from '@/components/PrzechwytywanieBledow';
 import ZachetaInstalacji from '@/components/ZachetaInstalacji';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
+import { SledzenieHistorii } from '@/lib/historia';
 import { siteJsonLd } from '@/lib/structuredData';
 
 const inter = Inter({
@@ -127,6 +128,10 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider>
               <BottomNavVisibilityProvider>
+                {/* Liczy przejścia między ekranami, żeby „wstecz" na ekranach
+                    szczegółowych mogło wrócić do POPRZEDNIEGO ekranu zamiast na
+                    sztywno wpisanego rodzica (patrz lib/historia.tsx). */}
+                <SledzenieHistorii />
                 <AnnouncementBar />
                 {children}
                 <BottomNavGate />
