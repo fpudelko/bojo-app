@@ -701,11 +701,16 @@ rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
 toggle z bramkarzami, to wewnątrz jest ukryty błąd" — „Dalej" na kroku 1 przestawało
 reagować bez słowa wyjaśnienia. Mechanizm składał się z dwóch rzeczy:
 
-1. **Szkic przywracał stan „jeszcze nie zdecydowano".** Szkice zapisane ZANIM
-   przełącznik „Bramkarze osobno" stał się widoczny niosą `goalkeepersEnabled: null`,
-   a `validateGoalkeepers()` na tym blokuje. Dziś przywracanie normalizuje to do
-   `false` (`?? false` w `loadEventDraft()` → `setGoalkeepersEnabled`): wyłączenie
-   JEST decyzją, więc nie ma czego wymuszać.
+1. **Reguła żądała decyzji, która stoi na ekranie — usunięta.** `validateGoalkeepers()`
+   blokowała krok 1, gdy `goalkeepersEnabled` był `null`. Miało to sens, dopóki
+   rozróżnianie bramkarzy było domyślnie WŁĄCZONE po cichu. Dziś to widoczny
+   przełącznik, domyślnie wyłączony, a wyłączony przełącznik JEST decyzją — więc
+   „Dalej" odmawiało, a obok świeciło „Zdecyduj, czy mecz rozróżnia bramkarzy" przy
+   przełączniku ustawionym na NIE (zgłoszone wprost: „to też bez sensu błąd").
+   Walidator jest skasowany razem z parametrami `sportMaBramkarza`/`goalkeepersEnabled`
+   w `validateStep()`: nic tej decyzji nie potrzebowało — publikacja zapisuje
+   `goalkeepersEnabled ?? false`, a strona edycji trzyma zwykły `boolean`. Przywracanie
+   szkicu normalizuje `null` → `false` niezależnie od tego.
 2. **Komunikat renderował się w niezamontowanej sekcji.** `OpcjaMeczu` montuje treść
    dopiero po włączeniu, więc błąd z `UstawieniaBramkarzy` nie istniał, dopóki ktoś
    nie włączył przełącznika — a „Dalej" i tak go respektowało. Dziś `OpcjaMeczu`

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPast, validateStep1, validateStep2, validateStep, validatePayments, validateGoalkeepers
+import { isPast, validateStep1, validateStep2, validateStep, validatePayments
 } from '@/lib/eventWizard';
 
 describe('isPast', () => {
@@ -127,31 +127,17 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
   });
 });
 
-describe('validateGoalkeepers', () => {
-  it('sport bez bramkarza nie pyta o nic', () => {
-    expect(validateGoalkeepers({ sportMaBramkarza: false, goalkeepersEnabled: null })).toEqual({});
-  });
-
-  // Ustawienie było domyślnie włączone, więc organizator, który go nie
-  // zauważył, tworzył mecz z pulą rozbitą na role — i przy grze bez stałego
-  // bramkarza kolejni zawodnicy z pola lądowali na rezerwie mimo wolnych
-  // miejsc „dla bramkarzy". Wychodziło to dopiero na graczach.
-  it('sport z bramkarzem wymaga decyzji', () => {
-    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: null }))
-      .toHaveProperty('goalkeepers');
-  });
-
-  it('każda świadoma odpowiedź przechodzi', () => {
-    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: true })).toEqual({});
-    expect(validateGoalkeepers({ sportMaBramkarza: true, goalkeepersEnabled: false })).toEqual({});
-  });
-
-  it('krok 1 blokuje przejście dalej bez decyzji', () => {
-    const errs = validateStep(1, {
+describe('bramkarze NIE blokują kroku 1', () => {
+  // Reguła „zdecyduj, czy mecz rozróżnia bramkarzy" została usunięta razem
+  // z `validateGoalkeepers()`. Miała sens, dopóki rozróżnianie było domyślnie
+  // WŁĄCZONE po cichu; dziś to widoczny przełącznik, domyślnie wyłączony,
+  // a wyłączony przełącznik JEST decyzją. Reguła zaczęła żądać decyzji, która
+  // stoi na ekranie — zgłoszone wprost: „to też bez sensu błąd".
+  it('krok 1 przechodzi niezależnie od stanu bramkarzy', () => {
+    const base = {
       location: { venue: {}, lat: 52, lng: 17 } as never,
       date: '2099-01-01', time: '18:00',
-      sportMaBramkarza: true, goalkeepersEnabled: null,
-    });
-    expect(errs).toHaveProperty('goalkeepers');
+    };
+    expect(validateStep(1, base)).toEqual({});
   });
 });

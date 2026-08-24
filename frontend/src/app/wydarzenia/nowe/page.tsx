@@ -16,7 +16,7 @@ import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
-import { validateStep1, validateStep2, validateStep, validatePayments, validateGoalkeepers, isPast } from '@/lib/eventWizard';
+import { validateStep1, validateStep2, validateStep, validatePayments, isPast } from '@/lib/eventWizard';
 import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { WARSTWA } from '@/lib/warstwy';
@@ -564,7 +564,6 @@ function NewEventForm() {
       ...validateStep1(location),
       ...validateStep2(date, time),
       ...validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln }),
-      ...validateGoalkeepers({ sportMaBramkarza: GK_SPORTS.includes(sport), goalkeepersEnabled }),
     };
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -739,7 +738,6 @@ function NewEventForm() {
     for (let s = step; s < target; s++) {
       const errs = validateStep(s, {
         location, date, time, costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
-        sportMaBramkarza: GK_SPORTS.includes(sport), goalkeepersEnabled,
       });
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
@@ -966,6 +964,13 @@ function NewEventForm() {
                   tytul="Mecz płatny"
                   podpis="Podasz koszt i sposób zapłaty — Bojo policzy, ile wychodzi od osoby."
                   wlaczona={platny}
+                  // Siatka bezpieczeństwa, nie sytuacja z dziś: przełącznik
+                  // wynika z kwoty (`platny` = koszt > 0), więc błąd numeru
+                  // BLIKA czy zniżki powstaje tylko przy sekcji OTWARTEJ.
+                  // Gdyby kiedyś przestał — komunikat wyjdzie do nagłówka
+                  // zamiast zniknąć razem z sekcją i zablokować „Dalej" bez
+                  // słowa wyjaśnienia, jak zdarzyło się przy bramkarzach.
+                  blad={fieldErrors.blikPhone ?? fieldErrors.cardDiscount}
                   naZmiane={(v) => {
                     setPlatny(v);
                     // Wyłączenie CZYŚCI kwotę, nie tylko ją chowa. Ukryta cena
@@ -1038,7 +1043,6 @@ function NewEventForm() {
                     podpis="Skład rozbije się na bramkarzy i zawodników z pola."
                     wlaczona={goalkeepersEnabled === true}
                     naZmiane={(v) => setGoalkeepersEnabled(v)}
-                    blad={fieldErrors.goalkeepers}
                   >
                     <UstawieniaBramkarzy
                       sport={sport}
@@ -1047,7 +1051,6 @@ function NewEventForm() {
                       setGoalkeepersEnabled={setGoalkeepersEnabled}
                       slotyZarezerwowane={slotyZarezerwowane}
                       setSlotyZarezerwowane={setSlotyZarezerwowane}
-                      blad={fieldErrors.goalkeepers}
                     />
                   </OpcjaMeczu>
                 )}
