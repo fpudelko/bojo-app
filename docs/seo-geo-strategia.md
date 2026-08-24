@@ -183,15 +183,15 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
 - **D2.** „Zarezerwuj termin" w opisie 32 tys. stron → P2.
 - **D3.** Podwójny sufiks w tytułach → P3.
 - **D4.** Trasy techniczne i za flagami otwarte dla robotów → P4.
-- **D5.** **Strona obiektu jest pusta dla robota.** `page.tsx` nie renderuje własnego
+- **D5.** ~~**Strona obiektu jest pusta dla robota.**~~ **(naprawione 2026-08-23: nagłówek, opis i adres renderują się serwerowo, także w stanie ładowania.)** Stan sprzed poprawki: `page.tsx` nie renderuje własnego
   `<h1>` ani `opis`; oba trafiają wyłącznie do `VenueDetailClient`, który do czasu
   `useEffect` zwraca szkielet. Jedyny serwerowy fragment treści to ukryty `<div>`
   z `itemProp` (`page.tsx:311-318`), i to **tylko gdy obiekt ma nadchodzące mecze** —
   czyli dla garstki obiektów.
-- **D6.** **Strona obiektu nie ma ani jednego linku wychodzącego** w HTML, przy
+- **D6.** ~~**Strona obiektu nie ma ani jednego linku wychodzącego**~~ **(naprawione 2026-08-23: widoczna nawigacja do huba województwa, huba sportu i `/jak-dziala-bojo`, plus stopka.)** Stan sprzed poprawki: brak linków w HTML, przy
   zadeklarowanym `follow: true` (`page.tsx:187`). Robot nie ma po czym pójść dalej,
   więc hierarchia kończy się na wejściu z sitemapy.
-- **D7.** **Huby wojewódzkie osierocone** (0 linków przychodzących), a komentarz
+- **D7.** ~~**Huby wojewódzkie osierocone**~~ **(naprawione 2026-08-23 przez nawigację na stronie obiektu — komentarz w kodzie mówi wreszcie prawdę.)** Stan sprzed poprawki: 0 linków przychodzących, a komentarz
   w kodzie twierdzi, że link jest „widoczny, żeby crawler mógł go realnie przejść".
   Komentarz opisuje intencję, nie stan.
 - **D8.** **Częściowo naprawione 2026-08-23** — grupa „Boiska" w stopce daje sześć
@@ -553,9 +553,16 @@ i pusty szkielet (D5), bez jednego linku wychodzącego (D6), z opisem obiecując
 rezerwację (D2) i tytułem z podwójnym sufiksem (D3). Mówimy o **32 096 stronach**
 (Tier 1 + Tier 2), czyli o praktycznie całym indeksowalnym wolumenie serwisu.
 
+**ZROBIONE 2026-08-23.** Rozwiązane inaczej, niż zakładał ten szkic, i lepiej: zamiast
+drugiego nagłówka w `page.tsx` (co dałoby dwa `<h1>` po hydratacji) powstał wspólny
+`NaglowekObiektu` w `VenueDetailClient.tsx`, renderowany w OBU stanach. Stan ładowania
+JEST tym, co dostaje crawler — więc przestał być szarym szkieletem i wypełnia się
+danymi z `page.tsx`. Człowiek zyskał przy okazji: od pierwszej klatki widzi, na jakim
+obiekcie jest. Szkic pierwotny zostaje niżej jako zapis decyzji.
+
 **Poprawka nie polega na pisaniu treści — treść już istnieje.** `opisObiektu()` generuje
 poprawny akapit i jest przekazywany jako prop. Rzecz w tym, żeby renderować go
-serwerowo, w `page.tsx`, **nad** komponentem klienckim:
+serwerowo, **nad** komponentem klienckim:
 
 ```tsx
 // page.tsx — przed <VenueDetailClient />

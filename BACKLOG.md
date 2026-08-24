@@ -454,8 +454,18 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
 
 **Quick winy:**
 
-- [ ] **Serwerowy `<h1>`, opis i nawigacja na `/boisko/[id]`** (D5, D6) — jedna zmiana,
-      32 tys. stron; zamyka też Fazę 1 i odblokowuje Fazę 2b.
+- [x] **Serwerowy `<h1>`, opis i nawigacja na `/boisko/[id]`** (D5, D6, D7; zrobione
+      2026-08-23). Nagłówek obiektu wyniesiony do `NaglowekObiektu` w
+      `VenueDetailClient.tsx` i renderowany w OBU stanach — także w stanie ładowania,
+      czyli w HTML, który dostaje crawler. Nazwa i adres przychodzą propsami z `page.tsx`.
+      Ukryty blok `itemProp` usunięty: był obejściem braku treści, a treść schowana przed
+      człowiekiem i podana robotowi jest sygnałem spamu. Doszły widoczne linki do huba
+      wojewódzkiego, huba sportu i `/jak-dziala-bojo` — hub wojewódzki przestaje być
+      sierotą, więc **to zamyka też Fazę 2b**. Zweryfikowane na atrapie PostgREST-a:
+      strona oddaje `<h1>`, opis, adres i 27 linków wewnętrznych.
+      Przy okazji tytuł przestał odmieniać miejscownik regułą („piłka nożna w Poznań" →
+      „piłka nożna, Poznań") — odmiany nie da się wyprowadzić z reguły, dlatego
+      `content/miasta.ts` trzyma ją jako dane.
 - [x] **Stopka na wszystkich stronach publicznych** (D9, zrobione 2026-08-23) — doszła na
       `/boiska/[sport]`, `/boiska/woj/[x]`, `/wydarzenia` i `/grupy`. **Bez `/mapa`**: ta trasa
       ma `h-[100dvh] overflow-hidden`, więc stopka byłaby tam przycięta — mapa potrzebuje
@@ -533,7 +543,7 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       zamiast query stringa). **Migracja `112` wymaga ręcznego uruchomienia na Supabase
       + ręcznego przebiegu `scraper/backfill_lokalizacja.py` per województwo** — bez
       backfillu wszystkie boiska zostają w Tier 3 (`noindex`).
-- [ ] **Faza 1 — fact-dense opis obiektu** (kod 2026-08-22, **ptaszek cofnięty 2026-08-23**). Generator
+- [x] **Faza 1 — fact-dense opis obiektu** (kod 2026-08-22, ptaszek cofnięty i **przywrócony 2026-08-23**, gdy opis zaczął renderować się serwerowo). Generator
       `content/opisObiektu.ts#opisObiektu()` — nie `lib/`, wzorem `content/miasta.ts`
       (`odpowiedzMiasta()`/`zdanieOKatalogu()`), bo to ta sama klasa: funkcja tworząca
       treść, nie logika domenowa. „Direct answer" akapit z danych obiektu (sport,
@@ -561,7 +571,7 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       a strony miejskie żyją w `content/miasta.ts` i podlegają `ZAKAZANE_WSZEDZIE`.
       Pokrycie katalogu liczone geograficznie (`lib/api.ts#policzBoiskaWOkolicy`), **nie**
       z `city`/`seo_tier` — te są dziś puste w całej tabeli, patrz Faza 0.
-- [ ] **Faza 2b — huby wojewódzkie** (kod 2026-08-22, **ptaszek cofnięty 2026-08-23**). `/boiska/woj/[wojewodztwo]`
+- [x] **Faza 2b — huby wojewódzkie** (kod 2026-08-22, ptaszek cofnięty i **przywrócony 2026-08-23**, gdy link do huba trafił do HTML). `/boiska/woj/[wojewodztwo]`
       — NIE `/boiska/[wojewodztwo]`: Next.js nie pozwala dwóm dynamicznym segmentom na
       tym samym poziomie katalogu mieć różne nazwy, a `[sport]` już zajmuje
       `/boiska/[cokolwiek]`, więc `woj` jest literalnym segmentem pośrednim. Wzorem
