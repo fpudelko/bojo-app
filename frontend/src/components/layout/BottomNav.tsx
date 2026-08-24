@@ -6,12 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { MessageCircle, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
-import IkonaWiadomosci from './IkonaWiadomosci';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, policzNadchodzaceMoje, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
 import { getMyGroups, getMyGroupsZTerminem, hasNewGroupEvents, getNewGroupEventGroup, kluczGrupyWidziano } from '@/lib/groups';
-import { hasUnreadGroupMessages, getUnreadGroupName, rozmowyGrupZNieprzeczytanymi } from '@/lib/groupPosts';
-import { nieprzeczytaneWMeczach } from '@/lib/comments';
+import { rozmowyGrupZNieprzeczytanymi } from '@/lib/groupPosts';
+import { pobierzRozmowy, policzNieprzeczytane, najswiezszaNieprzeczytana, type WpisRozmowy } from '@/lib/rozmowy';
 import { hasGeolocationPermission, getCurrentLocation } from '@/lib/geo';
+import { withCount } from '@/lib/plural';
 import { WARSTWA } from '@/lib/warstwy';
 import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
 
@@ -49,8 +49,9 @@ function BallIcon({ className }: { className?: string }) {
 // Zwolnione miejsce dostają ROZMOWY. Pętla powrotu w tej aplikacji to „ktoś
 // napisał" — a rozmowy nie miały własnego wejścia: panel wszystkich
 // nieprzeczytanych otwierało PRZYTRZYMANIE „Moje", czyli gest, którego nikt
-// nie odkryje sam. Różowa chmurka wisiała nad ikonami, które o wiadomościach
-// nie mówiły nic.
+// nie odkryje sam. Wskaźnik nieprzeczytanych wisiał nad ikonami, które
+// o wiadomościach nie mówiły nic; dziś siedzi na ikonie podpisanej „Rozmowy",
+// jako różowa plakietka z LICZBĄ.
 // KOLEJNOŚĆ: Mecze · Szukaj · ＋ · Rozmowy · Ekipy.
 //
 // „Moje mecze" na PIERWSZEJ pozycji, bo to jest dom zalogowanego. Człowiek
@@ -64,9 +65,19 @@ function BallIcon({ className }: { className?: string }) {
 // Zastrzeżenie, świadomie przyjęte: świeże konto zobaczy na pierwszej pozycji
 // pusty ekran. Pusty stan da się napisać dobrze — złej kolejności nie da się
 // nadrobić niczym.
+// „Szukaj" prowadzi na `/mapa?gry=1`, czyli od razu do OTWARTYCH MECZÓW, nie do
+// katalogu boisk. Pytanie, z którym człowiek tu wchodzi, brzmi „w co mogę dziś
+// zagrać", a nie „jakie są w okolicy boiska" — boisko bez meczu to informacja
+// dopiero na drugim kroku. Lista gier jest przy tym gotowa od razu:
+// `getPublicEvents()` pobiera wszystkie otwarte mecze naraz, niezależnie od
+// kadru mapy, więc nie wymaga ani przybliżania, ani zgody na lokalizację.
+//
+// `href` zostaje CZYSTĄ ŚCIEŻKĄ (`/mapa`) — po nim idzie dopasowanie stanu
+// „wybrane", kropki i dymki niżej. Adres z parametrem siedzi osobno, w
+// `hrefPelny`, żeby `?gry=1` nie rozsypało tamtych porównań.
 const LEFT_ITEMS = [
   { href: '/moje-gry',   label: 'Mecze',  Icon: CalendarDays },
-  { href: '/mapa', label: 'Szukaj', Icon: BallIcon },
+  { href: '/mapa', hrefPelny: '/mapa?gry=1', label: 'Szukaj', Icon: BallIcon },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -126,58 +137,47 @@ export default function BottomNav() {
     return () => { aktualne = false; };
   }, [user, pathname]);
 
-  // Różowe chmurki „nowe wiadomości" — osobne zapytanie od niebieskiej wyżej,
-  // bo to inne znaczenie (patrz komentarz przy `dot` w `NavLink`), nie inny
-  // poziom pilności.
-  const [unreadEvents, setUnreadEvents] = useState(false);
-  // Tytuł meczu z najświeższą nieprzeczytaną — wyłącznie do treści dymka.
-  const [unreadEventTitle, setUnreadEventTitle] = useState<string | null>(null);
-  useEffect(() => {
-    if (!user) { setUnreadEvents(false); setUnreadEventTitle(null); return; }
-    let aktualne = true;
-    nieprzeczytaneWMeczach(user.id)
-      .then(({ ile, tytul }) => {
-        if (!aktualne) return;
-        setUnreadEvents(ile > 0);
-        setUnreadEventTitle(tytul);
-      })
-      .catch(() => { if (aktualne) { setUnreadEvents(false); setUnreadEventTitle(null); } });
-    return () => { aktualne = false; };
-  }, [user, pathname]);
-
-  const [unreadGroups, setUnreadGroups] = useState(false);
+  // WSZYSTKIE rozmowy zalogowanego — mecze, ekipy I rozmowy prywatne — jednym
+  // zapytaniem, tą samą funkcją, która karmi ekran `/rozmowy` (`lib/rozmowy.ts`).
+  // Zastąpiło trzy osobne zapytania liczące trzy różne rzeczy: liczbę MECZÓW
+  // z nieprzeczytanymi, `true/false` dla ekip i nazwę ekipy do dymka — przy
+  // czym rozmowy prywatne nie były sprawdzane w ogóle, więc DM nie zapalał
+  // wskaźnika. Plakietka z LICZBĄ nie może pokazywać czegoś innego, niż
+  // człowiek zobaczy po jej dotknięciu.
+  const [rozmowy, setRozmowy] = useState<WpisRozmowy[]>([]);
   const [newGroupEvents, setNewGroupEvents] = useState(false);
   // Nazwa ekipy z najświeższym nowym meczem — wyłącznie do treści dymka
   // „Nowa gra w grupie {nazwa}"; sama kropka nie potrzebuje nazwy, tylko bool.
   const [newGroup, setNewGroup] = useState<{ id: string; name: string } | null>(null);
-  // Nazwa ekipy z nieprzeczytaną wiadomością — do dymka „Nowa wiadomość
-  // w grupie {nazwa}". Sam wskaźnik jej nie potrzebuje, tylko bool.
-  const [unreadGroupName, setUnreadGroupName] = useState<string | null>(null);
   // Czy w ogóle ma jakąkolwiek ekipę — samo `boolean`, do dymka odkrywającego
   // gest przytrzymania „Grupy" (patrz `gestGrupy` niżej). Bez ekipy gest i tak
   // nic ciekawego nie robi, więc nie ma sensu go zapowiadać.
   const [maGrupy, setMaGrupy] = useState(false);
   useEffect(() => {
-    if (!user) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); setMaGrupy(false); return; }
+    if (!user) { setRozmowy([]); setNewGroupEvents(false); setNewGroup(null); setMaGrupy(false); return; }
     let aktualne = true;
     getMyGroups(user.id).then((groups) => {
       if (aktualne) setMaGrupy(groups.length > 0);
       const ids = groups.map((g) => g.id);
-      hasUnreadGroupMessages(user.id, ids)
-        .then((v) => { if (aktualne) setUnreadGroups(v); })
-        .catch(() => { if (aktualne) setUnreadGroups(false); });
+      pobierzRozmowy(user.id, groups)
+        .then((v) => { if (aktualne) setRozmowy(v); })
+        .catch(() => { if (aktualne) setRozmowy([]); });
       hasNewGroupEvents(ids)
         .then((v) => { if (aktualne) setNewGroupEvents(v); })
         .catch(() => { if (aktualne) setNewGroupEvents(false); });
       getNewGroupEventGroup(groups)
         .then((v) => { if (aktualne) setNewGroup(v); })
         .catch(() => { if (aktualne) setNewGroup(null); });
-      getUnreadGroupName(user.id, groups)
-        .then((v) => { if (aktualne) setUnreadGroupName(v); })
-        .catch(() => { if (aktualne) setUnreadGroupName(null); });
-    }).catch(() => { if (aktualne) { setUnreadGroups(false); setNewGroupEvents(false); setNewGroup(null); setUnreadGroupName(null); setMaGrupy(false); } });
+    }).catch(() => { if (aktualne) { setRozmowy([]); setNewGroupEvents(false); setNewGroup(null); setMaGrupy(false); } });
     return () => { aktualne = false; };
   }, [user, pathname]);
+
+  // Wyliczane z jednej listy, żeby plakietka i dymki nie mogły się rozjechać.
+  const nieprzeczytaneWiadomosci = policzNieprzeczytane(rozmowy);
+  const unreadEventTitle = najswiezszaNieprzeczytana(rozmowy, 'mecz')?.tytul ?? null;
+  const unreadGroupName = najswiezszaNieprzeczytana(rozmowy, 'grupa')?.tytul ?? null;
+  const unreadEvents = unreadEventTitle !== null;
+  const unreadGroups = unreadGroupName !== null;
 
   // Pomarańczowa kropka „nowe wydarzenia w pobliżu" przy „Znajdź grę" —
   // wyłącznie gdy zgoda na lokalizację jest JUŻ udzielona (`getCurrentLocation()`
@@ -297,10 +297,14 @@ export default function BottomNav() {
       // w localStorage per typ, więc stary klucz niósł zużyte pokazania dawnego,
       // ogólnikowego dymka „Nowe wiadomości". Nowy klucz = nowa treść dostaje
       // swoje pięć pokazań, zamiast milczeć u kogoś, kto tamten już wyczerpał.
+      // OBA DYMKI O WIADOMOŚCIACH STOJĄ NAD „ROZMOWY". Wcześniej celowały
+      // w „Moje" i „Grupy" — ikony, nad którymi wskaźnika wiadomości już nie
+      // ma (zszedł na „Rozmowy" razem z przebudową paska). Dymek tłumaczy
+      // wskaźnik, więc musi stać nad tym, który się właśnie zapalił.
       ['wiadomosc-w-meczu', unreadEvents,
         unreadEventTitle ? `Nowa wiadomość w meczu ${unreadEventTitle}` : 'Nowa wiadomość w Twoim meczu',
-        '/moje-gry'],
-      ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/grupy'],
+        '/rozmowy'],
+      ['wiadomosci-grupy', unreadGroups, unreadGroupName ? `Nowa wiadomość w grupie ${unreadGroupName}` : 'Nowa wiadomość w Twojej ekipie', '/rozmowy'],
       ['nowy-mecz-grupy', newGroupEvents, newGroup ? `Nowa gra w grupie ${newGroup.name}` : 'Nowa gra w Twojej ekipie', '/grupy'],
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
@@ -324,35 +328,48 @@ export default function BottomNav() {
   useEffect(() => () => { if (timerDymka.current) clearTimeout(timerDymka.current); }, []);
 
   function NavLink({
-    href, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, gest,
+    href, hrefPelny, label, Icon, dots = [], dymek, dymekAlign = 'center', licznik = 0, licznikKolor = 'bg-primary-700', licznikOpis, gest,
   }: {
-    href: string; label: string; Icon: React.ComponentType<{ className?: string }>;
-    /** Wskaźniki — dziś "Moje" (niebieska kropka: oczekujące prośby o dołączenie
-        z prawej; różowa CHMURKA: nieprzeczytane wiadomości z lewej), "Grupy"
-        (różowa chmurka z lewej; pomarańczowa kropka: nowy mecz w ekipie z prawej)
-        i "Znajdź grę" (pomarańczowa kropka: nowe wydarzenia w pobliżu, z prawej).
-        Kolor niesie znaczenie w całej apce (patrz AGENTS.md, sekcja Konwencje):
-        niebieski wyłącznie "wymaga akceptacji", różowy wyłącznie "wiadomości",
-        pomarańczowy wyłącznie "nowość, o której jeszcze nie wiesz". Każdy
-        wskaźnik ma swój róg, żeby dwa naraz na tej samej ikonie się nie nakładały.
+    href: string;
+    /** Adres do przejścia, gdy różni się od `href` — bo `href` służy tu także
+        za tożsamość pozycji (stan „wybrane", kropki, dymki) i musi zostać
+        czystą ścieżką. Dziś tylko „Szukaj": `/mapa` kontra `/mapa?gry=1`. */
+    hrefPelny?: string;
+    label: string; Icon: React.ComponentType<{ className?: string }>;
+    /** Kropki — dziś "Mecze" (niebieska: oczekujące prośby o dołączenie,
+        dolny róg), "Ekipy" (pomarańczowa: nowy mecz w ekipie) i "Szukaj"
+        (pomarańczowa: nowe wydarzenia w pobliżu). Kolor niesie znaczenie
+        w całej apce (patrz AGENTS.md, sekcja Konwencje): niebieski wyłącznie
+        "wymaga akceptacji", pomarańczowy wyłącznie "nowość, o której jeszcze
+        nie wiesz". Każdy wskaźnik ma swój róg, żeby dwa naraz na tej samej
+        ikonie się nie nakładały.
 
-        KSZTAŁT też niesie znaczenie: wiadomości dostają CHMURKĘ, nie kropkę.
-        Kropka mówi wyłącznie "coś tu jest" i wymaga zapamiętania koloru;
-        chmurka mówi "ktoś napisał" bez tłumaczenia (zgłoszone wprost:
-        "różowa kropka oznacza że wiadomość nowa?"). Kolor zostaje ten sam,
-        więc związek z plakietkami wiadomości na kartach nie znika.
+        KROPKA ZOSTAJE DLA RZECZY NIEPOLICZALNYCH. "Coś nowego jest w pobliżu"
+        nie ma sensownej liczby — "3 nowe boiska w promieniu 5 km" brzmi jak
+        zadanie do odhaczenia, a to jest zaproszenie, nie skrzynka odbiorcza.
+        Rzeczy policzalne (mecze, wiadomości) dostają plakietkę z liczbą niżej.
 
-        LICZBA nadchodzących meczów na "Moje" jest zielona, nie w żadnym
-        z trzech znaczeniowych kolorów — bo nie znaczy ani "przeczytaj", ani
-        "zdecyduj", ani "nowość". To stan, nie zdarzenie: liczba zaklepanych
-        gier, którą patrzy się codziennie. Niebieska kropka "prośba o dołączenie"
-        schodzi wtedy w dolny róg, żeby nie wpaść pod plakietkę — akcja do
-        wykonania nie może zniknąć pod informacją. */
-    dots?: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[];
-    /** Liczba nadchodzących meczów — plakietka w prawym górnym rogu ikony.
-        0 nie renderuje nic (pusty pasek to nie jest informacja warta piksela),
-        powyżej 9 pokazuje "9+", żeby plakietka nie rozpychała kolumny. */
+        DWIE PLAKIETKI Z LICZBĄ, TEN SAM KSZTAŁT, RÓŻNE KOLORY: zielona na
+        "Mecze" (ile masz zaklepanych gier — stan, nie zdarzenie) i różowa na
+        "Rozmowy" (ile nieprzeczytanych wiadomości). Różowy w całej apce znaczy
+        wyłącznie "wiadomości", więc plakietka wiąże się wprost z tymi na
+        kartach meczów i ekip. Niebieska kropka "prośba o dołączenie" schodzi
+        wtedy w dolny róg, żeby nie wpaść pod plakietkę — akcja do wykonania
+        nie może zniknąć pod informacją. */
+    dots?: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right' }[];
+    /** Liczba na plakietce w prawym górnym rogu ikony. 0 nie renderuje nic
+        (pusty pasek to nie jest informacja warta piksela), powyżej 9 pokazuje
+        "9+", żeby plakietka nie rozpychała kolumny. Dziś dwie: nadchodzące
+        mecze na "Mecze" i nieprzeczytane wiadomości na "Rozmowy". */
     licznik?: number;
+    /** Tło plakietki. TEN SAM KSZTAŁT, INNY KOLOR — kształt mówi "policzalna
+        rzecz", kolor mówi JAKA (AGENTS.md, Konwencje): zielony = stan (ile
+        masz zaklepanych gier), różowy = wiadomości. Dwie różne geometrie dla
+        dwóch liczb kazałyby uczyć się obu osobno. */
+    licznikKolor?: string;
+    /** Co ta liczba znaczy, dla czytnika ekranu — bez tego "3" przy Rozmowach
+        czyta się tak samo jak "3" przy Meczach. */
+    licznikOpis?: (n: number) => string;
     /** Krótkie wyjaśnienie kropki, widoczne ~4 s przy pierwszym zapaleniu
         (patrz `dymekWidoczny`/kolejka wyżej) — max 5 razy w życiu
         użytkownika na typ, najwyżej jeden dymek na ekranie naraz. */
@@ -370,13 +387,13 @@ export default function BottomNav() {
     const active = pathname === href || (href !== '/mapa' && pathname.startsWith(href + '/'));
     const widoczne = dots.filter(Boolean);
     const opisy = [
-      ...(licznik > 0 ? [`${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
+      ...(licznik > 0 ? [licznikOpis ? licznikOpis(licznik) : `${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
       ...widoczne.map((d) => d.label),
     ];
     const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
     return (
       <Link
-        href={href}
+        href={hrefPelny ?? href}
         aria-label={ariaSuffix ? `${label}${ariaSuffix}` : undefined}
         className={clsx(
           'flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wide transition-colors',
@@ -418,36 +435,24 @@ export default function BottomNav() {
               nawigacji jest zbyt wąska na pełny badge. `aria-label` wyżej
               niesie tę samą informację dla czytników ekranu. */}
           {widoczne.map((d) => (
-            d.ksztalt === 'chmurka' ? (
-              // Chmurka jest większa od kropki, więc wychodzi dalej poza ikonę
-              // i dostaje białą obwódkę — inaczej zlewa się z kreską ikony pod
-              // spodem. `fill` razem ze `stroke`, bo sam kontur w tym rozmiarze
-              // gubi się na tle.
-              <IkonaWiadomosci
-                key={d.position}
-                className={clsx(
-                  'absolute h-3.5 w-3.5 -top-2',
-                  d.position === 'top-right' ? '-right-2' : '-left-2',
-                  d.color,
-                )}
-              />
-            ) : (
-              <span
-                key={d.position}
-                className={clsx(
-                  'absolute h-1.5 w-1.5 rounded-full',
-                  d.position === 'top-right' && '-top-0.5 right-0',
-                  d.position === 'top-left' && '-top-0.5 left-0',
-                  d.position === 'bottom-right' && '-bottom-0.5 -right-0.5 ring-2 ring-white',
-                  d.color,
-                )}
-                aria-hidden="true"
-              />
-            )
+            <span
+              key={d.position}
+              className={clsx(
+                'absolute h-1.5 w-1.5 rounded-full',
+                d.position === 'top-right' && '-top-0.5 right-0',
+                d.position === 'top-left' && '-top-0.5 left-0',
+                d.position === 'bottom-right' && '-bottom-0.5 -right-0.5 ring-2 ring-white',
+                d.color,
+              )}
+              aria-hidden="true"
+            />
           ))}
           {licznik > 0 && (
             <span
-              className="absolute -right-2.5 -top-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-primary-700 px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white"
+              className={clsx(
+                'absolute -right-2.5 -top-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white',
+                licznikKolor,
+              )}
               aria-hidden="true"
             >
               {licznik > 9 ? '9+' : licznik}
@@ -473,7 +478,7 @@ export default function BottomNav() {
     >
       <div className="grid h-14 grid-cols-5 items-end">
         {LEFT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right' }[] = [];
           if (item.href === '/moje-gry' && pendingApproval) {
             dots.push({ color: 'bg-blue-500', label: 'nowe prośby o dołączenie', position: 'bottom-right' });
           }
@@ -511,19 +516,21 @@ export default function BottomNav() {
         </Link>
 
         {RIGHT_ITEMS.map((item, i) => {
-          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right'; ksztalt?: 'kropka' | 'chmurka' }[] = [];
-          // Chmurka nieprzeczytanych wisiała dawniej nad „Moje" i „Grupy" —
-          // nad ikonami, które o wiadomościach nie mówią nic. Teraz obie
-          // schodzą na ikonę, która mówi wprost, i jest ich JEDNA.
-          if (item.href === '/rozmowy' && (unreadEvents || unreadGroups)) {
-            dots.push({ color: 'text-pink-500', label: 'nowe wiadomości', position: 'top-left', ksztalt: 'chmurka' });
-          }
+          const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right' }[] = [];
           if (item.href === '/grupy' && newGroupEvents) {
             dots.push({ color: 'bg-orange-500', label: 'nowy mecz w ekipie', position: 'top-right' });
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
           const dymekAlign = i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
+          // ROZMOWY: LICZBA, NIE CHMURKA. Chmurka mówiła „ktoś napisał" i na
+          // tym kończyła — nad ikoną podpisaną „Rozmowy" powtarzała słowo,
+          // które i tak stoi obok. Liczba odpowiada na pytanie, które człowiek
+          // faktycznie zadaje przed dotknięciem: ILE tego jest, czyli czy to
+          // moment na przeczytanie, czy na później. Różowy zostaje — kolor
+          // dalej niesie „wiadomości" w całej apce, więc związek z plakietkami
+          // na kartach meczów i ekip jest zachowany.
+          const licznik = item.href === '/rozmowy' ? nieprzeczytaneWiadomosci : 0;
           return (
             <NavLink
               key={item.href}
@@ -531,6 +538,9 @@ export default function BottomNav() {
               dots={dots}
               dymek={dymek}
               dymekAlign={dymekAlign}
+              licznik={licznik}
+              licznikKolor="bg-pink-500"
+              licznikOpis={(n) => withCount(n, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}
               gest={item.href === '/grupy' ? gestGrupy : undefined}
             />
           );

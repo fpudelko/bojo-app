@@ -485,7 +485,7 @@ export function policzNoweMeczePerGrupa(
 
 /** Czy w którejkolwiek mojej ekipie pojawił się nowy mecz od ostatniej wizyty
  *  na jej stronie — zasila pomarańczową kropkę „nowy mecz" przy „Grupy" na
- *  dolnej nawigacji (patrz `BottomNav.tsx`), wzorem `hasUnreadGroupMessages()`
+ *  dolnej nawigacji (patrz `BottomNav.tsx`), wzorem `wszystkieRozmowyGrup()`
  *  w `groupPosts.ts`. `groupIds` — id-ki grup, w których jestem członkiem. */
 export async function hasNewGroupEvents(groupIds: string[]): Promise<boolean> {
   if (groupIds.length === 0) return false;

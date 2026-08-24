@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Loader2, User, Trophy, Calendar, Star, ChevronRight, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, User, Trophy, Calendar, Star, ChevronRight, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -12,10 +12,15 @@ import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } 
 import { sportEmoji } from '@/lib/sports';
 import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
 import { withCount } from '@/lib/plural';
+import { useWstecz } from '@/lib/historia';
 
 export default function PublicPlayerPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  // Profil gracza otwiera się ze składu meczu, z awatara w rozmowie i z listy
+  // ekipy — a nie miał ŻADNEGO wyjścia poza gestem przeglądarki. `/wydarzenia`
+  // jest zapasem na wejście z linku; normalnie wraca się tam, skąd się przyszło.
+  const wstecz = useWstecz('/wydarzenia');
   const [profile, setProfile] = useState<PublicPlayer | null>(null);
   const [stats, setStats] = useState<PlayerAggregateStats | null>(null);
   const [history, setHistory] = useState<PlayerHistoryItem[]>([]);
@@ -56,6 +61,13 @@ export default function PublicPlayerPage() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
+        <button
+          type="button"
+          onClick={wstecz}
+          className="-ml-2 inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-sm text-slate-500 transition-colors hover:text-ink"
+        >
+          <ChevronLeft className="h-4 w-4" /> Wróć
+        </button>
         {loading ? (
           <div className="flex justify-center py-20 text-slate-300 dark:text-slate-600">
             <Loader2 className="w-6 h-6 animate-spin" />
