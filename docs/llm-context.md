@@ -5,7 +5,7 @@
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
 
-**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 761 testów
+**Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 775 testów
 
 ---
 
@@ -397,6 +397,30 @@ startuje z `showGames ? 'lista' : 'mapa'`. Lista gier nie zależy od kadru mapy 
 i bez zgody na lokalizację. Wejście na goły adres `/mapa` (powrót ze strony obiektu,
 link `?boisko=`) zachowuje się bez zmian: obiekty na mapie.
 
+### 2026-08-23 — Prywatny mecz przestaje zdradzać szczegóły w podglądzie linku
+
+PROBLEM: strona prywatnego meczu podawała w metadanych nazwę meczu, sport, datę, godzinę
+i nazwę obiektu, a pod adresem `/wydarzenia/<id>/opengraph-image` generowała publicznie
+dostępną kartę z ceną i liczbą wolnych miejsc. Dane strukturalne (JSON-LD) były przed tym
+chronione od początku, metadane nie — więc wystarczyło, żeby link do prywatnego meczu raz
+trafił w publiczne miejsce, a jego szczegóły mogły wejść do wyszukiwarki. Kod dołączenia
+jest jedyną kontrolą dostępu do prywatnego meczu i to właśnie on był obchodzony.
+
+ROZWIĄZANIE BOJO: mecz niepubliczny zwraca w metadanych sam tytuł „Mecz" i `noindex`,
+a jego obrazek podglądu to karta ogólna Bojo, bez żadnych danych meczu. Mecz, którego nie
+ma, wygląda dokładnie tak samo — po metadanych nie da się odróżnić „nie ma takiego meczu"
+od „jest, ale nie dla ciebie". Dla meczu publicznego nic się nie zmienia. Przy okazji
+z tytułów zniknął podwojony sufiks „| Bojo", a opis stron obiektów przestał obiecywać
+rezerwację terminu, której Bojo nie robi.
+
+MECHANIKA: `metadataDlaMeczu()` w `app/wydarzenia/[id]/eventMeta.ts` — czysta funkcja
+obok `getEventMeta()`, testowana bez bazy (`__tests__/eventMetadata.test.ts`), wzorem
+`eventJsonLd()` w `lib/structuredData.ts`. Ten sam próg widoczności powtórzony
+w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi flagami
+(`/auth/`, `/turniej`, `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`) wypadły ze
+skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
+`metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
+
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 
 PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
@@ -544,28 +568,3 @@ i w `description` JSON-LD (`SportsActivityLocation`). Huby wojewódzkie:
 nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL`. Ankiety: `AnkietyObiektu.tsx`, tabela
 `potwierdzenia_obiektu` (migracja `123`, jeden głos na fakt na osobę, publiczny odczyt).
 Kontynuacja Fazy 0 (migracja `112`, tiering indeksacji, `seo_tier`).
-
-### 2026-08-22 — Liczba nieprzeczytanych na ikonie zainstalowanej aplikacji
-
-PROBLEM: o nieprzeczytanej wiadomości w rozmowie meczu albo o prośbie o dołączenie
-dowiadywał się dopiero ten, kto sam otworzył Bojo. Powiadomienie push jest sygnałem
-jednorazowym — znika z ekranu blokady i po nim nie zostaje żaden ślad, więc telefon
-leżący na stole przez godzinę nie mówił nic. Chmurka i dzwonek w nagłówku aplikacji
-niosą tę informację dopiero po wejściu do środka, czyli po decyzji, którą właśnie mają
-wywołać.
-
-ROZWIĄZANIE BOJO: ikona Bojo na ekranie początkowym telefonu nosi liczbę nieprzeczytanych
-— tak samo jak ikona poczty czy komunikatora. Liczba jest sumą wiadomości i pozostałych
-powiadomień, pojawia się także wtedy, gdy aplikacja jest zamknięta, i gaśnie po
-przeczytaniu. Działa wyłącznie w Bojo dodanym do ekranu początkowego (na iPhonie dodatkowo
-po zgodzie na powiadomienia); w zwykłej karcie przeglądarki plakietki nie ma i to nie jest
-błąd.
-
-MECHANIKA: `lib/plakietkaAplikacji.ts` (Badging API, `navigator.setAppBadge`/
-`clearAppBadge`, każde wywołanie wykrywane i łykane po cichu). Ustawiana z dwóch stron:
-`NotificationBell.tsx` przy otwartej aplikacji (suma nieprzeczytanych z obu paneli),
-`public/sw.js` przy zdarzeniu `push`, gdy aplikacja jest zamknięta. Service worker nie ma
-dostępu do sesji Supabase, więc liczbę dokleja do payloadu funkcja brzegowa `send-push`
-(`count` na `notifications` z `read_at IS NULL`); brak liczby oznacza `null` i wtedy worker
-plakietki nie dotyka. Wymaga wdrożenia funkcji brzegowej.
-

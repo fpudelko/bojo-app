@@ -171,7 +171,7 @@ export async function generateStaticParams() {
 // ---------------------------------------------------------------------------
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const field = await resolveField(params.id);
-  if (!field) return { title: 'Boisko nie znalezione | Bojo' };
+  if (!field) return { title: 'Boisko nie znalezione' };
 
   const sportsStr = field.sport.join(', ');
   // Miejscowość z kolumny `city` (migracja 112, patrz scraper/backfill_lokalizacja.py)
@@ -182,8 +182,13 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const miejscowosc = field.city ?? miejscowoscZAdresu(field.address);
   const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
   return {
-    title: `${field.name} — ${sportsStr}${gdzie} | Bojo`,
-    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Znajdź nadchodzące mecze i zarezerwuj termin na Bojo.`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `${field.name} — ${sportsStr}${gdzie}`,
+    // NIE „zarezerwuj termin”: rezerwacje siedzą za wyłączoną flagą
+    // FEATURE_RESERVATIONS, a to zdanie szło do wyszukiwarek przy każdej z ponad
+    // 30 tysięcy stron obiektów — obietnica bez pokrycia i sygnał, że Bojo jest
+    // systemem rezerwacji, czyli odwrotność tego, czym jest.
+    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Zobacz nadchodzące mecze i zbierz skład na Bojo.`,
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
     alternates: { canonical: `/boisko/${slugBoiska(field.name, field.id)}` },

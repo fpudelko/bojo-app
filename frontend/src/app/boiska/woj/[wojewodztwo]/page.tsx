@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MapPin, Landmark } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import SiteFooter from '@/components/layout/SiteFooter';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
@@ -50,11 +51,12 @@ export async function generateMetadata(
   { params, searchParams }: { params: { wojewodztwo: string }; searchParams?: { strona?: string } },
 ): Promise<Metadata> {
   const label = WOJEWODZTWO_LABEL[params.wojewodztwo as Wojewodztwo];
-  if (!label) return { title: 'Nie znaleziono | Bojo' };
+  if (!label) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
   return {
-    title: `Boiska sportowe — województwo ${label}${sufiks} | Bojo`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `Boiska sportowe — województwo ${label}${sufiks}`,
     description: `Katalog boisk i obiektów sportowych w województwie ${label}. Adresy, sporty, nawierzchnia. Zbierz skład i zagraj przez Bojo.`,
     alternates: {
       canonical: strona > 1
@@ -181,6 +183,7 @@ export default async function WojewodztwoPage(
           </Link>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

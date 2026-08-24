@@ -432,7 +432,89 @@ KDD 2024) to one dają największy wzrost cytowalności w wyszukiwarkach AI:
 - [ ] **Core Web Vitals** — zmierzyć po wdrożeniu (PageSpeed Insights) i dopiero na
       podstawie pomiaru decydować o optymalizacjach.
 
-### 7a. Tierowanie katalogu boisk — Fazy 0-3 ZROBIONE (2026-08-20 → 2026-08-22)
+### 7b. Z audytu SEO/GEO (2026-08-23)
+
+Pełne uzasadnienie, gotowe copy i kod → [docs/seo-geo-strategia.md](./docs/seo-geo-strategia.md).
+Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
+
+**PILNE — osobny PR, nie czeka na resztę:**
+
+- [ ] **Metadane prywatnego meczu wyciekają** (D1). `eventMeta.ts:26-33` czyta wiersz
+      bez filtra po `visibility`, więc `<title>`, `description` i `og:*` publikują nazwę,
+      sport, datę, godzinę i obiekt meczu prywatnego, a `opengraph-image.tsx` renderuje
+      dla niego publiczną kartę z ceną i liczbą wolnych miejsc. JSON-LD jest chroniony
+      (`structuredData.ts:83`), trasa nie. Do tego test przypinający regułę.
+- [ ] **„Zarezerwuj termin" w opisie 32 tys. stron obiektów** (D2) —
+      `boisko/[id]/page.tsx:180` obiecuje funkcję za wyłączoną flagą
+      `FEATURE_RESERVATIONS`.
+- [ ] **Podwójny sufiks `| Bojo | Bojo`** (D3) — ręczny sufiks kolidujący
+      z `title.template` w pięciu plikach; dotyczy całego indeksowalnego wolumenu.
+- [ ] **Trasy techniczne i za flagami otwarte dla robotów** (D4) — `/auth/*`,
+      `/turniej*`, `/cykliczne*`, `/obiekt*`, `/rezerwacje`, kreatory, `/gracz/[id]`.
+
+**Quick winy:**
+
+- [ ] **Serwerowy `<h1>`, opis i nawigacja na `/boisko/[id]`** (D5, D6) — jedna zmiana,
+      32 tys. stron; zamyka też Fazę 1 i odblokowuje Fazę 2b.
+- [x] **Stopka na wszystkich stronach publicznych** (D9, zrobione 2026-08-23) — doszła na
+      `/boiska/[sport]`, `/boiska/woj/[x]`, `/wydarzenia` i `/grupy`. **Bez `/mapa`**: ta trasa
+      ma `h-[100dvh] overflow-hidden`, więc stopka byłaby tam przycięta — mapa potrzebuje
+      innego rozwiązania niż stopka. `/boisko/[id]` dostaje ją razem z serwerowym renderem
+      (pozycja niżej).
+- [x] **Link z landingu do hubów katalogu** (D8, zrobione 2026-08-23) — rozwiązane grupą
+      „Boiska" w `SiteFooter`: sześć hubów sportowych z KAŻDEJ strony ze stopką, nie tylko
+      z landingu. Zostaje otwarte: link z hubu sportu prowadzi nadal zawsze do
+      `/[sport]/poznan` (`boiska/[sport]/page.tsx`), a D18 (serwerowy render otwartych gier
+      i boisk na landingu) to osobna pozycja niżej.
+- [ ] **Pomiar bazowy przed jakąkolwiek optymalizacją** — Search Console + 40 promptów
+      (Załączniki A i B strategii).
+- [ ] **Ujednolicić liczbę obiektów w katalogu** (D13) — dziś cztery różne wartości
+      w czterech miejscach.
+- [ ] **`.in('seo_tier',[1,2])` zamiast `.neq(…, 3)`** (D12) — dzisiejszy warunek gubi
+      wiersze `NULL`, przez co gałąź w `lib/sitemapTier.ts:13` i jej test opisują
+      zachowanie, które nie może zajść.
+
+**Średnioterminowe:**
+
+- [x] **Bramka `scripts/audyt-robota.mjs` w CI** (zrobione 2026-08-23) — pobiera stronę
+      zwykłym `fetch`, bez JS, i sprawdza `<h1>`, podwojony sufiks w tytule, `description`
+      wraz z frazami zakazanymi (parsowanymi z `content/zakazaneFrazy.ts`, jedno źródło),
+      linki wewnętrzne i `noindex`. Krok w zadaniu `test` w `ci.yml`, reużywa builda.
+      **Ograniczenie:** na atrapach kluczy trasy żyjące z danych sprawdzane są miękko —
+      stronę obiektu twardo weryfikuje dopiero przebieg przeciwko produkcji
+      (`node scripts/audyt-robota.mjs --baza https://bojo.pl`).
+- [ ] **Akapit bezpośredniej odpowiedzi na landingu** — dziś pierwszy ekran ani razu
+      nie mówi, czym Bojo jest.
+- [ ] **Sekcje odróżniające Bojo od systemów rezerwacji** w `/jak-dziala-bojo`,
+      `/dlaczego-bojo` i `/faq` (dziś tylko na stronach miejskich).
+- [ ] **Strona kalkulatora podziału kosztu boiska** — jedyna strona w planie, która
+      nie potrzebuje ani jednego użytkownika, żeby być użyteczna; liczy
+      `priceForParticipant()`, nie własnym wzorem.
+- [ ] **`alternateName` + `disambiguatingDescription` w `Organization`** — nazwa „Bojo"
+      koliduje z potocznym słowem oznaczającym boisko, więc zapytania markowe trafiają
+      dziś w słownik.
+- [ ] **Potwierdzenia graczy w `amenityFeature`** — Faza 3 stworzyła dane, których nie ma
+      nikt inny, i nie wystawiła ich maszynom.
+- [ ] **Linkowanie poziome hubów** i akapity wprowadzające na `/boiska/*`.
+
+**Długoterminowe:**
+
+- [ ] **Nowy próg indeksacji obiektów** — indeksujemy obiekt, gdy ma dowód (potwierdzenie
+      graczy, rozegrany mecz albo komplet danych). Liczba stron w indeksie **spadnie**
+      i to jest zamierzone; mechanizm istnieje (`oblicz_seo_tier()`, migracja `112`).
+- [ ] **`/boiska/[sport]/[miasto]`** — brakująca warstwa katalogu, ograniczona tabelą
+      `miasta_priorytetowe`, z progiem minimum obiektów.
+- [ ] **Polityka cyklu życia strony meczu** — miniony mecz nie zostaje w indeksie, tylko
+      zasila stronę obiektu.
+- [ ] **Widget „najbliższe mecze na tym obiekcie"** dla zarządców — wzmianka i link
+      z domeny o lokalnym autorytecie, do zaoferowania w rozmowach z `/admin/outreach`.
+- [ ] **Wkład zwrotny do OpenStreetMap** — wymaga rozstrzygnięcia licencji ODbL przed
+      jakimkolwiek wydawaniem danych na zewnątrz.
+
+### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
+
+> **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b
+> nie działają dla robota — ptaszki cofnięte, sprostowania przy pozycjach niżej.
 
 Użytkownik wkleił obszerny plan SEO/GEO (tiered indexing, huby miast, programmatic
 content, JSON-LD, crowdsourcing) dla katalogu boisk. Audyt kodu i produkcyjnej bazy
@@ -451,7 +533,7 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       zamiast query stringa). **Migracja `112` wymaga ręcznego uruchomienia na Supabase
       + ręcznego przebiegu `scraper/backfill_lokalizacja.py` per województwo** — bez
       backfillu wszystkie boiska zostają w Tier 3 (`noindex`).
-- [x] **Faza 1 — fact-dense opis obiektu** (zrobione 2026-08-22). Generator
+- [ ] **Faza 1 — fact-dense opis obiektu** (kod 2026-08-22, **ptaszek cofnięty 2026-08-23**). Generator
       `content/opisObiektu.ts#opisObiektu()` — nie `lib/`, wzorem `content/miasta.ts`
       (`odpowiedzMiasta()`/`zdanieOKatalogu()`), bo to ta sama klasa: funkcja tworząca
       treść, nie logika domenowa. „Direct answer" akapit z danych obiektu (sport,
@@ -461,6 +543,15 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       dopisana do wspólnej listy jednostek treści w `tresciStron.test.ts`
       (`content/zakazaneFrazy.ts`), nie osobny test — to czysty szablon, nie każdy
       z 36k+ wierszy wymaga sprawdzenia z osobna.
+
+      ⚠️ **Sprostowanie (2026-08-23):** kod powstał i działa dla człowieka, ale
+      **nie działa dla robota**, czyli tam, gdzie miał. `opis` jest przekazywany jako
+      prop do `VenueDetailClient.tsx`, a ten do czasu `useEffect` zwraca szkielet
+      (`VenueDetailClient.tsx:197`); `page.tsx` nie renderuje ani własnego `<h1>`, ani
+      opisu (`boisko/[id]/page.tsx:300-329`). W HTML pierwszej odpowiedzi serwera są
+      wyłącznie dwa `<script>` z JSON-LD. Dodatkowo `description` w metadanych obiecuje
+      „zarezerwuj termin" (`page.tsx:180`) — funkcję za wyłączoną flagą. Do zamknięcia:
+      serwerowy render nagłówka, opisu i nawigacji — [seo-geo-strategia.md](./docs/seo-geo-strategia.md), 3f.
 - [x] **Faza 2 — huby miast poza Poznań** (zrobione 2026-08-22). Trasa przeniesiona
       z `/graj/[sport]/[miasto]` na `/[sport]/[miasto]` (301 ze starych adresów),
       miasta wyniesione do `content/miasta.ts` i rozszerzone o Warszawę i Kraków —
@@ -470,7 +561,7 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       a strony miejskie żyją w `content/miasta.ts` i podlegają `ZAKAZANE_WSZEDZIE`.
       Pokrycie katalogu liczone geograficznie (`lib/api.ts#policzBoiskaWOkolicy`), **nie**
       z `city`/`seo_tier` — te są dziś puste w całej tabeli, patrz Faza 0.
-- [x] **Faza 2b — huby wojewódzkie** (zrobione 2026-08-22). `/boiska/woj/[wojewodztwo]`
+- [ ] **Faza 2b — huby wojewódzkie** (kod 2026-08-22, **ptaszek cofnięty 2026-08-23**). `/boiska/woj/[wojewodztwo]`
       — NIE `/boiska/[wojewodztwo]`: Next.js nie pozwala dwóm dynamicznym segmentom na
       tym samym poziomie katalogu mieć różne nazwy, a `[sport]` już zajmuje
       `/boiska/[cokolwiek]`, więc `woj` jest literalnym segmentem pośrednim. Wzorem
@@ -480,6 +571,14 @@ Katalog urósł międzyczasie do 36 268 wierszy; backfill lokalizacji przeszedł
       bez odmiany przez przypadki — nagłówek unika fleksji przymiotnika z rozmysłem).
       16 stron dopisanych do `sitemap.ts`; `/boisko/[id]` linkuje do swojego huba
       (widoczny link + okruszek JSON-LD), gdy `city`/`voivodeship` już wypełnione.
+
+      ⚠️ **Sprostowanie (2026-08-23):** zdanie o widocznym linku opisuje intencję, nie
+      stan. Link z `/boisko/[id]` do huba leży w `VenueDetailClient.tsx:256`, czyli za
+      bramką ładowania z Fazy 1 — w HTML go nie ma. Wszystkie 16 hubów jest dziś
+      **osieroconych**: zero linków przychodzących z jakiejkolwiek strony, jedyne wejście
+      to `sitemap.ts`. Okruszek w JSON-LD nie jest linkiem do przejścia. Do zamknięcia:
+      serwerowa nawigacja na stronie obiektu i linkowanie poziome hubów —
+      [seo-geo-strategia.md](./docs/seo-geo-strategia.md), 3f i 4b.
 - [x] **Faza 3 — mikro-ankiety UGC** (zrobione 2026-08-22). `AnkietyObiektu.tsx` na
       `/boisko/[id]`, dwa pytania (oświetlenie tak/nie, nawierzchnia — sześć wartości
       jak `SURFACE_MAP`). NOWA tabela `potwierdzenia_obiektu` (migracja `123`), nie
