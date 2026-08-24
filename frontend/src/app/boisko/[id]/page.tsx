@@ -5,7 +5,8 @@ import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
-import { breadcrumbsJsonLd } from '@/lib/structuredData';
+import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
+import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
 import { opisObiektu } from '@/content/opisObiektu';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
@@ -280,6 +281,12 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // prop `opis`) i tutaj, w danych strukturalnych — jedno źródło, żeby oba
   // nigdy się nie rozjechały.
   const opis = opisObiektu(field);
+  // Faza 3 SEO/GEO: potwierdzenia graczy (oświetlenie, nawierzchnia) jako
+  // amenityFeature — TYLKO po quorum, tym samym progu co widoczna treść
+  // na stronie (VenueDetailClient → AnkietyObiektu.tsx). Odczyt jest
+  // publiczny (RLS migracji 123), więc bezpieczny server-side bez sesji.
+  const potwierdzenia = await pobierzPotwierdzenia(field.id).catch(() => []);
+  const amenityFeature = venueAmenityFeatures(potwierdzenia);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
@@ -298,6 +305,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
       longitude: field.lng,
     },
     url: `${base}/boisko/${slug}`,
+    ...(amenityFeature.length > 0 ? { amenityFeature } : {}),
   };
 
   // Middle crumb only for sports that actually have a /boiska/[sport] page

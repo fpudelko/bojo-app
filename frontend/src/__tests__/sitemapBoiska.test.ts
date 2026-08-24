@@ -11,12 +11,11 @@ describe('priorytetDlaTier', () => {
     expect(priorytetDlaTier(2)).toBeLessThan(priorytetDlaTier(1));
   });
 
-  // Wiersze bez seo_tier (przed backfillem — kolumna miała DEFAULT 3, ale
-  // stare zapytania mogą wciąż nosić NULL) dostają ostrożny priorytet,
-  // nie taki sam jak dawne stałe 0.7 dla każdego boiska.
-  it('brak tieru (NULL) dostaje najniższy priorytet, nie domyślne 0.7', () => {
-    expect(priorytetDlaTier(null)).toBeLessThan(priorytetDlaTier(2));
-  });
+  // Sygnatura jest `1 | 2`, nie `number | null` — TypeScript odrzuca
+  // `priorytetDlaTier(null)` na etapie kompilacji, więc nie ma tu czego
+  // testować w runtime. `fields.seo_tier` jest `NOT NULL` z
+  // `CHECK IN (1, 2, 3)` (migracja 112), a route.ts filtruje `.in([1, 2])`,
+  // więc trzeciej ani czwartej wartości ta funkcja nigdy nie zobaczy.
 });
 
 describe('WOJEWODZTWA', () => {

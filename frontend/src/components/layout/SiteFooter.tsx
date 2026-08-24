@@ -1,22 +1,12 @@
 import Link from 'next/link';
 import { SHOW_RECURRING } from '@/lib/features';
+import { HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 
-/** Huby katalogu boisk. Te same slugi co `SPORT_SLUGS` w `app/sitemap.ts` —
- *  do zmiany razem z nim.
- *
- *  Po co w stopce: do 2026-08-23 do żadnego z tych hubów NIE PROWADZIŁ ani
- *  jeden link w HTML — ze strony głównej, z nagłówka ani ze stopki. Crawler
- *  znajdował je wyłącznie przez mapę strony, a strony osierocone dostają
- *  najniższy priorytet skanowania, bo nic w serwisie za nimi nie ręczy.
- *  Stopka jest jedynym miejscem obecnym na każdej stronie treści. */
-const HUBY_BOISK = [
-  ['/boiska/pilka-nozna', 'Piłka nożna'],
-  ['/boiska/koszykowka', 'Koszykówka'],
-  ['/boiska/siatkowka', 'Siatkówka'],
-  ['/boiska/siatkowka-plazowa', 'Siatkówka plażowa'],
-  ['/boiska/futsal', 'Futsal'],
-  ['/boiska/pilka-reczna', 'Piłka ręczna'],
-] as const;
+// Po co ta grupa w stopce: do 2026-08-23 do żadnego huba w HUBY_KATALOGU_SPORTOWYCH
+// NIE PROWADZIŁ ani jeden link w HTML — ze strony głównej, z nagłówka ani ze
+// stopki. Crawler znajdował je wyłącznie przez mapę strony, a strony osierocone
+// dostają najniższy priorytet skanowania, bo nic w serwisie za nimi nie ręczy.
+// Stopka jest jedynym miejscem obecnym na każdej stronie treści.
 
 /** Mobile-first: kolumna grup na telefonie, wiersz od `md:` w górę. Dwie
  *  grupy linków zamiast jednej płaskiej listy — "Produkt" (co da się zrobić
@@ -52,9 +42,9 @@ export default function SiteFooter() {
           </GrupaLinkow>
 
           <GrupaLinkow tytul="Boiska">
-            {HUBY_BOISK.map(([href, etykieta]) => (
-              <Link key={href} href={href} className="transition-colors hover:text-white">
-                {etykieta}
+            {HUBY_KATALOGU_SPORTOWYCH.map((h) => (
+              <Link key={h.slug} href={`/boiska/${h.slug}`} className="transition-colors hover:text-white">
+                {h.etykieta}
               </Link>
             ))}
           </GrupaLinkow>

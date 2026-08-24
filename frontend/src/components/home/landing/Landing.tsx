@@ -1,4 +1,5 @@
 import LandingHero from './LandingHero';
+import LandingDirectAnswer from './LandingDirectAnswer';
 import LandingStats from './LandingStats';
 import LandingHowItWorks from './LandingHowItWorks';
 import LandingOpenGames from './LandingOpenGames';
@@ -14,6 +15,7 @@ export default function Landing() {
     <>
       <div className="pb-24 md:pb-0">
         <LandingHero />
+        <LandingDirectAnswer />
         <LandingStats />
         <LandingHowItWorks />
         <LandingOpenGames />

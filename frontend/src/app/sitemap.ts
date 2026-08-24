@@ -1,16 +1,7 @@
 import type { MetadataRoute } from 'next';
-import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
+import { FOCUS_SPORT_BY_SLUG, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 import { MIASTA } from '@/content/miasta';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
-
-const SPORT_SLUGS = [
-  'pilka-nozna',
-  'koszykowka',
-  'siatkowka',
-  'siatkowka-plazowa',
-  'futsal',
-  'pilka-reczna',
-];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
@@ -30,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/prywatnosc`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  const sportPages: MetadataRoute.Sitemap = SPORT_SLUGS.map((slug) => ({
+  const sportPages: MetadataRoute.Sitemap = HUBY_KATALOGU_SPORTOWYCH.map(({ slug }) => ({
     url: `${base}/boiska/${slug}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
@@ -58,7 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  // Boiska NIE są tu wypisywane — katalog ma 32 684+ wiersze, więc żyją
+  // Boiska NIE są tu wypisywane — katalog ma ponad 30 000 wierszy (ta sama
+  // liczba co w content/dlaczego.ts — jedno źródło, nie osobny snapshot), więc żyją
   // w osobnych sitemapach per województwo (sitemap-boiska/[plik]/route.ts),
   // zebranych w sitemap-index.xml razem z tym plikiem. Trzymanie ich tutaj
   // znaczyłoby jeden rosnący bez końca plik zamiast partycji.

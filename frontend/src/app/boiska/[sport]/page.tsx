@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
+import { WOJEWODZTWA, WOJEWODZTWO_LABEL } from '@/lib/wojewodztwa';
+import { wstepHubuSportu } from '@/content/boiska';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -139,6 +141,16 @@ export default async function SportCategoryPage(
             Boiska do {entry.label} w Polsce
           </h1>
         </div>
+
+        {/* Bezpośrednia odpowiedź nad listą — bez niej strona jest samym
+            listingiem, dokładnie tym, co przegrywa z serwisami mającymi
+            przewagę wieku (docs/seo-geo-strategia.md, 3g). */}
+        {wszystkich > 0 && strona === 1 && (
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
+            {wstepHubuSportu(wszystkich, entry.label)}
+          </p>
+        )}
+
         <p className="text-slate-500 text-sm mb-8">
           {wszystkich > 0
             ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
@@ -214,6 +226,29 @@ export default async function SportCategoryPage(
             </Link>
           )}
         </div>
+
+        {/* Linkowanie poziome (docs/seo-geo-strategia.md, 4b/16): bez tego hub
+            sportu był ślepym zaułkiem poza wejściem z sitemapa. Tylko strona 1
+            — dalsze strony paginacji nie powinny powielać ten sam blok linków
+            (D15: te strony są dziś self-canonical i bez noindex). */}
+        {strona === 1 && (
+          <div className="mt-10 border-t border-slate-200 pt-6">
+            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Boiska do {entry.label} w województwach
+            </p>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+              {WOJEWODZTWA.map((woj) => (
+                <Link
+                  key={woj}
+                  href={`/boiska/woj/${woj}`}
+                  className="text-xs text-primary-600 hover:underline"
+                >
+                  {WOJEWODZTWO_LABEL[woj]}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
       <SiteFooter />
     </div>

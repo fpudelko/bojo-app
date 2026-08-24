@@ -6,6 +6,7 @@ import {
   LANDING_VALUES,
   LANDING_FAQ,
   LANDING_STATS,
+  LANDING_DIRECT_ANSWER,
 } from '@/components/home/landing/content';
 import { faqJsonLd } from '@/lib/structuredData';
 import { ZAKAZANE_NA_LANDINGU as FORBIDDEN_PHRASES } from '@/content/zakazaneFrazy';
@@ -18,6 +19,7 @@ import { ZAKAZANE_NA_LANDINGU as FORBIDDEN_PHRASES } from '@/content/zakazaneFra
 
 function allLandingText(): string {
   return [
+    LANDING_DIRECT_ANSWER,
     ...LANDING_HERO.badges,
     ...LANDING_HERO.h1,
     LANDING_HERO.lead,
