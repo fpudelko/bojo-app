@@ -505,9 +505,15 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       nowa sekcja w `content/jakDziala.ts` (`bojo-a-rezerwacje`), nowa sekcja w
       `content/dlaczego.ts` (`trzy-rzeczy`), nowe pytanie w `content/faq.ts` (kategoria
       `podstawy`).
-- [ ] **Strona kalkulatora podziału kosztu boiska** — jedyna strona w planie, która
-      nie potrzebuje ani jednego użytkownika, żeby być użyteczna; liczy
-      `priceForParticipant()`, nie własnym wzorem. *(zaplanowana jako kolejny, osobny PR)*
+- [x] **Strona kalkulatora podziału kosztu boiska** (zrobione 2026-08-24) —
+      `/kalkulator-kosztow-boiska`, strona statyczna (bez `useSearchParams()`, bez
+      zapytań do bazy), kalkulator kliencki. Liczy WYŁĄCZNIE `perPlayerPriceGrosze()`
+      i `priceForParticipant()` z `lib/payments.ts` — pierwsza to nowo wydzielony
+      odpowiednik formuły z kreatora meczu (`app/wydarzenia/nowe/page.tsx`), druga to
+      ta sama funkcja co na stronie meczu. Orkiestracja w `lib/kalkulatorKosztow.ts`
+      (testowalna bez renderowania), treść w `content/kalkulator.ts`. Zweryfikowane
+      end-to-end w prawdziwej przeglądarce (Playwright): 280 zł / 14 graczy = 20,00 zł,
+      zmiana na 10 graczy → 28,00 zł, 3 graczy z kartą i zniżką 5 zł → 23,00 zł.
 - [ ] **`alternateName` + `disambiguatingDescription` w `Organization`** — nazwa „Bojo"
       koliduje z potocznym słowem oznaczającym boisko, więc zapytania markowe trafiają
       dziś w słownik. **Czeka na pozycję „Trzy profile poza domeną" (Jan)** — puste albo

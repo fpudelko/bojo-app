@@ -7,6 +7,9 @@ import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } fro
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
 import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
+import {
+  KALKULATOR_ODPOWIEDZ, KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI,
+} from '@/content/kalkulator';
 import { wstepHubuSportu, wstepHubuWojewodztwa } from '@/content/boiska';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
@@ -42,6 +45,9 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   jednostki.push({ etykieta: 'dlaczego#odpowiedz', tekst: DLACZEGO_ODPOWIEDZ });
   jednostki.push({ etykieta: 'jakDziala#odpowiedz', tekst: JAK_DZIALA_ODPOWIEDZ });
   jednostki.push({ etykieta: 'miasta#czym-nie-jest', tekst: CZYM_BOJO_NIE_JEST });
+  jednostki.push({ etykieta: 'kalkulator#odpowiedz', tekst: KALKULATOR_ODPOWIEDZ });
+  jednostki.push({ etykieta: 'kalkulator#hint-karta', tekst: KALKULATOR_HINT_KARTA });
+  jednostki.push({ etykieta: 'kalkulator#hint-bez-znizki', tekst: KALKULATOR_HINT_BEZ_ZNIZKI });
   // Direct Answer i zdanie o katalogu są szablonami — sprawdzamy je w każdej
   // realnej kombinacji sportu i miasta, bo to ten tekst trafia na stronę.
   for (const miasto of MIASTA) {
