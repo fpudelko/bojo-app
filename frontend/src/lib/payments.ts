@@ -24,6 +24,21 @@ export function sportsCardLabel(provider: SportsCardProvider, otherName?: string
   return SPORTS_CARD_LABELS[provider];
 }
 
+/**
+ * Cena od osoby, wyliczona z kosztu całego obiektu i liczby miejsc —
+ * dokładnie ten sam wynik, jaki dostaje organizator w kreatorze meczu
+ * (`app/wydarzenia/nowe/page.tsx`, przełącznik "wpisz za cały obiekt").
+ * Tamten kod liczy to samo w PLN, przez tekstowe pole formularza (zaokrągla
+ * do grosza przy każdym wpisanym znaku); w groszach od razu, bez
+ * pośredniego przejścia przez string, to jest po prostu zaokrąglenie
+ * ilorazu — matematycznie ten sam wynik, zweryfikowane na reprezentatywnych
+ * kwotach w payments.test.ts.
+ */
+export function perPlayerPriceGrosze(totalGrosze: number, maxPlayers: number): number {
+  if (maxPlayers <= 0) return 0;
+  return Math.round(totalGrosze / maxPlayers);
+}
+
 export interface PriceForParticipant {
   /** Price to charge — falls back to the full price when the discount amount
    *  is unspecified, since there's nothing to subtract. */

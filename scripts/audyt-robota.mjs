@@ -60,6 +60,7 @@ const TRASY = [
   { adres: '/dlaczego-bojo',        h1: true,  linki: true },
   { adres: '/faq',                  h1: true,  linki: true },
   { adres: '/regulamin',            h1: true,  linki: true },
+  { adres: '/kalkulator-kosztow-boiska', h1: true, linki: true },
   { adres: '/prywatnosc',           h1: true,  linki: true },
   { adres: '/wydarzenia',           h1: false, linki: true },
   { adres: '/grupy',                h1: false, linki: true },

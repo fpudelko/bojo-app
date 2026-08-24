@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/jak-dziala-bojo`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/dlaczego-bojo`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${base}/kalkulator-kosztow-boiska`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/regulamin`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/prywatnosc`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
   ];

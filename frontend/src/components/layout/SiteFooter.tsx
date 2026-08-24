@@ -53,6 +53,7 @@ export default function SiteFooter() {
             <Link href="/jak-dziala-bojo" className="transition-colors hover:text-white">Jak działa Bojo</Link>
             <Link href="/dlaczego-bojo" className="transition-colors hover:text-white">Dlaczego Bojo</Link>
             <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>
+            <Link href="/kalkulator-kosztow-boiska" className="transition-colors hover:text-white">Kalkulator kosztów</Link>
             <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
             <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
             {/* Zgłoszenie błędu musi być osiągalne z KAŻDEJ strony — awaria

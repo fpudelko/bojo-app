@@ -634,6 +634,7 @@ Przy dwuosobowym zespole każdy nowy typ strony to zobowiązanie na lata. Poniż
 mają uzasadnienie w rozdziale 1; wszystko inne odpada do czasu, aż te dwa zadziałają.
 
 **N1. `/kalkulator-kosztow-boiska` — strona narzędziowa (priorytet najwyższy)**
+**ZROBIONE 2026-08-24.**
 
 - **Intencja:** klaster „Rozliczenie" i „Karty sportowe" z 2a, sytuacja S3.
 - **Dlaczego pierwsza:** to jedyna strona w całym planie, która **nie potrzebuje ani
@@ -644,11 +645,21 @@ mają uzasadnienie w rozdziale 1; wszystko inne odpada do czasu, aż te dwa zadz
 - **Zawartość:** działający kalkulator (koszt obiektu, liczba graczy, ilu z kartą,
   stawka dla posiadacza karty) + akapit bezpośredniej odpowiedzi + FAQ + naturalne
   przejście do założenia meczu.
-- **Kod:** liczy **wyłącznie** `priceForParticipant()` z `lib/payments.ts` — ta sama
-  funkcja co w aplikacji, zgodnie z regułą z AGENTS.md („cenę zawsze liczy
-  `priceForParticipant()`"). Nowy, równoległy wzór na tej stronie byłby dokładnie tym
-  rodzajem duplikatu, który po pół roku daje dwie różne odpowiedzi.
-- **Renderowanie:** strona statyczna, kalkulator po stronie klienta. Bez `useSearchParams()`.
+- **Kod:** liczy `priceForParticipant()` z `lib/payments.ts` — ta sama funkcja co
+  w aplikacji, zgodnie z regułą z AGENTS.md („cenę zawsze liczy `priceForParticipant()`").
+  **Doszła jedna rzecz, której ten szkic nie przewidział:** kalkulator bierze koszt
+  CAŁEGO obiektu i dzieli go na graczy — tej formuły `lib/payments.ts` wcześniej nie
+  miał, bo w aplikacji organizator wpisuje cenę per gracz wprost (kreator w
+  `app/wydarzenia/nowe/page.tsx` liczy podział inline, w PLN-stringu, przy każdym
+  wpisanym znaku). Zamiast pisać drugi wzór, wydzielono `perPlayerPriceGrosze()` do
+  `lib/payments.ts` — matematycznie tożsamy z formułą kreatora (zweryfikowane
+  w `payments.test.ts` na tej samej parze liczb), tylko liczony wprost w groszach
+  zamiast przez tekstowe pole formularza. Sam kreator zostaje nietknięty — refaktor
+  jego działającego kodu pod DRY nie był częścią tego zadania. Orkiestracja obu funkcji
+  (przycinanie wejścia z formularza, składanie wyniku) jest w `lib/kalkulatorKosztow.ts`,
+  osobno od komponentu klienckiego, żeby dało się przetestować bez renderowania.
+- **Renderowanie:** strona statyczna, kalkulator po stronie klienta. Bez `useSearchParams()`
+  — potwierdzone w buildzie: `○ /kalkulator-kosztow-boiska`.
 - **Copy — akapit otwierający:**
 
   > Koszt wynajmu boiska dzieli się na liczbę graczy, którzy realnie wchodzą do składu —
@@ -1144,7 +1155,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 9 | `scripts/audyt-robota.mjs` jako bramka CI (7c) | ŚREDNI | wysoki | średnia | Franek | `scripts/`, `.github/workflows/` | PR z pustą stroną nie przechodzi |
 | 10 | ~~Akapit bezpośredniej odpowiedzi na landingu (3a)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `LandingDirectAnswer.tsx` | do zmierzenia w Załączniku A |
 | 11 | ~~Sekcje odróżniające od systemów rezerwacji (3b, 3c, 3d, 4d)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `content/{jakDziala,dlaczego,faq}.ts` | do zmierzenia w Załączniku A |
-| 12 | Strona kalkulatora kosztów (N1) | ŚREDNI | wysoki | średnia | Franek | nowa trasa + `lib/payments.ts` | niezerowe wyświetlenia na klaster „Rozliczenie" |
+| 12 | ~~Strona kalkulatora kosztów (N1)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | średnia | Franek | `/kalkulator-kosztow-boiska`, `lib/{payments,kalkulatorKosztow}.ts` | do zmierzenia: wyświetlenia na klaster „Rozliczenie" |
 | 13 | `sameAs` + `disambiguatingDescription` w `Organization` (5a) | ŚREDNI | wysoki | łatwa | Franek po pkt. 15 | `lib/structuredData.ts` | zapytanie markowe przestaje zwracać definicję słownikową |
 | 14 | ~~Serwerowy render otwartych gier i boisk na landingu (D18)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `LandingOpenGames.tsx`, `LandingVenues.tsx` | zweryfikowane na atrapie: linki do meczu i obiektu w HTML |
 | 15 | Trzy profile poza domeną (6.2) | ŚREDNI | wysoki | łatwa | Jan | poza repo | jest co wpisać w `sameAs` |

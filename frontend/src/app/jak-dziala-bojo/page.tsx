@@ -58,6 +58,13 @@ export default function JakDzialaBojoPage() {
           ) : (
             sekcja.akapity.map((a, i) => <p key={i}>{a}</p>)
           )}
+          {sekcja.id === 'pieniadze' && (
+            <p>
+              <Link href="/kalkulator-kosztow-boiska" className="text-primary-600 hover:underline">
+                Policz to na własnych liczbach w kalkulatorze kosztów →
+              </Link>
+            </p>
+          )}
         </SekcjaTresci>
       ))}
 
