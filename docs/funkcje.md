@@ -791,25 +791,31 @@ jest jedna, czysta funkcja. Gest wyłącza się sam nad elementem przewijanym w 
 `data-bez-swipe`, tam gdzie już jest inny gest dotykowy: podział na drużyny (własny
 swipe „przypisz do drużyny" plus `@dnd-kit`) i pole tekstowe rozmowy.
 
-Zakładka „Nadchodzące" renderuje **te same komponenty co pulpit zalogowanego**
-(`components/home/dashboard/`), zamiast własnej, osobno utrzymywanej listy:
-`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `NeedsPlayersSection` →
-`NextMatchCard` → `MyMatchesSection`. Sekcje „Twoje grupy" i „Otwarte mecze" **nie** są tu
-powtórzone — mają własne strony (`/grupy`, `/wydarzenia`). `NextGroupMatchTeaser` (niżej)
-też nie — to specyficznie dla pulpitu (`AppHome.tsx`), `/moje-gry` skupia się na meczach,
-nie na ekipach.
+**`/moje-gry` JEST pulpitem zalogowanego — drugiego nie ma** (2026-08-23). Wcześniej
+`/` renderowało dla zalogowanego osobny pulpit (`AppHome.tsx`) z tymi samymi sekcjami
+(`InvitesSection`, `NextMatchCard`, `MyMatchesSection`), co ta zakładka. Dwa ekrany na
+to samo pytanie rozjeżdżały się same z siebie, a ten na `/` był w dodatku poza dolną
+nawigacją — pasek prowadzi na `/moje-gry`, `/mapa`, `/rozmowy`, `/grupy` i do kreatora,
+więc na `/` wchodziło się wyłącznie przez logo. Wygrał ten z paska: `AppHome.tsx`
+i `useDashboardData.ts` **nie istnieją**, a `HomeSwitch` przekierowuje zalogowanego na
+`/moje-gry`. Landing na `/` zostaje bez zmian dla wylogowanych i dla robotów (nie mają
+ciasteczka sesji), więc SEO strony głównej się nie rusza.
 
-**„Twoja ekipa gra wkrótce" (`NextGroupMatchTeaser`, `DashboardSections.tsx`)** — na
-pulpicie zalogowanego, między `NextMatchCard` a `MyMatchesSection` (zgłoszone wprost:
-ma stać NAD „Twoje najbliższe mecze", zanim trzeba przewijać do „Twoje grupy" niżej).
-Pokazuje ekipę z najbliższym nadchodzącym meczem — ikona, nazwa, termin, pasek
-zapełnienia składu — jako link do `/grupy/[id]`, tym samym stylem karty co `KartaEkipy`
-na `/grupy`. Dane z `groupEvents`/`groups` w `useDashboardData()`, zero dodatkowego
-zapytania: `getMyGroupEvents()` (`lib/events.ts`) sortuje po `event_date` w SQL-u, ale bez
-godziny jako drugiej kolumny sortowania, więc komponent doprecyzowuje sort po
-`date+time` po stronie klienta, zanim weźmie pierwszy element. Renderuje `null`, gdy
-żadna ekipa nie ma nadchodzącego meczu, albo gdy mecz nie da się dopasować do żadnej
-z grup usera (np. rozjazd danych) — cicha porażka, nie krzykliwy błąd na pulpicie.
+Zakładka „Nadchodzące" składa się z komponentów w `components/home/dashboard/`:
+`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `PendingRequestsSection` →
+`NeedsPlayersSection` → `NextMatchCard` → `MyMatchesSection` → `GroupGamesSection`.
+
+**`GroupGamesSection` przyszła tu z kasowanego pulpitu jako JEDYNA sekcja stamtąd** —
+bo jako jedyna niosła treść, której nie ma nigdzie indziej: mecze mojej ekipy, do
+których **jeszcze nie dołączyłem** (`rel.status === 'none' && !rel.isOrganizer`).
+Pozostałe listy na tej stronie pokazują mecze, w których już jestem, więc bez tego
+przeniesienia „moja ekipa gra, a mnie nie ma" nie miałoby ani jednego miejsca w apce.
+Reszta sekcji dawnego pulpitu miała już swoje miejsca i została skasowana: otwarte
+mecze to zakładka „Szukaj" (`/mapa?gry=1`), obserwowane i historia to zakładki obok,
+ekipy to `/grupy`, a „Jak to działa" i FAQ mają własne strony (`/jak-dziala-bojo`,
+`/faq`). Relacja do meczu ekipy liczy się z `items` (czyli z `getMyParticipatedEvents`,
+które bierze wszystkie moje wiersze `event_participants` plus mecze, które organizuję)
+— bez osobnego zapytania o mapę uczestnictwa.
 
 **„Brakuje graczy"** (`NeedsPlayersSection`, `components/home/dashboard/DashboardSections.tsx`)
 — organizowane, nadchodzące mecze, które jeszcze nie mają kompletu, sortowane od
@@ -820,13 +826,15 @@ odpowiedzieć: „na który z moich meczów nie zbiera się skład". Dane są ju
 `MyMatchesSection` niżej — to osobna, DODATKOWA sekcja, nie zamiana świadomie
 scalonej listy „organizujesz + grasz" (patrz komentarz w `lib/myEvents.ts`).
 
-**Zakładka „Obserwowane"** to osobna lista `EventBrowseCard` (wzorem „Historii"), nie
-sekcja pulpitu — obserwowane mecze mają teraz **jedno** miejsce, nie dwa: wcześniej
-`ObservingSection` renderowała się też inline pod „Nadchodzące", co dublowało tę samą
-informację w dwóch miejscach tej samej strony.
+**Zakładka „Obserwowane"** to osobna lista `EventBrowseCard` (wzorem „Historii").
+Obserwowane mecze mają **jedno** miejsce, nie dwa: wcześniej `ObservingSection`
+renderowała się też inline pod „Nadchodzące", co dublowało tę samą informację na tej
+samej stronie. Sam komponent `ObservingSection` zniknął razem z pulpitem na `/`.
 
-Różnica względem pulpitu: `MyMatchesSection` dostaje `limit={null} href={null}` — pełna
-lista bez obcięcia do 2 pozycji i bez linku „Wszystkie" wracającego na tę samą stronę.
+`MyMatchesSection` dostaje tu `limit={null} href={null}` — pełna lista bez obcięcia do
+2 pozycji i bez linku „Wszystkie", który wracałby na tę samą stronę. (Te parametry są
+pozostałością po skróconym wariancie z dawnego pulpitu na `/`; zostają, bo `/grupy/[id]`
+nadal korzysta ze skracania.)
 
 Brak osobnego pustego stanu dla „Nadchodzące": `NextMatchCard` ma własny („Nie masz
 zaplanowanych gier" + „Stwórz mecz" / „Znajdź grę"), więc pokrywa przypadek zerowej
@@ -2038,9 +2046,12 @@ Dziś oznaczone są dwie:
 | `LANDING_STEPS[2]` „Brakuje ludzi? Otwórz mecz" | otwartych gier bywa mało — obietnica „społeczność dobierze skład" nie ma jeszcze pokrycia |
 | `LANDING_VALUES[4]` „Boiska w jednym miejscu" | lokalizacje są kompletne, ale nawierzchnia i typ obiektu wypełnione w mniejszości wierszy |
 
-`LANDING_STEPS` renderuje się w **dwóch** miejscach: `LandingHowItWorks.tsx` (landing)
-i `OnboardingSection` w `DashboardSections.tsx` (pulpit przy zerowej aktywności). Dane są
-wspólne, markup nie — plakietkę trzeba postawić w obu, dlatego jest osobnym komponentem.
+`LANDING_STEPS` renderuje dziś **wyłącznie** `LandingHowItWorks.tsx` (landing dla
+wylogowanego). Druga kopia — `OnboardingSection` na pulpicie zalogowanego — zniknęła
+razem z `AppHome.tsx` (2026-08-23): ta treść odpowiada na pytanie osoby BEZ konta,
+a stała na ekranie kogoś, kto ma już mecze i ekipy. Kto szuka jej z konta, ma
+`/jak-dziala-bojo` i `/faq`. Plakietka `WczesnyEtapBadge` zostaje osobnym komponentem,
+bo dzieli ją jeszcze nagłówek i `NextMatchCard`.
 
 Pusty stan `NextMatchCard` uprzedza tym samym tonem, że otwartych gier bywa mało
 i szybszą drogą jest własny mecz plus link do znajomych.

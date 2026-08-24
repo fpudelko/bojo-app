@@ -343,6 +343,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-23 — Jeden pulpit zalogowanego, nie dwa
+
+PROBLEM: Bojo miało DWA ekrany odpowiadające na to samo pytanie „co i kiedy gram".
+Strona główna po zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia",
+„Najbliższy mecz" i „Twoje mecze" — dokładnie te same, które ma zakładka „Mecze"
+(`/moje-gry`). Do tego pulpit na „/" był POZA dolną nawigacją: pasek prowadzi na
+`/moje-gry`, `/mapa`, `/rozmowy`, `/grupy` i do kreatora, więc na „/" wchodziło się
+wyłącznie przez logo w nagłówku. Utrzymywany był więc drugi, trudniej dostępny pulpit,
+który sam z siebie rozjeżdżał się z pierwszym. Ponad połowę jego długości zajmowały
+przy tym „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ konta,
+pokazywana komuś, kto ma już mecze i ekipy.
+
+ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" (`/moje-gry`), czyli ta
+z dolnej nawigacji. Zalogowany, który wejdzie na „/", trafia na „Mecze". Landing na „/"
+nie zmienia się ani o milimetr dla wylogowanych i dla wyszukiwarek — te nie mają
+ciasteczka sesji. Sekcje marketingowe znikają z widoku zalogowanego; ta sama treść ma
+własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
+
+Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
+mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
+nigdzie indziej: pozostałe listy pokazują mecze, w których już jestem, więc bez tego
+„moja ekipa gra, a mnie nie ma" nie miałoby ani jednego miejsca w aplikacji.
+
+MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
+nie `push` — inaczej „wstecz" wracałoby na adres, który natychmiast przekierowuje
+z powrotem). Przekierowanie jest KLIENCKIE, bo tylko klient zna prawdziwą sesję —
+serwerowej nie ma (Supabase trzyma ją w `localStorage`), a ciasteczko-podpowiedź
+`lib/sessionHint.ts` służy wyłącznie do wyboru kształtu pierwszej odpowiedzi i nie
+wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`
+oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
+`ObservingSection`, `NextGroupMatchTeaser` w `DashboardSections.tsx`. `GroupGamesSection`
+przeniesiona do `app/moje-gry/page.tsx`.
+
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 
 PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
@@ -536,28 +569,3 @@ minutes'`) na `UPDATE` istniejącego wiersza + `INSERT` dla reszty w
 się — `trg_wyslij_push` (102) łapie wyłącznie `INSERT`. `NotificationBell.tsx` dostaje
 drugą subskrypcję real-time na `UPDATE`, rozróżnia odświeżenie treści od zwykłego
 oznaczenia jako przeczytane po tym, czy `created_at` się zmienił.
-
-### 2026-08-22 — Rozmowa meczu i numer BLIK przestają być czytelne dla całego internetu
-
-PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą (Supabase)
-bezpośrednio, a klucz dostępu do API siedzi jawnie w kodzie strony. Jedyną granicą są
-reguły dostępu w bazie (RLS), a rozmowy meczów miały regułę bez żadnego warunku na osobę:
-treść rozmowy DOWOLNEGO meczu, także prywatnego, dało się pobrać jednym zapytaniem, bez
-zakładania konta. Interfejs pokazywał zakładkę „Rozmowa" wyłącznie uczestnikom, ale to
-była bramka w aplikacji, nie w bazie. Osobno to samo dotyczyło numeru BLIK organizatora:
-aplikacja chowała go do godziny przed meczem, a baza oddawała go w każdej odpowiedzi
-o mecz, bo reguły dostępu w Postgresie działają na całe wiersze, nie na kolumny.
-
-ROZWIĄZANIE BOJO: rozmowę meczu czyta i pisze wyłącznie ten, kto ma do niej prawo także
-w interfejsie — uczestnik meczu, organizator oraz, gdy mecz jest przypięty do ekipy,
-członek tej ekipy. Numer BLIK czyta organizator, jego delegat od płatności i uczestnik
-meczu; osoba spoza składu widzi zamiast numeru zdanie „numer do BLIKA zobaczysz, jeśli
-dołączysz do składu". Reguła „numer dopiero na godzinę przed meczem" zostaje wygodą
-interfejsu, nie ochroną. Niezalogowany nie dostaje z bazy ani jednej wiadomości i ani
-jednego numeru.
-
-MECHANIKA: migracje `120` i `121`. `czy_widzi_rozmowe_meczu()` (SECURITY DEFINER) wchodzi
-do polityk SELECT i INSERT na `event_comments`. Numer BLIK przenosi się z kolumny
-`events.blik_phone` do osobnej tabeli `event_blik` z własną polityką, bo `events` czyta
-każdy; klient dociąga go osadzeniem `select('*, event_blik(blik_phone)')`
-(`lib/blik.ts`, `lib/events.ts`). Kolejność wdrożenia: `120` → deploy → `121`.

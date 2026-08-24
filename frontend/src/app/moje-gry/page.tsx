@@ -1,18 +1,19 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn, Users, ChevronRight, MessageCircle } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getMyParticipatedEvents, getMyActiveEventIds, type MyEventRelation } from '@/lib/events';
+import { getMyParticipatedEvents, getMyActiveEventIds, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
+import { isUpcoming } from '@/lib/eventDates';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { splitMyEvents, nextMatch } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { DoRozliczeniaSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
+import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
 import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
@@ -84,6 +85,35 @@ function MojeGryContent() {
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [user]);
+
+  // MECZE MOICH EKIP, DO KTÓRYCH JESZCZE NIE DOŁĄCZYŁEM. Przyszło tu razem
+  // z likwidacją drugiego pulpitu na „/" — i jako JEDYNA sekcja stamtąd, bo
+  // jako jedyna niosła treść, której nie ma nigdzie indziej. Reszta miała już
+  // swoje miejsca: otwarte mecze to zakładka „Szukaj", obserwowane i historia
+  // to zakładki obok, ekipy to `/grupy`, a „Jak to działa" i FAQ mają własne
+  // strony (`/jak-dziala-bojo`, `/faq`).
+  //
+  // Bez tego przeniesienia gracz nie miałby ANI JEDNEGO miejsca, w którym widzi
+  // „moja ekipa gra, a mnie jeszcze nie ma" — pozostałe listy tutaj pokazują
+  // mecze, w których już jest. To jest pętla, po którą wraca się do aplikacji.
+  const [groupEvents, setGroupEvents] = useState<EventItem[]>([]);
+  useEffect(() => {
+    if (!user) { setGroupEvents([]); return; }
+    let aktualne = true;
+    getMyGroupEvents(user.id)
+      .then((evs) => { if (aktualne) setGroupEvents(evs.filter(isUpcoming)); })
+      .catch(() => { if (aktualne) setGroupEvents([]); });
+    return () => { aktualne = false; };
+  }, [user]);
+
+  // Relacja do meczu ekipy liczona z `items`, bez osobnego zapytania:
+  // `getMyParticipatedEvents` bierze WSZYSTKIE moje wiersze z
+  // `event_participants` plus mecze, które organizuję, więc brak meczu na tej
+  // liście naprawdę znaczy „nie mam z nim nic wspólnego".
+  const statusMeczuEkipy = useCallback((event: EventItem): MyEventRelation => ({
+    isOrganizer: event.organizerId === user?.id,
+    status: items.find((i) => i.event.id === event.id)?.relation.status ?? 'none',
+  }), [items, user?.id]);
 
   // Plakietki „nieprzeczytane" na kartach meczów — jedno zapytanie dla
   // wszystkich naraz (gram/organizuję/rezerwa, patrz `getMyActiveEventIds`).
@@ -323,6 +353,11 @@ function MojeGryContent() {
                 />
               </>
             )}
+            {/* Mecze ekipy, w których jeszcze mnie nie ma — POD moimi meczami,
+                bo najpierw odpowiadamy „co mam zaklepane", a dopiero potem
+                „gdzie mógłbym dojść". Sekcja sama się chowa, gdy nie ma czego
+                pokazać (`GroupGamesSection` zwraca null przy pustej liście). */}
+            <GroupGamesSection events={groupEvents} statusFor={statusMeczuEkipy} />
             <NastepneEdycjeSection pozycje={nastepneEdycje} />
           </div>
         ) : tab === 'observing' ? (
