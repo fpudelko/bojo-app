@@ -316,7 +316,14 @@ function NewEventForm() {
         setMaxPlayers(v.maxPlayers);
         setMaxPlayersTouched(v.maxPlayersTouched);
         setMinPlayers(v.minPlayers ?? null);
-        setGoalkeepersEnabled(v.goalkeepersEnabled);
+        // `?? false`, nie goła wartość ze szkicu. Szkice zapisane ZANIM
+        // przełącznik „Bramkarze osobno" stał się widoczny niosą `null`, czyli
+        // „jeszcze nie zdecydowano" — a `validateGoalkeepers()` blokuje na tym
+        // krok 1. Przy wyłączonym przełączniku `UstawieniaBramkarzy` nie są
+        // zamontowane, więc błąd nie miał się gdzie pokazać: „Dalej" po prostu
+        // nic nie robiło. Zgłoszone wprost („jak nie włączę toggle
+        // z bramkarzami, to wewnątrz jest ukryty błąd").
+        setGoalkeepersEnabled(v.goalkeepersEnabled ?? false);
         setSlotyZarezerwowane(v.slotyZarezerwowane ?? true);
         setReserveClaimMinutes(v.reserveClaimMinutes);
         setReserveEnabled(v.reserveEnabled ?? false);
@@ -1031,6 +1038,7 @@ function NewEventForm() {
                     podpis="Skład rozbije się na bramkarzy i zawodników z pola."
                     wlaczona={goalkeepersEnabled === true}
                     naZmiane={(v) => setGoalkeepersEnabled(v)}
+                    blad={fieldErrors.goalkeepers}
                   >
                     <UstawieniaBramkarzy
                       sport={sport}

@@ -22,12 +22,15 @@ import { clsx } from 'clsx';
  * Bojo prowadzi kolejkę.
  */
 export default function OpcjaMeczu({
-  tytul, podpis, wlaczona, naZmiane, children,
+  tytul, podpis, wlaczona, naZmiane, blad, children,
 }: {
   tytul: string;
   podpis: string;
   wlaczona: boolean;
   naZmiane: (v: boolean) => void;
+  /** Błąd walidacji dotyczący TEJ sekcji. Pokazywany w nagłówku, gdy sekcja
+   *  jest zwinięta — patrz komentarz niżej. */
+  blad?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -64,6 +67,20 @@ export default function OpcjaMeczu({
           </span>
         </button>
       </div>
+
+      {/* BŁĄD BLOKUJĄCY NIE MA PRAWA BYĆ NIEWIDOCZNY.
+          Szczegóły sekcji montują się dopiero po włączeniu, więc błąd
+          renderowany WEWNĄTRZ nich nie istnieje, dopóki ktoś nie włączy
+          przełącznika. Jeśli taki błąd wstrzymuje „Dalej", przycisk przestaje
+          reagować bez słowa wyjaśnienia — dokładnie to zdarzyło się przy
+          bramkarzach (szkic sprzed przełącznika niósł „jeszcze nie
+          zdecydowano"). Dlatego przy zwiniętej sekcji komunikat wychodzi do
+          nagłówka; `data-field-error` sprawia, że kreator do niego przewija. */}
+      {blad && !wlaczona && (
+        <p data-field-error className="flex items-start gap-1.5 px-4 pb-3 text-xs font-medium text-red-600 dark:text-red-400">
+          <span aria-hidden>⚠</span>{blad}
+        </p>
+      )}
 
       {/* Szczegóły montują się dopiero po włączeniu — nie są ukryte przez CSS.
           Ukryte pole formularza nadal bierze udział w walidacji i nadal jedzie

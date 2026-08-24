@@ -613,6 +613,25 @@ Kolejka jest wyborem, patrz `events.reserve_enabled` (migracja `123`).
 przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
 rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
 
+**Błąd blokujący nie ma prawa być niewidoczny.** Zgłoszone wprost: „jak nie włączę
+toggle z bramkarzami, to wewnątrz jest ukryty błąd" — „Dalej" na kroku 1 przestawało
+reagować bez słowa wyjaśnienia. Mechanizm składał się z dwóch rzeczy:
+
+1. **Szkic przywracał stan „jeszcze nie zdecydowano".** Szkice zapisane ZANIM
+   przełącznik „Bramkarze osobno" stał się widoczny niosą `goalkeepersEnabled: null`,
+   a `validateGoalkeepers()` na tym blokuje. Dziś przywracanie normalizuje to do
+   `false` (`?? false` w `loadEventDraft()` → `setGoalkeepersEnabled`): wyłączenie
+   JEST decyzją, więc nie ma czego wymuszać.
+2. **Komunikat renderował się w niezamontowanej sekcji.** `OpcjaMeczu` montuje treść
+   dopiero po włączeniu, więc błąd z `UstawieniaBramkarzy` nie istniał, dopóki ktoś
+   nie włączył przełącznika — a „Dalej" i tak go respektowało. Dziś `OpcjaMeczu`
+   przyjmuje `blad` i przy ZWINIĘTEJ sekcji pokazuje go w nagłówku, z
+   `data-field-error` (czyli stepper do niego przewija). Reguła jest komponentu,
+   nie tej jednej strony: dotyczy każdego przyszłego przełącznika.
+
+Pilnuje tego `e2e/kreator-ukryty-blad.klikalnosc.spec.ts` — sprawdzone, że bez
+poprawki (1) test pada, zatrzymując się na kroku 1.
+
 **Krok 2 „Gdzie" — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
 wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
 guardowany `try/catch` jak `eventDraft.ts`). Zapis następuje po udanej publikacji,
