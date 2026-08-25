@@ -670,6 +670,7 @@ mają uzasadnienie w rozdziale 1; wszystko inne odpada do czasu, aż te dwa zadz
   > gdy skład się zmienia.
 
 **N2. `/boiska/[sport]/[miasto]` — brakująca warstwa katalogu**
+**ZROBIONE 2026-08-25.**
 
 - **Intencja:** klaster „Lokalne: obiekt", dziś rozstrzelony między hub krajowy
   a wojewódzki (kanibalizacja z 2b).
@@ -682,12 +683,15 @@ mają uzasadnienie w rozdziale 1; wszystko inne odpada do czasu, aż te dwa zadz
   zostaje dzisiejsza definicja indeksowalności: `seo_tier IN (1, 2)`, ta sama, której
   używa `sitemap-boiska/[plik]/route.ts`. Pusta strona lokalna szkodzi bardziej, niż
   pomaga — to ta sama zasada, która jest już zapisana w komentarzu `content/miasta.ts`.
-- **Renderowanie:** `force-dynamic` + `revalidate`, `generateStaticParams()` zwraca `[]` —
-  wzorem `/boiska/[sport]` i `/boisko/[id]`. **Nic liniowego względem katalogu przy
-  buildzie**, zgodnie z AGENTS.md.
-- **Sitemap:** iloczyn `miasta_priorytetowe` × sporty, po odfiltrowaniu progu — lista
-  ograniczona, jak `sportPages` i `wojewodztwoPages` w `sitemap.ts`, a nie zapytanie
-  o cały katalog.
+- **Renderowanie:** `force-dynamic`, bez `generateStaticParams()` — wzorem
+  `/boiska/[sport]` i `/boiska/woj/[wojewodztwo]` (siostrzane huby, nie `/boisko/[id]`,
+  które używa `revalidate` — dwa różne, już istniejące wzorce w tym samym katalogu, oba
+  bez liniowego kosztu przy buildzie). Próg poniżej 3 obiektów i błąd zapytania do bazy
+  dają ten sam wynik — 404, nigdy 500.
+- **Sitemap:** `lib/hubMiasta.ts#paryHubowMiastSportu()` — jedno zapytanie na sport
+  z `KATALOG_SPORT_MAP` (siedem, nie sto razy siedem), zawężone do miast z listy
+  priorytetowej, więc ograniczone niezależnie od wielkości katalogu, jak `sportPages`
+  i `wojewodztwoPages`. Degraduje do pustej listy przy niedostępnej bazie.
 
 **Czego NIE budujemy:** kolejnych miast w `/[sport]/[miasto]` (S4), bloga (rozdział 6
 i anty-lista), stron per dzielnica (próg jakości nie do utrzymania przy dzisiejszych
@@ -1176,7 +1180,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 17 | ~~Akapity wprowadzające na hubach (3g)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | łatwa | Franek | `content/boiska.ts` | huby przestają być samą listą |
 | 18 | ~~Potwierdzenia graczy w `amenityFeature` (5b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `lib/structuredData.ts#venueAmenityFeatures` | zweryfikowane na atrapie: quorum ≥2 w JSON-LD |
 | 19 | ~~Nowy próg indeksacji obiektów (4c)~~ **ODRZUCONE 2026-08-25** | DŁUGI | wysoki | trudna | Franek | migracja + `oblicz_seo_tier()` | — nie realizujemy, decyzja właściciela: nie zmniejszamy indeksu |
-| 20 | `/boiska/[sport]/[miasto]` (N2) — próg **min. 3 obiekty** (decyzja 2026-08-25, nie 4c) | DŁUGI | średni | trudna | Franek | nowa trasa + `sitemap.ts` | klaster lokalny obiektowy przestaje kanibalizować |
+| 20 | ~~`/boiska/[sport]/[miasto]` (N2) — próg min. 3 obiekty (decyzja 2026-08-25, nie 4c)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | trudna | Franek | `app/boiska/[sport]/[miasto]/page.tsx`, `lib/hubMiasta.ts`, `sitemap.ts` | do zmierzenia w Załączniku A: koszyk 4 (lokalne) |
 | 21 | ~~Polityka cyklu życia strony meczu (F3)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | średnia | Franek | `app/wydarzenia/[id]/eventMeta.ts`, `app/boisko/[id]/`, `content/opisObiektu.ts` | zweryfikowane testem: `robots.index=false` dla minionego meczu, treść i JSON-LD zostają |
 | 22 | Jeden kontakt tygodniowo o wzmiankę (6.4) | DŁUGI | wysoki | średnia | Jan | `/admin/outreach`, poza repo | pierwszy link spoza własnych profili w 90 dni |
 | 23 | ~~Wkład zwrotny do OSM (6.3, F1)~~ **ODRZUCONE 2026-08-25** | DŁUGI | średni | trudna | oboje | do rozstrzygnięcia licencyjnie | — nie realizujemy, decyzja właściciela |

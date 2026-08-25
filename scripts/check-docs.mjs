@@ -37,7 +37,7 @@ const FLAG_ROUTES = {
 section('1. llms.txt → trasy istnieją');
 const llms = read('frontend/public/llms.txt');
 const llmsRoutes = [...llms.matchAll(/\]\((\/[^)\s]*)\)/g)].map((m) => m[1]);
-const sportSlugs = [...read('frontend/src/app/boiska/[sport]/page.tsx')
+const sportSlugs = [...read('frontend/src/lib/sports.ts')
   .matchAll(/'([a-z-]+)':\s*\{ db:/g)].map((m) => m[1]);
 const grajSlugs = [...read('frontend/src/content/graj.ts')
   .matchAll(/slug: '([a-z-]+)'/g)].map((m) => m[1]);

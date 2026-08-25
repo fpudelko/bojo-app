@@ -535,11 +535,19 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       nie zmniejszamy indeksu. Obiekty w katalogu są dziś przede wszystkim pinezkami na
       mapie; dodatkowe dane (potwierdzenia, mecz) są plusem, nie warunkiem obecności
       w wyszukiwarce. `seo_tier`/`oblicz_seo_tier()` (migracja `112`) zostają bez zmian.
-- [ ] **`/boiska/[sport]/[miasto]`** — warstwa katalogu między hubem krajowym
-      a wojewódzkim, ograniczona tabelą `miasta_priorytetowe`. Próg jakości
-      **ustalony ręcznie przez właściciela (2026-08-25): minimum 3 obiekty** (Tier 1
-      lub 2) dla danej pary sport+miasto — nie jest to próg z odrzuconej pozycji wyżej,
-      tylko niezależna decyzja liczbowa. Poniżej progu strona nie powstaje.
+- [x] **`/boiska/[sport]/[miasto]`** (zrobione 2026-08-25) — warstwa katalogu między
+      hubem krajowym a wojewódzkim, ograniczona tabelą `miasta_priorytetowe`. Próg
+      jakości **ustalony ręcznie przez właściciela: minimum 3 obiekty** (Tier 1 lub 2)
+      dla danej pary sport+miasto (`lib/hubMiasta.ts#PROG_OBIEKTOW_HUB_MIASTA`) — nie
+      jest to próg z odrzuconej pozycji wyżej, tylko niezależna decyzja liczbowa.
+      Poniżej progu i przy błędzie zapytania do bazy strona zwraca 404 (`notFound()`),
+      nigdy 500 — degradacja wzorem `resolveField()` w `boisko/[id]/page.tsx`.
+      Linkowanie w obie strony (4b): `/boiska/[sport]` → miasta powyżej progu (tylko
+      strona 1), nowa strona → hub sportu, hub województwa i `/[sport]/[miasto]` (gdy
+      oba istnieją dla tego miasta). `sitemap.ts` dokłada pary sport×miasto powyżej
+      progu, zdegradowane do pustej listy przy niedostępnej bazie, tak jak
+      `sitemap-boiska/[plik]/route.ts`. `KATALOG_SPORT_MAP` wydzielony do
+      `lib/sports.ts` — trzeci konsument tej samej siódemki sportów.
 - [x] **Polityka cyklu życia strony meczu** (zrobione 2026-08-25) — miniony publiczny
       mecz przestaje być indeksowalny (`robots: {index: false, follow: true}` w
       `eventMeta.ts#metadataDlaMeczu()`, próg `isPast()` z kreatora meczu), ślad zasila

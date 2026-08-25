@@ -38,6 +38,21 @@ export const FOCUS_SPORT_BY_SLUG: Record<string, (typeof FOCUS_SPORTS)[number]> 
     (typeof FOCUS_SPORTS)[number]
   >;
 
+/** Sport → wartość w bazie + forma dopełniacza, dla hubów katalogu
+ *  `/boiska/[sport]` i `/boiska/[sport]/[miasto]`. Jedno źródło od 2026-08-25 —
+ *  wcześniej ta sama siódemka była zaszyta lokalnie w `boiska/[sport]/page.tsx`;
+ *  dodanie drugiego konsumenta (huby miejskie, pozycja 20 roadmapy) powtórzyłoby
+ *  ten sam błąd co przed wydzieleniem `HUBY_KATALOGU_SPORTOWYCH` niżej. */
+export const KATALOG_SPORT_MAP: Record<string, { db: string; label: string }> = {
+  'pilka-nozna':      { db: 'piłka nożna',      label: 'piłki nożnej' },
+  'koszykowka':       { db: 'koszykówka',         label: 'koszykówki' },
+  'siatkowka':        { db: 'siatkówka',          label: 'siatkówki' },
+  'siatkowka-plazowa':{ db: 'siatkówka plażowa',  label: 'siatkówki plażowej' },
+  'futsal':           { db: 'futsal',             label: 'futsalu' },
+  'pilka-reczna':     { db: 'piłka ręczna',       label: 'piłki ręcznej' },
+  'inne':             { db: 'inne',               label: 'innych sportów' },
+};
+
 /** Sześć hubów katalogu boisk pod `/boiska/[slug]` — jedno źródło dla stopki
  *  (SiteFooter.tsx), sitemapa (app/sitemap.ts) i linkowania poziomego między
  *  hubami (boiska/[sport]/page.tsx, boiska/woj/[wojewodztwo]/page.tsx).

@@ -65,6 +65,7 @@ const TRASY = [
   { adres: '/wydarzenia',           h1: false, linki: true },
   { adres: '/grupy',                h1: false, linki: true },
   { adres: '/boiska/pilka-nozna',   h1: true,  linki: true, wymagaBazy: true },
+  { adres: '/boiska/pilka-nozna/poznan', h1: true, linki: true, wymagaBazy: true },
   { adres: '/boiska/woj/wielkopolskie', h1: true, linki: true, wymagaBazy: true },
   { adres: '/pilka-nozna/poznan',   h1: true,  linki: true, wymagaBazy: true },
   // Mecz, którego nie ma, wygląda tak samo jak prywatny — i jeden, i drugi ma

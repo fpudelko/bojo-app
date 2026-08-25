@@ -29,3 +29,17 @@ export function wstepHubuWojewodztwa(ile: number, wojewodztwoLabel: string): str
     'składu na termin, który już masz.'
   );
 }
+
+/** `/boiska/[sport]/[miasto]` (roadmapa poz. 20) — warstwa między hubem
+ *  krajowym a wojewódzkim. "w miejscowości X", nie "w X": ta sama zasada co
+ *  w content/opisObiektu.ts — miejscownik wymaga odmiany, której nie da się
+ *  wyprowadzić regułą dla stu miast priorytetowych bez słownika odmian. */
+export function wstepHubuSportuMiasta(ile: number, dopelniaczSportu: string, miasto: string): string {
+  return (
+    `W katalogu Bojo jest ${ile} obiektów do gry w ${dopelniaczSportu} w miejscowości ${miasto} ` +
+    '— od orlików i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, ' +
+    'a szczegóły takie jak nawierzchnia i oświetlenie potwierdzają gracze przy ' +
+    'poszczególnych obiektach. Bojo nie wynajmuje tych obiektów: służy do zebrania ' +
+    'składu na termin, który już masz.'
+  );
+}
