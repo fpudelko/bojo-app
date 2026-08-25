@@ -82,6 +82,10 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   }
   // Czysty szablon jak opisObiektu() wyżej — próbka liczb wystarczy.
   jednostki.push({ etykieta: 'boisko#zdanieORozegranychMeczach', tekst: zdanieORozegranychMeczach(7) ?? '' });
+  jednostki.push({
+    etykieta: 'boisko#zdanieORozegranychMeczach-z-data',
+    tekst: zdanieORozegranychMeczach(7, '2026-08-12') ?? '',
+  });
 
   // Wstępy hubów: te same generatory co na /boiska/[sport] i /boiska/woj/[x],
   // sprawdzone dla reprezentatywnych wartości — czysty szablon, jak wyżej.

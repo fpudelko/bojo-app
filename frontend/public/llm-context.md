@@ -392,29 +392,34 @@ sport×miasto dla `sitemap.ts` (jedno zapytanie na sport, nie sto razy siedem). 
 wartość w bazie wydzielony do `lib/sports.ts#KATALOG_SPORT_MAP` — trzeci konsument tej
 samej siódemki, wcześniej zaszytej lokalnie w `boiska/[sport]/page.tsx`. Bez migracji.
 
-### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad zostaje na stronie obiektu
+### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad (z datą) zostaje na stronie obiektu
 
 PROBLEM: strona minionego, publicznego meczu (termin, cena, liczba miejsc) zostawała
 w indeksie wyszukiwarek bez końca, mimo że mecz już się odbył — pusta obietnica dla
 kogoś, kto trafił na nią z wyszukiwarki, licząc, że da się dołączyć. Jednocześnie
 strona obiektu, na którym mecze się odbywały, nie mówiła o tym ani słowa, choć to
 jest dokładnie ten fakt, którego nie ma żaden katalog importujący dane wyłącznie
-z OpenStreetMap.
+z OpenStreetMap. Sama liczba rozegranych meczów też nie wystarczała: obiekt z jednym
+meczem sprzed roku wyglądał identycznie jak obiekt, na którym gra się co tydzień.
 
 ROZWIĄZANIE BOJO: strona minionego meczu zostaje widoczna dla ludzi (podgląd linku,
 treść, JSON-LD) i dalej otwiera się normalnie, ale wypada z indeksu wyszukiwarek.
 Jej ślad przechodzi na stronę obiektu jako zdanie „Na tym obiekcie odbyło się już
-N meczów zorganizowanych przez Bojo" — widoczne od pierwszego rozegranego meczu,
-liczone wyłącznie z publicznych, nieodwołanych meczów.
+N meczów zorganizowanych przez Bojo, ostatni [data]" — widoczne od pierwszego
+rozegranego meczu, liczone wyłącznie z publicznych, nieodwołanych meczów, i wpięte
+też w opis obiektu w danych strukturalnych, nie tylko w widoczną treść.
 
 MECHANIKA: `app/wydarzenia/[id]/eventMeta.ts#metadataDlaMeczu()` — `robots: {index:
 false, follow: true}` dla meczu, dla którego `isPast(data, godzina)` (`lib/eventWizard.ts`)
 zwraca prawdę; próg jest ten sam, którym kreator meczu blokuje wpisanie terminu
-w przeszłości. Licznik: `app/boisko/[id]/page.tsx#getPlayedMatchesCount()` (publiczne,
-nieodwołane, `event_date` wcześniej niż dziś) i `content/opisObiektu.ts#zdanieORozegranychMeczach()`
-(odmiana przez liczbę, `lib/plural.ts`), renderowane w `VenueDetailClient.tsx` razem
-z resztą nagłówka obiektu — także w stanie ładowania, czyli w HTML, który dostaje
-crawler. Bez migracji.
+w przeszłości. Licznik i data: `app/boisko/[id]/page.tsx#getOstatnieMecze()` — jedno
+zapytanie (`count: 'exact'` liczy wszystkie pasujące wiersze niezależnie od `.limit(1)`,
+który tnie tylko zwracane dane) daje naraz liczbę i najświeższy `event_date` (publiczne,
+nieodwołane, wcześniejsze niż dziś). `content/opisObiektu.ts#zdanieORozegranychMeczach()`
+(odmiana przez liczbę, `lib/plural.ts`; drugi argument z datą opcjonalny — bez daty
+zdanie brzmi jak wcześniej) trafia zarówno do `VenueDetailClient.tsx` (renderowane
+razem z resztą nagłówka obiektu, także w stanie ładowania, czyli w HTML, który dostaje
+crawler), jak i do `description` w JSON-LD `SportsActivityLocation`. Bez migracji.
 
 ### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
 

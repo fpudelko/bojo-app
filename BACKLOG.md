@@ -620,6 +620,30 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       md:block` tabela). Wymaga przebudowy znacznika (UI), nie treści — świadomie
       poza zakresem Partii 2.
 
+**Runda 2, Partia 3 (2026-08-25) — fosa: F4 zbudowane, F1/F2 sprostowane**
+(docs/seo-geo-strategia.md, rozdział 8):
+
+- [x] **F4 — „czy tu się w ogóle gra, i kiedy"**: strona obiektu i JSON-LD
+      dostały datę ostatniego rozegranego meczu obok samej liczby (F3 dawało
+      tylko licznik). `getOstatnieMecze()` w `boisko/[id]/page.tsx` (jedno
+      zapytanie zamiast dwóch — `count: 'exact'` liczy niezależnie od
+      `.limit(1)`), drugi argument `zdanieORozegranychMeczach()` opcjonalny,
+      więc żadne dotychczasowe wywołanie się nie zmienia. Zero meczów → nadal
+      `null`, żadnej daty — zasada „brak danych jako brak danych" bez wyjątków.
+      Test: `opisObiektu.test.ts`.
+- [x] **F1 sprostowane, nie naprawione** — fosa nie zależy od odrzuconego progu
+      indeksacji (4c/poz. 19); potwierdzenia UGC są fosą same w sobie i są już
+      w całości zbudowane (poz. 18). Skorygowano też wiersz `ItemList` w 5d
+      (D11 naprawione istniejącym tieringiem, nie odrzuconym 4c) i próg
+      sukcesu „90 dni" w 7b (zależał od 4c).
+- [x] **F2 wycofane z listy fosy** — całość opierała się na 4c. Bez zastępnika
+      na siłę: to, co zostaje z intencji, żyje dalej w F1 i F4.
+- [ ] **Ekspozycja aktywności na poziomie katalogu** (filtr „obiekty z
+      potwierdzoną aktywnością") — świadomie NIE teraz. Przy ~40 obiektach
+      z jakimkolwiek meczem na 36 tys. w katalogu taki filtr pokazywałby
+      prawie pustą listę (R1). Wraca, gdy liczba meczów urośnie o rząd
+      wielkości.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b

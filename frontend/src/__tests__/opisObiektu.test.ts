@@ -40,4 +40,26 @@ describe('zdanieORozegranychMeczach', () => {
       'Na tym obiekcie odbyły się już 22 mecze zorganizowane przez Bojo.',
     );
   });
+
+  // Fosa F4 (docs/seo-geo-strategia.md, rozdział 8): sama liczba nie mówi,
+  // czy na obiekcie GRA SIĘ dziś, czy grało się rok temu. `ostatniaData`
+  // dokłada świeżość — opcjonalnie, więc wszystkie testy wyżej (bez tego
+  // argumentu) muszą dalej przechodzić bez zmian.
+  it('bez ostatniej daty — dokładnie to samo zdanie co dotąd', () => {
+    expect(zdanieORozegranychMeczach(5)).toBe(
+      'Na tym obiekcie odbyło się już 5 meczów zorganizowanych przez Bojo.',
+    );
+  });
+
+  it('z ostatnią datą dokłada świeżość po polsku', () => {
+    expect(zdanieORozegranychMeczach(1, '2026-08-12')).toBe(
+      'Na tym obiekcie odbył się już 1 mecz zorganizowany przez Bojo, ostatni 12 sierpnia 2026.',
+    );
+  });
+
+  it('null jako ostatnia data zachowuje się jak brak argumentu', () => {
+    expect(zdanieORozegranychMeczach(3, null)).toBe(
+      'Na tym obiekcie odbyły się już 3 mecze zorganizowane przez Bojo.',
+    );
+  });
 });

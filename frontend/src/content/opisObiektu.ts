@@ -9,6 +9,8 @@
 // (nazwa, miejscowość), nie tylko nasza proza, bo szablon jest jeden i musi
 // zostać bezpieczny niezależnie od tego, co akurat wpadnie z importu OSM.
 
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import { surfaceLabel } from '@/lib/labels';
 import { plural, withCount } from '@/lib/plural';
 import type { Field } from '@/types';
@@ -35,10 +37,20 @@ export function opisObiektu(field: ObiektDoOpisu): string {
  * Fakt, którego nie ma żaden katalog importujący dane z OpenStreetMap — wymaga
  * zdarzeń, nie tylko punktu na mapie. `null` przy zerze, bo „rozegrano 0
  * meczów" nie jest faktem wartym pokazania — to brak danych, nie dowód.
+ *
+ * `ostatniaData` (roadmapa runda 2, fosa F4 — „czy tu się w ogóle gra, i kiedy")
+ * dokłada świeżość do samego faktu istnienia meczów: katalog importowany z OSM
+ * nie potrafi odróżnić obiektu, na którym grano wczoraj, od takiego, na którym
+ * grano rok temu i już nie gra się wcale. Opcjonalna i domyślnie pominięta —
+ * wywołania bez tego argumentu (istniejące testy, historia wywołań) dają
+ * dokładnie to samo zdanie co dotąd.
  */
-export function zdanieORozegranychMeczach(liczba: number): string | null {
+export function zdanieORozegranychMeczach(liczba: number, ostatniaData?: string | null): string | null {
   if (liczba < 1) return null;
   const czasownik = plural(liczba, 'odbył się', 'odbyły się', 'odbyło się');
   const przymiotnik = plural(liczba, 'zorganizowany', 'zorganizowane', 'zorganizowanych');
-  return `Na tym obiekcie ${czasownik} już ${withCount(liczba, 'mecz', 'mecze', 'meczów')} ${przymiotnik} przez Bojo.`;
+  const zdanie = `Na tym obiekcie ${czasownik} już ${withCount(liczba, 'mecz', 'mecze', 'meczów')} ${przymiotnik} przez Bojo`;
+  if (!ostatniaData) return `${zdanie}.`;
+  const data = format(parseISO(ostatniaData), 'd MMMM yyyy', { locale: pl });
+  return `${zdanie}, ostatni ${data}.`;
 }
