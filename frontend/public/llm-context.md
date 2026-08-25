@@ -343,6 +343,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-25 — Widget „najbliższe mecze" do osadzenia na stronie obiektu
+
+PROBLEM: Bojo nie miało żadnego sposobu, żeby zarządca obiektu sportowego umieścił na
+WŁASNEJ stronie coś więcej niż statyczny link do Bojo. Rozmowa z obiektem w
+`/admin/outreach` kończyła się wyłącznie prośbą o wzmiankę — bez treści, która sama się
+aktualizuje, trudno o coś do zaoferowania w zamian.
+
+ROZWIĄZANIE BOJO: `/widget/boisko/[id]` — fragment strony do osadzenia w `<iframe>` na
+stronie obiektu: nazwa, do pięciu najbliższych publicznych meczów (termin, sport, wolne
+miejsca) i link powrotny do Bojo. Bez nawigacji, stopki ani żadnego globalnego elementu
+interfejsu Bojo (baner cookies, zachęta do instalacji aplikacji, modal onboardingu) — to
+nie jest ekran aplikacji, tylko fragment renderowany na cudzej witrynie. Kliknięcie meczu
+albo linku „Bojo" otwiera pełną stronę w GŁÓWNYM oknie przeglądarki, nie w ramce. Kod do
+wklejenia (`<iframe>`) kopiuje się jednym przyciskiem w `/admin/outreach`.
+
+MECHANIKA: `app/widget/boisko/[id]/page.tsx` (`revalidate = 300`, `robots: {index:
+false, follow: true}` — fragment ma nie trafiać do wyników wyszukiwania, ale link
+wewnątrz ma dalej nieść sygnał). `lib/widget.ts#useJestWidget()` (sprawdzenie
+`usePathname()`) wyłącza globalne komponenty z `app/layout.tsx` — `CookieBanner`,
+`BottomNavGate`, `PostSignupRoleModal`, `RejestracjaSW` — na trasach `/widget/*`; Next.js
+App Router nie pozwala żadnej trasie pominąć root layoutu inaczej. `kodOsadzeniaWidgetu()`
+generuje gotowy `<iframe>` (stała wysokość 420px, przewijany w środku). Bez migracji.
+
 ### 2026-08-25 — Katalog boisk dostał warstwę miejską: `/boiska/[sport]/[miasto]`
 
 PROBLEM: katalog Bojo miał wyłącznie hub krajowy per sport (`/boiska/pilka-nozna`) i hub
@@ -558,22 +581,3 @@ MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
 „nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`) i plakietkę „Nowość" na
 kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
 już celem „Szukaj". Bez migracji.
-
-### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
-
-PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
-rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
-z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
-nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
-„zapisali się na listę".
-
-ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
-znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
-miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
-niezależnie od tego ustawienia.
-
-MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
-`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
-z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
-przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
-komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.

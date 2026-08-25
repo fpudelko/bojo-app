@@ -5,13 +5,14 @@ import Link from 'next/link';
 import {
   Lock, Search, Phone, Mail, Globe, Download, Star, ChevronDown,
   UserCheck, RotateCcw, Check, Sparkles, X, Building2, Clock, ExternalLink, MapPin,
-  AlertTriangle, Trash2, Eye, EyeOff,
+  AlertTriangle, Trash2, Eye, EyeOff, Code2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { getFields } from '@/lib/api';
+import { kodOsadzeniaWidgetu } from '@/lib/widget';
 import type { MapVisibility } from '@/types';
 import {
   getOutreachMap, saveOutreach,
@@ -754,6 +755,25 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Otwórz
                   </Link>
+                  {/* Widget dla zarządców (roadmapa poz. 24 — F5): kod do
+                      wklejenia na stronie obiektu, oferowany zamiast prośby
+                      o link w tej samej rozmowie outreachowej. */}
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
+                      try {
+                        await navigator.clipboard.writeText(kodOsadzeniaWidgetu(f.id, base));
+                        onToast('Kod widgetu skopiowany');
+                      } catch {
+                        onToast('Nie udało się skopiować', 'error');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+                  >
+                    <Code2 className="w-3.5 h-3.5" /> Kod widgetu
+                  </button>
                 </div>
               </div>
               <div className="flex flex-col gap-2">

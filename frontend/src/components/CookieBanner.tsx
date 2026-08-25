@@ -1,11 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { useCookieBannerVisible, dismissCookieConsent } from '@/lib/cookieConsent';
+import { useJestWidget } from '@/lib/widget';
 
 export default function CookieBanner() {
   const visible = useCookieBannerVisible();
+  const jestWidget = useJestWidget();
 
-  if (!visible) return null;
+  if (!visible || jestWidget) return null;
 
   return (
     <div

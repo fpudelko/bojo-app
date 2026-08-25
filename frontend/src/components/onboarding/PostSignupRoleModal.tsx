@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { ostatniZamierzonyCel } from '@/lib/powrotPoLogowaniu';
 import { WARSTWA } from '@/lib/warstwy';
+import { useJestWidget } from '@/lib/widget';
 
 /**
  * Modal wyboru roli, pokazywany raz — od razu po organicznej rejestracji
@@ -30,9 +31,11 @@ function kluczWidziano(uid: string) {
 export default function PostSignupRoleModal() {
   const { user } = useAuth();
   const router = useRouter();
+  const jestWidget = useJestWidget();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (jestWidget) return;
     if (!user) {
       console.debug('[PostSignupRoleModal] No user');
       return;
@@ -62,7 +65,7 @@ export default function PostSignupRoleModal() {
 
     console.debug('[PostSignupRoleModal] Showing modal for', displayName(user));
     setOpen(true);
-  }, [user]);
+  }, [user, jestWidget]);
 
   const zamknij = () => {
     if (user) localStorage.setItem(kluczWidziano(user.id), '1');
