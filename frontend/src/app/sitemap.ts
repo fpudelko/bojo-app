@@ -16,11 +16,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Only routes a user can actually reach from the UI. /cykliczne is deliberately
   // absent: SHOW_RECURRING hides its nav entries, so listing it here would send
   // crawlers to a feature nobody can find.
+  // /mapa, /wydarzenia i /grupy mają priorytet NIŻSZY niż strony treści poniżej,
+  // mimo że dla człowieka są ważniejsze — bo dla robota nie są tym samym.
+  // Wszystkie trzy dociągają listę po zamontowaniu (komentarze w ich page.tsx:
+  // „Sama lista dociąga dane po zamontowaniu... figuruje w mapie strony z
+  // wysokim priorytetem i nie prowadzi donikąd"), a /mapa nie ma nawet tyle —
+  // to czysty klient (Leaflet, ssr:false). Priorytet w sitemap.xml to
+  // deklaracja WAŻNOŚCI dla robota, a robot dostaje na tych trzech trasach
+  // najmniej treści z całego serwisu (dług D10, docs/seo-geo-strategia.md).
   const staticPages: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
-    { url: `${base}/mapa`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${base}/wydarzenia`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
-    { url: `${base}/grupy`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${base}/mapa`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.3 },
+    { url: `${base}/wydarzenia`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.5 },
+    { url: `${base}/grupy`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.4 },
     { url: `${base}/jak-dziala-bojo`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/dlaczego-bojo`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },

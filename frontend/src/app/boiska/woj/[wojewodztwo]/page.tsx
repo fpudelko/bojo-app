@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { MapPin, Landmark } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
-import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import { sportEmoji, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 import { wstepHubuWojewodztwa } from '@/content/boiska';
+import { obiektyHubuWojewodztwa, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
 
 // Faza 2b SEO/GEO (BACKLOG.md §7a) — hub wojewódzki, wzorem `/boiska/[sport]`:
@@ -55,15 +55,13 @@ export async function generateMetadata(
   if (!label) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const { canonical, robots } = metadanePaginacjiHuba(`/boiska/woj/${params.wojewodztwo}`, strona);
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `Boiska sportowe — województwo ${label}${sufiks}`,
     description: `Katalog boisk i obiektów sportowych w województwie ${label}. Adresy, sporty, nawierzchnia. Zbierz skład i zagraj przez Bojo.`,
-    alternates: {
-      canonical: strona > 1
-        ? `/boiska/woj/${params.wojewodztwo}?strona=${strona}`
-        : `/boiska/woj/${params.wojewodztwo}`,
-    },
+    alternates: { canonical },
+    robots,
     openGraph: {
       title: `Boiska sportowe — województwo ${label} | Bojo`,
       description: `Katalog boisk w województwie ${label}.`,
@@ -81,13 +79,9 @@ export default async function WojewodztwoPage(
   const strona = numerStrony(searchParams);
   const od = (strona - 1) * NA_STRONE;
 
-  const { data, count } = await supabase
-    .from('fields')
-    .select('id, name, address, lat, lng, sport, surface, is_indoor, district, city', { count: 'exact' })
-    .eq('voivodeship', slug)
-    .eq('map_visibility', 'public')
-    .order('name', { ascending: true })
-    .range(od, od + NA_STRONE - 1);
+  // Zapytanie (z filtrem seo_tier, dług D11) wydzielone do lib/hubKatalogu.ts —
+  // testowalne bez renderowania JSX.
+  const { data, count } = await obiektyHubuWojewodztwa(slug, od, od + NA_STRONE - 1);
 
   const fields = (data ?? []).map(toField);
   const wszystkich = count ?? fields.length;

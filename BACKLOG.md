@@ -581,6 +581,26 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       nie ma potrzeby oddawać danych zwrotnie do OSM. Ryzyko licencyjne (ODbL) zostaje
       nieaktualne, bo nic nie jest wydawane na zewnątrz.
 
+**Runda 2 (2026-08-25) — dług, którego tabela wyżej nigdy nie objęła**
+(docs/seo-geo-strategia.md, rozdział 0, D10/D11/D14/D15/D17):
+
+- [x] **D10** — priorytety `/mapa`, `/wydarzenia`, `/grupy` w `sitemap.ts` obniżone
+      poniżej stron treści (były równe albo wyższe, mimo że te trzy trasy są dla
+      robota puste). Test: `sitemapPriorytety.test.ts`.
+- [x] **D11** — huby `/boiska/[sport]` i `/boiska/woj/[x]` listowały obiekty bez
+      filtra `seo_tier`, wydając budżet skanowania na strony Tier 3 (`noindex`).
+      Zapytania wydzielone do `lib/hubKatalogu.ts#obiektyHubuSportu`/
+      `obiektyHubuWojewodztwa`. Test: `hubKatalogu.test.ts`.
+- [x] ~~D14~~ — **SPROSTOWANIE, nie naprawa**: `/boiska/inne` poza sitemapem
+      i linkowaniem hubów jest decyzją z 2026-08-24 (`lib/sports.ts`), nie
+      przeoczeniem. Kod bez zmian.
+- [x] **D15** — paginacja hubów (`?strona=N`) nie miała `noindex`; strony 2+
+      dostają dziś `robots: {index: false, follow: true}`
+      (`lib/hubKatalogu.ts#metadanePaginacjiHuba`). Test: `hubKatalogu.test.ts`.
+- [x] **D17** — martwy obrazek OG (`poznan-satellite.jpg` w `layout.tsx`, nigdy
+      nierenderowany — nadpisywała go konwencja plikowa `opengraph-image.tsx`).
+      Usunięty razem z plikiem. Test: `ogImageJednoZrodlo.test.ts`.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b
