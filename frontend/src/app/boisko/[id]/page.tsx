@@ -258,22 +258,30 @@ async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
 }
 
 // Faza SEO/GEO — F3 (roadmapa poz. 21): ile publicznych, nieodwołanych meczów
-// odbyło się kiedykolwiek na tym obiekcie. Licznik, nie lista — miniony mecz
-// przestaje być indeksowalną stroną (eventMeta.ts#metadataDlaMeczu), więc jego
-// ślad musi zasilić coś, co ZOSTAJE w indeksie. `event_date < dzisiaj` liczy
-// z zapasem jednego dnia (dzień bieżący dolicza się dopiero jutro) — dla licznika
-// to bezpieczne niedoszacowanie, precyzyjny próg co do godziny ma tylko strona
-// samego meczu.
-async function getPlayedMatchesCount(fieldId: string): Promise<number> {
+// odbyło się kiedykolwiek na tym obiekcie, i F4 (fosa, runda 2): kiedy ostatni —
+// sama liczba nie mówi, czy na obiekcie GRA SIĘ dziś, czy grało się rok temu.
+// Miniony mecz przestaje być indeksowalną stroną (eventMeta.ts#metadataDlaMeczu),
+// więc jego ślad musi zasilić coś, co ZOSTAJE w indeksie. `event_date < dzisiaj`
+// liczy z zapasem jednego dnia (dzień bieżący dolicza się dopiero jutro) — dla
+// licznika to bezpieczne niedoszacowanie, precyzyjny próg co do godziny ma tylko
+// strona samego meczu.
+//
+// Jedno zapytanie na oba fakty: `count: 'exact'` liczy WSZYSTKIE pasujące wiersze
+// niezależnie od `.limit(1)` (ten sam mechanizm co w `lib/hubKatalogu.ts` —
+// PostgREST zwraca dokładny count w nagłówku, `limit` tnie tylko zwracane dane),
+// więc nie trzeba dwóch zapytań, żeby dostać liczbę i najświeższą datę naraz.
+async function getOstatnieMecze(fieldId: string): Promise<{ liczba: number; ostatniaData: string | null }> {
   const today = new Date().toISOString().slice(0, 10);
-  const { count } = await supabase
+  const { data, count } = await supabase
     .from('events')
-    .select('id', { count: 'exact', head: true })
+    .select('event_date', { count: 'exact' })
     .eq('field_id', fieldId)
     .eq('visibility', 'public')
     .neq('status', 'cancelled')
-    .lt('event_date', today);
-  return count ?? 0;
+    .lt('event_date', today)
+    .order('event_date', { ascending: false })
+    .limit(1);
+  return { liczba: count ?? 0, ostatniaData: data?.[0]?.event_date ?? null };
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +300,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   if (params.id !== kanoniczny && !isUuid(params.id)) redirect(`/boisko/${kanoniczny}`);
 
   const upcomingEvents = await getUpcomingEvents(field.id);
-  const rozegraneMecze = await getPlayedMatchesCount(field.id);
+  const { liczba: rozegraneMecze, ostatniaData: ostatniMeczData } = await getOstatnieMecze(field.id);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = kanoniczny;
 
@@ -301,6 +309,12 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // prop `opis`) i tutaj, w danych strukturalnych — jedno źródło, żeby oba
   // nigdy się nie rozjechały.
   const opis = opisObiektu(field);
+  // Fosa F4 (runda 2): to samo zdanie w opisie widocznym (prop `zdanieMeczow`
+  // niżej) i w `description` JSON-LD — ten sam powód co przy `opis` wyżej.
+  // Bez tego robot czytający wyłącznie dane strukturalne (część narzędzi GEO
+  // tak robi) nie widzi jedynego faktu, którego nie ma żaden katalog
+  // importujący z OpenStreetMap: że ktoś tu realnie grał, i kiedy.
+  const zdanieMeczow = zdanieORozegranychMeczach(rozegraneMecze, ostatniMeczData);
   // Faza 3 SEO/GEO: potwierdzenia graczy (oświetlenie, nawierzchnia) jako
   // amenityFeature — TYLKO po quorum, tym samym progu co widoczna treść
   // na stronie (VenueDetailClient → AnkietyObiektu.tsx). Odczyt jest
@@ -311,7 +325,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: field.name,
-    description: opis,
+    description: zdanieMeczow ? `${opis} ${zdanieMeczow}` : opis,
     address: {
       '@type': 'PostalAddress',
       streetAddress: field.address,
@@ -372,7 +386,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         adres={field.address}
         upcomingEvents={upcomingEvents}
         opis={opis}
-        zdanieMeczow={zdanieORozegranychMeczach(rozegraneMecze)}
+        zdanieMeczow={zdanieMeczow}
         wojewodztwoSlug={field.voivodeship}
         wojewodztwoLabel={wojewodztwoLabel}
         sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}

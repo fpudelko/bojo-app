@@ -935,7 +935,7 @@ tego mieć, bo nie ma ludzi, którzy tam grają.
 
 | Co | Problem | Poprawka |
 |---|---|---|
-| `ItemList` na hubach | listuje obiekty z `noindex` (D11) | filtrować po progu z 4c — tym samym, co decyduje o indeksacji |
+| `ItemList` na hubach | ~~listuje obiekty z `noindex` (D11)~~ | **NAPRAWIONE 2026-08-25** (runda 2, Partia 1): `.in('seo_tier', [1, 2])` w `lib/hubKatalogu.ts` — istniejący próg tieringu (migracja 112), NIE próg z odrzuconego 4c. Test: `hubKatalogu.test.ts` |
 | `SportsEvent` | poprawny, ale strona nie ma `noindex` dla prywatnych (P1) | patrz P1 |
 | `BreadcrumbList` na `/boisko/[id]` | prowadzi do hubu, do którego nie ma widocznego linku (D7) | rozwiązuje `<nav>` z 3f |
 | `SoftwareApplication.featureList` | mówi o zniżkach z kart i o liście rezerwowej — zgodne z produktem | zostaje |
@@ -981,8 +981,9 @@ Rozpoznanie w wyszukiwarce (sierpień 2026) pokazało, że pole nie jest puste:
 Trzy wnioski, które przenoszę dalej:
 
 1. **Klaster lokalny obiektowy jest zajęty przez serwis z przewagą wieku i z recenzjami.**
-   To wzmacnia rekomendację z 4c: nie ścigamy się liczbą wierszy, tylko danymi, których
-   tamci nie mają.
+   Nie ścigamy się liczbą wierszy, tylko danymi, których tamci nie mają — potwierdzenia
+   graczy (F1) i ślad rozegranych meczów z datą (F4), nie próg indeksacji (4c odrzucone
+   2026-08-25, poz. 19).
 2. **Wzmianki u zarządców obiektów i w portalach lokalnych działają w tym rynku** —
    widać to po śladzie, jaki zostawił BallSquad. To najlepiej udokumentowany kanał
    off-page dla produktu sportowego w Polsce i dlatego trafia do rozdziału 6 mimo
@@ -1085,10 +1086,14 @@ Celowo skromne, bo punktem wyjścia jest zero, a produkt jest przed startem.
 
 - **30 dni:** wartość bazowa zmierzona dla wszystkich pozycji z 7a. Wszystkie PILNE
   naprawione. Zero stron z pustym HTML wśród typów objętych kontraktem z 7c.
-- **90 dni:** liczba stron w indeksie **spada** i to jest sukces (4c) — spada liczba
-  śmieci, rośnie udział stron z treścią. W koszyku markowym Załącznika A model podaje
-  poprawną odpowiedź, czym jest Bojo, zamiast definicji słownikowej. Pierwszy link
-  przychodzący spoza własnych profili.
+- **90 dni:** **SPROSTOWANIE (runda 2, 2026-08-25)** — próg „liczba stron w indeksie
+  spada i to jest sukces" odsyłał do 4c, odrzuconego decyzją właściciela (poz. 19: nie
+  zmniejszamy indeksu). Zastąpiony miernikiem, który nie zależy od tej decyzji: **udział
+  obiektów z dowodem aktywności rośnie** — potwierdzenie graczy (F1) albo rozegrany
+  mecz z datą (F4), liczone jako odsetek Tier 1+2. Rośnie wraz ze społecznością, nie
+  wymaga zmiany progu indeksacji. W koszyku markowym Załącznika A model podaje poprawną
+  odpowiedź, czym jest Bojo, zamiast definicji słownikowej. Pierwszy link przychodzący
+  spoza własnych profili.
 - **180 dni:** Bojo pojawia się w odpowiedzi na przynajmniej jedno pytanie kategorialne
   (koszyk 2) i przynajmniej jedno problemowe (koszyk 3). Strona kalkulatora (N1) ma
   niezerowe wyświetlenia w Search Console na frazy z klastra „Rozliczenie".
@@ -1139,24 +1144,33 @@ importującym z OSM — bo wymaga ludzi, którzy tam byli.
 **Dlaczego nie do skopiowania:** katalog bez społeczności może dopisać pole
 „oświetlenie", ale nie ma kto go wypełnić. Serwis z recenzjami ma opinie o obiektach,
 a nie zweryfikowane fakty z kworum.
-**Co trzeba zbudować:** wystawić te dane maszynom (5b) i uczynić je warunkiem indeksacji
-(4c), czyli domknąć pętlę: gracz potwierdza → strona zyskuje treść → strona wchodzi
-do indeksu.
+**Co trzeba zbudować:** wystawić te dane maszynom. **ZROBIONE 2026-08-24** —
+`venueAmenityFeatures()` w `lib/structuredData.ts` (poz. 18 roadmapy).
+**SPROSTOWANIE (runda 2, 2026-08-25):** wcześniejsza wersja tego akapitu wiązała F1
+z „uczynieniem potwierdzeń warunkiem indeksacji" (4c) — tej pozycji nie realizujemy
+(decyzja właściciela, poz. 19). To nie unieważnia F1: fosa nie jest w GATINGU
+indeksu, tylko w SAMYCH potwierdzeniach — danych, których nie ma żaden konkurent,
+niezależnie od tego, czy sterują one indeksacją, czy nie. F1 stoi samodzielnie
+i jest dziś zbudowane w całości.
 **Ryzyko:** przy małej liczbie użytkowników kworum osiąga niewiele obiektów, więc
-indeks rośnie wolno. To jest cecha, nie usterka — patrz F2.
+większość stron katalogu wciąż nie ma tego dowodu. To jest stan przejściowy, nie
+usterka — rośnie wraz ze społecznością, bez osobnej pracy inżynierskiej.
 
-### F2. Indeks, który rośnie razem z produktem
+### F2. ~~Indeks, który rośnie razem z produktem~~ — NIEAKTUALNE, zależało od 4c
 
-**Na czym polega:** strona obiektu wchodzi do wyszukiwarki dopiero wtedy, gdy ma dowód:
-potwierdzenie graczy albo rozegrany mecz (próg z 4c). Wielkość indeksu przestaje być
-liczbą wierszy w bazie, a staje się **miarą realnej aktywności**.
-**Dlaczego nie do skopiowania:** konkurent może zaindeksować 20 tys. stron w tydzień,
-ale nie może sprawić, żeby każda z nich miała dowód aktywności. My nie możemy tego
-przyspieszyć pieniędzmi — ale też nikt nie może nas w tym wyprzedzić inaczej niż
-budując społeczność.
-**Ryzyko:** krótkoterminowo wygląda jak regres (mniej stron w indeksie). Trzeba to
-zapisać w progach sukcesu, żeby za trzy miesiące nikt nie uznał tego za awarię —
-zrobione w 7b.
+**SPROSTOWANIE (runda 2, 2026-08-25), nie naprawa.** F2 w całości opierało się na
+progu z 4c („strona obiektu wchodzi do wyszukiwarki dopiero, gdy ma dowód") — a 4c
+zostało odrzucone decyzją właściciela (poz. 19: **nie zmniejszamy indeksu**, obiekty
+w katalogu są dziś przede wszystkim pinezkami na mapie). Bez tego progu F2 nie ma
+mechanizmu: katalog jest indeksowany według `seo_tier` (dane geograficzne i
+kompletność z importu), nie według dowodu aktywności, więc „indeks rosnący razem
+z produktem" nie opisuje dzisiejszego zachowania systemu.
+
+Nie zastępujemy F2 na siłę wariantem, który udawałby to samo bez 4c — żadna wersja
+„gating bez gatingu" nie jest uczciwa. To, co zostaje z pierwotnej intencji (dowód
+aktywności jako sygnał, nie jako brama), żyje dalej w F1 (dane widoczne w schemie)
+i F4 niżej (świeżość jako fakt na stronie). Pozycja skreślona z listy fosy, nie
+przeniesiona pod inną nazwą.
 
 ### F3. Każdy publiczny mecz zostawia trwały, faktograficzny ślad
 
@@ -1183,6 +1197,35 @@ Dla człowieka szukającego miejsca do gry to jest **ważniejsza informacja niż
 katalogu i zdarzeń.
 **Ryzyko:** przy dzisiejszej liczbie meczów odpowiedź brzmi „nie wiemy" dla prawie
 wszystkich obiektów. Nie wolno tego udawać — brak danych pokazujemy jako brak danych.
+
+**ZBUDOWANE 2026-08-25 (runda 2, Partia 3) — połowa „i kiedy", nie tylko „czy".**
+F3 (wyżej) już dawał odpowiedź na „czy tu się w ogóle gra" jako licznik
+(„Na tym obiekcie odbyło się już N meczów"). Brakowało „kiedy" — bez daty ostatniego
+meczu obiekt z jednym meczem sprzed roku wyglądał identycznie jak obiekt, na którym
+gra się co tydzień. Dołożone:
+
+- `getOstatnieMecze()` w `boisko/[id]/page.tsx` — JEDNO zapytanie zamiast dwóch:
+  `count: 'exact'` liczy wszystkie pasujące wiersze niezależnie od `.limit(1)`
+  (ten sam mechanizm PostgREST co w `lib/hubKatalogu.ts`), więc liczba i najświeższa
+  data schodzą razem.
+- `zdanieORozegranychMeczach(liczba, ostatniaData?)` w `content/opisObiektu.ts` —
+  drugi argument opcjonalny, więc każde dotychczasowe wywołanie (i test) daje dokładnie
+  to samo zdanie co wcześniej; z datą dokłada „, ostatni 12 sierpnia 2026."
+- To samo zdanie trafia teraz też do `description` w JSON-LD `SportsActivityLocation`
+  (wcześniej tylko na widoczną stronę) — robot czytający wyłącznie dane strukturalne
+  dostaje ten sam fakt co człowiek.
+
+**Zgodnie z zasadą „brak danych pokazujemy jako brak danych":** przy zerze meczów
+funkcja nadal zwraca `null` — nic się nie renderuje, żadnej daty, żadnego zdania.
+Test: `opisObiektu.test.ts` (przypadek z datą, przypadek `null` jako dowód, że brak
+danych zachowuje się jak brak argumentu).
+
+**Co zostaje do zbudowania, świadomie nie w tej partii:** ekspozycja tego sygnału NA
+POZIOMIE KATALOGU (filtr „obiekty z potwierdzoną aktywnością" na hubach albo mapie).
+Odrzucone na razie: przy dzisiejszych ~40 obiektach z jakimkolwiek meczem
+(„Znane słabe punkty", wstęp dokumentu) taki filtr na 36 tys. obiektów pokazywałby
+prawie pustą listę — dokładnie wzorzec cienkiej strony, przed którym ostrzega R1.
+Wraca, gdy liczba meczów urośnie o rząd wielkości.
 
 ### F5. Widget „najbliższe mecze na tym obiekcie" dla zarządców
 **ZROBIONE 2026-08-25.**
