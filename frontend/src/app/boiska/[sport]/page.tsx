@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
-import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { FOCUS_SPORT_BY_SLUG, KATALOG_SPORT_MAP } from '@/lib/sports';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL } from '@/lib/wojewodztwa';
 import { wstepHubuSportu } from '@/content/boiska';
 import { miastaPowyzejProguDlaSportu } from '@/lib/hubMiasta';
+import { obiektyHubuSportu, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -67,13 +67,13 @@ export async function generateMetadata(
   if (!entry) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const { canonical, robots } = metadanePaginacjiHuba(`/boiska/${params.sport}`, strona);
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `Boiska do ${entry.label} w Polsce${sufiks}`,
     description: `Znajdź boiska do ${entry.label} w Polsce. Lista obiektów, lokalizacje, dostępność. Bojo — zbierz skład i zagraj.`,
-    alternates: {
-      canonical: strona > 1 ? `/boiska/${params.sport}?strona=${strona}` : `/boiska/${params.sport}`,
-    },
+    alternates: { canonical },
+    robots,
     openGraph: {
       title: `Boiska do ${entry.label} w Polsce | Bojo`,
       description: `Lista boisk do ${entry.label} w Polsce.`,
@@ -92,13 +92,9 @@ export default async function SportCategoryPage(
 
   // `count: 'exact'` zamiast pobierania wszystkiego i liczenia w JavaScripcie —
   // to była jedna z dwóch rzeczy, które nadmuchały tę stronę do 25 MB.
-  const { data, count } = await supabase
-    .from('fields')
-    .select('id, name, address, lat, lng, sport, surface, is_indoor, district', { count: 'exact' })
-    .contains('sport', [entry.db])
-    .eq('map_visibility', 'public')
-    .order('name', { ascending: true })
-    .range(od, od + NA_STRONE - 1);
+  // Zapytanie (z filtrem seo_tier, dług D11) wydzielone do lib/hubKatalogu.ts —
+  // testowalne bez renderowania JSX.
+  const { data, count } = await obiektyHubuSportu(entry.db, od, od + NA_STRONE - 1);
 
   const fields = (data ?? []).map(toField);
   const wszystkich = count ?? fields.length;

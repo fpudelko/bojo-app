@@ -53,7 +53,6 @@ export const viewport: Viewport = {
 };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';
-const OG_IMAGE = '/poznan-satellite.jpg';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -70,18 +69,24 @@ export const metadata: Metadata = {
     'Znajdź boisko, zbierz skład i zagraj. Piłka nożna, koszykówka, siatkówka i więcej — w całej Polsce, bez szukania po grupach na Facebooku.',
   keywords: ['organizuj mecz', 'szukam graczy', 'boiska sportowe', 'piłka nożna', 'koszykówka', 'siatkówka'],
   authors: [{ name: 'Bojo' }],
+  // Bez `images` w obu blokach niżej — DŁUG D17 (docs/seo-geo-strategia.md):
+  // konwencja plikowa `app/opengraph-image.tsx` generuje obrazek per trasa
+  // (i podpina go pod `og:image` ORAZ `twitter:image` automatycznie) i ma
+  // pierwszeństwo przed tym polem na tym samym segmencie, więc jawny obrazek
+  // tutaj był martwy — nigdy nie trafiał do znaczników żadnej strony, które
+  // nie mają WŁASNEGO `opengraph-image.tsx` (a te, co mają — `/wydarzenia/[id]`
+  // — i tak by go nadpisały). Jeden generator obrazka zamiast dwóch źródeł,
+  // z których jedno nigdy się nie renderuje.
   openGraph: {
     title: 'Bojo — zbierz ekipę, zagraj dziś',
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
-    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Bojo — boiska i mecze w Polsce' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Bojo — zbierz ekipę, zagraj dziś',
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
-    images: [OG_IMAGE],
   },
   // Favicon SVG jest wklejony jako data-URI w <head> niżej. Tutaj dokładamy
   // wyłącznie `apple-touch-icon`, bo iOS IGNORUJE ikony z manifestu i czyta

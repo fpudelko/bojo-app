@@ -235,13 +235,18 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
   `/[sport]/[miasto]`, `/profil`, strony treści przez `StronaTresci`). Huby boisk,
   strona obiektu, `/mapa`, `/wydarzenia` i `/grupy` nie mają jej wcale — a stopka jest
   jedynym miejscem w serwisie z linkami do `/jak-dziala-bojo`, `/dlaczego-bojo` i `/faq`.
-- **D10.** **Sitemap zgłasza trzy puste strony z wysokim priorytetem**: `/mapa` (0.8),
+- **D10.** ~~**Sitemap zgłasza trzy puste strony z wysokim priorytetem**: `/mapa` (0.8),
   `/wydarzenia` (0.8), `/grupy` (0.6). Wszystkie trzy renderują się po stronie klienta
-  albo mają `ssr: false`, więc robot dostaje nagłówek i napis o ładowaniu.
-- **D11.** **Huby listują obiekty `noindex`** — do 60 linków i 60 pozycji `ItemList`
+  albo mają `ssr: false`, więc robot dostaje nagłówek i napis o ładowaniu.~~ **(naprawione
+  2026-08-25, runda 2: priorytety obniżone poniżej stron treści — `/mapa` 0.3,
+  `/wydarzenia` 0.5, `/grupy` 0.4. Test: `sitemapPriorytety.test.ts`.)**
+- **D11.** ~~**Huby listują obiekty `noindex`** — do 60 linków i 60 pozycji `ItemList`
   na stronę, bez filtra po `seo_tier` (`boiska/[sport]/page.tsx:98-104`,
   `boiska/woj/[wojewodztwo]/page.tsx:81-87`). Budżet skanowania, którego broni tiering,
-  wydają własne huby.
+  wydają własne huby.~~ **(naprawione 2026-08-25, runda 2: `.in('seo_tier', [1, 2])`
+  dołożony w obu zapytaniach, wydzielonych do `lib/hubKatalogu.ts#obiektyHubuSportu`/
+  `obiektyHubuWojewodztwa` — testowalne bez renderowania JSX. Test:
+  `hubKatalogu.test.ts`.)**
 - **D12.** ~~**`.neq('seo_tier', 3)` gubi wiersze `NULL`**~~ **(naprawione 2026-08-24,
   i uzasadnienie okazało się mocniejsze, niż tu napisano: `fields.seo_tier` jest
   `SMALLINT NOT NULL` z `CHECK IN (1, 2, 3)`, migracja `112` — `NULL` jest niemożliwy
@@ -259,17 +264,36 @@ Ponumerowane, bo wracają w roadmapie w rozdziale 9.
   i `llms.txt` mówiły „ponad 30 000", dwa komentarze w kodzie sztywne „32 684",
   BACKLOG 36 268 (3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3), a `llm-context.md`
   nie podawał liczby wcale.
-- **D14.** **`/boiska/inne` istnieje, jest indeksowalne i linkowane z breadcrumbów
-  obiektu, ale nie ma go w `sitemap.ts`** (`SPORT_SLUGS` wymienia sześć slugów).
-- **D15.** **Paginacja hubów bez ograniczeń** — `?strona=N` z self-referencing
-  canonicalem, bez `noindex`, przy `force-dynamic` i katalogu 32 tys. wierszy.
+- **D14.** ~~`/boiska/inne` istnieje, jest indeksowalne i linkowane z breadcrumbów
+  obiektu, ale nie ma go w `sitemap.ts`~~ **SPROSTOWANIE (runda 2, 2026-08-25):
+  nie jest to przeoczenie.** `lib/sports.ts` mówi to dziś wprost w komentarzu przy
+  `HUBY_KATALOGU_SPORTOWYCH` (decyzja z 2026-08-24): „«Inne» celowo poza tą listą —
+  to kosz na sporty bez własnej kategorii, nie sport, do którego ktoś szuka huba po
+  nazwie". Strona `/boiska/inne` dalej istnieje i dalej się renderuje (dostępna
+  z filtra na mapie i z breadcrumbów obiektu), po prostu świadomie nie dostaje
+  własnego wejścia w sitemapie ani w linkowaniu poziomym hubów — tak jak katalog
+  produktowy nie robi kategorii „Inne" głównym punktem nawigacji. Kod zostaje
+  bez zmian.
+- **D15.** ~~**Paginacja hubów bez ograniczeń** — `?strona=N` z self-referencing
+  canonicalem, bez `noindex`, przy `force-dynamic` i katalogu 32 tys. wierszy.~~
+  **(naprawione 2026-08-25, runda 2: strony 2+ dostają `robots: {index: false,
+  follow: true}` — canonical zostaje self-referencing, bo każda strona ma inny
+  zestaw obiektów. Wydzielone do `lib/hubKatalogu.ts#metadanePaginacjiHuba()`.
+  Test: `hubKatalogu.test.ts`.)**
 - **D16.** `/gracze` przekierowuje kodem 307 (tymczasowym), a redirect z `/graj/:sport/:miasto`
   to 308, nie 301. Funkcjonalnie równoważne dla Google, ale jeśli gdzieś zapisano „301",
   to nieprawda.
-- **D17.** **Martwy OG.** `app/opengraph-image.tsx` (konwencja plikowa) ma pierwszeństwo
+- **D17.** ~~**Martwy OG.** `app/opengraph-image.tsx` (konwencja plikowa) ma pierwszeństwo
   przed `metadata.openGraph.images` z `layout.tsx:77`, więc `poznan-satellite.jpg`
   (215 KB w `public/`) prawdopodobnie nie jest nigdy serwowany. Dwa sprzeczne źródła
-  obrazka podglądu.
+  obrazka podglądu.~~ **(naprawione 2026-08-25, runda 2: potwierdzone, że obrazek
+  był rzeczywiście martwy — usunięty z `layout.tsx` razem z plikiem w `public/`.
+  Jeden generator obrazka OG zostaje: `app/opengraph-image.tsx` jako domyślny,
+  `wydarzenia/[id]/opengraph-image.tsx` jako bardziej szczegółowy dla meczów.
+  Przy okazji odpowiedź na pytanie z Partii 1: zdjęcie satelitarne Poznania nie
+  było właściwym podglądem dla obiektu w Gdańsku ani dla kalkulatora — i tak nigdy
+  się nie renderowało, więc pytanie o trafność jest dziś bezprzedmiotowe. Test:
+  `ogImageJednoZrodlo.test.ts`.)**
 - **D18.** ~~**Jedyny „żywy" dowód aktywności nie istnieje dla robota.**~~ **(naprawione
   2026-08-24: oba komponenty są dziś komponentami serwerowymi, zweryfikowane na atrapie
   PostgREST-a — landing oddaje w HTML link do realnego meczu i realnego obiektu.)**
