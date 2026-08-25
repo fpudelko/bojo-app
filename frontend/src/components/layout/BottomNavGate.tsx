@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useBottomNavHidden } from '@/lib/bottomNavVisibility';
+import { useJestWidget } from '@/lib/widget';
 import BottomNav from './BottomNav';
 
 /**
@@ -24,7 +25,8 @@ import BottomNav from './BottomNav';
 export default function BottomNavGate() {
   const { user, loading } = useAuth();
   const hidden = useBottomNavHidden();
-  const visible = !loading && !!user && !hidden;
+  const jestWidget = useJestWidget();
+  const visible = !loading && !!user && !hidden && !jestWidget;
 
   // Zaznaczamy obecność paska na <html>, żeby CSS mógł odjąć jego wysokość od
   // pełnego ekranu (--bottom-nav-h w globals.css). Element-dystans tego nie

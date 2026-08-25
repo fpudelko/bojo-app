@@ -1117,6 +1117,7 @@ katalogu i zdarzeń.
 wszystkich obiektów. Nie wolno tego udawać — brak danych pokazujemy jako brak danych.
 
 ### F5. Widget „najbliższe mecze na tym obiekcie" dla zarządców
+**ZROBIONE 2026-08-25.**
 
 **Na czym polega:** obiekt osadza na własnej stronie mały widok z nadchodzącymi meczami
 u siebie. Zarządca dostaje treść, która sama się aktualizuje, a Bojo — wzmiankę i link
@@ -1184,7 +1185,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 21 | ~~Polityka cyklu życia strony meczu (F3)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | średnia | Franek | `app/wydarzenia/[id]/eventMeta.ts`, `app/boisko/[id]/`, `content/opisObiektu.ts` | zweryfikowane testem: `robots.index=false` dla minionego meczu, treść i JSON-LD zostają |
 | 22 | Jeden kontakt tygodniowo o wzmiankę (6.4) | DŁUGI | wysoki | średnia | Jan | `/admin/outreach`, poza repo | pierwszy link spoza własnych profili w 90 dni |
 | 23 | ~~Wkład zwrotny do OSM (6.3, F1)~~ **ODRZUCONE 2026-08-25** | DŁUGI | średni | trudna | oboje | do rozstrzygnięcia licencyjnie | — nie realizujemy, decyzja właściciela |
-| 24 | Widget dla zarządców obiektów (F5) | DŁUGI | średni | trudna | Franek | nowa trasa osadzalna | pierwszy obiekt z osadzonym widokiem |
+| 24 | ~~Widget dla zarządców obiektów (F5)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | trudna | Franek | `app/widget/boisko/[id]/page.tsx`, `lib/widget.ts`, `admin/outreach` | do zmierzenia: pierwszy obiekt z osadzonym widokiem |
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |

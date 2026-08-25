@@ -10,6 +10,7 @@ import { opisObiektu, zdanieORozegranychMeczach, type ObiektDoOpisu } from '@/co
 import {
   KALKULATOR_ODPOWIEDZ, KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI,
 } from '@/content/kalkulator';
+import { WIDGET_BRAK_MECZOW, WIDGET_STOPKA, WIDGET_NIEZNANY_OBIEKT } from '@/content/widget';
 import { wstepHubuSportu, wstepHubuWojewodztwa, wstepHubuSportuMiasta } from '@/content/boiska';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
@@ -48,6 +49,9 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   jednostki.push({ etykieta: 'kalkulator#odpowiedz', tekst: KALKULATOR_ODPOWIEDZ });
   jednostki.push({ etykieta: 'kalkulator#hint-karta', tekst: KALKULATOR_HINT_KARTA });
   jednostki.push({ etykieta: 'kalkulator#hint-bez-znizki', tekst: KALKULATOR_HINT_BEZ_ZNIZKI });
+  jednostki.push({ etykieta: 'widget#brak-meczow', tekst: WIDGET_BRAK_MECZOW });
+  jednostki.push({ etykieta: 'widget#stopka', tekst: WIDGET_STOPKA });
+  jednostki.push({ etykieta: 'widget#nieznany-obiekt', tekst: WIDGET_NIEZNANY_OBIEKT });
   // Direct Answer i zdanie o katalogu są szablonami — sprawdzamy je w każdej
   // realnej kombinacji sportu i miasta, bo to ten tekst trafia na stronę.
   for (const miasto of MIASTA) {

@@ -554,8 +554,17 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       stronę obiektu jako zdanie „Na tym obiekcie odbyło się już N meczów…"
       (`content/opisObiektu.ts#zdanieORozegranychMeczach()`), widoczne od pierwszego
       rozegranego meczu, licznik w `boisko/[id]/page.tsx#getPlayedMatchesCount()`.
-- [ ] **Widget „najbliższe mecze na tym obiekcie"** dla zarządców — wzmianka i link
-      z domeny o lokalnym autorytecie, do zaoferowania w rozmowach z `/admin/outreach`.
+- [x] **Widget „najbliższe mecze na tym obiekcie"** dla zarządców (zrobione 2026-08-25) —
+      `/widget/boisko/[id]`, fragment do osadzenia w `<iframe>` na stronie obiektu (bez
+      Header/SiteFooter/dolnej nawigacji), z linkiem powrotnym do Bojo (`target="_top"`) —
+      to jest cały mechanizm wzmianki i linku z domeny o lokalnym autorytecie. Kod do
+      wklejenia generuje `lib/widget.ts#kodOsadzeniaWidgetu()`, kopiowany przyciskiem
+      „Kod widgetu" w `/admin/outreach`, do zaoferowania w tej samej rozmowie zamiast
+      prośby o link. Globalne UI Bojo (baner cookies, zachęta do instalacji PWA, modal
+      onboardingu, rejestracja service workera) wyłączone na trasie `useJestWidget()` —
+      bez tego zarządca zobaczyłby baner cookies Bojo wewnątrz WŁASNEJ witryny.
+      Wysokość iframe stała (420px, przewijana w środku) — auto-resize przez
+      `postMessage` między domenami zostaje pomysłem, nie zrobioną rzeczą.
 - [x] ~~Wkład zwrotny do OpenStreetMap~~ **ODRZUCONE 2026-08-25** — decyzja właściciela:
       nie ma potrzeby oddawać danych zwrotnie do OSM. Ryzyko licencyjne (ODbL) zostaje
       nieaktualne, bo nic nie jest wydawane na zewnątrz.
