@@ -73,3 +73,26 @@ describe('metadataDlaMeczu — mecz publiczny', () => {
     expect(String(meta.title)).not.toContain('undefined');
   });
 });
+
+describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz. 21)', () => {
+  it('miniony publiczny mecz wypada z indeksu, ale zostaje widoczny dla ludzi i robota', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ date: '2020-01-01', time: '18:00' }));
+
+    expect(meta.robots).toEqual({ index: false, follow: true });
+    // Treść zostaje — to nie ten sam próg co dla meczu prywatnego (P1): podgląd
+    // linku do minionego meczu ma dalej pokazywać, co to był za mecz.
+    expect(meta.title).toContain('Gierka na Ratajach');
+    expect(meta.description).toContain('Orlik Rataje');
+    expect(meta.alternates?.canonical).toBe('/wydarzenia/abc');
+  });
+
+  it('nadchodzący publiczny mecz zostaje indeksowalny (robots nieustawione)', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ date: '2026-09-12', time: '18:00' }));
+    expect(meta.robots).toBeUndefined();
+  });
+
+  it('brak godziny traktuje dzień miniony jako miniony (domyślnie 00:00)', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ date: '2020-01-01', time: undefined }));
+    expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+});

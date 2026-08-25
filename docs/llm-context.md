@@ -343,6 +343,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad zostaje na stronie obiektu
+
+PROBLEM: strona minionego, publicznego meczu (termin, cena, liczba miejsc) zostawała
+w indeksie wyszukiwarek bez końca, mimo że mecz już się odbył — pusta obietnica dla
+kogoś, kto trafił na nią z wyszukiwarki, licząc, że da się dołączyć. Jednocześnie
+strona obiektu, na którym mecze się odbywały, nie mówiła o tym ani słowa, choć to
+jest dokładnie ten fakt, którego nie ma żaden katalog importujący dane wyłącznie
+z OpenStreetMap.
+
+ROZWIĄZANIE BOJO: strona minionego meczu zostaje widoczna dla ludzi (podgląd linku,
+treść, JSON-LD) i dalej otwiera się normalnie, ale wypada z indeksu wyszukiwarek.
+Jej ślad przechodzi na stronę obiektu jako zdanie „Na tym obiekcie odbyło się już
+N meczów zorganizowanych przez Bojo" — widoczne od pierwszego rozegranego meczu,
+liczone wyłącznie z publicznych, nieodwołanych meczów.
+
+MECHANIKA: `app/wydarzenia/[id]/eventMeta.ts#metadataDlaMeczu()` — `robots: {index:
+false, follow: true}` dla meczu, dla którego `isPast(data, godzina)` (`lib/eventWizard.ts`)
+zwraca prawdę; próg jest ten sam, którym kreator meczu blokuje wpisanie terminu
+w przeszłości. Licznik: `app/boisko/[id]/page.tsx#getPlayedMatchesCount()` (publiczne,
+nieodwołane, `event_date` wcześniej niż dziś) i `content/opisObiektu.ts#zdanieORozegranychMeczach()`
+(odmiana przez liczbę, `lib/plural.ts`), renderowane w `VenueDetailClient.tsx` razem
+z resztą nagłówka obiektu — także w stanie ładowania, czyli w HTML, który dostaje
+crawler. Bez migracji.
+
 ### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
 
 PROBLEM: dotknięcie rozmowy ekipy na liście `/rozmowy` przenosiło na stronę ekipy
@@ -545,26 +569,3 @@ MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
 `frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
 linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
 na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
-
-### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
-
-PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
-jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o
-konkretny obiekt. Katalog nie miał też punktu wejścia na poziomie województwa — tylko
-per sport albo per miasto (Poznań/Warszawa/Kraków) — a stan infrastruktury (oświetlenie,
-nawierzchnia) opierał się wyłącznie na danych z OpenStreetMap, czasem nieaktualnych.
-
-ROZWIĄZANIE BOJO: każda strona boiska ma teraz jeden gęsty akapit na górze („[Nazwa] to
-obiekt sportowy w [miejscowość] do gry w: [sporty]. [kryty/odkryty], nawierzchnia:
-[…], oświetlenie.") — ten sam tekst trafia do danych strukturalnych dla wyszukiwarek.
-Doszło 16 stron „Boiska sportowe — województwo [Nazwa]" z pełną listą obiektów.
-Gracze mogą potwierdzić dwa fakty o obiekcie — czy jest oświetlony, jaka jest
-nawierzchnia — i wynik pokazuje się jako „potwierdzone przez N graczy" dopiero po
-dwóch niezależnych głosach; to NIE nadpisuje danych z OpenStreetMap, pokazuje się obok.
-
-MECHANIKA: `content/opisObiektu.ts#opisObiektu()`, wpięty w `VenueDetailClient.tsx`
-i w `description` JSON-LD (`SportsActivityLocation`). Huby wojewódzkie:
-`/boiska/woj/[wojewodztwo]` (`force-dynamic`, bez prerenderu — katalog jest za duży),
-nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL`. Ankiety: `AnkietyObiektu.tsx`, tabela
-`potwierdzenia_obiektu` (migracja `123`, jeden głos na fakt na osobę, publiczny odczyt).
-Kontynuacja Fazy 0 (migracja `112`, tiering indeksacji, `seo_tier`).
