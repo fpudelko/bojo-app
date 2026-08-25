@@ -2,6 +2,13 @@ import type { MetadataRoute } from 'next';
 import { FOCUS_SPORT_BY_SLUG, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 import { MIASTA } from '@/content/miasta';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
+import { paryHubowMiastSportu } from '@/lib/hubMiasta';
+
+// Sitemap generuje się co najwyżej raz na dobę, nie na każde żądanie — jedyne
+// zapytania do bazy w tym pliku to `paryHubowMiastSportu()` (siedem zapytań,
+// po jednym na sport z KATALOG_SPORT_MAP), a bez cache'u leciałyby przy
+// każdym pobraniu sitemap.xml przez robota.
+export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
@@ -50,10 +57,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
+  // Roadmapa SEO/GEO, poz. 20: huby miejskie `/boiska/[sport]/[miasto]`, tylko
+  // pary powyżej progu jakości (lib/hubMiasta.ts) — sitemap nie ma obiecywać
+  // adresu, który sama trasa i tak odrzuci jako 404. Bounded jak sportPages
+  // i wojewodztwoPages: miasta_priorytetowe ma z założenia stałą wielkość rzędu
+  // stu wierszy, niezależnie od tego, ile urośnie cały katalog boisk.
+  //
+  // Zdegraduj do pustej listy zamiast wywalać CAŁY sitemap przy niedostępnej
+  // bazie (tak samo jak sitemap-boiska/[plik]/route.ts) — to jedyne miejsce
+  // w tym pliku, które dotyka bazy, i build produkcyjny na atrapach kluczy
+  // (AGENTS.md) inaczej wywalałby prerender /sitemap.xml za każdym razem.
+  let hubyMiastPary: Awaited<ReturnType<typeof paryHubowMiastSportu>> = [];
+  try {
+    hubyMiastPary = await paryHubowMiastSportu();
+  } catch {
+    // Puste — reszta sitemapa (statyczne i bounded listy) zostaje poprawna.
+  }
+  const hubyMiastPages: MetadataRoute.Sitemap = hubyMiastPary.map(
+    ({ sportSlug, miastoSlug }) => ({
+      url: `${base}/boiska/${sportSlug}/${miastoSlug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.55,
+    }),
+  );
+
   // Boiska NIE są tu wypisywane — katalog ma ponad 30 000 wierszy (ta sama
   // liczba co w content/dlaczego.ts — jedno źródło, nie osobny snapshot), więc żyją
   // w osobnych sitemapach per województwo (sitemap-boiska/[plik]/route.ts),
   // zebranych w sitemap-index.xml razem z tym plikiem. Trzymanie ich tutaj
   // znaczyłoby jeden rosnący bez końca plik zamiast partycji.
-  return [...staticPages, ...sportPages, ...grajPages, ...wojewodztwoPages];
+  return [...staticPages, ...sportPages, ...grajPages, ...wojewodztwoPages, ...hubyMiastPages];
 }

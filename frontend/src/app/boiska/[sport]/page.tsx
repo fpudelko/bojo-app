@@ -7,23 +7,16 @@ import SiteFooter from '@/components/layout/SiteFooter';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
-import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
+import { FOCUS_SPORT_BY_SLUG, KATALOG_SPORT_MAP } from '@/lib/sports';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL } from '@/lib/wojewodztwa';
 import { wstepHubuSportu } from '@/content/boiska';
+import { miastaPowyzejProguDlaSportu } from '@/lib/hubMiasta';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Sport mapping: URL slug → DB value → display name
 // ---------------------------------------------------------------------------
-const SPORT_MAP: Record<string, { db: string; label: string }> = {
-  'pilka-nozna':      { db: 'piłka nożna',      label: 'piłki nożnej' },
-  'koszykowka':       { db: 'koszykówka',         label: 'koszykówki' },
-  'siatkowka':        { db: 'siatkówka',          label: 'siatkówki' },
-  'siatkowka-plazowa':{ db: 'siatkówka plażowa',  label: 'siatkówki plażowej' },
-  'futsal':           { db: 'futsal',             label: 'futsalu' },
-  'pilka-reczna':     { db: 'piłka ręczna',       label: 'piłki ręcznej' },
-  'inne':             { db: 'inne',               label: 'innych sportów' },
-};
+const SPORT_MAP = KATALOG_SPORT_MAP;
 
 const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'piłka nożna': Target, koszykówka: Circle, siatkówka: Trophy,
@@ -114,6 +107,14 @@ export default async function SportCategoryPage(
   // Numer strony poza zakresem to nie jest pusta lista, tylko zły adres.
   if (strona > stron && wszystkich > 0) notFound();
   const Icon = SPORT_ICONS[entry.db] ?? Activity;
+
+  // Linkowanie w dół do hubów miejskich (poz. 20 roadmapy) — tylko strona 1,
+  // z tego samego powodu co blok województw niżej. Tylko miasta powyżej progu
+  // jakości (lib/hubMiasta.ts): link do strony, która i tak nie powstanie
+  // (za mało obiektów), byłby gorszy niż jego brak. Zapytanie zdegradowane do
+  // pustej listy przy błędzie — to sekcja dodatkowa, nie ma degradować całej
+  // strony, która już ma dane do pokazania.
+  const miastaHuba = strona === 1 ? await miastaPowyzejProguDlaSportu(entry.db).catch(() => []) : [];
 
   // Machine-readable version of the same list, so crawlers get the venues as
   // data instead of having to scrape the markup.
@@ -232,20 +233,40 @@ export default async function SportCategoryPage(
             — dalsze strony paginacji nie powinny powielać ten sam blok linków
             (D15: te strony są dziś self-canonical i bez noindex). */}
         {strona === 1 && (
-          <div className="mt-10 border-t border-slate-200 pt-6">
-            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Boiska do {entry.label} w województwach
-            </p>
-            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
-              {WOJEWODZTWA.map((woj) => (
-                <Link
-                  key={woj}
-                  href={`/boiska/woj/${woj}`}
-                  className="text-xs text-primary-600 hover:underline"
-                >
-                  {WOJEWODZTWO_LABEL[woj]}
-                </Link>
-              ))}
+          <div className="mt-10 border-t border-slate-200 pt-6 space-y-6">
+            {miastaHuba.length > 0 && (
+              <div>
+                <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Boiska do {entry.label} w miastach
+                </p>
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                  {miastaHuba.map((m) => (
+                    <Link
+                      key={m.slug}
+                      href={`/boiska/${params.sport}/${m.slug}`}
+                      className="text-xs text-primary-600 hover:underline"
+                    >
+                      {m.nazwa}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Boiska do {entry.label} w województwach
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {WOJEWODZTWA.map((woj) => (
+                  <Link
+                    key={woj}
+                    href={`/boiska/woj/${woj}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {WOJEWODZTWO_LABEL[woj]}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -10,7 +10,7 @@ import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
 import {
   KALKULATOR_ODPOWIEDZ, KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI,
 } from '@/content/kalkulator';
-import { wstepHubuSportu, wstepHubuWojewodztwa } from '@/content/boiska';
+import { wstepHubuSportu, wstepHubuWojewodztwa, wstepHubuSportuMiasta } from '@/content/boiska';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -86,6 +86,10 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   jednostki.push({
     etykieta: 'boiska#wstep-wojewodztwa',
     tekst: wstepHubuWojewodztwa(1234, 'wielkopolskie'),
+  });
+  jednostki.push({
+    etykieta: 'boiska#wstep-sportu-miasta',
+    tekst: wstepHubuSportuMiasta(12, 'piłki nożnej', 'Poznań'),
   });
 
   return jednostki;
