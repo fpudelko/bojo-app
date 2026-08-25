@@ -601,6 +601,25 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       nierenderowany — nadpisywała go konwencja plikowa `opengraph-image.tsx`).
       Usunięty razem z plikiem. Test: `ogImageJednoZrodlo.test.ts`.
 
+**Runda 2, Partia 2 (2026-08-25) — quick winy cytowalności**
+(docs/seo-geo-strategia.md, rozdział 3):
+
+- [x] **Nagłówki `<h3>` w FAQ** (3d) — `MiniFaq.tsx` owijał pytania w gołe `<summary>`
+      bez struktury nagłówków na pięciu stronach naraz. Test: `faqNaglowki.test.ts`.
+- [x] **Dwa nowe pytania FAQ, sprawdzone pojedynczo** (3d) — z czterech propozycji
+      z rundy 1 dwie były już pokryte istniejącą treścią (dopisanie byłoby
+      duplikatem, nie przyrostem gęstości), dwie realne luki dodane: „Czy da się
+      prowadzić zapisy bez zakładania grupy?" i „Skąd wiadomo, czy na boisku jest
+      oświetlenie?" (opisuje mechanizm potwierdzeń UGC, wcześniej nieopisany
+      w żadnym FAQ).
+- [x] **LANDING_STATS i dezambiguacja marki w treści — zweryfikowane, bez zmian
+      w kodzie** (3a) — `LandingDirectAnswer.tsx` (poz. 10) już rozwiązuje oba
+      problemy naraz. Werdykt rundy 1 o statystykach się nie zmienił.
+- [ ] **Deduplikacja tabeli porównawczej na `/dlaczego-bojo`** (3c, pozycja 28
+      w roadmapie) — ten sam tekst w DOM dwa razy (`md:hidden` karty + `hidden
+      md:block` tabela). Wymaga przebudowy znacznika (UI), nie treści — świadomie
+      poza zakresem Partii 2.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b

@@ -507,9 +507,15 @@ przed statystykami (nowa stała w `components/home/landing/content.ts`):
 > i dzieli koszt wynajmu obiektu na graczy.
 
 Sześćdziesiąt słów, cztery fakty, nazwa encji na początku. To jest fragment, który
-model ma zacytować, gdy ktoś zapyta „czym jest Bojo".
+model ma zacytować, gdy ktoś zapyta „czym jest Bojo". **ZROBIONE 2026-08-24**
+(`LandingDirectAnswer.tsx`, poz. 10 roadmapy) — sprawdzone ponownie w Partii 2 rundy 2:
+sekcja renderuje się serwerowo między hero a statystykami, dokładnie tym tekstem, i przy
+okazji rozwiązuje dwa problemy naraz — „czym jest Bojo" (S6) i pierwsze wystąpienie
+nazwy w kontekście jednoznacznie identyfikującym aplikację, nie słowo potoczne (2c).
+Osobnej zmiany pod dezambiguację w warstwie treści nie trzeba było dokładać.
 
-**Statystyki:** albo liczone z bazy, albo z datą przy liczbie. Dziś `sportsValue: '4'`
+**Statystyki:** sprawdzone ponownie w Partii 2 rundy 2 — werdykt się nie zmienił, kod
+mu odpowiada. albo liczone z bazy, albo z datą przy liczbie. Dziś `sportsValue: '4'`
 i `priceValue: '0 zł'` są prawdziwe i bezterminowe — mogą zostać. `timeValue: '2 min'`
 to obietnica, nie pomiar; zostawiam, ale nie dokładam do niej kolejnych. **Nie
 proponuję dopisywania liczby boisk na landing**, dopóki nie ma jednego źródła tej
@@ -560,7 +566,13 @@ serwisie — modele sięgają po tabele chętniej niż po prozę.
 
 1. **Tabela jest w DOM dwa razy** (wersja tabelaryczna i karty `md:hidden`). Dla
    człowieka niewidoczne, dla robota to ta sama treść zduplikowana na jednej stronie.
-   Nie jest to błąd krytyczny, ale osłabia jednoznaczność — warto sprawdzić przy okazji.
+   Nie jest to błąd krytyczny, ale osłabia jednoznaczność. **Sprawdzone w Partii 2
+   rundy 2, świadomie odłożone**: `audyt-robota.mjs` (który nie wykonuje CSS, tak jak
+   docelowy crawler) potwierdza, że oba bloki trafiają w surowy HTML niezależnie od
+   `md:hidden`/`hidden md:block`. Naprawa bez utraty responsywnej karty na telefonie
+   wymaga przebudowy znacznika (jeden `<table>` stylizowany CSS-em na dwa układy, wzorem
+   `data-label`), nie zmiany treści — to zadanie dla UI, nie dla tej partii. Zostaje
+   w rozdziale 9 jako osobna pozycja.
 2. **Brak wiersza rozstrzygającego kategorię.** Tabela porównuje Bojo z grupą na
    Facebooku. Model pytający „czym to się różni od aplikacji do rezerwacji" nie dostaje
    odpowiedzi. **Do dodania jako nowa sekcja H2 „Trzy różne rzeczy, które ludzie mylą"** —
@@ -577,24 +589,28 @@ serwisie — modele sięgają po tabele chętniej niż po prozę.
 
 ### 3d. `/faq`
 
-**Stan:** 39 pytań w sześciu kategoriach, pełny `FAQPage`, treść pokrywa się ze schemą.
+**Stan:** 41 pytań w sześciu kategoriach, pełny `FAQPage`, treść pokrywa się ze schemą.
 
-**Braki:**
+**Braki — stan po Partii 2 rundy 2 (2026-08-25):**
 
-1. **Pytania nie są nagłówkami.** Siedzą w `<summary>` wewnątrz `<details>`, więc
-   strona ma H1, sześć H2 (kategorie) i ani jednego H3. Struktura nagłówków jest
-   głównym sposobem, w jaki maszyna dzieli długą stronę na cytowalne kawałki.
-   **Poprawka:** `<summary><h3>{pytanie}</h3></summary>` w `MiniFaq.tsx` — zero zmian
-   wizualnych, pełna struktura dla maszyn.
-2. **Brakuje pytań z klastrów, na które Bojo realnie odpowiada** (S2, S3). Do dopisania
-   w `content/faq.ts`:
-
-   | Kategoria | Pytanie | Odpowiedź |
-   |---|---|---|
-   | `pieniadze` | „Jak podzielić koszt boiska, gdy część graczy ma karty sportowe?" | „Wpisujesz koszt wynajmu obiektu, a Bojo dzieli go na miejsca i przelicza po każdej zmianie liczby graczy. Posiadacze kart Multisport, FitProfit i Medicover Sport mogą mieć własną stawkę, więc rachunek zgadza się bez liczenia w głowie. Bojo rejestruje, kto oddał — pieniądze krążą poza aplikacją." |
-   | `organizator` | „Czy da się prowadzić zapisy bez zakładania grupy?" | „Tak. Grupa przydaje się stałej ekipie, ale do pojedynczego meczu wystarczy sam link — działa dla każdego, kto go dostanie." |
-   | `podstawy` | „Czym Bojo różni się od systemu rezerwacji boisk?" | „System rezerwacji odpowiada na pytanie, czy obiekt jest wolny, i przyjmuje opłatę za termin. Bojo tego nie robi — zaczyna się tam, gdzie termin jest już załatwiony, i zajmuje się zebraniem składu, listą rezerwową i podziałem kosztu między graczy." |
-   | `boiska` | „Skąd wiadomo, czy na boisku jest oświetlenie?" | „Podstawą są dane z OpenStreetMap, a obok nich pokazujemy głosy graczy: przy każdym obiekcie można potwierdzić oświetlenie i nawierzchnię. Potwierdzenie pojawia się dopiero, gdy zgodzą się co najmniej dwie osoby, i nie nadpisuje danych źródłowych." |
+1. ~~**Pytania nie są nagłówkami.**~~ **NAPRAWIONE.** `MiniFaq.tsx` owija każde pytanie
+   w `<h3>` wewnątrz `<summary>` — zero zmian wizualnych (Tailwind Preflight resetuje
+   margines i wagę czcionki nagłówków, style zostały na `<h3>` samym), pełna struktura
+   dla maszyn na wszystkich pięciu stronach, które reużywają ten komponent (`/faq`,
+   `/jak-dziala-bojo`, `/dlaczego-bojo`, `/[sport]/[miasto]`,
+   `/kalkulator-kosztow-boiska`). Test źródłowy (bez importu `.tsx`, ten sam powód co
+   przy D17): `faqNaglowki.test.ts`.
+2. **Brakujące pytania — sprawdzone jedno po drugim, nie dopisane hurtem.** Z czterech
+   propozycji z rundy 1 dwie były już pokryte, zanim ten dokument zdążył je zgłosić:
+   „Czym Bojo różni się od systemu rezerwacji boisk?" istnieje w kategorii `podstawy`
+   niemal dosłownie (dodane przy poz. 11 roadmapy, 2026-08-24), a pytanie o Multisport
+   przy podziale kosztu pokrywają razem dwa istniejące wpisy w `pieniadze` („Jak
+   sprawiedliwie rozliczyć koszty…" + „Czy Bojo uwzględnia Multisport…"). Dopisanie
+   trzeciego, prawie identycznego pytania obniżyłoby gęstość informacyjną, nie
+   podniosło jej — więc **nie dopisano**. Dwa pozostałe były realną luką i **dodane**:
+   „Czy da się prowadzić zapisy bez zakładania grupy?" (`organizator`) i „Skąd wiadomo,
+   czy na boisku jest oświetlenie?" (`boiska`, opisuje mechanizm potwierdzeń UGC
+   z kworum 2 — F1 w rozdziale 8, wcześniej nieopisany w żadnym FAQ).
 
 ### 3e. `/[sport]/[miasto]`
 
@@ -1241,6 +1257,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
+| 28 | Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx` | `audyt-robota` (rozszerzony o sprawdzenie duplikatów tekstu) nie znajduje tej samej treści dwa razy |
 
 ### Pierwszy tydzień — pięć rzeczy, po kolei
 
