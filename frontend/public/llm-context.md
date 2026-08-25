@@ -343,6 +343,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-25 — Katalog boisk dostał warstwę miejską: `/boiska/[sport]/[miasto]`
+
+PROBLEM: katalog Bojo miał wyłącznie hub krajowy per sport (`/boiska/pilka-nozna`) i hub
+wojewódzki (`/boiska/woj/wielkopolskie`) — nic pomiędzy. Kto szukał boisk do konkretnego
+sportu w konkretnym mieście, trafiał na listing całej Polski albo całego województwa,
+bez punktu wejścia dopasowanego do pytania „gdzie zagrać w piłkę nożną w Radomiu".
+
+ROZWIĄZANIE BOJO: nowa warstwa `/boiska/[sport]/[miasto]` dla miast z tabeli
+`miasta_priorytetowe` (migracja 112, ~100 największych miast Polski), ale tylko tam,
+gdzie warto — strona powstaje wyłącznie przy co najmniej trzech obiektach danego sportu
+w danym mieście (próg ustalony przez właściciela 2026-08-25; celowo NIEZALEŻNY od
+odrzuconej tego samego dnia propozycji zawężenia całego indeksu katalogu — to jest
+osobna decyzja o tym, kiedy warto tworzyć nową stronę, nie o tym, co ma zniknąć
+z istniejących). Poniżej progu i przy błędzie zapytania do bazy strona zwraca 404, nigdy
+500. Linkuje w obie strony: hub sportu pokazuje miasta powyżej progu, nowa strona
+linkuje z powrotem do huba sportu, huba województwa i — gdy oba istnieją dla tego miasta
+— do `/[sport]/[miasto]` (lista otwartych meczów, inny cel niż katalog obiektów).
+
+MECHANIKA: `app/boiska/[sport]/[miasto]/page.tsx` (`force-dynamic`, bez
+`generateStaticParams`, jak siostrzane huby); `lib/hubMiasta.ts` — próg
+(`PROG_OBIEKTOW_HUB_MIASTA = 3`), rozwiązanie miasta ze sluga, liczenie obiektów
+(`seo_tier IN (1, 2)`, ta sama definicja co w `sitemap-boiska`), agregacja par
+sport×miasto dla `sitemap.ts` (jedno zapytanie na sport, nie sto razy siedem). Sport →
+wartość w bazie wydzielony do `lib/sports.ts#KATALOG_SPORT_MAP` — trzeci konsument tej
+samej siódemki, wcześniej zaszytej lokalnie w `boiska/[sport]/page.tsx`. Bez migracji.
+
 ### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad zostaje na stronie obiektu
 
 PROBLEM: strona minionego, publicznego meczu (termin, cena, liczba miejsc) zostawała
@@ -551,21 +577,3 @@ MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
 z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
 przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
 komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
-
-### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
-
-PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
-otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
-a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
-Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
-który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
-
-ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
-identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
-nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
-widzi w pasku adres, który da się wysłać dalej.
-
-MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
-`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
-linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
-na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
