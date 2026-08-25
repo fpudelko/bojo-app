@@ -232,6 +232,13 @@ export const FAQ: readonly PytanieFaq[] = [
       'poszczególnych sportów i miast. Możesz dołączyć do cudzego meczu albo założyć ' +
       'własny i puścić link po znajomych — publiczny mecz zbiera jedno i drugie naraz.',
   },
+  {
+    kategoria: 'organizator',
+    q: 'Czy da się prowadzić zapisy bez zakładania grupy?',
+    a: 'Tak. Grupa przydaje się stałej ekipie, która wraca do tej samej rozmowy i historii ' +
+      'meczów, ale do pojedynczego meczu wystarczy sam link do wydarzenia — działa dla ' +
+      'każdego, kto go dostanie, bez zakładania czegokolwiek na stałe.',
+  },
 
   // ── Pieniądze ────────────────────────────────────────────────────────────
   {
@@ -316,6 +323,14 @@ export const FAQ: readonly PytanieFaq[] = [
     a: 'Lokalizacja i podstawowe dane są kompletne dla całego katalogu, ale nawierzchnia, ' +
       'typ obiektu i zdjęcia są dziś wypełnione tylko dla części wierszy — uzupełniamy je ' +
       'obiekt po obiekcie, zamiast obiecywać komplet, którego jeszcze nie ma.',
+  },
+  {
+    kategoria: 'boiska',
+    q: 'Skąd wiadomo, czy na boisku jest oświetlenie?',
+    a: 'Podstawą są dane z OpenStreetMap, a obok nich Bojo pokazuje głosy graczy — przy ' +
+      'każdym obiekcie można potwierdzić oświetlenie i nawierzchnię. Potwierdzenie ' +
+      'pojawia się dopiero, gdy zgodzą się co najmniej dwie osoby, i nie nadpisuje ' +
+      'danych źródłowych z OSM.',
   },
   {
     kategoria: 'boiska',
