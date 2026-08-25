@@ -439,18 +439,30 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
 
 **PILNE — osobny PR, nie czeka na resztę:**
 
-- [ ] **Metadane prywatnego meczu wyciekają** (D1). `eventMeta.ts:26-33` czyta wiersz
-      bez filtra po `visibility`, więc `<title>`, `description` i `og:*` publikują nazwę,
-      sport, datę, godzinę i obiekt meczu prywatnego, a `opengraph-image.tsx` renderuje
-      dla niego publiczną kartę z ceną i liczbą wolnych miejsc. JSON-LD jest chroniony
-      (`structuredData.ts:83`), trasa nie. Do tego test przypinający regułę.
-- [ ] **„Zarezerwuj termin" w opisie 32 tys. stron obiektów** (D2) —
-      `boisko/[id]/page.tsx:180` obiecuje funkcję za wyłączoną flagą
-      `FEATURE_RESERVATIONS`.
-- [ ] **Podwójny sufiks `| Bojo | Bojo`** (D3) — ręczny sufiks kolidujący
-      z `title.template` w pięciu plikach; dotyczy całego indeksowalnego wolumenu.
-- [ ] **Trasy techniczne i za flagami otwarte dla robotów** (D4) — `/auth/*`,
-      `/turniej*`, `/cykliczne*`, `/obiekt*`, `/rezerwacje`, kreatory, `/gracz/[id]`.
+- [x] **Metadane prywatnego meczu wyciekają** (D1) — **zrobione, nieodhaczone do
+      2026-08-25** (audyt SEO/GEO runda 2). `eventMeta.ts#metadataDlaMeczu()` filtruje
+      po `visibility` — mecz niepubliczny (albo nieistniejący) dostaje `robots: {index:
+      false, follow: false}` i żadnego pola z nazwą, terminem ani miejscem. JSON-LD
+      chronione było od początku (`structuredData.ts:83`), metadane dogonione. Test:
+      `src/__tests__/eventMetadata.test.ts` — trzy warianty `visibility` × dwie asercje
+      (brak wycieku w treści, `robots`/`canonical` poza indeksem).
+- [x] **„Zarezerwuj termin" w opisie 32 tys. stron obiektów** (D2) — **zrobione,
+      nieodhaczone do 2026-08-25**. `boisko/[id]/page.tsx:193-196` opisuje wprost w
+      komentarzu, dlaczego frazy nie ma: „rezerwacje siedzą za wyłączoną flagą
+      FEATURE_RESERVATIONS, a to zdanie szło do wyszukiwarek przy każdej z ponad
+      30 tysięcy stron obiektów". `description` dziś kończy się na „Zobacz nadchodzące
+      mecze i zbierz skład na Bojo."
+- [x] **Podwójny sufiks `| Bojo | Bojo`** (D3) — **zrobione, nieodhaczone do
+      2026-08-25**. Sufiks został wyłącznie w `openGraph.title` (gdzie `title.template`
+      z `layout.tsx` się nie stosuje); `title` widoczny w karcie wyników idzie bez niego.
+      Test: `eventMetadata.test.ts` — „nie dokłada ręcznego sufiksu «| Bojo»".
+- [x] **Trasy techniczne i za flagami otwarte dla robotów** (D4) — **zrobione,
+      nieodhaczone do 2026-08-25**. `robots.ts` ma dziś 18 wpisów `DISALLOW`:
+      `/auth/`, `/logowanie`, `/zglos-blad`, kreatory i `/*/edytuj`, `/turniej`,
+      `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`. Test:
+      `src/__tests__/robots.test.ts` — enumeruje dokładnie tę listę i osobno
+      pilnuje, że trasy publiczne (`/wydarzenia`, `/boisko`, `/mapa`…) NIE trafiają
+      do wykluczeń — regresja w drugą stronę.
 
 **Quick winy:**
 

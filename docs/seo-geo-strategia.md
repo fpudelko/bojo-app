@@ -1,7 +1,9 @@
 # Bojo — strategia SEO i GEO
 
 > **Stan na:** 2026-08-23 · audyt kodu na commicie `318cd85` · warstwa produkcyjna
-> **niezweryfikowana** (patrz „Czego nie sprawdziłem")
+> **niezweryfikowana** (patrz „Czego nie sprawdziłem"). Rozdział 0 doszedł do
+> 2026-08-25 (runda 2 promptu, `docs/prompt-seo-geo.md`) — rozjazd BACKLOG/kod
+> ponownie sprawdzony, warstwa produkcyjna nadal niezweryfikowana z nowym powodem.
 >
 > Warstwa operacyjna i fazy → [strategia.md](./strategia.md).
 > Kierunek produktu → [wizja.md](./wizja.md) (dokument nadrzędny).
@@ -174,6 +176,32 @@ sieciowego do `bojo.pl` (patrz „Czego nie sprawdziłem"). Sposób sprawdzenia:
 | JSON-LD | zrobione | działa | emitowany serwerowo, czyli **jedyna** rzecz, którą robot dostaje na stronie obiektu | `boisko/[id]/page.tsx:302-309` |
 | `llms.txt`, `llm-context.md` | zrobione | pliki statyczne | serwowane, nie podpięte do żadnej trasy | `frontend/public/` |
 | Crawlery AI wpuszczone z nazwy | zrobione | działa | — | `robots.ts:12-19` |
+
+**Runda 2 (2026-08-25) — co dało się zweryfikować, a co dalej nie.** Cztery pozycje
+PILNE (P1–P4) potwierdzone w kodzie z przechodzącymi testami regresyjnymi
+(`eventMetadata.test.ts`, `robots.test.ts`, komentarz przy `boisko/[id]/page.tsx:193`)
+i odhaczone w BACKLOG.md, gdzie wcześniej stały z pustym kwadracikiem mimo naprawy —
+rozjazd opisany w D-liście poniżej dotąd szedł w jedną stronę (odhaczone-a-niedziałające),
+tu poszedł w drugą (naprawione-a-nieodhaczone). `./scripts/baza-testowa.sh` (goły
+Postgres + migracje + `supabase/test/rls.sql`) przeszedł w całości: 43/43 scenariusze
+`seed_regresja`, wszystkie asercje RLS.
+
+**Nowe ograniczenie środowiska, silniejsze niż brak dostępu do `bojo.pl`.** Zastępnik
+zaproponowany w prompcie rundy 2 — pełny stos lokalny (`scripts/stos-lokalny.sh`,
+Postgres + GoTrue + PostgREST) — wymaga obrazów Dockera. Rejestr jest zablokowany tą
+samą polityką sieciową, która blokuje `bojo.pl`: `docker run hello-world` kończy się
+`403 Forbidden` z `production.cloudfront.docker.com`, potwierdzone też w statusie
+proxy agenta (`connect_rejected`, „gateway answered 403 to CONNECT"). Skutek: `node
+scripts/audyt-robota.mjs` dało się uruchomić tylko w trybie `--bez-bazy` — przeszedł
+(`/`, `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`, `/kalkulator-kosztow-boiska`,
+`/wydarzenia`, `/grupy`, `/boiska/pilka-nozna`, `/boiska/woj/wielkopolskie`,
+`/pilka-nozna/poznan`, `/wydarzenia/[id]`), ale **strona obiektu — ta, dla której
+skrypt w ogóle powstał — została pominięta**, bo bez PostgREST nie ma skąd wziąć
+realnego sluga. To samo dotyczy `/boiska/[sport]/[miasto]`, który bez bazy zwraca 404.
+Rozdział 0 pozostaje więc bez zmiany w tym jednym punkcie: **co realnie dostaje robot
+na stronie obiektu i na hubach miejskich jest nadal NIEZWERYFIKOWANE** — potrzeba do
+tego środowiska z dostępem do rejestru obrazów albo przebiegu przeciwko produkcji
+(Załącznik B).
 
 ### DŁUG — rzeczy zepsute albo niespójne
 
@@ -1392,10 +1420,17 @@ Odpowiada na pytanie, czy wpuszczenie ich z nazwy cokolwiek dało.
 
 Uczciwa lista granic tego dokumentu:
 
-- **Produkcji `bojo.pl` nie widziałem.** Polityka sieciowa środowiska blokuje wszystkie
-  domeny zewnętrzne poza wyszukiwarką. Każde twierdzenie o tym, co widzi robot, wynika
-  z lektury kodu — dlatego Załącznik B istnieje i dlatego kolumna „Produkcja" w rozdziale 0
-  jest pusta.
+- **Produkcji `bojo.pl` nie widziałem — i, potwierdzone w rundzie 2 (2026-08-25),
+  nie da się tego obejść stosem lokalnym.** Polityka sieciowa środowiska blokuje
+  `bojo.pl` (`curl`: „CONNECT tunnel failed, 403"; `WebFetch`: `EGRESS_BLOCKED`) ORAZ
+  rejestr Dockera (`docker run hello-world` → 403 z `production.cloudfront.docker.com`),
+  więc ani produkcja, ani `scripts/stos-lokalny.sh` (Postgres + GoTrue + PostgREST) nie
+  są osiągalne z tej sesji. Dało się odpalić goły Postgres (`baza-testowa.sh` — bez
+  obrazów, z binarki `postgresql-16` zainstalowanej w systemie) i `audyt-robota.mjs
+  --bez-bazy`, czyli zweryfikować schemat, RLS i strony statyczne. Strona obiektu
+  i huby żywione danymi — dokładnie to, co runda 1 też zostawiła białą plamą —
+  zostają NIEZWERYFIKOWANE. Sposób sprawdzenia: Załącznik B, albo środowisko z
+  dostępem do rejestru obrazów kontenerów.
 - **Search Console** — brak dostępu. Pokrycie indeksu, pozycje i wyświetlenia są
   nieznane, a nie oszacowane.
 - **Odpowiedzi modeli** — nie mam wejścia do ChatGPT, Perplexity ani Gemini z tej sesji.
