@@ -6,7 +6,7 @@ import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
 import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
-import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
+import { opisObiektu, zdanieORozegranychMeczach, type ObiektDoOpisu } from '@/content/opisObiektu';
 import {
   KALKULATOR_ODPOWIEDZ, KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI,
 } from '@/content/kalkulator';
@@ -76,6 +76,8 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   for (const obiekt of PROBKA_OBIEKTOW) {
     jednostki.push({ etykieta: `opisObiektu#${obiekt.name}`, tekst: opisObiektu(obiekt) });
   }
+  // Czysty szablon jak opisObiektu() wyżej — próbka liczb wystarczy.
+  jednostki.push({ etykieta: 'boisko#zdanieORozegranychMeczach', tekst: zdanieORozegranychMeczach(7) ?? '' });
 
   // Wstępy hubów: te same generatory co na /boiska/[sport] i /boiska/woj/[x],
   // sprawdzone dla reprezentatywnych wartości — czysty szablon, jak wyżej.

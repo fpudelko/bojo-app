@@ -74,10 +74,12 @@ function formatDatePl(iso: string): string {
  * od pierwszej klatki widzi, na jakim obiekcie jest.
  */
 function NaglowekObiektu({
-  nazwa, opis, adres, backHref, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
+  nazwa, opis, zdanieMeczow, adres, backHref, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
 }: {
   nazwa: string;
   opis?: string;
+  /** F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów, `null` przy zerze. */
+  zdanieMeczow?: string | null;
   /** Podawany tylko w stanie ładowania — po załadowaniu adres pokazuje karta obiektu niżej. */
   adres?: string;
   backHref: string;
@@ -105,6 +107,7 @@ function NaglowekObiektu({
       {/* Direct answer — fact-dense akapit pod SEO/GEO (Faza 1, BACKLOG.md §7a),
           ten sam tekst co w description JSON-LD niżej na stronie. */}
       {opis && <p className="text-sm text-slate-600 dark:text-slate-400">{opis}</p>}
+      {zdanieMeczow && <p className="text-sm text-slate-600 dark:text-slate-400">{zdanieMeczow}</p>}
       {adres && <p className="text-sm text-slate-500">{adres}</p>}
 
       {/* Linki widoczne, nie tylko w okruszkach JSON-LD (page.tsx): okruszek
@@ -134,6 +137,7 @@ export default function VenueDetailClient({
   adres,
   upcomingEvents = [],
   opis,
+  zdanieMeczow,
   wojewodztwoSlug,
   wojewodztwoLabel,
   sportSlug,
@@ -148,6 +152,8 @@ export default function VenueDetailClient({
   /** Akapit z content/opisObiektu.ts, liczony server-side w page.tsx — ten
    *  sam tekst, co w JSON-LD description. */
   opis?: string;
+  /** F3 SEO/GEO (roadmapa poz. 21), liczone server-side w page.tsx. */
+  zdanieMeczow?: string | null;
   /** Faza 2b SEO/GEO: link do huba /boiska/woj/[wojewodztwo], gdy backfill
    *  lokalizacji (migracja 112) już wypełnił tę kolumnę dla tego obiektu. */
   wojewodztwoSlug?: string;
@@ -285,6 +291,7 @@ export default function VenueDetailClient({
           <NaglowekObiektu
             nazwa={nazwa}
             opis={opis}
+            zdanieMeczow={zdanieMeczow}
             adres={adres}
             backHref={backHref}
             wojewodztwoSlug={wojewodztwoSlug}
@@ -329,6 +336,7 @@ export default function VenueDetailClient({
         <NaglowekObiektu
             nazwa={field.name}
             opis={opis}
+            zdanieMeczow={zdanieMeczow}
             backHref={backHref}
             wojewodztwoSlug={wojewodztwoSlug}
             wojewodztwoLabel={wojewodztwoLabel}

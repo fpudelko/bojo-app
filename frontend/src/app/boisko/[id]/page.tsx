@@ -7,7 +7,7 @@ import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
 import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
-import { opisObiektu } from '@/content/opisObiektu';
+import { opisObiektu, zdanieORozegranychMeczach } from '@/content/opisObiektu';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
@@ -257,6 +257,25 @@ async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
   }));
 }
 
+// Faza SEO/GEO — F3 (roadmapa poz. 21): ile publicznych, nieodwołanych meczów
+// odbyło się kiedykolwiek na tym obiekcie. Licznik, nie lista — miniony mecz
+// przestaje być indeksowalną stroną (eventMeta.ts#metadataDlaMeczu), więc jego
+// ślad musi zasilić coś, co ZOSTAJE w indeksie. `event_date < dzisiaj` liczy
+// z zapasem jednego dnia (dzień bieżący dolicza się dopiero jutro) — dla licznika
+// to bezpieczne niedoszacowanie, precyzyjny próg co do godziny ma tylko strona
+// samego meczu.
+async function getPlayedMatchesCount(fieldId: string): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { count } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .eq('field_id', fieldId)
+    .eq('visibility', 'public')
+    .neq('status', 'cancelled')
+    .lt('event_date', today);
+  return count ?? 0;
+}
+
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
@@ -273,6 +292,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   if (params.id !== kanoniczny && !isUuid(params.id)) redirect(`/boisko/${kanoniczny}`);
 
   const upcomingEvents = await getUpcomingEvents(field.id);
+  const rozegraneMecze = await getPlayedMatchesCount(field.id);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = kanoniczny;
 
@@ -352,6 +372,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         adres={field.address}
         upcomingEvents={upcomingEvents}
         opis={opis}
+        zdanieMeczow={zdanieORozegranychMeczach(rozegraneMecze)}
         wojewodztwoSlug={field.voivodeship}
         wojewodztwoLabel={wojewodztwoLabel}
         sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}
