@@ -531,17 +531,26 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
 
 **Długoterminowe:**
 
-- [ ] **Nowy próg indeksacji obiektów** — indeksujemy obiekt, gdy ma dowód (potwierdzenie
-      graczy, rozegrany mecz albo komplet danych). Liczba stron w indeksie **spadnie**
-      i to jest zamierzone; mechanizm istnieje (`oblicz_seo_tier()`, migracja `112`).
-- [ ] **`/boiska/[sport]/[miasto]`** — brakująca warstwa katalogu, ograniczona tabelą
-      `miasta_priorytetowe`, z progiem minimum obiektów.
-- [ ] **Polityka cyklu życia strony meczu** — miniony mecz nie zostaje w indeksie, tylko
-      zasila stronę obiektu.
+- [x] ~~Nowy próg indeksacji obiektów~~ **ODRZUCONE 2026-08-25** — decyzja właściciela:
+      nie zmniejszamy indeksu. Obiekty w katalogu są dziś przede wszystkim pinezkami na
+      mapie; dodatkowe dane (potwierdzenia, mecz) są plusem, nie warunkiem obecności
+      w wyszukiwarce. `seo_tier`/`oblicz_seo_tier()` (migracja `112`) zostają bez zmian.
+- [ ] **`/boiska/[sport]/[miasto]`** — warstwa katalogu między hubem krajowym
+      a wojewódzkim, ograniczona tabelą `miasta_priorytetowe`. Próg jakości
+      **ustalony ręcznie przez właściciela (2026-08-25): minimum 3 obiekty** (Tier 1
+      lub 2) dla danej pary sport+miasto — nie jest to próg z odrzuconej pozycji wyżej,
+      tylko niezależna decyzja liczbowa. Poniżej progu strona nie powstaje.
+- [x] **Polityka cyklu życia strony meczu** (zrobione 2026-08-25) — miniony publiczny
+      mecz przestaje być indeksowalny (`robots: {index: false, follow: true}` w
+      `eventMeta.ts#metadataDlaMeczu()`, próg `isPast()` z kreatora meczu), ślad zasila
+      stronę obiektu jako zdanie „Na tym obiekcie odbyło się już N meczów…"
+      (`content/opisObiektu.ts#zdanieORozegranychMeczach()`), widoczne od pierwszego
+      rozegranego meczu, licznik w `boisko/[id]/page.tsx#getPlayedMatchesCount()`.
 - [ ] **Widget „najbliższe mecze na tym obiekcie"** dla zarządców — wzmianka i link
       z domeny o lokalnym autorytecie, do zaoferowania w rozmowach z `/admin/outreach`.
-- [ ] **Wkład zwrotny do OpenStreetMap** — wymaga rozstrzygnięcia licencji ODbL przed
-      jakimkolwiek wydawaniem danych na zewnątrz.
+- [x] ~~Wkład zwrotny do OpenStreetMap~~ **ODRZUCONE 2026-08-25** — decyzja właściciela:
+      nie ma potrzeby oddawać danych zwrotnie do OSM. Ryzyko licencyjne (ODbL) zostaje
+      nieaktualne, bo nic nie jest wydawane na zewnątrz.
 
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 

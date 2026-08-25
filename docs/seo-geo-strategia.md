@@ -676,10 +676,12 @@ mają uzasadnienie w rozdziale 1; wszystko inne odpada do czasu, aż te dwa zadz
 - **Źródło danych:** `fields` z wypełnionym `city` i sportem. **Lista miast jest
   ograniczona tabelą `miasta_priorytetowe`** (migracja `112`) — nie generujemy strony
   dla każdej miejscowości, jaka wpadła z OpenStreetMap.
-- **Próg jakości — strona NIE powstaje**, gdy w danym mieście i sporcie jest mniej niż
-  dziesięć obiektów spełniających próg indeksacji z 4c. Pusta strona lokalna szkodzi
-  bardziej, niż pomaga — to ta sama zasada, która jest już zapisana w komentarzu
-  `content/miasta.ts`.
+- **Próg jakości — strona NIE powstaje**, gdy w danym mieście i sporcie są mniej niż
+  **3** obiekty. **Decyzja właściciela (2026-08-25), nie propozycja z 4c** — 4c
+  (próg dowodowy „potwierdzenie/mecz/komplet danych") jest odrzucone, więc bazą liczenia
+  zostaje dzisiejsza definicja indeksowalności: `seo_tier IN (1, 2)`, ta sama, której
+  używa `sitemap-boiska/[plik]/route.ts`. Pusta strona lokalna szkodzi bardziej, niż
+  pomaga — to ta sama zasada, która jest już zapisana w komentarzu `content/miasta.ts`.
 - **Renderowanie:** `force-dynamic` + `revalidate`, `generateStaticParams()` zwraca `[]` —
   wzorem `/boiska/[sport]` i `/boisko/[id]`. **Nic liniowego względem katalogu przy
   buildzie**, zgodnie z AGENTS.md.
@@ -720,6 +722,14 @@ Trzy naprawy, każda na kilkanaście linijek:
 3. **Serwerowy `<nav>` na stronie obiektu** (3f) — zamyka hierarchię od dołu.
 
 ### 4c. Ile obiektów powinno być w indeksie — mniej niż dziś
+
+**ODRZUCONE 2026-08-25.** Decyzja właściciela: nie zmniejszamy indeksu. Obiekty
+w katalogu Bojo są dziś przede wszystkim pinezkami na mapie — mają wartość samą
+w sobie jako miejsce do znalezienia, niezależnie od tego, czy mają potwierdzenie
+albo rozegrany mecz. Dodatkowe dane (ankiety, uzupełnienia adminów) są plusem,
+nie warunkiem obecności w wyszukiwarce. `seo_tier`/`oblicz_seo_tier()` (migracja
+`112`) zostają bez zmian — poniższe rozumowanie zostaje w dokumencie jako
+uzasadnienie propozycji, która nie weszła w życie, nie jako plan do zrobienia.
 
 Dziś indeksowalne jest **32 096 stron** (Tier 1 + Tier 2). Uczciwa odpowiedź brzmi:
 **to o rząd wielkości za dużo jak na to, co mamy do powiedzenia**.
@@ -944,14 +954,10 @@ Po założeniu profili **wracamy do `sameAs` w danych strukturalnych** (5a), bo 
 wtedy jest co tam wpisać. **Kto:** Jan. **Sygnał:** marka pojawia się w odpowiedzi na
 pytanie kategorialne z koszyka 2 w Załączniku A.
 
-**3. Wkład zwrotny do OpenStreetMap — najlepszy stosunek wartości do ryzyka.**
-Cały katalog Bojo pochodzi z OSM. Mamy dane, których OSM nie ma: potwierdzenia
-oświetlenia i nawierzchni od ludzi, którzy tam byli. Oddanie tego z powrotem jest
-uczciwe, zgodne z duchem licencji i buduje wzmianki w miejscu, które modele traktują
-jako źródło referencyjne. **Wymaga rozstrzygnięcia licencyjnego i zgody użytkowników** —
-patrz ryzyko w rozdziale 8, posunięcie F1. **Kto:** Franek (mechanika), Jan (kontakt
-ze społecznością OSM). **Sygnał:** Bojo wymienione jako aplikacja korzystająca z danych
-OSM i wnosząca poprawki.
+**3. Wkład zwrotny do OpenStreetMap — ODRZUCONE 2026-08-25.**
+Cały katalog Bojo pochodzi z OSM i mamy dane, których OSM nie ma (potwierdzenia
+oświetlenia i nawierzchni), ale decyzja właściciela jest: nie ma potrzeby oddawać
+tego z powrotem. Nie realizujemy — patrz ryzyko w rozdziale 8, posunięcie F1.
 
 **4. Jeden kontakt tygodniowo do obiektu lub portalu lokalnego — do 1 godziny.**
 Kanał z udokumentowanym śladem w tym rynku (patrz tło konkurencyjne). Panel
@@ -1082,6 +1088,8 @@ zrobione w 7b.
 
 ### F3. Każdy publiczny mecz zostawia trwały, faktograficzny ślad
 
+**ZAAKCEPTOWANE i ZROBIONE 2026-08-25.**
+
 **Na czym polega:** publiczny mecz to strona z konkretnymi danymi (sport, termin,
 miejsce, liczba miejsc, cena) i poprawnym `SportsEvent`. Organizator, który wraca co
 tydzień, produkuje świeżą, prawdziwą treść bez żadnej pracy redakcyjnej. Świeżość jest
@@ -1135,6 +1143,11 @@ cokolwiek z F1–F5 zamieni się w wydawanie danych na zewnątrz, trzeba to rozs
 osobno** — z wyjaśnieniem, co jest bazą z OSM, a co warstwą własną (potwierdzenia,
 zdarzenia). Nie jest to przeszkoda, tylko warunek wstępny.
 
+**Wkład zwrotny do OSM (6, punkt 3) — ODRZUCONE 2026-08-25.** Decyzja właściciela:
+nie ma potrzeby oddawać potwierdzeń oświetlenia/nawierzchni z powrotem do OSM. Ryzyko
+licencyjne opisane wyżej zostaje nieaktualne dla tego posunięcia — nic z warstwy
+potwierdzeń nie jest wydawane na zewnątrz.
+
 ---
 
 ## 9. Roadmapa
@@ -1162,11 +1175,11 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 16 | ~~Linkowanie poziome hubów (4b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `app/boiska/**`, `lib/sports.ts` | zero stron osieroconych w `sitemap.ts` |
 | 17 | ~~Akapity wprowadzające na hubach (3g)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | łatwa | Franek | `content/boiska.ts` | huby przestają być samą listą |
 | 18 | ~~Potwierdzenia graczy w `amenityFeature` (5b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `lib/structuredData.ts#venueAmenityFeatures` | zweryfikowane na atrapie: quorum ≥2 w JSON-LD |
-| 19 | Nowy próg indeksacji obiektów (4c) | DŁUGI | wysoki | trudna | Franek | migracja + `oblicz_seo_tier()` | liczba stron w indeksie spada, udział stron z treścią rośnie |
-| 20 | `/boiska/[sport]/[miasto]` (N2) | DŁUGI | średni | trudna | Franek | nowa trasa + `sitemap.ts` | klaster lokalny obiektowy przestaje kanibalizować |
-| 21 | Polityka cyklu życia strony meczu (F3) | DŁUGI | średni | średnia | Franek | `app/wydarzenia/[id]/` | miniony mecz nie zostaje w indeksie |
+| 19 | ~~Nowy próg indeksacji obiektów (4c)~~ **ODRZUCONE 2026-08-25** | DŁUGI | wysoki | trudna | Franek | migracja + `oblicz_seo_tier()` | — nie realizujemy, decyzja właściciela: nie zmniejszamy indeksu |
+| 20 | `/boiska/[sport]/[miasto]` (N2) — próg **min. 3 obiekty** (decyzja 2026-08-25, nie 4c) | DŁUGI | średni | trudna | Franek | nowa trasa + `sitemap.ts` | klaster lokalny obiektowy przestaje kanibalizować |
+| 21 | ~~Polityka cyklu życia strony meczu (F3)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | średnia | Franek | `app/wydarzenia/[id]/eventMeta.ts`, `app/boisko/[id]/`, `content/opisObiektu.ts` | zweryfikowane testem: `robots.index=false` dla minionego meczu, treść i JSON-LD zostają |
 | 22 | Jeden kontakt tygodniowo o wzmiankę (6.4) | DŁUGI | wysoki | średnia | Jan | `/admin/outreach`, poza repo | pierwszy link spoza własnych profili w 90 dni |
-| 23 | Wkład zwrotny do OSM (6.3, F1) | DŁUGI | średni | trudna | oboje | do rozstrzygnięcia licencyjnie | Bojo wymienione jako aplikacja wnosząca poprawki |
+| 23 | ~~Wkład zwrotny do OSM (6.3, F1)~~ **ODRZUCONE 2026-08-25** | DŁUGI | średni | trudna | oboje | do rozstrzygnięcia licencyjnie | — nie realizujemy, decyzja właściciela |
 | 24 | Widget dla zarządców obiektów (F5) | DŁUGI | średni | trudna | Franek | nowa trasa osadzalna | pierwszy obiekt z osadzonym widokiem |
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
