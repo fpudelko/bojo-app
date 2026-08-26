@@ -9,6 +9,7 @@ import { venueListJsonLd } from '@/lib/structuredData';
 import { FOCUS_SPORT_BY_SLUG, KATALOG_SPORT_MAP } from '@/lib/sports';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL } from '@/lib/wojewodztwa';
 import { wstepHubuSportu } from '@/content/boiska';
+import { MIASTA } from '@/content/miasta';
 import { miastaPowyzejProguDlaSportu } from '@/lib/hubMiasta';
 import { obiektyHubuSportu, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
@@ -217,10 +218,29 @@ export default async function SportCategoryPage(
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
+          {/* Wejście do landingów `/[sport]/[miasto]`. Do 2026-08-26 stał tu jeden
+              link zaszyty na sztywno na Poznań, więc osiem z dwunastu tych stron
+              (Warszawa, Kraków) nie miało wejścia z hubu, a ktoś szukający gry
+              w Krakowie dostawał link do Poznania. Lista idzie z `MIASTA` — tej
+              samej stałej, z której `generateStaticParams()` tamtej trasy buduje
+              strony, a `dynamicParams = false` gwarantuje, że innych nie ma. Dzięki
+              temu nie da się tu wskazać strony, która nie istnieje, i nie da się
+              zapomnieć o mieście dopisanym do `MIASTA`. */}
           {FOCUS_SPORT_BY_SLUG[params.sport] && (
-            <Link href={`/${params.sport}/poznan`} className="text-primary-600 hover:underline text-sm">
-              Szukasz gry w Poznaniu? Zobacz otwarte mecze →
-            </Link>
+            <p className="text-sm text-slate-600">
+              Szukasz gry? Zobacz otwarte mecze{' '}
+              {MIASTA.map((m, i) => (
+                <span key={m.slug}>
+                  {i > 0 && ' · '}
+                  <Link
+                    href={`/${params.sport}/${m.slug}`}
+                    className="text-primary-600 hover:underline"
+                  >
+                    {m.miejscownik}
+                  </Link>
+                </span>
+              ))}
+            </p>
           )}
         </div>
 
