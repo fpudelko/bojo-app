@@ -1898,6 +1898,39 @@ jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
 
 ### Widok listy (mobile) — nowość
 
+**Pusta lista obiektów nie jest ślepym zaułkiem** (`components/map/PustaListaObiektow.tsx`).
+Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA — w trybie skupisk z bazy lecą same
+liczby w siatce, nie obiekty. Stał tam wcześniej jeden przycisk: „Przybliż tam, gdzie
+jest ich najwięcej". Zgłoszone wprost, że to słabe — i tak jest: odpowiada na pytanie,
+którego nikt nie zadaje (gracz nie szuka największego skupiska pinezek w Polsce, tylko
+miejsca, gdzie może zagrać) i każe naprawić stan mapy, której w widoku „Lista" nawet nie
+widać.
+
+Dziś są trzy drogi, w kolejności od najczęstszej potrzeby:
+
+1. **„Pokaż boiska blisko mnie"** — `getCurrentLocation()` → `kadrWokol(lat, lng, 15)` →
+   `getExplorerFields()`, posortowane po `distanceKm`. 15 km to promień, z którego realnie
+   dojeżdża się na mecz po pracy. Działa na `lat`/`lng`, które ma KAŻDY obiekt w katalogu,
+   więc nie zależy od backfillu lokalizacji.
+2. **Miasta z liczbami** (`lib/miasta.ts`, `policzBoiskaWMiastach()`) — kilkanaście
+   największych, posortowanych malejąco po liczbie obiektów. Liczba przy nazwie mówi,
+   gdzie w ogóle jest co oglądać. **Miasto z zerem wypada**, a gdy zero mają wszystkie,
+   sekcja znika w całości: `fields.city` wypełnia osobny, ręcznie uruchamiany backfill
+   (`scraper/backfill_lokalizacja.py`), więc „Radom 0" znaczyłoby „backfill tam nie
+   dotarł", a nie „nie ma tam boisk" — to nasz problem, nie użytkownika.
+3. **Przybliżenie do największego skupiska** — zostaje, ale jako cichy odnośnik na końcu.
+
+Obie nowe drogi kończą się w `setSearchResults()`, czyli w tej samej ścieżce co szukanie
+po nazwie: lista bierze źródło z wyników zamiast z kadru, a istniejący efekt sam dopasowuje
+mapę do tego, co przyszło. Zero nowej maszynerii pod coś, co już działało.
+
+Kilkanaście miast, nie sto z `miasta_priorytetowe`: tamta tabela ma jedną kolumnę (`nazwa`),
+bez kolejności i bez współrzędnych, a rozwijana lista stu pozycji na telefonie jest gorsza
+od mapy, którą ma zastąpić. Po resztę idzie się do pola szukania — ono przeszukuje CAŁY
+katalog, nie tylko kadr.
+
+Pilnuje tego `e2e/pusta-lista-obiektow.klikalnosc.spec.ts`.
+
 Do 2026-08-23 `/mapa` na telefonie było wyłącznie mapą: przewijana lista obiektów/meczów
 istniała tylko na desktopie (`<aside>`, `hidden md:flex`), bo tam jest miejsce na pasek
 boczny obok mapy. Telefon dostawał jedną kartę — tę, której pinezkę dotknięto — i żadnego
