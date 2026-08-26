@@ -663,6 +663,52 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       prawie pustą listę (R1). Wraca, gdy liczba meczów urośnie o rząd
       wielkości.
 
+**Runda 3 (2026-08-26) — resztki i domknięcie dryfu**
+(docs/seo-geo-strategia.md, rozdział 0 i 9):
+
+- [x] **Zaszyty Poznań w linku z hubu sportu** (reszta D8) — `/boiska/[sport]`
+      prowadził zawsze do `/[sport]/poznan`, więc osiem z dwunastu landingów
+      sport+miasto (Warszawa, Kraków) nie miało żadnego wejścia z serwisu, a ktoś
+      szukający gry w Krakowie dostawał link do Poznania. Lista idzie dziś z `MIASTA`
+      (`content/miasta.ts`) — z tej samej stałej, z której `generateStaticParams()`
+      landingu buduje strony, a `dynamicParams = false` gwarantuje, że innych nie ma;
+      nie da się więc wskazać strony nieistniejącej ani zapomnieć o nowym mieście.
+      **Rozważana alternatywa — usunięcie linku — odrzucona:** strony istnieją i są
+      najgęściej zalinkowaną częścią serwisu (rozdz. 0), więc problemem był zły cel
+      linku, nie sam link. Zweryfikowane w surowym HTML (`curl` bez JS: trzy adresy
+      w HTML hubu) i przebiegiem 12 × HTTP 200 na wszystkich landingach.
+      Test: `hubSportuMiasta.test.ts`.
+- [x] **Tabela roadmapy w rozdziale 9 doprowadzona do stanu kodu** — dziewięć wierszy
+      (1, 3–9, 13) stało nieprzekreślonych, choć BACKLOG opisywał je jako zrobione.
+      Dokładnie ten rozjazd plan/kod, dla którego powstał rozdział 0 — tym razem
+      w samym dokumencie. Każdy wiersz odhaczony z dowodem (ścieżka i linia albo
+      wynik przebiegu); wiersz 6 odhaczony **z zastrzeżeniem**, że dowodem jest kod,
+      a nie produkcja.
+- [x] **Znacznik „Stan na:" w `llm-context.md` doprowadzony do prawdy i objęty
+      walidatorem** — deklarował `45 tabel` (baza ma **53**, policzone na schemacie
+      postawionym od zera przez `baza-testowa.sh`) i `775 testów` (jest **827**).
+      `check:docs` sprawdzał wyłącznie numer migracji, więc reszta znacznika dryfowała
+      po cichu przez dwie rundy. Sekcja 9 walidatora sprawdza dziś **całość**: format,
+      datę (odrzuca datę z przyszłości), numer migracji i liczbę tabel liczoną
+      z migracji (`CREATE TABLE` minus `DROP TABLE` — wynik zgodny co do nazwy
+      z realnym schematem). Liczba testów **wypadła ze znacznika**, bo jako jedyna
+      nie da się zweryfikować statycznie, a pole niesprawdzalne jest właśnie tym,
+      które zdryfowało. **Ograniczenie zapisane wprost w kodzie:** nieaktualnej daty
+      w przeszłości nic nie odróżni od poprawnej — świeżości pilnują migracja
+      i liczba tabel, które wymuszają dotknięcie znacznika.
+- [x] **`AGENTS.md`: „463 testy" → 827** — liczba zmierzona przy okazji, nie
+      przepisana.
+- [ ] **Deduplikacja tabeli porównawczej na `/dlaczego-bojo`** (pozycja 28) — nadal
+      świadomie niezrobiona; jedyna otwarta pozycja roadmapy po stronie kodu poza
+      pomiarem CWV. Wpływ „niski".
+
+**Ocena rundy 3: dalsza praca w kodzie SEO/GEO nie ma już sensu.** Uzasadnienie
+liczbowe pod tabelą roadmapy w `docs/seo-geo-strategia.md`, rozdział 9. W skrócie:
+z 28 pozycji roadmapy 21 jest zrobionych, 2 odrzucone, 5 otwartych — a wszystkie trzy
+o wpływie „wysoki" są poza repozytorium (Jan). Pomiar bazowy po trzech rundach nadal
+wynosi zero, więc 21 wdrożonych zmian nie ma wartości wyjściowej, do której dałoby się
+je odnieść. Wąskie gardło: pomiar, potem encja poza domeną, potem brak organizatorów.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b

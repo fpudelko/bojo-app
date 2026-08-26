@@ -203,6 +203,50 @@ na stronie obiektu i na hubach miejskich jest nadal NIEZWERYFIKOWANE** — potrz
 tego środowiska z dostępem do rejestru obrazów albo przebiegu przeciwko produkcji
 (Załącznik B).
 
+**Runda 3 (2026-08-26) — trzecia próba dotarcia do produkcji, trzeci wynik negatywny.**
+Sprawdzone na starcie, w tej kolejności, z wklejonym wynikiem:
+
+```
+curl -sS -o /dev/null -w "%{http_code}" https://bojo.pl/robots.txt
+  → curl: (56) CONNECT tunnel failed, response 403
+  → 000
+
+docker run --rm hello-world
+  → failed to connect to the docker API at unix:///var/run/docker.sock:
+    dial unix /var/run/docker.sock: connect: no such file or directory
+```
+
+Status proxy agenta potwierdza pierwszą blokadę wprost:
+`{"kind":"connect_rejected","detail":"gateway answered 403 to CONNECT","host":"bojo.pl:443"}`.
+Druga blokada jest **mocniejsza niż w rundzie 2**: wtedy demon Dockera działał, a odpadał
+sam rejestr obrazów; teraz nie ma demona w ogóle, więc `scripts/stos-lokalny.sh` nie ma
+się o co oprzeć. Tryb rundy 3 to zatem **TRYB OKROJONY**:
+
+- `./scripts/baza-testowa.sh` — **przeszedł** (goły Postgres 16 z systemu, migracje od
+  zera, `supabase/test/rls.sql` w całości, 16 kont / 44 mecze / 162 uczestników).
+- `node scripts/audyt-robota.mjs --bez-bazy` przeciwko lokalnemu buildowi produkcyjnemu
+  — **przeszedł**: 13 tras OK, `/boiska/pilka-nozna/poznan` pominięte (404 bez bazy),
+  strona obiektu pominięta (brak realnego sluga).
+
+**Wniosek bez zmian od rundy 1: strona obiektu i huby miejskie — czyli praktycznie cały
+indeksowalny wolumen — są NIEZWERYFIKOWANE.** Wszystko, co o nich wiemy, wiemy z lektury
+kodu. Trzy rundy z rzędu, trzy różne powody, ten sam brak. To przestaje być pechem
+środowiska, a zaczyna być stanem, który ktoś musi rozstrzygnąć decyzją: jedno wejście
+`curl https://bojo.pl/boisko/<slug>` z dowolnej maszyny z internetem zamyka pytanie,
+na które ten dokument nie umie odpowiedzieć od trzech rund.
+
+Co udało się zweryfikować w rundzie 3 **twardo, w surowym HTML** (lokalny build
+produkcyjny, `curl` bez JavaScriptu — czyli tak, jak widzi to crawler):
+
+| Co | Wynik |
+|---|---|
+| `Organization` niesie `alternateName` i `disambiguatingDescription` | `"alternateName":["Bojo.pl","aplikacja Bojo"]` na `/` |
+| `sameAs` nie zostało dopisane na zapas | zero wystąpień na stronie |
+| Hub sportu linkuje do wszystkich miast, nie tylko Poznania | `/pilka-nozna/{poznan,warszawa,krakow}` w HTML |
+| Wszystkie 12 landingów sport+miasto istnieje | 12 × HTTP 200 |
+| Liczba tabel w bazie | **53** (schemat postawiony od zera przez `baza-testowa.sh`), nie 45 jak deklarował znacznik w `llm-context.md` |
+| Liczba testów | **827** (`npm test`), nie 775 jak deklarował ten sam znacznik |
+
 ### DŁUG — rzeczy zepsute albo niespójne
 
 Ponumerowane, bo wracają w roadmapie w rozdziale 9.
@@ -1284,19 +1328,19 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 
 | # | Zadanie | Horyzont | Wpływ | Trudność | Kto | Pliki / miejsce | Miara sukcesu |
 |---|---|---|---|---|---|---|---|
-| 1 | Wyciek metadanych prywatnego meczu (P1) + test | QUICK WIN | wysoki | łatwa | Franek | `app/wydarzenia/[id]/{page,opengraph-image}.tsx`, `__tests__/` | prywatny mecz zwraca `noindex` i nie ujawnia miejsca ani terminu |
+| 1 | ~~Wyciek metadanych prywatnego meczu (P1) + test~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `eventMeta.ts#metadataDlaMeczu()`; test `eventMetadata.test.ts:32,43,50` | spełnione: trzy warianty `visibility` × brak wycieku i `noindex` |
 | 2 | Pomiar bazowy: Search Console + 40 promptów | QUICK WIN | wysoki | łatwa | Jan | Załączniki A i B | tabela w 7a wypełniona liczbami zamiast „nieznana" |
-| 3 | „Zarezerwuj termin" znika z opisu 32 tys. stron (P2) | QUICK WIN | wysoki | łatwa | Franek | `app/boisko/[id]/page.tsx:180` | `audyt-robota` nie znajduje fraz zakazanych w `description` |
-| 4 | Podwójny sufiks w tytułach (P3) | QUICK WIN | średni | łatwa | Franek | 5 plików z listy w P3 | zero tytułów z `\| Bojo \| Bojo` |
-| 5 | `noindex` dla tras technicznych i za flagami (P4) | QUICK WIN | średni | łatwa | Franek | `app/robots.ts`, metadane tras | `/auth/*` i trasy za flagami poza indeksem |
-| 6 | Serwerowy `<h1>`, opis i `<nav>` na stronie obiektu (3f) | QUICK WIN | **najwyższy** | średnia | Franek | `app/boisko/[id]/page.tsx` | robot bez JS widzi treść i linki na 32 tys. stron |
-| 7 | Stopka na wszystkich stronach publicznych (D9) | QUICK WIN | wysoki | łatwa | Franek | `app/boiska/**`, `app/boisko/**` | każda strona publiczna prowadzi do stron treści |
-| 8 | Link z landingu do hubów sportowych (4b.2) | QUICK WIN | wysoki | łatwa | Franek | `components/home/landing/` | katalog ma wejście z landingu w HTML |
-| 9 | `scripts/audyt-robota.mjs` jako bramka CI (7c) | ŚREDNI | wysoki | średnia | Franek | `scripts/`, `.github/workflows/` | PR z pustą stroną nie przechodzi |
+| 3 | ~~„Zarezerwuj termin" znika z opisu 32 tys. stron (P2)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `app/boisko/[id]/page.tsx:197` | spełnione: `audyt-robota --bez-bazy` przeszedł 2026-08-26, zero fraz zakazanych |
+| 4 | ~~Podwójny sufiks w tytułach (P3)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | test `eventMetadata.test.ts:65` | spełnione: sufiks został tylko w `openGraph.title` |
+| 5 | ~~`noindex` dla tras technicznych i za flagami (P4)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | `app/robots.ts`; test `robots.test.ts:28,34` | spełnione: 18 wpisów DISALLOW, z regresją w drugą stronę |
+| 6 | ~~Serwerowy `<h1>`, opis i `<nav>` na stronie obiektu (3f)~~ **ZROBIONE 2026-08-23 — w kodzie; na produkcji NIEZWERYFIKOWANE** | QUICK WIN | **najwyższy** | średnia | Franek | `VenueDetailClient.tsx:104` (`<h1>` w `NaglowekObiektu`), renderowany w obu stanach: `:291` i `:336` | kod spełnia; przebieg przeciwko `bojo.pl` nadal niewykonany (rozdz. 0) |
+| 7 | ~~Stopka na wszystkich stronach publicznych (D9)~~ **ZROBIONE 2026-08-23** | QUICK WIN | wysoki | łatwa | Franek | `SiteFooter` w `boiska/[sport]`, `boiska/[sport]/[miasto]`, `boiska/woj/[x]`, `boisko/[id]` | spełnione (bez `/mapa` — świadomie, `h-[100dvh]`) |
+| 8 | ~~Link z landingu do hubów sportowych (4b.2)~~ **ZROBIONE 2026-08-23**; reszta D8 (zaszyty Poznań) **domknięta 2026-08-26** | QUICK WIN | wysoki | łatwa | Franek | `SiteFooter.tsx:44-45`; `boiska/[sport]/page.tsx` (lista z `MIASTA`) | spełnione: katalog ma wejście z każdej strony ze stopką, a landingi sport+miasto z hubu sportu |
+| 9 | ~~`scripts/audyt-robota.mjs` jako bramka CI (7c)~~ **ZROBIONE 2026-08-23** | ŚREDNI | wysoki | średnia | Franek | `.github/workflows/ci.yml:90` | spełnione — z ograniczeniem: `--bez-bazy` nie dotyka strony obiektu |
 | 10 | ~~Akapit bezpośredniej odpowiedzi na landingu (3a)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `LandingDirectAnswer.tsx` | do zmierzenia w Załączniku A |
 | 11 | ~~Sekcje odróżniające od systemów rezerwacji (3b, 3c, 3d, 4d)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | łatwa | Franek | `content/{jakDziala,dlaczego,faq}.ts` | do zmierzenia w Załączniku A |
 | 12 | ~~Strona kalkulatora kosztów (N1)~~ **ZROBIONE 2026-08-24** | ŚREDNI | wysoki | średnia | Franek | `/kalkulator-kosztow-boiska`, `lib/{payments,kalkulatorKosztow}.ts` | do zmierzenia: wyświetlenia na klaster „Rozliczenie" |
-| 13 | `sameAs` + `disambiguatingDescription` w `Organization` (5a) | ŚREDNI | wysoki | łatwa | Franek po pkt. 15 | `lib/structuredData.ts` | zapytanie markowe przestaje zwracać definicję słownikową |
+| 13 | ~~`alternateName` + `disambiguatingDescription` w `Organization` (5a)~~ **ZROBIONE 2026-08-26**; zostaje samo `sameAs` | ŚREDNI | wysoki | łatwa | Franek **po pkt. 15 — ale tylko `sameAs`** | `lib/structuredData.ts#siteJsonLd`; test `structuredData.test.ts` | dwa pola w surowym HTML (zweryfikowane `curl` bez JS); skutek dla zapytania markowego — do zmierzenia w Załączniku A |
 | 14 | ~~Serwerowy render otwartych gier i boisk na landingu (D18)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `LandingOpenGames.tsx`, `LandingVenues.tsx` | zweryfikowane na atrapie: linki do meczu i obiektu w HTML |
 | 15 | Trzy profile poza domeną (6.2) | ŚREDNI | wysoki | łatwa | Jan | poza repo | jest co wpisać w `sameAs` |
 | 16 | ~~Linkowanie poziome hubów (4b)~~ **ZROBIONE 2026-08-24** | ŚREDNI | średni | średnia | Franek | `app/boiska/**`, `lib/sports.ts` | zero stron osieroconych w `sitemap.ts` |
@@ -1312,6 +1356,70 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
 | 28 | Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx` | `audyt-robota` (rozszerzony o sprawdzenie duplikatów tekstu) nie znajduje tej samej treści dwa razy |
+
+### Czy dalsza praca w kodzie ma jeszcze sens — ocena z 2026-08-26 (runda 3)
+
+**Nie. Po zamknięciu Partii 1 i 2 w tym repo nie zostaje nic, co realnie podniosłoby
+widoczność Bojo.** Dalsza optymalizacja kodu jest strojeniem czegoś, czego nikt nie
+mierzy i na co, o ile wiadomo, nikt nie wchodzi.
+
+Liczby, na których stoi ten wniosek:
+
+**1. Roadmapa jest wyczerpana po stronie kodu.** Tabela wyżej ma 28 wierszy: 21
+zrobionych, 2 odrzucone decyzją właściciela, **5 otwartych**. Z tych pięciu:
+
+| # | Pozycja | Kto | Wpływ wg tabeli |
+|---|---|---|---|
+| 2 | Pomiar bazowy (Search Console + 40 promptów) | Jan | wysoki |
+| 15 | Trzy profile poza domeną | Jan | wysoki |
+| 22 | Jeden kontakt tygodniowo o wzmiankę | Jan | wysoki |
+| 27 | Core Web Vitals — **pomiar**, potem decyzja | Franek | **nieznany** |
+| 28 | Deduplikacja tabeli na `/dlaczego-bojo` | Franek | **niski** |
+
+Wszystkie trzy pozycje o wpływie „wysoki" są Jana i **żadna nie jest zadaniem
+programistycznym** — są poza repozytorium. Po stronie kodu zostają dokładnie dwie:
+jedna jest pomiarem, nie zmianą, a druga ma wpływ „niski" i jest przebudową znacznika,
+nie treści. Nie ma tu trzeciej pozycji do wykonania — a wymyślanie jej to ryzyko R1.
+
+**2. Pomiar bazowy po trzech rundach nadal wynosi zero.** Pozycja 2 jest pierwszą
+pozycją roadmapy od rundy 1, opisaną wtedy jako „**przed** jakąkolwiek zmianą treści".
+Wykonano od tamtej pory 21 pozycji i ani jednego pomiaru. Skutek jest arytmetyczny,
+nie retoryczny: **21 zmian wdrożono bez wartości wyjściowej**, więc żadnej z nich nie
+da się dziś przypisać ani skutku, ani jego braku. Kolejna zmiana w kodzie nie zmienia
+tego stanu — powiększa go.
+
+**3. Fosa nie ma czego pokazać, bo nie ma organizatorów.** F1 (katalog weryfikowany
+przez grających), F3 (ślad po meczu) i F4 (data ostatniego meczu) są **zbudowane
+w całości** i wszystkie trzy renderują treść dopiero wtedy, gdy na obiekcie ktoś
+zagrał. Datowany zapis w BACKLOG-u mówi o **~40 obiektach z jakimkolwiek meczem na
+36 268 w katalogu** — czyli **około 0,1% stron**. Pozostałe ~99,9% oddaje robotowi to
+samo, co katalog importowany z OpenStreetMap: nazwę, adres i sport. To jest górna
+granica tego, co kod może dziś zrobić: mechanizm jest gotowy, brakuje zdarzeń, które
+go wypełnią. **NIEZWERYFIKOWANE:** liczby 40 i 36 268 pochodzą z zapisu w BACKLOG-u,
+nie z tej sesji — bez dostępu do produkcyjnej bazy nie dało się ich przeliczyć.
+Sposób sprawdzenia to jedno zapytanie w Supabase SQL Editor:
+`SELECT count(*) FROM fields;` oraz `SELECT count(DISTINCT field_id) FROM events WHERE field_id IS NOT NULL;`.
+
+**Gdzie jest wąskie gardło — w tej kolejności:**
+
+1. **Pomiar (pozycja 2, Jan).** Nie dlatego, że jest ważniejszy niż reszta, tylko
+   dlatego, że bez niego nie da się rozstrzygnąć, czy pozostałe wąskie gardła są
+   prawdziwe. Dziś cały ten dokument opiera się na lekturze kodu.
+2. **Encja poza domeną (pozycja 15, Jan).** `alternateName` i
+   `disambiguatingDescription` są już w JSON-LD (runda 3), ale rozdział 5a mówi to
+   wprost i nadal obowiązuje: **dane strukturalne nie zbudują encji, jeśli encja nie
+   istnieje nigdzie indziej.** `sameAs` jest jedynym polem, które może to zmienić,
+   i jedynym, którego nie da się dopisać z repozytorium.
+3. **Brak organizatorów.** To jest wąskie gardło produktowe, nie SEO, i to ono
+   ogranicza F1, F3 i F4 do 0,1% katalogu. Żadna zmiana w kodzie SEO go nie ruszy;
+   rusza go pozycja 22 i praca opisana w [strategia.md](./strategia.md).
+
+**Czego ta ocena NIE mówi:** że dotychczasowa praca była zbędna. Wyciek metadanych
+prywatnego meczu (pozycja 1) był zobowiązaniem wobec ludzi, nie wobec wyszukiwarki,
+i naprawa broni się bez żadnego pomiaru. Serwerowy render strony obiektu (pozycja 6)
+był warunkiem koniecznym istnienia całego wolumenu — tyle że warunkiem **koniecznym**,
+nie wystarczającym, i do dziś niezweryfikowanym na produkcji. Ocena mówi tylko tyle:
+lista rzeczy, które kod może zrobić sam, **skończyła się**.
 
 ### Pierwszy tydzień — pięć rzeczy, po kolei
 
@@ -1515,8 +1623,12 @@ Odpowiada na pytanie, czy wpuszczenie ich z nazwy cokolwiek dało.
 
 Uczciwa lista granic tego dokumentu:
 
-- **Produkcji `bojo.pl` nie widziałem — i, potwierdzone w rundzie 2 (2026-08-25),
-  nie da się tego obejść stosem lokalnym.** Polityka sieciowa środowiska blokuje
+- **Produkcji `bojo.pl` nie widziałem w żadnej z trzech rund (1, 2 i 3) — i nie da się
+  tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci,
+  z gorszym środowiskiem niż poprzednio: demon Dockera w ogóle nie działa, więc odpada
+  nie tylko rejestr obrazów, ale i sam `stos-lokalny.sh`. Pełny wynik przebiegu —
+  rozdział 0, „Runda 3".
+  Stan z rundy 2, nadal aktualny co do istoty: Polityka sieciowa środowiska blokuje
   `bojo.pl` (`curl`: „CONNECT tunnel failed, 403"; `WebFetch`: `EGRESS_BLOCKED`) ORAZ
   rejestr Dockera (`docker run hello-world` → 403 z `production.cloudfront.docker.com`),
   więc ani produkcja, ani `scripts/stos-lokalny.sh` (Postgres + GoTrue + PostgREST) nie
