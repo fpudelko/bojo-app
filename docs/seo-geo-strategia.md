@@ -1355,7 +1355,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
-| 28 | Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx` | `audyt-robota` (rozszerzony o sprawdzenie duplikatów tekstu) nie znajduje tej samej treści dwa razy |
+| 28 | ~~Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM~~ **ZROBIONE 2026-08-26** | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx`; `scripts/audyt-robota.mjs#duplikatyTresci` | spełnione: detektor łapał 5 powtórzonych fragmentów przed poprawką, 0 po |
 
 ### Czy dalsza praca w kodzie ma jeszcze sens — ocena z 2026-08-26 (runda 3)
 
