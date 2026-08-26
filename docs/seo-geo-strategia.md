@@ -228,6 +228,13 @@ się o co oprzeć. Tryb rundy 3 to zatem **TRYB OKROJONY**:
   — **przeszedł**: 13 tras OK, `/boiska/pilka-nozna/poznan` pominięte (404 bez bazy),
   strona obiektu pominięta (brak realnego sluga).
 
+Sprawdzona i **odpadła też trzecia droga**, na którą łatwo wpaść: adres podglądu
+Vercela z PR-a (`bojo-app-git-<gałąź>-….vercel.app`) kusi, bo deploy podglądowy ma
+prawdziwe klucze Supabase, a więc i prawdziwy katalog obiektów. Ta sama polityka
+blokuje go tak samo jak domenę produkcyjną:
+`curl … .vercel.app/robots.txt` → `CONNECT tunnel failed, response 403`.
+Zapisane wprost, żeby runda 4 nie szukała tam po raz drugi.
+
 **Wniosek bez zmian od rundy 1: strona obiektu i huby miejskie — czyli praktycznie cały
 indeksowalny wolumen — są NIEZWERYFIKOWANE.** Wszystko, co o nich wiemy, wiemy z lektury
 kodu. Trzy rundy z rzędu, trzy różne powody, ten sam brak. To przestaje być pechem
@@ -1667,7 +1674,9 @@ Uczciwa lista granic tego dokumentu:
   tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci,
   z gorszym środowiskiem niż poprzednio: demon Dockera w ogóle nie działa, więc odpada
   nie tylko rejestr obrazów, ale i sam `stos-lokalny.sh`. Pełny wynik przebiegu —
-  rozdział 0, „Runda 3".
+  rozdział 0, „Runda 3". Odpada też adres podglądu Vercela z PR-a, mimo że deploy
+  podglądowy ma prawdziwe klucze Supabase — blokuje go ta sama polityka (403 na
+  CONNECT).
   Stan z rundy 2, nadal aktualny co do istoty: Polityka sieciowa środowiska blokuje
   `bojo.pl` (`curl`: „CONNECT tunnel failed, 403"; `WebFetch`: `EGRESS_BLOCKED`) ORAZ
   rejestr Dockera (`docker run hello-world` → 403 z `production.cloudfront.docker.com`),
