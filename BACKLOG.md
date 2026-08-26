@@ -710,7 +710,10 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       `duplikatyTresci()` wykrywa fragment tekstu widocznego dłuższy niż 40 znaków,
       który występuje w HTML-u więcej niż raz. Sprawdzone w obie strony: na buildzie
       sprzed poprawki wykrywa **5 powtórzonych fragmentów** na `/dlaczego-bojo`,
-      po poprawce **0**. Skrypt czyta wyłącznie tekst (skrypty i style wypadają),
+      po poprawce **0**. Wygląd zweryfikowany osobno i mocniej, niż zrobiłoby to
+      CI: zrzut sekcji `#roznice` z buildu przed i po, w tym samym środowisku,
+      na telefonie (390px) i na komputerze (1280px) — **identyczny co do bajtu**
+      (to samo `sha256`). Ten sam obraz, o połowę mniej DOM-u. Skrypt czyta wyłącznie tekst (skrypty i style wypadają),
       więc JSON-LD — który celowo powtarza treść strony i tak ma być — nie daje
       fałszywego alarmu.
 
