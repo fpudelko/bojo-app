@@ -91,6 +91,10 @@ test('mecz przy obiekcie z katalogu trafia na mapę bez własnych współrzędny
   await expect(page.locator('.leaflet-marker-icon')).toHaveCount(2);
   await expect(page.getByText(/2 mecze na mapie/)).toBeVisible();
   await expect(page.getByText(/1 bez lokalizacji/)).toBeVisible();
+
+  // Skład na pinezce: pytanie „czy jest tam jeszcze miejsce" ma mieć odpowiedź
+  // BEZ dotykania pinezki. Atrapa oddaje pusty skład, więc 0 z 10.
+  await expect(page.locator('.leaflet-marker-icon').first()).toContainText('0/10');
 });
 
 test('mapa bez ani jednej pinezki tłumaczy, dlaczego jest pusta', async ({ page }) => {
