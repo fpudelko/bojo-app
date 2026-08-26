@@ -461,18 +461,16 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 `kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
-**Filtr „tylko z nieprzeczytanymi" na `/moje-gry`.** Ikonka wiadomości stoi na wysokości
-nagłówka pierwszej sekcji, która realnie ma co pokazać, nie w pasku zakładek (zgłoszone
-wprost) i nie na sztywno przy „Brakuje graczy" (zgłoszone wprost po raz drugi — pusty
-wiersz zarezerwowany tylko dla ikonki, gdy ta sekcja jest akurat pusta, zjadał sporo
-miejsca na ekranie). Kolejność prób w `app/moje-gry/page.tsx`: **Brakuje graczy** (`extra`
-w `SectionHeader`, gdy `maBrakujeGraczy`) → **Najbliższy mecz** (`extra` w
-`NextMatchCard`, gdy jest `nextWidoczny`, a „Brakuje graczy" akurat puste) → pusty wiersz
-jako ostateczność (`pokazPustyNaglowek` w `NeedsPlayersSection`), wyłącznie gdy obie
-tamte sekcje nic nie pokazują naraz. Widoczna tylko, gdy jest choć jeden nieprzeczytany
-mecz w ogóle. Filtruje „Czekają na Twoją decyzję", „Brakuje graczy", najbliższy mecz
-i „Twoje najbliższe mecze" do tych z nieprzeczytaną wiadomością; zaproszenia i stałe
-gierki (gdy `SHOW_RECURRING`) filtr nie dotyczy — to nie są „wiadomości".
+**Filtry na `/moje-gry`.** Dwa chipy w stałym rzędzie nad listą: „Nieprzeczytane"
+i „Brakuje graczy". Każdy pokazuje się tylko wtedy, gdy ma co filtrować, i zawęża tę
+samą, jedyną listę meczów (`przechodziFiltry` w `app/moje-gry/page.tsx`) — zamiast
+mnożyć sekcje. Zaproszeń i stałych gierek (gdy `SHOW_RECURRING`) filtry nie dotyczą.
+
+Wcześniej ikonka filtra nieprzeczytanych wędrowała między **trzema miejscami postoju**
+(nagłówek „Brakuje graczy" → „Najbliższy mecz" → pusty wiersz jako ostateczność), bo
+doczepiała się do sekcji, która bywała pusta — a pusty wiersz zarezerwowany tylko dla
+ikonki zjadał sporo ekranu (zgłoszone wprost dwa razy). Cała ta gimnastyka zniknęła
+razem z sekcją, do której się doczepiała.
 
 ---
 
@@ -801,9 +799,46 @@ i `useDashboardData.ts` **nie istnieją**, a `HomeSwitch` przekierowuje zalogowa
 `/moje-gry`. Landing na `/` zostaje bez zmian dla wylogowanych i dla robotów (nie mają
 ciasteczka sesji), więc SEO strony głównej się nie rusza.
 
-Zakładka „Nadchodzące" składa się z komponentów w `components/home/dashboard/`:
-`InvitesSection` (limit 3, link do zakładki „Zaproszenia") → `PendingRequestsSection` →
-`NeedsPlayersSection` → `NextMatchCard` → `MyMatchesSection` → `GroupGamesSection`.
+### Zakładka „Nadchodzące" to JEDNA lista moich meczów, od najbliższego
+
+Do 2026-08-23 stało tu **siedem sekcji**, z czego **trzy kroiły tę samą listę**
+`upcoming`: „Czekają na Twoją decyzję", „Brakuje graczy" i właściwa lista meczów. Mecz
+organizowany, bez kompletu i z prośbą o dołączenie pokazywał się przez to na jednym
+ekranie **trzy razy**, a zanim dojechało się do własnych meczów, trzeba było minąć trzy
+nagłówki.
+
+Reguła, która to porządkuje:
+
+- **fakt o meczu** (prośby o dołączenie, brakujący skład, nieprzeczytane) → **plakietka
+  na karcie**, mecz występuje raz;
+- **osobną sekcję** dostaje wyłącznie to, czego na tej liście NIE MA — zaproszenie
+  (jeszcze nie mój mecz) i mecz ekipy, do którego nie dołączyłem.
+
+Kolejność: `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → rząd filtrów →
+`NextMatchCard` (najbliższy, czyli pierwszy element listy, tylko bogatszy) →
+`MyMatchesSection` (reszta, bez najbliższego) → `GroupGamesSection`.
+
+`PendingRequestsSection` i `NeedsPlayersSection` **nie istnieją**. Ich rolę przejęły:
+
+- plakietki `odznakiOrganizatora` na `EventBrowseCard` — „N próśb" (niebieska, bo
+  AGENTS.md rezerwuje niebieski dla „wymaga akceptacji uczestnictwa"; wypiera ogólne
+  „Wymaga akceptacji") i „brakuje N" (**neutralna** — brakujący skład nie jest ani
+  wiadomością, ani prośbą o decyzję, ani nowością, więc nie wolno mu sięgać po żaden
+  z trzech zarezerwowanych kolorów). Opt-in propem, bo poza `/moje-gry` te liczby nie
+  mają komu służyć;
+- **dwa chipy filtrujące** nad listą — „Nieprzeczytane" i „Brakuje graczy". Zawężają tę
+  samą listę zamiast robić jej drugą kopię, więc pytanie organizatora („na który mecz
+  nie zbiera się skład") nadal ma odpowiedź. Każdy chip pokazuje się tylko wtedy, gdy
+  ma co filtrować.
+
+Plakietki siedzą we **własnym wierszu pod tytułem**, nie w rzędzie tytułu: w rzędzie
+(`shrink-0` obok `truncate`) trzecia plakietka ścinała nazwę meczu do jednej litery —
+„Czwartkowa gierka" wychodziło jako „C…" na 390 px. Tytuł jest ważniejszy od liczników.
+
+Filtr nieprzeczytanych miał wcześniej **trzy miejsca postoju** (nagłówek „Brakuje
+graczy" → „Najbliższy mecz" → pusty wiersz jako ostateczność), bo doczepiał się do
+sekcji, która bywała pusta. Zniknęły razem z tamtą sekcją: filtry mają jeden, stały
+rząd.
 
 **`GroupGamesSection` przyszła tu z kasowanego pulpitu jako JEDYNA sekcja stamtąd** —
 bo jako jedyna niosła treść, której nie ma nigdzie indziej: mecze mojej ekipy, do
@@ -816,15 +851,6 @@ ekipy to `/grupy`, a „Jak to działa" i FAQ mają własne strony (`/jak-dziala
 `/faq`). Relacja do meczu ekipy liczy się z `items` (czyli z `getMyParticipatedEvents`,
 które bierze wszystkie moje wiersze `event_participants` plus mecze, które organizuję)
 — bez osobnego zapytania o mapę uczestnictwa.
-
-**„Brakuje graczy"** (`NeedsPlayersSection`, `components/home/dashboard/DashboardSections.tsx`)
-— organizowane, nadchodzące mecze, które jeszcze nie mają kompletu, sortowane od
-najbliższego terminu. Odpowiada na pytanie, na które `/moje-gry` dotąd nie miało jak
-odpowiedzieć: „na który z moich meczów nie zbiera się skład". Dane są już pobrane przez
-`getMyParticipatedEvents()` (`participantsCount` liczy `toEvent()` z dołączonego
-`event_participants`) — zero nowego zapytania. Renderuje `EventBrowseCard`, tak jak
-`MyMatchesSection` niżej — to osobna, DODATKOWA sekcja, nie zamiana świadomie
-scalonej listy „organizujesz + grasz" (patrz komentarz w `lib/myEvents.ts`).
 
 **Zakładka „Obserwowane"** to osobna lista `EventBrowseCard` (wzorem „Historii").
 Obserwowane mecze mają **jedno** miejsce, nie dwa: wcześniej `ObservingSection`

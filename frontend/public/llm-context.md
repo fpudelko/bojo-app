@@ -361,6 +361,15 @@ nie zmienia się ani o milimetr dla wylogowanych i dla wyszukiwarek — te nie m
 ciasteczka sesji. Sekcje marketingowe znikają z widoku zalogowanego; ta sama treść ma
 własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
 
+Przy okazji sama zakładka „Mecze" stała się JEDNĄ LISTĄ moich meczów od najbliższego.
+Wcześniej miała siedem sekcji, z czego trzy kroiły tę samą listę — mecz organizowany,
+bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
+Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
+a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
+Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
+CHIP FILTRUJĄCY nad listą („Brakuje graczy", obok „Nieprzeczytane"), nie jako druga
+kopia tych samych meczów.
+
 Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
 mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
 nigdzie indziej: pozostałe listy pokazują mecze, w których już jestem, więc bez tego
@@ -373,8 +382,12 @@ serwerowej nie ma (Supabase trzyma ją w `localStorage`), a ciasteczko-podpowied
 `lib/sessionHint.ts` służy wyłącznie do wyboru kształtu pierwszej odpowiedzi i nie
 wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`
 oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
-`ObservingSection`, `NextGroupMatchTeaser` w `DashboardSections.tsx`. `GroupGamesSection`
-przeniesiona do `app/moje-gry/page.tsx`.
+`ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`
+i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesiona do
+`app/moje-gry/page.tsx`. Plakietki organizatora („N próśb" — niebieska, „brakuje N" —
+neutralna, bo nie mieści się w żadnym z trzech zarezerwowanych znaczeń koloru) dokłada
+`EventBrowseCard` za opt-in propem `odznakiOrganizatora`, we WŁASNYM wierszu pod
+tytułem: w rzędzie tytułu trzecia plakietka ścinała nazwę meczu do jednej litery.
 
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 

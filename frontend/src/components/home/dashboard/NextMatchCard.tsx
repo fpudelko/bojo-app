@@ -17,11 +17,10 @@ export default function NextMatchCard({ row, unreadMessages, extra }: {
   row: MyEventRow | null;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — patrz `EventBrowseCard`. */
   unreadMessages?: number;
-  /** Dodatkowa kontrolka obok etykiety „Najbliższy mecz" — `/moje-gry` zaczepia
-   *  tu filtr nieprzeczytanych, gdy „Brakuje graczy" akurat nic nie pokazuje
-   *  (patrz `pokazPustyNaglowek` w `NeedsPlayersSection`). Renderuje się
+  /** Dodatkowa kontrolka obok etykiety „Najbliższy mecz". Renderuje się
    *  wyłącznie w wypełnionym stanie — pusta karta „Nie masz zaplanowanych
-   *  gier" to CTA, nie miejsce na filtr. */
+   *  gier" to CTA, nie miejsce na cokolwiek innego. Dziś nieużywana:
+   *  filtry `/moje-gry` mają własny, stały rząd nad listą. */
   extra?: React.ReactNode;
 }) {
   if (!row) {
@@ -66,7 +65,11 @@ export default function NextMatchCard({ row, unreadMessages, extra }: {
         {extra}
       </div>
       <div className="mt-2">
-        <EventBrowseCard event={row.event} relation={row.relation} unreadMessages={unreadMessages} />
+        {/* `odznakiOrganizatora` także tutaj: hero to po prostu PIERWSZY mecz
+            listy, więc nie może gubić plakietek, które niosą pozostałe.
+            Bez tego organizator nie zobaczyłby „2 prośby" ani „brakuje 3"
+            akurat na meczu, który ma najbliżej. */}
+        <EventBrowseCard event={row.event} relation={row.relation} unreadMessages={unreadMessages} odznakiOrganizatora />
       </div>
     </div>
   );

@@ -40,7 +40,7 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew }: {
+export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew, odznakiOrganizatora }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
    *  kto gra, organizuje albo jest na rezerwie (nie dla „obserwuję" ani
@@ -53,9 +53,27 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
    *  = „nowość"). Bez tego zbiorcza kropka nie miała jak wskazać, KTÓRY
    *  konkretnie wpis na liście jest nowy — zgłoszone wprost. */
   isNew?: boolean;
+  /** Plakietki dla ORGANIZATORA: ile próśb o dołączenie czeka i ilu graczy
+   *  brakuje do kompletu. Opt-in, bo poza `/moje-gry` te liczby nie mają
+   *  komu służyć — na publicznej liście czy na mapie karta odpowiada na
+   *  „czy mogę tu zagrać", nie na „co mam do ogarnięcia".
+   *
+   *  Zastąpiły DWIE OSOBNE SEKCJE („Czekają na Twoją decyzję", „Brakuje
+   *  graczy"), które kroiły tę samą listę nadchodzących meczów co lista
+   *  główna. Mecz organizowany, bez kompletu i z prośbą o dołączenie
+   *  pojawiał się przez to na jednym ekranie TRZY RAZY. Fakt o meczu należy
+   *  do karty meczu, nie do własnego nagłówka. */
+  odznakiOrganizatora?: boolean;
 }) {
   const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
+
+  const jestemOrganizatorem = !!relation?.isOrganizer && !!odznakiOrganizatora;
+  const ilePrósb = jestemOrganizatorem ? (event.pendingApprovalCount ?? 0) : 0;
+  const maks = event.maxPlayers ?? 0;
+  const brakuje = jestemOrganizatorem && maks > 0
+    ? Math.max(0, maks - (event.participantsCount ?? 0))
+    : 0;
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
   const router = useRouter();
@@ -166,7 +184,12 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                     }`}>
                       {priceLabel}
                     </span>
-                    {event.requireApproval && (
+                    {/* Konkretna liczba próśb WYPIERA ogólne „Wymaga
+                        akceptacji" — plakietka organizatora w osobnym wierszu
+                        niżej mówi to samo, tylko mocniej: „2 prośby" znaczy
+                        „czekają na CIEBIE", a nie „ten mecz ma taki tryb
+                        zapisu". */}
+                    {ilePrósb === 0 && event.requireApproval && (
                       <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
                         Wymaga akceptacji
                       </span>
@@ -181,6 +204,30 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                 )}
               </div>
             </div>
+
+            {/* PLAKIETKI ORGANIZATORA W OSOBNYM WIERSZU, nie w rzędzie tytułu.
+                W rzędzie tytułu (`shrink-0` obok `truncate`) trzecia plakietka
+                ścinała nazwę meczu do jednej litery — „Czwartkowa gierka"
+                wychodziło jako „C…" na 390 px. Tytuł jest ważniejszy od
+                liczników, więc liczniki schodzą niżej i mogą się zawijać. */}
+            {(ilePrósb > 0 || brakuje > 0) && (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {ilePrósb > 0 && (
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                    {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
+                  </span>
+                )}
+                {/* NEUTRALNA, nie różowa/niebieska/pomarańczowa: brakujący skład
+                    nie jest ani wiadomością, ani prośbą o decyzję, ani nowością,
+                    więc nie wolno mu sięgać po żaden z trzech zarezerwowanych
+                    kolorów (AGENTS.md, Konwencje). */}
+                {brakuje > 0 && (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                    brakuje {brakuje}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
               {/* Ownership tag — a property of the match, not a status. Lives in
