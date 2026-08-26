@@ -174,7 +174,9 @@ export default function VenueDetailClient({
   // (generateStaticParams), and that hook forces a client-side bail-out which
   // fails the production build unless the whole page sits in <Suspense>.
   // The link only has to be right by the time somebody clicks it.
-  const [backHref, setBackHref] = useState('/mapa');
+  // `gry=0`: powrót ze strony BOISKA wraca do katalogu obiektów, a `/mapa`
+  // bez parametru pokazuje dziś gry.
+  const [backHref, setBackHref] = useState('/mapa?gry=0');
   useEffect(() => {
     const wroc = odczytajPowrot();
     if (wroc) setBackHref(wroc);
@@ -315,7 +317,7 @@ export default function VenueDetailClient({
           <div>
             <MapPin className="w-10 h-10 mx-auto mb-3 text-slate-300" />
             <p className="font-medium text-slate-700">Nie znaleziono boiska</p>
-            <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
+            <Link href="/mapa?gry=0" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
             </Link>
           </div>

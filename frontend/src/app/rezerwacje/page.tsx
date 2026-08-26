@@ -218,7 +218,7 @@ export default function MyBookingsPage() {
             <p className="font-medium text-slate-700">Nie masz jeszcze żadnych rezerwacji.</p>
             <p className="text-sm mt-1 mb-6">Znajdź boisko i zarezerwuj swój pierwszy termin.</p>
             <Link
-              href="/mapa"
+              href="/mapa?gry=0"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700"
             >
               <MapPin className="w-4 h-4" />

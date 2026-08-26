@@ -40,7 +40,7 @@ export default async function LandingVenues() {
             </h2>
           </div>
           <Link
-            href="/mapa"
+            href="/mapa?gry=0"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
           >
             Cała mapa boisk <ArrowRight className="h-4 w-4" aria-hidden="true" />
