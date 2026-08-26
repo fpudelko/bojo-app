@@ -81,6 +81,23 @@ const zgloś = (adres, tresc) => bledy.push(`${adres}: ${tresc}`);
 
 const policz = (html, re) => (html.match(re) ?? []).length;
 
+/** Fragmenty tekstu widocznego, które w tym HTML-u występują więcej niż raz.
+ *  Bierze wyłącznie tekst — skrypty, style i znaczniki wypadają, więc JSON-LD
+ *  (który celowo POWTARZA treść strony i tak ma być) nie daje fałszywego alarmu. */
+function duplikatyTresci(html) {
+  const tekst = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, '\n');
+  const widziane = new Map();
+  for (const surowy of tekst.split('\n')) {
+    const fragment = surowy.replace(/&[a-z]+;|&#\d+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (fragment.length < 40) continue;
+    widziane.set(fragment, (widziane.get(fragment) ?? 0) + 1);
+  }
+  return [...widziane].filter(([, n]) => n > 1).map(([f]) => f);
+}
+
 async function sprawdz(trasa) {
   // Tryb miękki: trasa żyjąca z danych, uruchomiona bez bazy. Jeśli mimo to
   // się wyrenderowała — sprawdzamy ją normalnie. Jeśli nie — notatka zamiast
@@ -135,6 +152,21 @@ async function sprawdz(trasa) {
   const robots = html.match(/name="robots" content="([^"]*)"/)?.[1] ?? '';
   if (trasa.noindex && !robots.includes('noindex')) zgloś(trasa.adres, 'miało być noindex, a nie jest');
   if (!trasa.noindex && robots.includes('noindex')) zgloś(trasa.adres, `nieoczekiwany noindex (${robots})`);
+
+  // 6. Ta sama treść dwa razy w DOM-ie. Wzorzec, który to złapał: strona
+  //    `/dlaczego-bojo` renderowała tabelę porównawczą DWA razy — raz jako karty
+  //    (`md:hidden`), raz jako tabelę (`hidden md:block`). Człowiek widział jedną
+  //    wersję, bo drugą chowało CSS; robot dostawał obie i to samo zdanie liczyło
+  //    się podwójnie. To nie jest błąd wyglądu, więc nie widzi go ani Playwright,
+  //    ani żaden test jednostkowy — widać go wyłącznie stąd, od strony HTML-a.
+  //    Próg 40 znaków: krótsze powtórzenia to etykiety nawigacji i przyciski,
+  //    które powtarzają się legalnie (nagłówek i stopka na tej samej stronie).
+  const powtorzone = duplikatyTresci(html);
+  if (powtorzone.length) {
+    const ile = powtorzone.length;
+    const przyklad = powtorzone[0].slice(0, 80);
+    zgloś(trasa.adres, `ta sama treść w DOM ${ile > 1 ? `${ile} razy (fragmenty)` : 'dwa razy'}: „${przyklad}…"`);
+  }
 
   console.log(`  ✓ ${trasa.adres}`);
 }

@@ -698,9 +698,24 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       i liczba tabel, które wymuszają dotknięcie znacznika.
 - [x] **`AGENTS.md`: „463 testy" → 827** — liczba zmierzona przy okazji, nie
       przepisana.
-- [ ] **Deduplikacja tabeli porównawczej na `/dlaczego-bojo`** (pozycja 28) — nadal
-      świadomie niezrobiona; jedyna otwarta pozycja roadmapy po stronie kodu poza
-      pomiarem CWV. Wpływ „niski".
+- [x] **Deduplikacja tabeli porównawczej na `/dlaczego-bojo`** (pozycja 28, zrobione
+      2026-08-26) — strona renderowała `TABELA_POROWNAWCZA` DWA razy: raz jako karty
+      (`md:hidden`), raz jako tabelę (`hidden md:block`). Człowiek widział jedną
+      wersję, bo drugą chowało CSS; robot dostawał obie, więc dziesięć wierszy razy
+      trzy pola szło do HTML-a podwójnie. Dziś jeden `<table>`: wiersz jest blokiem
+      (kartą) na telefonie i wraca do `table-row` od `md:` w górę, wyłącznie przez
+      warianty `min-width`. Nagłówki kolumn zostają schowane na telefonie — tak samo
+      jak w poprzedniej wersji kartowej, więc a11y nie traci nic, co miała.
+      **Bramka, nie tylko poprawka:** `audyt-robota` dostał szósty test —
+      `duplikatyTresci()` wykrywa fragment tekstu widocznego dłuższy niż 40 znaków,
+      który występuje w HTML-u więcej niż raz. Sprawdzone w obie strony: na buildzie
+      sprzed poprawki wykrywa **5 powtórzonych fragmentów** na `/dlaczego-bojo`,
+      po poprawce **0**. Wygląd zweryfikowany osobno i mocniej, niż zrobiłoby to
+      CI: zrzut sekcji `#roznice` z buildu przed i po, w tym samym środowisku,
+      na telefonie (390px) i na komputerze (1280px) — **identyczny co do bajtu**
+      (to samo `sha256`). Ten sam obraz, o połowę mniej DOM-u. Skrypt czyta wyłącznie tekst (skrypty i style wypadają),
+      więc JSON-LD — który celowo powtarza treść strony i tak ma być — nie daje
+      fałszywego alarmu.
 
 **Ocena rundy 3: dalsza praca w kodzie SEO/GEO nie ma już sensu.** Uzasadnienie
 liczbowe pod tabelą roadmapy w `docs/seo-geo-strategia.md`, rozdział 9. W skrócie:

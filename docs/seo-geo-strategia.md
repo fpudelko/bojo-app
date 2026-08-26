@@ -228,6 +228,13 @@ się o co oprzeć. Tryb rundy 3 to zatem **TRYB OKROJONY**:
   — **przeszedł**: 13 tras OK, `/boiska/pilka-nozna/poznan` pominięte (404 bez bazy),
   strona obiektu pominięta (brak realnego sluga).
 
+Sprawdzona i **odpadła też trzecia droga**, na którą łatwo wpaść: adres podglądu
+Vercela z PR-a (`bojo-app-git-<gałąź>-….vercel.app`) kusi, bo deploy podglądowy ma
+prawdziwe klucze Supabase, a więc i prawdziwy katalog obiektów. Ta sama polityka
+blokuje go tak samo jak domenę produkcyjną:
+`curl … .vercel.app/robots.txt` → `CONNECT tunnel failed, response 403`.
+Zapisane wprost, żeby runda 4 nie szukała tam po raz drugi.
+
 **Wniosek bez zmian od rundy 1: strona obiektu i huby miejskie — czyli praktycznie cały
 indeksowalny wolumen — są NIEZWERYFIKOWANE.** Wszystko, co o nich wiemy, wiemy z lektury
 kodu. Trzy rundy z rzędu, trzy różne powody, ten sam brak. To przestaje być pechem
@@ -246,6 +253,46 @@ produkcyjny, `curl` bez JavaScriptu — czyli tak, jak widzi to crawler):
 | Wszystkie 12 landingów sport+miasto istnieje | 12 × HTTP 200 |
 | Liczba tabel w bazie | **53** (schemat postawiony od zera przez `baza-testowa.sh`), nie 45 jak deklarował znacznik w `llm-context.md` |
 | Liczba testów | **827** (`npm test`), nie 775 jak deklarował ten sam znacznik |
+
+**Znalezione przy okazji rundy 3, poza zakresem SEO/GEO: regresja wizualna nie
+pilnuje dziś niczego.** Nie jest to dług SEO i nie wchodzi do listy `D*` niżej, ale
+dotyka narzędzia, na którym opiera się przegląd każdej zmiany widoku — więc zostaje
+zapisane tutaj, żeby nie zginęło.
+
+- **Wzorce nie były aktualizowane od PR #217**, a repozytorium jest na #281 —
+  sześćdziesiąt kilka PR-ów bez odświeżenia (`git log -- frontend/e2e/wzorce/`).
+- **Sześć tras z listy `TRASY` nie ma wzorca w repo w ogóle**: `trasa-rozmowy`,
+  `trasa-rozmowa-ekipy`, `trasa-rozmowa-meczu`, `trasa-rozmowa-prywatna`
+  (rozmowy prywatne, migracja `125`), `trasa-sport-miasto-poznan`,
+  `trasa-sport-miasto-warszawa`. Sprawdzone `git ls-files` — to brak pliku,
+  nie różnica renderowania, więc CI nie ma ich z czym porównać w żadnym
+  środowisku. Te widoki **nigdy nie zostały obejrzane**.
+- **Raport z bota jest dziś nieodróżnialny od szumu.** PR #280 nie zmienia ani
+  jednego piksela (JSON-LD i dwa nagłówki w Markdownie), a dostał **dokładnie ten
+  sam** raport co #281, który zmienia układ linków: „zmienione: 11, nowe: 5"
+  (scenariusze) i „zmienione: 17, nowe: 12" (widoki publiczne). Skoro no-op i realna
+  zmiana wyglądają identycznie, raport nie niesie informacji.
+
+Skutek, który trzeba nazwać: mechanizm opisany w AGENTS.md („zmiana widoku pokazuje
+się w PR-ze jako różnica obrazków, do przejrzenia") **nie działa** — nie dlatego, że
+jest źle zbudowany, tylko dlatego, że nikt nie nadał etykiety `zrzuty:zaakceptuj`
+od #217. Następna prawdziwa regresja wizualna utonie w dwudziestu dziewięciu
+obrazkach, których nikt nie przegląda.
+
+**Czego świadomie NIE zrobiłem:** nie przyjąłem wzorców za właściciela. AGENTS.md
+mówi wprost, że wzorce wchodzą do repo dopiero po etykiecie, bo pierwszy zrzut widoku
+staje się wzorcem na zawsze i to jego warto obejrzeć. Lokalny przebieg
+`npm run zrzuty` dopisał brakujące pliki — usunąłem je, wzorce w repo są nietknięte.
+**Do rozstrzygnięcia przez właściciela:** przejrzeć raport na dowolnym otwartym PR-ze
+i nadać `zrzuty:zaakceptuj` raz, żeby wrócić do stanu, w którym różnica obrazków
+znaczy „coś się zmieniło". Jedno kliknięcie odblokowuje narzędzie, które od
+sześćdziesięciu PR-ów tylko generuje hałas.
+
+**NIEZWERYFIKOWANE:** lokalny `npm run zrzuty` pokazał 42 różnice na 131 zrzutów, ale
+tej liczby **nie wolno czytać jako stanu mastera** — renderowanie czcionek w tym
+kontenerze różni się od CI (CI podało 17 zmienionych tam, gdzie lokalnie wyszło ~36).
+Przenośne są wyłącznie dwie rzeczy wyżej: brak sześciu plików i identyczny raport
+na no-opie.
 
 ### DŁUG — rzeczy zepsute albo niespójne
 
@@ -1355,7 +1402,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
-| 28 | Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx` | `audyt-robota` (rozszerzony o sprawdzenie duplikatów tekstu) nie znajduje tej samej treści dwa razy |
+| 28 | ~~Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM~~ **ZROBIONE 2026-08-26** | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx`; `scripts/audyt-robota.mjs#duplikatyTresci` | spełnione: detektor łapał 5 powtórzonych fragmentów przed poprawką, 0 po |
 
 ### Czy dalsza praca w kodzie ma jeszcze sens — ocena z 2026-08-26 (runda 3)
 
@@ -1627,7 +1674,9 @@ Uczciwa lista granic tego dokumentu:
   tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci,
   z gorszym środowiskiem niż poprzednio: demon Dockera w ogóle nie działa, więc odpada
   nie tylko rejestr obrazów, ale i sam `stos-lokalny.sh`. Pełny wynik przebiegu —
-  rozdział 0, „Runda 3".
+  rozdział 0, „Runda 3". Odpada też adres podglądu Vercela z PR-a, mimo że deploy
+  podglądowy ma prawdziwe klucze Supabase — blokuje go ta sama polityka (403 na
+  CONNECT).
   Stan z rundy 2, nadal aktualny co do istoty: Polityka sieciowa środowiska blokuje
   `bojo.pl` (`curl`: „CONNECT tunnel failed, 403"; `WebFetch`: `EGRESS_BLOCKED`) ORAZ
   rejestr Dockera (`docker run hello-world` → 403 z `production.cloudfront.docker.com`),
