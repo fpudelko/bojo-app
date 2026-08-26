@@ -83,6 +83,29 @@ export function freeSpots(e: Pick<EventItem, 'maxPlayers' | 'participantsCount'>
   return (e.maxPlayers ?? 0) - (e.participantsCount ?? 0);
 }
 
+/**
+ * Skład w formacie „8/14" — na pinezkę mapy i wszędzie, gdzie liczy się jedno
+ * spojrzenie zamiast czytania.
+ *
+ * `null`, gdy nie znamy liczby zapisanych. To nie jest ostrożność na zapas:
+ * `participantsCount` wypełniają WYŁĄCZNIE zapytania listowe (join do
+ * `event_participants`), więc wywołanie na meczu z innego źródła narysowałoby
+ * „undefined/14". Lepiej nie pokazać nic niż liczbę, której nie ma.
+ *
+ * `komplet` niesie stan, nie kolor — kolor bierze się z `lib/komplet.ts`,
+ * żeby wszystkie miejsca w apce malowały komplet tak samo (niebiesko, patrz
+ * decyzja właściciela w nagłówku tamtego pliku).
+ */
+export function etykietaSkladu(
+  e: Pick<EventItem, 'maxPlayers' | 'participantsCount'>,
+): { tekst: string; komplet: boolean } | null {
+  if (e.participantsCount == null || e.maxPlayers == null) return null;
+  return {
+    tekst: `${e.participantsCount}/${e.maxPlayers}`,
+    komplet: e.participantsCount >= e.maxPlayers,
+  };
+}
+
 export interface EventRow {
   event: EventItem;
   /** Kilometry od użytkownika; undefined, gdy mecz nie ma współrzędnych. */

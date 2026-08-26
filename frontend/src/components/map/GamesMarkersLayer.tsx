@@ -3,17 +3,30 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { EventRow } from '@/lib/eventFilters';
+import { etykietaSkladu, type EventRow } from '@/lib/eventFilters';
+import { KOLOR_PASKA_KOMPLET } from '@/lib/komplet';
 import { sportColor, sportEmoji } from '@/lib/sports';
 import { matchWhenLabel } from '@/lib/eventDates';
 import { clusterDivIcon } from './mapIcons';
 
 /** Pinezka pojedynczego meczu — kółko w kolorze sportu z emoji sportu w
- *  środku (odpowiada na „jaki sport") i etykietą „kiedy + która godzina" pod
- *  spodem (dziś · 18:00 / jutro · 18:00 / w piątek · 20:30 / 12 wrz · 18:00 —
- *  ten sam format co `matchWhenLabel` gdzie indziej w apce, np. NextMatchCard).
- *  Cena i reszta szczegółów zostają w panelu po dotknięciu — na samej pinezce
- *  więcej tekstu byłoby nieczytelne. */
+ *  środku (odpowiada na „jaki sport"), pod nim „kiedy + która godzina"
+ *  (dziś · 18:00 / jutro · 18:00 / w piątek · 20:30 / 12 wrz · 18:00 — ten sam
+ *  format co `matchWhenLabel` gdzie indziej w apce, np. NextMatchCard), a pod
+ *  tym SKŁAD w formacie „8/14".
+ *
+ *  DLACZEGO SKŁAD JEST NA PINEZCE, a nie dopiero w panelu. Pytanie, które
+ *  decyduje o dotknięciu, brzmi „czy jest tam jeszcze miejsce" — bez tej
+ *  liczby trzeba było otworzyć każdą pinezkę po kolei, żeby się dowiedzieć,
+ *  że wszystkie są pełne. Komplet malujemy niebiesko (`lib/komplet.ts`):
+ *  ta sama reguła co na kartach, komplet nie jest awarią.
+ *
+ *  Druga linijka, nie doklejenie do pierwszej: „jutro · 18:00 · 8/14" nie
+ *  mieści się w szerokości pinezki, a zwężanie odstępu między pinezkami jest
+ *  droższe niż jeden wiersz w pionie.
+ *
+ *  Cena i reszta szczegółów zostają w panelu po dotknięciu — tam jest miejsce
+ *  na zdania. */
 function eventIcon(row: EventRow, selected: boolean): L.DivIcon {
   const { event } = row;
   const color = selected ? '#1e40af' : sportColor(event.sport);
@@ -21,15 +34,24 @@ function eventIcon(row: EventRow, selected: boolean): L.DivIcon {
   const width = 92;
   const emoji = sportEmoji(event.sport);
   const when = matchWhenLabel(event.date, event.time);
+  const sklad = etykietaSkladu(event);
+  const pigulkaSkladu = sklad
+    ? `<span style="margin-top:2px;padding:1px 6px;border-radius:8px;background:${
+        sklad.komplet ? KOLOR_PASKA_KOMPLET : 'white'
+      };font-size:10px;font-weight:700;color:${
+        sklad.komplet ? 'white' : '#334155'
+      };white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.22)">${sklad.tekst}</span>`
+    : '';
   return L.divIcon({
     html: `<div style="display:flex;flex-direction:column;align-items:center;width:${width}px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">
       <div style="width:${circle}px;height:${circle}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;border:2.5px solid white;flex-shrink:0">
         <span style="font-size:${selected ? 16 : 13}px;line-height:1">${emoji}</span>
       </div>
       <span style="margin-top:2px;padding:1px 6px;border-radius:8px;background:white;font-size:10px;font-weight:700;color:#334155;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.22)">${when}</span>
+      ${pigulkaSkladu}
     </div>`,
     className: '',
-    iconSize: [width, circle + 20],
+    iconSize: [width, circle + (sklad ? 36 : 20)],
     iconAnchor: [width / 2, circle / 2],
   });
 }

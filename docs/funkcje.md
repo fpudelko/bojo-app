@@ -1481,10 +1481,17 @@ deterministycznie z tytułu (ten sam mecz zawsze w tym samym punkcie, więc zrzu
 się nie ruszają; różne mecze w różnych, więc pinezki nie siedzą jedna na drugiej).
 
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
-sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
+sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — etykietą
 „kiedy + godzina" pod spodem (`matchWhenLabel(date, time)`: dziś · 18:00 / jutro · 18:00
 / w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np.
-`NextMatchCard`). Cena i reszta szczegółów zostają
+`NextMatchCard`), a pod nią **skład w formacie „8/14"** (`etykietaSkladu()`
+w `lib/eventFilters.ts`). Pytanie, które decyduje o dotknięciu pinezki, brzmi „czy jest
+tam jeszcze miejsce" — bez tej liczby trzeba było otwierać każdą po kolei, żeby się
+dowiedzieć, że wszystkie są pełne. Komplet malowany niebiesko (`lib/komplet.ts`, ta sama
+reguła co na kartach: komplet nie jest awarią). Druga linijka, nie doklejenie do
+pierwszej — „jutro · 18:00 · 8/14" nie mieści się w szerokości pinezki. Gdy
+`participantsCount` nie jest znane (zapytania bez joinu do `event_participants`),
+pigułki nie ma wcale: lepiej nic niż „undefined/14". Cena i reszta szczegółów zostają
 w panelu po dotknięciu — na samej pinezce więcej tekstu byłoby nieczytelne. Klaster
 (kilka meczów blisko siebie) pokazuje kolorowe kółko z liczbą, tym samym
 `clusterDivIcon()` co klastry boisk na `/mapa`.
