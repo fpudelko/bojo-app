@@ -885,6 +885,16 @@ uczciwie, bo Bojo nie ma żadnego profilu poza własną domeną. To wiąże rozd
 z rozdziałem 6: **dane strukturalne nie zbudują encji, jeśli encja nie istnieje nigdzie
 indziej.**
 
+**Stan na 2026-08-26 (runda 3):** `alternateName` i `disambiguatingDescription`
+**dopisane** (`lib/structuredData.ts#siteJsonLd`), zweryfikowane w surowym HTML
+lokalnego builda produkcyjnego. `sameAs` nadal **nie** — i to jest jedyne pole
+zablokowane pozycją 15. Przez dwie rundy cała trójka stała w BACKLOG-u jako jedna
+pozycja „czeka na Jana", choć dwa pola z trzech nie zależały od niczego poza repo;
+to spłaszczenie było powodem, dla którego zmiana o „największym znaczeniu" w tym
+rozdziale nie została wykonana przez dwie rundy. Wniosek ogólniejszy niż ta pozycja:
+**pozycja backlogu zablokowana w całości przez jedną ze swoich części zostaje
+niezrobiona w całości.**
+
 ### 5b. Potwierdzenia graczy jako dane strukturalne
 
 Faza 3 (mikro-ankiety) stworzyła dane, których nie ma nikt inny, i nie wystawiła ich
@@ -947,7 +957,8 @@ potwierdził, że czyta `llms.txt`, więc plik ma być krótki i tani. Trzy zmia
 
 1. **Ujednolicić liczbę obiektów** (D13). Jedna wartość, w jednym miejscu, z datą.
    Dziś w czterech miejscach są cztery różne.
-2. **Dopisać jedno zdanie ujednoznaczniające** do nagłówka `llms.txt` i `llm-context.md`:
+2. ~~**Dopisać jedno zdanie ujednoznaczniające** do nagłówka `llms.txt` i `llm-context.md`~~
+   **ZROBIONE 2026-08-26** (runda 3; proponowane w rundzie 1, przez dwie rundy niedopisane):
    „Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
    dokument dotyczy aplikacji bojo.pl." Model czytający plik na zimno dostaje wtedy
    rozstrzygnięcie od razu, a nie zgaduje.

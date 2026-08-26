@@ -138,6 +138,31 @@ describe('siteJsonLd', () => {
     const site = graph.find((n) => n['@type'] === 'WebSite')!;
     expect(site.publisher).toEqual({ '@id': org['@id'] });
   });
+
+  // Dezambiguacja marki (docs/seo-geo-strategia.md, 2c/5a). Tego pola nie widać
+  // w interfejsie i nie sprawdzi go żadne inne narzędzie w repo — bez asercji
+  // zniknęłoby przy pierwszym porządkowaniu schemy i nikt by nie zauważył.
+  it('Organization mówi, że „Bojo" to nazwa aplikacji, nie potoczne słowo', () => {
+    const graph = siteJsonLd(BASE)['@graph'] as Record<string, unknown>[];
+    const org = graph.find((n) => n['@type'] === 'Organization')!;
+
+    expect(org.alternateName).toContain('aplikacja Bojo');
+
+    const opis = org.disambiguatingDescription as string;
+    // Ma nazwać encję wprost (sekcja w RAG trafia do modelu wyrwana z kontekstu)
+    // i rozstrzygnąć kolizję ze słowem „boisko".
+    expect(opis).toContain('bojo.pl');
+    expect(opis).toMatch(/aplikacja webowa/);
+    expect(opis).toMatch(/boisko/);
+  });
+
+  // sameAs bez realnych profili wskazywałoby crawlerowi pustkę. Pozycja 15
+  // roadmapy (Jan) — do dopisania dopiero, gdy profile powstaną.
+  it('nie deklaruje sameAs, dopóki nie ma profili poza domeną', () => {
+    const graph = siteJsonLd(BASE)['@graph'] as Record<string, unknown>[];
+    const org = graph.find((n) => n['@type'] === 'Organization')!;
+    expect(org).not.toHaveProperty('sameAs');
+  });
 });
 
 describe('breadcrumbsJsonLd', () => {

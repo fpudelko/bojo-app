@@ -19,10 +19,23 @@ export function siteJsonLd(base: string = SITE_URL) {
         '@type': 'Organization',
         '@id': `${base}/#organization`,
         name: 'Bojo',
+        alternateName: ['Bojo.pl', 'aplikacja Bojo'],
+        // "Bojo" collides with a colloquial Polish word for "boisko" (pitch), so a
+        // brand query lands in a dictionary entry instead of this product. These two
+        // fields are the only place where that can be stated to a machine outright;
+        // everything else on the site can only imply it (docs/seo-geo-strategia.md, 2c/5a).
+        disambiguatingDescription:
+          'Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów sportowych '
+          + 'w Polsce. Nazwa pokrywa się z potocznym polskim słowem „bojo" oznaczającym boisko '
+          + '— ten wpis dotyczy aplikacji.',
         url: base,
         description:
           'Platforma do organizowania amatorskich meczów sportowych i baza boisk w Polsce.',
         areaServed: { '@type': 'Country', name: 'Polska', addressCountry: 'PL' },
+        // sameAs is deliberately absent: Bojo has no profile outside its own domain
+        // yet. An empty or invented sameAs is worse than none — it points a crawler
+        // at nothing and costs the trust the field is meant to earn. Fill it in only
+        // once the profiles exist (roadmap item 15, Jan).
       },
       {
         '@type': 'WebSite',
