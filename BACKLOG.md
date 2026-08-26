@@ -526,10 +526,29 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       (testowalna bez renderowania), treść w `content/kalkulator.ts`. Zweryfikowane
       end-to-end w prawdziwej przeglądarce (Playwright): 280 zł / 14 graczy = 20,00 zł,
       zmiana na 10 graczy → 28,00 zł, 3 graczy z kartą i zniżką 5 zł → 23,00 zł.
-- [ ] **`alternateName` + `disambiguatingDescription` w `Organization`** — nazwa „Bojo"
-      koliduje z potocznym słowem oznaczającym boisko, więc zapytania markowe trafiają
-      dziś w słownik. **Czeka na pozycję „Trzy profile poza domeną" (Jan)** — puste albo
-      zmyślone `sameAs` jest gorsze niż jego brak (docs/seo-geo-strategia.md, 5a).
+- [x] **`alternateName` + `disambiguatingDescription` w `Organization`** (zrobione
+      2026-08-26) — **pozycja była zablokowana niesłusznie**. Do rundy 3 stała tu jedna
+      pozycja czekająca na Jana, choć 5a od początku rozdziela trzy pola: `alternateName`
+      i `disambiguatingDescription` opisują Bojo samo w sobie i nie zależą od niczego
+      poza repo; na profilach czeka **wyłącznie `sameAs`** (pozycja niżej). Przez dwie
+      rundy nie dopisał ich nikt, bo spłaszczenie do jednej pozycji ukryło, że dwa
+      z trzech pól są odblokowane. `lib/structuredData.ts#siteJsonLd` niesie dziś oba;
+      `disambiguatingDescription` mówi wprost, że wpis dotyczy aplikacji, a nie
+      potocznego słowa oznaczającego boisko. Zweryfikowane w surowym HTML z lokalnego
+      builda produkcyjnego (`curl` bez JS, `"alternateName":["Bojo.pl","aplikacja
+      Bojo"]` w JSON-LD strony głównej). Test: `structuredData.test.ts` — pole istnieje
+      i mówi o aplikacji, plus asercja, że `sameAs` NIE zostało dopisane na zapas.
+- [ ] **`sameAs` w `Organization`** — **to jest ta część, która realnie czeka na
+      pozycję „Trzy profile poza domeną" (Jan).** Puste albo zmyślone `sameAs` jest
+      gorsze niż jego brak: wskazuje crawlerowi pustkę i kosztuje zaufanie, które to
+      pole ma budować (docs/seo-geo-strategia.md, 5a). Dopisać w tym samym miejscu
+      (`lib/structuredData.ts#siteJsonLd`, komentarz przy `areaServed` mówi gdzie)
+      dopiero wtedy, gdy profile realnie istnieją — wtedy usunąć też asercję
+      „nie deklaruje sameAs" z `structuredData.test.ts`.
+- [x] **Zdanie ujednoznaczniające w nagłówkach `llms.txt` i `llm-context.md`**
+      (zrobione 2026-08-26, 5e punkt 2) — proponowane w rundzie 1, nigdy niedopisane.
+      Model czytający którykolwiek z tych plików na zimno dostaje rozstrzygnięcie
+      kolizji nazwy w nagłówku, zanim zacznie zgadywać z treści.
 - [x] **Potwierdzenia graczy w `amenityFeature`** (zrobione 2026-08-24) —
       `venueAmenityFeatures()` w `lib/structuredData.ts`, quorum współdzielone z
       `AnkietyObiektu.tsx` przez `lib/potwierdzeniaObiektu.ts#najlepszePotwierdzenie`/

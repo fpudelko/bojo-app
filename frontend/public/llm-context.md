@@ -4,6 +4,9 @@
 > (katalog boisk obejmuje całą Polskę): mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
+>
+> Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
+> dokument dotyczy aplikacji bojo.pl.
 
 **Stan na:** 2026-08-23 · migracja `125` · 45 tabel · 775 testów
 
