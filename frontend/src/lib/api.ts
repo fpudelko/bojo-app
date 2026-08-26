@@ -86,6 +86,29 @@ export interface Kadr {
   lngMax: number;
 }
 
+/**
+ * Kwadrat o boku ~2 × `promienKm` wokół punktu — do zapytań „co jest blisko".
+ *
+ * Stopień szerokości to ~111 km wszędzie; stopień DŁUGOŚCI kurczy się wraz
+ * z cosinusem szerokości, więc bez tej poprawki kadr nad Polską byłby o jakąś
+ * trzecią za wąski w poziomie. Ta sama matematyka siedziała dotąd wpisana
+ * w `policzBoiskaWOkolicy()` — teraz jest jedna i przetestowana.
+ *
+ * To KWADRAT, nie koło: baza nie ma PostGIS (patrz nagłówek migracji `112`),
+ * więc filtrujemy po `lat`/`lng` z indeksów, a odległość liczy się dopiero
+ * po stronie klienta (`distanceKm`). W rogach kwadratu wpadają więc obiekty
+ * nieco dalsze niż promień — wywołujący, który tego nie chce, sortuje albo
+ * przycina po `distanceKm`.
+ */
+export function kadrWokol(lat: number, lng: number, promienKm: number): Kadr {
+  const dLat = promienKm / 111;
+  const dLng = promienKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return {
+    latMin: lat - dLat, latMax: lat + dLat,
+    lngMin: lng - dLng, lngMax: lng + dLng,
+  };
+}
+
 /** Skupisko obiektów w komórce siatki — dla oddalonych widoków. */
 export interface Skupisko {
   lat: number;
@@ -355,21 +378,57 @@ export async function policzBoiskaWOkolicy(
   lng: number,
   promienKm: number,
 ): Promise<number> {
-  // Stopień szerokości to ~111 km wszędzie; stopień długości kurczy się wraz
-  // z cosinusem szerokości, więc bez tej poprawki kadr nad Polską byłby o jakąś
-  // trzecią za wąski w poziomie.
-  const dLat = promienKm / 111;
-  const dLng = promienKm / (111 * Math.cos((lat * Math.PI) / 180));
+  const kadr = kadrWokol(lat, lng, promienKm);
 
   const { count, error } = await supabase
     .from('fields')
     .select('id', { count: 'exact', head: true })
     .eq('map_visibility', 'public')
-    .gte('lat', lat - dLat)
-    .lte('lat', lat + dLat)
-    .gte('lng', lng - dLng)
-    .lte('lng', lng + dLng);
+    .gte('lat', kadr.latMin)
+    .lte('lat', kadr.latMax)
+    .gte('lng', kadr.lngMin)
+    .lte('lng', kadr.lngMax);
 
   if (error) return 0;
   return count ?? 0;
+}
+
+/**
+ * Ile obiektów ma każde z podanych miast (`fields.city`, migracja `112`).
+ *
+ * JEDNO ZAPYTANIE NA MIASTO, świadomie. PostgREST nie robi `GROUP BY` bez
+ * funkcji w bazie, a funkcja znaczy migrację uruchamianą ręcznie na produkcji
+ * — za dużo jak na policzenie kilkunastu liczb, które i tak pokazujemy raz,
+ * w pustym stanie listy. Zapytania są `head: true` (same nagłówki, zero
+ * wierszy) i lecą równolegle.
+ *
+ * UWAGA NA POKRYCIE DANYCH: `city` wypełnia osobny, ręcznie uruchamiany
+ * backfill (`scraper/backfill_lokalizacja.py`), więc w bazie, w której go nie
+ * puszczono, wszystkie liczby wyjdą zerowe. Wywołujący ma wtedy schować całą
+ * sekcję, a nie pokazywać listę miast z zerami — patrz `VenueExplorer`.
+ */
+export async function policzBoiskaWMiastach(miasta: string[]): Promise<Record<string, number>> {
+  const pary = await Promise.all(miasta.map(async (miasto) => {
+    const { count, error } = await supabase
+      .from('fields')
+      .select('id', { count: 'exact', head: true })
+      .eq('map_visibility', 'public')
+      .overlaps('sport', EXPLORER_SPORTS)
+      .eq('city', miasto);
+    return [miasto, error ? 0 : count ?? 0] as const;
+  }));
+  return Object.fromEntries(pary);
+}
+
+/** Obiekty w mieście — po dotknięciu kafelka miasta w pustym stanie listy. */
+export async function getFieldsWMiescie(miasto: string, limit = 200): Promise<Field[]> {
+  const { data, error } = await supabase
+    .from('fields')
+    .select(EXPLORER_COLS)
+    .eq('map_visibility', 'public')
+    .overlaps('sport', EXPLORER_SPORTS)
+    .eq('city', miasto)
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toField);
 }

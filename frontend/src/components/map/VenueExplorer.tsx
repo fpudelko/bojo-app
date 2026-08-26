@@ -24,8 +24,11 @@ import { useMyInvites } from '@/lib/useMyInvites';
 import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
+  policzBoiskaWMiastach, getFieldsWMiescie, kadrWokol,
   type Kadr, type Skupisko,
 } from '@/lib/api';
+import { NAJWIEKSZE_MIASTA, miastaDoPokazania } from '@/lib/miasta';
+import PustaListaObiektow from './PustaListaObiektow';
 import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
 import { isEventJoinable } from '@/lib/eventDates';
@@ -886,6 +889,61 @@ export default function VenueExplorer({
     return stats;
   }, [events, today]);
 
+  // ── Pusty stan listy: „blisko mnie" i miasta ──────────────────────────
+  // Obie drogi kończą się w `setSearchResults()`, czyli w tej samej ścieżce co
+  // szukanie po nazwie: lista bierze wtedy źródło z wyników zamiast z kadru,
+  // a efekt wyżej sam dopasowuje mapę do tego, co przyszło. Zero nowej
+  // maszynerii na coś, co już działa.
+  const [liczbyMiast, setLiczbyMiast] = useState<Record<string, number> | null>(null);
+  const [ladujeBlisko, setLadujeBlisko] = useState(false);
+  const [bladGeoListy, setBladGeoListy] = useState<string | null>(null);
+
+  const trybSkupiskTeraz = zoom < ZOOM_SKUPISK;
+  useEffect(() => {
+    // Liczby ciągniemy raz i dopiero, gdy pusty stan naprawdę jest na ekranie
+    // — to kilkanaście zapytań `head`, nie ma powodu robić ich na wejściu.
+    if (!trybSkupiskTeraz || liczbyMiast !== null) return;
+    let anulowane = false;
+    policzBoiskaWMiastach([...NAJWIEKSZE_MIASTA])
+      .then((l) => { if (!anulowane) setLiczbyMiast(l); })
+      .catch(() => { if (!anulowane) setLiczbyMiast({}); });
+    return () => { anulowane = true; };
+  }, [trybSkupiskTeraz, liczbyMiast]);
+
+  const pokazBliskoMnie = async () => {
+    setBladGeoListy(null);
+    setLadujeBlisko(true);
+    const res = await getCurrentLocation();
+    if (!res.ok) {
+      setLadujeBlisko(false);
+      setBladGeoListy(geoErrorMessage(res.kind));
+      return;
+    }
+    try {
+      // 15 km: tyle, ile realnie da się dojechać na mecz po pracy. Przy
+      // mniejszym promieniu na wsi wychodzi pusto, przy większym w mieście
+      // lista przestaje być listą „blisko".
+      const znalezione = await getExplorerFields(kadrWokol(res.lat, res.lng, 15));
+      // Kwadrat, nie koło (patrz `kadrWokol`) — sortowanie po prawdziwej
+      // odległości robi z tego użyteczną kolejność.
+      znalezione.sort((a, b) =>
+        distanceKm(res.lat, res.lng, a.lat, a.lng) - distanceKm(res.lat, res.lng, b.lat, b.lng));
+      setSearchResults(znalezione);
+      if (znalezione.length === 0) setBladGeoListy('W promieniu 15 km nie ma jeszcze żadnego obiektu w katalogu.');
+    } catch {
+      setBladGeoListy('Nie udało się pobrać obiektów. Spróbuj jeszcze raz.');
+    }
+    setLadujeBlisko(false);
+  };
+
+  const pokazMiasto = async (nazwa: string) => {
+    try {
+      setSearchResults(await getFieldsWMiescie(nazwa));
+    } catch {
+      setBladGeoListy('Nie udało się pobrać obiektów. Spróbuj jeszcze raz.');
+    }
+  };
+
   const fields = useMemo(() => {
     // Aktywne szukanie podmienia źródło: wyniki z całego katalogu zamiast
     // tego, co akurat wczytane dla bieżącego kadru (patrz searchResults wyżej).
@@ -1439,29 +1497,25 @@ export default function VenueExplorer({
                 się pojedyncze obiekty, i lista wypełnia się bez wychodzenia
                 z listy. */}
             {fields.length === 0 && trybSkupisk && (
-              <div className="pt-8 text-center">
-                <p className="text-sm text-slate-400">
-                  {wKadrze.toLocaleString('pl-PL')} {boiskoSlowo(wKadrze)} w tym widoku
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!mapInstance) return;
-                    // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
-                    // Samo `setZoom` trzyma środek, a środek widoku całej
-                    // Polski to pole pod Łodzią — przybliżenie kończyłoby się
-                    // wtedy listą „0 boisk", czyli dokładnie tym, co ten
-                    // przycisk ma naprawić.
-                    const najwieksze = skupiska.reduce<Skupisko | null>(
-                      (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
-                    if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
-                    else mapInstance.setZoom(ZOOM_SKUPISK);
-                  }}
-                  className="mt-3 rounded-xl border border-primary-700 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
-                >
-                  Przybliż tam, gdzie jest ich najwięcej
-                </button>
-              </div>
+              <PustaListaObiektow
+                miasta={liczbyMiast ? miastaDoPokazania(liczbyMiast) : []}
+                ladujeMiasta={liczbyMiast === null}
+                ladujeBlisko={ladujeBlisko}
+                bladGeo={bladGeoListy}
+                naBliskoMnie={pokazBliskoMnie}
+                naMiasto={pokazMiasto}
+                naPrzyblizenie={() => {
+                  if (!mapInstance) return;
+                  // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
+                  // Samo `setZoom` trzyma środek, a środek widoku całej Polski
+                  // to pole pod Łodzią — przybliżenie kończyłoby się wtedy
+                  // listą „0 boisk", czyli dokładnie tym, co ma naprawić.
+                  const najwieksze = skupiska.reduce<Skupisko | null>(
+                    (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
+                  if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
+                  else mapInstance.setZoom(ZOOM_SKUPISK);
+                }}
+              />
             )}
             {fields.length === 0 && !trybSkupisk && (searchResults ?? allFields).length > 0 && (
               <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
