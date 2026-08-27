@@ -116,7 +116,7 @@ export default function DlaczegoBojoPage() {
             Jak działa Bojo — krok po kroku
           </Link>
           <Link
-            href="/mapa"
+            href="/mapa?gry=0"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-300"
           >
             Mapa boisk

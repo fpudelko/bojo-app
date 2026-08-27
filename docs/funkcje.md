@@ -1898,6 +1898,27 @@ jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
 
 ### Widok listy (mobile) — nowość
 
+**`/mapa` otwiera się na OTWARTYCH MECZACH w liście, nie na katalogu boisk** (od
+2026-08-26). Wcześniej domyślny był katalog, a gry wymagały `?gry=1`. Dolna nawigacja
+obchodziła to własnym adresem (`hrefPelny: '/mapa?gry=1'`), ale każde INNE wejście —
+kropka „Nowa gra w promieniu 5 km", udostępniony link, wynik z wyszukiwarki — lądowało
+na obiektach, czyli na odpowiedzi na inne pytanie niż „w co mogę dziś zagrać". Katalog
+~33 tys. obiektów z OSM jest podstawą pod SEO i „zorganizuj tutaj"; pierwszym ekranem dla
+gracza są mecze (zgłoszone wprost).
+
+Semantyka parametru odwrócona: `showGames = searchParams.get('gry') !== '0'`, a przy
+wyjściu z gier w adresie ląduje `gry=0` (wcześniej gry zostawiały `gry=1`). Widok idzie za
+trybem — `useState(showGames ? 'lista' : 'mapa')` — więc gołe `/mapa` to lista kart
+z liczbą graczy, nie oddalona mapa ze skupiskami.
+
+**Druga połowa tej zmiany jest równie ważna:** wszystkie wejścia, które naprawdę chcą
+katalogu, mówią to teraz wprost adresem `?gry=0` — „Mapa boisk" w nagłówku i stopce,
+landing, `/jak-dziala-bojo`, `/dlaczego-bojo`, strony `/boiska/*` i `/[sport]/[miasto]`,
+powrót ze strony boiska (`backHref`), panele obiektu w `/admin` oraz **przełącznik
+„Obiekty" na `/wydarzenia`** — ten ostatni bez `gry=0` odsyłałby z powrotem do gier.
+Pilnuje tego `e2e/szukaj-domyslnie-mecze.klikalnosc.spec.ts`, sprawdzając obie strony
+zamiany.
+
 **Pusta lista obiektów nie jest ślepym zaułkiem** (`components/map/PustaListaObiektow.tsx`).
 Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA — w trybie skupisk z bazy lecą same
 liczby w siatce, nie obiekty. Stał tam wcześniej jeden przycisk: „Przybliż tam, gdzie

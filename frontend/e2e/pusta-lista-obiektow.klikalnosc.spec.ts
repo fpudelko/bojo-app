@@ -58,7 +58,9 @@ async function podstaw(page: Page) {
 
 test('pusta lista obiektów daje drogi dalej, nie tylko „przybliż"', async ({ page }) => {
   await podstaw(page);
-  await page.goto('/mapa');
+  // `?gry=0` — pusty stan, o który tu chodzi, należy do KATALOGU OBIEKTÓW,
+  // a gołe `/mapa` pokazuje od 2026-08-26 otwarte mecze.
+  await page.goto('/mapa?gry=0');
   await page.waitForTimeout(3500);
 
   // Dwa przełączniki w DOM (nakładka mobilna i pasek desktopu) — trafiamy

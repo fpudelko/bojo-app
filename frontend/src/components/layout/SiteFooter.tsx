@@ -34,7 +34,7 @@ export default function SiteFooter() {
           <GrupaLinkow tytul="Produkt">
             <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź mecz</Link>
             <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>
-            <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
+            <Link href="/mapa?gry=0" className="transition-colors hover:text-white">Mapa boisk</Link>
             <Link href="/grupy" className="transition-colors hover:text-white">Grupy</Link>
             {SHOW_RECURRING && (
               <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>

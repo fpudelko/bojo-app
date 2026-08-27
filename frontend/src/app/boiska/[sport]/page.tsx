@@ -212,7 +212,7 @@ export default async function SportCategoryPage(
         )}
 
         <div className="mt-10 flex flex-col items-center gap-2 text-center">
-          <Link href="/mapa" className="text-primary-600 hover:underline text-sm">
+          <Link href="/mapa?gry=0" className="text-primary-600 hover:underline text-sm">
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">

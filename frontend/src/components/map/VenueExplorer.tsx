@@ -550,10 +550,22 @@ export default function VenueExplorer({
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
-  // „Pokaż gry" (D11/D12) — jedyny stan trybu gier trzymany w URL, tak jak
-  // today. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
+  // Tryb gier albo obiektów — jedyny stan tego przełącznika trzymany w URL, tak
+  // jak `today`. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
   // z tym, że /wydarzenia też nie trzyma swoich filtrów w URL.
-  const showGames = searchParams.get('gry') === '1';
+  //
+  // GRY SĄ DOMYŚLNE, obiekty wymagają jawnego `?gry=0` — odwrotnie niż do
+  // 2026-08-26. Człowiek wchodzący tu z pytaniem „w co mogę dziś zagrać"
+  // dostawał katalog boisk i musiał znaleźć przełącznik, o którym trzeba było
+  // wiedzieć. Dolna nawigacja obchodziła to własnym `?gry=1`, ale każde inne
+  // wejście na `/mapa` — kropka „Nowa gra w promieniu 5 km", udostępniony
+  // link, wynik z wyszukiwarki — lądowało na obiektach. Katalog ~33 tys.
+  // obiektów z OSM jest podstawą pod SEO i „zorganizuj tutaj"; pierwszym
+  // ekranem dla gracza są OTWARTE MECZE (zgłoszone wprost).
+  //
+  // Wejścia, które naprawdę chcą katalogu („Mapa boisk" w nagłówku i stopce,
+  // landing, /dlaczego-bojo, panel obiektu), mówią to teraz wprost adresem.
+  const showGames = searchParams.get('gry') !== '0';
   // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
   // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
@@ -591,7 +603,8 @@ export default function VenueExplorer({
       if (patch.today) p.set('today', '1'); else p.delete('today');
     }
     if (patch.gry !== undefined) {
-      if (patch.gry) p.set('gry', '1'); else p.delete('gry');
+      // Gry są domyślne, więc w adresie zostaje ślad tylko po WYJŚCIU z nich.
+      if (patch.gry) p.delete('gry'); else p.set('gry', '0');
     }
     router.replace(`/mapa?${p.toString()}`, { scroll: false });
   }
