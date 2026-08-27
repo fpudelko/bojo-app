@@ -2133,6 +2133,65 @@ tylko dlatego, że migracja czeka w kolejce. Rozpoznaje po kodzie `42703` (Postg
 Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts` (kółka skupisk i filtr lokalny)
 oraz `src/__tests__/szukanieBezOgonkow.test.ts` (zapytanie do bazy i wyjście awaryjne).
 
+**Pinezki na mapie i lista mają OSOBNE źródła — od 2026-08-27.** Zgłoszone wprost:
+„pinezki znikają". Lista startowa (okolica gracza albo Poznania, dobierana przy wejściu)
+wpisywała się w `searchResults`, a z tego samego pola żyły pinezki
+(`searchResults ?? allFields`). Po wejściu do katalogu mapa pokazywała więc Poznań
+NIEZALEŻNIE od tego, dokąd użytkownik przewinął — nad Krakowem pinezki po prostu znikały,
+bo te jedyne, które istniały, leżały 400 km dalej. Dziś:
+
+- `searchResults` znaczy WYŁĄCZNIE „wynik szukania po tekście",
+- `listaStartowa` to osobny stan, widziany tylko przez LISTĘ i tylko w trybie skupisk
+  (gdy `allFields` jest puste z założenia),
+- `fieldsNaMapie` (mapa) = kadr albo wyniki szukania; `fields` (lista) = to samo plus
+  wspomniany wyjątek. Wspólna funkcja `zastosujFiltry()` trzyma oba w zgodzie — rozjazd
+  znaczy „widzę pinezkę, której nie ma na liście".
+
+**Filtry katalogu zatwierdzają się JEDNYM `updateParams`.** Zgłoszone wprost: „filtry się
+resetują". `onApply` wołał cztery settery pod rząd (`setVenueTypes`, `setSurfaces`,
+`setSports`, `setOnlyGamesToday`), a każdy budował nowy adres z `searchParams`, które
+**nie odświeża się synchronicznie**. Cztery wywołania czytały więc ten sam stan sprzed
+kliknięcia i nadpisywały się nawzajem: wygrywało ostatnie (`today`), a Sport, Typ
+i Nawierzchnia znikały dokładnie w chwili zatwierdzania. Dlatego filtry NIE mają dziś
+setterów per pole — arkusz oddaje wszystkie pola naraz.
+
+Obie poprawki pilnuje `e2e/mapa-pinezki-i-filtry.klikalnosc.spec.ts`.
+
+## Filtr „miejscowość + ile km"
+
+Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera sekcja **„Gdzie szukam"**:
+pole na nazwę miejscowości albo **kod pocztowy**, a po wyborze promień (5/10/25/50 km,
+domyślnie 10).
+
+**Znowu miasta, a przecież `fields.city` odpadło?** To jest inny mechanizm i dlatego
+działa. Kolumna `fields.city` jest wypełniona w jakichś dwóch procentach, więc filtr po
+NAZWIE mówiłby „w Poznaniu 54 boiska" przy kilkuset. Tu miejscowość służy wyłącznie do
+wyznaczenia PUNKTU (`lat`/`lng`), a dobór idzie po odległości — a współrzędne ma każdy
+obiekt w katalogu i każdy mecz. Wynik nie zależy od backfillu lokalizacji.
+
+**Gotowym modułem jest Nominatim przez własne proxy** `/api/geocode` — to samo, którego
+używają pickery lokalizacji, więc nic nowego do utrzymania. Tryb `?miejscowosc=` zwraca
+LISTĘ (`limit=6`) z `featuretype=settlement`, żeby podpowiadać miejsca, a nie dowolne
+adresy („Kwiatowa 3" nie jest odpowiedzią na „gdzie szukam boisk"). **Kod pocztowy jest
+wyjątkiem od `featuretype`**: kod nie jest osadą, więc z tym ograniczeniem Nominatim nie
+zwróciłby nic — rozpoznajemy polski format (`61-001`, też bez myślnika) i wtedy pytamy
+bez niego. Podpowiedzi mają debounce 350 ms (polityka użycia Nominatima) i **nigdy nie
+rzucają wyjątkiem**: pole podpowiedzi, które wywala ekran, jest gorsze niż pole bez
+podpowiedzi.
+
+Stan siedzi w adresie (`m`, `mlat`, `mlng`, `mopis`, `km`), więc wraca z „wstecz" i daje
+się wysłać linkiem. Konsekwencje wyboru:
+
+- **katalog** — osobne zapytanie o kadr wokół punktu (nie filtrowanie `allFields`: przy
+  oddalonej mapie `allFields` jest puste, więc filtr nie miałby czego zawężać), lista
+  sortowana po odległości, mapa leci w to miejsce z przybliżeniem dobranym do promienia,
+- **mecze** — wybrana miejscowość BIJE położenie gracza (kto wpisał „Wrocław", pyta
+  o Wrocław, choćby stał w Poznaniu) i staje się środkiem istniejącego filtra promienia.
+  O zgodę na lokalizację wtedy nie pytamy — byłoby to pytanie o coś, czego nie użyjemy.
+
+Pilnuje tego `e2e/filtr-miejscowosci.klikalnosc.spec.ts` (geokoder podstawiony
+`page.route()`, żeby scenariusz nie zależał od cudzego serwera).
+
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel
 powrotu (`/mapa?boisko=<id>`) w `sessionStorage` przez `lib/powrot.ts` — dawniej jechał

@@ -52,8 +52,12 @@ async function podstaw(page: Page) {
         status: 200, contentType: 'application/json',
         headers: { 'content-range': '0-1/2' },
         body: JSON.stringify([
-          mecz('e1', 'Wolne miejsca dziś', 8, 14, 0),
-          mecz('e2', 'Komplet jutro', 10, 10, 1),
+          // JUTRO I POJUTRZE, nie „dziś" — mecz z dzisiejszą datą i godziną
+          // 19:00 przestaje być otwarty (`isEventJoinable`) po 19:00, więc ten
+          // test padał wieczorem i przechodził rano. Data nie ma tu nic do
+          // rzeczy: sprawdzamy, że gołe /mapa pokazuje mecze W LIŚCIE.
+          mecz('e1', 'Wolne miejsca', 8, 14, 1),
+          mecz('e2', 'Komplet pojutrze', 10, 10, 2),
         ]),
       });
     }
@@ -75,9 +79,9 @@ test('gołe /mapa pokazuje otwarte mecze w liście, nie katalog boisk', async ({
 
   // Mecze jako karty listy, z liczbą graczy — nie pinezki na oddalonej mapie,
   // które przy widoku całego kraju i tak zlewają się w skupiska.
-  await expect(page.getByText('Wolne miejsca dziś')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Wolne miejsca')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('8/14 graczy')).toBeVisible();
-  await expect(page.getByText('Komplet jutro')).toBeVisible();
+  await expect(page.getByText('Komplet pojutrze')).toBeVisible();
 
   await expect(widoczny(page, 'Gry')).toHaveAttribute('aria-checked', 'true');
   await expect(widoczny(page, 'Lista')).toHaveAttribute('aria-checked', 'true');
@@ -89,5 +93,5 @@ test('katalog obiektów wymaga jawnego ?gry=0 i wtedy działa', async ({ page })
 
   await expect(widoczny(page, 'Obiekty')).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
   // Żaden mecz nie ma prawa się tu pokazać.
-  await expect(page.getByText('Wolne miejsca dziś')).toHaveCount(0);
+  await expect(page.getByText('Wolne miejsca')).toHaveCount(0);
 });

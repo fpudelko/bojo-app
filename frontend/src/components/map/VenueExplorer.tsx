@@ -43,6 +43,8 @@ import {
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import { foldText, foldedIncludes } from '@/lib/searchText';
+import WyborMiejscowosci from './WyborMiejscowosci';
+import { PROMIEN_DOMYSLNY_KM, type Miejscowosc } from '@/lib/miejscowosci';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
@@ -551,6 +553,19 @@ export default function VenueExplorer({
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
+
+  // MIEJSCOWOŚĆ + PROMIEŃ siedzą w adresie tak samo jak reszta filtrów, więc
+  // wracają z „wstecz" i dają się wysłać komuś linkiem. Punkt trzymamy jako
+  // współrzędne, nie jako nazwę: `fields.city` jest wypełnione w dwóch
+  // procentach, a `lat`/`lng` ma każdy obiekt i każdy mecz.
+  const miejscowosc = useMemo<Miejscowosc | null>(() => {
+    const nazwa = searchParams.get('m');
+    const lat = Number(searchParams.get('mlat'));
+    const lng = Number(searchParams.get('mlng'));
+    if (!nazwa || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { nazwa, kontekst: searchParams.get('mopis') ?? '', lat, lng };
+  }, [searchParams]);
+  const promienKm = Number(searchParams.get('km')) || PROMIEN_DOMYSLNY_KM;
   // Tryb gier albo obiektów — jedyny stan tego przełącznika trzymany w URL, tak
   // jak `today`. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
   // z tym, że /wydarzenia też nie trzyma swoich filtrów w URL.
@@ -586,7 +601,10 @@ export default function VenueExplorer({
       : null;
   }, [searchParams]);
 
-  function updateParams(patch: { sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean }) {
+  function updateParams(patch: {
+    sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean;
+    miejscowosc?: Miejscowosc | null; promienKm?: number;
+  }) {
     const p = new URLSearchParams(searchParams.toString());
     if (patch.sport !== undefined) {
       p.delete('sport');
@@ -607,13 +625,28 @@ export default function VenueExplorer({
       // Gry są domyślne, więc w adresie zostaje ślad tylko po WYJŚCIU z nich.
       if (patch.gry) p.delete('gry'); else p.set('gry', '0');
     }
+    if (patch.miejscowosc !== undefined) {
+      if (patch.miejscowosc) {
+        p.set('m', patch.miejscowosc.nazwa);
+        p.set('mlat', patch.miejscowosc.lat.toFixed(5));
+        p.set('mlng', patch.miejscowosc.lng.toFixed(5));
+        if (patch.miejscowosc.kontekst) p.set('mopis', patch.miejscowosc.kontekst);
+        else p.delete('mopis');
+      } else {
+        ['m', 'mlat', 'mlng', 'mopis', 'km'].forEach((k) => p.delete(k));
+      }
+    }
+    if (patch.promienKm !== undefined && patch.miejscowosc !== null) {
+      p.set('km', String(patch.promienKm));
+    }
     router.replace(`/mapa?${p.toString()}`, { scroll: false });
   }
 
-  const setSports         = (v: string[]) => updateParams({ sport: v });
-  const setVenueTypes     = (v: string[]) => updateParams({ type: v });
-  const setSurfaces       = (v: string[]) => updateParams({ surface: v });
-  const setOnlyGamesToday = (v: boolean) => updateParams({ today: v });
+  // Filtry NIE mają osobnych setterów per pole. Każdy z nich robiłby
+  // `updateParams`, a ten buduje adres z `searchParams`, które nie odświeża
+  // się synchronicznie — kilka wywołań z rzędu czytało ten sam stan sprzed
+  // kliknięcia i nadpisywało się nawzajem. Zatwierdzenie arkusza idzie więc
+  // JEDNYM wywołaniem ze wszystkimi polami naraz.
 
   // Przełącznik trybu — jeśli w sportach jest wartość spoza FOCUS_SPORTS
   // (np. „wielofunkcyjne"), włączenie trybu gier czyści ją: żaden mecz nigdy
@@ -655,6 +688,8 @@ export default function VenueExplorer({
   const [draftTypes, setDraftTypes] = useState<string[]>(venueTypes);
   const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
   const [draftSports, setDraftSports] = useState<string[]>(sports);
+  const [draftMiejscowosc, setDraftMiejscowosc] = useState<Miejscowosc | null>(miejscowosc);
+  const [draftPromienKm, setDraftPromienKm] = useState<number>(promienKm);
 
   // Tryb gier (D11/D12) — lokalny stan filtrów, ten sam kształt co na
   // /wydarzenia, minus Sortuj: /mapa jest zawsze mapą, więc kolejność
@@ -685,6 +720,8 @@ export default function VenueExplorer({
     setDraftTypes(venueTypes);
     setDraftSurfaces(surfaces);
     setDraftSports(sports);
+    setDraftMiejscowosc(miejscowosc);
+    setDraftPromienKm(promienKm);
     setDraftOnlyGamesToday(onlyGamesToday);
     setDraftGamesDate(gamesDate);
     setDraftGamesRadius(gamesRadius);
@@ -697,13 +734,15 @@ export default function VenueExplorer({
 
   const applyGamesDraft = async () => {
     setGamesGeoError(null);
-    setSports(draftSports);
+    updateParams({ sport: draftSports, miejscowosc: draftMiejscowosc, promienKm: draftPromienKm });
     setGamesDate(draftGamesDate);
     setGamesMaxPriceGrosze(draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     setGamesMinFreeSpots(draftGamesMinFreeSpots);
     setGamesOnlyFreeSpots(draftGamesOnlyFreeSpots);
     setGamesOnlyNoCost(draftGamesOnlyNoCost);
-    const needsGeo = draftGamesRadius != null && !gamesUserPos;
+    // Wybrana miejscowość jest już punktem — pytanie o zgodę na lokalizację
+    // byłoby wtedy pytaniem o coś, czego nie użyjemy.
+    const needsGeo = !draftMiejscowosc && draftGamesRadius != null && !gamesUserPos;
     if (!needsGeo) { setGamesRadius(draftGamesRadius); return; }
     setGamesGeoBusy(true);
     const res = await getCurrentLocation();
@@ -719,6 +758,8 @@ export default function VenueExplorer({
 
   const clearGamesDraft = () => {
     setDraftSports([]);
+    setDraftMiejscowosc(null);
+    setDraftPromienKm(PROMIEN_DOMYSLNY_KM);
     setDraftGamesDate('wszystkie');
     setDraftGamesRadius(null);
     setDraftGamesMaxPricePln(null);
@@ -919,6 +960,14 @@ export default function VenueExplorer({
   // Zgody NIE WYPRASZAMY przy wejściu — pytanie z zaskoczenia przy starcie
   // strony ludzie odruchowo odrzucają, a odrzuconej zgody nie da się cofnąć
   // bez wchodzenia w ustawienia przeglądarki. Pyta dopiero przycisk.
+  // LISTA STARTOWA MA WŁASNY STAN, NIE `searchResults`. Wpisywanie jej do
+  // `searchResults` było błędem: z tego samego pola żyją PINEZKI NA MAPIE
+  // (`searchResults ?? allFields`). Po wejściu do katalogu lista startowa
+  // dobierała okolicę Poznania i od tej chwili mapa pokazywała Poznań
+  // NIEZALEŻNIE od tego, gdzie użytkownik przewinął — nad Krakowem pinezki
+  // po prostu znikały, bo te jedyne, które istniały, leżały 400 km dalej.
+  // `searchResults` znaczy dziś wyłącznie „wynik szukania po tekście".
+  const [listaStartowa, setListaStartowa] = useState<Field[] | null>(null);
   const [ladujeBlisko, setLadujeBlisko] = useState(false);
   const [bladGeoListy, setBladGeoListy] = useState<string | null>(null);
   const [dobranoStart, setDobranoStart] = useState(false);
@@ -930,7 +979,7 @@ export default function VenueExplorer({
     const znalezione = await getExplorerFields(kadrWokol(lat, lng, PROMIEN_LISTY_KM));
     znalezione.sort((a, b) =>
       distanceKm(lat, lng, a.lat, a.lng) - distanceKm(lat, lng, b.lat, b.lng));
-    setSearchResults(znalezione);
+    setListaStartowa(znalezione);
     return znalezione.length;
   }, []);
 
@@ -938,7 +987,7 @@ export default function VenueExplorer({
   useEffect(() => {
     // Raz na wejście i tylko wtedy, gdy lista naprawdę jest pusta z powodu
     // oddalenia — po ręcznym szukaniu nie ma czego dobierać.
-    if (dobranoStart || !trybSkupiskTeraz || searchResults !== null) return;
+    if (dobranoStart || !trybSkupiskTeraz || listaStartowa !== null) return;
     setDobranoStart(true);
     let anulowane = false;
 
@@ -963,7 +1012,31 @@ export default function VenueExplorer({
     })();
 
     return () => { anulowane = true; };
-  }, [dobranoStart, trybSkupiskTeraz, searchResults, pokazWokol]);
+  }, [dobranoStart, trybSkupiskTeraz, listaStartowa, pokazWokol]);
+
+  // Wybrana miejscowość: dociągamy obiekty wokół niej i lecimy tam mapą.
+  //
+  // Osobne pobranie, a nie filtrowanie `allFields`: przy oddalonej mapie
+  // `allFields` jest PUSTE z założenia (z bazy lecą wtedy same liczby
+  // w siatce), więc filtr po odległości nie miałby czego zawężać i wybór
+  // miejscowości dawałby pustą listę.
+  const [listaWokolMiejscowosci, setListaWokolMiejscowosci] = useState<Field[] | null>(null);
+  useEffect(() => {
+    if (!miejscowosc) { setListaWokolMiejscowosci(null); return; }
+    let anulowane = false;
+    getExplorerFields(kadrWokol(miejscowosc.lat, miejscowosc.lng, promienKm))
+      .then((f) => { if (!anulowane) setListaWokolMiejscowosci(f); })
+      .catch(() => { if (!anulowane) setListaWokolMiejscowosci([]); });
+    return () => { anulowane = true; };
+  }, [miejscowosc, promienKm]);
+
+  // Mapa idzie za wyborem — inaczej filtr zawężałby listę do miejsca, którego
+  // na mapie nie widać. Przybliżenie z promienia: 5 km ≈ 13, 50 km ≈ 9.
+  useEffect(() => {
+    if (!mapInstance || !miejscowosc) return;
+    const z = promienKm <= 5 ? 13 : promienKm <= 10 ? 12 : promienKm <= 25 ? 11 : 10;
+    mapInstance.setView([miejscowosc.lat, miejscowosc.lng], z);
+  }, [mapInstance, miejscowosc, promienKm]);
 
   const pokazBliskoMnie = async () => {
     setBladGeoListy(null);
@@ -985,10 +1058,11 @@ export default function VenueExplorer({
     setLadujeBlisko(false);
   };
 
-  const fields = useMemo(() => {
-    // Aktywne szukanie podmienia źródło: wyniki z całego katalogu zamiast
-    // tego, co akurat wczytane dla bieżącego kadru (patrz searchResults wyżej).
-    let list = searchResults ?? allFields;
+  /** Filtry z paska i arkusza — te same dla listy i dla mapy. Wspólna funkcja,
+   *  bo rozjazd między nimi znaczy „widzę na mapie pinezkę, której nie ma na
+   *  liście", czyli dokładnie to, czego nie da się wytłumaczyć. */
+  const zastosujFiltry = useCallback((wejscie: Field[]) => {
+    let list = wejscie;
     if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
     if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
     if (surfaces.length > 0)   list = list.filter((f) => surfaces.includes(f.surface ?? ''));
@@ -1005,9 +1079,55 @@ export default function VenueExplorer({
     // tylko nigdy nie był wpięty w mapę.
     const q = foldText(search);
     if (q) list = list.filter((f) => foldedIncludes(f.name, q) || foldedIncludes(f.address, q));
-    list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
-    return list;
-  }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search]);
+    // Miejscowość zawęża po ODLEGŁOŚCI od punktu, nie po nazwie w bazie —
+    // i wtedy sortujemy po niej, bo „najbliżej" jest jedyną kolejnością, która
+    // przy wybranym punkcie coś znaczy.
+    if (miejscowosc) {
+      list = list
+        .filter((f) => distanceKm(miejscowosc.lat, miejscowosc.lng, f.lat, f.lng) <= promienKm);
+      return [...list].sort((a, b) =>
+        distanceKm(miejscowosc.lat, miejscowosc.lng, a.lat, a.lng)
+        - distanceKm(miejscowosc.lat, miejscowosc.lng, b.lat, b.lng));
+    }
+    return [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
+  }, [sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search, miejscowosc, promienKm]);
+
+  /**
+   * CO WIDAĆ NA MAPIE. Wyłącznie to, co leży w bieżącym kadrze (`allFields`) —
+   * albo wyniki szukania po tekście, bo wtedy mapa świadomie do nich leci.
+   * LISTA STARTOWA TU NIE WCHODZI: to podpowiedź dla pustej listy przy
+   * oddalonej mapie, a nie odpowiedź na pytanie „co jest w tym miejscu".
+   */
+  const fieldsNaMapie = useMemo(
+    () => zastosujFiltry(searchResults ?? allFields),
+    [zastosujFiltry, searchResults, allFields],
+  );
+
+  /**
+   * CO WIDAĆ NA LIŚCIE. To samo co na mapie, z jednym wyjątkiem: przy
+   * oddalonej mapie (tryb skupisk) `allFields` jest pusty Z ZAŁOŻENIA — z bazy
+   * lecą wtedy same liczby w siatce — więc lista bierze wtedy okolicę dobraną
+   * na starcie, zamiast pokazywać pustkę.
+   */
+  const fields = useMemo(() => {
+    if (searchResults) return zastosujFiltry(searchResults);
+    if (trybSkupiskTeraz && allFields.length === 0) return zastosujFiltry(listaWokolMiejscowosci ?? listaStartowa ?? []);
+    return zastosujFiltry(allFields);
+  }, [zastosujFiltry, searchResults, allFields, trybSkupiskTeraz, listaStartowa, listaWokolMiejscowosci]);
+
+  /**
+   * ŚRODEK, od którego liczymy odległość do meczu.
+   *
+   * Wybrana miejscowość bije położenie gracza: jeśli ktoś świadomie wpisał
+   * „Wrocław", to pyta o Wrocław, choćby stał w Poznaniu. Bez wyboru zostaje
+   * geolokalizacja — czyli zachowanie sprzed tego filtra.
+   */
+  const srodekGier = miejscowosc ?? gamesUserPos;
+
+  // Promień z filtra miejscowości działa też na mecze. Bez tego wybór
+  // „Wrocław, 10 km" przestawiałby tylko listę obiektów, a mecze zostawały
+  // z całej Polski — jeden filtr, dwa różne znaczenia.
+  const promienGier = miejscowosc ? promienKm : gamesRadius;
 
   // Tryb gier (D11) — reużywa `events`, już pobierane wyżej dla fieldStats,
   // zero nowego zapytania. Ten sam pipeline co /wydarzenia (matchesDateFilter,
@@ -1036,16 +1156,16 @@ export default function VenueExplorer({
   }, [gamesBaseFiltered, gamesDate]);
 
   const gamesWithDistance = useMemo<EventRow[]>(() => {
-    if (!gamesUserPos) return gamesDateFiltered.map((event) => ({ event }));
+    if (!srodekGier) return gamesDateFiltered.map((event) => ({ event }));
     return gamesDateFiltered.map((event) => ({
       event,
       distance: event.lat != null && event.lng != null
-        ? distanceKm(gamesUserPos.lat, gamesUserPos.lng, event.lat, event.lng)
+        ? distanceKm(srodekGier.lat, srodekGier.lng, event.lat, event.lng)
         : undefined,
     }));
-  }, [gamesDateFiltered, gamesUserPos]);
+  }, [gamesDateFiltered, srodekGier]);
 
-  const gamesRadiusFiltered = useMemo(() => filterByRadius(gamesWithDistance, gamesRadius), [gamesWithDistance, gamesRadius]);
+  const gamesRadiusFiltered = useMemo(() => filterByRadius(gamesWithDistance, promienGier), [gamesWithDistance, promienGier]);
   const gamesPriceFiltered = useMemo(() => filterByMaxPrice(gamesRadiusFiltered, gamesMaxPriceGrosze), [gamesRadiusFiltered, gamesMaxPriceGrosze]);
   const gamesSpotsFiltered = useMemo(() => filterByMinFreeSpots(gamesPriceFiltered, gamesMinFreeSpots), [gamesPriceFiltered, gamesMinFreeSpots]);
   const gamesRows = useMemo(() => sortEvents(gamesSpotsFiltered, gamesSort), [gamesSpotsFiltered, gamesSort]);
@@ -1057,19 +1177,20 @@ export default function VenueExplorer({
   const gamesPreviewCount = useMemo(() => {
     let list = gamesBaseFiltered;
     if (draftGamesDate !== 'wszystkie') list = list.filter((e) => matchesDateFilter(e.date, draftGamesDate));
-    const withDist = gamesUserPos
+    const withDist = srodekGier
       ? list.map((event) => ({
           event,
           distance: event.lat != null && event.lng != null
-            ? distanceKm(gamesUserPos.lat, gamesUserPos.lng, event.lat, event.lng)
+            ? distanceKm(srodekGier.lat, srodekGier.lng, event.lat, event.lng)
             : undefined,
         }))
       : list.map((event) => ({ event }));
-    let rows = filterByRadius(withDist, draftGamesRadius);
+    let rows = filterByRadius(withDist, draftMiejscowosc ? draftPromienKm : draftGamesRadius);
     rows = filterByMaxPrice(rows, draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     rows = filterByMinFreeSpots(rows, draftGamesMinFreeSpots);
     return rows.length;
-  }, [gamesBaseFiltered, draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots, gamesUserPos]);
+  }, [gamesBaseFiltered, draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots,
+      srodekGier, draftMiejscowosc, draftPromienKm]);
 
   const selectedEventRow = selectedEventId ? gamesRows.find((r) => r.event.id === selectedEventId) ?? null : null;
 
@@ -1193,8 +1314,10 @@ export default function VenueExplorer({
   // tu razem z przenosinami do arkusza (patrz komentarz przy `draftSports`).
   const liczbaFiltrow = showGames
     ? [sports.length > 0, gamesOnlyFreeSpots, gamesOnlyNoCost, gamesDate !== 'wszystkie',
-        gamesRadius !== null, gamesMaxPriceGrosze !== null, gamesMinFreeSpots > 0].filter(Boolean).length
-    : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday].filter(Boolean).length;
+        gamesRadius !== null, gamesMaxPriceGrosze !== null, gamesMinFreeSpots > 0,
+        miejscowosc !== null].filter(Boolean).length
+    : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday,
+       miejscowosc !== null].filter(Boolean).length;
   // W trybie skupisk (oddalona mapa) `allFields` jest zawsze puste — obiekty
   // pobiera się dopiero po przybliżeniu (patrz komentarz przy `trybSkupisk`).
   // Liczenie z pustej tablicy dawało zawsze „Pokaż 0 boisk", nawet gdy w
@@ -1225,6 +1348,18 @@ export default function VenueExplorer({
       applyLabel={gamesGeoBusy ? 'Szukam Cię…' : `Pokaż ${gamesPreviewCount} ${plural(gamesPreviewCount, 'mecz', 'mecze', 'meczy')}`}
     >
       <div className="space-y-6">
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
+          <p className="mb-2 text-xs text-slate-500">
+            Wpisz miejscowość albo kod pocztowy — pokażemy to, co jest w promieniu.
+          </p>
+          <WyborMiejscowosci
+            wybrana={draftMiejscowosc}
+            promienKm={draftPromienKm}
+            naZmiane={(m, km) => { setDraftMiejscowosc(m); setDraftPromienKm(km); }}
+          />
+        </section>
+
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
           <button
@@ -1296,16 +1431,40 @@ export default function VenueExplorer({
       open={sheetOpen}
       onClose={() => setSheetOpen(false)}
       title="Filtry"
-      onApply={() => {
-        setVenueTypes(draftTypes);
-        setSurfaces(draftSurfaces);
-        setSports(draftSports);
-        setOnlyGamesToday(draftOnlyGamesToday);
+      // JEDNO wywołanie, nie cztery pod rząd — i to nie jest kosmetyka.
+      // Każdy z setterów robi `updateParams`, a ten buduje nowy adres
+      // z `searchParams`, które NIE odświeża się synchronicznie. Cztery
+      // wywołania z rzędu czytały więc ten sam, sprzed kliknięcia stan
+      // i nadpisywały się nawzajem: wygrywało ostatnie (`today`), a Sport,
+      // Typ i Nawierzchnia znikały z adresu w tej samej chwili, w której
+      // użytkownik je zatwierdzał. Z zewnątrz: „filtry się resetują".
+      onApply={() => updateParams({
+        type: draftTypes,
+        surface: draftSurfaces,
+        sport: draftSports,
+        today: draftOnlyGamesToday,
+        miejscowosc: draftMiejscowosc,
+        promienKm: draftPromienKm,
+      })}
+      onClear={() => {
+        setDraftTypes([]); setDraftSurfaces([]); setDraftSports([]); setDraftOnlyGamesToday(false);
+        setDraftMiejscowosc(null); setDraftPromienKm(PROMIEN_DOMYSLNY_KM);
       }}
-      onClear={() => { setDraftTypes([]); setDraftSurfaces([]); setDraftSports([]); setDraftOnlyGamesToday(false); }}
       applyLabel={`Pokaż ${previewFieldsCount} ${boiskoSlowo(previewFieldsCount)}`}
     >
       <div className="space-y-6">
+        <section>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
+          <p className="mb-2 text-xs text-slate-500">
+            Wpisz miejscowość albo kod pocztowy — pokażemy to, co jest w promieniu.
+          </p>
+          <WyborMiejscowosci
+            wybrana={draftMiejscowosc}
+            promienKm={draftPromienKm}
+            naZmiane={(m, km) => { setDraftMiejscowosc(m); setDraftPromienKm(km); }}
+          />
+        </section>
+
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
           <button
@@ -1591,7 +1750,7 @@ export default function VenueExplorer({
           <MapAttribution />
           {street}
           {showGames ? (
-            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} pozycjaGracza={gamesUserPos} />
+            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} pozycjaGracza={srodekGier} />
           ) : (
             <>
               <KadrObserwator onZmiana={onKadrZmiana} />
@@ -1605,7 +1764,7 @@ export default function VenueExplorer({
                   rozbija pinezek — robi `flyTo(zoom + 3, max 14)`, czyli
                   z przybliżenia 15 po wynikach szukania ODDALA mapę. */}
               {trybSkupisk && <WarstwaSkupisk skupiska={skupiska} />}
-              <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
+              <MapLayer fields={fieldsNaMapie} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
             </>
           )}
         </MapContainer>
