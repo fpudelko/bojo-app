@@ -86,3 +86,18 @@ export async function hasGeolocationPermission(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Położenie gracza, ale WYŁĄCZNIE gdy zgoda jest już udzielona.
+ *
+ * `null` znaczy „nie wiemy i nie pytamy". Prośba o lokalizację przy samym
+ * wejściu na stronę, bez kontekstu, jest odruchowo odrzucana — a odrzuconej
+ * zgody nie da się cofnąć inaczej niż w ustawieniach przeglądarki, więc jedno
+ * niepotrzebne pytanie psuje tę drogę na trwałe. O zgodę prosi dopiero
+ * przycisk, który człowiek nacisnął sam.
+ */
+export async function pozycjaBezPytania(): Promise<{ lat: number; lng: number } | null> {
+  if (!(await hasGeolocationPermission())) return null;
+  const res = await getCurrentLocation();
+  return res.ok ? { lat: res.lat, lng: res.lng } : null;
+}

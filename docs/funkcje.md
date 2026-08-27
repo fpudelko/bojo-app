@@ -1943,36 +1943,40 @@ powrót ze strony boiska (`backHref`), panele obiektu w `/admin` oraz **przełą
 Pilnuje tego `e2e/szukaj-domyslnie-mecze.klikalnosc.spec.ts`, sprawdzając obie strony
 zamiany.
 
-**Pusta lista obiektów nie jest ślepym zaułkiem** (`components/map/PustaListaObiektow.tsx`).
-Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA — w trybie skupisk z bazy lecą same
-liczby w siatce, nie obiekty. Stał tam wcześniej jeden przycisk: „Przybliż tam, gdzie
-jest ich najwięcej". Zgłoszone wprost, że to słabe — i tak jest: odpowiada na pytanie,
-którego nikt nie zadaje (gracz nie szuka największego skupiska pinezek w Polsce, tylko
-miejsca, gdzie może zagrać) i każe naprawić stan mapy, której w widoku „Lista" nawet nie
-widać.
+**Pusta lista obiektów nie jest ślepym zaułkiem — dobiera się SAMA, po współrzędnych**
+(`components/map/PustaListaObiektow.tsx` + `pokazWokol()` w `VenueExplorer`).
 
-Dziś są trzy drogi, w kolejności od najczęstszej potrzeby:
+Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA: w trybie skupisk z bazy lecą same
+liczby w siatce, nie obiekty. Ten ekran przeszedł trzy wcielenia i warto znać powód
+każdego kroku:
 
-1. **„Pokaż boiska blisko mnie"** — `getCurrentLocation()` → `kadrWokol(lat, lng, 15)` →
-   `getExplorerFields()`, posortowane po `distanceKm`. 15 km to promień, z którego realnie
-   dojeżdża się na mecz po pracy. Działa na `lat`/`lng`, które ma KAŻDY obiekt w katalogu,
-   więc nie zależy od backfillu lokalizacji.
-2. **Miasta z liczbami** (`lib/miasta.ts`, `policzBoiskaWMiastach()`) — kilkanaście
-   największych, posortowanych malejąco po liczbie obiektów. Liczba przy nazwie mówi,
-   gdzie w ogóle jest co oglądać. **Miasto z zerem wypada**, a gdy zero mają wszystkie,
-   sekcja znika w całości: `fields.city` wypełnia osobny, ręcznie uruchamiany backfill
-   (`scraper/backfill_lokalizacja.py`), więc „Radom 0" znaczyłoby „backfill tam nie
-   dotarł", a nie „nie ma tam boisk" — to nasz problem, nie użytkownika.
-3. **Przybliżenie do największego skupiska** — zostaje, ale jako cichy odnośnik na końcu.
+1. **Jeden przycisk „Przybliż tam, gdzie jest ich najwięcej"** — odpowiadał na pytanie,
+   którego nikt nie zadaje (gracz nie szuka największego skupiska pinezek w Polsce), i
+   kazał naprawić stan mapy, której w widoku „Lista" nawet nie widać. Został jako cichy
+   odnośnik na końcu.
+2. **Kafelki miast z liczbami z `fields.city`** — i tu skończyły się domysły. Zrzut
+   z produkcji (2026-08-27) pokazał, ile ta kolumna jest warta: katalog ma **38 314
+   obiektów**, a wszystkie największe miasta razem **~900** (Warszawa 303, Łódź 164,
+   Poznań 54). Backfill lokalizacji (`scraper/backfill_lokalizacja.py`) przeszedł po
+   jakichś **dwóch procentach**, więc kafelek kłamał liczbą I dowoził do garstki zamiast
+   do wszystkiego, co w mieście jest. Kafelki, podpowiedzi miast w szukajce,
+   `policzBoiskaWMiastach()`, `getFieldsWMiescie()` i `lib/miasta.ts` — wszystko usunięte.
+3. **Dziś lista wypełnia się sama**, po `lat`/`lng`, które ma KAŻDY obiekt:
+   - zgoda na lokalizację już udzielona → okolica gracza (`pozycjaBezPytania()`),
+   - bez zgody → okolica Poznania (`POZNAN` w `lib/startowyPunkt.ts` — miasto, w którym
+     Bojo startuje; środek geograficzny Polski to pole pod Łodzią, gdzie katalog nie ma
+     nic ciekawego),
+   - pusto wokół gracza → i tak pokazujemy Poznań, bo „pusto" nie jest odpowiedzią.
 
-Obie nowe drogi kończą się w `setSearchResults()`, czyli w tej samej ścieżce co szukanie
-po nazwie: lista bierze źródło z wyników zamiast z kadru, a istniejący efekt sam dopasowuje
-mapę do tego, co przyszło. Zero nowej maszynerii pod coś, co już działało.
+   Promień 15 km (`PROMIEN_LISTY_KM`), sortowanie po `distanceKm` — `kadrWokol()` daje
+   KWADRAT (baza nie ma PostGIS), więc dopiero sortowanie robi z tego użyteczną kolejność.
 
-Kilkanaście miast, nie sto z `miasta_priorytetowe`: tamta tabela ma jedną kolumnę (`nazwa`),
-bez kolejności i bez współrzędnych, a rozwijana lista stu pozycji na telefonie jest gorsza
-od mapy, którą ma zastąpić. Po resztę idzie się do pola szukania — ono przeszukuje CAŁY
-katalog, nie tylko kadr.
+**O zgodę na lokalizację NIE prosimy przy wejściu.** `pozycjaBezPytania()` (`lib/geo.ts`)
+pyta Permissions API i pobiera pozycję tylko wtedy, gdy zgoda już jest; w przeciwnym razie
+zwraca `null` i lista idzie na Poznań. Prośba z zaskoczenia przy starcie strony jest
+odruchowo odrzucana, a odrzuconej zgody nie da się cofnąć inaczej niż w ustawieniach
+przeglądarki — jedno niepotrzebne pytanie psuje tę drogę na trwałe. Pyta dopiero przycisk,
+który człowiek nacisnął sam.
 
 Pilnuje tego `e2e/pusta-lista-obiektow.klikalnosc.spec.ts`.
 
@@ -2001,6 +2005,29 @@ nie dawało. Od dwóch znaków zapytania (debounce 300 ms) `VenueExplorer` woła
 `searchExplorerFields()` z `lib/api.ts` — funkcję, która już istniała (używają jej
 pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBounds` do
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
+
+**Dwie poprawki z 2026-08-27, obie na to samo zgłoszenie** („po wyszukaniu np. »poznan«
+w widoku mapy nie działa rozbijanie zgrupowanych pinesek i wgl całość się pierdoli"):
+
+- **Kółka skupisk znikają na czas szukania.** `trybSkupisk` był liczony poprawnie
+  (`search.trim().length < 2 && zoom < ZOOM_SKUPISK`), ale `WarstwaSkupisk` renderowała
+  się bezwarunkowo, a efekt pobierający dane dla kadru wychodzi wcześniej, gdy trwa
+  szukanie („aktywne szukanie ma własne źródło"), więc `skupiska` nigdy nie było
+  czyszczone. Po wpisaniu miasta mapa doleciała do wyników — i NA wynikach leżały kółka
+  z liczbami sprzed szukania. To wyglądało jak zepsute rozbijanie grup, bo mapa ma dwa
+  różne grupowania, których użytkownik nie odróżnia: kółko ze skupiska tylko przybliża
+  (`flyTo(zoom + 3, max 14)`, czyli po `fitBounds` do wyników na przybliżeniu 15
+  ODDALA), a grupę z `L.markerClusterGroup` klik naprawdę rozbija.
+- **Szukanie przestało gubić ogonki.** Lokalny filtr tekstowy robił
+  `name.toLowerCase().includes(q)`, więc „poznan" nie zawierało się w „Orlik Poznań"
+  i filtr wyrzucał WSZYSTKO, co przyszło z serwera. Dziś idzie przez `foldText()`
+  /`foldedIncludes()` z `lib/searchText.ts` — helper istnieje od tego samego błędu na
+  `/wydarzenia` („pilka" nie znajdowało „piłka nożna"), tylko nigdy nie był wpięty
+  w mapę. **Strona serwera nadal jest wrażliwa na ogonki**: `searchExplorerFields()`
+  robi `ilike '%poznan%'` na `name`/`address`, a Postgres nie zrówna tego z „Poznań".
+  Domknięcie tego wymaga znormalizowanej kolumny w `fields` (migracja) — do zrobienia.
+
+Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts`.
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel

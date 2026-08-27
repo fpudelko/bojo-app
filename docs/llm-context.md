@@ -346,6 +346,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
+
+PROBLEM: Katalog boisk Bojo ma 38 314 obiektów, ale przy oddalonej mapie lista obok niej
+była PUSTA z założenia — w trybie skupisk z bazy lecą same liczby w siatce, nie obiekty.
+Zamiast czegokolwiek do przeczytania stał tam jeden przycisk „Przybliż tam, gdzie jest
+ich najwięcej", czyli odpowiedź na pytanie, którego nikt nie zadaje. Próba naprawy przez
+kafelki miast z liczbami rozbiła się o dane: kolumna `fields.city` jest wypełniona
+w jakichś dwóch procentach (wszystkie największe miasta razem ~900 obiektów, w tym Poznań
+54), więc kafelek kłamał liczbą I dowoził do garstki zamiast do wszystkiego, co w mieście
+jest. Osobno: szukanie po tekście na mapie gubiło polskie ogonki („poznan" nie znajdowało
+„Orlik Poznań"), a kółka skupisk sprzed szukania zostawały na wynikach i przy kliknięciu
+oddalały mapę zamiast rozbić grupę pinezek.
+
+ROZWIĄZANIE BOJO: Lista wypełnia się SAMA obiektami wokół punktu — okolicy gracza, gdy
+zgoda na lokalizację jest już udzielona, a bez niej Poznania (miasto, w którym Bojo
+startuje). Promień 15 km, sortowanie po odległości. O zgodę Bojo NIE pyta przy wejściu:
+pytanie z zaskoczenia przy starcie strony ludzie odruchowo odrzucają, a odrzuconej zgody
+nie da się cofnąć bez wchodzenia w ustawienia przeglądarki — pyta dopiero przycisk „Pokaż
+boiska blisko mnie". Dobór idzie po `lat`/`lng`, które ma KAŻDY obiekt w katalogu, więc
+nie zależy od backfillu lokalizacji. Wszystko oparte na `fields.city` (kafelki miast,
+podpowiedzi miast w szukajce) zostało usunięte. Szukanie na mapie ignoruje ogonki, a kółka
+skupisk znikają na czas szukania.
+
+MECHANIKA: `lib/startowyPunkt.ts` (`POZNAN`, `PROMIEN_LISTY_KM`), `pozycjaBezPytania()`
+w `lib/geo.ts` (czyta zgodę, nie wyprasza jej), `kadrWokol()` w `lib/api.ts`,
+`components/map/VenueExplorer.tsx` (`pokazWokol()`, efekt dobierający start: najpierw
+Poznań, potem podmiana na okolicę gracza), `components/map/PustaListaObiektow.tsx`.
+Szukanie: `foldText()`/`foldedIncludes()` z `lib/searchText.ts` w filtrze lokalnym,
+`WarstwaSkupisk` renderowana wyłącznie w trybie skupisk. Usunięte: `lib/miasta.ts`,
+`policzBoiskaWMiastach()`, `getFieldsWMiescie()`. Strona serwera (`searchExplorerFields()`
+robi `ilike` na `name`/`address`) nadal jest wrażliwa na ogonki — domknięcie wymaga
+znormalizowanej kolumny w `fields`. Bez migracji.
+
 ### 2026-08-25 — Widget „najbliższe mecze" do osadzenia na stronie obiektu
 
 PROBLEM: Bojo nie miało żadnego sposobu, żeby zarządca obiektu sportowego umieścił na
@@ -564,28 +597,3 @@ MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
 `dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
 `frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
 
-### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
-
-PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
-cel „Szukaj" na dolnej nawigacji) i `/mapa` (mapa, z własnym przełącznikiem Gry|Obiekty).
-Dotknięcie „Obiekty" na `/wydarzenia` NAWIGOWAŁO na `/mapa`, gubiąc kontekst — przełączenie
-kosztowało przeskok strony. Do tego `/mapa` na telefonie nie miało w ogóle widoku listy:
-wyłącznie mapa plus jedna karta wybranej pinezki, bo przewijana lista istniała tylko na
-desktopie, obok mapy.
-
-ROZWIĄZANIE BOJO: „Szukaj" prowadzi dziś na `/mapa`, które ma WSPÓLNY, stały pasek dla
-obu trybów: przełącznik `Gry | Obiekty` (co pokazać), osobny, WIDOCZNY przełącznik
-`Lista | Mapa` (mniejszy wariant tego samego komponentu — nie mały guzik z ikoną), i ikonę
-filtrów z plakietką liczby aktywnych. Sport, „Wolne miejsca", „Za darmo" i „Gry dziś"
-przeniosły się z paska do arkusza filtrów — przełączenie trybu nie przestawia już
-kontrolek miejscami. Telefon dostał pełnoekranowy widok listy w OBU trybach (dawniej
-wyłącznie na desktopie); przełączenie na mapę nie odmontowuje jej — Leaflet trzyma
-kadr/zoom we własnej instancji, więc powrót z listy wraca do dokładnie tego samego
-miejsca na mapie, nie do widoku całej Polski.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
-`SegmentedToggle` z nowym `size="sm"`); `BottomNav.tsx` (href „Szukaj" → `/mapa`);
-`MapaClient.tsx` przejmuje po `EventsListClient.tsx` gaszenie pomarańczowej kropki
-„nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`) i plakietkę „Nowość" na
-kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
-już celem „Szukaj". Bez migracji.
