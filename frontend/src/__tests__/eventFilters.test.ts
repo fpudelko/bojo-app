@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   dayGroup, daysFromToday, eventDay, filterByRadius, filterByMaxPrice, filterByMinFreeSpots,
   freeSpots, groupByDay, matchesDateFilter, multiLabel, sortEvents, startKey, toggleInArray,
-  type EventRow,
-} from '@/lib/eventFilters';
+  type EventRow, etykietaSkladu } from '@/lib/eventFilters';
 import type { EventItem } from '@/types';
 
 /** Minimalny mecz — tylko pola, których dotyka filtrowanie i sortowanie. */
@@ -285,5 +284,31 @@ describe('toggleInArray', () => {
 
   it('usuwa istniejącą wartość', () => {
     expect(toggleInArray(['a', 'b'], 'a')).toEqual(['b']);
+  });
+});
+
+describe('etykietaSkladu — skład na pinezce mapy', () => {
+  it('składa liczby w „8/14"', () => {
+    expect(etykietaSkladu({ maxPlayers: 14, participantsCount: 8 }))
+      .toEqual({ tekst: '8/14', komplet: false });
+  });
+
+  it('komplet oznacza się osobno, bo dostaje własny kolor', () => {
+    expect(etykietaSkladu({ maxPlayers: 10, participantsCount: 10 }))
+      .toEqual({ tekst: '10/10', komplet: true });
+  });
+
+  it('przekroczony limit też jest kompletem — organizator może dodać ponad', () => {
+    // Awans „Do składu" ponad limit jest świadomą funkcją (patrz R13
+    // w seed_regresja), więc 12/10 musi się narysować, a nie wyglądać
+    // na wolne miejsca.
+    expect(etykietaSkladu({ maxPlayers: 10, participantsCount: 12 }))
+      .toEqual({ tekst: '12/10', komplet: true });
+  });
+
+  it('bez liczby zapisanych NIE zgadujemy — pinezka zostaje bez pigułki', () => {
+    // `participantsCount` wypełniają wyłącznie zapytania listowe. Bez tego
+    // warunku pinezka rysowałaby „undefined/14".
+    expect(etykietaSkladu({ maxPlayers: 14, participantsCount: undefined })).toBeNull();
   });
 });

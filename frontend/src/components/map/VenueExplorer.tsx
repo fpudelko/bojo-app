@@ -24,21 +24,25 @@ import { useMyInvites } from '@/lib/useMyInvites';
 import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
+  kadrWokol,
   type Kadr, type Skupisko,
 } from '@/lib/api';
+import PustaListaObiektow from './PustaListaObiektow';
 import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
 import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugBoiska, externalUrl } from '@/lib/utils';
 import { plural } from '@/lib/plural';
-import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
+import { distanceKm, getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
+import { POZNAN, PROMIEN_LISTY_KM } from '@/lib/startowyPunkt';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import {
   filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter,
   sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
+import { foldText, foldedIncludes } from '@/lib/searchText';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
@@ -547,10 +551,22 @@ export default function VenueExplorer({
   const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
-  // „Pokaż gry" (D11/D12) — jedyny stan trybu gier trzymany w URL, tak jak
-  // today. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
+  // Tryb gier albo obiektów — jedyny stan tego przełącznika trzymany w URL, tak
+  // jak `today`. Reszta filtrów trybu gier zostaje lokalnym stanem, spójnie
   // z tym, że /wydarzenia też nie trzyma swoich filtrów w URL.
-  const showGames = searchParams.get('gry') === '1';
+  //
+  // GRY SĄ DOMYŚLNE, obiekty wymagają jawnego `?gry=0` — odwrotnie niż do
+  // 2026-08-26. Człowiek wchodzący tu z pytaniem „w co mogę dziś zagrać"
+  // dostawał katalog boisk i musiał znaleźć przełącznik, o którym trzeba było
+  // wiedzieć. Dolna nawigacja obchodziła to własnym `?gry=1`, ale każde inne
+  // wejście na `/mapa` — kropka „Nowa gra w promieniu 5 km", udostępniony
+  // link, wynik z wyszukiwarki — lądowało na obiektach. Katalog ~33 tys.
+  // obiektów z OSM jest podstawą pod SEO i „zorganizuj tutaj"; pierwszym
+  // ekranem dla gracza są OTWARTE MECZE (zgłoszone wprost).
+  //
+  // Wejścia, które naprawdę chcą katalogu („Mapa boisk" w nagłówku i stopce,
+  // landing, /dlaczego-bojo, panel obiektu), mówią to teraz wprost adresem.
+  const showGames = searchParams.get('gry') !== '0';
   // Wejście z konkretnym obiektem: `/mapa?boisko=<id>`. Używa go przycisk
   // „Zobacz na mapie" na stronie boiska — mapa ma wtedy otworzyć się na tym
   // obiekcie z jego kartą, zamiast na widoku całego kraju.
@@ -588,7 +604,8 @@ export default function VenueExplorer({
       if (patch.today) p.set('today', '1'); else p.delete('today');
     }
     if (patch.gry !== undefined) {
-      if (patch.gry) p.set('gry', '1'); else p.delete('gry');
+      // Gry są domyślne, więc w adresie zostaje ślad tylko po WYJŚCIU z nich.
+      if (patch.gry) p.delete('gry'); else p.set('gry', '0');
     }
     router.replace(`/mapa?${p.toString()}`, { scroll: false });
   }
@@ -612,9 +629,22 @@ export default function VenueExplorer({
 
   // JAK patrzę — lista czy mapa. Wyłącznie lokalny stan (bez zmiany trybu
   // nie ma nawigacji między trasami, więc nie ma czego synchronizować z URL).
-  // Domyślnie mapa: to jest dotychczasowe zachowanie tej trasy, a lista jest
-  // teraz o dotknięcie dalej, nie odwrotnie.
-  const [widok, setWidok] = useState<'lista' | 'mapa'>('mapa');
+  //
+  // DOMYŚLNY WIDOK IDZIE ZA RODZAJEM DANYCH, nie jest jeden dla całej trasy:
+  //
+  // • GRY → lista. Mecz to przede wszystkim TERMIN i wolne miejsca, a tego
+  //   pinezka nie mówi — trzeba w nią kliknąć, żeby się dowiedzieć, czy w ogóle
+  //   jest o czym rozmawiać. Lista odpowiada na „w co mogę zagrać" od razu,
+  //   bez przybliżania i bez zgody na lokalizację: `getPublicEvents()` pobiera
+  //   wszystkie otwarte mecze naraz, niezależnie od kadru mapy. Otwartych
+  //   meczów są dziesiątki, więc lista się nie zapycha.
+  // • OBIEKTY → mapa. „Gdzie jest boisko" to pytanie z gruntu przestrzenne,
+  //   a katalog liczy dziesiątki tysięcy pozycji — lista jest tu narzędziem
+  //   drugiego wyboru, nie pierwszego.
+  //
+  // Wejście z dolnej nawigacji („Szukaj" → `/mapa?gry=1`) trafia więc od razu
+  // na listę otwartych meczów.
+  const [widok, setWidok] = useState<'lista' | 'mapa'>(showGames ? 'lista' : 'mapa');
 
   // Modal Typ obiektu/Nawierzchnia/Sport — szkic w tym samym stylu co na
   // dawnym /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
@@ -873,6 +903,88 @@ export default function VenueExplorer({
     return stats;
   }, [events, today]);
 
+  // ── Pusta lista dobiera się SAMA, po współrzędnych ───────────────────
+  //
+  // DLACZEGO NIE PO MIASTACH. Do 2026-08-27 stały tu kafelki miast z liczbami,
+  // liczone z `fields.city`. Zrzut z produkcji pokazał, ile ta kolumna jest
+  // warta: katalog ma 38 314 obiektów, a wszystkie miasta razem ~900 (Poznań
+  // 54). Backfill lokalizacji przeszedł po jakichś dwóch procentach, więc
+  // kafelek kłamał liczbą I dowoził do garstki zamiast do wszystkiego, co
+  // w mieście jest. `lat`/`lng` ma NATOMIAST każdy obiekt — i po nich dobieramy.
+  //
+  // Lista nie czeka też na kliknięcie: ma się wypełnić sama.
+  //   • znamy położenie (zgoda już udzielona) → okolica gracza,
+  //   • nie znamy → okolica Poznania (decyzja właściciela: to jest miasto,
+  //     w którym Bojo startuje, więc puste Bojo pokazuje żywe Bojo).
+  // Zgody NIE WYPRASZAMY przy wejściu — pytanie z zaskoczenia przy starcie
+  // strony ludzie odruchowo odrzucają, a odrzuconej zgody nie da się cofnąć
+  // bez wchodzenia w ustawienia przeglądarki. Pyta dopiero przycisk.
+  const [ladujeBlisko, setLadujeBlisko] = useState(false);
+  const [bladGeoListy, setBladGeoListy] = useState<string | null>(null);
+  const [dobranoStart, setDobranoStart] = useState(false);
+
+  /** Pobiera obiekty wokół punktu i podaje je liście, posortowane po
+   *  odległości. `kadrWokol` daje KWADRAT (baza nie ma PostGIS), więc dopiero
+   *  sortowanie po `distanceKm` robi z tego użyteczną kolejność. */
+  const pokazWokol = useCallback(async (lat: number, lng: number) => {
+    const znalezione = await getExplorerFields(kadrWokol(lat, lng, PROMIEN_LISTY_KM));
+    znalezione.sort((a, b) =>
+      distanceKm(lat, lng, a.lat, a.lng) - distanceKm(lat, lng, b.lat, b.lng));
+    setSearchResults(znalezione);
+    return znalezione.length;
+  }, []);
+
+  const trybSkupiskTeraz = zoom < ZOOM_SKUPISK;
+  useEffect(() => {
+    // Raz na wejście i tylko wtedy, gdy lista naprawdę jest pusta z powodu
+    // oddalenia — po ręcznym szukaniu nie ma czego dobierać.
+    if (dobranoStart || !trybSkupiskTeraz || searchResults !== null) return;
+    setDobranoStart(true);
+    let anulowane = false;
+
+    (async () => {
+      // NAJPIERW POZNAŃ, DOPIERO POTEM GRACZ — i to nie jest kwestia gustu.
+      // Sprawdzenie zgody na lokalizację (Permissions API + `getCurrentPosition`)
+      // potrafi nie odpowiedzieć wcale; przy `await` na wejściu lista zostawała
+      // wtedy pusta w nieskończoność, bo do zapytania o kadr nigdy nie dochodziło.
+      // Tak lista ma treść od razu, a położenie gracza tylko ją podmienia.
+      try {
+        await pokazWokol(POZNAN.lat, POZNAN.lng);
+      } catch { /* lista zostaje pusta, przycisk niżej wciąż działa */ }
+      if (anulowane) return;
+
+      const pozycja = await pozycjaBezPytania();
+      if (anulowane || !pozycja) return;
+      try {
+        // Pusto wokół gracza nie jest odpowiedzią — wtedy zostaje Poznań.
+        const ile = await pokazWokol(pozycja.lat, pozycja.lng);
+        if (!anulowane && ile === 0) await pokazWokol(POZNAN.lat, POZNAN.lng);
+      } catch { /* zostaje to, co już jest na liście */ }
+    })();
+
+    return () => { anulowane = true; };
+  }, [dobranoStart, trybSkupiskTeraz, searchResults, pokazWokol]);
+
+  const pokazBliskoMnie = async () => {
+    setBladGeoListy(null);
+    setLadujeBlisko(true);
+    const res = await getCurrentLocation();
+    if (!res.ok) {
+      setLadujeBlisko(false);
+      setBladGeoListy(geoErrorMessage(res.kind));
+      return;
+    }
+    try {
+      const ile = await pokazWokol(res.lat, res.lng);
+      if (ile === 0) {
+        setBladGeoListy(`W promieniu ${PROMIEN_LISTY_KM} km nie ma jeszcze żadnego obiektu w katalogu.`);
+      }
+    } catch {
+      setBladGeoListy('Nie udało się pobrać obiektów. Spróbuj jeszcze raz.');
+    }
+    setLadujeBlisko(false);
+  };
+
   const fields = useMemo(() => {
     // Aktywne szukanie podmienia źródło: wyniki z całego katalogu zamiast
     // tego, co akurat wczytane dla bieżącego kadru (patrz searchResults wyżej).
@@ -884,8 +996,15 @@ export default function VenueExplorer({
     // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
     // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
     // (wtedy `q` filtruje to, co i tak jest w bieżącym kadrze, jak dawniej).
-    const q = search.trim().toLowerCase();
-    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
+    //
+    // OGONKI: `foldText` jest tu konieczne, nie kosmetyczne. Samo `toLowerCase`
+    // znaczyło, że „poznan" nie zawiera się w „Orlik Poznań", więc ten filtr
+    // wyrzucał WSZYSTKO, co przyszło z serwera — mapa zostawała bez pinezek,
+    // z samymi kółkami skupisk sprzed szukania. Helper istnieje od czasu tego
+    // samego błędu na /wydarzenia („pilka" nie znajdowało „piłka nożna"),
+    // tylko nigdy nie był wpięty w mapę.
+    const q = foldText(search);
+    if (q) list = list.filter((f) => foldedIncludes(f.name, q) || foldedIncludes(f.address, q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
   }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search]);
@@ -1351,8 +1470,40 @@ export default function VenueExplorer({
                 <EventBrowseCard event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
               </div>
             ))}
+            {/* PUSTA LISTA GIER JEST TERAZ EKRANEM POWITALNYM, nie skrajnym
+                przypadkiem: „Szukaj" wchodzi wprost tutaj, więc ktoś bez
+                otwartych meczów w okolicy zobaczy to jako PIERWSZĄ rzecz
+                w aplikacji. Samo „Brak meczów" byłoby wtedy ślepym końcem
+                dokładnie w chwili największej ciekawości.
+                Rozdzielamy dwie różne przyczyny pustki — własne filtry (do
+                zdjęcia) kontra brak meczów w ogóle (nie ma czego zdejmować) —
+                i w obu wypadkach dajemy wyjście dalej. */}
             {gamesRows.length === 0 && (
-              <p className="text-sm text-slate-400 text-center pt-8">Brak meczów dla tych filtrów</p>
+              <div className="pt-10 text-center">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {liczbaFiltrow > 0 ? 'Żaden mecz nie pasuje do filtrów' : 'Nie ma teraz otwartych meczów'}
+                </p>
+                <p className="mx-auto mt-1 max-w-[15rem] text-xs text-slate-400">
+                  {liczbaFiltrow > 0
+                    ? 'Poluzuj filtry albo zorganizuj własny mecz.'
+                    : 'Zorganizuj własny — zajmie minutę i pokaże się tu innym.'}
+                </p>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <Link
+                    href="/wydarzenia/nowe"
+                    className="rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                  >
+                    Zorganizuj mecz
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={toggleShowGames}
+                    className="text-sm font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800"
+                  >
+                    Zobacz boiska w okolicy
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -1394,29 +1545,22 @@ export default function VenueExplorer({
                 się pojedyncze obiekty, i lista wypełnia się bez wychodzenia
                 z listy. */}
             {fields.length === 0 && trybSkupisk && (
-              <div className="pt-8 text-center">
-                <p className="text-sm text-slate-400">
-                  {wKadrze.toLocaleString('pl-PL')} {boiskoSlowo(wKadrze)} w tym widoku
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!mapInstance) return;
-                    // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
-                    // Samo `setZoom` trzyma środek, a środek widoku całej
-                    // Polski to pole pod Łodzią — przybliżenie kończyłoby się
-                    // wtedy listą „0 boisk", czyli dokładnie tym, co ten
-                    // przycisk ma naprawić.
-                    const najwieksze = skupiska.reduce<Skupisko | null>(
-                      (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
-                    if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
-                    else mapInstance.setZoom(ZOOM_SKUPISK);
-                  }}
-                  className="mt-3 rounded-xl border border-primary-700 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
-                >
-                  Przybliż tam, gdzie jest ich najwięcej
-                </button>
-              </div>
+              <PustaListaObiektow
+                ladujeBlisko={ladujeBlisko}
+                bladGeo={bladGeoListy}
+                naBliskoMnie={pokazBliskoMnie}
+                naPrzyblizenie={() => {
+                  if (!mapInstance) return;
+                  // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
+                  // Samo `setZoom` trzyma środek, a środek widoku całej Polski
+                  // to pole pod Łodzią — przybliżenie kończyłoby się wtedy
+                  // listą „0 boisk", czyli dokładnie tym, co ma naprawić.
+                  const najwieksze = skupiska.reduce<Skupisko | null>(
+                    (naj, s) => (naj && naj.ile >= s.ile ? naj : s), null);
+                  if (najwieksze) mapInstance.setView([najwieksze.lat, najwieksze.lng], ZOOM_SKUPISK);
+                  else mapInstance.setZoom(ZOOM_SKUPISK);
+                }}
+              />
             )}
             {fields.length === 0 && !trybSkupisk && (searchResults ?? allFields).length > 0 && (
               <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
@@ -1447,11 +1591,20 @@ export default function VenueExplorer({
           <MapAttribution />
           {street}
           {showGames ? (
-            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} />
+            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} pozycjaGracza={gamesUserPos} />
           ) : (
             <>
               <KadrObserwator onZmiana={onKadrZmiana} />
-              <WarstwaSkupisk skupiska={skupiska} />
+              {/* Kółka ze skupiskami TYLKO w trybie skupisk — ta gałąź jest
+                  częścią poprawki, nie kosmetyką. Efekt pobierający dane dla
+                  kadru wychodzi wcześniej, gdy trwa szukanie („aktywne
+                  szukanie ma własne źródło"), więc `skupiska` zostawało
+                  z ostatniego widoku kraju. Po wpisaniu np. „poznan" mapa
+                  doleciała do wyników, ale NA NICH leżały jeszcze kółka
+                  z liczbami sprzed szukania. Kliknięcie takiego kółka nie
+                  rozbija pinezek — robi `flyTo(zoom + 3, max 14)`, czyli
+                  z przybliżenia 15 po wynikach szukania ODDALA mapę. */}
+              {trybSkupisk && <WarstwaSkupisk skupiska={skupiska} />}
               <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
             </>
           )}

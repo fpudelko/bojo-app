@@ -6,7 +6,8 @@ import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 import { priorytetDlaTier } from '@/lib/sitemapTier';
 
 // Sitemap boisk, partycjonowany po województwie zamiast jednego pliku na
-// cały katalog (32 684 wiersze, rosnący). Adres to /sitemap-boiska/<slug>.xml
+// cały katalog (ponad 30 000 wierszy, rosnący — patrz content/dlaczego.ts dla
+// tej samej liczby w treści widocznej dla użytkownika). Adres to /sitemap-boiska/<slug>.xml
 // — segment routingu to cały "<slug>.xml", bo Next.js nie ma osobnej notacji
 // na rozszerzenie w dynamicznym segmencie folderu.
 //
@@ -14,6 +15,13 @@ import { priorytetDlaTier } from '@/lib/sitemapTier';
 // `noindex` w generateMetadata (boisko/[id]/page.tsx), więc wpis w sitemapie
 // byłby sprzeczną instrukcją dla Googlebota — sitemap ma zawierać wyłącznie
 // adresy, które NAPRAWDĘ mają być indeksowane.
+//
+// `.in('seo_tier', [1, 2])`, nie `.neq('seo_tier', 3)`: obie wersje dają dziś
+// ten sam wynik (kolumna jest `NOT NULL` z `CHECK IN (1, 2, 3)`, więc trzeciej
+// możliwości i tak nie ma), ale `.in()` mówi wprost „chcę te dwa tiery",
+// zamiast polegać na tym, że nikt nigdy nie doda tieru 4. `priorytetDlaTier()`
+// (lib/sitemapTier.ts) przyjmuje odtąd `1 | 2` — TypeScript pilnuje, że nic
+// innego tu nie trafi.
 
 export async function GET(
   _req: Request,
@@ -26,16 +34,16 @@ export async function GET(
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
-  let wiersze: { id: string; name: string; seo_tier: number | null }[] = [];
+  let wiersze: { id: string; name: string; seo_tier: 1 | 2 }[] = [];
   try {
-    wiersze = await pobierzWszystkie<{ id: string; name: string; seo_tier: number | null }>(
+    wiersze = await pobierzWszystkie<{ id: string; name: string; seo_tier: 1 | 2 }>(
       (od, doIdx) =>
         supabase
           .from('fields')
           .select('name, id, seo_tier')
           .eq('map_visibility', 'public')
           .eq('voivodeship', slug)
-          .neq('seo_tier', 3)
+          .in('seo_tier', [1, 2])
           .order('id')
           .range(od, doIdx),
     );

@@ -36,6 +36,14 @@ export default function GamesMapCanvas({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRow = rows.find((r) => r.event.id === selectedId) ?? null;
 
+  // LICZNIK LICZY PINEZKI, NIE WIERSZE. Mecz bez współrzędnych nie trafia na
+  // mapę (`GamesMarkersLayer` go pomija) — a licznik brał `rows.length`, więc
+  // nad PUSTĄ mapą stało „12 meczy na mapie". To jest gorsze niż brak liczby:
+  // czyta się jak zepsuta mapa, a jest brak lokalizacji w danych. Zgłoszone
+  // wprost („na liście są, na mapie pusto").
+  const zLokalizacja = rows.filter(({ event }) => event.lat != null && event.lng != null);
+  const bezLokalizacji = rows.length - zLokalizacja.length;
+
   // Swipe w panelu przełącza na kolejny/poprzedni mecz w tej samej kolejności
   // co pinezki na mapie (ta sama tablica `rows`).
   const swipe = useSwipe(
@@ -62,8 +70,25 @@ export default function GamesMapCanvas({
       </MapContainer>
 
       <div className="pointer-events-none absolute left-3 top-3 z-[600] rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-md">
-        {rows.length} {plural(rows.length, 'mecz', 'mecze', 'meczy')} na mapie
+        {zLokalizacja.length} {plural(zLokalizacja.length, 'mecz', 'mecze', 'meczy')} na mapie
+        {bezLokalizacji > 0 && (
+          <span className="text-slate-400"> · {bezLokalizacji} bez lokalizacji</span>
+        )}
       </div>
+
+      {/* Pusta mapa musi POWIEDZIEĆ, że jest pusta i dlaczego. Bez tego widać
+          same kafelki i nie wiadomo, czy filtry wycięły wszystko, czy coś się
+          zepsuło — a mecze cały czas są, tylko na liście. */}
+      {zLokalizacja.length === 0 && rows.length > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-[650] flex items-center justify-center p-6">
+          <p className="pointer-events-auto max-w-xs rounded-2xl bg-white/95 px-4 py-3 text-center text-sm text-slate-600 shadow-lg">
+            {rows.length === 1
+              ? 'Ten mecz nie ma podanej lokalizacji, więc nie ma go na mapie.'
+              : `Żaden z tych ${rows.length} meczów nie ma podanej lokalizacji, więc mapa jest pusta.`}
+            <span className="mt-1 block text-xs text-slate-400">Na liście są wszystkie.</span>
+          </p>
+        </div>
+      )}
 
       <LocateMeButton map={mapInstance} className="absolute right-3 bottom-3 z-[600]" />
 

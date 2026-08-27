@@ -200,7 +200,7 @@ export default async function GrajPage(
               {zdanieOKatalogu(liczbaBoisk, miasto.miejscownik)}
             </p>
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
-              <Link href="/mapa" className="text-primary-600 hover:underline">
+              <Link href="/mapa?gry=0" className="text-primary-600 hover:underline">
                 Mapa boisk
               </Link>
               <Link href={`/boiska/${sport.slug}`} className="text-primary-600 hover:underline">
@@ -229,7 +229,7 @@ export default async function GrajPage(
               Stwórz mecz publiczny
             </Link>
             <Link
-              href="/mapa"
+              href="/mapa?gry=0"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
               Mapa boisk

@@ -1,5 +1,12 @@
 import Link from 'next/link';
 import { SHOW_RECURRING } from '@/lib/features';
+import { HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
+
+// Po co ta grupa w stopce: do 2026-08-23 do żadnego huba w HUBY_KATALOGU_SPORTOWYCH
+// NIE PROWADZIŁ ani jeden link w HTML — ze strony głównej, z nagłówka ani ze
+// stopki. Crawler znajdował je wyłącznie przez mapę strony, a strony osierocone
+// dostają najniższy priorytet skanowania, bo nic w serwisie za nimi nie ręczy.
+// Stopka jest jedynym miejscem obecnym na każdej stronie treści.
 
 /** Mobile-first: kolumna grup na telefonie, wiersz od `md:` w górę. Dwie
  *  grupy linków zamiast jednej płaskiej listy — "Produkt" (co da się zrobić
@@ -27,17 +34,26 @@ export default function SiteFooter() {
           <GrupaLinkow tytul="Produkt">
             <Link href="/wydarzenia" className="transition-colors hover:text-white">Znajdź mecz</Link>
             <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>
-            <Link href="/mapa" className="transition-colors hover:text-white">Mapa boisk</Link>
+            <Link href="/mapa?gry=0" className="transition-colors hover:text-white">Mapa boisk</Link>
             <Link href="/grupy" className="transition-colors hover:text-white">Grupy</Link>
             {SHOW_RECURRING && (
               <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
             )}
           </GrupaLinkow>
 
+          <GrupaLinkow tytul="Boiska">
+            {HUBY_KATALOGU_SPORTOWYCH.map((h) => (
+              <Link key={h.slug} href={`/boiska/${h.slug}`} className="transition-colors hover:text-white">
+                {h.etykieta}
+              </Link>
+            ))}
+          </GrupaLinkow>
+
           <GrupaLinkow tytul="Bojo">
             <Link href="/jak-dziala-bojo" className="transition-colors hover:text-white">Jak działa Bojo</Link>
             <Link href="/dlaczego-bojo" className="transition-colors hover:text-white">Dlaczego Bojo</Link>
             <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>
+            <Link href="/kalkulator-kosztow-boiska" className="transition-colors hover:text-white">Kalkulator kosztów</Link>
             <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
             <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
             {/* Zgłoszenie błędu musi być osiągalne z KAŻDEJ strony — awaria

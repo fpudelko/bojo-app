@@ -1,32 +1,26 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
-import { useMyParticipation } from '@/lib/useMyParticipation';
-import { isEventJoinable } from '@/components/EventCard';
+import { isEventJoinable } from '@/lib/eventDates';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import type { EventItem } from '@/types';
 
 /**
- * Proof, not promise: shows real open games when there are any. On a cold
- * database (or while loading) this renders nothing — an empty/skeleton
- * state here would tell a first-time visitor the product is empty.
+ * Proof, not promise: shows real open games when there are any.
+ *
+ * Server component, nie kliencki ze stanem `loading` — do 2026-08-24 dane
+ * dociągały się w `useEffect`, więc ta sekcja nie istniała w HTML pierwszej
+ * odpowiedzi serwera: strona główna nie miała ani jednego linku do meczu
+ * w tym, co dostaje robot (docs/seo-geo-strategia.md, D18). `relation` na
+ * karcie zostaje bez wartości: to jest landing wyłącznie dla NIEZALOGOWANYCH
+ * (HomeSwitch w app/page.tsx), więc dla każdego odwiedzającego wynik
+ * `useMyParticipation()` i tak zawsze był `undefined` — ten sam stan, tylko
+ * liczony po stronie klienta zamiast wprost.
+ *
+ * Puste zapytanie nadal renderuje `null`: pusta/szkieletowa sekcja na zimnej
+ * bazie mówiłaby pierwszy raz odwiedzającemu, że produkt jest pusty.
  */
-export default function LandingOpenGames() {
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const statusFor = useMyParticipation();
-
-  useEffect(() => {
-    getPublicEvents()
-      .then(setEvents)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return null;
+export default async function LandingOpenGames() {
+  const events = await getPublicEvents().catch(() => []);
 
   const openEvents = events.filter((e) => {
     if (e.status === 'cancelled') return false;
@@ -49,7 +43,7 @@ export default function LandingOpenGames() {
         </div>
         <div className="space-y-3">
           {openEvents.slice(0, 3).map((e) => (
-            <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
+            <EventBrowseCard key={e.id} event={e} />
           ))}
         </div>
       </div>

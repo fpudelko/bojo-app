@@ -8,6 +8,11 @@ z Supabase SQL Editora.
 Pliki `.sql` w tym katalogu to zapytania, które warto mieć pod ręką. Workflow
 przyjmuje albo ścieżkę do pliku, albo zapytanie wpisane wprost.
 
+**`stan-migracji.sql` działa też bez tego workflowa** — wklej go wprost do SQL
+Editora, gdy aplikacja zaczyna mówić „Could not find the '…' column of '…' in the
+schema cache" albo „column … does not exist". Wypisuje, których plików
+z `supabase/migrations/` brakuje w tej bazie, brakujące na górze.
+
 ## Jednorazowy setup
 
 ### 1. Rola tylko do odczytu

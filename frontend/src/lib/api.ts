@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { foldText } from './searchText';
 import type { Field, FieldFilters, FieldsResponse, BookingType, MapVisibility } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,29 @@ export interface Kadr {
   lngMax: number;
 }
 
+/**
+ * Kwadrat o boku ~2 × `promienKm` wokół punktu — do zapytań „co jest blisko".
+ *
+ * Stopień szerokości to ~111 km wszędzie; stopień DŁUGOŚCI kurczy się wraz
+ * z cosinusem szerokości, więc bez tej poprawki kadr nad Polską byłby o jakąś
+ * trzecią za wąski w poziomie. Ta sama matematyka siedziała dotąd wpisana
+ * w `policzBoiskaWOkolicy()` — teraz jest jedna i przetestowana.
+ *
+ * To KWADRAT, nie koło: baza nie ma PostGIS (patrz nagłówek migracji `112`),
+ * więc filtrujemy po `lat`/`lng` z indeksów, a odległość liczy się dopiero
+ * po stronie klienta (`distanceKm`). W rogach kwadratu wpadają więc obiekty
+ * nieco dalsze niż promień — wywołujący, który tego nie chce, sortuje albo
+ * przycina po `distanceKm`.
+ */
+export function kadrWokol(lat: number, lng: number, promienKm: number): Kadr {
+  const dLat = promienKm / 111;
+  const dLng = promienKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return {
+    latMin: lat - dLat, latMax: lat + dLat,
+    lngMin: lng - dLng, lngMax: lng + dLng,
+  };
+}
+
 /** Skupisko obiektów w komórce siatki — dla oddalonych widoków. */
 export interface Skupisko {
   lat: number;
@@ -169,15 +193,41 @@ export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
 export async function searchExplorerFields(term: string, limit = 30): Promise<Field[]> {
   const szukane = term.trim();
   if (szukane.length < 2) return [];
-  const { data, error } = await supabase
+
+  const podstawa = () => supabase
     .from('fields')
     .select(EXPLORER_COLS)
     .eq('map_visibility', 'public')
     .overlaps('sport', EXPLORER_SPORTS)
-    .or(`name.ilike.%${szukane}%,address.ilike.%${szukane}%`)
     .limit(limit);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toField);
+
+  // OGONKI. `ilike '%poznan%'` na `name`/`address` NIE jest zgodne z „Poznań" —
+  // Postgres porównuje znak po znaku. Nikt nie pisze ogonków w szukajce na
+  // telefonie, więc wpisanie miasta zwracało zero wyników przy 38 tysiącach
+  // obiektów w katalogu. Migracja 126 dokłada kolumnę `szukaj_norm` (nazwa
+  // + adres, małymi literami, bez ogonków) — składaną tak samo jak `foldText()`
+  // po tej stronie. Obie strony MUSZĄ składać tekst identycznie, bo filtr
+  // lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer.
+  const { data, error } = await podstawa()
+    .ilike('szukaj_norm', `%${foldText(szukane)}%`);
+  if (!error) return (data ?? []).map(toField);
+
+  // Migracje puszcza się w Bojo RĘCZNIE, więc kolumny może jeszcze nie być.
+  // Wtedy lepiej szukać po staremu (bez ogonków nie znajdzie miasta, ale
+  // nazwę wpisaną dokładnie już tak) niż wywalić szukajkę na czerwono.
+  if (!brakKolumny(error)) throw new Error(error.message);
+  const zapasowe = await podstawa()
+    .or(`name.ilike.%${szukane}%,address.ilike.%${szukane}%`);
+  if (zapasowe.error) throw new Error(zapasowe.error.message);
+  return (zapasowe.data ?? []).map(toField);
+}
+
+/** Czy błąd znaczy „takiej kolumny tu nie ma" — czyli „migracja jeszcze nie
+ *  poszła". PostgREST oddaje `42703` z Postgresa albo własne `PGRST204`,
+ *  gdy kolumny nie ma w jego pamięci podręcznej schematu. */
+function brakKolumny(error: { code?: string; message?: string }): boolean {
+  return error.code === '42703' || error.code === 'PGRST204'
+    || (error.message ?? '').includes('szukaj_norm');
 }
 
 export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {
@@ -355,20 +405,16 @@ export async function policzBoiskaWOkolicy(
   lng: number,
   promienKm: number,
 ): Promise<number> {
-  // Stopień szerokości to ~111 km wszędzie; stopień długości kurczy się wraz
-  // z cosinusem szerokości, więc bez tej poprawki kadr nad Polską byłby o jakąś
-  // trzecią za wąski w poziomie.
-  const dLat = promienKm / 111;
-  const dLng = promienKm / (111 * Math.cos((lat * Math.PI) / 180));
+  const kadr = kadrWokol(lat, lng, promienKm);
 
   const { count, error } = await supabase
     .from('fields')
     .select('id', { count: 'exact', head: true })
     .eq('map_visibility', 'public')
-    .gte('lat', lat - dLat)
-    .lte('lat', lat + dLat)
-    .gte('lng', lng - dLng)
-    .lte('lng', lng + dLng);
+    .gte('lat', kadr.latMin)
+    .lte('lat', kadr.latMax)
+    .gte('lng', kadr.lngMin)
+    .lte('lng', kadr.lngMax);
 
   if (error) return 0;
   return count ?? 0;

@@ -6,7 +6,12 @@ import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
 import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
-import { opisObiektu, type ObiektDoOpisu } from '@/content/opisObiektu';
+import { opisObiektu, zdanieORozegranychMeczach, type ObiektDoOpisu } from '@/content/opisObiektu';
+import {
+  KALKULATOR_ODPOWIEDZ, KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI,
+} from '@/content/kalkulator';
+import { WIDGET_BRAK_MECZOW, WIDGET_STOPKA, WIDGET_NIEZNANY_OBIEKT } from '@/content/widget';
+import { wstepHubuSportu, wstepHubuWojewodztwa, wstepHubuSportuMiasta } from '@/content/boiska';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
 
@@ -41,6 +46,12 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   jednostki.push({ etykieta: 'dlaczego#odpowiedz', tekst: DLACZEGO_ODPOWIEDZ });
   jednostki.push({ etykieta: 'jakDziala#odpowiedz', tekst: JAK_DZIALA_ODPOWIEDZ });
   jednostki.push({ etykieta: 'miasta#czym-nie-jest', tekst: CZYM_BOJO_NIE_JEST });
+  jednostki.push({ etykieta: 'kalkulator#odpowiedz', tekst: KALKULATOR_ODPOWIEDZ });
+  jednostki.push({ etykieta: 'kalkulator#hint-karta', tekst: KALKULATOR_HINT_KARTA });
+  jednostki.push({ etykieta: 'kalkulator#hint-bez-znizki', tekst: KALKULATOR_HINT_BEZ_ZNIZKI });
+  jednostki.push({ etykieta: 'widget#brak-meczow', tekst: WIDGET_BRAK_MECZOW });
+  jednostki.push({ etykieta: 'widget#stopka', tekst: WIDGET_STOPKA });
+  jednostki.push({ etykieta: 'widget#nieznany-obiekt', tekst: WIDGET_NIEZNANY_OBIEKT });
   // Direct Answer i zdanie o katalogu są szablonami — sprawdzamy je w każdej
   // realnej kombinacji sportu i miasta, bo to ten tekst trafia na stronę.
   for (const miasto of MIASTA) {
@@ -69,6 +80,27 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   for (const obiekt of PROBKA_OBIEKTOW) {
     jednostki.push({ etykieta: `opisObiektu#${obiekt.name}`, tekst: opisObiektu(obiekt) });
   }
+  // Czysty szablon jak opisObiektu() wyżej — próbka liczb wystarczy.
+  jednostki.push({ etykieta: 'boisko#zdanieORozegranychMeczach', tekst: zdanieORozegranychMeczach(7) ?? '' });
+  jednostki.push({
+    etykieta: 'boisko#zdanieORozegranychMeczach-z-data',
+    tekst: zdanieORozegranychMeczach(7, '2026-08-12') ?? '',
+  });
+
+  // Wstępy hubów: te same generatory co na /boiska/[sport] i /boiska/woj/[x],
+  // sprawdzone dla reprezentatywnych wartości — czysty szablon, jak wyżej.
+  jednostki.push({
+    etykieta: 'boiska#wstep-sportu',
+    tekst: wstepHubuSportu(1234, 'piłki nożnej'),
+  });
+  jednostki.push({
+    etykieta: 'boiska#wstep-wojewodztwa',
+    tekst: wstepHubuWojewodztwa(1234, 'wielkopolskie'),
+  });
+  jednostki.push({
+    etykieta: 'boiska#wstep-sportu-miasta',
+    tekst: wstepHubuSportuMiasta(12, 'piłki nożnej', 'Poznań'),
+  });
 
   return jednostki;
 }

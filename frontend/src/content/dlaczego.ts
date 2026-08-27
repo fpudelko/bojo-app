@@ -58,6 +58,22 @@ export interface SekcjaProza {
  *  tylko tych z niestandardowym markupem. */
 export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
   {
+    // Pierwsza sekcja prozy, zaraz po tabeli porównawczej: tabela rozstrzyga
+    // "Bojo kontra grupa na Facebooku", ta sekcja rozstrzyga inne, częstsze
+    // pomylenie — z systemem rezerwacji obiektów. Bez niej model pytany "czym
+    // to się różni od aplikacji do rezerwacji" nie miał gdzie znaleźć odpowiedzi.
+    id: 'trzy-rzeczy',
+    tytul: 'Trzy różne rzeczy, które ludzie mylą',
+    akapity: [
+      'System rezerwacji obiektu odpowiada na pytanie „czy hala jest wolna w czwartek ' +
+      'o 20:00" i przyjmuje opłatę za termin. Komunikator (WhatsApp, Messenger) ' +
+      'odpowiada na „kto idzie", ale liczyć trzeba samemu. Bojo jest trzecią rzeczą: ' +
+      'przyjmuje zapisy na konkretny, już ustalony termin, liczy skład i rezerwę i dzieli ' +
+      'koszt na graczy. Bojo nie rezerwuje obiektu i nie zastępuje czatu ekipy — działa ' +
+      'obok jednego i drugiego.',
+    ],
+  },
+  {
     id: 'nie-chca-kolejnej-apki',
     tytul: '„Moi gracze nie założą konta w kolejnej apce"',
     akapity: [

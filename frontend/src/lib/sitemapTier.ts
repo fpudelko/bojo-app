@@ -7,8 +7,13 @@
 // Tier 3 nie ma tu w ogóle wpisu — te obiekty mają `noindex` w
 // generateMetadata (boisko/[id]/page.tsx) i są pomijane w zapytaniu sitemapa,
 // zanim priorytet w ogóle wchodzi w grę (patrz sitemap-boiska/[plik]/route.ts).
-export function priorytetDlaTier(tier: number | null): number {
-  if (tier === 1) return 0.7;
-  if (tier === 2) return 0.5;
-  return 0.3; // tier nieznany (NULL, przed backfillem) — ostrożnie, nie 0.7 jak dotąd
+//
+// Sygnatura celowo `1 | 2`, nie `number | null`: `fields.seo_tier` jest
+// `SMALLINT NOT NULL DEFAULT 3` z `CHECK (seo_tier IN (1, 2, 3))` (migracja
+// 112) — NULL jest niemożliwy na poziomie bazy, nie tylko przefiltrowany tu.
+// `route.ts` zawęża zapytanie do `.in('seo_tier', [1, 2])`, więc każda
+// wartość, jaka tu trafia, jest jedną z tych dwóch — TypeScript to teraz
+// wymusza, zamiast obsługiwać przypadek, który nigdy nie zachodzi.
+export function priorytetDlaTier(tier: 1 | 2): number {
+  return tier === 1 ? 0.7 : 0.5;
 }

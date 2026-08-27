@@ -48,7 +48,17 @@ trap sprzataj EXIT
 echo "→ Stawiam Postgresa (port $PORT)…"
 jako() { if [[ -n "$JAKO" ]]; then setpriv --reuid="$JAKO" --regid="$JAKO" --clear-groups "$@"; else "$@"; fi; }
 
-jako "$BIN/initdb" -D "$DANE" -U postgres --auth=trust >/dev/null
+# UTF-8 WPROST, nie z otoczenia. Bez tego `initdb` bierze kodowanie z locale
+# roboczej maszyny, a w kontenerze CI to zwykle „C" — czyli baza wstaje jako
+# SQL_ASCII. Funkcje tekstowe liczą wtedy BAJTY, nie znaki: `length('ąćęłńóśźż')`
+# daje 18 zamiast 9, a `translate()` przestawia ogonki na przypadkowe litery
+# („Poznań" → „poznas"). Supabase na produkcji jest UTF8, więc taka baza testowa
+# odpowiadałaby co innego niż produkcja — dokładnie ta klasa cichego kłamstwa,
+# przed którą ostrzega uwaga o atrapie w `shim.sql`.
+LOKALIZACJA=C.UTF-8
+locale -a 2>/dev/null | grep -qix "c.utf8\|c.utf-8" || LOKALIZACJA=C
+jako "$BIN/initdb" -D "$DANE" -U postgres --auth=trust \
+  --encoding=UTF8 --locale="$LOKALIZACJA" >/dev/null
 jako "$BIN/pg_ctl" -D "$DANE" -o "-p $PORT -k $DANE -c listen_addresses=localhost" -l "$DANE/log" -w start >/dev/null
 export PGHOST=localhost PGPORT="$PORT" PGUSER=postgres
 createdb bojo

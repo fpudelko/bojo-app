@@ -25,33 +25,24 @@ export function validateStep2(date: string, time: string): FieldErrors {
   return {};
 }
 
-/**
- * Rozróżnianie bramkarzy to wybór, nie ustawienie domyślne.
+/* USUNIĘTE: `validateGoalkeepers()`.
  *
- * Domyślnie było WŁĄCZONE. Organizator, który tego nie zauważył, dostawał mecz
- * z pulą miejsc rozbitą na role — a przy grze bez stałego bramkarza to znaczy,
- * że po zapełnieniu pola kolejni zawodnicy lądują na rezerwie, mimo wolnych
- * miejsc „dla bramkarzy". Wychodziło to dopiero przy zapisach, na graczach.
+ * Wymuszała decyzję „czy mecz rozróżnia bramkarzy", gdy `goalkeepersEnabled`
+ * był `null`. Miało to sens, dopóki rozróżnianie było domyślnie WŁĄCZONE po
+ * cichu: organizator, który tego nie zauważył, dostawał pulę miejsc rozbitą na
+ * role i dowiadywał się o tym dopiero na graczach.
  *
- * `null` = jeszcze nie zdecydowano. Dotyczy wyłącznie sportów z bramkarzem;
- * dla pozostałych pytanie nie ma sensu i nie jest zadawane.
+ * Dziś to widoczny przełącznik „Bramkarze osobno", domyślnie wyłączony —
+ * a wyłączony przełącznik JEST decyzją. Reguła zaczęła więc żądać decyzji,
+ * która stoi na ekranie: „Dalej" odmawiało, a obok świeciło „Zdecyduj, czy mecz
+ * rozróżnia bramkarzy" przy przełączniku ustawionym na NIE. Zgłoszone wprost:
+ * „to też bez sensu błąd".
+ *
+ * Nic tej decyzji nie potrzebuje: publikacja i tak zapisuje
+ * `goalkeepersEnabled ?? false`, a strona edycji trzyma zwykły `boolean`
+ * i normalizuje przy wczytaniu. Walidator był jedynym miejscem, dla którego
+ * stan „jeszcze nie zdecydowano" musiał w ogóle istnieć.
  */
-export function validateGoalkeepers(v: {
-  sportMaBramkarza: boolean;
-  goalkeepersEnabled: boolean | null;
-}): FieldErrors {
-  if (!v.sportMaBramkarza) return {};
-  if (v.goalkeepersEnabled === null) {
-    return { goalkeepers: 'Zdecyduj, czy mecz rozróżnia bramkarzy.' };
-  }
-  return {};
-}
-
-// UWAGA NA PRZYSZŁOŚĆ: od czasu, gdy kreator ma widoczny przełącznik
-// „Bramkarze osobno” (domyślnie WYŁĄCZONY), stan `null` w kreatorze nie
-// występuje — wyłączenie jest decyzją, nie brakiem decyzji. Reguła zostaje,
-// bo strona edycji nadal potrafi mieć `null` przy meczach sprzed migracji
-// `077`, a usunięcie jej odblokowałoby zapis meczu bez rozstrzygniętej roli.
 
 /** Step 3 (Opcje) has no required fields. */
 export function validateStep3(): FieldErrors {
@@ -99,8 +90,6 @@ export function validateStep(
     blikPhone?: string;
     cardDiscountEnabled?: boolean;
     cardDiscountPln?: string;
-    sportMaBramkarza?: boolean;
-    goalkeepersEnabled?: boolean | null;
   },
 ): FieldErrors {
   // KOLEJNOŚĆ KROKÓW ZMIENIŁA SIĘ (2026-08-22): najpierw KIEDY, potem GDZIE.
@@ -127,10 +116,6 @@ export function validateStep(
         blikPhone: v.blikPhone ?? '',
         cardDiscountEnabled: v.cardDiscountEnabled ?? false,
         cardDiscountPln: v.cardDiscountPln ?? '',
-      }),
-      ...validateGoalkeepers({
-        sportMaBramkarza: v.sportMaBramkarza ?? false,
-        goalkeepersEnabled: v.goalkeepersEnabled ?? null,
       }),
     };
   }

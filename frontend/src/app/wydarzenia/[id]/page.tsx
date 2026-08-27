@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
 import { eventJsonLd } from '@/lib/structuredData';
-import { defaultEventTitle } from '@/lib/eventTitle';
-import { getEventMeta } from './eventMeta';
+import { getEventMeta, metadataDlaMeczu } from './eventMeta';
 import EventDetailClient from './EventDetailClient';
 
 // Server wrapper: provides per-event link-preview metadata (Open Graph), then
@@ -19,37 +16,12 @@ import EventDetailClient from './EventDetailClient';
 // EventMeta/getEventMeta wydzielone do ./eventMeta.ts (współdzielone
 // z opengraph-image.tsx) — patrz tamten plik, w tym lat/lng dla
 // `location.geo` w danych strukturalnych (lib/structuredData.ts).
+//
+// Metadane składa `metadataDlaMeczu()` z tego samego pliku. Próg „tylko mecz
+// publiczny" siedzi TAM, w jednym miejscu i pod testem — nie tutaj.
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const ev = await getEventMeta(params.id);
-  if (!ev) return { title: 'Mecz nie znaleziony | Bojo' };
-
-  let whenStr = '';
-  try {
-    const d = parseISO(ev.date);
-    whenStr = format(d, 'EEEE d MMMM', { locale: pl });
-  } catch { whenStr = ev.date; }
-  const timeStr = ev.time ? ev.time.slice(0, 5) : '';
-  const place = ev.field_name || ev.custom_location_name || 'Boisko';
-
-  const name = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
-  const title = `${name} — ${whenStr}${timeStr ? ` ${timeStr}` : ''} | Bojo`;
-  const description = `${ev.sport} • ${whenStr}${timeStr ? `, ${timeStr}` : ''} • ${place}. Dołącz i zbierz skład na Bojo.`;
-
-  return {
-    title,
-    description,
-    // Canonical only for public matches — a private one is reachable solely
-    // through its join link and must not advertise an indexable address.
-    ...(ev.visibility === 'public'
-      ? { alternates: { canonical: `/wydarzenia/${params.id}` } }
-      : {}),
-    openGraph: {
-      title: `${name} • ${whenStr}${timeStr ? ` ${timeStr}` : ''}`,
-      description: `📍 ${place}`,
-      type: 'website',
-    },
-  };
+  return metadataDlaMeczu(params.id, await getEventMeta(params.id));
 }
 
 export default async function EventPage({ params }: { params: { id: string } }) {

@@ -310,18 +310,33 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
-**Kropki na „Moje", „Grupy" i „Znajdź grę".** Niebieska na „Moje" (prawy górny róg) —
-oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`, `lib/events.ts`). Różowa na
-„Moje" (lewy górny róg) i na „Grupy" (lewy górny róg) — nieprzeczytane wiadomości
-(`hasUnreadEventMessages()` w `lib/comments.ts`, `hasUnreadGroupMessages()` w
-`lib/groupPosts.ts`). Pomarańczowa na „Grupy" (prawy górny róg) — nowy mecz w
-którejkolwiek mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()`
-w `lib/groups.ts`, ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej).
-Pomarańczowa na „Znajdź grę" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od
-ostatniej wizyty na `/wydarzenia` (`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik
-`KLUCZ_WYDARZENIA_WIDZIANO`). Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` →
-Konwencje. Każda ikona może nosić dwie kropki naraz (różową i pomarańczową na „Grupy";
-różową i niebieską na „Moje") — lewy i prawy róg, żeby się nie nakładały.
+**Kropki na „Mecze", „Ekipy" i „Szukaj".** Niebieska na „Mecze" (dolny róg, pod
+zieloną plakietką) — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`,
+`lib/events.ts`). Pomarańczowa na „Ekipy" (prawy górny róg) — nowy mecz w którejkolwiek
+mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()` w `lib/groups.ts`,
+ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej). Pomarańczowa na
+„Szukaj" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od ostatniej wizyty
+(`maNoweWydarzeniaWPobolizu()` w `lib/events.ts`, znacznik `KLUCZ_WYDARZENIA_WIDZIANO`).
+Kolor ma stałe znaczenie w całej apce, patrz `AGENTS.md` → Konwencje.
+
+**Nieprzeczytane wiadomości to LICZBA na „Rozmowy", nie kropka ani chmurka —
+od 2026-08-23.** Wcześniej wisiała tam różowa chmurka: bez liczby i tylko dla meczów
+i ekip. Trzy rzeczy były z tym nie tak. Po pierwsze, nad ikoną podpisaną „Rozmowy"
+chmurka powtarzała słowo stojące tuż obok, zamiast dokładać cokolwiek nowego. Po drugie,
+człowiek przed dotknięciem pyta ILE tego jest — czy to moment na przeczytanie, czy na
+później — a chmurka na to nie odpowiadała. Po trzecie, **rozmowy prywatne nie były
+liczone w ogóle**, więc DM (jedyna wiadomość skierowana wprost do jednej osoby) nie
+zapalał wskaźnika. Dziś stoi tam różowa plakietka z sumą nieprzeczytanych wiadomości ze
+WSZYSTKICH trzech źródeł, o tej samej geometrii co zielona plakietka z liczbą meczów na
+„Mecze" (`h-[15px]`, „9+" powyżej dziewięciu): kształt mówi „policzalna rzecz", kolor
+mówi jaka.
+
+Liczbę daje `policzNieprzeczytane()` z **`lib/rozmowy.ts`** — tej samej funkcji używa
+nagłówek ekranu `/rozmowy`, więc plakietka nie może pokazać czegoś innego, niż człowiek
+zobaczy po jej dotknięciu. Wcześniej były na to trzy różne odpowiedzi w dwóch miejscach
+interfejsu: `nieprzeczytaneWMeczach()` liczyło MECZE z nieprzeczytanymi (nie wiadomości),
+`hasUnreadGroupMessages()` zwracało samo `true/false`, a ekran rozmów sumował wiadomości.
+`pobierzRozmowy()` zastąpiło w `BottomNav.tsx` trzy zapytania jednym.
 
 **Każde zapytanie ignoruje odpowiedź, która wróciła po zmianie trasy.** Wszystkie cztery
 efekty w `BottomNav.tsx` (prośby, wiadomości „Moje", wiadomości+nowość „Grupy", pobliskie
@@ -363,13 +378,13 @@ rogami i ogonkiem, bez detali w środku, z białą obwódką wpisaną w kształt
 **Dymki przy pierwszym zapaleniu kropki.** Gdy kropka na dolnej nawigacji przechodzi z
 wyłączonej na włączoną (nie przy każdej zmianie trasy, dopóki świeci — `poprzednieAktywne`
 w `BottomNav.tsx` łapie wyłącznie to przejście), nad ikoną na 4 s pojawia się mała czarna
-etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Moje"), „Nowa
-wiadomość w Twoim meczu" (różowa, „Moje"), „Nowa wiadomość w grupie {nazwa}" (różowa,
-„Grupy" — nazwa z `getUnreadGroupName()` w `lib/groupPosts.ts`, ekipa z najświeższym
-nieprzeczytanym wpisem; osobny typ/licznik od dymka na „Moje", żeby dymek jednoznacznie
-wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Grupy"
+etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, „Mecze"), „Nowa
+wiadomość w meczu {tytuł}" i „Nowa wiadomość w grupie {nazwa}" (obie kierowane na
+„Rozmowy" — tytuł i nazwa z `najswiezszaNieprzeczytana()` w `lib/rozmowy.ts`, czyli
+z tej samej listy, która karmi plakietkę; osobne typy/liczniki, żeby dymek jednoznacznie
+wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Ekipy"
 — `getNewGroupEventGroup()` w `lib/groups.ts`, ekipa z najświeższym nowym meczem, gdy
-nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Znajdź grę").
+nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Szukaj").
 Licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`) jest per typ — po 5
 pokazaniach danego typu dymek przestaje się pojawiać, zakładamy że użytkownik już wie,
 co ten wskaźnik znaczy.
@@ -379,7 +394,7 @@ co ten wskaźnik znaczy.
 (`kluczGrupyWidziano(id)` dla nowego meczu w ekipie, `KLUCZ_WYDARZENIA_WIDZIANO` dla gier
 w pobliżu) — więc gaśnie też kropka na karcie ekipy na `/grupy`. Uzasadnienie wprost
 z konwencji kolorów: pomarańczowy znaczy „nowość, o której jeszcze nie wiesz", a dymek
-wymieniający ekipę z nazwy tę wiadomość właśnie dostarczył. Różowa chmurka NIE gaśnie —
+wymieniający ekipę z nazwy tę wiadomość właśnie dostarczył. Różowa plakietka NIE gaśnie —
 ona nie mówi „jest nowość", tylko „jest coś do przeczytania", co znika dopiero po
 przeczytaniu; dymek trwa 4 s i można na niego nie patrzeć, a zgubiona w ten sposób
 wiadomość nie ma jak się upomnieć.
@@ -407,21 +422,12 @@ z liczbą nieprzeczytanych wewnątrz niej przejmuje kliknięcie (`stopPropagatio
 `role="link"` + `onKeyDown` (Enter/Spacja), żeby plakietka została osiągalna
 z klawiatury mimo że nie jest osobnym `<a>`.
 
-**Przytrzymanie „Moje" otwiera panel ze wszystkimi rozmowami z nieprzeczytanymi.**
-Krótkie tapnięcie działa jak dotąd (nawiguje na `/moje-gry`); przytrzymanie ~0,5 s
-(`useDlugieWcisniecie()`, `lib/useDlugieWcisniecie.ts` — timer + tolerancja 10 px na
-drgnięcie palca, `onClickCapture` połyka klik, który przeglądarka i tak wyśle po
-długim dotyku) otwiera `components/layout/PanelRozmow.tsx`: wysuwany od dołu arkusz
-z listą meczów I ekip z nieprzeczytanymi razem, od najświeższej wiadomości. Dane
-dopiero przy otwarciu — zwykłe tapnięcie nie robi ani jednego dodatkowego zapytania.
-Wiersz meczu prowadzi na `?tab=rozmowa`, wiersz ekipy na `?tab=tablica`. Lista składana
-z `rozmowyZNieprzeczytanymi()` (`lib/comments.ts`) i `rozmowyGrupZNieprzeczytanymi()`
-(`lib/groupPosts.ts`) — obie to cienkie nakładki na tę samą logikę, która wcześniej
-liczyła tylko `{ ile, tytul }` dla dymka (`nieprzeczytaneWMeczach()`/
-`getUnreadGroupName()`, zostają, zachowanie bez zmian). Panel NIE zastępuje przycisku
--filtra „tylko nieprzeczytane" na `/moje-gry` (linijka wyżej, chmurka obok pola
-wyszukiwania): filtr zawęża listę meczów, panel przeskakuje wprost do rozmowy, także
-w ekipie, do której `/moje-gry` w ogóle nie prowadzi.
+**Panel rozmów pod przytrzymaniem „Moje" już nie istnieje — zastąpił go ekran
+`/rozmowy`.** Wysuwany arkusz (`components/layout/PanelRozmow.tsx`) miał dwa
+ograniczenia nie do naprawienia bez zmiany formy: otwierał go GEST, którego nikt nie
+odkryje sam, i jako warstwa nad inną stroną nie miał własnego adresu — nie dało się
+do niego wrócić „wstecz" ani wysłać linku. Rozmowy mają dziś własne miejsce w dolnej
+nawigacji, własną trasę i plakietkę z liczbą nieprzeczytanych (wyżej).
 
 **Pomarańczowa kropka na konkretnej karcie, nie tylko na ikonie/liście.** Zbiorcza kropka
 („Grupy", „Znajdź grę", karta ekipy na `/grupy`) mówi „coś jest nowe", ale nie wskazuje
@@ -475,6 +481,84 @@ wyleciały:
   zawężał listę, która jest już pogrupowana.
 
 Zostaje sam podział wg relacji: jedna oś, zero kontrolek do nauczenia.
+
+---
+
+## Rozmowa otwarta z listy rozmów zostaje rozmową
+
+`/rozmowy/grupa/[id]` (`RozmowaGrupyClient.tsx`) i `/rozmowy/mecz/[id]`
+(`RozmowaMeczuClient.tsx`) — od 2026-08-23. Wcześniej lista rozmów prowadziła na
+`/grupy/[id]?tab=tablica` i `/wydarzenia/[id]?tab=rozmowa`, czyli **dotknięcie rozmowy
+wyrzucało z komunikatora na stronę ekipy albo meczu** — z paskiem zakładek, składem,
+statystykami i zarządzaniem. Człowiek dotykał wiadomości, a dostawał panel administracyjny;
+„wstecz" wracało stamtąd na `/grupy`, nie do listy rozmów, więc z komunikatora nie dało się
+wyjść tam, skąd się weszło (zgłoszone wprost).
+
+Obie trasy to pełny ekran o układzie 1:1 z rozmową prywatną `/rozmowy/[id]`: własny
+nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), `HideBottomNav`,
+wysokość liczona z widocznego okna (`useOknoCzatu` — inaczej composer ucieka nad
+klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
+(`RozmowaGrupy`, `RozmowaWydarzenia`) i te same tabele — nic się nie duplikuje.
+
+**Kontekst jest ODNOŚNIKIEM, nie paskiem zakładek.** `components/rozmowy/NaglowekRozmowy.tsx`
+daje jeden wiersz: strzałka wstecz, awatar (okładka ekipy albo emoji sportu), nazwa,
+podpis mówiący dokąd prowadzi („Otwórz ekipę", „Otwórz mecz · jutro · 18:00") i strzałka
+w prawo. Cały wiersz jest celem dotknięcia (44 px) — na telefonie sama nazwa to za mały
+cel. Wyjście do ekipy/meczu jest więc na żądanie, a nie nad każdą wiadomością.
+
+Rozmowy pozostają dostępne **także** jako zakładka na stronie ekipy i meczu — kto przyszedł
+zarządzać, ma je tam, gdzie były. Nowe trasy obsługują drugą drogę wejścia.
+
+**Kto widzi.** Ekipa: członkowie (`getMyGroupPermissions()` zwraca `null` dla nieczłonka).
+Mecz: uczestnicy — gram / rezerwa / organizuję (`getMyActiveEventIds()`, ten sam zbiór,
+z którego bierze się lista rozmów). Prawdziwą bramką jest RLS (`group_posts`,
+`event_comments`, migracja `120`); warunek w komponencie istnieje po to, żeby ktoś
+z linku dostał zdanie wyjaśnienia i przycisk do ekipy/meczu zamiast pustego czatu z polem
+do pisania, które i tak odbije baza. Obie trasy są `noindex`.
+
+---
+
+## „Wstecz" wraca do poprzedniego ekranu, nie do sztywnego rodzica
+
+`lib/historia.tsx` — od 2026-08-23. Ekrany szczegółowe miały wstecz zapisane na sztywno
+do JEDNEGO rodzica, mimo że wchodzi się na nie z wielu miejsc. Do `/grupy/[id]` prowadzi
+siedem dróg (kafelek na stronie głównej, `/moje-gry`, lista rozmów, strona meczu,
+przytrzymanie „Ekipy", kod zaproszenia, przełącznik ekip), a wstecz zawsze szło na
+`/grupy`; do `/rozmowy/[id]` wchodzi się też z profilu gracza, a wstecz zawsze szło na
+`/rozmowy`. Opisane przez użytkownika jako „wstecz prowadzi w losowe miejsca" — nie było
+losowe, było stałe i przez to prawie zawsze złe.
+
+Druga połowa problemu: te ekrany robiły `router.push()`, nie `back()`. Push **dokłada**
+wpis do historii, więc systemowe „wstecz" tuż po naszym „wstecz" wracało na ekran, z
+którego się właśnie wyszło — pętla.
+
+**Mechanika.** `SledzenieHistorii` (montowane w `app/layout.tsx`) liczy przejścia między
+ekranami w tej karcie przeglądarki. `useWstecz(zapasowyCel)` woła `router.back()`, gdy
+jest dokąd wracać w aplikacji, a `router.replace(zapasowyCel)`, gdy nie ma — czyli po
+wejściu z powiadomienia push, z linku od kolegi albo z ikony PWA, gdzie kontekst JS jest
+świeży, a historia pusta albo cudza. `replace`, nie `push`, właśnie po to: po wejściu
+z linku systemowe „wstecz" ma wyprowadzić z aplikacji, a nie odbić z powrotem.
+
+Powrót ZDEJMUJE poziom licznika zamiast go dokładać (`oznaczPowrot()` przed `router.back()`)
+— bez tego licznik tylko by rósł, bo `back()` też zmienia trasę, i po dojściu do korzenia
+aplikacja dalej twierdziłaby, że jest gdzie cofać.
+
+**Ograniczenie, świadome:** licznik żyje w pamięci modułu, więc twarde przeładowanie (F5)
+zeruje go i wstecz użyje rodzica zamiast prawdziwej historii. To bezpieczna strona pomyłki
+— rodzic zawsze istnieje i jest sensowny, a `router.back()` na cudzy wpis w historii
+wyprowadziłby z aplikacji bez ostrzeżenia.
+
+**Gdzie działa:** `/grupy/[id]`, `/grupy/[id]/edytuj`, `/grupy/nowe`, `/wydarzenia/[id]`
+(z zachowanym wyjątkiem „prosto z kreatora" → `replace('/moje-gry')`, żeby wstecz nie
+wracało do wypełnionego formularza), `/rozmowy/[id]`, obie nowe trasy rozmów oraz
+`/gracz/[id]` — ten ostatni **nie miał wcześniej ŻADNEGO wyjścia**, mimo że otwiera się
+ze składu meczu, z awatara w rozmowie i z listy ekipy.
+
+`/boisko/[id]` zostaje przy własnym mechanizmie (`lib/powrot.ts`, `sessionStorage`):
+trasa jest prerenderowana i cel powrotu niesie tam pełny stan mapy, którego sama historia
+nie odda.
+
+**Pisząc nowy ekran szczegółowy: `useWstecz(rodzic)`, nie `router.push(rodzic)`.**
 
 ---
 
@@ -614,6 +698,30 @@ Kolejka jest wyborem, patrz `events.reserve_enabled` (migracja `123`).
 `STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx` mapuje pole → krok dla skoku steppera
 przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
 rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
+
+**Błąd blokujący nie ma prawa być niewidoczny.** Zgłoszone wprost: „jak nie włączę
+toggle z bramkarzami, to wewnątrz jest ukryty błąd" — „Dalej" na kroku 1 przestawało
+reagować bez słowa wyjaśnienia. Mechanizm składał się z dwóch rzeczy:
+
+1. **Reguła żądała decyzji, która stoi na ekranie — usunięta.** `validateGoalkeepers()`
+   blokowała krok 1, gdy `goalkeepersEnabled` był `null`. Miało to sens, dopóki
+   rozróżnianie bramkarzy było domyślnie WŁĄCZONE po cichu. Dziś to widoczny
+   przełącznik, domyślnie wyłączony, a wyłączony przełącznik JEST decyzją — więc
+   „Dalej" odmawiało, a obok świeciło „Zdecyduj, czy mecz rozróżnia bramkarzy" przy
+   przełączniku ustawionym na NIE (zgłoszone wprost: „to też bez sensu błąd").
+   Walidator jest skasowany razem z parametrami `sportMaBramkarza`/`goalkeepersEnabled`
+   w `validateStep()`: nic tej decyzji nie potrzebowało — publikacja zapisuje
+   `goalkeepersEnabled ?? false`, a strona edycji trzyma zwykły `boolean`. Przywracanie
+   szkicu normalizuje `null` → `false` niezależnie od tego.
+2. **Komunikat renderował się w niezamontowanej sekcji.** `OpcjaMeczu` montuje treść
+   dopiero po włączeniu, więc błąd z `UstawieniaBramkarzy` nie istniał, dopóki ktoś
+   nie włączył przełącznika — a „Dalej" i tak go respektowało. Dziś `OpcjaMeczu`
+   przyjmuje `blad` i przy ZWINIĘTEJ sekcji pokazuje go w nagłówku, z
+   `data-field-error` (czyli stepper do niego przewija). Reguła jest komponentu,
+   nie tej jednej strony: dotyczy każdego przyszłego przełącznika.
+
+Pilnuje tego `e2e/kreator-ukryty-blad.klikalnosc.spec.ts` — sprawdzone, że bez
+poprawki (1) test pada, zatrzymując się na kroku 1.
 
 **Krok 2 „Gdzie" — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
 wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
@@ -1421,11 +1529,44 @@ przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 `VenueExplorer.tsx` w trybie „Gry", patrz „Układ `/mapa`" niżej. Mapa robi
 `fitBounds` na cały zbiór przy każdej zmianie filtrów.
 
+**Mecz bez współrzędnych nie trafia na mapę — i mapa musi to POWIEDZIEĆ.** Pinezka
+potrzebuje `lat`/`lng`; wiersz bez nich `GamesMarkersLayer` pomija. Zgłoszone wprost:
+„na liście są, na mapie pusto". Złożyły się na to trzy rzeczy i każda jest naprawiona
+osobno:
+
+1. **Współrzędne z obiektu jako zapasowe źródło** (`wspolrzedna()` w `toEvent()`,
+   `lib/events.ts`). Mecz przypięty do obiektu z katalogu ma znane położenie — tylko
+   w tabeli `fields`, nie w swoim wierszu. Zapytania listowe ciągną więc
+   `fields(district, lat, lng)`, a mapper sięga po nie, gdy mecz nie ma własnych.
+   Pinezka postawiona ręcznie (bez `field_id`) fallbacku nie ma i mieć nie może.
+2. **Licznik liczy PINEZKI, nie wiersze** (`GamesMapCanvas`). Brał `rows.length`, więc
+   nad pustą mapą stało „12 meczy na mapie" — brak danych czytał się jak zepsuta mapa.
+   Dziś liczy zlokalizowane i dopisuje „· N bez lokalizacji", gdy któreś wypadły.
+3. **Pusta mapa tłumaczy się sama** — gdy ani jeden mecz nie ma lokalizacji, na
+   kafelkach stoi zdanie, że to brak danych, a nie awaria, i że na liście są wszystkie.
+
+Pilnuje tego `e2e/mapa-bez-wspolrzednych.klikalnosc.spec.ts` (atrapa PostgREST, bez bazy).
+
+**Seedy ustawiają współrzędne** — do 2026-08-23 nie robił tego żaden, więc KAŻDY widok
+mapy na danych testowych był pusty (111 ze 112 zaseedowanych meczów bez `lat`). Każdy
+seed kończy się jednym `UPDATE` rozrzucającym mecze wokół centrum Poznania,
+deterministycznie z tytułu (ten sam mecz zawsze w tym samym punkcie, więc zrzuty ekranu
+się nie ruszają; różne mecze w różnych, więc pinezki nie siedzą jedna na drugiej).
+
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
-sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
+sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — etykietą
 „kiedy + godzina" pod spodem (`matchWhenLabel(date, time)`: dziś · 18:00 / jutro · 18:00
 / w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np. na
 kartach `/moje-gry`). Cena i reszta szczegółów zostają
+/ w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np.
+`NextMatchCard`), a pod nią **skład w formacie „8/14"** (`etykietaSkladu()`
+w `lib/eventFilters.ts`). Pytanie, które decyduje o dotknięciu pinezki, brzmi „czy jest
+tam jeszcze miejsce" — bez tej liczby trzeba było otwierać każdą po kolei, żeby się
+dowiedzieć, że wszystkie są pełne. Komplet malowany niebiesko (`lib/komplet.ts`, ta sama
+reguła co na kartach: komplet nie jest awarią). Druga linijka, nie doklejenie do
+pierwszej — „jutro · 18:00 · 8/14" nie mieści się w szerokości pinezki. Gdy
+`participantsCount` nie jest znane (zapytania bez joinu do `event_participants`),
+pigułki nie ma wcale: lepiej nic niż „undefined/14". Cena i reszta szczegółów zostają
 w panelu po dotknięciu — na samej pinezce więcej tekstu byłoby nieczytelne. Klaster
 (kilka meczów blisko siebie) pokazuje kolorowe kółko z liczbą, tym samym
 `clusterDivIcon()` co klastry boisk na `/mapa`.
@@ -1832,6 +1973,88 @@ jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
 
 ### Widok listy (mobile) — nowość
 
+**Kadr startowy mapy meczów pokazuje WSZYSTKIE mecze, a przy znanej lokalizacji —
+okolicę gracza** (`dopasujKadr()` w `GamesMarkersLayer`). Zgłoszone wprost: mapa
+otwierała się „w miejscu, które jest pomiędzy meczami, z mocnym przybliżeniem".
+
+Przyczyna nie była w matematyce kadru, tylko w MOMENCIE jego liczenia. `VenueExplorer`
+trzyma mapę zamontowaną, ale z `display: none`, gdy wybrany jest widok „Lista" — żeby
+Leaflet nie gubił kadru przy każdym przełączeniu. Kontener ma wtedy 0×0, a `fitBounds`
+na zerowym kontenerze liczy MAKSYMALNE przybliżenie i środek prostokąta, czyli dokładnie
+punkt pomiędzy meczami. `invalidateSize()` po przełączeniu na mapę naprawiało rozmiar,
+ale nikt nie powtarzał dopasowania.
+
+Dziś `dopasujKadr()` odmawia pracy przy kontenerze mniejszym niż 80 px (próg, nie `> 0`
+— kontener w trakcie pokazywania potrafi mieć kilka pikseli) i dopisuje się na zdarzenie
+`resize` Leafleta, które emituje `invalidateSize()`. Kadr liczy się więc dokładnie wtedy,
+gdy jest co mierzyć. `maxZoom` zszedł z 14 na 13: przy jednym meczu `fitBounds` dobijał
+do sufitu, a widok ulicy nie mówi nic o tym, gdzie ten mecz jest w mieście.
+
+**Z lokalizacją gracza** (`gamesUserPos`) kadr obejmuje jego pozycję i mecze w promieniu
+25 km. Gdy w tym promieniu nie ma nic, pokazujemy wszystko — „pusto w promieniu 25 km"
+jest gorszą odpowiedzią niż „najbliższy mecz jest tutaj".
+
+Pilnuje tego `e2e/mapa-kadr-startowy.klikalnosc.spec.ts` (dwa mecze po przeciwnych
+stronach Polski; przy dopasowaniu do zerowego kontenera żadna pinezka nie jest w kadrze).
+
+**`/mapa` otwiera się na OTWARTYCH MECZACH w liście, nie na katalogu boisk** (od
+2026-08-26). Wcześniej domyślny był katalog, a gry wymagały `?gry=1`. Dolna nawigacja
+obchodziła to własnym adresem (`hrefPelny: '/mapa?gry=1'`), ale każde INNE wejście —
+kropka „Nowa gra w promieniu 5 km", udostępniony link, wynik z wyszukiwarki — lądowało
+na obiektach, czyli na odpowiedzi na inne pytanie niż „w co mogę dziś zagrać". Katalog
+~33 tys. obiektów z OSM jest podstawą pod SEO i „zorganizuj tutaj"; pierwszym ekranem dla
+gracza są mecze (zgłoszone wprost).
+
+Semantyka parametru odwrócona: `showGames = searchParams.get('gry') !== '0'`, a przy
+wyjściu z gier w adresie ląduje `gry=0` (wcześniej gry zostawiały `gry=1`). Widok idzie za
+trybem — `useState(showGames ? 'lista' : 'mapa')` — więc gołe `/mapa` to lista kart
+z liczbą graczy, nie oddalona mapa ze skupiskami.
+
+**Druga połowa tej zmiany jest równie ważna:** wszystkie wejścia, które naprawdę chcą
+katalogu, mówią to teraz wprost adresem `?gry=0` — „Mapa boisk" w nagłówku i stopce,
+landing, `/jak-dziala-bojo`, `/dlaczego-bojo`, strony `/boiska/*` i `/[sport]/[miasto]`,
+powrót ze strony boiska (`backHref`), panele obiektu w `/admin` oraz **przełącznik
+„Obiekty" na `/wydarzenia`** — ten ostatni bez `gry=0` odsyłałby z powrotem do gier.
+Pilnuje tego `e2e/szukaj-domyslnie-mecze.klikalnosc.spec.ts`, sprawdzając obie strony
+zamiany.
+
+**Pusta lista obiektów nie jest ślepym zaułkiem — dobiera się SAMA, po współrzędnych**
+(`components/map/PustaListaObiektow.tsx` + `pokazWokol()` w `VenueExplorer`).
+
+Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA: w trybie skupisk z bazy lecą same
+liczby w siatce, nie obiekty. Ten ekran przeszedł trzy wcielenia i warto znać powód
+każdego kroku:
+
+1. **Jeden przycisk „Przybliż tam, gdzie jest ich najwięcej"** — odpowiadał na pytanie,
+   którego nikt nie zadaje (gracz nie szuka największego skupiska pinezek w Polsce), i
+   kazał naprawić stan mapy, której w widoku „Lista" nawet nie widać. Został jako cichy
+   odnośnik na końcu.
+2. **Kafelki miast z liczbami z `fields.city`** — i tu skończyły się domysły. Zrzut
+   z produkcji (2026-08-27) pokazał, ile ta kolumna jest warta: katalog ma **38 314
+   obiektów**, a wszystkie największe miasta razem **~900** (Warszawa 303, Łódź 164,
+   Poznań 54). Backfill lokalizacji (`scraper/backfill_lokalizacja.py`) przeszedł po
+   jakichś **dwóch procentach**, więc kafelek kłamał liczbą I dowoził do garstki zamiast
+   do wszystkiego, co w mieście jest. Kafelki, podpowiedzi miast w szukajce,
+   `policzBoiskaWMiastach()`, `getFieldsWMiescie()` i `lib/miasta.ts` — wszystko usunięte.
+3. **Dziś lista wypełnia się sama**, po `lat`/`lng`, które ma KAŻDY obiekt:
+   - zgoda na lokalizację już udzielona → okolica gracza (`pozycjaBezPytania()`),
+   - bez zgody → okolica Poznania (`POZNAN` w `lib/startowyPunkt.ts` — miasto, w którym
+     Bojo startuje; środek geograficzny Polski to pole pod Łodzią, gdzie katalog nie ma
+     nic ciekawego),
+   - pusto wokół gracza → i tak pokazujemy Poznań, bo „pusto" nie jest odpowiedzią.
+
+   Promień 15 km (`PROMIEN_LISTY_KM`), sortowanie po `distanceKm` — `kadrWokol()` daje
+   KWADRAT (baza nie ma PostGIS), więc dopiero sortowanie robi z tego użyteczną kolejność.
+
+**O zgodę na lokalizację NIE prosimy przy wejściu.** `pozycjaBezPytania()` (`lib/geo.ts`)
+pyta Permissions API i pobiera pozycję tylko wtedy, gdy zgoda już jest; w przeciwnym razie
+zwraca `null` i lista idzie na Poznań. Prośba z zaskoczenia przy starcie strony jest
+odruchowo odrzucana, a odrzuconej zgody nie da się cofnąć inaczej niż w ustawieniach
+przeglądarki — jedno niepotrzebne pytanie psuje tę drogę na trwałe. Pyta dopiero przycisk,
+który człowiek nacisnął sam.
+
+Pilnuje tego `e2e/pusta-lista-obiektow.klikalnosc.spec.ts`.
+
 Do 2026-08-23 `/mapa` na telefonie było wyłącznie mapą: przewijana lista obiektów/meczów
 istniała tylko na desktopie (`<aside>`, `hidden md:flex`), bo tam jest miejsce na pasek
 boczny obok mapy. Telefon dostawał jedną kartę — tę, której pinezkę dotknięto — i żadnego
@@ -1857,6 +2080,45 @@ nie dawało. Od dwóch znaków zapytania (debounce 300 ms) `VenueExplorer` woła
 `searchExplorerFields()` z `lib/api.ts` — funkcję, która już istniała (używają jej
 pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBounds` do
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
+
+**Dwie poprawki z 2026-08-27, obie na to samo zgłoszenie** („po wyszukaniu np. »poznan«
+w widoku mapy nie działa rozbijanie zgrupowanych pinesek i wgl całość się pierdoli"):
+
+- **Kółka skupisk znikają na czas szukania.** `trybSkupisk` był liczony poprawnie
+  (`search.trim().length < 2 && zoom < ZOOM_SKUPISK`), ale `WarstwaSkupisk` renderowała
+  się bezwarunkowo, a efekt pobierający dane dla kadru wychodzi wcześniej, gdy trwa
+  szukanie („aktywne szukanie ma własne źródło"), więc `skupiska` nigdy nie było
+  czyszczone. Po wpisaniu miasta mapa doleciała do wyników — i NA wynikach leżały kółka
+  z liczbami sprzed szukania. To wyglądało jak zepsute rozbijanie grup, bo mapa ma dwa
+  różne grupowania, których użytkownik nie odróżnia: kółko ze skupiska tylko przybliża
+  (`flyTo(zoom + 3, max 14)`, czyli po `fitBounds` do wyników na przybliżeniu 15
+  ODDALA), a grupę z `L.markerClusterGroup` klik naprawdę rozbija.
+- **Szukanie przestało gubić ogonki.** Lokalny filtr tekstowy robił
+  `name.toLowerCase().includes(q)`, więc „poznan" nie zawierało się w „Orlik Poznań"
+  i filtr wyrzucał WSZYSTKO, co przyszło z serwera. Dziś idzie przez `foldText()`
+  /`foldedIncludes()` z `lib/searchText.ts` — helper istnieje od tego samego błędu na
+  `/wydarzenia` („pilka" nie znajdowało „piłka nożna"), tylko nigdy nie był wpięty
+  w mapę.
+
+**Strona serwera domknięta migracją `126`.** Sam filtr lokalny nie wystarczał: to filtr
+NA TYM, co przyszło z serwera, a serwer nie zwracał nic. `searchExplorerFields()` robił
+`ilike '%poznan%'` na `name`/`address`, a Postgres porównuje znak po znaku — „poznan" nie
+jest zgodne z „Poznań". Wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów
+w katalogu. Dziś `fields` ma kolumnę generowaną `szukaj_norm` (nazwa + adres, małymi
+literami, bez ogonków) z indeksem GIN po trigramach, a zapytanie idzie po niej, z frazą
+przepuszczoną przez ten sam `foldText()`.
+
+**Obie strony MUSZĄ składać tekst identycznie** — `translate()` w migracji i `foldText()`
+w przeglądarce. Filtr lokalny przepuszcza dalej to, co znajdzie serwer, więc rozjazd
+którejkolwiek strony wycina wyniki po cichu.
+
+`searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie
+ma — migracje puszcza się w Bojo ręcznie, a szukajka nie może wywalać się na czerwono
+tylko dlatego, że migracja czeka w kolejce. Rozpoznaje po kodzie `42703` (Postgres) albo
+`PGRST204` (pamięć podręczna schematu PostgREST).
+
+Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts` (kółka skupisk i filtr lokalny)
+oraz `src/__tests__/szukanieBezOgonkow.test.ts` (zapytanie do bazy i wyjście awaryjne).
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel

@@ -360,11 +360,11 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Pomoc — TU, a nie tylko w stopce. Stopka renderuje się wyłącznie
-            na landingu i stronach treści (`SiteFooter` jest importowany w
-            `app/page.tsx` i `StronaTresci`), czyli NIE na ekranach, na których
-            coś realnie pada: mecz, moje gry, mapa, ekipy. Profil jest jedynym
-            miejscem, do którego zalogowany trafia z każdego z nich. */}
+        {/* Pomoc — TU, a nie tylko w stopce. Od 2026-08-23 stopka jest szerzej
+            (landing, strony treści, huby katalogu, listy meczów i ekip), ale
+            nadal NIE MA JEJ na ekranach, na których coś realnie pada: strona
+            meczu, moje gry, mapa. Profil jest jedynym miejscem, do którego
+            zalogowany trafia z każdego z nich. */}
         <div className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-800">
           <Link
             href="/zglos-blad"

@@ -1,35 +1,29 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { getFields } from '@/lib/api';
 import { slugBoiska } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
-import type { Field } from '@/types';
 
 /**
  * "Boiska w okolicy" proof section. Wired to real fields from DB
  * (public map_visibility only), links to the real venue detail route
- * /boisko/[slug]. Renders nothing if the query comes back empty — same
- * rule as LandingOpenGames: no half-empty section on a cold database.
+ * /boisko/[slug].
+ *
+ * Server component od 2026-08-24, nie kliencki ze `useEffect` — ta sekcja
+ * była do tej pory jedynym miejscem w serwisie, gdzie strona główna
+ * linkowała do stron obiektów, ale link istniał wyłącznie po hydratacji.
+ * Robot bez JS dostawał zero linków w głąb katalogu z landingu
+ * (docs/seo-geo-strategia.md, D18). Renderuje `null`, gdy zapytanie wraca
+ * puste — ta sama zasada co w LandingOpenGames: żadnej pustej/szkieletowej
+ * sekcji na zimnej bazie.
  */
-export default function LandingVenues() {
-  const [fields, setFields] = useState<Field[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    getFields({ mapVisibility: 'public', limit: 8 })
-      .then(({ fields }) => {
-        if (cancelled) return;
-        const picked = fields
-          .filter((f) => f.district && f.sport.length > 0)
-          .slice(0, 4);
-        setFields(picked.length >= 4 ? picked : fields.slice(0, 4));
-      })
-      .catch(() => { if (!cancelled) setFields([]); });
-    return () => { cancelled = true; };
-  }, []);
+export default async function LandingVenues() {
+  const fields = await getFields({ mapVisibility: 'public', limit: 8 })
+    .then(({ fields }) => {
+      const picked = fields.filter((f) => f.district && f.sport.length > 0).slice(0, 4);
+      return picked.length >= 4 ? picked : fields.slice(0, 4);
+    })
+    .catch(() => []);
 
   if (fields.length === 0) return null;
 
@@ -46,7 +40,7 @@ export default function LandingVenues() {
             </h2>
           </div>
           <Link
-            href="/mapa"
+            href="/mapa?gry=0"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
           >
             Cała mapa boisk <ArrowRight className="h-4 w-4" aria-hidden="true" />
