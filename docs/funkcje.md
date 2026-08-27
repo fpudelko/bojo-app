@@ -1522,7 +1522,13 @@ wydarzeń jest już w całości w pamięci (`getPublicEvents()`, bez limitu). Kl
 przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 `components/map/GamesMarkersLayer.tsx` — ten sam komponent montowany też wewnątrz
 `VenueExplorer.tsx` w trybie „Gry", patrz „Układ `/mapa`" niżej. Mapa robi
-`fitBounds` na cały zbiór przy każdej zmianie filtrów.
+`fitBounds` na kadr startowy (patrz „Widok listy (mobile) — nowość" niżej) DOKŁADNIE
+RAZ — nie przy każdej zmianie filtrów. Do 2026-08-27 `dopasujKadr()` odpalał się przy
+każdej zmianie `rows` (czyli przy każdej zmianie filtra, dacie, cenie czy tekście
+szukania), więc mapa nieproszona przeskakiwała środek i przybliżenie spod ręki
+patrzącego — zgłoszone jako „niepotrzebne/wielokrotne zmiany widoku". Flaga
+`dopasowanoRef` pilnuje dziś, żeby po pierwszym udanym dopasowaniu kolejne zmiany
+danych już nim nie ruszały.
 
 **Mecz bez współrzędnych nie trafia na mapę — i mapa musi to POWIEDZIEĆ.** Pinezka
 potrzebuje `lat`/`lng`; wiersz bez nich `GamesMarkersLayer` pomija. Zgłoszone wprost:
@@ -2170,6 +2176,22 @@ skupisk) — w trybie skupisk (oddalona mapa) nie jest przekazywany do
 i Typ obiektu działają w obu trybach — RPC `mapa_skupiska` przyjmuje
 generyczne tablice `p_sporty`/`p_typy`, więc nowe wartości sportu przechodzą bez żadnej
 zmiany funkcji.
+
+**Sport i Typ obiektu jadą dziś do zapytania także w trybie pojedynczych obiektów**
+(od 2026-08-27) — `getExplorerFields(kadr, sports, venueTypes)` w `lib/api.ts`, nie
+tylko `getExplorerClusters()`. Wcześniej filtr sportu w trybie pojedynczych obiektów
+istniał WYŁĄCZNIE po stronie przeglądarki: zapytanie zawsze ciągnęło cały szeroki
+`EXPLORER_SPORTS`, więc gęsta okolica z wybranym, popularnym sportem pobierała
+niepotrzebnie dużo wierszy nienależących do wyniku. To miało znaczenie, bo PostgREST
+ucina wynik do `max_rows` (`supabase/config.toml`) po cichu, bez błędu i bez informacji
+o ucięciu — a bez `ORDER BY` Postgres nie gwarantuje kolejności wierszy, więc to samo
+zapytanie na ten sam kadr potrafiło przy dużej gęstości zwrócić za każdym razem INNY
+podzbiór tysiąca obiektów. Zgłoszone jako „pinezki czasami znikają" i „liczba obiektów
+bywa błędna, szczególnie przy większej liczbie wyników" — dokładnie ten mechanizm.
+`getExplorerFields()` ma dziś stały `.order('id')` (deterministyczna kolejność) i
+zawęża zapytanie do wybranego sportu/typu, gdy filtr jest aktywny — nie eliminuje to
+twardego limitu PostgRESTa przy naprawdę gęstym, niefiltrowanym widoku, ale usuwa
+przyczynę migotania wyników przy tym samym kadrze i filtrze.
 
 **Zalogowany na mobile** dostaje w tym samym pływającym wierszu co pole szukania również
 `MobileIdentityRow` (dzwonek + awatar) — Header na tej trasie chowa swój pasek, patrz

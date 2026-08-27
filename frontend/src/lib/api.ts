@@ -160,7 +160,7 @@ export async function getExplorerClusters(
  * Prostokąt widoku ogranicza zapytanie tym, co użytkownik faktycznie ogląda,
  * więc rozmiar odpowiedzi zależy od gęstości okolicy, a nie od wielkości bazy.
  */
-export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
+export async function getExplorerFields(kadr: Kadr, sporty?: string[], typy?: string[]): Promise<Field[]> {
   let zapytanie = supabase
     .from('fields')
     .select(EXPLORER_COLS)
@@ -172,11 +172,29 @@ export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
     // Bez tej zmiany świeżo zaimportowane boisko nigdy nie trafiłoby na mapę:
     // z OSM nie przychodzi ani telefon, ani strona, ani opis.
     .eq('map_visibility', 'public')
-    .overlaps('sport', EXPLORER_SPORTS);
+    // `sporty` (wybór użytkownika w filtrze) zawęża zapytanie u ŹRÓDŁA, tak
+    // samo jak już robi to `getExplorerClusters`. Wcześniej ten filtr
+    // istniał WYŁĄCZNIE po stronie klienta — zapytanie zawsze ciągnęło cały
+    // szeroki `EXPLORER_SPORTS`, więc przy popularnym sporcie w gęstej
+    // okolicy trzeba było pobrać dużo więcej wierszy niż faktycznie trafiało
+    // na mapę, zbliżając się do `max_rows` PostgRESTa (patrz niżej) bez
+    // żadnego powodu.
+    .overlaps('sport', sporty?.length ? sporty : EXPLORER_SPORTS);
 
   zapytanie = zapytanie
     .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
     .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
+
+  if (typy?.length) zapytanie = zapytanie.in('venue_type', typy);
+
+  // Deterministyczna kolejność jest tu ZABEZPIECZENIEM, nie kosmetyką.
+  // PostgREST ucina wynik do `max_rows` (patrz `supabase/config.toml`) po
+  // cichu — bez błędu, bez informacji, że coś odpadło. Bez ORDER BY Postgres
+  // nie gwarantuje kolejności wierszy, więc to samo zapytanie na ten sam
+  // prostokąt potrafiło przy dużej gęstości zwrócić za każdym razem INNY
+  // podzbiór tysiąca obiektów — z zewnątrz wyglądało to jak znikające
+  // pinezki i zmieniająca się bez powodu liczba wyników.
+  zapytanie = zapytanie.order('id', { ascending: true });
 
   const { data, error } = await zapytanie;
   if (error) throw new Error(error.message);

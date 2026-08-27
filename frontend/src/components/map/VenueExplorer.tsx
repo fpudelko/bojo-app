@@ -880,7 +880,12 @@ export default function VenueExplorer({
         .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
         .catch(() => {});
     } else {
-      getExplorerFields(kadr)
+      // `sports`/`venueTypes` jadą teraz do zapytania, nie tylko do lokalnego
+      // filtra niżej — patrz komentarz w `getExplorerFields()`. Bez tego
+      // gęsta okolica z wybranym sportem ciągnęła zawsze CAŁY szeroki
+      // katalog obiektów w kadrze, zbliżając się do ucięcia PostgRESTa
+      // szybciej niż to konieczne.
+      getExplorerFields(kadr, sports, venueTypes)
         .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
         .catch(() => {});
     }

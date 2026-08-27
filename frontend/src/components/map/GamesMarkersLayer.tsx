@@ -188,7 +188,26 @@ export default function GamesMarkersLayer({
    * dopasowania, więc zostawał tamten bezsensowny kadr. Zgłoszone wprost:
    * „przybliża w miejscu, które jest pomiędzy meczami, z mocnym przybliżeniem".
    */
+  // Dopasowanie ma się zdarzyć DOKŁADNIE RAZ, nie przy każdej zmianie `rows`.
+  //
+  // `dopasujKadr` był w zależnościach efektu niżej razem z `rows`, więc każda
+  // zmiana filtrów (data, cena, wolne miejsca, tekst szukania) albo świeże
+  // dane z serwera odpalały go od nowa — mapa wykonywała `fitBounds` przy
+  // każdej takiej zmianie, czyli przeskakiwała i przybliżenie, i środek pod
+  // ręką patrzącego, nawet gdy sam już wcześniej ustawił kadr ręcznie.
+  // Zgłoszone jako „mapa czasami wykonuje niepotrzebne/wielokrotne zmiany
+  // widoku" — dokładnie to.
+  //
+  // Flaga zamiast usunięcia `rows`/`pozycjaGracza` z zależności: te dwie
+  // wartości muszą zostać, bo to one uruchamiają PIERWSZĄ, potrzebną próbę —
+  // dane dochodzą asynchronicznie (`getPublicEvents()` bez limitu) i mogą
+  // przyjść później niż zamontowanie warstwy, a lokalizacja gracza bywa
+  // znana dopiero po jego zgodzie. Flaga pilnuje, żeby KOLEJNE odpalenia
+  // efektu (już po udanym dopasowaniu) nic nie robiły.
+  const dopasowanoRef = useRef(false);
+
   const dopasujKadr = useCallback(() => {
+    if (dopasowanoRef.current) return true;
     const rozmiar = map.getSize();
     // Próg, nie `> 0`: kontener w trakcie pokazywania potrafi mieć kilka
     // pikseli i dać równie bezużyteczny kadr.
@@ -210,6 +229,7 @@ export default function GamesMarkersLayer({
           L.latLngBounds([[pozycjaGracza.lat, pozycjaGracza.lng], ...wOkolicy]),
           { padding: [48, 48], maxZoom: 13 },
         );
+        dopasowanoRef.current = true;
         return true;
       }
     }
@@ -217,6 +237,7 @@ export default function GamesMarkersLayer({
     // `maxZoom: 13`, nie 14: przy jednym meczu `fitBounds` dobija do sufitu,
     // a widok ulicy nie mówi nic o tym, gdzie ten mecz jest w mieście.
     map.fitBounds(L.latLngBounds(punkty), { padding: [48, 48], maxZoom: 13 });
+    dopasowanoRef.current = true;
     return true;
   }, [map, rows, pozycjaGracza]);
 
