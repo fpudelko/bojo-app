@@ -1,52 +1,46 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * PUSTY STAN LISTY OBIEKTÓW nigdy nie jest ślepym zaułkiem.
+ * LISTA OBIEKTÓW DOBIERA SIĘ SAMA, PO WSPÓŁRZĘDNYCH.
  *
- * Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA (tryb skupisk — z bazy
- * lecą wtedy same liczby, nie obiekty). Stał tam wcześniej jeden przycisk:
- * „Przybliż tam, gdzie jest ich najwięcej" — odpowiedź na pytanie, którego
- * nikt nie zadaje, i to każąca naprawić stan mapy, której w widoku „Lista"
- * nawet nie widać. Zgłoszone wprost: „«przybliż tam, gdzie jest ich
- * najwięcej» jest słabe".
+ * Przy oddalonej mapie lista jest pusta z założenia (tryb skupisk — z bazy lecą
+ * same liczby w siatce, nie obiekty). Przechodziła przez trzy wcielenia:
  *
- * Test pilnuje, że użytkownik dostaje DROGI DALEJ, a nie samą diagnozę:
- * „blisko mnie", miasta z liczbami i dopiero na końcu dawne przybliżenie.
+ *  1. jeden przycisk „Przybliż tam, gdzie jest ich najwięcej" — odpowiedź na
+ *     pytanie, którego nikt nie zadaje,
+ *  2. kafelki miast z liczbami z `fields.city` — kolumna okazała się wypełniona
+ *     w jakichś dwóch procentach (38 314 obiektów w katalogu, wszystkie miasta
+ *     razem ~900), więc kafelek kłamał liczbą i dowoził do garstki,
+ *  3. dziś: lista wypełnia się SAMA obiektami wokół punktu — okolicy gracza,
+ *     gdy zgoda na lokalizację jest już udzielona, a bez niej Poznania.
+ *
+ * `lat`/`lng` ma każdy obiekt w katalogu, więc ten dobór nie zależy od
+ * backfillu lokalizacji.
  */
 
-const LICZBY: Record<string, number> = {
-  Warszawa: 3120, Kraków: 1840, Poznań: 1240, Wrocław: 1105,
-  Łódź: 900, Gdańsk: 760, Szczecin: 610, Gdynia: 0,
+/** Boisko w okolicy Poznania — atrapa oddaje je na każde zapytanie o kadr. */
+const BOISKO = {
+  id: 'f1', name: 'Orlik Rataje', address: 'Poznań, os. Piastowskie',
+  lat: 52.4, lng: 16.95, sport: ['piłka nożna'], venue_type: 'orlik', surface: 'sztuczna',
 };
 
 async function podstaw(page: Page) {
   await page.addInitScript(() => {
-    try { localStorage.setItem('bojo_cookie_consent_v1', '1'); } catch { /* */ }
+    try { localStorage.setItem('bojo_cookie_consent_v1', '1'); } catch { /* tryb prywatny */ }
   });
   await page.route('**/rest/v1/**', (route) => {
     const url = route.request().url();
-    // Skupiska (RPC) — kilka komórek, żeby tryb skupisk był aktywny.
     if (url.includes('/rpc/mapa_skupiska')) {
       return route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify([
-          { lat: 52.23, lng: 21.01, ile: 3120 },
-          { lat: 52.40, lng: 16.92, ile: 1240 },
-        ]),
+        body: JSON.stringify([{ lat: 52.4, lng: 16.92, ile: 1240 }]),
       });
     }
-    // Zliczanie obiektów w mieście: supabase czyta liczbę z `content-range`.
-    const miasto = decodeURIComponent(url.match(/city=eq\.([^&]+)/)?.[1] ?? '');
-    if (miasto) {
-      const ile = LICZBY[miasto] ?? 0;
+    // Zapytanie o KADR (ma granice lat/lng) — tak dobiera się lista startowa.
+    if (url.includes('/fields') && url.includes('lat=gte')) {
       return route.fulfill({
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-          'content-range': `0-0/${ile}`,
-          'access-control-expose-headers': 'content-range',
-        },
-        body: '',
+        status: 200, contentType: 'application/json',
+        headers: { 'content-range': '0-0/1' }, body: JSON.stringify([BOISKO]),
       });
     }
     return route.fulfill({
@@ -56,31 +50,33 @@ async function podstaw(page: Page) {
   });
 }
 
-test('pusta lista obiektów daje drogi dalej, nie tylko „przybliż"', async ({ page }) => {
+const widoczny = (page: Page, nazwa: string) =>
+  page.getByRole('radio', { name: nazwa }).filter({ visible: true }).first();
+
+test('bez udostępnionej lokalizacji lista pokazuje okolicę Poznania', async ({ page }) => {
+  // Zgody nie ma i NIE PYTAMY o nią przy wejściu — lista i tak ma coś nieść.
   await podstaw(page);
-  // `?gry=0` — pusty stan, o który tu chodzi, należy do KATALOGU OBIEKTÓW,
-  // a gołe `/mapa` pokazuje od 2026-08-26 otwarte mecze.
   await page.goto('/mapa?gry=0');
-  await page.waitForTimeout(3500);
 
-  // Dwa przełączniki w DOM (nakładka mobilna i pasek desktopu) — trafiamy
-  // w widoczny, pułapka opisana w AGENTS.md.
-  await page.getByRole('radio', { name: 'Lista' }).filter({ visible: true }).first().click();
-  await page.waitForTimeout(2500);
+  await expect(widoczny(page, 'Obiekty')).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
+  await expect(page.getByText('Orlik Rataje').first()).toBeVisible({ timeout: 15_000 });
 
-  // 1. Główna droga: jedno dotknięcie, zero wiedzy o mapie.
-  await expect(page.getByRole('button', { name: /Pokaż boiska blisko mnie/ })).toBeVisible();
+  // Miast tu już nie ma — liczby z `fields.city` były nieprawdziwe.
+  await expect(page.getByText('Albo wybierz miasto')).toHaveCount(0);
+});
 
-  // 2. Miasta Z LICZBAMI, posortowane malejąco — liczba mówi, gdzie w ogóle
-  //    jest co oglądać. Miasto bez obiektów (Katowice ma 0 w atrapie niżej)
-  //    nie ma prawa się pokazać.
-  const kafelki = page.getByRole('button', { name: /^(Warszawa|Kraków|Poznań|Gdynia)/ });
-  await expect(kafelki.first()).toContainText('Warszawa');
-  // Bez spacji: `toLocaleString('pl-PL')` grupuje dopiero od pięciu cyfr
-  // (`minimumGroupingDigits` = 2 dla polskiego), więc 3120 zostaje 3120.
-  await expect(kafelki.first()).toContainText('3120');
-  await expect(page.getByRole('button', { name: /^Gdynia/ })).toHaveCount(0);
+test('gdy nie ma czego dobrać, zostaje droga przez przycisk', async ({ page }) => {
+  await page.addInitScript(() => {
+    try { localStorage.setItem('bojo_cookie_consent_v1', '1'); } catch { /* tryb prywatny */ }
+  });
+  // Katalog pusty: żadne zapytanie nie zwraca obiektów.
+  await page.route('**/rest/v1/**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'content-range': '0-0/0' }, body: '[]',
+  }));
+  await page.goto('/mapa?gry=0');
 
-  // 3. Dawne przybliżenie zostaje, ale jako cicha droga na końcu.
+  await expect(page.getByRole('button', { name: /Pokaż boiska blisko mnie/ }))
+    .toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: /Przybliż tam/ })).toBeVisible();
 });

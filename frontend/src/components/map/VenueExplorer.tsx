@@ -24,10 +24,9 @@ import { useMyInvites } from '@/lib/useMyInvites';
 import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
-  policzBoiskaWMiastach, getFieldsWMiescie, kadrWokol,
+  kadrWokol,
   type Kadr, type Skupisko,
 } from '@/lib/api';
-import { NAJWIEKSZE_MIASTA, miastaDoPokazania } from '@/lib/miasta';
 import PustaListaObiektow from './PustaListaObiektow';
 import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
@@ -35,7 +34,8 @@ import { isEventJoinable } from '@/lib/eventDates';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { slugBoiska, externalUrl } from '@/lib/utils';
 import { plural } from '@/lib/plural';
-import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
+import { distanceKm, getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
+import { POZNAN, PROMIEN_LISTY_KM } from '@/lib/startowyPunkt';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import {
   filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter,
@@ -902,26 +902,67 @@ export default function VenueExplorer({
     return stats;
   }, [events, today]);
 
-  // ── Pusty stan listy: „blisko mnie" i miasta ──────────────────────────
-  // Obie drogi kończą się w `setSearchResults()`, czyli w tej samej ścieżce co
-  // szukanie po nazwie: lista bierze wtedy źródło z wyników zamiast z kadru,
-  // a efekt wyżej sam dopasowuje mapę do tego, co przyszło. Zero nowej
-  // maszynerii na coś, co już działa.
-  const [liczbyMiast, setLiczbyMiast] = useState<Record<string, number> | null>(null);
+  // ── Pusta lista dobiera się SAMA, po współrzędnych ───────────────────
+  //
+  // DLACZEGO NIE PO MIASTACH. Do 2026-08-27 stały tu kafelki miast z liczbami,
+  // liczone z `fields.city`. Zrzut z produkcji pokazał, ile ta kolumna jest
+  // warta: katalog ma 38 314 obiektów, a wszystkie miasta razem ~900 (Poznań
+  // 54). Backfill lokalizacji przeszedł po jakichś dwóch procentach, więc
+  // kafelek kłamał liczbą I dowoził do garstki zamiast do wszystkiego, co
+  // w mieście jest. `lat`/`lng` ma NATOMIAST każdy obiekt — i po nich dobieramy.
+  //
+  // Lista nie czeka też na kliknięcie: ma się wypełnić sama.
+  //   • znamy położenie (zgoda już udzielona) → okolica gracza,
+  //   • nie znamy → okolica Poznania (decyzja właściciela: to jest miasto,
+  //     w którym Bojo startuje, więc puste Bojo pokazuje żywe Bojo).
+  // Zgody NIE WYPRASZAMY przy wejściu — pytanie z zaskoczenia przy starcie
+  // strony ludzie odruchowo odrzucają, a odrzuconej zgody nie da się cofnąć
+  // bez wchodzenia w ustawienia przeglądarki. Pyta dopiero przycisk.
   const [ladujeBlisko, setLadujeBlisko] = useState(false);
   const [bladGeoListy, setBladGeoListy] = useState<string | null>(null);
+  const [dobranoStart, setDobranoStart] = useState(false);
+
+  /** Pobiera obiekty wokół punktu i podaje je liście, posortowane po
+   *  odległości. `kadrWokol` daje KWADRAT (baza nie ma PostGIS), więc dopiero
+   *  sortowanie po `distanceKm` robi z tego użyteczną kolejność. */
+  const pokazWokol = useCallback(async (lat: number, lng: number) => {
+    const znalezione = await getExplorerFields(kadrWokol(lat, lng, PROMIEN_LISTY_KM));
+    znalezione.sort((a, b) =>
+      distanceKm(lat, lng, a.lat, a.lng) - distanceKm(lat, lng, b.lat, b.lng));
+    setSearchResults(znalezione);
+    return znalezione.length;
+  }, []);
 
   const trybSkupiskTeraz = zoom < ZOOM_SKUPISK;
   useEffect(() => {
-    // Liczby ciągniemy raz i dopiero, gdy pusty stan naprawdę jest na ekranie
-    // — to kilkanaście zapytań `head`, nie ma powodu robić ich na wejściu.
-    if (!trybSkupiskTeraz || liczbyMiast !== null) return;
+    // Raz na wejście i tylko wtedy, gdy lista naprawdę jest pusta z powodu
+    // oddalenia — po ręcznym szukaniu nie ma czego dobierać.
+    if (dobranoStart || !trybSkupiskTeraz || searchResults !== null) return;
+    setDobranoStart(true);
     let anulowane = false;
-    policzBoiskaWMiastach([...NAJWIEKSZE_MIASTA])
-      .then((l) => { if (!anulowane) setLiczbyMiast(l); })
-      .catch(() => { if (!anulowane) setLiczbyMiast({}); });
+
+    (async () => {
+      // NAJPIERW POZNAŃ, DOPIERO POTEM GRACZ — i to nie jest kwestia gustu.
+      // Sprawdzenie zgody na lokalizację (Permissions API + `getCurrentPosition`)
+      // potrafi nie odpowiedzieć wcale; przy `await` na wejściu lista zostawała
+      // wtedy pusta w nieskończoność, bo do zapytania o kadr nigdy nie dochodziło.
+      // Tak lista ma treść od razu, a położenie gracza tylko ją podmienia.
+      try {
+        await pokazWokol(POZNAN.lat, POZNAN.lng);
+      } catch { /* lista zostaje pusta, przycisk niżej wciąż działa */ }
+      if (anulowane) return;
+
+      const pozycja = await pozycjaBezPytania();
+      if (anulowane || !pozycja) return;
+      try {
+        // Pusto wokół gracza nie jest odpowiedzią — wtedy zostaje Poznań.
+        const ile = await pokazWokol(pozycja.lat, pozycja.lng);
+        if (!anulowane && ile === 0) await pokazWokol(POZNAN.lat, POZNAN.lng);
+      } catch { /* zostaje to, co już jest na liście */ }
+    })();
+
     return () => { anulowane = true; };
-  }, [trybSkupiskTeraz, liczbyMiast]);
+  }, [dobranoStart, trybSkupiskTeraz, searchResults, pokazWokol]);
 
   const pokazBliskoMnie = async () => {
     setBladGeoListy(null);
@@ -933,28 +974,14 @@ export default function VenueExplorer({
       return;
     }
     try {
-      // 15 km: tyle, ile realnie da się dojechać na mecz po pracy. Przy
-      // mniejszym promieniu na wsi wychodzi pusto, przy większym w mieście
-      // lista przestaje być listą „blisko".
-      const znalezione = await getExplorerFields(kadrWokol(res.lat, res.lng, 15));
-      // Kwadrat, nie koło (patrz `kadrWokol`) — sortowanie po prawdziwej
-      // odległości robi z tego użyteczną kolejność.
-      znalezione.sort((a, b) =>
-        distanceKm(res.lat, res.lng, a.lat, a.lng) - distanceKm(res.lat, res.lng, b.lat, b.lng));
-      setSearchResults(znalezione);
-      if (znalezione.length === 0) setBladGeoListy('W promieniu 15 km nie ma jeszcze żadnego obiektu w katalogu.');
+      const ile = await pokazWokol(res.lat, res.lng);
+      if (ile === 0) {
+        setBladGeoListy(`W promieniu ${PROMIEN_LISTY_KM} km nie ma jeszcze żadnego obiektu w katalogu.`);
+      }
     } catch {
       setBladGeoListy('Nie udało się pobrać obiektów. Spróbuj jeszcze raz.');
     }
     setLadujeBlisko(false);
-  };
-
-  const pokazMiasto = async (nazwa: string) => {
-    try {
-      setSearchResults(await getFieldsWMiescie(nazwa));
-    } catch {
-      setBladGeoListy('Nie udało się pobrać obiektów. Spróbuj jeszcze raz.');
-    }
   };
 
   const fields = useMemo(() => {
@@ -1511,12 +1538,9 @@ export default function VenueExplorer({
                 z listy. */}
             {fields.length === 0 && trybSkupisk && (
               <PustaListaObiektow
-                miasta={liczbyMiast ? miastaDoPokazania(liczbyMiast) : []}
-                ladujeMiasta={liczbyMiast === null}
                 ladujeBlisko={ladujeBlisko}
                 bladGeo={bladGeoListy}
                 naBliskoMnie={pokazBliskoMnie}
-                naMiasto={pokazMiasto}
                 naPrzyblizenie={() => {
                   if (!mapInstance) return;
                   // Celujemy w NAJWIĘKSZE skupisko, nie w środek kadru.
