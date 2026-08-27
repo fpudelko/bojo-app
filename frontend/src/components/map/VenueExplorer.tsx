@@ -1559,7 +1559,7 @@ export default function VenueExplorer({
           <MapAttribution />
           {street}
           {showGames ? (
-            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} />
+            <GamesMarkersLayer rows={gamesRows} selectedId={selectedEventId} onSelect={setSelectedEventId} pozycjaGracza={gamesUserPos} />
           ) : (
             <>
               <KadrObserwator onZmiana={onKadrZmiana} />

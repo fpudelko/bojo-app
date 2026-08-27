@@ -1898,6 +1898,30 @@ jedna reguła „Pokaż N" dla całej zawartości modala, nie dwie różne.
 
 ### Widok listy (mobile) — nowość
 
+**Kadr startowy mapy meczów pokazuje WSZYSTKIE mecze, a przy znanej lokalizacji —
+okolicę gracza** (`dopasujKadr()` w `GamesMarkersLayer`). Zgłoszone wprost: mapa
+otwierała się „w miejscu, które jest pomiędzy meczami, z mocnym przybliżeniem".
+
+Przyczyna nie była w matematyce kadru, tylko w MOMENCIE jego liczenia. `VenueExplorer`
+trzyma mapę zamontowaną, ale z `display: none`, gdy wybrany jest widok „Lista" — żeby
+Leaflet nie gubił kadru przy każdym przełączeniu. Kontener ma wtedy 0×0, a `fitBounds`
+na zerowym kontenerze liczy MAKSYMALNE przybliżenie i środek prostokąta, czyli dokładnie
+punkt pomiędzy meczami. `invalidateSize()` po przełączeniu na mapę naprawiało rozmiar,
+ale nikt nie powtarzał dopasowania.
+
+Dziś `dopasujKadr()` odmawia pracy przy kontenerze mniejszym niż 80 px (próg, nie `> 0`
+— kontener w trakcie pokazywania potrafi mieć kilka pikseli) i dopisuje się na zdarzenie
+`resize` Leafleta, które emituje `invalidateSize()`. Kadr liczy się więc dokładnie wtedy,
+gdy jest co mierzyć. `maxZoom` zszedł z 14 na 13: przy jednym meczu `fitBounds` dobijał
+do sufitu, a widok ulicy nie mówi nic o tym, gdzie ten mecz jest w mieście.
+
+**Z lokalizacją gracza** (`gamesUserPos`) kadr obejmuje jego pozycję i mecze w promieniu
+25 km. Gdy w tym promieniu nie ma nic, pokazujemy wszystko — „pusto w promieniu 25 km"
+jest gorszą odpowiedzią niż „najbliższy mecz jest tutaj".
+
+Pilnuje tego `e2e/mapa-kadr-startowy.klikalnosc.spec.ts` (dwa mecze po przeciwnych
+stronach Polski; przy dopasowaniu do zerowego kontenera żadna pinezka nie jest w kadrze).
+
 **`/mapa` otwiera się na OTWARTYCH MECZACH w liście, nie na katalogu boisk** (od
 2026-08-26). Wcześniej domyślny był katalog, a gry wymagały `?gry=1`. Dolna nawigacja
 obchodziła to własnym adresem (`hrefPelny: '/mapa?gry=1'`), ale każde INNE wejście —
