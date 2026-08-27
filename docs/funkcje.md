@@ -2023,11 +2023,27 @@ w widoku mapy nie działa rozbijanie zgrupowanych pinesek i wgl całość się p
   i filtr wyrzucał WSZYSTKO, co przyszło z serwera. Dziś idzie przez `foldText()`
   /`foldedIncludes()` z `lib/searchText.ts` — helper istnieje od tego samego błędu na
   `/wydarzenia` („pilka" nie znajdowało „piłka nożna"), tylko nigdy nie był wpięty
-  w mapę. **Strona serwera nadal jest wrażliwa na ogonki**: `searchExplorerFields()`
-  robi `ilike '%poznan%'` na `name`/`address`, a Postgres nie zrówna tego z „Poznań".
-  Domknięcie tego wymaga znormalizowanej kolumny w `fields` (migracja) — do zrobienia.
+  w mapę.
 
-Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts`.
+**Strona serwera domknięta migracją `126`.** Sam filtr lokalny nie wystarczał: to filtr
+NA TYM, co przyszło z serwera, a serwer nie zwracał nic. `searchExplorerFields()` robił
+`ilike '%poznan%'` na `name`/`address`, a Postgres porównuje znak po znaku — „poznan" nie
+jest zgodne z „Poznań". Wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów
+w katalogu. Dziś `fields` ma kolumnę generowaną `szukaj_norm` (nazwa + adres, małymi
+literami, bez ogonków) z indeksem GIN po trigramach, a zapytanie idzie po niej, z frazą
+przepuszczoną przez ten sam `foldText()`.
+
+**Obie strony MUSZĄ składać tekst identycznie** — `translate()` w migracji i `foldText()`
+w przeglądarce. Filtr lokalny przepuszcza dalej to, co znajdzie serwer, więc rozjazd
+którejkolwiek strony wycina wyniki po cichu.
+
+`searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie
+ma — migracje puszcza się w Bojo ręcznie, a szukajka nie może wywalać się na czerwono
+tylko dlatego, że migracja czeka w kolejce. Rozpoznaje po kodzie `42703` (Postgres) albo
+`PGRST204` (pamięć podręczna schematu PostgREST).
+
+Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts` (kółka skupisk i filtr lokalny)
+oraz `src/__tests__/szukanieBezOgonkow.test.ts` (zapytanie do bazy i wyjście awaryjne).
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel
