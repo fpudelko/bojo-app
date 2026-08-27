@@ -283,10 +283,14 @@ obrazkach, których nikt nie przegląda.
 mówi wprost, że wzorce wchodzą do repo dopiero po etykiecie, bo pierwszy zrzut widoku
 staje się wzorcem na zawsze i to jego warto obejrzeć. Lokalny przebieg
 `npm run zrzuty` dopisał brakujące pliki — usunąłem je, wzorce w repo są nietknięte.
-**Do rozstrzygnięcia przez właściciela:** przejrzeć raport na dowolnym otwartym PR-ze
-i nadać `zrzuty:zaakceptuj` raz, żeby wrócić do stanu, w którym różnica obrazków
-znaczy „coś się zmieniło". Jedno kliknięcie odblokowuje narzędzie, które od
-sześćdziesięciu PR-ów tylko generuje hałas.
+**Zaakceptowane 2026-08-27** — właściciel poprosił wprost o etykietę i odświeżenie.
+Osobny PR z jednym `zrzuty:zaakceptuj`, bez zmian w kodzie: `.github/dopisz-wzorce.sh`
+puścił `zrzuty:akceptuj` i `scenariusze:akceptuj` przeciwko CI (nie lokalnemu
+kontenerowi — patrz NIEZWERYFIKOWANE niżej) i odesłał nowe wzorce na gałąź PR-a.
+Sześć brakujących plików dostało pierwszy wzorzec; reszta wróciła do zgodności
+z masterem po pięciu kolejnych PR-ach zmergowanych między rundą 3 a tym PR-em
+(#283–#286 — pinezki mapy, pusta lista obiektów, domyślny widok „Szukaj", kadr
+mapy meczów). Diff wzorców obejrzany przed mergem — pełny opis w PR-ze.
 
 **NIEZWERYFIKOWANE:** lokalny `npm run zrzuty` pokazał 42 różnice na 131 zrzutów, ale
 tej liczby **nie wolno czytać jako stanu mastera** — renderowanie czcionek w tym
