@@ -1,21 +1,22 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, Users, ChevronRight, MessageCircle } from 'lucide-react';
+import { LogIn, Users, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getMyParticipatedEvents, getMyActiveEventIds, type MyEventRelation } from '@/lib/events';
+import { getMyParticipatedEvents, getMyActiveEventIds, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
+import { isUpcoming } from '@/lib/eventDates';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
-import { splitMyEvents, nextMatch } from '@/lib/myEvents';
+import { splitMyEvents, type MyEventRow } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { DoRozliczeniaSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, NeedsPlayersSection, PendingRequestsSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
+import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
-import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
+import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
@@ -85,6 +86,35 @@ function MojeGryContent() {
       .finally(() => setLoading(false));
   }, [user]);
 
+  // MECZE MOICH EKIP, DO KTÓRYCH JESZCZE NIE DOŁĄCZYŁEM. Przyszło tu razem
+  // z likwidacją drugiego pulpitu na „/" — i jako JEDYNA sekcja stamtąd, bo
+  // jako jedyna niosła treść, której nie ma nigdzie indziej. Reszta miała już
+  // swoje miejsca: otwarte mecze to zakładka „Szukaj", obserwowane i historia
+  // to zakładki obok, ekipy to `/grupy`, a „Jak to działa" i FAQ mają własne
+  // strony (`/jak-dziala-bojo`, `/faq`).
+  //
+  // Bez tego przeniesienia gracz nie miałby ANI JEDNEGO miejsca, w którym widzi
+  // „moja ekipa gra, a mnie jeszcze nie ma" — pozostałe listy tutaj pokazują
+  // mecze, w których już jest. To jest pętla, po którą wraca się do aplikacji.
+  const [groupEvents, setGroupEvents] = useState<EventItem[]>([]);
+  useEffect(() => {
+    if (!user) { setGroupEvents([]); return; }
+    let aktualne = true;
+    getMyGroupEvents(user.id)
+      .then((evs) => { if (aktualne) setGroupEvents(evs.filter(isUpcoming)); })
+      .catch(() => { if (aktualne) setGroupEvents([]); });
+    return () => { aktualne = false; };
+  }, [user]);
+
+  // Relacja do meczu ekipy liczona z `items`, bez osobnego zapytania:
+  // `getMyParticipatedEvents` bierze WSZYSTKIE moje wiersze z
+  // `event_participants` plus mecze, które organizuję, więc brak meczu na tej
+  // liście naprawdę znaczy „nie mam z nim nic wspólnego".
+  const statusMeczuEkipy = useCallback((event: EventItem): MyEventRelation => ({
+    isOrganizer: event.organizerId === user?.id,
+    status: items.find((i) => i.event.id === event.id)?.relation.status ?? 'none',
+  }), [items, user?.id]);
+
   // Plakietki „nieprzeczytane" na kartach meczów — jedno zapytanie dla
   // wszystkich naraz (gram/organizuję/rezerwa, patrz `getMyActiveEventIds`).
   const [unreadByEvent, setUnreadByEvent] = useState<Record<string, number>>({});
@@ -142,43 +172,62 @@ function MojeGryContent() {
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
   // playing stay together in one list — both are "your match".
   const { upcoming, history, playing, observing } = splitMyEvents(items);
-  const next = nextMatch(items);
 
-  // Filtr „tylko z nieprzeczytanymi" — dotyczy wyłącznie zakładki Nadchodzące;
-  // zaproszenia i stałe gierki nie niosą wiadomości, więc filtr ich nie rusza.
-  const [onlyUnread, setOnlyUnread] = useState(false);
-  const maNieprzeczytane = (event: EventItem) => (unreadByEvent[event.id] ?? 0) > 0;
-  const upcomingWidoczne = onlyUnread ? upcoming.filter(({ event }) => maNieprzeczytane(event)) : upcoming;
-  const playingWidoczne = onlyUnread ? playing.filter(({ event }) => maNieprzeczytane(event)) : playing;
-  const nextWidoczny = onlyUnread ? (next && maNieprzeczytane(next.event) ? next : null) : next;
-  const jestNieprzeczytanych = Object.keys(unreadByEvent).length > 0;
+  // JEDEN FILTR, JEDNA LISTA. Zawęża tę samą listę moich meczów zamiast
+  // robić jej drugą kopię — i to on zastąpił sekcję „Brakuje graczy".
+  // Pytanie organizatora („na który mecz nie zbiera się skład") zostaje więc
+  // odpowiedziane, bez pokazywania tego samego meczu dwa razy na ekranie.
+  //
+  // Filtra „nieprzeczytane" tu NIE MA (decyzja z 2026-08-24). Nieprzeczytane
+  // wiadomości mają w tej apce własne, mocniejsze wejście — zakładkę
+  // „Rozmowy" w dolnej nawigacji z chmurką — a różowa plakietka na karcie
+  // i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście robił z tego
+  // trzecią drogę do tej samej informacji.
+  const [onlyBrakuje, setOnlyBrakuje] = useState(false);
+  const przechodziFiltry = (row: MyEventRow) => !onlyBrakuje || needsPlayers(row);
 
-  // Kotwiczony na wysokości pierwszej sekcji, która realnie coś pokazuje —
-  // nie w pasku zakładek (zgłoszone wprost) i nie na sztywno pod „Brakuje
-  // graczy": gdy ta sekcja akurat jest pusta, pusty wiersz zarezerwowany
-  // tylko dla ikonki zjadał sporo miejsca (zgłoszone wprost po raz drugi).
-  // Kolejność prób: Brakuje graczy → Najbliższy mecz → pusty wiersz jako
-  // ostateczność, gdy filtr wyzerował obie te sekcje na raz.
-  const filtrNieprzeczytanychButton = (
-    <button
-      onClick={() => setOnlyUnread((v) => !v)}
-      aria-pressed={onlyUnread}
-      aria-label={onlyUnread ? 'Pokaż wszystkie mecze' : 'Pokaż tylko mecze z nieprzeczytanymi wiadomościami'}
-      title={onlyUnread ? 'Pokaż wszystkie mecze' : 'Tylko z nieprzeczytanymi wiadomościami'}
-      className={`shrink-0 rounded-full p-1.5 transition-colors ${
-        onlyUnread ? 'bg-pink-600 text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-pink-600 dark:hover:bg-slate-800'
-      }`}
-    >
-      <MessageCircle className="h-4 w-4" />
-    </button>
-  );
-  const maBrakujeGraczy = upcomingWidoczne.some(needsPlayers);
-  // Trzy miejsca postoju filtra, w kolejności prób: prawdziwy nagłówek
-  // „Brakuje graczy", potem „Najbliższy mecz", na końcu pusty wiersz —
-  // wyłącznie gdy obie te sekcje akurat nic nie pokazują.
-  const extraDlaBrakujeGraczy = jestNieprzeczytanych && (maBrakujeGraczy || !nextWidoczny) ? filtrNieprzeczytanychButton : undefined;
-  const pokazPustyNaglowekDlaBrakujeGraczy = jestNieprzeczytanych && !maBrakujeGraczy && !nextWidoczny;
-  const extraDlaNajblizszego = jestNieprzeczytanych && !maBrakujeGraczy && !!nextWidoczny ? filtrNieprzeczytanychButton : undefined;
+  const upcomingWidoczne = upcoming.filter(przechodziFiltry);
+  const jestBrakujacych = upcoming.some(needsPlayers);
+
+  // TRZY KUBEŁKI WG RELACJI, nie jeden wyróżniony mecz na górze (zgłoszone
+  // wprost: „bez sensu jest ten jeden osobny najbliższy mecz"). Przy podziale
+  // na „Grasz" / „Organizujesz" pierwszy element pierwszej sekcji I TAK jest
+  // meczem najbliższym w czasie — `splitMyEvents` sortuje rosnąco po terminie —
+  // więc osobna karta-hero mówiła to, co lista mówi sama.
+  //
+  // Podstawą jest `playing` (czyli `upcoming` bez obserwowanych, bo te mają
+  // własną zakładkę). Kubełki są ROZŁĄCZNE i razem pokrywają całość:
+  const graszWidoczne = playing.filter((r) => przechodziFiltry(r) && r.relation.status === 'playing');
+  const organizujeszWidoczne = playing.filter((r) =>
+    przechodziFiltry(r) && r.relation.isOrganizer && r.relation.status !== 'playing');
+  // Reszta: rezerwa i czekanie na akceptację na CUDZYM meczu. Osobna sekcja,
+  // bo „Grasz" byłoby nieprawdą (nie masz miejsca w składzie), a wrzucenie ich
+  // pod „Organizujesz" jest bez sensu. Pokazuje się tylko wtedy, gdy jest co
+  // pokazać — u większości ludzi nie będzie jej nigdy.
+  const pozostaleWidoczne = playing.filter((r) =>
+    przechodziFiltry(r) && r.relation.status !== 'playing' && !r.relation.isOrganizer);
+
+  // Rząd filtrów nad listą — stałe miejsce. Poprzednia wersja doczepiała
+  // ikonkę filtra do nagłówka sekcji „Brakuje graczy", a gdy ta sekcja była
+  // pusta, przeskakiwała na „Najbliższy mecz", a gdy i ta była pusta —
+  // rezerwowała pusty wiersz tylko dla siebie. Trzy miejsca postoju zniknęły
+  // razem z tamtą sekcją: filtr ma jedno miejsce, zawsze to samo.
+  const filtry = jestBrakujacych ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setOnlyBrakuje((v) => !v)}
+        aria-pressed={onlyBrakuje}
+        className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+          onlyBrakuje
+            ? 'border-slate-700 bg-slate-700 text-white'
+            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+        }`}
+      >
+        Brakuje graczy
+      </button>
+    </div>
+  ) : null;
 
   if (!authLoading && !user) {
     return (
@@ -282,47 +331,61 @@ function MojeGryContent() {
             <button onClick={() => { setLoading(true); setLoadError(false); getMyParticipatedEvents(user!.id).then(setItems).catch(() => setLoadError(true)).finally(() => setLoading(false)); }} className="text-sm font-semibold text-primary-700 hover:text-primary-800">Spróbuj ponownie</button>
           </div>
         ) : tab === 'upcoming' ? (
-          // Ten sam układ co pulpit dla zalogowanych (AppHome), bez sekcji
-          // "Twoje grupy" / "Otwarte mecze" — te mają swoje strony (/grupy,
-          // /wydarzenia). Zero pustego stanu tutaj: NextMatchCard ma własny
-          // ("Nie masz zaplanowanych gier" + CTA), więc pokrywa przypadek
-          // zerowej aktywności bez drugiej kopii tego ekranu. Obserwowane mają
-          // teraz własną zakładkę — nie dublują się tutaj.
+          // JEDNA LISTA MOICH MECZÓW, OD NAJBLIŻSZEGO — i to jest cała ta
+          // zakładka. Wcześniej stały tu SIEDEM sekcji, z czego trzy kroiły tę
+          // samą listę `upcoming`: „Czekają na Twoją decyzję", „Brakuje
+          // graczy" i właściwa lista. Mecz organizowany, bez kompletu
+          // i z prośbą o dołączenie pokazywał się przez to na jednym ekranie
+          // TRZY RAZY, a zanim dojechało się do własnych meczów, trzeba było
+          // minąć trzy nagłówki.
+          //
+          // Reguła, która to porządkuje: FAKT O MECZU (prośby, brakujący
+          // skład, nieprzeczytane) należy do KARTY meczu, a osobną sekcję
+          // dostaje wyłącznie to, czego na tej liście NIE MA — zaproszenie
+          // (jeszcze nie mój mecz) i mecz ekipy, do którego nie dołączyłem.
           <div className="space-y-8">
             <InvitesSection
               invites={openInvites}
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
-            <PendingRequestsSection items={upcomingWidoczne} unreadByEvent={unreadByEvent} />
-            <NeedsPlayersSection
-              items={upcomingWidoczne}
-              limit={null}
-              unreadByEvent={unreadByEvent}
-              extra={extraDlaBrakujeGraczy}
-              pokazPustyNaglowek={pokazPustyNaglowekDlaBrakujeGraczy}
-            />
-            {onlyUnread && upcomingWidoczne.length === 0 ? (
+            {filtry}
+            {upcomingWidoczne.length === 0 && onlyBrakuje ? (
               <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                Żaden z nadchodzących meczów nie ma nieprzeczytanych wiadomości.
+                Żaden z nadchodzących meczów nie pasuje do tego filtra.
               </p>
             ) : (
               <>
-                {(!onlyUnread || nextWidoczny) && (
-                  <NextMatchCard
-                    row={nextWidoczny}
-                    unreadMessages={nextWidoczny ? unreadByEvent[nextWidoczny.event.id] : undefined}
-                    extra={extraDlaNajblizszego}
-                  />
-                )}
                 <MyMatchesSection
-                  items={playingWidoczne.filter(({ event }) => event.id !== nextWidoczny?.event.id)}
+                  items={graszWidoczne}
+                  title="Grasz"
                   limit={null}
                   href={null}
                   unreadByEvent={unreadByEvent}
                 />
+                <MyMatchesSection
+                  items={organizujeszWidoczne}
+                  title="Organizujesz"
+                  subtitle="Twoje mecze, w których sam nie grasz"
+                  limit={null}
+                  href={null}
+                  unreadByEvent={unreadByEvent}
+                />
+                <MyMatchesSection
+                  items={pozostaleWidoczne}
+                  title="Rezerwa i oczekujące"
+                  limit={null}
+                  href={null}
+                  unreadByEvent={unreadByEvent}
+                />
+                {playing.length === 0 && <PustyStanMeczow />}
               </>
             )}
+            {/* Mecze ekipy, w których jeszcze mnie nie ma — POD moimi meczami,
+                bo najpierw odpowiadamy „co mam zaklepane", a dopiero potem
+                „gdzie mógłbym dojść". Sekcja sama się chowa, gdy nie ma czego
+                pokazać (`GroupGamesSection` zwraca null przy pustej liście). */}
+            <GroupGamesSection events={groupEvents} statusFor={statusMeczuEkipy} />
             <NastepneEdycjeSection pozycje={nastepneEdycje} />
           </div>
         ) : tab === 'observing' ? (

@@ -52,7 +52,7 @@ export function timeUntil(date: string, time?: string): string | null {
 }
 
 /** "dziś · 18:00" / "jutro · 18:00" / "w piątek · 18:00" / "12 wrz · 18:00" —
- *  used by NextMatchCard, where the match's date is the primary piece of copy. */
+ *  used by the match cards on /moje-gry, where the date is the primary copy. */
 export function matchWhenLabel(date: string, time?: string): string {
   const timeSuffix = time ? ` · ${time.slice(0, 5)}` : '';
   try {

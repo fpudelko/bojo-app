@@ -22,8 +22,18 @@ import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
  * Ownership is deliberately NOT in here: it's a separate axis rendered as a tag
  * in the meta row, so a match you organize AND play shows both.
  */
+// „GRASZ" JEST WYPEŁNIONE, reszta to blade obwódki — i to jest celowa
+// nierówność. Na liście własnych meczów pytanie brzmi „w których z nich
+// naprawdę gram", a blada plakietka w prawym dolnym rogu odpowiadała na nie
+// dopiero po wpatrzeniu się (zgłoszone wprost). Pozostałe stany są słabsze,
+// bo znaczą „jesteś obok meczu", nie „jesteś w składzie".
+//
+// Zieleń, nie różowy/niebieski/pomarańczowy: te trzy mają w całej apce
+// zarezerwowane znaczenia (wiadomości / wymaga akceptacji / nowość), a udział
+// w składzie nie jest żadnym z nich — to stan, tak samo jak zielony licznik
+// nadchodzących meczów na ikonie „Mecze" (AGENTS.md, Konwencje).
 const STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>> = {
-  playing:   { label: 'Grasz ✓',              cls: 'bg-green-50 text-green-700 border-green-200' },
+  playing:   { label: 'Grasz ✓',              cls: 'bg-primary-700 text-white border-primary-700' },
   reserve:   { label: 'Rezerwa',              cls: 'bg-slate-100 text-slate-600 border-slate-200' },
   observing: { label: 'Obserwujesz',          cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   pending:   { label: 'Czeka na akceptację',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -40,7 +50,7 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
 };
 
 /** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
-export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew }: {
+export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew, odznakiOrganizatora }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
    *  kto gra, organizuje albo jest na rezerwie (nie dla „obserwuję" ani
@@ -53,9 +63,28 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
    *  = „nowość"). Bez tego zbiorcza kropka nie miała jak wskazać, KTÓRY
    *  konkretnie wpis na liście jest nowy — zgłoszone wprost. */
   isNew?: boolean;
+  /** Plakietka dla ORGANIZATORA: ile próśb o dołączenie czeka na decyzję.
+   *  Opt-in, bo poza `/moje-gry` ta liczba nie ma komu służyć — na publicznej
+   *  liście czy na mapie karta odpowiada na „czy mogę tu zagrać", nie na
+   *  „co mam do ogarnięcia".
+   *
+   *  Zastąpiły DWIE OSOBNE SEKCJE („Czekają na Twoją decyzję", „Brakuje
+   *  graczy"), które kroiły tę samą listę nadchodzących meczów co lista
+   *  główna. Mecz organizowany, bez kompletu i z prośbą o dołączenie
+   *  pojawiał się przez to na jednym ekranie TRZY RAZY. Fakt o meczu należy
+   *  do karty meczu, nie do własnego nagłówka. */
+  odznakiOrganizatora?: boolean;
 }) {
   const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
+
+  // Świadomie TYLKO prośby. „Brakuje N" też tu kiedyś było i wyleciało:
+  // karta mówi to samo już trzy razy — paskiem postępu, licznikiem
+  // „7/10 graczy" i bursztynową plakietką „3 wolne miejsca". Czwarta kopia
+  // tej samej liczby nic nie dodawała, a zabierała miejsce tytułowi.
+  const ilePrósb = relation?.isOrganizer && odznakiOrganizatora
+    ? (event.pendingApprovalCount ?? 0)
+    : 0;
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
   const router = useRouter();
@@ -132,10 +161,26 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     return null;
   })();
 
+  // CAŁA KARTA ZIELENIEJE, gdy naprawdę gram (zgłoszone wprost). Sama
+  // plakietka „Grasz ✓" w rogu wymagała szukania wzrokiem; zielone tło i obwódka
+  // dają odpowiedź „to jest moje" z odległości ręki, bez czytania.
+  //
+  // Tylko `status === 'playing'` — nie rezerwa, nie oczekiwanie na akceptację
+  // i nie „organizuję, ale nie gram". Zieleń ma tu znaczyć DOKŁADNIE jedno:
+  // jesteś w składzie. Rozmyta na „prawie gram" przestałaby cokolwiek znaczyć.
+  //
+  // Lewa krawędź zostaje w kolorze SPORTU — to inna informacja i nie ma powodu,
+  // żeby jedna wypierała drugą.
+  const gram = !past && relation?.status === 'playing';
+
   return (
     <Link
       href={`/wydarzenia/${event.id}`}
-      className={`flex overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 dark:ring-slate-700 transition-shadow active:scale-[0.995] ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
+      className={`flex overflow-hidden rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 transition-shadow active:scale-[0.995] ${
+        gram
+          ? 'bg-primary-50/60 ring-primary-200 dark:bg-primary-950/40 dark:ring-primary-800'
+          : 'bg-white ring-slate-100 dark:bg-slate-800 dark:ring-slate-700'
+      } ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
       style={{ borderLeft: `4px solid ${past ? '#94a3b8' : color}` }}
     >
       {/* min-w-0: without it this flex item refuses to shrink below its
@@ -157,7 +202,12 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{title}</h3>
+              {/* `line-clamp-2`, nie `truncate`: plakietki obok są `shrink-0`,
+                  więc na 390 px tytułowi zostawało ~150 px i „Czwartkowa
+                  gierka" wychodziło jako „Czwartkowa …". Dwie linie mieszczą
+                  normalną nazwę w całości, a bardzo długą ucinają dopiero
+                  wtedy, gdy naprawdę nie ma jej gdzie zmieścić. */}
+              <h3 className="min-w-0 flex-1 text-sm font-bold leading-tight text-ink line-clamp-2">{title}</h3>
               <div className="shrink-0 flex items-center gap-2">
                 {!past ? (
                   <>
@@ -166,7 +216,18 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                     }`}>
                       {priceLabel}
                     </span>
-                    {event.requireApproval && (
+                    {/* Konkretna liczba próśb WYPIERA ogólne „Wymaga
+                        akceptacji": ta sama niebieska barwa (AGENTS.md:
+                        niebieski = „wymaga akceptacji uczestnictwa"), tylko
+                        zdanie mocniejsze — „2 prośby" znaczy „czekają na
+                        CIEBIE", a nie „ten mecz ma taki tryb zapisu".
+                        Najwyżej JEDNA z tych dwóch naraz, więc rząd tytułu
+                        niesie tyle samo plakietek co zawsze. */}
+                    {ilePrósb > 0 ? (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                        {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
+                      </span>
+                    ) : event.requireApproval && (
                       <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
                         Wymaga akceptacji
                       </span>

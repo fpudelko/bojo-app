@@ -1,24 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { clsx } from 'clsx';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
-import {
-  ArrowRight, Bell, BellRing, CalendarDays, CalendarPlus, MapPin, Plus, Repeat, Share2, Users,
-  type LucideIcon,
-} from 'lucide-react';
-import AlertSetupDialog from '../AlertSetupDialog';
+import { ArrowRight, Repeat } from 'lucide-react';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { isEventJoinable } from '@/lib/eventDates';
 import type { InviteWithEvent } from '@/lib/playerInvites';
-import { LANDING_STEPS } from '../landing/content';
-import WczesnyEtapBadge from '../landing/WczesnyEtapBadge';
-import { sportEmoji } from '@/lib/sports';
-import { SHOW_GAME_ALERTS } from '@/lib/features';
-import type { EventItem, GameAlert, Group } from '@/types';
+import type { EventItem } from '@/types';
 import type { MyEventRelation } from '@/lib/events';
 import type { MyEventRow } from '@/lib/myEvents';
 import { withCount } from '@/lib/plural';
@@ -32,7 +19,7 @@ type StatusFor = (event: EventItem) => MyEventRelation;
 export function SectionHeader({ title, href, count, subtitle, extra }: {
   title: string; href?: string; count?: number; subtitle?: string;
   /** Dodatkowa kontrolka po prawej stronie wiersza, obok (albo zamiast) linku
-   *  „Wszystkie" — np. przycisk filtra na `/moje-gry` (patrz `NeedsPlayersSection`). */
+   *  „Wszystkie". Dziś nieużywane — filtry `/moje-gry` mają własny rząd. */
   extra?: React.ReactNode;
 }) {
   return (
@@ -91,13 +78,18 @@ export function InvitesSection({ invites, statusFor, href, limit = 3 }: {
   );
 }
 
-/** "Twoje najbliższe mecze" — everything the user is playing/organizing,
- *  except whichever match NextMatchCard already put front and centre.
- *  `limit`/`href` default to the dashboard's teaser behaviour (2 items +
- *  link to /moje-gry); /moje-gry itself passes limit={null} href={null} to
- *  show the full list with no "Wszystkie" link back to itself. */
-export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadByEvent }: {
-  items: MyEventRow[]; limit?: number | null; href?: string | null;
+/** Lista moich meczów pod własnym nagłówkiem.
+ *
+ *  `title` jest propem, bo `/moje-gry` dzieli te same karty na TRZY sekcje
+ *  wg relacji („Grasz", „Organizujesz", „Rezerwa i oczekujące") — jeden
+ *  komponent z podmienianym nagłówkiem zamiast trzech kopii tego samego
+ *  markupu. `limit`/`href` domyślnie zachowują się jak zajawka (2 pozycje
+ *  + link do /moje-gry) dla `/grupy/[id]`; `/moje-gry` podaje
+ *  `limit={null} href={null}`, bo pokazuje pełną listę i nie linkuje do
+ *  samego siebie. */
+export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', subtitle, limit = 2, href = '/moje-gry', unreadByEvent }: {
+  items: MyEventRow[]; title?: string; subtitle?: string;
+  limit?: number | null; href?: string | null;
   /** Nieprzeczytane wiadomości per mecz — patrz `unreadMessages` na `EventBrowseCard`. */
   unreadByEvent?: Record<string, number>;
 }) {
@@ -105,114 +97,17 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadB
   const shown = limit != null ? items.slice(0, limit) : items;
   return (
     <div>
-      <SectionHeader title="Twoje najbliższe mecze" href={href ?? undefined} count={items.length} />
+      <SectionHeader title={title} subtitle={subtitle} href={href ?? undefined} count={items.length} />
       <div className="space-y-3">
         {shown.map(({ event, relation }) => (
-          <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
+          <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} odznakiOrganizatora />
         ))}
       </div>
     </div>
   );
 }
 
-/** Ekipa z najbliższym nadchodzącym meczem — nad „Twoje najbliższe mecze"
- *  (zgłoszone wprost), zanim trzeba przewijać do „Twoje grupy" niżej.
- *  `groupEvents` z `useDashboardData()` przychodzi posortowane po dacie
- *  (`getMyGroupEvents()` w `lib/events.ts`), ale tylko po `event_date` w
- *  SQL-u — bez godziny w drugiej kolumnie sortowania dwa mecze tego samego
- *  dnia mogłyby wyjść w złej kolejności, więc doprecyzowanie po `date+time`
- *  tutaj jest tanie i pewne. */
-export function NextGroupMatchTeaser({ groupEvents, groups }: {
-  groupEvents: EventItem[];
-  groups: Group[];
-}) {
-  const najblizszy = [...groupEvents].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
-  if (!najblizszy) return null;
-  const ekipa = groups.find((g) => g.id === najblizszy.groupId);
-  if (!ekipa) return null;
 
-  const max = najblizszy.maxPlayers ?? 0;
-  const taken = najblizszy.participantsCount ?? 0;
-  const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const brakuje = Math.max(0, max - taken);
-
-  let dzien = '';
-  try { dzien = format(parseISO(najblizszy.date), 'EEE d MMM', { locale: pl }); }
-  catch { dzien = najblizszy.date; }
-
-  return (
-    <div>
-      <SectionHeader title="Twoja ekipa gra wkrótce" href="/grupy" />
-      <Link
-        href={`/grupy/${ekipa.id}`}
-        className="block rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-primary-200 hover:shadow-md dark:border-slate-700/80 dark:bg-slate-800"
-      >
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-2xl">
-            {ekipa.sport ? sportEmoji(ekipa.sport) : '👥'}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-ink">{ekipa.name}</p>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {ekipa.city ?? 'Twoja ekipa'}
-            </p>
-          </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />
-        </div>
-
-        {/* Ten sam układ co karta ekipy na `/grupy`: termin plakietką, obok
-            „brakuje N" albo „komplet", a nazwa obiektu w JEDNYM uciętym
-            wierszu pod spodem. Wcześniej wszystko szło jednym zdaniem
-            „śr. 19 sie · 19:30 · <nazwa obiektu>", w którym nazwa boiska
-            zajmowała większość kafelka i przykrywała dwie rzeczy, po które
-            się tu patrzy: KIEDY gramy i czy jest komplet (zgłoszone wprost). */}
-        <div className="mt-3 space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
-              <CalendarDays className="h-3 w-3" />
-              <span className="capitalize">{dzien}</span> · {najblizszy.time.slice(0, 5)}
-            </span>
-            {max > 0 && (
-              <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                brakuje > 0
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
-              }`}>
-                {brakuje > 0 ? `brakuje ${brakuje}` : 'komplet'}
-              </span>
-            )}
-          </div>
-          {najblizszy.fieldName && (
-            <p className="min-w-0 truncate text-[11px] text-slate-400" title={najblizszy.fieldName}>
-              <MapPin className="mr-1 inline h-3 w-3 align-[-2px]" />
-              {najblizszy.fieldName}
-            </p>
-          )}
-          {max > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
-            </div>
-          )}
-        </div>
-      </Link>
-    </div>
-  );
-}
-
-/** „Na który z moich meczów nie zbiera się skład" — pytanie, na które
- *  organizator dotąd nie miał gdzie odpowiedzieć. `/moje-gry` miesza
- *  organizowanie i granie celowo w jednej liście (`splitMyEvents` obok),
- *  więc to osobna, DODATKOWA sekcja, nie zamiana tamtej. Dane są już
- *  pobrane przez `getMyParticipatedEvents()` — `participantsCount` liczy
- *  `toEvent()` z dołączonego `event_participants`, zero nowego zapytania.
- *
- *  Sortowanie po dacie ROSNĄCO niezależnie od kolejności wejściowej: `items`
- *  bywa przekazywane w kolejności `getMyParticipatedEvents()`, która sortuje
- *  malejąco (ten sam powód, dla którego `nextMatch()` w `lib/myEvents.ts`
- *  sortuje samodzielnie zamiast ufać porządkowi wejścia). */
 /** Kolejna edycja stałej gierki, która jeszcze nie powstała.
  *
  *  Termin serii tworzy się sam, `notifyDaysBefore` dni przed datą meczu — do
@@ -264,100 +159,17 @@ function formatujTermin(data: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-/** Prośby o dołączenie czekające na decyzję organizatora.
- *
- *  Stoi NAD „Brakuje graczy", bo to jedyna sekcja, w której ktoś czeka na
- *  odpowiedź — mecz bez kompletu poczeka, człowiek z prośbą niekoniecznie.
- *  Dotąd jedynym śladem była niebieska kropka przy „Moje" w dolnej nawigacji
- *  i wpis w dzwonku; żeby dowiedzieć się, KTÓRY mecz czeka, trzeba było
- *  otwierać mecze po kolei.
- *
- *  Bez przycisków akceptuj/odrzuć w kafelku — decyzja zapada na stronie meczu,
- *  gdzie widać skład, rezerwę i kto właściwie prosi. Przyciski odpowiedzi
- *  wprost na liście zostały już raz wycofane z zaproszeń (PR #110). */
-export function PendingRequestsSection({ items, href, unreadByEvent }: {
-  items: MyEventRow[]; href?: string; unreadByEvent?: Record<string, number>;
-}) {
-  const czekajace = items
-    .filter(({ event, relation }) => relation.isOrganizer && (event.pendingApprovalCount ?? 0) > 0)
-    .sort((a, b) => `${a.event.date}T${a.event.time || '23:59'}`
-      .localeCompare(`${b.event.date}T${b.event.time || '23:59'}`));
-  if (czekajace.length === 0) return null;
 
-  const razem = czekajace.reduce((suma, { event }) => suma + (event.pendingApprovalCount ?? 0), 0);
-
-  return (
-    <div>
-      <SectionHeader
-        title="Czekają na Twoją decyzję"
-        href={href}
-        count={razem}
-        subtitle={`${withCount(razem, 'prośba', 'prośby', 'próśb')} o dołączenie do Twoich meczów`}
-      />
-      <div className="space-y-3">
-        {czekajace.map(({ event, relation }) => (
-          <div key={event.id} className="rounded-2xl border border-blue-200 bg-blue-50/40 p-1">
-            <EventBrowseCard event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
-            <p className="px-3 pb-1.5 pt-1 text-xs font-semibold text-blue-700">
-              {withCount(event.pendingApprovalCount ?? 0, 'osoba czeka', 'osoby czekają', 'osób czeka')} na akceptację
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Czy ten mecz liczy się jako „brakuje graczy" — wydzielone z
- *  `NeedsPlayersSection`, żeby `/moje-gry` mogło policzyć to samo PRZED
- *  renderowaniem, bez duplikowania reguły (decyduje, gdzie ma stanąć filtr
- *  nieprzeczytanych, patrz `pokazPustyNaglowek` niżej). */
+/** Czy ten mecz liczy się jako „brakuje graczy". Reguła siedzi tu, a nie
+ *  w `/moje-gry`, bo strona potrzebuje jej DWA razy: raz do filtrowania
+ *  listy chipem „Brakuje graczy", raz do decyzji, czy ten chip w ogóle ma
+ *  się pokazać. */
 export function needsPlayers({ event, relation }: MyEventRow): boolean {
   return relation.isOrganizer
     && (event.maxPlayers ?? 0) > 0
     && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0);
 }
 
-export function NeedsPlayersSection({ items, limit = 3, href, unreadByEvent, extra, pokazPustyNaglowek }: {
-  items: MyEventRow[]; limit?: number | null; href?: string; unreadByEvent?: Record<string, number>;
-  /** Dodatkowa kontrolka w nagłówku, patrz `SectionHeader`. */
-  extra?: React.ReactNode;
-  /** `/moje-gry`: gdy sekcja akurat nie ma czego pokazać, ale wywołujący i tak
-   *  chce tu zakotwiczyć `extra` (bo to pierwsza sekcja w kolejności, która
-   *  realnie coś pokazuje) — renderuje samą kontrolkę zamiast `null`.
-   *  Domyślnie `false`, bo pulpit (`AppHome`) ma zostać dokładnie taki, jaki
-   *  był — pusta sekcja tam ma po prostu nie istnieć. */
-  pokazPustyNaglowek?: boolean;
-}) {
-  const needing = items
-    .filter(needsPlayers)
-    .sort((a, b) => {
-      const ka = `${a.event.date}T${a.event.time || '23:59'}`;
-      const kb = `${b.event.date}T${b.event.time || '23:59'}`;
-      return ka < kb ? -1 : ka > kb ? 1 : 0;
-    });
-  if (needing.length === 0) {
-    if (!pokazPustyNaglowek || !extra) return null;
-    return <div className="flex items-center justify-end">{extra}</div>;
-  }
-  const shown = limit != null ? needing.slice(0, limit) : needing;
-  return (
-    <div>
-      <SectionHeader
-        title="Brakuje graczy"
-        href={href}
-        count={needing.length}
-        subtitle="Twoje mecze, które jeszcze nie mają kompletu"
-        extra={extra}
-      />
-      <div className="space-y-3">
-        {shown.map(({ event, relation }) => (
-          <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /** Rozegrane mecze organizatora, w których ktoś ze składu nie oddał
  *  pieniędzy — góra zakładki „Historia" na `/moje-gry`. Filtrowanie i
@@ -386,26 +198,6 @@ export function DoRozliczeniaSection({ items, limit = null }: {
   );
 }
 
-/** Kept separate from MyMatchesSection so "Obserwujesz" never reads as
- *  "you're in" — observing holds no spot and counts in no stats. Title and
- *  subtitle are overridable: /moje-gry calls this section "Obserwowane" and
- *  adds the explanatory subline it already had inline. */
-export function ObservingSection({ items, limit = 2, href = '/moje-gry', title = 'Obserwujesz', subtitle }: {
-  items: MyEventRow[]; limit?: number | null; href?: string | null; title?: string; subtitle?: string;
-}) {
-  if (items.length === 0) return null;
-  const shown = limit != null ? items.slice(0, limit) : items;
-  return (
-    <div>
-      <SectionHeader title={title} href={href ?? undefined} count={items.length} subtitle={subtitle} />
-      <div className="space-y-3">
-        {shown.map(({ event, relation }) => (
-          <EventBrowseCard key={event.id} event={event} relation={relation} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /** Matches organised inside the user's groups that they haven't reacted to
  *  yet. A group match is usually private, so before this section the only
@@ -426,7 +218,16 @@ export function GroupGamesSection({ events, statusFor }: {
 
   return (
     <div>
-      <SectionHeader title="Mecze Twoich grup" href="/grupy" count={fresh.length} />
+      {/* Nagłówek mówi wprost, że to NIE SĄ Twoje mecze. „Mecze Twoich grup"
+          brzmiało jak kolejna lista własnych gier i zlewało się z sekcją
+          wyżej — a to jedyne miejsce na tej stronie, gdzie mecz jest CUDZY
+          i można do niego dołączyć (zgłoszone wprost). */}
+      <SectionHeader
+        title="Możesz dołączyć"
+        subtitle="Mecze Twojej ekipy, w których jeszcze Cię nie ma"
+        href="/grupy"
+        count={fresh.length}
+      />
       <div className="space-y-3">
         {fresh.slice(0, 3).map((e) => (
           <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
@@ -436,176 +237,3 @@ export function GroupGamesSection({ events, statusFor }: {
   );
 }
 
-/** Public open-games feed. Unlike the other sections this always renders —
- *  even at zero, it tells the truth about whether Bojo has open games right
- *  now, instead of going quiet the way LandingOpenGames does. */
-export function OpenGamesSection({ events, statusFor, alert }: {
-  events: EventItem[];
-  statusFor: StatusFor;
-  alert: GameAlert | null;
-}) {
-  const [showAlert, setShowAlert] = useState(false);
-  // Local override so a freshly-saved alert reflects immediately without
-  // needing a setter on the shared dashboard-data hook.
-  const [localAlert, setLocalAlert] = useState<GameAlert | null>(null);
-  const effectiveAlert = localAlert ?? alert;
-
-  const openEvents = events.filter((e) => {
-    if (e.status === 'cancelled') return false;
-    const taken = e.participantsCount ?? 0;
-    return isEventJoinable(e) && taken < e.maxPlayers;
-  });
-
-  return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-ink">
-          Otwarte mecze
-          {openEvents.length > 0 && (
-            <span className="ml-2 rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
-              {openEvents.length}
-            </span>
-          )}
-        </h2>
-        <div className="flex items-center gap-3">
-          {SHOW_GAME_ALERTS && (
-            <button
-              onClick={() => setShowAlert(true)}
-              className={[
-                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                effectiveAlert ? 'bg-primary-50 text-primary-700' : 'bg-amber-50 text-amber-700',
-              ].join(' ')}
-            >
-              {effectiveAlert ? <BellRing className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-              {effectiveAlert ? 'Alert włączony' : 'Ustaw alert'}
-            </button>
-          )}
-          <Link href="/wydarzenia" className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800">
-            Wszystkie <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      {openEvents.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-          <p className="mb-2 text-2xl">⚽</p>
-          {events.length === 0 ? (
-            <>
-              <p className="mb-1 text-sm font-semibold text-slate-700">Nie ma teraz otwartych gier w okolicy</p>
-              <p className="mb-4 text-sm text-slate-600">Wrzuć własną — zobaczą ją gracze z Twojej okolicy.</p>
-            </>
-          ) : (
-            <>
-              <p className="mb-1 text-sm font-semibold text-slate-700">Wszystkie gry w okolicy mają komplet</p>
-              <p className="mb-4 text-sm text-slate-600">Wrzuć własną albo wróć za chwilę.</p>
-            </>
-          )}
-          {SHOW_GAME_ALERTS ? (
-            <button onClick={() => setShowAlert(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">
-              <Bell className="h-4 w-4" /> Ustaw alert
-            </button>
-          ) : (
-            <Link href="/wydarzenia/nowe" className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">
-              <CalendarPlus className="h-4 w-4" /> Stwórz mecz
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {openEvents.slice(0, 3).map((e) => (
-            <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
-          ))}
-        </div>
-      )}
-
-      {showAlert && (
-        <AlertSetupDialog
-          onClose={() => setShowAlert(false)}
-          onSaved={(a) => { setLocalAlert(a); setShowAlert(false); }}
-        />
-      )}
-    </div>
-  );
-}
-
-/** User's groups teaser — max 2 shown, + link to /grupy. */
-export function MyGroupsSection({ groups }: { groups: Group[] }) {
-  if (groups.length === 0) return null;
-  return (
-    <div>
-      <SectionHeader title="Twoje grupy" href="/grupy" />
-      <div className="space-y-2">
-        {groups.slice(0, 2).map((g) => (
-          <Link
-            key={g.id}
-            href={`/grupy/${g.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-xl">
-              {g.sport ? sportEmoji(g.sport) : '👥'}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-ink truncate">{g.name}</p>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                {withCount(g.memberCount ?? 0, 'członek', 'członkowie', 'członków')}
-                {g.city && ` · ${g.city}`}
-              </p>
-            </div>
-            <ArrowRight className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const ONBOARDING_ICONS: Record<string, LucideIcon> = { CalendarPlus, Share2, Users };
-
-/** "Jak to działa" — shown only at zero activity (see AppHome.tsx). Reuses
- *  LANDING_STEPS from the landing page's content module instead of a second
- *  copy of the same three steps, so the two can never drift apart. */
-export function OnboardingSection() {
-  return (
-    <div>
-      <SectionHeader title="Jak to działa" />
-      <ol className="flex flex-col gap-3">
-        {LANDING_STEPS.map((step, i) => {
-          const Icon = ONBOARDING_ICONS[step.icon];
-          // Pulpit renderuje te same kroki własnym markupem, więc plakietkę
-          // wczesnego etapu trzeba postawić i tu — dane są wspólne, widok nie.
-          const wczesny = 'wczesnyEtap' in step && step.wczesnyEtap;
-          return (
-            <li
-              key={step.title}
-              className={clsx(
-                'flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-sm',
-                wczesny && 'opacity-80',
-              )}
-            >
-              <div className={clsx(
-                'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-                wczesny ? 'bg-slate-100 text-slate-400' : 'bg-primary-50 text-primary-700',
-              )}>
-                <Icon className="h-5 w-5" aria-hidden="true" />
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-primary-950 ring-2 ring-canvas">
-                  {i + 1}
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-ink">{step.title}</p>
-                {wczesny && <WczesnyEtapBadge />}
-                <p className="text-sm leading-relaxed text-slate-600">{step.body}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      <Link
-        href="/wydarzenia/nowe"
-        className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3.5 text-base font-bold text-primary-950 shadow-sm transition-colors hover:bg-accent-400"
-      >
-        <Plus className="h-5 w-5" /> Stwórz mecz
-      </Link>
-    </div>
-  );
-}
