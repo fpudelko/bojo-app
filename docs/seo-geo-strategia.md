@@ -264,6 +264,34 @@ da się podnieść ręcznie, a przebieg i tak skończy się na tym samym `403` p
 pociągnięciu obrazu. Test, który faktycznie rozstrzyga sprawę, to `docker run --rm
 hello-world` po ręcznym starcie demona, nie sam status demona.
 
+**Domknięcie 2026-08-27, ta sama sesja — CLI zainstalowane, `supabase start` puszczony
+naprawdę, blokada szersza niż zakładano.** `npm install supabase` przechodzi bez
+przeszkód (rejestr npm jest poza polityką blokującą), CLI startuje (`2.116.0`). Po
+ręcznym starcie demona `supabase start` na tym repo próbuje ściągnąć siedem obrazów —
+i **żaden nie przechodzi**:
+
+| Obraz | Rejestr | Wynik |
+|---|---|---|
+| `supabase/postgres:15.8.1.085` | Docker Hub | `403 Forbidden` |
+| `postgrest/postgrest:v16.1` | Docker Hub | `403 Forbidden` |
+| `supabase/gotrue:v2.196.0` | Docker Hub | `403 Forbidden` |
+| `library/kong:2.8.1` | Docker Hub | `403 Forbidden` |
+| `supabase/storage-api:v1.70.3` | GHCR | `403 Forbidden` |
+| `supabase/realtime:v2.129.3` | GHCR | `403 Forbidden` |
+| `supabase/edge-runtime:v1.74.3` | GHCR | `403 Forbidden` |
+
+Nowy fakt wobec akapitu wyżej: blokada **nie jest wyłącznie Docker Huba**
+(`production.cloudfront.docker.com`). Cztery z siedmiu obrazów Supabase idą z GitHub
+Container Registry, którego blob CDN (`pkg-containers.githubusercontent.com`) zwraca
+ten sam `403 Forbidden`. Dwa różne rejestry, dwa różne CDN-y, jedna polityka — pełna
+blokada, zero udanych ściągnięć. `supabase stop` posprzątał czysto (`docker ps -a`
+puste), demon zgaszony.
+
+**Wniosek nie zmienia się co do stanu** (`stos-lokalny.sh` nadal niedostępny), ale
+zamyka pytanie, które akapit wyżej zostawiał otwarte: nie ma sensu instalować CLI po
+raz drugi w kolejnej rundzie licząc, że któryś z dwóch rejestrów akurat przepuści —
+oba są zablokowane tą samą polityką, sprawdzone wprost, nie przez analogię.
+
 Co udało się zweryfikować w rundzie 3 **twardo, w surowym HTML** (lokalny build
 produkcyjny, `curl` bez JavaScriptu — czyli tak, jak widzi to crawler):
 
@@ -1700,7 +1728,10 @@ Uczciwa lista granic tego dokumentu:
   tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci.
   Pełny wynik przebiegu — rozdział 0, „Runda 3"; **sprostowanie 2026-08-27** w tym samym
   miejscu zawęża przyczynę do rejestru obrazów, nie demona (demon startuje ręcznie bez
-  błędu w tej samej sesji — `docker version`/`systemctl` nie wystarczą jako test).
+  błędu w tej samej sesji — `docker version`/`systemctl` nie wystarczą jako test), i
+  pokazuje, że blokada obejmuje DWA rejestry naraz: `supabase start` z zainstalowanym
+  CLI próbuje siedem obrazów i pada na wszystkich, cztery z GitHub Container Registry
+  (`pkg-containers.githubusercontent.com`), nie tylko z Docker Huba.
   Odpada też adres podglądu Vercela z PR-a, mimo że deploy podglądowy ma prawdziwe
   klucze Supabase — blokuje go ta sama polityka (403 na CONNECT).
   Stan z rundy 2, nadal aktualny co do istoty: Polityka sieciowa środowiska blokuje
