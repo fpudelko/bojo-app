@@ -59,7 +59,11 @@ test('bez udostępnionej lokalizacji lista pokazuje okolicę Poznania', async ({
   await page.goto('/mapa?gry=0');
 
   await expect(widoczny(page, 'Obiekty')).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
-  await expect(page.getByText('Orlik Rataje').first()).toBeVisible({ timeout: 15_000 });
+  // Na telefonie katalog otwiera się MAPĄ (`showGames ? 'lista' : 'mapa'`),
+  // więc listy trzeba zażądać — i o nią właśnie chodzi w tym teście.
+  await widoczny(page, 'Lista').click();
+  await expect(page.getByText('Orlik Rataje').filter({ visible: true }).first())
+    .toBeVisible({ timeout: 15_000 });
 
   // Miast tu już nie ma — liczby z `fields.city` były nieprawdziwe.
   await expect(page.getByText('Albo wybierz miasto')).toHaveCount(0);
@@ -75,8 +79,9 @@ test('gdy nie ma czego dobrać, zostaje droga przez przycisk', async ({ page }) 
     headers: { 'content-range': '0-0/0' }, body: '[]',
   }));
   await page.goto('/mapa?gry=0');
+  await widoczny(page, 'Lista').click();
 
-  await expect(page.getByRole('button', { name: /Pokaż boiska blisko mnie/ }))
+  await expect(page.getByRole('button', { name: /Pokaż boiska blisko mnie/ }).filter({ visible: true }))
     .toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /Przybliż tam/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Przybliż tam/ }).filter({ visible: true })).toBeVisible();
 });

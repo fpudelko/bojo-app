@@ -2006,6 +2006,29 @@ nie dawało. Od dwóch znaków zapytania (debounce 300 ms) `VenueExplorer` woła
 pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBounds` do
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
 
+**Dwie poprawki z 2026-08-27, obie na to samo zgłoszenie** („po wyszukaniu np. »poznan«
+w widoku mapy nie działa rozbijanie zgrupowanych pinesek i wgl całość się pierdoli"):
+
+- **Kółka skupisk znikają na czas szukania.** `trybSkupisk` był liczony poprawnie
+  (`search.trim().length < 2 && zoom < ZOOM_SKUPISK`), ale `WarstwaSkupisk` renderowała
+  się bezwarunkowo, a efekt pobierający dane dla kadru wychodzi wcześniej, gdy trwa
+  szukanie („aktywne szukanie ma własne źródło"), więc `skupiska` nigdy nie było
+  czyszczone. Po wpisaniu miasta mapa doleciała do wyników — i NA wynikach leżały kółka
+  z liczbami sprzed szukania. To wyglądało jak zepsute rozbijanie grup, bo mapa ma dwa
+  różne grupowania, których użytkownik nie odróżnia: kółko ze skupiska tylko przybliża
+  (`flyTo(zoom + 3, max 14)`, czyli po `fitBounds` do wyników na przybliżeniu 15
+  ODDALA), a grupę z `L.markerClusterGroup` klik naprawdę rozbija.
+- **Szukanie przestało gubić ogonki.** Lokalny filtr tekstowy robił
+  `name.toLowerCase().includes(q)`, więc „poznan" nie zawierało się w „Orlik Poznań"
+  i filtr wyrzucał WSZYSTKO, co przyszło z serwera. Dziś idzie przez `foldText()`
+  /`foldedIncludes()` z `lib/searchText.ts` — helper istnieje od tego samego błędu na
+  `/wydarzenia` („pilka" nie znajdowało „piłka nożna"), tylko nigdy nie był wpięty
+  w mapę. **Strona serwera nadal jest wrażliwa na ogonki**: `searchExplorerFields()`
+  robi `ilike '%poznan%'` na `name`/`address`, a Postgres nie zrówna tego z „Poznań".
+  Domknięcie tego wymaga znormalizowanej kolumny w `fields` (migracja) — do zrobienia.
+
+Pilnuje tego `e2e/szukanie-skupiska.klikalnosc.spec.ts`.
+
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel
 powrotu (`/mapa?boisko=<id>`) w `sessionStorage` przez `lib/powrot.ts` — dawniej jechał

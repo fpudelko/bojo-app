@@ -42,6 +42,7 @@ import {
   sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
+import { foldText, foldedIncludes } from '@/lib/searchText';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
@@ -995,8 +996,15 @@ export default function VenueExplorer({
     // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
     // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
     // (wtedy `q` filtruje to, co i tak jest w bieżącym kadrze, jak dawniej).
-    const q = search.trim().toLowerCase();
-    if (q) list = list.filter((f) => f.name.toLowerCase().includes(q) || f.address.toLowerCase().includes(q));
+    //
+    // OGONKI: `foldText` jest tu konieczne, nie kosmetyczne. Samo `toLowerCase`
+    // znaczyło, że „poznan" nie zawiera się w „Orlik Poznań", więc ten filtr
+    // wyrzucał WSZYSTKO, co przyszło z serwera — mapa zostawała bez pinezek,
+    // z samymi kółkami skupisk sprzed szukania. Helper istnieje od czasu tego
+    // samego błędu na /wydarzenia („pilka" nie znajdowało „piłka nożna"),
+    // tylko nigdy nie był wpięty w mapę.
+    const q = foldText(search);
+    if (q) list = list.filter((f) => foldedIncludes(f.name, q) || foldedIncludes(f.address, q));
     list = [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
     return list;
   }, [allFields, searchResults, sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search]);
@@ -1587,7 +1595,16 @@ export default function VenueExplorer({
           ) : (
             <>
               <KadrObserwator onZmiana={onKadrZmiana} />
-              <WarstwaSkupisk skupiska={skupiska} />
+              {/* Kółka ze skupiskami TYLKO w trybie skupisk — ta gałąź jest
+                  częścią poprawki, nie kosmetyką. Efekt pobierający dane dla
+                  kadru wychodzi wcześniej, gdy trwa szukanie („aktywne
+                  szukanie ma własne źródło"), więc `skupiska` zostawało
+                  z ostatniego widoku kraju. Po wpisaniu np. „poznan" mapa
+                  doleciała do wyników, ale NA NICH leżały jeszcze kółka
+                  z liczbami sprzed szukania. Kliknięcie takiego kółka nie
+                  rozbija pinezek — robi `flyTo(zoom + 3, max 14)`, czyli
+                  z przybliżenia 15 po wynikach szukania ODDALA mapę. */}
+              {trybSkupisk && <WarstwaSkupisk skupiska={skupiska} />}
               <MapLayer fields={fields} selectedId={selectedId} selectedSource={selectedSource} onSelect={onSelect} />
             </>
           )}
