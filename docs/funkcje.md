@@ -461,16 +461,20 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 `kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
-**Filtr na `/moje-gry`.** Jeden chip w stałym rzędzie nad listą: „Brakuje graczy".
-Pokazuje się tylko wtedy, gdy ma co filtrować, i zawęża tę samą, jedyną listę meczów
-(`przechodziFiltry` w `app/moje-gry/page.tsx`) — zamiast mnożyć sekcje.
+**`/moje-gry` NIE MA ŻADNYCH FILTRÓW** (stan na 2026-08-24). Stały tam dwa chipy i oba
+wyleciały:
 
-**Filtra „nieprzeczytane" tu NIE MA** (decyzja z 2026-08-24). Nieprzeczytane wiadomości
-mają własne, mocniejsze wejście — zakładkę „Rozmowy" w dolnej nawigacji z chmurką —
-a różowa plakietka na karcie i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście
-robił z tego trzecią drogę do tej samej informacji. Wcześniej jego ikonka wędrowała
-między **trzema miejscami postoju** (nagłówek „Brakuje graczy" → „Najbliższy mecz" →
-pusty wiersz jako ostateczność), bo doczepiała się do sekcji, która bywała pusta.
+- **„Nieprzeczytane"** — nieprzeczytane wiadomości mają własne, mocniejsze wejście
+  (zakładka „Rozmowy" w dolnej nawigacji z chmurką), a różowa plakietka na karcie i tak
+  mówi, w którym meczu ktoś pisał. Filtr na tej liście robił z tego trzecią drogę do tej
+  samej informacji. Wcześniej jego ikonka wędrowała jeszcze między **trzema miejscami
+  postoju** (nagłówek „Brakuje graczy" → „Najbliższy mecz" → pusty wiersz jako
+  ostateczność), bo doczepiała się do sekcji, która bywała pusta.
+- **„Brakuje graczy"** — po podziale na „Grasz"/„Organizujesz" mecze bez kompletu i tak
+  stoją w kupie w „Organizujesz", a na każdej karcie widać „N wolnych miejsc". Filtr
+  zawężał listę, która jest już pogrupowana.
+
+Zostaje sam podział wg relacji: jedna oś, zero kontrolek do nauczenia.
 
 ---
 
@@ -844,9 +848,10 @@ Z dawnego `NextMatchCard` został wyłącznie pusty stan, jako `PustyStanMeczow`
   AGENTS.md rezerwuje niebieski dla „wymaga akceptacji uczestnictwa"; wypiera ogólne
   „Wymaga akceptacji", więc rząd tytułu niesie tyle samo plakietek co zawsze). Opt-in
   propem, bo poza `/moje-gry` ta liczba nie ma komu służyć;
-- **chip filtrujący** „Brakuje graczy" nad listą. Zawęża tę samą listę zamiast robić
-  jej drugą kopię, więc pytanie organizatora („na który mecz nie zbiera się skład")
-  nadal ma odpowiedź. Pokazuje się tylko wtedy, gdy ma co filtrować.
+- **podział wg relacji** — sekcja „Organizujesz" zbiera moje mecze, w których sam nie
+  gram, więc pytanie organizatora („na który mecz nie zbiera się skład") ma odpowiedź
+  w samym układzie strony, a nie w kontrolce do kliknięcia. Ile brakuje, mówi plakietka
+  „N wolnych miejsc" na każdej karcie.
 
 Plakietki „brakuje N" **nie ma i nie było jej sensu dokładać**: karta mówi to samo już
 trzy razy — paskiem postępu, licznikiem „7/10 graczy" i bursztynową plakietką

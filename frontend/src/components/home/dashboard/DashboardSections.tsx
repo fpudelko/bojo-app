@@ -160,15 +160,6 @@ function formatujTermin(data: string): string {
 }
 
 
-/** Czy ten mecz liczy się jako „brakuje graczy". Reguła siedzi tu, a nie
- *  w `/moje-gry`, bo strona potrzebuje jej DWA razy: raz do filtrowania
- *  listy chipem „Brakuje graczy", raz do decyzji, czy ten chip w ogóle ma
- *  się pokazać. */
-export function needsPlayers({ event, relation }: MyEventRow): boolean {
-  return relation.isOrganizer
-    && (event.maxPlayers ?? 0) > 0
-    && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0);
-}
 
 
 /** Rozegrane mecze organizatora, w których ktoś ze składu nie oddał

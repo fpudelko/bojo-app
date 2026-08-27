@@ -367,7 +367,8 @@ bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY 
 Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
 a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
 Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
-CHIP FILTRUJĄCY nad listą („Brakuje graczy"), nie jako druga kopia tych samych meczów.
+SEKCJA „Organizujesz" (mecze, które prowadzę, ale w nich nie gram), nie jako druga
+kopia tych samych meczów ani filtr do kliknięcia.
 Mecze, w których gracz naprawdę gra, mają wypełnioną zieloną plakietkę „Grasz ✓",
 a sekcja z meczami CUDZYMI nosi nagłówek „Możesz dołączyć" — żeby na jednej liście dało
 się od razu odróżnić „moje" od „mogę dołączyć".
