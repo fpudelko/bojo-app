@@ -346,53 +346,6 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-08-23 — Jeden pulpit zalogowanego, nie dwa
-
-PROBLEM: Bojo miało DWA ekrany odpowiadające na to samo pytanie „co i kiedy gram".
-Strona główna po zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia",
-„Najbliższy mecz" i „Twoje mecze" — dokładnie te same, które ma zakładka „Mecze"
-(`/moje-gry`). Do tego pulpit na „/" był POZA dolną nawigacją: pasek prowadzi na
-`/moje-gry`, `/mapa`, `/rozmowy`, `/grupy` i do kreatora, więc na „/" wchodziło się
-wyłącznie przez logo w nagłówku. Utrzymywany był więc drugi, trudniej dostępny pulpit,
-który sam z siebie rozjeżdżał się z pierwszym. Ponad połowę jego długości zajmowały
-przy tym „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ konta,
-pokazywana komuś, kto ma już mecze i ekipy.
-
-ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" (`/moje-gry`), czyli ta
-z dolnej nawigacji. Zalogowany, który wejdzie na „/", trafia na „Mecze". Landing na „/"
-nie zmienia się ani o milimetr dla wylogowanych i dla wyszukiwarek — te nie mają
-ciasteczka sesji. Sekcje marketingowe znikają z widoku zalogowanego; ta sama treść ma
-własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
-
-Przy okazji sama zakładka „Mecze" stała się JEDNĄ LISTĄ moich meczów od najbliższego.
-Wcześniej miała siedem sekcji, z czego trzy kroiły tę samą listę — mecz organizowany,
-bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
-Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
-a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
-Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
-CHIP FILTRUJĄCY nad listą („Brakuje graczy"), nie jako druga kopia tych samych meczów.
-Mecze, w których gracz naprawdę gra, mają wypełnioną zieloną plakietkę „Grasz ✓",
-a sekcja z meczami CUDZYMI nosi nagłówek „Możesz dołączyć" — żeby na jednej liście dało
-się od razu odróżnić „moje" od „mogę dołączyć".
-
-Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
-mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
-nigdzie indziej: pozostałe listy pokazują mecze, w których już jestem, więc bez tego
-„moja ekipa gra, a mnie nie ma" nie miałoby ani jednego miejsca w aplikacji.
-
-MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
-nie `push` — inaczej „wstecz" wracałoby na adres, który natychmiast przekierowuje
-z powrotem). Przekierowanie jest KLIENCKIE, bo tylko klient zna prawdziwą sesję —
-serwerowej nie ma (Supabase trzyma ją w `localStorage`), a ciasteczko-podpowiedź
-`lib/sessionHint.ts` służy wyłącznie do wyboru kształtu pierwszej odpowiedzi i nie
-wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`
-oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
-`ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`
-i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesiona do
-`app/moje-gry/page.tsx`. Plakietkę organizatora „N próśb" (niebieska, wypiera ogólne
-„Wymaga akceptacji") dokłada `EventBrowseCard` za opt-in propem `odznakiOrganizatora`.
-Tytuł karty ma `line-clamp-2` zamiast `truncate`, bo plakietki obok są `shrink-0`
-i na wąskim telefonie ścinały nazwę meczu.
 ### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
 
 PROBLEM: Katalog boisk Bojo ma 38 314 obiektów, ale przy oddalonej mapie lista obok niej
@@ -504,6 +457,54 @@ nieodwołane, wcześniejsze niż dziś). `content/opisObiektu.ts#zdanieORozegran
 zdanie brzmi jak wcześniej) trafia zarówno do `VenueDetailClient.tsx` (renderowane
 razem z resztą nagłówka obiektu, także w stanie ładowania, czyli w HTML, który dostaje
 crawler), jak i do `description` w JSON-LD `SportsActivityLocation`. Bez migracji.
+
+### 2026-08-23 — Jeden pulpit zalogowanego, nie dwa
+
+PROBLEM: Bojo miało DWA ekrany odpowiadające na to samo pytanie „co i kiedy gram".
+Strona główna po zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia",
+„Najbliższy mecz" i „Twoje mecze" — dokładnie te same, które ma zakładka „Mecze"
+(`/moje-gry`). Do tego pulpit na „/" był POZA dolną nawigacją: pasek prowadzi na
+`/moje-gry`, `/mapa`, `/rozmowy`, `/grupy` i do kreatora, więc na „/" wchodziło się
+wyłącznie przez logo w nagłówku. Utrzymywany był więc drugi, trudniej dostępny pulpit,
+który sam z siebie rozjeżdżał się z pierwszym. Ponad połowę jego długości zajmowały
+przy tym „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ konta,
+pokazywana komuś, kto ma już mecze i ekipy.
+
+ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" (`/moje-gry`), czyli ta
+z dolnej nawigacji. Zalogowany, który wejdzie na „/", trafia na „Mecze". Landing na „/"
+nie zmienia się ani o milimetr dla wylogowanych i dla wyszukiwarek — te nie mają
+ciasteczka sesji. Sekcje marketingowe znikają z widoku zalogowanego; ta sama treść ma
+własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
+
+Przy okazji sama zakładka „Mecze" stała się JEDNĄ LISTĄ moich meczów od najbliższego.
+Wcześniej miała siedem sekcji, z czego trzy kroiły tę samą listę — mecz organizowany,
+bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
+Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
+a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
+Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
+CHIP FILTRUJĄCY nad listą („Brakuje graczy"), nie jako druga kopia tych samych meczów.
+Mecze, w których gracz naprawdę gra, mają wypełnioną zieloną plakietkę „Grasz ✓",
+a sekcja z meczami CUDZYMI nosi nagłówek „Możesz dołączyć" — żeby na jednej liście dało
+się od razu odróżnić „moje" od „mogę dołączyć".
+
+Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
+mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
+nigdzie indziej: pozostałe listy pokazują mecze, w których już jestem, więc bez tego
+„moja ekipa gra, a mnie nie ma" nie miałoby ani jednego miejsca w aplikacji.
+
+MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
+nie `push` — inaczej „wstecz" wracałoby na adres, który natychmiast przekierowuje
+z powrotem). Przekierowanie jest KLIENCKIE, bo tylko klient zna prawdziwą sesję —
+serwerowej nie ma (Supabase trzyma ją w `localStorage`), a ciasteczko-podpowiedź
+`lib/sessionHint.ts` służy wyłącznie do wyboru kształtu pierwszej odpowiedzi i nie
+wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`
+oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
+`ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`
+i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesiona do
+`app/moje-gry/page.tsx`. Plakietkę organizatora „N próśb" (niebieska, wypiera ogólne
+„Wymaga akceptacji") dokłada `EventBrowseCard` za opt-in propem `odznakiOrganizatora`.
+Tytuł karty ma `line-clamp-2` zamiast `truncate`, bo plakietki obok są `shrink-0`
+i na wąskim telefonie ścinały nazwę meczu.
 
 ### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
 
@@ -628,151 +629,3 @@ co wracać do bazy drugi raz. Desktop bez zmian (Header tam nikt nie prosił cho
 MECHANIKA: `RozmowyClient.tsx` (stan `szukane`, filtr przez `foldText()` z
 `lib/searchText.ts`, `MobileIdentityRow` zamiast paska Header na mobile);
 `DmRozmowaClient.tsx` (`<Header hideMobileBarForUser />`). Bez migracji.
-
-### 2026-08-23 — Rozmowy prywatne między graczami, razem z blokowaniem
-
-PROBLEM: jedynym pisemnym kanałem w Bojo były rozmowy pod meczem i tablica ekipy — obie
-grupowe i obie zawieszone na czymś większym. Prywatne „Kuba, grasz w czwartek?" szło na
-Messengera, do ludzi, których gracz zna często TYLKO z boiska i nie ma do nich numeru.
-
-ROZWIĄZANIE BOJO: rozmowa 1-na-1 pod `/rozmowy/[id]`, wejście przyciskiem „Napisz
-wiadomość" na profilu gracza, lista wspólna z rozmowami meczów i ekip pod `/rozmowy`.
-Blokowanie i zgłaszanie są w tym samym menu, na tym samym ekranie — człowiek, który
-właśnie dostał nieprzyjemną wiadomość, nie ma szukać wyjścia w ustawieniach konta.
-Blokada działa w obie strony przy pisaniu; historia sprzed niej zostaje widoczna.
-
-MECHANIKA: migracja `125` (`dm_conversations` z parą kanoniczną `low < high`,
-`dm_messages`, `user_blocks`, `user_reports`, funkcja `czy_zablokowani()`);
-`frontend/src/lib/dm.ts`; wspólne reguły wyglądu czatu w `frontend/src/lib/czat.ts`.
-
-### 2026-08-23 — Scalona wyszukiwarka: „Szukaj" prowadzi na mapę, obiekty mają listę
-
-PROBLEM: Bojo miało DWIE osobne wyszukiwarki meczów i obiektów — `/wydarzenia` (lista,
-cel „Szukaj" na dolnej nawigacji) i `/mapa` (mapa, z własnym przełącznikiem Gry|Obiekty).
-Dotknięcie „Obiekty" na `/wydarzenia` NAWIGOWAŁO na `/mapa`, gubiąc kontekst — przełączenie
-kosztowało przeskok strony. Do tego `/mapa` na telefonie nie miało w ogóle widoku listy:
-wyłącznie mapa plus jedna karta wybranej pinezki, bo przewijana lista istniała tylko na
-desktopie, obok mapy.
-
-ROZWIĄZANIE BOJO: „Szukaj" prowadzi dziś na `/mapa`, które ma WSPÓLNY, stały pasek dla
-obu trybów: przełącznik `Gry | Obiekty` (co pokazać), osobny, WIDOCZNY przełącznik
-`Lista | Mapa` (mniejszy wariant tego samego komponentu — nie mały guzik z ikoną), i ikonę
-filtrów z plakietką liczby aktywnych. Sport, „Wolne miejsca", „Za darmo" i „Gry dziś"
-przeniosły się z paska do arkusza filtrów — przełączenie trybu nie przestawia już
-kontrolek miejscami. Telefon dostał pełnoekranowy widok listy w OBU trybach (dawniej
-wyłącznie na desktopie); przełączenie na mapę nie odmontowuje jej — Leaflet trzyma
-kadr/zoom we własnej instancji, więc powrót z listy wraca do dokładnie tego samego
-miejsca na mapie, nie do widoku całej Polski.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (`SearchToolbar`, `widok` state,
-`SegmentedToggle` z nowym `size="sm"`); `BottomNav.tsx` (href „Szukaj" → `/mapa`);
-`MapaClient.tsx` przejmuje po `EventsListClient.tsx` gaszenie pomarańczowej kropki
-„nowe wydarzenia w pobliżu" (`KLUCZ_WYDARZENIA_WIDZIANO`) i plakietkę „Nowość" na
-kartach meczów. `/wydarzenia` zostaje żywe (linki, tło ekranu logowania), ale nie jest
-już celem „Szukaj". Bez migracji.
-
-### 2026-08-22 — Lista rezerwowa jest wyborem organizatora, nie stałą regułą
-
-PROBLEM: kreator Bojo ogłaszał pod licznikiem miejsc „Kolejni chętni trafią na listę
-rezerwową" i nie dało się tego zmienić; niżej stało jeszcze ustawienie czasu na decyzję
-z rezerwy. Mecz na zamkniętą ekipę, halę opłaconą z góry albo ustaloną dwunastkę rezerwy
-nie potrzebuje — organizator musiał ją mimo wszystko mieć i tłumaczyć ludziom, po co
-„zapisali się na listę".
-
-ROZWIĄZANIE BOJO: przełącznik „Lista rezerwowa" w kreatorze i edycji meczu. Wyłączona
-znaczy: przy komplecie zapisy są zamknięte, a kto chce więcej ludzi, podnosi liczbę
-miejsc. Wyłączenie NIE kasuje kolejki, która już powstała. Obserwowanie meczu działa
-niezależnie od tego ustawienia.
-
-MECHANIKA: `events.reserve_enabled` (migracja `124`, DEFAULT `true`); wyzwalacz
-`trg_pilnuj_wylaczonej_rezerwy` na `event_participants` pilnuje reguły po stronie bazy,
-z wyjątkiem na `rsvp = 'maybe'` (obserwujący); `EventCapacityFields.tsx` chowa za
-przełącznikiem napis i „Czas na decyzję z rezerwy"; `EventDetailClient.tsx` pokazuje przy
-komplecie „Komplet — zapisy zamknięte" zamiast wejścia na rezerwę.
-
-### 2026-08-22 — Adres boiska niesie identyfikator, bo nazwy w katalogu się powtarzają
-
-PROBLEM: kafelek na mapie pokazywał boisko na Piotrowie w Poznaniu, a „Zobacz boisko"
-otwierało boisko na Mokotowie w Warszawie. Katalog Bojo pochodzi z OpenStreetMap,
-a obiekt bez nazwy własnej dostaje przy imporcie nazwę rodzajową („Boisko piłkarskie").
-Takich obiektów są tysiące i wszystkie dawały ten sam adres `/boisko/boisko-pilkarskie`,
-który otwierał pierwszy obiekt z brzegu. Adres wskazywał kategorię, nie obiekt.
-
-ROZWIĄZANIE BOJO: adres strony obiektu to nazwa plus dwunastoznakowa końcówka
-identyfikatora (`/boisko/boisko-pilkarskie-a1b2c3d4e5f6`). Stare adresy z samą nazwą
-nadal działają, ale przekierowują na adres kanoniczny — kto trafił ze starego linku,
-widzi w pasku adres, który da się wysłać dalej.
-
-MECHANIKA: `slugBoiska()` w `frontend/src/lib/utils.ts`; indeks slug→id w
-`frontend/src/app/boisko/[id]/page.tsx` trzyma klucz kanoniczny i historyczny;
-linki w `VenueExplorer.tsx` (mapa) i `LandingVenues.tsx`; `canonical` i JSON-LD
-na stronie obiektu. Bez migracji — zmiana jest wyłącznie w adresach.
-
-### 2026-08-22 — SEO/GEO Fazy 1-3: opis obiektu wprost, huby wojewódzkie, ankiety o boisku
-
-PROBLEM: strona pojedynczego boiska pokazywała gołe dane (nazwa, adres, sporty) bez
-jednego zdania podsumowującego, po które sięga model odpowiadający na pytanie o
-konkretny obiekt. Katalog nie miał też punktu wejścia na poziomie województwa — tylko
-per sport albo per miasto (Poznań/Warszawa/Kraków) — a stan infrastruktury (oświetlenie,
-nawierzchnia) opierał się wyłącznie na danych z OpenStreetMap, czasem nieaktualnych.
-
-ROZWIĄZANIE BOJO: każda strona boiska ma teraz jeden gęsty akapit na górze („[Nazwa] to
-obiekt sportowy w [miejscowość] do gry w: [sporty]. [kryty/odkryty], nawierzchnia:
-[…], oświetlenie.") — ten sam tekst trafia do danych strukturalnych dla wyszukiwarek.
-Doszło 16 stron „Boiska sportowe — województwo [Nazwa]" z pełną listą obiektów.
-Gracze mogą potwierdzić dwa fakty o obiekcie — czy jest oświetlony, jaka jest
-nawierzchnia — i wynik pokazuje się jako „potwierdzone przez N graczy" dopiero po
-dwóch niezależnych głosach; to NIE nadpisuje danych z OpenStreetMap, pokazuje się obok.
-
-MECHANIKA: `content/opisObiektu.ts#opisObiektu()`, wpięty w `VenueDetailClient.tsx`
-i w `description` JSON-LD (`SportsActivityLocation`). Huby wojewódzkie:
-`/boiska/woj/[wojewodztwo]` (`force-dynamic`, bez prerenderu — katalog jest za duży),
-nazwy w `lib/wojewodztwa.ts#WOJEWODZTWO_LABEL`. Ankiety: `AnkietyObiektu.tsx`, tabela
-`potwierdzenia_obiektu` (migracja `123`, jeden głos na fakt na osobę, publiczny odczyt).
-Kontynuacja Fazy 0 (migracja `112`, tiering indeksacji, `seo_tier`).
-
-### 2026-08-22 — Liczba nieprzeczytanych na ikonie zainstalowanej aplikacji
-
-PROBLEM: o nieprzeczytanej wiadomości w rozmowie meczu albo o prośbie o dołączenie
-dowiadywał się dopiero ten, kto sam otworzył Bojo. Powiadomienie push jest sygnałem
-jednorazowym — znika z ekranu blokady i po nim nie zostaje żaden ślad, więc telefon
-leżący na stole przez godzinę nie mówił nic. Chmurka i dzwonek w nagłówku aplikacji
-niosą tę informację dopiero po wejściu do środka, czyli po decyzji, którą właśnie mają
-wywołać.
-
-ROZWIĄZANIE BOJO: ikona Bojo na ekranie początkowym telefonu nosi liczbę nieprzeczytanych
-— tak samo jak ikona poczty czy komunikatora. Liczba jest sumą wiadomości i pozostałych
-powiadomień, pojawia się także wtedy, gdy aplikacja jest zamknięta, i gaśnie po
-przeczytaniu. Działa wyłącznie w Bojo dodanym do ekranu początkowego (na iPhonie dodatkowo
-po zgodzie na powiadomienia); w zwykłej karcie przeglądarki plakietki nie ma i to nie jest
-błąd.
-
-MECHANIKA: `lib/plakietkaAplikacji.ts` (Badging API, `navigator.setAppBadge`/
-`clearAppBadge`, każde wywołanie wykrywane i łykane po cichu). Ustawiana z dwóch stron:
-`NotificationBell.tsx` przy otwartej aplikacji (suma nieprzeczytanych z obu paneli),
-`public/sw.js` przy zdarzeniu `push`, gdy aplikacja jest zamknięta. Service worker nie ma
-dostępu do sesji Supabase, więc liczbę dokleja do payloadu funkcja brzegowa `send-push`
-(`count` na `notifications` z `read_at IS NULL`); brak liczby oznacza `null` i wtedy worker
-plakietki nie dotyka. Wymaga wdrożenia funkcji brzegowej.
-
-### 2026-08-22 — Wiadomość w oknie ciszy odświeża powiadomienie zamiast go gubić
-
-PROBLEM: powiadomienie o nowej wiadomości w rozmowie meczu/tablicy ekipy powstaje
-najwyżej raz na godzinę na odbiorcę (celowa ochrona przed spamem — rozmowa przed meczem
-potrafi mieć trzydzieści wiadomości w kwadrans). Efekt uboczny: druga i kolejna wiadomość
-w tej samej godzinie nie zostawiała żadnego śladu — panel „Wiadomości" w dzwonku
-pokazywał zamrożoną treść PIERWSZEJ wiadomości z godziny, podczas gdy osobny panel
-„Nieprzeczytane rozmowy" (czyta bez throttlingu wprost z bazy) pokazywał już nowszą.
-
-ROZWIĄZANIE BOJO: kolejna wiadomość w oknie godziny nie ginie — podmienia treść
-istniejącego powiadomienia na najnowszą, przesuwa je na górę listy i cofa do stanu
-nieprzeczytanego. Limit (najwyżej jedno powiadomienie push/dzwonek na godzinę na
-rozmowę) zostaje bez zmian; zmienia się wyłącznie to, że to jedno powiadomienie zawsze
-pokazuje ostatnią wiadomość, nie pierwszą.
-
-MECHANIKA: migracja `122` zamienia pomijane wstawienie (`NOT EXISTS ... interval '60
-minutes'`) na `UPDATE` istniejącego wiersza + `INSERT` dla reszty w
-`powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()`. Push nie dubluje
-się — `trg_wyslij_push` (102) łapie wyłącznie `INSERT`. `NotificationBell.tsx` dostaje
-drugą subskrypcję real-time na `UPDATE`, rozróżnia odświeżenie treści od zwykłego
-oznaczenia jako przeczytane po tym, czy `created_at` się zmienił.
