@@ -22,8 +22,18 @@ import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
  * Ownership is deliberately NOT in here: it's a separate axis rendered as a tag
  * in the meta row, so a match you organize AND play shows both.
  */
+// „GRASZ" JEST WYPEŁNIONE, reszta to blade obwódki — i to jest celowa
+// nierówność. Na liście własnych meczów pytanie brzmi „w których z nich
+// naprawdę gram", a blada plakietka w prawym dolnym rogu odpowiadała na nie
+// dopiero po wpatrzeniu się (zgłoszone wprost). Pozostałe stany są słabsze,
+// bo znaczą „jesteś obok meczu", nie „jesteś w składzie".
+//
+// Zieleń, nie różowy/niebieski/pomarańczowy: te trzy mają w całej apce
+// zarezerwowane znaczenia (wiadomości / wymaga akceptacji / nowość), a udział
+// w składzie nie jest żadnym z nich — to stan, tak samo jak zielony licznik
+// nadchodzących meczów na ikonie „Mecze" (AGENTS.md, Konwencje).
 const STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>> = {
-  playing:   { label: 'Grasz ✓',              cls: 'bg-green-50 text-green-700 border-green-200' },
+  playing:   { label: 'Grasz ✓',              cls: 'bg-primary-700 text-white border-primary-700' },
   reserve:   { label: 'Rezerwa',              cls: 'bg-slate-100 text-slate-600 border-slate-200' },
   observing: { label: 'Obserwujesz',          cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   pending:   { label: 'Czeka na akceptację',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -53,10 +63,10 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
    *  = „nowość"). Bez tego zbiorcza kropka nie miała jak wskazać, KTÓRY
    *  konkretnie wpis na liście jest nowy — zgłoszone wprost. */
   isNew?: boolean;
-  /** Plakietki dla ORGANIZATORA: ile próśb o dołączenie czeka i ilu graczy
-   *  brakuje do kompletu. Opt-in, bo poza `/moje-gry` te liczby nie mają
-   *  komu służyć — na publicznej liście czy na mapie karta odpowiada na
-   *  „czy mogę tu zagrać", nie na „co mam do ogarnięcia".
+  /** Plakietka dla ORGANIZATORA: ile próśb o dołączenie czeka na decyzję.
+   *  Opt-in, bo poza `/moje-gry` ta liczba nie ma komu służyć — na publicznej
+   *  liście czy na mapie karta odpowiada na „czy mogę tu zagrać", nie na
+   *  „co mam do ogarnięcia".
    *
    *  Zastąpiły DWIE OSOBNE SEKCJE („Czekają na Twoją decyzję", „Brakuje
    *  graczy"), które kroiły tę samą listę nadchodzących meczów co lista
@@ -68,11 +78,12 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   const pokazNieprzeczytane = !!unreadMessages && unreadMessages > 0
     && !!relation && (relation.isOrganizer || relation.status === 'playing' || relation.status === 'reserve');
 
-  const jestemOrganizatorem = !!relation?.isOrganizer && !!odznakiOrganizatora;
-  const ilePrósb = jestemOrganizatorem ? (event.pendingApprovalCount ?? 0) : 0;
-  const maks = event.maxPlayers ?? 0;
-  const brakuje = jestemOrganizatorem && maks > 0
-    ? Math.max(0, maks - (event.participantsCount ?? 0))
+  // Świadomie TYLKO prośby. „Brakuje N" też tu kiedyś było i wyleciało:
+  // karta mówi to samo już trzy razy — paskiem postępu, licznikiem
+  // „7/10 graczy" i bursztynową plakietką „3 wolne miejsca". Czwarta kopia
+  // tej samej liczby nic nie dodawała, a zabierała miejsce tytułowi.
+  const ilePrósb = relation?.isOrganizer && odznakiOrganizatora
+    ? (event.pendingApprovalCount ?? 0)
     : 0;
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
@@ -175,7 +186,12 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{title}</h3>
+              {/* `line-clamp-2`, nie `truncate`: plakietki obok są `shrink-0`,
+                  więc na 390 px tytułowi zostawało ~150 px i „Czwartkowa
+                  gierka" wychodziło jako „Czwartkowa …". Dwie linie mieszczą
+                  normalną nazwę w całości, a bardzo długą ucinają dopiero
+                  wtedy, gdy naprawdę nie ma jej gdzie zmieścić. */}
+              <h3 className="min-w-0 flex-1 text-sm font-bold leading-tight text-ink line-clamp-2">{title}</h3>
               <div className="shrink-0 flex items-center gap-2">
                 {!past ? (
                   <>
@@ -185,11 +201,17 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                       {priceLabel}
                     </span>
                     {/* Konkretna liczba próśb WYPIERA ogólne „Wymaga
-                        akceptacji" — plakietka organizatora w osobnym wierszu
-                        niżej mówi to samo, tylko mocniej: „2 prośby" znaczy
-                        „czekają na CIEBIE", a nie „ten mecz ma taki tryb
-                        zapisu". */}
-                    {ilePrósb === 0 && event.requireApproval && (
+                        akceptacji": ta sama niebieska barwa (AGENTS.md:
+                        niebieski = „wymaga akceptacji uczestnictwa"), tylko
+                        zdanie mocniejsze — „2 prośby" znaczy „czekają na
+                        CIEBIE", a nie „ten mecz ma taki tryb zapisu".
+                        Najwyżej JEDNA z tych dwóch naraz, więc rząd tytułu
+                        niesie tyle samo plakietek co zawsze. */}
+                    {ilePrósb > 0 ? (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                        {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
+                      </span>
+                    ) : event.requireApproval && (
                       <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
                         Wymaga akceptacji
                       </span>
@@ -204,30 +226,6 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                 )}
               </div>
             </div>
-
-            {/* PLAKIETKI ORGANIZATORA W OSOBNYM WIERSZU, nie w rzędzie tytułu.
-                W rzędzie tytułu (`shrink-0` obok `truncate`) trzecia plakietka
-                ścinała nazwę meczu do jednej litery — „Czwartkowa gierka"
-                wychodziło jako „C…" na 390 px. Tytuł jest ważniejszy od
-                liczników, więc liczniki schodzą niżej i mogą się zawijać. */}
-            {(ilePrósb > 0 || brakuje > 0) && (
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {ilePrósb > 0 && (
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-                    {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
-                  </span>
-                )}
-                {/* NEUTRALNA, nie różowa/niebieska/pomarańczowa: brakujący skład
-                    nie jest ani wiadomością, ani prośbą o decyzję, ani nowością,
-                    więc nie wolno mu sięgać po żaden z trzech zarezerwowanych
-                    kolorów (AGENTS.md, Konwencje). */}
-                {brakuje > 0 && (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                    brakuje {brakuje}
-                  </span>
-                )}
-              </div>
-            )}
 
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
               {/* Ownership tag — a property of the match, not a status. Lives in

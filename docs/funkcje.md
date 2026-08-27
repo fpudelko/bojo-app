@@ -461,16 +461,16 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 `kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
-**Filtry na `/moje-gry`.** Dwa chipy w stałym rzędzie nad listą: „Nieprzeczytane"
-i „Brakuje graczy". Każdy pokazuje się tylko wtedy, gdy ma co filtrować, i zawęża tę
-samą, jedyną listę meczów (`przechodziFiltry` w `app/moje-gry/page.tsx`) — zamiast
-mnożyć sekcje. Zaproszeń i stałych gierek (gdy `SHOW_RECURRING`) filtry nie dotyczą.
+**Filtr na `/moje-gry`.** Jeden chip w stałym rzędzie nad listą: „Brakuje graczy".
+Pokazuje się tylko wtedy, gdy ma co filtrować, i zawęża tę samą, jedyną listę meczów
+(`przechodziFiltry` w `app/moje-gry/page.tsx`) — zamiast mnożyć sekcje.
 
-Wcześniej ikonka filtra nieprzeczytanych wędrowała między **trzema miejscami postoju**
-(nagłówek „Brakuje graczy" → „Najbliższy mecz" → pusty wiersz jako ostateczność), bo
-doczepiała się do sekcji, która bywała pusta — a pusty wiersz zarezerwowany tylko dla
-ikonki zjadał sporo ekranu (zgłoszone wprost dwa razy). Cała ta gimnastyka zniknęła
-razem z sekcją, do której się doczepiała.
+**Filtra „nieprzeczytane" tu NIE MA** (decyzja z 2026-08-24). Nieprzeczytane wiadomości
+mają własne, mocniejsze wejście — zakładkę „Rozmowy" w dolnej nawigacji z chmurką —
+a różowa plakietka na karcie i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście
+robił z tego trzecią drogę do tej samej informacji. Wcześniej jego ikonka wędrowała
+między **trzema miejscami postoju** (nagłówek „Brakuje graczy" → „Najbliższy mecz" →
+pusty wiersz jako ostateczność), bo doczepiała się do sekcji, która bywała pusta.
 
 ---
 
@@ -820,27 +820,41 @@ Kolejność: `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → r
 
 `PendingRequestsSection` i `NeedsPlayersSection` **nie istnieją**. Ich rolę przejęły:
 
-- plakietki `odznakiOrganizatora` na `EventBrowseCard` — „N próśb" (niebieska, bo
+- plakietka `odznakiOrganizatora` na `EventBrowseCard` — „N próśb" (niebieska, bo
   AGENTS.md rezerwuje niebieski dla „wymaga akceptacji uczestnictwa"; wypiera ogólne
-  „Wymaga akceptacji") i „brakuje N" (**neutralna** — brakujący skład nie jest ani
-  wiadomością, ani prośbą o decyzję, ani nowością, więc nie wolno mu sięgać po żaden
-  z trzech zarezerwowanych kolorów). Opt-in propem, bo poza `/moje-gry` te liczby nie
-  mają komu służyć;
-- **dwa chipy filtrujące** nad listą — „Nieprzeczytane" i „Brakuje graczy". Zawężają tę
-  samą listę zamiast robić jej drugą kopię, więc pytanie organizatora („na który mecz
-  nie zbiera się skład") nadal ma odpowiedź. Każdy chip pokazuje się tylko wtedy, gdy
-  ma co filtrować.
+  „Wymaga akceptacji", więc rząd tytułu niesie tyle samo plakietek co zawsze). Opt-in
+  propem, bo poza `/moje-gry` ta liczba nie ma komu służyć;
+- **chip filtrujący** „Brakuje graczy" nad listą. Zawęża tę samą listę zamiast robić
+  jej drugą kopię, więc pytanie organizatora („na który mecz nie zbiera się skład")
+  nadal ma odpowiedź. Pokazuje się tylko wtedy, gdy ma co filtrować.
 
-Plakietki siedzą we **własnym wierszu pod tytułem**, nie w rzędzie tytułu: w rzędzie
-(`shrink-0` obok `truncate`) trzecia plakietka ścinała nazwę meczu do jednej litery —
-„Czwartkowa gierka" wychodziło jako „C…" na 390 px. Tytuł jest ważniejszy od liczników.
+Plakietki „brakuje N" **nie ma i nie było jej sensu dokładać**: karta mówi to samo już
+trzy razy — paskiem postępu, licznikiem „7/10 graczy" i bursztynową plakietką
+„3 wolne miejsca" (zgłoszone wprost jako zbędny szary duplikat).
+
+**Tytuł karty ma `line-clamp-2`, nie `truncate`.** Plakietki obok są `shrink-0`, więc
+na 390 px tytułowi zostawało ~150 px i „Czwartkowa gierka" wychodziło jako
+„Czwartkowa …". Dwie linie mieszczą normalną nazwę w całości, a bardzo długą ucinają
+dopiero wtedy, gdy naprawdę nie ma jej gdzie zmieścić.
+
+**„Grasz ✓" jest WYPEŁNIONE** (`bg-primary-700 text-white`), a pozostałe stany
+(`Rezerwa`, `Obserwujesz`, `Czeka na akceptację`) zostają bladymi obwódkami — celowa
+nierówność. Na liście własnych meczów pytanie brzmi „w których naprawdę gram", a blada
+plakietka w prawym dolnym rogu odpowiadała na nie dopiero po wpatrzeniu się (zgłoszone
+wprost). Zieleń, nie różowy/niebieski/pomarańczowy: udział w składzie to **stan**, tak
+samo jak zielony licznik nadchodzących meczów na ikonie „Mecze".
 
 Filtr nieprzeczytanych miał wcześniej **trzy miejsca postoju** (nagłówek „Brakuje
 graczy" → „Najbliższy mecz" → pusty wiersz jako ostateczność), bo doczepiał się do
 sekcji, która bywała pusta. Zniknęły razem z tamtą sekcją: filtry mają jeden, stały
 rząd.
 
-**`GroupGamesSection` przyszła tu z kasowanego pulpitu jako JEDYNA sekcja stamtąd** —
+**`GroupGamesSection` nosi nagłówek „Możesz dołączyć"** z podtytułem „Mecze Twojej
+ekipy, w których jeszcze Cię nie ma". Dawne „Mecze Twoich grup" brzmiało jak kolejna
+lista własnych gier i zlewało się z sekcją wyżej — a to jedyne miejsce na tej stronie,
+gdzie mecz jest CUDZY i można do niego dołączyć (zgłoszone wprost).
+
+**Przyszła tu z kasowanego pulpitu jako JEDYNA sekcja stamtąd** —
 bo jako jedyna niosła treść, której nie ma nigdzie indziej: mecze mojej ekipy, do
 których **jeszcze nie dołączyłem** (`rel.status === 'none' && !rel.isOrganizer`).
 Pozostałe listy na tej stronie pokazują mecze, w których już jestem, więc bez tego

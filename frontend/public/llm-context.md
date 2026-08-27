@@ -367,8 +367,10 @@ bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY 
 Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
 a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
 Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
-CHIP FILTRUJĄCY nad listą („Brakuje graczy", obok „Nieprzeczytane"), nie jako druga
-kopia tych samych meczów.
+CHIP FILTRUJĄCY nad listą („Brakuje graczy"), nie jako druga kopia tych samych meczów.
+Mecze, w których gracz naprawdę gra, mają wypełnioną zieloną plakietkę „Grasz ✓",
+a sekcja z meczami CUDZYMI nosi nagłówek „Możesz dołączyć" — żeby na jednej liście dało
+się od razu odróżnić „moje" od „mogę dołączyć".
 
 Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
 mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
@@ -384,10 +386,10 @@ wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData
 oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
 `ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`
 i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesiona do
-`app/moje-gry/page.tsx`. Plakietki organizatora („N próśb" — niebieska, „brakuje N" —
-neutralna, bo nie mieści się w żadnym z trzech zarezerwowanych znaczeń koloru) dokłada
-`EventBrowseCard` za opt-in propem `odznakiOrganizatora`, we WŁASNYM wierszu pod
-tytułem: w rzędzie tytułu trzecia plakietka ścinała nazwę meczu do jednej litery.
+`app/moje-gry/page.tsx`. Plakietkę organizatora „N próśb" (niebieska, wypiera ogólne
+„Wymaga akceptacji") dokłada `EventBrowseCard` za opt-in propem `odznakiOrganizatora`.
+Tytuł karty ma `line-clamp-2` zamiast `truncate`, bo plakietki obok są `shrink-0`
+i na wąskim telefonie ścinały nazwę meczu.
 
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 

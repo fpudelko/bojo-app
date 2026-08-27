@@ -174,24 +174,22 @@ function MojeGryContent() {
   const { upcoming, history, playing, observing } = splitMyEvents(items);
   const next = nextMatch(items);
 
-  // Filtr „tylko z nieprzeczytanymi" — dotyczy wyłącznie zakładki Nadchodzące;
-  // zaproszenia i stałe gierki nie niosą wiadomości, więc filtr ich nie rusza.
-  // DWA FILTRY, JEDNA LISTA. Zawężają tę samą listę moich meczów zamiast
-  // robić jej drugą kopię — i to one zastąpiły sekcje „Brakuje graczy"
-  // i „Czekają na Twoją decyzję". Pytanie organizatora („na który mecz nie
-  // zbiera się skład") zostaje więc odpowiedziane, tylko bez pokazywania tego
-  // samego meczu dwa razy na jednym ekranie.
-  const [onlyUnread, setOnlyUnread] = useState(false);
+  // JEDEN FILTR, JEDNA LISTA. Zawęża tę samą listę moich meczów zamiast
+  // robić jej drugą kopię — i to on zastąpił sekcję „Brakuje graczy".
+  // Pytanie organizatora („na który mecz nie zbiera się skład") zostaje więc
+  // odpowiedziane, bez pokazywania tego samego meczu dwa razy na ekranie.
+  //
+  // Filtra „nieprzeczytane" tu NIE MA (decyzja z 2026-08-24). Nieprzeczytane
+  // wiadomości mają w tej apce własne, mocniejsze wejście — zakładkę
+  // „Rozmowy" w dolnej nawigacji z chmurką — a różowa plakietka na karcie
+  // i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście robił z tego
+  // trzecią drogę do tej samej informacji.
   const [onlyBrakuje, setOnlyBrakuje] = useState(false);
-  const maNieprzeczytane = (event: EventItem) => (unreadByEvent[event.id] ?? 0) > 0;
-  const przechodziFiltry = (row: MyEventRow) =>
-    (!onlyUnread || maNieprzeczytane(row.event))
-    && (!onlyBrakuje || needsPlayers(row));
+  const przechodziFiltry = (row: MyEventRow) => !onlyBrakuje || needsPlayers(row);
 
   const upcomingWidoczne = upcoming.filter(przechodziFiltry);
   const playingWidoczne = playing.filter(przechodziFiltry);
   const nextWidoczny = next && przechodziFiltry(next) ? next : null;
-  const jestNieprzeczytanych = Object.keys(unreadByEvent).length > 0;
   const jestBrakujacych = upcoming.some(needsPlayers);
 
   // Rząd filtrów nad listą — stałe miejsce. Poprzednia wersja doczepiała
@@ -199,30 +197,20 @@ function MojeGryContent() {
   // pusta, przeskakiwała na „Najbliższy mecz", a gdy i ta była pusta —
   // rezerwowała pusty wiersz tylko dla siebie. Trzy miejsca postoju zniknęły
   // razem z tamtą sekcją: filtr ma jedno miejsce, zawsze to samo.
-  const chip = (aktywny: boolean, onClick: () => void, tekst: string, klasaAktywna: string) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={aktywny}
-      className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-        aktywny
-          ? klasaAktywna
-          : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-      }`}
-    >
-      {tekst}
-    </button>
-  );
-  const filtry = (jestNieprzeczytanych || jestBrakujacych) ? (
+  const filtry = jestBrakujacych ? (
     <div className="flex flex-wrap items-center gap-2">
-      {jestNieprzeczytanych && chip(
-        onlyUnread, () => setOnlyUnread((v) => !v), 'Nieprzeczytane',
-        'border-pink-600 bg-pink-600 text-white',
-      )}
-      {jestBrakujacych && chip(
-        onlyBrakuje, () => setOnlyBrakuje((v) => !v), 'Brakuje graczy',
-        'border-slate-700 bg-slate-700 text-white',
-      )}
+      <button
+        type="button"
+        onClick={() => setOnlyBrakuje((v) => !v)}
+        aria-pressed={onlyBrakuje}
+        className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+          onlyBrakuje
+            ? 'border-slate-700 bg-slate-700 text-white'
+            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+        }`}
+      >
+        Brakuje graczy
+      </button>
     </div>
   ) : null;
 
@@ -347,7 +335,7 @@ function MojeGryContent() {
               href="/moje-gry?tab=zaproszenia"
             />
             {filtry}
-            {upcomingWidoczne.length === 0 && (onlyUnread || onlyBrakuje) ? (
+            {upcomingWidoczne.length === 0 && onlyBrakuje ? (
               <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                 Żaden z nadchodzących meczów nie pasuje do tych filtrów.
               </p>

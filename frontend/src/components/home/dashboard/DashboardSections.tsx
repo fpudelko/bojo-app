@@ -19,7 +19,7 @@ type StatusFor = (event: EventItem) => MyEventRelation;
 export function SectionHeader({ title, href, count, subtitle, extra }: {
   title: string; href?: string; count?: number; subtitle?: string;
   /** Dodatkowa kontrolka po prawej stronie wiersza, obok (albo zamiast) linku
-   *  „Wszystkie" — np. przycisk filtra na `/moje-gry` (patrz `NeedsPlayersSection`). */
+   *  „Wszystkie". Dziś nieużywane — filtry `/moje-gry` mają własny rząd. */
   extra?: React.ReactNode;
 }) {
   return (
@@ -103,17 +103,6 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadB
 }
 
 
-/** „Na który z moich meczów nie zbiera się skład" — pytanie, na które
- *  organizator dotąd nie miał gdzie odpowiedzieć. `/moje-gry` miesza
- *  organizowanie i granie celowo w jednej liście (`splitMyEvents` obok),
- *  więc to osobna, DODATKOWA sekcja, nie zamiana tamtej. Dane są już
- *  pobrane przez `getMyParticipatedEvents()` — `participantsCount` liczy
- *  `toEvent()` z dołączonego `event_participants`, zero nowego zapytania.
- *
- *  Sortowanie po dacie ROSNĄCO niezależnie od kolejności wejściowej: `items`
- *  bywa przekazywane w kolejności `getMyParticipatedEvents()`, która sortuje
- *  malejąco (ten sam powód, dla którego `nextMatch()` w `lib/myEvents.ts`
- *  sortuje samodzielnie zamiast ufać porządkowi wejścia). */
 /** Kolejna edycja stałej gierki, która jeszcze nie powstała.
  *
  *  Termin serii tworzy się sam, `notifyDaysBefore` dni przed datą meczu — do
@@ -166,10 +155,10 @@ function formatujTermin(data: string): string {
 }
 
 
-/** Czy ten mecz liczy się jako „brakuje graczy" — wydzielone z
- *  `NeedsPlayersSection`, żeby `/moje-gry` mogło policzyć to samo PRZED
- *  renderowaniem, bez duplikowania reguły (decyduje, gdzie ma stanąć filtr
- *  nieprzeczytanych, patrz `pokazPustyNaglowek` niżej). */
+/** Czy ten mecz liczy się jako „brakuje graczy". Reguła siedzi tu, a nie
+ *  w `/moje-gry`, bo strona potrzebuje jej DWA razy: raz do filtrowania
+ *  listy chipem „Brakuje graczy", raz do decyzji, czy ten chip w ogóle ma
+ *  się pokazać. */
 export function needsPlayers({ event, relation }: MyEventRow): boolean {
   return relation.isOrganizer
     && (event.maxPlayers ?? 0) > 0
@@ -224,7 +213,16 @@ export function GroupGamesSection({ events, statusFor }: {
 
   return (
     <div>
-      <SectionHeader title="Mecze Twoich grup" href="/grupy" count={fresh.length} />
+      {/* Nagłówek mówi wprost, że to NIE SĄ Twoje mecze. „Mecze Twoich grup"
+          brzmiało jak kolejna lista własnych gier i zlewało się z sekcją
+          wyżej — a to jedyne miejsce na tej stronie, gdzie mecz jest CUDZY
+          i można do niego dołączyć (zgłoszone wprost). */}
+      <SectionHeader
+        title="Możesz dołączyć"
+        subtitle="Mecze Twojej ekipy, w których jeszcze Cię nie ma"
+        href="/grupy"
+        count={fresh.length}
+      />
       <div className="space-y-3">
         {fresh.slice(0, 3).map((e) => (
           <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
