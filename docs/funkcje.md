@@ -679,8 +679,8 @@ w `app/wydarzenia/nowe/page.tsx` (brama logowania i właściwy kreator) dostają
 Wysokość paska bez zmian (`h-12`, sticky stepper na `top-12`).
 
 **Krok 1 „Kiedy" — termin, liczba miejsc, trzy przełączniki.** Ekran niesie datę,
-godzinę, czas trwania i liczbę miejsc, a pod nimi trzy przełączniki **domyślnie
-wyłączone** (`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny",
+godzinę, czas trwania i liczbę miejsc, a pod nimi trzy przełączniki
+(`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny",
 „Bramkarze osobno" (ostatni tylko dla sportów z `GK_SPORTS`). Szczegóły każdego —
 czas na decyzję z rezerwy, kwota i metody płatności, tryb miejsc dla bramkarzy —
 **montują się dopiero po włączeniu**, nie są chowane CSS-em: ukryte pole nadal
@@ -688,8 +688,26 @@ wysyła wartość i nadal się waliduje. Wyłączenie „Mecz płatny" CZYŚCI k
 Na dole kroku stoi „Biorę udział" (z wyborem bramkarz/z pola, gdy podział jest
 włączony) — pod przełącznikiem, który tę kontrolkę włącza, nie nad nim.
 
-Konsekwencja domyślnie wyłączonej rezerwy: **nowy mecz przy komplecie zamyka zapisy**.
-Kolejka jest wyborem, patrz `events.reserve_enabled` (migracja `123`).
+**„Lista rezerwowa" startuje WŁĄCZONA — od 2026-08-27, decyzja właściciela.** Pozostałe
+dwa przełączniki dokładają zachowanie, którego domyślnie nie ma (mecz płatny, podział na
+bramkarzy); rezerwa jest odwrotnie — to zachowanie domyślne w całej reszcie systemu, więc
+przełącznik służy do jej WYŁĄCZENIA. Kreator był jedynym miejscem startującym z `false`,
+przy `DEFAULT true` w kolumnie (migracja `124`), `?? true` na stronie edycji i `?? true`
+w mapperze `lib/events.ts` — czyli każdy nowy mecz powstawał bez rezerwy wbrew czterem
+innym miejscom. Zgodność wszystkich czterech pilnuje `src/__tests__/listaRezerwowa.test.ts`.
+
+**Włączony przełącznik „Bramkarze osobno" nie pokazuje już „Bez podziału na role"**
+(ta sama data). `UstawieniaBramkarzy` ma trzy tryby, z których pierwszy (`gk: false`)
+jest DOKŁADNIE stanem wyłączonego przełącznika. Wystawienie go w środku włączonego
+dawało dwie kontrolki na jedno pytanie, umiejące się ze sobą nie zgadzać: przełącznik
+mówił „dziel skład", a wybrany tryb „nie dziel". W kreatorze zostają więc dwa tryby,
+które naprawdę dzielą skład — „Rozróżniaj, ale nie rezerwuj miejsc" i „Rezerwuj miejsca
+dla bramkarzy" — a nagłówek „Bramkarze" znika, bo powtarzał tytuł przełącznika. Robi to
+prop `wPrzelaczniku`; **strona edycji go nie podaje** i widzi wszystkie trzy tryby, bo
+tam nie ma przełącznika i wszystkie ustawienia są równorzędne.
+
+Pilnuje tego `e2e/kreator-bramkarze-i-rezerwa.klikalnosc.spec.ts` — sprawdzone w obie
+strony: bez którejkolwiek z tych dwóch zmian testy padają.
 
 `STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx` mapuje pole → krok dla skoku steppera
 przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
