@@ -1,13 +1,12 @@
 /**
- * Skeleton pieces for the dashboard shell. Split in two so the same markup
- * serves two moments:
- *  - the default export, used server-side in app/page.tsx before we even
- *    know whether there's a real session (see lib/sessionHint.ts) — zero
- *    hooks, zero client JS, safe to render on the server;
- *  - DashboardContentSkeleton alone, reused by AppHome.tsx while
- *    useDashboardData() is still fetching (real GreetingBar already showing,
- *    since by then we do have the actual user) — one coordinated loading
- *    state instead of five sections each flashing in independently.
+ * Skeleton pieces for the dashboard shell, used server-side in app/page.tsx
+ * before we even know whether there's a real session (see lib/sessionHint.ts)
+ * — zero hooks, zero client JS, safe to render on the server.
+ *
+ * Od likwidacji drugiego pulpitu (2026-08-23) ten szkielet ma jeszcze jedno
+ * zadanie: przykrywa te ułamek sekundy, w którym `HomeSwitch` wie już, że
+ * użytkownik jest zalogowany, i przekierowuje go na `/moje-gry`. Bez tego
+ * przez tę klatkę mignąłby landing sprzedażowy komuś, kto ma konto.
  */
 
 export function GreetingBarSkeleton() {
@@ -22,7 +21,7 @@ export function GreetingBarSkeleton() {
 export function DashboardContentSkeleton() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-4" aria-hidden="true">
-      {/* NextMatchCard skeleton */}
+      {/* Szkielet karty meczu */}
       <div className="h-44 animate-pulse rounded-2xl bg-slate-100" />
 
       {/* A section header + list rows, repeated once */}
