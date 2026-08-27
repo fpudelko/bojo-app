@@ -376,53 +376,48 @@ pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx
 rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
 `listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.
 
-### 2026-08-23 — Jeden pulpit zalogowanego, nie dwa
+### 2026-08-27 — Jeden pulpit zalogowanego, a w nim podział wg relacji do meczu
 
-PROBLEM: Bojo miało DWA ekrany odpowiadające na to samo pytanie „co i kiedy gram".
-Strona główna po zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia",
-„Najbliższy mecz" i „Twoje mecze" — dokładnie te same, które ma zakładka „Mecze"
-(`/moje-gry`). Do tego pulpit na „/" był POZA dolną nawigacją: pasek prowadzi na
-`/moje-gry`, `/mapa`, `/rozmowy`, `/grupy` i do kreatora, więc na „/" wchodziło się
-wyłącznie przez logo w nagłówku. Utrzymywany był więc drugi, trudniej dostępny pulpit,
-który sam z siebie rozjeżdżał się z pierwszym. Ponad połowę jego długości zajmowały
-przy tym „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ konta,
-pokazywana komuś, kto ma już mecze i ekipy.
+PROBLEM: Bojo miało DWA ekrany na to samo pytanie „co i kiedy gram". Strona główna po
+zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia", „Najbliższy mecz"
+i „Twoje mecze" — tymi samymi, które ma zakładka „Mecze" (`/moje-gry`). Pulpit na „/"
+był przy tym POZA dolną nawigacją (pasek prowadzi na `/moje-gry`, `/mapa`, `/rozmowy`,
+`/grupy` i do kreatora), więc wchodziło się na niego wyłącznie przez logo. Ponad połowę
+jego długości zajmowały „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ
+konta, pokazywana komuś, kto ma już mecze i ekipy. Sama zakładka „Mecze" miała z kolei
+siedem sekcji, z czego trzy kroiły tę samą listę: mecz organizowany, bez kompletu
+i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
 
-ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" (`/moje-gry`), czyli ta
-z dolnej nawigacji. Zalogowany, który wejdzie na „/", trafia na „Mecze". Landing na „/"
-nie zmienia się ani o milimetr dla wylogowanych i dla wyszukiwarek — te nie mają
-ciasteczka sesji. Sekcje marketingowe znikają z widoku zalogowanego; ta sama treść ma
+ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" — ta z dolnej nawigacji.
+Zalogowany, który wejdzie na „/", trafia na „Mecze"; landing na „/" nie zmienia się dla
+wylogowanych ani dla wyszukiwarek (nie mają ciasteczka sesji). Treść marketingowa ma
 własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
 
-Przy okazji sama zakładka „Mecze" stała się JEDNĄ LISTĄ moich meczów od najbliższego.
-Wcześniej miała siedem sekcji, z czego trzy kroiły tę samą listę — mecz organizowany,
-bez kompletu i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
-Reguła: fakt o meczu (prośby, brakujący skład, nieprzeczytane) to PLAKIETKA NA KARCIE,
-a osobną sekcję dostaje wyłącznie to, czego na liście nie ma — zaproszenie i mecz ekipy.
-Pytanie organizatora „na który mecz nie zbiera się skład" ma dalej odpowiedź, ale jako
-CHIP FILTRUJĄCY nad listą („Brakuje graczy"), nie jako druga kopia tych samych meczów.
-Mecze, w których gracz naprawdę gra, mają wypełnioną zieloną plakietkę „Grasz ✓",
-a sekcja z meczami CUDZYMI nosi nagłówek „Możesz dołączyć" — żeby na jednej liście dało
-się od razu odróżnić „moje" od „mogę dołączyć".
+Sama zakładka dzieli mecze WG RELACJI, bez wyróżnionej karty „najbliższy mecz" — przy
+takim podziale pierwszy element pierwszej sekcji i tak jest meczem najbliższym w czasie:
 
-Z kasowanego pulpitu przeniosła się JEDNA sekcja — „Mecze Twoich grup", czyli mecze
-mojej ekipy, do których jeszcze nie dołączyłem. Jako jedyna niosła treść nieobecną
-nigdzie indziej: pozostałe listy pokazują mecze, w których już jestem, więc bez tego
-„moja ekipa gra, a mnie nie ma" nie miałoby ani jednego miejsca w aplikacji.
+- „Grasz" — jestem w składzie (także wtedy, gdy sam ten mecz organizuję),
+- „Organizujesz" — mój mecz, w którym sam nie gram,
+- „Rezerwa i oczekujące" — rezerwa i czekanie na akceptację na cudzym meczu; pokazuje
+  się tylko wtedy, gdy jest co pokazać,
+- „Możesz dołączyć" — mecze mojej ekipy, w których jeszcze mnie nie ma.
+
+Kubełki są rozłączne i razem pokrywają całość, więc żaden mecz nie wypada z listy przy
+zmianie statusu. Mecz, w którym naprawdę gram, ma CAŁĄ KARTĘ zieloną — nie tylko
+plakietkę w rogu. Filtrów nie ma żadnych (ani „Nieprzeczytane", ani „Brakuje graczy" —
+oba usunięte, bo podział wg relacji i plakietka „N wolnych miejsc" na karcie odpowiadają
+na te same pytania bez kontrolek do nauczenia).
 
 MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
-nie `push` — inaczej „wstecz" wracałoby na adres, który natychmiast przekierowuje
-z powrotem). Przekierowanie jest KLIENCKIE, bo tylko klient zna prawdziwą sesję —
-serwerowej nie ma (Supabase trzyma ją w `localStorage`), a ciasteczko-podpowiedź
-`lib/sessionHint.ts` służy wyłącznie do wyboru kształtu pierwszej odpowiedzi i nie
-wolno na nim opierać nawigacji. Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`
-oraz sekcje `OpenGamesSection`, `OnboardingSection`, `MyGroupsSection`,
-`ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`
-i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesiona do
-`app/moje-gry/page.tsx`. Plakietkę organizatora „N próśb" (niebieska, wypiera ogólne
-„Wymaga akceptacji") dokłada `EventBrowseCard` za opt-in propem `odznakiOrganizatora`.
-Tytuł karty ma `line-clamp-2` zamiast `truncate`, bo plakietki obok są `shrink-0`
-i na wąskim telefonie ścinały nazwę meczu.
+klienckie — serwerowej sesji nie ma, Supabase trzyma ją w `localStorage`, a
+ciasteczko-podpowiedź `lib/sessionHint.ts` służy tylko do wyboru kształtu pierwszej
+odpowiedzi). Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`, `NextMatchCard.tsx`
+(został z niego `PustyStanMeczow.tsx`) oraz sekcje `OpenGamesSection`,
+`OnboardingSection`, `MyGroupsSection`, `ObservingSection`, `NextGroupMatchTeaser`,
+`PendingRequestsSection`, `NeedsPlayersSection`. Kubełki liczy `app/moje-gry/page.tsx`
+z `playing` (czyli `upcoming` bez obserwowanych); zieleń karty i plakietkę „N próśb"
+rysuje `EventBrowseCard`.
+
 ### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
 
 PROBLEM: Katalog boisk Bojo ma 38 314 obiektów, ale przy oddalonej mapie lista obok niej
