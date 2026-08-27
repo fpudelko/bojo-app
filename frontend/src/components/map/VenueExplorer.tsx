@@ -27,7 +27,7 @@ import {
   policzBoiskaWMiastach, getFieldsWMiescie, kadrWokol,
   type Kadr, type Skupisko,
 } from '@/lib/api';
-import { NAJWIEKSZE_MIASTA, miastaDoPokazania } from '@/lib/miasta';
+import { NAJWIEKSZE_MIASTA, miastaDoPokazania, podpowiedziMiast } from '@/lib/miasta';
 import PustaListaObiektow from './PustaListaObiektow';
 import { getPublicEvents } from '@/lib/events';
 import { zapiszPowrot } from '@/lib/powrot';
@@ -912,16 +912,20 @@ export default function VenueExplorer({
   const [bladGeoListy, setBladGeoListy] = useState<string | null>(null);
 
   const trybSkupiskTeraz = zoom < ZOOM_SKUPISK;
+  // Liczby są potrzebne w DWÓCH miejscach: w kafelkach pustego stanu listy
+  // i w podpowiedziach szukajki. Stąd drugi warunek — bez niego po przybliżeniu
+  // mapy szukajka nie podpowiadała nic, bo liczby nigdy się nie pobrały.
+  const potrzebneLiczbyMiast = trybSkupiskTeraz || search.trim().length >= 2;
   useEffect(() => {
-    // Liczby ciągniemy raz i dopiero, gdy pusty stan naprawdę jest na ekranie
-    // — to kilkanaście zapytań `head`, nie ma powodu robić ich na wejściu.
-    if (!trybSkupiskTeraz || liczbyMiast !== null) return;
+    // Ciągniemy je RAZ i dopiero, gdy są komu potrzebne — to kilkanaście
+    // zapytań `head`, nie ma powodu robić ich na wejściu.
+    if (!potrzebneLiczbyMiast || liczbyMiast !== null) return;
     let anulowane = false;
     policzBoiskaWMiastach([...NAJWIEKSZE_MIASTA])
       .then((l) => { if (!anulowane) setLiczbyMiast(l); })
       .catch(() => { if (!anulowane) setLiczbyMiast({}); });
     return () => { anulowane = true; };
-  }, [trybSkupiskTeraz, liczbyMiast]);
+  }, [potrzebneLiczbyMiast, liczbyMiast]);
 
   const pokazBliskoMnie = async () => {
     setBladGeoListy(null);
@@ -1343,6 +1347,17 @@ export default function VenueExplorer({
      Tekst podpowiedzi jest krótki, bo długi się ucinał w połowie słowa
      („Szukaj boiska po nazwie lub a…") — czyli mówił mniej niż krótszy, który
      się mieści. */
+  // PODPOWIEDZI MIAST. Katalog ma dziesiątki tysięcy obiektów o nazwach
+  // rodzajowych („Boisko sportowe" tysiąc razy), więc wpisanie nazwy rzadko
+  // trafia w to, czego ktoś szuka — a wpisanie MIASTA trafia zawsze. Liczby
+  // biorą się z tego samego zapytania co kafelki w pustym stanie listy, więc
+  // podpowiedź nie kosztuje ani jednego zapytania więcej.
+  const podpowiedzi = liczbyMiast ? podpowiedziMiast(search, liczbyMiast) : [];
+  // Znika po wybraniu: gdy w polu stoi dokładnie nazwa miasta, podpowiadanie
+  // jej sobie samemu jest szumem.
+  const pokazPodpowiedzi = podpowiedzi.length > 0
+    && !podpowiedzi.some((m) => m.nazwa.toLowerCase() === search.trim().toLowerCase());
+
   const searchBox = (
     <div className="relative">
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -1361,6 +1376,36 @@ export default function VenueExplorer({
         >
           <X className="h-4 w-4" />
         </button>
+      )}
+
+      {pokazPodpowiedzi && (
+        <ul
+          className="absolute inset-x-0 top-full z-[1200] mt-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+          aria-label="Podpowiedzi miast"
+        >
+          {podpowiedzi.map((m) => (
+            <li key={m.nazwa}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch(m.nazwa);
+                  // W trybie obiektów podpowiedź ma DOWIEŹĆ do miasta, nie
+                  // tylko wpisać jego nazwę: `pokazMiasto` podmienia źródło
+                  // listy i dopasowuje kadr. W trybie gier zostaje sam tekst —
+                  // gry filtrują się po nazwie boiska i dzielnicy, a nie po
+                  // kolumnie `city`, której mecze nie mają.
+                  if (!showGames) pokazMiasto(m.nazwa);
+                }}
+                className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 text-left text-sm text-ink transition-colors hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700"
+              >
+                <span className="font-medium">{m.nazwa}</span>
+                <span className="shrink-0 text-xs font-semibold text-slate-400">
+                  {m.ile.toLocaleString('pl-PL')} {boiskoSlowo(m.ile)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

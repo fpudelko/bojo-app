@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { NAJWIEKSZE_MIASTA, miastaDoPokazania } from '@/lib/miasta';
+import { NAJWIEKSZE_MIASTA, miastaDoPokazania, podpowiedziMiast } from '@/lib/miasta';
 
 describe('miasta w pustym stanie listy obiektów', () => {
   it('sortuje malejąco po liczbie obiektów', () => {
@@ -30,5 +30,39 @@ describe('miasta w pustym stanie listy obiektów', () => {
 
   it('lista jest krótka — kilkanaście kafelków, nie sto', () => {
     expect(NAJWIEKSZE_MIASTA.length).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('podpowiedziMiast — szukajka podpowiada miasta', () => {
+  const liczby = { Poznań: 1240, Gdańsk: 760, Gdynia: 300, Warszawa: 3120, Wrocław: 1105 };
+
+  it('znajduje miasto wpisane BEZ ogonków', () => {
+    // Sedno sprawy: ludzie piszą „poznan", nie „Poznań".
+    expect(podpowiedziMiast('poznan', liczby).map((m) => m.nazwa)).toEqual(['Poznań']);
+  });
+
+  it('radzi sobie z „ł", którego NFD nie rozkłada', () => {
+    expect(podpowiedziMiast('wroclaw', liczby).map((m) => m.nazwa)).toEqual(['Wrocław']);
+  });
+
+  it('dopasowuje od POCZĄTKU nazwy, większe miasta pierwsze', () => {
+    expect(podpowiedziMiast('gd', liczby).map((m) => m.nazwa)).toEqual(['Gdańsk', 'Gdynia']);
+  });
+
+  it('nie dopasowuje w środku nazwy', () => {
+    // „zna" siedzi w środku „Poznania" — podpowiadanie tego wygląda losowo.
+    expect(podpowiedziMiast('zna', liczby)).toEqual([]);
+  });
+
+  it('jedna litera nie podpowiada niczego', () => {
+    expect(podpowiedziMiast('w', liczby)).toEqual([]);
+  });
+
+  it('miasto bez obiektów nie jest podpowiedzią', () => {
+    expect(podpowiedziMiast('gdy', { Gdynia: 0 })).toEqual([]);
+  });
+
+  it('nie podpowiada więcej niż limit', () => {
+    expect(podpowiedziMiast('g', liczby, 1).length).toBeLessThanOrEqual(1);
   });
 });

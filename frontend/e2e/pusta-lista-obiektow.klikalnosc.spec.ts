@@ -84,3 +84,23 @@ test('pusta lista obiektów daje drogi dalej, nie tylko „przybliż"', async ({
   // 3. Dawne przybliżenie zostaje, ale jako cicha droga na końcu.
   await expect(page.getByRole('button', { name: /Przybliż tam/ })).toBeVisible();
 });
+
+test('szukajka podpowiada miasta, też wpisane bez ogonków', async ({ page }) => {
+  // Katalog ma dziesiątki tysięcy obiektów o nazwach rodzajowych („Boisko
+  // sportowe" tysiąc razy), więc wpisanie NAZWY rzadko trafia w to, czego ktoś
+  // szuka — a wpisanie MIASTA trafia zawsze.
+  await podstaw(page);
+  await page.goto('/mapa?gry=0');
+
+  const pole = page.getByRole('textbox', { name: /Szukaj boiska/ }).filter({ visible: true }).first();
+  await pole.fill('poznan');
+
+  const podpowiedz = page.getByRole('button', { name: /^Poznań/ }).filter({ visible: true }).first();
+  await expect(podpowiedz).toBeVisible({ timeout: 15_000 });
+  await expect(podpowiedz).toContainText('1240');
+
+  // Miasto bez ani jednego obiektu nie ma prawa być podpowiedzią (Gdynia ma
+  // w atrapie zero).
+  await pole.fill('gdy');
+  await expect(page.getByRole('button', { name: /^Gdynia/ })).toHaveCount(0);
+});

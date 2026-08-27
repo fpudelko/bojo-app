@@ -1943,6 +1943,27 @@ powrót ze strony boiska (`backHref`), panele obiektu w `/admin` oraz **przełą
 Pilnuje tego `e2e/szukaj-domyslnie-mecze.klikalnosc.spec.ts`, sprawdzając obie strony
 zamiany.
 
+**Szukajka podpowiada miasta** (`podpowiedziMiast()` w `lib/miasta.ts`). Katalog ma
+dziesiątki tysięcy obiektów o nazwach rodzajowych („Boisko sportowe" tysiąc razy), więc
+wpisanie NAZWY rzadko trafia w to, czego ktoś szuka — a wpisanie MIASTA trafia zawsze.
+
+- **Dopasowanie bez ogonków**: „poznan" znajduje Poznań, „wroclaw" Wrocław.
+  `bezOgonkow()` rozkłada `NFD` i wycina znaki diakrytyczne, ale „ł" podmienia ręcznie —
+  Unicode traktuje je jako osobną literę, nie „l" z ogonkiem, więc samo `NFD` by nie
+  wystarczyło.
+- **Od POCZĄTKU nazwy**, nie w środku: „gda" podpowiada Gdańsk i Gdynię, ale „zna" nie
+  podpowiada Poznania. Dopasowanie w środku przy krótkich wpisach wygląda na losowe.
+- **Od dwóch znaków** — jedna litera podpowiada pół alfabetu.
+- **Miasto bez obiektów wypada**, tak samo jak w kafelkach pustego stanu.
+- Liczby biorą się z tego samego zapytania co kafelki (`policzBoiskaWMiastach()`), więc
+  podpowiedź nie kosztuje ani jednego zapytania więcej. Warunek pobrania obejmuje też
+  „ktoś pisze w szukajce" — bez tego po przybliżeniu mapy liczby nigdy by się nie
+  pobrały i podpowiedzi milczałyby bez powodu.
+
+W trybie obiektów dotknięcie podpowiedzi **dowozi do miasta** (`pokazMiasto()` podmienia
+źródło listy i dopasowuje kadr). W trybie gier zostaje sam tekst w polu — mecze filtrują
+się po nazwie boiska i dzielnicy, a nie po kolumnie `city`, której nie mają.
+
 **Pusta lista obiektów nie jest ślepym zaułkiem** (`components/map/PustaListaObiektow.tsx`).
 Przy oddalonej mapie lista jest pusta Z ZAŁOŻENIA — w trybie skupisk z bazy lecą same
 liczby w siatce, nie obiekty. Stał tam wcześniej jeden przycisk: „Przybliż tam, gdzie

@@ -42,3 +42,49 @@ export function miastaDoPokazania(
     .filter((m) => m.ile > 0)
     .sort((a, b) => b.ile - a.ile);
 }
+
+/**
+ * Porównywalna postać nazwy: bez znaków diakrytycznych, małymi literami.
+ *
+ * `normalize('NFD')` rozkłada „ó" na „o" + znak diakrytyczny, który potem
+ * wycinamy — ale NIE rozkłada „ł", bo to osobna litera w Unicode, a nie „l"
+ * z ogonkiem. Bez tej podmiany „wroclaw" nie znajdowałby Wrocławia, czyli
+ * dokładnie tego, po co ta funkcja powstała: ludzie piszą w szukajce bez
+ * ogonków („poznan", „gdansk").
+ */
+export function bezOgonkow(tekst: string): string {
+  return tekst
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Podpowiedzi miast do szukajki — pasujące do wpisanego tekstu, z liczbami.
+ *
+ * OD POCZĄTKU NAZWY, nie w środku: „gda" ma podpowiadać Gdańsk i Gdynię,
+ * ale „ork" nie ma powodu podpowiadać Bydgoszczy przez „org". Dopasowanie
+ * w środku daje przy krótkich wpisach listę, która wygląda na przypadkową.
+ *
+ * Miasta bez ani jednego obiektu wypadają — z tego samego powodu co w
+ * `miastaDoPokazania()`: zero znaczy „backfill tam nie dotarł", nie „nie ma
+ * tam boisk".
+ */
+export function podpowiedziMiast(
+  wpisane: string,
+  liczby: Record<string, number>,
+  limit = 5,
+): Array<{ nazwa: string; ile: number }> {
+  const szukane = bezOgonkow(wpisane);
+  // Jedna litera podpowiada pół alfabetu — od dwóch lista zaczyna coś znaczyć.
+  if (szukane.length < 2) return [];
+  return NAJWIEKSZE_MIASTA
+    .filter((nazwa) => bezOgonkow(nazwa).startsWith(szukane))
+    .map((nazwa) => ({ nazwa, ile: liczby[nazwa] ?? 0 }))
+    .filter((m) => m.ile > 0)
+    .sort((a, b) => b.ile - a.ile)
+    .slice(0, limit);
+}
