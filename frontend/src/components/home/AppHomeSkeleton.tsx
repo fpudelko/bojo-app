@@ -21,7 +21,7 @@ export function GreetingBarSkeleton() {
 export function DashboardContentSkeleton() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8 px-4 pb-12 pt-4" aria-hidden="true">
-      {/* NextMatchCard skeleton */}
+      {/* Szkielet karty meczu */}
       <div className="h-44 animate-pulse rounded-2xl bg-slate-100" />
 
       {/* A section header + list rows, repeated once */}

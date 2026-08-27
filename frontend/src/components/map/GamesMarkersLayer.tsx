@@ -11,7 +11,8 @@ import { clusterDivIcon } from './mapIcons';
 /** Pinezka pojedynczego meczu — kółko w kolorze sportu z emoji sportu w
  *  środku (odpowiada na „jaki sport") i etykietą „kiedy + która godzina" pod
  *  spodem (dziś · 18:00 / jutro · 18:00 / w piątek · 20:30 / 12 wrz · 18:00 —
- *  ten sam format co `matchWhenLabel` gdzie indziej w apce, np. NextMatchCard).
+ *  ten sam format co `matchWhenLabel` gdzie indziej w apce, np. na kartach
+ *  `/moje-gry`).
  *  Cena i reszta szczegółów zostają w panelu po dotknięciu — na samej pinezce
  *  więcej tekstu byłoby nieczytelne. */
 function eventIcon(row: EventRow, selected: boolean): L.DivIcon {

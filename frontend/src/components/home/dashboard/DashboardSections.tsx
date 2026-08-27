@@ -78,13 +78,18 @@ export function InvitesSection({ invites, statusFor, href, limit = 3 }: {
   );
 }
 
-/** "Twoje najbliższe mecze" — everything the user is playing/organizing,
- *  except whichever match NextMatchCard already put front and centre.
- *  `limit`/`href` default to the dashboard's teaser behaviour (2 items +
- *  link to /moje-gry); /moje-gry itself passes limit={null} href={null} to
- *  show the full list with no "Wszystkie" link back to itself. */
-export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadByEvent }: {
-  items: MyEventRow[]; limit?: number | null; href?: string | null;
+/** Lista moich meczów pod własnym nagłówkiem.
+ *
+ *  `title` jest propem, bo `/moje-gry` dzieli te same karty na TRZY sekcje
+ *  wg relacji („Grasz", „Organizujesz", „Rezerwa i oczekujące") — jeden
+ *  komponent z podmienianym nagłówkiem zamiast trzech kopii tego samego
+ *  markupu. `limit`/`href` domyślnie zachowują się jak zajawka (2 pozycje
+ *  + link do /moje-gry) dla `/grupy/[id]`; `/moje-gry` podaje
+ *  `limit={null} href={null}`, bo pokazuje pełną listę i nie linkuje do
+ *  samego siebie. */
+export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', subtitle, limit = 2, href = '/moje-gry', unreadByEvent }: {
+  items: MyEventRow[]; title?: string; subtitle?: string;
+  limit?: number | null; href?: string | null;
   /** Nieprzeczytane wiadomości per mecz — patrz `unreadMessages` na `EventBrowseCard`. */
   unreadByEvent?: Record<string, number>;
 }) {
@@ -92,7 +97,7 @@ export function MyMatchesSection({ items, limit = 2, href = '/moje-gry', unreadB
   const shown = limit != null ? items.slice(0, limit) : items;
   return (
     <div>
-      <SectionHeader title="Twoje najbliższe mecze" href={href ?? undefined} count={items.length} />
+      <SectionHeader title={title} subtitle={subtitle} href={href ?? undefined} count={items.length} />
       <div className="space-y-3">
         {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} odznakiOrganizatora />

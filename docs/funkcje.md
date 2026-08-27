@@ -814,9 +814,29 @@ Reguła, która to porządkuje:
 - **osobną sekcję** dostaje wyłącznie to, czego na tej liście NIE MA — zaproszenie
   (jeszcze nie mój mecz) i mecz ekipy, do którego nie dołączyłem.
 
-Kolejność: `InvitesSection` (limit 3, link do zakładki „Zaproszenia") → rząd filtrów →
-`NextMatchCard` (najbliższy, czyli pierwszy element listy, tylko bogatszy) →
-`MyMatchesSection` (reszta, bez najbliższego) → `GroupGamesSection`.
+**Kolejność i podział wg RELACJI do meczu** (2026-08-24, zgłoszone wprost:
+„najbardziej intuicyjny podział"): `InvitesSection` (limit 3, link do zakładki
+„Zaproszenia") → rząd filtrów → **Grasz** → **Organizujesz** → **Rezerwa
+i oczekujące** → `GroupGamesSection` („Możesz dołączyć").
+
+Trzy środkowe sekcje to ten sam `MyMatchesSection` z podmienianym `title`, karmiony
+rozłącznymi kubełkami liczonymi z `playing` (czyli `upcoming` bez obserwowanych — te
+mają własną zakładkę):
+
+| Sekcja | Warunek | Po co osobno |
+|---|---|---|
+| **Grasz** | `status === 'playing'` | to, o co pyta się najczęściej; obejmuje też mecze, które organizuję I gram |
+| **Organizujesz** | `isOrganizer && status !== 'playing'` | mój mecz, w którym sam nie gram — inna rola, inne pytania |
+| **Rezerwa i oczekujące** | reszta (`!isOrganizer`, status ≠ `playing`) | rezerwa i czekanie na akceptację na CUDZYM meczu; „Grasz" byłoby nieprawdą. Renderuje się tylko, gdy jest co pokazać — u większości nie pojawi się nigdy |
+
+Kubełki są rozłączne i razem pokrywają całe `playing`, więc żaden mecz nie może wypaść
+z listy przy zmianie statusu.
+
+**Karty-hero „NAJBLIŻSZY MECZ" nie ma** (zgłoszone wprost: „bez sensu jest ten jeden
+osobny najbliższy mecz"). Przy podziale na „Grasz"/„Organizujesz" pierwszy element
+pierwszej sekcji I TAK jest meczem najbliższym w czasie — `splitMyEvents` sortuje
+rosnąco po terminie — więc osobny nagłówek nad nim powtarzał to, co lista mówi sama.
+Z dawnego `NextMatchCard` został wyłącznie pusty stan, jako `PustyStanMeczow`.
 
 `PendingRequestsSection` i `NeedsPlayersSection` **nie istnieją**. Ich rolę przejęły:
 
@@ -836,6 +856,13 @@ trzy razy — paskiem postępu, licznikiem „7/10 graczy" i bursztynową plakie
 na 390 px tytułowi zostawało ~150 px i „Czwartkowa gierka" wychodziło jako
 „Czwartkowa …". Dwie linie mieszczą normalną nazwę w całości, a bardzo długą ucinają
 dopiero wtedy, gdy naprawdę nie ma jej gdzie zmieścić.
+
+**Cała karta zieleni się, gdy naprawdę gram** (`bg-primary-50/60` + `ring-primary-200`)
+— sama plakietka w rogu wymagała szukania wzrokiem, a tło i obwódka odpowiadają „to jest
+moje" z odległości ręki. Wyłącznie `status === 'playing'`: nie rezerwa, nie oczekiwanie
+i nie „organizuję, ale nie gram". Zieleń ma znaczyć DOKŁADNIE jedno — jesteś w składzie;
+rozmyta na „prawie gram" przestałaby cokolwiek znaczyć. Lewa krawędź zostaje w kolorze
+SPORTU, bo to inna informacja.
 
 **„Grasz ✓" jest WYPEŁNIONE** (`bg-primary-700 text-white`), a pozostałe stany
 (`Rezerwa`, `Obserwujesz`, `Czeka na akceptację`) zostają bladymi obwódkami — celowa
@@ -876,16 +903,9 @@ samej stronie. Sam komponent `ObservingSection` zniknął razem z pulpitem na `/
 pozostałością po skróconym wariancie z dawnego pulpitu na `/`; zostają, bo `/grupy/[id]`
 nadal korzysta ze skracania.)
 
-Brak osobnego pustego stanu dla „Nadchodzące": `NextMatchCard` ma własny („Nie masz
-zaplanowanych gier" + „Stwórz mecz" / „Znajdź grę"), więc pokrywa przypadek zerowej
-aktywności bez drugiej kopii tego ekranu.
-
-**`NextMatchCard` (wypełniony stan) renderuje `EventBrowseCard`** — ten sam komponent
-karty co reszta sekcji „Twoje najbliższe mecze" i zakładka „Historia" — pod etykietą
-„NAJBLIŻSZY MECZ", zamiast własnego, większego markupu (osobny pasek postępu, przycisk
-„Udostępnij"). Konsekwencja: dedykowany przycisk „Udostępnij" na tej karcie zniknął —
-mecz nadal da się udostępnić ze strony szczegółów wydarzenia. Pusty stan zostaje bez
-zmian, to nie on był „za duży".
+Pusty stan „Nadchodzące" to `PustyStanMeczow` („Nie masz zaplanowanych gier" +
+„Stwórz mecz" / „Znajdź grę"), renderowany, gdy `playing` jest puste. Odpowiada na inne
+pytanie niż lista — „nie mam nic, co teraz?" — i daje dwie drogi wyjścia zamiast pustki.
 
 Nagłówek „Twoje mecze" i przycisk „+ Nowy mecz" zniknęły ze strony — mecz tworzy się
 z FAB-a (`+`) w dolnej nawigacji, dostępnego z każdego ekranu na mobile.
@@ -1399,8 +1419,8 @@ przez `L.markerClusterGroup` (`leaflet.markercluster`) w nowym, współdzielonym
 **Pinezka pojedynczego meczu** to kółko w kolorze sportu (`sportColor()`) z emoji
 sportu w środku — odpowiada wprost na „jaki sport", bez potrzeby legendy — i etykietą
 „kiedy + godzina" pod spodem (`matchWhenLabel(date, time)`: dziś · 18:00 / jutro · 18:00
-/ w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np.
-`NextMatchCard`). Cena i reszta szczegółów zostają
+/ w piątek · 20:30 / 12 wrz · 18:00, ten sam format co gdzie indziej w apce, np. na
+kartach `/moje-gry`). Cena i reszta szczegółów zostają
 w panelu po dotknięciu — na samej pinezce więcej tekstu byłoby nieczytelne. Klaster
 (kilka meczów blisko siebie) pokazuje kolorowe kółko z liczbą, tym samym
 `clusterDivIcon()` co klastry boisk na `/mapa`.
@@ -2091,9 +2111,9 @@ wylogowanego). Druga kopia — `OnboardingSection` na pulpicie zalogowanego — 
 razem z `AppHome.tsx` (2026-08-23): ta treść odpowiada na pytanie osoby BEZ konta,
 a stała na ekranie kogoś, kto ma już mecze i ekipy. Kto szuka jej z konta, ma
 `/jak-dziala-bojo` i `/faq`. Plakietka `WczesnyEtapBadge` zostaje osobnym komponentem,
-bo dzieli ją jeszcze nagłówek i `NextMatchCard`.
+bo dzieli ją jeszcze nagłówek i `PustyStanMeczow`.
 
-Pusty stan `NextMatchCard` uprzedza tym samym tonem, że otwartych gier bywa mało
+Pusty stan `PustyStanMeczow` uprzedza tym samym tonem, że otwartych gier bywa mało
 i szybszą drogą jest własny mecz plus link do znajomych.
 
 ---

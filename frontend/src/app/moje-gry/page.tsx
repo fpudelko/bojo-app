@@ -10,13 +10,13 @@ import { useAuth } from '@/lib/auth';
 import { getMyParticipatedEvents, getMyActiveEventIds, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
 import { isUpcoming } from '@/lib/eventDates';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
-import { splitMyEvents, nextMatch, type MyEventRow } from '@/lib/myEvents';
+import { splitMyEvents, type MyEventRow } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
 import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
-import NextMatchCard from '@/components/home/dashboard/NextMatchCard';
+import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING } from '@/lib/features';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
@@ -172,7 +172,6 @@ function MojeGryContent() {
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
   // playing stay together in one list — both are "your match".
   const { upcoming, history, playing, observing } = splitMyEvents(items);
-  const next = nextMatch(items);
 
   // JEDEN FILTR, JEDNA LISTA. Zawęża tę samą listę moich meczów zamiast
   // robić jej drugą kopię — i to on zastąpił sekcję „Brakuje graczy".
@@ -188,9 +187,25 @@ function MojeGryContent() {
   const przechodziFiltry = (row: MyEventRow) => !onlyBrakuje || needsPlayers(row);
 
   const upcomingWidoczne = upcoming.filter(przechodziFiltry);
-  const playingWidoczne = playing.filter(przechodziFiltry);
-  const nextWidoczny = next && przechodziFiltry(next) ? next : null;
   const jestBrakujacych = upcoming.some(needsPlayers);
+
+  // TRZY KUBEŁKI WG RELACJI, nie jeden wyróżniony mecz na górze (zgłoszone
+  // wprost: „bez sensu jest ten jeden osobny najbliższy mecz"). Przy podziale
+  // na „Grasz" / „Organizujesz" pierwszy element pierwszej sekcji I TAK jest
+  // meczem najbliższym w czasie — `splitMyEvents` sortuje rosnąco po terminie —
+  // więc osobna karta-hero mówiła to, co lista mówi sama.
+  //
+  // Podstawą jest `playing` (czyli `upcoming` bez obserwowanych, bo te mają
+  // własną zakładkę). Kubełki są ROZŁĄCZNE i razem pokrywają całość:
+  const graszWidoczne = playing.filter((r) => przechodziFiltry(r) && r.relation.status === 'playing');
+  const organizujeszWidoczne = playing.filter((r) =>
+    przechodziFiltry(r) && r.relation.isOrganizer && r.relation.status !== 'playing');
+  // Reszta: rezerwa i czekanie na akceptację na CUDZYM meczu. Osobna sekcja,
+  // bo „Grasz" byłoby nieprawdą (nie masz miejsca w składzie), a wrzucenie ich
+  // pod „Organizujesz" jest bez sensu. Pokazuje się tylko wtedy, gdy jest co
+  // pokazać — u większości ludzi nie będzie jej nigdy.
+  const pozostaleWidoczne = playing.filter((r) =>
+    przechodziFiltry(r) && r.relation.status !== 'playing' && !r.relation.isOrganizer);
 
   // Rząd filtrów nad listą — stałe miejsce. Poprzednia wersja doczepiała
   // ikonkę filtra do nagłówka sekcji „Brakuje graczy", a gdy ta sekcja była
@@ -337,27 +352,33 @@ function MojeGryContent() {
             {filtry}
             {upcomingWidoczne.length === 0 && onlyBrakuje ? (
               <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                Żaden z nadchodzących meczów nie pasuje do tych filtrów.
+                Żaden z nadchodzących meczów nie pasuje do tego filtra.
               </p>
             ) : (
               <>
-                {nextWidoczny && (
-                  <NextMatchCard
-                    row={nextWidoczny}
-                    unreadMessages={unreadByEvent[nextWidoczny.event.id]}
-                  />
-                )}
                 <MyMatchesSection
-                  items={playingWidoczne.filter(({ event }) => event.id !== nextWidoczny?.event.id)}
+                  items={graszWidoczne}
+                  title="Grasz"
                   limit={null}
                   href={null}
                   unreadByEvent={unreadByEvent}
                 />
-                {/* Pusty stan tylko wtedy, gdy naprawdę nie ma czego pokazać —
-                    przy włączonym filtrze odpowiada gałąź wyżej. */}
-                {!nextWidoczny && playingWidoczne.length === 0 && (
-                  <NextMatchCard row={null} />
-                )}
+                <MyMatchesSection
+                  items={organizujeszWidoczne}
+                  title="Organizujesz"
+                  subtitle="Twoje mecze, w których sam nie grasz"
+                  limit={null}
+                  href={null}
+                  unreadByEvent={unreadByEvent}
+                />
+                <MyMatchesSection
+                  items={pozostaleWidoczne}
+                  title="Rezerwa i oczekujące"
+                  limit={null}
+                  href={null}
+                  unreadByEvent={unreadByEvent}
+                />
+                {playing.length === 0 && <PustyStanMeczow />}
               </>
             )}
             {/* Mecze ekipy, w których jeszcze mnie nie ma — POD moimi meczami,

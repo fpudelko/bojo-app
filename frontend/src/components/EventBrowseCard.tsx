@@ -161,10 +161,26 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     return null;
   })();
 
+  // CAŁA KARTA ZIELENIEJE, gdy naprawdę gram (zgłoszone wprost). Sama
+  // plakietka „Grasz ✓" w rogu wymagała szukania wzrokiem; zielone tło i obwódka
+  // dają odpowiedź „to jest moje" z odległości ręki, bez czytania.
+  //
+  // Tylko `status === 'playing'` — nie rezerwa, nie oczekiwanie na akceptację
+  // i nie „organizuję, ale nie gram". Zieleń ma tu znaczyć DOKŁADNIE jedno:
+  // jesteś w składzie. Rozmyta na „prawie gram" przestałaby cokolwiek znaczyć.
+  //
+  // Lewa krawędź zostaje w kolorze SPORTU — to inna informacja i nie ma powodu,
+  // żeby jedna wypierała drugą.
+  const gram = !past && relation?.status === 'playing';
+
   return (
     <Link
       href={`/wydarzenia/${event.id}`}
-      className={`flex overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-100 dark:ring-slate-700 transition-shadow active:scale-[0.995] ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
+      className={`flex overflow-hidden rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 transition-shadow active:scale-[0.995] ${
+        gram
+          ? 'bg-primary-50/60 ring-primary-200 dark:bg-primary-950/40 dark:ring-primary-800'
+          : 'bg-white ring-slate-100 dark:bg-slate-800 dark:ring-slate-700'
+      } ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
       style={{ borderLeft: `4px solid ${past ? '#94a3b8' : color}` }}
     >
       {/* min-w-0: without it this flex item refuses to shrink below its
