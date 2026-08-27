@@ -16,7 +16,7 @@ import { clusterDivIcon } from './mapIcons';
  *  ten sam format co `matchWhenLabel` gdzie indziej w apce, np. na kartach
  *  `/moje-gry`).
  *  Cena i reszta szczegółów zostają w panelu po dotknięciu — na samej pinezce
- *  więcej tekstu byłoby nieczytelne. */
+ *  więcej tekstu byłoby nieczytelne.
  *  środku (odpowiada na „jaki sport"), pod nim „kiedy + która godzina"
  *  (dziś · 18:00 / jutro · 18:00 / w piątek · 20:30 / 12 wrz · 18:00 — ten sam
  *  format co `matchWhenLabel` gdzie indziej w apce, np. NextMatchCard), a pod
