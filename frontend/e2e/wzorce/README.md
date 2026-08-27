@@ -14,3 +14,12 @@ zgadywać za każdym razem, który plik dotknąć.
 
 Ostatnie pełne odświeżenie: 2026-08-27 (`docs/seo-geo-strategia.md`, rozdział 0 —
 dryf od PR #217).
+
+**Druga pułapka, odkryta w tym samym PR-ze:** gdy `.github/dopisz-wzorce.sh`
+wypycha commit jako `github-actions[bot]`, kolejny przebieg CI na tym PR-ze
+ląduje w stanie `action_required` — GitHub wymaga wtedy ręcznej zgody
+(„Approve and run") od kogoś z dostępem do zapisu, zanim `ci.yml` i
+`wizualne.yml` w ogóle wystartują na tym commicie. Push zwykłego współpracownika
+nad tym commitem odblokowuje kolejny przebieg bez zgody. Jeśli PR z etykietą
+`zrzuty:zaakceptuj` utknie bez zielonego CI po dopisaniu wzorców — to jest ten
+mechanizm, nie błąd w skrypcie.
