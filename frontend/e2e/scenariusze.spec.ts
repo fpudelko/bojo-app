@@ -341,12 +341,14 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
 });
 
 test.describe('organizator', () => {
-  test('prośby o akceptację — sekcja na /moje-gry i decyzja na meczu', async ({ page }) => {
+  test('prośby o akceptację — plakietka na /moje-gry i decyzja na meczu', async ({ page }) => {
     await zaloguj(page, KONTA.organizator);
 
     await page.goto('/moje-gry');
     await uspokoj(page);
-    await expect(page.getByText(/czekają na twoją decyzję/i)).toBeVisible();
+    // Sekcja „Czekają na Twoją decyzję" nie istnieje — po podziale wg relacji
+    // (2026-08-27) prośby są plakietką NA KARCIE meczu, nie osobnym nagłówkiem.
+    await expect(page.getByText(/2 prośby/i)).toBeVisible();
 
     await otworzMecz(page, MECZ.doAkceptacji);
     await uspokoj(page);
