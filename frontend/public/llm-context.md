@@ -346,6 +346,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-27 — Filtr „miejscowość + ile km" i koniec znikających pinezek
+
+PROBLEM: Mapa Bojo gubiła pinezki. Lista startowa (okolica gracza, a bez zgody Poznania)
+dobierana przy wejściu do katalogu wpisywała się w to samo pole stanu, z którego żyły
+pinezki, więc mapa pokazywała Poznań niezależnie od tego, dokąd użytkownik przewinął —
+nad Krakowem nie było widać nic. Osobno: zatwierdzenie filtrów w arkuszu kasowało
+większość z nich, bo cztery kolejne zapisy do adresu czytały ten sam, nieodświeżony stan
+i nadpisywały się nawzajem. Do tego nie było jak powiedzieć „szukam wokół Wrocławia":
+promień dało się liczyć wyłącznie od własnej lokalizacji, a filtr po nazwie miasta
+opierałby się na kolumnie `fields.city` wypełnionej w dwóch procentach.
+
+ROZWIĄZANIE BOJO: Pinezki pokazują to, co leży w bieżącym kadrze mapy (albo wyniki
+szukania po tekście); lista startowa jest odtąd podpowiedzią wyłącznie dla LISTY i tylko
+przy oddalonej mapie. Filtry katalogu zapisują się do adresu jednym wywołaniem, więc
+żaden nie ginie. Arkusz filtrów — w obu trybach, gier i katalogu — otwiera sekcja „Gdzie
+szukam": wpisujesz nazwę miejscowości ALBO KOD POCZTOWY, wybierasz promień (5/10/25/50
+km) i Bojo pokazuje to, co jest w okolicy tego punktu. W trybie meczów wybrana
+miejscowość zastępuje położenie gracza — kto wpisał „Wrocław", pyta o Wrocław, choćby
+stał w Poznaniu — i Bojo nie prosi wtedy o zgodę na lokalizację.
+
+Filtr działa po ODLEGŁOŚCI od punktu, nie po nazwie miasta w bazie: miejscowość wyznacza
+tylko współrzędne, a te ma każdy obiekt w katalogu i każdy mecz.
+
+MECHANIKA: `frontend/src/lib/miejscowosci.ts` (`szukajMiejscowosci()`, `PROMIENIE_KM`,
+rozpoznanie kodu pocztowego), `components/map/WyborMiejscowosci.tsx`, tryb `?miejscowosc=`
+w `app/api/geocode/route.ts` (Nominatim, `featuretype=settlement`, pomijane dla kodu
+pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx`:
+rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
+`listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.
+
 ### 2026-08-27 — Jeden pulpit zalogowanego, a w nim podział wg relacji do meczu
 
 PROBLEM: Bojo miało DWA ekrany na to samo pytanie „co i kiedy gram". Strona główna po
@@ -615,21 +645,3 @@ chowający ich CSS-em — ukryte pole nadal wysyła wartość);
 `EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
 `UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
 w `lib/eventWizard.ts`. Bez migracji.
-
-### 2026-08-23 — Rozmowy wyglądają jak komunikator, nie jak strona z czatem
-
-PROBLEM: `/rozmowy` i `/rozmowy/[id]` miały nad sobą generyczny pasek serwisu
-(logo, „Znajdź grę", dzwonek) — na telefonie ekran wyglądał jak strona ze wstawionym
-czatem pod nawigacją, nie jak własna aplikacja do pisania. Lista rozmów nie miała też
-szukajki — jedynym sposobem znalezienia konkretnej rozmowy było przewijanie.
-
-ROZWIĄZANIE BOJO: na mobile dla zalogowanego generyczny pasek Header znika CAŁKOWICIE
-na obu ekranach (`hideMobileBarForUser`, ten sam wzorzec co `/mapa`) — jego miejsce
-zajmuje WŁASNY nagłówek ekranu: tytuł + tożsamość + szukajka na liście, strzałka wstecz
-+ imię + menu (blokuj/zgłoś) w rozmowie. Szukajka na `/rozmowy` filtruje w pamięci po
-tytule ORAZ zajawce ostatniej wiadomości — cała lista jest już wczytana, więc nie ma po
-co wracać do bazy drugi raz. Desktop bez zmian (Header tam nikt nie prosił chować).
-
-MECHANIKA: `RozmowyClient.tsx` (stan `szukane`, filtr przez `foldText()` z
-`lib/searchText.ts`, `MobileIdentityRow` zamiast paska Header na mobile);
-`DmRozmowaClient.tsx` (`<Header hideMobileBarForUser />`). Bez migracji.
