@@ -11,7 +11,7 @@
 //   6. table names listed in docs/baza-danych.md exist in migrations
 //   7. frontend/public/llm-context.md is byte-identical to its source in docs/
 //   8. llm-context.md still has every required section, changelog capped at 10
-//   9. llm-context.md's "Stan na" marker matches the newest migration on disk
+//   9. llm-context.md's "Stan na" marker — every field of it, not just the migration
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -37,7 +37,7 @@ const FLAG_ROUTES = {
 section('1. llms.txt → trasy istnieją');
 const llms = read('frontend/public/llms.txt');
 const llmsRoutes = [...llms.matchAll(/\]\((\/[^)\s]*)\)/g)].map((m) => m[1]);
-const sportSlugs = [...read('frontend/src/app/boiska/[sport]/page.tsx')
+const sportSlugs = [...read('frontend/src/lib/sports.ts')
   .matchAll(/'([a-z-]+)':\s*\{ db:/g)].map((m) => m[1]);
 const grajSlugs = [...read('frontend/src/content/graj.ts')
   .matchAll(/slug: '([a-z-]+)'/g)].map((m) => m[1]);
@@ -193,11 +193,52 @@ console.log(`  sprawdzono ${REQUIRED_SECTIONS.length} sekcji, ${changelogEntries
 // ---------------------------------------------------------------------------
 section('9. znacznik "Stan na" w llm-context.md aktualny');
 // Forces a human/agent to re-read the file whenever the database moves.
-const statedMigration = llmContext.match(/\*\*Stan na:\*\*.*?migracja `(\d{3})`/)?.[1];
-if (!statedMigration) fail('llm-context.md: brak znacznika "**Stan na:** ... migracja `NNN`"');
-else if (parseInt(statedMigration, 10) !== maxMigration)
-  fail(`llm-context.md deklaruje migrację ${statedMigration}, a najnowsza na dysku to ${String(maxMigration).padStart(3, '0')} — zaktualizuj plik`);
-else console.log(`  migracja ${statedMigration} zgodna ze stanem repo`);
+//
+// Do 2026-08-26 sprawdzany był TYLKO numer migracji, więc reszta znacznika
+// dryfowała po cichu: przy migracji 125 stała tam data sprzed trzech dni,
+// „45 tabel" (baza miała 53) i „775 testów" (było 822). Znacznik ma być
+// stemplem świeżości, a stempel, którego nikt nie sprawdza, jest gorszy niż
+// jego brak — mówi „sprawdzone" o rzeczy niesprawdzonej. Stąd zasada: każde
+// pole znacznika musi dać się zweryfikować deterministycznie z dysku, a pole,
+// którego nie da się (liczba testów — wymagałaby uruchomienia Vitesta), do
+// znacznika nie wchodzi.
+const marker = llmContext.match(
+  /\*\*Stan na:\*\* (\d{4}-\d{2}-\d{2}) · migracja `(\d{3})` · (\d+) tabel[ei]?\s*$/m,
+);
+if (!marker) {
+  fail('llm-context.md: znacznik ma mieć postać "**Stan na:** RRRR-MM-DD · migracja `NNN` · N tabel"');
+} else {
+  const [, statedDate, statedMigration, statedTables] = marker;
+
+  // Data jest jedynym polem, którego nie da się wyprowadzić z dysku: nieaktualnej
+  // daty w przeszłości NIC tu nie odróżni od poprawnej. Sprawdzamy więc tylko to,
+  // co jest rozstrzygalne (format i data z przyszłości), a o świeżość dba numer
+  // migracji i liczba tabel — one wymuszają dotknięcie znacznika, gdy baza się
+  // rusza, i wtedy datę poprawia się przy okazji.
+  const dzis = new Date().toISOString().slice(0, 10);
+  if (Number.isNaN(Date.parse(statedDate))) fail(`llm-context.md: "${statedDate}" nie jest datą`);
+  else if (statedDate > dzis) fail(`llm-context.md: data ${statedDate} jest z przyszłości`);
+
+  if (parseInt(statedMigration, 10) !== maxMigration)
+    fail(`llm-context.md deklaruje migrację ${statedMigration}, a najnowsza na dysku to ${String(maxMigration).padStart(3, '0')} — zaktualizuj plik`);
+
+  // Liczba tabel liczona z migracji: CREATE TABLE minus DROP TABLE. Wynik
+  // sprawdzony wprost na schemacie postawionym od zera przez
+  // scripts/baza-testowa.sh (2026-08-26: 53 tabele w `public`, co do nazwy).
+  const bezKomentarzy = allMigrationSql.replace(/--[^\n]*/g, '');
+  const utworzone = new Set(
+    [...bezKomentarzy.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi)]
+      .map((m) => m[1].toLowerCase()),
+  );
+  for (const m of bezKomentarzy.matchAll(/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi))
+    utworzone.delete(m[1].toLowerCase());
+
+  if (parseInt(statedTables, 10) !== utworzone.size)
+    fail(`llm-context.md deklaruje ${statedTables} tabel, a z migracji wychodzi ${utworzone.size} — zaktualizuj znacznik`);
+
+  if (!failures)
+    console.log(`  data ${statedDate}, migracja ${statedMigration}, tabel: ${utworzone.size} — zgodne ze stanem repo`);
+}
 
 // ---------------------------------------------------------------------------
 section('10. mobile-first: brak breakpointów max-width w frontend/src');

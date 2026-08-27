@@ -606,10 +606,12 @@ export default function EventsListView({ widzianoWczesniej }: {
             // na goły `/mapa`, więc wybrany sport przepadał i trzeba go było
             // wyklikać drugi raz, tą samą pigułką w innym miejscu. Katalog
             // czyta powtarzalny `?sport=`, więc wystarczy go dopisać.
+            // `gry=0` MUSI tu być: od 2026-08-26 `/mapa` bez parametru pokazuje
+            // GRY, więc goły adres wysyłałby „Obiekty" z powrotem do gier.
             const qs = new URLSearchParams();
+            qs.set('gry', '0');
             for (const sport of sports) qs.append('sport', sport);
-            const query = qs.toString();
-            router.push(query ? `/mapa?${query}` : '/mapa');
+            router.push(`/mapa?${qs.toString()}`);
           }}
           options={[{ value: 'gry', label: 'Gry' }, { value: 'obiekty', label: 'Obiekty' }] as const}
           ariaLabel="Gry albo obiekty"

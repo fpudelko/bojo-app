@@ -68,6 +68,27 @@ jobs:
       - name: Spójność dokumentacji
         run: node scripts/check-docs.mjs
 
+      # Co widzi CRAWLER. Reużywa builda z poprzedniego kroku, więc kosztuje
+      # kilka sekund. Bramka istnieje, bo tsc, Vitest, ESLint i Playwright
+      # patrzą na aplikację z tej strony, z której problemu nie widać:
+      # Playwright URUCHAMIA JavaScript, więc strona dociągająca dane
+      # w `useEffect` wygląda dla niego kompletnie. Dla GPTBota i spółki — nie.
+      # Tą szczeliną przeszły Fazy 1 i 2b SEO/GEO, odhaczone jako zrobione
+      # przy stronie obiektu oddającej robotowi pusty szkielet.
+      #
+      # `--bez-bazy`: na atrapach kluczy trasy żyjące z danych są sprawdzane
+      # miękko (notatka zamiast czerwieni, gdy nie mają czego wyrenderować).
+      # Twardo sprawdza je dopiero przebieg przeciwko produkcji — patrz
+      # docs/seo-geo-strategia.md, Załącznik B.
+      - name: Audyt robota (HTML bez JavaScriptu)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: |
+          npm start --prefix frontend &
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/faq >/dev/null && break; sleep 1; done
+          node scripts/audyt-robota.mjs --bez-bazy
+
   # Osobne zadanie, nie krok w `test`: przeglądarka i jej zależności systemowe
   # kosztują ~1,5 min instalacji, a bramka `test` ma zostać szybka. Oba zadania
   # biegną równolegle i oba muszą być zielone.

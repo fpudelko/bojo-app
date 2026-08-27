@@ -5,8 +5,9 @@ import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
-import { breadcrumbsJsonLd } from '@/lib/structuredData';
-import { opisObiektu } from '@/content/opisObiektu';
+import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
+import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
+import { opisObiektu, zdanieORozegranychMeczach } from '@/content/opisObiektu';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
@@ -171,7 +172,7 @@ export async function generateStaticParams() {
 // ---------------------------------------------------------------------------
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const field = await resolveField(params.id);
-  if (!field) return { title: 'Boisko nie znalezione | Bojo' };
+  if (!field) return { title: 'Boisko nie znalezione' };
 
   const sportsStr = field.sport.join(', ');
   // Miejscowość z kolumny `city` (migracja 112, patrz scraper/backfill_lokalizacja.py)
@@ -180,10 +181,20 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   // Katalog obejmuje dziś całą Polskę, więc tytuł boiska w Lublinie mówiący
   // „w Poznaniu" był po prostu nieprawdziwy — i tak samo trafiał do wyszukiwarek.
   const miejscowosc = field.city ?? miejscowoscZAdresu(field.address);
-  const gdzie = miejscowosc ? ` w ${miejscowosc}` : '';
+  // Przecinek, nie „w ${miasto}": miejscownik wymaga odmiany („w Poznaniu",
+  // nie „w Poznań"), a tej nie da się wyprowadzić regułą — content/miasta.ts
+  // trzyma ją jako DANE dokładnie z tego powodu. Katalog ma dziesiątki tysięcy
+  // miejscowości, więc słownika odmian tu nie będzie; przecinek jest poprawny
+  // przy każdej nazwie. (Opis obiektu omija to inaczej: „w miejscowości X".)
+  const gdzie = miejscowosc ? `, ${miejscowosc}` : '';
   return {
-    title: `${field.name} — ${sportsStr}${gdzie} | Bojo`,
-    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Znajdź nadchodzące mecze i zarezerwuj termin na Bojo.`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `${field.name} — ${sportsStr}${gdzie}`,
+    // NIE „zarezerwuj termin”: rezerwacje siedzą za wyłączoną flagą
+    // FEATURE_RESERVATIONS, a to zdanie szło do wyszukiwarek przy każdej z ponad
+    // 30 tysięcy stron obiektów — obietnica bez pokrycia i sygnał, że Bojo jest
+    // systemem rezerwacji, czyli odwrotność tego, czym jest.
+    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Zobacz nadchodzące mecze i zbierz skład na Bojo.`,
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
     alternates: { canonical: `/boisko/${slugBoiska(field.name, field.id)}` },
@@ -246,6 +257,33 @@ async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
   }));
 }
 
+// Faza SEO/GEO — F3 (roadmapa poz. 21): ile publicznych, nieodwołanych meczów
+// odbyło się kiedykolwiek na tym obiekcie, i F4 (fosa, runda 2): kiedy ostatni —
+// sama liczba nie mówi, czy na obiekcie GRA SIĘ dziś, czy grało się rok temu.
+// Miniony mecz przestaje być indeksowalną stroną (eventMeta.ts#metadataDlaMeczu),
+// więc jego ślad musi zasilić coś, co ZOSTAJE w indeksie. `event_date < dzisiaj`
+// liczy z zapasem jednego dnia (dzień bieżący dolicza się dopiero jutro) — dla
+// licznika to bezpieczne niedoszacowanie, precyzyjny próg co do godziny ma tylko
+// strona samego meczu.
+//
+// Jedno zapytanie na oba fakty: `count: 'exact'` liczy WSZYSTKIE pasujące wiersze
+// niezależnie od `.limit(1)` (ten sam mechanizm co w `lib/hubKatalogu.ts` —
+// PostgREST zwraca dokładny count w nagłówku, `limit` tnie tylko zwracane dane),
+// więc nie trzeba dwóch zapytań, żeby dostać liczbę i najświeższą datę naraz.
+async function getOstatnieMecze(fieldId: string): Promise<{ liczba: number; ostatniaData: string | null }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, count } = await supabase
+    .from('events')
+    .select('event_date', { count: 'exact' })
+    .eq('field_id', fieldId)
+    .eq('visibility', 'public')
+    .neq('status', 'cancelled')
+    .lt('event_date', today)
+    .order('event_date', { ascending: false })
+    .limit(1);
+  return { liczba: count ?? 0, ostatniaData: data?.[0]?.event_date ?? null };
+}
+
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
@@ -262,6 +300,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   if (params.id !== kanoniczny && !isUuid(params.id)) redirect(`/boisko/${kanoniczny}`);
 
   const upcomingEvents = await getUpcomingEvents(field.id);
+  const { liczba: rozegraneMecze, ostatniaData: ostatniMeczData } = await getOstatnieMecze(field.id);
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
   const slug = kanoniczny;
 
@@ -270,11 +309,23 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // prop `opis`) i tutaj, w danych strukturalnych — jedno źródło, żeby oba
   // nigdy się nie rozjechały.
   const opis = opisObiektu(field);
+  // Fosa F4 (runda 2): to samo zdanie w opisie widocznym (prop `zdanieMeczow`
+  // niżej) i w `description` JSON-LD — ten sam powód co przy `opis` wyżej.
+  // Bez tego robot czytający wyłącznie dane strukturalne (część narzędzi GEO
+  // tak robi) nie widzi jedynego faktu, którego nie ma żaden katalog
+  // importujący z OpenStreetMap: że ktoś tu realnie grał, i kiedy.
+  const zdanieMeczow = zdanieORozegranychMeczach(rozegraneMecze, ostatniMeczData);
+  // Faza 3 SEO/GEO: potwierdzenia graczy (oświetlenie, nawierzchnia) jako
+  // amenityFeature — TYLKO po quorum, tym samym progu co widoczna treść
+  // na stronie (VenueDetailClient → AnkietyObiektu.tsx). Odczyt jest
+  // publiczny (RLS migracji 123), więc bezpieczny server-side bez sesji.
+  const potwierdzenia = await pobierzPotwierdzenia(field.id).catch(() => []);
+  const amenityFeature = venueAmenityFeatures(potwierdzenia);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: field.name,
-    description: opis,
+    description: zdanieMeczow ? `${opis} ${zdanieMeczow}` : opis,
     address: {
       '@type': 'PostalAddress',
       streetAddress: field.address,
@@ -288,6 +339,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
       longitude: field.lng,
     },
     url: `${base}/boisko/${slug}`,
+    ...(amenityFeature.length > 0 ? { amenityFeature } : {}),
   };
 
   // Middle crumb only for sports that actually have a /boiska/[sport] page
@@ -322,22 +374,23 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
       />
 
-      {/* Upcoming events section — server-rendered for SEO */}
-      {upcomingEvents.length > 0 && (
-        <div className="hidden">
-          {/* Structured data hint for crawlers */}
-          <span itemProp="name">{field.name}</span>
-          <span itemProp="address">{field.address}</span>
-          {field.sport.map((s) => <span key={s} itemProp="sport">{s}</span>)}
-        </div>
-      )}
-
+      {/* Ukryty blok z `itemProp` (nazwa, adres, sporty) USUNIĘTY 2026-08-23.
+          Był obejściem tego, że strona nie renderowała treści serwerowo —
+          i to obejściem słabym: treść schowana przed człowiekiem, a podana
+          robotowi, jest sygnałem spamu, nie pomocą. Dziś nazwa, opis i adres
+          idą do `VenueDetailClient` propsami i renderują się NORMALNIE, także
+          w stanie ładowania, czyli w HTML, który dostaje crawler. */}
       <VenueDetailClient
         fieldId={field.id}
+        nazwa={field.name}
+        adres={field.address}
         upcomingEvents={upcomingEvents}
         opis={opis}
+        zdanieMeczow={zdanieMeczow}
         wojewodztwoSlug={field.voivodeship}
         wojewodztwoLabel={wojewodztwoLabel}
+        sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}
+        sportEtykieta={field.sport.length ? sportLabel(field.sport[0]) : undefined}
       />
     </>
   );

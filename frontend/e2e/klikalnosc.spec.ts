@@ -67,7 +67,10 @@ test.describe('modal jest nad wszystkim', () => {
 
 test.describe('mapa', () => {
   test('kontener mapy zajmuje widoczny obszar', async ({ page }) => {
-    await page.goto('/mapa');
+    // `?gry=0`: od 2026-08-26 gołe `/mapa` otwiera się na LIŚCIE otwartych
+    // meczów, a kontener Leafleta ma wtedy `display: none`. Ten test jest
+    // o geometrii mapy katalogu, więc prosi o nią wprost.
+    await page.goto('/mapa?gry=0');
     const mapa = page.locator('.leaflet-container');
     await expect(mapa).toBeVisible({ timeout: 30_000 });
 

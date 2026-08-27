@@ -567,3 +567,26 @@ BEGIN
 
   RAISE NOTICE 'Gotowe — dodano 25 testowych wydarzeń z uczestnikami.';
 END $$;
+
+-- ============================================================
+-- WSPÓŁRZĘDNE — żeby zaseedowane mecze były widoczne NA MAPIE
+-- ============================================================
+-- Mecz bez `lat`/`lng` jest na liście i NIE MA GO na mapie — pinezka nie ma
+-- gdzie stanąć. Do tej pory żaden seed współrzędnych nie ustawiał, więc każdy
+-- widok mapy (`/wydarzenia` w trybie mapy, `/mapa?gry=1`) na danych testowych
+-- był pusty. Wyglądało to na zepsutą mapę, a było brakiem danych — zgłoszone
+-- wprost („na liście są, na mapie pusto").
+--
+-- Rozrzut wokół centrum Poznania, wyliczony z tytułu meczu: DETERMINISTYCZNY
+-- (ten sam mecz zawsze w tym samym miejscu, więc zrzuty ekranu się nie
+-- ruszają) i różny dla różnych meczów (pinezki nie siedzą jedna na drugiej).
+-- Mecze przypięte do obiektu z katalogu (`field_id`) zostawiamy w spokoju:
+-- ich położenie zna `fields`, a aplikacja bierze je stamtąd, gdy mecz nie ma
+-- własnego (patrz `toEvent()` w `lib/events.ts`).
+UPDATE events
+   SET lat = 52.4064 + ((hashtext(coalesce(title, id::text)) % 220) / 10000.0),
+       lng = 16.9252 + ((hashtext(coalesce(title, id::text) || 'x') % 320) / 10000.0)
+ WHERE description LIKE '[TEST]%'
+   AND lat IS NULL
+   AND field_id IS NULL;
+

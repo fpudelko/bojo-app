@@ -160,23 +160,9 @@ export function policzNieprzeczytanePerGrupa(
   return wynik;
 }
 
-/** Czy w którejkolwiek mojej ekipie jest nieprzeczytany wpis na tablicy —
- *  zasila różową kropkę „nowe wiadomości" przy „Grupy" na dolnej nawigacji
- *  (patrz `BottomNav.tsx`). `groupIds` — id-ki grup, w których jestem
- *  członkiem (`getMyGroupIds()` z `groups.ts`, tu nie importowane, żeby
- *  uniknąć cyklu `groups.ts` ↔ `groupPosts.ts`). */
-export async function hasUnreadGroupMessages(userId: string, groupIds: string[]): Promise<boolean> {
-  if (groupIds.length === 0) return false;
-  const posts = await getGroupPostsForUnread(groupIds);
-  const widzianoByGroup = (groupId: string) => (
-    typeof window !== 'undefined' ? window.localStorage.getItem(kluczTablicaWidziano(groupId)) : null
-  );
-  const counts = policzNieprzeczytanePerGrupa(posts, userId, widzianoByGroup);
-  return Object.keys(counts).length > 0;
-}
 
 /** Moje ekipy z nieprzeczytanym wpisem na tablicy, od najświeższego —
- *  odpowiednik `rozmowyZNieprzeczytanymi()` z `comments.ts`, dla grup zamiast
+ *  odpowiednik `wszystkieRozmowyMeczow()` z `comments.ts`, dla grup zamiast
  *  meczów. Karmi panel rozmów otwierany przytrzymaniem „Moje" (`BottomNav.tsx`).
  *  Parametr strukturalny, nie `Group` — import typu z `groups.ts` zamknąłby
  *  cykl `groups.ts` ↔ `groupPosts.ts`. */
@@ -251,13 +237,3 @@ export async function rozmowyGrupZNieprzeczytanymi(
     .sort((a, b) => b.najnowsza.localeCompare(a.najnowsza));
 }
 
-/** Nazwa ekipy z najświeższą nieprzeczytaną wiadomością — treść dymka
- *  „Nowa wiadomość w grupie {nazwa}" na dolnej nawigacji (`BottomNav.tsx`).
- *  Cienka nakładka na `rozmowyGrupZNieprzeczytanymi()`. */
-export async function getUnreadGroupName(
-  userId: string,
-  groups: { id: string; name: string }[],
-): Promise<string | null> {
-  const lista = await rozmowyGrupZNieprzeczytanymi(userId, groups);
-  return lista[0]?.tytul || null;
-}

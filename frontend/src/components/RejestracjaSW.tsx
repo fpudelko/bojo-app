@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useJestWidget } from '@/lib/widget';
 
 /**
  * Rejestruje service workera (`public/sw.js`).
@@ -16,7 +17,10 @@ import { useEffect } from 'react';
  * powiadomienia push, gdy te dojdą.
  */
 export default function RejestracjaSW() {
+  const jestWidget = useJestWidget();
+
   useEffect(() => {
+    if (jestWidget) return;
     if (!('serviceWorker' in navigator)) return;
 
     const zarejestruj = () => {
@@ -33,7 +37,7 @@ export default function RejestracjaSW() {
       window.addEventListener('load', zarejestruj);
       return () => window.removeEventListener('load', zarejestruj);
     }
-  }, []);
+  }, [jestWidget]);
 
   return null;
 }

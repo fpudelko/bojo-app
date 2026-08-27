@@ -137,7 +137,7 @@ export default function AdminVenueEditorPage() {
         website: website.trim() || undefined,
         contactVisible,
       });
-      router.push('/mapa');
+      router.push('/mapa?gry=0');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian');
       setSubmitting(false);
@@ -170,7 +170,7 @@ export default function AdminVenueEditorPage() {
             <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
             <p className="font-medium text-slate-700">Brak dostępu</p>
             <p className="text-sm mt-1">Ta strona jest dostępna tylko dla administratorów.</p>
-            <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
+            <Link href="/mapa?gry=0" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
             </Link>
           </div>
@@ -184,7 +184,7 @@ export default function AdminVenueEditorPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/mapa" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+          <Link href="/mapa?gry=0" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Edytuj boisko</h1>
@@ -412,7 +412,7 @@ export default function AdminVenueEditorPage() {
           )}
 
           <div className="flex gap-3">
-            <Link href="/mapa" className="flex-1">
+            <Link href="/mapa?gry=0" className="flex-1">
               <Button type="button" variant="outline" size="lg" className="w-full">
                 Anuluj
               </Button>

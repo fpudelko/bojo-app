@@ -22,9 +22,13 @@ export const contentType = 'image/png';
 export default async function Image({ params }: { params: { id: string } }) {
   const ev = await getEventMeta(params.id);
 
-  // Link do meczu, który zniknął (usunięty albo nigdy nie istniał) — nigdy
-  // 500, generyczna karta zamiast crasha edge functiona.
-  if (!ev) {
+  // Dwa przypadki, jedna odpowiedź. (1) Mecz, który zniknął — nigdy 500,
+  // generyczna karta zamiast crasha edge functiona. (2) Mecz NIEPUBLICZNY:
+  // ten adres jest publiczny i nie wymaga kodu dołączenia, więc karta z nazwą
+  // obiektu, terminem, ceną i liczbą wolnych miejsc oddawałaby dokładnie to,
+  // czego strzeże link dołączenia. Ten sam próg co w `metadataDlaMeczu()`
+  // (./eventMeta.ts) i w `eventJsonLd()` (lib/structuredData.ts).
+  if (!ev || ev.visibility !== 'public') {
     return new ImageResponse(<KartaOgolna />, { ...size });
   }
 

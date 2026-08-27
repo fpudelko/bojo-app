@@ -6,6 +6,9 @@
 > (grupy). Sporty: piłka nożna, siatkówka, siatkówka plażowa, koszykówka. Interfejs
 > po polsku. Logowanie (dla organizatora): Google lub e-mail. Dołączenie do meczu
 > nie wymaga konta.
+>
+> Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
+> dokument dotyczy aplikacji bojo.pl.
 
 ## Kontekst dla modeli
 

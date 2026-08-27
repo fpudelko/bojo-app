@@ -14,6 +14,8 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Ile to kosztuje? Kto co robi? Co jest w której fazie? | [strategia.md](./strategia.md) |
 | Jak opisać Bojo modelowi, który nie ma dostępu do repo? | [llm-context.md](./llm-context.md) |
 | Chcę, żeby model zakwestionował ten produkt — co mu wkleić? | [prompt-rewizja.md](./prompt-rewizja.md) |
+| Chcę wdrożyć naprawy i quick winy SEO/GEO — co uruchomić? | [prompt-seo-geo.md](./prompt-seo-geo.md) |
+| Na jakie zapytania Bojo ma odpowiadać? Co jest zepsute w SEO i co robimy dalej? | [seo-geo-strategia.md](./seo-geo-strategia.md) |
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |

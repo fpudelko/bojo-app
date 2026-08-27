@@ -10,10 +10,12 @@ import VenuePicker from '@/components/map/VenuePicker';
 import { useAuth } from '@/lib/auth';
 import { createGroup, setGroupCover } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
+import { useWstecz } from '@/lib/historia';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 
 export default function NewGroupPage() {
   const router = useRouter();
+  const wstecz = useWstecz('/grupy');
   const { user, loading } = useAuth();
   const { toast } = useToast();
 
@@ -68,7 +70,7 @@ export default function NewGroupPage() {
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8">
-        <button onClick={() => router.back()} className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
+        <button onClick={wstecz} className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
           <ArrowLeft className="w-4 h-4" /> Wróć
         </button>
 

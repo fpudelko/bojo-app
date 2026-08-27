@@ -17,6 +17,13 @@ błędem o nieznanej kolumnie, pierwsza hipoteza brzmi: migracja nie została pu
 **Stanu bazy produkcyjnej nie da się odczytać z repo.** Numer ostatniej migracji w repo
 mówi tylko, co zostało napisane — nie co zostało zastosowane.
 
+Da się natomiast zapytać samą bazę: **`supabase/zapytania/stan-migracji.sql`** wypisuje,
+których migracji w niej brakuje (po jednym znaczniku na migrację — tabela albo kolumna),
+brakujące na górze. Wklej do SQL Editora, gdy aplikacja mówi „Could not find the '…'
+column of '…' in the schema cache" — ten komunikat pochodzi od PostgRESTa i znaczy albo
+„migracja nie została puszczona", albo „została, ale API nie odświeżyło schematu"
+(wtedy: `NOTIFY pgrst, 'reload schema';`).
+
 ### ⚠️ Migracja przerwana w połowie zostaje w połowie
 
 Ręczne uruchamianie ma drugi, gorszy tryb awarii niż „nie puszczono migracji":
@@ -213,6 +220,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `122_odswiezenie_powiadomienia_o_wiadomosci` | `powiadom_o_wiadomosci_w_meczu()`/`powiadom_o_wiadomosci_w_grupie()` (`CREATE OR REPLACE`, ciało jak w `111`) — druga i kolejna wiadomość w tej samej rozmowie w oknie godziny (limit z `109`/`111`) już nie ginie bez śladu: zamiast pomijanego INSERT-u robi `UPDATE` istniejącego wiersza (nowa treść, świeży `created_at`, `read_at = NULL`) i dopiero `INSERT` dla odbiorców bez żadnego powiadomienia w tej godzinie. Push nie dubluje się — `trg_wyslij_push` (`102`) łapie wyłącznie `INSERT`, `UPDATE` go nie odpala |
 | `123_potwierdzenia_obiektu` | Faza 3 SEO/GEO (BACKLOG.md §7a). Tabela `potwierdzenia_obiektu` — mikro-ankiety UGC pod obiektem (oświetlenie, nawierzchnia), bliźniacza RLS do `field_comments` (`063`). Zapis idzie wprost przez klienta (`.upsert()` z `onConflict`), nie przez RPC — nie ma tu nic do ukrycia przed klientem, w przeciwieństwie do `zgloszenia_bledow` (`099`), które trzyma `status`/`liczba` poza jego zasięgiem |
 | `124_lista_rezerwowa_opcjonalna` | `events.reserve_enabled` (BOOLEAN NOT NULL DEFAULT `true`) — lista rezerwowa przestaje być stałą regułą i staje się wyborem organizatora. Kreator mówił pod licznikiem miejsc „Kolejni chętni trafią na listę rezerwową", czyli opisywał zachowanie, którego nie dało się zmienić; mecz na zamkniętą ekipę albo halę opłaconą z góry rezerwy nie potrzebuje. `DEFAULT true` znaczy, że migracja nikomu niczego nie wyłącza. Wyłączenie NIE kasuje istniejących wpisów `is_reserve` — kolejka, która już powstała, zostaje widoczna, tylko nikt nowy do niej nie wejdzie. Reguły pilnuje WYZWALACZ `trg_pilnuj_wylaczonej_rezerwy` na `event_participants` (BEFORE INSERT OR UPDATE OF `is_reserve`), nie poprawka w `dolacz_do_meczu()` — na rezerwę wchodzi się kilkoma drogami (RPC, akceptacja prośby, gość bez konta, przeniesienie przez organizatora) i cztery kopie tej samej reguły by się rozjechały. Wyjątek na `rsvp = 'maybe'`: obserwujący siedzi w bazie z `is_reserve = true`, więc bez niego wyłączenie rezerwy wyłączałoby OBSERWOWANIE |
+| `126_szukanie_bez_ogonkow` | `fields.szukaj_norm` — kolumna GENEROWANA (nazwa + adres, małymi literami, bez polskich ogonków) plus indeks GIN po trigramach (`pg_trgm`). Szukanie boisk robiło `ilike '%<fraza>%'` na `name`/`address`, a Postgres porównuje znak po znaku: „poznan" NIE jest zgodne z „Poznań". Nikt nie pisze ogonków w szukajce na telefonie, więc wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów w katalogu. `translate()`, nie `unaccent()`: `unaccent()` nie jest IMMUTABLE, więc nie wolno go użyć w kolumnie generowanej ani zaindeksować bez własnej funkcji-owijki; `translate()` jest immutable i nie wymaga rozszerzenia. Mapowanie MUSI być identyczne z `foldText()` w `frontend/src/lib/searchText.ts` — filtr lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer, więc rozjazd którejkolwiek strony wycina wyniki. Wielkie litery są w mapowaniu mimo `lower()` przed nim, bo `lower()` zależy od locale bazy. `searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie ma (migracje puszcza się ręcznie) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
 funkcji RPC** (np. `zglos_brak_pelnej_nazwy`, `086`) — nigdy z gołego INSERT-a

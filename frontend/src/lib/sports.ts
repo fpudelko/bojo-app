@@ -38,6 +38,37 @@ export const FOCUS_SPORT_BY_SLUG: Record<string, (typeof FOCUS_SPORTS)[number]> 
     (typeof FOCUS_SPORTS)[number]
   >;
 
+/** Sport → wartość w bazie + forma dopełniacza, dla hubów katalogu
+ *  `/boiska/[sport]` i `/boiska/[sport]/[miasto]`. Jedno źródło od 2026-08-25 —
+ *  wcześniej ta sama siódemka była zaszyta lokalnie w `boiska/[sport]/page.tsx`;
+ *  dodanie drugiego konsumenta (huby miejskie, pozycja 20 roadmapy) powtórzyłoby
+ *  ten sam błąd co przed wydzieleniem `HUBY_KATALOGU_SPORTOWYCH` niżej. */
+export const KATALOG_SPORT_MAP: Record<string, { db: string; label: string }> = {
+  'pilka-nozna':      { db: 'piłka nożna',      label: 'piłki nożnej' },
+  'koszykowka':       { db: 'koszykówka',         label: 'koszykówki' },
+  'siatkowka':        { db: 'siatkówka',          label: 'siatkówki' },
+  'siatkowka-plazowa':{ db: 'siatkówka plażowa',  label: 'siatkówki plażowej' },
+  'futsal':           { db: 'futsal',             label: 'futsalu' },
+  'pilka-reczna':     { db: 'piłka ręczna',       label: 'piłki ręcznej' },
+  'inne':             { db: 'inne',               label: 'innych sportów' },
+};
+
+/** Sześć hubów katalogu boisk pod `/boiska/[slug]` — jedno źródło dla stopki
+ *  (SiteFooter.tsx), sitemapa (app/sitemap.ts) i linkowania poziomego między
+ *  hubami (boiska/[sport]/page.tsx, boiska/woj/[wojewodztwo]/page.tsx).
+ *  Do 2026-08-24 ta sama szóstka była przepisana ręcznie w trzech miejscach —
+ *  dodanie siódmego huba wymagałoby pamiętać o wszystkich naraz. "Inne"
+ *  (SPORT_CONFIG.inne) celowo poza tą listą: to kosz na sporty bez własnej
+ *  kategorii, nie sport, do którego ktoś szuka huba po nazwie. */
+export const HUBY_KATALOGU_SPORTOWYCH: readonly { slug: string; etykieta: string }[] = [
+  { slug: 'pilka-nozna', etykieta: 'Piłka nożna' },
+  { slug: 'koszykowka', etykieta: 'Koszykówka' },
+  { slug: 'siatkowka', etykieta: 'Siatkówka' },
+  { slug: 'siatkowka-plazowa', etykieta: 'Siatkówka plażowa' },
+  { slug: 'futsal', etykieta: 'Futsal' },
+  { slug: 'pilka-reczna', etykieta: 'Piłka ręczna' },
+] as const;
+
 /** Sporty jako filtr FACYLITÓW na mapie — szerszy niż FOCUS_SPORTS (ten dotyczy
  *  sportów, w które da się zorganizować mecz). `wielofunkcyjne` i `piłka ręczna`
  *  mają po kilkaset/kilka tysięcy pinezek na mapie (import OSM), a nie dało się

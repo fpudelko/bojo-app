@@ -3,11 +3,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MapPin, Landmark } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import { supabase } from '@/lib/supabase';
+import SiteFooter from '@/components/layout/SiteFooter';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
-import { sportEmoji } from '@/lib/sports';
+import { sportEmoji, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
+import { wstepHubuWojewodztwa } from '@/content/boiska';
+import { obiektyHubuWojewodztwa, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
 
 // Faza 2b SEO/GEO (BACKLOG.md §7a) — hub wojewódzki, wzorem `/boiska/[sport]`:
@@ -50,17 +52,16 @@ export async function generateMetadata(
   { params, searchParams }: { params: { wojewodztwo: string }; searchParams?: { strona?: string } },
 ): Promise<Metadata> {
   const label = WOJEWODZTWO_LABEL[params.wojewodztwo as Wojewodztwo];
-  if (!label) return { title: 'Nie znaleziono | Bojo' };
+  if (!label) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const { canonical, robots } = metadanePaginacjiHuba(`/boiska/woj/${params.wojewodztwo}`, strona);
   return {
-    title: `Boiska sportowe — województwo ${label}${sufiks} | Bojo`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `Boiska sportowe — województwo ${label}${sufiks}`,
     description: `Katalog boisk i obiektów sportowych w województwie ${label}. Adresy, sporty, nawierzchnia. Zbierz skład i zagraj przez Bojo.`,
-    alternates: {
-      canonical: strona > 1
-        ? `/boiska/woj/${params.wojewodztwo}?strona=${strona}`
-        : `/boiska/woj/${params.wojewodztwo}`,
-    },
+    alternates: { canonical },
+    robots,
     openGraph: {
       title: `Boiska sportowe — województwo ${label} | Bojo`,
       description: `Katalog boisk w województwie ${label}.`,
@@ -78,13 +79,9 @@ export default async function WojewodztwoPage(
   const strona = numerStrony(searchParams);
   const od = (strona - 1) * NA_STRONE;
 
-  const { data, count } = await supabase
-    .from('fields')
-    .select('id, name, address, lat, lng, sport, surface, is_indoor, district, city', { count: 'exact' })
-    .eq('voivodeship', slug)
-    .eq('map_visibility', 'public')
-    .order('name', { ascending: true })
-    .range(od, od + NA_STRONE - 1);
+  // Zapytanie (z filtrem seo_tier, dług D11) wydzielone do lib/hubKatalogu.ts —
+  // testowalne bez renderowania JSX.
+  const { data, count } = await obiektyHubuWojewodztwa(slug, od, od + NA_STRONE - 1);
 
   const fields = (data ?? []).map(toField);
   const wszystkich = count ?? fields.length;
@@ -113,6 +110,16 @@ export default async function WojewodztwoPage(
             Województwo {label} — boiska sportowe
           </h1>
         </div>
+
+        {/* Bezpośrednia odpowiedź nad listą — bez niej strona jest samym
+            listingiem (docs/seo-geo-strategia.md, 3g). Tylko strona 1: dalsze
+            strony paginacji nie powinny powielać ten sam akapit. */}
+        {wszystkich > 0 && strona === 1 && (
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
+            {wstepHubuWojewodztwa(wszystkich, label)}
+          </p>
+        )}
+
         <p className="text-slate-500 text-sm mb-8">
           {wszystkich > 0
             ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
@@ -173,14 +180,56 @@ export default async function WojewodztwoPage(
         )}
 
         <div className="mt-10 flex flex-col items-center gap-2 text-center">
-          <Link href="/mapa" className="text-primary-600 hover:underline text-sm">
+          <Link href="/mapa?gry=0" className="text-primary-600 hover:underline text-sm">
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
         </div>
+
+        {/* Linkowanie poziome (docs/seo-geo-strategia.md, 4b/16): bez tego hub
+            wojewódzki był OSIEROCONY poza wejściem z sitemapa — zero linków
+            przychodzących I wychodzących. Tylko strona 1, z tego samego powodu
+            co w /boiska/[sport]. */}
+        {strona === 1 && (
+          <div className="mt-10 space-y-6 border-t border-slate-200 pt-6">
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Boiska według sportu
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {HUBY_KATALOGU_SPORTOWYCH.map((h) => (
+                  <Link
+                    key={h.slug}
+                    href={`/boiska/${h.slug}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {h.etykieta}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Inne województwa
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {WOJEWODZTWA.filter((w) => w !== slug).map((woj) => (
+                  <Link
+                    key={woj}
+                    href={`/boiska/woj/${woj}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {WOJEWODZTWO_LABEL[woj]}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

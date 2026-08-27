@@ -165,7 +165,7 @@ export default function AdminFieldPage() {
             <Lock className="w-10 h-10 mx-auto mb-3 text-slate-300" />
             <p className="font-medium text-slate-700">Musisz być zalogowany</p>
             <p className="text-sm text-slate-500 mt-1">Zaloguj się, aby uzyskać dostęp do panelu.</p>
-            <Link href="/mapa" className="text-primary-600 text-sm underline mt-4 inline-block">
+            <Link href="/mapa?gry=0" className="text-primary-600 text-sm underline mt-4 inline-block">
               Wróć do mapy
             </Link>
           </div>

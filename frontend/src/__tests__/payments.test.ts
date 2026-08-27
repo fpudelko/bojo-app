@@ -1,11 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import {
   priceForParticipant,
+  perPlayerPriceGrosze,
   formatBlikPhone,
   blikPhoneDigits,
   canSeeBlikPhone,
   BLIK_PHONE_REVEAL_MINUTES,
 } from '@/lib/payments';
+
+describe('perPlayerPriceGrosze', () => {
+  it('dzieli równo, gdy liczba miejsc mieści się w koszcie bez reszty', () => {
+    expect(perPlayerPriceGrosze(28000, 14)).toBe(2000); // 280 zł / 14 = 20 zł
+  });
+
+  it('zaokrągla do pełnego grosza, gdy dzielenie nie wychodzi równo', () => {
+    // Ta sama para (280 zł, 13 graczy) co w kreatorze meczu: 280/13 = 21,538...,
+    // *100 = 2153,84..., zaokrąglone do 2154 groszy — parytet z formułą
+    // w app/wydarzenia/nowe/page.tsx (PLN string, zaokrąglenie przy wpisywaniu).
+    expect(perPlayerPriceGrosze(28000, 13)).toBe(2154);
+  });
+
+  it('zero graczy nie dzieli przez zero', () => {
+    expect(perPlayerPriceGrosze(28000, 0)).toBe(0);
+  });
+
+  it('zerowy koszt daje zero od osoby', () => {
+    expect(perPlayerPriceGrosze(0, 10)).toBe(0);
+  });
+});
 
 describe('priceForParticipant', () => {
   it('charges full price without a sports card', () => {

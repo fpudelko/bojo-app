@@ -44,31 +44,40 @@ export default function DlaczegoBojoPage() {
       </SekcjaTresci>
 
       <SekcjaTresci id="roznice" tytul="Co Bojo robi inaczej">
-        {/* Karty na telefonie, tabela od md: w górę — nigdy odwrotnie. */}
-        <div className="space-y-3 md:hidden">
-          {TABELA_POROWNAWCZA.map((w) => (
-            <div key={w.co} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{w.co}</p>
-              <p className="mt-1.5 text-sm text-slate-500 line-through decoration-slate-300">{w.fb}</p>
-              <p className="mt-1 text-sm font-medium text-ink">{w.bojo}</p>
-            </div>
-          ))}
-        </div>
-        <div className="hidden overflow-x-auto md:block">
-          <table className="w-full text-left text-sm">
-            <thead>
+        {/* JEDEN znacznik, dwa układy CSS — karty na telefonie, tabela od md: w górę.
+            Do 2026-08-26 stały tu DWA bloki (`md:hidden` karty + `hidden md:block`
+            tabela), więc cała treść porównania szła do DOM-u dwa razy: dziesięć
+            wierszy razy trzy pola. Człowiek widział jedną wersję (drugą chowało CSS),
+            ale robot dostawał obie i to samo zdanie liczyło się podwójnie.
+            Dziś wiersz jest blokiem (kartą) na telefonie i wraca do `table-row`
+            od `md:` w górę. Nagłówki kolumn zostają schowane na telefonie, bo
+            w układzie kart powtarzałyby etykietę stojącą obok wartości — tak samo
+            jak w poprzedniej wersji kartowej, więc a11y nie traci nic, co miała.
+            Kierunek wyłącznie `min-width` (AGENTS.md, „Mobile-first"). */}
+        <div className="md:overflow-x-auto">
+          <table className="block w-full text-left text-sm md:table">
+            <thead className="hidden md:table-header-group">
               <tr className="border-b border-slate-200 dark:border-slate-700">
                 <th className="py-2 pr-4 font-semibold text-slate-500">Co</th>
                 <th className="py-2 pr-4 font-semibold text-slate-500">Grupa FB / ankieta WhatsApp</th>
                 <th className="py-2 font-semibold text-slate-500">Bojo</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block space-y-3 md:table-row-group md:space-y-0">
               {TABELA_POROWNAWCZA.map((w) => (
-                <tr key={w.co} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
-                  <td className="py-2.5 pr-4 font-medium text-ink">{w.co}</td>
-                  <td className="py-2.5 pr-4 text-slate-500">{w.fb}</td>
-                  <td className="py-2.5 font-medium text-ink">{w.bojo}</td>
+                <tr
+                  key={w.co}
+                  className="block rounded-xl border border-slate-200 p-3 dark:border-slate-700 md:table-row md:rounded-none md:border-0 md:border-b md:border-slate-100 md:p-0 md:last:border-b-0 md:dark:border-slate-800"
+                >
+                  <td className="block text-xs font-semibold uppercase tracking-wide text-slate-400 md:table-cell md:py-2.5 md:pr-4 md:text-sm md:font-medium md:normal-case md:tracking-normal md:text-ink">
+                    {w.co}
+                  </td>
+                  <td className="mt-1.5 block text-sm text-slate-500 line-through decoration-slate-300 md:mt-0 md:table-cell md:py-2.5 md:pr-4 md:no-underline">
+                    {w.fb}
+                  </td>
+                  <td className="mt-1 block text-sm font-medium text-ink md:mt-0 md:table-cell md:py-2.5">
+                    {w.bojo}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -107,7 +116,7 @@ export default function DlaczegoBojoPage() {
             Jak działa Bojo — krok po kroku
           </Link>
           <Link
-            href="/mapa"
+            href="/mapa?gry=0"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-300"
           >
             Mapa boisk

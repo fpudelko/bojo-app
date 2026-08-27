@@ -3,6 +3,10 @@
 // standing up Supabase.
 
 import { defaultEventTitle } from './eventTitle';
+import {
+  najlepszePotwierdzenie, QUORUM_POTWIERDZEN, type PotwierdzeniaZliczone,
+} from './potwierdzeniaObiektu';
+import { SURFACE_LABELS } from './labels';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
@@ -15,10 +19,23 @@ export function siteJsonLd(base: string = SITE_URL) {
         '@type': 'Organization',
         '@id': `${base}/#organization`,
         name: 'Bojo',
+        alternateName: ['Bojo.pl', 'aplikacja Bojo'],
+        // "Bojo" collides with a colloquial Polish word for "boisko" (pitch), so a
+        // brand query lands in a dictionary entry instead of this product. These two
+        // fields are the only place where that can be stated to a machine outright;
+        // everything else on the site can only imply it (docs/seo-geo-strategia.md, 2c/5a).
+        disambiguatingDescription:
+          'Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów sportowych '
+          + 'w Polsce. Nazwa pokrywa się z potocznym polskim słowem „bojo" oznaczającym boisko '
+          + '— ten wpis dotyczy aplikacji.',
         url: base,
         description:
           'Platforma do organizowania amatorskich meczów sportowych i baza boisk w Polsce.',
         areaServed: { '@type': 'Country', name: 'Polska', addressCountry: 'PL' },
+        // sameAs is deliberately absent: Bojo has no profile outside its own domain
+        // yet. An empty or invented sameAs is worse than none — it points a crawler
+        // at nothing and costs the trust the field is meant to earn. Fill it in only
+        // once the profiles exist (roadmap item 15, Jan).
       },
       {
         '@type': 'WebSite',
@@ -205,4 +222,45 @@ export function venueListJsonLd(
       name: v.name,
     })),
   };
+}
+
+/**
+ * `amenityFeature` z potwierdzeń graczy (migracja 123, Faza 3 SEO/GEO) —
+ * dane, których nie ma żaden katalog importujący z OpenStreetMap, bo wymagają
+ * ludzi, którzy na obiekcie realnie byli. Wystawiane maszynom TYLKO po
+ * osiągnięciu tego samego quorum, które pokazuje je człowiekowi
+ * (`AnkietyObiektu.tsx`) — schema bez pokrycia w widocznej treści jest
+ * sygnałem spamu, nie przewagi (ta sama zasada co przy `faqJsonLd()`
+ * i `howToJsonLd()` w tym pliku).
+ *
+ * Zwraca pustą tablicę, gdy żaden fakt nie osiągnął quorum — wołający
+ * pomija wtedy `amenityFeature` w całości, zamiast emitować pusty klucz.
+ */
+export function venueAmenityFeatures(
+  zliczone: readonly PotwierdzeniaZliczone[],
+): Record<string, unknown>[] {
+  const cechy: Record<string, unknown>[] = [];
+
+  const oswietlenie = najlepszePotwierdzenie(zliczone, 'oswietlenie');
+  if (oswietlenie && oswietlenie.liczba >= QUORUM_POTWIERDZEN) {
+    cechy.push({
+      '@type': 'LocationFeatureSpecification',
+      name: 'Oświetlenie',
+      value: oswietlenie.wartosc === 'tak',
+      description: `Potwierdzone przez ${oswietlenie.liczba} graczy w Bojo`,
+    });
+  }
+
+  const nawierzchnia = najlepszePotwierdzenie(zliczone, 'nawierzchnia');
+  if (nawierzchnia && nawierzchnia.liczba >= QUORUM_POTWIERDZEN) {
+    const etykieta = SURFACE_LABELS[nawierzchnia.wartosc] ?? nawierzchnia.wartosc;
+    cechy.push({
+      '@type': 'LocationFeatureSpecification',
+      name: `Nawierzchnia: ${etykieta.toLowerCase()}`,
+      value: true,
+      description: `Potwierdzone przez ${nawierzchnia.liczba} graczy w Bojo`,
+    });
+  }
+
+  return cechy;
 }

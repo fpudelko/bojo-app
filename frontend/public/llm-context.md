@@ -4,8 +4,11 @@
 > (katalog boisk obejmuje całą Polskę): mecze publiczne otwarte na dołączenie,
 > stałe ekipy (grupy), mapa obiektów sportowych. Interfejs po polsku. Logowanie przez
 > Google lub e-mail.
+>
+> Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
+> dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-08-22 · migracja `125` · 45 tabel · 761 testów
+**Stan na:** 2026-08-27 · migracja `126` · 53 tabele
 
 ---
 
@@ -390,6 +393,195 @@ i `NeedsPlayersSection` w `DashboardSections.tsx`. `GroupGamesSection` przeniesi
 „Wymaga akceptacji") dokłada `EventBrowseCard` za opt-in propem `odznakiOrganizatora`.
 Tytuł karty ma `line-clamp-2` zamiast `truncate`, bo plakietki obok są `shrink-0`
 i na wąskim telefonie ścinały nazwę meczu.
+### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
+
+PROBLEM: Katalog boisk Bojo ma 38 314 obiektów, ale przy oddalonej mapie lista obok niej
+była PUSTA z założenia — w trybie skupisk z bazy lecą same liczby w siatce, nie obiekty.
+Zamiast czegokolwiek do przeczytania stał tam jeden przycisk „Przybliż tam, gdzie jest
+ich najwięcej", czyli odpowiedź na pytanie, którego nikt nie zadaje. Próba naprawy przez
+kafelki miast z liczbami rozbiła się o dane: kolumna `fields.city` jest wypełniona
+w jakichś dwóch procentach (wszystkie największe miasta razem ~900 obiektów, w tym Poznań
+54), więc kafelek kłamał liczbą I dowoził do garstki zamiast do wszystkiego, co w mieście
+jest. Osobno: szukanie po tekście na mapie gubiło polskie ogonki („poznan" nie znajdowało
+„Orlik Poznań"), a kółka skupisk sprzed szukania zostawały na wynikach i przy kliknięciu
+oddalały mapę zamiast rozbić grupę pinezek.
+
+ROZWIĄZANIE BOJO: Lista wypełnia się SAMA obiektami wokół punktu — okolicy gracza, gdy
+zgoda na lokalizację jest już udzielona, a bez niej Poznania (miasto, w którym Bojo
+startuje). Promień 15 km, sortowanie po odległości. O zgodę Bojo NIE pyta przy wejściu:
+pytanie z zaskoczenia przy starcie strony ludzie odruchowo odrzucają, a odrzuconej zgody
+nie da się cofnąć bez wchodzenia w ustawienia przeglądarki — pyta dopiero przycisk „Pokaż
+boiska blisko mnie". Dobór idzie po `lat`/`lng`, które ma KAŻDY obiekt w katalogu, więc
+nie zależy od backfillu lokalizacji. Wszystko oparte na `fields.city` (kafelki miast,
+podpowiedzi miast w szukajce) zostało usunięte. Szukanie na mapie ignoruje ogonki, a kółka
+skupisk znikają na czas szukania.
+
+MECHANIKA: `lib/startowyPunkt.ts` (`POZNAN`, `PROMIEN_LISTY_KM`), `pozycjaBezPytania()`
+w `lib/geo.ts` (czyta zgodę, nie wyprasza jej), `kadrWokol()` w `lib/api.ts`,
+`components/map/VenueExplorer.tsx` (`pokazWokol()`, efekt dobierający start: najpierw
+Poznań, potem podmiana na okolicę gracza), `components/map/PustaListaObiektow.tsx`.
+Szukanie: `foldText()`/`foldedIncludes()` z `lib/searchText.ts` w filtrze lokalnym,
+`WarstwaSkupisk` renderowana wyłącznie w trybie skupisk. Usunięte: `lib/miasta.ts`,
+`policzBoiskaWMiastach()`, `getFieldsWMiescie()`. Strona serwera: migracja `126` dokłada
+kolumnę generowaną `fields.szukaj_norm` (nazwa + adres, bez ogonków, indeks GIN po
+trigramach), a `searchExplorerFields()` pyta po niej — z wyjściem awaryjnym na stare
+`or(...)`, dopóki migracja nie zostanie puszczona ręcznie.
+
+### 2026-08-25 — Widget „najbliższe mecze" do osadzenia na stronie obiektu
+
+PROBLEM: Bojo nie miało żadnego sposobu, żeby zarządca obiektu sportowego umieścił na
+WŁASNEJ stronie coś więcej niż statyczny link do Bojo. Rozmowa z obiektem w
+`/admin/outreach` kończyła się wyłącznie prośbą o wzmiankę — bez treści, która sama się
+aktualizuje, trudno o coś do zaoferowania w zamian.
+
+ROZWIĄZANIE BOJO: `/widget/boisko/[id]` — fragment strony do osadzenia w `<iframe>` na
+stronie obiektu: nazwa, do pięciu najbliższych publicznych meczów (termin, sport, wolne
+miejsca) i link powrotny do Bojo. Bez nawigacji, stopki ani żadnego globalnego elementu
+interfejsu Bojo (baner cookies, zachęta do instalacji aplikacji, modal onboardingu) — to
+nie jest ekran aplikacji, tylko fragment renderowany na cudzej witrynie. Kliknięcie meczu
+albo linku „Bojo" otwiera pełną stronę w GŁÓWNYM oknie przeglądarki, nie w ramce. Kod do
+wklejenia (`<iframe>`) kopiuje się jednym przyciskiem w `/admin/outreach`.
+
+MECHANIKA: `app/widget/boisko/[id]/page.tsx` (`revalidate = 300`, `robots: {index:
+false, follow: true}` — fragment ma nie trafiać do wyników wyszukiwania, ale link
+wewnątrz ma dalej nieść sygnał). `lib/widget.ts#useJestWidget()` (sprawdzenie
+`usePathname()`) wyłącza globalne komponenty z `app/layout.tsx` — `CookieBanner`,
+`BottomNavGate`, `PostSignupRoleModal`, `RejestracjaSW` — na trasach `/widget/*`; Next.js
+App Router nie pozwala żadnej trasie pominąć root layoutu inaczej. `kodOsadzeniaWidgetu()`
+generuje gotowy `<iframe>` (stała wysokość 420px, przewijany w środku). Bez migracji.
+
+### 2026-08-25 — Katalog boisk dostał warstwę miejską: `/boiska/[sport]/[miasto]`
+
+PROBLEM: katalog Bojo miał wyłącznie hub krajowy per sport (`/boiska/pilka-nozna`) i hub
+wojewódzki (`/boiska/woj/wielkopolskie`) — nic pomiędzy. Kto szukał boisk do konkretnego
+sportu w konkretnym mieście, trafiał na listing całej Polski albo całego województwa,
+bez punktu wejścia dopasowanego do pytania „gdzie zagrać w piłkę nożną w Radomiu".
+
+ROZWIĄZANIE BOJO: nowa warstwa `/boiska/[sport]/[miasto]` dla miast z tabeli
+`miasta_priorytetowe` (migracja 112, ~100 największych miast Polski), ale tylko tam,
+gdzie warto — strona powstaje wyłącznie przy co najmniej trzech obiektach danego sportu
+w danym mieście (próg ustalony przez właściciela 2026-08-25; celowo NIEZALEŻNY od
+odrzuconej tego samego dnia propozycji zawężenia całego indeksu katalogu — to jest
+osobna decyzja o tym, kiedy warto tworzyć nową stronę, nie o tym, co ma zniknąć
+z istniejących). Poniżej progu i przy błędzie zapytania do bazy strona zwraca 404, nigdy
+500. Linkuje w obie strony: hub sportu pokazuje miasta powyżej progu, nowa strona
+linkuje z powrotem do huba sportu, huba województwa i — gdy oba istnieją dla tego miasta
+— do `/[sport]/[miasto]` (lista otwartych meczów, inny cel niż katalog obiektów).
+
+MECHANIKA: `app/boiska/[sport]/[miasto]/page.tsx` (`force-dynamic`, bez
+`generateStaticParams`, jak siostrzane huby); `lib/hubMiasta.ts` — próg
+(`PROG_OBIEKTOW_HUB_MIASTA = 3`), rozwiązanie miasta ze sluga, liczenie obiektów
+(`seo_tier IN (1, 2)`, ta sama definicja co w `sitemap-boiska`), agregacja par
+sport×miasto dla `sitemap.ts` (jedno zapytanie na sport, nie sto razy siedem). Sport →
+wartość w bazie wydzielony do `lib/sports.ts#KATALOG_SPORT_MAP` — trzeci konsument tej
+samej siódemki, wcześniej zaszytej lokalnie w `boiska/[sport]/page.tsx`. Bez migracji.
+
+### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad (z datą) zostaje na stronie obiektu
+
+PROBLEM: strona minionego, publicznego meczu (termin, cena, liczba miejsc) zostawała
+w indeksie wyszukiwarek bez końca, mimo że mecz już się odbył — pusta obietnica dla
+kogoś, kto trafił na nią z wyszukiwarki, licząc, że da się dołączyć. Jednocześnie
+strona obiektu, na którym mecze się odbywały, nie mówiła o tym ani słowa, choć to
+jest dokładnie ten fakt, którego nie ma żaden katalog importujący dane wyłącznie
+z OpenStreetMap. Sama liczba rozegranych meczów też nie wystarczała: obiekt z jednym
+meczem sprzed roku wyglądał identycznie jak obiekt, na którym gra się co tydzień.
+
+ROZWIĄZANIE BOJO: strona minionego meczu zostaje widoczna dla ludzi (podgląd linku,
+treść, JSON-LD) i dalej otwiera się normalnie, ale wypada z indeksu wyszukiwarek.
+Jej ślad przechodzi na stronę obiektu jako zdanie „Na tym obiekcie odbyło się już
+N meczów zorganizowanych przez Bojo, ostatni [data]" — widoczne od pierwszego
+rozegranego meczu, liczone wyłącznie z publicznych, nieodwołanych meczów, i wpięte
+też w opis obiektu w danych strukturalnych, nie tylko w widoczną treść.
+
+MECHANIKA: `app/wydarzenia/[id]/eventMeta.ts#metadataDlaMeczu()` — `robots: {index:
+false, follow: true}` dla meczu, dla którego `isPast(data, godzina)` (`lib/eventWizard.ts`)
+zwraca prawdę; próg jest ten sam, którym kreator meczu blokuje wpisanie terminu
+w przeszłości. Licznik i data: `app/boisko/[id]/page.tsx#getOstatnieMecze()` — jedno
+zapytanie (`count: 'exact'` liczy wszystkie pasujące wiersze niezależnie od `.limit(1)`,
+który tnie tylko zwracane dane) daje naraz liczbę i najświeższy `event_date` (publiczne,
+nieodwołane, wcześniejsze niż dziś). `content/opisObiektu.ts#zdanieORozegranychMeczach()`
+(odmiana przez liczbę, `lib/plural.ts`; drugi argument z datą opcjonalny — bez daty
+zdanie brzmi jak wcześniej) trafia zarówno do `VenueDetailClient.tsx` (renderowane
+razem z resztą nagłówka obiektu, także w stanie ładowania, czyli w HTML, który dostaje
+crawler), jak i do `description` w JSON-LD `SportsActivityLocation`. Bez migracji.
+
+### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
+
+PROBLEM: dotknięcie rozmowy ekipy na liście `/rozmowy` przenosiło na stronę ekipy
+z paskiem zakładek, składem i zarządzaniem — z komunikatora wyrzucało na panel
+administracyjny, a „wstecz" wracało stamtąd na listę ekip, nie do rozmów. Szerzej:
+ekrany szczegółowe w Bojo miały „wstecz" zapisane na sztywno do jednego rodzica, mimo
+że wchodzi się na nie z wielu miejsc (do strony ekipy prowadzi siedem dróg, do rozmowy
+prywatnej także profil gracza), więc powrót lądował na ekranie, na którym człowiek nigdy
+nie był. Profil gracza nie miał wyjścia w ogóle. Do tego wskaźnik nieprzeczytanych
+wiadomości w dolnej nawigacji był chmurką bez liczby i nie liczył rozmów prywatnych.
+
+ROZWIĄZANIE BOJO: rozmowa ekipy i rozmowa meczu mają własne pełnoekranowe trasy pod
+`/rozmowy`, o układzie identycznym z rozmową prywatną; kontekst ekipy/meczu jest w nich
+odnośnikiem w nagłówku („Otwórz ekipę", „Otwórz mecz · jutro · 18:00"), nie paskiem
+zakładek. Rozmowy zostają dostępne także jako zakładka na stronie ekipy i meczu — kto
+przyszedł zarządzać, ma je tam, gdzie były. „Wstecz" znaczy teraz wstecz: wraca do
+poprzedniego ekranu, a sztywnego rodzica używa wyłącznie wtedy, gdy nie ma dokąd wracać
+(wejście z powiadomienia push, z linku, z ikony aplikacji). Zakładka Rozmowy w dolnej
+nawigacji pokazuje różową plakietkę z LICZBĄ nieprzeczytanych wiadomości ze wszystkich
+trzech źródeł — meczów, ekip i rozmów prywatnych.
+
+MECHANIKA: trasy `/rozmowy/grupa/[id]` i `/rozmowy/mecz/[id]` (`noindex`, treść przez
+istniejące `RozmowaGrupy`/`RozmowaWydarzenia`), wspólny nagłówek
+`components/rozmowy/NaglowekRozmowy.tsx`; `frontend/src/lib/historia.tsx`
+(`SledzenieHistorii` w `app/layout.tsx`, hak `useWstecz(zapasowyCel)`);
+`frontend/src/lib/rozmowy.ts` — jedno źródło listy rozmów i liczby nieprzeczytanych dla
+ekranu `/rozmowy` i dla dolnej nawigacji. Bez migracji.
+
+### 2026-08-23 — „Szukaj" otwiera listę otwartych meczów, nie mapę boisk
+
+PROBLEM: zakładka „Szukaj" w dolnej nawigacji Bojo prowadziła na mapę KATALOGU BOISK.
+Człowiek wchodzi tam z pytaniem „w co mogę dziś zagrać", a dostawał odpowiedź na inne —
+„jakie są w okolicy boiska". Boisko bez meczu to informacja dopiero na drugim kroku,
+a droga do meczów wiodła przez przełącznik, o którym trzeba było wiedzieć. Do tego mapa
+przy oddaleniu pokazuje skupiska zamiast pojedynczych obiektów, więc pierwszy ekran
+wymagał przybliżania, zanim cokolwiek powiedział.
+
+ROZWIĄZANIE BOJO: „Szukaj" prowadzi na `/mapa?gry=1` — od razu na LISTĘ otwartych meczów,
+z terminem i liczbą wolnych miejsc na każdej karcie. Domyślny widok idzie odtąd za
+rodzajem danych: GRY otwierają się jako lista (mecz to przede wszystkim termin, a tego
+pinezka nie mówi), OBIEKTY jako mapa (gdzie jest boisko to pytanie przestrzenne, a katalog
+liczy dziesiątki tysięcy pozycji). Przełącznik Lista|Mapa działa jak dotąd w obie strony.
+Pusta lista meczów nie jest ślepym końcem: rozróżnia „żaden mecz nie pasuje do filtrów"
+od „nie ma teraz otwartych meczów" i w obu wypadkach proponuje zorganizowanie własnego
+meczu albo przejście do boisk.
+
+MECHANIKA: `LEFT_ITEMS` w `frontend/src/components/layout/BottomNav.tsx` (pole `hrefPelny`
+niesie `?gry=1`, `href` zostaje czystą ścieżką, bo po nim idzie dopasowanie stanu
+„wybrane", kropek i dymków); `widok` w `frontend/src/components/map/VenueExplorer.tsx`
+startuje z `showGames ? 'lista' : 'mapa'`. Lista gier nie zależy od kadru mapy —
+`getPublicEvents()` pobiera wszystkie otwarte mecze naraz, więc działa bez przybliżania
+i bez zgody na lokalizację. Wejście na goły adres `/mapa` (powrót ze strony obiektu,
+link `?boisko=`) zachowuje się bez zmian: obiekty na mapie.
+
+### 2026-08-23 — Prywatny mecz przestaje zdradzać szczegóły w podglądzie linku
+
+PROBLEM: strona prywatnego meczu podawała w metadanych nazwę meczu, sport, datę, godzinę
+i nazwę obiektu, a pod adresem `/wydarzenia/<id>/opengraph-image` generowała publicznie
+dostępną kartę z ceną i liczbą wolnych miejsc. Dane strukturalne (JSON-LD) były przed tym
+chronione od początku, metadane nie — więc wystarczyło, żeby link do prywatnego meczu raz
+trafił w publiczne miejsce, a jego szczegóły mogły wejść do wyszukiwarki. Kod dołączenia
+jest jedyną kontrolą dostępu do prywatnego meczu i to właśnie on był obchodzony.
+
+ROZWIĄZANIE BOJO: mecz niepubliczny zwraca w metadanych sam tytuł „Mecz" i `noindex`,
+a jego obrazek podglądu to karta ogólna Bojo, bez żadnych danych meczu. Mecz, którego nie
+ma, wygląda dokładnie tak samo — po metadanych nie da się odróżnić „nie ma takiego meczu"
+od „jest, ale nie dla ciebie". Dla meczu publicznego nic się nie zmienia. Przy okazji
+z tytułów zniknął podwojony sufiks „| Bojo", a opis stron obiektów przestał obiecywać
+rezerwację terminu, której Bojo nie robi.
+
+MECHANIKA: `metadataDlaMeczu()` w `app/wydarzenia/[id]/eventMeta.ts` — czysta funkcja
+obok `getEventMeta()`, testowana bez bazy (`__tests__/eventMetadata.test.ts`), wzorem
+`eventJsonLd()` w `lib/structuredData.ts`. Ten sam próg widoczności powtórzony
+w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi flagami
+(`/auth/`, `/turniej`, `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`) wypadły ze
+skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
+`metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
 
 ### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
 

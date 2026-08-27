@@ -18,7 +18,7 @@ import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
   { href: '/wydarzenia', label: 'Znajdź grę', earlyStage: true },
-  { href: '/mapa', label: 'Mapa boisk' },
+  { href: '/mapa?gry=0', label: 'Mapa boisk' },
 ];
 
 interface HeaderProps {
@@ -303,7 +303,7 @@ export default function Header({
               {!loading && !user && (
                 <>
                   <Link
-                    href="/mapa"
+                    href="/mapa?gry=0"
                     aria-label="Mapa boisk"
                     className={clsx(
                       'p-2 rounded-lg transition-colors',

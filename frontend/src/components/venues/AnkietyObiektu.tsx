@@ -7,6 +7,7 @@ import { useToast } from '@/lib/toast';
 import { SURFACE_LABELS } from '@/lib/labels';
 import {
   pobierzPotwierdzenia, pobierzMojePotwierdzenia, zapiszPotwierdzenie,
+  najlepszePotwierdzenie, QUORUM_POTWIERDZEN,
   type FaktObiektu, type PotwierdzeniaZliczone,
 } from '@/lib/potwierdzeniaObiektu';
 
@@ -17,16 +18,6 @@ import {
 // Ten sam zestaw sześciu nawierzchni co SURFACE_MAP w scraper/import_osm_pbf.py
 // i CHECK w migracji 123 — kolejność od najczęstszej w katalogu.
 const NAWIERZCHNIE: readonly string[] = ['grass', 'artificial', 'hardcourt', 'concrete', 'clay', 'sand'];
-
-/** Ile niezależnych głosów uzasadnia pokazanie "potwierdzone przez graczy" —
- *  jeden klik nie jest jeszcze potwierdzeniem, tylko czyjąś opinią. */
-const QUORUM = 2;
-
-function najlepsza(zliczone: PotwierdzeniaZliczone[], fakt: FaktObiektu): PotwierdzeniaZliczone | null {
-  const dlaFaktu = zliczone.filter((z) => z.fakt === fakt);
-  if (dlaFaktu.length === 0) return null;
-  return dlaFaktu.reduce((a, b) => (b.liczba > a.liczba ? b : a));
-}
 
 function etykietaWartosci(fakt: FaktObiektu, wartosc: string): string {
   if (fakt === 'oswietlenie') return wartosc === 'tak' ? 'jest oświetlone' : 'bez oświetlenia';
@@ -85,8 +76,8 @@ export default function AnkietyObiektu({ fieldId }: { fieldId: string }) {
     );
   }
 
-  const oswietlenieTop = najlepsza(zliczone, 'oswietlenie');
-  const nawierzchniaTop = najlepsza(zliczone, 'nawierzchnia');
+  const oswietlenieTop = najlepszePotwierdzenie(zliczone, 'oswietlenie');
+  const nawierzchniaTop = najlepszePotwierdzenie(zliczone, 'nawierzchnia');
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
@@ -111,7 +102,7 @@ export default function AnkietyObiektu({ fieldId }: { fieldId: string }) {
             </button>
           ))}
         </div>
-        {oswietlenieTop && oswietlenieTop.liczba >= QUORUM && (
+        {oswietlenieTop && oswietlenieTop.liczba >= QUORUM_POTWIERDZEN && (
           <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-500">
             <CheckCircle2 className="h-3.5 w-3.5 text-primary-600" />
             {etykietaWartosci('oswietlenie', oswietlenieTop.wartosc)} (potwierdzone przez {oswietlenieTop.liczba} graczy)
@@ -138,7 +129,7 @@ export default function AnkietyObiektu({ fieldId }: { fieldId: string }) {
             </button>
           ))}
         </div>
-        {nawierzchniaTop && nawierzchniaTop.liczba >= QUORUM && (
+        {nawierzchniaTop && nawierzchniaTop.liczba >= QUORUM_POTWIERDZEN && (
           <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-500">
             <CheckCircle2 className="h-3.5 w-3.5 text-primary-600" />
             Nawierzchnia: {etykietaWartosci('nawierzchnia', nawierzchniaTop.wartosc)} (potwierdzone przez {nawierzchniaTop.liczba} graczy)

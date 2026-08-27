@@ -3,24 +3,21 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import { supabase } from '@/lib/supabase';
+import SiteFooter from '@/components/layout/SiteFooter';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
-import { FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
+import { FOCUS_SPORT_BY_SLUG, KATALOG_SPORT_MAP } from '@/lib/sports';
+import { WOJEWODZTWA, WOJEWODZTWO_LABEL } from '@/lib/wojewodztwa';
+import { wstepHubuSportu } from '@/content/boiska';
+import { MIASTA } from '@/content/miasta';
+import { miastaPowyzejProguDlaSportu } from '@/lib/hubMiasta';
+import { obiektyHubuSportu, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Sport mapping: URL slug → DB value → display name
 // ---------------------------------------------------------------------------
-const SPORT_MAP: Record<string, { db: string; label: string }> = {
-  'pilka-nozna':      { db: 'piłka nożna',      label: 'piłki nożnej' },
-  'koszykowka':       { db: 'koszykówka',         label: 'koszykówki' },
-  'siatkowka':        { db: 'siatkówka',          label: 'siatkówki' },
-  'siatkowka-plazowa':{ db: 'siatkówka plażowa',  label: 'siatkówki plażowej' },
-  'futsal':           { db: 'futsal',             label: 'futsalu' },
-  'pilka-reczna':     { db: 'piłka ręczna',       label: 'piłki ręcznej' },
-  'inne':             { db: 'inne',               label: 'innych sportów' },
-};
+const SPORT_MAP = KATALOG_SPORT_MAP;
 
 const SPORT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'piłka nożna': Target, koszykówka: Circle, siatkówka: Trophy,
@@ -68,15 +65,16 @@ export async function generateMetadata(
   { params, searchParams }: { params: { sport: string }; searchParams?: { strona?: string } },
 ): Promise<Metadata> {
   const entry = SPORT_MAP[params.sport];
-  if (!entry) return { title: 'Nie znaleziono | Bojo' };
+  if (!entry) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
   const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const { canonical, robots } = metadanePaginacjiHuba(`/boiska/${params.sport}`, strona);
   return {
-    title: `Boiska do ${entry.label} w Polsce${sufiks} | Bojo`,
+    // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
+    title: `Boiska do ${entry.label} w Polsce${sufiks}`,
     description: `Znajdź boiska do ${entry.label} w Polsce. Lista obiektów, lokalizacje, dostępność. Bojo — zbierz skład i zagraj.`,
-    alternates: {
-      canonical: strona > 1 ? `/boiska/${params.sport}?strona=${strona}` : `/boiska/${params.sport}`,
-    },
+    alternates: { canonical },
+    robots,
     openGraph: {
       title: `Boiska do ${entry.label} w Polsce | Bojo`,
       description: `Lista boisk do ${entry.label} w Polsce.`,
@@ -95,13 +93,9 @@ export default async function SportCategoryPage(
 
   // `count: 'exact'` zamiast pobierania wszystkiego i liczenia w JavaScripcie —
   // to była jedna z dwóch rzeczy, które nadmuchały tę stronę do 25 MB.
-  const { data, count } = await supabase
-    .from('fields')
-    .select('id, name, address, lat, lng, sport, surface, is_indoor, district', { count: 'exact' })
-    .contains('sport', [entry.db])
-    .eq('map_visibility', 'public')
-    .order('name', { ascending: true })
-    .range(od, od + NA_STRONE - 1);
+  // Zapytanie (z filtrem seo_tier, dług D11) wydzielone do lib/hubKatalogu.ts —
+  // testowalne bez renderowania JSX.
+  const { data, count } = await obiektyHubuSportu(entry.db, od, od + NA_STRONE - 1);
 
   const fields = (data ?? []).map(toField);
   const wszystkich = count ?? fields.length;
@@ -110,6 +104,14 @@ export default async function SportCategoryPage(
   // Numer strony poza zakresem to nie jest pusta lista, tylko zły adres.
   if (strona > stron && wszystkich > 0) notFound();
   const Icon = SPORT_ICONS[entry.db] ?? Activity;
+
+  // Linkowanie w dół do hubów miejskich (poz. 20 roadmapy) — tylko strona 1,
+  // z tego samego powodu co blok województw niżej. Tylko miasta powyżej progu
+  // jakości (lib/hubMiasta.ts): link do strony, która i tak nie powstanie
+  // (za mało obiektów), byłby gorszy niż jego brak. Zapytanie zdegradowane do
+  // pustej listy przy błędzie — to sekcja dodatkowa, nie ma degradować całej
+  // strony, która już ma dane do pokazania.
+  const miastaHuba = strona === 1 ? await miastaPowyzejProguDlaSportu(entry.db).catch(() => []) : [];
 
   // Machine-readable version of the same list, so crawlers get the venues as
   // data instead of having to scrape the markup.
@@ -137,6 +139,16 @@ export default async function SportCategoryPage(
             Boiska do {entry.label} w Polsce
           </h1>
         </div>
+
+        {/* Bezpośrednia odpowiedź nad listą — bez niej strona jest samym
+            listingiem, dokładnie tym, co przegrywa z serwisami mającymi
+            przewagę wieku (docs/seo-geo-strategia.md, 3g). */}
+        {wszystkich > 0 && strona === 1 && (
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
+            {wstepHubuSportu(wszystkich, entry.label)}
+          </p>
+        )}
+
         <p className="text-slate-500 text-sm mb-8">
           {wszystkich > 0
             ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
@@ -200,19 +212,82 @@ export default async function SportCategoryPage(
         )}
 
         <div className="mt-10 flex flex-col items-center gap-2 text-center">
-          <Link href="/mapa" className="text-primary-600 hover:underline text-sm">
+          <Link href="/mapa?gry=0" className="text-primary-600 hover:underline text-sm">
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
             Jak działa Bojo — zbierz skład na to boisko →
           </Link>
+          {/* Wejście do landingów `/[sport]/[miasto]`. Do 2026-08-26 stał tu jeden
+              link zaszyty na sztywno na Poznań, więc osiem z dwunastu tych stron
+              (Warszawa, Kraków) nie miało wejścia z hubu, a ktoś szukający gry
+              w Krakowie dostawał link do Poznania. Lista idzie z `MIASTA` — tej
+              samej stałej, z której `generateStaticParams()` tamtej trasy buduje
+              strony, a `dynamicParams = false` gwarantuje, że innych nie ma. Dzięki
+              temu nie da się tu wskazać strony, która nie istnieje, i nie da się
+              zapomnieć o mieście dopisanym do `MIASTA`. */}
           {FOCUS_SPORT_BY_SLUG[params.sport] && (
-            <Link href={`/${params.sport}/poznan`} className="text-primary-600 hover:underline text-sm">
-              Szukasz gry w Poznaniu? Zobacz otwarte mecze →
-            </Link>
+            <p className="text-sm text-slate-600">
+              Szukasz gry? Zobacz otwarte mecze{' '}
+              {MIASTA.map((m, i) => (
+                <span key={m.slug}>
+                  {i > 0 && ' · '}
+                  <Link
+                    href={`/${params.sport}/${m.slug}`}
+                    className="text-primary-600 hover:underline"
+                  >
+                    {m.miejscownik}
+                  </Link>
+                </span>
+              ))}
+            </p>
           )}
         </div>
+
+        {/* Linkowanie poziome (docs/seo-geo-strategia.md, 4b/16): bez tego hub
+            sportu był ślepym zaułkiem poza wejściem z sitemapa. Tylko strona 1
+            — dalsze strony paginacji nie powinny powielać ten sam blok linków
+            (D15: te strony są dziś self-canonical i bez noindex). */}
+        {strona === 1 && (
+          <div className="mt-10 border-t border-slate-200 pt-6 space-y-6">
+            {miastaHuba.length > 0 && (
+              <div>
+                <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Boiska do {entry.label} w miastach
+                </p>
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                  {miastaHuba.map((m) => (
+                    <Link
+                      key={m.slug}
+                      href={`/boiska/${params.sport}/${m.slug}`}
+                      className="text-xs text-primary-600 hover:underline"
+                    >
+                      {m.nazwa}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Boiska do {entry.label} w województwach
+              </p>
+              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
+                {WOJEWODZTWA.map((woj) => (
+                  <Link
+                    key={woj}
+                    href={`/boiska/woj/${woj}`}
+                    className="text-xs text-primary-600 hover:underline"
+                  >
+                    {WOJEWODZTWO_LABEL[woj]}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+      <SiteFooter />
     </div>
   );
 }
