@@ -242,6 +242,28 @@ kodu. Trzy rundy z rzędu, trzy różne powody, ten sam brak. To przestaje być 
 `curl https://bojo.pl/boisko/<slug>` z dowolnej maszyny z internetem zamyka pytanie,
 na które ten dokument nie umie odpowiedzieć od trzech rund.
 
+**Sprostowanie 2026-08-27 — diagnoza „nie ma demona" z rundy 3 była za szeroka.**
+Sprawdzone w kolejnej sesji tego samego dnia po rundzie 3: `docker version` pokazuje
+klienta, `dockerd` jest zainstalowany, a `systemctl status docker` odpowiada „System
+has not been booted with systemd" — środowisko po prostu nie startuje demona
+automatycznie, nie usuwa go z obrazu. Ręczne `dockerd &` (sesja ma `root`, cgroup v1
+działa) podnosi demon bez błędu: `API listen on /var/run/docker.sock`. Dopiero wtedy
+`docker run --rm hello-world` dochodzi do pobrania manifestu i pada na tej samej
+warstwie co w rundzie 2 — `403 Forbidden` z `production.cloudfront.docker.com`,
+potwierdzone też w statusie proxy (`connect_rejected`, `policy denial`, host
+`production.cloudfront.docker.com:443`).
+
+**Skutek dla wniosku, nie dla stanu:** `scripts/stos-lokalny.sh` nadal nie działa —
+opiera się na `supabase start`, którego CLI w tej sesji nie ma zainstalowanego,
+a które i tak ściągnęłoby własny zestaw obrazów (Postgres, GoTrue, PostgREST) z tego
+samego zablokowanego rejestru. Ale przyczyna jest węższa, niż rozdział 0 rundy 3
+sugerował: blokada leży **wyłącznie w polityce sieciowej wobec rejestru obrazów**,
+nie w niedostępności demona. Rozróżnienie ma znaczenie dla następnej sesji: nie warto
+sprawdzać `docker version`/`systemctl` i poprzestawać na tym — demon prawie na pewno
+da się podnieść ręcznie, a przebieg i tak skończy się na tym samym `403` przy pierwszym
+pociągnięciu obrazu. Test, który faktycznie rozstrzyga sprawę, to `docker run --rm
+hello-world` po ręcznym starcie demona, nie sam status demona.
+
 Co udało się zweryfikować w rundzie 3 **twardo, w surowym HTML** (lokalny build
 produkcyjny, `curl` bez JavaScriptu — czyli tak, jak widzi to crawler):
 
@@ -1675,12 +1697,12 @@ Odpowiada na pytanie, czy wpuszczenie ich z nazwy cokolwiek dało.
 Uczciwa lista granic tego dokumentu:
 
 - **Produkcji `bojo.pl` nie widziałem w żadnej z trzech rund (1, 2 i 3) — i nie da się
-  tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci,
-  z gorszym środowiskiem niż poprzednio: demon Dockera w ogóle nie działa, więc odpada
-  nie tylko rejestr obrazów, ale i sam `stos-lokalny.sh`. Pełny wynik przebiegu —
-  rozdział 0, „Runda 3". Odpada też adres podglądu Vercela z PR-a, mimo że deploy
-  podglądowy ma prawdziwe klucze Supabase — blokuje go ta sama polityka (403 na
-  CONNECT).
+  tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci.
+  Pełny wynik przebiegu — rozdział 0, „Runda 3"; **sprostowanie 2026-08-27** w tym samym
+  miejscu zawęża przyczynę do rejestru obrazów, nie demona (demon startuje ręcznie bez
+  błędu w tej samej sesji — `docker version`/`systemctl` nie wystarczą jako test).
+  Odpada też adres podglądu Vercela z PR-a, mimo że deploy podglądowy ma prawdziwe
+  klucze Supabase — blokuje go ta sama polityka (403 na CONNECT).
   Stan z rundy 2, nadal aktualny co do istoty: Polityka sieciowa środowiska blokuje
   `bojo.pl` (`curl`: „CONNECT tunnel failed, 403"; `WebFetch`: `EGRESS_BLOCKED`) ORAZ
   rejestr Dockera (`docker run hello-world` → 403 z `production.cloudfront.docker.com`),
