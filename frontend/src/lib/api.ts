@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { foldText } from './searchText';
 import type { Field, FieldFilters, FieldsResponse, BookingType, MapVisibility } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -192,15 +193,41 @@ export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
 export async function searchExplorerFields(term: string, limit = 30): Promise<Field[]> {
   const szukane = term.trim();
   if (szukane.length < 2) return [];
-  const { data, error } = await supabase
+
+  const podstawa = () => supabase
     .from('fields')
     .select(EXPLORER_COLS)
     .eq('map_visibility', 'public')
     .overlaps('sport', EXPLORER_SPORTS)
-    .or(`name.ilike.%${szukane}%,address.ilike.%${szukane}%`)
     .limit(limit);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toField);
+
+  // OGONKI. `ilike '%poznan%'` na `name`/`address` NIE jest zgodne z „Poznań" —
+  // Postgres porównuje znak po znaku. Nikt nie pisze ogonków w szukajce na
+  // telefonie, więc wpisanie miasta zwracało zero wyników przy 38 tysiącach
+  // obiektów w katalogu. Migracja 126 dokłada kolumnę `szukaj_norm` (nazwa
+  // + adres, małymi literami, bez ogonków) — składaną tak samo jak `foldText()`
+  // po tej stronie. Obie strony MUSZĄ składać tekst identycznie, bo filtr
+  // lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer.
+  const { data, error } = await podstawa()
+    .ilike('szukaj_norm', `%${foldText(szukane)}%`);
+  if (!error) return (data ?? []).map(toField);
+
+  // Migracje puszcza się w Bojo RĘCZNIE, więc kolumny może jeszcze nie być.
+  // Wtedy lepiej szukać po staremu (bez ogonków nie znajdzie miasta, ale
+  // nazwę wpisaną dokładnie już tak) niż wywalić szukajkę na czerwono.
+  if (!brakKolumny(error)) throw new Error(error.message);
+  const zapasowe = await podstawa()
+    .or(`name.ilike.%${szukane}%,address.ilike.%${szukane}%`);
+  if (zapasowe.error) throw new Error(zapasowe.error.message);
+  return (zapasowe.data ?? []).map(toField);
+}
+
+/** Czy błąd znaczy „takiej kolumny tu nie ma" — czyli „migracja jeszcze nie
+ *  poszła". PostgREST oddaje `42703` z Postgresa albo własne `PGRST204`,
+ *  gdy kolumny nie ma w jego pamięci podręcznej schematu. */
+function brakKolumny(error: { code?: string; message?: string }): boolean {
+  return error.code === '42703' || error.code === 'PGRST204'
+    || (error.message ?? '').includes('szukaj_norm');
 }
 
 export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-08-26 · migracja `125` · 53 tabele
+**Stan na:** 2026-08-27 · migracja `126` · 53 tabele
 
 ---
 
@@ -375,9 +375,10 @@ w `lib/geo.ts` (czyta zgodę, nie wyprasza jej), `kadrWokol()` w `lib/api.ts`,
 Poznań, potem podmiana na okolicę gracza), `components/map/PustaListaObiektow.tsx`.
 Szukanie: `foldText()`/`foldedIncludes()` z `lib/searchText.ts` w filtrze lokalnym,
 `WarstwaSkupisk` renderowana wyłącznie w trybie skupisk. Usunięte: `lib/miasta.ts`,
-`policzBoiskaWMiastach()`, `getFieldsWMiescie()`. Strona serwera (`searchExplorerFields()`
-robi `ilike` na `name`/`address`) nadal jest wrażliwa na ogonki — domknięcie wymaga
-znormalizowanej kolumny w `fields`. Bez migracji.
+`policzBoiskaWMiastach()`, `getFieldsWMiescie()`. Strona serwera: migracja `126` dokłada
+kolumnę generowaną `fields.szukaj_norm` (nazwa + adres, bez ogonków, indeks GIN po
+trigramach), a `searchExplorerFields()` pyta po niej — z wyjściem awaryjnym na stare
+`or(...)`, dopóki migracja nie zostanie puszczona ręcznie.
 
 ### 2026-08-25 — Widget „najbliższe mecze" do osadzenia na stronie obiektu
 
