@@ -545,17 +545,27 @@ bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było prz
 wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
 
 ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
-trzy przełączniki DOMYŚLNIE WYŁĄCZONE — „Lista rezerwowa", „Mecz płatny", „Bramkarze
-osobno". Szczegóły każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny"
-czyści kwotę i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa
-i „Biorę udział"), krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis).
-Publikacja przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu —
-mecz jest widoczny natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się
-szybciej, niż da się ją poprawić.
+trzy przełączniki — „Lista rezerwowa", „Mecz płatny", „Bramkarze osobno". Szczegóły
+każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny" czyści kwotę
+i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa i „Biorę udział"),
+krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis). Publikacja
+przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu — mecz jest widoczny
+natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się szybciej, niż da się ją
+poprawić.
 
-SKUTEK DLA NOWYCH MECZÓW: przełącznik rezerwy wyłączony domyślnie znaczy, że nowy mecz
-przy komplecie ZAMYKA zapisy zamiast ustawiać kolejkę. Kto chce kolejkę, włącza ją
-w kreatorze albo później w edycji meczu.
+STAN DOMYŚLNY PRZEŁĄCZNIKÓW (od 2026-08-27): „Lista rezerwowa" jest WŁĄCZONA, dwa
+pozostałe wyłączone. NOWY MECZ W BOJO MA WIĘC LISTĘ REZERWOWĄ: przy komplecie kolejni
+chętni czekają w kolejce, a organizator, który tego nie chce, wyłącza ją przełącznikiem
+(wtedy komplet zamyka zapisy). Wcześniej było odwrotnie i kreator był jedynym miejscem
+w Bojo, które tak robiło — kolumna `events.reserve_enabled` ma `DEFAULT true`, strona
+edycji i mapper czytają `?? true`.
+
+MIEJSCA DLA BRAMKARZY (od 2026-08-27): włączony przełącznik „Bramkarze osobno" pokazuje
+DWA tryby — „Rozróżniaj, ale nie rezerwuj miejsc" i „Rezerwuj miejsca dla bramkarzy".
+Trzeci tryb, „Bez podziału na role", jest dokładnie stanem WYŁĄCZONEGO przełącznika,
+więc w środku włączonego go nie ma; wcześniej dwie kontrolki odpowiadały na to samo
+pytanie i umiały się ze sobą nie zgadzać. Strona edycji meczu nie ma przełącznika
+(wszystkie ustawienia są tam równorzędne) i pokazuje wszystkie trzy tryby.
 
 MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
 `frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie

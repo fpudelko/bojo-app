@@ -247,6 +247,7 @@ export function UstawieniaRezerwy({
 export function UstawieniaBramkarzy({
   sport, maxPlayers, goalkeepersEnabled, setGoalkeepersEnabled,
   slotyZarezerwowane = true, setSlotyZarezerwowane, blad,
+  wPrzelaczniku = false,
 }: {
   sport: string;
   maxPlayers: number;
@@ -255,7 +256,17 @@ export function UstawieniaBramkarzy({
   slotyZarezerwowane?: boolean;
   setSlotyZarezerwowane?: (v: boolean) => void;
   blad?: string;
+  /** Czy ta sekcja siedzi w środku przełącznika „Bramkarze osobno" (kreator).
+   *  Wtedy „Bez podziału na role" NIE jest opcją: to jest stan wyłączonego
+   *  przełącznika, a nie wybór do zrobienia w środku włączonego. Wystawienie
+   *  go tutaj dawało dwie kontrolki na jedno pytanie, które umiały się ze sobą
+   *  nie zgadzać — włączony przełącznik z wybranym „bez podziału". Strona
+   *  edycji nie ma przełącznika (wszystkie ustawienia są tam równorzędne),
+   *  więc widzi wszystkie trzy tryby. */
+  wPrzelaczniku?: boolean;
 }) {
+  // W przełączniku zostają wyłącznie tryby, które NAPRAWDĘ dzielą skład.
+  const tryby = wPrzelaczniku ? TRYBY.filter((t) => t.gk) : TRYBY;
   return (
     <>
       {/* Bramkarze — trzy stany, nie przełącznik.
@@ -265,17 +276,20 @@ export function UstawieniaBramkarzy({
           „czekają" oznaczało, że trzynasty zawodnik z pola ląduje na rezerwie,
           choć dwa miejsca stoją puste — i nikt go o tym nie uprzedził. */}
       {GK_SPORTS.includes(sport) && (
-        <div className="border-b border-slate-100 py-2">
-          <p className="text-sm font-medium text-slate-900">
-            Bramkarze
-            {goalkeepersEnabled === null && <span className="ml-1 text-red-600">*</span>}
-          </p>
+        <div className={wPrzelaczniku ? '' : 'border-b border-slate-100 py-2'}>
+          {/* Nagłówka nie ma w przełączniku — powtarzałby jego tytuł. */}
+          {!wPrzelaczniku && (
+            <p className="text-sm font-medium text-slate-900">
+              Bramkarze
+              {goalkeepersEnabled === null && <span className="ml-1 text-red-600">*</span>}
+            </p>
+          )}
           <p className="mb-2 text-xs text-slate-500">
             Zdecyduj, jak Bojo ma dzielić {maxPlayers} miejsc.
           </p>
 
           <div className="space-y-2">
-            {TRYBY.map((tryb) => {
+            {tryby.map((tryb) => {
               const wybrany = tryb.gk === goalkeepersEnabled
                 && (tryb.gk === false || tryb.zarezerwowane === slotyZarezerwowane);
               return (

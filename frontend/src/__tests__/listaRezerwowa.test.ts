@@ -13,6 +13,11 @@ const stronaMeczu = readFileSync(
   resolve(__dirname, '../app/wydarzenia/[id]/EventDetailClient.tsx'), 'utf8');
 const kreator = readFileSync(
   resolve(__dirname, '../components/events/EventCapacityFields.tsx'), 'utf8');
+const stronaKreatora = readFileSync(
+  resolve(__dirname, '../app/wydarzenia/nowe/page.tsx'), 'utf8');
+const stronaEdycji = readFileSync(
+  resolve(__dirname, '../app/wydarzenia/[id]/edytuj/page.tsx'), 'utf8');
+const mapper = readFileSync(resolve(__dirname, '../lib/events.ts'), 'utf8');
 
 describe('lista rezerwowa jako wybór organizatora', () => {
   it('kolumna wchodzi z DEFAULT true — migracja nikomu niczego nie wyłącza', () => {
@@ -48,6 +53,24 @@ describe('lista rezerwowa jako wybór organizatora', () => {
     // Pytanie „ile czasu na przyjęcie zwolnionego miejsca" przy wyłączonej
     // rezerwie jest pytaniem bez treści.
     expect(kreator).toMatch(/\{reserveEnabled && \(/);
+  });
+
+  it('KREATOR startuje z rezerwą WŁĄCZONĄ — tak jak reszta systemu', () => {
+    // Kreator był jedynym miejscem, które startowało z `false`, więc KAŻDY nowy
+    // mecz powstawał bez rezerwy wbrew kolumnie z `DEFAULT true`, stronie
+    // edycji i mapperowi. Rezerwa jest zachowaniem domyślnym; przełącznik
+    // służy do jej WYŁĄCZENIA, nie do włączenia.
+    expect(stronaKreatora).toMatch(/const \[reserveEnabled, setReserveEnabled\] = useState\(true\)/);
+    // Szkic sprzed tej zmiany też ma wejść jako włączony — inaczej stary
+    // localStorage przywracałby porzucone „wyłączone" bez wiedzy autora.
+    expect(stronaKreatora).toMatch(/setReserveEnabled\(v\.reserveEnabled \?\? true\)/);
+  });
+
+  it('wszystkie cztery miejsca mówią to samo o domyślnej rezerwie', () => {
+    expect(migracja).toMatch(/reserve_enabled\s+BOOLEAN\s+NOT NULL\s+DEFAULT true/i);
+    expect(stronaKreatora).toMatch(/useState\(true\)/);
+    expect(stronaEdycji).toMatch(/setReserveEnabled\(ev\.reserveEnabled \?\? true\)/);
+    expect(mapper).toMatch(/reserveEnabled: row\.reserve_enabled \?\? true/);
   });
 
   it('napis pod licznikiem miejsc mówi, co się NAPRAWDĘ stanie', () => {

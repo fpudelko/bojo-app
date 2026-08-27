@@ -122,7 +122,13 @@ function NewEventForm() {
   // Mecz na zamkniętą ekipę albo halę opłaconą z góry rezerwy nie potrzebuje,
   // a „zapisałem się na listę" wymagało od organizatora tłumaczenia. Istniejące
   // mecze zachowują rezerwę (`reserve_enabled` DEFAULT true w migracji `123`).
-  const [reserveEnabled, setReserveEnabled] = useState(false);
+  // DOMYŚLNIE WŁĄCZONA — decyzja właściciela. Migracja `124` dała kolumnie
+  // `DEFAULT true`, strona edycji startuje z `true` i mapper w `lib/events.ts`
+  // czyta `?? true`; kreator był jedynym miejscem, które robiło inaczej, więc
+  // KAŻDY nowy mecz powstawał bez rezerwy wbrew reszcie systemu. Rezerwa jest
+  // zachowaniem, którego organizator się spodziewa: przy komplecie kolejni
+  // czekają w kolejce, zamiast odbić się od zamkniętego meczu.
+  const [reserveEnabled, setReserveEnabled] = useState(true);
   // Tryb miejsc dla bramkarzy (migracja `077`). Wartość ma znaczenie tylko
   // wtedy, gdy `goalkeepersEnabled` jest włączone.
   const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
@@ -326,7 +332,7 @@ function NewEventForm() {
         setGoalkeepersEnabled(v.goalkeepersEnabled ?? false);
         setSlotyZarezerwowane(v.slotyZarezerwowane ?? true);
         setReserveClaimMinutes(v.reserveClaimMinutes);
-        setReserveEnabled(v.reserveEnabled ?? false);
+        setReserveEnabled(v.reserveEnabled ?? true);
         setTitle(v.title);
         setDescription(v.description);
         setDescriptionEnabled(v.descriptionEnabled);
@@ -940,13 +946,19 @@ function NewEventForm() {
                 reserveEnabled={reserveEnabled}
               />
 
-              {/* TRZY PRZEŁĄCZNIKI, WSZYSTKIE DOMYŚLNIE WYŁĄCZONE.
+              {/* PRZEŁĄCZNIKI ZAMIAST ŚCIANY USTAWIEŃ.
                   Krok pierwszy niósł wcześniej kilkanaście kontrolek naraz —
                   czas na decyzję z rezerwy, koszt, metody płatności, tryby
                   miejsc dla bramkarzy — z których typowy mecz nie potrzebuje
                   ani jednej. Teraz każda grupa ustawień pojawia się DOPIERO po
                   włączeniu tego, czego dotyczy, a podpis mówi, co się stanie,
-                  zanim ktokolwiek włączy. */}
+                  zanim ktokolwiek włączy.
+
+                  WYJĄTEK: „Lista rezerwowa" startuje WŁĄCZONA. Pozostałe dwa
+                  przełączniki dokładają zachowanie, którego domyślnie nie ma
+                  (mecz płatny, podział na bramkarzy); rezerwa jest odwrotnie —
+                  to zachowanie domyślne w całej reszcie systemu (`DEFAULT true`
+                  w migracji `124`), a przełącznik służy do jej WYŁĄCZENIA. */}
               <div className="space-y-3">
                 <OpcjaMeczu
                   tytul="Lista rezerwowa"
@@ -1051,6 +1063,7 @@ function NewEventForm() {
                       setGoalkeepersEnabled={setGoalkeepersEnabled}
                       slotyZarezerwowane={slotyZarezerwowane}
                       setSlotyZarezerwowane={setSlotyZarezerwowane}
+                      wPrzelaczniku
                     />
                   </OpcjaMeczu>
                 )}
