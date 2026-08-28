@@ -10,10 +10,10 @@ import { useAuth } from '@/lib/auth';
 import { getMyParticipatedEvents, getMyActiveEventIds, getMyGroupEvents, type MyEventRelation } from '@/lib/events';
 import { isUpcoming } from '@/lib/eventDates';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
-import { splitMyEvents, type MyEventRow } from '@/lib/myEvents';
+import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection, needsPlayers } from '@/components/home/dashboard/DashboardSections';
+import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
 import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
@@ -173,22 +173,6 @@ function MojeGryContent() {
   // playing stay together in one list — both are "your match".
   const { upcoming, history, playing, observing } = splitMyEvents(items);
 
-  // JEDEN FILTR, JEDNA LISTA. Zawęża tę samą listę moich meczów zamiast
-  // robić jej drugą kopię — i to on zastąpił sekcję „Brakuje graczy".
-  // Pytanie organizatora („na który mecz nie zbiera się skład") zostaje więc
-  // odpowiedziane, bez pokazywania tego samego meczu dwa razy na ekranie.
-  //
-  // Filtra „nieprzeczytane" tu NIE MA (decyzja z 2026-08-24). Nieprzeczytane
-  // wiadomości mają w tej apce własne, mocniejsze wejście — zakładkę
-  // „Rozmowy" w dolnej nawigacji z chmurką — a różowa plakietka na karcie
-  // i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście robił z tego
-  // trzecią drogę do tej samej informacji.
-  const [onlyBrakuje, setOnlyBrakuje] = useState(false);
-  const przechodziFiltry = (row: MyEventRow) => !onlyBrakuje || needsPlayers(row);
-
-  const upcomingWidoczne = upcoming.filter(przechodziFiltry);
-  const jestBrakujacych = upcoming.some(needsPlayers);
-
   // TRZY KUBEŁKI WG RELACJI, nie jeden wyróżniony mecz na górze (zgłoszone
   // wprost: „bez sensu jest ten jeden osobny najbliższy mecz"). Przy podziale
   // na „Grasz" / „Organizujesz" pierwszy element pierwszej sekcji I TAK jest
@@ -197,37 +181,13 @@ function MojeGryContent() {
   //
   // Podstawą jest `playing` (czyli `upcoming` bez obserwowanych, bo te mają
   // własną zakładkę). Kubełki są ROZŁĄCZNE i razem pokrywają całość:
-  const graszWidoczne = playing.filter((r) => przechodziFiltry(r) && r.relation.status === 'playing');
-  const organizujeszWidoczne = playing.filter((r) =>
-    przechodziFiltry(r) && r.relation.isOrganizer && r.relation.status !== 'playing');
+  const graszWidoczne = playing.filter((r) => r.relation.status === 'playing');
+  const organizujeszWidoczne = playing.filter((r) => r.relation.isOrganizer && r.relation.status !== 'playing');
   // Reszta: rezerwa i czekanie na akceptację na CUDZYM meczu. Osobna sekcja,
   // bo „Grasz" byłoby nieprawdą (nie masz miejsca w składzie), a wrzucenie ich
   // pod „Organizujesz" jest bez sensu. Pokazuje się tylko wtedy, gdy jest co
   // pokazać — u większości ludzi nie będzie jej nigdy.
-  const pozostaleWidoczne = playing.filter((r) =>
-    przechodziFiltry(r) && r.relation.status !== 'playing' && !r.relation.isOrganizer);
-
-  // Rząd filtrów nad listą — stałe miejsce. Poprzednia wersja doczepiała
-  // ikonkę filtra do nagłówka sekcji „Brakuje graczy", a gdy ta sekcja była
-  // pusta, przeskakiwała na „Najbliższy mecz", a gdy i ta była pusta —
-  // rezerwowała pusty wiersz tylko dla siebie. Trzy miejsca postoju zniknęły
-  // razem z tamtą sekcją: filtr ma jedno miejsce, zawsze to samo.
-  const filtry = jestBrakujacych ? (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setOnlyBrakuje((v) => !v)}
-        aria-pressed={onlyBrakuje}
-        className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-          onlyBrakuje
-            ? 'border-slate-700 bg-slate-700 text-white'
-            : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-        }`}
-      >
-        Brakuje graczy
-      </button>
-    </div>
-  ) : null;
+  const pozostaleWidoczne = playing.filter((r) => r.relation.status !== 'playing' && !r.relation.isOrganizer);
 
   if (!authLoading && !user) {
     return (
@@ -349,38 +309,33 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
-            {filtry}
-            {upcomingWidoczne.length === 0 && onlyBrakuje ? (
-              <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                Żaden z nadchodzących meczów nie pasuje do tego filtra.
-              </p>
-            ) : (
-              <>
-                <MyMatchesSection
-                  items={graszWidoczne}
-                  title="Grasz"
-                  limit={null}
-                  href={null}
-                  unreadByEvent={unreadByEvent}
-                />
-                <MyMatchesSection
-                  items={organizujeszWidoczne}
-                  title="Organizujesz"
-                  subtitle="Twoje mecze, w których sam nie grasz"
-                  limit={null}
-                  href={null}
-                  unreadByEvent={unreadByEvent}
-                />
-                <MyMatchesSection
-                  items={pozostaleWidoczne}
-                  title="Rezerwa i oczekujące"
-                  limit={null}
-                  href={null}
-                  unreadByEvent={unreadByEvent}
-                />
-                {playing.length === 0 && <PustyStanMeczow />}
-              </>
-            )}
+            {/* „Grasz" ma nagłówek NA STAŁE (zgłoszone wprost 2026-08-28) —
+                zamiast znikać przy pustej liście, jak reszta sekcji na tej
+                stronie, pokazuje pusty stan z CTA. To jedyne miejsce, gdzie
+                gracz w ogóle dowiaduje się, że nic nie ma zaplanowane. */}
+            <MyMatchesSection
+              items={graszWidoczne}
+              title="Grasz"
+              limit={null}
+              href={null}
+              unreadByEvent={unreadByEvent}
+              emptyState={<PustyStanMeczow />}
+            />
+            <MyMatchesSection
+              items={organizujeszWidoczne}
+              title="Organizujesz"
+              subtitle="Twoje mecze, w których sam nie grasz"
+              limit={null}
+              href={null}
+              unreadByEvent={unreadByEvent}
+            />
+            <MyMatchesSection
+              items={pozostaleWidoczne}
+              title="Rezerwa i oczekujące"
+              limit={null}
+              href={null}
+              unreadByEvent={unreadByEvent}
+            />
             {/* Mecze ekipy, w których jeszcze mnie nie ma — POD moimi meczami,
                 bo najpierw odpowiadamy „co mam zaklepane", a dopiero potem
                 „gdzie mógłbym dojść". Sekcja sama się chowa, gdy nie ma czego
