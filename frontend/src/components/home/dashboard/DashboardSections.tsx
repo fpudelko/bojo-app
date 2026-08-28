@@ -87,13 +87,26 @@ export function InvitesSection({ invites, statusFor, href, limit = 3 }: {
  *  + link do /moje-gry) dla `/grupy/[id]`; `/moje-gry` podaje
  *  `limit={null} href={null}`, bo pokazuje pełną listę i nie linkuje do
  *  samego siebie. */
-export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', subtitle, limit = 2, href = '/moje-gry', unreadByEvent }: {
+export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', subtitle, limit = 2, href = '/moje-gry', unreadByEvent, emptyState }: {
   items: MyEventRow[]; title?: string; subtitle?: string;
   limit?: number | null; href?: string | null;
   /** Nieprzeczytane wiadomości per mecz — patrz `unreadMessages` na `EventBrowseCard`. */
   unreadByEvent?: Record<string, number>;
+  /** Gdy podane, sekcja NIE znika przy pustej liście — nagłówek zostaje
+   *  na stałe, a zamiast kart pokazuje się to. Bez tego propa puste `items`
+   *  nadal oznacza `null` (Organizujesz/Rezerwa mają znikać, gdy nie ma czego
+   *  pokazać — tylko „Grasz" na `/moje-gry` ma być zawsze widoczna). */
+  emptyState?: React.ReactNode;
 }) {
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    if (!emptyState) return null;
+    return (
+      <div>
+        <SectionHeader title={title} subtitle={subtitle} href={href ?? undefined} />
+        {emptyState}
+      </div>
+    );
+  }
   const shown = limit != null ? items.slice(0, limit) : items;
   return (
     <div>
@@ -157,17 +170,6 @@ export function NastepneEdycjeSection({ pozycje }: {
 function formatujTermin(data: string): string {
   const [y, m, d] = data.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
-
-/** Czy ten mecz liczy się jako „brakuje graczy". Reguła siedzi tu, a nie
- *  w `/moje-gry`, bo strona potrzebuje jej DWA razy: raz do filtrowania
- *  listy chipem „Brakuje graczy", raz do decyzji, czy ten chip w ogóle ma
- *  się pokazać. */
-export function needsPlayers({ event, relation }: MyEventRow): boolean {
-  return relation.isOrganizer
-    && (event.maxPlayers ?? 0) > 0
-    && (event.participantsCount ?? 0) < (event.maxPlayers ?? 0);
 }
 
 

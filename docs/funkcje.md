@@ -467,16 +467,16 @@ ustawiany przy KAŻDYM wejściu na stronę ekipy, niezależnie od zakładki — 
 `kluczTablicaWidziano()`, bo odpowiada na inne pytanie). Sama kropka, bez licznika — karta
 listy grup ma być czytelna na pierwszy rzut oka, nie kolejnym miejscem do liczenia.
 
-**Filtr na `/moje-gry`.** Jeden chip w stałym rzędzie nad listą: „Brakuje graczy".
-Pokazuje się tylko wtedy, gdy ma co filtrować, i zawęża tę samą, jedyną listę meczów
-(`przechodziFiltry` w `app/moje-gry/page.tsx`) — zamiast mnożyć sekcje.
+**Filtra na `/moje-gry` NIE MA** (usunięty 2026-08-28, zgłoszone wprost: „tam
+z założenia nie będzie za dużo meczów więc filtr niepotrzebny"). Chip „Brakuje graczy"
+zawężał listę, ale przy niewielkiej liczbie meczów na tej zakładce sam był rozwiązaniem
+problemu, którego praktycznie nie ma — plakietka „N wolne miejsca" na karcie już mówi to
+samo. `needsPlayers()` (`DashboardSections.tsx`) i cała logika `przechodziFiltry` zostały
+usunięte razem z nim.
 
 **Filtra „nieprzeczytane" tu NIE MA** (decyzja z 2026-08-24). Nieprzeczytane wiadomości
 mają własne, mocniejsze wejście — zakładkę „Rozmowy" w dolnej nawigacji z chmurką —
-a różowa plakietka na karcie i tak mówi, w którym meczu ktoś pisał. Filtr na tej liście
-robił z tego trzecią drogę do tej samej informacji. Wcześniej jego ikonka wędrowała
-między **trzema miejscami postoju** (nagłówek „Brakuje graczy" → „Najbliższy mecz" →
-pusty wiersz jako ostateczność), bo doczepiała się do sekcji, która bywała pusta.
+a różowa plakietka na karcie i tak mówi, w którym meczu ktoś pisał.
 
 ---
 
@@ -942,7 +942,7 @@ Reguła, która to porządkuje:
 
 **Kolejność i podział wg RELACJI do meczu** (2026-08-24, zgłoszone wprost:
 „najbardziej intuicyjny podział"): `InvitesSection` (limit 3, link do zakładki
-„Zaproszenia") → rząd filtrów → **Grasz** → **Organizujesz** → **Rezerwa
+„Zaproszenia") → **Grasz** → **Organizujesz** → **Rezerwa
 i oczekujące** → `GroupGamesSection` („Możesz dołączyć").
 
 Trzy środkowe sekcje to ten sam `MyMatchesSection` z podmienianym `title`, karmiony
@@ -958,21 +958,25 @@ mają własną zakładkę):
 Kubełki są rozłączne i razem pokrywają całe `playing`, więc żaden mecz nie może wypaść
 z listy przy zmianie statusu.
 
+**„Grasz" jest jedyną z trzech sekcją, która NIE znika przy pustej liście** (2026-08-28,
+zgłoszone wprost: „niech będzie na stałe «grasz»"). `MyMatchesSection` dostał opcjonalny
+prop `emptyState` — gdy podany, nagłówek zostaje widoczny, a zamiast kart renderuje się
+przekazana treść zamiast `null`. Na `/moje-gry` to `PustyStanMeczow` (patrz niżej):
+„Organizujesz" i „Rezerwa i oczekujące" propa nie dostają, więc nadal chowają się same,
+gdy nie mają czego pokazać.
+
 **Karty-hero „NAJBLIŻSZY MECZ" nie ma** (zgłoszone wprost: „bez sensu jest ten jeden
 osobny najbliższy mecz"). Przy podziale na „Grasz"/„Organizujesz" pierwszy element
 pierwszej sekcji I TAK jest meczem najbliższym w czasie — `splitMyEvents` sortuje
 rosnąco po terminie — więc osobny nagłówek nad nim powtarzał to, co lista mówi sama.
-Z dawnego `NextMatchCard` został wyłącznie pusty stan, jako `PustyStanMeczow`.
+Z dawnego `NextMatchCard` został wyłącznie pusty stan, jako `PustyStanMeczow` — dziś
+renderowany jako `emptyState` sekcji „Grasz" (patrz wyżej), gdy `graszWidoczne` jest puste.
 
-`PendingRequestsSection` i `NeedsPlayersSection` **nie istnieją**. Ich rolę przejęły:
-
-- plakietka `odznakiOrganizatora` na `EventBrowseCard` — „N próśb" (niebieska, bo
-  AGENTS.md rezerwuje niebieski dla „wymaga akceptacji uczestnictwa"; wypiera ogólne
-  „Wymaga akceptacji", więc rząd tytułu niesie tyle samo plakietek co zawsze). Opt-in
-  propem, bo poza `/moje-gry` ta liczba nie ma komu służyć;
-- **chip filtrujący** „Brakuje graczy" nad listą. Zawęża tę samą listę zamiast robić
-  jej drugą kopię, więc pytanie organizatora („na który mecz nie zbiera się skład")
-  nadal ma odpowiedź. Pokazuje się tylko wtedy, gdy ma co filtrować.
+`PendingRequestsSection` i `NeedsPlayersSection` **nie istnieją**. Ich rolę przejęła
+plakietka `odznakiOrganizatora` na `EventBrowseCard` — „N próśb" (niebieska, bo
+AGENTS.md rezerwuje niebieski dla „wymaga akceptacji uczestnictwa"; wypiera ogólne
+„Wymaga akceptacji", więc rząd tytułu niesie tyle samo plakietek co zawsze). Opt-in
+propem, bo poza `/moje-gry` ta liczba nie ma komu służyć.
 
 Plakietki „brakuje N" **nie ma i nie było jej sensu dokładać**: karta mówi to samo już
 trzy razy — paskiem postępu, licznikiem „7/10 graczy" i bursztynową plakietką
