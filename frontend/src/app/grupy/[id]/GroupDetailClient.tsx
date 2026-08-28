@@ -95,15 +95,43 @@ export default function GroupDetailClient() {
   // członkostwo dokłada `rozmowaPelnoekranowa` niżej.
   const oknoCzatu = useOknoCzatu(tab === 'tablica');
 
+  // ZEJŚCIE Z DOMYŚLNEJ ZAKŁADKI („Mecze") DOKŁADA JEDEN WPIS DO HISTORII —
+  // reszta przełączeń (w tym swipe) dalej idzie przez `replaceState`. Ten sam
+  // mechanizm i to samo uzasadnienie co w `EventDetailClient.tsx`
+  // (`goToTab`/`zakladkaOdeszlaOdSkladu`) — tu jest to samo źródło błędu:
+  // `replaceState` nigdy nie dokładał wpisu, więc systemowe „wstecz" z
+  // Tablicy nie miało dokąd wrócić w obrębie tej strony.
+  const zakladkaOdeszlaOdDomyslnej = useRef(false);
   const goToTab = (t: Tab) => {
+    if (t === tab) return;
+    const startZDomyslnej = tab === 'mecze';
     setTab(t);
     const sp = new URLSearchParams(window.location.search);
     const p = tabParam(t);
     if (p) sp.set('tab', p); else sp.delete('tab');
     sp.delete('dolacz'); sp.delete('od'); sp.delete('join'); sp.delete('kod');
     const qs = sp.toString();
-    window.history.replaceState(null, '', `/grupy/${id}${qs ? `?${qs}` : ''}`);
+    const url = `/grupy/${id}${qs ? `?${qs}` : ''}`;
+    if (startZDomyslnej && !zakladkaOdeszlaOdDomyslnej.current) {
+      zakladkaOdeszlaOdDomyslnej.current = true;
+      window.history.pushState(null, '', url);
+    } else {
+      window.history.replaceState(null, '', url);
+    }
   };
+
+  // Jak w `EventDetailClient.tsx`: bez słuchacza `tab` nie odświeży się po
+  // systemowym „wstecz"/„dalej" i adres rozjedzie się z widoczną zakładką.
+  useEffect(() => {
+    const naPopstate = () => {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      const nowy: Tab = t === 'tablica' || t === 'sklad' || t === 'staty' ? t : 'mecze';
+      if (nowy === 'mecze') zakladkaOdeszlaOdDomyslnej.current = false;
+      setTab(nowy);
+    };
+    window.addEventListener('popstate', naPopstate);
+    return () => window.removeEventListener('popstate', naPopstate);
+  }, []);
   // „Ustawienia" na końcu paska jest linkiem do /edytuj, nie zakładką stanu
   // `tab` — nie wchodzi do listy swipe'owej.
   const gestSwipe = useSwipeZakladek(TABS.map((t) => t.value), tab, goToTab);
