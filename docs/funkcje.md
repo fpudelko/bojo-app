@@ -1789,6 +1789,29 @@ etykiety „Rozmowa", żeby nie psuć zapisanych linków), ale przez
 dynamiczna — każde `router.replace` byłoby round-tripem po dane z serwera (łącznie
 z `generateMetadata`), przez co adres w praktyce w ogóle się nie zmieniał.
 
+**Pierwsze zejście z zakładki domyślnej dokłada JEDEN wpis do historii — od
+2026-08-28.** Zgłoszone wprost, z sesji QA, dla `/wydarzenia/[id]`: „wejdź na
+mecz → zakładka Rozmowa → systemowe wstecz. Jest: pusta strona (about:blank).
+Powinno: powrót do zakładki Mecz." `replaceState` NIGDY nie dokłada wpisu do
+historii — nadpisuje bieżący — więc kliknięcie zakładki nie zostawiało śladu
+„byłem na domyślnej" i systemowe „wstecz" szło o wpis DALEJ, niż użytkownik
+naprawdę wszedł. Ten sam kod (`goToTab`/`replaceState`) siedzi w obu miejscach,
+więc ten sam błąd dotyczył też `/grupy/[id]`.
+
+Naprawa: `goToTab()` sprawdza, czy WŁAŚNIE opuszcza zakładkę domyślną
+(„Mecz"/„Mecze") — jeśli tak i jeszcze nie zrobił tego w tej wizycie, robi
+JEDNORAZOWY `pushState` (znacznik w `useRef`, resetowany dopiero powrotem na
+domyślną). Wszystkie kolejne przełączenia — w tym swipe między zakładkami —
+dalej idą przez `replaceState`, żeby szybkie przewijanie nie zasypało historii
+dziesiątkami wpisów. Osobny słuchacz `popstate` synchronizuje widoczną
+zakładkę z adresem, gdy ten jeden wpis zostanie użyty — bez niego adres
+wracał do zakładki domyślnej, a widoczna treść zostawała bez zmian aż do
+odświeżenia.
+
+Pilnuje tego `e2e/rozmowa-wstecz.klikalnosc.spec.ts` (`/wydarzenia/[id]`;
+`/grupy/[id]` ma identyczny mechanizm, bez osobnego testu — ten sam kod,
+ta sama naprawa).
+
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
 
@@ -2191,6 +2214,40 @@ się wysłać linkiem. Konsekwencje wyboru:
 
 Pilnuje tego `e2e/filtr-miejscowosci.klikalnosc.spec.ts` (geokoder podstawiony
 `page.route()`, żeby scenariusz nie zależał od cudzego serwera).
+
+**Trzy poprawki z sesji QA (2026-08-28), wszystkie w widoku „Lista" po
+`/mapa` → „Obiekty" → „Lista"** — czyli mapa NIGDY nie dostaje realnego
+rozmiaru (montuje się od razu z `display:none`, bo `widok` startuje jako
+'lista' w trybie gier i przełącznik „Obiekty" tego nie zmienia):
+
+- **Licznik nad listą pokazywał „0 boisk" nad pełną listą.** Liczył z
+  `wKadrze` — sumą skupisk z KADRU MAPY — a lista renderowała się z zupełnie
+  innego źródła (`listaStartowa`/`listaWokolMiejscowosci`, patrz sekcja
+  „Pusta lista" niżej). Skoro mapa nigdy nie dostaje kadru, skupiska nigdy
+  się nie liczą, a lista i tak ma treść. Dziś licznik nad listą i podgląd
+  „Pokaż N boisk" w arkuszu liczą z `fields.length` — z tego samego źródła,
+  co karty pod spodem. `wKadrze` zostaje wyłącznie dla nakładki NAD SAMĄ
+  MAPĄ („N boisk w tym widoku"), gdzie „w tym widoku" naprawdę znaczy kadr
+  Leafleta.
+- **Po wybraniu miejscowości lista bywała (pozornie) pusta, dopóki ktoś nie
+  przełączył Mapa→Lista.** Sprawdzone: mapa ukryta nie aktualizuje kadru
+  wcale (Leaflet nie odpala `moveend`/`zoomend` na niezaładowanym
+  kontenerze), więc `listaWokolMiejscowosci` i tak dociąga się poprawnie,
+  własnym zapytaniem, bez udziału mapy. Prawdziwa przyczyna: W TRAKCIE tego
+  zapytania `fields` spada na `listaStartowa` (STARĄ okolicę), która po
+  przefiltrowaniu do nowo wybranego sportu/typu często wychodzi na zero —
+  i wtedy renderował się pusty stan z przyciskami „Pokaż blisko mnie"/
+  „Przybliż", nie na temat tuż po wybraniu konkretnego miejsca. Dziś ten
+  ułamek sekundy ma własny stan — „Szukam w okolicy: «nazwa»…” — zamiast
+  pustego stanu, który sugerował trwałą usterkę.
+- `KadrObserwator` dostał przy okazji osłonę na kontener mniejszy niż 80×80
+  (ten sam wzorzec co `GamesMarkersLayer.dopasujKadr`) — defensywne
+  dociągnięcie do reszty kodu, nie mechanizm naprawiający punkt wyżej.
+
+Pilnuje tego `e2e/mapa-licznik-i-miejscowosc-lista.klikalnosc.spec.ts`
+(druga naprawa sprawdzona z celowo OPÓŹNIONĄ odpowiedzią sieciową — inaczej
+zapytanie zawsze się kiedyś kończy i test przechodziłby również z regresją,
+zanim ktokolwiek zobaczyłby mylący pusty stan).
 
 **Powrót ze strony boiska wraca na ten sam obiekt.** Karta „Zobacz boisko" (`VenueCard`)
 linkuje do czystego `/boisko/<slug>` (bez parametrów) i przy kliknięciu zapamiętuje cel

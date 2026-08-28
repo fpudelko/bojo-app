@@ -22,6 +22,20 @@ export default function KadrObserwator({ onZmiana, opoznienieMs = 350 }: {
 
   useEffect(() => {
     const zglos = () => {
+      // Kontener 0×0 (mapa zamontowana z `display:none` pod widokiem „Lista")
+      // daje ZDEGENEROWANY prostokąt — oba rogi ekranu przeliczają się na ten
+      // sam punkt geograficzny. Zgłoszenie takiego kadru zatruwa dane dalej:
+      // zapytanie o obiekty w promieniu zera stopni wraca puste, więc lista
+      // i licznik nagle pokazują „0", choć w realnym kadrze jest ich tysiące.
+      // Ten sam wzorzec co w `GamesMarkersLayer.dopasujKadr()`.
+      //
+      // Pominięcie zgłoszenia nie zostawia dziury: `pokazWokol()` (lista
+      // startowa / okolica wybranej miejscowości) nie zależy od kadru mapy,
+      // więc lista i tak się wypełnia. Gdy mapa naprawdę dostanie rozmiar
+      // (przełączenie na widok „Mapa" wywołuje `invalidateSize()`), Leaflet
+      // sam odpala `moveend` i kadr dociera tu poprawnie.
+      const rozmiar = map.getSize();
+      if (rozmiar.x < 80 || rozmiar.y < 80) return;
       const b = map.getBounds();
       onZmiana(
         {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -441,14 +441,55 @@ export default function EventDetailClient() {
   // rozmowy; sam pomiar jest tani i nikomu nie szkodzi.
   const oknoCzatu = useOknoCzatu(tab === 'rozmowa');
 
+  // ZEJŚCIE ZE „SKŁADU" DOKŁADA JEDEN WPIS DO HISTORII — reszta przełączeń
+  // (w tym swipe między zakładkami) dalej idzie przez `replaceState`.
+  //
+  // Zgłoszone wprost: „wstecz z rozmowy meczu wyrzuca z aplikacji" — pusta
+  // `about:blank`, bo `replaceState` (poprzedni kod) NIGDY nie dokładał wpisu
+  // do historii, więc systemowe „wstecz" z zakładki Rozmowa nie miało dokąd
+  // wrócić w obrębie tej strony i szło o wpis DALEJ, niż użytkownik wszedł.
+  //
+  // Dlaczego nie `pushState` na KAŻDą zmianę: swipe między czterema
+  // zakładkami zasypałby historię czterema wpisami, a każdy kolejny krok
+  // „wstecz" cofałby o jedną zakładkę zamiast wyjść ze strony. Jeden wpis —
+  // dokładnie tam, gdzie zaczyna się odejście od Składu — daje systemowemu
+  // „wstecz" dokładnie jeden, przewidywalny cel: powrót do Składu.
+  const zakladkaOdeszlaOdSkladu = useRef(false);
   const goToTab = (t: EventTab) => {
+    if (t === tab) return;
+    const startZeSkladu = tab === 'sklad';
     setTab(t);
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
     if (t === 'sklad') sp.delete('tab'); else sp.set('tab', t);
     const qs = sp.toString();
-    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
+    if (startZeSkladu && !zakladkaOdeszlaOdSkladu.current) {
+      zakladkaOdeszlaOdSkladu.current = true;
+      window.history.pushState(null, '', url);
+    } else {
+      window.history.replaceState(null, '', url);
+    }
   };
+
+  // „Wstecz"/„dalej" przeglądarki zmienia adres, ale `tab` żyje w Reakcie
+  // i bez słuchacza nie odświeży się sam — pasek adresu i widoczna zakładka
+  // rozjechałyby się po jednym systemowym „wstecz". Powrót na Skład zeruje
+  // znacznik z `goToTab` wyżej, żeby kolejne zejście z niego znów dostało
+  // swój jeden wpis w historii.
+  useEffect(() => {
+    const naPopstate = () => {
+      if (typeof window === 'undefined') return;
+      const t = new URLSearchParams(window.location.search).get('tab');
+      const nowy: EventTab =
+        t === 'taktyka' || t === 'rozmowa' || t === 'wynik' || t === 'rozliczenia' || t === 'ustawienia'
+          ? t : 'sklad';
+      if (nowy === 'sklad') zakladkaOdeszlaOdSkladu.current = false;
+      setTab(nowy);
+    };
+    window.addEventListener('popstate', naPopstate);
+    return () => window.removeEventListener('popstate', naPopstate);
+  }, []);
 
   // Nieprzeczytane wiadomości w rozmowie — wzorem `/grupy/[id]`
   // (GroupDetailClient). RLS na `event_comments` i tak zwróci pustkę temu, kto

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-08-27 · migracja `126` · 53 tabele
+**Stan na:** 2026-08-28 · migracja `126` · 53 tabele
 
 ---
 
@@ -346,6 +346,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-28 — Trzy błędy z sesji QA: licznik obiektów, pusta lista po filtrze miejscowości, wstecz z rozmowy
+
+PROBLEM: Manualna sesja QA na produkcji (mobile 360px + desktop, jasny/ciemny) znalazła
+trzy usterki po wcześniejszych zmianach mapy z 27 sierpnia. Wszystkie trzy dotyczyły
+widoku „Lista" po `/mapa` → „Obiekty" → „Lista" — ścieżki, w której mapa Leaflet NIGDY
+nie dostaje realnego rozmiaru (montuje się z `display:none`, bo widok startuje jako
+„Lista" w domyślnym trybie Gry, a przełącznik „Obiekty" tego nie zmienia). Osobno:
+systemowe „wstecz" z zakładki „Rozmowa" na stronie meczu wyrzucało z aplikacji zamiast
+wracać do zakładki „Mecz".
+
+ROZWIĄZANIE BOJO: (1) Licznik nad listą obiektów i podgląd „Pokaż N boisk" w arkuszu
+filtrów liczą dziś z `fields.length` — z tego samego źródła, co karty listy pod spodem —
+zamiast z sumy skupisk policzonej z kadru mapy, który przy nigdy niepokazanej mapie
+zawsze wynosi zero. (2) Po wybraniu miejscowości w filtrze lista poprawnie dociąga dane
+WŁASNYM zapytaniem (niezależnym od mapy), ale w trakcie tego zapytania renderował się
+mylący pusty stan z przyciskami „Pokaż blisko mnie"/„Przybliż" — nie na temat tuż po
+wybraniu konkretnego miejsca. Ten ułamek sekundy ma dziś własny stan „Szukam w okolicy:
+«nazwa»…”. (3) Przełączanie zakładek na stronie meczu i ekipy zapisywało stan w adresie
+przez `history.replaceState`, który NIGDY nie dokłada wpisu do historii przeglądarki —
+pierwsze zejście z zakładki domyślnej dokłada dziś JEDEN wpis (`pushState`), więc
+systemowe „wstecz" wraca do zakładki, z której użytkownik wyszedł, zamiast opuszczać
+aplikację.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (licznik z `fields.length`, stan
+ładowania obok `PustaListaObiektow`), `components/map/KadrObserwator.tsx` (osłona na
+kontener mniejszy niż 80×80, ten sam wzorzec co `GamesMarkersLayer.dopasujKadr` —
+defensywna, nie naprawia punktu 2 wprost: zweryfikowane, że mapa ukryta nie zgłasza
+kadru wcale), `app/wydarzenia/[id]/EventDetailClient.tsx` i `app/grupy/[id]/
+GroupDetailClient.tsx` (`goToTab()` z jednorazowym `pushState` + słuchacz `popstate`).
+Bez migracji.
+
 ### 2026-08-27 — Filtr „miejscowość + ile km" i koniec znikających pinezek
 
 PROBLEM: Mapa Bojo gubiła pinezki. Lista startowa (okolica gracza, a bez zgody Poznania)
@@ -607,41 +638,3 @@ w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi f
 (`/auth/`, `/turniej`, `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`) wypadły ze
 skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
 `metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
-
-### 2026-08-23 — Kreator meczu: trzy przełączniki zamiast ściany ustawień
-
-PROBLEM: pierwszy krok kreatora Bojo pytał o termin, a drugi zsypywał w jedno miejsce
-liczbę miejsc, czas na decyzję z rezerwy, koszt, metody płatności, zniżkę karty sportowej
-i tryb miejsc dla bramkarzy. Typowy mecz — darmowy, bez rezerwy, bez podziału na
-bramkarzy — nie potrzebuje żadnego z tych ustawień, a i tak trzeba było przewinąć przez
-wszystkie. Liczba miejsc, czyli trzecia rzecz po „co" i „kiedy", stała wśród nich.
-
-ROZWIĄZANIE BOJO: krok „Kiedy" niesie termin, czas trwania i liczbę miejsc, a pod nimi
-trzy przełączniki — „Lista rezerwowa", „Mecz płatny", „Bramkarze osobno". Szczegóły
-każdego pojawiają się dopiero po włączeniu; wyłączenie „Mecz płatny" czyści kwotę
-i metody, zamiast je chować. Krok drugi to wyłącznie „Gdzie" (mapa i „Biorę udział"),
-krok trzeci „Dla kogo" (widoczność, akceptacja, ekipa, tytuł, opis). Publikacja
-przechodzi przez okno „Tak zobaczą to gracze" z podsumowaniem meczu — mecz jest widoczny
-natychmiast po utworzeniu, więc pomyłka w godzinie rozchodzi się szybciej, niż da się ją
-poprawić.
-
-STAN DOMYŚLNY PRZEŁĄCZNIKÓW (od 2026-08-27): „Lista rezerwowa" jest WŁĄCZONA, dwa
-pozostałe wyłączone. NOWY MECZ W BOJO MA WIĘC LISTĘ REZERWOWĄ: przy komplecie kolejni
-chętni czekają w kolejce, a organizator, który tego nie chce, wyłącza ją przełącznikiem
-(wtedy komplet zamyka zapisy). Wcześniej było odwrotnie i kreator był jedynym miejscem
-w Bojo, które tak robiło — kolumna `events.reserve_enabled` ma `DEFAULT true`, strona
-edycji i mapper czytają `?? true`.
-
-MIEJSCA DLA BRAMKARZY (od 2026-08-27): włączony przełącznik „Bramkarze osobno" pokazuje
-DWA tryby — „Rozróżniaj, ale nie rezerwuj miejsc" i „Rezerwuj miejsca dla bramkarzy".
-Trzeci tryb, „Bez podziału na role", jest dokładnie stanem WYŁĄCZONEGO przełącznika,
-więc w środku włączonego go nie ma; wcześniej dwie kontrolki odpowiadały na to samo
-pytanie i umiały się ze sobą nie zgadzać. Strona edycji meczu nie ma przełącznika
-(wszystkie ustawienia są tam równorzędne) i pokazuje wszystkie trzy tryby.
-
-MECHANIKA: `frontend/src/app/wydarzenia/nowe/page.tsx`;
-`frontend/src/components/events/OpcjaMeczu.tsx` (przełącznik montujący szczegóły, nie
-chowający ich CSS-em — ukryte pole nadal wysyła wartość);
-`EventCapacityFields.tsx` rozbity na `MiejscaWSkladzie`/`UstawieniaRezerwy`/
-`UstawieniaBramkarzy`; walidacja kosztu i bramkarzy przeniesiona na krok 1
-w `lib/eventWizard.ts`. Bez migracji.

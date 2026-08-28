@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
-  Check, CalendarCheck, CalendarPlus, MapPin, Globe, Search, SlidersHorizontal, Ticket,
+  Check, CalendarCheck, CalendarPlus, Loader2, MapPin, Globe, Search, SlidersHorizontal, Ticket,
   Wallet, X,
 } from 'lucide-react';
 import { TogglePill } from '@/components/ui/FilterPill';
@@ -1038,6 +1038,23 @@ export default function VenueExplorer({
     mapInstance.setView([miejscowosc.lat, miejscowosc.lng], z);
   }, [mapInstance, miejscowosc, promienKm]);
 
+  // Podgląd dla WERSJI ROBOCZEJ miejscowości w arkuszu filtrów — osobne
+  // zapytanie, bo bez niego nie ma skąd wziąć liczby dla miejsca, którego
+  // jeszcze nie zatwierdzono. Bez tego CTA arkusza liczyło z `wKadrze`
+  // (skupiska kadru mapy — 0, gdy user nigdy nie ruszył mapą) i pokazywało
+  // „Pokaż 0 boisk", mimo że po kliknięciu wchodziły dziesiątki wyników.
+  // Zgłoszone wprost. Tylko przy otwartym arkuszu — zapytanie o każdą
+  // podpowiedź w polu tekstowym byłoby zmarnowane.
+  const [listaDlaPodgladu, setListaDlaPodgladu] = useState<Field[] | null>(null);
+  useEffect(() => {
+    if (!sheetOpen || !draftMiejscowosc) { setListaDlaPodgladu(null); return; }
+    let anulowane = false;
+    getExplorerFields(kadrWokol(draftMiejscowosc.lat, draftMiejscowosc.lng, draftPromienKm))
+      .then((f) => { if (!anulowane) setListaDlaPodgladu(f); })
+      .catch(() => { if (!anulowane) setListaDlaPodgladu([]); });
+    return () => { anulowane = true; };
+  }, [sheetOpen, draftMiejscowosc, draftPromienKm]);
+
   const pokazBliskoMnie = async () => {
     setBladGeoListy(null);
     setLadujeBlisko(true);
@@ -1318,25 +1335,39 @@ export default function VenueExplorer({
         miejscowosc !== null].filter(Boolean).length
     : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday,
        miejscowosc !== null].filter(Boolean).length;
-  // W trybie skupisk (oddalona mapa) `allFields` jest zawsze puste — obiekty
-  // pobiera się dopiero po przybliżeniu (patrz komentarz przy `trybSkupisk`).
-  // Liczenie z pustej tablicy dawało zawsze „Pokaż 0 boisk", nawet gdy w
-  // kadrze realnie było ich tysiące. Typ obiektu/Nawierzchnia i tak nie mają
-  // efektu w tym trybie (nie ma per-obiektowego rozbicia w danych ze skupisk),
-  // więc podgląd pokazuje `wKadrze` — sumę z kółek, uwzględniającą już sport
-  // (jedyny filtr, który RPC `mapa_skupiska` faktycznie stosuje).
+  // Podgląd „Pokaż N boisk" w arkuszu filtrów — MUSI liczyć z tego samego
+  // źródła, co lista pod spodem po zatwierdzeniu, inaczej CTA obiecuje coś
+  // innego niż to, co się faktycznie pokaże (zgłoszone wprost: „Pokaż 0
+  // boisk", mimo że po zastosowaniu wchodziło 47 wyników).
+  //
+  // Trzy źródła, w kolejności pierwszeństwa:
+  //   1. `draftMiejscowosc` ustawiona w arkuszu → świeże zapytanie o TĘ
+  //      okolicę (`listaDlaPodgladu` wyżej) — nie o okolicę, która jeszcze
+  //      obowiązuje.
+  //   2. Bez miejscowości, w trybie skupisk → to samo źródło co `fields`:
+  //      okolica gracza/Poznania. Liczenie z `wKadrze` (skupiska kadru mapy)
+  //      było błędem po tej samej stronie — inny licznik niż to, co lista
+  //      naprawdę pokazuje.
+  //   3. Bez żadnego z powyższych → klasyczne przybliżenie/szukanie.
   //
   // `draftSports`, nie `sports`: sport jest teraz częścią tego samego arkusza
   // co Typ/Nawierzchnia, więc podgląd „Pokaż N" ma liczyć to, co user WŁAŚNIE
   // wybiera w arkuszu, nie to, co było zastosowane przed jego otwarciem.
   const previewFieldsCount = useMemo(() => {
-    if (trybSkupisk) return wKadrze;
-    let list = searchResults ?? allFields;
+    let list: Field[];
+    if (draftMiejscowosc) {
+      list = listaDlaPodgladu ?? [];
+    } else if (trybSkupisk) {
+      list = listaWokolMiejscowosci ?? listaStartowa ?? [];
+    } else {
+      list = searchResults ?? allFields;
+    }
     if (draftSports.length > 0) list = list.filter((f) => f.sport.some((s) => draftSports.includes(s)));
     if (draftTypes.length > 0) list = list.filter((f) => draftTypes.includes(f.venueType ?? ''));
     if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
     return list.length;
-  }, [trybSkupisk, wKadrze, allFields, searchResults, draftSports, draftTypes, draftSurfaces]);
+  }, [draftMiejscowosc, listaDlaPodgladu, trybSkupisk, listaWokolMiejscowosci, listaStartowa,
+      allFields, searchResults, draftSports, draftTypes, draftSurfaces]);
 
   const filtersModal = showGames ? (
     <FilterSheet
@@ -1606,19 +1637,23 @@ export default function VenueExplorer({
           )}
         </div>
 
-        {/* Licznik.
+        {/* Licznik nad listą = `fields.length`, ZAWSZE — licznik odpowiada na
+            pytanie „ile jest na liście pod spodem", nie „ile jest w kadrze
+            mapy". To dwa różne pytania od 2026-08-27: lista dostała fallback
+            na okolicę gracza/miejscowości (`listaStartowa`/
+            `listaWokolMiejscowosci`), więc bywa NIEPUSTA nawet w trybie
+            skupisk, gdzie kiedyś zawsze była pusta. Licznik dalej liczył
+            wtedy z `wKadrze` (suma skupisk z kadru mapy) — inne źródło niż
+            lista — więc pokazywał „0 boisk" nad w pełni załadowaną listą
+            kilkuset kart. Zgłoszone wprost.
 
-            `wKadrze`, nie `fields.length`: przy oddaleniu mapa pobiera SKUPISKA
-            zamiast pojedynczych obiektów, więc `allFields` jest wtedy celowo
-            puste (patrz efekt z `getExplorerClusters`). Licznik liczony z
-            `fields` pokazywał w tej sytuacji „0 boisk" nad listą, choć w kadrze
-            stoi ich kilka tysięcy — a mapa obok rysowała je poprawnie jako
-            kółka z liczbami. `wKadrze` sumuje skupiska, a poza trybem skupisk
-            jest po prostu równe `fields.length`. */}
+            `wKadrze` zostaje — używa go WYŁĄCZNIE nakładka nad samą mapą
+            („N boisk w tym widoku"), gdzie „w tym widoku" naprawdę znaczy
+            kadr Leafleta, nie listę obok. */}
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
           {showGames
             ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
-            : `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)}`}
+            : `${fields.length.toLocaleString('pl-PL')} ${boiskoSlowo(fields.length)}`}
         </div>
 
         {/* Scrollable list */}
@@ -1703,7 +1738,26 @@ export default function VenueExplorer({
                 przybliża instancję Leafleta do progu, przy którym pobierają
                 się pojedyncze obiekty, i lista wypełnia się bez wychodzenia
                 z listy. */}
-            {fields.length === 0 && trybSkupisk && (
+            {/* ŁADOWANIE OKOLICY WYBRANEJ MIEJSCOWOŚCI — osobna gałąź, PRZED
+                pustym stanem niżej. Zgłoszone wprost z sesji QA: „po
+                zastosowaniu filtrów lista jest pusta, dopóki nie przełączysz
+                Mapa→Lista". Lista NIE była trwale pusta — `listaWokolMiejscowosci`
+                dociąga się własnym zapytaniem i samo się aktualizuje, bez
+                dotykania przełącznika widoku. Prawdziwym błędem był ekran
+                w trakcie tego zapytania: `fields` w tym oknie spada na
+                `listaStartowa` (STARĄ okolicę — Poznania albo gracza), która po
+                przefiltrowaniu do nowo wybranego sportu/nawierzchni często
+                wychodzi na zero — i wtedy renderował się pusty stan Z
+                PRZYCISKAMI „Pokaż blisko mnie" / „Przybliż", zupełnie nie na
+                temat tuż po wybraniu konkretnej miejscowości. Wyglądało to na
+                trwałą usterkę, a było tylko chwilą bez informacji zwrotnej. */}
+            {fields.length === 0 && miejscowosc && listaWokolMiejscowosci === null && (
+              <div className="flex flex-col items-center gap-2 pt-8 text-slate-400">
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                <p className="text-sm">Szukam w okolicy: {miejscowosc.nazwa}…</p>
+              </div>
+            )}
+            {fields.length === 0 && trybSkupisk && !(miejscowosc && listaWokolMiejscowosci === null) && (
               <PustaListaObiektow
                 ladujeBlisko={ladujeBlisko}
                 bladGeo={bladGeoListy}
