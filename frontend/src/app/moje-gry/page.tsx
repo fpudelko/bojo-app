@@ -171,7 +171,7 @@ function MojeGryContent() {
   // calendar only shows games that are actually happening. Observing is split
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
   // playing stay together in one list — both are "your match".
-  const { upcoming, history, playing, observing } = splitMyEvents(items);
+  const { history, playing, observing } = splitMyEvents(items);
 
   // TRZY KUBEŁKI WG RELACJI, nie jeden wyróżniony mecz na górze (zgłoszone
   // wprost: „bez sensu jest ten jeden osobny najbliższy mecz"). Przy podziale
