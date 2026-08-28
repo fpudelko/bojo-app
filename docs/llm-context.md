@@ -346,6 +346,55 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-28 — Jeden pulpit zalogowanego, a w nim podział wg relacji do meczu
+
+PROBLEM: Bojo miało DWA ekrany na to samo pytanie „co i kiedy gram". Strona główna po
+zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia", „Najbliższy mecz"
+i „Twoje mecze" — tymi samymi, które ma zakładka „Mecze" (`/moje-gry`). Pulpit na „/"
+był przy tym POZA dolną nawigacją (pasek prowadzi na `/moje-gry`, `/mapa`, `/rozmowy`,
+`/grupy` i do kreatora), więc wchodziło się na niego wyłącznie przez logo. Ponad połowę
+jego długości zajmowały „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ
+konta, pokazywana komuś, kto ma już mecze i ekipy. Sama zakładka „Mecze" miała z kolei
+siedem sekcji, z czego trzy kroiły tę samą listę: mecz organizowany, bez kompletu
+i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY. Dokładała się do tego
+zakładka „Brakuje graczy" filtrująca tę samą, i tak krótką, listę.
+
+ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" — ta z dolnej nawigacji.
+Zalogowany, który wejdzie na „/", trafia na „Mecze"; landing na „/" nie zmienia się dla
+wylogowanych ani dla wyszukiwarek (nie mają ciasteczka sesji). Treść marketingowa ma
+własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
+
+Sama zakładka dzieli mecze WG RELACJI, bez wyróżnionej karty „najbliższy mecz" — przy
+takim podziale pierwszy element pierwszej sekcji i tak jest meczem najbliższym w czasie:
+
+- „Grasz" — jestem w składzie (także wtedy, gdy sam ten mecz organizuję),
+- „Organizujesz" — mój mecz, w którym sam nie gram,
+- „Rezerwa i oczekujące" — rezerwa i czekanie na akceptację na cudzym meczu; pokazuje
+  się tylko wtedy, gdy jest co pokazać,
+- „Możesz dołączyć" — mecze mojej ekipy, w których jeszcze mnie nie ma.
+
+Kubełki są rozłączne i razem pokrywają całość, więc żaden mecz nie wypada z listy przy
+zmianie statusu. Mecz, w którym naprawdę gram, ma CAŁĄ KARTĘ zieloną — nie tylko
+plakietkę w rogu. Filtrów nie ma żadnych (ani „Nieprzeczytane", ani „Brakuje graczy" —
+przy niewielkiej liczbie meczów na tej zakładce filtr sam był problemem, którego
+praktycznie nie ma, a plakietka „N wolnych miejsc" na karcie odpowiada na to samo
+pytanie bez kontrolki do nauczenia). „Grasz" jest jedyną z trzech sekcji, która NIE
+znika przy pustej liście — nagłówek zostaje na stałe, a zamiast kart pokazuje się pusty
+stan z zachętą do stworzenia albo znalezienia meczu; to jedyne miejsce, gdzie gracz
+w ogóle dowiaduje się, że nic nie ma zaplanowane.
+
+MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
+klienckie — serwerowej sesji nie ma, Supabase trzyma ją w `localStorage`, a
+ciasteczko-podpowiedź `lib/sessionHint.ts` służy tylko do wyboru kształtu pierwszej
+odpowiedzi). Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`, `NextMatchCard.tsx`
+(został z niego `PustyStanMeczow.tsx`), sekcje `OpenGamesSection`, `OnboardingSection`,
+`MyGroupsSection`, `ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`,
+`NeedsPlayersSection` oraz `needsPlayers()`. Kubełki liczy `app/moje-gry/page.tsx`
+z `playing` (czyli `upcoming` bez obserwowanych); zieleń karty i plakietkę „N próśb"
+rysuje `EventBrowseCard`. Pusty stan „Grasz" idzie przez nowy prop `emptyState` na
+`MyMatchesSection` (`components/home/dashboard/DashboardSections.tsx`) — gdy podany,
+nagłówek renderuje się mimo pustej listy zamiast całej sekcji znikającej (`return null`).
+
 ### 2026-08-27 — Filtr „miejscowość + ile km" i koniec znikających pinezek
 
 PROBLEM: Mapa Bojo gubiła pinezki. Lista startowa (okolica gracza, a bez zgody Poznania)
@@ -375,48 +424,6 @@ w `app/api/geocode/route.ts` (Nominatim, `featuretype=settlement`, pomijane dla 
 pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx`:
 rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
 `listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.
-
-### 2026-08-27 — Jeden pulpit zalogowanego, a w nim podział wg relacji do meczu
-
-PROBLEM: Bojo miało DWA ekrany na to samo pytanie „co i kiedy gram". Strona główna po
-zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia", „Najbliższy mecz"
-i „Twoje mecze" — tymi samymi, które ma zakładka „Mecze" (`/moje-gry`). Pulpit na „/"
-był przy tym POZA dolną nawigacją (pasek prowadzi na `/moje-gry`, `/mapa`, `/rozmowy`,
-`/grupy` i do kreatora), więc wchodziło się na niego wyłącznie przez logo. Ponad połowę
-jego długości zajmowały „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ
-konta, pokazywana komuś, kto ma już mecze i ekipy. Sama zakładka „Mecze" miała z kolei
-siedem sekcji, z czego trzy kroiły tę samą listę: mecz organizowany, bez kompletu
-i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY.
-
-ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" — ta z dolnej nawigacji.
-Zalogowany, który wejdzie na „/", trafia na „Mecze"; landing na „/" nie zmienia się dla
-wylogowanych ani dla wyszukiwarek (nie mają ciasteczka sesji). Treść marketingowa ma
-własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
-
-Sama zakładka dzieli mecze WG RELACJI, bez wyróżnionej karty „najbliższy mecz" — przy
-takim podziale pierwszy element pierwszej sekcji i tak jest meczem najbliższym w czasie:
-
-- „Grasz" — jestem w składzie (także wtedy, gdy sam ten mecz organizuję),
-- „Organizujesz" — mój mecz, w którym sam nie gram,
-- „Rezerwa i oczekujące" — rezerwa i czekanie na akceptację na cudzym meczu; pokazuje
-  się tylko wtedy, gdy jest co pokazać,
-- „Możesz dołączyć" — mecze mojej ekipy, w których jeszcze mnie nie ma.
-
-Kubełki są rozłączne i razem pokrywają całość, więc żaden mecz nie wypada z listy przy
-zmianie statusu. Mecz, w którym naprawdę gram, ma CAŁĄ KARTĘ zieloną — nie tylko
-plakietkę w rogu. Filtrów nie ma żadnych (ani „Nieprzeczytane", ani „Brakuje graczy" —
-oba usunięte, bo podział wg relacji i plakietka „N wolnych miejsc" na karcie odpowiadają
-na te same pytania bez kontrolek do nauczenia).
-
-MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
-klienckie — serwerowej sesji nie ma, Supabase trzyma ją w `localStorage`, a
-ciasteczko-podpowiedź `lib/sessionHint.ts` służy tylko do wyboru kształtu pierwszej
-odpowiedzi). Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`, `NextMatchCard.tsx`
-(został z niego `PustyStanMeczow.tsx`) oraz sekcje `OpenGamesSection`,
-`OnboardingSection`, `MyGroupsSection`, `ObservingSection`, `NextGroupMatchTeaser`,
-`PendingRequestsSection`, `NeedsPlayersSection`. Kubełki liczy `app/moje-gry/page.tsx`
-z `playing` (czyli `upcoming` bez obserwowanych); zieleń karty i plakietkę „N próśb"
-rysuje `EventBrowseCard`.
 
 ### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
 
