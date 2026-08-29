@@ -1318,6 +1318,21 @@ pomiarem" — pomiar dopiero się skończył):
   niż gdziekolwiek indziej (92–95 na pozostałych czterech stronach) — bez rozwiniętej
   listy audytów nie wiadomo, co konkretnie ciągnie wynik w dół.
 
+**Dopisek 2026-08-29** — właściciel rozwinął sekcję „Ułatwienia dostępu" na
+`/boiska/pilka-nozna` i wkleił pełny audyt. Pięć elementów z niewystarczającym
+kontrastem tekst/tło; policzone dokładnie formułą WCAG względnej luminancji, nie
+„na oko": stopka (nagłówki grup linków + `Prywatność`/`Regulamin`/`Zgłoś błąd`,
+3,75:1), plakietka „Wczesny etap" (4,34:1), licznik paginacji i etykiety sekcji na
+trzech hubach katalogu (2,45–2,56:1) — wszystkie poniżej progu AA 4,5:1. Naprawione
+w [PR #302](https://github.com/fpudelko/bojo-app/pull/302), jednym stopniem w skali
+Tailwinda, bez zmiany charakteru wizualnego. Dwa pozostałe znaleziska z tego samego
+audytu świadomie NIE naprawione, bo wymagają decyzji produktowej, nie mechanicznej
+poprawki koloru: linki rozróżnialne wyłącznie po kolorze (wzorzec `hover:underline`
+powtórzony w setkach linków w repo) i za małe pola dotykowe na listach miast/
+województw. **NIEZWERYFIKOWANE:** czy to wyczerpuje różnicę 86/87 vs 92–95 wyżej —
+audyt nie podał osobno wpływu każdego znaleziska na wynik zbiorczy, a strona nie
+została zmierzona ponownie po poprawce.
+
 **NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą z przeglądarki
 właściciela, nie z tej sesji — ta nie ma dostępu sieciowego do `bojo.pl` (rozdział 0)
 ani do `pagespeed.web.dev`, który blokuje ten sam adres tą samą polityką. Przyjęte

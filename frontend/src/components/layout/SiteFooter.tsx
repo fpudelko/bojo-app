@@ -14,7 +14,10 @@ import { HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 function GrupaLinkow({ tytul, children }: { tytul: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{tytul}</p>
+      {/* slate-500 na tym tle (slate-900) dawał 3.75:1 — poniżej progu WCAG AA
+          4.5:1. slate-400 (6.96:1) jest bezpieczny; hierarchia wobec linków
+          niżej trzyma się przez pogrubienie i wersaliki, nie kolor. */}
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{tytul}</p>
       <div className="mt-2.5 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
         {children}
       </div>
@@ -54,12 +57,12 @@ export default function SiteFooter() {
             <Link href="/dlaczego-bojo" className="transition-colors hover:text-white">Dlaczego Bojo</Link>
             <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>
             <Link href="/kalkulator-kosztow-boiska" className="transition-colors hover:text-white">Kalkulator kosztów</Link>
-            <Link href="/prywatnosc" className="text-slate-500 transition-colors hover:text-white">Prywatność</Link>
-            <Link href="/regulamin" className="text-slate-500 transition-colors hover:text-white">Regulamin</Link>
+            <Link href="/prywatnosc" className="transition-colors hover:text-white">Prywatność</Link>
+            <Link href="/regulamin" className="transition-colors hover:text-white">Regulamin</Link>
             {/* Zgłoszenie błędu musi być osiągalne z KAŻDEJ strony — awaria
                 rzadko zdarza się tam, gdzie akurat wisi przycisk. Stopka jest
                 jedynym miejscem, które jest wszędzie. */}
-            <Link href="/zglos-blad" className="text-slate-500 transition-colors hover:text-white">Zgłoś błąd</Link>
+            <Link href="/zglos-blad" className="transition-colors hover:text-white">Zgłoś błąd</Link>
           </GrupaLinkow>
         </div>
       </div>

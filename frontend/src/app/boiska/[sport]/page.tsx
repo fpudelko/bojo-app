@@ -197,7 +197,9 @@ export default async function SportCategoryPage(
               </Link>
             ) : <span />}
 
-            <span className="text-xs text-slate-400">{strona} z {stron}</span>
+            {/* slate-400 na białym dawał 2.45:1 — daleko poniżej WCAG AA 4.5:1.
+                slate-500 (4.76:1) jest bezpieczny. */}
+            <span className="text-xs text-slate-500">{strona} z {stron}</span>
 
             {strona < stron ? (
               <Link
@@ -248,11 +250,14 @@ export default async function SportCategoryPage(
             sportu był ślepym zaułkiem poza wejściem z sitemapa. Tylko strona 1
             — dalsze strony paginacji nie powinny powielać ten sam blok linków
             (D15: te strony są dziś self-canonical i bez noindex). */}
+        {/* Etykiety sekcji niżej: slate-400 na białym dawał 2.56:1 — poniżej
+            WCAG AA 4.5:1 (PageSpeed Insights, „Ułatwienia dostępu", 2026-08-29).
+            slate-500 (4.76:1) jest bezpieczny. */}
         {strona === 1 && (
           <div className="mt-10 border-t border-slate-200 pt-6 space-y-6">
             {miastaHuba.length > 0 && (
               <div>
-                <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Boiska do {entry.label} w miastach
                 </p>
                 <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
@@ -269,7 +274,7 @@ export default async function SportCategoryPage(
               </div>
             )}
             <div>
-              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Boiska do {entry.label} w województwach
               </p>
               <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">

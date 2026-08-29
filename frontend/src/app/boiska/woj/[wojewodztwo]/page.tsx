@@ -165,7 +165,9 @@ export default async function WojewodztwoPage(
               </Link>
             ) : <span />}
 
-            <span className="text-xs text-slate-400">{strona} z {stron}</span>
+            {/* slate-400 na białym dawał 2.45:1 — poniżej WCAG AA 4.5:1.
+                slate-500 (4.76:1) jest bezpieczny. */}
+            <span className="text-xs text-slate-500">{strona} z {stron}</span>
 
             {strona < stron ? (
               <Link
@@ -191,11 +193,14 @@ export default async function WojewodztwoPage(
         {/* Linkowanie poziome (docs/seo-geo-strategia.md, 4b/16): bez tego hub
             wojewódzki był OSIEROCONY poza wejściem z sitemapa — zero linków
             przychodzących I wychodzących. Tylko strona 1, z tego samego powodu
-            co w /boiska/[sport]. */}
+            co w /boiska/[sport].
+            Etykiety sekcji niżej: slate-400 na białym dawał 2.56:1 — poniżej
+            WCAG AA 4.5:1 (PageSpeed Insights, „Ułatwienia dostępu", 2026-08-29).
+            slate-500 (4.76:1) jest bezpieczny. */}
         {strona === 1 && (
           <div className="mt-10 space-y-6 border-t border-slate-200 pt-6">
             <div>
-              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Boiska według sportu
               </p>
               <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
@@ -211,7 +216,7 @@ export default async function WojewodztwoPage(
               </div>
             </div>
             <div>
-              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Inne województwa
               </p>
               <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5">
