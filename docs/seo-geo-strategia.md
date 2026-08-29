@@ -1262,8 +1262,69 @@ miesiące nie odróżnimy poprawy od wrażenia poprawy.
 | Obecność w odpowiedziach modeli | 40 promptów z Załącznika A | co 6 tygodni | **niezmierzona** |
 | Wzmianki marki poza domeną | wyszukiwanie nazwy z kwalifikatorem | co 6 tygodni | **zero znanych** |
 | Ruch crawlerów AI | logi Vercela wg `User-Agent` z `robots.ts:12-19` | miesięcznie | nieznana |
-| Core Web Vitals | PageSpeed Insights na 5 typach stron | kwartalnie | **niemierzone nigdy** |
+| Core Web Vitals | PageSpeed Insights na 5 typach stron | kwartalnie | **zmierzone 2026-08-29** — patrz 7a.1 niżej |
 | Kontrakt HTML dla robota | `scripts/audyt-robota.mjs` (niżej) | przy każdym PR | do zbudowania |
+
+### 7a.1. Core Web Vitals — pomiar bazowy z 2026-08-29
+
+Zmierzone przez właściciela (Jan) w przeglądarce, na **pagespeed.web.dev**, bezpośrednio
+przeciwko `bojo.pl` — nie z tej sesji, która nie ma dostępu sieciowego do produkcji
+(rozdział 0). Pierwsza próba automatyzacji zawiodła: PageSpeed Insights API (przez klucz
+właściciela) zwracał odpowiedzi zbyt duże dla narzędzia do pobierania stron dostępnego
+w tej sesji, które obcinało JSON przed metrykami LCP/CLS/TBT — stąd pomiar ręczny,
+nie automatyczny. Wszystkie pięć typów stron z roadmapy, telefon i pulpit,
+Lighthouse 13.4.1, `29 sie 2026, 18:27–18:35 CEST`:
+
+| Strona | Wydajność 📱/💻 | Dostępność 📱/💻 | Sprawdzone metody | SEO | Agentowe |
+|---|---|---|---|---|---|
+| `/` (landing) | 84 / 100 | 92 / 92 | 100 / 100 | 100 / 100 | 3/3 · 3/3 |
+| `/boisko/dubidzkie-lwy-741e4f384561` | 80 / 98 | 87 / 87 | 100 / 100 | 100 / 100 | **2/3 · 2/3** |
+| `/boiska/pilka-nozna` (hub) | 94 / 100 | 86 / 87 | 100 / 100 | 100 / 100 | 3/3 · 3/3 |
+| `/pilka-nozna/poznan` (sport+miasto) | 94 / 100 | 95 / 95 | 100 / 100 | 100 / 100 | 3/3 · 3/3 |
+| `/wydarzenia/671d717f-380a-4e77-a039-d615f1d6927d` | 84 / 99 | 95 / 95 | 100 / 100 | 100 / 100 | 3/3 · 3/3 |
+
+Pełne rozbicie na Core Web Vitals (nie tylko zbiorczy wynik „Wydajność") zebrane
+wyłącznie dla landing page — pozostałe cztery mają na razie sam wynik Lighthouse:
+
+| Metryka | `/` telefon | `/` pulpit |
+|---|---|---|
+| First Contentful Paint | 1,3 s | 0,3 s |
+| **Largest Contentful Paint** | **4,0 s** | **0,6 s** |
+| Total Blocking Time | 10 ms | 10 ms |
+| **Cumulative Layout Shift** | **0** | 0,001 |
+| Speed Index | 4,6 s | 0,7 s |
+| Łączny transfer strony | — | 582 KiB (same czcionki: ~173 KiB) |
+
+Różnica telefon/pulpit na landing page (LCP 4,0 s vs 0,6 s) jest zamierzonym skutkiem
+profilu pomiarowego — telefonowy dławi celowo do wolnego 4G, pulpitowy nie — nie
+dowodem regresji. Element LCP na telefonie to `<h1>` „Zorganizuj mecz w dwie minuty";
+sam raport wskazuje 2,51 s **opóźnienia renderowania** tego elementu przy TTFB=0 ms,
+z trzema nazwanymi przyczynami: ~600–750 ms blokujących renderowanie żądań CSS,
+44 KiB nieużywanego JS w jednym chunku, 11,6 KiB zbędnych polyfillów
+(`Array.prototype.at/flat/flatMap`, `Object.hasOwn`, `String.prototype.trimEnd/trimStart`
+— kod jest transpilowany pod przeglądarki, które już nie istnieją na rynku).
+
+**Do decyzji, nie zdecydowane teraz** (zasada z rozdziału 8, „nie optymalizujemy przed
+pomiarem" — pomiar dopiero się skończył):
+- Landing page na telefonie ma LCP 4,0 s przy realnych, nazwanych przyczynach wyżej —
+  to jest coś, co dałoby się poprawić, kiedy przyjdzie kolej na tę pozycję roadmapy.
+- **Strona obiektu ma `2/3` w kategorii „Przeglądanie agentowe" — jedyna z pięciu.**
+  Wszystkie pozostałe cztery mają 3/3. Nie wiadomo, który z trzech audytów pada
+  (kategoria sprawdza m.in. poprawność danych strukturalnych i drzewo dostępności —
+  obszary, które ta runda mocno ruszała), bo zrzut ekranu nie rozwijał tej sekcji.
+  **NIEZWERYFIKOWANE które konkretnie audyty padają** — sposób sprawdzenia: rozwinąć
+  sekcję „Przeglądanie agentowe" na `pagespeed.web.dev` dla tej strony.
+- Dostępność na hubie katalogu (`/boiska/pilka-nozna`, 86/87) jest zauważalnie niższa
+  niż gdziekolwiek indziej (92–95 na pozostałych czterech stronach) — bez rozwiniętej
+  listy audytów nie wiadomo, co konkretnie ciągnie wynik w dół.
+
+**NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą z przeglądarki
+właściciela, nie z tej sesji — ta nie ma dostępu sieciowego do `bojo.pl` (rozdział 0)
+ani do `pagespeed.web.dev`, który blokuje ten sam adres tą samą polityką. Przyjęte
+bez własnej weryfikacji, bo źródłem jest bezpośredni zrzut ekranu z narzędzia Google,
+nie twierdzenie do zweryfikowania.
+
+### 7b. Progi sukcesu
 
 ### 7b. Progi sukcesu
 
@@ -1484,7 +1545,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 24 | ~~Widget dla zarządców obiektów (F5)~~ **ZROBIONE 2026-08-25** | DŁUGI | średni | trudna | Franek | `app/widget/boisko/[id]/page.tsx`, `lib/widget.ts`, `admin/outreach` | do zmierzenia: pierwszy obiekt z osadzonym widokiem |
 | 25 | ~~Ujednolicenie liczby obiektów (D13)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `content/dlaczego.ts`, `llms.txt`, landing | jedna liczba w jednym miejscu |
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
-| 27 | Core Web Vitals — pomiar, potem decyzja | DŁUGI | nieznany | łatwa | Franek | PageSpeed Insights | są liczby, na których da się oprzeć decyzję |
+| 27 | ~~Core Web Vitals — pomiar, potem decyzja~~ **ZMIERZONE 2026-08-29; decyzja nadal do podjęcia** | DŁUGI | nieznany | łatwa | Franek | 7a.1 | spełnione: pięć typów stron, telefon+pulpit, przez właściciela na pagespeed.web.dev |
 | 28 | ~~Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM~~ **ZROBIONE 2026-08-26** | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx`; `scripts/audyt-robota.mjs#duplikatyTresci` | spełnione: detektor łapał 5 powtórzonych fragmentów przed poprawką, 0 po |
 
 ### Czy dalsza praca w kodzie ma jeszcze sens — ocena z 2026-08-26 (runda 3)
@@ -1495,16 +1556,21 @@ mierzy i na co, o ile wiadomo, nikt nie wchodzi.
 
 Liczby, na których stoi ten wniosek:
 
-**1. Roadmapa jest wyczerpana po stronie kodu.** Tabela wyżej ma 28 wierszy: 21
-zrobionych, 2 odrzucone decyzją właściciela, **5 otwartych**. Z tych pięciu:
+**1. Roadmapa jest wyczerpana po stronie kodu.** Tabela wyżej ma 28 wierszy: **23
+zrobionych** (stan 2026-08-29, po dedup #28 z Partii 3 i pomiarze CWV #27 — dwie
+pozycje domknięte już po tym, jak ten akapit został napisany po raz pierwszy), 2
+odrzucone decyzją właściciela, **3 otwarte — i wszystkie trzy poza kodem**:
 
 | # | Pozycja | Kto | Wpływ wg tabeli |
 |---|---|---|---|
 | 2 | Pomiar bazowy (Search Console + 40 promptów) | Jan | wysoki |
 | 15 | Trzy profile poza domeną | Jan | wysoki |
 | 22 | Jeden kontakt tygodniowo o wzmiankę | Jan | wysoki |
-| 27 | Core Web Vitals — **pomiar**, potem decyzja | Franek | **nieznany** |
-| 28 | Deduplikacja tabeli na `/dlaczego-bojo` | Franek | **niski** |
+
+Pozycja 27 (Core Web Vitals) zmierzona 2026-08-29 — patrz 7a.1 — i wypada z tej listy:
+pomiar był jedyną zaplanowaną robotą, dwa znalezione po drodze pytania (agentowe 2/3
+na stronie obiektu, niższa dostępność na hubie katalogu) czekają na sprawdzenie
+szczegółów, nie na budowę.
 
 Wszystkie trzy pozycje o wpływie „wysoki" są Jana i **żadna nie jest zadaniem
 programistycznym** — są poza repozytorium. Po stronie kodu zostają dokładnie dwie:
