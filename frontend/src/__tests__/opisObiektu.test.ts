@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { zdanieORozegranychMeczach } from '@/content/opisObiektu';
+import { zdanieORozegranychMeczach, opisObiektu, zdaniePotwierdzen } from '@/content/opisObiektu';
+import type { PotwierdzeniaZliczone } from '@/lib/potwierdzeniaObiektu';
 
 // F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów na stronie obiektu.
 // Odmiana przez liczbę ma trzy niezależne miejsca (czasownik, liczebnik,
@@ -60,6 +61,67 @@ describe('zdanieORozegranychMeczach', () => {
   it('null jako ostatnia data zachowuje się jak brak argumentu', () => {
     expect(zdanieORozegranychMeczach(3, null)).toBe(
       'Na tym obiekcie odbyły się już 3 mecze zorganizowane przez Bojo.',
+    );
+  });
+});
+
+// „Grać w X" wymaga biernika, a `field.sport` niesie mianownik prosto z importu
+// OSM. Test na wprost, nie tylko przez `tresciStron.test.ts` (który sprawdza
+// wyłącznie brak zakazanych fraz, nie poprawność odmiany) — regresja tutaj
+// wygląda jak literówka na 32 tysiącach stron naraz, nie jak awaria.
+describe('opisObiektu — biernik dla „do gry w X"', () => {
+  it('piłka nożna → piłkę nożną', () => {
+    expect(opisObiektu({
+      name: 'Orlik', sport: ['piłka nożna'], city: 'Poznań', surface: 'artificial', isIndoor: false, lit: true,
+    })).toContain('przeznaczony do gry w piłkę nożną —');
+  });
+
+  it('kilka sportów naraz, każdy w bierniku', () => {
+    expect(opisObiektu({
+      name: 'Hala', sport: ['koszykówka', 'siatkówka'], city: undefined, surface: '', isIndoor: true, lit: undefined,
+    })).toContain('przeznaczony do gry w koszykówkę, siatkówkę —');
+  });
+
+  it('„wielofunkcyjne" (import OSM sport=multi) dostaje opisowe zastępstwo, nie fałszywą odmianę', () => {
+    expect(opisObiektu({
+      name: 'Orlik przy SP 4', sport: ['wielofunkcyjne'], city: 'Łódź', surface: 'concrete', isIndoor: false, lit: false,
+    })).toContain('przeznaczony do gry w różne sporty —');
+  });
+
+  it('sport spoza mapy (nierozpoznany) zostaje w mianowniku zamiast wywalić się', () => {
+    expect(opisObiektu({
+      name: 'Kort', sport: ['kort do squasha'], city: undefined, surface: '', isIndoor: true, lit: undefined,
+    })).toContain('przeznaczony do gry w kort do squasha —');
+  });
+});
+
+describe('zdaniePotwierdzen', () => {
+  it('null, gdy nikt nie głosował', () => {
+    expect(zdaniePotwierdzen([])).toBeNull();
+  });
+
+  it('null, gdy głosy nie osiągają kworum (próg współdzielony z venueAmenityFeatures)', () => {
+    const zliczone: PotwierdzeniaZliczone[] = [{ fakt: 'oswietlenie', wartosc: 'tak', liczba: 1 }];
+    expect(zdaniePotwierdzen(zliczone)).toBeNull();
+  });
+
+  it('samo oświetlenie po osiągnięciu kworum', () => {
+    const zliczone: PotwierdzeniaZliczone[] = [{ fakt: 'oswietlenie', wartosc: 'tak', liczba: 2 }];
+    expect(zdaniePotwierdzen(zliczone)).toBe('Gracze potwierdzili na Bojo: jest oświetlenie.');
+  });
+
+  it('brak oświetlenia — inne zdanie niż jego obecność', () => {
+    const zliczone: PotwierdzeniaZliczone[] = [{ fakt: 'oswietlenie', wartosc: 'nie', liczba: 2 }];
+    expect(zdaniePotwierdzen(zliczone)).toBe('Gracze potwierdzili na Bojo: nie ma oświetlenia.');
+  });
+
+  it('oświetlenie i nawierzchnia razem, jedno zdanie', () => {
+    const zliczone: PotwierdzeniaZliczone[] = [
+      { fakt: 'oswietlenie', wartosc: 'tak', liczba: 4 },
+      { fakt: 'nawierzchnia', wartosc: 'artificial', liczba: 3 },
+    ];
+    expect(zdaniePotwierdzen(zliczone)).toBe(
+      'Gracze potwierdzili na Bojo: jest oświetlenie, nawierzchnia to sztuczna trawa.',
     );
   });
 });

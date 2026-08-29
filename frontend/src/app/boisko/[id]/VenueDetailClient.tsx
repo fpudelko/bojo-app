@@ -59,60 +59,72 @@ function formatDatePl(iso: string): string {
 }
 
 /**
- * Nagłówek obiektu: <h1>, opis i linki dalej w głąb serwisu.
+ * Nagłówek obiektu: <h1> i strzałka wstecz — jedyne, co MUSI stać na samej górze.
  *
- * Renderowany w OBU stanach — podczas ładowania i po nim — i to jest cały sens
- * tego komponentu. Dane obiektu dociągają się w `useEffect`, więc stan
- * ładowania jest DOKŁADNIE tym, co dostaje crawler: do 2026-08-23 był szarym
- * szkieletem, przez co ponad 30 tysięcy stron katalogu oddawało robotowi
- * stronę bez <h1>, bez opisu i bez ani jednego linku wychodzącego — przy
- * metadanych deklarujących `follow: true`, któremu nie było za czym podążać.
- * Nazwa, adres i etykiety przychodzą z page.tsx (server-side), więc szkielet
- * ma czym wypełnić nagłówek, zanim przeglądarka cokolwiek pobierze.
- *
- * Przy okazji stan ładowania przestał być trzema szarymi prostokątami: człowiek
- * od pierwszej klatki widzi, na jakim obiekcie jest.
+ * Renderowany w OBU stanach — podczas ładowania i po nim. Dane obiektu dociągają
+ * się w `useEffect`, więc stan ładowania jest DOKŁADNIE tym, co dostaje crawler:
+ * do 2026-08-23 był szarym szkieletem, przez co ponad 30 tysięcy stron katalogu
+ * oddawało robotowi stronę bez <h1>. Nazwa przychodzi z page.tsx (server-side),
+ * więc szkielet ma czym wypełnić nagłówek, zanim przeglądarka cokolwiek pobierze.
  */
-function NaglowekObiektu({
-  nazwa, opis, zdanieMeczow, adres, backHref, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
+function NaglowekTop({ nazwa, backHref }: { nazwa: string; backHref: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      {/* Back goes where the visitor came from (lib/powrot.ts). Without it,
+          arriving from a match page dumped people on /mapa, losing the
+          match they were looking at. Only relative paths are honoured,
+          so the stashed value can't be used to bounce anyone off-site. */}
+      <Link
+        href={backHref}
+        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+      </Link>
+      <h1 className="text-xl font-bold text-slate-900 truncate">{nazwa}</h1>
+    </div>
+  );
+}
+
+/**
+ * Direct answer — fact-dense akapit pod SEO/GEO (Faza 1, BACKLOG.md §7a), ten sam
+ * tekst co w `description` JSON-LD (page.tsx). Renderowany na DOLE strony (od
+ * 2026-08-29 — wcześniej stał tuż pod <h1>, nad zdjęciem obiektu; przeniesiony,
+ * bo dla człowieka zdjęcie i karta z danymi są tym, po co tu przyszedł, a akapit
+ * czyta się jak wstawka dla wyszukiwarki).
+ *
+ * Pozycja na stronie jest wyłącznie kwestią UKŁADU (CSS/kolejność w drzewie),
+ * NIE tego, czy crawler go dostanie — to zależy od tego, w KTÓRYM stanie
+ * komponentu (ładowanie vs załadowany) blok się renderuje, a on jest
+ * renderowany w obu, bezwarunkowo, więc SSR (to, co dostaje crawler bez
+ * wykonania JS) i stan po hydratacji zawsze go zawierają — patrz oba wywołania
+ * niżej w pliku.
+ */
+function OpisIPowiazane({
+  opis, zdanieMeczow, zdanieUgc, adres, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
 }: {
-  nazwa: string;
   opis?: string;
   /** F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów, `null` przy zerze. */
   zdanieMeczow?: string | null;
-  /** Podawany tylko w stanie ładowania — po załadowaniu adres pokazuje karta obiektu niżej. */
+  /** F1/5b SEO/GEO: potwierdzenia graczy (oświetlenie, nawierzchnia) jako zdanie,
+   *  nie tylko jako `amenityFeature` w JSON-LD. `null` bez kworum. */
+  zdanieUgc?: string | null;
+  /** Podawany tylko w stanie ładowania — po załadowaniu adres pokazuje karta obiektu wyżej. */
   adres?: string;
-  backHref: string;
   wojewodztwoSlug?: string;
   wojewodztwoLabel?: string;
   sportSlug?: string;
   sportEtykieta?: string;
 }) {
   return (
-    <>
-      <div className="flex items-center gap-3">
-        {/* Back goes where the visitor came from (lib/powrot.ts). Without it,
-            arriving from a match page dumped people on /mapa, losing the
-            match they were looking at. Only relative paths are honoured,
-            so the stashed value can't be used to bounce anyone off-site. */}
-        <Link
-          href={backHref}
-          className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <h1 className="text-xl font-bold text-slate-900 truncate">{nazwa}</h1>
-      </div>
-
-      {/* Direct answer — fact-dense akapit pod SEO/GEO (Faza 1, BACKLOG.md §7a),
-          ten sam tekst co w description JSON-LD niżej na stronie. */}
+    <div className="space-y-1.5 rounded-2xl border border-slate-100 bg-white p-4">
       {opis && <p className="text-sm text-slate-600 dark:text-slate-400">{opis}</p>}
       {zdanieMeczow && <p className="text-sm text-slate-600 dark:text-slate-400">{zdanieMeczow}</p>}
+      {zdanieUgc && <p className="text-sm text-slate-600 dark:text-slate-400">{zdanieUgc}</p>}
       {adres && <p className="text-sm text-slate-500">{adres}</p>}
 
       {/* Linki widoczne, nie tylko w okruszkach JSON-LD (page.tsx): okruszek
           w danych strukturalnych nie jest ścieżką, którą crawler może przejść. */}
-      <nav aria-label="Powiązane strony" className="flex flex-col items-start gap-1.5 text-xs">
+      <nav aria-label="Powiązane strony" className="flex flex-col items-start gap-1.5 pt-1 text-xs">
         {wojewodztwoSlug && wojewodztwoLabel && (
           <Link href={`/boiska/woj/${wojewodztwoSlug}`} className="text-primary-600 hover:underline">
             Więcej boisk w województwie {wojewodztwoLabel} →
@@ -127,7 +139,7 @@ function NaglowekObiektu({
           Jak zebrać skład na ten obiekt →
         </Link>
       </nav>
-    </>
+    </div>
   );
 }
 
@@ -138,6 +150,7 @@ export default function VenueDetailClient({
   upcomingEvents = [],
   opis,
   zdanieMeczow,
+  zdanieUgc,
   wojewodztwoSlug,
   wojewodztwoLabel,
   sportSlug,
@@ -154,6 +167,8 @@ export default function VenueDetailClient({
   opis?: string;
   /** F3 SEO/GEO (roadmapa poz. 21), liczone server-side w page.tsx. */
   zdanieMeczow?: string | null;
+  /** F1/5b SEO/GEO: potwierdzenia graczy jako zdanie, liczone server-side w page.tsx. */
+  zdanieUgc?: string | null;
   /** Faza 2b SEO/GEO: link do huba /boiska/woj/[wojewodztwo], gdy backfill
    *  lokalizacji (migracja 112) już wypełnił tę kolumnę dla tego obiektu. */
   wojewodztwoSlug?: string;
@@ -290,19 +305,23 @@ export default function VenueDetailClient({
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
-          <NaglowekObiektu
-            nazwa={nazwa}
+          <NaglowekTop nazwa={nazwa} backHref={backHref} />
+          <div className="h-60 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
+          {/* Opis na dole, tak jak w stanie załadowanym niżej w pliku — patrz
+              komentarz przy `OpisIPowiazane`. To jest gałąź, którą dostaje
+              crawler bez wykonania JS, więc blok MUSI się tu renderować
+              bezwarunkowo, niezależnie od tego, gdzie stoi wizualnie. */}
+          <OpisIPowiazane
             opis={opis}
             zdanieMeczow={zdanieMeczow}
+            zdanieUgc={zdanieUgc}
             adres={adres}
-            backHref={backHref}
             wojewodztwoSlug={wojewodztwoSlug}
             wojewodztwoLabel={wojewodztwoLabel}
             sportSlug={sportSlug}
             sportEtykieta={sportEtykieta}
           />
-          <div className="h-60 bg-slate-100 rounded-2xl animate-pulse" />
-          <div className="h-40 bg-slate-100 rounded-2xl animate-pulse" />
         </main>
         <SiteFooter />
       </div>
@@ -335,16 +354,7 @@ export default function VenueDetailClient({
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
 
-        <NaglowekObiektu
-            nazwa={field.name}
-            opis={opis}
-            zdanieMeczow={zdanieMeczow}
-            backHref={backHref}
-            wojewodztwoSlug={wojewodztwoSlug}
-            wojewodztwoLabel={wojewodztwoLabel}
-            sportSlug={sportSlug}
-            sportEtykieta={sportEtykieta}
-          />
+        <NaglowekTop nazwa={field.name} backHref={backHref} />
 
         {/* Field info card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -777,6 +787,19 @@ export default function VenueDetailClient({
         <AnkietyObiektu fieldId={field.id} />
 
         <VenueComments fieldId={field.id} />
+
+        {/* Opis na dole strony — patrz komentarz przy `OpisIPowiazane`. Ta sama
+            treść stoi też w gałęzi ładowania wyżej w pliku (SSR bez JS), więc
+            crawler i tak ją dostaje, niezależnie od pozycji tutaj. */}
+        <OpisIPowiazane
+          opis={opis}
+          zdanieMeczow={zdanieMeczow}
+          zdanieUgc={zdanieUgc}
+          wojewodztwoSlug={wojewodztwoSlug}
+          wojewodztwoLabel={wojewodztwoLabel}
+          sportSlug={sportSlug}
+          sportEtykieta={sportEtykieta}
+        />
 
         {/* Atrybucja OpenStreetMap. Nie ozdoba — ODbL wymaga uznania autorstwa
             wszędzie, gdzie pokazujemy te dane, a nie tylko pod mapą. Ta strona
