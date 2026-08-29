@@ -184,7 +184,7 @@ export default function AdminVenueEditorPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/mapa?gry=0" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+          <Link href="/mapa?gry=0" aria-label="Wróć" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Edytuj boisko</h1>

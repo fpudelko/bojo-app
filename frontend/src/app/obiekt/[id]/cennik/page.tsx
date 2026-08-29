@@ -154,6 +154,7 @@ export default function CennikPage() {
         <div className="flex items-center gap-3 mb-6">
           <Link
             href={`/obiekt/${id}`}
+            aria-label="Wróć"
             className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
