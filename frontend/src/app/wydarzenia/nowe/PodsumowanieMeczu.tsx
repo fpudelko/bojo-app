@@ -9,8 +9,8 @@ import type { WierszPodsumowania } from '@/lib/eventSummary';
  *
  * Czysto prezentacyjna — całe składanie wierszy robi `zbudujPodsumowanie`
  * w `lib/eventSummary.ts`. Powód, dla którego ta karta w ogóle istnieje:
- * przycisk „Opublikuj mecz" stoi na kroku 3, a data, miejsce i cena były
- * ustawiane na krokach 1–2 i w momencie publikacji nie były widoczne.
+ * przycisk „Sprawdź i opublikuj" stoi na kroku 3, a data, miejsce i cena
+ * były ustawiane na krokach 1–2 i w momencie publikacji nie były widoczne.
  *
  * Układ mobile-first: jedna kolumna od 320 px, rozjazd dopiero od `sm:`.
  */

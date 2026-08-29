@@ -21,14 +21,14 @@ export function opisObiektu(field: ObiektDoOpisu): string {
   const sporty = field.sport.join(', ');
   const gdzie = field.city ? ` w miejscowości ${field.city}` : '';
 
-  const cechy: string[] = [field.isIndoor ? 'obiekt kryty' : 'obiekt na wolnym powietrzu'];
+  const cechy: string[] = [field.isIndoor ? 'kryty' : 'na wolnym powietrzu'];
   const nawierzchnia = surfaceLabel(field.surface);
   if (nawierzchnia) cechy.push(`nawierzchnia: ${nawierzchnia.toLowerCase()}`);
   if (field.lit) cechy.push('oświetlenie');
 
   return (
-    `${field.name} to obiekt sportowy${gdzie} do gry w: ${sporty}. ${cechy.join(', ')}. ` +
-    'Szukasz graczy na ten obiekt? Stwórz otwarty mecz na Bojo i zbierz skład przez jeden link, bez zakładania konta dla dołączających.'
+    `${field.name} to obiekt sportowy${gdzie}, przeznaczony do gry w ${sporty} — ${cechy.join(', ')}. ` +
+    'Szukasz graczy? Stwórz otwarty mecz na Bojo i zbierz skład przez jeden link, bez zakładania konta dla dołączających.'
   );
 }
 

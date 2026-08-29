@@ -1,7 +1,7 @@
 // Podsumowanie meczu tuż przed publikacją — „tak zobaczą to gracze".
 //
-// Powód istnienia: kreator ma trzy kroki, a przycisk „Opublikuj mecz" stoi na
-// trzecim. Data, godzina, miejsce, liczba miejsc i cena były ustawiane na
+// Powód istnienia: kreator ma trzy kroki, a przycisk „Sprawdź i opublikuj" stoi
+// na trzecim. Data, godzina, miejsce, liczba miejsc i cena były ustawiane na
 // krokach 1 i 2 i w momencie publikacji organizator ich NIE WIDZIAŁ. Publikował
 // na pamięć, a zła data to najczęstsza pomyłka przy organizacji gry.
 //

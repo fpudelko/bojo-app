@@ -794,19 +794,28 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 
 ## Podsumowanie przed publikacją
 
-„Opublikuj mecz →" na kroku 3 **nie publikuje** — otwiera okno **„Tak zobaczą to gracze"**
-(`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`) z dwoma
-przyciskami: „Popraw" i „Publikuję". Powód: data, miejsce, skład i cena są ustawiane na
-krokach 1–2 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po
-utworzeniu i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej,
-niż da się ją poprawić.
+„Sprawdź i opublikuj →" na kroku 3 **nie publikuje** — otwiera okno
+**„Tak zobaczą to gracze"** (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika
+w `lib/eventSummary.ts`) z dwoma przyciskami: „Popraw" i „Opublikuj mecz" — dopiero ten
+drugi naprawdę publikuje. Powód: data, miejsce, skład i cena są ustawiane na krokach 1–2
+i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po utworzeniu
+i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej, niż da się
+ją poprawić. Nazwa przycisku na kroku 3 zmieniła się 2026-08-29: „Opublikuj mecz →" mylił,
+bo klik nie publikował — otwierał to okno.
 
 Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
 zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
 że jedną z nich się przewija bez czytania. Okno stoi POZA `<form>` — każdy `<button>`
 w formularzu bez `type` jest przyciskiem wysyłającym. Błąd walidacji i błąd zapisu
-zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek „Publikuję" zostaje
-widoczny na czas zapisu.
+zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek na „Opublikuj mecz"
+zostaje widoczny na czas zapisu.
+
+Karta ze stopką przycisków to od 2026-08-29 kolumna flex (`overflow-hidden` na całości,
+`overflow-y-auto` tylko na treści podsumowania) — stopka z „Popraw"/„Opublikuj mecz" stoi
+poza scrollowanym blokiem, więc jest widoczna od razu. Wcześniej cała karta (nagłówek,
+podsumowanie, przyciski) była jednym scrollującym blokiem: przy dłuższym podsumowaniu
+przycisk publikacji chował się pod dołem ekranu, dopóki ktoś nie przewinął w dół —
+łatwo przeoczyć na telefonie, gdzie okno i tak zajmuje prawie cały ekran.
 
 Sześć wierszy — Co / Kiedy / Gdzie / Skład / Koszt / Kto widzi — każdy z przyciskiem
 „Zmień" wołającym `attemptGoToStep`. Cofanie nigdy nie waliduje, więc skok jest bezpieczny
