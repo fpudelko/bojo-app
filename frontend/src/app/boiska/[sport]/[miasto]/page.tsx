@@ -208,7 +208,9 @@ export default async function SportMiastoPage(
               </Link>
             ) : <span />}
 
-            <span className="text-xs text-slate-400">{strona} z {stron}</span>
+            {/* slate-400 na białym dawał 2.45:1 — poniżej WCAG AA 4.5:1.
+                slate-500 (4.76:1) jest bezpieczny. */}
+            <span className="text-xs text-slate-500">{strona} z {stron}</span>
 
             {strona < stron ? (
               <Link
