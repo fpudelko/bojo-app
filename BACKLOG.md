@@ -724,6 +724,16 @@ o wpływie „wysoki" są poza repozytorium (Jan). Pomiar bazowy po trzech runda
 wynosi zero, więc 21 wdrożonych zmian nie ma wartości wyjściowej, do której dałoby się
 je odnieść. Wąskie gardło: pomiar, potem encja poza domeną, potem brak organizatorów.
 
+**Dopisek 2026-08-29 — pomiar bazowy przestał być zerem, jedna poprawka z niego
+wynikła.** Właściciel zmierzył Core Web Vitals na pięciu typach stron w przeglądarce
+(`pagespeed.web.dev`) — pierwszy raz po trzech rundach (docs/seo-geo-strategia.md,
+7a.1). Z rozwiniętego audytu „Ułatwienia dostępu" na `/boiska/pilka-nozna` wyszło
+pięć elementów z niewystarczającym kontrastem WCAG AA; cztery naprawione mechanicznie
+([PR #302](https://github.com/fpudelko/bojo-app/pull/302) — konkretne wartości
+i uzasadnienie w 7a.1), dwa świadomie zostawione jako decyzja produktowa (linki
+rozróżnialne wyłącznie po kolorze, za małe pola dotykowe). Zdanie „pomiar bazowy…
+wynosi zero" wyżej jest już nieaktualne.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b
