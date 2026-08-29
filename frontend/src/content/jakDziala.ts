@@ -46,9 +46,10 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
       '„za obiekt", a Bojo dzieli go na miejsca i przelicza automatycznie, gdy zmienisz ' +
       'ich liczbę.',
       'Krok 3 — opcje. Tytuł (opcjonalny, z podpowiedzią domyślnej nazwy), opis, mecz ' +
-      'publiczny albo prywatny, akceptacja zapisów, przypisanie do grupy. Zanim klikniesz ' +
-      '„Opublikuj mecz", widzisz podsumowanie: co, kiedy, gdzie, ile miejsc, ile kosztuje ' +
-      'i kto go zobaczy — z przyciskiem „Zmień" przy każdym wierszu.',
+      'publiczny albo prywatny, akceptacja zapisów, przypisanie do grupy. Po kliknięciu ' +
+      '„Sprawdź i opublikuj" widzisz podsumowanie: co, kiedy, gdzie, ile miejsc, ile kosztuje ' +
+      'i kto go zobaczy — z przyciskiem „Zmień" przy każdym wierszu, a dopiero stamtąd ' +
+      '„Opublikuj mecz" naprawdę publikuje.',
     ],
   },
   {

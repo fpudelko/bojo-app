@@ -1352,11 +1352,10 @@ function NewEventForm() {
                   key="opublikuj"
                   type="button"
                   size="lg"
-                  isLoading={submitting}
                   className="flex-1"
                   onClick={() => setPodgladOtwarty(true)}
                 >
-                  Opublikuj mecz →
+                  Sprawdź i opublikuj →
                 </Button>
               )}
             </div>
@@ -1381,43 +1380,51 @@ function NewEventForm() {
             aria-modal="true"
             aria-label="Tak zobaczą mecz gracze"
           >
-            <div className="max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-800">
-              <h2 className="font-display text-lg font-bold text-ink">Tak zobaczą to gracze</h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                Sprawdź termin i widoczność — po opublikowaniu mecz od razu jest widoczny.
-              </p>
+            {/* Kolumna flex + `overflow-hidden` na karcie, `overflow-y-auto`
+                tylko na treści: przyciski publikacji stoją w osobnej,
+                niescrollowanej stopce, więc są widoczne od razu, nawet gdy
+                podsumowanie jest dłuższe niż ekran. Wcześniej cała karta była
+                jednym scrollującym blokiem i „Publikuję" chowało się pod
+                dołem ekranu, dopóki ktoś nie przewinął w dół. */}
+            <div className="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800">
+              <div className="overflow-y-auto p-5">
+                <h2 className="font-display text-lg font-bold text-ink">Tak zobaczą to gracze</h2>
+                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                  Sprawdź termin i widoczność — po opublikowaniu mecz od razu jest widoczny.
+                </p>
 
-              <div className="mt-4">
-                <PodsumowanieMeczu
-                  wiersze={zbudujPodsumowanie({
-                    sport,
-                    title,
-                    miejsceNazwa: location.venue?.name ?? (nazwaWlasnaMiejsca.trim() || null),
-                    miejsceAdres: location.venue?.address ?? location.address ?? null,
-                    date,
-                    time,
-                    durationMin,
-                    maxPlayers,
-                    minPlayers,
-                    goalkeepersEnabled: GK_SPORTS.includes(sport) && !!goalkeepersEnabled,
-                    maxGoalkeepers: 2,
-                    organizerParticipates,
-                    costPln,
-                    acceptedPaymentMethods,
-                    cardDiscountEnabled,
-                    cardDiscountPln,
-                    acceptedSportsCards,
-                    visibility,
-                    requireApproval,
-                  })}
-                  naKrok={(krok) => { setPodgladOtwarty(false); attemptGoToStep(krok); }}
-                  nazwaOrganizatora={displayName(user)}
-                  brakujeNazwy={!isPelneImie(displayName(user))}
-                  onZmienNazwe={updateDisplayName}
-                />
+                <div className="mt-4">
+                  <PodsumowanieMeczu
+                    wiersze={zbudujPodsumowanie({
+                      sport,
+                      title,
+                      miejsceNazwa: location.venue?.name ?? (nazwaWlasnaMiejsca.trim() || null),
+                      miejsceAdres: location.venue?.address ?? location.address ?? null,
+                      date,
+                      time,
+                      durationMin,
+                      maxPlayers,
+                      minPlayers,
+                      goalkeepersEnabled: GK_SPORTS.includes(sport) && !!goalkeepersEnabled,
+                      maxGoalkeepers: 2,
+                      organizerParticipates,
+                      costPln,
+                      acceptedPaymentMethods,
+                      cardDiscountEnabled,
+                      cardDiscountPln,
+                      acceptedSportsCards,
+                      visibility,
+                      requireApproval,
+                    })}
+                    naKrok={(krok) => { setPodgladOtwarty(false); attemptGoToStep(krok); }}
+                    nazwaOrganizatora={displayName(user)}
+                    brakujeNazwy={!isPelneImie(displayName(user))}
+                    onZmienNazwe={updateDisplayName}
+                  />
+                </div>
               </div>
 
-              <div className="mt-5 flex gap-2">
+              <div className="flex shrink-0 gap-2 border-t border-slate-200 p-5 dark:border-slate-700">
                 <Button
                   type="button"
                   variant="outline"
@@ -1432,7 +1439,7 @@ function NewEventForm() {
                   isLoading={submitting}
                   onClick={() => handleSubmit()}
                 >
-                  Publikuję
+                  Opublikuj mecz
                 </Button>
               </div>
             </div>
