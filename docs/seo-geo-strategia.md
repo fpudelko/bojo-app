@@ -1257,8 +1257,8 @@ miesiące nie odróżnimy poprawy od wrażenia poprawy.
 
 | Miernik | Czym | Jak często | Wartość bazowa |
 |---|---|---|---|
-| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **nieznana** — patrz Załącznik B.5. To najpewniej największa niespodzianka całego audytu: sitemapy zgłaszają dziesiątki tysięcy adresów, a strony obiektu są dla robota puste (D5) |
-| Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | nieznana |
+| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **zmierzone 2026-08-29** — 2 zaindeksowane, 0 zeskanowano-bez-indeksu, 0 wykryto-bez-indeksu; sitemapa nigdy wcześniej niezgłoszona, zgłoszona w tej rundzie — patrz 7a.2 |
+| Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | **zmierzone 2026-08-29** — 0 kliknięć / 56 wyświetleń / CTR 0% / śr. pozycja 9,4 (3 mies.), wyłącznie zapytania markowe — patrz 7a.2 |
 | Obecność w odpowiedziach modeli | 40 promptów z Załącznika A | co 6 tygodni | **niezmierzona** |
 | Wzmianki marki poza domeną | wyszukiwanie nazwy z kwalifikatorem | co 6 tygodni | **zero znanych** |
 | Ruch crawlerów AI | logi Vercela wg `User-Agent` z `robots.ts:12-19` | miesięcznie | nieznana |
@@ -1323,6 +1323,53 @@ właściciela, nie z tej sesji — ta nie ma dostępu sieciowego do `bojo.pl` (r
 ani do `pagespeed.web.dev`, który blokuje ten sam adres tą samą polityką. Przyjęte
 bez własnej weryfikacji, bo źródłem jest bezpośredni zrzut ekranu z narzędzia Google,
 nie twierdzenie do zweryfikowania.
+
+### 7a.2. Search Console — pomiar bazowy z 2026-08-29
+
+Zmierzone przez właściciela (Jan) w przeglądarce, w Google Search Console — nie z tej
+sesji, która nie ma dostępu sieciowego do `bojo.pl` ani do `search.google.com/search-console`
+(rozdział 0). Usługa: `https://www.bojo.pl/`, typ **prefiks adresu URL** (nie usługa
+domenowa) — jeśli obok istnieje osobna usługa domenowa `bojo.pl` bez `www`, ta runda
+jej nie objęła.
+
+**Odkrycie, które tłumaczy resztę liczb: mapa witryny nigdy wcześniej nie została
+zgłoszona do tej usługi.** `Indeksowanie → Mapy witryn` pokazywał „Przesłane mapy
+witryn: 0–0 z 0" — nie błąd pobrania, tylko brak jakiegokolwiek zgłoszenia. Zgłoszona
+w trakcie tej rundy (`sitemap-index.xml`, 2026-08-29): stan po przetworzeniu —
+„Sukces", typ „Indeks mapy witryny", **„Wykryte strony": 0** w chwili pomiaru. Zero
+przy świeżo zaakceptowanym indeksie jest oczekiwane — Google osobno musi jeszcze zejść
+do 17 map wojewódzkich, które ten indeks wylicza; właściciel sprawdzi ponownie za
+2–3 dni. To jest jedyna pozycja z tego pomiaru, która nie jest jeszcze zamknięta.
+
+**Pokrycie indeksu** (`Indeksowanie → Strony`, przed propagacją zgłoszonej sitemapy):
+
+| Kategoria | Liczba |
+|---|---|
+| Zaindeksowane | **2** (`https://www.bojo.pl/`, `https://www.bojo.pl/dlaczego-bojo`) |
+| Zeskanowano — obecnie bez indeksu | 0 |
+| Wykryto — obecnie bez indeksu | 0 |
+
+Innymi słowy: przed zgłoszeniem sitemapy Google **w ogóle nie wiedział**, że reszta
+serwisu istnieje — nie chodziło (na razie) o odrzucenie stron, tylko o brak adresu,
+pod którym miałby ich szukać. To jest inny, wcześniejszy problem niż D5 (pusty HTML
+strony obiektu) — oba są realne i oba trzeba mieć naprawione, żeby wolumen realnie
+trafił do indeksu.
+
+**Skuteczność** (`Skuteczność → Wyniki wyszukiwania`, zakres 3 miesiące do 2026-08-29):
+kliknięcia **0**, wyświetlenia **56**, średni CTR **0%**, średnia pozycja **9,4**.
+Wykres skupia dane wyłącznie w ostatnich ~2 tygodniach mimo 3-miesięcznego zakresu —
+wcześniej praktycznie zero wyświetleń. Najczęstsze zapytania: „co to bojo" (18 wyśw.),
+„bojo" (8), „bojo co to" (7), „boisko klej" (7) — wszystkie markowe, zero kliknięć
+mimo pozycji ~9. Twarda liczba pod problemem z nazwą opisanym w rozdziale 2c: ktoś,
+kto widzi Bojo na tej pozycji dla zapytania o markę, i tak nie klika.
+
+**Do sprawdzenia ponownie za 2–3 dni:** czy „Wykryte strony" przy `sitemap-index.xml`
+rośnie. Jeśli tak — potwierdza, że jedynym problemem był brak zgłoszenia. Jeśli
+zostanie przy zerze mimo statusu „Sukces" — dopiero wtedy wymaga sprawdzenia treści
+samych map wojewódzkich (`/sitemap-boiska/*.xml`).
+
+**NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą ze zrzutów ekranu
+właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do Search Console.
 
 ### 7b. Progi sukcesu
 
@@ -1520,7 +1567,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | # | Zadanie | Horyzont | Wpływ | Trudność | Kto | Pliki / miejsce | Miara sukcesu |
 |---|---|---|---|---|---|---|---|
 | 1 | ~~Wyciek metadanych prywatnego meczu (P1) + test~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `eventMeta.ts#metadataDlaMeczu()`; test `eventMetadata.test.ts:32,43,50` | spełnione: trzy warianty `visibility` × brak wycieku i `noindex` |
-| 2 | Pomiar bazowy: Search Console + 40 promptów | QUICK WIN | wysoki | łatwa | Jan | Załączniki A i B | tabela w 7a wypełniona liczbami zamiast „nieznana" |
+| 2 | Pomiar bazowy: Search Console **(zmierzone 2026-08-29, 7a.2)** + 40 promptów (do zrobienia) | QUICK WIN | wysoki | łatwa | Jan | Załączniki A i B | Search Console: spełnione; 40 promptów: tabela w Załączniku A nadal „do wypełnienia" |
 | 3 | ~~„Zarezerwuj termin" znika z opisu 32 tys. stron (P2)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `app/boisko/[id]/page.tsx:197` | spełnione: `audyt-robota --bez-bazy` przeszedł 2026-08-26, zero fraz zakazanych |
 | 4 | ~~Podwójny sufiks w tytułach (P3)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | test `eventMetadata.test.ts:65` | spełnione: sufiks został tylko w `openGraph.title` |
 | 5 | ~~`noindex` dla tras technicznych i za flagami (P4)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | `app/robots.ts`; test `robots.test.ts:28,34` | spełnione: 18 wpisów DISALLOW, z regresją w drugą stronę |
@@ -1839,8 +1886,10 @@ Uczciwa lista granic tego dokumentu:
   i huby żywione danymi — dokładnie to, co runda 1 też zostawiła białą plamą —
   zostają NIEZWERYFIKOWANE. Sposób sprawdzenia: Załącznik B, albo środowisko z
   dostępem do rejestru obrazów kontenerów.
-- **Search Console** — brak dostępu. Pokrycie indeksu, pozycje i wyświetlenia są
-  nieznane, a nie oszacowane.
+- **Search Console** — brak dostępu z tej sesji. Pokrycie indeksu i skuteczność
+  zmierzone przez właściciela 2026-08-29 — patrz 7a.2. Znalezisko tej rundy: sitemapa
+  nigdy wcześniej niezgłoszona do tej usługi; zgłoszona w trakcie pomiaru, propagacja
+  do 17 map wojewódzkich w toku, sprawdzenie ponowne za kilka dni.
 - **Odpowiedzi modeli** — nie mam wejścia do ChatGPT, Perplexity ani Gemini z tej sesji.
   Pomiar bazowy z Załącznika A jest niewykonany.
 - **Wolumeny fraz** — brak narzędzia. Wszystkie oceny wielkości klastrów w 2a są
