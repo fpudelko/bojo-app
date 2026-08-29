@@ -76,6 +76,7 @@ function NaglowekTop({ nazwa, backHref }: { nazwa: string; backHref: string }) {
           so the stashed value can't be used to bounce anyone off-site. */}
       <Link
         href={backHref}
+        aria-label="Wróć"
         className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />

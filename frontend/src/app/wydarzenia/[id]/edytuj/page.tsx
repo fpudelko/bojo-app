@@ -331,7 +331,7 @@ export default function EditEventPage() {
       <Header />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <Link href={`/wydarzenia/${id}`} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
+          <Link href={`/wydarzenia/${id}`} aria-label="Wróć" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Edytuj wydarzenie</h1>
