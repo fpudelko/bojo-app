@@ -811,6 +811,35 @@ zaułkiem, a staje się drogą do hubów.
 widoczna treść — jedno źródło zamiast dwóch wersji opisu tego samego obiektu (i przy
 okazji koniec z „zarezerwuj termin", D2).
 
+**Aktualizacja 2026-08-29 — akapit przeniesiony na dół strony, treść wzmocniona.**
+Właściciel ocenił, że akapit tuż pod `<h1>`, nad zdjęciem obiektu, czyta się dla
+człowieka jak wstawka dla wyszukiwarki — zdjęcie i karta z danymi są tym, po co ktoś
+tu przyszedł. `NaglowekObiektu` w `VenueDetailClient.tsx` rozdzielony na dwa komponenty:
+`NaglowekTop` (wyłącznie `<h1>` i strzałka wstecz, zostaje na górze) i
+`OpisIPowiazane` (opis, `zdanieMeczow`, nowe `zdanieUgc` niżej, adres w stanie
+ładowania, `<nav>`), przeniesiony pod `VenueComments`, tuż nad atrybucją OSM. Kluczowe:
+**pozycja w drzewie DOM nie ma znaczenia dla crawlera bez wykonania JS** — ma znaczenie
+WYŁĄCZNIE to, w którym stanie komponentu (`fieldLoading` vs załadowany) blok się
+renderuje, a renderuje się w obu, bezwarunkowo, tak jak wcześniej. `OpisIPowiazane`
+w gałęzi ładowania (czyli w SSR, które dostaje każdy fetcher bez JS — GEO w tym) stoi
+pod dwoma skeletonami, imitując docelową pozycję; w gałęzi załadowanej stoi naprawdę
+na dole. Dwa wywołania tego samego komponentu, nie duplikat tekstu na stronie.
+
+Przy tej samej okazji poprawione dwie rzeczy w samym `opisObiektu()`:
+
+1. **Biernik zamiast mianownika w „do gry w X".** `field.sport` niesie mianownik
+   wprost z importu OSM (`scraper/import_osm_pbf.py#OSM_SPORT_MAP`, zbiór zamknięty),
+   a „grać w piłka nożna" jest złą polszczyzną na ~32 tysiącach stron. Mapa
+   `SPORT_BIERNIK` w `content/opisObiektu.ts` pokrywa cały zbiór; „wielofunkcyjne"
+   i „inne" (nie są nazwami konkretnej gry — `sport=multi` albo tag nierozpoznany)
+   dostają opisowe „różne sporty" zamiast fałszywej odmiany. Test:
+   `opisObiektu.test.ts`.
+2. **Nowa funkcja `zdaniePotwierdzen()`** — te same potwierdzenia graczy, które
+   `venueAmenityFeatures()` (5b) wystawia w `amenityFeature`, teraz też jako zdanie
+   w widocznym tekście i w `description` JSON-LD (`page.tsx`), z tym samym progiem
+   kworum. Domyka lukę z wiersza „Mikro-ankiety UGC" w tabeli rozdziału 0: dane były
+   niewidoczne dla robota, który czyta tekst, a nie wyłącznie dane strukturalne.
+
 ### 3g. `/boiska/[sport]` i `/boiska/woj/[wojewodztwo]`
 
 **Stan:** H1, jedna linijka „Znalezionych obiektów: N", lista i paginacja. Zero prozy.

@@ -7,7 +7,7 @@ import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
 import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
-import { opisObiektu, zdanieORozegranychMeczach } from '@/content/opisObiektu';
+import { opisObiektu, zdanieORozegranychMeczach, zdaniePotwierdzen } from '@/content/opisObiektu';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
@@ -321,11 +321,14 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // publiczny (RLS migracji 123), więc bezpieczny server-side bez sesji.
   const potwierdzenia = await pobierzPotwierdzenia(field.id).catch(() => []);
   const amenityFeature = venueAmenityFeatures(potwierdzenia);
+  // Fosa F1/5b: te same potwierdzenia jako ZDANIE, nie tylko jako amenityFeature
+  // niżej — część narzędzi GEO czyta widoczny tekst, nie dane strukturalne.
+  const zdanieUgc = zdaniePotwierdzen(potwierdzenia);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: field.name,
-    description: zdanieMeczow ? `${opis} ${zdanieMeczow}` : opis,
+    description: [opis, zdanieMeczow, zdanieUgc].filter(Boolean).join(' '),
     address: {
       '@type': 'PostalAddress',
       streetAddress: field.address,
@@ -387,6 +390,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         upcomingEvents={upcomingEvents}
         opis={opis}
         zdanieMeczow={zdanieMeczow}
+        zdanieUgc={zdanieUgc}
         wojewodztwoSlug={field.voivodeship}
         wojewodztwoLabel={wojewodztwoLabel}
         sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}
