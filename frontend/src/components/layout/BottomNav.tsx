@@ -18,6 +18,20 @@ import { useDlugieWcisniecie } from '@/lib/useDlugieWcisniecie';
 /** Ile razy w życiu użytkownika pokazuje się dymek danego typu, zanim
  *  uznamy, że już wie, co ta kropka znaczy. */
 const LIMIT_DYMKA = 5;
+
+/**
+ * Do ilu plakietka pokazuje dokładną liczbę, zanim przejdzie na "N+".
+ *
+ * BYŁO 9 i to łamało regułę zapisaną w `lib/rozmowy.ts`: „plakietka z LICZBĄ
+ * nie ma prawa pokazywać czegoś innego, niż człowiek zobaczy po jej
+ * dotknięciu". Przy 32 nieprzeczytanych pasek mówił „9+", a ekran `/rozmowy`
+ * zaraz po dotknięciu — „32 nieprzeczytane wiadomości". Zgłoszone wprost jako
+ * rozjechane liczniki. Powód istnienia limitu (plakietka nie ma rozpychać
+ * kolumny paska) dotyczy dopiero liczb trzycyfrowych: "32" zajmuje tyle samo
+ * miejsca co dawne "9+", więc próg 99 kosztuje zero pikseli w każdym realnym
+ * przypadku, a usuwa rozjazd.
+ */
+const LIMIT_LICZNIKA = 99;
 const CZAS_DYMKA_MS = 4000;
 
 function kluczDymka(typ: string): string {
@@ -153,6 +167,9 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
   // gest przytrzymania „Grupy" (patrz `gestGrupy` niżej). Bez ekipy gest i tak
   // nic ciekawego nie robi, więc nie ma sensu go zapowiadać.
   const [maGrupy, setMaGrupy] = useState(false);
+  // Licznik odświeżeń — pozwala przeliczyć pasek bez zmiany trasy (patrz
+  // `visibilitychange` niżej).
+  const [odswiezenie, setOdswiezenie] = useState(0);
   useEffect(() => {
     if (!user) { setRozmowy([]); setNewGroupEvents(false); setNewGroup(null); setMaGrupy(false); return; }
     let aktualne = true;
@@ -170,7 +187,21 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
         .catch(() => { if (aktualne) setNewGroup(null); });
     }).catch(() => { if (aktualne) { setRozmowy([]); setNewGroupEvents(false); setNewGroup(null); setMaGrupy(false); } });
     return () => { aktualne = false; };
-  }, [user, pathname]);
+  }, [user, pathname, odswiezenie]);
+
+  // POWRÓT NA KARTĘ PRZELICZA PASEK — dokładnie ten sam mechanizm, co na
+  // ekranie `/rozmowy` (`RozmowyClient`, „Powrót na tę kartę odświeża listę").
+  // Bez tego oba miejsca liczą to samo z DWÓCH niezależnych pobrań w różnych
+  // chwilach: `/rozmowy` odświeżało się po powrocie z rozmowy, pasek nie —
+  // i pokazywał liczbę sprzed przeczytania. Znacznik „widziano" siedzi
+  // w `localStorage`, więc React sam się o nim nie dowie.
+  useEffect(() => {
+    const odswiez = () => {
+      if (document.visibilityState === 'visible') setOdswiezenie((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', odswiez);
+    return () => document.removeEventListener('visibilitychange', odswiez);
+  }, []);
 
   // Wyliczane z jednej listy, żeby plakietka i dymki nie mogły się rozjechać.
   const nieprzeczytaneWiadomosci = policzNieprzeczytane(rozmowy);
@@ -358,9 +389,10 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
         nie może zniknąć pod informacją. */
     dots?: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right' }[];
     /** Liczba na plakietce w prawym górnym rogu ikony. 0 nie renderuje nic
-        (pusty pasek to nie jest informacja warta piksela), powyżej 9 pokazuje
-        "9+", żeby plakietka nie rozpychała kolumny. Dziś dwie: nadchodzące
-        mecze na "Mecze" i nieprzeczytane wiadomości na "Rozmowy". */
+        (pusty pasek to nie jest informacja warta piksela), powyżej
+        `LIMIT_LICZNIKA` pokazuje "99+", żeby plakietka nie rozpychała kolumny.
+        Dziś dwie: nadchodzące mecze na "Mecze" i nieprzeczytane wiadomości
+        na "Rozmowy". */
     licznik?: number;
     /** Tło plakietki. TEN SAM KSZTAŁT, INNY KOLOR — kształt mówi "policzalna
         rzecz", kolor mówi JAKA (AGENTS.md, Konwencje): zielony = stan (ile
@@ -455,7 +487,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
               )}
               aria-hidden="true"
             >
-              {licznik > 9 ? '9+' : licznik}
+              {licznik > LIMIT_LICZNIKA ? `${LIMIT_LICZNIKA}+` : licznik}
             </span>
           )}
         </span>

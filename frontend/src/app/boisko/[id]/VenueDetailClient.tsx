@@ -11,7 +11,7 @@ import SiteFooter from '@/components/layout/SiteFooter';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
-import { externalUrl } from '@/lib/utils';
+import { externalUrl, zWielkiejLitery } from '@/lib/utils';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
@@ -597,7 +597,7 @@ export default function VenueDetailClient({
                     <div className="text-sm text-slate-700 space-y-1">
                       <p>
                         <span className="text-slate-500">Data:</span>{' '}
-                        <span className="capitalize">{formatDatePl(date)}</span>
+                        <span>{zWielkiejLitery(formatDatePl(date))}</span>
                       </p>
                       <p>
                         <span className="text-slate-500">Godzina:</span>{' '}

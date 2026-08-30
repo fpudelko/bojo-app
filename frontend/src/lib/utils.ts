@@ -76,6 +76,48 @@ export function nazwaZAdresu(address?: string | null): string {
   return segmenty.find((s) => !isBareNumber(s)) ?? segmenty[0] ?? '';
 }
 
+/**
+ * Pierwsza litera wielka, RESZTA BEZ ZMIAN.
+ *
+ * Zastępuje tailwindowe `capitalize` na etykietach dat. `capitalize` to
+ * `text-transform: capitalize`, czyli wielka litera KAŻDEGO słowa — a polska
+ * data ma jedno słowo do podniesienia (dzień tygodnia na początku zdania)
+ * i resztę, która ma zostać mała. `format(d, 'EEE d MMM', { locale: pl })`
+ * daje „niedz. 30 sie", więc `capitalize` robiło z tego „Niedz. 30 Sie";
+ * `'EEEE, d MMMM'` dawało „Niedziela, 30 Sierpnia". Zgłoszone wprost z sesji
+ * QA. Nazwy miesięcy i dni piszemy po polsku małą literą — wielka jest tu
+ * wyłącznie funkcją pozycji w zdaniu, nie własnością słowa.
+ *
+ * NIE DA SIĘ TEGO ZAŁATWIĆ CSS-em w tych miejscach: `first-letter:uppercase`
+ * działa przez pseudoelement `::first-letter`, który dotyczy wyłącznie
+ * kontenerów blokowych — a wszystkie te etykiety siedzą w `<span>`.
+ */
+export function zWielkiejLitery(tekst: string): string {
+  if (!tekst) return tekst;
+  return tekst.charAt(0).toUpperCase() + tekst.slice(1);
+}
+
+/**
+ * Odnośnik „prowadź mnie tam" do Map Google.
+ *
+ * Współrzędne mają pierwszeństwo przed adresem: pinezka postawiona ręcznie na
+ * mapie ma dokładny punkt, a jej adres z Nominatima bywa przybliżony do
+ * najbliższego budynku. Gdy współrzędnych nie ma (starsze wpisy z samym
+ * adresem tekstowym), lecimy zapytaniem tekstowym — gorzej, ale wciąż wiezie
+ * na miejsce. Bez jednego i drugiego nie ma czego otwierać: `null`, a nie link
+ * prowadzący donikąd.
+ */
+export function linkDojazdu(m: { lat?: number | null; lng?: number | null; adres?: string | null }): string | null {
+  if (m.lat != null && m.lng != null) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${m.lat},${m.lng}`;
+  }
+  const adres = m.adres?.trim();
+  if (adres) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adres)}`;
+  }
+  return null;
+}
+
 interface LocationFields {
   fieldName?: string | null;
   fieldAddress?: string | null;

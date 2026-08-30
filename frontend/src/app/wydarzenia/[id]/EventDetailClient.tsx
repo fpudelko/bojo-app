@@ -36,7 +36,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
 import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
-import { eventLocation } from '@/lib/utils';
+import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
@@ -954,6 +954,28 @@ export default function EventDetailClient() {
     dateShort = format(parseISO(event.date), 'EEE d MMM', { locale: pl });
   } catch {}
   const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
+
+  // ── Karta „Kiedy i gdzie" ────────────────────────────────────────────
+  // Pełna data, nie skrót z paska nagłówka: karta ma miejsce, a „niedziela,
+  // 30 sierpnia" czyta się bez dekodowania w przeciwieństwie do „niedz. 30 sie".
+  let dataPelna = event.date;
+  try {
+    dataPelna = format(parseISO(event.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {}
+  const czasTrwaniaMin = (() => {
+    if (!event.endTime) return null;
+    try {
+      const [h1, m1] = (event.time ?? '00:00').split(':').map(Number);
+      const [h2, m2] = event.endTime.split(':').map(Number);
+      const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+      return diff > 0 ? diff : null;
+    } catch { return null; }
+  })();
+  // Adres do dojazdu: `secondary` z `eventLocation()` to adres, `primary` bywa
+  // samą nazwą obiektu. Do Map Google lepszy jest adres, ale gdy go nie ma,
+  // nazwa własna („Orlik Rataje") też coś znajdzie.
+  const adresPelny = eventLoc.secondary ?? eventLoc.primary ?? null;
+  const dojazdHref = linkDojazdu({ lat: event.lat, lng: event.lng, adres: adresPelny });
 
   // Handlers
   const handleMaybe = async () => {
@@ -2592,13 +2614,13 @@ export default function EventDetailClient() {
                 className="inline-flex items-center gap-1.5 font-medium text-slate-700 transition hover:text-ink dark:text-slate-300"
               >
                 <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span className="capitalize">{dateShort}</span> · {timeStr}
+                <span>{zWielkiejLitery(dateShort)}</span> · {timeStr}
                 <Pencil className="h-3 w-3 text-slate-400" strokeWidth={2.25} />
               </button>
             ) : (
               <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                 <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span className="capitalize">{dateShort}</span> · {timeStr}
+                <span>{zWielkiejLitery(dateShort)}</span> · {timeStr}
               </span>
             )}
 
@@ -2690,6 +2712,71 @@ export default function EventDetailClient() {
         )}
 
         {tab === 'sklad' && (<>
+
+        {/* ── KIEDY I GDZIE ──────────────────────────────────────────────
+            Termin i miejsce mieszczą się wprawdzie w jednej linijce paska
+            nagłówka, ale tam adres jest `truncate` (urywa się w połowie ulicy),
+            a dojazdu nie ma wcale — link „Nawiguj" siedział wyłącznie w okienku
+            otwieranym po dotknięciu miejsca SPOZA katalogu, więc dla meczu na
+            boisku z katalogu nie istniał w ogóle. Zgłoszone wprost z sesji QA:
+            „brak karty «Kiedy i gdzie» z dojazdem i ucięty adres".
+
+            Karta powtarza te dwa fakty świadomie: pasek nagłówka jest
+            identyfikacją meczu (widoczną na każdej zakładce), a to jest
+            odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
+            i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
+        <div className="px-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Kiedy i gdzie</p>
+
+            <p className="mt-2 flex items-start gap-2 text-sm text-ink">
+              <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+              <span>
+                <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                {timeStr && <> · {timeStr}</>}
+                {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+              </span>
+            </p>
+
+            {venueBadgeLabel && (
+              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                {/* Bez `truncate` — to jest miejsce, w którym adres ma się
+                    zmieścić w całości, choćby w dwóch linijkach. */}
+                <span className="min-w-0">
+                  <span className="font-semibold">{eventLoc.primary}</span>
+                  {eventLoc.secondary && (
+                    <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                  )}
+                </span>
+              </p>
+            )}
+
+            {(dojazdHref || event.fieldId) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {dojazdHref && (
+                  <a
+                    href={dojazdHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition active:scale-95"
+                  >
+                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
+                  </a>
+                )}
+                {event.fieldId && (
+                  <Link
+                    href={`/boisko/${event.fieldId}`}
+                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <MapPin className="h-4 w-4" strokeWidth={2.25} /> O boisku
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
         {/* Shown whenever the organizer requires approval — even with zero

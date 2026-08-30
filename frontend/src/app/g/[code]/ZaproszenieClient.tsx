@@ -10,6 +10,7 @@ import AuthForm from '@/components/auth/AuthForm';
 import { useAuth } from '@/lib/auth';
 import { sportEmoji } from '@/lib/sports';
 import { withCount } from '@/lib/plural';
+import { zWielkiejLitery } from '@/lib/utils';
 
 interface DaneGrupy {
   id: string; name: string; sport?: string; city?: string; fieldName?: string;
@@ -90,7 +91,7 @@ export default function ZaproszenieClient({
         {nextEvent && (
           <div className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">Najbliższy mecz</p>
-            <p className="mt-1 text-sm font-semibold capitalize text-ink">{terminKiedy}, {nextEvent.time}</p>
+            <p className="mt-1 text-sm font-semibold text-ink">{zWielkiejLitery(terminKiedy)}, {nextEvent.time}</p>
             {nextEvent.fieldName && (
               <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
                 <MapPin className="h-3.5 w-3.5" /> {nextEvent.fieldName}
