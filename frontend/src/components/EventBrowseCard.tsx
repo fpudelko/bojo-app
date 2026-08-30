@@ -297,7 +297,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
               <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
             )}
             {max > 0 && (
-              <span className="text-xs text-slate-500 dark:text-slate-400">{taken} graczy</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{withCount(taken, 'gracz', 'gracze', 'graczy')}</span>
             )}
             {/* Ta sama plakietka nieprzeczytanych co w karcie nadchodzącego meczu
                 niżej — bez niej mecz z Historii z nieprzeczytaną wiadomością

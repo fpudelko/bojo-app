@@ -98,6 +98,15 @@ export default function WyborMiejscowosci({
         type="text"
         value={fraza}
         onChange={(e) => setFraza(e.target.value)}
+        onKeyDown={(e) => {
+          // Enter nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem.
+          // Zgłoszone wprost z sesji QA. Wybiera pierwszą podpowiedź, tak jak
+          // Enter w wyszukiwarce zwykle wybiera pierwszy wynik.
+          if (e.key !== 'Enter' || podpowiedzi.length === 0) return;
+          e.preventDefault();
+          const m = podpowiedzi[0];
+          setFraza(''); setPodpowiedzi([]); naZmiane(m, promienKm);
+        }}
         placeholder="Nazwa miejscowości albo kod pocztowy"
         aria-label="Miejscowość albo kod pocztowy"
         className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"

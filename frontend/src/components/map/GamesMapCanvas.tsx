@@ -9,6 +9,7 @@ import type L from 'leaflet';
 import MapAttribution from './MapAttribution';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
+import ZoomButtons from './ZoomButtons';
 import { POLSKA, POLSKA_ZOOM } from './mapIcons';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { plural } from '@/lib/plural';
@@ -63,7 +64,17 @@ export default function GamesMapCanvas({
 
   return (
     <div className="relative mx-4 mt-3 h-[65vh] min-h-[420px] overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-      <MapContainer center={POLSKA} zoom={POLSKA_ZOOM} zoomControl={false} style={{ height: '100%', width: '100%' }} ref={setMapInstance}>
+      <MapContainer
+        center={POLSKA}
+        zoom={POLSKA_ZOOM}
+        zoomControl={false}
+        // Ten sam wzorzec i to samo uzasadnienie co w VenueExplorer.tsx —
+        // domyślne 60 px/poziom pozwalało jednemu ruchowi kółka/trackpada
+        // przeskoczyć kilka poziomów naraz.
+        wheelPxPerZoomLevel={240}
+        style={{ height: '100%', width: '100%' }}
+        ref={setMapInstance}
+      >
         <MapAttribution />
         {street}
         <GamesMarkersLayer rows={rows} selectedId={selectedId} onSelect={setSelectedId} />
@@ -91,6 +102,7 @@ export default function GamesMapCanvas({
       )}
 
       <LocateMeButton map={mapInstance} className="absolute right-3 bottom-3 z-[600]" />
+      <ZoomButtons map={mapInstance} className="absolute left-3 bottom-3 z-[600]" />
 
       {selectedRow && (
         <div className="absolute inset-x-0 bottom-0 z-[700] p-3" {...swipe}>
