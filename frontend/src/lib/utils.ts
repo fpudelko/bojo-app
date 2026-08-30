@@ -60,6 +60,22 @@ function isBareNumber(s?: string | null): boolean {
   return !s || /^\d+[a-z]?$/i.test(s.trim());
 }
 
+/**
+ * Krótka nazwa miejsca z pełnego adresu zwróconego przez Nominatim.
+ *
+ * `display_name` porządkuje segmenty od najbardziej szczegółowego: dla pinezki
+ * wskazanej ręcznie na mapie to zwykle „19C, Stanisława Zwierzchowskiego,
+ * Żegrze, Poznań, …" — NUMER DOMU, nie ulica. Branie wprost pierwszego
+ * segmentu (`address.split(',')[0]`) dawało więc mecz z „GDZIE: 19C" —
+ * zgłoszone wprost z sesji QA. Ta funkcja pomija bare-number segmenty
+ * (`isBareNumber`, ten sam test co w `eventLocation()` niżej — jeden wzorzec,
+ * nie dwa niezależne) i bierze pierwszy, który realnie coś nazywa.
+ */
+export function nazwaZAdresu(address?: string | null): string {
+  const segmenty = (address ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return segmenty.find((s) => !isBareNumber(s)) ?? segmenty[0] ?? '';
+}
+
 interface LocationFields {
   fieldName?: string | null;
   fieldAddress?: string | null;

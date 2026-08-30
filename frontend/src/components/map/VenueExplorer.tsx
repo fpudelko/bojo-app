@@ -508,7 +508,9 @@ function SearchToolbar({
           aria-haspopup="dialog"
           aria-label={liczbaFiltrow > 0 ? `Filtry — ${liczbaFiltrow} aktywne` : 'Filtry'}
           className={clsx(
-            'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white shadow-md transition-colors',
+            // 44×44, nie 36×36: minimalny rozmiar celu dotyku (WCAG 2.5.5).
+            // Ten sam rozmiar co `LocateMeButton` obok na mapie.
+            'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-white shadow-md transition-colors',
             liczbaFiltrow > 0 ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
           )}
         >
@@ -1396,6 +1398,7 @@ export default function VenueExplorer({
           <button
             type="button"
             onClick={() => setDraftSports([])}
+            aria-pressed={draftSports.length === 0}
             className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
           >
             <span className="text-base">🏟️</span>
@@ -1407,6 +1410,7 @@ export default function VenueExplorer({
               key={o.value}
               type="button"
               onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
+              aria-pressed={draftSports.includes(o.value)}
               className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
             >
               <span className="text-base">{o.emoji}</span>
@@ -1501,6 +1505,7 @@ export default function VenueExplorer({
           <button
             type="button"
             onClick={() => setDraftSports([])}
+            aria-pressed={draftSports.length === 0}
             className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
           >
             <span className="text-base">🏟️</span>
@@ -1512,6 +1517,7 @@ export default function VenueExplorer({
               key={o.value}
               type="button"
               onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
+              aria-pressed={draftSports.includes(o.value)}
               className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
             >
               <span className="text-base">{o.emoji}</span>
@@ -1533,6 +1539,7 @@ export default function VenueExplorer({
               key={o.value}
               type="button"
               onClick={() => setDraftTypes(toggleInArray(draftTypes, o.value))}
+              aria-pressed={draftTypes.includes(o.value)}
               className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
             >
               <span className="flex-1 text-left">{o.label}</span>
@@ -1548,6 +1555,7 @@ export default function VenueExplorer({
               key={o.value}
               type="button"
               onClick={() => setDraftSurfaces(toggleInArray(draftSurfaces, o.value))}
+              aria-pressed={draftSurfaces.includes(o.value)}
               className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
             >
               <span className="flex-1 text-left">{o.label}</span>

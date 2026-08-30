@@ -295,6 +295,17 @@ Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean)
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
 
+**„Ukryty" chowa przez CSS, nie odmontowuje — od 2026-08-30.** `BottomNavGate.tsx`
+renderuje `<BottomNav hidden={hidden}/>` zawsze (poza „nie zalogowany"/„widget"), a
+`BottomNav.tsx` dokłada klasę `hidden` zamiast `return null`. Wcześniej `BottomNavGate`
+zwracało `null` na ukrytych ekranach — `BottomNav` się odmontowywał, a razem z nim
+znikały refy pilnujące kolejki dymków z podpowiedziami (`poprzednieAktywne`, limit
+`LIMIT_DYMKA = 5` pokazań na typ w `localStorage`). Przy każdym powrocie z kreatora
+(`<HideBottomNav/>`) komponent montował się od nowa, `poprzednieAktywne` wracał do `{}`
+i przejście „nieaktywny → aktywny" wyglądało jak nowe — dymek „Przytrzymaj «Grupy»”
+odpalał się ponownie, aż wyczerpał limit w kilka wejść i wyjść z kreatora. Zgłoszone
+wprost: dymek „wisi na każdym ekranie".
+
 **Miejsce pod paskiem — zmienna `--bottom-nav-h`.** Pasek jest `fixed`, więc sam z siebie
 nie rezerwuje miejsca w dokumencie. `BottomNavGate.tsx` ustawia `document.documentElement
 .dataset.bottomNav = '1'`, dopóki pasek faktycznie jest widoczny (zalogowany, mobile, nie
@@ -736,6 +747,30 @@ reagować bez słowa wyjaśnienia. Mechanizm składał się z dwóch rzeczy:
 
 Pilnuje tego `e2e/kreator-ukryty-blad.klikalnosc.spec.ts` — sprawdzone, że bez
 poprawki (1) test pada, zatrzymując się na kroku 1.
+
+**„Mecz płatny" bez podanej kwoty też jest błędem blokującym — od 2026-08-30.**
+`platny` (`useState`) jest NIEZALEŻNY od `costPln > 0` — da się włączyć przełącznik
+i zostawić pole ceny puste. `validatePayments()` (`lib/eventWizard.ts`) sprawdzała
+do tej pory wyłącznie samą kwotę: przy `platny === true` i pustym `costPln` „Dalej"
+przechodziło bez ostrzeżenia, a mecz zapisywał się jako darmowy mimo zaznaczonego
+przełącznika. Funkcja przyjmuje dziś dodatkowy parametr `platny`; komunikat
+`fieldErrors.costPln` renderuje się zarówno nad samym polem ceny, jak i w nagłówku
+zwiniętej sekcji (ten sam wzorzec `blad` co przy bramkarzach wyżej). Pilnuje tego
+`e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts`.
+
+**Nazwa etykiety pola ceny ujednolicona między kreatorem a edycją.** Kreator mówił
+„Koszt od osoby (zł)", strona edycji „Koszt uczestnictwa (PLN)" — ta sama liczba,
+dwie różne nazwy w dwóch miejscach tego samego przepływu. Edycja przyjęła etykietę
+i podpowiedź „Przy komplecie (N os.) to X zł za cały obiekt" po kreatorze.
+
+**Nazwa miejsca z pinezki własnej nie pokazuje już numeru domu — od 2026-08-30.**
+`display_name` z Nominatim porządkuje segmenty od najbardziej szczegółowego —
+pierwszy bywał numerem domu („19C, Stanisława Zwierzchowskiego, …”), nie nazwą
+miejsca. Branie wprost pierwszego segmentu (`address.split(',')[0]`) dawało więc
+mecz z „GDZIE: 19C" — zgłoszone wprost z sesji QA. `nazwaZAdresu()` (`lib/utils.ts`)
+pomija bare-number segmenty (`isBareNumber`, ten sam test co w `eventLocation()`)
+i bierze pierwszy, który realnie coś nazywa; używa go zarówno kreator, jak i strona
+edycji.
 
 **Krok 2 „Gdzie" — propozycja ostatniego boiska.** `lib/lastVenue.ts` zapamiętuje ostatnio
 wybrany obiekt z katalogu (`localStorage`, klucz `bojo_ostatnie_boisko_v1`, TTL 60 dni,
@@ -2193,6 +2228,22 @@ setterów per pole — arkusz oddaje wszystkie pola naraz.
 
 Obie poprawki pilnuje `e2e/mapa-pinezki-i-filtry.klikalnosc.spec.ts`.
 
+**Przycisk „Filtry" ma dziś 44×44 px, chipy filtrów niosą `aria-pressed` — od
+2026-08-30.** Przycisk był `h-9 w-9` (36 px) — poniżej progu WCAG 2.5.5 i mniejszy
+niż sąsiedni `LocateMeButton`, z którym stoi w jednym rzędzie. Sześć grup
+przełączalnych przycisków w `VenueExplorer.tsx` (sport w trybie gier, sport w
+trybie katalogu, typ obiektu, nawierzchnia) dostało `aria-pressed`, żeby czytnik
+ekranu mówił, który wybór jest aktywny — `TogglePill` (`components/ui/FilterPill.tsx`)
+już to miał, tylko nie te przyciski w arkuszu filtrów.
+
+**Pinezki z kadru nie znikają już po szukaniu, które trafiło w zero wyników —
+`UnifiedLocationPickerImpl.tsx` (piker w kreatorze), od 2026-08-30.** Zgłoszone
+wprost: „wpisz «Orlik Poznań» → znikają wszystkie pinezki z mapy". `znalezione ?? fields`
+podmieniało źródło pinezek na pustą tablicę w tej samej chwili, w której pojawiał się
+komunikat „nie znaleziono" — mapa traciła WSZYSTKIE pinezki z kadru zamiast pokazać
+pustkę tylko tam, gdzie realnie jej szukano. Dziś zero wyników wraca do `fields`
+(kadr): `znalezione && znalezione.length > 0 ? znalezione : fields`.
+
 ## Filtr „miejscowość + ile km"
 
 Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera sekcja **„Gdzie szukam"**:
@@ -2546,6 +2597,8 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
   nie przelewa.
 - **Wynajem sędziego.**
 - **Lista graczy pod `/gracze`** — to redirect.
+- **Strona pod gołym `/boiska`** — trasa istnieje tylko jako `/boiska/[sport]`;
+  `/boiska` samo to redirect na `/mapa?gry=0`, tym samym wzorcem co `/gracze`.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
 - **Automatyczne uruchamianie migracji.**
 - **Powiadomienia o nowym terminie serii przez e-mail/SMS.** Auto-tworzenie terminów

@@ -26,7 +26,11 @@ export default function BottomNavGate() {
   const { user, loading } = useAuth();
   const hidden = useBottomNavHidden();
   const jestWidget = useJestWidget();
-  const visible = !loading && !!user && !hidden && !jestWidget;
+  // Zalogowany i nie w widgecie — warunek, przy którym pasek W OGÓLE ma prawo
+  // istnieć. `hidden` (ekrany z <HideBottomNav/>: kreator, zakładka Rozmowa…)
+  // NIE wchodzi tutaj — patrz niżej, dlaczego.
+  const dostepny = !loading && !!user && !jestWidget;
+  const visible = dostepny && !hidden;
 
   // Zaznaczamy obecność paska na <html>, żeby CSS mógł odjąć jego wysokość od
   // pełnego ekranu (--bottom-nav-h w globals.css). Element-dystans tego nie
@@ -38,6 +42,14 @@ export default function BottomNavGate() {
     return () => { delete document.documentElement.dataset.bottomNav; };
   }, [visible]);
 
-  if (!visible) return null;
-  return <BottomNav />;
+  if (!dostepny) return null;
+  // `hidden`, nie unmount: `BottomNav` trzyma w Reakcie kolejkę dymków
+  // podpowiedzi (`poprzednieAktywne`/`timerDymka`, limit 5 pokazań na typ
+  // w localStorage). Ekrany z <HideBottomNav/> (kreator, zakładka Rozmowa)
+  // przełączają `hidden` CZĘSTO — dawne odmontowanie zerowało te refy przy
+  // KAŻDYM powrocie na ekran z paskiem, więc dymek „Przytrzymaj «Grupy»"
+  // wyglądał, jakby wisiał na każdym ekranie: w istocie pokazywał się od
+  // nowa po każdym wejściu i wyjściu z rozmowy, aż wyczerpał limit. Zgłoszone
+  // wprost z sesji QA.
+  return <BottomNav hidden={hidden} />;
 }

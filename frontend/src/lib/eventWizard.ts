@@ -58,10 +58,21 @@ export function validatePayments(v: {
   blikPhone: string;
   cardDiscountEnabled: boolean;
   cardDiscountPln: string;
+  /** Przełącznik „Mecz płatny" — niezależny `useState`, NIE pochodna
+   *  `costPln > 0`. Bez tego parametru wiadomo tylko „czy koszt jest
+   *  dodatni", a nie „czy organizator w ogóle chce, żeby mecz był płatny" —
+   *  dwa DUŻE OSOBNE pytania, jeśli ktoś włączy przełącznik i nie wpisze
+   *  jeszcze kwoty. Wtedy `cost <= 0` i stara wersja tej funkcji uznawała
+   *  mecz za darmowy, mimo że organizator wyraźnie powiedział inaczej —
+   *  „Dalej" przechodziło bez ostrzeżenia. Zgłoszone wprost z sesji QA. */
+  platny?: boolean;
 }): FieldErrors {
   const errs: FieldErrors = {};
   const cost = parseFloat(v.costPln || '0');
-  if (cost <= 0) return errs;
+  if (cost <= 0) {
+    if (v.platny) errs.costPln = 'Podaj koszt od osoby (albo wyłącz „Mecz płatny").';
+    return errs;
+  }
 
   if (v.acceptedPaymentMethods.includes('blik')) {
     const digits = v.blikPhone.replace(/\D/g, '');
@@ -90,6 +101,7 @@ export function validateStep(
     blikPhone?: string;
     cardDiscountEnabled?: boolean;
     cardDiscountPln?: string;
+    platny?: boolean;
   },
 ): FieldErrors {
   // KOLEJNOŚĆ KROKÓW ZMIENIŁA SIĘ (2026-08-22): najpierw KIEDY, potem GDZIE.
@@ -116,6 +128,7 @@ export function validateStep(
         blikPhone: v.blikPhone ?? '',
         cardDiscountEnabled: v.cardDiscountEnabled ?? false,
         cardDiscountPln: v.cardDiscountPln ?? '',
+        platny: v.platny ?? false,
       }),
     };
   }

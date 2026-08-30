@@ -87,6 +87,25 @@ describe('validatePayments', () => {
     const errs = validatePayments({ ...base, costPln: '20', cardDiscountEnabled: true, cardDiscountPln: '' });
     expect(errs.cardDiscount).toBeUndefined();
   });
+
+  // `platny` to niezależny `useState` w kreatorze, nie pochodna `costPln > 0`
+  // — da się go włączyć i zostawić cenę pustą. Zgłoszone wprost z sesji QA:
+  // „Mecz płatny" bez ceny przechodziło „Dalej" bez ostrzeżenia, bo ta
+  // funkcja sprawdzała wyłącznie `cost > 0` i traktowała to jak darmowy mecz.
+  it('errors when „Mecz płatny" jest włączony, a cena pusta', () => {
+    const errs = validatePayments({ ...base, platny: true });
+    expect(errs.costPln).toBeDefined();
+  });
+
+  it('bez włączonego przełącznika pusta cena dalej znaczy darmowy mecz', () => {
+    expect(validatePayments({ ...base, platny: false })).toEqual({});
+    expect(validatePayments(base)).toEqual({});
+  });
+
+  it('włączony przełącznik z podaną ceną nie zgłasza błędu costPln', () => {
+    const errs = validatePayments({ ...base, costPln: '20', platny: true });
+    expect(errs.costPln).toBeUndefined();
+  });
 });
 
 describe('validateStep (dispatcher used by attemptGoToStep)', () => {
@@ -124,6 +143,11 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
 
   it('krok 1 bez pól płatności traktuje mecz jak darmowy', () => {
     expect(validateStep(1, base)).toEqual({});
+  });
+
+  it('krok 1 blokuje „Dalej", gdy „Mecz płatny" jest włączony bez ceny', () => {
+    const errs = validateStep(1, { ...base, platny: true });
+    expect(errs.costPln).toBeDefined();
   });
 });
 

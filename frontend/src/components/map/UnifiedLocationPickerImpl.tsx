@@ -133,7 +133,15 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   // /mapa search (instant, no network round-trip). The magnifying-glass
   // button below is a separate, explicit action for addresses that aren't
   // one of our known venues (geocoded via Nominatim on click/Enter).
-  const zrodlo = znalezione ?? fields;
+  //
+  // ZERO WYNIKÓW WRACA DO `fields` (kadr), NIE DO PUSTKI. `znalezione ?? fields`
+  // wcześniej podmieniało `zrodlo` na `[]`, gdy szukanie po katalogu trafiło
+  // w nic — mapa traciła WSZYSTKIE pinezki z kadru w tej samej chwili, w
+  // której pokazywał się komunikat „nie znaleziono". Zgłoszone wprost:
+  // „wpisz «Orlik Poznań» → znikają wszystkie pinezki z mapy". Komunikat
+  // i tak mówi, co zrobić dalej (lupa/Enter) — pinezki w tle nie muszą przy
+  // tym znikać.
+  const zrodlo = znalezione && znalezione.length > 0 ? znalezione : fields;
   const wSporcie = useMemo(
     () => (sport ? zrodlo.filter((f) => f.sport.includes(sport)) : zrodlo),
     [zrodlo, sport],
