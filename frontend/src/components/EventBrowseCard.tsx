@@ -252,10 +252,16 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                   Organizujesz
                 </span>
               )}
-              <span className={`flex items-center gap-1 font-medium ${soon ? 'text-amber-600' : 'text-slate-500'}`}>
+              {/* Odliczanie WYŁĄCZNIE dla meczu, który się odbędzie — `until`
+                  liczy się z terminu w bazie, a odwołanie go nie zmienia.
+                  Bez tego warunku odwołany mecz zaplanowany na dziś dostawał
+                  bursztynowe „Dzisiaj · 19:00 · za 4 h" tuż obok szarego chipu
+                  „Anulowany" — czyli wyglądał jak coś, na co trzeba zdążyć.
+                  Zgłoszone wprost z sesji QA. */}
+              <span className={`flex items-center gap-1 font-medium ${soon && !cancelled ? 'text-amber-600' : 'text-slate-500'}`}>
                 <Clock className="h-3 w-3" />
                 {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
-                {until && ` · ${until}`}
+                {until && !cancelled && ` · ${until}`}
               </span>
             </div>
 
@@ -270,12 +276,17 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                 Kosztem jest kilkanaście pikseli wysokości karty — tanio jak na
                 jedyną informację, która odpowiada na „czy mi po drodze".
                 Odległość stoi tutaj, przy nazwie obiektu, bo mówi o tym samym. */}
+            {/* `line-clamp-2`, nie `truncate` — ten sam wzorzec i ten sam powód
+                co przy tytule wyżej. Nazwy katalogowych obiektów bywają
+                długie („Zespół Szkół Ogólnokształcących nr 2 im. …"), a jedna
+                linijka ucinała je w połowie słowa niezależnie od tego, ile
+                miejsca własny wiersz już dał. Zgłoszone wprost z sesji QA. */}
             {(location || distance !== undefined) && (
-              <div className="mt-0.5 flex items-center gap-2 text-xs">
+              <div className="mt-0.5 flex items-start gap-2 text-xs">
                 {location && (
-                  <span className="flex min-w-0 flex-1 items-center gap-1 text-slate-500">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="min-w-0 truncate">{location}</span>
+                  <span className="flex min-w-0 flex-1 items-start gap-1 text-slate-500">
+                    <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span className="min-w-0 line-clamp-2">{location}</span>
                   </span>
                 )}
                 {distance !== undefined && (
@@ -292,7 +303,14 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
         {past ? (
           <div className="mt-2.5 flex items-center gap-2">
             {cancelled ? (
-              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Anulowany</span>
+              // Czerwień, nie szarość — tak jak wszędzie indziej, gdzie ta
+              // apka mówi o odwołaniu (`NotificationBell.tsx`, baner na
+              // stronie meczu: „czerwień znaczy «coś poszło źle»: mecz
+              // odwołany, błąd, usunięcie", `lib/komplet.ts`). Szary chip
+              // obok bursztynowego odliczania czytał się jak stan neutralny,
+              // nie jak informacja, że mecz się nie odbędzie. Zgłoszone
+              // wprost z sesji QA.
+              <span className="rounded-full bg-red-50 dark:bg-red-950/40 px-2.5 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-400">Anulowany</span>
             ) : (
               <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
             )}

@@ -110,6 +110,33 @@ export function kadrWokol(lat: number, lng: number, promienKm: number): Kadr {
   };
 }
 
+/**
+ * Kadr powiększony na wszystkie strony — zapytanie o obiekty pyta o WIĘCEJ,
+ * niż faktycznie widać.
+ *
+ * PO CO. Przy dużym przybliżeniu (z16+) kadr bywa węższy niż niepewność
+ * położenia punktu: `fields.lat/lng` to środek obiektu z importu OSM, a jego
+ * realna granica (boisko szkolne bywa 40-80 m w poprzek) i ewentualny błąd
+ * geokodowania potrafią wypchnąć punkt tuż poza ciasny prostokąt, mimo że na
+ * satelitarnej podkładce obiekt jest widoczny w kadrze. Zgłoszone wprost
+ * z sesji QA: „w kadrze widać boisko szkolne, a mapa jest pusta" — przy tym
+ * samym środku z11 dawało 45 pinezek, z16 już 0. Współczynnik 1,6× (30%
+ * marginesu z każdej strony) zostaje bezpieczny dla renderowania: markercluster
+ * i tak nie pokaże niczego poza swoimi WŁASNYMI, wyliczonymi granicami
+ * widoczności (`removeOutsideVisibleBounds`), więc szersze zapytanie tylko
+ * ŁAPIE więcej kandydatów, nie WYSTAWIA pinezek poza ekran.
+ */
+export function poszerzKadr(k: Kadr, wspolczynnik = 1.6): Kadr {
+  const latSrodek = (k.latMin + k.latMax) / 2;
+  const lngSrodek = (k.lngMin + k.lngMax) / 2;
+  const polLat = ((k.latMax - k.latMin) / 2) * wspolczynnik;
+  const polLng = ((k.lngMax - k.lngMin) / 2) * wspolczynnik;
+  return {
+    latMin: latSrodek - polLat, latMax: latSrodek + polLat,
+    lngMin: lngSrodek - polLng, lngMax: lngSrodek + polLng,
+  };
+}
+
 /** Skupisko obiektów w komórce siatki — dla oddalonych widoków. */
 export interface Skupisko {
   lat: number;

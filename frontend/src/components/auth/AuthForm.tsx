@@ -251,9 +251,17 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
                 tworzy konto bez zbierania imienia i nazwiska
                 (`sendMagicLink()` nie ustawia `shouldCreateUser: false`),
                 a rejestracja hasłem wymaga pełnego imienia — patrz walidacja
-                wyżej. */}
+                wyżej.
+
+                Etykieta NIE zaczyna się od „Zaloguj się" — od 2026-08-30.
+                Zaczynała się tak samo jak przycisk submit tuż nad nią (też
+                „Zaloguj się…"), więc ktoś skanujący ekran wzrokiem w
+                poszukiwaniu „Zaloguj się" trafiał losowo w jeden z dwóch.
+                Zgłoszone wprost z sesji QA. „Wyślij link logowania" to ta sama
+                fraza, której używa `submitLabel` po przełączeniu na tryb
+                `magic` — nazwa nie zaskakuje, gdy przycisk już to zrobi. */}
             <button onClick={() => switchMode('magic')} className="font-semibold text-primary-700 hover:text-primary-800">
-              Zaloguj się linkiem — bez hasła
+              Wyślij link logowania — bez hasła
             </button>
             <p className="text-slate-500">Nie masz konta?{' '}<button onClick={() => switchMode('signup')} className="font-semibold text-primary-700 hover:text-primary-800">Załóż je</button></p>
           </>

@@ -345,7 +345,17 @@ function MojeGryContent() {
           </div>
         ) : tab === 'observing' ? (
           observing.length === 0 ? (
-            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Nie obserwujesz żadnych meczów</p>
+            // Ten sam wzorzec co pusty stan „Zaproszeń" wyżej — ikona, tytuł,
+            // jedno zdanie wyjaśnienia. Wcześniej była tu goła linijka tekstu
+            // bez ikony, jedyna taka na tym ekranie. Zgłoszone wprost z sesji
+            // QA jako niespójność między zakładkami.
+            <div className="py-12 text-center">
+              <p className="text-4xl">👀</p>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Nie obserwujesz żadnych meczów</p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Obserwuj mecz, żeby widzieć go tutaj bez zajmowania miejsca w składzie.
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {observing.map(({ event, relation }) => (
@@ -355,7 +365,13 @@ function MojeGryContent() {
           )
         ) : (
           history.length === 0 ? (
-            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-12">Brak historii meczy</p>
+            <div className="py-12 text-center">
+              <p className="text-4xl">🗓️</p>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak historii meczy</p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Rozegrane mecze pojawią się tutaj.
+              </p>
+            </div>
           ) : (
             <div className="space-y-8">
               <DoRozliczeniaSection items={doRozliczenia(history)} />

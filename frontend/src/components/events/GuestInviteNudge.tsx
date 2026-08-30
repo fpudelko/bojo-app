@@ -25,12 +25,17 @@ export default function GuestInviteNudge({
   claimToken,
   event,
   zapraszajacy,
+  naRezerwie = false,
   onClose,
 }: {
   guestName: string;
   claimToken: string;
   event: DaneDoUdostepnienia;
   zapraszajacy?: string;
+  /** Gość poszedł na rezerwę (komplet w składzie) — modal ma o tym mówić
+   *  wprost, bo dotąd tę informację niósł wyłącznie toast, który ten modal
+   *  teraz zastępuje (patrz `EventDetailClient.tsx#handleAddGuest`). */
+  naRezerwie?: boolean;
   onClose: () => void;
 }) {
   const [wyslano, setWyslano] = useState(false);
@@ -49,9 +54,20 @@ export default function GuestInviteNudge({
         className="flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-ink">{guestName} dodany(a) do meczu ✓</h2>
-          <button onClick={onClose} className="ml-auto text-slate-400 hover:text-slate-600" aria-label="Zamknij">
+        <div className="flex items-start gap-2 border-b border-slate-100 px-5 py-4">
+          <div>
+            {/* „Dodano „{imię}"", nie „{imię} dodany(a)" — polska odmiana imion
+                wymaga znajomości płci, a formularz jej nie zbiera. „dodany(a)"
+                jest widoczną łatą na ten problem, nie odpowiedzią na niego.
+                Zgłoszone wprost z sesji QA. Ten sam toast, który ten modal
+                zastępuje, mówił też o rezerwie — modal ma teraz nieść tę samą
+                informację, nie mniej. */}
+            <h2 className="font-semibold text-ink">Dodano „{guestName}" do składu ✓</h2>
+            {naRezerwie && (
+              <p className="mt-0.5 text-xs font-medium text-amber-700">Komplet — na rezerwę</p>
+            )}
+          </div>
+          <button onClick={onClose} className="ml-auto shrink-0 text-slate-400 hover:text-slate-600" aria-label="Zamknij">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -83,6 +99,19 @@ export default function GuestInviteNudge({
           <p className="text-center text-xs text-slate-400">
             Wyślij ten link w wiadomości prywatnej (SMS, Messenger, WhatsApp).
           </p>
+          {/* Organizator dopisujący skład zwykle wpisuje kilka osób pod rząd —
+              bez tego przycisku jedyną drogą powrotu do pola „Imię znajomego"
+              był mały X w rogu, nieopisany jako „kontynuuj dopisywanie".
+              Zgłoszone wprost z sesji QA. Pole na stronie jest już wyczyszczone
+              (`setGuestName('')` po udanym dodaniu), więc samo zamknięcie
+              modala wystarcza — nie trzeba nic dodatkowo resetować. */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-1 text-center text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Dodaj kolejnego
+          </button>
         </div>
       </div>
     </div>
