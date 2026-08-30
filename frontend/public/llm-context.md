@@ -353,6 +353,59 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-30 — Piąta partia z sesji QA: znikające pinezki przy dużym przybliżeniu, hierarchia strony meczu, podwójne powiadomienie przy gościu
+
+PROBLEM: (1) Na mapie, przy przybliżeniu z16 i większym, pinezki potrafiły zniknąć
+całkowicie mimo że obiekt był widoczny na satelitarnej podkładce w tym samym kadrze —
+`fields.lat/lng` to środek obiektu z importu OSM, a ciasny kadr bywał węższy niż
+realna niepewność jego położenia. (2) Strona meczu pokazywała MNIEJ informacji niż
+karty na liście: bez odliczenia do startu, przycisk „Wypisz się" wyglądał jak
+równorzędna akcja obok „Dołącz", a pasek zapełnienia i tekst „Zostało N miejsc" przy
+komplecie świeciły bursztynem zamiast ustalonego niebieskiego. Lista obiektów obcinała
+adres w połowie ulicy (`truncate` zamiast łamania do dwóch linii). (3) Dymki z opisem
+w dolnej nawigacji, dla pozycji sąsiadujących ze środkowym przyciskiem (FAB), nachodziły
+na niego. (4) Odwołany mecz na liście dalej pokazywał bursztynowe odliczenie do startu,
+a plakietka „Anulowany" była szara — nie czytała się jak błąd/problem, czyli
+niespójnie z resztą aplikacji. (5) Dwa przyciski logowania bez hasła nazywały się
+identycznie („Zaloguj się linkiem"), więc drugi wyglądał jak duplikat pierwszego.
+Nagłówek nad ekranem logowania zostawał w pełni klikalny mimo przyciemnienia tła —
+dało się nim wyjść z pełnoekranowego formularza jednym dotknięciem w „Dołącz".
+(6) Zakładki „Obserwuję" i „Historia" na `/moje-gry` pokazywały pusty stan gołym
+zdaniem, bez wyjaśnienia. (7) Po dopisaniu gościa do składu wyskakiwały naraz toast
+i modal zachęty do zaproszenia — ten sam komunikat dwa razy, jeden z nich (toast)
+niosący jedyną informację o tym, że gość poszedł na rezerwę.
+
+ROZWIĄZANIE BOJO: (1) zapytanie o obiekty na mapie pyta o kadr powiększony 1,6× wokół
+środka widoku (`poszerzKadr()`) — markercluster i tak nie renderuje nic poza własnymi,
+wyliczonymi granicami widoczności, więc szersze zapytanie tylko łapie więcej
+kandydatów, nie wystawia pinezek poza ekran. (2) strona meczu dostała plakietkę
+odliczenia przy dacie (ten sam `timeUntil()` co karty listy), „Wypisz się" zmieniło się
+w zwykły tekstowy link zamiast przycisku z obwódką, pasek i tekst kompletu przeszły na
+`PASEK_KOMPLET`/niebieski z `lib/komplet.ts`, adres na liście łamie się do dwóch linii
+(`line-clamp-2`) zamiast urywać w połowie słowa. (3) wyrównanie dymka zależy dziś od
+pozycji w grupie — skrajne pozycje trzymają się swojej krawędzi, tylko środkowe
+zostają wyśrodkowane, więc żaden dymek nie nachodzi na FAB. (4) odliczenie i tekst
+„wkrótce" znikają dla odwołanego meczu, a plakietka „Anulowany" jest dziś czerwona.
+(5) drugi przycisk zmienił etykietę na „Wyślij link logowania — bez hasła" (ta sama
+fraza, którą i tak pokazuje przycisk wysyłki po przełączeniu trybu). Nagłówek nad
+ekranem logowania jest dziś w pełni bierny (`inert`) — ten sam wzorzec, którym
+`LoginBackdrop.tsx` unieruchamia tło z listą meczów. (6) oba puste stany dostały
+ikonę, tytuł i wyjaśniające zdanie zamiast gołego tekstu. (7) toast przy dodaniu
+gościa pokazuje się TYLKO wtedy, gdy modal zachęty nie wyskakuje (już widziana dla
+tego meczu) — modal przejął informację o rezerwie („Komplet — na rezerwę" pod
+nagłówkiem) i dostał przycisk „Dodaj kolejnego" do szybkiego powrotu przy dopisywaniu
+kilku osób pod rząd.
+
+MECHANIKA: `lib/api.ts` (`poszerzKadr()`, obok istniejącego `kadrWokol()`), wołane
+z `components/map/VenueExplorer.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`
+(odliczenie przy dacie, styl „Wypisz się", `PASEK_KOMPLET`, `handleAddGuest()` —
+toast tylko w gałęzi bez modala), `components/EventBrowseCard.tsx` (`line-clamp-2`,
+odliczenie i plakietka gated na `!cancelled`), `components/layout/BottomNav.tsx`
+(`dymekAlign` per pozycja), `components/auth/AuthForm.tsx` (etykieta przycisku),
+`app/logowanie/page.tsx` (`HeaderBierny`), `app/moje-gry/page.tsx` (puste stany),
+`components/events/GuestInviteNudge.tsx` (`naRezerwie`, przycisk „Dodaj kolejnego").
+Bez migracji. Pilnuje tego `src/__tests__/poszerzKadr.test.ts`.
+
 ### 2026-08-30 — Czwarta partia z sesji QA: pusty kadr mapy, podpisane liczniki, karta „Kiedy i gdzie"
 
 PROBLEM: (1) Przy dużym przybliżeniu mapy (z≥17) Bojo milkło całkowicie — znikały
@@ -648,32 +701,3 @@ MECHANIKA: `app/boiska/[sport]/[miasto]/page.tsx` (`force-dynamic`, bez
 sport×miasto dla `sitemap.ts` (jedno zapytanie na sport, nie sto razy siedem). Sport →
 wartość w bazie wydzielony do `lib/sports.ts#KATALOG_SPORT_MAP` — trzeci konsument tej
 samej siódemki, wcześniej zaszytej lokalnie w `boiska/[sport]/page.tsx`. Bez migracji.
-
-### 2026-08-25 — Rozegrany mecz znika z wyszukiwarki, ślad (z datą) zostaje na stronie obiektu
-
-PROBLEM: strona minionego, publicznego meczu (termin, cena, liczba miejsc) zostawała
-w indeksie wyszukiwarek bez końca, mimo że mecz już się odbył — pusta obietnica dla
-kogoś, kto trafił na nią z wyszukiwarki, licząc, że da się dołączyć. Jednocześnie
-strona obiektu, na którym mecze się odbywały, nie mówiła o tym ani słowa, choć to
-jest dokładnie ten fakt, którego nie ma żaden katalog importujący dane wyłącznie
-z OpenStreetMap. Sama liczba rozegranych meczów też nie wystarczała: obiekt z jednym
-meczem sprzed roku wyglądał identycznie jak obiekt, na którym gra się co tydzień.
-
-ROZWIĄZANIE BOJO: strona minionego meczu zostaje widoczna dla ludzi (podgląd linku,
-treść, JSON-LD) i dalej otwiera się normalnie, ale wypada z indeksu wyszukiwarek.
-Jej ślad przechodzi na stronę obiektu jako zdanie „Na tym obiekcie odbyło się już
-N meczów zorganizowanych przez Bojo, ostatni [data]" — widoczne od pierwszego
-rozegranego meczu, liczone wyłącznie z publicznych, nieodwołanych meczów, i wpięte
-też w opis obiektu w danych strukturalnych, nie tylko w widoczną treść.
-
-MECHANIKA: `app/wydarzenia/[id]/eventMeta.ts#metadataDlaMeczu()` — `robots: {index:
-false, follow: true}` dla meczu, dla którego `isPast(data, godzina)` (`lib/eventWizard.ts`)
-zwraca prawdę; próg jest ten sam, którym kreator meczu blokuje wpisanie terminu
-w przeszłości. Licznik i data: `app/boisko/[id]/page.tsx#getOstatnieMecze()` — jedno
-zapytanie (`count: 'exact'` liczy wszystkie pasujące wiersze niezależnie od `.limit(1)`,
-który tnie tylko zwracane dane) daje naraz liczbę i najświeższy `event_date` (publiczne,
-nieodwołane, wcześniejsze niż dziś). `content/opisObiektu.ts#zdanieORozegranychMeczach()`
-(odmiana przez liczbę, `lib/plural.ts`; drugi argument z datą opcjonalny — bez daty
-zdanie brzmi jak wcześniej) trafia zarówno do `VenueDetailClient.tsx` (renderowane
-razem z resztą nagłówka obiektu, także w stanie ładowania, czyli w HTML, który dostaje
-crawler), jak i do `description` w JSON-LD `SportsActivityLocation`. Bez migracji.

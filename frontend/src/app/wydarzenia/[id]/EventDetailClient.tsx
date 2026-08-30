@@ -37,6 +37,7 @@ import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
 import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/ZachetaPush';
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
+import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
@@ -62,7 +63,7 @@ import { przejmijWpisGoscia, udostepnijZaproszenieGoscia } from '@/lib/guestClai
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
-import { minutesUntilStart } from '@/lib/eventDates';
+import { minutesUntilStart, timeUntil } from '@/lib/eventDates';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
@@ -533,7 +534,7 @@ export default function EventDetailClient() {
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
   // Zachęta do zaproszenia dopiero co dodanego gościa do Bojo
   const [nudgeOpen, setNudgeOpen] = useState(false);
-  const [nudgeGuest, setNudgeGuest] = useState<{ name: string; claimToken: string } | null>(null);
+  const [nudgeGuest, setNudgeGuest] = useState<{ name: string; claimToken: string; naRezerwie: boolean } | null>(null);
   const [newUserClaimToken, setNewUserClaimToken] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState<string | null>(null);
   const [newUserIsReserve, setNewUserIsReserve] = useState(false);
@@ -976,6 +977,11 @@ export default function EventDetailClient() {
   // nazwa własna („Orlik Rataje") też coś znajdzie.
   const adresPelny = eventLoc.secondary ?? eventLoc.primary ?? null;
   const dojazdHref = linkDojazdu({ lat: event.lat, lng: event.lng, adres: adresPelny });
+  // Odliczanie w ostatnich 24h — ta sama funkcja i ten sam próg, co na kartach
+  // list (`EventBrowseCard`). Strona SZCZEGÓŁÓW meczu pokazywała dotąd MNIEJ
+  // informacji o terminie niż karta, z której się na nią weszło — data
+  // dwunastopunktowym szarym tekstem, bez „za 3 h". Zgłoszone wprost.
+  const zaCzas = timeUntil(event.date, event.time);
 
   // Handlers
   const handleMaybe = async () => {
@@ -1316,14 +1322,20 @@ export default function EventDetailClient() {
       setGuestName('');
       setGuestRole('player');
       await load();
-      toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
 
       // Zachęta do zaproszenia gościa do Bojo — tylko raz na to wydarzenie,
       // żeby organizator dopisujący 14 osób pod rząd nie dostał 14 identycznych modali.
       const kluczWidziano = `bojo:goscie-cta-widziano:${event.id}`;
-      if (typeof localStorage !== 'undefined' && !localStorage.getItem(kluczWidziano)) {
-        setNudgeGuest({ name: dodanyGosc, claimToken });
+      const pokazZachete = typeof localStorage !== 'undefined' && !localStorage.getItem(kluczWidziano);
+      if (pokazZachete) {
+        setNudgeGuest({ name: dodanyGosc, claimToken, naRezerwie: onReserve });
         setNudgeOpen(true);
+      } else {
+        // Toast TYLKO wtedy, gdy zachęta się nie pokaże. Oba naraz mówiły to
+        // samo dwoma różnymi zdaniami — modal ma własny nagłówek „✓ w
+        // składzie", więc toast pod spodem był czystym powtórzeniem, a przy
+        // okazji zasłaniał przycisk w modalu. Zgłoszone wprost z sesji QA.
+        toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -2735,6 +2747,11 @@ export default function EventDetailClient() {
                 <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
                 {timeStr && <> · {timeStr}</>}
                 {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+                {zaCzas && (
+                  <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                    {zaCzas}
+                  </span>
+                )}
               </span>
             </p>
 
@@ -2877,17 +2894,31 @@ export default function EventDetailClient() {
               </span>
             </div>
 
+            {/* Kolor paska i komplet = NIEBIESKI, nie czerwony — tak jak
+                wszędzie indziej w apce (`lib/komplet.ts`, decyzja właściciela
+                z 2026-08-19: czerwień znaczy „coś poszło źle", a komplet jest
+                stanem, o który się gra, nie awarią). Ta strona była JEDYNYM
+                miejscem, które tego nie stosowało — `#ef4444` malowało pasek
+                na czerwono dokładnie w chwili, gdy organizator osiągnął cel. */}
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.min(100, Math.round((takenSpots / event.maxPlayers) * 100))}%`,
-                  backgroundColor: isFull ? '#ef4444' : takenSpots / event.maxPlayers >= 0.8 ? '#f59e0b' : '#15663E',
-                }}
+                className={`h-full rounded-full transition-all ${
+                  isFull ? PASEK_KOMPLET : takenSpots / event.maxPlayers >= 0.8 ? 'bg-amber-400' : 'bg-primary-600'
+                }`}
+                style={{ width: `${Math.min(100, Math.round((takenSpots / event.maxPlayers) * 100))}%` }}
               />
             </div>
 
-            <p className="mt-3 text-center text-sm font-bold text-amber-500">
+            {/* Bursztyn dopiero, gdy zostaje NAPRAWDĘ mało miejsc (≤2) — od
+                2026-08-30. Wcześniej tekst był bursztynowy niezależnie od
+                liczby: „Zostało 11 wolnych miejsc" wyglądało tak samo pilnie
+                jak „Zostało 1 miejsce", choć bursztyn w tej apce znaczy
+                pilność („Zapłać", „nie zapłacili"). Zgłoszone wprost z sesji
+                QA. Komplet dostaje kolor „komplet" (niebieski), nie bursztyn —
+                to inny stan, nie ostrzeżenie. */}
+            <p className={`mt-3 text-center text-sm font-bold ${
+              isFull ? 'text-blue-700' : freeSpots <= 2 ? 'text-amber-600' : 'text-slate-600'
+            }`}>
               {isFull
                 // Only pitch the reserve list to someone who could actually act on
                 // it — a player already signed up (squad, reserve, pending or
@@ -3317,9 +3348,16 @@ export default function EventDetailClient() {
               // był szary i czerwieniał na `hover` — czyli na telefonie NIGDY,
               // bo tam kursora nie ma. Wypisanie się jest odwracalne i nie jest
               // groźne, więc nie robimy z niego pełnej czerwieni ostrzegawczej
-              // (ta zostaje dla „Usuń na stałe"): ramka i tekst w czerwieni,
-              // tło białe. Widać, że to wyjście, a nie akcja główna.
-              className="w-full h-11 rounded-2xl border border-red-200 bg-white text-sm font-semibold text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 dark:bg-transparent"
+              // (ta zostaje dla „Usuń na stałe").
+              //
+              // BEZ RAMKI I TŁA — od 2026-08-30. Pełnoszerokościowy przycisk
+              // z białym tłem i czerwoną ramką wizualnie konkurował z kartami
+              // treści (skład, miejsce) o tej samej geometrii, mimo że to
+              // wyjście, nie akcja główna strony. Zgłoszone wprost z sesji QA:
+              // „Wypisz się" nie powinno być bardziej widoczne niż skład
+              // i miejsce. Sam tekst w czerwieni, wyśrodkowany, nadal 44px
+              // wysokości (WCAG 2.5.5), ale bez pudełka.
+              className="flex h-11 w-full items-center justify-center text-sm font-semibold text-red-600 transition-colors hover:text-red-700"
             >
               {amIReserve ? 'Wypisz się z rezerwy' : 'Wypisz się z meczu'}
             </button>
@@ -4975,6 +5013,7 @@ export default function EventDetailClient() {
           }}
           guestName={nudgeGuest.name}
           claimToken={nudgeGuest.claimToken}
+          naRezerwie={nudgeGuest.naRezerwie}
           event={event}
           zapraszajacy={displayName(user) || event.organizerName}
         />

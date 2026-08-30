@@ -525,7 +525,12 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Pierwsza kolumna to lewa krawędź ekranu — dymek wystawałby poza nią.
-          const dymekAlign = i === 0 ? 'left' : 'center';
+          // OSTATNIA kolumna LEFT_ITEMS („Szukaj") sąsiaduje z FAB-em pośrodku
+          // paska — `center` puszczał dymek do połowy szerokości NAD sam FAB
+          // („Nowa gra w promieniu 5 km" zasłaniało „Nowy"). `right` każe mu
+          // rosnąć w stronę „Mecze", nie w stronę FAB-u. Ten sam problem i ta
+          // sama poprawka co przy RIGHT_ITEMS niżej.
+          const dymekAlign = i === 0 ? 'left' : i === LEFT_ITEMS.length - 1 ? 'right' : 'center';
           return (
             <NavLink
               key={item.href}
@@ -560,7 +565,13 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
           }
           const dymek = dymekWidoczny?.href === item.href ? dymekWidoczny.tekst : undefined;
           // Ostatnia kolumna to prawa krawędź ekranu — dymek wystawałby poza nią.
-          const dymekAlign = i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
+          // PIERWSZA kolumna RIGHT_ITEMS („Rozmowy") sąsiaduje z FAB-em z jego
+          // prawej strony — `center` puszczał dymek do połowy szerokości NAD
+          // sam FAB. Zgłoszone wprost z sesji QA: „dymek «Nowa wiadomość
+          // w grupie …» przykleja się nad tab barem i zasłania FAB «Nowy»,
+          // widoczny praktycznie wszędzie". `left` każe mu rosnąć w stronę
+          // „Ekipy", nie w stronę FAB-u.
+          const dymekAlign = i === 0 ? 'left' : i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
           // ROZMOWY: LICZBA, NIE CHMURKA. Chmurka mówiła „ktoś napisał" i na
           // tym kończyła — nad ikoną podpisaną „Rozmowy" powtarzała słowo,
           // które i tak stoi obok. Liczba odpowiada na pytanie, które człowiek

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -8,6 +8,35 @@ import Header from '@/components/layout/Header';
 import AuthForm from '@/components/auth/AuthForm';
 import LoginBackdrop from '@/components/auth/LoginBackdrop';
 import { useAuth } from '@/lib/auth';
+
+/**
+ * Header, ale bierny — dokładnie ten sam wzorzec co `LoginBackdrop.tsx`.
+ *
+ * PO CO. `Header` ma `z-[1010]`, czyli wyżej niż mgiełka przyciemnienia
+ * (bez z-index, więc pod nim) — mgiełka NIGDY nie mogła go przykryć, a jego
+ * własne „Znajdź grę" i „Dołącz" (dla wylogowanego) zostawały w pełni
+ * klikalne. Ekran logowania ma być pełnoekranowym formularzem, a wyszło
+ * na to, że dało się z niego wyjść jednym dotknięciem w pasek, którego
+ * nawet nie widać jako aktywnego elementu. Zgłoszone wprost z sesji QA:
+ * „modal logowania prześwituje listą wydarzeń… przycisk «Dołącz» w headerze,
+ * w który da się kliknąć".
+ *
+ * `inert` (nie samo `pointer-events-none`) wyjmuje całą zawartość paska
+ * z kolejności Tab i z drzewa dostępności — inaczej czytnik ekranu i klawiatura
+ * dalej widziałyby klikalne „Dołącz" nad formularzem, którego formularz
+ * nie spodziewa się dzielić uwagą.
+ */
+function HeaderBierny() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.setAttribute('inert', '');
+  }, []);
+  return (
+    <div ref={ref} aria-hidden="true" className="pointer-events-none">
+      <Header />
+    </div>
+  );
+}
 
 function LoginInner() {
   const router = useRouter();
@@ -54,7 +83,7 @@ function LoginInner() {
 export default function LoginPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <HeaderBierny />
       {/* Pod formularzem realna lista meczów — zamiast pustego tła pokazuje,
           co użytkownik dostanie po zalogowaniu. Całkowicie bierna: patrz
           LoginBackdrop. Mgiełka jest lekka (20% przyciemnienia), żeby listę

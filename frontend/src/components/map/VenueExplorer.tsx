@@ -24,7 +24,7 @@ import { useMyInvites } from '@/lib/useMyInvites';
 import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
-  kadrWokol,
+  kadrWokol, poszerzKadr,
   type Kadr, type Skupisko,
 } from '@/lib/api';
 import PustaListaObiektow from './PustaListaObiektow';
@@ -930,7 +930,7 @@ export default function VenueExplorer({
       // gałąź skupisk zeruje `allFields`, więc przez te ~300 ms zapytania
       // wyglądało to identycznie jak realnie pusty kadr.
       setLadujeKadr(true);
-      getExplorerFields(kadr)
+      getExplorerFields(poszerzKadr(kadr))
         .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
         .catch(() => {})
         .finally(() => { if (!cancelled) setLadujeKadr(false); });
