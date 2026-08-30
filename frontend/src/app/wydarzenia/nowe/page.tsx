@@ -21,6 +21,7 @@ import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { WARSTWA } from '@/lib/warstwy';
 import { defaultEventTitle } from '@/lib/eventTitle';
+import { nazwaZAdresu } from '@/lib/utils';
 import {
   loadEventDraft, saveEventDraft, clearEventDraft, draftAgeLabel,
 } from '@/lib/eventDraft';
@@ -569,7 +570,7 @@ function NewEventForm() {
     const errs: Record<string, string> = {
       ...validateStep1(location),
       ...validateStep2(date, time),
-      ...validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln }),
+      ...validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, platny }),
     };
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -581,13 +582,14 @@ function NewEventForm() {
     }
     const endTime = addMinutes(time, durationMin);
 
-    // Nazwa własna wpisana przez organizatora bije pierwszy segment adresu
-    // z Nominatim — ten bywa numerem domu albo (gdy reverse geocoding padł)
-    // parą współrzędnych.
+    // Nazwa własna wpisana przez organizatora bije pierwszy sensowny segment
+    // adresu z Nominatim. `nazwaZAdresu()` pomija numer domu (bywał nim sam
+    // pierwszy segment — mecz miał wtedy „GDZIE: 19C", zgłoszone wprost)
+    // i bierze pierwszy segment, który realnie nazywa miejsce — zwykle ulicę.
     const fieldName = location.venue
       ? location.venue.name
       : (nazwaWlasnaMiejsca.trim()
-        || location.address.split(',')[0].trim()
+        || nazwaZAdresu(location.address)
         || 'Nieznana lokalizacja');
     const hasCost = parseFloat(costPln || '0') > 0;
 
@@ -743,7 +745,7 @@ function NewEventForm() {
 
     for (let s = step; s < target; s++) {
       const errs = validateStep(s, {
-        location, date, time, costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
+        location, date, time, costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, platny,
       });
       if (Object.keys(errs).length > 0) {
         setFieldErrors(errs);
@@ -976,13 +978,17 @@ function NewEventForm() {
                   tytul="Mecz płatny"
                   podpis="Podasz koszt i sposób zapłaty — Bojo policzy, ile wychodzi od osoby."
                   wlaczona={platny}
-                  // Siatka bezpieczeństwa, nie sytuacja z dziś: przełącznik
-                  // wynika z kwoty (`platny` = koszt > 0), więc błąd numeru
-                  // BLIKA czy zniżki powstaje tylko przy sekcji OTWARTEJ.
-                  // Gdyby kiedyś przestał — komunikat wyjdzie do nagłówka
-                  // zamiast zniknąć razem z sekcją i zablokować „Dalej" bez
-                  // słowa wyjaśnienia, jak zdarzyło się przy bramkarzach.
-                  blad={fieldErrors.blikPhone ?? fieldErrors.cardDiscount}
+                  // `platny` jest NIEZALEŻNYM przełącznikiem (`useState`),
+                  // nie pochodną `costPln > 0` — da się go włączyć i zostawić
+                  // pole ceny puste. Do 2026-08-28 `validatePayments()` o tym
+                  // nie wiedziała: sprawdzała tylko `cost > 0`, więc pusta
+                  // cena przy włączonym przełączniku wyglądała jak darmowy
+                  // mecz i „Dalej" przechodziło bez ostrzeżenia — zgłoszone
+                  // wprost. `fieldErrors.costPln` pokrywa dokładnie ten
+                  // przypadek; `blikPhone`/`cardDiscount` zostają na wypadek,
+                  // gdyby sekcja była zwinięta akurat wtedy, gdy któryś z nich
+                  // zawiedzie (ten sam wzorzec co przy bramkarzach).
+                  blad={fieldErrors.costPln ?? fieldErrors.blikPhone ?? fieldErrors.cardDiscount}
                   naZmiane={(v) => {
                     setPlatny(v);
                     // Wyłączenie CZYŚCI kwotę, nie tylko ją chowa. Ukryta cena
@@ -1011,6 +1017,11 @@ function NewEventForm() {
                           {kosztZaObiekt ? 'wpisz od osoby' : 'wpisz za cały obiekt'}
                         </button>
                       </div>
+                      {fieldErrors.costPln && (
+                        <p data-field-error className="mb-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                          <span aria-hidden>⚠</span> {fieldErrors.costPln}
+                        </p>
+                      )}
                       <input
                         type="number"
                         min={0}

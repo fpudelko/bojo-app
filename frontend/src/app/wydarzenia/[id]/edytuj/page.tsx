@@ -29,6 +29,7 @@ import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import { validatePayments } from '@/lib/eventWizard';
+import { nazwaZAdresu } from '@/lib/utils';
 import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate } from '@/types';
 
@@ -195,10 +196,13 @@ export default function EditEventPage() {
    *  idzie do jednego meczu i (przy serii) do pozostałych terminów. */
   const zbudujPayload = (): EventCreate => {
     const endTime = addMinutes(time, durationMin);
+    // `nazwaZAdresu()`, nie surowy pierwszy segment — patrz uzasadnienie
+    // w `wydarzenia/nowe/page.tsx` (ten sam błąd, ten sam błąd naprawiony
+    // wspólnym helperem: „GDZIE: 19C" zamiast nazwy ulicy).
     const fieldName = location.venue
       ? location.venue.name
       : (nazwaWlasnaMiejsca.trim()
-        || location.address.split(',')[0].trim()
+        || nazwaZAdresu(location.address)
         || 'Nieznana lokalizacja');
     const hasCost = parseFloat(costPln || '0') > 0;
 
@@ -425,7 +429,7 @@ export default function EditEventPage() {
                   type="text"
                   value={nazwaWlasnaMiejsca}
                   onChange={(e) => setNazwaWlasnaMiejsca(e.target.value)}
-                  placeholder={location.address.split(',')[0].trim() || 'np. Boisko przy szkole'}
+                  placeholder={nazwaZAdresu(location.address) || 'np. Boisko przy szkole'}
                   maxLength={80}
                   className={inputCls}
                 />
@@ -461,10 +465,20 @@ export default function EditEventPage() {
             setReserveClaimMinutes={setReserveClaimMinutes}
           />
 
-          {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby. */}
+          {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — etykieta mówi to
+              wprost. Kreator ma tu do wyboru DWA tryby wpisywania (od osoby /
+              za cały obiekt, patrz `wydarzenia/nowe/page.tsx`), bo przy
+              zakładaniu meczu organizator zwykle zna cenę wynajmu, nie cenę
+              od gracza. Tu, przy edycji istniejącego meczu, cena jest już
+              ustalona i nikt nie przelicza jej na nowo — zostaje tylko
+              wpisywanie od osoby, ale etykieta i podpis pod polem MUSZĄ
+              rozstrzygać wprost, o którą kwotę chodzi. „Koszt uczestnictwa
+              (PLN)" tego nie robiło — zgłoszone wprost: sprzeczne z etykietą
+              kreatora („Koszt wynajmu obiektu"), organizator nie wiedział,
+              czy wpisać całość, czy kwotę od osoby. */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Koszt uczestnictwa (PLN)
+              Koszt od osoby (zł)
             </label>
             <input
               type="number"
@@ -475,6 +489,13 @@ export default function EditEventPage() {
               placeholder="0 = za darmo"
               className={inputCls}
             />
+            {parseFloat(costPln || '0') > 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                Przy komplecie ({maxPlayers} os.) to{' '}
+                <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span>
+                {' '}za cały obiekt.
+              </p>
+            )}
           </div>
 
           <EventPaymentFields

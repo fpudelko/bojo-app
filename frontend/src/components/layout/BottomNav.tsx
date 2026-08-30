@@ -93,7 +93,7 @@ function groupIdFromPathname(pathname: string): string | null {
   return m[1];
 }
 
-export default function BottomNav() {
+export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -472,7 +472,13 @@ export default function BottomNav() {
     // zmienna --bottom-nav-h w globals.css; jej wartość musi się zgadzać
     // z `h-14` niżej.
     <nav
-      className={`md:hidden fixed bottom-0 inset-x-0 ${WARSTWA.nawigacjaDolna} bg-white/95 backdrop-blur-sm border-t border-slate-200/70`}
+      className={clsx(
+        'fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/70',
+        WARSTWA.nawigacjaDolna,
+        // `hidden`, nie odmontowanie — patrz komentarz w BottomNavGate.tsx.
+        // `md:hidden` zostaje osobno: pasek i tak jest tylko na telefonie.
+        hidden ? 'hidden' : 'md:hidden',
+      )}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Nawigacja dolna"
     >

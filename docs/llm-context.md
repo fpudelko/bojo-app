@@ -346,6 +346,41 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-30 — Druga partia błędów z sesji QA: mecz płatny bez ceny, nazwa miejsca, dymek nawigacji, dostępność filtrów
+
+PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji. (1) Włączenie
+przełącznika „Mecz płatny" w kreatorze i zostawienie pustej ceny puszczało krok dalej bez
+ostrzeżenia — mecz zapisywał się jako darmowy mimo zaznaczonego przełącznika. (2) Pinezka
+wskazana ręcznie na mapie (poza katalogiem) potrafiła dostać nazwę miejsca w rodzaju
+„GDZIE: 19C" — sam numer domu z adresu Nominatim. (3) Etykieta pola ceny różniła się między
+kreatorem a stroną edycji tego samego meczu. (4) Dymek podpowiedzi „Przytrzymaj «Grupy»"
+pod dolną nawigacją wyglądał, jakby wisiał na każdym ekranie. (5) Szukanie w pikerze
+lokalizacji kreatora, które trafiło w zero wyników, czyściło z mapy WSZYSTKIE pinezki
+z bieżącego kadru, nie tylko brak nowych. (6) Przycisk „Filtry" na `/mapa` miał 36×36 px
+(poniżej progu dotykowego WCAG), a chipy filtrów nie niosły stanu dla czytników ekranu.
+(7) Gołe `/boiska` (bez sportu) dawało 404.
+
+ROZWIĄZANIE BOJO: (1) `validatePayments()` przyjmuje dziś flagę „mecz płatny" niezależną od
+samej kwoty i blokuje krok, gdy przełącznik jest włączony, a cena pusta — komunikat wychodzi
+też do nagłówka zwiniętej sekcji. (2) Nowa funkcja bierze pierwszy segment adresu, który nie
+jest samym numerem domu. (3) Strona edycji przyjęła etykietę i podpowiedź „ile wychodzi za
+cały obiekt" po kreatorze. (4) Dolna nawigacja chowa się dziś przez CSS zamiast się
+odmontowywać, więc licznik pokazań dymka (limit 5 w życiu użytkownika) nie zeruje się przy
+każdym wejściu na ekran, który ją chowa (kreator, zakładka Rozmowa). (5) Zero wyników
+wraca do pinezek z kadru zamiast do pustej tablicy. (6) Przycisk urósł do 44×44 px, sześć
+grup przełączalnych przycisków dostało `aria-pressed`. (7) `/boiska` to dziś redirect na
+`/mapa?gry=0`, tym samym wzorcem co `/gracze` → `/wydarzenia`.
+
+MECHANIKA: `lib/eventWizard.ts` (`validatePayments(..., platny)`), `lib/utils.ts`
+(`nazwaZAdresu()`, reużywa `isBareNumber()` z `eventLocation()`), `app/wydarzenia/nowe/
+page.tsx` i `app/wydarzenia/[id]/edytuj/page.tsx`, `components/layout/BottomNav.tsx` +
+`BottomNavGate.tsx` (prop `hidden`, klasa CSS zamiast `return null`),
+`components/map/UnifiedLocationPickerImpl.tsx`, `components/map/VenueExplorer.tsx`,
+`app/boiska/page.tsx` (nowy plik). Bez migracji. Pilnują tego
+`e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts` i
+`e2e/dolna-nawigacja-dymek-nie-wraca.klikalnosc.spec.ts` — sprawdzone w obie strony,
+bez odpowiedniej poprawki oba testy padają.
+
 ### 2026-08-28 — Trzy błędy z sesji QA: licznik obiektów, pusta lista po filtrze miejscowości, wstecz z rozmowy
 
 PROBLEM: Manualna sesja QA na produkcji (mobile 360px + desktop, jasny/ciemny) znalazła
@@ -620,27 +655,3 @@ startuje z `showGames ? 'lista' : 'mapa'`. Lista gier nie zależy od kadru mapy 
 `getPublicEvents()` pobiera wszystkie otwarte mecze naraz, więc działa bez przybliżania
 i bez zgody na lokalizację. Wejście na goły adres `/mapa` (powrót ze strony obiektu,
 link `?boisko=`) zachowuje się bez zmian: obiekty na mapie.
-
-### 2026-08-23 — Prywatny mecz przestaje zdradzać szczegóły w podglądzie linku
-
-PROBLEM: strona prywatnego meczu podawała w metadanych nazwę meczu, sport, datę, godzinę
-i nazwę obiektu, a pod adresem `/wydarzenia/<id>/opengraph-image` generowała publicznie
-dostępną kartę z ceną i liczbą wolnych miejsc. Dane strukturalne (JSON-LD) były przed tym
-chronione od początku, metadane nie — więc wystarczyło, żeby link do prywatnego meczu raz
-trafił w publiczne miejsce, a jego szczegóły mogły wejść do wyszukiwarki. Kod dołączenia
-jest jedyną kontrolą dostępu do prywatnego meczu i to właśnie on był obchodzony.
-
-ROZWIĄZANIE BOJO: mecz niepubliczny zwraca w metadanych sam tytuł „Mecz" i `noindex`,
-a jego obrazek podglądu to karta ogólna Bojo, bez żadnych danych meczu. Mecz, którego nie
-ma, wygląda dokładnie tak samo — po metadanych nie da się odróżnić „nie ma takiego meczu"
-od „jest, ale nie dla ciebie". Dla meczu publicznego nic się nie zmienia. Przy okazji
-z tytułów zniknął podwojony sufiks „| Bojo", a opis stron obiektów przestał obiecywać
-rezerwację terminu, której Bojo nie robi.
-
-MECHANIKA: `metadataDlaMeczu()` w `app/wydarzenia/[id]/eventMeta.ts` — czysta funkcja
-obok `getEventMeta()`, testowana bez bazy (`__tests__/eventMetadata.test.ts`), wzorem
-`eventJsonLd()` w `lib/structuredData.ts`. Ten sam próg widoczności powtórzony
-w `opengraph-image.tsx`. Trasy techniczne, kreatory i funkcje za wyłączonymi flagami
-(`/auth/`, `/turniej`, `/cykliczne`, `/obiekt`, `/rezerwacje`, `/gracz/`) wypadły ze
-skanowania w `app/robots.ts` — są komponentami klienckimi, więc nie mogą wyeksportować
-`metadata`, i robots.txt jest tam jedyną dźwignią (`__tests__/robots.test.ts`).
