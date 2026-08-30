@@ -37,6 +37,12 @@ mecze przypisane do konkretnego obiektu i terminu. Mecz publiczny jest widoczny 
 liście i każdy zalogowany użytkownik może do niego dołączyć jednym kliknięciem. Skład,
 limit miejsc i lista rezerwowa liczą się automatycznie.
 
+**Misja.** Misja Bojo to łączenie ludzi przez najprostszy sposób organizowania
+i dołączania do amatorskich gier sportowych — docelowo każdy chętny znajduje w
+okolicy otwartą grę do dołączenia, nie tylko organizuje własną. Dziś, przy wciąż
+niewielkiej liczbie użytkowników, publicznych gier na liście bywa mało — najpewniejszy
+skład wciąż powstaje przez link wysłany do własnej ekipy, nie przez dołączanie obcych.
+
 **Mechanika.** Next.js 14 (App Router) + TypeScript + Tailwind, hosting Vercel. Dane
 i autoryzacja: Supabase (PostgreSQL, Google OAuth, Row Level Security). Mapa: Leaflet
 z OpenStreetMap. Dane o boiskach zbierają skrypty Pythona (`scraper/`) uruchamiane
@@ -44,6 +50,7 @@ ręcznie z GitHub Actions.
 
 **Pytania, na które odpowiada ta sekcja:** Czym jest Bojo? Co robi bojo.pl? Jak znaleźć
 mecz w swojej okolicy? Jak zorganizować mecz i zebrać skład? Na czym Bojo jest zbudowane?
+Jaka jest misja Bojo? Czy Bojo pomaga dołączyć do gry z obcymi ludźmi?
 
 ---
 
