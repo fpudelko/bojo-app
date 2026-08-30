@@ -87,6 +87,32 @@ function chmurka(page: Page) {
  * Świadomie NIE jest to `afterEach`: wypisanie samo w sobie jest przejściem
  * użytkownika i chcemy, żeby padło głośno, gdy przestanie działać.
  */
+/**
+ * Uruchamia `sprzatanie` ZAWSZE — także wtedy, gdy `proba` padła.
+ *
+ * PO CO. Oba projekty (`scenariusze-telefon` i `scenariusze-komputer`) chodzą
+ * po JEDNEJ bazie, równolegle (`fullyParallel`, 2 workery w CI). Test, który
+ * dopisał się do meczu i padł PRZED swoim sprzątaniem, zostawia w bazie stan
+ * widziany przez drugi projekt — i tam wywraca asercję, która z tą zmianą nie
+ * ma nic wspólnego.
+ *
+ * Realny przebieg (PR #306): zmiana wyglądu przesunęła kafelek, `toHaveScreenshot`
+ * padło, `Anuluj` się nie wykonało, prośba o dołączenie została w bazie — więc
+ * `organizator` w drugim projekcie zobaczył 3 prośby zamiast 2, a ponowienie
+ * tego samego testu nie znalazło już przycisku „Dołącz" (bo prośba wisiała).
+ * Bramka (`.github/bramka-scenariuszy.mjs`) czyta błędy ze WSZYSTKICH ponowień,
+ * więc czysta zmiana wyglądu została zaklasyfikowana jako zepsute ZACHOWANIE.
+ *
+ * Oryginalna przyczyna wygrywa: błąd sprzątania wychodzi tylko wtedy, gdy samo
+ * ciało testu przeszło — inaczej przykryłby to, co naprawdę padło.
+ */
+async function zeSprzataniem(proba: () => Promise<void>, sprzatanie: () => Promise<void>) {
+  let blad: unknown;
+  try { await proba(); } catch (e) { blad = e; }
+  try { await sprzatanie(); } catch (e) { if (!blad) blad = e; }
+  if (blad) throw blad;
+}
+
 async function wypiszSie(page: Page) {
   await klik(page, /wypisz się z (meczu|rezerwy)/i);
   await klik(page, 'Wypisz mnie', { exact: true });
@@ -284,18 +310,20 @@ test.describe('dołączanie do meczu', () => {
     await klik(page, /komplet — na rezerwę/i);
     await klik(page, /zapisz mnie/i);
 
-    // Regresja z tej sesji: mówiło „Dołączyłeś do meczu!" komuś na rezerwie.
-    // Sprawdzamy OBA miejsca, w których to zdanie pada — chmurka i karta
-    // rozjeżdżały się już wcześniej i każde z nich może się zepsuć osobno.
-    await expect(chmurka(page).getByText(/liście rezerwowej/i)).toBeVisible();
-    const karta = tresc(page).getByText(/jesteś na liście rezerwowej/i)
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-    await expect(karta).toBeVisible();
-    await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
-    await uspokoj(page);
-    await expect(karta).toHaveScreenshot('karta-rezerwy.png');
-
-    await wypiszSie(page);
+    // Zapis do bazy jest już zrobiony — od tego miejsca sprzątanie MUSI się
+    // wykonać niezależnie od wyniku asercji (patrz `zeSprzataniem`).
+    await zeSprzataniem(async () => {
+      // Regresja z tej sesji: mówiło „Dołączyłeś do meczu!" komuś na rezerwie.
+      // Sprawdzamy OBA miejsca, w których to zdanie pada — chmurka i karta
+      // rozjeżdżały się już wcześniej i każde z nich może się zepsuć osobno.
+      await expect(chmurka(page).getByText(/liście rezerwowej/i)).toBeVisible();
+      const karta = tresc(page).getByText(/jesteś na liście rezerwowej/i)
+        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      await expect(karta).toBeVisible();
+      await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
+      await uspokoj(page);
+      await expect(karta).toHaveScreenshot('karta-rezerwy.png');
+    }, () => wypiszSie(page));
   });
 });
 
@@ -646,20 +674,24 @@ test.describe('prośba o dołączenie', () => {
     const zapisz = page.getByRole('button', { name: /zapisz mnie|wyślij prośbę/i }).first();
     if (await zapisz.isVisible().catch(() => false)) await zapisz.click();
 
-    await expect(chmurka(page).getByText(/wysłano prośbę o dołączenie/i)).toBeVisible();
-    const kafel = tresc(page).getByText('Oczekujesz na akceptację', { exact: true })
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-    await expect(kafel).toBeVisible();
-    // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
-    // i ma zostać na ekranie.
-    await expect(kafel.getByText(/dostaniesz\s+powiadomienie w Bojo/i)).toBeVisible();
-    await uspokoj(page);
-    await expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png');
-
-    // Sprzątanie — prośba nie może zostać na kolejny przebieg.
-    await page.getByRole('button', { name: /^Anuluj$/ }).click();
-    await expect(tresc(page).getByText('Oczekujesz na akceptację', { exact: true }))
-      .toHaveCount(0, { timeout: 15_000 });
+    // Prośba jest już w bazie — sprzątanie MUSI się wykonać niezależnie od
+    // wyniku asercji, inaczej wisi na kolejny przebieg I na drugi projekt,
+    // który chodzi po tej samej bazie równolegle (patrz `zeSprzataniem`).
+    await zeSprzataniem(async () => {
+      await expect(chmurka(page).getByText(/wysłano prośbę o dołączenie/i)).toBeVisible();
+      const kafel = tresc(page).getByText('Oczekujesz na akceptację', { exact: true })
+        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      await expect(kafel).toBeVisible();
+      // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
+      // i ma zostać na ekranie.
+      await expect(kafel.getByText(/dostaniesz\s+powiadomienie w Bojo/i)).toBeVisible();
+      await uspokoj(page);
+      await expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png');
+    }, async () => {
+      await page.getByRole('button', { name: /^Anuluj$/ }).click();
+      await expect(tresc(page).getByText('Oczekujesz na akceptację', { exact: true }))
+        .toHaveCount(0, { timeout: 15_000 });
+    });
   });
 });
 
