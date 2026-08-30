@@ -120,6 +120,22 @@ najgorszą możliwą odpowiedzią. Wniosek dla piszącego nowy scenariusz:
 `scenariusze.spec.ts` miesza asercje zachowania i wyglądu w jednym pliku
 i to jest w porządku — rozróżnia je bramka, nie podział na pliki.
 
+**Scenariusz, który zapisuje coś do bazy, sprząta po sobie przez
+`zeSprzataniem()` — nie „na końcu testu".** Oba projekty
+(`scenariusze-telefon`, `scenariusze-komputer`) chodzą po JEDNEJ bazie,
+równolegle (`fullyParallel`, dwa workery w CI). Test, który dopisał się do
+meczu i padł PRZED swoim sprzątaniem, zostawia stan widziany przez drugi
+projekt — i wywraca tam asercję, która z jego zmianą nie ma nic wspólnego.
+
+To nie jest teoria: na PR #306 zmiana wyglądu przesunęła kafelek,
+`toHaveScreenshot` padło, `Anuluj` się nie wykonało, prośba o dołączenie
+została w bazie — więc `organizator` w drugim projekcie zobaczył 3 prośby
+zamiast 2, a ponowienie tego samego testu nie znalazło już przycisku
+„Dołącz". Bramka czyta błędy ze WSZYSTKICH ponowień, więc czysta zmiana
+wyglądu została zaklasyfikowana jako zepsute ZACHOWANIE — czyli dokładnie
+odwrotnie, niż ma działać. `zeSprzataniem(proba, sprzatanie)` uruchamia
+sprzątanie zawsze, a oryginalna przyczyna i tak wygrywa.
+
 **Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
 `.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi

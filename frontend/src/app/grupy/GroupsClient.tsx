@@ -15,6 +15,7 @@ import { getGroupPostsForUnread, policzNieprzeczytanePerGrupa, kluczTablicaWidzi
 import { sportEmoji } from '@/lib/sports';
 import { withCount } from '@/lib/plural';
 import type { GroupWithNext } from '@/types';
+import { zWielkiejLitery } from '@/lib/utils';
 
 function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprzeczytane: number; noweMecze: boolean }) {
   const max = g.nextEvent?.maxPlayers ?? 0;
@@ -72,7 +73,7 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
           <div className="flex items-center gap-1.5">
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
               <CalendarDays className="h-3 w-3" />
-              <span className="capitalize">{dzien}</span> · {g.nextEvent.time.slice(0, 5)}
+              <span>{zWielkiejLitery(dzien)}</span> · {g.nextEvent.time.slice(0, 5)}
             </span>
             {max > 0 && (
               <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${

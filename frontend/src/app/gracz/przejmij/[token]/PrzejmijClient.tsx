@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { podejrzyjWpisGoscia, przejmijWpisGoscia, type PodgladWpisuGoscia } from '@/lib/guestClaim';
+import { zWielkiejLitery } from '@/lib/utils';
 
 /**
  * „To ja" — osoba dopisana ręcznie jako gość wiąże swój wpis z kontem.
@@ -133,8 +134,8 @@ export default function PrzejmijClient({ token }: { token: string }) {
         <p className="font-semibold text-ink">{podglad.tytul}</p>
         <p className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          <span className="capitalize">
-            {format(parseISO(podglad.data), 'EEEE, d MMMM', { locale: pl })}
+          <span>
+            {zWielkiejLitery(format(parseISO(podglad.data), 'EEEE, d MMMM', { locale: pl }))}
           </span>
           {' · '}
           {podglad.godzina?.slice(0, 5)}

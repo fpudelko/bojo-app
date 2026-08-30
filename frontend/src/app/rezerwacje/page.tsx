@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getMyBookings, updateBookingStatus } from '@/lib/bookings';
 import type { Booking } from '@/types';
+import { zWielkiejLitery } from '@/lib/utils';
 
 type BookingWithField = Booking & { fieldName: string };
 
@@ -70,7 +71,7 @@ function BookingCard({
           <div className="flex items-center gap-3 mt-1 text-sm text-slate-600">
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span className="capitalize">{formatDatePl(booking.date)}</span>
+              <span>{zWielkiejLitery(formatDatePl(booking.date))}</span>
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5 text-slate-400" />

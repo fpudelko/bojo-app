@@ -792,6 +792,7 @@ export default function VenueExplorer({
   const [kadr, setKadr] = useState<Kadr | null>(null);
   const [zoom, setZoom] = useState(POLSKA_ZOOM);
   const [skupiska, setSkupiska] = useState<Skupisko[]>([]);
+  const [ladujeKadr, setLadujeKadr] = useState(false);
 
   const [selected, setSelected] = useState<{ id: string | null; source: SelSource }>({ id: null, source: 'init' });
   const selectedId     = selected.id;
@@ -924,9 +925,15 @@ export default function VenueExplorer({
         .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
         .catch(() => {});
     } else {
+      // `ladujeKadr` odróżnia „jeszcze nie wiem" od „wiem, że pusto". Bez tego
+      // przejście przez próg ZOOM_SKUPISK migało komunikatem o pustym kadrze:
+      // gałąź skupisk zeruje `allFields`, więc przez te ~300 ms zapytania
+      // wyglądało to identycznie jak realnie pusty kadr.
+      setLadujeKadr(true);
       getExplorerFields(kadr)
         .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => { if (!cancelled) setLadujeKadr(false); });
     }
     return () => { cancelled = true; };
   }, [kadr, zoom, sports, venueTypes, initialFields, search]);
@@ -1291,6 +1298,63 @@ export default function VenueExplorer({
     () => (trybSkupisk ? skupiska.reduce((suma, s) => suma + s.ile, 0) : fields.length),
     [trybSkupisk, skupiska, fields.length],
   );
+
+  /**
+   * DLACZEGO NIC NIE WIDAĆ — jedna odpowiedź dla listy i dla nakładki nad mapą.
+   *
+   * Do 2026-08-30 istniała dziura, przez którą przy przybliżeniu (z ≳ 17) apka
+   * milkła całkowicie: znikały pinezki (kadr faktycznie pusty), znikał pasek
+   * z licznikiem (jego warunek brzmiał `fields.length > 0 || trybSkupisk`,
+   * a tu oba są fałszem) i NIE pokazywał się żaden komunikat — bo jedyny, jaki
+   * był („Brak boisk dla tych filtrów"), wymagał `allFields.length > 0`, czyli
+   * sytuacji, w której serwer coś zwrócił, a wycięły to filtry. Kadr pusty po
+   * stronie serwera nie miał ani jednej gałęzi. Zgłoszone wprost: „mapa
+   * pustoszeje przy z≥17".
+   *
+   * Trzy powody pustki to trzy różne rady dla użytkownika, więc muszą być
+   * rozróżnione, a nie zwinięte w jeden tekst:
+   *   `filtry`   — serwer coś dał, filtry to wycięły → poluzuj filtry,
+   *   `szukanie` — szukanie po tekście nic nie znalazło → zmień frazę,
+   *   `kadr`     — w tym wycinku mapy naprawdę nic nie ma → oddal albo przesuń.
+   */
+  const powodPustki = useMemo<null | 'filtry' | 'szukanie' | 'kadr'>(() => {
+    if (fields.length > 0 || trybSkupisk) return null;
+    const surowe = searchResults ?? allFields;
+    if (surowe.length > 0) return 'filtry';
+    if (searchResults) return 'szukanie';
+    // Zapytanie o kadr jeszcze leci — „nie wiem" to nie to samo co „pusto".
+    if (ladujeKadr) return null;
+    return 'kadr';
+  }, [fields.length, trybSkupisk, searchResults, allFields, ladujeKadr]);
+
+  /**
+   * ZAKRES LICZNIKA NAD LISTĄ — dopisek, bez którego trzy liczby na jednym
+   * ekranie wyglądają jak trzy odpowiedzi na to samo pytanie.
+   *
+   * Na `/mapa` widać naraz do trzech liczb boisk i wszystkie trzy są
+   * poprawne, tylko liczą CO INNEGO: licznik nad listą (to, co na liście pod
+   * spodem), nakładka nad mapą („N w tym widoku" — suma skupisk z kadru)
+   * i liczba na samym kółku skupiska (jedna komórka siatki). Do 2026-08-30
+   * pierwsza z nich mówiła gołe „884 boiska", więc obok „36 939 boisk w tym
+   * widoku" i kółka z „89" czytało się to jak trzy sprzeczne liczniki.
+   * Zgłoszone wprost. Sama liczba się nie zmienia — zmienia się to, czy widać,
+   * na jakie pytanie odpowiada.
+   */
+  const zakresListy = useMemo(() => {
+    if (searchResults) return `dla „${search.trim()}"`;
+    if (miejscowosc) return `w promieniu ${promienKm} km od: ${miejscowosc.nazwa}`;
+    // Ta sama gałąź co w `fields` — przy oddalonej mapie lista pokazuje
+    // okolicę dobraną na starcie, nie zawartość kadru.
+    if (trybSkupiskTeraz && allFields.length === 0) return 'w Twojej okolicy';
+    return 'w tym kadrze mapy';
+  }, [searchResults, search, miejscowosc, promienKm, trybSkupiskTeraz, allFields.length]);
+
+  /** Powrót do trybu skupisk — jedyny ruch, który z pustego kadru ZAWSZE
+   *  prowadzi do czegoś widocznego. Ten sam cel co przycisk „Przybliż"
+   *  w `PustaListaObiektow`, tylko w drugą stronę. */
+  const oddalDoSkupisk = useCallback(() => {
+    mapInstance?.setZoom(ZOOM_SKUPISK - 1);
+  }, [mapInstance]);
 
   const selectedField = selectedId ? fields.find((f) => f.id === selectedId) ?? null : null;
 
@@ -1662,7 +1726,7 @@ export default function VenueExplorer({
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
           {showGames
             ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
-            : `${fields.length.toLocaleString('pl-PL')} ${boiskoSlowo(fields.length)}`}
+            : `${fields.length.toLocaleString('pl-PL')} ${boiskoSlowo(fields.length)} ${zakresListy}`}
         </div>
 
         {/* Scrollable list */}
@@ -1784,8 +1848,29 @@ export default function VenueExplorer({
                 }}
               />
             )}
-            {fields.length === 0 && !trybSkupisk && (searchResults ?? allFields).length > 0 && (
+            {powodPustki === 'filtry' && (
               <p className="text-sm text-slate-400 text-center pt-8">Brak boisk dla tych filtrów</p>
+            )}
+            {powodPustki === 'szukanie' && (
+              <p className="text-sm text-slate-400 text-center pt-8">
+                Nic nie pasuje do „{search.trim()}"
+              </p>
+            )}
+            {/* Kadr pusty — patrz `powodPustki`. Sam komunikat nie wystarcza:
+                z przybliżenia, na którym nic nie ma, nie widać, w którą stronę
+                przesunąć mapę, więc dokładamy jedyny ruch, który zawsze
+                prowadzi do czegoś widocznego. */}
+            {powodPustki === 'kadr' && (
+              <div className="flex flex-col items-center gap-3 pt-8 text-center">
+                <p className="text-sm text-slate-400">W tym wycinku mapy nie ma żadnego boiska.</p>
+                <button
+                  type="button"
+                  onClick={oddalDoSkupisk}
+                  className="min-h-[44px] rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Oddal mapę
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -1958,8 +2043,33 @@ export default function VenueExplorer({
             <p className="rounded-full bg-white/90 px-4 py-2 text-xs font-medium text-slate-500 shadow-md">
               {trybSkupisk
                 ? `${wKadrze.toLocaleString('pl-PL')} ${boiskoSlowo(wKadrze)} w tym widoku · przybliż, żeby zobaczyć pojedyncze`
-                : 'Dotknij pinezki, żeby zobaczyć boisko'}
+                : `${fields.length.toLocaleString('pl-PL')} ${boiskoSlowo(fields.length)} w tym kadrze · dotknij pinezki`}
             </p>
+          </div>
+        )}
+
+        {/* Pusty kadr przy przybliżeniu — dziura opisana przy `powodPustki`.
+            Do 2026-08-30 nie było tu NICZEGO: ani pinezek, ani licznika, ani
+            komunikatu. */}
+        {!showGames && !selectedField && powodPustki === 'kadr' && (
+          <div
+            className="md:hidden fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
+            style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
+          >
+            <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-2.5 shadow-xl">
+              <p className="text-sm text-slate-500">Tu nie ma boisk</p>
+              {/* „Oddal mapę", nie samo „Oddal" — obok, w tym samym rogu, stoi
+                  przycisk minusa z `ZoomButtons` o etykiecie „Oddal". Dwa
+                  jednakowo nazwane przyciski na ekranie to zagadka dla
+                  czytnika ekranu i dla testu. */}
+              <button
+                type="button"
+                onClick={oddalDoSkupisk}
+                className="shrink-0 rounded-lg bg-primary-700 px-3 py-1.5 text-xs font-bold text-white transition active:scale-95"
+              >
+                Oddal mapę
+              </button>
+            </div>
           </div>
         )}
 
@@ -1974,7 +2084,7 @@ export default function VenueExplorer({
           </div>
         )}
 
-        {!showGames && fields.length === 0 && (searchResults ?? allFields).length > 0 && !trybSkupisk && (
+        {!showGames && (powodPustki === 'filtry' || powodPustki === 'szukanie') && (
           <div
             className="md:hidden pointer-events-none fixed inset-x-0 bottom-0 z-[1001] flex justify-center px-3"
             // Nad paskiem nawigacji, nie pod nim: `absolute bottom-6` mierzyło
@@ -1983,7 +2093,9 @@ export default function VenueExplorer({
             style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1.25rem)' }}
           >
             <div className="rounded-2xl bg-white px-5 py-3 shadow-xl text-sm text-slate-500">
-              Brak boisk dla tych filtrów
+              {powodPustki === 'filtry'
+                ? 'Brak boisk dla tych filtrów'
+                : `Nic nie pasuje do „${search.trim()}"`}
             </div>
           </div>
         )}

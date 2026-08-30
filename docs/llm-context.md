@@ -346,6 +346,44 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-30 — Czwarta partia z sesji QA: pusty kadr mapy, podpisane liczniki, karta „Kiedy i gdzie"
+
+PROBLEM: (1) Przy dużym przybliżeniu mapy (z≥17) Bojo milkło całkowicie — znikały
+pinezki, znikał pasek z licznikiem i nie pojawiał się żaden komunikat, bo pusty kadr po
+stronie serwera nie miał w kodzie ani jednej gałęzi (jedyny istniejący komunikat
+dotyczył sytuacji „serwer coś dał, filtry to wycięły"). Biała mapa bez słowa wyjaśnienia
+i bez wyjścia. (2) Na `/mapa` widać naraz trzy liczby boisk — nad listą, nad mapą
+i na kółku skupiska — wszystkie poprawne, ale liczące co innego i podpisane tak samo,
+więc czytało się je jak trzy sprzeczne liczniki. (3) Etykiety dat pokazywały „Niedz. 30
+Sie" i „Niedziela, 30 Sierpnia": tailwindowe `capitalize` podnosi pierwszą literę
+KAŻDEGO słowa, a polska data ma wielką tylko pierwszą. (4) Strona meczu nie miała karty
+„Kiedy i gdzie": termin i miejsce mieściły się w linijce chipów, gdzie adres urywał się
+w połowie ulicy, a linku do nawigacji nie było wcale dla meczu na boisku z katalogu.
+(5) Plakietka nieprzeczytanych w dolnej nawigacji mówiła „9+", podczas gdy ekran
+`/rozmowy` zaraz po jej dotknięciu pokazywał „32 nieprzeczytane wiadomości".
+
+ROZWIĄZANIE BOJO: (1) pusty kadr mówi wprost, że jest pusty, i daje przycisk „Oddal
+mapę" wracający do widoku, z którego zawsze coś widać; trzy powody pustki (filtry /
+szukanie / kadr) to dziś trzy różne rady zamiast jednego milczenia. (2) licznik nad
+listą dostał dopisek, na jakie pytanie odpowiada — „w tym kadrze mapy", „w Twojej
+okolicy", „w promieniu N km od: <miejscowość>", „dla «fraza»"; same liczby bez zmian.
+(3) wielka litera tylko pierwsza, w sześciu miejscach naraz. (4) nowa karta „Kiedy
+i gdzie" na górze zakładki Skład: pełna data, godzina z czasem trwania, nazwa obiektu
+i CAŁY adres bez ucinania, a pod tym „Nawiguj" (Mapy Google) i „O boisku".
+(5) limit plakietki podniesiony z 9 do 99 — „32" zajmuje tyle samo pikseli co dawne
+„9+", więc rozjazd znika bez kosztu w układzie; pasek przelicza się też po powrocie na
+kartę, tak jak `/rozmowy`.
+
+MECHANIKA: `components/map/VenueExplorer.tsx` (`powodPustki`, `ladujeKadr`,
+`zakresListy`, `oddalDoSkupisk`), `lib/utils.ts` (`zWielkiejLitery()`, `linkDojazdu()`),
+`app/wydarzenia/[id]/EventDetailClient.tsx` (karta „Kiedy i gdzie"),
+`components/layout/BottomNav.tsx` (`LIMIT_LICZNIKA`, odświeżanie na `visibilitychange`),
+plus pięć innych miejsc z etykietą daty. Czerwona plakietka dzwonka liczy CO INNEGO
+(rzeczy wymagające działania, `WYMAGA_AKCJI` w `lib/notifications.ts`) i to zostaje bez
+zmian — to nie jest ten sam licznik. Bez migracji. Pilnują tego
+`e2e/mapa-pusty-kadr.klikalnosc.spec.ts` i `src/__tests__/etykietyDat.test.ts` —
+sprawdzone, że bez poprawki testy padają.
+
 ### 2026-08-30 — Trzecia partia błędów z sesji QA: przybliżenie mapy, Enter w polu miejscowości, odmiana dni tygodnia
 
 PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji, tym razem
@@ -632,32 +670,3 @@ nieodwołane, wcześniejsze niż dziś). `content/opisObiektu.ts#zdanieORozegran
 zdanie brzmi jak wcześniej) trafia zarówno do `VenueDetailClient.tsx` (renderowane
 razem z resztą nagłówka obiektu, także w stanie ładowania, czyli w HTML, który dostaje
 crawler), jak i do `description` w JSON-LD `SportsActivityLocation`. Bez migracji.
-
-### 2026-08-23 — Rozmowa z listy rozmów zostaje rozmową, „wstecz" wraca tam, skąd przyszedłeś
-
-PROBLEM: dotknięcie rozmowy ekipy na liście `/rozmowy` przenosiło na stronę ekipy
-z paskiem zakładek, składem i zarządzaniem — z komunikatora wyrzucało na panel
-administracyjny, a „wstecz" wracało stamtąd na listę ekip, nie do rozmów. Szerzej:
-ekrany szczegółowe w Bojo miały „wstecz" zapisane na sztywno do jednego rodzica, mimo
-że wchodzi się na nie z wielu miejsc (do strony ekipy prowadzi siedem dróg, do rozmowy
-prywatnej także profil gracza), więc powrót lądował na ekranie, na którym człowiek nigdy
-nie był. Profil gracza nie miał wyjścia w ogóle. Do tego wskaźnik nieprzeczytanych
-wiadomości w dolnej nawigacji był chmurką bez liczby i nie liczył rozmów prywatnych.
-
-ROZWIĄZANIE BOJO: rozmowa ekipy i rozmowa meczu mają własne pełnoekranowe trasy pod
-`/rozmowy`, o układzie identycznym z rozmową prywatną; kontekst ekipy/meczu jest w nich
-odnośnikiem w nagłówku („Otwórz ekipę", „Otwórz mecz · jutro · 18:00"), nie paskiem
-zakładek. Rozmowy zostają dostępne także jako zakładka na stronie ekipy i meczu — kto
-przyszedł zarządzać, ma je tam, gdzie były. „Wstecz" znaczy teraz wstecz: wraca do
-poprzedniego ekranu, a sztywnego rodzica używa wyłącznie wtedy, gdy nie ma dokąd wracać
-(wejście z powiadomienia push, z linku, z ikony aplikacji). Zakładka Rozmowy w dolnej
-nawigacji pokazuje różową plakietkę z LICZBĄ nieprzeczytanych wiadomości ze wszystkich
-trzech źródeł — meczów, ekip i rozmów prywatnych.
-
-MECHANIKA: trasy `/rozmowy/grupa/[id]` i `/rozmowy/mecz/[id]` (`noindex`, treść przez
-istniejące `RozmowaGrupy`/`RozmowaWydarzenia`), wspólny nagłówek
-`components/rozmowy/NaglowekRozmowy.tsx`; `frontend/src/lib/historia.tsx`
-(`SledzenieHistorii` w `app/layout.tsx`, hak `useWstecz(zapasowyCel)`);
-`frontend/src/lib/rozmowy.ts` — jedno źródło listy rozmów i liczby nieprzeczytanych dla
-ekranu `/rozmowy` i dla dolnej nawigacji. Bez migracji.
-

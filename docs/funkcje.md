@@ -339,7 +339,7 @@ później — a chmurka na to nie odpowiadała. Po trzecie, **rozmowy prywatne n
 liczone w ogóle**, więc DM (jedyna wiadomość skierowana wprost do jednej osoby) nie
 zapalał wskaźnika. Dziś stoi tam różowa plakietka z sumą nieprzeczytanych wiadomości ze
 WSZYSTKICH trzech źródeł, o tej samej geometrii co zielona plakietka z liczbą meczów na
-„Mecze" (`h-[15px]`, „9+" powyżej dziewięciu): kształt mówi „policzalna rzecz", kolor
+„Mecze" (`h-[15px]`, „99+" powyżej `LIMIT_LICZNIKA`): kształt mówi „policzalna rzecz", kolor
 mówi jaka.
 
 Liczbę daje `policzNieprzeczytane()` z **`lib/rozmowy.ts`** — tej samej funkcji używa
@@ -348,6 +348,27 @@ zobaczy po jej dotknięciu. Wcześniej były na to trzy różne odpowiedzi w dw�
 interfejsu: `nieprzeczytaneWMeczach()` liczyło MECZE z nieprzeczytanymi (nie wiadomości),
 `hasUnreadGroupMessages()` zwracało samo `true/false`, a ekran rozmów sumował wiadomości.
 `pobierzRozmowy()` zastąpiło w `BottomNav.tsx` trzy zapytania jednym.
+
+**Limit plakietki podniesiony z 9 do 99 — od 2026-08-30.** Reguła wyżej („plakietka nie
+może pokazać czegoś innego, niż człowiek zobaczy po jej dotknięciu") była łamana przez
+własny limit: przy 32 nieprzeczytanych pasek mówił „9+", a ekran `/rozmowy` zaraz po
+dotknięciu — „32 nieprzeczytane wiadomości". Zgłoszone wprost jako rozjechane liczniki.
+Powód istnienia limitu (plakietka nie ma rozpychać kolumny paska) dotyczy dopiero liczb
+trzycyfrowych — „32" zajmuje tyle samo miejsca co dawne „9+", więc próg `LIMIT_LICZNIKA
+= 99` kosztuje zero pikseli w każdym realnym przypadku i usuwa rozjazd.
+
+**Powrót na kartę przelicza pasek.** `BottomNav` odświeżał się wyłącznie przy zmianie
+trasy, a `/rozmowy` dodatkowo na `visibilitychange` — więc te same nieprzeczytane były
+liczone z DWÓCH niezależnych pobrań w różnych chwilach i po powrocie z przeczytanej
+rozmowy pasek pokazywał liczbę sprzed przeczytania. Dziś oba miejsca mają ten sam
+mechanizm; znacznik „widziano" siedzi w `localStorage`, więc React sam się o nim nie
+dowie.
+
+**Dzwonek w nagłówku liczy CO INNEGO i to jest celowe** — `unreadReszta`, czyli rzeczy
+wymagające działania (`WYMAGA_AKCJI` w `lib/notifications.ts`: prośby o dołączenie,
+oferty miejsca z rezerwy, rozliczenia), nie wiadomości. Czerwona „2" obok różowej „32"
+nie jest więc rozjazdem tego samego licznika, tylko dwiema różnymi rzeczami — patrz
+komentarz w `NotificationBell.tsx` i AGENTS.md → Konwencje (kolor niesie znaczenie).
 
 **Każde zapytanie ignoruje odpowiedź, która wróciła po zmianie trasy.** Wszystkie cztery
 efekty w `BottomNav.tsx` (prośby, wiadomości „Moje", wiadomości+nowość „Grupy", pobliskie
@@ -376,7 +397,7 @@ Brak zgody = brak kropki, nie prośba w tle.
 zielona plakietka z liczbą meczów, w których gram, czekam na rezerwie albo organizuję —
 od dzisiaj w przód, bez odwołanych (`policzNadchodzaceMoje()` w `lib/events.ts`, ten sam
 zbiór co `getMyActiveEventIds()`, więc kliknięcie pokazuje dokładnie tyle pozycji, ile
-mówi plakietka). Zero nie renderuje nic, powyżej dziewięciu pokazuje „9+". Kolor zielony,
+mówi plakietka). Zero nie renderuje nic, powyżej `LIMIT_LICZNIKA` pokazuje „99+". Kolor zielony,
 nie różowy/niebieski/pomarańczowy — to stan, nie zdarzenie (patrz AGENTS.md, Konwencje).
 Niebieska kropka „prośba o dołączenie" schodzi przez to do dolnego rogu ikony.
 
@@ -1107,6 +1128,21 @@ przez słownik, reszta zostaje bez zmian.
 jednym graczu wychodziło „1 graczy". Zgłoszone wprost. Dziś idzie przez
 `withCount()` (`lib/plural.ts`), tak jak reszta liczników na tej samej karcie
 („wolne miejsce"/„wolne miejsca"/„wolnych miejsc" niżej).
+
+**Data z wielkiej litery — ale tylko pierwszej, od 2026-08-30.** Etykiety dat
+w sześciu miejscach nosiły tailwindowe `capitalize`, czyli
+`text-transform: capitalize` — wielką literę KAŻDEGO słowa. Polska data ma
+podniesioną wyłącznie pierwszą, bo wielka litera jest tu funkcją pozycji
+w zdaniu, nie własnością słowa: `'EEE d MMM'` dawało „Niedz. 30 **S**ie", a
+`'EEEE, d MMMM'` — „Niedziela, 30 **S**ierpnia". Zgłoszone wprost („Niedz. 30 Sie").
+Zastąpione przez `zWielkiejLitery()` (`lib/utils.ts`) w `EventDetailClient.tsx`
+(×2), `GroupsClient.tsx`, `ZaproszenieClient.tsx`, `rezerwacje/page.tsx`,
+`boisko/[id]/VenueDetailClient.tsx` i `gracz/przejmij/[token]/PrzejmijClient.tsx`.
+
+**CSS-em się tego nie da** w tych miejscach: `first-letter:uppercase` działa przez
+pseudoelement `::first-letter`, który dotyczy wyłącznie kontenerów blokowych —
+a wszystkie te etykiety siedzą w `<span>`. Pozostałe `capitalize` w repo zostają:
+stoją na JEDNOSŁOWNYCH wartościach (nazwa sportu), gdzie różnicy nie ma.
 
 ---
 
@@ -1936,6 +1972,24 @@ widziałaby przycisku dołączenia do meczu. **Karta „Po meczu" (`PoMeczuCard`
 uniwersalna** — żyje wyłącznie w zakładce Skład, żeby nie duplikować się z jej własną
 treścią (roster, zarządzanie graczami) na każdej innej zakładce.
 
+**Karta „Kiedy i gdzie" — pierwsza rzecz w zakładce Skład, od 2026-08-30.** Termin
+i miejsce były wprawdzie w pasku nagłówka, ale w jednej linijce chipów, gdzie adres
+jest `truncate` (urywa się w połowie ulicy), a **dojazdu nie było wcale**: link
+„Nawiguj" siedział wyłącznie w okienku otwieranym po dotknięciu miejsca SPOZA
+katalogu, więc dla meczu na boisku z katalogu nie istniał w ogóle. Zgłoszone wprost
+z sesji QA („brak karty «Kiedy i gdzie» z dojazdem i ucięty adres"). Karta niesie
+pełną datę (`'EEEE, d MMMM'` — „Niedziela, 30 sierpnia", nie skrót „Niedz. 30 sie"
+z paska), godzinę z czasem trwania, nazwę obiektu i **cały adres bez ucinania**, a pod
+tym „Nawiguj" (Mapy Google) oraz „O boisku" dla obiektu z katalogu.
+
+Powtórzenie terminu i miejsca względem paska nagłówka jest świadome: pasek jest
+identyfikacją meczu widoczną na KAŻDEJ zakładce, a karta odpowiada na pytanie zadawane
+przed wyjściem z domu — i musi dać się z niej jednym dotknięciem pojechać na miejsce.
+Odnośnik składa `linkDojazdu()` (`lib/utils.ts`): współrzędne mają pierwszeństwo przed
+adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatima bywa
+przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
+linku prowadzącego donikąd.
+
 **Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
 blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
 Bez niego uniwersalne elementy zaśmiecały jedyny ekran, który ma wyglądać jak zwykły czat.
@@ -2278,6 +2332,58 @@ podmieniało źródło pinezek na pustą tablicę w tej samej chwili, w której 
 komunikat „nie znaleziono" — mapa traciła WSZYSTKIE pinezki z kadru zamiast pokazać
 pustkę tylko tam, gdzie realnie jej szukano. Dziś zero wyników wraca do `fields`
 (kadr): `znalezione && znalezione.length > 0 ? znalezione : fields`.
+
+### Pusty kadr przy przybliżeniu ma swój komunikat — od 2026-08-30
+
+Zgłoszone wprost: „mapa pustoszeje przy z≥17". Przy dużym przybliżeniu
+`getExplorerFields()` dostaje ciasny prostokąt i słusznie wraca pusty — a efekt
+w `VenueExplorer.tsx` nadpisywał tym `allFields`. Reszta interfejsu miała wtedy
+dziurę i apka **milkła całkowicie**:
+
+- pinezki znikały (poprawnie — w tym wycinku faktycznie nic nie ma),
+- pasek z licznikiem nad mapą znikał, bo jego warunek brzmiał
+  `fields.length > 0 || trybSkupisk`, a przy przybliżeniu oba są fałszem,
+- nie pokazywał się ŻADEN komunikat: jedyny istniejący („Brak boisk dla tych
+  filtrów") wymagał `allFields.length > 0`, czyli sytuacji, w której serwer coś
+  zwrócił, a wycięły to filtry. **Pusty kadr po stronie serwera nie miał ani
+  jednej gałęzi** — ani na liście, ani nad mapą.
+
+Dziś jedno `powodPustki` (`null | 'filtry' | 'szukanie' | 'kadr'`) obsługuje
+listę i nakładkę nad mapą, bo trzy powody pustki to trzy różne rady:
+poluzuj filtry / zmień frazę / oddal albo przesuń mapę. Ostatni przypadek dostał
+też wyjście — przycisk „Oddal mapę" wraca do trybu skupisk (`ZOOM_SKUPISK - 1`),
+czyli jedynego miejsca, z którego zawsze coś widać. Nazwa przycisku jest dłuższa
+niż potrzeba świadomie: `ZoomButtons` stawia w tym samym rogu minus o etykiecie
+„Oddal", a dwa jednakowo nazwane przyciski to zagadka dla czytnika ekranu.
+
+Stan `ladujeKadr` odróżnia „jeszcze nie wiem" od „wiem, że pusto" — bez niego
+przejście przez próg `ZOOM_SKUPISK` migało komunikatem o pustym kadrze, bo
+gałąź skupisk zeruje `allFields` i przez ~300 ms zapytania wygląda to identycznie
+jak realnie pusty kadr.
+
+Pilnuje tego `e2e/mapa-pusty-kadr.klikalnosc.spec.ts` (atrapa PostgREST filtruje
+po `lat=gte.`/`lat=lte.` z adresu, tak jak serwer — bez tego mapa dostawałaby
+boiska niezależnie od przybliżenia i pusty kadr nigdy by nie powstał).
+
+### Trzy liczniki boisk to trzy różne pytania — i dziś to widać
+
+Na `/mapa` widać naraz do trzech liczb boisk i **wszystkie trzy są poprawne**,
+tylko liczą co innego:
+
+| Gdzie | Co liczy | Źródło |
+|---|---|---|
+| licznik nad listą | to, co na liście pod spodem | `fields.length` |
+| nakładka nad mapą | suma skupisk z kadru Leafleta | `wKadrze` |
+| liczba na kółku skupiska | jedna komórka siatki | `skupisko.ile` |
+
+Do 2026-08-30 pierwszy z nich mówił gołe „884 boiska", więc obok „36 939 boisk
+w tym widoku" i kółka z „89" czytało się to jak trzy sprzeczne liczniki
+(zgłoszone wprost). Sama liczba się nie zmieniła — doszedł dopisek `zakresListy`,
+który mówi, na jakie pytanie ta liczba odpowiada: `dla „<fraza>"` /
+`w promieniu N km od: <miejscowość>` / `w Twojej okolicy` (lista startowa przy
+oddalonej mapie) / `w tym kadrze mapy`. Nakładka nad mapą przy przybliżeniu
+mówi dziś tak samo wprost „N boisk w tym kadrze", zamiast samego „Dotknij
+pinezki".
 
 ## Filtr „miejscowość + ile km"
 
