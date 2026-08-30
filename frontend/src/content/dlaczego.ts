@@ -95,12 +95,17 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
   },
   {
     id: 'wczesny-etap',
-    tytul: 'Na jakim etapie jest Bojo',
+    tytul: 'Misja Bojo i na jakim etapie dziś jesteśmy',
     akapity: [
-      'Publicznych gier na liście otwartych meczów bywa dziś mało, więc najpewniejszy ' +
-      'skład zbierzesz linkiem do swoich, nie licząc na to, że dopiszą się obcy. Katalog ' +
-      'obejmuje ponad 30 000 obiektów sportowych w całej Polsce, ale szczegóły — ' +
-      'nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po obiekcie.',
+      'Misja Bojo: łączyć ludzi przez najprostszy sposób organizowania i dołączania do ' +
+      'amatorskich gier sportowych. Docelowo każdy, kto ma czas i ochotę zagrać, znajdzie ' +
+      'w okolicy otwartą grę do dołączenia — nie tylko organizuje własną. Im więcej ' +
+      'organizatorów i graczy korzysta z Bojo, tym więcej takich gier jest do wyboru.',
+      'Dziś jesteśmy na początku tej drogi: publicznych gier na liście otwartych meczów ' +
+      'bywa mało, więc najpewniejszy skład zbierzesz linkiem do swoich, nie licząc na to, ' +
+      'że dopiszą się obcy. Katalog obejmuje ponad 30 000 obiektów sportowych w całej ' +
+      'Polsce, ale szczegóły — nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po ' +
+      'obiekcie.',
     ],
   },
 ];
