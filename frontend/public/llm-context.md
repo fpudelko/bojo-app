@@ -346,6 +346,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-30 — Trzecia partia błędów z sesji QA: przybliżenie mapy, Enter w polu miejscowości, odmiana dni tygodnia
+
+PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji, tym razem
+skupiona na `/mapa`. (1) Na `/mapa` nie było ŻADNEGO sposobu przybliżenia poza kółkiem
+myszy/gestem szczypania — kontrolka Leaflet była wyłączona (kolidowała z nakładką
+szukania na mobile), a nic jej nie zastępowało. (2) Jeden ruch kółka/trackpada potrafił
+przeskoczyć 3-4 poziomy przybliżenia naraz. (3) Enter w polu „miejscowość" filtra „ile km"
+nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem. (4) Nominatim potrafił zwrócić
+tę samą miejscowość dwa razy, więc podpowiedzi pokazywały duplikaty. (5) Dzień tygodnia
+w zapowiedziach terminu („w niedziela" zamiast „w niedzielę") i liczba graczy na karcie
+rozegranego meczu („1 graczy" zamiast „1 gracz") łamały polską odmianę.
+
+ROZWIĄZANIE BOJO: (1) własne przyciski +/- (`ZoomButtons.tsx`), tym samym wzorem co
+istniejący `LocateMeButton` — stoją w rogu, którego nic innego nie zajmuje na stałe.
+(2) `wheelPxPerZoomLevel={240}` zamiast domyślnych 60 — trzeba więcej przewinąć na jeden
+poziom. (3) pole „miejscowość" wybiera dziś pierwszą podpowiedź na Enter, tak jak
+wyszukiwarka zwykle wybiera pierwszy wynik. (4) serwerowe proxy `/api/geocode` odsiewa
+podpowiedzi o tej samej nazwie i kontekście przed odesłaniem do przeglądarki. (5) trzy dni
+tygodnia (niedziela/środa/sobota) mają dziś osobną formę biernika zamiast mianownika
+z `format()`; liczba graczy idzie przez ten sam helper odmiany, którego reszta karty już
+używała.
+
+MECHANIKA: `components/map/ZoomButtons.tsx` (nowy plik, użyty w `VenueExplorer.tsx`
+i `GamesMapCanvas.tsx`), `components/map/WyborMiejscowosci.tsx` (`onKeyDown`),
+`lib/miejscowosci.ts` (`odsiejDuplikatyMiejscowosci()`, wołane z `app/api/geocode/route.ts`
+— handler trasy Next.js nie może eksportować nic poza uznanymi nazwami HTTP, stąd funkcja
+w osobnym module), `lib/eventDates.ts` (`dzienTygodniaWBierniku()`),
+`components/groups/NajblizszyMeczGrupy.tsx`, `components/EventBrowseCard.tsx`
+(`withCount()` zamiast literału „graczy"). Bez migracji. Pilnuje tego
+`e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts` — sprawdzone, że bez poprawki test pada.
+
 ### 2026-08-30 — Druga partia błędów z sesji QA: mecz płatny bez ceny, nazwa miejsca, dymek nawigacji, dostępność filtrów
 
 PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji. (1) Włączenie
@@ -630,28 +661,3 @@ istniejące `RozmowaGrupy`/`RozmowaWydarzenia`), wspólny nagłówek
 `frontend/src/lib/rozmowy.ts` — jedno źródło listy rozmów i liczby nieprzeczytanych dla
 ekranu `/rozmowy` i dla dolnej nawigacji. Bez migracji.
 
-### 2026-08-23 — „Szukaj" otwiera listę otwartych meczów, nie mapę boisk
-
-PROBLEM: zakładka „Szukaj" w dolnej nawigacji Bojo prowadziła na mapę KATALOGU BOISK.
-Człowiek wchodzi tam z pytaniem „w co mogę dziś zagrać", a dostawał odpowiedź na inne —
-„jakie są w okolicy boiska". Boisko bez meczu to informacja dopiero na drugim kroku,
-a droga do meczów wiodła przez przełącznik, o którym trzeba było wiedzieć. Do tego mapa
-przy oddaleniu pokazuje skupiska zamiast pojedynczych obiektów, więc pierwszy ekran
-wymagał przybliżania, zanim cokolwiek powiedział.
-
-ROZWIĄZANIE BOJO: „Szukaj" prowadzi na `/mapa?gry=1` — od razu na LISTĘ otwartych meczów,
-z terminem i liczbą wolnych miejsc na każdej karcie. Domyślny widok idzie odtąd za
-rodzajem danych: GRY otwierają się jako lista (mecz to przede wszystkim termin, a tego
-pinezka nie mówi), OBIEKTY jako mapa (gdzie jest boisko to pytanie przestrzenne, a katalog
-liczy dziesiątki tysięcy pozycji). Przełącznik Lista|Mapa działa jak dotąd w obie strony.
-Pusta lista meczów nie jest ślepym końcem: rozróżnia „żaden mecz nie pasuje do filtrów"
-od „nie ma teraz otwartych meczów" i w obu wypadkach proponuje zorganizowanie własnego
-meczu albo przejście do boisk.
-
-MECHANIKA: `LEFT_ITEMS` w `frontend/src/components/layout/BottomNav.tsx` (pole `hrefPelny`
-niesie `?gry=1`, `href` zostaje czystą ścieżką, bo po nim idzie dopasowanie stanu
-„wybrane", kropek i dymków); `widok` w `frontend/src/components/map/VenueExplorer.tsx`
-startuje z `showGames ? 'lista' : 'mapa'`. Lista gier nie zależy od kadru mapy —
-`getPublicEvents()` pobiera wszystkie otwarte mecze naraz, więc działa bez przybliżania
-i bez zgody na lokalizację. Wejście na goły adres `/mapa` (powrót ze strony obiektu,
-link `?boisko=`) zachowuje się bez zmian: obiekty na mapie.

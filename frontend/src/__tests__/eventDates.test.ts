@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart } from '@/lib/eventDates';
+import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart, dzienTygodniaWBierniku } from '@/lib/eventDates';
 import type { EventItem } from '@/types';
 
 function fakeEvent(overrides: Partial<EventItem> = {}): EventItem {
@@ -93,5 +93,21 @@ describe('matchWhenLabel', () => {
   it('dalej niż tydzień pokazuje datę', () => {
     const label = matchWhenLabel(ymd(addDays(30)), '18:00');
     expect(label).toMatch(/^\d{1,2} [a-ząćęłńóśźż]+ · 18:00$/);
+  });
+});
+
+describe('dzienTygodniaWBierniku', () => {
+  // Zgłoszone wprost z sesji QA: „w niedziela" zamiast „w niedzielę" —
+  // `format(date, 'EEEE')` zwraca mianownik, trzy dni tygodnia różnią się
+  // w bierniku (pozostałe cztery mają tę samą formę w obu przypadkach).
+  it('odmienia niedzielę, środę i sobotę przez biernik', () => {
+    expect(dzienTygodniaWBierniku(new Date(2026, 8, 6))).toBe('niedzielę');  // 2026-09-06
+    expect(dzienTygodniaWBierniku(new Date(2026, 8, 9))).toBe('środę');      // 2026-09-09
+    expect(dzienTygodniaWBierniku(new Date(2026, 8, 12))).toBe('sobotę');    // 2026-09-12
+  });
+
+  it('zostawia bez zmian dni, gdzie mianownik = biernik', () => {
+    expect(dzienTygodniaWBierniku(new Date(2026, 8, 7))).toBe('poniedziałek');
+    expect(dzienTygodniaWBierniku(new Date(2026, 8, 10))).toBe('czwartek');
   });
 });

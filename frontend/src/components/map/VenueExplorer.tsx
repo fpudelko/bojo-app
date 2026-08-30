@@ -48,6 +48,7 @@ import { PROMIEN_DOMYSLNY_KM, type Miejscowosc } from '@/lib/miejscowosci';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
+import ZoomButtons from './ZoomButtons';
 import { useSwipe } from '@/lib/useSwipe';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -1807,6 +1808,11 @@ export default function VenueExplorer({
           zoom={POLSKA_ZOOM}
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
+          // Domyślne 60 px/poziom — na trackpadzie, który wysyła duże `deltaY`
+          // na gest, jeden ruch potrafił przeskoczyć 3-4 poziomy naraz.
+          // Zgłoszone wprost z sesji QA. Wyższa wartość = trzeba przewinąć
+          // więcej, żeby zmienić poziom o jeden.
+          wheelPxPerZoomLevel={240}
           ref={setMapInstance}
         >
           <MapAttribution />
@@ -1835,6 +1841,7 @@ export default function VenueExplorer({
             wejściu: pytanie o lokalizację od razu po otwarciu mapy odbija się
             od ludzi, a mapa Polski działa i bez zgody. */}
         <LocateMeButton map={mapInstance} className="absolute right-3 bottom-28 md:bottom-6 z-[600]" />
+        <ZoomButtons map={mapInstance} className="absolute left-3 bottom-28 md:bottom-6 z-[600]" />
 
         {/* Mobile: search + filter overlay. Zalogowany dostaje tu też
             dzwonek+awatar — Header chowa dla niego swój pasek na tej trasie

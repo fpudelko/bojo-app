@@ -57,3 +57,25 @@ export async function szukajMiejscowosci(fraza: string, sygnal?: AbortSignal): P
     return [];
   }
 }
+
+/**
+ * Nominatim potrafi zwrócić tę samą miejscowość dwa razy — różne obiekty OSM
+ * (węzeł administracyjny i punkt osady) trafiające na tę samą nazwę i okolicę
+ * stają się nierozróżnialne po odrzuceniu adresu. Podpowiedzi pokazywały
+ * wtedy dwa identyczne wiersze pod sobą. Zgłoszone wprost z sesji QA.
+ * Używane w serwerowym proxy (`/api/geocode`), nie tutaj — `route.ts` nie
+ * może eksportować nic poza uznanymi nazwami handlerów HTTP.
+ *
+ * Klucz to nazwa+kontekst (nie współrzędne — to samo miejsce z dwóch węzłów
+ * OSM bywa przesunięte o kilkadziesiąt metrów), pierwsze trafienie wygrywa —
+ * Nominatim sortuje wyniki wg trafności.
+ */
+export function odsiejDuplikatyMiejscowosci<T extends { nazwa: string; kontekst: string }>(wpisy: T[]): T[] {
+  const widziane = new Set<string>();
+  return wpisy.filter((w) => {
+    const klucz = `${w.nazwa.toLowerCase()}|${w.kontekst.toLowerCase()}`;
+    if (widziane.has(klucz)) return false;
+    widziane.add(klucz);
+    return true;
+  });
+}

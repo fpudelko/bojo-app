@@ -14,6 +14,7 @@ import { useToast } from '@/lib/toast';
 import { repeatEvent } from '@/lib/events';
 import type { MyEventRelation } from '@/lib/events';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
+import { dzienTygodniaWBierniku } from '@/lib/eventDates';
 import type { EventItem } from '@/types';
 
 /**
@@ -77,7 +78,9 @@ export default function NajblizszyMeczGrupy({
 
   if (ostatni) {
     let dzienOstatniego = ostatni.date;
-    try { dzienOstatniego = format(parseISO(ostatni.date), 'EEEE', { locale: pl }); } catch { /* noop */ }
+    // Biernik ("w niedzielę"), nie mianownik z `format()` wprost — zgłoszone
+    // wprost z sesji QA jako „graliście w niedziela".
+    try { dzienOstatniego = dzienTygodniaWBierniku(parseISO(ostatni.date)); } catch { /* noop */ }
     let nastepnaData = '';
     try {
       nastepnaData = format(

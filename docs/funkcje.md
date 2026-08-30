@@ -1092,6 +1092,22 @@ już zwraca (`unpaidCount` liczony przez `toEvent()`) — zero nowego zapytania.
 sekcji zakładka Historia nie odróżniała meczu w pełni rozliczonego od meczu z zaległością —
 oba wyglądały identycznie na płaskiej liście.
 
+**Dzień tygodnia w bierniku, nie w mianowniku — od 2026-08-30.** `matchWhenLabel()`
+(`lib/eventDates.ts`, karty na `/moje-gry` i wszędzie, gdzie termin mieści się
+w najbliższym tygodniu) i zapowiedź kolejnego terminu na `/grupy/[id]`
+(`NajblizszyMeczGrupy.tsx`) składały „w ${format(date, 'EEEE')}" wprost —
+`format()` zwraca mianownik („niedziela", „środa", „sobota"), a po polsku
+poprawny jest biernik („w niedzielę", „w środę", „w sobotę"; pozostałe cztery
+dni mają tę samą formę w obu przypadkach). Zgłoszone wprost jako „w niedziela".
+Nowa `dzienTygodniaWBierniku()` w `lib/eventDates.ts` odmienia te trzy dni
+przez słownik, reszta zostaje bez zmian.
+
+**Liczba graczy na karcie rozegranego meczu odmienia się poprawnie.**
+`EventBrowseCard.tsx` pokazywał zawsze „graczy" niezależnie od liczby — przy
+jednym graczu wychodziło „1 graczy". Zgłoszone wprost. Dziś idzie przez
+`withCount()` (`lib/plural.ts`), tak jak reszta liczników na tej samej karcie
+(„wolne miejsce"/„wolne miejsca"/„wolnych miejsc" niżej).
+
 ---
 
 ## Karta „Po meczu"
@@ -2165,6 +2181,25 @@ nie dawało. Od dwóch znaków zapytania (debounce 300 ms) `VenueExplorer` woła
 pickery lokalizacji), tylko nigdy nie była tu wpięta — i mapa robi `fitBounds` do
 wyników. Tryb skupisk wyłącza się na czas aktywnego szukania niezależnie od przybliżenia.
 
+**Własne przyciski +/- przybliżenia — `components/map/ZoomButtons.tsx`, od
+2026-08-30.** `MapContainer` ma `zoomControl={false}`: domyślna kontrolka
+Leaflet trzyma się na stałe górnego lewego rogu, który na mobile zajmuje
+nakładka szukania/filtrów. Efekt: na mapie nie było ŻADNEGO sposobu
+przybliżenia poza kółkiem myszy/gestem szczypania — zgłoszone wprost jako
+„brak kontrolek +/- na /mapa". `ZoomButtons` to ten sam wzorzec co
+`LocateMeButton` (`map`+`className` z pozycją zależną od kontekstu): stoi
+w lewym dolnym rogu, symetrycznie do `LocateMeButton` po prawej, z tym samym
+odstępem od dolnej nawigacji na mobile (`bottom-28 md:bottom-6`). Ten sam
+komponent dołożony też do `GamesMapCanvas.tsx` (osadzona mapa w
+`/wydarzenia`).
+
+**Kółko myszy/trackpada nie przeskakuje już kilku poziomów naraz.** Domyślne
+`wheelPxPerZoomLevel` Leafleta (60) oznacza, że jeden gest na trackpadzie —
+który potrafi wysłać duże `deltaY` na raz — przeskakiwał 3-4 poziomy
+przybliżenia jednym ruchem. Zgłoszone wprost. `wheelPxPerZoomLevel={240}` na
+`MapContainer` (w obu miejscach, `VenueExplorer.tsx` i `GamesMapCanvas.tsx`)
+wymaga więcej przewinięcia na jeden poziom.
+
 **Dwie poprawki z 2026-08-27, obie na to samo zgłoszenie** („po wyszukaniu np. »poznan«
 w widoku mapy nie działa rozbijanie zgrupowanych pinesek i wgl całość się pierdoli"):
 
@@ -2278,6 +2313,21 @@ się wysłać linkiem. Konsekwencje wyboru:
 
 Pilnuje tego `e2e/filtr-miejscowosci.klikalnosc.spec.ts` (geokoder podstawiony
 `page.route()`, żeby scenariusz nie zależał od cudzego serwera).
+
+**Enter w polu wybiera pierwszą podpowiedź — od 2026-08-30.** Pole tekstowe
+(`WyborMiejscowosci.tsx`) nie miało żadnego `onKeyDown` — jedynym sposobem
+wyboru było kliknięcie podpowiedzi myszą albo palcem. Zgłoszone wprost z sesji
+QA. Pilnuje tego `e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts`.
+
+**Podpowiedzi bez duplikatów.** Nominatim potrafi zwrócić tę samą miejscowość
+dwa razy — różne obiekty OSM (węzeł administracyjny i punkt osady) trafiające
+w tę samą nazwę i okolicę, nierozróżnialne po odrzuceniu adresu. Podpowiedzi
+pokazywały dwa identyczne wiersze pod sobą. `odsiejDuplikatyMiejscowosci()`
+(`lib/miejscowosci.ts`) filtruje po nazwie+kontekście (nie po współrzędnych —
+to samo miejsce z dwóch węzłów OSM bywa przesunięte o kilkadziesiąt metrów),
+wołane z `/api/geocode` (nie z samego `route.ts` — handler tras Next.js nie
+może eksportować nic poza uznanymi nazwami HTTP, stąd funkcja w osobnym
+module).
 
 **Trzy poprawki z sesji QA (2026-08-28), wszystkie w widoku „Lista" po
 `/mapa` → „Obiekty" → „Lista"** — czyli mapa NIGDY nie dostaje realnego

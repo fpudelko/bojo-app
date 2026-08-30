@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { odsiejDuplikatyMiejscowosci } from '@/lib/miejscowosci';
 
 // Server-side proxy for Nominatim (OpenStreetMap) geocoding.
 //
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
       const res = await fetch(url, { headers: NOMINATIM_HEADERS });
       if (!res.ok) return NextResponse.json({ error: 'upstream' }, { status: 502 });
       const dane = (await res.json()) as NominatimWynik[];
-      return NextResponse.json(dane.map(naMiejscowosc));
+      return NextResponse.json(odsiejDuplikatyMiejscowosci(dane.map(naMiejscowosc)));
     }
 
     if (q?.trim()) {

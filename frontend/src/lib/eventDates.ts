@@ -8,6 +8,21 @@ import { isFuture, isToday, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import type { EventItem } from '@/types';
 
+// `format(date, 'EEEE', { locale: pl })` zwraca mianownik ("niedziela",
+// "środa", "sobota") — poprawne po polsku jest „w niedzielę", „w środę",
+// „w sobotę" (biernik). Pozostałe dni mają tę samą formę w obu przypadkach.
+// Zgłoszone wprost z sesji QA: „w niedziela".
+const DZIEN_W_BIERNIKU: Record<string, string> = {
+  środa: 'środę',
+  sobota: 'sobotę',
+  niedziela: 'niedzielę',
+};
+
+export function dzienTygodniaWBierniku(date: Date): string {
+  const mianownik = format(date, 'EEEE', { locale: pl });
+  return DZIEN_W_BIERNIKU[mianownik] ?? mianownik;
+}
+
 export function isUpcoming(event: EventItem): boolean {
   try {
     const [y, m, d] = event.date.split('-').map(Number);
@@ -63,7 +78,7 @@ export function matchWhenLabel(date: string, time?: string): string {
 
     if (diffDays === 0) return `dziś${timeSuffix}`;
     if (diffDays === 1) return `jutro${timeSuffix}`;
-    if (diffDays > 1 && diffDays < 7) return `w ${format(eventDay, 'EEEE', { locale: pl })}${timeSuffix}`;
+    if (diffDays > 1 && diffDays < 7) return `w ${dzienTygodniaWBierniku(eventDay)}${timeSuffix}`;
     return `${format(eventDay, 'd MMM', { locale: pl })}${timeSuffix}`;
   } catch {
     return time ? time.slice(0, 5) : '';
