@@ -20,6 +20,7 @@
 --   [WIZ]           seed_wizualne.sql  (normalnie tylko lokalnie)
 --   [DEMO-LANDING]  seed_landing_demo.sql
 --   [PRZED]         seed_przedpremiera.sql
+--   [DWA]           seed_dwa_konta.sql
 --
 -- Uczestnicy, rozmowy, wyniki, numery BLIK i wpisy w kolejce znikają razem
 -- z meczem (`ON DELETE CASCADE`) — nie trzeba ich kasować osobno.
@@ -47,6 +48,7 @@ SELECT
     WHEN description LIKE '[WIZ]%'          THEN '[WIZ] seed_wizualne'
     WHEN description LIKE '[DEMO-LANDING]%' THEN '[DEMO-LANDING] seed_landing_demo'
     WHEN description LIKE '[PRZED]%'        THEN '[PRZED] seed_przedpremiera'
+    WHEN description LIKE '[DWA]%'          THEN '[DWA] seed_dwa_konta'
   END                       AS skad,
   count(*)                  AS meczow,
   min(event_date)           AS od,
@@ -56,6 +58,7 @@ WHERE description LIKE '[TEST]%' OR description LIKE '[TEST-G]%'
    OR description LIKE '[TEST-J]%' OR description LIKE '[REG]%'
    OR description LIKE '[TAK]%' OR description LIKE '[WIZ]%'
    OR description LIKE '[DEMO-LANDING]%' OR description LIKE '[PRZED]%'
+   OR description LIKE '[DWA]%'
 GROUP BY 1
 ORDER BY 1;
 
@@ -68,14 +71,20 @@ DELETE FROM events
  WHERE description LIKE '[TEST]%' OR description LIKE '[TEST-G]%'
     OR description LIKE '[TEST-J]%' OR description LIKE '[REG]%'
     OR description LIKE '[TAK]%' OR description LIKE '[WIZ]%'
-    OR description LIKE '[DEMO-LANDING]%' OR description LIKE '[PRZED]%';
+    OR description LIKE '[DEMO-LANDING]%' OR description LIKE '[PRZED]%'
+    OR description LIKE '[DWA]%';
 
 -- Ekipy z seedów. Nazwy, nie markery — grupy nie mają kolumny na opis testu
 -- w tym samym kształcie, a te nazwy są jednoznaczne.
 DELETE FROM groups WHERE name IN (
   '[PRZED] Ekipa testowa',
+  '[DWA] Ekipa testowa',
   'Czwartkowa Ekipa', 'Poranne Bieganie', 'Koszykarze z Wildy', 'Siatkarze Poznań'
 );
+
+-- Rozmowa prywatna z seed_dwa_konta.sql — jedyny seed, który dokłada DM;
+-- content, nie description (dm_messages nie ma osobnej kolumny na opis testu).
+DELETE FROM dm_messages WHERE content LIKE '[DWA]%';
 
 COMMIT;
 */

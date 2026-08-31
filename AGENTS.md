@@ -436,6 +436,16 @@ sesję z dwoma telefonami (`docs/testy-przedpremierowe.md`). Świadomie MAŁY, w
 do `seed_regresja`: tam każdy mecz sprawdza jedną rzecz, tu chodzi o błędy na stykach,
 których nie widać w rozłącznych krokach. Marker `[PRZED]`, tytuły `P1`…`P7`.
 
+`supabase/seed_dwa_konta.sql` — **12 scenariuszy pod dwa realne konta**
+(`franekks@gmail.com` organizuje, `franciszekpudelko@gmail.com` gra i reaguje) —
+do bieżącego sprawdzania przejść i widoków z obu stron naraz, nie tylko przed
+premierą. Pokrywa kolejkę rezerwową z ofertą po wypisaniu, oba tryby limitu
+bramkarzy (osobny/wspólna pula), akceptację zapisu, płatność z BLIK-iem i kartą
+sportową blisko startu, przejęcie wpisu gościa, ekipę (kod dołączenia, prywatny
+mecz przez grupę, tablica), imienne zaproszenie na mecz, rozliczenie po meczu
+i „Obserwuję". Dokłada jedną wiadomość w rozmowie prywatnej między kontami, żeby
+`/rozmowy` nie startowało pusto. Marker `[DWA]`, tytuły `D01`…`D12`.
+
 `supabase/wyczysc-testowe.sql` — sprząta WSZYSTKIE seedy po markerach, przed
 wpuszczeniem ludzi. Trzy sekcje: podgląd (liczy), kasowanie (zakomentowane, trzeba
 odkomentować świadomie) i lista meczów BEZ markera — czyli tych zrobionych ręką przy
