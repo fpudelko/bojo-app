@@ -950,10 +950,6 @@ export default function EventDetailClient() {
     }
   }
 
-  let dateShort = event.date;
-  try {
-    dateShort = format(parseISO(event.date), 'EEE d MMM', { locale: pl });
-  } catch {}
   const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
 
   // ── Karta „Kiedy i gdzie" ────────────────────────────────────────────
@@ -2609,73 +2605,14 @@ export default function EventDetailClient() {
             )}
           </div>
 
-          {/* ── KIEDY I GDZIE — jedna linia, nie pigułki ──
-              Wcześniej data, czas trwania i miejsce były trzema osobnymi
-              pigułkami i razem ze statusem oraz ceną zajmowały CZTERY wiersze
-              nad licznikiem miejsc. Pigułka to element dla ETYKIETY — krótkiej,
-              powtarzalnej, w rodzaju „Za darmo". Data i nazwa boiska to nie
-              etykiety, tylko treść: najdłuższa na tym ekranie, a przez ramkę
-              i dopełnienie każda traciła kilkadziesiąt pikseli na samą oprawę.
-              Bez pigułek mieści się w jednej linii, a miejsce ma wreszcie dość
-              szerokości, żeby nie urywać się po trzech słowach. */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-            {(isOrganizer || canEditDelegate) && !eventStarted ? (
-              <button
-                type="button"
-                onClick={openEditWhen}
-                className="inline-flex items-center gap-1.5 font-medium text-slate-700 transition hover:text-ink dark:text-slate-300"
-              >
-                <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span>{zWielkiejLitery(dateShort)}</span> · {timeStr}
-                <Pencil className="h-3 w-3 text-slate-400" strokeWidth={2.25} />
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span>{zWielkiejLitery(dateShort)}</span> · {timeStr}
-              </span>
-            )}
-
-            {/* Czas trwania doklejony do godziny, bo to ta sama informacja —
-                „kiedy i jak długo", a nie dwa osobne fakty. */}
-            {event.endTime && (() => {
-              try {
-                const [h1, m1] = (event.time ?? '00:00').split(':').map(Number);
-                const [h2, m2] = event.endTime.split(':').map(Number);
-                const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-                return diff > 0 ? <span className="text-slate-400">· {diff} min</span> : null;
-              } catch { return null; }
-            })()}
-
-            {/* Miejsce: ADRES, nie nazwa — nazwy z katalogu bywają generyczne
-                („Boisko — piłka nożna") i mówią mniej niż ulica. Lokalizacja
-                spoza katalogu nie ma swojej strony, więc otwiera okienko
-                z adresem i dojazdem zamiast wywalać 404. */}
-            {venueBadgeLabel && (
-              <>
-                <span className="text-slate-300">·</span>
-                {event.fieldId ? (
-                  <Link
-                    href={`/boisko/${event.fieldId}`}
-                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
-                    className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
-                  >
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                    <span className="truncate">{venueBadgeLabel}</span>
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setVenueInfoOpen(true)}
-                    className="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 underline-offset-2 transition hover:underline dark:text-slate-300"
-                  >
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                    <span className="truncate">{venueBadgeLabel}</span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          {/* Data, czas trwania i miejsce nie powtarzają się już tutaj —
+              mieszkają wyłącznie w karcie „Kiedy i gdzie" niżej (pełna data,
+              adres bez ucinania, „Nawiguj"). Ten wiersz miał kiedyś skróconą
+              wersję tej samej informacji nad nim — dwa miejsca z tym samym
+              faktem czytały się jak literówka, nie jak dwa źródła prawdy.
+              Zgłoszone wprost. Edycja terminu przez organizatora (dawny
+              `openEditWhen()` przy dacie) przeniosła się do karty „Kiedy
+              i gdzie" razem z resztą. */}
           {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
               mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
               to wprost, zamiast zostawiać organizatora w niepewności. */}
@@ -2741,19 +2678,40 @@ export default function EventDetailClient() {
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Kiedy i gdzie</p>
 
-            <p className="mt-2 flex items-start gap-2 text-sm text-ink">
-              <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-              <span>
-                <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                {timeStr && <> · {timeStr}</>}
-                {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
-                {zaCzas && (
-                  <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                    {zaCzas}
-                  </span>
-                )}
-              </span>
-            </p>
+            {(isOrganizer || canEditDelegate) && !eventStarted ? (
+              <button
+                type="button"
+                onClick={openEditWhen}
+                className="mt-2 flex w-full items-start gap-2 text-left text-sm text-ink"
+              >
+                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                  {timeStr && <> · {timeStr}</>}
+                  {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {zaCzas && (
+                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {zaCzas}
+                    </span>
+                  )}
+                </span>
+                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
+                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                <span>
+                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                  {timeStr && <> · {timeStr}</>}
+                  {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {zaCzas && (
+                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {zaCzas}
+                    </span>
+                  )}
+                </span>
+              </p>
+            )}
 
             {venueBadgeLabel && (
               <p className="mt-2 flex items-start gap-2 text-sm text-ink">

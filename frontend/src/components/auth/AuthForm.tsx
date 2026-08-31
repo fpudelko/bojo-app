@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Mail, Lock, User as UserIcon, ArrowLeft, CheckCircle2, Copy, Check, ExternalLink } from 'lucide-react';
+import { Loader2, Mail, Lock, User as UserIcon, ArrowLeft, CheckCircle2, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { isPelneImie } from '@/lib/profileName';
 
@@ -18,29 +18,29 @@ function GoogleIcon() {
 }
 
 /* ── In-app browser detection ─────────────────────────────────────────────── */
-type Platform = 'ios' | 'android' | 'other';
-interface InAppInfo { isInApp: boolean; platform: Platform }
-
-function detectInApp(): InAppInfo {
+function isInAppBrowser(): boolean {
   const ua = navigator.userAgent || '';
-  const isInApp = /FBAN|FBAV|FB_IAB|MessengerLite|Instagram|musical_ly|BytedanceWebview|Snapchat|TwitterAndroid|Twitter for iPhone|LinkedInApp/i.test(ua);
-  const platform: Platform = /iPhone|iPad|iPod/i.test(ua) ? 'ios' : /Android/i.test(ua) ? 'android' : 'other';
-  return { isInApp, platform };
+  return /FBAN|FBAV|FB_IAB|MessengerLite|Instagram|musical_ly|BytedanceWebview|Snapchat|TwitterAndroid|Twitter for iPhone|LinkedInApp/i.test(ua);
 }
 
 /* ── Locked Google button with inline hint ────────────────────────────────── */
-function GoogleBlockedSection({ platform }: { platform: Platform }) {
+/**
+ * Wcześniej próbował wymusić skok do Safari/Chrome przez `window.location.href
+ * = 'x-safari-https://…'` (iOS) albo intent URI (Android). Zgłoszone wprost
+ * z sesji QA: w przeglądarce Instagrama/Facebooka przycisk nic nie robił —
+ * te aplikacje celowo blokują nawigację do niestandardowych schematów URL
+ * z własnej wbudowanej przeglądarki (nie chcą tracić użytkownika), więc próba
+ * ciszy się kończy sukcesem tylko pozornie: kod się wykonuje, nawigacja ginie.
+ * Nie ma niezawodnego sposobu w JS, żeby to wymusić z tych konkretnych
+ * przeglądarek. Jedyna droga, która faktycznie działa: własne menu „⋯"
+ * hosta (Instagram/Facebook/TikTok/Twitter mają wbudowaną opcję „Otwórz
+ * w przeglądarce"), więc mówimy o niej wprost zamiast obiecywać przycisk,
+ * który nie zadziała. „Skopiuj link" zostaje — to jedyna akcja z tej karty,
+ * która realnie działa wszędzie.
+ */
+function GoogleBlockedSection() {
   const [copied, setCopied] = useState(false);
   const url = typeof window !== 'undefined' ? window.location.href : 'https://bojo.pl/logowanie';
-  const browserName = platform === 'ios' ? 'Safari' : 'Chrome';
-
-  const openInBrowser = () => {
-    if (platform === 'ios') {
-      window.location.href = url.replace(/^https?:\/\//, 'x-safari-https://');
-    } else if (platform === 'android') {
-      window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-    }
-  };
 
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2500); }
@@ -57,22 +57,16 @@ function GoogleBlockedSection({ platform }: { platform: Platform }) {
       <div className="mt-2.5 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-3">
         <p className="text-xs font-semibold text-amber-800 mb-1">Google jest zablokowane w tej przeglądarce</p>
         <p className="text-xs text-amber-700 mb-2.5 leading-relaxed">
-          Otwórz stronę w {browserName}, żeby zalogować się przez Google — lub użyj e-maila poniżej.
+          Ta aplikacja nie pozwala dokończyć logowania Google. Dotknij „⋯" (więcej opcji)
+          u góry ekranu i wybierz „Otwórz w przeglądarce" — albo skopiuj link i wklej go
+          w Safari/Chrome. Możesz też zalogować się e-mailem poniżej.
         </p>
-        <div className="flex gap-2">
-          <button
-            onClick={openInBrowser}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-800 active:scale-95"
-          >
-            <ExternalLink className="h-3 w-3" /> Otwórz w {browserName}
-          </button>
-          <button
-            onClick={copyLink}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 active:scale-95"
-          >
-            {copied ? <><Check className="h-3 w-3 text-green-600" /> Skopiowano</> : <><Copy className="h-3 w-3" /> Skopiuj link</>}
-          </button>
-        </div>
+        <button
+          onClick={copyLink}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-800 active:scale-95"
+        >
+          {copied ? <><Check className="h-3 w-3" /> Skopiowano</> : <><Copy className="h-3 w-3" /> Skopiuj link</>}
+        </button>
       </div>
     </div>
   );
@@ -107,9 +101,9 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [inApp, setInApp] = useState<InAppInfo | null>(null);
+  const [inApp, setInApp] = useState<boolean | null>(null);
 
-  useEffect(() => { setInApp(detectInApp()); }, []);
+  useEffect(() => { setInApp(isInAppBrowser()); }, []);
 
   const dest = next || '/';
 
@@ -190,8 +184,8 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
 
       {mode !== 'reset' && (
         <div className="mt-5 mb-5">
-          {inApp?.isInApp ? (
-            <GoogleBlockedSection platform={inApp.platform} />
+          {inApp ? (
+            <GoogleBlockedSection />
           ) : (
             <button
               type="button"
