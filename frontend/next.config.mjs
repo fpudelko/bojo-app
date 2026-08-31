@@ -21,6 +21,14 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/graj/:sport/:miasto', destination: '/:sport/:miasto', permanent: true },
+      // `/rejestracja` nigdy nie było trasą — zakładanie konta mieszka pod
+      // `/logowanie?mode=rejestracja` (tam prowadzi „Dołącz" w nagłówku).
+      // Ale to jest adres, który człowiek wpisuje z głowy i pod który linkuje
+      // się z zewnątrz; audyt UX opisywał go jak istniejący ekran. Twarde 404
+      // na najbardziej oczywistej nazwie dla rejestracji to strata użytkownika
+      // na wejściu. `permanent: false` — gdyby rejestracja kiedyś dostała
+      // własną stronę, przeglądarki nie mają tego zapamiętać na zawsze.
+      { source: '/rejestracja', destination: '/logowanie?mode=rejestracja', permanent: false },
     ];
   },
   images: {

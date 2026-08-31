@@ -102,6 +102,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
 
   const [kadr, setKadr] = useState<Kadr | null>(null);
   const [znalezione, setZnalezione] = useState<Field[] | null>(null);
+  const [szukanieWToku, setSzukanieWToku] = useState(false);
   const [mapa, setMapa] = useState<L.Map | null>(null);
 
   // Obiekty z widocznego wycinka mapy.
@@ -117,14 +118,23 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   // Szukanie po nazwie idzie do bazy, nie po pobranej liście: obiekt, którego
   // szukasz, najczęściej leży POZA aktualnym kadrem — i o to właśnie chodzi,
   // gdy ktoś wpisuje nazwę zamiast przesuwać mapę.
+  //
+  // `szukanieWToku` istnieje wyłącznie po to, żeby komunikat „nie znaleziono"
+  // NIE mrugał w trakcie pisania. Zgłoszone wprost z audytu UX: czerwone
+  // „Nie znaleziono takiego miejsca" wyskakiwało po drugim wciśniętym klawiszu,
+  // zanim ktokolwiek skończył wpisywać nazwę — czytało się jak wyrok („tego
+  // boiska nie ma w bazie"), a było tylko stanem przejściowym. Wyniki dalej
+  // pojawiają się od 2 znaków (to jest pomocne), milknie wyłącznie werdykt
+  // o ICH BRAKU.
   useEffect(() => {
     const q = search.trim();
-    if (q.length < 2) { setZnalezione(null); return; }
+    if (q.length < 2) { setZnalezione(null); setSzukanieWToku(false); return; }
     let cancelled = false;
+    setSzukanieWToku(true);
     const timer = setTimeout(() => {
       searchExplorerFields(q)
-        .then((fs) => { if (!cancelled) setZnalezione(fs); })
-        .catch(() => {});
+        .then((fs) => { if (!cancelled) { setZnalezione(fs); setSzukanieWToku(false); } })
+        .catch(() => { if (!cancelled) setSzukanieWToku(false); });
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [search]);
@@ -152,6 +162,13 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
   // w prawidłowe boiska. Gdy coś znaleziono, ale filtr wyciął wszystko,
   // pokazujemy komplet i mówimy o tym wprost, zamiast udawać brak wyników.
   const filtrOdsial = znalezione !== null && znalezione.length > 0 && wSporcie.length === 0;
+
+  // Werdykt „nie znaleziono" dopiero wtedy, gdy jest o czym wyrokować:
+  // zapytanie ustało (nie ma nic w locie) i jest dość długie, żeby brak trafień
+  // coś znaczył. Dwuznakowy prefiks nie trafia w nic bardzo często i nie jest
+  // to informacja o bazie, tylko o tym, że użytkownik jeszcze pisze.
+  const brakWynikow = znalezione !== null && znalezione.length === 0
+    && !szukanieWToku && search.trim().length >= 3;
   const visible = filtrOdsial ? znalezione : wSporcie;
 
   // fitBounds tylko dla wyników szukania: liczenie go z `fields` kazałoby mapie
@@ -222,7 +239,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
       {/* Komunikat o wynikach. Do tej pory szukanie bez trafienia wyglądało
           identycznie jak szukanie, które jeszcze nie ruszyło — a przycisk lupy
           (geokoder) był ukrytą afordancją, o której nic nie mówiło. */}
-      {(filtrOdsial || (znalezione !== null && znalezione.length === 0)) && (
+      {(filtrOdsial || brakWynikow) && (
         <div className="absolute top-14 left-2 right-2 z-[1001] rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-600 shadow backdrop-blur-sm">
           {filtrOdsial
             ? `Żadne ze znalezionych miejsc nie ma w opisie sportu „${sportLabel(sport ?? '')}" — pokazujemy wszystkie.`

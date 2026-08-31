@@ -367,7 +367,7 @@ function MojeGryContent() {
           history.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-4xl">🗓️</p>
-              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak historii meczy</p>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak historii meczów</p>
               <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Rozegrane mecze pojawią się tutaj.
               </p>

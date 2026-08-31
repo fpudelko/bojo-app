@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
@@ -67,10 +67,22 @@ export default function PostSignupRoleModal() {
     setOpen(true);
   }, [user, jestWidget]);
 
-  const zamknij = () => {
+  const zamknij = useCallback(() => {
     if (user) localStorage.setItem(kluczWidziano(user.id), '1');
     setOpen(false);
-  };
+  }, [user]);
+
+  // Escape zamyka — tak jak w każdym innym oknie w tej aplikacji. Zgłoszone
+  // wprost z audytu UX: „ESC nie zamyka okna", w zestawie ze skargą na brak
+  // wyjścia. Wyjście było (X w rogu i dotknięcie tła), ale użytkownik, który
+  // odruchowo naciska Escape i nic się nie dzieje, ma prawo uznać, że jest
+  // uwięziony — i przestaje szukać dalej.
+  useEffect(() => {
+    if (!open) return;
+    const naKlawisz = (e: KeyboardEvent) => { if (e.key === 'Escape') zamknij(); };
+    window.addEventListener('keydown', naKlawisz);
+    return () => window.removeEventListener('keydown', naKlawisz);
+  }, [open, zamknij]);
 
   const wybierz = (cel: string) => {
     zamknij();
@@ -128,6 +140,20 @@ export default function PostSignupRoleModal() {
               </button>
             </div>
           </div>
+
+          {/* Jawne wyjście SŁOWEM, nie tylko szarym X w rogu. To okno wypada
+              na świeżym koncie, czasem nad stroną meczu, do którego ktoś
+              właśnie szedł — i wtedy każda z trzech ofert jest nie na temat.
+              Audyt UX opisał to jako „uwięziony w onboardingu, którego nie
+              rozumie": X był, ale nie czytał się jako oferta pominięcia.
+              Nic nie wybieram = zostaję tam, gdzie byłem. */}
+          <button
+            type="button"
+            onClick={zamknij}
+            className="w-full py-1 text-center text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Pomiń — zdecyduję później
+          </button>
         </div>
       </div>
     </div>

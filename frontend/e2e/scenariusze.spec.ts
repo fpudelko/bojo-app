@@ -555,9 +555,9 @@ test.describe('moje gry', () => {
     // „kogoś z zewnątrz" i seed nie wpisuje go do żadnego meczu.
     await zaloguj(page, KONTA.drugiGracz);
     await page.goto('/moje-gry?tab=historia');
-    await expect(page.getByText('Brak historii meczy')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Brak historii meczów')).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    await expect(page.getByText('Brak historii meczy')
+    await expect(page.getByText('Brak historii meczów')
       .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-historia-pusto.png');
   });
 
