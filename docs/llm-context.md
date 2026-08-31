@@ -353,6 +353,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
+
+PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
+pokazywały nazwę obiektu pogrubioną, a zaraz pod nią — szarym — pełny adres, który
+Nominatim/OSM zaczyna od TEJ SAMEJ nazwy („Park Nad Wartą" pogrubione, niżej „Park Nad
+Wartą, Rataje, Poznań…"). Ten sam fakt dwa razy, bez nowej informacji. Zgłoszone wprost.
+(2) czas trwania meczu („· 90 min") na tej samej karcie łamał się w połowie słowa na dwa
+wiersze, gdy linia nie mieściła się w jednym — brzydko. (3) plakietka „+N miejsc" przy
+meczu w sekcji „Nadchodzące mecze" na stronie obiektu bywała nieaktualna: strona ma
+`revalidate = 86400` (patrz `app/boisko/[id]/page.tsx`), więc liczba miejsc mogła być
+do doby stara, a odwołany mecz i tak się tam pokazywał (zapytanie nie filtrowało
+`status = 'cancelled'`).
+
+ROZWIĄZANIE BOJO: (1) `eventLocation()` ucina z adresu dosłowny, powtórzony prefiks
+nazwy obiektu — zostaje wyłącznie to, czego pogrubiona nazwa jeszcze nie powiedziała
+(„Rataje, Poznań, województwo wielkopolskie, Polska"). Naprawia to zarówno kartę „Kiedy
+i gdzie", jak i tekst zaproszenia (`lib/eventShare.ts`, ten sam fallback). (2) „· 90 min"
+dostało `whitespace-nowrap` — cały fragment przenosi się na kolejny wiersz razem, zamiast
+łamać się między liczbą a jednostką. (3) sekcja „Nadchodzące mecze" dociąga świeże dane
+klient-side po zamontowaniu (ten sam kształt zapytania co server-side, plus filtr
+`status != 'cancelled'`) — strona sama zostaje statyczna (SEO/koszt buildu bez zmian),
+ożywa tylko ten jeden panel. „Brak nadchodzących meczy" → „meczów" (literówka przy okazji).
+
+MECHANIKA: `lib/utils.ts` (`eventLocation()`), `app/wydarzenia/[id]/EventDetailClient.tsx`
+(dwie gałęzie karty „Kiedy i gdzie" — organizator/widz), `app/boisko/[id]/page.tsx`
+(`getUpcomingEvents()` — filtr `cancelled`), `app/boisko/[id]/VenueDetailClient.tsx`
+(`liveUpcoming`, odświeżenie po mount). Bez migracji. Pilnuje tego
+`src/__tests__/utils.test.ts` (`eventLocation`).
+
 ### 2026-08-31 — Audyt UX: wyjście z okna powitalnego, przedwczesne „nie znaleziono", powód wyszarzonego zapisu
 
 PROBLEM: (1) Okno powitalne z pytaniem o rolę („Zanim zaczniesz — kim jesteś?") potrafiło
@@ -677,37 +706,3 @@ w `app/api/geocode/route.ts` (Nominatim, `featuretype=settlement`, pomijane dla 
 pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx`:
 rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
 `listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.
-
-### 2026-08-27 — Lista obiektów na `/mapa` dobiera się sama, po współrzędnych
-
-PROBLEM: Katalog boisk Bojo ma 38 314 obiektów, ale przy oddalonej mapie lista obok niej
-była PUSTA z założenia — w trybie skupisk z bazy lecą same liczby w siatce, nie obiekty.
-Zamiast czegokolwiek do przeczytania stał tam jeden przycisk „Przybliż tam, gdzie jest
-ich najwięcej", czyli odpowiedź na pytanie, którego nikt nie zadaje. Próba naprawy przez
-kafelki miast z liczbami rozbiła się o dane: kolumna `fields.city` jest wypełniona
-w jakichś dwóch procentach (wszystkie największe miasta razem ~900 obiektów, w tym Poznań
-54), więc kafelek kłamał liczbą I dowoził do garstki zamiast do wszystkiego, co w mieście
-jest. Osobno: szukanie po tekście na mapie gubiło polskie ogonki („poznan" nie znajdowało
-„Orlik Poznań"), a kółka skupisk sprzed szukania zostawały na wynikach i przy kliknięciu
-oddalały mapę zamiast rozbić grupę pinezek.
-
-ROZWIĄZANIE BOJO: Lista wypełnia się SAMA obiektami wokół punktu — okolicy gracza, gdy
-zgoda na lokalizację jest już udzielona, a bez niej Poznania (miasto, w którym Bojo
-startuje). Promień 15 km, sortowanie po odległości. O zgodę Bojo NIE pyta przy wejściu:
-pytanie z zaskoczenia przy starcie strony ludzie odruchowo odrzucają, a odrzuconej zgody
-nie da się cofnąć bez wchodzenia w ustawienia przeglądarki — pyta dopiero przycisk „Pokaż
-boiska blisko mnie". Dobór idzie po `lat`/`lng`, które ma KAŻDY obiekt w katalogu, więc
-nie zależy od backfillu lokalizacji. Wszystko oparte na `fields.city` (kafelki miast,
-podpowiedzi miast w szukajce) zostało usunięte. Szukanie na mapie ignoruje ogonki, a kółka
-skupisk znikają na czas szukania.
-
-MECHANIKA: `lib/startowyPunkt.ts` (`POZNAN`, `PROMIEN_LISTY_KM`), `pozycjaBezPytania()`
-w `lib/geo.ts` (czyta zgodę, nie wyprasza jej), `kadrWokol()` w `lib/api.ts`,
-`components/map/VenueExplorer.tsx` (`pokazWokol()`, efekt dobierający start: najpierw
-Poznań, potem podmiana na okolicę gracza), `components/map/PustaListaObiektow.tsx`.
-Szukanie: `foldText()`/`foldedIncludes()` z `lib/searchText.ts` w filtrze lokalnym,
-`WarstwaSkupisk` renderowana wyłącznie w trybie skupisk. Usunięte: `lib/miasta.ts`,
-`policzBoiskaWMiastach()`, `getFieldsWMiescie()`. Strona serwera: migracja `126` dokłada
-kolumnę generowaną `fields.szukaj_norm` (nazwa + adres, bez ogonków, indeks GIN po
-trigramach), a `searchExplorerFields()` pyta po niej — z wyjściem awaryjnym na stare
-`or(...)`, dopóki migracja nie zostanie puszczona ręcznie.

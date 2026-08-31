@@ -218,6 +218,16 @@ export default function VenueDetailClient({
   const [mapVisibility, setMapVisibility] = useState<'public' | 'hidden' | 'organizer_only'>('organizer_only');
   const [visibilityBusy, setVisibilityBusy] = useState(false);
 
+  // Liczba wolnych miejsc na „Nadchodzące mecze" — z page.tsx (server-side)
+  // dziedziczy tylko PIERWSZY render: strona obiektu ma `revalidate = 86400`
+  // (patrz nagłówek pliku page.tsx), więc do 24h stara. Skład meczu zmienia
+  // się w minutach, nie w dobach — plakietka „+13 miejsc" obok meczu, który
+  // w rzeczywistości ma już 11/14, wygląda jak losowa liczba. Zgłoszone wprost.
+  // Dociągamy świeże dane po zamontowaniu, tym samym zapytaniem co server —
+  // strona sama w sobie zostaje statyczna (SEO/koszt buildu bez zmian),
+  // ożywa tylko ten jeden panel.
+  const [liveUpcoming, setLiveUpcoming] = useState<UpcomingEvent[] | null>(null);
+
   useEffect(() => {
     getField(id)
       .then((f) => {
@@ -227,7 +237,33 @@ export default function VenueDetailClient({
       })
       .catch(() => setNotFound(true))
       .finally(() => setFieldLoading(false));
+
+    (async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('events')
+        .select('id, sport, event_date, event_time, max_players')
+        .eq('field_id', id)
+        .eq('visibility', 'public')
+        .neq('status', 'cancelled')
+        .gte('event_date', today)
+        .order('event_date', { ascending: true })
+        .limit(5);
+      if (!data) return;
+      const eventIds = data.map((e) => e.id);
+      const { data: counts } = eventIds.length > 0
+        ? await supabase.from('event_participants').select('event_id').in('event_id', eventIds).eq('is_reserve', false)
+        : { data: [] as { event_id: string }[] };
+      const countMap: Record<string, number> = {};
+      for (const c of counts ?? []) countMap[c.event_id] = (countMap[c.event_id] ?? 0) + 1;
+      setLiveUpcoming(data.map((e) => ({
+        id: e.id, sport: e.sport, date: e.event_date, time: e.event_time?.slice(0, 5) ?? '',
+        maxPlayers: e.max_players, currentCount: countMap[e.id] ?? 0,
+      })));
+    })().catch(() => {});
   }, [id]);
+
+  const upcomingEventsAktualne = liveUpcoming ?? upcomingEvents;
 
   const loadSlots = useCallback(async (targetDate: string) => {
     setSlotsLoaded(false);
@@ -739,9 +775,9 @@ export default function VenueDetailClient({
               <Calendar className="w-4 h-4" /> Nadchodzące mecze
             </h2>
           </div>
-          {upcomingEvents.length > 0 ? (
+          {upcomingEventsAktualne.length > 0 ? (
             <ul className="divide-y divide-slate-100">
-              {upcomingEvents.map((ev) => {
+              {upcomingEventsAktualne.map((ev) => {
                 let dateStr = ev.date;
                 try { dateStr = format(parseISO(ev.date), 'd MMM yyyy', { locale: pl }); } catch {}
                 const spotsLeft = ev.maxPlayers - ev.currentCount;
@@ -765,7 +801,7 @@ export default function VenueDetailClient({
               })}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">Brak nadchodzących meczy na tym boisku.</p>
+            <p className="text-sm text-slate-400">Brak nadchodzących meczów na tym boisku.</p>
           )}
 
           <div className="mt-5 space-y-2 pt-4 border-t border-slate-100">
