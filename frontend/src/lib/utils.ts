@@ -144,8 +144,18 @@ export function eventLocation(e: LocationFields): { primary: string; secondary: 
   const primary = name || custom || cleanAddr || district || 'Lokalizacja na mapie';
 
   let secondary: string | null = null;
-  if (cleanAddr && cleanAddr !== primary) secondary = cleanAddr;
-  else if (district && district !== primary) secondary = district;
+  if (cleanAddr && cleanAddr !== primary) {
+    // Adres z importu OSM/Nominatim zwykle zaczyna się od tej samej nazwy,
+    // którą już pokazuje `primary` (np. „Park Nad Wartą, Rataje, Poznań…") —
+    // pokazanie go w całości pod pogrubioną nazwą powtarzało ją raz jeszcze,
+    // bez żadnej nowej informacji. Zgłoszone wprost: „nazwa obiektu bez sensu
+    // powtórzona". Ucinamy wyłącznie DOSŁOWNY powtórzony prefiks (z przecinkiem
+    // po nim), nie każdą częściową zbieżność.
+    const prefiks = `${primary}, `;
+    secondary = cleanAddr.toLowerCase().startsWith(prefiks.toLowerCase())
+      ? cleanAddr.slice(prefiks.length).trim() || null
+      : cleanAddr;
+  } else if (district && district !== primary) secondary = district;
 
   return { primary, secondary };
 }

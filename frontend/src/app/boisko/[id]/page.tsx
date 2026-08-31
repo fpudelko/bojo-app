@@ -229,6 +229,9 @@ async function getUpcomingEvents(fieldId: string): Promise<UpcomingEvent[]> {
     .select('id, sport, event_date, event_time, max_players')
     .eq('field_id', fieldId)
     .eq('visibility', 'public')
+    // Odwołany mecz nie jest już "nadchodzącym meczem" — bez tego warunku
+    // strona obiektu reklamowała termin, na który nie da się dołączyć.
+    .neq('status', 'cancelled')
     .gte('event_date', today)
     .order('event_date', { ascending: true })
     .limit(5);

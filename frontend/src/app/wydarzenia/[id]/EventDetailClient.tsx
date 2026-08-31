@@ -2688,7 +2688,7 @@ export default function EventDetailClient() {
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
                   {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
                   {zaCzas && (
                     <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
                       {zaCzas}
@@ -2703,7 +2703,7 @@ export default function EventDetailClient() {
                 <span>
                   <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
                   {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
                   {zaCzas && (
                     <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
                       {zaCzas}
