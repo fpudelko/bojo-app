@@ -353,6 +353,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-08-31 — Audyt UX: wyjście z okna powitalnego, przedwczesne „nie znaleziono", powód wyszarzonego zapisu
+
+PROBLEM: (1) Okno powitalne z pytaniem o rolę („Zanim zaczniesz — kim jesteś?") potrafiło
+wypaść nad stroną meczu, do której ktoś właśnie szedł. Wyjście z niego BYŁO (X w rogu,
+dotknięcie tła), ale Escape nie działał, a szary X nie czytał się jako oferta pominięcia —
+audyt UX opisał to jako „uwięziony w onboardingu, którego nie rozumie". (2) W kreatorze
+meczu, w polu szukania miejsca, komunikat „Nie znaleziono takiego miejsca" wyskakiwał już
+po DRUGIM wciśniętym klawiszu, zanim ktokolwiek skończył wpisywać nazwę — czytało się to
+jak werdykt o bazie („tego boiska tu nie ma"), a było stanem przejściowym. (3) W oknie
+„Dołącz bez konta" przycisk „Zapisz się" był wyszarzony do czasu wypełnienia wszystkich
+pól, bez słowa o tym, czego brakuje — wygląda jak zawieszona aplikacja. (4) Adres
+`/rejestracja` zwracał 404: zakładanie konta mieszka pod `/logowanie?mode=rejestracja`,
+ale to jest nazwa, którą człowiek wpisuje z głowy. (5) Literówka w pustym stanie historii
+meczów.
+
+ROZWIĄZANIE BOJO: (1) Escape zamyka okno powitalne, a pod ofertami ról stanął jawny
+przycisk „Pomiń — zdecyduję później"; kto nic nie wybierze, zostaje tam, gdzie był.
+(2) werdykt o braku wyników czeka, aż pisanie ustanie (nic w locie) i zapytanie ma co
+najmniej 3 znaki — same wyniki pojawiają się jak dotąd od 2 znaków, bo to pomaga; milknie
+wyłącznie komunikat o ICH BRAKU. (3) nad przyciskiem „Zapisz się" pojawia się zdanie
+„Uzupełnij imię, e-mail i sposób płatności, żeby się zapisać" — wymienia dokładnie to,
+czego brakuje, i znika, gdy wszystko jest wypełnione. (4) `/rejestracja` przekierowuje na
+formularz zakładania konta zamiast na 404. (5) „Brak historii meczów".
+
+MECHANIKA: `components/onboarding/PostSignupRoleModal.tsx` (obsługa `Escape`, przycisk
+„Pomiń"), `components/map/UnifiedLocationPickerImpl.tsx` (`szukanieWToku`, `brakWynikow` —
+bramka na komunikat, nie na samo szukanie), `app/wydarzenia/[id]/EventDetailClient.tsx`
+(lista braków nad przyciskiem zapisu gościa), `next.config.mjs` (przekierowanie
+`/rejestracja` → `/logowanie?mode=rejestracja`, `permanent: false`), `app/moje-gry/page.tsx`.
+Bez migracji.
+
 ### 2026-08-31 — Zdublowany termin/miejsce na stronie meczu i martwy przycisk „Otwórz w Safari"
 
 PROBLEM: (1) po dodaniu karty „Kiedy i gdzie" (partia z 2026-08-30) pasek nagłówka strony
@@ -680,26 +711,3 @@ Szukanie: `foldText()`/`foldedIncludes()` z `lib/searchText.ts` w filtrze lokaln
 kolumnę generowaną `fields.szukaj_norm` (nazwa + adres, bez ogonków, indeks GIN po
 trigramach), a `searchExplorerFields()` pyta po niej — z wyjściem awaryjnym na stare
 `or(...)`, dopóki migracja nie zostanie puszczona ręcznie.
-
-### 2026-08-25 — Widget „najbliższe mecze" do osadzenia na stronie obiektu
-
-PROBLEM: Bojo nie miało żadnego sposobu, żeby zarządca obiektu sportowego umieścił na
-WŁASNEJ stronie coś więcej niż statyczny link do Bojo. Rozmowa z obiektem w
-`/admin/outreach` kończyła się wyłącznie prośbą o wzmiankę — bez treści, która sama się
-aktualizuje, trudno o coś do zaoferowania w zamian.
-
-ROZWIĄZANIE BOJO: `/widget/boisko/[id]` — fragment strony do osadzenia w `<iframe>` na
-stronie obiektu: nazwa, do pięciu najbliższych publicznych meczów (termin, sport, wolne
-miejsca) i link powrotny do Bojo. Bez nawigacji, stopki ani żadnego globalnego elementu
-interfejsu Bojo (baner cookies, zachęta do instalacji aplikacji, modal onboardingu) — to
-nie jest ekran aplikacji, tylko fragment renderowany na cudzej witrynie. Kliknięcie meczu
-albo linku „Bojo" otwiera pełną stronę w GŁÓWNYM oknie przeglądarki, nie w ramce. Kod do
-wklejenia (`<iframe>`) kopiuje się jednym przyciskiem w `/admin/outreach`.
-
-MECHANIKA: `app/widget/boisko/[id]/page.tsx` (`revalidate = 300`, `robots: {index:
-false, follow: true}` — fragment ma nie trafiać do wyników wyszukiwania, ale link
-wewnątrz ma dalej nieść sygnał). `lib/widget.ts#useJestWidget()` (sprawdzenie
-`usePathname()`) wyłącza globalne komponenty z `app/layout.tsx` — `CookieBanner`,
-`BottomNavGate`, `PostSignupRoleModal`, `RejestracjaSW` — na trasach `/widget/*`; Next.js
-App Router nie pozwala żadnej trasie pominąć root layoutu inaczej. `kodOsadzeniaWidgetu()`
-generuje gotowy `<iframe>` (stała wysokość 420px, przewijany w środku). Bez migracji.

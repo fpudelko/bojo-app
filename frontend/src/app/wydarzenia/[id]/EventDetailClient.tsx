@@ -4525,6 +4525,27 @@ export default function EventDetailClient() {
               </div>
             )}
 
+            {/* Czego brakuje do zapisu — WPROST, zamiast wyszarzonego przycisku
+                bez słowa wyjaśnienia. Zgłoszone z audytu UX: „użytkownik może
+                myśleć, że aplikacja się zawiesiła albo przycisk nie działa".
+                Zdanie pokazuje się dopiero, gdy czegoś faktycznie brakuje —
+                przy komplecie pól znika, żeby nie strofować kogoś, kto właśnie
+                wszystko wypełnił. */}
+            {(() => {
+              const braki: string[] = [];
+              if (!guestName.trim()) braki.push('imię');
+              if (!guestEmail.trim()) braki.push('e-mail');
+              if (event.costGrosze > 0 && !guestPaymentMethod) braki.push('sposób płatności');
+              if (braki.length === 0) return null;
+              const lista = braki.length === 1
+                ? braki[0]
+                : `${braki.slice(0, -1).join(', ')} i ${braki[braki.length - 1]}`;
+              return (
+                <p className="mb-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Uzupełnij {lista}, żeby się zapisać.
+                </p>
+              );
+            })()}
             <div className="flex gap-2">
               <Button
                 variant="outline"
