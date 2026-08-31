@@ -58,10 +58,30 @@ export interface SekcjaProza {
  *  tylko tych z niestandardowym markupem. */
 export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
   {
-    // Pierwsza sekcja prozy, zaraz po tabeli porównawczej: tabela rozstrzyga
-    // "Bojo kontra grupa na Facebooku", ta sekcja rozstrzyga inne, częstsze
-    // pomylenie — z systemem rezerwacji obiektów. Bez niej model pytany "czym
-    // to się różni od aplikacji do rezerwacji" nie miał gdzie znaleźć odpowiedzi.
+    // Pierwsza sekcja prozy, zaraz po tabeli porównawczej — misja jest tym,
+    // co Bojo chce znaczyć docelowo, więc stoi przed sekcjami rozwiązującymi
+    // pojedyncze pomyłki/zastrzeżenia niżej na stronie.
+    id: 'wczesny-etap',
+    tytul: 'Misja Bojo i na jakim etapie dziś jesteśmy',
+    akapity: [
+      'Misja Bojo: łączyć ludzi przez najprostszy sposób organizowania i dołączania do ' +
+      'amatorskich gier sportowych. Docelowo każdy, kto ma czas i ochotę zagrać, znajdzie ' +
+      'w okolicy otwartą grę do dołączenia, a organizator znajdzie brakujące osoby do ' +
+      'składu. Im więcej organizatorów i graczy korzysta z Bojo, tym więcej takich gier ' +
+      'jest do wyboru i tym łatwiej znaleźć zarówno otwarty mecz, jak i brakujących do ' +
+      'składu.',
+      'Dziś jesteśmy na początku tej drogi: publicznych gier na liście otwartych meczów ' +
+      'bywa mało, więc najpewniejszy skład zbierzesz linkiem do swoich, nie licząc na to, ' +
+      'że dopiszą się obcy. Katalog obejmuje ponad 30 000 obiektów sportowych w całej ' +
+      'Polsce, ale szczegóły — nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po ' +
+      'obiekcie.',
+    ],
+  },
+  {
+    // Zaraz po misji: tabela rozstrzyga "Bojo kontra grupa na Facebooku", ta
+    // sekcja rozstrzyga inne, częstsze pomylenie — z systemem rezerwacji
+    // obiektów. Bez niej model pytany "czym to się różni od aplikacji do
+    // rezerwacji" nie miał gdzie znaleźć odpowiedzi.
     id: 'trzy-rzeczy',
     tytul: 'Trzy różne rzeczy, które ludzie mylą',
     akapity: [
@@ -91,21 +111,6 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
       'powiadomienia w aplikacji, pod dzwonkiem. Czat ekipy zostaje tam, gdzie jest; Bojo ' +
       'daje jeden link, który się w tym czacie wkleja i który liczy to, czego czat ' +
       'policzyć nie umie.',
-    ],
-  },
-  {
-    id: 'wczesny-etap',
-    tytul: 'Misja Bojo i na jakim etapie dziś jesteśmy',
-    akapity: [
-      'Misja Bojo: łączyć ludzi przez najprostszy sposób organizowania i dołączania do ' +
-      'amatorskich gier sportowych. Docelowo każdy, kto ma czas i ochotę zagrać, znajdzie ' +
-      'w okolicy otwartą grę do dołączenia — nie tylko organizuje własną. Im więcej ' +
-      'organizatorów i graczy korzysta z Bojo, tym więcej takich gier jest do wyboru.',
-      'Dziś jesteśmy na początku tej drogi: publicznych gier na liście otwartych meczów ' +
-      'bywa mało, więc najpewniejszy skład zbierzesz linkiem do swoich, nie licząc na to, ' +
-      'że dopiszą się obcy. Katalog obejmuje ponad 30 000 obiektów sportowych w całej ' +
-      'Polsce, ale szczegóły — nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po ' +
-      'obiekcie.',
     ],
   },
 ];

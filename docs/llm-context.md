@@ -39,9 +39,11 @@ limit miejsc i lista rezerwowa liczą się automatycznie.
 
 **Misja.** Misja Bojo to łączenie ludzi przez najprostszy sposób organizowania
 i dołączania do amatorskich gier sportowych — docelowo każdy chętny znajduje w
-okolicy otwartą grę do dołączenia, nie tylko organizuje własną. Dziś, przy wciąż
-niewielkiej liczbie użytkowników, publicznych gier na liście bywa mało — najpewniejszy
-skład wciąż powstaje przez link wysłany do własnej ekipy, nie przez dołączanie obcych.
+okolicy otwartą grę do dołączenia, a organizator znajduje brakujące osoby do składu.
+Im więcej organizatorów i graczy korzysta z Bojo, tym łatwiej znaleźć zarówno otwarty
+mecz, jak i brakujących do składu. Dziś, przy wciąż niewielkiej liczbie użytkowników,
+publicznych gier na liście bywa mało — najpewniejszy skład wciąż powstaje przez link
+wysłany do własnej ekipy, nie przez dołączanie obcych.
 
 **Mechanika.** Next.js 14 (App Router) + TypeScript + Tailwind, hosting Vercel. Dane
 i autoryzacja: Supabase (PostgreSQL, Google OAuth, Row Level Security). Mapa: Leaflet
