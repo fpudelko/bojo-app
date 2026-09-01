@@ -135,11 +135,10 @@ zdaniach napisać jak to działa?
 Wystawiasz mecz na bojo.pl, dostajesz link i wrzucasz go tam gdzie zwykle sie zbieracie
 (na grupę fb albo ekipie na whatsappa itp)
 
-Kto kliknie dołącz, podaje imię i maila i już jest w składzie. Nie trzeba konta
-i ściągania apki, mail jest po to żeby się nie dublowali. A jak nie chcesz randomów,
-ustawiasz że każdy zapis musi być przez Ciebie zatwierdzony.
+Kto kliknie dołącz, podaje imię i maila i już jest w składzie. Możesz też dodać ręcznie
+wpisując imie. Nie trzeba konta i ściągania apki, mail jest po to żeby się nie dublowali.
 Widzisz na bieżąco kto gra, kto na rezerwie, ile miejsc zostało i kto jak płaci za
-boisko. Dodatkowo możesz ustawić składy, wpisać wyniki itp.
+boisko.  Dodatkowo możesz ustawić składy, wpisać wyniki itp.
 
 Konto trzeba mieć tylko żeby postawić mecz - google jednym kliknięciem albo mailem.
 Samo wystawienie meczu to jakieś 2 minuty.
@@ -150,14 +149,18 @@ Chcesz przetestować na jednej gierce?
 **Dwie rzeczy w tej wiadomości są sprawdzone i nie wolno ich przeredagować w drugą
 stronę:**
 
-- **Mail nie chroni przed randomami**, tylko przed dublowaniem zapisu (ten sam adres
-  nie zapisze się dwa razy na ten sam mecz). Przed przypadkowymi ludźmi chroni mecz
-  prywatny albo akceptacja zapisów — i to jest zdanie, które w tej wiadomości stoi.
-  Wcześniejsza wersja przypisywała tę rolę mailowi; organizator sprawdziłby to w tydzień.
+- **Mail chroni wyłącznie przed dublowaniem zapisu** — ten sam adres nie zapisze się
+  dwa razy na ten sam mecz. Nie chroni przed przypadkowymi ludźmi: kto ma link, ten
+  wejdzie. Przed obcymi chroni mecz prywatny albo akceptacja zapisów, i o tym mówimy
+  dopiero wtedy, gdy organizator o to zapyta (patrz §5) — dopisanie tego mailowi
+  w wiadomości byłoby obietnicą, którą sprawdzi w tydzień.
 - **Jednym kliknięciem jest google.** Rejestracja mailem wymaga imienia i nazwiska,
   więc „mailem albo google jednym kliknięciem” dawało się przeczytać tak, jakby oba
   były równie szybkie. To pierwsza obietnica, którą nowy organizator weryfikuje
   w ciągu minuty.
+
+Reszta jest zgodna ze stanem kodu: dopisywanie gości ręcznie samym imieniem, skład,
+rezerwa, wolne miejsca, metody płatności, podział na składy i wyniki.
 
 ### Który wysyłać
 
