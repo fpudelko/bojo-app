@@ -70,8 +70,9 @@ export const LANDING_STEPS = [
     wczesnyEtap: true,
     title: 'Brakuje ludzi? Otwórz mecz',
     body:
-      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier. Graczy szukających ' +
-      'gry wciąż przybywa — na razie najpewniejszy skład zbierzesz linkiem do znajomych.',
+      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier — gracze znajdą mecz, ' +
+      'Ty znajdziesz brakujących do składu. Graczy szukających gry wciąż przybywa — na ' +
+      'razie najpewniejszy skład zbierzesz linkiem do znajomych.',
   },
 ] as const;
 
