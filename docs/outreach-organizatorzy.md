@@ -47,86 +47,124 @@ w składzie. Konto może dokończyć później, jeśli chce mieć historię i st
 
 ## 3. Wiadomość otwarcia
 
-### Wariant A — dwustopniowy (domyślny na zimno)
+Cztery warianty pierwszej wiadomości, dwie osie: **wspólny cel** (zaczyna od misji)
+albo **narzędzie** (zaczyna od tego, co Bojo robi dziś), każda w odmianie
+z prośbą o test i bez niej. Druga wiadomość jest wspólna dla wszystkich czterech.
 
-Na Messengerze pierwsza wiadomość konkuruje z kciukiem, nie z konkurencją. Trzy linijki
-mają ~kilka razy większą szansę na odpowiedź niż ściana tekstu, a konkret idzie dopiero
-wtedy, gdy człowiek sam otworzył drzwi.
+Pisownia jest celowo potoczna — `fb`, `messanger`, `google` małą literą, luźna
+interpunkcja. Idealna polszczyzna w prywatnej wiadomości na Messengerze czyta się
+jak automat i to jest jedyny powód, dla którego tu jej nie ma. Pola
+`[w nawiasach]` podmieniasz zawsze: to warunek odpowiedzi i higieny konta.
 
-**Wiadomość 1:**
-
-```
-Cześć [Imię], widziałem Twój post w [nazwa grupy] — szukasz 2 osób na czwartek na [miejsce].
-
-Robię z kumplem narzędzie do zbierania składu na takie gierki i szukam kilku organizatorów,
-którzy przetestują to na jednej grze i powiedzą mi wprost, co jest do niczego.
-
-Mogę Ci w dwóch zdaniach napisać, o co chodzi?
-```
-
-**Wiadomość 2 (po „dawaj" / „no pisz"):**
+### A. Wspólny cel + testy
 
 ```
-Wystawiasz mecz na bojo.pl, dostajesz link i wrzucasz go tam, gdzie zwykle — na grupę
-albo na WhatsAppa ekipy.
+Cześć [Imię], widziałem że szukałeś grajków do składu. Organizujesz regularnie gierki?
 
-Kto kliknie, wpisuje imię i maila i JEST w składzie. Bez zakładania konta, bez ściągania
-apki. Ty masz gotową listę: kto gra, kto na rezerwie, ile miejsc zostało — zamiast
-przewijać 60 komentarzy i liczyć na kartce.
+Robimy Bojo.pl i mamy misję, żeby zebrać dużą społeczność ludzi którzy lubią pokopać.
+Wtedy łatwo będzie dobrać ludzi do składu albo dołączyć do gierki, zamiast szukać na fb
+i po znajomych.
 
-Konto zakłada tylko organizator, Google, jedno kliknięcie. Postawienie meczu to jakieś
-2 minuty. Chcesz, wystawię Ci tę czwartkową gierkę jako podgląd i podeślę link —
-zobaczysz w 15 sekund, jak to widzą Twoi gracze, i wtedy zdecydujesz.
+Na dziś to narzędzie do organizacji meczów, z funkcjami których brakuje na grupach
+whatsapp fb messanger. Liczy skład, rezerwę i rozliczenia za boisko.
+
+Szukam kilku osób ze świeżym spojrzeniem, które przetestują to na jednej grze i powiedzą
+mi wprost co jest do niczego. Mogę Ci w dwóch zdaniach napisać jak to działa?
 ```
 
-### Wariant B — jednostopniowy (gdy profil jest ciepły)
-
-Do kogoś, kto już nas zna: odpisał kiedyś w komentarzu, jest z tej samej okolicy, albo
-sami jesteśmy aktywni w tej grupie od dłuższego czasu.
+### B. Wspólny cel + rola organizatora
 
 ```
-Cześć [Imię], widziałem Twój post — szukasz 2 osób na czwartek na [miejsce]. Nie chcę
-Ci nic sprzedawać, piszę w innej sprawie.
+Cześć [Imię], widziałem że szukałeś grajków do składu. Organizujesz regularnie gierki?
 
-Robimy z kumplem Bojo (bojo.pl) — narzędzie do zbierania składu, dokładnie pod takie
-gierki jak Twoja. Wystawiasz mecz, dostajesz link, wrzucasz go tam gdzie zwykle. Kto
-kliknie, wpisuje imię i maila i jest w składzie — bez konta, bez instalowania apki.
-Ty widzisz listę: skład, rezerwa, ile brakuje.
+Robimy Bojo.pl i mamy misję, żeby zebrać dużą społeczność ludzi którzy lubią pokopać.
+Wtedy łatwo będzie dobrać ludzi do składu albo dołączyć do gierki, zamiast szukać na fb
+i po znajomych.
 
-Szukam teraz kilku organizatorów, którzy sprawdzą to na jednej gierce i powiedzą mi
-wprost, co nie działa. Za darmo, bez haczyków — jestem na etapie, na którym Twoja opinia
-jest dla mnie warta więcej niż jakakolwiek kasa.
+Ale gracze biorą się od organizatorów, więc od tego zaczynamy. Dlatego na start
+zrobiliśmy narzędzie do organizacji meczów, z funkcjami których brakuje na grupach
+whatsapp fb messanger. Liczy skład, rezerwę i rozliczenia za boisko, do tego podział
+na składy, wyniki i statystyki.
 
-Wystawić Ci tę czwartkową grę jako podgląd, żebyś zobaczył, jak to wygląda od strony
-Twoich graczy?
+Im więcej takich organizatorów jak Ty, tym mniej roboty ma każdy z nas przy łataniu
+składu. Mogę Ci w dwóch zdaniach napisać jak to działa?
 ```
 
-### Wariant C — organizator stałej ekipy
+> **Uwaga na kierunek korzyści.** Ostatni akapit mówi, co organizator ma z tego, że nas
+> przybędzie — nie prosi go o pomoc w budowaniu naszej masy krytycznej. Wcześniejsza
+> wersja brzmiała „możesz pomóc ściągnąć więcej graczy" i czytała się instrumentalnie:
+> jesteś dla nas kanałem dotarcia. Trafne wewnętrznie, ale nie w pierwszej wiadomości
+> do obcego człowieka.
 
-Post typu „szukamy stałego gracza do gierki we wtorki", „mamy wolne miejsce w składzie".
-Tu boli co innego: nie brak ludzi na jeden mecz, tylko cotygodniowe zbieranie tych samych
-osób od zera.
+### C. Narzędzie + testy
 
 ```
-Cześć [Imię], widziałem, że gracie stałym składem we wtorki i szukacie kogoś na wolne
-miejsce.
+Cześć [Imię], widziałem Twój post w [nazwa grupy] że szukasz [2 osób na czwartek]
+na [miejsce]. Organizujesz regularnie gierki?
 
-Robimy z kumplem Bojo (bojo.pl) i mamy tam coś pod dokładnie taką ekipę: zakładasz ekipę
-raz, dostajesz link z zaproszeniem dla swoich, i przy każdym kolejnym meczu nie zbierasz
-składu od nowa — ludzie widzą termin i klikają „gram". Do tego historia meczów, kto ile
-grał i podział kosztów w jednym miejscu, zamiast w trzech wątkach.
+Robię z kumplem bojo.pl, narzędzie do organizacji meczy i zbierania składu, robione
+pod piłkę. Z funkcjami których brakuje na grupach whatsapp fb messanger. Liczy skład,
+rezerwę i rozliczenia za boisko, do tego podział na składy, wyniki i statystyki.
 
-Zapisanie się nie wymaga od Twoich graczy zakładania konta — wchodzą z linku, podają imię
-i maila. Konto zakłada tylko Ty.
+Szukam kilku organizatorów, którzy przetestują to na jednej grze i powiedzą mi wprost
+co jest do niczego.
 
-Szukam kilku ekip, które to przetestują na normalnym graniu i powiedzą mi, co jest nie
-tak. Chcesz spróbować na najbliższym wtorku?
+Mogę Ci w dwóch zdaniach napisać jak to działa?
 ```
 
-> **Uwaga:** „gry cykliczne" (szablon „każdy wtorek 18:00" z automatycznym tworzeniem
-> kolejnych terminów) są **wyłączone flagą** `SHOW_RECURRING`. Wariant C sprzedaje
-> **ekipę** (grupę) — stały skład, link z zaproszeniem, historię, rozmowę, statystyki —
-> a nie automatyczne powielanie terminu. Mecze zakłada się ręcznie, każdy osobno.
+### D. Narzędzie, bez prośby o test
+
+```
+Cześć [Imię], widziałem Twój post w [nazwa grupy] że szukasz [2 osób na czwartek]
+na [miejsce]. Organizujesz regularnie gierki?
+
+Robię z kumplem bojo.pl, narzędzie do organizacji meczy i zbierania składu, robione
+pod piłkę. Z funkcjami których brakuje na grupach whatsapp fb messanger. Liczy skład,
+rezerwę i rozliczenia za boisko, do tego podział na składy, wyniki i statystyki.
+
+Jesteśmy na wczesnym etapie i zbieram teraz uwagi od organizatorów. Mogę Ci w dwóch
+zdaniach napisać jak to działa?
+```
+
+> Ostatni akapit jest tu obowiązkowy, choć nie prosi o test. Bez niego wiadomość jest
+> czystą prezentacją produktu i pierwsza reakcja brzmi „sprzedajesz mi coś".
+
+### Wiadomość 2 — po „dawaj”, wspólna dla wszystkich czterech
+
+```
+Wystawiasz mecz na bojo.pl, dostajesz link i wrzucasz go tam gdzie zwykle sie zbieracie
+(na grupę fb albo ekipie na whatsappa itp)
+
+Kto kliknie dołącz, podaje imię i maila i już jest w składzie. Nie trzeba konta
+i ściągania apki, mail jest po to żeby się nie dublowali. A jak nie chcesz randomów,
+ustawiasz że każdy zapis musi być przez Ciebie zatwierdzony.
+Widzisz na bieżąco kto gra, kto na rezerwie, ile miejsc zostało i kto jak płaci za
+boisko. Dodatkowo możesz ustawić składy, wpisać wyniki itp.
+
+Konto trzeba mieć tylko żeby postawić mecz - google jednym kliknięciem albo mailem.
+Samo wystawienie meczu to jakieś 2 minuty.
+
+Chcesz przetestować na jednej gierce?
+```
+
+**Dwie rzeczy w tej wiadomości są sprawdzone i nie wolno ich przeredagować w drugą
+stronę:**
+
+- **Mail nie chroni przed randomami**, tylko przed dublowaniem zapisu (ten sam adres
+  nie zapisze się dwa razy na ten sam mecz). Przed przypadkowymi ludźmi chroni mecz
+  prywatny albo akceptacja zapisów — i to jest zdanie, które w tej wiadomości stoi.
+  Wcześniejsza wersja przypisywała tę rolę mailowi; organizator sprawdziłby to w tydzień.
+- **Jednym kliknięciem jest google.** Rejestracja mailem wymaga imienia i nazwiska,
+  więc „mailem albo google jednym kliknięciem” dawało się przeczytać tak, jakby oba
+  były równie szybkie. To pierwsza obietnica, którą nowy organizator weryfikuje
+  w ciągu minuty.
+
+### Który wysyłać
+
+**C** jako domyślny — najlepszy stosunek długości do treści, ma personalizację,
+pytanie na start i szczery powód, po co piszesz. **A** do ludzi, którzy wyglądają na
+weteranów sceny i kupią misję. **B** tam, gdzie widać, że ktoś ogarnia scenę od lat
+i spodoba mu się bycie u początku. **D** gdy chcesz najkrócej.
 
 ---
 
@@ -136,11 +174,11 @@ tak. Chcesz spróbować na najbliższym wtorku?
 graczy — wtedy jest znowu w temacie i mamy naturalny pretekst.
 
 ```
-Cześć, odbijam się tylko raz i odpuszczam, żeby nie zawracać Ci głowy.
+Cześć, odbijam się tylko raz i odpuszczam żeby nie zawracać Ci głowy.
 
-Widzę, że znowu zbierasz skład — jakbyś chciał kiedyś spróbować, link zostaje: bojo.pl.
-Postawienie gierki to 2 minuty, Twoi gracze nie zakładają kont. Piszesz do mnie
-bezpośrednio, jak coś nie zadziała.
+Widzę że znowu zbierasz skład. Jakbyś chciał kiedyś spróbować to link zostaje, bojo.pl.
+Postawienie gierki to jakieś 2 minuty a Twoi gracze nie zakładają kont. Jakby coś nie
+zadziałało piszesz do mnie bezpośrednio.
 ```
 
 Brak odpowiedzi na follow-up = koniec. Trzecia wiadomość zamienia nas w spam,
