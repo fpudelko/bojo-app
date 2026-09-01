@@ -1388,8 +1388,6 @@ właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do Search C
 
 ### 7b. Progi sukcesu
 
-### 7b. Progi sukcesu
-
 Celowo skromne, bo punktem wyjścia jest zero, a produkt jest przed startem.
 
 - **30 dni:** wartość bazowa zmierzona dla wszystkich pozycji z 7a. Wszystkie PILNE

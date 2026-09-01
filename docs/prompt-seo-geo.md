@@ -1,34 +1,42 @@
-# Prompt: „SEO i GEO — runda 2: naprawy, quick winy, big winy"
+# Prompt: „SEO i GEO — runda 4: pierwsze twarde liczby"
 
-Gotowy brief do wklejenia modelowi z najwyższej półki (Opus/Fable), **uruchamiany
-w tym repo, na gałęzi roboczej**. Na wyjściu: kolejne PR-y ze zmianami w kodzie,
-plus aktualizacja [seo-geo-strategia.md](./seo-geo-strategia.md) i [BACKLOG.md](../BACKLOG.md).
+Gotowy brief do wklejenia modelowi z najwyższej półki (Opus/Fable), **uruchamiany w tym
+repo, na gałęzi roboczej**. Na wyjściu: aktualizacja
+[seo-geo-strategia.md](./seo-geo-strategia.md) i [BACKLOG.md](../BACKLOG.md), plus PR-y
+w kodzie tam, gdzie zadanie daje jednoznaczną odpowiedź — nie kolejny dokument
+strategiczny obok istniejącego.
 
-**Runda 1 jest zużyta.** Poprzednia wersja tego pliku była promptem strategicznym
-i kończyła się planem. Zadziałała — jej wynikiem jest
-[seo-geo-strategia.md](./seo-geo-strategia.md) (rozdziały 0–9, załączniki A i B)
-oraz sekcja `§7b` w [BACKLOG.md](../BACKLOG.md). Strategii **nie piszemy drugi raz**:
-dwa dokumenty o tym samym rozjadą się przy pierwszej zmianie
-([AGENTS.md](../AGENTS.md), sekcja o RAG INJECTION). Runda 2 wykonuje to, co runda 1
-ustaliła, i szuka tego, co przez roadmapę przeleciało.
+**Rundy 1–3 są zużyte.** Runda 1 dała strategię (rozdziały 0–9, załączniki A i B). Runda 2
+i 3 wykonały ją: z 28 pozycji roadmapy **23 są zrobione**, 2 odrzucone decyzją
+właściciela, 3 otwarte — i wszystkie trzy poza kodem (praca Jana). Runda 3 skończyła się
+oceną: „dalsza praca w kodzie nie ma już sensu, bo pomiar bazowy po trzech rundach nadal
+wynosi zero — 21 zmian wdrożono bez wartości wyjściowej".
 
-**Dlaczego ten prompt wygląda inaczej niż poprzedni.** Warstwa kodu jest w dużej
-części domknięta: pomiędzy 2026-08-23 a 2026-08-25 zeszło z roadmapy piętnaście
-pozycji plus wszystkie cztery PILNE. Prompt proszący dziś o „quick winy SEO" wypluje
-albo rzeczy zrobione, albo dwie rzeczy odrzucone decyzją właściciela. Dlatego kontekst
-poniżej dzieli stan na **trzy listy** — zrobione, odrzucone, otwarte-ale-nie-twoje —
-i wskazuje palcem dług, którego tabela roadmapy nigdy nie objęła.
+**Co zmieniło się od rundy 3 i uzasadnia rundę 4.** 2026-08-29 właściciel zmierzył —
+pierwszy raz — Core Web Vitals (5 typów stron, `7a.1`) i Search Console (`7a.2`). Zdanie
+„pomiar wynosi zero" przestało być prawdą. Są teraz liczby: mapa witryny nigdy wcześniej
+niezgłoszona, 2 zaindeksowane strony, 0 kliknięć na 56 wyświetleń w 3 miesiące, wszystkie
+zapytania markowe. To zmienia charakter tej rundy — **nie jest wykonawcza jak runda 2,
+jest strategiczna jak runda 1, ale pierwszy raz stoi na czymś więcej niż lekturze kodu.**
 
-**Zanim uruchomisz:**
+**Zanim uruchomisz — ograniczenia środowiska, zweryfikowane w tej sesji 2026-09-01, nie
+do obejścia:**
 
-- Docker — bez niego nie postawisz stosu lokalnego, a bez stosu nie zobaczysz tego,
-  co widzi robot na stronach żyjących z danych.
-- Gałąź robocza. Nie `master` ([AGENTS.md](../AGENTS.md), „Konwencje").
-- **Search Console nie jest potrzebne.** Pomiar bazowy to pozycja 2 roadmapy i praca
-  Jana; agent jej nie wykona i nie ma udawać, że wykonał.
+- `bojo.pl` nieosiągalne: `curl` → „CONNECT tunnel failed, response 403". Ta sama
+  polityka blokuje `google.com` i podgląd Vercela z PR-a.
+- Docker **nie ma nawet gniazda** (`/var/run/docker.sock` nie istnieje) — nie chodzi
+  o zablokowany rejestr jak w rundzie 3, `docker version` nie łączy się w ogóle.
+  `scripts/stos-lokalny.sh` jest dziś niedostępny z tej sesji.
+- Zostaje: `node scripts/audyt-robota.mjs --bez-bazy`, `./scripts/baza-testowa.sh` (goły
+  Postgres z binarki, bez obrazów), i lektura kodu. Nie trać obrotów na próby ominięcia
+  proxy — sprawdź `curl -sS "$HTTPS_PROXY/__agentproxy/status"`, jeśli chcesz to
+  zweryfikować sam, ale wynik będzie ten sam.
+- **Search Console i pagespeed.web.dev nie są potrzebne.** Liczby z 2026-08-29 są niżej,
+  z adresem źródłowym każda. Nie zgaduj nowszych — jeśli chcesz wiedzieć, czy coś się
+  zmieniło (np. „Wykryte strony" przy sitemapie), napisz, kto i czym ma to sprawdzić.
 
-**Czas przebiegu:** długi. Cztery partie, każda z własną bramką i własnym PR-em.
-Rozsądnie jest przejść je po kolei, nie równolegle.
+**Czas przebiegu:** średni. Jedno zadanie strategiczne (część B) plus, jeśli z niego
+wynika jednoznaczna zmiana w kodzie, osobny mały PR — nie cztery partie jak w rundzie 2.
 
 ---
 
@@ -36,9 +44,11 @@ Rozsądnie jest przejść je po kolei, nie równolegle.
 
 ````
 Jesteś Senior SEO & GEO (Generative Engine Optimization) Specialist pracującym nad
-bojo.pl. To jest runda 2: strategia już istnieje, Twoim zadaniem jest ją WYKONAĆ
-i znaleźć to, co przez nią przeleciało. Płacę Ci za zmiany dopchnięte do repo
-i zweryfikowane, nie za kolejny dokument.
+bojo.pl. To jest runda 4. Rundy 1–3 zamknęły niemal całą robotę techniczną w kodzie —
+Twoim zadaniem NIE jest odkryć to jeszcze raz. Pierwszy raz w historii tego zadania masz
+twarde liczby zamiast samej lektury kodu: Search Console i Core Web Vitals, zmierzone
+przez właściciela 2026-08-29. Płacę Ci za wnioski z tych liczb i za PR, gdy wniosek jest
+jednoznaczny — nie za kolejny dokument strategiczny obok istniejącego.
 
 Masz dostęp do repozytorium. Każde twierdzenie o stanie Bojo weryfikuj w kodzie albo
 przebiegiem narzędzia. Zgadywanie oznaczaj słowem SZACUNEK, brak weryfikacji — słowem
@@ -48,256 +58,267 @@ NIEZWERYFIKOWANE, i podawaj, co trzeba zrobić, żeby przestało nim być.
 CZĘŚĆ A — CO MUSISZ WIEDZIEĆ, ZANIM COKOLWIEK ZAPROPONUJESZ
 ═══════════════════════════════════════════════════════════════════════════════
 
-PRODUKT W JEDNYM AKAPICIE
+A1. PRODUKT W JEDNYM AKAPICIE
 Bojo (bojo.pl) — aplikacja webowa do organizowania amatorskich meczów w Polsce.
 Next.js 14 App Router + Supabase, Vercel, bez własnego backendu, interfejs po polsku.
-Dwóch założycieli, przed publicznym startem. Punktem wyjścia jest SPOŁECZNOŚĆ
-(gracze i organizatorzy), nie OBIEKTY — przy zapytaniu „jak wynająć orlik" Bojo nie
-wnosi nic, przy „jak zebrać ludzi na orlik" jest odpowiedzią. Obecny priorytet
-biznesowy: pozyskanie ORGANIZATORÓW, nie graczy.
+Dwóch założycieli, przed publicznym startem (miękki start, jedna ekipa na próbę —
+docs/testy-przedpremierowe.md). Punktem wyjścia jest SPOŁECZNOŚĆ (gracze i organizatorzy),
+nie OBIEKTY. Obecny priorytet biznesowy: pozyskanie ORGANIZATORÓW, nie graczy — jeden
+organizator przyprowadza 10–14 osób, które zakładają konto, żeby dołączyć (single-player
+mode, wzorzec OpenTable — skill `bojo-etap1`, docs/strategia.md §0).
 
 Pełny kontekst — NIE przepisuj go sobie z kodu, jest gotowy:
 - docs/wizja.md — dokument nadrzędny, sekcji 1 nie parafrazuj
-- docs/seo-geo-strategia.md — ustalenia rundy 1, do których masz się odwoływać
-- docs/funkcje.md — tabela flag funkcji
-- frontend/public/llm-context.md — gęsty opis produktu
-- frontend/src/content/zakazaneFrazy.ts — czego nie wolno obiecywać
+- docs/seo-geo-strategia.md — ustalenia rund 1–3, do których masz się odwoływać
+- BACKLOG.md §7 — historia decyzji, w tym PRZESŁANKA STRATEGICZNA (czytaj przed
+  planowaniem czegokolwiek, sekcja na początku pliku)
+- docs/outreach-organizatorzy.md §6 — pełna tabela, czego nie wolno obiecywać
+- frontend/src/content/zakazaneFrazy.ts — to samo w kodzie, dwie listy (landing / wszędzie)
+- frontend/src/lib/structuredData.ts — co dane strukturalne już emitują
 
-TRZY LISTY. Mylenie ich jest w tym projekcie najdroższym błędem.
+A2. PIERWSZE TWARDE LICZBY — Search Console, 2026-08-29 (seo-geo-strategia.md `7a.2`)
+Zmierzone przez właściciela w przeglądarce, nie przez Ciebie — Ty nie masz dostępu.
+- Mapa witryny **nigdy wcześniej niezgłoszona** do tej usługi. Zgłoszona w trakcie
+  pomiaru (`sitemap-index.xml`); „Wykryte strony: 0" w chwili pomiaru — oczekiwane przy
+  świeżym zgłoszeniu, Google musi jeszcze zejść do 17 map wojewódzkich.
+- Pokrycie indeksu PRZED propagacją: **2 strony zaindeksowane** (`/` i `/dlaczego-bojo`),
+  zero w „zeskanowano/wykryto — obecnie bez indeksu". Znaczy to: przed zgłoszeniem Google
+  w ogóle nie wiedział, że reszta serwisu istnieje. Inny, wcześniejszy problem niż pusty
+  HTML strony obiektu (D5) — oba realne, oba trzeba mieć naprawione.
+- Skuteczność (3 miesiące): **kliknięcia 0, wyświetlenia 56, CTR 0%, średnia pozycja 9,4**.
+  Najczęstsze zapytania: „co to bojo" (18 wyświetleń), „bojo" (8), „bojo co to" (7),
+  „boisko klej" (7) — wszystkie markowe, zero kliknięć mimo pozycji ~9.
+- Do sprawdzenia (nie przez Ciebie — nie masz dostępu): czy „Wykryte strony" przy
+  sitemap-index.xml ruszyło z zera od 2026-08-29. Rozstrzyga, czy problemem był tylko
+  brak zgłoszenia, czy też treść samych map wojewódzkich.
+
+A3. CORE WEB VITALS — pagespeed.web.dev, 2026-08-29 (seo-geo-strategia.md `7a.1`)
+Pomiar wykonany — zasada „nie optymalizujemy przed pomiarem" (rozdział 8) PRZESTAŁA
+blokować konkretne, nazwane niżej rzeczy.
+- Landing na telefonie: LCP **4,0 s** (pulpit: 0,6 s — różnica to profil pomiarowy, nie
+  regresja). Trzy nazwane przyczyny: ~600–750 ms blokujących renderowanie żądań CSS,
+  44 KiB nieużywanego JS w jednym chunku, 11,6 KiB zbędnych polyfillów (kod transpilowany
+  pod przeglądarki, które już nie istnieją na rynku).
+- **Strona obiektu ma „Przeglądanie agentowe" 2/3 — JEDYNA z pięciu zmierzonych typów
+  stron.** Pozostałe cztery mają 3/3. To jest typ strony z ~30 tysiącami adresów.
+  NIEZWERYFIKOWANE, który z trzech audytów pada — zrzut ekranu właściciela nie rozwijał
+  tej sekcji.
+- Hub katalogu (`/boiska/pilka-nozna`): dostępność 86/87, zauważalnie niżej niż 92–95
+  gdzie indziej. Cztery elementy z kontrastem poniżej WCAG AA naprawione w PR #302
+  (stopka, plakietka „Wczesny etap", liczniki paginacji). Dwa świadomie zostawione jako
+  decyzja produktowa, NIE do naprawienia w tej rundzie: linki rozróżnialne wyłącznie
+  kolorem (wzorzec powtórzony w setkach miejsc), za małe pola dotykowe na listach miast.
+  NIEZWERYFIKOWANE, czy to wyczerpuje różnicę w wyniku — strona nie była mierzona ponownie
+  po poprawce.
+
+A4. TRZY LISTY. Mylenie ich jest w tym projekcie najdroższym błędem.
 
 ▸ LISTA 1: ZROBIONE — nie proponuj tego ponownie, nie „ulepszaj" przy okazji.
-  Wszystkie cztery pozycje PILNE z rundy 1 są naprawione w kodzie (mimo że część
-  ma jeszcze puste kwadraciki w BACKLOG — patrz Partia 0):
-  P1 wyciek metadanych prywatnego meczu (eventMeta.ts#metadataDlaMeczu filtruje po
-  visibility), P2 „Zarezerwuj termin" w opisie obiektu, P3 podwójny sufiks
-  „| Bojo | Bojo", P4 trasy techniczne i za flagami w robots.ts.
-  Dalej, z tabeli roadmapy w rozdziale 9: serwerowy render strony obiektu (poz. 6),
-  stopka na stronach publicznych (7), linki do hubów katalogu (8), akapit
-  bezpośredniej odpowiedzi na landingu (10), sekcje odróżniające od systemów
-  rezerwacji (11), /kalkulator-kosztow-boiska (12), serwerowy render otwartych gier
-  i boisk (14), linkowanie poziome hubów (16), akapity wprowadzające na hubach (17),
-  potwierdzenia graczy w amenityFeature (18), /boiska/[sport]/[miasto] (20),
-  polityka cyklu życia strony meczu (21), widget dla zarządców (24), ujednolicona
-  liczba obiektów (25), .in('seo_tier',[1,2]) (26).
-  Jest też bramka: scripts/audyt-robota.mjs, krok w zadaniu `test` w ci.yml.
+  23 z 28 pozycji roadmapy (seo-geo-strategia.md, rozdział 9), w tym: wszystkie cztery
+  PILNE (wyciek metadanych prywatnego meczu, opis obiektu bez „zarezerwuj termin",
+  podwójny sufiks tytułu, trasy techniczne w robots.ts), serwerowy render strony obiektu,
+  stopka wszędzie, linki do hubów, akapit bezpośredniej odpowiedzi na landingu, sekcje
+  odróżniające od systemów rezerwacji, /kalkulator-kosztow-boiska, serwerowy render
+  otwartych gier, `alternateName`+`disambiguatingDescription` w Organization,
+  linkowanie poziome hubów, akapity wprowadzające na hubach, potwierdzenia graczy
+  w amenityFeature, /boiska/[sport]/[miasto], polityka cyklu życia strony meczu, widget
+  dla zarządców, ujednolicona liczba obiektów, filtr seo_tier w sitemapie, bramka
+  audyt-robota.mjs w CI, dedup tabeli porównawczej na /dlaczego-bojo.
 
-▸ LISTA 2: ODRZUCONE decyzją właściciela — nie wracaj, nie proponuj wariantów.
-  - Poz. 19: nowy, wyższy próg indeksacji obiektów. Decyzja: NIE zmniejszamy
-    indeksu. Obiekty w katalogu są przede wszystkim pinezkami na mapie; dane
-    dodatkowe są plusem, nie warunkiem obecności w wyszukiwarce.
-  - Poz. 23: wkład zwrotny do OpenStreetMap.
-  UWAGA, to jest pułapka do rozstrzygnięcia, nie do zignorowania: rozdział 8
-  opisuje fosę F1 i F2 tak, że OBIE opierają się na progu z 4c, czyli na pozycji 19.
-  Po jej odrzuceniu F2 („indeks, który rośnie razem z produktem") nie ma podstawy,
-  a F1 straciło drugą połowę. Twoim zadaniem jest to nazwać i zaproponować, co
-  wchodzi w to miejsce — albo uczciwie napisać, że nic.
+▸ LISTA 2: ODRZUCONE decyzją właściciela — nie wracaj, nie proponuj wariantów pod inną
+  nazwą.
+  - Nowy, wyższy próg indeksacji obiektów (poz. 19, rozdz. 4c). Decyzja: NIE zmniejszamy
+    indeksu. Obiekty w katalogu są przede wszystkim pinezkami na mapie.
+  - Wkład zwrotny do OpenStreetMap (poz. 23).
 
-▸ LISTA 3: OTWARTE, ALE NIE TWOJE — to praca Jana, poza repo.
-  - Poz. 2: pomiar bazowy (Search Console + 40 promptów z Załącznika A). NIEWYKONANY.
-    To jest najpoważniejszy brak w całym przedsięwzięciu: optymalizujemy bez
-    wartości wyjściowej. Nie udawaj, że zmierzyłeś. Możesz natomiast sprawdzić, czy
-    da się ten pomiar przygotować tak, by wykonanie zajęło Janowi minuty, nie godziny.
-  - Poz. 15: trzy profile poza domeną. Blokuje poz. 13 (sameAs +
-    disambiguatingDescription w Organization) — puste albo zmyślone sameAs jest
-    gorsze niż jego brak. Nie wpisuj tam niczego „na razie".
-  - Poz. 22: jeden kontakt tygodniowo o wzmiankę.
-  - Poz. 27: Core Web Vitals. Wymaga PageSpeed Insights na działającej produkcji.
+▸ LISTA 3: OTWARTE, ale poza repo — to praca Jana, nie Twoja, i stoi od trzech rund.
+  - Pomiar bazowy w modelach: 40 promptów z Załącznika A. NADAL niewykonany — jedyna
+    pozycja o wpływie „wysoki", której Ty nie odblokujesz kodem. Nie udawaj, że
+    zmierzyłeś. Możesz przygotować formę zapisu wyników, żeby wykonanie zajęło minuty.
+  - Trzy profile poza domeną (poz. 15). Blokuje `sameAs` w Organization — puste albo
+    zmyślone `sameAs` jest gorsze niż jego brak. Nie wpisuj tam niczego „na razie".
+  - Jeden kontakt tygodniowo o wzmiankę (poz. 22).
+  Wszystkie trzy mają wpływ „wysoki" i żadna nie jest zadaniem programistycznym — to jest
+  ustalenie z oceny rundy 3 (rozdz. 9), sprawdź, czy nowe liczby z A2/A3 je zmieniają.
 
-▸ DŁUG, KTÓREGO ROADMAPA NIGDY NIE OBJĘŁA — tu jest dziś realna robota w kodzie.
-  Rozdział 0 strategii wylicza D1–D18. Do tabeli roadmapy trafiła tylko część.
-  Poniższe zweryfikowałem w kodzie 2026-08-25; potwierdź je u siebie, zanim ruszysz:
-  - D10: sitemap.ts zgłasza /mapa (0.8), /wydarzenia (0.8) i /grupy (0.6) — trzy
-    trasy renderowane po stronie klienta, z priorytetem wyższym niż strony treści.
-  - D11: boiska/[sport]/page.tsx i boiska/woj/[wojewodztwo]/page.tsx listują obiekty
-    BEZ filtra po seo_tier. Własne huby wydają budżet skanowania na strony noindex,
-    których broni tiering z migracji 112. To jest wewnętrzna sprzeczność, nie
-    kwestia gustu.
-  - D15: paginacja hubów — ?strona=N dostaje self-referencing canonical i nie ma
-    noindex.
-  - D17: dwa sprzeczne źródła obrazka OG. Konwencja plikowa app/opengraph-image.tsx
-    ma pierwszeństwo przed metadata.openGraph.images z layout.tsx, więc
-    poznan-satellite.jpg (215 KB w public/) prawdopodobnie nie jest nigdy serwowany.
-  - D14: do ROZSTRZYGNIĘCIA, nie do naprawy — komentarz w lib/sports.ts mówi, że
-    „inne" jest poza SPORT_SLUGS celowo, co unieważnia pierwotne zgłoszenie. Jeśli
-    tak, popraw zapis długu zamiast kodu.
+A5. CO WARSTWA MASZYNOWA JUŻ EMITUJE (żeby zadanie 3 nie wyważało otwartych drzwi)
+`lib/structuredData.ts`, testowane w `structuredData.test.ts`: Organization (+alternateName,
+disambiguatingDescription, areaServed; sameAs celowo puste — patrz LISTA 3), WebSite,
+SoftwareApplication/SportsApplication, SportsEvent (null dla meczu niepublicznego),
+BreadcrumbList, FAQPage, HowTo, ItemList, SportsActivityLocation,
+LocationFeatureSpecification (po quorum potwierdzeń graczy). Realne, niezamknięte luki:
+brak `alternates.canonical` na /wydarzenia/[id]; jedyną dźwignią na stronach klienckich
+(/logowanie, /profil, /turniej, /obiekt, /cykliczne, /gracz/[id]…) jest robots.ts, nie ma
+per-trasowego noindex; sameAs puste (LISTA 3).
 
-TWARDE OGRANICZENIA TECHNICZNE — naruszenie kwalifikuje zmianę do kosza
-- NIC liniowego względem katalogu przy buildzie. generateStaticParams() dla obiektów
-  raz już wywróciło build (40+ minut przy 36 tys. wierszy). Nowe strony masowe
-  renderują się na żądanie, z revalidate.
-- useSearchParams() wywala build produkcyjny na trasach prerenderowanych, i NIE
-  powtórzy się lokalnie na atrapach kluczy. Czytaj window.location.search w useEffect
-  albo opakuj w Suspense.
-- Mobile-first bezwzględnie; breakpointy max-* są w nowym kodzie zabronione
-  (pilnuje check:docs, sekcja 10).
-- RLS to jedyna realna granica dostępu — klucz anon jest jawny w paczce JS. Żadna
-  zmiana nie może wystawić danych prywatnych meczów, grup ani kodów dołączenia.
-  Dopisujesz politykę → dopisujesz asercję w supabase/test/rls.sql.
-- Zmiana kodu pociąga aktualizację dokumentacji wg mapy w AGENTS.md;
-  `npm run check:docs` musi być zielony.
+A6. SKALA
+Treść widoczna i llms.txt mówią „ponad 30 000 obiektów" — to zamierzona, jednolita fraza
+(D13, naprawione 2026-08-24), nie literał. Dwa komentarze w kodzie
+(`app/boisko/[id]/page.tsx:50,151`) wspominają „~4600" — to jest NARRACJA HISTORYCZNA
+o tym, jak ewoluował katalog i dlaczego build się kiedyś wywrócił, nie twierdzenie
+o dzisiejszej liczbie; nie traktuj tego jako rozjazdu do naprawienia. Realna liczba
+w BACKLOG.md to 36 268 wierszy (3 605 Tier 1, 28 491 Tier 2, 4 172 Tier 3).
+Miasta: `content/miasta.ts` ma dziś 3 pozycje (Poznań, Warszawa, Kraków) × 4 sporty =
+12 stron /[sport]/[miasto]; /boiska/[sport]/[miasto] korzysta z `miasta_priorytetowe`
+(~100 miast) przy progu 3 obiektów (`lib/hubMiasta.ts`).
 
-REGUŁY DLA KAŻDEGO NAPISANEGO ZDANIA
+A7. TWARDE OGRANICZENIA TECHNICZNE — naruszenie kwalifikuje zmianę do kosza
+- NIC liniowego względem katalogu przy buildzie. generateStaticParams() dla obiektów raz
+  już wywróciło build. Nowe strony masowe renderują się na żądanie, z revalidate.
+- useSearchParams() wywala build produkcyjny na trasach prerenderowanych, i NIE powtórzy
+  się lokalnie na atrapach kluczy. Czytaj window.location.search w useEffect albo
+  opakuj w Suspense.
+- Mobile-first bezwzględnie; breakpointy max-* są w nowym kodzie zabronione (pilnuje
+  check:docs, sekcja 10).
+- RLS to jedyna realna granica dostępu — klucz anon jest jawny w paczce JS. Dopisujesz
+  politykę → dopisujesz asercję w supabase/test/rls.sql.
+- Copy stron treści żyje w frontend/src/content/*.ts, osobno od JSX.
+- Zmiana kodu pociąga aktualizację dokumentacji wg mapy w AGENTS.md; `npm run check:docs`
+  musi być zielony.
+
+A8. REGUŁY DLA KAŻDEGO NAPISANEGO ZDANIA
 - Zero języka marketingowego, zero list słów kluczowych. Keyword stuffing wypada
-  najsłabiej ze wszystkich metod GEO (Aggarwal i in., KDD 2024) i obniża ocenę
-  gęstości informacyjnej. Zamiast słów kluczowych — pytania w naturalnym języku.
+  najsłabiej ze wszystkich metod GEO (Aggarwal i in., KDD 2024) i obniża ocenę gęstości
+  informacyjnej. Zamiast słów kluczowych — pytania w naturalnym języku.
 - Żadnej liczby, której nie da się dziś obronić. Proponujesz statystykę → wskazujesz,
   skąd jest liczona.
-- Żadnej frazy z frontend/src/content/zakazaneFrazy.ts w kontekście twierdzącym.
-  Bojo nie rezerwuje boisk, nie wysyła SMS-ów ani maili o meczu, nie ma rankingów
-  ani turniejów, nie awansuje automatycznie z rezerwy, nie obsługuje płatności online.
-- Schema tylko dla treści widocznej na stronie. Treść schowana przed człowiekiem
-  i podana robotowi to sygnał spamu — raz już taki blok z tego repo wyleciał.
-- Copy stron treści żyje w frontend/src/content/*.ts, osobno od JSX, żeby dało się
-  testować bez renderowania.
+- Żadnej frazy z frontend/src/content/zakazaneFrazy.ts w kontekście twierdzącym ani
+  z tabeli w docs/outreach-organizatorzy.md §6. Bojo nie rezerwuje boisk, nie wysyła
+  SMS-ów ani maili o meczu, nie ma rankingów ani turniejów, nie awansuje automatycznie
+  z rezerwy, nie obsługuje płatności online.
+- Schema tylko dla treści widocznej na stronie. Treść schowana przed człowiekiem i podana
+  robotowi to sygnał spamu.
 - Ton uczciwy wobec wczesnego etapu. „Otwartych meczów bywa tu dziś niewiele"
   (content/graj.ts) jest wzorcem, nie wpadką — model cytujący nas na tym zyskuje.
+- Mapa popytu i wszelkie copy mówią językiem organizatora, nie targowiska (bojo-etap1) —
+  „zbierz skład", nie „znajdź partnera do gry".
 
 ═══════════════════════════════════════════════════════════════════════════════
-CZĘŚĆ B — OGRANICZENIE ŚRODOWISKA, O KTÓRE ROZBIŁA SIĘ RUNDA 1
+CZĘŚĆ B — ZADANIE: PIĘĆ OBSZARÓW, KAŻDY Z WŁASNYM PYTANIEM BEZ ODPOWIEDZI
 ═══════════════════════════════════════════════════════════════════════════════
 
-bojo.pl JEST NIEOSIĄGALNE z sesji agenta. Zweryfikowane dwiema drogami:
-  curl  → „CONNECT tunnel failed, response 403"
-  WebFetch → „EGRESS_BLOCKED: Access to bojo.pl is blocked by the network egress proxy"
+Każdy obszar niżej ma trzy części: co już jest (nie przepisuj), czego nie wolno (twarde
+zakazy), i pytanie, na które strategia dotąd nie odpowiedziała — to jest właściwa praca.
+Jeśli dojdziesz do wniosku, że odpowiedź wymaga zmiany w kodzie i jest jednoznaczna —
+zrób ją, z testem, w osobnym małym PR-ze. Jeśli wymaga decyzji człowieka — opisz warianty
+i rekomendację, nie buduj.
 
-Nie trać obrotów na próby i nie kombinuj z obejściami proxy. To dlatego kolumna
-„Produkcja" w rozdziale 0 strategii jest do dziś pusta, a sekcja „Czego nie
-sprawdziłem" zaczyna się od tego zdania. Runda 1 opisała 32 tysiące stron, których
-nie zobaczyła.
+── 1. AUDYT INTENCJI I POZYCJONOWANIE POD PROBLEMY ─────────────────────────────
 
-ZASTĘPNIK ISTNIEJE W TYM REPO i jest jedynym sposobem zobaczenia, co dostaje robot,
-na PRAWDZIWYCH danych:
+Co już jest: mapa popytu w rozdziale 2a (SZACUNEK, bez narzędzia do wolumenów), audyt
+istniejących stron z gotowym copy w rozdziale 3 (/jak-dziala-bojo, /dlaczego-bojo, /faq —
+w większości już wdrożone, sprawdź w kodzie co zostało na papierze).
 
-  ./scripts/stos-lokalny.sh          # Postgres + GoTrue + PostgREST, migracje, dane
-  cd frontend && npm run build && npm start
-  node scripts/audyt-robota.mjs --boisko <slug-realnego-obiektu>
+Czego nie wolno: nie przepisuj rozdziałów 1–3 od zera. Nie zgaduj polskiego SERP-u —
+wyszukiwarka dostępna w tej sesji zwraca wyniki dla rynku amerykańskiego.
 
-audyt-robota pobiera strony zwykłym fetch, BEZ wykonywania JavaScriptu, i sprawdza
-<h1>, podwojony sufiks w tytule, description wraz z frazami zakazanymi, linki
-wewnętrzne i noindex. Powstał dokładnie dlatego, że tsc, Vitest, ESLint i Playwright
-patrzą na aplikację z tej strony, z której problemu nie widać — Playwright URUCHAMIA
-JavaScript, więc dla niego strona dociągająca dane w useEffect wygląda kompletnie.
-Dla GPTBota, ClaudeBota i PerplexityBota — nie.
+Pytanie: klaster markowy w rozdziale 2c jest jedynym z całej mapy popytu z REALNYMI
+danymi (A2) — 56 wyświetleń, 0 kliknięć, pozycja ~9,4, na zapytania takie jak
+„co to bojo". Co konkretnie ma dziś mówić `<title>` i `<meta name="description">" strony
+głównej (i /dlaczego-bojo — druga zaindeksowana strona), żeby ktoś, kto widzi Bojo na
+pozycji 9 obok definicji słownikowej „bojo = boisko" po polsku, kliknął zamiast odbić się
+do słownika? To nie jest pytanie o dodanie treści — jest o dwóch konkretnych polach meta,
+które już istnieją i już są widoczne w wynikach.
 
-Bez --boisko i bez stosu skrypt sprawdza trasy żyjące z danych MIĘKKO. Przebieg
-w trybie --bez-bazy NIE jest dowodem na nic, co dotyczy stron obiektu ani hubów.
+── 2. ARCHITEKTURA TREŚCI DLA DYSCYPLIN I LOKALIZACJI ──────────────────────────
 
-REGUŁA: żadnego zdania „na produkcji działa" bez przebiegu audyt-robota, którego
-wynik wkleisz. Czego nie sprawdziłeś — nazywasz NIEZWERYFIKOWANE i mówisz, kto
-i czym ma to sprawdzić.
+Co już jest: /[sport]/[miasto] (12 stron, 3 miasta × 4 sporty), /boiska/[sport],
+/boiska/[sport]/[miasto] (próg 3 obiektów, ~100 miast priorytetowych),
+/boiska/woj/[wojewodztwo] — pełna warstwa hubów z linkowaniem poziomym (rozdz. 4).
+
+Czego nie wolno: NIE wracaj do poz. 19 (próg indeksacji, odrzucony). NIE dokładaj miast
+do /[sport]/[miasto] — dwanaście istniejących nie ma dziś czym się bronić (linki
+przychodzące, mecze do pokazania), kolejne pomnożą pustkę. NIE buduj stron per dzielnica
+ani per nawierzchnia.
+
+Pytanie: F1, F3 i F4 (rozdział 8, fosa) są zbudowane w całości, ale renderują treść
+odróżniającą dopiero, gdy na obiekcie ktoś realnie zagrał — a to dotyczy ~40 obiektów na
+36 268 w katalogu (0,1%). Pozostałe 99,9% stron obiektów oddaje robotowi dokładnie to,
+co katalog importowany z OpenStreetMap: nazwę, adres, sport — nic więcej. Rozstrzygnij:
+czy te ~36 tys. stron są dziś aktywem, czy ryzykiem R1 (rozdział 9, „cienkie strony
+podkopują zaufanie do całej domeny")? Jeśli ryzykiem — co konkretnie robimy z tym, mając
+zakaz zmniejszania indeksu (LISTA 2)? Odpowiedź musi działać przy STU użytkownikach, nie
+przy stu tysiącach.
+
+── 3. DANE STRUKTURALNE ─────────────────────────────────────────────────────────
+
+Co już jest: A5 wyżej — dziesięć typów schema.org, wszystkie testowane.
+
+Czego nie wolno: NIE dodawaj Review ani AggregateRating — nie mamy recenzji, schema bez
+pokrycia w treści to sygnał spamu. NIE wypełniaj sameAs na zapas (LISTA 3).
+
+Pytanie: strona obiektu ma „Przeglądanie agentowe" 2/3, jedyna z pięciu zmierzonych typów
+(A3) — i to jest typ strony z ~30 tysiącami adresów. Postaw hipotezy, które z trzech
+audytów w tej kategorii Lighthouse padają (dane strukturalne? drzewo dostępności? coś
+trzeciego), uszereguj je wg prawdopodobieństwa na podstawie tego, co ta runda i poprzednie
+zmieniały w tym pliku, i podaj sposób rozstrzygnięcia, który zajmie właścicielowi minutę
+w przeglądarce (dokładnie które okno rozwinąć na pagespeed.web.dev). Osobno: zdecyduj, czy
+brak `alternates.canonical` na /wydarzenia/[id] jest przeoczeniem czy świadomym wyborem
+(strona ma własny opengraph-image.tsx, ale nie canonical) — jeśli przeoczeniem, napraw
+z testem.
+
+── 4. AUTORYTET ENCJI I OFF-PAGE ────────────────────────────────────────────────
+
+Co już jest: `/admin/outreach` (CRM), `scripts/obiekty_outreach.csv`,
+docs/outreach-organizatorzy.md (playbook wiadomości do organizatorów na Facebooku).
+
+Czego nie wolno: nie zakładaj profili sam — to LISTA 3, praca Jana. Nie kupuj linków, nie
+udawaj użytkowników, nie wymyślaj profili, które nie istnieją.
+
+Pytanie: poz. 15 i 22 stoją od trzech rund właśnie dlatego, że są poza repo i nikt ich
+nie odblokował gotowcem. Zamiast pisać ogólnie „fora sportowe, grupy FB" — wskaż TRZY
+konkretne miejsca (z nazwą, nie kategorią) pasujące do etapu „zero użytkowników spoza
+kręgu znajomych, Poznań" (docs/prompt-rewizja.md), z jednym zdaniem uzasadnienia każde,
+i przygotuj gotowe copy opisu/bio profilu w granicach A8 — takie, że założenie profilu
+i wklejenie sameAs zajmuje Janowi dosłownie kopiuj-wklej. To samo dla poz. 2: przygotuj
+w repo miejsce i format zapisu wyników 40 promptów z Załącznika A (np. tabela w tym samym
+dokumencie, gotowa do wypełnienia) — NIE zmieniaj pytań, zestaw jest stały.
+
+── 5. PRIORYTETYZOWANA ROADMAPA ─────────────────────────────────────────────────
+
+Co już jest: tabela 28 pozycji w rozdziale 9, z oceną „dalsza praca w kodzie nie ma
+sensu" z rundy 3.
+
+Czego nie wolno: nie pisz drugiej tabeli obok istniejącej. Nie odhaczaj tego, czego nie
+masz dowodem (ścieżka+linia albo wynik przebiegu) — i nie cofaj odhaczonych pozycji,
+tylko dopisuj sprostowanie, jak robią to inne wpisy w tym dokumencie.
+
+Pytanie: zaktualizuj tabelę i **rozstrzygnij wprost**, czy ocena rundy 3 („nie ma sensu")
+nadal się broni po A2/A3. Argument za zmianą: są teraz liczby, na które da się reagować
+(0% CTR przy markowych, 2/3 na stronie obiektu). Argument przeciw: żadna z tych liczb nie
+rusza wąskiego gardła nazwanego w rundzie 3 — braku organizatorów. Rozstrzygnij, nie
+zostawiaj otwarte. Każda nowa/zmieniona pozycja: Wpływ (niski/średni/wysoki) × Trudność
+(łatwa/średnia/trudna) × Kto (Jan/Franek) × Miara sukcesu × horyzont (Quick Win /
+Średnioterminowe / Długoterminowe), zgodnie z formatem istniejącej tabeli.
 
 ═══════════════════════════════════════════════════════════════════════════════
-CZĘŚĆ C — ZADANIE: CZTERY PARTIE, KAŻDA OSOBNYM PR-EM
+CZĘŚĆ C — CO ODDAJESZ
 ═══════════════════════════════════════════════════════════════════════════════
 
-Idź po kolei. Nie otwieraj partii N+1, zanim N nie jest zmergowana. Każda partia
-kończy się PR-em w tej samej gałęzi roboczej albo w kolejnej — nigdy pushem na master.
+Aktualizacja docs/seo-geo-strategia.md:
+- rozdział 2 (klaster markowy z danymi z A2 zamiast czystego SZACUNKU),
+- rozdział 5 (luki z zadania 3, jeśli je rozstrzygnąłeś),
+- rozdział 8 (fosa wobec liczby 0,1% z zadania 2, jeśli rozstrzygnięcie to zmienia),
+- rozdział 9 (tabela roadmapy + jawne rozstrzygnięcie oceny rundy 3),
+- „Czego nie sprawdziłem" — zaktualizuj, część pozycji z rundy 3 przestała być prawdą
+  (Search Console i CWV są już zmierzone), część nadal nią jest,
+- znacznik „Stan na:" w nagłówku,
+- przy okazji: rozdział 7b ma dziś zduplikowany nagłówek „### 7b. Progi sukcesu" (dwie
+  linie pod rząd) — usuń duplikat.
 
-── PARTIA 0: PRAWDA O STANIE (nic nowego nie budujesz) ─────────────────────────
+Aktualizacja BACKLOG.md §7b wg tych samych zasad dowodu.
 
-To jedyna partia, w której nie wolno Ci niczego zaproponować.
+Jeśli z zadań 1–3 wynikła zmiana w kodzie: osobny mały PR, z testem, opisem po polsku
+(co było, co jest, czym zweryfikowane), i jeśli dotyka migracji SQL — wprost napisane, że
+trzeba ją puścić ręcznie w Supabase.
 
-1. Postaw stos lokalny, zbuduj, uruchom audyt-robota z realnym slugiem obiektu.
-   Wklej pełny wynik.
-2. Sprawdź w kodzie każdą pozycję z LISTY 1 powyżej. Szukasz rozjazdu w obie strony:
-   odhaczone-a-niedziałające ORAZ naprawione-a-nieodhaczone. Runda 1 znalazła trzy
-   fazy odhaczone jako zrobione i niedziałające dla robota; dziś rozjazd jest
-   odwrotny — cztery pozycje PILNE są naprawione w kodzie, a mają puste kwadraciki
-   w BACKLOG.md §7b.
-3. Doprowadź BACKLOG.md §7b do zgodności z kodem. Odhaczasz WYŁĄCZNIE to, czego
-   dowód masz w ręku (ścieżka i linia albo wynik przebiegu). Odhaczonego nie
-   odhaczaj z powrotem — jeśli uważasz, że coś jest odhaczone niesłusznie, dopisz
-   sprostowanie tak, jak robią to inne wpisy w tym pliku.
-4. W docs/seo-geo-strategia.md, rozdział 0: wypełnij kolumnę „Co realnie dostaje
-   robot" tym, co zobaczyłeś, i zaktualizuj sekcję „Czego nie sprawdziłem" — część
-   jej pozycji przestała być prawdą, część nadal nią jest.
-
-ODDAJ: PR z aktualizacją dwóch dokumentów i wynikiem przebiegu w opisie.
-
-── PARTIA 1: NAPRAWY DŁUGU ────────────────────────────────────────────────────
-
-D10, D11, D15, D17 z listy powyżej, plus rozstrzygnięcie D14. Najpierw potwierdź
-każdy w kodzie — jeśli któryś zdążył zniknąć, napisz to i przejdź dalej.
-
-Dla każdej naprawy: minimalna zmiana, komentarz mówiący DLACZEGO (nie CO), i test
-przypinający regułę. Test jest tu warunkiem, nie ozdobą: D11 i D15 to zachowania,
-których nie widać w interfejsie, więc bez asercji wrócą przy pierwszym refaktorze —
-dokładnie tak, jak wróciły Fazy 1 i 2b.
-
-Przy D11 rozstrzygnij świadomie i zapisz uzasadnienie: filtr po seo_tier zmniejszy
-listy na hubach. Sprawdź, czy któryś hub nie zejdzie przez to poniżej progu
-sensowności, i co się wtedy dzieje.
-
-Przy D17 wybierz JEDNO źródło obrazka OG i usuń drugie. Przy okazji odpowiedz na
-pytanie, którego runda 1 nie postawiła: czy zdjęcie satelitarne Poznania jest
-właściwym podglądem dla strony obiektu w Gdańsku i dla /kalkulator-kosztow-boiska.
-Jeśli nie — zaproponuj, co jest, w granicach „nic liniowego przy buildzie".
-
-ODDAJ: PR z naprawami i testami. W opisie: co było, co jest, czym zweryfikowane.
-
-── PARTIA 2: QUICK WINY CYTOWALNOŚCI ──────────────────────────────────────────
-
-Wyłącznie w ISTNIEJĄCYCH stronach. Zero nowych typów stron — te są w Partii 3.
-
-Przejdź /, /jak-dziala-bojo, /dlaczego-bojo, /faq, /kalkulator-kosztow-boiska,
-/[sport]/[miasto], /boisko/[id], /boiska/[sport], /boiska/[sport]/[miasto],
-/boiska/woj/[x] i oceń każdą pod kątem tego, co realnie podnosi cytowalność
-w silnikach generatywnych: bezpośrednia odpowiedź w pierwszym akapicie, gęstość
-faktów, liczby z pokryciem, samowystarczalność sekcji (fragment wyrwany z kontekstu
-musi nadal nazywać Bojo po imieniu, nie mówić „aplikacja" ani „to").
-
-Rozdział 3 strategii ma dla części z nich gotowe copy, którego nikt nie wdrożył
-w całości. Zacznij od sprawdzenia, co z tamtych propozycji jest już w kodzie,
-a co zostało na papierze — i wdroź to, co zostało, zamiast pisać od nowa.
-
-Dwie rzeczy, o których runda 1 wie, ale których nie domknęła:
-- LANDING_STATS to statyczne literały, nie zapytanie do bazy. Badania GEO mówią, że
-  to właśnie statystyki podnoszą cytowalność — ale statystyka rozjechana
-  z rzeczywistością jest gorsza niż jej brak. Rozstrzygnij: liczyć z bazy, czy
-  przestać podawać liczbę. Trzeciej drogi nie ma.
-- Nazwa „bojo" jest w polszczyźnie potocznym słowem znaczącym „boisko" (rozdział 2c),
-  więc zapytanie markowe trafia w słownik. Poz. 13 jest zablokowana na pracy Jana,
-  ale sprawdź, czy w warstwie treści — nie schemy — da się coś z tym zrobić już teraz.
-
-ODDAJ: PR ze zmianami w frontend/src/content/*.ts i tam, gdzie trzeba. Każda zmiana
-copy przechodzi tresciStron.test.ts i landingContent.test.ts.
-
-── PARTIA 3: BIG WINY ─────────────────────────────────────────────────────────
-
-Rozdział 8 strategii opisuje fosę F1–F6. F3 i F5 są zrobione. F6 sam się przyznaje,
-że jest klinem, nie fosą. F1 i F2 opierały się na odrzuconej pozycji 19 — patrz
-LISTA 2, to jest do rozstrzygnięcia, nie do wykonania w dotychczasowym kształcie.
-
-Zostaje F4 i to, co wymyślisz w miejsce F1/F2.
-
-F4 brzmi: „czy tu się w ogóle gra" — katalogi mówią, GDZIE boisko jest; Bojo jako
-jedyne może powiedzieć, czy ktoś na nim grał i kiedy, bo ma zdarzenia przypięte do
-obiektów. Dla człowieka szukającego miejsca do gry to ważniejsza informacja niż adres.
-Ryzyko nazwane wprost w strategii: przy dzisiejszej liczbie meczów odpowiedź brzmi
-„nie wiemy" dla prawie wszystkich obiektów, i NIE WOLNO tego udawać — brak danych
-pokazujemy jako brak danych.
-
-Warunek, który odrzucił połowę pomysłów rundy 1 i obowiązuje dalej: przewaga ma
-działać przy STU użytkownikach, nie przy stu tysiącach. Wszystko, co potrzebuje
-skali, jest planem na cudzy produkt.
-
-Dla każdego posunięcia, które zaproponujesz: na czym polega, dlaczego konkurent tego
-nie powtórzy, co trzeba zbudować, jakie dane wystawiamy i jakie jest ryzyko. Katalog
-pochodzi z OpenStreetMap na licencji ODbL — przy publikowaniu zbioru pochodnego
-(eksport, publiczne API, Dataset w danych strukturalnych) licencja wymaga
-udostępnienia go na tych samych warunkach i zachowania atrybucji. Sprawdź to, zanim
-cokolwiek zaproponujesz z wydawaniem danych na zewnątrz, i rozdziel wprost, co jest
-bazą z OSM, a co warstwą własną (potwierdzenia, zdarzenia).
-
-Wybierz JEDNO posunięcie i zbuduj je. Resztę opisz do decyzji człowieka.
-
-ODDAJ: PR z jedną zbudowaną rzeczą i krótką notatką o odrzuconych wariantach.
+Na koniec, w jednym akapicie i bez uprzejmości: co z tego, co zostało, jest tego warte,
+a co odpuściłbyś w ogóle — i co zrobiłbyś jako pierwsze, gdyby to był Twój produkt
+i Twoje pieniądze, wiedząc to, co mówią liczby z 2026-08-29.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CZĘŚĆ D — BRAMKA PRZED KAŻDYM PR-EM
 ═══════════════════════════════════════════════════════════════════════════════
-
-Uruchamiasz komplet, nie wybrane pozycje:
 
   cd frontend
   npx tsc --noEmit
@@ -306,22 +327,22 @@ Uruchamiasz komplet, nie wybrane pozycje:
   NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key npm run build
   cd .. && npm run check:docs
-  node scripts/audyt-robota.mjs        # przeciwko stosowi lokalnemu
+  node scripts/audyt-robota.mjs --bez-bazy
 
 Build produkcyjny jest obowiązkowy, bo useSearchParams() na trasie prerenderowanej
-wywraca WYŁĄCZNIE jego — tsc i Vitest tego nie widzą.
+wywraca WYŁĄCZNIE jego — tsc i Vitest tego nie widzą. `--bez-bazy` jest jedynym trybem
+audyt-robota dostępnym w tej sesji (patrz ograniczenia środowiska na początku pliku) —
+nie próbuj `--boisko` ani stosu lokalnego.
 
 Zasady z AGENTS.md, których nie łamiesz:
 - Nie pushujesz na master. Branch → PR → merge przez agenta przy zielonym CI.
-- WSZYSTKIE poprawki dopchnięte PRZED otwarciem PR-a. Dwa razy w tym repo zdarzyło
-  się, że PR został zmergowany chwilę przed dosłaniem poprawki; raz kosztowało to
-  zepsuty build produkcyjny.
+- WSZYSTKIE poprawki dopchnięte PRZED otwarciem PR-a.
 - Migracja SQL w PR → napisz WPROST w opisie i w odpowiedzi, że trzeba ją uruchomić
   ręcznie w Supabase. Merge jej nie uruchamia.
 - Commity i wiadomości po polsku.
 - Zmiana widoczna dla użytkownika → wpis w docs/llm-context.md w formacie
-  PROBLEM / ROZWIĄZANIE BOJO / MECHANIKA, potem `npm run sync:llm-context`.
-  Log „Ostatnie zmiany" ma limit 10 wpisów.
+  PROBLEM / ROZWIĄZANIE BOJO / MECHANIKA, potem `npm run sync:llm-context`. Log
+  „Ostatnie zmiany" ma limit 10 wpisów.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CZĘŚĆ E — ANTY-LISTA
@@ -332,40 +353,16 @@ sygnałem, że przestałeś czytać kontekst i zacząłeś recytować best pract
 
 1. Nie proponujesz niczego z LISTY 1. Sprawdź w kodzie, zanim napiszesz „warto dodać".
 2. Nie wracasz do pozycji 19 i 23 ani do ich wariantów pod inną nazwą.
-3. Nie dokładasz miast do /[sport]/[miasto]. Dwanaście istniejących stron nie ma
-   dziś czym się bronić; kolejne pomnożą pustkę.
-4. Nie dodajesz Review ani AggregateRating. Nie mamy recenzji. Schema bez pokrycia
-   w treści to sygnał spamu.
+3. Nie dokładasz miast do /[sport]/[miasto]. Dwanaście istniejących stron nie ma dziś
+   czym się bronić; kolejne pomnożą pustkę.
+4. Nie dodajesz Review ani AggregateRating. Nie mamy recenzji.
 5. Nie zakładasz bloga ani sekcji poradnikowej. Bez autora z czasem martwy blog jest
    gorszy niż jego brak.
-6. Nie dopisujesz słów kluczowych do llms.txt ani nigdzie indziej. llms.txt jest
-   indeksem, nie changelogiem, i ma być tani w utrzymaniu — żaden duży dostawca nie
-   potwierdził, że go czyta.
-7. Nie zgadujesz polskiego SERP-u. Wyszukiwarka dostępna w sesji zwraca wyniki dla
-   rynku amerykańskiego; rozpoznanie konkurencji z rundy 1 jest wiarygodne co do
-   tego, ŻE te produkty istnieją, nie co do tego, JAK wysoko rankują w Polsce.
-8. Nie wykonujesz pracy Jana (LISTA 3) i nie piszesz, że coś zmierzyłeś, jeśli tego
-   nie zmierzyłeś. Zestaw 40 promptów z Załącznika A jest STAŁY — zmiana pytania
-   w połowie pomiaru kasuje historię.
+6. Nie dopisujesz słów kluczowych do llms.txt ani nigdzie indziej.
+7. Nie zgadujesz polskiego SERP-u. Wyszukiwarka dostępna w sesji zwraca wyniki dla rynku
+   amerykańskiego.
+8. Nie wykonujesz pracy Jana (LISTA 3) i nie piszesz, że coś zmierzyłeś, jeśli tego nie
+   zmierzyłeś. Zestaw 40 promptów z Załącznika A jest STAŁY.
 9. Nie piszesz drugiego dokumentu strategicznego. Aktualizujesz istniejący.
 10. Nie wystawiasz robotowi treści schowanej przed człowiekiem.
-
-═══════════════════════════════════════════════════════════════════════════════
-CZĘŚĆ F — CO ODDAJESZ
-═══════════════════════════════════════════════════════════════════════════════
-
-Cztery PR-y (po jednym na partię), każdy z opisem po polsku mówiącym: co się
-zmieniło, dlaczego, czym zweryfikowane, co zostaje niezweryfikowane i kto ma to
-domknąć.
-
-Aktualizacja docs/seo-geo-strategia.md: rozdział 0 (kolumna robota), tabela roadmapy
-w rozdziale 9 (ptaszki z datami, wzorem istniejących wpisów), sekcja „Czego nie
-sprawdziłem", oraz rozdział 8, jeśli rozstrzygnąłeś los F1/F2. Znacznik „Stan na:"
-w nagłówku aktualizujesz razem z resztą.
-
-Aktualizacja BACKLOG.md §7b wg zasad z Partii 0.
-
-Na koniec, w jednym akapicie i bez uprzejmości: co z tego, co zostało, jest tego
-warte, a co odpuściłbyś w ogóle — i co zrobiłbyś jako pierwsze, gdyby to był Twój
-produkt i Twoje pieniądze.
 ````
