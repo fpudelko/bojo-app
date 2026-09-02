@@ -8,6 +8,7 @@ import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
 import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
 import { opisObiektu, zdanieORozegranychMeczach, zdaniePotwierdzen } from '@/content/opisObiektu';
+import { pobliskieObiekty } from '@/lib/pobliskieObiekty';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
 import VenueDetailClient from './VenueDetailClient';
@@ -322,6 +323,14 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
   // amenityFeature — TYLKO po quorum, tym samym progu co widoczna treść
   // na stronie (VenueDetailClient → AnkietyObiektu.tsx). Odczyt jest
   // publiczny (RLS migracji 123), więc bezpieczny server-side bez sesji.
+  // Runda 4 SEO/GEO (rozdz. 8): pobliskie obiekty tego samego sportu — jedyna
+  // treść unikalna dla TEJ strony, która nie wymaga ani jednego rozegranego
+  // meczu. Na 99,9% obiektów (~40 z meczem na 36 268) F1/F3/F4 nie mają czego
+  // pokazać, więc bez tego strona oddaje robotowi wyłącznie import z OSM plus
+  // jedno zdanie identyczne na wszystkich 36 268 adresach. Zapytanie idzie
+  // server-side, a trasa ma `revalidate = 86400`, więc najwyżej raz na dobę
+  // na adres — nic liniowego przy buildzie.
+  const pobliskie = await pobliskieObiekty(field).catch(() => []);
   const potwierdzenia = await pobierzPotwierdzenia(field.id).catch(() => []);
   const amenityFeature = venueAmenityFeatures(potwierdzenia);
   // Fosa F1/5b: te same potwierdzenia jako ZDANIE, nie tylko jako amenityFeature
@@ -398,6 +407,7 @@ export default async function VenuePage({ params }: { params: { id: string } }) 
         wojewodztwoLabel={wojewodztwoLabel}
         sportSlug={sportSlug && SPORT_PAGE_SLUGS.includes(sportSlug) ? sportSlug : undefined}
         sportEtykieta={field.sport.length ? sportLabel(field.sport[0]) : undefined}
+        pobliskie={pobliskie}
       />
     </>
   );

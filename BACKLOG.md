@@ -744,6 +744,71 @@ i uzasadnienie w 7a.1), dwa świadomie zostawione jako decyzja produktowa (linki
 rozróżnialne wyłącznie po kolorze, za małe pola dotykowe). Zdanie „pomiar bazowy…
 wynosi zero" wyżej jest już nieaktualne.
 
+**Runda 4 (2026-09-01) — pierwsza runda oparta na pomiarze, nie na lekturze kodu**
+(docs/seo-geo-strategia.md: 2c, 5f, rozdz. 8, rozdz. 9, Załącznik A):
+
+- [x] **Tytuł i opis pod zapytanie markowe** (poz. 30) — pomiar z 2026-08-29 pokazał, że
+      jedyne zapytania, na jakie Bojo się wyświetla, są markowe („co to bojo" 18 wyśw.,
+      „bojo" 8, „bojo co to" 7) i mają **zerowy CTR przy pozycji 9,4**. Przyczyna była
+      w treści, nie w pozycji: dawny tytuł („Bojo — zbierz ekipę, zagraj dziś | Boiska
+      i mecze w Polsce") nie zawierał ani jednego słowa podważającego definicję
+      słownikową „bojo = boisko" — wszystkie ją potwierdzały. Dziś tytuł niesie rzeczownik
+      kategorii: „Bojo (bojo.pl) — aplikacja do organizowania amatorskich meczów", opis
+      zaczyna się od nazwy encji. To samo na `/dlaczego-bojo` — drugiej i jedynej poza
+      landingiem stronie w indeksie. Ciągi wyniesione do `content/metaWyszukiwarki.ts`,
+      bo w `layout.tsx` nie dało się ich przetestować, a nie pilnował ich ŻADEN test.
+      Test: `src/__tests__/tytulMarkowy.test.ts` (9 asercji, w tym regresja w drugą
+      stronę: hasło podglądu linku i nazwa PWA mają NIE zlewać się z tytułem w SERP-ie).
+      Zweryfikowane `curl` bez JS na surowym HTML obu stron.
+- [x] **Sprostowanie: canonical na `/wydarzenia/[id]` NIE jest luką** — notatka rundy 4
+      wymieniała jego brak jako dług; `eventMeta.ts#metadataDlaMeczu()` ustawia go dla
+      meczu publicznego, a niepubliczny dostaje celowo samo `title` + `noindex`. Zapis
+      poprawiony, żeby nikt nie „naprawiał" działającego kodu.
+- [x] **Hipotezy pod „Przeglądanie agentowe" 2/3** (5f) — strona obiektu jest jedynym
+      z pięciu zmierzonych typów z wynikiem 2/3, i ma 30 tys. adresów. Trzy hipotezy
+      uszeregowane; najwyżej ta, że `SportsActivityLocation` w `boisko/[id]/page.tsx` to
+      **jedyny JSON-LD w repo pisany inline, poza `lib/structuredData.ts`, i jedyny bez
+      testu**. Rozstrzygnięcie zaprojektowane na 2 minuty (walidator danych
+      strukturalnych, nie ponowny pomiar).
+- [x] **Trzy profile poza domeną — z nazwy, z gotowym copy** (rozdz. 6.2) — pozycja 15
+      stała trzy rundy, bo mówiła ogólnie „katalogi alternatyw". Dziś: AlternativeTo,
+      strona firmy na LinkedIn, trzecie do wyboru przez Jana metodą, która sama jest
+      pomiarem (zobaczyć, co modele cytują przy koszyku 1). Opis profilu gotowy
+      w dwóch długościach, oba z jednego źródła co `DLACZEGO_ODPOWIEDZ`.
+- [x] **Arkusz zapisu 40 promptów** (Załącznik A) — legenda skrótów, trzy pola wymagane
+      przez sam Załącznik, zasady przebiegu. Ani jedno z 40 pytań nie zmienione.
+- [x] **Odczyt propagacji sitemapy** (poz. 29, właściciel, 2026-09-01) — **„Wykryte
+      strony" 0 → 32 400 natychmiast po odświeżeniu, zaindeksowane nadal 2.** Zamyka
+      pytanie o mapy wojewódzkie: działają, `.in('seo_tier',[1,2])` przepuszcza ~32 tys.
+      adresów zgodnie z projektem, a jedynym problemem był brak zgłoszenia. NIE zamyka
+      pytania o R1 — „wykryte" znaczy tylko, że adres jest znany, nie że został pobrany
+      i oceniony; przy nowej domenie bez linków przychodzących indeksacja 32 tys. adresów
+      to tygodnie.
+- [ ] **Odczyt sygnału R1** (poz. 29b) — **PRACA JANA, minuty, najwyższy wpływ w całym
+      dokumencie.** Inny raport niż wyżej: `Indeksowanie → Strony`, pozycje „Wykryto —
+      obecnie bez indeksu" i „Zeskanowano — obecnie bez indeksu". Jeśli za 2–4 tygodnie
+      urosną do dziesiątek tysięcy przy niezmienionej liczbie zaindeksowanych, katalog
+      jest oceniany jako treść masowa. Terminy: 2026-09-15 i 2026-09-29.
+- [x] **Fakt unikalny dla obiektu bez meczów** (poz. 32, **ZBUDOWANE 2026-09-01**,
+      decyzją właściciela po odczycie wyżej) — na obiekcie bez ani jednego meczu (99,9%
+      katalogu) jedyne zdanie własne Bojo było **bajtowo identyczne na wszystkich
+      36 268 stronach**, a wszystkie trzy linki wychodzące prowadziły do hubów: katalog
+      był gwiazdą, nie siecią. Strona obiektu pokazuje dziś do sześciu innych boisk tego
+      samego sportu w okolicy, najbliższe pierwsze, z odległością.
+      `lib/pobliskieObiekty.ts` (`kadrWokol` + filtr `seo_tier IN (1,2)`, przycięcie po
+      `distanceKm` — kadr jest kwadratem, więc bez tego lista mówiłaby „w okolicy"
+      o obiekcie 11 km dalej), render w `OpisIPowiazane` w OBU gałęziach, także bez JS.
+      Test: `pobliskieObiekty.test.ts`, 10 asercji — tego zachowania nie widać
+      w interfejsie bez bazy z kilkoma obiektami tego sportu w promieniu 8 km.
+      **NIEZWERYFIKOWANE:** wygląd i zawartość listy na prawdziwych danych — sesja nie ma
+      dostępu do produkcji ani do stosu lokalnego (brak gniazda Dockera).
+
+**Ocena rundy 4: wniosek rundy 3 broni się, ale nie z powodu, dla którego został
+napisany.** Runda 3 mówiła „kod zrobił swoje, bo pomiar wynosi zero". Pomiar już nie
+wynosi zera — i pokazał coś innego: **mapa witryny nigdy nie została zgłoszona**, więc
+Google nie odrzucił 36 tys. stron, tylko o nich nie wiedział. Efekt rund 1–3 jest wciąż
+PRZED pomiarem, nie po nim. Wąskie gardło bez zmian: brak organizatorów.
+
 ### 7a. Tierowanie katalogu boisk — Fazy 0-3 (2026-08-20 → 2026-08-22)
 
 > **Uwaga (2026-08-23):** nagłówek mówił „ZROBIONE". Audyt pokazał, że Fazy 1 i 2b

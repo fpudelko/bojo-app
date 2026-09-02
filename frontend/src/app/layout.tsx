@@ -14,6 +14,9 @@ import ZachetaInstalacji from '@/components/ZachetaInstalacji';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { SledzenieHistorii } from '@/lib/historia';
 import { siteJsonLd } from '@/lib/structuredData';
+import {
+  TYTUL_DOMYSLNY, OPIS_DOMYSLNY, HASLO_PODGLADU,
+} from '@/content/metaWyszukiwarki';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -27,6 +30,15 @@ const bricolage = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-display',
   display: 'swap',
+  // Wagi: w repo `font-display` stoi wyłącznie obok `font-bold` (700, 67 użyć)
+  // i `font-extrabold` (800, 14) — 600 nie jest używana ani razu. NIE zdejmujemy
+  // jej mimo to, i to jest wynik pomiaru, nie przeoczenie: Bricolage Grotesque
+  // jest krojem ZMIENNYM, więc Google serwuje jeden plik na podzbiór niezależnie
+  // od żądanych wag. Czysty build z wagami ['700','800'] dał dokładnie te same
+  // 10 plików .woff2 i te same 300 KB co z ['600','700','800'] (sprawdzone
+  // 2026-09-01). Lista wag nie jest tu dźwignią transferu — kto szuka
+  // oszczędności w ~173 KiB czcionek z pomiaru 7a.1, musi zdjąć RODZINĘ albo
+  // PODZBIÓR (latin-ext niesie polskie znaki, więc nie ten), nie wagę.
   weight: ['600', '700', '800'],
 });
 
@@ -61,13 +73,20 @@ export const metadata: Metadata = {
   // here would stamp "/" onto /logowanie, /gracz/[id] and every other page,
   // telling crawlers they are duplicates of the home page. Canonicals live on
   // the individual public pages instead.
+  // Tytuł i opis żyją w `content/metaWyszukiwarki.ts` — tam też stoi pomiar
+  // z Search Console, z którego wynika, dlaczego brzmią tak, a nie jak hasło.
   title: {
-    default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Polsce',
+    default: TYTUL_DOMYSLNY,
     template: '%s | Bojo',
   },
-  description:
-    'Znajdź boisko, zbierz skład i zagraj. Piłka nożna, koszykówka, siatkówka i więcej — w całej Polsce, bez szukania po grupach na Facebooku.',
-  keywords: ['organizuj mecz', 'szukam graczy', 'boiska sportowe', 'piłka nożna', 'koszykówka', 'siatkówka'],
+  description: OPIS_DOMYSLNY,
+  // `keywords` USUNIĘTE 2026-09-01. Google ignoruje ten znacznik od 2009 roku,
+  // więc nie kosztował pozycji — ale był w tym repo dosłowną listą słów
+  // kluczowych w <head> KAŻDEJ strony, czyli dokładnie tym, czego zakazuje
+  // własna zasada projektu (AGENTS.md, „Nie dopisuj list słów kluczowych";
+  // docs/seo-geo-strategia.md 5e — keyword stuffing wypada najsłabiej ze
+  // wszystkich metod GEO, Aggarwal i in., KDD 2024). Reguła, od której trzyma
+  // się wyjątek „bo to już było", przestaje być regułą.
   authors: [{ name: 'Bojo' }],
   // Bez `images` w obu blokach niżej — DŁUG D17 (docs/seo-geo-strategia.md):
   // konwencja plikowa `app/opengraph-image.tsx` generuje obrazek per trasa
@@ -77,15 +96,21 @@ export const metadata: Metadata = {
   // nie mają WŁASNEGO `opengraph-image.tsx` (a te, co mają — `/wydarzenia/[id]`
   // — i tak by go nadpisały). Jeden generator obrazka zamiast dwóch źródeł,
   // z których jedno nigdy się nie renderuje.
+  // Podgląd linku (czat, media) i nazwa pod ikoną PWA (app/manifest.ts) ZOSTAJĄ przy
+  // haśle „zbierz ekipę, zagraj dziś" — świadomie, nie przez przeoczenie. Te trzy
+  // powierzchnie odpowiadają na różne pytania: w wyniku wyszukiwania odbiorca pyta
+  // „co to w ogóle jest", przy podglądzie linku i przy ikonie na ekranie telefonu
+  // już to wie, bo dostał link od organizatora albo sam zainstalował aplikację.
+  // Rozdzielenie jest celem; nie ujednolicaj ich „dla spójności".
   openGraph: {
-    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    title: HASLO_PODGLADU,
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    title: HASLO_PODGLADU,
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
   },
   // Favicon SVG jest wklejony jako data-URI w <head> niżej. Tutaj dokładamy

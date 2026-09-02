@@ -11,7 +11,8 @@ import SiteFooter from '@/components/layout/SiteFooter';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
-import { externalUrl, zWielkiejLitery } from '@/lib/utils';
+import { externalUrl, zWielkiejLitery, slugBoiska } from '@/lib/utils';
+import { etykietaOdleglosci, type PobliskiObiekt } from '@/lib/pobliskieObiekty';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
@@ -102,6 +103,7 @@ function NaglowekTop({ nazwa, backHref }: { nazwa: string; backHref: string }) {
  */
 function OpisIPowiazane({
   opis, zdanieMeczow, zdanieUgc, adres, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
+  pobliskie,
 }: {
   opis?: string;
   /** F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów, `null` przy zerze. */
@@ -115,6 +117,9 @@ function OpisIPowiazane({
   wojewodztwoLabel?: string;
   sportSlug?: string;
   sportEtykieta?: string;
+  /** Pobliskie obiekty tego samego sportu — jedyna treść na tej stronie unikalna
+   *  dla NIEJ, dostępna bez ani jednego rozegranego meczu (lib/pobliskieObiekty.ts). */
+  pobliskie?: readonly PobliskiObiekt[];
 }) {
   return (
     <div className="space-y-1.5 rounded-2xl border border-slate-100 bg-white p-4">
@@ -122,6 +127,32 @@ function OpisIPowiazane({
       {zdanieMeczow && <p className="text-sm text-slate-600 dark:text-slate-400">{zdanieMeczow}</p>}
       {zdanieUgc && <p className="text-sm text-slate-600 dark:text-slate-400">{zdanieUgc}</p>}
       {adres && <p className="text-sm text-slate-500">{adres}</p>}
+
+      {/* Pobliskie obiekty — treść UNIKALNA dla tej strony, dostępna bez ani jednego
+          rozegranego meczu (docs/seo-geo-strategia.md, rozdz. 8, runda 4). Do dziś
+          jedyne zdanie własne Bojo na obiekcie bez meczów było identyczne na
+          wszystkich 36 268 stronach, a wszystkie linki wychodzące prowadziły do
+          hubów — żaden do innego obiektu.
+          „w okolicy", nie „w promieniu 8 km": kadr jest kwadratem, nie kołem, więc
+          druga nazwa byłaby liczbą, której nie liczymy. Sekcja znika przy pustej
+          liście — brak sekcji jest uczciwszy niż nagłówek nad niczym. */}
+      {pobliskie && pobliskie.length > 0 && (
+        <section className="pt-1.5">
+          <h2 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Inne boiska w okolicy
+          </h2>
+          <ul className="mt-1 flex flex-col items-start gap-1">
+            {pobliskie.map((o) => (
+              <li key={o.id} className="text-xs">
+                <Link href={`/boisko/${slugBoiska(o.name, o.id)}`} className="text-primary-600 hover:underline">
+                  {o.name}
+                </Link>
+                <span className="text-slate-500"> · {etykietaOdleglosci(o.odlegloscKm)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Linki widoczne, nie tylko w okruszkach JSON-LD (page.tsx): okruszek
           w danych strukturalnych nie jest ścieżką, którą crawler może przejść. */}
@@ -156,6 +187,7 @@ export default function VenueDetailClient({
   wojewodztwoLabel,
   sportSlug,
   sportEtykieta,
+  pobliskie,
 }: {
   fieldId: string;
   /** Nazwa i adres z page.tsx (server-side). Bez nich stan ładowania — czyli
@@ -178,6 +210,7 @@ export default function VenueDetailClient({
    *  /boiska/[sport] (page.tsx pilnuje, żeby nie linkować w 404). */
   sportSlug?: string;
   sportEtykieta?: string;
+  pobliskie?: readonly PobliskiObiekt[];
 }) {
   const id = fieldId;
   const { user, loading: authLoading } = useAuth();
@@ -358,6 +391,7 @@ export default function VenueDetailClient({
             wojewodztwoLabel={wojewodztwoLabel}
             sportSlug={sportSlug}
             sportEtykieta={sportEtykieta}
+            pobliskie={pobliskie}
           />
         </main>
         <SiteFooter />
@@ -836,6 +870,7 @@ export default function VenueDetailClient({
           wojewodztwoLabel={wojewodztwoLabel}
           sportSlug={sportSlug}
           sportEtykieta={sportEtykieta}
+          pobliskie={pobliskie}
         />
 
         {/* Atrybucja OpenStreetMap. Nie ozdoba — ODbL wymaga uznania autorstwa

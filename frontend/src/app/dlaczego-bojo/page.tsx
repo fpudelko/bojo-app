@@ -6,9 +6,10 @@ import MiniFaq from '@/components/tresc/MiniFaq';
 import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
 import { FAQ } from '@/content/faq';
 import { faqJsonLd } from '@/lib/structuredData';
+import { TYTUL_DLACZEGO } from '@/content/metaWyszukiwarki';
 
 export const metadata: Metadata = {
-  title: 'Dlaczego Bojo — alternatywa dla grupy na WhatsAppie i Facebooku',
+  title: TYTUL_DLACZEGO,
   description:
     'Bojo zamiast grupy na Facebooku, wątku na Messengerze i ankiety na WhatsAppie do ' +
     'organizowania amatorskich meczów — bez zakładania kolejnego konta dla graczy.',

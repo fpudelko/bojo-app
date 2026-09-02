@@ -422,6 +422,61 @@ MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
 Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
 i „Gość zarządza swoim zapisem").
 
+### 2026-09-01 — Strona boiska pokazuje inne boiska w okolicy
+
+PROBLEM: Katalog Bojo ma ponad 30 000 obiektów, ale na obiekcie, na którym nikt jeszcze
+nie zorganizował meczu — a to niemal cały katalog — strona nie mówiła nic, czego nie ma
+w OpenStreetMap: nazwa, adres, sport, nawierzchnia. Jedyne zdanie własne Bojo („Szukasz
+graczy? Stwórz otwarty mecz…") było identyczne na wszystkich stronach obiektów. Człowiek,
+który trafił na boisko bez zaplanowanych meczów, nie dostawał żadnego następnego kroku
+poza powrotem na mapę; ze strony obiektu wychodziły trzy linki i wszystkie prowadziły do
+list zbiorczych, żaden do innego konkretnego boiska.
+
+ROZWIĄZANIE BOJO: Strona boiska pokazuje teraz listę innych boisk tego samego sportu
+w okolicy — do sześciu, najbliższe pierwsze, każde z odległością w linii prostej
+(np. „440 m", „2,3 km"). Lista pojawia się niezależnie od tego, czy na obiekcie
+kiedykolwiek rozegrano mecz, bo liczy się wyłącznie z położenia obiektów w katalogu.
+Gdy w okolicy nie ma nic, sekcji nie ma wcale — Bojo nie pokazuje pustego nagłówka.
+Nagłówek mówi „w okolicy", nie „w promieniu 8 km", bo dobór idzie po prostokątnym
+wycinku mapy, a nie po okręgu.
+
+MECHANIKA: `frontend/src/lib/pobliskieObiekty.ts` — `pobliskieObiekty()` pyta tabelę
+`fields` o obiekty tego samego sportu w wycinku z `kadrWokol()` (`lib/api.ts`), z filtrem
+`map_visibility='public'` i `seo_tier IN (1,2)`, po czym czysta funkcja
+`wybierzPobliskie()` odrzuca obiekt bieżący, wiersze bez współrzędnych i te spoza
+realnego promienia (rogi prostokąta), sortuje po `distanceKm()` z `lib/geo.ts` i przycina
+do sześciu. Dane pobiera serwer w `app/boisko/[id]/page.tsx` i podaje propsem do
+`VenueDetailClient.tsx`, gdzie renderuje je `OpisIPowiazane` — w obu gałęziach, także
+tej bez JavaScriptu. Test: `src/__tests__/pobliskieObiekty.test.ts`. Bez migracji.
+
+### 2026-09-01 — Tytuł i opis Bojo w wynikach wyszukiwania mówią, czym Bojo jest
+
+PROBLEM: Pierwszy pomiar w Google Search Console (2026-08-29) pokazał, że przez trzy
+miesiące Bojo miało 56 wyświetleń i ZERO kliknięć przy średniej pozycji 9,4, a wszystkie
+zapytania były markowe: „co to bojo", „bojo", „bojo co to". Przyczyna: „bojo" to
+w polszczyźnie potocznej słowo oznaczające boisko, więc wynik Bojo stoi w wyszukiwarce
+obok definicji słownikowej — a jego tytuł („Bojo — zbierz ekipę, zagraj dziś | Boiska
+i mecze w Polsce") nie zawierał ani jednego słowa, które by tę definicję podważało.
+Słowa „boiska", „zagraj", „zbierz ekipę" wszystkie ją potwierdzały. Człowiek pytający
+„co to jest bojo" nie dostawał odpowiedzi na swoje pytanie, więc nie miał po co kliknąć.
+
+ROZWIĄZANIE BOJO: Tytuł strony głównej Bojo brzmi dziś „Bojo (bojo.pl) — aplikacja do
+organizowania amatorskich meczów", a opis zaczyna się od zdania mówiącego wprost, czym
+Bojo jest i co robi organizator. Rzeczownik kategorii („aplikacja") stoi tuż przy nazwie,
+bo jest jedyną rzeczą odróżniającą Bojo jako produkt od słowa pospolitego. Ta sama zmiana
+objęła stronę „Dlaczego Bojo" — drugą i jedyną poza stroną główną, którą Google miał
+wtedy w indeksie. Podgląd linku w czacie i nazwa pod ikoną aplikacji na telefonie
+ZOSTAŁY przy dotychczasowym haśle: tam odbiorca już wie, czym Bojo jest, bo dostał link
+od organizatora albo sam zainstalował aplikację.
+
+MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
+(`TYTUL_DOMYSLNY`, `OPIS_DOMYSLNY`, `TYTUL_DLACZEGO`, `HASLO_PODGLADU`), używane przez
+`app/layout.tsx` i `app/dlaczego-bojo/page.tsx`. Test `src/__tests__/tytulMarkowy.test.ts`
+pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
+wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
+Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
+
+
 ### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
 
 PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
@@ -632,68 +687,3 @@ w osobnym module), `lib/eventDates.ts` (`dzienTygodniaWBierniku()`),
 (`withCount()` zamiast literału „graczy"). Bez migracji. Pilnuje tego
 `e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts` — sprawdzone, że bez poprawki test pada.
 
-### 2026-08-30 — Druga partia błędów z sesji QA: mecz płatny bez ceny, nazwa miejsca, dymek nawigacji, dostępność filtrów
-
-PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji. (1) Włączenie
-przełącznika „Mecz płatny" w kreatorze i zostawienie pustej ceny puszczało krok dalej bez
-ostrzeżenia — mecz zapisywał się jako darmowy mimo zaznaczonego przełącznika. (2) Pinezka
-wskazana ręcznie na mapie (poza katalogiem) potrafiła dostać nazwę miejsca w rodzaju
-„GDZIE: 19C" — sam numer domu z adresu Nominatim. (3) Etykieta pola ceny różniła się między
-kreatorem a stroną edycji tego samego meczu. (4) Dymek podpowiedzi „Przytrzymaj «Grupy»"
-pod dolną nawigacją wyglądał, jakby wisiał na każdym ekranie. (5) Szukanie w pikerze
-lokalizacji kreatora, które trafiło w zero wyników, czyściło z mapy WSZYSTKIE pinezki
-z bieżącego kadru, nie tylko brak nowych. (6) Przycisk „Filtry" na `/mapa` miał 36×36 px
-(poniżej progu dotykowego WCAG), a chipy filtrów nie niosły stanu dla czytników ekranu.
-(7) Gołe `/boiska` (bez sportu) dawało 404.
-
-ROZWIĄZANIE BOJO: (1) `validatePayments()` przyjmuje dziś flagę „mecz płatny" niezależną od
-samej kwoty i blokuje krok, gdy przełącznik jest włączony, a cena pusta — komunikat wychodzi
-też do nagłówka zwiniętej sekcji. (2) Nowa funkcja bierze pierwszy segment adresu, który nie
-jest samym numerem domu. (3) Strona edycji przyjęła etykietę i podpowiedź „ile wychodzi za
-cały obiekt" po kreatorze. (4) Dolna nawigacja chowa się dziś przez CSS zamiast się
-odmontowywać, więc licznik pokazań dymka (limit 5 w życiu użytkownika) nie zeruje się przy
-każdym wejściu na ekran, który ją chowa (kreator, zakładka Rozmowa). (5) Zero wyników
-wraca do pinezek z kadru zamiast do pustej tablicy. (6) Przycisk urósł do 44×44 px, sześć
-grup przełączalnych przycisków dostało `aria-pressed`. (7) `/boiska` to dziś redirect na
-`/mapa?gry=0`, tym samym wzorcem co `/gracze` → `/wydarzenia`.
-
-MECHANIKA: `lib/eventWizard.ts` (`validatePayments(..., platny)`), `lib/utils.ts`
-(`nazwaZAdresu()`, reużywa `isBareNumber()` z `eventLocation()`), `app/wydarzenia/nowe/
-page.tsx` i `app/wydarzenia/[id]/edytuj/page.tsx`, `components/layout/BottomNav.tsx` +
-`BottomNavGate.tsx` (prop `hidden`, klasa CSS zamiast `return null`),
-`components/map/UnifiedLocationPickerImpl.tsx`, `components/map/VenueExplorer.tsx`,
-`app/boiska/page.tsx` (nowy plik). Bez migracji. Pilnują tego
-`e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts` i
-`e2e/dolna-nawigacja-dymek-nie-wraca.klikalnosc.spec.ts` — sprawdzone w obie strony,
-bez odpowiedniej poprawki oba testy padają.
-
-### 2026-08-28 — Trzy błędy z sesji QA: licznik obiektów, pusta lista po filtrze miejscowości, wstecz z rozmowy
-
-PROBLEM: Manualna sesja QA na produkcji (mobile 360px + desktop, jasny/ciemny) znalazła
-trzy usterki po wcześniejszych zmianach mapy z 27 sierpnia. Wszystkie trzy dotyczyły
-widoku „Lista" po `/mapa` → „Obiekty" → „Lista" — ścieżki, w której mapa Leaflet NIGDY
-nie dostaje realnego rozmiaru (montuje się z `display:none`, bo widok startuje jako
-„Lista" w domyślnym trybie Gry, a przełącznik „Obiekty" tego nie zmienia). Osobno:
-systemowe „wstecz" z zakładki „Rozmowa" na stronie meczu wyrzucało z aplikacji zamiast
-wracać do zakładki „Mecz".
-
-ROZWIĄZANIE BOJO: (1) Licznik nad listą obiektów i podgląd „Pokaż N boisk" w arkuszu
-filtrów liczą dziś z `fields.length` — z tego samego źródła, co karty listy pod spodem —
-zamiast z sumy skupisk policzonej z kadru mapy, który przy nigdy niepokazanej mapie
-zawsze wynosi zero. (2) Po wybraniu miejscowości w filtrze lista poprawnie dociąga dane
-WŁASNYM zapytaniem (niezależnym od mapy), ale w trakcie tego zapytania renderował się
-mylący pusty stan z przyciskami „Pokaż blisko mnie"/„Przybliż" — nie na temat tuż po
-wybraniu konkretnego miejsca. Ten ułamek sekundy ma dziś własny stan „Szukam w okolicy:
-«nazwa»…”. (3) Przełączanie zakładek na stronie meczu i ekipy zapisywało stan w adresie
-przez `history.replaceState`, który NIGDY nie dokłada wpisu do historii przeglądarki —
-pierwsze zejście z zakładki domyślnej dokłada dziś JEDEN wpis (`pushState`), więc
-systemowe „wstecz" wraca do zakładki, z której użytkownik wyszedł, zamiast opuszczać
-aplikację.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (licznik z `fields.length`, stan
-ładowania obok `PustaListaObiektow`), `components/map/KadrObserwator.tsx` (osłona na
-kontener mniejszy niż 80×80, ten sam wzorzec co `GamesMarkersLayer.dopasujKadr` —
-defensywna, nie naprawia punktu 2 wprost: zweryfikowane, że mapa ukryta nie zgłasza
-kadru wcale), `app/wydarzenia/[id]/EventDetailClient.tsx` i `app/grupy/[id]/
-GroupDetailClient.tsx` (`goToTab()` z jednorazowym `pushState` + słuchacz `popstate`).
-Bez migracji.
