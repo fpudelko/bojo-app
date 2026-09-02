@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-08-28 · migracja `126` · 53 tabele
+**Stan na:** 2026-09-02 · migracja `130` · 53 tabele
 
 ---
 
@@ -355,6 +355,73 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-02 — Przypomnienia o meczu: pierwsze powiadomienia w Bojo, które wychodzą same
+
+PROBLEM: w całym Bojo nie było ani jednego powiadomienia opartego o czas — wszystkie były
+reakcją na czyjeś kliknięcie. Nikt nie dostawał „jutro grasz o 20:00", organizator nie
+dostawał „jutro mecz, brakuje 2 osób" (czyli tracił ostatni moment, w którym da się jeszcze
+kogoś dociągnąć albo odwołać), a po meczu nic nie prosiło o wynik ani o rozliczenie: na 122
+rozegrane mecze przypadało 6 zapisanych wyników i 45 nierozliczonych płatnych meczów. Bojo
+umie jedno i drugie — tylko nic o to nie prosiło we właściwej chwili. Przypominanie to jest
+ta czynność, którą organizator wykonuje ręcznie co tydzień na WhatsAppie, więc dopóki Bojo
+tego nie robiło, grupa na WhatsAppie zostawała. Osobno: „Powtórz mecz" żyło tylko na stronie
+meczu, więc cotygodniowy organizator miał do niego cztery kroki; a baza liczyła czas w UTC,
+choć mecze są zapisane czasem lokalnym, przez co mecz o 20:00 uchodził za rozpoczęty
+dopiero o 22:00.
+
+ROZWIĄZANIE BOJO: dzień przed meczem każdy, kto ma miejsce w składzie, dostaje
+przypomnienie z godziną i miejscem; organizator dostaje to samo plus liczbę brakujących
+osób. Dzień po meczu organizator dostaje prośbę o domknięcie — ale WYŁĄCZNIE wtedy, gdy
+faktycznie zostało coś do zrobienia (brak wyniku albo ktoś nie oddał pieniędzy).
+Powiadomienia idą tym samym kanałem co wszystkie inne, więc jadą też na telefon, i da się
+je wyłączyć osobno w ustawieniach. Do tego „Powtórz ten mecz" pojawia się wprost pod
+rozegranym meczem na liście „Moje gry → Historia", z datą wypełnioną z góry na najbliższy
+ten sam dzień tygodnia.
+
+MECHANIKA: migracje `129` (`wyslij_przypomnienia()`, typy `przypomnienie_o_meczu`
+i `po_meczu_do_domkniecia`, zadanie `pg_cron` `bojo-przypomnienia` o 16:00 UTC, idempotencja
+przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_claim`
+i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
+`components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
+`supabase/test/przypomnienia.sql`.
+
+### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
+
+PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
+w Bojo, którego zapisany nie mógł cofnąć — usunąć go mógł wyłącznie organizator. Gość nie
+dostawał też żadnego powiadomienia: wyzwalacze odwołania meczu, zmiany warunków i usunięcia
+meczu pomijają wiersze bez konta, więc o odwołanym meczu nie dowiadywał się w ogóle
+i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do swojego wpisu
+bezpowrotnie. Skutki brał na siebie organizator: skład kłamał dokładnie w tej części,
+którą sam przyprowadził. (2) Skład meczu czyta w Bojo każdy (polityka `USING (true)`),
+a zapytanie o uczestników prosiło o wszystkie kolumny — więc adresy e-mail gości, telefony
+i tokeny przejęcia wpisu wychodziły publicznym API dla dowolnego meczu, także prywatnego.
+(3) Najcięższe decyzje organizatora (odwołanie meczu, usunięcie ze składu) potwierdzało
+systemowe okno przeglądarki, które mieści jedno zdanie — nie mówiło ani kto dostanie
+powiadomienie, ani że goście bez konta go nie dostaną, ani że odwołanie da się cofnąć.
+
+ROZWIĄZANIE BOJO: (1) link, który gość dostaje przy zapisie, jest teraz linkiem do JEGO
+zapisu: widzi stan meczu (z odwołaniem na samej górze), swoją pozycję w składzie, koszt
+i ma przycisk „Nie mogę grać — wypisz mnie", który zwalnia miejsce i przekazuje je pierwszej
+osobie z rezerwy. Link zostaje zapamiętany na urządzeniu, więc wracając na stronę meczu gość
+widzi „jesteś zapisany(a)" zamiast zaproszenia do zapisania się drugi raz, i może go sobie
+wysłać („Zapisz sobie link do swojego zapisu"). (2) publiczne API oddaje ze składu wyłącznie
+to, co widać na ekranie — imię, rola, rezerwa, płatność; e-maile, telefony i tokeny wychodzą
+z zasięgu ról API, a token przejęcia wpisu wydaje funkcja bazy wyłącznie organizatorowi
+i osobie, która gościa dopisała. (3) potwierdzenia decyzji to okna aplikacji z listą
+konsekwencji; przy odwołaniu meczu Bojo mówi wprost, ilu uczestników nie ma konta i nie
+dostanie powiadomienia, i daje drugą drogę: „Odwołaj i wyślij wiadomość" z gotowym tekstem
+na czat.
+
+MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
+`token_wpisu_goscia()`) i `128` (`wypisz_wpis_goscia()`, rozszerzone
+`podejrzyj_wpis_goscia()`); `lib/mojWpisGoscia.ts` (pamięć linku na urządzeniu),
+`lib/guestClaim.ts`, `lib/eventShare.ts` (`tekstOdwolania()`),
+`components/ui/OknoPotwierdzenia.tsx` + `lib/usePotwierdzenie.tsx`,
+`app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
+Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
+i „Gość zarządza swoim zapisem").
+
 ### 2026-09-01 — Strona boiska pokazuje inne boiska w okolicy
 
 PROBLEM: Katalog Bojo ma ponad 30 000 obiektów, ale na obiekcie, na którym nikt jeszcze
@@ -408,6 +475,7 @@ MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
 pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
 wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
 Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
+
 
 ### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
 
@@ -619,68 +687,3 @@ w osobnym module), `lib/eventDates.ts` (`dzienTygodniaWBierniku()`),
 (`withCount()` zamiast literału „graczy"). Bez migracji. Pilnuje tego
 `e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts` — sprawdzone, że bez poprawki test pada.
 
-### 2026-08-30 — Druga partia błędów z sesji QA: mecz płatny bez ceny, nazwa miejsca, dymek nawigacji, dostępność filtrów
-
-PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji. (1) Włączenie
-przełącznika „Mecz płatny" w kreatorze i zostawienie pustej ceny puszczało krok dalej bez
-ostrzeżenia — mecz zapisywał się jako darmowy mimo zaznaczonego przełącznika. (2) Pinezka
-wskazana ręcznie na mapie (poza katalogiem) potrafiła dostać nazwę miejsca w rodzaju
-„GDZIE: 19C" — sam numer domu z adresu Nominatim. (3) Etykieta pola ceny różniła się między
-kreatorem a stroną edycji tego samego meczu. (4) Dymek podpowiedzi „Przytrzymaj «Grupy»"
-pod dolną nawigacją wyglądał, jakby wisiał na każdym ekranie. (5) Szukanie w pikerze
-lokalizacji kreatora, które trafiło w zero wyników, czyściło z mapy WSZYSTKIE pinezki
-z bieżącego kadru, nie tylko brak nowych. (6) Przycisk „Filtry" na `/mapa` miał 36×36 px
-(poniżej progu dotykowego WCAG), a chipy filtrów nie niosły stanu dla czytników ekranu.
-(7) Gołe `/boiska` (bez sportu) dawało 404.
-
-ROZWIĄZANIE BOJO: (1) `validatePayments()` przyjmuje dziś flagę „mecz płatny" niezależną od
-samej kwoty i blokuje krok, gdy przełącznik jest włączony, a cena pusta — komunikat wychodzi
-też do nagłówka zwiniętej sekcji. (2) Nowa funkcja bierze pierwszy segment adresu, który nie
-jest samym numerem domu. (3) Strona edycji przyjęła etykietę i podpowiedź „ile wychodzi za
-cały obiekt" po kreatorze. (4) Dolna nawigacja chowa się dziś przez CSS zamiast się
-odmontowywać, więc licznik pokazań dymka (limit 5 w życiu użytkownika) nie zeruje się przy
-każdym wejściu na ekran, który ją chowa (kreator, zakładka Rozmowa). (5) Zero wyników
-wraca do pinezek z kadru zamiast do pustej tablicy. (6) Przycisk urósł do 44×44 px, sześć
-grup przełączalnych przycisków dostało `aria-pressed`. (7) `/boiska` to dziś redirect na
-`/mapa?gry=0`, tym samym wzorcem co `/gracze` → `/wydarzenia`.
-
-MECHANIKA: `lib/eventWizard.ts` (`validatePayments(..., platny)`), `lib/utils.ts`
-(`nazwaZAdresu()`, reużywa `isBareNumber()` z `eventLocation()`), `app/wydarzenia/nowe/
-page.tsx` i `app/wydarzenia/[id]/edytuj/page.tsx`, `components/layout/BottomNav.tsx` +
-`BottomNavGate.tsx` (prop `hidden`, klasa CSS zamiast `return null`),
-`components/map/UnifiedLocationPickerImpl.tsx`, `components/map/VenueExplorer.tsx`,
-`app/boiska/page.tsx` (nowy plik). Bez migracji. Pilnują tego
-`e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts` i
-`e2e/dolna-nawigacja-dymek-nie-wraca.klikalnosc.spec.ts` — sprawdzone w obie strony,
-bez odpowiedniej poprawki oba testy padają.
-
-### 2026-08-28 — Trzy błędy z sesji QA: licznik obiektów, pusta lista po filtrze miejscowości, wstecz z rozmowy
-
-PROBLEM: Manualna sesja QA na produkcji (mobile 360px + desktop, jasny/ciemny) znalazła
-trzy usterki po wcześniejszych zmianach mapy z 27 sierpnia. Wszystkie trzy dotyczyły
-widoku „Lista" po `/mapa` → „Obiekty" → „Lista" — ścieżki, w której mapa Leaflet NIGDY
-nie dostaje realnego rozmiaru (montuje się z `display:none`, bo widok startuje jako
-„Lista" w domyślnym trybie Gry, a przełącznik „Obiekty" tego nie zmienia). Osobno:
-systemowe „wstecz" z zakładki „Rozmowa" na stronie meczu wyrzucało z aplikacji zamiast
-wracać do zakładki „Mecz".
-
-ROZWIĄZANIE BOJO: (1) Licznik nad listą obiektów i podgląd „Pokaż N boisk" w arkuszu
-filtrów liczą dziś z `fields.length` — z tego samego źródła, co karty listy pod spodem —
-zamiast z sumy skupisk policzonej z kadru mapy, który przy nigdy niepokazanej mapie
-zawsze wynosi zero. (2) Po wybraniu miejscowości w filtrze lista poprawnie dociąga dane
-WŁASNYM zapytaniem (niezależnym od mapy), ale w trakcie tego zapytania renderował się
-mylący pusty stan z przyciskami „Pokaż blisko mnie"/„Przybliż" — nie na temat tuż po
-wybraniu konkretnego miejsca. Ten ułamek sekundy ma dziś własny stan „Szukam w okolicy:
-«nazwa»…”. (3) Przełączanie zakładek na stronie meczu i ekipy zapisywało stan w adresie
-przez `history.replaceState`, który NIGDY nie dokłada wpisu do historii przeglądarki —
-pierwsze zejście z zakładki domyślnej dokłada dziś JEDEN wpis (`pushState`), więc
-systemowe „wstecz" wraca do zakładki, z której użytkownik wyszedł, zamiast opuszczać
-aplikację.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (licznik z `fields.length`, stan
-ładowania obok `PustaListaObiektow`), `components/map/KadrObserwator.tsx` (osłona na
-kontener mniejszy niż 80×80, ten sam wzorzec co `GamesMarkersLayer.dopasujKadr` —
-defensywna, nie naprawia punktu 2 wprost: zweryfikowane, że mapa ukryta nie zgłasza
-kadru wcale), `app/wydarzenia/[id]/EventDetailClient.tsx` i `app/grupy/[id]/
-GroupDetailClient.tsx` (`goToTab()` z jednorazowym `pushState` + słuchacz `popstate`).
-Bez migracji.

@@ -91,6 +91,65 @@ export function eventShareText(e: DaneDoUdostepnienia): string {
   return linie.join('\n');
 }
 
+/**
+ * Cztery linie o odwołanym meczu — do wysłania tam, gdzie ekipa rozmawia.
+ *
+ * PO CO. `cancelEvent()` powiadamia uczestników Z KONTEM (migracja `070`, plus
+ * push). Wyzwalacz ma warunek `user_id IS NOT NULL`, więc GOŚĆ BEZ KONTA nie
+ * dostaje nic — a to jest zwykle ta część składu, którą organizator dopiero
+ * przyprowadził. Bez tej wiadomości człowiek przyjeżdża na boisko.
+ *
+ * Świadomie ta sama forma co `eventShareText`: kto dostał zaproszenie, dostaje
+ * odwołanie w tym samym kształcie i rozpoznaje je bez czytania.
+ */
+export function tekstOdwolania(e: DaneDoUdostepnienia): string {
+  const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
+
+  let kiedy: string;
+  try {
+    kiedy = format(parseISO(e.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {
+    kiedy = e.date;
+  }
+
+  const gdzie = eventLocation({
+    fieldName: e.fieldName,
+    fieldAddress: e.fieldAddress,
+    customLocationName: e.customLocationName,
+    customAddress: e.customAddress,
+    district: e.district,
+  });
+
+  return [
+    `❌ Odwołane: ${tytul}`,
+    `${kiedy} · ${hhmm(e.time)}`,
+    gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary,
+    'Mecz się nie odbędzie.',
+  ].join('\n');
+}
+
+/** Otwiera arkusz udostępniania z informacją o odwołaniu; bez `url`, bo nie ma
+ *  po co klikać w mecz, który się nie odbędzie — liczy się sama wiadomość. */
+export async function udostepnijOdwolanie(e: DaneDoUdostepnienia): Promise<WynikUdostepnienia> {
+  const text = tekstOdwolania(e);
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'Mecz odwołany', text });
+      return 'shared';
+    } catch {
+      return 'failed';
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}
+
 /** Tekst + adres w jednej linijce niżej — to samo, co dziś robi fallback
  *  schowka w `shareEvent()`. Wydzielone, żeby przyciski „Kopiuj link" (pasek
  *  meczu, panel „Zaproś znajomych") nie kopiowały gołego adresu — to ten sam

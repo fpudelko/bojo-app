@@ -64,6 +64,12 @@ korzyści, karta „Zaloguj się, żeby opublikować mecz" i rozmyty podgląd kr
 
 ---
 
+> **Uwaga o nazwach kroków (2026-09-02).** Kreator ma dziś kroki **„Kiedy" / „Gdzie" /
+> „Dla kogo"** i pyta najpierw o TERMIN, a dopiero potem o miejsce — odwrotnie niż
+> w chwili powstania tego audytu. Nagłówki faz niżej zostawiamy w brzmieniu z 2026-08-08,
+> żeby numery ustaleń `O-n` dalej wskazywały to samo miejsce w historii; mapowanie:
+> „Co i gdzie" → dzisiejsze „Gdzie", „Kiedy i ile" → „Kiedy", „Opcje" → „Dla kogo".
+
 ## Faza 2 — krok 1 „Co i gdzie"
 
 **Zostaje:** cztery sporty jako chipsy + zapasowy `<select>`, domyślnie piłka nożna, jedno
@@ -142,7 +148,7 @@ dla organizatora, panel „Podział kosztów" liczący zniżki kartowe.
 | **O-21** | **Odwołanie meczu było CICHE.** `cancelEvent()` zmieniało `status` i logowało aktywność; uczestnik dowiadywał się wyłącznie wchodząc na stronę meczu. Kto nie wszedł — przyjeżdżał na boisko. To jedyne miejsce, w którym Bojo było obiektywnie gorsze od zwykłej wiadomości na czacie. | zrobione (migracja `070`) |
 | **O-22** | **Interfejs kłamał w drugą stronę:** checkbox przy zmianie terminu twierdził „Bojo jeszcze tego nie robi", podczas gdy migracja `065` powiadomienie wysyła. | zrobione |
 | **O-23** | **Uczestnik nie widział, ile ma zapłacić.** `showPaymentStatus` było zapisywane przez formularz edycji i **nigdzie nieodczytywane**. Nowa karta „Twoja płatność" (kwota po uwzględnieniu zniżki kartowej, sposób płatności, status opłacone/nieopłacone) — pierwsze miejsce, które tę flagę respektuje. To ta sama luka co [BACKLOG §1.4](../BACKLOG.md), teraz zamknięta z obu stron. | zrobione |
-| **O-24** | **Organizator nie miał widoku „gdzie brakuje ludzi".** Nowa sekcja „Brakuje graczy" na `/moje-gry` (zakładka „Nadchodzące") — organizowane, niepełne mecze, sortowane od najbliższego terminu. Dane już były pobierane przez `getMyParticipatedEvents()` (`participantsCount` liczone przez `toEvent()`), więc zero nowego zapytania. Merge organizowanie+granie w `MyMatchesSection` zostaje nietknięty — to osobna, dodatkowa sekcja. | zrobione |
+| **O-24** | **Organizator nie miał widoku „gdzie brakuje ludzi".** Nowa sekcja „Brakuje graczy" na `/moje-gry` (zakładka „Nadchodzące") — organizowane, niepełne mecze, sortowane od najbliższego terminu. | **cofnięte 2026-08-28** (commit `8c12ced`): filtr zawężał listę, która na tej zakładce i tak jest krótka, a plakietka „N wolnych miejsc" na karcie mówi to samo. Sekcji NIE MA w kodzie — wpis zostaje, żeby nie wracała jako „przecież to było zrobione" |
 | **O-25** | **Nie było widać, kogo się zaprosiło i kto odpowiedział.** Nowa karta „Zaproszeni" na stronie meczu (tylko organizator — RLS na `event_player_invites` i tak nie przepuści reszty): imię, awatar i status Czeka / Dołączył(a) / Nie tym razem. Reguła „uczestnictwo bije wcześniejszą odmowę" wydzielona do `lib/inviteStatus.ts` pod testem — pierwsza wersja tej logiki inline w komponencie miała to odwrócone. | zrobione |
 | **O-26** | **Martwy kod na ścieżce organizatora:** nieosiągalny modal „Zgłoś uczestnika" (`setReportTarget` nigdy nie wołane), `handleSendSms` + stan `smsBusy` zdefiniowane i nieużywane, `lib/invites.ts` (86 linii, gotowy polski szablon zaproszenia mailem) bez ani jednego importu. Usunięto wraz z całym rurociągiem (`submitReport`, `getEventReports`, typy `ReportType`/`PlayerReport`) — nic innego tego nie czytało. | zrobione |
 | **O-27** | **Zaproszenie do przejęcia wpisu gościa (`066`) niosło goły link** — `kopiujLinkPrzejecia` kopiował sam URL, bez tekstu tłumaczącego, po co go kliknąć. Ten sam błąd co `O-18`, tu nienaprawiony do 2026-08-10. Naprawione wzorem `eventShareText`/`shareEvent`: `tekstZaproszeniaGoscia()` w `lib/guestClaim.ts`, `navigator.share` z fallbackiem do schowka. Dodatkowo: przycisk „Zaproś do Bojo" żył wyłącznie w edytowalnym składzie przed startem meczu — po starcie meczu organizator przechodzi na widok `ParticipantsList` i przycisk znikał całkowicie, dokładnie w momencie, gdy naturalnie wraca wpisać wynik. Dodano tam ten sam przycisk oraz zbiorczy sygnał „N gości bez konta" nad składem (widoczny w obu widokach). | zrobione |
@@ -171,6 +177,31 @@ o zaległej wpłacie wymagałyby schedulera (`pg_cron`), którego stanu na produ
 się potwierdzić z repo — ten sam powód, dla którego cron wygasania oferty zwolnionego
 miejsca zostaje poza zakresem (`BACKLOG.md §0`). Przywrócenie „obecności" (`track_attendance`)
 świadomie odrzucone — kolumna została usunięta migracją `064` jako uproszczenie, nie luka.
+
+
+---
+
+## Faza 8 — druga runda audytu (2026-09-02)
+
+Runda przeszła cały przepływ jeszcze raz, tym razem z pytaniem „co jest NIEZAWODNE,
+a co tylko wygląda na zrobione". Punkt wyjścia: wszystkie bramki repo są zielone
+(`tsc`, ESLint, 885 testów Vitest, migracje od zera + RLS, build produkcyjny,
+66 testów klikalności) — czyli to, co zostało, nie jest zepsutym kodem, tylko dziurą
+w cyklu życia.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **O-36** | **Wpis gościa bez konta był ulicą jednokierunkową.** Zapis „bez konta" to główny argument, którym organizator przebija opór graczy przed zakładaniem konta — i jednocześnie JEDYNY zapis w Bojo, którego zapisany nie mógł cofnąć: usunąć go mógł wyłącznie organizator. Do tego żaden wyzwalacz powiadomień gościa nie widzi (`user_id IS NOT NULL` w `070`, `114`, `116`), więc o ODWOŁANIU MECZU nie dowiadywał się w ogóle i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do wpisu bezpowrotnie: nic nie zostawało na urządzeniu, żaden e-mail nie wychodził. Skutki brał na siebie organizator — skład kłamał dokładnie w tej części, którą sam przyprowadził, a „nie dam rady" i tak przychodziło na WhatsAppie. | zrobione (migracja `128`) |
+| **O-37** | **E-mail gościa, telefony i tokeny czytał każdy.** Polityka `Participants readable by all` ma `USING (true)`, a `getEvent()` czytało skład przez `select('*')` — więc jednym zapytaniem do REST-a, bez logowania, dla dowolnego meczu (także prywatnego) dało się pobrać `guest_email`, `guest_phone`, `phone` i `claim_token`. Przy tokenach broniło się to modelem „sekret na okaziciela" (BACKLOG §5); przy adresach e-mail nie — to dane osobowe ludzi, którzy podali je wyłącznie po to, żeby wejść do składu. Żadnej z tych kolumn nie czytał ani jeden komponent. | zrobione (migracja `127`) |
+| **O-38** | **Decyzje nieodwracalne siedziały za `confirm()` przeglądarki.** Siedem miejsc na stronie meczu, w tym odwołanie meczu — z treścią „Odwołać mecz? Uczestnicy zobaczą że mecz jest odwołany.", która nie mówiła ani o powiadomieniach, ani o tym, że goście bez konta ich NIE dostaną, ani o tym, że odwołanie da się cofnąć przyciskiem stojącym obok. Na telefonie systemowe okno czyta się jak błąd strony, a nie jak pytanie zadane przez aplikację — która ma zresztą własne, porządne okna, więc połowa decyzji wyglądała inaczej niż druga połowa. | zrobione |
+
+### Druga część rundy (osobny PR)
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **O-39** | **W całym Bojo nie ma ani jednego przypomnienia opartego o czas.** Wszystkie powiadomienia są reakcją na czyjeś kliknięcie; jedyny `cron.schedule` w repo dotyczy serii, a te są za wyłączoną flagą. Nikt nie dostaje „jutro grasz o 20:00", organizator nie dostaje „jutro mecz, brakuje 2 osób" (ostatni moment, żeby coś z tym zrobić), a po meczu nic nie prosi o wynik ani rozliczenie — dane produkcyjne z fazy 7: 122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych. Przypominanie to jest ta czynność, którą organizator wykonuje ręcznie co tydzień na WhatsAppie. | zrobione (migracja `129`). Infrastruktura była — wstawienie wiersza do `notifications` odpala push (`102`), a ustawienia „czego nie chcę na telefon" (`109`) działają; brakowało wyłącznie zegara. Zadanie `pg_cron` `bojo-przypomnienia` o 16:00 UTC; dwa typy: „jutro grasz" (skład + organizator, z dopiskiem o brakach) i „po meczu" (organizator, tylko gdy jest co domknąć). Testy w `supabase/test/przypomnienia.sql` |
+| **O-40** | **„Powtórz mecz" jest ukryte przed organizatorem, który wraca co tydzień.** Akcja żyje na stronie meczu i przy najbliższym meczu ekipy, ale na `/moje-gry → Historia` — czyli tam, gdzie organizator ląduje w poniedziałek, żeby wrzucić czwartek — nie ma jej wcale. Skoro gry cykliczne są świadomie wyłączone, „Powtórz" jest ich jedynym zamiennikiem. | zrobione. `components/events/PowtorzZHistorii.tsx` — przycisk pod kartą w Historii, tylko przy własnych meczach, z datą wypełnioną z góry; po utworzeniu ląduje w panelu „Mecz gotowy — wyślij link". Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu (regresyjny hot spot) |
+| **O-41** | **Baza liczy czas w UTC, mecze są w czasie polskim.** Kilkanaście funkcji porównuje `(event_date + event_time)::timestamp <= now()`; `SHOW timezone` na produkcji zwraca `UTC`, więc mecz o 20:00 jest „rozpoczęty" dopiero o 22:00 czasu polskiego (latem). Skutki dziś drobne (statystyka „zagrane mecze" nie tyka po meczu, oferty z rezerwy chodzą jeszcze dwie godziny), ale KAŻDE nowe zadanie oparte o czas odziedziczy ten błąd. Migracja `073` robi to poprawnie (`AT TIME ZONE 'Europe/Warsaw'`) — reszta nie; migracja `128` też liczy już poprawnie. | zrobione (migracja `130`): `teraz_pl()`/`dzis_pl()` plus poprawka w `sync_reserve_claim` i w wyzwalaczach `079`/`097`. **Funkcje statystyk zostają nietknięte** — tam ta sama poprawka zmieniłaby liczby na profilach graczy, więc należy jej się osobna decyzja, nie doklejenie do migracji o czymś innym |
 
 ---
 

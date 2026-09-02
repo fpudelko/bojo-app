@@ -58,6 +58,26 @@ END $$;
 
 GRANT EXECUTE ON FUNCTION _oczekuj_odmowe(TEXT, TEXT) TO anon, authenticated;
 
+-- Pomocnik dla funkcji, które bronią się WŁASNYM wyjątkiem, a nie polityką
+-- (np. `wypisz_wpis_goscia` przy nieznanym tokenie). Osobny od
+-- `_oczekuj_odmowe` celowo: tam „odbite" ma znaczyć „odbiła to baza swoimi
+-- uprawnieniami", i rozluźnienie tamtego pomocnika do `WHEN OTHERS`
+-- przepuszczałoby literówkę w zapytaniu jako zaliczony test.
+CREATE OR REPLACE FUNCTION _oczekuj_wyjatek(opis TEXT, polecenie TEXT)
+RETURNS VOID LANGUAGE plpgsql AS $$
+BEGIN
+  BEGIN
+    EXECUTE polecenie;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RAISE NOTICE '  ✓ %', opis;
+      RETURN;
+  END;
+  RAISE EXCEPTION 'RLS: % — operacja PRZESZŁA, a miała zostać odbita', opis;
+END $$;
+
+GRANT EXECUTE ON FUNCTION _oczekuj_wyjatek(TEXT, TEXT) TO anon, authenticated;
+
 -- Nagłówek sekcji też idzie przez NOTICE, nie przez `\echo`: `\echo` pisze na
 -- standardowe wyjście, a asercje na wyjście błędów, więc mieszanie obu
 -- rozjeżdża kolejność raportu.
@@ -113,6 +133,13 @@ INSERT INTO event_participants (event_id, user_id, name) VALUES (:MECZ::uuid, :U
 -- Gość bez konta — jego `claim_token` jest sekretem na okaziciela.
 INSERT INTO event_participants (event_id, user_id, name, is_guest)
 VALUES (:MECZ::uuid, NULL, 'Gość Bez Konta', true);
+
+-- Token zapamiętujemy TERAZ, jeszcze jako superuser. Od migracji `127` żadna
+-- rola API nie przeczyta go z wiersza — a testy niżej muszą nim dysponować,
+-- bo sprawdzają dokładnie to, co ma nim zrobić gość z linku.
+SELECT claim_token AS token_goscia
+  FROM event_participants
+ WHERE event_id = :MECZ::uuid AND is_guest \gset
 
 INSERT INTO event_comments (event_id, user_id, user_name, body)
 VALUES (:MECZ::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'Numer do bramy to 1234');
@@ -296,6 +323,55 @@ SELECT _oczekuj('nikt nie czyta zgłoszeń — także własnych',
                 (SELECT count(*) FROM user_reports), 0);
 RESET ROLE;
 
+SELECT _sekcja('Prywatne kolumny składu (migracja 127)');
+
+-- Polityka na `event_participants` nadal ma `USING (true)` — skład meczu jest
+-- publiczny i taki ma zostać. Granicą są tu UPRAWNIENIA KOLUMNOWE: e-mail
+-- gościa, telefony i tokeny wychodzą z listy czytelnej przez API. Postgres
+-- odpowiada na to wyjątkiem `insufficient_privilege`, nie pustym wynikiem,
+-- więc sprawdzamy tym samym pomocnikiem co odbite zapisy.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_odmowe('anon NIE czyta e-maila gościa',
+  format('SELECT guest_email FROM event_participants WHERE event_id = %L', :MECZ));
+SELECT _oczekuj_odmowe('anon NIE czyta tokenu przejęcia wpisu',
+  format('SELECT claim_token FROM event_participants WHERE event_id = %L', :MECZ));
+SELECT _oczekuj_odmowe('anon NIE czyta telefonu uczestnika',
+  format('SELECT phone FROM event_participants WHERE event_id = %L', :MECZ));
+-- `select('*')` też ma się wywalić: to jest ta zmiana, przez którą kod musi
+-- wymieniać kolumny z nazwy (patrz kolejność wdrożenia w migracji 127).
+SELECT _oczekuj_odmowe('anon NIE pobierze całego wiersza przez select(*)',
+  format('SELECT * FROM event_participants WHERE event_id = %L', :MECZ));
+-- ...ale sam skład zostaje publiczny. Bez tej asercji łatwo „naprawić"
+-- wyciek, zamykając przy okazji stronę meczu dla zaproszonych.
+SELECT _oczekuj('anon NADAL czyta skład (imię, rola, rezerwa)',
+                (SELECT count(*) FROM (
+                   SELECT name, is_reserve, is_goalkeeper, pending_approval
+                     FROM event_participants WHERE event_id = :MECZ::uuid) s), 2);
+RESET ROLE;
+
+-- Zalogowany obcy jest w tej samej sytuacji co niezalogowany: token wpisu
+-- gościa wydaje wyłącznie funkcja `token_wpisu_goscia()`, sprawdzająca,
+-- czy pytający organizuje mecz albo sam tego gościa dopisał.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy zalogowany NIE czyta tokenu z wiersza',
+  format('SELECT claim_token FROM event_participants WHERE event_id = %L', :MECZ));
+SELECT _oczekuj('obcy nie dostaje tokenu z funkcji',
+                (SELECT count(*) FROM (
+                   SELECT token_wpisu_goscia(p.id) AS t
+                     FROM event_participants p
+                    WHERE p.event_id = :MECZ::uuid AND p.is_guest) s
+                  WHERE s.t IS NOT NULL), 0);
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('organizator dostaje token swojego gościa',
+                (SELECT count(*) FROM (
+                   SELECT token_wpisu_goscia(p.id) AS t
+                     FROM event_participants p
+                    WHERE p.event_id = :MECZ::uuid AND p.is_guest) s
+                  WHERE s.t IS NOT NULL), 1);
+RESET ROLE;
+
 SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)');
 
 -- Te asercje pilnują STANU FAKTYCZNEGO, nie stanu docelowego. Gdy ktoś domknie
@@ -306,8 +382,34 @@ SET ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', false);
 SELECT _oczekuj('OTWARTE: mecz prywatny czyta każdy (events USING true)',
                 (SELECT count(*) FROM events WHERE id = :MECZ::uuid), 1);
-SELECT _oczekuj('OTWARTE: skład i token gościa czyta każdy (event_participants USING true)',
+-- Skład (imiona, role, rezerwa) czyta każdy — polityka wierszowa nadal
+-- `USING (true)`. Token i e-mail gościa już NIE: to załatwiła migracja `127`
+-- uprawnieniami kolumnowymi, asercje wyżej.
+SELECT _oczekuj('OTWARTE: skład meczu prywatnego czyta każdy (event_participants USING true)',
                 (SELECT count(*) FROM event_participants WHERE event_id = :MECZ::uuid AND is_guest), 1);
+RESET ROLE;
+
+SELECT _sekcja('Gość zarządza swoim zapisem (migracja 128)');
+
+-- NA KOŃCU PLIKU ŚWIADOMIE: ta sekcja jako jedyna KASUJE wiersz ze składu,
+-- więc postawiona wyżej wywracałaby asercje liczące uczestników.
+--
+-- Uprawnieniem jest sam token — model jak `join_code`. Dlatego wypisanie ma
+-- działać BEZ logowania, ale wyłącznie dla tokenu, który się zna.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('podgląd wpisu przez token pokazuje stan meczu i składu',
+                (SELECT count(*) FROM podejrzyj_wpis_goscia(:'token_goscia'::uuid)
+                  WHERE status_meczu = 'active' AND mozna_zmieniac
+                    AND w_skladzie = 2 AND max_graczy = 10 AND koszt_grosze = 1500), 1);
+SELECT _oczekuj_wyjatek('zmyślony token nie wypisuje nikogo',
+  'SELECT wypisz_wpis_goscia(''dddddddd-0000-4000-8000-00000000dead''::uuid)');
+SELECT _oczekuj('wypisanie przez własny token zwraca mecz',
+                (SELECT count(*) FROM (
+                   SELECT wypisz_wpis_goscia(:'token_goscia'::uuid)) s), 1);
+SELECT _oczekuj('po wypisaniu gościa nie ma już w składzie',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ::uuid AND is_guest), 0);
 RESET ROLE;
 
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ RLS: wszystkie asercje przeszły.'; END $$;

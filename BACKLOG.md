@@ -337,7 +337,17 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       podejrzeniem. `getMyGroupEvents()` (mecze grup, w tym prywatne — `lib/events.ts`)
       działa dziś **wyłącznie dzięki tej luźnej polityce**: gdy ktoś RLS domknie, ta
       funkcja po cichu zacznie zwracać mniej wierszy, bez błędu.
-- [ ] **`event_participants.claim_token` jest czytelny dla każdego.** Polityka
+- [x] **`event_participants.claim_token` jest czytelny dla każdego.** ZROBIONE
+      migracją `127` (2026-09-02) — i szerzej, niż opisywał ten punkt: razem z tokenem
+      z zasięgu ról API wyszły `guest_email`, `guest_phone`, `phone`
+      i `confirmation_token`. Zamiast domykać RLS (co urwałoby publiczny skład meczu)
+      poszły uprawnienia KOLUMNOWE: `REVOKE SELECT ON event_participants` + `GRANT
+      SELECT (lista)`. Token wydaje `token_wpisu_goscia()` — organizatorowi albo osobie,
+      która gościa dopisała. Pilnują tego asercje w `supabase/test/rls.sql`.
+      Pozycja o `events` (`USING (true)`) zostaje otwarta — to osobne ryzyko, patrz §1.1.
+      Oryginalny opis:
+
+- [ ] ~~**`event_participants.claim_token` jest czytelny dla każdego.**~~ Polityka
       `Participants readable by all` ma warunek `USING (true)`, więc token przejęcia
       wpisu gościa (migracja `066`) da się odczytać z ruchu sieciowego dla dowolnego
       meczu, nie tylko przez link, który wysłał dopisujący. Token jest projektowany
@@ -915,7 +925,25 @@ i w rozmowie 2026-08-04 (jak). Skrót mechaniki:
 </details>
 
 
-### PWA + web-push — plan (priorytet od 2026-08-15)
+### PWA + web-push — ZROBIONE (weryfikacja 2026-09-02)
+
+Plan niżej jest ZREALIZOWANY i zostaje wyłącznie jako zapis decyzji — pola do
+odhaczenia w nim nie były aktualizowane, więc czytało się to jak zadanie do zrobienia.
+Stan faktyczny w repo: `frontend/src/app/manifest.ts`, `frontend/public/sw.js`,
+`components/RejestracjaSW.tsx`, `ZachetaInstalacji.tsx`, `PowiadomieniaPush.tsx`,
+`lib/push.ts` i `lib/instalacja.ts`; po stronie bazy migracje `102` (tabela
+`push_subscriptions`, wyzwalacz `trg_wyslij_push` na `notifications` przez `pg_net`),
+`117` i `119`, funkcja brzegowa `supabase/functions/send-push/` oraz ustawienia
+„czego nie chcę na telefon" (`109`, `lib/ustawieniaPowiadomien.ts`). `pg_net` i `pg_cron`
+są na produkcji włączone (sprawdzone 2026-09-02).
+
+Co z tego wynika dla planowania: **kanał doręczania poza aplikacją ISTNIEJE**, więc
+zadania, które czekały „aż będzie push" (przypomnienia o meczu, `SHOW_GAME_ALERTS`,
+doręczanie zaproszeń „z ekipy") nie mają już tej blokady. Brakuje wyłącznie ZEGARA —
+patrz `O-39` w [audycie ścieżki organizatora](./docs/przeplyw-organizatora.md).
+
+<details><summary>Pierwotny plan (2026-08-15)</summary>
+
 
 Po co: stała ekipa to te same dziesięć osób w ten sam czwartek. Jedyne, czego brakuje
 w ich tygodniu, to **doręczenie poza aplikacją** — dziś zaproszenie „z ekipy" czeka,
@@ -983,6 +1011,8 @@ wszystkim. To jest też powód, dla którego etap 1 musi być zrobiony porządni
 `e2e/wizualne.spec.ts` sprawdzi, że manifest się serwuje i SW rejestruje; samego
 doręczenia pusha Playwright nie pokaże — to test ręczny na dwóch telefonach
 (Android + iPhone po instalacji).
+
+</details>
 
 ---
 

@@ -178,17 +178,31 @@ describe('repeatEvent', () => {
 // wysłanie zaproszenia (GuestInviteNudge.tsx) bez dodatkowego zapytania.
 // ---------------------------------------------------------------------------
 describe('addGuest', () => {
-  it('zwraca id i claimToken nowego wiersza, obok isReserve', async () => {
-    mockSingle.mockResolvedValue({
-      data: { id: 'participant-uuid-1', claim_token: 'token-abc' },
-      error: null,
-    });
+  // Token przychodzi OSOBNO, funkcją `token_wpisu_goscia` (migracja `127`).
+  // Wcześniej wracał wprost z `.select('id, claim_token')` — ale ta sama
+  // kolumna była wtedy czytelna dla każdego, kto otworzył stronę meczu, więc
+  // od `127` nie ma jej w uprawnieniach ról API. Insert, który znów poprosiłby
+  // o nią w `.select()`, dostanie 403 — stąd ten test.
+  it('zwraca id z insertu i token z funkcji bazodanowej', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'participant-uuid-1' }, error: null });
+    mockRpc.mockResolvedValue({ data: 'token-abc', error: null });
 
     const wynik = await addGuest('event-1', 'Marek Nowak', true);
 
     expect(wynik).toEqual({ id: 'participant-uuid-1', claimToken: 'token-abc', isReserve: true });
+    expect(mockRpc).toHaveBeenCalledWith('token_wpisu_goscia', { p_uczestnik: 'participant-uuid-1' });
     const { supabase } = await import('@/lib/supabase');
     expect(supabase.from).toHaveBeenCalledWith('event_participants');
+  });
+
+  // Gość JEST już w składzie — brak tokenu odbiera wyłącznie możliwość
+  // wysłania mu zaproszenia od razu, więc nie ma czego przewracać.
+  it('brak tokenu nie wywraca dopisania gościa', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'participant-uuid-2' }, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(addGuest('event-1', 'Marek Nowak', true))
+      .resolves.toEqual({ id: 'participant-uuid-2', claimToken: null, isReserve: true });
   });
 
   it('throws when Supabase returns an error', async () => {
@@ -309,10 +323,17 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     mockSingle.mockResolvedValue({ data: { is_reserve: false }, error: null });
   });
 
-  function bazaOddaje(wiersz: Record<string, unknown>) {
+  /** `dolacz_do_meczu_jako_goscie` oddaje podany wiersz, a `podejrzyj_wpis_goscia`
+   *  (migracja `128`) stan wpisu. Ten drugi zastąpił zapytanie
+   *  `.eq('claim_token', …)`: filtrowanie po tej kolumnie przestało być możliwe,
+   *  odkąd `127` zabrało rolom API prawo jej odczytu. */
+  function bazaOddaje(wiersz: Record<string, unknown>, podglad?: Record<string, unknown>) {
     mockRpc.mockImplementation((nazwa: string) => {
       if (nazwa === 'dolacz_do_meczu_jako_goscie') {
         return Promise.resolve({ data: [wiersz], error: null });
+      }
+      if (nazwa === 'podejrzyj_wpis_goscia') {
+        return Promise.resolve({ data: podglad ? [podglad] : [], error: null });
       }
       return Promise.resolve({ data: null, error: null });
     });
@@ -334,8 +355,10 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
   // Sedno migracji 088: e-mail z kontem dostaje ekran namawiający na LOGOWANIE,
   // a nie na zakładanie drugiego konta. Bez tej flagi frontend nie ma tej wiedzy.
   it('świeży zapis e-mailem, który ma już konto — hasAccount true', async () => {
-    bazaOddaje({ claim_token: 'tok-2', event_id: 'e1', already_joined: false, has_account: true });
-    mockSingle.mockResolvedValue({ data: { is_reserve: true }, error: null });
+    bazaOddaje(
+      { claim_token: 'tok-2', event_id: 'e1', already_joined: false, has_account: true },
+      { na_rezerwie: true, czeka_na_akceptacje: false },
+    );
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
       .resolves.toEqual({ claimToken: 'tok-2', isReserve: true, alreadyJoined: false, hasAccount: true, pendingApproval: false });
@@ -356,6 +379,8 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
       .resolves.toEqual({ claimToken: null, isReserve: false, alreadyJoined: true, hasAccount: true, pendingApproval: false });
+    // Bez tokenu nie ma czego podglądać — drugie wywołanie w ogóle nie leci.
+    expect(mockRpc).toHaveBeenCalledTimes(1);
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
@@ -371,8 +396,10 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
   // 111: mecz z akceptacją zapisów — gość dostaje pending_approval=true i nie
   // zajmuje miejsca (dokładnie ta sama para pól co isReserve, drugim zapytaniem).
   it('mecz z akceptacją zapisów — pendingApproval true', async () => {
-    bazaOddaje({ claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false });
-    mockSingle.mockResolvedValue({ data: { is_reserve: false, pending_approval: true }, error: null });
+    bazaOddaje(
+      { claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false },
+      { na_rezerwie: false, czeka_na_akceptacje: true },
+    );
 
     await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com'))
       .resolves.toEqual({ claimToken: 'tok-3', isReserve: false, alreadyJoined: false, hasAccount: false, pendingApproval: true });

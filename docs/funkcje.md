@@ -55,7 +55,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora. **Ustawiane wyłącznie w edycji meczu** (`/wydarzenia/[id]/edytuj`, przełącznik w `EventDetailClient.tsx`) — kreator (`/wydarzenia/nowe`) nie ma tej kontrolki i `createEvent()` jej nie wysyła, więc każdy nowy mecz startuje z domyślnym `false` |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
-| Przejęcie wpisu gościa | `claim_token` | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali. Toast „Gość dodany"/„Komplet — gość dodany na rezerwę" pokazuje się tylko wtedy, gdy modal NIE wyskakuje (już widziany dla tego meczu) — inaczej dwa komunikaty niosące tę samą informację pokazywały się naraz. Gdy modal wyskakuje, informację o rezerwie przejmuje jego podtytuł (`naRezerwie`), a przycisk „Dodaj kolejnego" wraca do formularza bez dodatkowego resetowania (pole jest już czyszczone po udanym dodaniu) |
+| Przejęcie wpisu gościa | `claim_token` (wydawany funkcją `token_wpisu_goscia()`, nie czytany z wiersza — migracja `127`) | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali. Toast „Gość dodany"/„Komplet — gość dodany na rezerwę" pokazuje się tylko wtedy, gdy modal NIE wyskakuje (już widziany dla tego meczu) — inaczej dwa komunikaty niosące tę samą informację pokazywały się naraz. Gdy modal wyskakuje, informację o rezerwie przejmuje jego podtytuł (`naRezerwie`), a przycisk „Dodaj kolejnego" wraca do formularza bez dodatkowego resetowania (pole jest już czyszczone po udanym dodaniu) |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
 **„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
@@ -168,7 +168,9 @@ przypadków nie powstaje drugi wiersz w składzie i nie leci czerwony błąd.
 
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
-`frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`).
+`frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`;
+stan wpisu dociąga `podejrzyj_wpis_goscia()`, bo filtrowania po `claim_token` nie da się
+już zrobić z przeglądarki — patrz migracja `127`).
 Wpis gościa to wiersz `event_participants` z kolumnami `user_id = NULL`, `is_guest = true`,
 `guest_email`, `is_reserve` (liczony przez tę samą logikę co zalogowani). Trigger
 `nadaj_token_gosciowi` (migracja `066`) generuje unikalny `claim_token` (UUID). Dialog
@@ -2706,6 +2708,82 @@ w pełny, i `zwolnilo_sie_miejsce`, gdy komplet się rozpada — w obie strony w
 przy zmianie STANU, nie przy każdym zapisie z osobna.
 
 ---
+
+## Przypomnienia — jedyne powiadomienia, które powstają same (migracja `129`)
+
+Do 2026-09-02 w całym Bojo nie było ANI JEDNEGO powiadomienia opartego o czas: wszystkie
+(`025`, `062`, `065`, `067`, `070`, `072`, `076`, `079`, `113`, `114`, `116`) są reakcją na
+czyjeś kliknięcie. W praktyce znaczyło to, że nikt nie dostawał „jutro grasz o 20:00",
+organizator nie dostawał „jutro mecz, brakuje 2 osób" — czyli tracił ostatni moment, w którym
+da się jeszcze kogoś dociągnąć — a po meczu nic nie prosiło o wynik ani rozliczenie.
+**Przypominanie to jest ta czynność, którą organizator wykonuje ręcznie co tydzień
+na WhatsAppie.**
+
+| Kiedy | Kto dostaje | Treść |
+|---|---|---|
+| Dzień przed, ok. 18:00 | wszyscy z miejscem w składzie (bez rezerwy, bez poczekalni, bez obserwujących) | „Jutro 20:00 · Orlik Sołacz" |
+| Dzień przed, ok. 18:00 | organizator — jedno powiadomienie, także gdy sam gra | to samo plus „· brakuje 2 (12/14)", gdy skład niepełny |
+| Dzień po meczu | organizator, **tylko gdy jest co domknąć** | „Mecz rozegrany. Wpisz wynik, odhacz wpłaty — 3 osób jeszcze nie oddało." |
+
+Trzy rzeczy, które wynikają z tego wprost: **push jedzie za darmo** (wyzwalacz z `102` łapie
+każdy INSERT do `notifications`), **wyłączenie działa za darmo** (`109` filtruje po typie —
+oba nowe typy są w `RODZAJE_POWIADOMIEN`), a **podwójne uruchomienie nic nie psuje**
+(`NOT EXISTS` na użytkownik+mecz+typ; zadanie cron potrafi wystartować dwa razy, a duplikat
+powiadomienia o meczu czyta się jak zmiana w meczu).
+
+Warunek „jest co domknąć" przy powiadomieniu po meczu jest istotą, nie optymalizacją:
+przypomnienie wysyłane po KAŻDYM meczu, także w pełni rozliczonym, jest hałasem — a wyłączony
+kanał nie dowozi już niczego, łącznie z tym, co ważne.
+
+Zegar to zadanie `pg_cron` `bojo-przypomnienia` (16:00 UTC = 18:00 czasu polskiego latem).
+Sprawdzenie: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bojo-przypomnienia';`.
+Testy: `supabase/test/przypomnienia.sql` (kto dostaje, z jaką treścią, idempotencja) —
+funkcji nie widzi ani `tsc`, ani Vitest, ani Playwright, bo nie ma dla niej interfejsu.
+
+## „Powtórz ten mecz" na `/moje-gry → Historia`
+
+Gry cykliczne są świadomie wyłączone (`SHOW_RECURRING`), więc „Powtórz mecz" jest ich jedynym
+zamiennikiem — a żyło wyłącznie na stronie meczu i przy najbliższym meczu ekipy. Organizator
+wracający w poniedziałek, żeby wrzucić czwartek, miał przed sobą cztery kroki: Moje gry →
+Historia → otwórz mecz → przewiń do panelu „Zarządzaj wydarzeniem" → Powtórz.
+
+`components/events/PowtorzZHistorii.tsx` — przycisk pod kartą meczu, wyłącznie przy meczach,
+które ta osoba organizowała (`relation.isOrganizer`). Data wypełniona z góry
+(`domyslnyTerminPowtorki()` — najbliższy przyszły ten sam dzień tygodnia), długość meczu
+zachowana. Po utworzeniu przenosi na `/wydarzenia/<nowy>?utworzono=1`, czyli od razu
+do panelu „Mecz gotowy — wyślij link".
+
+Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu: tamto siedzi
+w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
+w jedno zostaje jako osobne zadanie.
+
+## Okna potwierdzeń zamiast `confirm()` przeglądarki
+
+Najcięższe decyzje organizatora potwierdzało do 2026-09-02 systemowe okno przeglądarki.
+Trzy rzeczy naraz były z tym nie tak: na telefonie (a zwłaszcza w PWA na ekranie głównym)
+szare pudełko z „OK / Anuluj" czyta się jak błąd strony, a nie jak pytanie zadane przez
+aplikację, która ma już własne, porządne okna; `confirm()` mieści JEDNO ZDANIE, więc
+„Odwołać mecz? Uczestnicy zobaczą że mecz jest odwołany." nie mówiło ani o powiadomieniach,
+ani o gościach bez konta, ani o tym, że odwołanie da się cofnąć; i nie da się w nim pokazać,
+że akcja trwa — przy wolnej sieci kończyło się to drugim kliknięciem w to samo.
+
+`components/ui/OknoPotwierdzenia.tsx` + hak `lib/usePotwierdzenie.tsx`. Hak zachowuje kształt
+wywołania jeden do jednego (`if (await potwierdz({…}) !== 'tak') return;`), więc zamiana nie
+wymagała osobnego stanu na każdą akcję — to było istotne w `EventDetailClient.tsx`, który
+audyt oznacza jako regresyjny hot spot. Okno mieści **listę konsekwencji** i opcjonalną
+DRUGĄ DROGĘ (`akcjaDodatkowaLabel`). Układ mobile-first: bazowo arkusz przy dolnej krawędzi,
+od `sm:` wyśrodkowany; główna akcja pierwsza i pełnej szerokości.
+
+Gdzie działa (strona meczu): odwołanie meczu, usunięcie ze składu, przeniesienie do rezerwy,
+dopisanie ponad limit, zatwierdzenie i usunięcie propozycji składów, masowe oznaczenie
+wpłat — oraz „Nie mogę grać" na stronie wpisu gościa. Treści mówią, KTO dostanie
+powiadomienie: przy odwołaniu meczu Bojo liczy uczestników bez konta i mówi wprost, że oni
+go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
+z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
+jest jedynym kanałem, jaki mają.
+
+Poza stroną meczu (`/grupy`, `/rezerwacje`, panel admina) zostaje na razie `confirm()` —
+świadomie, żeby ten PR dało się przejrzeć; zamiana jest mechaniczna.
 
 ## Plakietka „Wczesny etap" na landingu
 

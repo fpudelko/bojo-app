@@ -238,7 +238,6 @@ export interface EventParticipant {
   // advanced fields
   team?: 'A' | 'B';
   paidAmount: number;
-  phone?: string;
   isCaptain: boolean;
   addedBy?: string;
   isGoalkeeper: boolean;
@@ -253,8 +252,20 @@ export interface EventParticipant {
    *  reserve list (organizer can still promote by hand) but skipped by the queue. */
   claimPassed: boolean;
   /** Jednorazowy token, którym osoba dopisana ręcznie zwiąże ten wpis ze swoim
-   *  kontem (migracja `066`). Puste dla wpisów, które już mają właściciela. */
+   *  kontem (migracja `066`).
+   *
+   *  UWAGA: wiersze z listy składu go NIE NIOSĄ — od migracji `127` kolumna
+   *  `claim_token` nie jest czytelna przez API (był to sekret na okaziciela
+   *  wystawiony każdemu, kto otworzył stronę meczu). Pole zostaje wyłącznie
+   *  dla wyników operacji, które token tworzą (`addGuest`, zapis gościa bez
+   *  konta). Żeby wysłać zaproszenie z listy składu, poproś o token funkcją
+   *  `pobierzTokenGoscia()` — wyda go organizatorowi albo osobie, która tego
+   *  gościa dopisała. Do samego PYTANIA „czy jest co przejmować" wystarczy
+   *  `isGuest && !claimedAt`. */
   claimToken?: string;
+  /** Kiedy wpis gościa został związany z kontem (migracja `066`). Ustawione =
+   *  nie ma już czego przejmować. */
+  claimedAt?: string;
   /** How this participant intends to pay (chosen when joining a paid match). */
   paymentMethod?: PaymentMethod;
   /** Whether they hold one of the event's accepted sports cards. */
