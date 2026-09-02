@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventUrl, eventShareText, type DaneDoUdostepnienia } from '@/lib/eventShare';
+import { eventUrl, eventShareText, type DaneDoUdostepnienia, tekstOdwolania } from '@/lib/eventShare';
 
 const bazowy: DaneDoUdostepnienia = {
   sport: 'piłka nożna',
@@ -93,5 +93,40 @@ describe('eventShareText', () => {
   it('nie wywraca się na niepoprawnej dacie', () => {
     const t = eventShareText({ ...bazowy, date: 'bez-sensu' });
     expect(t.split('\n')[1]).toContain('bez-sensu');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tekstOdwolania — wiadomość na czat, gdy mecz się nie odbędzie.
+//
+// PO CO ISTNIEJE: `cancelEvent()` powiadamia uczestników Z KONTEM (migracja
+// `070` plus push), ale wyzwalacz ma warunek `user_id IS NOT NULL`, więc gość
+// bez konta nie dostaje NICZEGO. Dla niego czat organizatora jest jedynym
+// kanałem — i to jest ta wiadomość.
+// ---------------------------------------------------------------------------
+describe('tekstOdwolania', () => {
+  it('pierwsza linia mówi wprost, że mecz jest odwołany', () => {
+    expect(tekstOdwolania(bazowy).split('\n')[0]).toBe('❌ Odwołane: Piłka nożna 7v7');
+  });
+
+  it('niesie datę, godzinę i miejsce — bez nich wiadomość nie mówi, KTÓRY mecz', () => {
+    const linie = tekstOdwolania({ ...bazowy, fieldName: 'Orlik Sołacz', fieldAddress: 'ul. Niestachowska 8' }).split('\n');
+    expect(linie[1]).toContain('18:00');
+    expect(linie[1]).toContain('sierpnia');
+    expect(linie[2]).toBe('Orlik Sołacz, ul. Niestachowska 8');
+  });
+
+  it('kończy się jednoznacznym zdaniem, nie samym nagłówkiem', () => {
+    expect(tekstOdwolania(bazowy).split('\n')[3]).toBe('Mecz się nie odbędzie.');
+  });
+
+  it('używa własnego tytułu meczu, gdy organizator go nadał', () => {
+    expect(tekstOdwolania({ ...bazowy, title: 'Środowa gierka' })).toContain('Odwołane: Środowa gierka');
+  });
+
+  // Ta sama zasada co w `eventShareText`: zła data nie może wywrócić okna
+  // odwołania, bo organizator zostaje wtedy bez możliwości powiadomienia ekipy.
+  it('nie wywraca się na niepoprawnej dacie', () => {
+    expect(() => tekstOdwolania({ ...bazowy, date: 'bez-sensu' })).not.toThrow();
   });
 });

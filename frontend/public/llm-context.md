@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-08-28 · migracja `126` · 53 tabele
+**Stan na:** 2026-09-02 · migracja `128` · 53 tabele
 
 ---
 
@@ -355,6 +355,43 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
+
+PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
+w Bojo, którego zapisany nie mógł cofnąć — usunąć go mógł wyłącznie organizator. Gość nie
+dostawał też żadnego powiadomienia: wyzwalacze odwołania meczu, zmiany warunków i usunięcia
+meczu pomijają wiersze bez konta, więc o odwołanym meczu nie dowiadywał się w ogóle
+i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do swojego wpisu
+bezpowrotnie. Skutki brał na siebie organizator: skład kłamał dokładnie w tej części,
+którą sam przyprowadził. (2) Skład meczu czyta w Bojo każdy (polityka `USING (true)`),
+a zapytanie o uczestników prosiło o wszystkie kolumny — więc adresy e-mail gości, telefony
+i tokeny przejęcia wpisu wychodziły publicznym API dla dowolnego meczu, także prywatnego.
+(3) Najcięższe decyzje organizatora (odwołanie meczu, usunięcie ze składu) potwierdzało
+systemowe okno przeglądarki, które mieści jedno zdanie — nie mówiło ani kto dostanie
+powiadomienie, ani że goście bez konta go nie dostaną, ani że odwołanie da się cofnąć.
+
+ROZWIĄZANIE BOJO: (1) link, który gość dostaje przy zapisie, jest teraz linkiem do JEGO
+zapisu: widzi stan meczu (z odwołaniem na samej górze), swoją pozycję w składzie, koszt
+i ma przycisk „Nie mogę grać — wypisz mnie", który zwalnia miejsce i przekazuje je pierwszej
+osobie z rezerwy. Link zostaje zapamiętany na urządzeniu, więc wracając na stronę meczu gość
+widzi „jesteś zapisany(a)" zamiast zaproszenia do zapisania się drugi raz, i może go sobie
+wysłać („Zapisz sobie link do swojego zapisu"). (2) publiczne API oddaje ze składu wyłącznie
+to, co widać na ekranie — imię, rola, rezerwa, płatność; e-maile, telefony i tokeny wychodzą
+z zasięgu ról API, a token przejęcia wpisu wydaje funkcja bazy wyłącznie organizatorowi
+i osobie, która gościa dopisała. (3) potwierdzenia decyzji to okna aplikacji z listą
+konsekwencji; przy odwołaniu meczu Bojo mówi wprost, ilu uczestników nie ma konta i nie
+dostanie powiadomienia, i daje drugą drogę: „Odwołaj i wyślij wiadomość" z gotowym tekstem
+na czat.
+
+MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
+`token_wpisu_goscia()`) i `128` (`wypisz_wpis_goscia()`, rozszerzone
+`podejrzyj_wpis_goscia()`); `lib/mojWpisGoscia.ts` (pamięć linku na urządzeniu),
+`lib/guestClaim.ts`, `lib/eventShare.ts` (`tekstOdwolania()`),
+`components/ui/OknoPotwierdzenia.tsx` + `lib/usePotwierdzenie.tsx`,
+`app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
+Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
+i „Gość zarządza swoim zapisem").
+
 ### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
 
 PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
@@ -679,32 +716,3 @@ rysuje `EventBrowseCard`. Pusty stan „Grasz" idzie przez nowy prop `emptyState
 `MyMatchesSection` (`components/home/dashboard/DashboardSections.tsx`) — gdy podany,
 nagłówek renderuje się mimo pustej listy zamiast całej sekcji znikającej (`return null`).
 
-### 2026-08-27 — Filtr „miejscowość + ile km" i koniec znikających pinezek
-
-PROBLEM: Mapa Bojo gubiła pinezki. Lista startowa (okolica gracza, a bez zgody Poznania)
-dobierana przy wejściu do katalogu wpisywała się w to samo pole stanu, z którego żyły
-pinezki, więc mapa pokazywała Poznań niezależnie od tego, dokąd użytkownik przewinął —
-nad Krakowem nie było widać nic. Osobno: zatwierdzenie filtrów w arkuszu kasowało
-większość z nich, bo cztery kolejne zapisy do adresu czytały ten sam, nieodświeżony stan
-i nadpisywały się nawzajem. Do tego nie było jak powiedzieć „szukam wokół Wrocławia":
-promień dało się liczyć wyłącznie od własnej lokalizacji, a filtr po nazwie miasta
-opierałby się na kolumnie `fields.city` wypełnionej w dwóch procentach.
-
-ROZWIĄZANIE BOJO: Pinezki pokazują to, co leży w bieżącym kadrze mapy (albo wyniki
-szukania po tekście); lista startowa jest odtąd podpowiedzią wyłącznie dla LISTY i tylko
-przy oddalonej mapie. Filtry katalogu zapisują się do adresu jednym wywołaniem, więc
-żaden nie ginie. Arkusz filtrów — w obu trybach, gier i katalogu — otwiera sekcja „Gdzie
-szukam": wpisujesz nazwę miejscowości ALBO KOD POCZTOWY, wybierasz promień (5/10/25/50
-km) i Bojo pokazuje to, co jest w okolicy tego punktu. W trybie meczów wybrana
-miejscowość zastępuje położenie gracza — kto wpisał „Wrocław", pyta o Wrocław, choćby
-stał w Poznaniu — i Bojo nie prosi wtedy o zgodę na lokalizację.
-
-Filtr działa po ODLEGŁOŚCI od punktu, nie po nazwie miasta w bazie: miejscowość wyznacza
-tylko współrzędne, a te ma każdy obiekt w katalogu i każdy mecz.
-
-MECHANIKA: `frontend/src/lib/miejscowosci.ts` (`szukajMiejscowosci()`, `PROMIENIE_KM`,
-rozpoznanie kodu pocztowego), `components/map/WyborMiejscowosci.tsx`, tryb `?miejscowosc=`
-w `app/api/geocode/route.ts` (Nominatim, `featuretype=settlement`, pomijane dla kodu
-pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx`:
-rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
-`listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.

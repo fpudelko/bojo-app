@@ -54,6 +54,23 @@ GRANT ALL ON ALL SEQUENCES  IN SCHEMA public TO anon, authenticated, service_rol
 GRANT ALL ON ALL FUNCTIONS  IN SCHEMA public TO anon, authenticated, service_role;
 SQL
 
+# …ale NIE dla `event_participants`. Powyższe `GRANT ALL ON ALL TABLES` cofa
+# migrację `127`, która celowo zabiera rolom API prawo odczytu e-maila gościa,
+# telefonów i tokenów. Bez tego przywrócenia lokalny stos byłby BARDZIEJ
+# otwarty niż produkcja, a scenariusze przechodziłyby na uprawnieniach, których
+# na żywo nie ma — czyli fałszywy spokój, ta sama klasa pułapki co przy atrapie
+# `shim.sql` w `baza-testowa.sh` (tam odwrotnie: baza bardziej restrykcyjna).
+echo "→ Przywracam kolumnowe ograniczenia z migracji 127…"
+psql "$DB_URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+REVOKE SELECT ON event_participants FROM anon, authenticated;
+GRANT SELECT (
+  id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team,
+  paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp,
+  payment_method, has_sports_card, sports_card_provider, claim_offered_at,
+  claim_passed, claimed_at, zapisano_at
+) ON event_participants TO anon, authenticated;
+SQL
+
 echo "→ Konta testowe…"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f supabase/seed-test-users.sql
 

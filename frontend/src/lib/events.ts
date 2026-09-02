@@ -109,9 +109,12 @@ function toParticipant(row: any): EventParticipant {
     avatarUrl: row.avatarUrl ?? undefined,
     team: row.team ?? undefined,
     paidAmount: row.paid_amount ?? 0,
-    phone: row.phone ?? undefined,
     isCaptain: row.is_captain ?? false,
+    // `claim_token` NIE przychodzi już z wiersza (migracja `127`) — patrz
+    // komentarz przy `EventParticipant.claimToken`. Zostawiamy odczyt, bo tę
+    // samą funkcję woła `addGuest`, gdzie token przychodzi z RPC.
     claimToken: row.claim_token ?? undefined,
+    claimedAt: row.claimed_at ?? undefined,
     addedBy: row.added_by ?? undefined,
     isGoalkeeper: row.is_goalkeeper ?? false,
     pendingApproval: row.pending_approval ?? false,
@@ -340,9 +343,17 @@ export async function getEvent(
     delete eventRow.fields;
   }
 
+  // KOLUMNY WYMIENIONE Z NAZWY, nie `*` — i to nie jest higiena, tylko warunek
+  // działania. Migracja `127` zdjęła z `event_participants` uprawnienie SELECT
+  // na całą tabelę (e-mail gościa, telefony i tokeny wychodziły w każdej
+  // odpowiedzi dla każdego), więc `select('*')` dostaje dziś 403.
+  // Dokładasz kolumnę do tabeli → dopisz ją TAM i TUTAJ.
   const { data: partRows, error: pErr } = await supabase
     .from('event_participants')
-    .select('*')
+    // Jedna linia, bez sklejania stringów: supabase-js wnioskuje kształt wiersza
+    // z LITERAŁU przekazanego do `.select()`, a złożenie przez `+` gubi ten typ
+    // i cały wynik staje się `GenericStringError`.
+    .select('id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp, payment_method, has_sports_card, sports_card_provider, claim_offered_at, claim_passed, claimed_at, zapisano_at')
     .eq('event_id', id)
     .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });
@@ -680,7 +691,7 @@ export async function addGuest(
   isReserve = false,
   addedByUserId?: string,
   asGoalkeeper = false,
-): Promise<{ id: string; claimToken: string; isReserve: boolean }> {
+): Promise<{ id: string; claimToken: string | null; isReserve: boolean }> {
   const safeName = validateName(name, 'Imię gościa', 80);
 
   // If not explicitly added to reserve, check capacity and overflow to reserve
@@ -701,10 +712,21 @@ export async function addGuest(
       is_goalkeeper: asGoalkeeper,
       added_by: addedByUserId ?? null,
     })
-    .select('id, claim_token')
+    .select('id')
     .single();
   if (error) throw new Error(error.message);
-  return { id: data.id, claimToken: data.claim_token, isReserve: reserve };
+
+  // Token przychodzi osobno, funkcją. Do migracji `127` wracał wprost
+  // z `.select('id, claim_token')` — ale ta sama kolumna była wtedy czytelna
+  // dla każdego, kto otworzył stronę meczu. `token_wpisu_goscia()` wyda go
+  // organizatorowi albo osobie, która gościa dopisała, czyli dokładnie temu,
+  // kto właśnie kliknął „Dopisz".
+  //
+  // Cicha porażka jest tu w porządku i jest zamierzona: gość jest już
+  // w składzie, a brak tokenu odbiera wyłącznie możliwość wysłania mu
+  // zaproszenia od razu — organizator zrobi to potem z listy składu.
+  const { data: token } = await supabase.rpc('token_wpisu_goscia', { p_uczestnik: data.id });
+  return { id: data.id, claimToken: (token as string | null) ?? null, isReserve: reserve };
 }
 
 /** Guest self-signup without an account: collect name, email, and optional role/payment.
@@ -743,20 +765,21 @@ export async function joinEventAsGuest(
   const row = Array.isArray(data) ? data[0] : data;
   const claimToken: string | null = row.claim_token ?? null;
 
-  // Determine if guest landed on reserve/pending by checking the database
-  // (we could add it to the RPC return, but for now query it). Skipped when the entry
-  // already has an owner — there is no token to look it up by, and the sign-in screen
-  // shown in that case does not mention the reserve list anyway.
+  // Czy gość wylądował na rezerwie / w poczekalni — z `podejrzyj_wpis_goscia`
+  // (migracja `128`), nie z zapytania po `claim_token`.
+  //
+  // Filtrowanie po tej kolumnie przestało być możliwe wraz z migracją `127`:
+  // PostgREST wymaga uprawnienia SELECT także do kolumny użytej w warunku,
+  // a token jest dziś poza listą czytelną przez API. Ta sama funkcja niesie
+  // przy okazji stan meczu, którego strona „Twój zapis" i tak potrzebuje —
+  // czyli jedno RPC zamiast zapytania po sekrecie.
   let isReserve = false;
   let pendingApproval = false;
   if (claimToken) {
-    const { data: participant } = await supabase
-      .from('event_participants')
-      .select('is_reserve, pending_approval')
-      .eq('claim_token', claimToken)
-      .single();
-    isReserve = participant?.is_reserve ?? false;
-    pendingApproval = participant?.pending_approval ?? false;
+    const { data: podglad } = await supabase.rpc('podejrzyj_wpis_goscia', { p_token: claimToken });
+    const wpis = Array.isArray(podglad) ? podglad[0] : podglad;
+    isReserve = wpis?.na_rezerwie ?? false;
+    pendingApproval = wpis?.czeka_na_akceptacje ?? false;
   }
 
   return {
