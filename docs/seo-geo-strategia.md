@@ -1,6 +1,8 @@
 # Bojo — strategia SEO i GEO
 
-> **Stan na:** 2026-08-23 · audyt kodu na commicie `318cd85` · warstwa produkcyjna
+> **Stan na:** 2026-09-01 (runda 4 — pierwsze twarde liczby z pomiaru właściciela
+> 2026-08-29: Search Console 7a.2, Core Web Vitals 7a.1). Wcześniej: 2026-08-23 · audyt
+> kodu na commicie `318cd85` · warstwa produkcyjna
 > **niezweryfikowana** (patrz „Czego nie sprawdziłem"). Rozdział 0 doszedł do
 > 2026-08-25 (runda 2 promptu, `docs/prompt-seo-geo.md`) — rozjazd BACKLOG/kod
 > ponownie sprawdzony, warstwa produkcyjna nadal niezweryfikowana z nowym powodem.
@@ -602,6 +604,34 @@ Jest i druga strona: nazwa jest semantycznie **natywna** dla dziedziny. Gdy mark
 zaistnieje, „bojo" i „boisko" wzmacniają się nawzajem. Problemem jest wyłącznie okres,
 w którym marka jest nieznana — czyli teraz.
 
+**AKTUALIZACJA (runda 4, 2026-09-01) — ten klaster przestał być SZACUNKIEM.** Pomiar
+z 7a.2 daje pierwsze twarde liczby w całym rozdziale 2 i wypada z nich coś, czego punkt 1
+wyżej nie przewidywał. Punkt 1 mówił „nie walczymy o «co to jest bojo»" — a to jest
+**jedyne zapytanie, na którym Bojo w ogóle się wyświetla**: „co to bojo" (18 wyświetleń),
+„bojo" (8), „bojo co to" (7), przy średniej pozycji 9,4 i **zerowym CTR**. Ruch, o który
+świadomie nie walczyliśmy, i tak przychodzi; przegrywamy go dopiero na kliknięciu.
+
+Diagnoza tego zera, postawiona 2026-09-01 na treści metadanych, nie na pozycji: tytuł
+i opis, którymi Bojo stawało obok definicji słownikowej, **potwierdzały tę definicję
+zamiast ją podważać**. Dawny tytuł brzmiał „Bojo — zbierz ekipę, zagraj dziś | Boiska
+i mecze w Polsce": słowa „boiska", „zagraj", „zbierz ekipę" są dokładnie tym, czego
+oczekuje ktoś, kto właśnie przeczytał, że „bojo" to boisko. Nie było w nim ani jednego
+sygnału, że chodzi o produkt — a zgodnie z punktem 2 tego rozdziału jedynym takim
+sygnałem jest **rzeczownik kategorii postawiony przy marce**.
+
+Poprawione w tej rundzie (`frontend/src/content/metaWyszukiwarki.ts`, używane przez
+`app/layout.tsx` i `app/dlaczego-bojo/page.tsx` — dwie jedyne strony, które Google miał
+wtedy w indeksie): tytuł domyślny to dziś „Bojo (bojo.pl) — aplikacja do organizowania
+amatorskich meczów", a opis zaczyna się od nazwy encji i mówi wprost, co robi organizator.
+Powierzchnie, na których odbiorca JUŻ wie, czym Bojo jest — podgląd linku w czacie
+i nazwa pod ikoną PWA — zostały przy dawnym haśle; rozdzielenie jest celem i jest
+przypięte testem w obie strony (`src/__tests__/tytulMarkowy.test.ts`).
+
+**NIEZWERYFIKOWANE:** czy to podniesie CTR. Sprawdzenie: `Skuteczność → Wyniki
+wyszukiwania` w Search Console, ten sam zakres 3 miesięcy, porównanie CTR na zapytaniach
+markowych za 4–6 tygodni od wdrożenia. To pierwsza zmiana w całym tym dokumencie, która
+ma wartość wyjściową PRZED sobą, a nie po.
+
 ### 2d. Warstwa GEO — zestaw pomiarowy
 
 Czterdzieści promptów po polsku, w czterech koszykach, w **Załączniku A**. Zestaw jest
@@ -1148,6 +1178,43 @@ i obowiązuje tak samo tutaj.
 
 ---
 
+### 5f. „Przeglądanie agentowe" 2/3 na stronie obiektu — hipotezy (runda 4)
+
+Pomiar z 7a.1 zostawił jedno pytanie bez odpowiedzi: **strona obiektu jest jedynym
+z pięciu zmierzonych typów stron z wynikiem 2/3 w kategorii „Przeglądanie agentowe"**
+(pozostałe cztery mają 3/3) — i jest to typ o ~30 tys. adresów, więc cokolwiek tam pada,
+pada w skali całego serwisu. Zrzut właściciela nie rozwijał tej sekcji, więc **nie
+wiadomo, który audyt jest czerwony**. Hipotezy uszeregowane wg tego, co odróżnia tę
+stronę od czterech pozostałych — wszystkie sprawdzone w kodzie 2026-09-01:
+
+1. **Ręcznie skręcany JSON-LD (najbardziej prawdopodobne).** `SportsActivityLocation`
+   w `app/boisko/[id]/page.tsx` jest **jedynym blokiem danych strukturalnych w repo
+   pisanym inline, poza `lib/structuredData.ts`** — i jedynym bez asercji
+   w `structuredData.test.ts`. Cztery pozostałe zmierzone typy biorą JSON-LD
+   z przetestowanej biblioteki. To jedyna różnica, która pokrywa się dokładnie z tym,
+   że pada wyłącznie ta jedna strona.
+2. **Treść dociągana po renderze.** Sekcja „Nadchodzące mecze" od 2026-08-31 odświeża
+   się po stronie klienta (`VenueDetailClient.tsx`), więc wersja serwerowa i wersja po
+   nawodnieniu mogą się różnić. Żaden z pozostałych czterech typów tego nie robi.
+3. **Elementy interaktywne bez tekstu** — przyciski-ikony, `tel:`/`mailto:`, mapa.
+   Najmniej prawdopodobne, i to jest argument z samego pomiaru: hub katalogu ma
+   **niższą** dostępność (86/87) niż strona obiektu, a mimo to 3/3 w tej kategorii.
+   Sama dostępność jej więc nie przewraca.
+
+**Sposób rozstrzygnięcia — tańszy niż ponowny pomiar (dla Jana, ~2 minuty).** Nie
+zaczynać od pagespeed: wkleić adres dowolnej strony obiektu do walidatora danych
+strukturalnych Google (Rich Results Test) albo do validator.schema.org. Jeśli trafna
+jest hipoteza 1, błąd wyjdzie natychmiast i z nazwy pola. Dopiero gdy walidator jest
+czysty, wracamy na `pagespeed.web.dev` → ta sama strona obiektu → rozwinąć sekcję
+„Przeglądanie agentowe" i przepisać nazwy trzech audytów tutaj.
+
+**Sprawdzone przy okazji i NIEBĘDĄCE luką:** `alternates.canonical` na
+`/wydarzenia/[id]`. Wcześniejsza notatka rundy 4 wymieniała jego brak jako dług — to
+nieprawda. `eventMeta.ts#metadataDlaMeczu()` ustawia canonical dla meczu publicznego,
+a mecz niepubliczny i nieistniejący dostają celowo samo `title: 'Mecz'` +
+`robots {index:false, follow:false}`: canonical na stronie `noindex` nie jest potrzebny,
+a odróżnienie tych dwóch przypadków zdradzałoby istnienie prywatnego meczu (P1).
+
 ## Tło konkurencyjne — poza osią strategii
 
 Oś tego dokumentu została świadomie utrzymana tam, gdzie stawia ją
@@ -1205,12 +1272,48 @@ zwracać definicję słownikową.
 
 **2. Trzy profile, raz a dobrze — łącznie ok. 2 godzin, jednorazowo.**
 Nie dziesięć katalogów. Trzy miejsca, które modele realnie cytują przy pytaniach
-„czym zastąpić X" i „jaka aplikacja do Y", i które nie wymagają utrzymania:
-katalogi alternatyw dla oprogramowania oraz katalog aplikacji. Opis w każdym z nich
-to ten sam akapit bezpośredniej odpowiedzi co z 3a — jedno źródło, zero wariantów.
-Po założeniu profili **wracamy do `sameAs` w danych strukturalnych** (5a), bo dopiero
-wtedy jest co tam wpisać. **Kto:** Jan. **Sygnał:** marka pojawia się w odpowiedzi na
-pytanie kategorialne z koszyka 2 w Załączniku A.
+„czym zastąpić X" i „jaka aplikacja do Y", i które nie wymagają utrzymania.
+Opis w każdym z nich to ten sam akapit bezpośredniej odpowiedzi co z 3a — jedno źródło,
+zero wariantów. Po założeniu profili **wracamy do `sameAs` w danych strukturalnych**
+(5a), bo dopiero wtedy jest co tam wpisać. **Kto:** Jan. **Sygnał:** marka pojawia się
+w odpowiedzi na pytanie kategorialne z koszyka 2 w Załączniku A.
+
+**Konkretne trzy (runda 4, 2026-09-01).** Poprzednia wersja tego punktu mówiła ogólnie
+„katalogi alternatyw dla oprogramowania oraz katalog aplikacji" — i to jest powód, dla
+którego pozycja 15 stała przez trzy rundy: nie było czego kliknąć. Wszystkie trzy nazwy
+są **SZACUNKIEM** co do dzisiejszych zasad przyjmowania wpisów, bo sesja agenta nie ma
+dostępu do sieci; przy każdej podany sposób sprawdzenia, który zajmuje minutę.
+
+| Miejsce | Dlaczego to | Jak sprawdzić przed założeniem |
+|---|---|---|
+| **AlternativeTo** | Cytowany przez modele dokładnie przy zapytaniu „alternatywa dla X" — a to jest klaster „Zamiast czatu" z 2a, ten o najniższej trudności i najwyższym dopasowaniu do Bojo. Wpis wymaga nazwania kategorii, czyli robi dokładnie to, czego potrzebuje 2c. | Otworzyć stronę, sprawdzić, czy dodanie aplikacji nie wymaga konta z historią i czy pozycja przechodzi bez moderacji tygodniami. |
+| **LinkedIn — strona firmy** | Najtańszy sposób na encję, która ma własny, szybko indeksowany adres i którą da się wpisać w `sameAs` bez czekania. Nie jest kanałem sprzedaży dla organizatora amatorskiego — i nie ma nim być; ma być kotwicą tożsamości. | Nic do sprawdzenia; założenie zajmuje kilkanaście minut. |
+| **Trzecie — do wyboru przez Jana** | Świadomie zostawione otwarte. Kandydaci: katalog aplikacji (np. SaaSHub) albo polski katalog startupów. **Nie rekomenduję żadnego w ciemno**, bo wartość zależy od tego, czy serwis jest realnie cytowany po polsku, a tego z tej sesji nie da się sprawdzić. | Zapytać wprost ChatGPT/Perplexity po polsku o „aplikacje do organizowania meczów amatorskich" i zobaczyć, JAKIE serwisy model cytuje jako źródło. Ten, który się powtarza, jest tym trzecim. |
+
+Ta ostatnia kolumna jest przy okazji najtańszym możliwym badaniem: robi się je przy
+pierwszym koszyku Załącznika A, bez osobnej roboty.
+
+**Gotowe copy profilu — do skopiowania bez zmian** (to ten sam direct answer co
+`DLACZEGO_ODPOWIEDZ` w `frontend/src/content/dlaczego.ts`; jedno źródło, żeby opisy
+w trzech miejscach nie zaczęły się rozjeżdżać):
+
+> Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów sportowych
+> w Polsce, używana zamiast grupy na Facebooku i ankiety na WhatsAppie. Liczy zajęte
+> miejsca zamiast „+1" w komentarzach, prowadzi listę rezerwową z kolejnością, dzieli
+> koszt wynajmu obiektu i uwzględnia zniżki z kart Multisport, FitProfit i Medicover
+> Sport. Organizator wysyła jeden link na czat ekipy, a gracze dołączają bez zakładania
+> konta. Nazwa pokrywa się z potocznym polskim słowem „bojo" oznaczającym boisko — ten
+> wpis dotyczy aplikacji.
+
+Krótszy wariant, gdy katalog ma limit ~160 znaków:
+
+> Bojo (bojo.pl) — aplikacja do organizowania amatorskich meczów: zakładasz mecz,
+> wysyłasz jeden link, widzisz kto gra. Gracze dołączają bez zakładania konta.
+
+**Czego w tym opisie NIE ma i nie wolno dopisać:** rezerwacji obiektów, powiadomień
+SMS/e-mail, turniejów, rankingów, płatności online, automatycznego awansu z rezerwy.
+Pełna lista → [outreach-organizatorzy.md](./outreach-organizatorzy.md) §6
+i `frontend/src/content/zakazaneFrazy.ts`.
 
 **3. Wkład zwrotny do OpenStreetMap — ODRZUCONE 2026-08-25.**
 Cały katalog Bojo pochodzi z OSM i mamy dane, których OSM nie ma (potwierdzenia
@@ -1441,6 +1544,54 @@ obiektach grają.
 Warunek, który odrzucił połowę pomysłów: **musi działać przy stu użytkownikach.**
 Wszystko, co potrzebuje skali, jest planem na cudzy produkt.
 
+### Runda 4 (2026-09-01): czy 36 tysięcy stron obiektów jest aktywem, czy ryzykiem R1
+
+Pytanie postawione wprost, bo cała fosa niżej opiera się na katalogu, a katalog jest dziś
+w 99,9% pusty od strony Bojo. Co dostaje robot na obiekcie bez ani jednego meczu
+(sprawdzone w kodzie 2026-09-01):
+
+- **unikalne dla tej strony:** nazwa, adres, miejscowość, sporty, nawierzchnia,
+  oświetlenie, kryty/otwarty, współrzędne, okruszki, canonical, linki do hubu sportu
+  i województwa — **wszystko to pochodzi z importu OpenStreetMap**;
+- **jedyne zdanie własne Bojo:** `content/opisObiektu.ts` kończy opis stałym „Szukasz
+  graczy? Stwórz otwarty mecz na Bojo i zbierz skład przez jeden link, bez zakładania
+  konta dla dołączających." — **bajtowo identycznym na wszystkich 36 268 stronach**,
+  trafiającym dodatkowo do `description` w JSON-LD;
+- **reszta stała:** „Brak nadchodzących meczów na tym boisku.", przyciski „Zorganizuj
+  tutaj" i „Zobacz na mapie", stopka, atrybucja OSM.
+
+Innymi słowy: F1, F3 i F4 są **zbudowane w całości**, ale każde z nich renderuje treść
+dopiero po pierwszym meczu na obiekcie — a to jest ~40 obiektów na 36 268. Na pozostałych
+Bojo mówi jedno zdanie, to samo, trzydzieści sześć tysięcy razy.
+
+**Rozstrzygnięcie: dziś to ani aktywo, ani ryzyko — to niewiadoma, i po raz pierwszy jest
+sposób, żeby przestała nią być.** R1 („cienkie strony podkopują zaufanie do domeny")
+realizuje się dopiero wtedy, gdy wyszukiwarka masowo te strony **zeskanuje i odrzuci**.
+Pomiar z 7a.2 mówi: 2 strony zaindeksowane i **zero** w kategoriach „Zeskanowano — obecnie
+bez indeksu" oraz „Wykryto — obecnie bez indeksu". Google tych stron nie odrzucił — on
+o nich nie wiedział, bo mapa witryny nigdy nie została zgłoszona. Zgłoszenie z 2026-08-29
+uruchomiło dokładnie ten eksperyment, a sygnał wczesnego ostrzegania R1 jest w rozdziale 9
+zdefiniowany jako wzrost tych dwóch kategorii. Rozstrzyganie tego teraz, przed odczytem,
+byłoby powtórzeniem błędu, który runda 3 nazwała po imieniu: działaniem bez wartości
+wyjściowej.
+
+**Co z tego wynika operacyjnie:** nie ruszamy skali indeksu (poz. 19 i tak odrzucona)
+i nie dokładamy treści „na wszelki wypadek". Czekamy na odczyt — pozycja 1 roadmapy
+rundy 4, praca Jana, minuty.
+
+**Jedna rzecz warta zrobienia niezależnie od wyniku tego odczytu — REKOMENDACJA, nie
+decyzja.** Zdanie, którym Bojo różni się od katalogu OSM, jest dziś stałe; da się dołożyć
+fakt **unikalny dla konkretnego obiektu**, nie wymagający ani jednego rozegranego meczu:
+najbliższe obiekty tego samego sportu w okolicy. Dane już są (współrzędne całego
+katalogu), narzędzia też — `kadrWokol()` (`lib/api.ts`) i wzorzec zapytania
+z `policzBoiskaWOkolicy()`, z filtrem `map_visibility='public'` i `seo_tier IN (1,2)` jak
+w `sitemap-boiska/[plik]/route.ts`. To nie jest nowy typ strony (żaden zakaz z rozdziału 9
+nie zostaje naruszony), działa przy stu użytkownikach i przy zerze meczów, a przy okazji
+jest warstwą linkowania wewnętrznego — czyli tym, co 4b nazywa najtańszą rzeczą
+o największym wpływie. Koszt: jedno zapytanie na render przy `revalidate = 86400`.
+**Nie zbudowane w tej rundzie świadomie:** to nowa sekcja interfejsu na 36 tys. stron,
+czyli decyzja produktowa właściciela, nie oczywistość do dopchnięcia przy okazji audytu.
+
 ### F1. Katalog weryfikowany przez grających, nie przez import
 
 **Na czym polega:** przy każdym obiekcie gracze potwierdzają oświetlenie i nawierzchnię
@@ -1607,6 +1758,39 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | ~~Core Web Vitals — pomiar, potem decyzja~~ **ZMIERZONE 2026-08-29; decyzja nadal do podjęcia** | DŁUGI | nieznany | łatwa | Franek | 7a.1 | spełnione: pięć typów stron, telefon+pulpit, przez właściciela na pagespeed.web.dev |
 | 28 | ~~Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM~~ **ZROBIONE 2026-08-26** | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx`; `scripts/audyt-robota.mjs#duplikatyTresci` | spełnione: detektor łapał 5 powtórzonych fragmentów przed poprawką, 0 po |
+| 29 | **Odczyt propagacji sitemapy** — czy „Wykryte strony" przy `sitemap-index.xml` ruszyło z zera od 2026-08-29 | QUICK WIN | **najwyższy** | łatwa | Jan | Search Console → Indeksowanie → Mapy witryn | rozstrzyga, czy problemem był sam brak zgłoszenia, czy treść map wojewódzkich. Do tego odczyt „Zeskanowano/Wykryto — obecnie bez indeksu" jako sygnał R1 |
+| 30 | ~~Tytuł i opis pod zapytanie markowe (2c) — rzeczownik kategorii przy marce~~ **ZROBIONE 2026-09-01** | QUICK WIN | wysoki | łatwa | Franek | `content/metaWyszukiwarki.ts`, `app/layout.tsx`, `app/dlaczego-bojo/page.tsx`; test `tytulMarkowy.test.ts` | zweryfikowane `curl` bez JS na surowym HTML; **skutek dla CTR do zmierzenia** za 4–6 tygodni w Search Console |
+| 31 | Rozstrzygnąć „Przeglądanie agentowe" 2/3 na stronie obiektu (5f) | ŚREDNI | średni | łatwa | Jan (2 min), potem Franek | Rich Results Test / validator.schema.org, potem `app/boisko/[id]/page.tsx` | wiadomo, który z trzech audytów pada — dziś NIEZWERYFIKOWANE |
+| 32 | Fakt unikalny dla obiektu bez meczów — pobliskie obiekty tego sportu (rozdz. 8, runda 4) | ŚREDNI | średni | średnia | decyzja właściciela, potem Franek | `lib/api.ts#kadrWokol`, `VenueDetailClient.tsx` | REKOMENDACJA, nie zadanie: czeka na odczyt z poz. 29 |
+
+### WERDYKT RUNDY 4 (2026-09-01) wobec oceny rundy 3
+
+Runda 3 orzekła: „dalsza praca w kodzie nie ma sensu, bo pomiar bazowy po trzech rundach
+nadal wynosi zero". **Rozstrzygnięcie: kierunek się broni, ale jedna z dwóch przesłanek
+upadła, a druga okazała się mocniejsza, niż była zapisana.**
+
+**Upadła:** „pomiar wynosi zero". 2026-08-29 właściciel zmierzył Core Web Vitals (7a.1)
+i Search Console (7a.2). Zdanie przestało być prawdziwe i zostaje tu wyłącznie jako
+historia.
+
+**Wzmocniła się, i to jest najważniejsze odkrycie tej rundy:** przyczyną zerowej
+widoczności nie była jakość 21 wdrożonych zmian. **Mapa witryny nigdy nie została
+zgłoszona do Search Console.** Google nie odrzucił tych stron — on o nich nie wiedział.
+To znaczy, że efekt pracy rund 1–3 jest wciąż **przed** pomiarem, a nie po nim; sześć
+tygodni optymalizacji trafiało do serwisu, którego wyszukiwarka nie miała jak odkryć poza
+stroną główną. Wniosek rundy 3, że kod zrobił swoje, zostaje w mocy — ale nie z powodu,
+dla którego został wtedy napisany.
+
+**Co z tego wynika na najbliższe tygodnie.** Praca o najwyższym wpływie to nadal nie kod,
+tylko odczyt — pozycja 29, minuty roboty Jana. Do tego dwie rzeczy prawdziwe niezależnie
+od tego odczytu: pozycja 30 (zrobiona w tej rundzie — jedyny klaster z realnym ruchem miał
+tytuł potwierdzający definicję słownikową zamiast jej przeczyć) i pozycja 31
+(rozstrzygnięcie 2/3, dwie minuty w przeglądarce, dotyczy 30 tys. adresów).
+
+**Czego ta runda NIE zmienia:** wąskiego gardła. Brak organizatorów — ~40 obiektów
+z jakimkolwiek meczem na 36 268 — nie jest ruszony przez żadną z liczb z 2026-08-29
+i zostaje na pierwszym miejscu. Żadna zmiana SEO go nie ruszy; rusza go pozycja 22
+i praca opisana w [strategia.md](./strategia.md).
 
 ### Czy dalsza praca w kodzie ma jeszcze sens — ocena z 2026-08-26 (runda 3)
 
@@ -1801,9 +1985,44 @@ D2 i D13).
 
 ### Tabela wyników
 
-| Data pomiaru | Koszyk 1 | Koszyk 2 | Koszyk 3 | Koszyk 4 | Uwagi |
+Zbiorczo — jeden wiersz na przebieg. „Trafienie" = Bojo padło w odpowiedzi, niezależnie
+od miejsca.
+
+| Data pomiaru | Silnik | Koszyk 1 | Koszyk 2 | Koszyk 3 | Koszyk 4 | Uwagi |
+|---|---|---|---|---|---|---|
+| _do wypełnienia_ | ChatGPT | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+| _do wypełnienia_ | Perplexity | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+| _do wypełnienia_ | Gemini | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+| _do wypełnienia_ | Copilot | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+
+### Arkusz zapisu — jak notować pojedynczy prompt
+
+Sam Załącznik wymaga trzech rzeczy przy każdym pytaniu, a tabela zbiorcza mieści tylko
+pierwszą z nich. Ten arkusz istnieje po to, żeby pomiar nie wymagał wymyślania formy
+w trakcie — kopiuje się go raz na przebieg i wypełnia w locie.
+
+**Skróty (żeby dało się notować jedną ręką):**
+- **Padło:** `T` / `N`
+- **Gdzie:** `G` = główna rekomendacja · `W` = wyliczenie/lista · `P` = przypis, źródło
+- **Prawda:** `OK` = opis zgodny z produktem · `BŁ` = opis z błędem (dopisz jakim) ·
+  `—` = nie dotyczy, bo nie padło
+
+Wpis z `BŁ` jest **ważniejszy niż wpis z `N`**: cytowanie z błędem szkodzi bardziej niż
+brak cytowania — zwłaszcza przy rzeczach z `zakazaneFrazy.ts` (rezerwacje, SMS-y,
+płatności online). Każde `BŁ` przepisz w kolumnie „Uwagi" pełnym zdaniem.
+
+| # | Prompt (skrót) | Padło | Gdzie | Prawda | Uwagi |
 |---|---|---|---|---|---|
-| _do wypełnienia_ | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+| 1 | Czym jest Bojo | | | | |
+| 2 | Do czego służy | | | | |
+| … | _(pozostałe wg listy wyżej — 40 wierszy)_ | | | | |
+
+**Zasady, których nie łamiemy przy pomiarze:**
+1. Zestaw 40 pytań jest **stały**. Zmiana pytania w połowie kasuje historię.
+2. Bez zalogowanej historii i bez personalizacji — inaczej mierzymy własne ślady.
+3. Wszystkie cztery silniki w jednym posiedzeniu; rozjazd kilku dni bywa większy niż
+   efekt zmiany, którą mierzymy.
+4. Wynik trafia **tutaj**, nie do osobnego pliku.
 
 ---
 
@@ -1879,8 +2098,13 @@ Odpowiada na pytanie, czy wpuszczenie ich z nazwy cokolwiek dało.
 
 Uczciwa lista granic tego dokumentu:
 
-- **Produkcji `bojo.pl` nie widziałem w żadnej z trzech rund (1, 2 i 3) — i nie da się
-  tego obejść stosem lokalnym.** Runda 3 (2026-08-26) potwierdziła to po raz trzeci.
+- **Produkcji `bojo.pl` nie widziałem w żadnej z czterech rund (1, 2, 3 i 4) — i nie da
+  się tego obejść stosem lokalnym.** Runda 4 (2026-09-01) potwierdziła to po raz czwarty,
+  z pogorszeniem: Docker nie ma już nawet gniazda (`/var/run/docker.sock` nie istnieje),
+  więc nie chodzi wyłącznie o zablokowany rejestr obrazów jak w rundzie 3 — demon nie
+  działa w ogóle. Zostało `audyt-robota.mjs --bez-bazy` przeciwko lokalnemu buildowi
+  (przebieg 2026-09-01: OK na wszystkich sprawdzanych trasach) oraz `curl` bez JS na tym
+  samym buildzie. Strona obiektu i huby żywione danymi zostają NIEZWERYFIKOWANE. Runda 3 (2026-08-26) potwierdziła to po raz trzeci.
   Pełny wynik przebiegu — rozdział 0, „Runda 3"; **sprostowanie 2026-08-27** w tym samym
   miejscu zawęża przyczynę do rejestru obrazów, nie demona (demon startuje ręcznie bez
   błędu w tej samej sesji — `docker version`/`systemctl` nie wystarczą jako test), i
@@ -1900,11 +2124,18 @@ Uczciwa lista granic tego dokumentu:
   zostają NIEZWERYFIKOWANE. Sposób sprawdzenia: Załącznik B, albo środowisko z
   dostępem do rejestru obrazów kontenerów.
 - **Search Console** — brak dostępu z tej sesji. Pokrycie indeksu i skuteczność
-  zmierzone przez właściciela 2026-08-29 — patrz 7a.2. Znalezisko tej rundy: sitemapa
+  zmierzone przez właściciela 2026-08-29 — patrz 7a.2. Znalezisko tamtej rundy: sitemapa
   nigdy wcześniej niezgłoszona do tej usługi; zgłoszona w trakcie pomiaru, propagacja
-  do 17 map wojewódzkich w toku, sprawdzenie ponowne za kilka dni.
+  do 17 map wojewódzkich w toku.
+  **Runda 4 (2026-09-01): odczyt propagacji NADAL NIEWYKONANY** — minęły trzy dni, czyli
+  okno, które sam pomiar wyznaczył. To jest dziś pozycja 29 roadmapy i najwyżej
+  punktowana pozycja w całym dokumencie, bo od niej zależy, czy 36 tys. stron obiektów
+  jest aktywem, czy ryzykiem R1 (rozdział 8). Agent tego nie zmierzy: `search.google.com`
+  jest zablokowane tą samą polityką co `bojo.pl`.
 - **Odpowiedzi modeli** — nie mam wejścia do ChatGPT, Perplexity ani Gemini z tej sesji.
-  Pomiar bazowy z Załącznika A jest niewykonany.
+  Pomiar bazowy z Załącznika A jest niewykonany **po czterech rundach**. Runda 4 zdjęła
+  z niego jedyną przeszkodę, na którą miała wpływ: brak formy zapisu. Arkusz z legendą
+  skrótów i zasadami przebiegu stoi w Załączniku A, gotowy do wypełnienia.
 - **Wolumeny fraz** — brak narzędzia. Wszystkie oceny wielkości klastrów w 2a są
   **SZACUNKIEM** na podstawie struktury zapytania.
 - **Polski SERP** — wyszukiwarka dostępna w sesji zwraca wyniki dla rynku amerykańskiego.
