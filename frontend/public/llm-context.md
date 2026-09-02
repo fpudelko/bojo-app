@@ -355,6 +355,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-01 — Tytuł i opis Bojo w wynikach wyszukiwania mówią, czym Bojo jest
+
+PROBLEM: Pierwszy pomiar w Google Search Console (2026-08-29) pokazał, że przez trzy
+miesiące Bojo miało 56 wyświetleń i ZERO kliknięć przy średniej pozycji 9,4, a wszystkie
+zapytania były markowe: „co to bojo", „bojo", „bojo co to". Przyczyna: „bojo" to
+w polszczyźnie potocznej słowo oznaczające boisko, więc wynik Bojo stoi w wyszukiwarce
+obok definicji słownikowej — a jego tytuł („Bojo — zbierz ekipę, zagraj dziś | Boiska
+i mecze w Polsce") nie zawierał ani jednego słowa, które by tę definicję podważało.
+Słowa „boiska", „zagraj", „zbierz ekipę" wszystkie ją potwierdzały. Człowiek pytający
+„co to jest bojo" nie dostawał odpowiedzi na swoje pytanie, więc nie miał po co kliknąć.
+
+ROZWIĄZANIE BOJO: Tytuł strony głównej Bojo brzmi dziś „Bojo (bojo.pl) — aplikacja do
+organizowania amatorskich meczów", a opis zaczyna się od zdania mówiącego wprost, czym
+Bojo jest i co robi organizator. Rzeczownik kategorii („aplikacja") stoi tuż przy nazwie,
+bo jest jedyną rzeczą odróżniającą Bojo jako produkt od słowa pospolitego. Ta sama zmiana
+objęła stronę „Dlaczego Bojo" — drugą i jedyną poza stroną główną, którą Google miał
+wtedy w indeksie. Podgląd linku w czacie i nazwa pod ikoną aplikacji na telefonie
+ZOSTAŁY przy dotychczasowym haśle: tam odbiorca już wie, czym Bojo jest, bo dostał link
+od organizatora albo sam zainstalował aplikację.
+
+MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
+(`TYTUL_DOMYSLNY`, `OPIS_DOMYSLNY`, `TYTUL_DLACZEGO`, `HASLO_PODGLADU`), używane przez
+`app/layout.tsx` i `app/dlaczego-bojo/page.tsx`. Test `src/__tests__/tytulMarkowy.test.ts`
+pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
+wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
+Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
+
 ### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
 
 PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
@@ -679,32 +706,3 @@ rysuje `EventBrowseCard`. Pusty stan „Grasz" idzie przez nowy prop `emptyState
 `MyMatchesSection` (`components/home/dashboard/DashboardSections.tsx`) — gdy podany,
 nagłówek renderuje się mimo pustej listy zamiast całej sekcji znikającej (`return null`).
 
-### 2026-08-27 — Filtr „miejscowość + ile km" i koniec znikających pinezek
-
-PROBLEM: Mapa Bojo gubiła pinezki. Lista startowa (okolica gracza, a bez zgody Poznania)
-dobierana przy wejściu do katalogu wpisywała się w to samo pole stanu, z którego żyły
-pinezki, więc mapa pokazywała Poznań niezależnie od tego, dokąd użytkownik przewinął —
-nad Krakowem nie było widać nic. Osobno: zatwierdzenie filtrów w arkuszu kasowało
-większość z nich, bo cztery kolejne zapisy do adresu czytały ten sam, nieodświeżony stan
-i nadpisywały się nawzajem. Do tego nie było jak powiedzieć „szukam wokół Wrocławia":
-promień dało się liczyć wyłącznie od własnej lokalizacji, a filtr po nazwie miasta
-opierałby się na kolumnie `fields.city` wypełnionej w dwóch procentach.
-
-ROZWIĄZANIE BOJO: Pinezki pokazują to, co leży w bieżącym kadrze mapy (albo wyniki
-szukania po tekście); lista startowa jest odtąd podpowiedzią wyłącznie dla LISTY i tylko
-przy oddalonej mapie. Filtry katalogu zapisują się do adresu jednym wywołaniem, więc
-żaden nie ginie. Arkusz filtrów — w obu trybach, gier i katalogu — otwiera sekcja „Gdzie
-szukam": wpisujesz nazwę miejscowości ALBO KOD POCZTOWY, wybierasz promień (5/10/25/50
-km) i Bojo pokazuje to, co jest w okolicy tego punktu. W trybie meczów wybrana
-miejscowość zastępuje położenie gracza — kto wpisał „Wrocław", pyta o Wrocław, choćby
-stał w Poznaniu — i Bojo nie prosi wtedy o zgodę na lokalizację.
-
-Filtr działa po ODLEGŁOŚCI od punktu, nie po nazwie miasta w bazie: miejscowość wyznacza
-tylko współrzędne, a te ma każdy obiekt w katalogu i każdy mecz.
-
-MECHANIKA: `frontend/src/lib/miejscowosci.ts` (`szukajMiejscowosci()`, `PROMIENIE_KM`,
-rozpoznanie kodu pocztowego), `components/map/WyborMiejscowosci.tsx`, tryb `?miejscowosc=`
-w `app/api/geocode/route.ts` (Nominatim, `featuretype=settlement`, pomijane dla kodu
-pocztowego), stan w adresie `m`/`mlat`/`mlng`/`mopis`/`km`. W `VenueExplorer.tsx`:
-rozdzielone `fieldsNaMapie` i `fields` przy wspólnym `zastosujFiltry()`, osobny stan
-`listaStartowa`, zatwierdzenie arkusza jednym `updateParams`. Bez migracji.

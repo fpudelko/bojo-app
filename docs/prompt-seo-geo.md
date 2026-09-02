@@ -147,9 +147,13 @@ disambiguatingDescription, areaServed; sameAs celowo puste — patrz LISTA 3), W
 SoftwareApplication/SportsApplication, SportsEvent (null dla meczu niepublicznego),
 BreadcrumbList, FAQPage, HowTo, ItemList, SportsActivityLocation,
 LocationFeatureSpecification (po quorum potwierdzeń graczy). Realne, niezamknięte luki:
-brak `alternates.canonical` na /wydarzenia/[id]; jedyną dźwignią na stronach klienckich
-(/logowanie, /profil, /turniej, /obiekt, /cykliczne, /gracz/[id]…) jest robots.ts, nie ma
-per-trasowego noindex; sameAs puste (LISTA 3).
+jedyną dźwignią na stronach klienckich (/logowanie, /profil, /turniej, /obiekt, /cykliczne,
+/gracz/[id]…) jest robots.ts, nie ma per-trasowego noindex; sameAs puste (LISTA 3).
+SPROSTOWANIE (2026-09-01): wcześniejsza wersja tego akapitu wymieniała tu „brak
+alternates.canonical na /wydarzenia/[id]". To NIEPRAWDA — `eventMeta.ts#metadataDlaMeczu()`
+ustawia canonical dla meczu publicznego, a mecz niepubliczny i nieistniejący dostają
+celowo samo `title: 'Mecz'` + `robots {index:false, follow:false}`, bez canonicala.
+Nie szukaj tam luki.
 
 A6. SKALA
 Treść widoczna i llms.txt mówią „ponad 30 000 obiektów" — to zamierzona, jednolita fraza
@@ -252,10 +256,8 @@ Pytanie: strona obiektu ma „Przeglądanie agentowe" 2/3, jedyna z pięciu zmie
 audytów w tej kategorii Lighthouse padają (dane strukturalne? drzewo dostępności? coś
 trzeciego), uszereguj je wg prawdopodobieństwa na podstawie tego, co ta runda i poprzednie
 zmieniały w tym pliku, i podaj sposób rozstrzygnięcia, który zajmie właścicielowi minutę
-w przeglądarce (dokładnie które okno rozwinąć na pagespeed.web.dev). Osobno: zdecyduj, czy
-brak `alternates.canonical` na /wydarzenia/[id] jest przeoczeniem czy świadomym wyborem
-(strona ma własny opengraph-image.tsx, ale nie canonical) — jeśli przeoczeniem, napraw
-z testem.
+w przeglądarce (dokładnie które okno rozwinąć na pagespeed.web.dev). Jeśli znajdziesz
+tańszy sposób rozstrzygnięcia niż ponowny pomiar — podaj go zamiast, nie obok.
 
 ── 4. AUTORYTET ENCJI I OFF-PAGE ────────────────────────────────────────────────
 

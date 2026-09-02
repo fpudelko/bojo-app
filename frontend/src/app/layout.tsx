@@ -14,6 +14,9 @@ import ZachetaInstalacji from '@/components/ZachetaInstalacji';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { SledzenieHistorii } from '@/lib/historia';
 import { siteJsonLd } from '@/lib/structuredData';
+import {
+  TYTUL_DOMYSLNY, OPIS_DOMYSLNY, HASLO_PODGLADU,
+} from '@/content/metaWyszukiwarki';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -61,12 +64,13 @@ export const metadata: Metadata = {
   // here would stamp "/" onto /logowanie, /gracz/[id] and every other page,
   // telling crawlers they are duplicates of the home page. Canonicals live on
   // the individual public pages instead.
+  // Tytuł i opis żyją w `content/metaWyszukiwarki.ts` — tam też stoi pomiar
+  // z Search Console, z którego wynika, dlaczego brzmią tak, a nie jak hasło.
   title: {
-    default: 'Bojo — zbierz ekipę, zagraj dziś | Boiska i mecze w Polsce',
+    default: TYTUL_DOMYSLNY,
     template: '%s | Bojo',
   },
-  description:
-    'Znajdź boisko, zbierz skład i zagraj. Piłka nożna, koszykówka, siatkówka i więcej — w całej Polsce, bez szukania po grupach na Facebooku.',
+  description: OPIS_DOMYSLNY,
   keywords: ['organizuj mecz', 'szukam graczy', 'boiska sportowe', 'piłka nożna', 'koszykówka', 'siatkówka'],
   authors: [{ name: 'Bojo' }],
   // Bez `images` w obu blokach niżej — DŁUG D17 (docs/seo-geo-strategia.md):
@@ -77,15 +81,21 @@ export const metadata: Metadata = {
   // nie mają WŁASNEGO `opengraph-image.tsx` (a te, co mają — `/wydarzenia/[id]`
   // — i tak by go nadpisały). Jeden generator obrazka zamiast dwóch źródeł,
   // z których jedno nigdy się nie renderuje.
+  // Podgląd linku (czat, media) i nazwa pod ikoną PWA (app/manifest.ts) ZOSTAJĄ przy
+  // haśle „zbierz ekipę, zagraj dziś" — świadomie, nie przez przeoczenie. Te trzy
+  // powierzchnie odpowiadają na różne pytania: w wyniku wyszukiwania odbiorca pyta
+  // „co to w ogóle jest", przy podglądzie linku i przy ikonie na ekranie telefonu
+  // już to wie, bo dostał link od organizatora albo sam zainstalował aplikację.
+  // Rozdzielenie jest celem; nie ujednolicaj ich „dla spójności".
   openGraph: {
-    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    title: HASLO_PODGLADU,
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bojo — zbierz ekipę, zagraj dziś',
+    title: HASLO_PODGLADU,
     description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
   },
   // Favicon SVG jest wklejony jako data-URI w <head> niżej. Tutaj dokładamy
