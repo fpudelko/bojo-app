@@ -123,10 +123,31 @@ SELECT _p_oczekuj('treść niesie godzinę i miejsce, tytuł niesie nazwę meczu
       AND title = 'Jutrzejsza gierka'), 2);
 
 -- --- Po meczu ---------------------------------------------------------------
-SELECT _p_oczekuj('organizator dostaje prośbę o domknięcie nierozliczonego meczu',
+-- ODMIANA, nie samo „czy zawiera". Pierwsza wersja tej asercji sprawdzała
+-- `body LIKE '%nie oddało%'` i dlatego PRZEPUŚCIŁA „1 osób jeszcze nie
+-- oddało" — błąd wyszedł dopiero na produkcji, w powiadomieniu, które poszło
+-- ludziom na telefony (naprawione migracją `131`). Test, który akceptuje
+-- każdą odmianę, nie jest testem odmiany.
+SELECT _p_oczekuj('organizator dostaje prośbę o domknięcie — z poprawną odmianą przy JEDNEJ osobie',
   (SELECT count(*) FROM notifications
     WHERE event_id = :WCZORA::uuid AND type = 'po_meczu_do_domkniecia'
-      AND user_id = :ORG::uuid AND body LIKE '%nie oddało%'), 1);
+      AND user_id = :ORG::uuid
+      AND body LIKE '%1 osoba jeszcze nie oddała%'), 1);
+
+-- Pełna tabelka odmiany, łącznie z wyjątkiem 12-14 — to on wywraca naiwną
+-- regułę „końcówka 2-4 → liczba mnoga" (`withCount()` w `lib/plural.ts`
+-- powstało z tego samego powodu).
+SELECT _p_oczekuj('odmiana: 1 / 2 / 5 / 12 / 22',
+  (SELECT count(*) FROM (VALUES
+     (1,  '1 osoba jeszcze nie oddała'),
+     (2,  '2 osoby jeszcze nie oddały'),
+     (4,  '4 osoby jeszcze nie oddały'),
+     (5,  '5 osób jeszcze nie oddało'),
+     (12, '12 osób jeszcze nie oddało'),
+     (14, '14 osób jeszcze nie oddało'),
+     (22, '22 osoby jeszcze nie oddały')
+   ) AS t(n, oczekiwane)
+    WHERE odmien_nie_oddalo(t.n) = t.oczekiwane), 7);
 
 SELECT _p_oczekuj('mecz bez zaległości NIE generuje prośby o domknięcie',
   (SELECT count(*) FROM notifications WHERE event_id = :CZYSTY::uuid), 0);
