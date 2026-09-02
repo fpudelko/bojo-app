@@ -25,6 +25,18 @@ export interface PodgladWpisuGoscia {
   godzina: string;
   miejsce: string;
   juzPrzejety: boolean;
+  /** Pola z migracji `128`. Stary kształt funkcji ich nie zwracał, więc każde
+   *  ma wartość zapasową — inaczej strona „Twój zapis" pokazywałaby pustki
+   *  między wdrożeniem kodu a ręcznym uruchomieniem migracji. */
+  statusMeczu: 'active' | 'cancelled';
+  naRezerwie: boolean;
+  czekaNaAkceptacje: boolean;
+  kosztGrosze: number;
+  wSkladzie: number;
+  maxGraczy: number;
+  /** Czy z tym wpisem da się jeszcze cokolwiek zrobić: nieprzejęty i przed
+   *  pierwszym gwizdkiem. Liczone w bazie, w strefie 'Europe/Warsaw'. */
+  moznaZmieniac: boolean;
 }
 
 /** Co pokazać klikającemu, zanim się zaloguje. Zwraca null dla nieznanego tokenu. */
@@ -41,7 +53,50 @@ export async function podejrzyjWpisGoscia(token: string): Promise<PodgladWpisuGo
     godzina: row.godzina,
     miejsce: row.miejsce,
     juzPrzejety: row.juz_przejety,
+    statusMeczu: row.status_meczu === 'cancelled' ? 'cancelled' : 'active',
+    naRezerwie: row.na_rezerwie ?? false,
+    czekaNaAkceptacje: row.czeka_na_akceptacje ?? false,
+    kosztGrosze: row.koszt_grosze ?? 0,
+    wSkladzie: row.w_skladzie ?? 0,
+    maxGraczy: row.max_graczy ?? 0,
+    // Bez migracji `128` kolumny nie ma — wtedy „da się zmieniać" wyłącznie
+    // wtedy, gdy wpis nie jest jeszcze przejęty. To jest stan przejściowy
+    // między deployem a ręcznym puszczeniem migracji, nie docelowy.
+    moznaZmieniac: row.mozna_zmieniac ?? !row.juz_przejety,
   };
+}
+
+/**
+ * Wypisanie ze składu przez sam link — dla gościa bez konta.
+ *
+ * PO CO. Do migracji `128` zapis gościa był jedynym w Bojo, którego zapisany
+ * nie mógł cofnąć: usunąć go mógł wyłącznie organizator. Efekt brał na siebie
+ * organizator — skład kłamał dokładnie w tej części, którą sam przyprowadził,
+ * a „nie dam rady" i tak przychodziło na WhatsAppie.
+ *
+ * Uprawnieniem jest sam token, tak jak przy przejęciu wpisu. Baza pilnuje
+ * reszty: wpis przejęty ma już właściciela (ten wypisuje się normalnie),
+ * a po pierwszym gwizdku składu się nie rusza.
+ */
+export async function wypiszWpisGoscia(token: string): Promise<string> {
+  const { data, error } = await supabase.rpc('wypisz_wpis_goscia', { p_token: token });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/**
+ * Token przejęcia wpisu gościa — dla organizatora albo osoby, która tego
+ * gościa dopisała (migracja `127`, funkcja `token_wpisu_goscia`).
+ *
+ * Do `127` token przychodził wprost w wierszu składu, czyli razem z listą
+ * uczestników trafiał do KAŻDEGO, kto otworzył stronę meczu. Dziś wydaje go
+ * baza, po sprawdzeniu, kto pyta. `null` znaczy „nie masz prawa albo nie ma
+ * już czego przejmować" — dla wywołującego to ta sama sytuacja.
+ */
+export async function pobierzTokenGoscia(idUczestnika: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('token_wpisu_goscia', { p_uczestnik: idUczestnika });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
 }
 
 /** Wiąże wpis z zalogowanym kontem. Zwraca id meczu, żeby było dokąd wrócić. */

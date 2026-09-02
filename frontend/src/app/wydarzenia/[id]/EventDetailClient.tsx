@@ -38,7 +38,7 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
+import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/lib/eventShare';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
@@ -59,7 +59,8 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { przejmijWpisGoscia, udostepnijZaproszenieGoscia } from '@/lib/guestClaim';
+import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
+import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
@@ -82,6 +83,7 @@ import { zaproponujInstalacje } from '@/components/ZachetaInstalacji';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 import { toMinutes, fromMinutes, etykietaZapisu } from '@/lib/time';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
+import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 
 type EventTab = 'sklad' | 'taktyka' | 'rozmowa' | 'wynik' | 'rozliczenia' | 'ustawienia';
 // Podział na drużyny należy do zakładki „Skład" i jest tam widoczny WPROST —
@@ -196,6 +198,23 @@ function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; warian
   );
 }
 
+/**
+ * Czy ten wpis gościa ma jeszcze co przejmować — czyli czy pokazać przy nim
+ * „Zaproś do Bojo".
+ *
+ * Do migracji `127` sprawdzało się to obecnością `claimToken` w wierszu składu.
+ * Token przestał przychodzić z bazy (był sekretem na okaziciela wystawionym
+ * każdemu, kto otworzył stronę meczu), więc pytamy o stan wpisu: gość, którego
+ * nikt jeszcze nie przypisał do konta. Sam token dociąga się dopiero przy
+ * kliknięciu, funkcją `pobierzTokenGoscia()`.
+ *
+ * Funkcja modułowa, nie metoda komponentu: korzysta z niej także
+ * `ParticipantsList`, renderowany poza nim.
+ */
+function doPrzejecia(p: EventParticipant): boolean {
+  return p.isGuest && !p.claimedAt && !p.userId;
+}
+
 /** Inline roster — rendered INSIDE the player-count card when the avatar stack
  *  is expanded. Always shows flat lists: regulars then reserves.
  *
@@ -240,7 +259,7 @@ function ParticipantsList({
               )}
               {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
             </PlayerLink>
-            {mozeZaprosic(p) && p.isGuest && p.claimToken && (
+            {mozeZaprosic(p) && doPrzejecia(p) && (
               <button
                 type="button"
                 onClick={() => onZaprosDoBojo(p)}
@@ -284,7 +303,7 @@ function ParticipantsList({
                       w kolejce nie mówi, na co ta osoba właściwie czeka. */}
                   {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                 </div>
-                {mozeZaprosic(p) && p.isGuest && p.claimToken && (
+                {mozeZaprosic(p) && doPrzejecia(p) && (
                   <button
                     type="button"
                     onClick={() => onZaprosDoBojo(p)}
@@ -414,6 +433,9 @@ export default function EventDetailClient() {
   // Mecz otwiera się najczęściej z linku (powiadomienie, WhatsApp) — wtedy
   // historii w aplikacji nie ma i goły `router.back()` wyprowadzał z Bojo.
   const wstecz = useWstecz('/moje-gry');
+  // Okna potwierdzeń zamiast systemowego `confirm()` — patrz `usePotwierdzenie`.
+  // Jedno okno na całą stronę; renderuje się na samym końcu komponentu.
+  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { toast } = useToast();
 
@@ -590,6 +612,10 @@ export default function EventDetailClient() {
   const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
+  /** Token MOJEGO wpisu gościa na tym meczu, zapamiętany na tym urządzeniu.
+   *  Czytany po montażu, nie przy renderze — `localStorage` nie istnieje na
+   *  serwerze, a ta strona renderuje się serwerowo (metadane Open Graph). */
+  const [mojTokenGoscia, setMojTokenGoscia] = useState<string | null>(null);
   // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
   // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
   const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
@@ -704,6 +730,23 @@ export default function EventDetailClient() {
   }, [id, loadMatchData, user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Czy na tym urządzeniu zapisał się gość bez konta. Zalogowanego to nie
+  // dotyczy: albo przejął ten wpis (i wtedy jest zwykłym uczestnikiem), albo
+  // ogląda mecz ze swojego konta — w obu przypadkach pasek „to Ty" byłby
+  // mówieniem o cudzym wpisie.
+  useEffect(() => {
+    if (!user) {
+      setMojTokenGoscia(mojWpisGoscia(id));
+      return;
+    }
+    // Zalogowanie zamyka sprawę tego wpisu: albo właśnie go przejął (to jedyna
+    // droga z tej strony do konta), albo ogląda mecz ze swojego konta. Tak czy
+    // inaczej zapamiętany token przestaje cokolwiek znaczyć — zostawiony
+    // wracałby jako „jesteś zapisany" po wylogowaniu.
+    zapomnijWpisGoscia(id);
+    setMojTokenGoscia(null);
+  }, [id, user]);
 
   // Kreator przekierowuje tu z `?utworzono=1`, żeby pokazać panel „Mecz gotowy".
   //
@@ -883,7 +926,11 @@ export default function EventDetailClient() {
     .sort((a, b) => momentZapisu(a).localeCompare(momentZapisu(b)));
   // Gość przejmuje wpis, dopóki ma token — po przejęciu `is_guest` przechodzi
   // na false (migracja 066), więc licznik sam się zeruje bez dodatkowego stanu.
-  const niePrzejeciGoscie = [...regulars, ...reserves].filter((p) => p.isGuest && p.claimToken);
+  // Wpis gościa, który ma jeszcze co przejmować. Do migracji `127` poznawaliśmy
+  // to po obecności `claimToken` w wierszu — ale ten token był wtedy czytelny
+  // dla każdego, kto otworzył stronę meczu. Dziś pytamy o STAN wpisu, a sam
+  // token dociągamy dopiero w chwili wysyłania zaproszenia.
+  const niePrzejeciGoscie = [...regulars, ...reserves].filter(doPrzejecia);
   const myConfirmed = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp !== 'maybe');
   const myMaybe = confirmed.find((p) => p.userId && p.userId === user?.id && p.rsvp === 'maybe');
   const myPendingRequest = pendingRequests.find((p) => p.userId && p.userId === user?.id);
@@ -1006,7 +1053,14 @@ export default function EventDetailClient() {
 
   const handleDeclineClaim = async () => {
     if (!myClaimOffer) return;
-    if (!confirm('Odpuszczasz to miejsce? Przejdzie do kolejnej osoby z rezerwy.')) return;
+    if (await potwierdz({
+      tytul: 'Odpuszczasz to miejsce?',
+      konsekwencje: [
+        'Miejsce dostanie kolejna osoba z listy rezerwowej.',
+        'Zostajesz na rezerwie, ale za nią — kolejna oferta przyjdzie dopiero, gdy zwolni się następne miejsce.',
+      ],
+      potwierdzLabel: 'Odpuszczam',
+    }) !== 'tak') return;
     setBusy(true);
     try {
       await declineReserveClaim(myClaimOffer.id, event.id);
@@ -1051,7 +1105,14 @@ export default function EventDetailClient() {
   };
 
   const handleAcceptProposal = async (proposalId: string) => {
-    if (!confirm('Zatwierdzić tę propozycję? Zastąpi obecny podział na drużyny.')) return;
+    if (await potwierdz({
+      tytul: 'Zatwierdzić tę propozycję?',
+      konsekwencje: [
+        'Zastąpi obecny podział na drużyny.',
+        'Jeśli składy są już opublikowane, ekipa zobaczy nowy podział od razu.',
+      ],
+      potwierdzLabel: 'Zatwierdź podział',
+    }) !== 'tak') return;
     setBusy(true);
     try {
       await acceptTeamProposal(proposalId);
@@ -1070,7 +1131,12 @@ export default function EventDetailClient() {
   };
 
   const handleDeleteProposal = async (proposalId: string) => {
-    if (!confirm('Usunąć tę propozycję?')) return;
+    if (await potwierdz({
+      tytul: 'Usunąć tę propozycję?',
+      konsekwencje: ['Zniknie razem z głosami, które już na nią oddano.'],
+      potwierdzLabel: 'Usuń propozycję',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     setBusy(true);
     try { await deleteTeamProposal(proposalId); await reloadProposals(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
@@ -1155,6 +1221,13 @@ export default function EventDetailClient() {
         return;
       }
 
+      // ZAPAMIĘTUJEMY TOKEN NA URZĄDZENIU. Bez tego jedynym miejscem, w którym
+      // gość widzi swój link, jest okno stojące właśnie na ekranie — kto je
+      // zamknie („Pomijam, potwierdzę później"), traci go bezpowrotnie i przy
+      // następnym wejściu na stronę meczu jest dla Bojo kimś obcym, mimo że
+      // stoi w składzie. Stąd też brał się brak jakiejkolwiek drogi do
+      // wypisania się.
+      zapamietajWpisGoscia(event.id, result.claimToken);
       setNewUserClaimToken(result.claimToken);
       setNewUserIsReserve(result.isReserve);
       setNewUserPending(result.pendingApproval);
@@ -1259,8 +1332,16 @@ export default function EventDetailClient() {
       ? (p.isGoalkeeper ? wolne.bramkarze : wolne.pole)
       : wolne.razem;
     if (wolneWRoli <= 0) {
-      const rola = !gkEnabled ? 'Skład' : p.isGoalkeeper ? 'Miejsca dla bramkarzy' : 'Miejsca w polu';
-      if (!confirm(`${rola} są już zajęte. Dodać ${p.name} do składu mimo to?`)) return;
+      const rola = !gkEnabled ? 'Skład jest' : p.isGoalkeeper ? 'Miejsca dla bramkarzy są' : 'Miejsca w polu są';
+      if (await potwierdz({
+        tytul: `${rola} już zajęte`,
+        opis: `Chcesz mimo to wpuścić ${p.name} do składu?`,
+        konsekwencje: [
+          'Licznik miejsc pokaże więcej osób, niż ustawiłeś w meczu.',
+          'Kolejka rezerwowa nie zaproponuje nikomu miejsca, dopóki skład nie zejdzie poniżej limitu.',
+        ],
+        potwierdzLabel: 'Dodaj mimo to',
+      }) !== 'tak') return;
     }
     setBusy(true);
     try {
@@ -1274,7 +1355,14 @@ export default function EventDetailClient() {
 
   /** Odwrotność awansu — na koniec kolejki, zamiast usuwania z meczu. */
   const handleCofnijNaRezerwe = async (p: EventParticipant) => {
-    if (!confirm(`Przenieść ${p.name} do rezerwy? Zwolni miejsce w składzie.`)) return;
+    if (await potwierdz({
+      tytul: `Przenieść ${p.name} do rezerwy?`,
+      konsekwencje: [
+        'Zwolni się miejsce w składzie i pierwsza osoba z rezerwy dostanie je do przyjęcia.',
+        `${p.name} nie dostanie o tym osobnego powiadomienia — uprzedź go(ją).`,
+      ],
+      potwierdzLabel: 'Przenieś do rezerwy',
+    }) !== 'tak') return;
     setBusy(true);
     try {
       await cofnijNaRezerwe(p.id, event.id);
@@ -1323,7 +1411,7 @@ export default function EventDetailClient() {
       // żeby organizator dopisujący 14 osób pod rząd nie dostał 14 identycznych modali.
       const kluczWidziano = `bojo:goscie-cta-widziano:${event.id}`;
       const pokazZachete = typeof localStorage !== 'undefined' && !localStorage.getItem(kluczWidziano);
-      if (pokazZachete) {
+      if (pokazZachete && claimToken) {
         setNudgeGuest({ name: dodanyGosc, claimToken, naRezerwie: onReserve });
         setNudgeOpen(true);
       } else {
@@ -1369,8 +1457,18 @@ export default function EventDetailClient() {
   /** Organizer removing someone else — always confirmed, so a misplaced tap in
    *  a dense list never silently kicks a player. Self-leave has its own
    *  confirm dialog already and calls handleRemove directly. */
-  const handleRemovePlayer = (p: EventParticipant) => {
-    if (!confirm(`Usunąć ${p.name} ze składu?`)) return;
+  const handleRemovePlayer = async (p: EventParticipant) => {
+    if (await potwierdz({
+      tytul: `Usunąć ${p.name} ze składu?`,
+      konsekwencje: [
+        p.userId
+          ? `${p.name} dostanie powiadomienie, że został(a) usunięty(a) z meczu.`
+          : `${p.name} nie ma konta w Bojo, więc NIE dostanie powiadomienia — daj znać osobno.`,
+        'Zwolnione miejsce trafi do pierwszej osoby z listy rezerwowej.',
+      ],
+      potwierdzLabel: 'Usuń ze składu',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     handleRemove(p.id);
   };
 
@@ -1395,10 +1493,18 @@ export default function EventDetailClient() {
     if (!isOrganizer && !canManagePayments) return;
     const oplacone = regulars.some((p) => !p.hasPaid);
     const cel = oplacone ? regulars.filter((p) => !p.hasPaid) : regulars;
-    const pytanie = oplacone
-      ? `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`
-      : `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})? Nikt nie będzie miał odhaczonej wpłaty.`;
-    if (!confirm(pytanie)) return;
+    if (await potwierdz(oplacone
+      ? {
+        tytul: `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`,
+        konsekwencje: ['Dotyczy wyłącznie tych, którzy nie mają jeszcze odhaczonej wpłaty.'],
+        potwierdzLabel: 'Wszyscy oddali',
+      }
+      : {
+        tytul: `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})?`,
+        konsekwencje: ['Nikt nie będzie miał odhaczonej wpłaty — zaczniesz odhaczanie od zera.'],
+        potwierdzLabel: 'Cofnij wszystkim',
+        wariant: 'destrukcyjny' as const,
+      }) !== 'tak') return;
     setBusy(true);
     try {
       await ustawPlatnoscWszystkim(
@@ -1506,7 +1612,15 @@ export default function EventDetailClient() {
    *  razem z argumentem, nie samym adresem. Logika udostępniania (Web Share /
    *  schowek) współdzielona z `GuestInviteNudge.tsx` przez `guestClaim.ts`. */
   const kopiujLinkPrzejecia = async (p: EventParticipant) => {
-    if (!p.claimToken) return;
+    if (!doPrzejecia(p)) return;
+    // Token wydaje baza (`token_wpisu_goscia`, migracja `127`) — organizatorowi
+    // albo osobie, która tego gościa dopisała. Wcześniej przychodził w wierszu
+    // składu, czyli razem z listą uczestników trafiał do KAŻDEGO.
+    const token = await pobierzTokenGoscia(p.id).catch(() => null);
+    if (!token) {
+      toast('Nie udało się pobrać linku dla tego wpisu', 'error');
+      return;
+    }
     // Kto zaprasza: osoba, która ten wpis dopisała. Nie zawsze organizator —
     // przy `allowGuestAdds` robi to kolega z drużyny, a wiadomość podpisana
     // cudzym nazwiskiem myli bardziej niż brak podpisu.
@@ -1514,7 +1628,7 @@ export default function EventDetailClient() {
       ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
       ?? event.organizerName;
 
-    const wynik = await udostepnijZaproszenieGoscia(p.name, p.claimToken, event, zapraszajacy);
+    const wynik = await udostepnijZaproszenieGoscia(p.name, token, event, zapraszajacy);
     if (wynik === 'copied') {
       setSkopiowanyToken(p.id);
       setTimeout(() => setSkopiowanyToken(null), 2500);
@@ -1661,13 +1775,48 @@ export default function EventDetailClient() {
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
+  /**
+   * Odwołanie meczu — jedyna akcja organizatora, która kosztuje ludzi wyjazd
+   * na boisko, jeśli informacja do nich nie dotrze.
+   *
+   * Poprzednie okno (systemowe `confirm()`) mówiło jedno zdanie: „Uczestnicy
+   * zobaczą że mecz jest odwołany". Nie mówiło ani tego, że wychodzą
+   * powiadomienia (migracja `070` plus push), ani tego, że GOŚCIE BEZ KONTA
+   * ich nie dostaną — wyzwalacz ma warunek `user_id IS NOT NULL` — ani tego,
+   * że odwołanie da się cofnąć przyciskiem „Przywróć mecz" obok.
+   *
+   * Stąd druga droga: „Odwołaj i wyślij wiadomość" odwołuje i od razu otwiera
+   * arkusz udostępniania z gotowym tekstem. Dla gości bez konta czat jest
+   * jedynym kanałem, jaki mają.
+   */
   const handleCancel = async () => {
-    if (!confirm('Odwołać mecz? Uczestnicy zobaczą że mecz jest odwołany.')) return;
+    const bezKonta = [...regulars, ...reserves].filter((p) => !p.userId).length;
+    const wybor = await potwierdz({
+      tytul: 'Odwołać mecz?',
+      konsekwencje: [
+        'Uczestnicy z kontem dostaną powiadomienie w Bojo (i na telefon, jeśli je włączyli).',
+        bezKonta > 0
+          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — powiadomienia NIE dostanie. Wyślij im wiadomość.`
+          : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
+        'Mecz zostanie na liście jako odwołany. Możesz go przywrócić tym samym panelem.',
+      ],
+      potwierdzLabel: 'Odwołaj mecz',
+      wariant: 'destrukcyjny',
+      akcjaDodatkowaLabel: 'Odwołaj i wyślij wiadomość',
+    });
+    if (wybor === 'nie') return;
+
     setBusy(true);
     try {
       await cancelEvent(event.id, user?.id, displayName(user ?? null));
       await load();
       toast('Mecz odwołany');
+      // Wiadomość PO udanym odwołaniu, nie przed: inaczej ekipa dostałaby
+      // informację o odwołaniu meczu, który dalej stoi w kalendarzu.
+      if (wybor === 'dodatkowa') {
+        const wynik = await udostepnijOdwolanie(event);
+        if (wynik === 'copied') toast('Wiadomość skopiowana — wklej ją na czat ekipy');
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1837,7 +1986,13 @@ export default function EventDetailClient() {
   // wystawiał dolny pasek z „Dołącz" — tuż pod banerem mówiącym, że mecz się
   // nie odbędzie. Złapane przez scenariusz „odwołany — baner zamiast zapisu",
   // który sprawdzał dokładnie to i padał, odkąd baner powstał.
+  //
+  // Wylogowany, który zapisał się TU jako gość, też nie ma co robić z paskiem
+  // „Dołącz bez konta" — jest już w składzie. Rozpoznajemy go po tokenie
+  // zapamiętanym na urządzeniu (`mojWpisGoscia`); zamiast paska dostaje pasek
+  // „to Ty" z wejściem do zarządzania swoim zapisem.
   const joinBarVisible = !(user && (myParticipation || myPendingRequest))
+    && !mojTokenGoscia
     && !eventStarted && !isCancelled;
   // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
   // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
@@ -3085,7 +3240,7 @@ export default function EventDetailClient() {
                           pozwala każdemu uczestnikowi), nie tylko organizator —
                           to on zna gościa i ma z nim kontakt, organizator często
                           nie. */}
-                      {mozeZaprosic(p) && p.isGuest && p.claimToken && (
+                      {mozeZaprosic(p) && doPrzejecia(p) && (
                         <button
                           type="button"
                           onClick={() => kopiujLinkPrzejecia(p)}
@@ -3151,7 +3306,7 @@ export default function EventDetailClient() {
                               </span>
                             );
                           })()}
-                          {mozeZaprosic(p) && p.isGuest && p.claimToken && (
+                          {mozeZaprosic(p) && doPrzejecia(p) && (
                             <button
                               type="button"
                               onClick={() => kopiujLinkPrzejecia(p)}
@@ -3481,6 +3636,38 @@ export default function EventDetailClient() {
             whole bar away, so anyone who watched first had to hunt for a way
             to actually join. Now "Dołącz" holds its place until you're in, and
             the second button just reports the state you're already in. */}
+        {/* ── TO TY, GOŚCIU ──
+            Wylogowany, który zapisał się tu bez konta, widział dotąd stronę
+            dokładnie tak jak ktoś zupełnie obcy: z zaproszeniem „Dołącz bez
+            konta", choć stoi w składzie. Nie miał też ŻADNEJ drogi do zmiany
+            swojego zapisu — wypisać go mógł wyłącznie organizator.
+
+            Pasek stoi w miejscu paska „Dołącz" (ten się wtedy nie renderuje,
+            patrz `joinBarVisible`) i prowadzi na stronę wpisu, gdzie widać
+            stan meczu i jest „Nie mogę grać". */}
+        {tab !== 'rozmowa' && mojTokenGoscia && !eventStarted && <HideBottomNav />}
+        {tab !== 'rozmowa' && mojTokenGoscia && !eventStarted && (
+          <div
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 pt-3 backdrop-blur-md dark:border-slate-700"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
+            <div className="mx-auto flex max-w-2xl items-center gap-3">
+              <p className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold text-ink">Jesteś zapisany(a)</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  Zapis bez konta — zarządzasz nim linkiem
+                </span>
+              </p>
+              <Link
+                href={`/gracz/przejmij/${mojTokenGoscia}`}
+                className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-primary-700 px-4 text-[15px] font-bold text-white transition active:scale-[0.99]"
+              >
+                Mój zapis →
+              </Link>
+            </div>
+          </div>
+        )}
+
         {tab !== 'rozmowa' && joinBarVisible && <HideBottomNav />}
         {tab !== 'rozmowa' && joinBarVisible && (
           <div
@@ -4683,6 +4870,31 @@ export default function EventDetailClient() {
                 </a>
               </p>
             )}
+
+            {/* TRZECIE WYJŚCIE: wziąć link ze sobą.
+                Konto to najlepsza droga i dlatego stoi wyżej — ale kto go teraz
+                nie chce, wychodził stąd z niczym: bez linku, bez możliwości
+                wypisania się, bez powiadomienia o odwołaniu meczu. Link
+                zostaje zapisany także na tym urządzeniu (`zapamietajWpisGoscia`
+                przy zapisie), a to jest kopia na wypadek innego telefonu. */}
+            <button
+              type="button"
+              onClick={async () => {
+                const url = linkPrzejeciaWpisu(newUserClaimToken);
+                const text = `Twój zapis na mecz w Bojo: ${eventDisplayTitle({ title: event.title, sport: event.sport, maxPlayers: event.maxPlayers })}.\nTym linkiem sprawdzisz skład i wypiszesz się, gdyby coś wypadło.`;
+                try {
+                  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+                    await navigator.share({ title: 'Mój zapis w Bojo', text, url });
+                  } else {
+                    await navigator.clipboard.writeText(`${text}\n${url}`);
+                    toast('Link do Twojego zapisu skopiowany');
+                  }
+                } catch { /* anulowane — nic nie pokazujemy, jak w shareEvent() */ }
+              }}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <LinkIcon className="h-3.5 w-3.5" /> Zapisz sobie link do swojego zapisu
+            </button>
           </div>
         </div>
       )}
@@ -4997,6 +5209,12 @@ export default function EventDetailClient() {
           zapraszajacy={displayName(user) || event.organizerName}
         />
       )}
+
+      {/* Jedno okno dla wszystkich potwierdzeń na tej stronie (odwołanie meczu,
+          usunięcie ze składu, przeniesienie do rezerwy, propozycje składów,
+          masowe oznaczenie wpłat). Treść ustawia `potwierdz()` w miejscu
+          wywołania — patrz `lib/usePotwierdzenie.tsx`. */}
+      {oknoPotwierdzenia}
     </div>
   );
 }
