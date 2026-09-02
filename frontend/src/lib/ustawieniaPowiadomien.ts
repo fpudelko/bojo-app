@@ -60,6 +60,21 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // Migracja `129`. Pierwsze powiadomienie w Bojo, które powstaje SAMO,
+    // z zegara — reszta jest reakcją na czyjeś kliknięcie. Dla organizatora
+    // niesie dodatkowo liczbę brakujących osób, bo dzień wcześniej to ostatni
+    // moment, w którym da się z tym cokolwiek zrobić.
+    typ: 'przypomnienie_o_meczu',
+    nazwa: 'Przypomnienie dzień przed',
+    opis: 'Jutro grasz — godzina, miejsce i stan składu',
+    wazne: true,
+  },
+  {
+    typ: 'po_meczu_do_domkniecia',
+    nazwa: 'Po meczu: wynik i rozliczenie',
+    opis: 'Dostaje organizator dzień po meczu i tylko wtedy, gdy zostało coś do domknięcia',
+  },
+  {
     typ: 'sklady_opublikowane',
     nazwa: 'Są składy',
     opis: 'Organizator opublikował podział na drużyny',

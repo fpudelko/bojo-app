@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-02 · migracja `128` · 53 tabele
+**Stan na:** 2026-09-02 · migracja `130` · 53 tabele
 
 ---
 
@@ -355,6 +355,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-02 — Przypomnienia o meczu: pierwsze powiadomienia w Bojo, które wychodzą same
+
+PROBLEM: w całym Bojo nie było ani jednego powiadomienia opartego o czas — wszystkie były
+reakcją na czyjeś kliknięcie. Nikt nie dostawał „jutro grasz o 20:00", organizator nie
+dostawał „jutro mecz, brakuje 2 osób" (czyli tracił ostatni moment, w którym da się jeszcze
+kogoś dociągnąć albo odwołać), a po meczu nic nie prosiło o wynik ani o rozliczenie: na 122
+rozegrane mecze przypadało 6 zapisanych wyników i 45 nierozliczonych płatnych meczów. Bojo
+umie jedno i drugie — tylko nic o to nie prosiło we właściwej chwili. Przypominanie to jest
+ta czynność, którą organizator wykonuje ręcznie co tydzień na WhatsAppie, więc dopóki Bojo
+tego nie robiło, grupa na WhatsAppie zostawała. Osobno: „Powtórz mecz" żyło tylko na stronie
+meczu, więc cotygodniowy organizator miał do niego cztery kroki; a baza liczyła czas w UTC,
+choć mecze są zapisane czasem lokalnym, przez co mecz o 20:00 uchodził za rozpoczęty
+dopiero o 22:00.
+
+ROZWIĄZANIE BOJO: dzień przed meczem każdy, kto ma miejsce w składzie, dostaje
+przypomnienie z godziną i miejscem; organizator dostaje to samo plus liczbę brakujących
+osób. Dzień po meczu organizator dostaje prośbę o domknięcie — ale WYŁĄCZNIE wtedy, gdy
+faktycznie zostało coś do zrobienia (brak wyniku albo ktoś nie oddał pieniędzy).
+Powiadomienia idą tym samym kanałem co wszystkie inne, więc jadą też na telefon, i da się
+je wyłączyć osobno w ustawieniach. Do tego „Powtórz ten mecz" pojawia się wprost pod
+rozegranym meczem na liście „Moje gry → Historia", z datą wypełnioną z góry na najbliższy
+ten sam dzień tygodnia.
+
+MECHANIKA: migracje `129` (`wyslij_przypomnienia()`, typy `przypomnienie_o_meczu`
+i `po_meczu_do_domkniecia`, zadanie `pg_cron` `bojo-przypomnienia` o 16:00 UTC, idempotencja
+przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_claim`
+i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
+`components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
+`supabase/test/przypomnienia.sql`.
+
 ### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
 
 PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
@@ -667,52 +697,3 @@ defensywna, nie naprawia punktu 2 wprost: zweryfikowane, że mapa ukryta nie zg�
 kadru wcale), `app/wydarzenia/[id]/EventDetailClient.tsx` i `app/grupy/[id]/
 GroupDetailClient.tsx` (`goToTab()` z jednorazowym `pushState` + słuchacz `popstate`).
 Bez migracji.
-### 2026-08-28 — Jeden pulpit zalogowanego, a w nim podział wg relacji do meczu
-
-PROBLEM: Bojo miało DWA ekrany na to samo pytanie „co i kiedy gram". Strona główna po
-zalogowaniu renderowała własny pulpit z sekcjami „Zaproszenia", „Najbliższy mecz"
-i „Twoje mecze" — tymi samymi, które ma zakładka „Mecze" (`/moje-gry`). Pulpit na „/"
-był przy tym POZA dolną nawigacją (pasek prowadzi na `/moje-gry`, `/mapa`, `/rozmowy`,
-`/grupy` i do kreatora), więc wchodziło się na niego wyłącznie przez logo. Ponad połowę
-jego długości zajmowały „Jak to działa", FAQ i stopka sprzedażowa — treść dla osoby BEZ
-konta, pokazywana komuś, kto ma już mecze i ekipy. Sama zakładka „Mecze" miała z kolei
-siedem sekcji, z czego trzy kroiły tę samą listę: mecz organizowany, bez kompletu
-i z prośbą o dołączenie pokazywał się na jednym ekranie TRZY RAZY. Dokładała się do tego
-zakładka „Brakuje graczy" filtrująca tę samą, i tak krótką, listę.
-
-ROZWIĄZANIE BOJO: pulpit jest jeden i jest nim zakładka „Mecze" — ta z dolnej nawigacji.
-Zalogowany, który wejdzie na „/", trafia na „Mecze"; landing na „/" nie zmienia się dla
-wylogowanych ani dla wyszukiwarek (nie mają ciasteczka sesji). Treść marketingowa ma
-własne strony: `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`.
-
-Sama zakładka dzieli mecze WG RELACJI, bez wyróżnionej karty „najbliższy mecz" — przy
-takim podziale pierwszy element pierwszej sekcji i tak jest meczem najbliższym w czasie:
-
-- „Grasz" — jestem w składzie (także wtedy, gdy sam ten mecz organizuję),
-- „Organizujesz" — mój mecz, w którym sam nie gram,
-- „Rezerwa i oczekujące" — rezerwa i czekanie na akceptację na cudzym meczu; pokazuje
-  się tylko wtedy, gdy jest co pokazać,
-- „Możesz dołączyć" — mecze mojej ekipy, w których jeszcze mnie nie ma.
-
-Kubełki są rozłączne i razem pokrywają całość, więc żaden mecz nie wypada z listy przy
-zmianie statusu. Mecz, w którym naprawdę gram, ma CAŁĄ KARTĘ zieloną — nie tylko
-plakietkę w rogu. Filtrów nie ma żadnych (ani „Nieprzeczytane", ani „Brakuje graczy" —
-przy niewielkiej liczbie meczów na tej zakładce filtr sam był problemem, którego
-praktycznie nie ma, a plakietka „N wolnych miejsc" na karcie odpowiada na to samo
-pytanie bez kontrolki do nauczenia). „Grasz" jest jedyną z trzech sekcji, która NIE
-znika przy pustej liście — nagłówek zostaje na stałe, a zamiast kart pokazuje się pusty
-stan z zachętą do stworzenia albo znalezienia meczu; to jedyne miejsce, gdzie gracz
-w ogóle dowiaduje się, że nic nie ma zaplanowane.
-
-MECHANIKA: `frontend/src/components/home/HomeSwitch.tsx` przekierowuje (`router.replace`,
-klienckie — serwerowej sesji nie ma, Supabase trzyma ją w `localStorage`, a
-ciasteczko-podpowiedź `lib/sessionHint.ts` służy tylko do wyboru kształtu pierwszej
-odpowiedzi). Skasowane: `AppHome.tsx`, `lib/useDashboardData.ts`, `NextMatchCard.tsx`
-(został z niego `PustyStanMeczow.tsx`), sekcje `OpenGamesSection`, `OnboardingSection`,
-`MyGroupsSection`, `ObservingSection`, `NextGroupMatchTeaser`, `PendingRequestsSection`,
-`NeedsPlayersSection` oraz `needsPlayers()`. Kubełki liczy `app/moje-gry/page.tsx`
-z `playing` (czyli `upcoming` bez obserwowanych); zieleń karty i plakietkę „N próśb"
-rysuje `EventBrowseCard`. Pusty stan „Grasz" idzie przez nowy prop `emptyState` na
-`MyMatchesSection` (`components/home/dashboard/DashboardSections.tsx`) — gdy podany,
-nagłówek renderuje się mimo pustej listy zamiast całej sekcji znikającej (`return null`).
-

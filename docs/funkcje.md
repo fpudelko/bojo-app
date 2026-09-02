@@ -2709,6 +2709,54 @@ przy zmianie STANU, nie przy każdym zapisie z osobna.
 
 ---
 
+## Przypomnienia — jedyne powiadomienia, które powstają same (migracja `129`)
+
+Do 2026-09-02 w całym Bojo nie było ANI JEDNEGO powiadomienia opartego o czas: wszystkie
+(`025`, `062`, `065`, `067`, `070`, `072`, `076`, `079`, `113`, `114`, `116`) są reakcją na
+czyjeś kliknięcie. W praktyce znaczyło to, że nikt nie dostawał „jutro grasz o 20:00",
+organizator nie dostawał „jutro mecz, brakuje 2 osób" — czyli tracił ostatni moment, w którym
+da się jeszcze kogoś dociągnąć — a po meczu nic nie prosiło o wynik ani rozliczenie.
+**Przypominanie to jest ta czynność, którą organizator wykonuje ręcznie co tydzień
+na WhatsAppie.**
+
+| Kiedy | Kto dostaje | Treść |
+|---|---|---|
+| Dzień przed, ok. 18:00 | wszyscy z miejscem w składzie (bez rezerwy, bez poczekalni, bez obserwujących) | „Jutro 20:00 · Orlik Sołacz" |
+| Dzień przed, ok. 18:00 | organizator — jedno powiadomienie, także gdy sam gra | to samo plus „· brakuje 2 (12/14)", gdy skład niepełny |
+| Dzień po meczu | organizator, **tylko gdy jest co domknąć** | „Mecz rozegrany. Wpisz wynik, odhacz wpłaty — 3 osób jeszcze nie oddało." |
+
+Trzy rzeczy, które wynikają z tego wprost: **push jedzie za darmo** (wyzwalacz z `102` łapie
+każdy INSERT do `notifications`), **wyłączenie działa za darmo** (`109` filtruje po typie —
+oba nowe typy są w `RODZAJE_POWIADOMIEN`), a **podwójne uruchomienie nic nie psuje**
+(`NOT EXISTS` na użytkownik+mecz+typ; zadanie cron potrafi wystartować dwa razy, a duplikat
+powiadomienia o meczu czyta się jak zmiana w meczu).
+
+Warunek „jest co domknąć" przy powiadomieniu po meczu jest istotą, nie optymalizacją:
+przypomnienie wysyłane po KAŻDYM meczu, także w pełni rozliczonym, jest hałasem — a wyłączony
+kanał nie dowozi już niczego, łącznie z tym, co ważne.
+
+Zegar to zadanie `pg_cron` `bojo-przypomnienia` (16:00 UTC = 18:00 czasu polskiego latem).
+Sprawdzenie: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bojo-przypomnienia';`.
+Testy: `supabase/test/przypomnienia.sql` (kto dostaje, z jaką treścią, idempotencja) —
+funkcji nie widzi ani `tsc`, ani Vitest, ani Playwright, bo nie ma dla niej interfejsu.
+
+## „Powtórz ten mecz" na `/moje-gry → Historia`
+
+Gry cykliczne są świadomie wyłączone (`SHOW_RECURRING`), więc „Powtórz mecz" jest ich jedynym
+zamiennikiem — a żyło wyłącznie na stronie meczu i przy najbliższym meczu ekipy. Organizator
+wracający w poniedziałek, żeby wrzucić czwartek, miał przed sobą cztery kroki: Moje gry →
+Historia → otwórz mecz → przewiń do panelu „Zarządzaj wydarzeniem" → Powtórz.
+
+`components/events/PowtorzZHistorii.tsx` — przycisk pod kartą meczu, wyłącznie przy meczach,
+które ta osoba organizowała (`relation.isOrganizer`). Data wypełniona z góry
+(`domyslnyTerminPowtorki()` — najbliższy przyszły ten sam dzień tygodnia), długość meczu
+zachowana. Po utworzeniu przenosi na `/wydarzenia/<nowy>?utworzono=1`, czyli od razu
+do panelu „Mecz gotowy — wyślij link".
+
+Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu: tamto siedzi
+w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
+w jedno zostaje jako osobne zadanie.
+
 ## Okna potwierdzeń zamiast `confirm()` przeglądarki
 
 Najcięższe decyzje organizatora potwierdzało do 2026-09-02 systemowe okno przeglądarki.

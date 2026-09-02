@@ -13,6 +13,7 @@ import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWi
 import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
+import PowtorzZHistorii from '@/components/events/PowtorzZHistorii';
 import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
@@ -375,9 +376,21 @@ function MojeGryContent() {
           ) : (
             <div className="space-y-8">
               <DoRozliczeniaSection items={doRozliczenia(history)} />
+              {/* „Powtórz ten mecz" WYŁĄCZNIE przy meczach, które sam
+                  organizowałem — i wyłącznie tutaj, w Historii. To jest ekran,
+                  na który organizator wchodzi w poniedziałek, żeby wrzucić
+                  czwartek; dotąd musiał stąd otworzyć mecz i szukać akcji
+                  w panelu „Zarządzaj wydarzeniem". Ustalenie `O-40`. */}
               <div className="space-y-3">
                 {history.map(({ event, relation }) => (
-                  <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent[event.id]} />
+                  <div key={event.id}>
+                    <EventBrowseCard event={event} relation={relation} unreadMessages={unreadByEvent[event.id]} />
+                    {relation.isOrganizer && (
+                      <div className="mt-1 pl-1">
+                        <PowtorzZHistorii event={event} />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>

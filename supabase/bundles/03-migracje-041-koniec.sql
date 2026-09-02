@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 86 migracji: 041_join_code.sql → 128_gosc_zarzadza_swoim_zapisem.sql
+-- Zawiera 88 migracji: 041_join_code.sql → 130_czas_lokalny.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -8853,3 +8853,404 @@ GRANT EXECUTE ON FUNCTION wypisz_wpis_goscia(uuid) TO anon, authenticated;
 
 COMMENT ON FUNCTION wypisz_wpis_goscia(uuid) IS
   'Wypisanie ze składu wpisu gościa bez konta, uprawnieniem jest sam token (model jak join_code). Nie działa na wpisie przejętym ani po rozpoczęciu meczu. Woła sync_reserve_claim, żeby zwolnione miejsce trafiło do rezerwy.';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 129_przypomnienia_o_meczu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 129: Przypomnienia — pierwsze powiadomienia w Bojo oparte o CZAS, nie o klik.
+--
+-- PO CO. Do tej migracji w całym Bojo nie było ANI JEDNEGO powiadomienia,
+-- które powstaje samo. Wszystkie (`025`, `062`, `065`, `067`, `070`, `072`,
+-- `076`, `079`, `113`, `114`, `116`) są reakcją na czyjeś kliknięcie; jedyny
+-- `cron.schedule` w repo dotyczy serii (`073`), a te są za wyłączoną flagą.
+-- W praktyce znaczyło to:
+--
+--   • nikt nie dostaje „jutro grasz o 20:00",
+--   • organizator nie dostaje „jutro mecz, brakuje 2 osób" — czyli traci
+--     ostatni moment, w którym da się jeszcze kogoś dociągnąć,
+--   • po meczu nic nie prosi o wynik ani o rozliczenie. Dane produkcyjne
+--     z audytu (2026-08-13): 122 rozegrane mecze, 6 zapisanych wyników,
+--     45 nierozliczonych płatnych meczów. Bojo umie jedno i drugie — tylko
+--     nic o to nie prosiło we właściwej chwili.
+--
+-- Przypominanie to jest ta czynność, którą organizator wykonuje co tydzień
+-- RĘCZNIE na WhatsAppie („przypominam, jutro gramy", „panowie, BLIK").
+-- Dopóki Bojo tego nie robi, grupa na WhatsAppie zostaje — a razem z nią cała
+-- reszta rozmowy o meczu.
+--
+-- CZEGO TU NIE MA, BO JUŻ JEST. To nie jest nowy system powiadomień, tylko
+-- nowy POWÓD wstawienia wiersza do `notifications`:
+--   • push jedzie za darmo — wyzwalacz `trg_wyslij_push` (`102`) łapie każdy
+--     INSERT do tej tabeli,
+--   • wyłączenie działa za darmo — `109` filtruje po TYPIE, a lista trzyma
+--     wyłączone, nie włączone (nowy typ jest domyślnie włączony),
+--   • dzwonek i trasy w aplikacji obsługują nieznane typy przez `event_id`.
+--
+-- IDEMPOTENTNA. `NOT EXISTS` na (użytkownik, mecz, typ) sprawia, że drugie
+-- uruchomienie tego samego dnia nie wyśle niczego drugi raz. To nie jest
+-- higiena na zapas: zadanie cron potrafi wystartować dwa razy przy restarcie
+-- bazy, a duplikat powiadomienia o meczu czyta się jak zmiana w meczu.
+--
+-- STREFA CZASOWA. Wszystkie daty liczone `AT TIME ZONE 'Europe/Warsaw'`,
+-- wzorem `073`. Baza stoi na UTC (sprawdzone na produkcji: `SHOW timezone`
+-- zwraca `UTC`), więc gołe `current_date` po 22:00 czasu polskiego wskazuje
+-- jeszcze dzień poprzedni — a przy zadaniu, które ma trafić w „jutro",
+-- pomyłka o dzień znaczy „przypomnienie o niewłaściwym meczu".
+
+-- ---------------------------------------------------------------------------
+-- 1. Funkcja
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION wyslij_przypomnienia()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_dzis  date := (now() AT TIME ZONE 'Europe/Warsaw')::date;
+  v_ile   integer := 0;
+  v_teraz integer;
+BEGIN
+  -- =========================================================================
+  -- A. JUTRO GRASZ — do wszystkich, którzy mają miejsce w składzie
+  -- =========================================================================
+  -- Rezerwowi i oczekujący na akceptację celowo POZA: „jutro grasz" jest dla
+  -- nich nieprawdą, a przypomnienie o meczu, w którym się nie gra, to hałas.
+  -- Obserwujący (`rsvp = 'maybe'`) odpadają tą samą regułą.
+  --
+  -- Organizator dostaje TĘ SAMĄ jedną wiadomość, tylko z dopiskiem o brakach —
+  -- osobny wiersz dla niego znaczyłby dwa powiadomienia o tym samym meczu dla
+  -- kogoś, kto w nim gra.
+  WITH sklad AS (
+    SELECT e.id AS event_id,
+           e.organizer_id,
+           coalesce(e.title, e.sport)                                     AS tytul,
+           to_char(e.event_time, 'HH24:MI')                               AS godzina,
+           coalesce(e.field_name, e.custom_location_name, 'boisko')       AS miejsce,
+           e.max_players,
+           count(*) FILTER (
+             WHERE p.pending_approval IS NOT TRUE
+               AND p.rsvp <> 'maybe'
+               AND p.is_reserve IS NOT TRUE)                              AS w_skladzie
+      FROM events e
+      JOIN event_participants p ON p.event_id = e.id
+     WHERE e.event_date = v_dzis + 1
+       AND e.status = 'active'
+     GROUP BY e.id
+  )
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT p.user_id,
+         'przypomnienie_o_meczu',
+         s.tytul,
+         -- Organizatorowi dokładamy to, co jest dla niego decyzją: ilu ludzi
+         -- brakuje. Reszcie sama informacja — „brakuje 2" nie jest ich sprawą
+         -- i zamieniłoby przypomnienie w prośbę o pomoc wysłaną do wszystkich.
+         CASE
+           WHEN p.user_id = s.organizer_id AND s.w_skladzie < s.max_players
+             THEN 'Jutro ' || s.godzina || ' · ' || s.miejsce
+                  || ' · brakuje ' || (s.max_players - s.w_skladzie)
+                  || ' (' || s.w_skladzie || '/' || s.max_players || ')'
+           ELSE 'Jutro ' || s.godzina || ' · ' || s.miejsce
+         END,
+         s.event_id
+    FROM sklad s
+    JOIN event_participants p ON p.event_id = s.event_id
+   WHERE p.user_id IS NOT NULL
+     AND p.pending_approval IS NOT TRUE
+     AND p.rsvp <> 'maybe'
+     AND p.is_reserve IS NOT TRUE
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = p.user_id
+              AND n.event_id = s.event_id
+              AND n.type = 'przypomnienie_o_meczu');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  -- =========================================================================
+  -- B. ORGANIZATOR, KTÓRY JUTRO GRA, ALE NIE MA SIEBIE W SKŁADZIE
+  -- =========================================================================
+  -- Organizator nie musi grać w meczu, który organizuje — i wtedy wypada
+  -- z zapytania wyżej, mimo że to on odpowiada za skład i za wynajem. Dla
+  -- niego „jutro" jest informacją co najmniej tak samo ważną.
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT e.organizer_id,
+         'przypomnienie_o_meczu',
+         coalesce(e.title, e.sport),
+         'Jutro ' || to_char(e.event_time, 'HH24:MI') || ' · '
+           || coalesce(e.field_name, e.custom_location_name, 'boisko')
+           || ' · ' || (
+             SELECT count(*) FROM event_participants x
+              WHERE x.event_id = e.id AND x.pending_approval IS NOT TRUE
+                AND x.rsvp <> 'maybe' AND x.is_reserve IS NOT TRUE
+           ) || '/' || e.max_players || ' w składzie',
+         e.id
+    FROM events e
+   WHERE e.event_date = v_dzis + 1
+     AND e.status = 'active'
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = e.organizer_id
+              AND n.event_id = e.id
+              AND n.type = 'przypomnienie_o_meczu');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  -- =========================================================================
+  -- C. PO MECZU — tylko organizator i tylko wtedy, gdy JEST co domknąć
+  -- =========================================================================
+  -- Warunek „jest co domknąć" jest istotą tego powiadomienia. Przypomnienie
+  -- wysyłane po każdym meczu, także w pełni rozliczonym, jest wyłącznie
+  -- hałasem — a wyłączony kanał nie dowozi już niczego, łącznie z tym, co
+  -- ważne. Stąd sprawdzamy stan: brak wyniku (gdy mecz go w ogóle prowadzi)
+  -- albo ktoś nie oddał kasy.
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT e.organizer_id,
+         'po_meczu_do_domkniecia',
+         coalesce(e.title, e.sport),
+         'Mecz rozegrany. ' || array_to_string(
+           array_remove(ARRAY[
+             CASE WHEN e.track_results
+                   AND NOT EXISTS (SELECT 1 FROM match_results r WHERE r.event_id = e.id)
+                  THEN 'Wpisz wynik' END,
+             CASE WHEN e.cost_grosz > 0 AND (
+                    SELECT count(*) FROM event_participants x
+                     WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                       AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                       AND x.is_reserve IS NOT TRUE) > 0
+                  THEN 'odhacz wpłaty — ' || (
+                    SELECT count(*) FROM event_participants x
+                     WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                       AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                       AND x.is_reserve IS NOT TRUE)
+                    || ' osób jeszcze nie oddało' END
+           ], NULL), ', ') || '.',
+         e.id
+    FROM events e
+   WHERE e.event_date = v_dzis - 1
+     AND e.status = 'active'
+     AND (
+       (e.track_results AND NOT EXISTS (SELECT 1 FROM match_results r WHERE r.event_id = e.id))
+       OR (e.cost_grosz > 0 AND EXISTS (
+             SELECT 1 FROM event_participants x
+              WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                AND x.is_reserve IS NOT TRUE))
+     )
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = e.organizer_id
+              AND n.event_id = e.id
+              AND n.type = 'po_meczu_do_domkniecia');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  RETURN v_ile;
+END;
+$$;
+
+-- Wołana WYŁĄCZNIE przez zadanie w bazie. Z przeglądarki nie ma jej po co
+-- ruszać, a dostępna dla `anon` byłaby zaproszeniem do rozsyłania powiadomień
+-- cudzym ekipom.
+REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM public;
+REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM anon, authenticated;
+
+COMMENT ON FUNCTION wyslij_przypomnienia() IS
+  'Przypomnienia oparte o czas: „jutro grasz" dla składu i organizatora oraz „po meczu" (wynik/rozliczenie) dla organizatora, gdy jest co domknąć. Idempotentna — drugie uruchomienie tego samego dnia nie dubluje wierszy. Cel zadania pg_cron; działa też wywołana ręcznie.';
+
+-- ---------------------------------------------------------------------------
+-- 2. Zadanie w bazie
+-- ---------------------------------------------------------------------------
+-- 16:00 UTC = 18:00 czasu polskiego latem, 17:00 zimą. Godzina wybrana tak,
+-- żeby przypomnienie o jutrzejszym meczu trafiało w porę, w której jeszcze da
+-- się zareagować (znaleźć kogoś, odwołać, dopłacić), a nie w środku nocy.
+--
+-- Owinięte w DO wzorem `073`: samo `cron.schedule` na bazie bez `pg_cron`
+-- wywraca całą migrację. Na produkcji rozszerzenie JEST włączone (sprawdzone
+-- 2026-09-02), ale `baza-testowa.sh` stawia goły Postgres bez niego.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- `unschedule` przed `schedule`: bez tego drugie uruchomienie migracji
+    -- wywala się na duplikacie nazwy zadania.
+    PERFORM cron.unschedule('bojo-przypomnienia')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'bojo-przypomnienia');
+    PERFORM cron.schedule(
+      'bojo-przypomnienia',
+      '0 16 * * *',
+      'SELECT wyslij_przypomnienia()'
+    );
+    RAISE NOTICE 'Zadanie bojo-przypomnienia ustawione na 16:00 UTC (18:00 czasu polskiego latem).';
+  ELSE
+    RAISE NOTICE 'pg_cron niewłączony — przypomnienia NIE będą wychodzić. Włącz: Database → Extensions → pg_cron, potem uruchom ten blok ponownie.';
+  END IF;
+END
+$$;
+
+-- SPRAWDZENIE PO URUCHOMIENIU (wkleić w SQL Editorze):
+--   SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bojo-przypomnienia';
+--   SELECT wyslij_przypomnienia();   -- ręczne wywołanie: zwraca liczbę wysłanych
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 130_czas_lokalny.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 130: Baza liczy czas w UTC, a mecze grane są w czasie polskim.
+--
+-- PO CO. `SHOW timezone` na produkcji zwraca `UTC` (sprawdzone 2026-09-02).
+-- Mecz jest zapisany jako DATA + GODZINA LOKALNA (`event_date`, `event_time`,
+-- oba bez strefy), więc porównanie `(event_date + event_time)::timestamp <= now()`
+-- każe Postgresowi potraktować „2026-09-02 20:00" jako czas UTC — czyli 22:00
+-- czasu polskiego latem, 21:00 zimą. Efekt: mecz o 20:00 jest „rozpoczęty"
+-- dopiero dwie godziny po pierwszym gwizdku.
+--
+-- Skutki są dziś drobne, ale realne i widoczne dla ludzi:
+--   • kolejka rezerwowa rozdaje jeszcze oferty miejsc po rozpoczęciu meczu,
+--   • powiadomienia o zmianie składu wychodzą dla meczów, które już trwają.
+--
+-- Ważniejsze jest to, co byłoby dalej: KAŻDE nowe zadanie oparte o czas
+-- dziedziczy ten błąd, a przy przypomnieniach (`129`) pomyłka o dzień znaczy
+-- „przypomnienie o niewłaściwym meczu". `129` liczy już poprawnie; ta migracja
+-- domyka to, co było wcześniej.
+--
+-- CZEGO TA MIGRACJA NIE RUSZA — świadomie: funkcji statystyk (`045`, `055`,
+-- `074`, `095`). Tam ta sama poprawka ZMIENIŁABY LICZBY na profilach graczy
+-- (mecz rozegrany dziś wieczorem zacząłby się liczyć od razu, a nie po
+-- dwóch godzinach) — to jest zmiana widoczna dla użytkownika i należy jej się
+-- osobna decyzja, a nie doklejenie do migracji o czymś innym.
+--
+-- BEZPIECZNA W OBIE STRONY. Jeśli baza kiedykolwiek stanie na
+-- `Europe/Warsaw`, `AT TIME ZONE` daje dokładnie ten sam wynik co dziś
+-- domyślne `now()` — zmiana czyni regułę JAWNĄ, nie inną.
+
+-- ---------------------------------------------------------------------------
+-- 1. Wspólne „teraz" i „dziś" w czasie polskim
+-- ---------------------------------------------------------------------------
+-- STABLE, nie IMMUTABLE: wynik zmienia się między transakcjami, więc nie wolno
+-- go zaindeksować ani użyć w kolumnie generowanej (ta sama pułapka, przez którą
+-- migracja `126` musiała sięgnąć po `translate()` zamiast `unaccent()`).
+CREATE OR REPLACE FUNCTION teraz_pl() RETURNS timestamp
+LANGUAGE sql STABLE AS $$ SELECT (now() AT TIME ZONE 'Europe/Warsaw') $$;
+
+CREATE OR REPLACE FUNCTION dzis_pl() RETURNS date
+LANGUAGE sql STABLE AS $$ SELECT (now() AT TIME ZONE 'Europe/Warsaw')::date $$;
+
+GRANT EXECUTE ON FUNCTION teraz_pl() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION dzis_pl()  TO anon, authenticated;
+
+COMMENT ON FUNCTION teraz_pl() IS
+  'Bieżący czas w strefie Europe/Warsaw jako timestamp bez strefy — do porównań z event_date + event_time, które też są czasem lokalnym. Baza stoi na UTC, więc gołe now() przesuwa mecze o 1-2 godziny.';
+
+-- ---------------------------------------------------------------------------
+-- 2. sync_reserve_claim — ciało z migracji `118`, zmieniona WYŁĄCZNIE
+--    linia rozpoznająca rozpoczęty mecz
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sync_reserve_claim(p_event_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_minutes smallint; v_started boolean; v_title text; v_sport text;
+  v_gk_enabled boolean;
+  v_czas text;
+  v_next_id uuid; v_next_user uuid;
+BEGIN
+  SELECT reserve_claim_minutes, goalkeepers_enabled,
+         -- BYŁO: `(event_date + event_time)::timestamp <= now()` — porównanie
+         -- czasu lokalnego z UTC, czyli mecz „trwał" jeszcze dwie godziny po
+         -- gwizdku i kolejka rozdawała w tym czasie miejsca.
+         (event_date + event_time)::timestamp <= teraz_pl() OR status = 'cancelled',
+         coalesce(title, sport), sport
+    INTO v_minutes, v_gk_enabled, v_started, v_title, v_sport
+    FROM events WHERE id = p_event_id;
+
+  IF v_minutes IS NULL OR v_started THEN RETURN; END IF;
+
+  v_czas := CASE
+    WHEN v_minutes < 60 THEN v_minutes || ' min.'
+    WHEN v_minutes % 60 = 0 THEN (v_minutes / 60) || ' godz.'
+    ELSE (v_minutes / 60) || ' godz. ' || (v_minutes % 60) || ' min.'
+  END;
+
+  UPDATE event_participants
+     SET claim_passed = true, claim_offered_at = NULL
+   WHERE event_id = p_event_id AND claim_offered_at IS NOT NULL
+     AND claim_offered_at + (v_minutes || ' minutes')::interval <= now();
+
+  IF NOT czy_na_rezerwe(p_event_id, false) THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = false
+     ORDER BY zapisano_at LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', v_title,
+              'Zwolniło się miejsce. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+    END IF;
+  END IF;
+
+  IF czy_na_rezerwe(p_event_id, true) IS FALSE THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = true
+     ORDER BY zapisano_at LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', v_title,
+              'Zwolniło się miejsce dla bramkarza. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+    END IF;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3. Wyzwalacze pomijające mecze „z przeszłości"
+-- ---------------------------------------------------------------------------
+-- Oba używały `current_date`, czyli daty UTC. Między północą a drugą w nocy
+-- czasu polskiego UTC pokazuje jeszcze dzień poprzedni, więc wyzwalacz uznawał
+-- wczorajszy mecz za dzisiejszy i wysyłał powiadomienia o składzie meczu,
+-- który już się odbył.
+--
+-- Ciała skopiowane z `079` i `097` — zmieniona WYŁĄCZNIE ta jedna linia
+-- w każdym z nich, żeby diff dało się przeczytać.
+DO $$
+DECLARE
+  v_zrodlo text;
+BEGIN
+  -- powiadom_o_zmianie_kompletu (079)
+  SELECT pg_get_functiondef(oid) INTO v_zrodlo
+    FROM pg_proc WHERE proname = 'powiadom_o_zmianie_kompletu' LIMIT 1;
+  IF v_zrodlo IS NOT NULL AND position('v_data < current_date' in v_zrodlo) > 0 THEN
+    EXECUTE replace(v_zrodlo, 'v_data < current_date', 'v_data < dzis_pl()');
+    RAISE NOTICE 'powiadom_o_zmianie_kompletu: current_date → dzis_pl()';
+  END IF;
+
+  -- powiadom_o_progu_gry (097)
+  SELECT pg_get_functiondef(oid) INTO v_zrodlo
+    FROM pg_proc WHERE proname = 'powiadom_o_progu_gry' LIMIT 1;
+  IF v_zrodlo IS NOT NULL AND position('v_data < current_date' in v_zrodlo) > 0 THEN
+    EXECUTE replace(v_zrodlo, 'v_data < current_date', 'v_data < dzis_pl()');
+    RAISE NOTICE 'powiadom_o_progu_gry: current_date → dzis_pl()';
+  END IF;
+END
+$$;
+
+-- Podmiana przez `pg_get_functiondef` + `replace`, a nie przez przepisanie
+-- całych ciał: te dwie funkcje mają po kilkadziesiąt linii logiki, której ta
+-- migracja NIE dotyczy, a każda przepisana linia to okazja, żeby coś zgubić
+-- (dokładnie tak `074` musiała naprawiać `get_player_stats` po `064`).
+-- Warunek `position(...) > 0` sprawia, że drugie uruchomienie nic nie robi.
