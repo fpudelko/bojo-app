@@ -49,7 +49,21 @@ w składzie. Konto może dokończyć później, jeśli chce mieć historię i st
 
 Cztery warianty pierwszej wiadomości, dwie osie: **wspólny cel** (zaczyna od misji)
 albo **narzędzie** (zaczyna od tego, co Bojo robi dziś), każda w odmianie
-z prośbą o test i bez niej. Druga wiadomość jest wspólna dla wszystkich czterech.
+z prośbą o test i bez niej.
+
+Każdy wariant to teraz **trzy wiadomości**, nie dwie — rozbite tak, jak realnie
+pisze się na Messengerze. Krótkie pytanie samo, żeby nie czytało się jak ściana
+tekstu i żeby faktycznie dostać odpowiedź, zanim poleci reszta:
+
+1. **Wiadomość 1** — jedno zdanie, zaczepka + pytanie. Nic więcej.
+2. **Wiadomość 2** — po jego odpowiedzi (nawet krótkim „tak"/„czasem"): misja albo
+   narzędzie, plus prośba o test.
+3. **Wiadomość 3** — po „dawaj": jak to działa. Wspólna dla wszystkich czterech
+   wariantów.
+
+To jest domyślny schemat, nie sztywna procedura — rozmowa może potoczyć się inaczej
+(np. ktoś od razu dopyta „a co to za narzędzie" po wiadomości 1, wtedy wiadomość 2
+i 3 mogą polecieć razem).
 
 Pisownia jest celowo potoczna — `fb`, `messanger`, `google` małą literą, luźna
 interpunkcja. Idealna polszczyzna w prywatnej wiadomości na Messengerze czyta się
@@ -58,9 +72,15 @@ jak automat i to jest jedyny powód, dla którego tu jej nie ma. Pola
 
 ### A. Wspólny cel + testy
 
+**Wiadomość 1**
+
 ```
 Cześć [Imię], widziałem że szukałeś grajków do składu. Organizujesz regularnie gierki?
+```
 
+**Wiadomość 2 — po odpowiedzi**
+
+```
 Robimy Bojo.pl i mamy misję, żeby zebrać dużą społeczność ludzi którzy lubią pokopać.
 Wtedy łatwo będzie dobrać ludzi do składu albo dołączyć do gierki, zamiast szukać na fb
 i po znajomych.
@@ -74,9 +94,15 @@ mi wprost co jest do niczego. Mogę Ci w dwóch zdaniach napisać jak to działa
 
 ### B. Wspólny cel + rola organizatora
 
+**Wiadomość 1**
+
 ```
 Cześć [Imię], widziałem że szukałeś grajków do składu. Organizujesz regularnie gierki?
+```
 
+**Wiadomość 2 — po odpowiedzi**
+
+```
 Robimy Bojo.pl i mamy misję, żeby zebrać dużą społeczność ludzi którzy lubią pokopać.
 Wtedy łatwo będzie dobrać ludzi do składu albo dołączyć do gierki, zamiast szukać na fb
 i po znajomych.
@@ -98,10 +124,16 @@ składu. Mogę Ci w dwóch zdaniach napisać jak to działa?
 
 ### C. Narzędzie + testy
 
+**Wiadomość 1**
+
 ```
 Cześć [Imię], widziałem Twój post w [nazwa grupy] że szukasz [2 osób na czwartek]
 na [miejsce]. Organizujesz regularnie gierki?
+```
 
+**Wiadomość 2 — po odpowiedzi**
+
+```
 Robię z kumplem bojo.pl, narzędzie do organizacji meczy i zbierania składu, robione
 pod piłkę. Z funkcjami których brakuje na grupach whatsapp fb messanger. Liczy skład,
 rezerwę i rozliczenia za boisko, do tego podział na składy, wyniki i statystyki.
@@ -114,10 +146,16 @@ Mogę Ci w dwóch zdaniach napisać jak to działa?
 
 ### D. Narzędzie, bez prośby o test
 
+**Wiadomość 1**
+
 ```
 Cześć [Imię], widziałem Twój post w [nazwa grupy] że szukasz [2 osób na czwartek]
 na [miejsce]. Organizujesz regularnie gierki?
+```
 
+**Wiadomość 2 — po odpowiedzi**
+
+```
 Robię z kumplem bojo.pl, narzędzie do organizacji meczy i zbierania składu, robione
 pod piłkę. Z funkcjami których brakuje na grupach whatsapp fb messanger. Liczy skład,
 rezerwę i rozliczenia za boisko, do tego podział na składy, wyniki i statystyki.
@@ -129,7 +167,7 @@ zdaniach napisać jak to działa?
 > Ostatni akapit jest tu obowiązkowy, choć nie prosi o test. Bez niego wiadomość jest
 > czystą prezentacją produktu i pierwsza reakcja brzmi „sprzedajesz mi coś".
 
-### Wiadomość 2 — po „dawaj”, wspólna dla wszystkich czterech
+### Wiadomość 3 — po „dawaj”, wspólna dla wszystkich czterech
 
 ```
 Wystawiasz mecz na bojo.pl, dostajesz link i wrzucasz go tam gdzie zwykle sie zbieracie
@@ -168,7 +206,6 @@ rezerwa, wolne miejsca, metody płatności, podział na składy i wyniki.
 pytanie na start i szczery powód, po co piszesz. **A** do ludzi, którzy wyglądają na
 weteranów sceny i kupią misję. **B** tam, gdzie widać, że ktoś ogarnia scenę od lat
 i spodoba mu się bycie u początku. **D** gdy chcesz najkrócej.
-
 ---
 
 ## 4. Follow-up
