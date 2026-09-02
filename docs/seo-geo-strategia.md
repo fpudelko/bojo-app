@@ -1481,10 +1481,31 @@ wcześniej praktycznie zero wyświetleń. Najczęstsze zapytania: „co to bojo"
 mimo pozycji ~9. Twarda liczba pod problemem z nazwą opisanym w rozdziale 2c: ktoś,
 kto widzi Bojo na tej pozycji dla zapytania o markę, i tak nie klika.
 
-**Do sprawdzenia ponownie za 2–3 dni:** czy „Wykryte strony" przy `sitemap-index.xml`
-rośnie. Jeśli tak — potwierdza, że jedynym problemem był brak zgłoszenia. Jeśli
-zostanie przy zerze mimo statusu „Sukces" — dopiero wtedy wymaga sprawdzenia treści
-samych map wojewódzkich (`/sitemap-boiska/*.xml`).
+**ODCZYT WYKONANY (2026-09-01, zgłoszony przez właściciela): „Wykryte strony"
+skoczyło z 0 na 32 400 — natychmiast po odświeżeniu. Zaindeksowane: nadal 2.**
+
+Pierwsza połowa pytania jest zamknięta: **problemem był wyłącznie brak zgłoszenia mapy
+witryny.** Google zszedł do 17 map wojewódzkich bez przeszkód, treść map jest poprawna,
+`.in('seo_tier',[1,2])` przepuszcza ~32 tys. adresów zgodnie z projektem. Hipoteza
+o zepsutych mapach wojewódzkich odpada.
+
+Druga połowa jest otwarta i **nie należy jej czytać jako porażki**: 32 400 wykrytych
+przy 2 zaindeksowanych po trzech dniach to stan oczekiwany. „Wykryte" w raporcie *Mapy
+witryn* znaczy tylko tyle, że adres jest Google'owi znany — nie że został pobrany ani
+oceniony. Nowa domena bez linków przychodzących dostaje niski limit skanowania;
+indeksacja 32 tys. adresów to tygodnie, nie dni.
+
+**Czego ten odczyt NIE mówi i co trzeba odczytać osobno.** Liczba 32 400 pochodzi
+z raportu *Mapy witryn*. Sygnał ostrzegawczy R1 (rozdział 9) mieszka w INNYM raporcie —
+*Indeksowanie → Strony* — i są nim dwie pozycje: **„Wykryto — obecnie bez indeksu"**
+oraz **„Zeskanowano — obecnie bez indeksu"**. Dopóki tam jest zero, wiadomo tylko, że
+Google jeszcze nie zdążył. Jeśli za 2–4 tygodnie któraś z nich urośnie do dziesiątek
+tysięcy przy niezmienionej liczbie zaindeksowanych — **to dopiero jest R1**, czyli
+odpowiedź, że katalog jest oceniany jako treść masowa. To jedyny odczyt, który
+rozstrzyga spór z rozdziału 8.
+
+**Termin:** 2026-09-15 i 2026-09-29, raport *Indeksowanie → Strony*, obie liczby zapisać
+tutaj. Wcześniejsze sprawdzanie nic nie doda.
 
 **NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą ze zrzutów ekranu
 właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do Search Console.
@@ -1575,12 +1596,24 @@ zdefiniowany jako wzrost tych dwóch kategorii. Rozstrzyganie tego teraz, przed 
 byłoby powtórzeniem błędu, który runda 3 nazwała po imieniu: działaniem bez wartości
 wyjściowej.
 
-**Co z tego wynika operacyjnie:** nie ruszamy skali indeksu (poz. 19 i tak odrzucona)
-i nie dokładamy treści „na wszelki wypadek". Czekamy na odczyt — pozycja 1 roadmapy
-rundy 4, praca Jana, minuty.
+**AKTUALIZACJA tego samego dnia (2026-09-01), po odczycie z Search Console.** Odczyt
+przyszedł szybciej, niż zakładał akapit wyżej: **„Wykryte strony" 0 → 32 400,
+zaindeksowane nadal 2** (7a.2). To zamyka pytanie o mapy wojewódzkie — działają — i NIE
+rozstrzyga jeszcze R1, bo wykrycie to nie to samo co skanowanie. Rozstrzygnie je dopiero
+raport *Indeksowanie → Strony* za 2–4 tygodnie.
 
-**Jedna rzecz warta zrobienia niezależnie od wyniku tego odczytu — REKOMENDACJA, nie
-decyzja.** Zdanie, którym Bojo różni się od katalogu OSM, jest dziś stałe; da się dołożyć
+Ale jedno ten odczyt zmienia od razu i to jest zmiana kierunku, nie niuans: **32 400
+adresów jest już w kolejce Google'a.** Do dziś pytanie „czy warto dać tym stronom treść
+własną" było hipotetyczne, bo wyszukiwarka o nich nie wiedziała. Teraz wie o wszystkich,
+a każda z nich niesie to samo jedno zdanie. Argument za czekaniem osłabł: czekamy na
+ocenę stron, których treść możemy poprawić ZANIM zostaną ocenione.
+
+**Co z tego wynika operacyjnie:** nie ruszamy skali indeksu (poz. 19 i tak odrzucona)
+i nie dokładamy treści „na wszelki wypadek" — ale dokładamy treść, która jest prawdziwa,
+unikalna i tania. To jest dokładnie posunięcie opisane niżej, wykonane 2026-09-01.
+
+**Jedna rzecz warta zrobienia niezależnie od wyniku tego odczytu — ZROBIONE 2026-09-01,
+decyzją właściciela.** Zdanie, którym Bojo różni się od katalogu OSM, jest dziś stałe; da się dołożyć
 fakt **unikalny dla konkretnego obiektu**, nie wymagający ani jednego rozegranego meczu:
 najbliższe obiekty tego samego sportu w okolicy. Dane już są (współrzędne całego
 katalogu), narzędzia też — `kadrWokol()` (`lib/api.ts`) i wzorzec zapytania
@@ -1589,8 +1622,32 @@ w `sitemap-boiska/[plik]/route.ts`. To nie jest nowy typ strony (żaden zakaz z 
 nie zostaje naruszony), działa przy stu użytkownikach i przy zerze meczów, a przy okazji
 jest warstwą linkowania wewnętrznego — czyli tym, co 4b nazywa najtańszą rzeczą
 o największym wpływie. Koszt: jedno zapytanie na render przy `revalidate = 86400`.
-**Nie zbudowane w tej rundzie świadomie:** to nowa sekcja interfejsu na 36 tys. stron,
-czyli decyzja produktowa właściciela, nie oczywistość do dopchnięcia przy okazji audytu.
+**Zbudowane 2026-09-01** (`lib/pobliskieObiekty.ts`, sekcja w `OpisIPowiazane`
+w `VenueDetailClient.tsx`, dane pobierane server-side w `boisko/[id]/page.tsx`).
+Szczegóły, które warto znać przy kolejnej zmianie w tym miejscu:
+
+- **Promień 8 km, maksimum 6 pozycji, sortowanie po realnej odległości.** `kadrWokol()`
+  zwraca kwadrat, nie koło, więc `wybierzPobliskie()` przycina wynik po
+  `distanceKm()` — bez tego lista mówiłaby „w okolicy" o obiekcie odległym
+  o jedenaście kilometrów (po przekątnej kwadrat sięga ~1,41 × promień).
+- **Nagłówek brzmi „Inne boiska w okolicy", nigdy „w promieniu 8 km"** — ta druga nazwa
+  byłaby liczbą, której nie liczymy. Ta sama zasada co przy `policzBoiskaWOkolicy()`.
+- **Filtr `seo_tier IN (1,2)`** — ten sam co huby i mapa witryny. Bez niego strona
+  obiektu linkowałaby do Tier 3, któremu sama daje `noindex`: dokładnie ta wewnętrzna
+  sprzeczność, którą dług D11 wytknął hubom.
+- **Sekcja znika przy pustej liście.** Nagłówek nad niczym byłby gorszy niż brak sekcji —
+  ta sama zasada co `zdanieORozegranychMeczach(0) === null`.
+- **Reguła doboru jest czystą funkcją i ma 10 asercji** (`pobliskieObiekty.test.ts`),
+  bo tego zachowania nie widać w interfejsie bez bazy z kilkoma obiektami tego samego
+  sportu w promieniu ośmiu kilometrów.
+- **Efekt uboczny, który był połową uzasadnienia:** do 2026-09-01 ze strony obiektu
+  wychodziły trzy linki wewnętrzne i wszystkie prowadziły do hubów — żaden do innego
+  obiektu. Katalog był gwiazdą, nie siecią.
+
+**NIEZWERYFIKOWANE:** jak sekcja wygląda i co dokładnie listuje na prawdziwych danych.
+Sesja agenta nie ma dostępu ani do produkcji, ani do stosu lokalnego (brak gniazda
+Dockera), a `audyt-robota --bez-bazy` pomija stronę obiektu. Sprawdzenie: otworzyć
+dowolny obiekt w mieście na `bojo.pl` i zobaczyć, czy lista ma sens geograficznie.
 
 ### F1. Katalog weryfikowany przez grających, nie przez import
 
@@ -1758,10 +1815,11 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 26 | ~~`.in('seo_tier',[1,2])` i usunięcie martwej gałęzi (D12)~~ **ZROBIONE 2026-08-24** | QUICK WIN | niski | łatwa | Franek | `sitemap-boiska/[plik]/route.ts`, `lib/sitemapTier.ts` | test opisuje zachowanie, które istnieje |
 | 27 | ~~Core Web Vitals — pomiar, potem decyzja~~ **ZMIERZONE 2026-08-29; decyzja nadal do podjęcia** | DŁUGI | nieznany | łatwa | Franek | 7a.1 | spełnione: pięć typów stron, telefon+pulpit, przez właściciela na pagespeed.web.dev |
 | 28 | ~~Deduplikacja tabeli porównawczej na `/dlaczego-bojo` (3c) — jeden znacznik, dwa układy CSS zamiast dwóch bloków w DOM~~ **ZROBIONE 2026-08-26** | QUICK WIN | niski | średnia | Franek | `app/dlaczego-bojo/page.tsx`; `scripts/audyt-robota.mjs#duplikatyTresci` | spełnione: detektor łapał 5 powtórzonych fragmentów przed poprawką, 0 po |
-| 29 | **Odczyt propagacji sitemapy** — czy „Wykryte strony" przy `sitemap-index.xml` ruszyło z zera od 2026-08-29 | QUICK WIN | **najwyższy** | łatwa | Jan | Search Console → Indeksowanie → Mapy witryn | rozstrzyga, czy problemem był sam brak zgłoszenia, czy treść map wojewódzkich. Do tego odczyt „Zeskanowano/Wykryto — obecnie bez indeksu" jako sygnał R1 |
+| 29 | ~~Odczyt propagacji sitemapy~~ **ZROBIONE 2026-09-01: 0 → 32 400 wykrytych, 2 zaindeksowane** | QUICK WIN | wysoki | łatwa | Jan | Search Console → Mapy witryn | spełnione: mapy wojewódzkie działają, problemem był wyłącznie brak zgłoszenia |
+| 29b | **Odczyt sygnału R1** — „Wykryto/Zeskanowano — obecnie bez indeksu" w raporcie *Indeksowanie → Strony* | ŚREDNI | **najwyższy** | łatwa | Jan | Search Console, terminy 2026-09-15 i 2026-09-29 | to, a nie liczba wykrytych, rozstrzyga spór z rozdz. 8: czy katalog jest oceniany jako treść masowa |
 | 30 | ~~Tytuł i opis pod zapytanie markowe (2c) — rzeczownik kategorii przy marce~~ **ZROBIONE 2026-09-01** | QUICK WIN | wysoki | łatwa | Franek | `content/metaWyszukiwarki.ts`, `app/layout.tsx`, `app/dlaczego-bojo/page.tsx`; test `tytulMarkowy.test.ts` | zweryfikowane `curl` bez JS na surowym HTML; **skutek dla CTR do zmierzenia** za 4–6 tygodni w Search Console |
 | 31 | Rozstrzygnąć „Przeglądanie agentowe" 2/3 na stronie obiektu (5f) | ŚREDNI | średni | łatwa | Jan (2 min), potem Franek | Rich Results Test / validator.schema.org, potem `app/boisko/[id]/page.tsx` | wiadomo, który z trzech audytów pada — dziś NIEZWERYFIKOWANE |
-| 32 | Fakt unikalny dla obiektu bez meczów — pobliskie obiekty tego sportu (rozdz. 8, runda 4) | ŚREDNI | średni | średnia | decyzja właściciela, potem Franek | `lib/api.ts#kadrWokol`, `VenueDetailClient.tsx` | REKOMENDACJA, nie zadanie: czeka na odczyt z poz. 29 |
+| 32 | ~~Fakt unikalny dla obiektu bez meczów — pobliskie obiekty tego sportu (rozdz. 8)~~ **ZROBIONE 2026-09-01** | ŚREDNI | średni | średnia | Franek | `lib/pobliskieObiekty.ts`, `VenueDetailClient.tsx#OpisIPowiazane`, `boisko/[id]/page.tsx`; test `pobliskieObiekty.test.ts` | spełnione w kodzie: każda strona obiektu ma treść unikalną i pierwsze linki do innych obiektów. Skutek dla indeksacji — do zmierzenia razem z poz. 29b |
 
 ### WERDYKT RUNDY 4 (2026-09-01) wobec oceny rundy 3
 
@@ -1781,8 +1839,13 @@ tygodni optymalizacji trafiało do serwisu, którego wyszukiwarka nie miała jak
 stroną główną. Wniosek rundy 3, że kod zrobił swoje, zostaje w mocy — ale nie z powodu,
 dla którego został wtedy napisany.
 
+**Dopisek z tego samego dnia:** odczyt (poz. 29) wykonany — 32 400 wykrytych, 2
+zaindeksowane. Google zna dziś wszystkie strony katalogu, a każda niesie to samo jedno
+zdanie własne, więc pozycja 32 (treść unikalna per obiekt) przestała być rekomendacją
+i została zbudowana. Rozstrzygnięcie R1 przeszło na pozycję 29b.
+
 **Co z tego wynika na najbliższe tygodnie.** Praca o najwyższym wpływie to nadal nie kod,
-tylko odczyt — pozycja 29, minuty roboty Jana. Do tego dwie rzeczy prawdziwe niezależnie
+tylko odczyt — dziś pozycja 29b, minuty roboty Jana. Do tego dwie rzeczy prawdziwe niezależnie
 od tego odczytu: pozycja 30 (zrobiona w tej rundzie — jedyny klaster z realnym ruchem miał
 tytuł potwierdzający definicję słownikową zamiast jej przeczyć) i pozycja 31
 (rozstrzygnięcie 2/3, dwie minuty w przeglądarce, dotyczy 30 tys. adresów).

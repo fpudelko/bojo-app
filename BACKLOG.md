@@ -767,17 +767,31 @@ wynosi zero" wyżej jest już nieaktualne.
       w dwóch długościach, oba z jednego źródła co `DLACZEGO_ODPOWIEDZ`.
 - [x] **Arkusz zapisu 40 promptów** (Załącznik A) — legenda skrótów, trzy pola wymagane
       przez sam Załącznik, zasady przebiegu. Ani jedno z 40 pytań nie zmienione.
-- [ ] **Odczyt propagacji sitemapy** (poz. 29) — **PRACA JANA, minuty, najwyższy wpływ
-      w całym dokumencie.** Czy „Wykryte strony" przy `sitemap-index.xml` ruszyło z zera
-      od 2026-08-29 i czy rosną „Zeskanowano/Wykryto — obecnie bez indeksu". Od tego
-      zależy rozstrzygnięcie z rozdz. 8: czy 36 tys. stron obiektów jest aktywem, czy
-      ryzykiem R1. Termin z pomiaru („za 2–3 dni") minął.
-- [ ] **Fakt unikalny dla obiektu bez meczów** (poz. 32) — REKOMENDACJA do decyzji
-      właściciela, świadomie nie zbudowana: na obiekcie bez ani jednego meczu (99,9%
-      katalogu) jedyne zdanie własne Bojo jest **bajtowo identyczne na wszystkich
-      36 268 stronach**. Pobliskie obiekty tego samego sportu dałyby fakt unikalny per
-      strona, bez potrzeby jakiegokolwiek meczu, na danych i narzędziach, które już są
-      (`lib/api.ts#kadrWokol`). Czeka na odczyt z poz. 29.
+- [x] **Odczyt propagacji sitemapy** (poz. 29, właściciel, 2026-09-01) — **„Wykryte
+      strony" 0 → 32 400 natychmiast po odświeżeniu, zaindeksowane nadal 2.** Zamyka
+      pytanie o mapy wojewódzkie: działają, `.in('seo_tier',[1,2])` przepuszcza ~32 tys.
+      adresów zgodnie z projektem, a jedynym problemem był brak zgłoszenia. NIE zamyka
+      pytania o R1 — „wykryte" znaczy tylko, że adres jest znany, nie że został pobrany
+      i oceniony; przy nowej domenie bez linków przychodzących indeksacja 32 tys. adresów
+      to tygodnie.
+- [ ] **Odczyt sygnału R1** (poz. 29b) — **PRACA JANA, minuty, najwyższy wpływ w całym
+      dokumencie.** Inny raport niż wyżej: `Indeksowanie → Strony`, pozycje „Wykryto —
+      obecnie bez indeksu" i „Zeskanowano — obecnie bez indeksu". Jeśli za 2–4 tygodnie
+      urosną do dziesiątek tysięcy przy niezmienionej liczbie zaindeksowanych, katalog
+      jest oceniany jako treść masowa. Terminy: 2026-09-15 i 2026-09-29.
+- [x] **Fakt unikalny dla obiektu bez meczów** (poz. 32, **ZBUDOWANE 2026-09-01**,
+      decyzją właściciela po odczycie wyżej) — na obiekcie bez ani jednego meczu (99,9%
+      katalogu) jedyne zdanie własne Bojo było **bajtowo identyczne na wszystkich
+      36 268 stronach**, a wszystkie trzy linki wychodzące prowadziły do hubów: katalog
+      był gwiazdą, nie siecią. Strona obiektu pokazuje dziś do sześciu innych boisk tego
+      samego sportu w okolicy, najbliższe pierwsze, z odległością.
+      `lib/pobliskieObiekty.ts` (`kadrWokol` + filtr `seo_tier IN (1,2)`, przycięcie po
+      `distanceKm` — kadr jest kwadratem, więc bez tego lista mówiłaby „w okolicy"
+      o obiekcie 11 km dalej), render w `OpisIPowiazane` w OBU gałęziach, także bez JS.
+      Test: `pobliskieObiekty.test.ts`, 10 asercji — tego zachowania nie widać
+      w interfejsie bez bazy z kilkoma obiektami tego sportu w promieniu 8 km.
+      **NIEZWERYFIKOWANE:** wygląd i zawartość listy na prawdziwych danych — sesja nie ma
+      dostępu do produkcji ani do stosu lokalnego (brak gniazda Dockera).
 
 **Ocena rundy 4: wniosek rundy 3 broni się, ale nie z powodu, dla którego został
 napisany.** Runda 3 mówiła „kod zrobił swoje, bo pomiar wynosi zero". Pomiar już nie
