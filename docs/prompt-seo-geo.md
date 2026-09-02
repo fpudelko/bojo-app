@@ -40,6 +40,27 @@ wynika jednoznaczna zmiana w kodzie, osobny mały PR — nie cztery partie jak w
 
 ---
 
+**RUNDA 4 ZOSTAŁA WYKONANA 2026-09-01.** Ten plik zostaje jako zapis tego, o co pytano,
+i jest aktualny co do kontekstu (część A) oraz zakazów (część E) — ale pięć zadań
+z części B ma już odpowiedzi. Zanim uruchomisz go ponownie, przeczytaj, co z nich wyszło,
+żeby nie rozstrzygać drugi raz tego samego:
+
+- **Zadanie 1** → zrobione. Tytuł i opis niosą rzeczownik kategorii
+  (`content/metaWyszukiwarki.ts`, test `tytulMarkowy.test.ts`); uzasadnienie w rozdz. 2c.
+- **Zadanie 2** → rozstrzygnięte i zbudowane. Strona obiektu pokazuje pobliskie obiekty
+  tego samego sportu (`lib/pobliskieObiekty.ts`); rozdz. 8, sekcja „Runda 4".
+- **Zadanie 3** → hipotezy postawione i uszeregowane (rozdz. 5f), rozstrzygnięcie czeka na
+  dwie minuty pracy Jana w walidatorze danych strukturalnych. Canonical meczu NIE jest luką.
+- **Zadanie 4** → trzy miejsca z nazwy i gotowe copy (rozdz. 6.2); arkusz zapisu
+  40 promptów w Załączniku A. Samo założenie profili zostaje pracą Jana.
+- **Zadanie 5** → roadmapa ma pozycje 29–32 i jawny werdykt wobec oceny rundy 3.
+
+Otwarte i NIE do zrobienia w kodzie: odczyt sygnału R1 (poz. 29b), profile poza domeną
+(poz. 15), pomiar 40 promptów (poz. 2), jeden kontakt tygodniowo (poz. 22).
+Runda 5 ma sens dopiero PO odczycie z 2026-09-15.
+
+---
+
 ## Prompt
 
 ````
@@ -88,9 +109,13 @@ Zmierzone przez właściciela w przeglądarce, nie przez Ciebie — Ty nie masz 
 - Skuteczność (3 miesiące): **kliknięcia 0, wyświetlenia 56, CTR 0%, średnia pozycja 9,4**.
   Najczęstsze zapytania: „co to bojo" (18 wyświetleń), „bojo" (8), „bojo co to" (7),
   „boisko klej" (7) — wszystkie markowe, zero kliknięć mimo pozycji ~9.
-- Do sprawdzenia (nie przez Ciebie — nie masz dostępu): czy „Wykryte strony" przy
-  sitemap-index.xml ruszyło z zera od 2026-08-29. Rozstrzyga, czy problemem był tylko
-  brak zgłoszenia, czy też treść samych map wojewódzkich.
+- ODCZYTANE 2026-09-01 przez właściciela: **„Wykryte strony" 0 → 32 400, zaindeksowane
+  nadal 2.** Mapy wojewódzkie działają, problemem był wyłącznie brak zgłoszenia — to
+  pytanie jest ZAMKNIĘTE, nie zadawaj go ponownie. Otwarte zostało inne i w INNYM
+  raporcie: `Indeksowanie → Strony`, pozycje „Wykryto — obecnie bez indeksu"
+  i „Zeskanowano — obecnie bez indeksu". Dopiero ich wzrost do dziesiątek tysięcy przy
+  niezmienionej liczbie zaindeksowanych oznacza R1 (katalog oceniany jako treść masowa).
+  Terminy odczytu: 2026-09-15 i 2026-09-29, praca Jana.
 
 A3. CORE WEB VITALS — pagespeed.web.dev, 2026-08-29 (seo-geo-strategia.md `7a.1`)
 Pomiar wykonany — zasada „nie optymalizujemy przed pomiarem" (rozdział 8) PRZESTAŁA

@@ -1407,8 +1407,39 @@ z trzema nazwanymi przyczynami: ~600–750 ms blokujących renderowanie żądań
 (`Array.prototype.at/flat/flatMap`, `Object.hasOwn`, `String.prototype.trimEnd/trimStart`
 — kod jest transpilowany pod przeglądarki, które już nie istnieją na rynku).
 
-**Do decyzji, nie zdecydowane teraz** (zasada z rozdziału 8, „nie optymalizujemy przed
-pomiarem" — pomiar dopiero się skończył):
+**ROZSTRZYGNIĘCIE trzech przyczyn LCP (runda 4, 2026-09-01).** Pomiar się skończył, więc
+zasada „nie optymalizujemy przed pomiarem" przestała blokować — ale z trzech nazwanych
+przyczyn tylko jedna jest tego warta, a jedna jest pułapką:
+
+1. **~600–750 ms blokujących renderowanie żądań CSS — to jest właściwy cel.** Elementem
+   LCP na telefonie jest `<h1>` przy TTFB = 0 ms i 2,51 s opóźnienia renderowania: tekst
+   czeka wyłącznie na warstwę prezentacji. Ta pozycja odpowiada za większość z tych 2,51 s.
+   NIEZWERYFIKOWANE, ile z niej da się odzyskać — App Router emituje CSS jako blokujący
+   `<link>` i sesja agenta nie ma jak zmierzyć skutku zmiany (brak dostępu do
+   `pagespeed.web.dev` i do produkcji).
+2. **44 KiB nieużywanego JS w jednym chunku** — warte obejrzenia, ale to jest chunk
+   współdzielony przez wszystkie trasy, więc „nieużywany" znaczy „nieużywany NA LANDINGU",
+   nie „martwy". Cięcie wymaga sprawdzenia, co go ciągnie, zanim cokolwiek się wyrzuci.
+3. **11,6 KiB zbędnych polyfillów — PUŁAPKA, nie robimy.** Zweryfikowane w buildzie
+   2026-09-01: polyfille (`Array.prototype.at`, `Object.hasOwn`, `String.prototype.trimEnd`)
+   faktycznie siedzą w `main-*.js` i w chunku współdzielonym. Ale żeby je usunąć, trzeba
+   podnieść próg `browserslist` do Safari 15.4+ / Chrome 93+ (tego wymaga `Object.hasOwn`),
+   czyli **wyciąć starsze telefony z aplikacji dla amatorskich piłkarzy, przed startem,
+   bez żadnych danych o tym, z czego ci ludzie korzystają**. To jest wymiana realnych
+   użytkowników na 11,6 KiB. Ta pozycja jest najłatwiejsza do znalezienia grepem i dlatego
+   najczęściej robiona pierwsza — stąd ten akapit, żeby następna runda jej nie „naprawiła".
+
+**Czcionki — sprawdzone i ODRZUCONE jako dźwignia (2026-09-01).** Kuszące, bo ~173 KiB
+z 582 KiB transferu landingu to same czcionki, a `font-display` nie stoi w repo ani razu
+obok `font-semibold` (67 użyć `font-bold`, 14 `font-extrabold`, zero `600`). Zdjęcie wagi
+600 z `Bricolage_Grotesque` **nie daje nic**: czysty build z `['700','800']` dał dokładnie
+te same 10 plików `.woff2` i te same 300 KB co z `['600','700','800']`. Powód: to krój
+ZMIENNY, więc Google serwuje jeden plik na podzbiór niezależnie od żądanych wag. Kto szuka
+oszczędności w czcionkach, musi zdjąć RODZINĘ (dwie: Inter + Bricolage) albo PODZBIÓR —
+a `latin-ext` niesie polskie znaki, więc nie ten. Zapisane w komentarzu przy definicji
+czcionki w `app/layout.tsx`, żeby nikt nie powtarzał tego pomiaru.
+
+**Pozostałe do decyzji, nie zdecydowane teraz:**
 - Landing page na telefonie ma LCP 4,0 s przy realnych, nazwanych przyczynach wyżej —
   to jest coś, co dałoby się poprawić, kiedy przyjdzie kolej na tę pozycję roadmapy.
 - **Strona obiektu ma `2/3` w kategorii „Przeglądanie agentowe" — jedyna z pięciu.**

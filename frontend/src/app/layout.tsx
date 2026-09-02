@@ -30,6 +30,15 @@ const bricolage = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-display',
   display: 'swap',
+  // Wagi: w repo `font-display` stoi wyłącznie obok `font-bold` (700, 67 użyć)
+  // i `font-extrabold` (800, 14) — 600 nie jest używana ani razu. NIE zdejmujemy
+  // jej mimo to, i to jest wynik pomiaru, nie przeoczenie: Bricolage Grotesque
+  // jest krojem ZMIENNYM, więc Google serwuje jeden plik na podzbiór niezależnie
+  // od żądanych wag. Czysty build z wagami ['700','800'] dał dokładnie te same
+  // 10 plików .woff2 i te same 300 KB co z ['600','700','800'] (sprawdzone
+  // 2026-09-01). Lista wag nie jest tu dźwignią transferu — kto szuka
+  // oszczędności w ~173 KiB czcionek z pomiaru 7a.1, musi zdjąć RODZINĘ albo
+  // PODZBIÓR (latin-ext niesie polskie znaki, więc nie ten), nie wagę.
   weight: ['600', '700', '800'],
 });
 
@@ -71,7 +80,13 @@ export const metadata: Metadata = {
     template: '%s | Bojo',
   },
   description: OPIS_DOMYSLNY,
-  keywords: ['organizuj mecz', 'szukam graczy', 'boiska sportowe', 'piłka nożna', 'koszykówka', 'siatkówka'],
+  // `keywords` USUNIĘTE 2026-09-01. Google ignoruje ten znacznik od 2009 roku,
+  // więc nie kosztował pozycji — ale był w tym repo dosłowną listą słów
+  // kluczowych w <head> KAŻDEJ strony, czyli dokładnie tym, czego zakazuje
+  // własna zasada projektu (AGENTS.md, „Nie dopisuj list słów kluczowych";
+  // docs/seo-geo-strategia.md 5e — keyword stuffing wypada najsłabiej ze
+  // wszystkich metod GEO, Aggarwal i in., KDD 2024). Reguła, od której trzyma
+  // się wyjątek „bo to już było", przestaje być regułą.
   authors: [{ name: 'Bojo' }],
   // Bez `images` w obu blokach niżej — DŁUG D17 (docs/seo-geo-strategia.md):
   // konwencja plikowa `app/opengraph-image.tsx` generuje obrazek per trasa
