@@ -376,7 +376,7 @@ SELECT _sekcja('Własny wpis w składzie (migracja 131)');
 
 -- PO CO. Polityka „Own participation update" (`053`) brzmi `auth.uid() =
 -- user_id` i nie mówi, KTÓRE kolumny — a Postgres nie zawęża RLS do kolumn.
--- Do migracji `131` znaczyło to, że uczestnik jednym UPDATE-em wychodził
+-- Do migracji `132` znaczyło to, że uczestnik jednym UPDATE-em wychodził
 -- z poczekalni, awansował się z rezerwy ponad limit i odhaczał sobie wpłatę.
 -- Asercje niżej pilnują OBU stron: że tego się nie da, i że zwykła ścieżka
 -- (zmiana deklaracji, przyjęcie oferty z rezerwy) dalej działa. Bez tej drugiej

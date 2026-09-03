@@ -674,7 +674,7 @@ export async function joinEventMaybe(eventId: string, userId: string, name: stri
  *  `rsvp` i `is_reserve`, więc gracz lądował w składzie bez pozycji i bez
  *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć.
  *
- *  OD MIGRACJI `131` LICZY TO BAZA, W JEDNEJ TRANSAKCJI (`potwierdz_udzial`).
+ *  OD MIGRACJI `132` LICZY TO BAZA, W JEDNEJ TRANSAKCJI (`potwierdz_udzial`).
  *  Wcześniej ta funkcja pytała o wolne miejsce (`czy_na_rezerwe`) i dopiero
  *  osobnym zapytaniem zapisywała `is_reserve` — czyli dokładnie ten wyścig,
  *  który `dolacz_do_meczu()` (migracja `078`) usunął dla zwykłego „Dołącz":
@@ -726,10 +726,10 @@ export async function addGuest(
   isReserve = false,
   addedByUserId?: string,
   asGoalkeeper = false,
-  /** OPCJONALNY adres gościa dopisanego ręcznie (migracja `132`).
+  /** OPCJONALNY adres gościa dopisanego ręcznie (migracja `133`).
    *
    *  Gość, który zapisuje się SAM, podaje adres przy zapisie i od migracji
-   *  `132` dostaje na niego potwierdzenie, przypomnienie i wiadomość
+   *  `133` dostaje na niego potwierdzenie, przypomnienie i wiadomość
    *  o odwołaniu meczu. Gość DOPISANY ręcznie miał dotąd tylko imię — czyli
    *  był całkowicie odcięty od informacji, mimo że siedzi w tym samym składzie.
    *  Pole jest opcjonalne, bo organizator często adresu nie zna. */

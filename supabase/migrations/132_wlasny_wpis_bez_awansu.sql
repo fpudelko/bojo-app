@@ -1,4 +1,4 @@
--- 131 — uczestnik nie awansuje się sam
+-- 132 — uczestnik nie awansuje się sam
 --
 -- DLACZEGO. Polityka „Own participation update" (migracja `053`) brzmi
 -- `auth.uid() = user_id` — „możesz zmieniać swój wiersz" — i nie mówi, KTÓRE

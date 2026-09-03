@@ -312,7 +312,7 @@ describe('joinEvent — kontrakt z bazą', () => {
 
 // ---------------------------------------------------------------------------
 // confirmFromMaybe — „Obserwuję" → „Gram". Ostatnia ścieżka wejścia do składu,
-// która do migracji `131` liczyła pojemność w przeglądarce: najpierw pytanie
+// która do migracji `132` liczyła pojemność w przeglądarce: najpierw pytanie
 // `czy_na_rezerwe`, potem OSOBNY UPDATE. Dwie osoby obserwujące mecz z jednym
 // wolnym miejscem, klikające w tej samej sekundzie, lądowały obie w składzie.
 // Ten sam wyścig `dolacz_do_meczu()` usunął dla zwykłego „Dołącz" — testy niżej

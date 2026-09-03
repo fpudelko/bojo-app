@@ -435,7 +435,7 @@ function Switch({ checked, onChange, disabled, label }: {
  *
  *  Podpis mówi, CO ten adres daje, a nie „opcjonalne": gość bez adresu nie
  *  dostaje niczego — ani potwierdzenia, ani przypomnienia, ani wiadomości
- *  o odwołaniu meczu (patrz migracja `132`). To jest informacja dla
+ *  o odwołaniu meczu (patrz migracja `133`). To jest informacja dla
  *  organizatora o tym, czego NIE będzie, jeśli pole zostawi puste.
  */
 function PoleEmailGoscia({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -584,7 +584,7 @@ export default function EventDetailClient() {
   const [guestName, setGuestName] = useState('');
   // OSOBNY stan od `guestName`, który jest współdzielony z oknem zapisu gościa
   // bez konta. Tu chodzi o adres, który organizator (albo uczestnik) MOŻE podać
-  // za dopisywanego znajomego — od migracji `132` to jedyna droga, żeby taki
+  // za dopisywanego znajomego — od migracji `133` to jedyna droga, żeby taki
   // gość dostał potwierdzenie, przypomnienie i wiadomość o odwołaniu meczu.
   const [emailDopisywanegoGoscia, setEmailDopisywanegoGoscia] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
@@ -1912,7 +1912,7 @@ export default function EventDetailClient() {
    * ich nie dostaną — wyzwalacz ma warunek `user_id IS NOT NULL` — ani tego,
    * że odwołanie da się cofnąć przyciskiem „Przywróć mecz” obok.
    *
-   * OD MIGRACJI `132` gość bez konta dostaje e-mail — ale tylko wtedy, gdy ma
+   * OD MIGRACJI `133` gość bez konta dostaje e-mail — ale tylko wtedy, gdy ma
    * zapisany adres: podaje go, zapisując się sam, albo dostaje go od tego, kto
    * go dopisał (pole obok imienia). Dlatego zdanie mówi „jeśli podała
    * adres”, a nie „dostanie” — obietnica bez pokrycia byłaby tu

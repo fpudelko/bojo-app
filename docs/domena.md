@@ -230,7 +230,7 @@ Konsekwencje:
 - Limit bramkarzy (`max_goalkeepers`, domyślnie 2, tylko gdy `goalkeepers_enabled`)
   spycha nadmiarowych na rezerwę.
 
-### Co uczestnik może zmienić we własnym wpisie (migracja `131`)
+### Co uczestnik może zmienić we własnym wpisie (migracja `132`)
 
 Reguła jest krótka: **uczestnik zmienia własną DEKLARACJĘ, a nie swoje MIEJSCE w składzie.**
 
@@ -243,7 +243,7 @@ Reguła jest krótka: **uczestnik zmienia własną DEKLARACJĘ, a nie swoje MIEJ
 
 Dlaczego to siedzi w bazie, a nie w komponencie: Bojo nie ma własnego backendu, klucz `anon`
 jest jawny w paczce JS, więc reguła sprawdzana w przeglądarce nie jest regułą. Do migracji
-`131` polityka `Own participation update` (`053`) pozwalała zmienić DOWOLNĄ kolumnę własnego
+`132` polityka `Own participation update` (`053`) pozwalała zmienić DOWOLNĄ kolumnę własnego
 wiersza — sprawdzone na produkcji: jeden `UPDATE` wychodził z poczekalni, awansował ponad
 limit i odhaczał wpłatę.
 

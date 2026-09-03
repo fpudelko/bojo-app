@@ -1,4 +1,4 @@
--- Testy poczty do gościa bez konta (migracja `132`) — uruchamiane przez
+-- Testy poczty do gościa bez konta (migracja `133`) — uruchamiane przez
 -- `scripts/baza-testowa.sh`, a więc też w CI.
 --
 -- PO CO OSOBNY PLIK. `rls.sql` pilnuje granic dostępu, `przypomnienia.sql`

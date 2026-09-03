@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-03 · migracja `132` · 55 tabel
+**Stan na:** 2026-09-03 · migracja `133` · 55 tabel
 
 ---
 
@@ -378,7 +378,7 @@ teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego g
 jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
 z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
 
-MECHANIKA: migracja `132` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
+MECHANIKA: migracja `133` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
 uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
 `trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
 `bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
@@ -449,7 +449,7 @@ więc dwa jednoczesne kliknięcia nie zmieszczą się już w jednym wolnym miejs
 Przełącznik „Uczestnicy mogą dodawać gości” robi to, co obiecuje: gdy organizator
 go włączy, osoba z listy składu dopisze znajomego bez konta — i tylko wtedy.
 
-MECHANIKA: migracja `131` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
+MECHANIKA: migracja `132` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
 (`BEFORE INSERT OR UPDATE`; spreparowany zapis jest normalizowany, nie odbijany, żeby nie
 psuć „Obserwuję”), funkcje `czy_zarzadza_wpisem()`, `czy_moze_dopisac_goscia()`
 i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję” →

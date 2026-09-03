@@ -1,4 +1,4 @@
--- 132 — poczta do gościa bez konta
+-- 133 — poczta do gościa bez konta
 --
 -- DLACZEGO. Goście bez konta to ćwierć wszystkich wpisów w składach na
 -- produkcji, a po odfiltrowaniu meczów testowych zespołu — 28 %. Z tego
@@ -35,7 +35,7 @@
 -- innymi ODWOŁANIE MECZU.
 --
 -- ISTNIEJĄCYCH FUNKCJI POWIADOMIEŃ NIE DOTYKAMY. Wysyłkę dokłada OSOBNY
--- wyzwalacz obok nich — z tego samego powodu, dla którego `131` nie przepisywała
+-- wyzwalacz obok nich — z tego samego powodu, dla którego `132` nie przepisywała
 -- siedmiu funkcji: każda przepisana linia to okazja, żeby coś zgubić (tak `074`
 -- musiała naprawiać `get_player_stats` po `064`).
 --

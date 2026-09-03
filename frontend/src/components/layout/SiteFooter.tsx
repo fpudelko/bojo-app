@@ -31,7 +31,19 @@ export default function SiteFooter() {
     // footer is on screen so it never covers these links.
     <footer id="site-footer" className="bg-slate-900 px-4 py-10 text-slate-400">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 md:flex-row md:justify-between">
-        <p className="text-sm font-semibold text-white">Bojo · mecze i boiska w całej Polsce</p>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-semibold text-white">Bojo · mecze i boiska w całej Polsce</p>
+          {/* Link na profil launchu Bojo, nie na stronę główną PH, żeby
+              liczył się jako cytacja konkretnego wpisu, nie ogólna wzmianka. */}
+          <a
+            href="https://www.producthunt.com/products/bojo-bojo-pl?launch=bojo-bojo-pl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-white"
+          >
+            Bojo na Product Hunt →
+          </a>
+        </div>
 
         <div className="flex flex-col gap-6 sm:flex-row sm:gap-10">
           <GrupaLinkow tytul="Produkt">
