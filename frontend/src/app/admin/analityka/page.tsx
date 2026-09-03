@@ -27,6 +27,13 @@ const TYPE_LABELS: Record<AnalyticsEvent | string, string> = {
   event_joined: 'Dołączył do meczu',
   group_created: 'Utworzył grupę',
   group_joined: 'Dołączył do grupy',
+  wizard_step: 'Krok kreatora',
+  wizard_summary_open: 'Otworzył podsumowanie',
+  event_shared: 'Wysłał link do meczu',
+  event_link_opened: 'Otworzył link do meczu',
+  guest_joined: 'Zapis bez konta',
+  guest_claimed: 'Gość założył konto',
+  settlement_shared: 'Wysłał rozliczenie',
 };
 
 const DAY = 24 * 60 * 60 * 1000;

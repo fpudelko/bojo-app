@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { zapiszNumerBlik, numerBlikZWiersza } from './blik';
-import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
+import { validateName, validateEmail, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
 import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
@@ -726,8 +726,17 @@ export async function addGuest(
   isReserve = false,
   addedByUserId?: string,
   asGoalkeeper = false,
+  /** OPCJONALNY adres gościa dopisanego ręcznie (migracja `132`).
+   *
+   *  Gość, który zapisuje się SAM, podaje adres przy zapisie i od migracji
+   *  `132` dostaje na niego potwierdzenie, przypomnienie i wiadomość
+   *  o odwołaniu meczu. Gość DOPISANY ręcznie miał dotąd tylko imię — czyli
+   *  był całkowicie odcięty od informacji, mimo że siedzi w tym samym składzie.
+   *  Pole jest opcjonalne, bo organizator często adresu nie zna. */
+  guestEmail?: string,
 ): Promise<{ id: string; claimToken: string | null; isReserve: boolean }> {
   const safeName = validateName(name, 'Imię gościa', 80);
+  const safeEmail = guestEmail?.trim() ? validateEmail(guestEmail) : null;
 
   // If not explicitly added to reserve, check capacity and overflow to reserve
   // when the event is full (mirrors joinEvent so the roster never exceeds limit).
@@ -746,6 +755,7 @@ export async function addGuest(
       is_reserve: reserve,
       is_goalkeeper: asGoalkeeper,
       added_by: addedByUserId ?? null,
+      guest_email: safeEmail,
     })
     .select('id')
     .single();
@@ -816,6 +826,12 @@ export async function joinEventAsGuest(
     isReserve = wpis?.na_rezerwie ?? false;
     pendingApproval = wpis?.czeka_na_akceptacje ?? false;
   }
+
+  // Tylko ŚWIEŻY zapis, nie powtórne wejście tą samą drogą — inaczej licznik
+  // zapisów bez konta rósłby od odświeżania strony. Ćwierć wszystkich wpisów
+  // w składach powstaje tą drogą, a ile z nich zamienia się na konta, nie
+  // wiedzieliśmy w ogóle (patrz `guest_claimed`).
+  if (!row.already_joined) track('guest_joined', { eventId, isReserve, pendingApproval });
 
   return {
     claimToken,

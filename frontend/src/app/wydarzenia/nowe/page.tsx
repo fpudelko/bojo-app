@@ -12,6 +12,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { isPelneImie } from '@/lib/profileName';
 import { zbudujPodsumowanie } from '@/lib/eventSummary';
 import PodsumowanieMeczu from './PodsumowanieMeczu';
+import { track } from '@/lib/analytics';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
@@ -763,6 +764,7 @@ function NewEventForm() {
     if (target < step) {
       setFieldErrors({});
       setStep(target);
+      track('wizard_step', { krok: target, kierunek: 'wstecz' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -780,6 +782,13 @@ function NewEventForm() {
     }
     setFieldErrors({});
     setStep(target);
+    // POMIAR LEJKA, nie telemetria dla samej telemetrii: bez tego nie wiadomo,
+    // na którym kroku kończy się obiecane „dwie minuty”, a kolejność
+    // kolejnych poprawek zostaje sądem zamiast pomiarem (patrz
+    // docs/przeplyw-organizatora.md, „Czego ten audyt nie sprawdził”).
+    // `track()` jest fire-and-forget i łyka własne błędy — nie może zatrzymać
+    // przejścia na kolejny krok.
+    track('wizard_step', { krok: target, kierunek: 'dalej' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1388,7 +1397,7 @@ function NewEventForm() {
                   type="button"
                   size="lg"
                   className="flex-1"
-                  onClick={() => setPodgladOtwarty(true)}
+                  onClick={() => { setPodgladOtwarty(true); track('wizard_summary_open'); }}
                 >
                   Sprawdź i opublikuj →
                 </Button>

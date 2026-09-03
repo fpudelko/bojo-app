@@ -62,6 +62,7 @@ import { sportEmoji } from '@/lib/sports';
 import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
 import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
+import { track } from '@/lib/analytics';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { minutesUntilStart, timeUntil } from '@/lib/eventDates';
@@ -427,6 +428,35 @@ function Switch({ checked, onChange, disabled, label }: {
   );
 }
 
+/** Opcjonalny adres dopisywanego gościa.
+ *
+ *  Mobile-first: pole pełnej szerokości pod imieniem, nie obok — na 360 px
+ *  imię i e-mail w jednym rzędzie robią z obu pól nieczytelne paski.
+ *
+ *  Podpis mówi, CO ten adres daje, a nie „opcjonalne": gość bez adresu nie
+ *  dostaje niczego — ani potwierdzenia, ani przypomnienia, ani wiadomości
+ *  o odwołaniu meczu (patrz migracja `132`). To jest informacja dla
+ *  organizatora o tym, czego NIE będzie, jeśli pole zostawi puste.
+ */
+function PoleEmailGoscia({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="mt-2">
+      <input
+        type="email"
+        inputMode="email"
+        autoComplete="off"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="E-mail znajomego (opcjonalnie)"
+        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+      />
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        Z adresem dostanie potwierdzenie, przypomnienie dzień przed i wiadomość, gdyby mecz się zmienił albo odwołał. Bez adresu — musisz powiadomić go sam.
+      </p>
+    </div>
+  );
+}
+
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -552,6 +582,11 @@ export default function EventDetailClient() {
   const [joinPaymentMethod, setJoinPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   // Guest self-signup
   const [guestName, setGuestName] = useState('');
+  // OSOBNY stan od `guestName`, który jest współdzielony z oknem zapisu gościa
+  // bez konta. Tu chodzi o adres, który organizator (albo uczestnik) MOŻE podać
+  // za dopisywanego znajomego — od migracji `132` to jedyna droga, żeby taki
+  // gość dostał potwierdzenie, przypomnienie i wiadomość o odwołaniu meczu.
+  const [emailDopisywanegoGoscia, setEmailDopisywanegoGoscia] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestRole, setGuestRole] = useState<'player' | 'goalkeeper'>('player');
   const [guestPaymentMethod, setGuestPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
@@ -746,6 +781,35 @@ export default function EventDetailClient() {
   }, [id, loadMatchData, user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ILU LUDZI OTWIERA LINK, KTÓRY WYSŁAŁ ORGANIZATOR. To jest ta jedna liczba,
+  // wokół której kręci się faza 1 — i jedyne zdarzenie, które musi powstawać
+  // także dla NIEZALOGOWANYCH (polityka INSERT na `analytics_events` dopuszcza
+  // `user_id IS NULL`). Bez niej „wysłałem link” i „ktoś dołączył”
+  // to dwie liczby bez niczego pomiędzy.
+  //
+  // Trzy warunki, żeby to nie było licznikiem odsłon: tylko wejście z ZEWNĄTRZ
+  // (`document.referrer` spoza tego hosta — czat, wyszukiwarka, wklejony link),
+  // najwyżej raz na mecz na sesję karty (`sessionStorage`) i dopiero gdy mecz
+  // faktycznie się wczytał.
+  const linkPoliczony = useRef(false);
+  useEffect(() => {
+    if (linkPoliczony.current || !event) return;
+    if (typeof window === 'undefined') return;
+    linkPoliczony.current = true;
+    try {
+      const klucz = `bojo:link-policzony:${id}`;
+      if (sessionStorage.getItem(klucz)) return;
+      const ref = document.referrer;
+      const zZewnatrz = !ref || new URL(ref).host !== window.location.host;
+      if (!zZewnatrz) return;
+      sessionStorage.setItem(klucz, '1');
+      track('event_link_opened', { eventId: id, zalogowany: !!user });
+    } catch {
+      // Prywatne okno, zablokowane `sessionStorage`, dziwny `referrer` — pomiar
+      // jest wygodą, nie funkcją. Milczymy.
+    }
+  }, [event, id, user]);
 
   // Czy na tym urządzeniu zapisał się gość bez konta. Zalogowanego to nie
   // dotyczy: albo przejął ten wpis (i wtedy jest zwykłym uczestnikiem), albo
@@ -1437,8 +1501,10 @@ export default function EventDetailClient() {
       const dodanyGosc = guestName.trim();
       const { claimToken, isReserve: onReserve } = await addGuest(
         event.id, dodanyGosc, false, user?.id ?? undefined, guestRole === 'goalkeeper',
+        emailDopisywanegoGoscia,
       );
       setGuestName('');
+      setEmailDopisywanegoGoscia('');
       setGuestRole('player');
       await load();
 
@@ -1701,6 +1767,7 @@ export default function EventDetailClient() {
   const handleWyslijRozliczenie = async () => {
     const nieobecniSwiezy = await zapewnijNieobecnychWczytanych();
     const text = tekstRozliczenia(event, regulars, new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)));
+    track('settlement_shared', { eventId: event.id });
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: 'Rozliczenie', text });
@@ -1722,6 +1789,11 @@ export default function EventDetailClient() {
    *  Adres bierzemy z `eventUrl`, a nie z `window.location.href`, bo ten drugi
    *  potrafi nieść parametry widoku (np. `?utworzono=1` tuż po publikacji). */
   const handleShare = async () => {
+    // Zdarzenie leci PRZED arkuszem systemowym, bo „anulowałem arkusz”
+    // i „nie umiem odróżnić anulowania od udanego wysłania” to na
+    // Androidzie ten sam wynik (`shareEvent` zwraca wtedy 'failed'). Mierzymy
+    // INTENCJĘ organizatora — czy w ogóle sięga po wysłanie linku.
+    track('event_shared', { eventId: event.id, skad: swiezoUtworzony ? 'po-publikacji' : 'strona-meczu' });
     const wynik = await shareEvent(event, eventUrl(event.id, window.location.origin));
     if (wynik === 'copied') {
       setCopied(true);
@@ -1835,10 +1907,16 @@ export default function EventDetailClient() {
    * na boisko, jeśli informacja do nich nie dotrze.
    *
    * Poprzednie okno (systemowe `confirm()`) mówiło jedno zdanie: „Uczestnicy
-   * zobaczą że mecz jest odwołany". Nie mówiło ani tego, że wychodzą
+   * zobaczą że mecz jest odwołany”. Nie mówiło ani tego, że wychodzą
    * powiadomienia (migracja `070` plus push), ani tego, że GOŚCIE BEZ KONTA
    * ich nie dostaną — wyzwalacz ma warunek `user_id IS NOT NULL` — ani tego,
-   * że odwołanie da się cofnąć przyciskiem „Przywróć mecz" obok.
+   * że odwołanie da się cofnąć przyciskiem „Przywróć mecz” obok.
+   *
+   * OD MIGRACJI `132` gość bez konta dostaje e-mail — ale tylko wtedy, gdy ma
+   * zapisany adres: podaje go, zapisując się sam, albo dostaje go od tego, kto
+   * go dopisał (pole obok imienia). Dlatego zdanie mówi „jeśli podała
+   * adres”, a nie „dostanie” — obietnica bez pokrycia byłaby tu
+   * gorsza niż jej brak.
    *
    * Stąd druga droga: „Odwołaj i wyślij wiadomość" odwołuje i od razu otwiera
    * arkusz udostępniania z gotowym tekstem. Dla gości bez konta czat jest
@@ -1851,7 +1929,7 @@ export default function EventDetailClient() {
       konsekwencje: [
         'Uczestnicy z kontem dostaną powiadomienie w Bojo (i na telefon, jeśli je włączyli).',
         bezKonta > 0
-          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — powiadomienia NIE dostanie. Wyślij im wiadomość.`
+          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
           : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
         'Mecz zostanie na liście jako odwołany. Możesz go przywrócić tym samym panelem.',
       ],
@@ -3223,6 +3301,8 @@ export default function EventDetailClient() {
                     {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie —
                     kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
                     i dostaną powiadomienie o kolejnym meczu.
+                    {' '}<span className="font-semibold">Bez konta i bez adresu e-mail nie dowiedzą się
+                    o odwołaniu meczu ani o zmianie terminu.</span>
                   </p>
                 )}
                 {/* Organizator dostaje tu listę z kontrolkami zamiast osobnej
@@ -3419,6 +3499,7 @@ export default function EventDetailClient() {
                       <UserPlus className="w-4 h-4" /> Dodaj
                     </Button>
                   </div>
+                  <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
                   {gkEnabled && (
                     <div className="mt-2 flex gap-2">
                       {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
@@ -3485,6 +3566,7 @@ export default function EventDetailClient() {
                     <UserPlus className="w-4 h-4" /> Dodaj
                   </Button>
                 </div>
+                <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
                 {gkEnabled && (
                   <div className="mt-2 flex gap-2">
                     {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (

@@ -2709,6 +2709,58 @@ przy zmianie STANU, nie przy każdym zapisie z osobna.
 
 ---
 
+## Poczta do gościa bez konta (migracja `132`)
+
+Do 2026-09-03 Bojo nie odzywało się do nikogo bez konta. Wszystkie powiadomienia idą przez
+`notifications`, a ta tabela wymaga `user_id` — więc gość bez konta nie dostawał ani
+„jutro grasz” (`129` ma `p.user_id IS NOT NULL`), ani wiadomości o ODWOŁANIU meczu
+(`070`, `116`), ani o zmianie terminu i warunków (`065`, `114`). Jego jedyną kotwicą był
+`localStorage` na jednym telefonie.
+
+To nie jest przypadek brzegowy: **goście bez konta to ćwierć wszystkich wpisów w składach**
+na produkcji, a po odfiltrowaniu meczów testowych zespołu — 28 %. Do tego `guest_email` był
+zbierany przy zapisie i **nigdy do niczego nie wysyłany**: sprawdzone we wszystkich czterech
+funkcjach brzegowych. Skutki brał na siebie organizator, bo skład kłamał w tej części,
+którą sam przyprowadził.
+
+**Cztery powody wysyłki — i kolejność jest tu istotą, nie porządkiem:**
+
+| # | Powód | Kiedy | Po co |
+|---|---|---|---|
+| 1 | `zapis` | zaraz po zapisie | potwierdzenie + link do własnego wpisu. To jest ta rzecz, która UZASADNIA pobieranie adresu |
+| 2 | `odwolanie` / `zmiana` | przy zmianie stanu meczu | żeby nie przyjechał na boisko |
+| 3 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` | tylko SKŁAD — rezerwa jeszcze nie wie, czy gra |
+| 4 | `zaloz_konto` | dzień po meczu, tylko gdy adres nadal nie ma konta | zachęta do konta |
+
+Mail „załóż konto” jest CZWARTY świadomie. Wysłany jako pierwszy kontakt od nadawcy,
+którego skrzynka nie zna, czyta się jak spam niezależnie od treści; po trzech, które były
+oczekiwane i przydatne, trafia w zupełnie inny kontekst. Odwołuje się też do tego, co się
+właśnie wydarzyło („wczoraj grałeś w meczu…”), zamiast zachwalać aplikację.
+
+**Kogo to NIE obejmuje:** gościa bez zapisanego adresu. Kto zapisuje się sam, podaje adres
+przy zapisie; kogo dopisuje organizator albo kolega z drużyny — ten ma adres tylko wtedy,
+gdy dopisujący wypełnił nowe, opcjonalne pole obok imienia. Dlatego okno odwołania meczu
+mówi „dostanie e-mail, jeśli podała adres”, a nie „dostanie”, a baner nad
+składem dopowiada, czym grozi brak jednego i drugiego. Obietnica bez pokrycia byłaby tu
+gorsza niż jej brak.
+
+**Wzorzec techniczny jeden do jednego jak push (`102`):** `konfiguracja_poczty` bez polityk,
+`pg_net` → funkcja brzegowa `powiadom-goscia` → Resend, **ciche wyjście przy braku
+konfiguracji** i cały korpus w `EXCEPTION WHEN OTHERS`. Kanał dodatkowy nie może wywrócić
+operacji podstawowej — a operacją podstawową jest tu między innymi odwołanie meczu.
+Idempotencja: `maile_goscia (uczestnik_id, powod, dzien)`.
+
+⚠️ **Kanał milczy, dopóki nie ma konfiguracji.** Wymaga wpisu w `konfiguracja_poczty`,
+sekretów funkcji brzegowej (`RESEND_API_KEY`, `BOJO_POCZTA_SEKRET`, `BOJO_NADAWCA`)
+i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM) — nadawcą jest historycznie
+`bojo.app`, a maile z domeny innej niż strona lądują w spamie. Do tego czasu funkcja
+kończy 200 i nie wysyła nic; nic się przez to nie psuje.
+
+Testy: `supabase/test/poczta-goscia.sql` — kto dostaje, kto NIE, idempotencja przy drugim
+uruchomieniu i to, że zmiana samego opisu meczu nie generuje poczty.
+
+---
+
 ## Przypomnienia — jedyne powiadomienia, które powstają same (migracja `129`)
 
 Do 2026-09-02 w całym Bojo nie było ANI JEDNEGO powiadomienia opartego o czas: wszystkie

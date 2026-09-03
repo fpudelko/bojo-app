@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-03 · migracja `131` · 53 tabele
+**Stan na:** 2026-09-03 · migracja `132` · 55 tabel
 
 ---
 
@@ -355,6 +355,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
+
+PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
+dostawał od Bojo NICZEGO. Nie dostawał przypomnienia dzień przed meczem, nie dowiadywał się
+o zmianie terminu i, co najgorsze, nie dowiadywał się o ODWOŁANIU meczu: przyjeżdżał na
+puste boisko. Adres e-mail podawał przy zapisie i nie szło na niego ani jedno powiadomienie.
+Jedynym śladem jego zapisu była pamięć jednej przeglądarki — wyczyszczona znaczyła wpis nie
+do odzyskania. Konsekwencje ponosił organizator, bo skład kłamał dokładnie w tej części,
+którą sam przyprowadził. (2) Gość dopisany ręcznie przez organizatora albo kolegę z drużyny
+nie miał gdzie podać adresu, więc był odcięty nawet po zbudowaniu kanału. (3) Bojo nie
+mierzyło niczego między „organizator wysłał link” a „ktoś dołączył” — nie
+wiadomo było, na którym kroku kreatora ludzie odpadają, ilu otwiera wysłany link ani ilu
+gości zamienia zapis na konto.
+
+ROZWIĄZANIE BOJO: gracz zapisany bez konta dostaje dziś maile — potwierdzenie zapisu
+z linkiem do własnego wpisu, przypomnienie dzień przed meczem, wiadomość o odwołaniu meczu
+i o zmianie terminu, miejsca albo kosztu, a dzień po meczu zachętę do założenia konta,
+jeśli nadal go nie ma. Zachęta jest CZWARTA w kolejności celowo: pierwsza wiadomość od
+nieznanego nadawcy, która czegoś chce, czyta się jak spam. Dopisując gościa ręcznie, można
+teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego gość NIE dostanie,
+jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
+z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
+
+MECHANIKA: migracja `132` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
+uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
+`trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
+`bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
+`addGuest()` z opcjonalnym adresem w `lib/events.ts`, pole i podpis
+w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
+(kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
+wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
+`supabase/test/poczta-goscia.sql`. Kanał milczy do czasu weryfikacji domeny `bojo.pl`
+w Resend.
+
 ### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
 
 PROBLEM: (1) Strona meczu na każdy błąd — brak zasięgu, awarię serwera, odmowę reguł
@@ -632,56 +666,3 @@ jedna linia" z nagłówka, `openEditWhen()` przeniesione na kartę „Kiedy i gd
 `components/auth/AuthForm.tsx` (`GoogleBlockedSection` — usunięty `openInBrowser()`
 i rozróżnianie iOS/Android po `Platform`, zostaje tylko wykrycie `isInAppBrowser()`
 i `copyLink()`). Bez migracji.
-
-### 2026-08-30 — Piąta partia z sesji QA: znikające pinezki przy dużym przybliżeniu, hierarchia strony meczu, podwójne powiadomienie przy gościu
-
-PROBLEM: (1) Na mapie, przy przybliżeniu z16 i większym, pinezki potrafiły zniknąć
-całkowicie mimo że obiekt był widoczny na satelitarnej podkładce w tym samym kadrze —
-`fields.lat/lng` to środek obiektu z importu OSM, a ciasny kadr bywał węższy niż
-realna niepewność jego położenia. (2) Strona meczu pokazywała MNIEJ informacji niż
-karty na liście: bez odliczenia do startu, przycisk „Wypisz się" wyglądał jak
-równorzędna akcja obok „Dołącz", a pasek zapełnienia i tekst „Zostało N miejsc" przy
-komplecie świeciły bursztynem zamiast ustalonego niebieskiego. Lista obiektów obcinała
-adres w połowie ulicy (`truncate` zamiast łamania do dwóch linii). (3) Dymki z opisem
-w dolnej nawigacji, dla pozycji sąsiadujących ze środkowym przyciskiem (FAB), nachodziły
-na niego. (4) Odwołany mecz na liście dalej pokazywał bursztynowe odliczenie do startu,
-a plakietka „Anulowany" była szara — nie czytała się jak błąd/problem, czyli
-niespójnie z resztą aplikacji. (5) Dwa przyciski logowania bez hasła nazywały się
-identycznie („Zaloguj się linkiem"), więc drugi wyglądał jak duplikat pierwszego.
-Nagłówek nad ekranem logowania zostawał w pełni klikalny mimo przyciemnienia tła —
-dało się nim wyjść z pełnoekranowego formularza jednym dotknięciem w „Dołącz".
-(6) Zakładki „Obserwuję" i „Historia" na `/moje-gry` pokazywały pusty stan gołym
-zdaniem, bez wyjaśnienia. (7) Po dopisaniu gościa do składu wyskakiwały naraz toast
-i modal zachęty do zaproszenia — ten sam komunikat dwa razy, jeden z nich (toast)
-niosący jedyną informację o tym, że gość poszedł na rezerwę.
-
-ROZWIĄZANIE BOJO: (1) zapytanie o obiekty na mapie pyta o kadr powiększony 1,6× wokół
-środka widoku (`poszerzKadr()`) — markercluster i tak nie renderuje nic poza własnymi,
-wyliczonymi granicami widoczności, więc szersze zapytanie tylko łapie więcej
-kandydatów, nie wystawia pinezek poza ekran. (2) strona meczu dostała plakietkę
-odliczenia przy dacie (ten sam `timeUntil()` co karty listy), „Wypisz się" zmieniło się
-w zwykły tekstowy link zamiast przycisku z obwódką, pasek i tekst kompletu przeszły na
-`PASEK_KOMPLET`/niebieski z `lib/komplet.ts`, adres na liście łamie się do dwóch linii
-(`line-clamp-2`) zamiast urywać w połowie słowa. (3) wyrównanie dymka zależy dziś od
-pozycji w grupie — skrajne pozycje trzymają się swojej krawędzi, tylko środkowe
-zostają wyśrodkowane, więc żaden dymek nie nachodzi na FAB. (4) odliczenie i tekst
-„wkrótce" znikają dla odwołanego meczu, a plakietka „Anulowany" jest dziś czerwona.
-(5) drugi przycisk zmienił etykietę na „Wyślij link logowania — bez hasła" (ta sama
-fraza, którą i tak pokazuje przycisk wysyłki po przełączeniu trybu). Nagłówek nad
-ekranem logowania jest dziś w pełni bierny (`inert`) — ten sam wzorzec, którym
-`LoginBackdrop.tsx` unieruchamia tło z listą meczów. (6) oba puste stany dostały
-ikonę, tytuł i wyjaśniające zdanie zamiast gołego tekstu. (7) toast przy dodaniu
-gościa pokazuje się TYLKO wtedy, gdy modal zachęty nie wyskakuje (już widziana dla
-tego meczu) — modal przejął informację o rezerwie („Komplet — na rezerwę" pod
-nagłówkiem) i dostał przycisk „Dodaj kolejnego" do szybkiego powrotu przy dopisywaniu
-kilku osób pod rząd.
-
-MECHANIKA: `lib/api.ts` (`poszerzKadr()`, obok istniejącego `kadrWokol()`), wołane
-z `components/map/VenueExplorer.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`
-(odliczenie przy dacie, styl „Wypisz się", `PASEK_KOMPLET`, `handleAddGuest()` —
-toast tylko w gałęzi bez modala), `components/EventBrowseCard.tsx` (`line-clamp-2`,
-odliczenie i plakietka gated na `!cancelled`), `components/layout/BottomNav.tsx`
-(`dymekAlign` per pozycja), `components/auth/AuthForm.tsx` (etykieta przycisku),
-`app/logowanie/page.tsx` (`HeaderBierny`), `app/moje-gry/page.tsx` (puste stany),
-`components/events/GuestInviteNudge.tsx` (`naRezerwie`, przycisk „Dodaj kolejnego").
-Bez migracji. Pilnuje tego `src/__tests__/poszerzKadr.test.ts`.
