@@ -326,6 +326,26 @@ export async function updateEvent(
   }
 }
 
+/** Błąd wczytywania z zachowanym kodem PostgREST-a.
+ *
+ *  Istnieje po to, żeby strona meczu mogła odróżnić „mecz nie istnieje" od
+ *  „nie udało się go wczytać". `PGRST116` to jedyny kod, który naprawdę znaczy
+ *  „zero wierszy"; wszystko inne (brak sieci, 500, odmowa polityki) to awaria
+ *  po drodze, a nie odpowiedź na pytanie o istnienie meczu. */
+export class BladWczytania extends Error {
+  readonly kod?: string;
+  constructor(message: string, kod?: string) {
+    super(message);
+    this.name = 'BladWczytania';
+    this.kod = kod;
+  }
+}
+
+/** Czy ten błąd znaczy „takiego wiersza nie ma" (a nie „nie udało się sprawdzić"). */
+export function toBrakWiersza(e: unknown): boolean {
+  return e instanceof BladWczytania && e.kod === 'PGRST116';
+}
+
 export async function getEvent(
   id: string,
 ): Promise<{ event: EventItem; participants: EventParticipant[] }> {
@@ -334,7 +354,12 @@ export async function getEvent(
     .select('*, fields(address), event_blik(blik_phone)')
     .eq('id', id)
     .single();
-  if (error) throw new Error(error.message);
+  // KOD BŁĘDU JEDZIE DALEJ, nie tylko treść. Strona meczu musi odróżnić
+  // „nie ma takiego meczu" (PostgREST `PGRST116` — `.single()` przy zerze
+  // wierszy) od „nie udało się wczytać" (brak sieci, 500, błąd polityki).
+  // Bez tego rozróżnienia każda awaria renderowała „Nie znaleziono
+  // wydarzenia" — czyli link wysłany przez organizatora wyglądał jak martwy.
+  if (error) throw new BladWczytania(error.message, error.code);
 
   // Flatten the joined field address onto the row for toEvent()
   if (eventRow?.fields) {
@@ -357,7 +382,7 @@ export async function getEvent(
     .eq('event_id', id)
     .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });
-  if (pErr) throw new Error(pErr.message);
+  if (pErr) throw new BladWczytania(pErr.message, pErr.code);
 
   // Batch-fetch avatar URLs for logged-in participants
   const userIds = (partRows ?? []).filter((p) => p.user_id).map((p) => p.user_id as string);

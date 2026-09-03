@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck,
+  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -42,7 +42,7 @@ import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/l
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
-  getEvent, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
+  getEvent, toBrakWiersza, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
@@ -444,6 +444,9 @@ export default function EventDetailClient() {
   const [wypisania, setWypisania] = useState<{ id: string; name: string; kiedy: string; przezOrganizatora: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // Osobno od `notFound`: „nie udało się wczytać" to nie to samo co „nie ma
+  // takiego meczu". Patrz komentarz przy `load()` niżej.
+  const [bladWczytania, setBladWczytania] = useState(false);
   const [busy, setBusy] = useState(false);
   // `copied` bez czytania wartości — jedynym sygnałem po skopiowaniu linku jest
   // toast. Stan został po wersji, w której przycisk zmieniał napis na „OK".
@@ -675,21 +678,27 @@ export default function EventDetailClient() {
   }, []);
 
   const load = useCallback(async () => {
+    setBladWczytania(false);
+    setNotFound(false);
     try {
-      // Move the reserve queue along before reading: lapses an expired offer and
-      // hands a free spot to the next person. There's no cron, so any page view
-      // is what keeps the queue honest.
-      await syncReserveClaim(id);
       const { event: ev, participants: parts } = await getEvent(id);
       setEvent(ev);
       setParticipants(parts);
+      // PORZĄDKOWANIE KOLEJKI POZA ŚCIEŻKĄ KRYTYCZNĄ. Wygaszenie przeterminowanej
+      // oferty i podanie miejsca dalej to czynność pomocnicza — nie ma crona, więc
+      // robi to czyjeś wejście na stronę. Do 2026-09-03 stała jako `await` PRZED
+      // `getEvent`, w tym samym `try`, którego `catch` renderował „Nie znaleziono
+      // wydarzenia": awaria sprzątania gasiła całą stronę meczu. Ten sam wzorzec
+      // co `getWypisania()` niżej.
+      syncReserveClaim(id).catch(() => {});
       // Osobno i bez `await` w łańcuchu danych meczu: lista wypisań jest
       // dodatkiem, a nie warunkiem narysowania strony. `getWypisania()` sama
       // zwraca pustą listę przy błędzie.
       getWypisania(id).then(setWypisania).catch(() => setWypisania([]));
       setPayMethods(ev.acceptedPaymentMethods);
       setPayBlik(ev.blikPhone ?? '');
-      await loadMatchData(ev);
+      // Wynik meczu to dodatek do strony, nie warunek jej narysowania.
+      await loadMatchData(ev).catch(() => {});
       // Organizator nie musi pytać o własne uprawnienia — jest zawsze
       // w pełni uprawniony. Ktokolwiek inny: dociągamy jego wiersz delegata,
       // jeśli istnieje (`null`, gdy nie ma żadnego).
@@ -722,8 +731,15 @@ export default function EventDetailClient() {
       } else {
         setSeriaTerminy([]);
       }
-    } catch {
-      setNotFound(true);
+    } catch (e) {
+      // JEDYNY BŁĄD, KTÓRY ZNACZY „NIE MA TAKIEGO MECZU", to `PGRST116` —
+      // `.single()` przy zerze wierszy. Wszystko inne (brak zasięgu, 500,
+      // odmowa polityki) to awaria po drodze. Wcześniej oba przypadki
+      // renderowały ten sam ekran, więc gracz, który dostał od organizatora
+      // link i miał chwilę słaby zasięg, czytał „Nie znaleziono wydarzenia" —
+      // czyli „twój kolega wysłał ci link do czegoś, czego nie ma".
+      if (toBrakWiersza(e)) setNotFound(true);
+      else setBladWczytania(true);
     } finally {
       setLoading(false);
     }
@@ -856,6 +872,25 @@ export default function EventDetailClient() {
         <Header showMobileWordmark />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
           <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />
+        </main>
+      </div>
+    );
+  }
+  if (bladWczytania) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header showMobileWordmark />
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="w-full max-w-sm text-center">
+            <WifiOff className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+            <p className="font-semibold text-ink">Nie udało się wczytać meczu</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Sprawdź połączenie i spróbuj jeszcze raz — link jest w porządku.
+            </p>
+            <Button size="lg" className="mt-4 w-full" onClick={() => { setLoading(true); load(); }}>
+              Spróbuj ponownie
+            </Button>
+          </div>
         </main>
       </div>
     );
@@ -1571,6 +1606,26 @@ export default function EventDetailClient() {
   // Przełącznik w miejscu, w którym stoi etykieta, znaczył tyle, że przypadkowe
   // dotknięcie zdejmowało mecz z publicznej listy — bez pytania i bez śladu,
   // za to od razu dla wszystkich, którzy go szukali.
+  /** „Otwórz dla okolicy” z panelu „Czy gramy?” — z pytaniem, bo to zmiana
+   *  widoczności meczu. Osobno od `handleSetVisibility`, bo tamto woła też karta
+   *  „Kto widzi ten mecz”, która ma własne okno wyboru i drugiego pytania nie
+   *  potrzebuje. Trzecia linijka konsekwencji jest tu najważniejsza: `confirm()`
+   *  nie mieścił informacji, że decyzję da się cofnąć, więc czytała się jak
+   *  nieodwracalna. */
+  const handleOtworzDlaOkolicy = async () => {
+    if (await potwierdz({
+      tytul: 'Otworzyć mecz dla okolicy?',
+      konsekwencje: [
+        'Mecz trafi na publiczną listę otwartych gier — zobaczą go gracze z okolicy.',
+        'Kto ma link, i tak mógł dołączyć — to nie zmienia dostępu, tylko dokłada mecz do listy.',
+        'Da się cofnąć: „Kto widzi ten mecz" wraca na prywatny jednym kliknięciem.',
+      ],
+      potwierdzLabel: 'Otwórz dla okolicy',
+      anulujLabel: 'Zostaw prywatny',
+    }) !== 'tak') return;
+    await handleSetVisibility('public');
+  };
+
   const handleSetVisibility = async (next: Visibility) => {
     if (next === event.visibility) { setVisOpen(false); return; }
     setBusy(true);
@@ -2977,7 +3032,7 @@ export default function EventDetailClient() {
               participants={participants}
               canManage={canManageSquad}
               busy={busy}
-              onOtworzDlaOkolicy={() => handleSetVisibility('public')}
+              onOtworzDlaOkolicy={handleOtworzDlaOkolicy}
             />
           </div>
         )}

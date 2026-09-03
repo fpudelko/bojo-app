@@ -2757,6 +2757,34 @@ do panelu „Mecz gotowy — wyślij link".
 w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
 w jedno zostaje jako osobne zadanie.
 
+## Awaria wczytania meczu to nie jest brak meczu
+
+Strona meczu (`app/wydarzenia/[id]/EventDetailClient.tsx`) miała do 2026-09-03 jeden `try`
+wokół całego wczytywania, którego `catch` ustawiał `notFound` — czyli KAŻDY błąd renderował
+„Nie znaleziono wydarzenia”. Do tego pierwszą instrukcją w tym bloku było
+`await syncReserveClaim(id)`: **porządkowanie kolejki rezerwowej**, czynność pomocnicza,
+której awaria gasiła całą stronę.
+
+Dlaczego to ważniejsze, niż wygląda: strona meczu to jedyny artefakt, który organizator
+wysyła 10–14 osobom. Gracz na słabym zasięgu czytał komunikat znaczący „twój kolega
+wysłał ci link do czegoś, czego nie ma” — i odbijało się to na organizatorze, nie na Bojo.
+
+Dziś:
+
+- `syncReserveClaim()` leci PO `getEvent()`, bez `await` w łańcuchu danych i z `.catch(() => {})`
+  — tym samym wzorcem co `getWypisania()` obok. To samo dotyczy wyniku meczu (`loadMatchData`).
+- `getEvent()` rzuca `BladWczytania` z **kodem PostgREST-a** (`lib/events.ts`). Jedyny kod,
+  który znaczy „nie ma takiego wiersza”, to `PGRST116` (`.single()` przy zerze wierszy)
+  — rozpoznaje go `toBrakWiersza()`.
+- `PGRST116` → „Nie znaleziono wydarzenia” (bez zmian). Cokolwiek innego → nowy ekran
+  „Nie udało się wczytać meczu” z przyciskiem „Spróbuj ponownie” (woła `load()`)
+  i zdaniem **„link jest w porządku”** — to zdanie jest tu właściwą treścią, bo chroni
+  organizatora przed zarzutem, że wysłał zły adres.
+
+Pilnuje tego `e2e/mecz-blad-wczytania.klikalnosc.spec.ts`: 500 daje ekran ponowienia,
+`PGRST116` daje „nie znaleziono”, a przycisk da się realnie kliknąć. Sprawdzone, że bez
+poprawki dwa z trzech testów padają.
+
 ## Okna potwierdzeń zamiast `confirm()` przeglądarki
 
 Najcięższe decyzje organizatora potwierdzało do 2026-09-02 systemowe okno przeglądarki.
@@ -2782,8 +2810,27 @@ go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkus
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
 
-Poza stroną meczu (`/grupy`, `/rezerwacje`, panel admina) zostaje na razie `confirm()` —
-świadomie, żeby ten PR dało się przejrzeć; zamiana jest mechaniczna.
+**Domknięte 2026-09-03.** Zostały wtedy jeszcze SZEŚĆ wywołań `confirm()`, wszystkie na
+ścieżce organizatora — poprzednia runda zatrzymała się na samej stronie meczu:
+
+| Gdzie | Co |
+|---|---|
+| `components/events/CzyGramyPanel.tsx` | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo panel jest komponentem POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
+| `app/grupy/[id]/GroupDetailClient.tsx` | opuszczenie ekipy, usunięcie gracza z ekipy |
+| `app/grupy/[id]/edytuj/page.tsx` | nowy link zaproszenia, opuszczenie ekipy, **usunięcie ekipy** |
+
+Usunięcie ekipy jest z nich najcięższe i było najgorzej opisane: jedno zdanie w oknie, które
+wygląda jak komunikat przeglądarki. Dziś ma cztery konsekwencje jedna pod drugą — co znika
+(rozmowa, tablica, skład, statystyki), co ZOSTAJE (mecze, tylko bez przypisania do ekipy),
+co tracą członkowie i że nie da się tego cofnąć.
+
+Przy „Otwórz dla okolicy” najważniejsza jest trzecia linijka: **że decyzję da się
+cofnąć**. `confirm()` nie miał gdzie tego zmieścić, więc czytała się jak nieodwracalna.
+
+Pilnuje tego `__tests__/oknaZamiastConfirm.test.ts` — skanuje `app/wydarzenia`, `app/grupy`,
+`app/moje-gry`, `components/events` i `components/groups` i pada, gdy `confirm()` tam wróci.
+Panel administratora i `/rezerwacje` (za wyłączoną flagą) są świadomie poza zakresem: tam
+pyta się kogoś innego i w innym kontekście.
 
 ## Plakietka „Wczesny etap" na landingu
 

@@ -22,6 +22,7 @@ import { useMyParticipation } from '@/lib/useMyParticipation';
 import { isUpcoming } from '@/lib/eventDates';
 import { startKey } from '@/lib/eventFilters';
 import { plural } from '@/lib/plural';
+import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
@@ -276,16 +277,38 @@ export default function GroupDetailClient() {
 
   const perms = permissions ?? uprawnieniaCzlonka(group ?? {}, undefined);
 
+  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+
   const handleLeave = async () => {
     if (!user) return;
-    if (!confirm('Opuścić ekipę?')) return;
+    if (await potwierdz({
+      tytul: 'Opuścić ekipę?',
+      konsekwencje: [
+        'Stracisz dostęp do rozmowy ekipy i do jej prywatnych meczów.',
+        'Twoje wpisy na tablicy i historia meczów zostają.',
+        'Wrócisz przez link albo kod zaproszenia — jeśli go masz.',
+      ],
+      potwierdzLabel: 'Opuszczam ekipę',
+      anulujLabel: 'Zostaję',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     setBusy(true);
     try { await leaveGroup(id, user.id); toast('Opuściłeś ekipę'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
   const handleRemove = async (userId: string) => {
-    if (!confirm('Usunąć tego gracza z ekipy? Straci dostęp do rozmowy i meczów ekipy. Wpisy zostają.')) return;
+    if (await potwierdz({
+      tytul: 'Usunąć gracza z ekipy?',
+      konsekwencje: [
+        'Straci dostęp do rozmowy ekipy i do jej prywatnych meczów.',
+        'Jego wpisy na tablicy i udział w rozegranych meczach zostają.',
+        'Ze składu nadchodzących meczów NIE wypisuje się sam — to trzeba zrobić osobno.',
+      ],
+      potwierdzLabel: 'Usuń z ekipy',
+      anulujLabel: 'Zostaw',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     setBusy(true);
     try { await removeMember(id, userId); await load(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); }
@@ -697,6 +720,7 @@ export default function GroupDetailClient() {
       {inviteOpen && (
         <ZaprosDoGrupySheet group={group} najblizszy={nextMatch ?? undefined} onClose={() => setInviteOpen(false)} />
       )}
+      {oknoPotwierdzenia}
     </div>
   );
 }

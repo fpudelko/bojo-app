@@ -19,6 +19,7 @@ import {
 import { linkDoGrupy } from '@/lib/groupShare';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
+import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { Group, GroupMember, GroupPermissions } from '@/types';
 
@@ -97,8 +98,19 @@ export default function EditGroupPage() {
     }
   };
 
+  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+
   const handleRegen = async () => {
-    if (!confirm('Stary link i kod przestaną działać. Kto już jest w ekipie, zostaje. Kontynuować?')) return;
+    if (await potwierdz({
+      tytul: 'Wygenerować nowy link do ekipy?',
+      konsekwencje: [
+        'Stary link i kod przestaną działać — kto ma je zapisane, nie wejdzie.',
+        'Kto już jest w ekipie, zostaje.',
+        'Nowy link trzeba rozesłać jeszcze raz.',
+      ],
+      potwierdzLabel: 'Wygeneruj nowy',
+      anulujLabel: 'Zostaw stary',
+    }) !== 'tak') return;
     setRegenBusy(true);
     try {
       const kod = await regenerateJoinCode(id);
@@ -136,15 +148,40 @@ export default function EditGroupPage() {
 
   const handleLeave = async () => {
     if (!user) return;
-    if (!confirm('Opuścić ekipę?')) return;
+    if (await potwierdz({
+      tytul: 'Opuścić ekipę?',
+      konsekwencje: [
+        'Stracisz dostęp do rozmowy ekipy i do jej prywatnych meczów.',
+        'Twoje wpisy na tablicy i historia meczów zostają.',
+        'Wrócisz przez link albo kod zaproszenia — jeśli go masz.',
+      ],
+      potwierdzLabel: 'Opuszczam ekipę',
+      anulujLabel: 'Zostaję',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     setBusy(true);
     try { await leaveGroup(id, user.id); toast('Opuściłeś ekipę'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
   };
 
+  // NAJCIĘŻSZA DECYZJA NA TYM EKRANIE — i do 2026-09-03 pytało o nią systemowe
+  // okno przeglądarki, czyli to samo, którym strona pyta o zgodę na wyskakujące
+  // okienka. Cztery konsekwencje, których `confirm()` nie miał jak pokazać jedna
+  // pod drugą, plus wariant destrukcyjny (czerwony przycisk).
   const handleDelete = async () => {
     if (!group) return;
-    if (!confirm(`Usunąć ekipę ${group.name}? Znika rozmowa, skład i statystyki. Mecze zostają, ale przestają być przypisane do ekipy. Tego nie da się cofnąć.`)) return;
+    if (await potwierdz({
+      tytul: `Usunąć ekipę ${group.name}?`,
+      konsekwencje: [
+        'Znika rozmowa ekipy, tablica, skład i statystyki.',
+        'Rozegrane i nadchodzące mecze ZOSTAJĄ — przestają tylko być przypisane do ekipy.',
+        'Członkowie stracą dostęp do prywatnych meczów tej ekipy.',
+        'Tego nie da się cofnąć.',
+      ],
+      potwierdzLabel: 'Usuń ekipę',
+      anulujLabel: 'Zostaw',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
     setBusy(true);
     try { await deleteGroup(id); toast('Ekipa usunięta'); router.push('/grupy'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Błąd', 'error'); setBusy(false); }
@@ -387,6 +424,7 @@ export default function EditGroupPage() {
           </div>
         )}
       </main>
+      {oknoPotwierdzenia}
     </div>
   );
 }
