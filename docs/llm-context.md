@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-02 · migracja `130` · 53 tabele
+**Stan na:** 2026-09-03 · migracja `131` · 53 tabele
 
 ---
 
@@ -355,6 +355,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-03 — Skład meczu jest prawdą: koniec z samodzielnym awansem i naprawiony przełącznik gości
+
+PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą bezpośrednio, więc
+reguły dostępu w bazie są jedyną granicą. Reguła pozwalająca uczestnikowi zmieniać własny
+wpis w składzie nie mówiła, KTÓRE pola wolno mu ruszyć, a baza danych nie umie zawęzić
+takiej reguły do wybranych kolumn. W efekcie zapisany mógł jednym żądaniem wyjść
+z poczekalni na meczu z akceptacją zapisów, awansować się z listy rezerwowej ponad limit
+miejsc i oznaczyć własną wpłatę jako wniesioną — czyli obejść trzy rzeczy, na których
+opiera się zaufanie organizatora do składu. Druga połowa tego samego problemu nie wymagała
+niczyjej złej woli: przejście „Obserwuję” → „Gram” pytało bazę o wolne
+miejsce i dopiero osobnym żądaniem zapisywało wynik, więc dwie osoby klikające w tej samej
+sekundzie lądowały obie w składzie, ponad limit. Osobno: przełącznik
+„Uczestnicy mogą dodawać gości” nie działał NIGDY — organizator go włączał,
+aplikacja potwierdzała, że działa, a uczestnik po wpisaniu imienia znajomego dostawał
+komunikat o braku uprawnień.
+
+ROZWIĄZANIE BOJO: skład meczu zmienia dziś tylko ten, kto ma do tego prawo. Organizator,
+delegat i administrator mają dokładnie te same możliwości co wcześniej. Uczestnik zmienia
+wyłącznie własną deklarację — czy gra, na jakiej pozycji, jak zapłaci — oraz może przyjąć
+ofertę zwolnionego miejsca, gdy taka do niego wyszła; miejsca w składzie sam sobie nie
+przydzieli, z poczekalni się nie wypisze i wpłaty sobie nie odhaczy. Potwierdzenie udziału
+przez osobę obserwującą mecz liczy się teraz w całości po stronie bazy, w jednej operacji,
+więc dwa jednoczesne kliknięcia nie zmieszczą się już w jednym wolnym miejscu.
+Przełącznik „Uczestnicy mogą dodawać gości” robi to, co obiecuje: gdy organizator
+go włączy, osoba z listy składu dopisze znajomego bez konta — i tylko wtedy.
+
+MECHANIKA: migracja `131` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
+(`BEFORE INSERT OR UPDATE`; spreparowany zapis jest normalizowany, nie odbijany, żeby nie
+psuć „Obserwuję”), funkcje `czy_zarzadza_wpisem()`, `czy_moze_dopisac_goscia()`
+i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję” →
+„Gram”), przebudowana polityka zapisu do składu. Po stronie aplikacji
+`confirmFromMaybe()` w `lib/events.ts` woła dziś funkcję bazy zamiast liczyć pojemność
+w przeglądarce. Asercje w `supabase/test/rls.sql`.
+
 ### 2026-09-02 — Przypomnienia o meczu: pierwsze powiadomienia w Bojo, które wychodzą same
 
 PROBLEM: w całym Bojo nie było ani jednego powiadomienia opartego o czas — wszystkie były
@@ -655,35 +689,3 @@ plus pięć innych miejsc z etykietą daty. Czerwona plakietka dzwonka liczy CO 
 zmian — to nie jest ten sam licznik. Bez migracji. Pilnują tego
 `e2e/mapa-pusty-kadr.klikalnosc.spec.ts` i `src/__tests__/etykietyDat.test.ts` —
 sprawdzone, że bez poprawki testy padają.
-
-### 2026-08-30 — Trzecia partia błędów z sesji QA: przybliżenie mapy, Enter w polu miejscowości, odmiana dni tygodnia
-
-PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji, tym razem
-skupiona na `/mapa`. (1) Na `/mapa` nie było ŻADNEGO sposobu przybliżenia poza kółkiem
-myszy/gestem szczypania — kontrolka Leaflet była wyłączona (kolidowała z nakładką
-szukania na mobile), a nic jej nie zastępowało. (2) Jeden ruch kółka/trackpada potrafił
-przeskoczyć 3-4 poziomy przybliżenia naraz. (3) Enter w polu „miejscowość" filtra „ile km"
-nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem. (4) Nominatim potrafił zwrócić
-tę samą miejscowość dwa razy, więc podpowiedzi pokazywały duplikaty. (5) Dzień tygodnia
-w zapowiedziach terminu („w niedziela" zamiast „w niedzielę") i liczba graczy na karcie
-rozegranego meczu („1 graczy" zamiast „1 gracz") łamały polską odmianę.
-
-ROZWIĄZANIE BOJO: (1) własne przyciski +/- (`ZoomButtons.tsx`), tym samym wzorem co
-istniejący `LocateMeButton` — stoją w rogu, którego nic innego nie zajmuje na stałe.
-(2) `wheelPxPerZoomLevel={240}` zamiast domyślnych 60 — trzeba więcej przewinąć na jeden
-poziom. (3) pole „miejscowość" wybiera dziś pierwszą podpowiedź na Enter, tak jak
-wyszukiwarka zwykle wybiera pierwszy wynik. (4) serwerowe proxy `/api/geocode` odsiewa
-podpowiedzi o tej samej nazwie i kontekście przed odesłaniem do przeglądarki. (5) trzy dni
-tygodnia (niedziela/środa/sobota) mają dziś osobną formę biernika zamiast mianownika
-z `format()`; liczba graczy idzie przez ten sam helper odmiany, którego reszta karty już
-używała.
-
-MECHANIKA: `components/map/ZoomButtons.tsx` (nowy plik, użyty w `VenueExplorer.tsx`
-i `GamesMapCanvas.tsx`), `components/map/WyborMiejscowosci.tsx` (`onKeyDown`),
-`lib/miejscowosci.ts` (`odsiejDuplikatyMiejscowosci()`, wołane z `app/api/geocode/route.ts`
-— handler trasy Next.js nie może eksportować nic poza uznanymi nazwami HTTP, stąd funkcja
-w osobnym module), `lib/eventDates.ts` (`dzienTygodniaWBierniku()`),
-`components/groups/NajblizszyMeczGrupy.tsx`, `components/EventBrowseCard.tsx`
-(`withCount()` zamiast literału „graczy"). Bez migracji. Pilnuje tego
-`e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts` — sprawdzone, że bez poprawki test pada.
-

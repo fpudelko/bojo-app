@@ -230,6 +230,27 @@ Konsekwencje:
 - Limit bramkarzy (`max_goalkeepers`, domyślnie 2, tylko gdy `goalkeepers_enabled`)
   spycha nadmiarowych na rezerwę.
 
+### Co uczestnik może zmienić we własnym wpisie (migracja `131`)
+
+Reguła jest krótka: **uczestnik zmienia własną DEKLARACJĘ, a nie swoje MIEJSCE w składzie.**
+
+| Wolno | Nie wolno |
+|---|---|
+| `rsvp` („gram” / „obserwuję”), pozycja (`is_goalkeeper`), metoda płatności, karta sportowa | `pending_approval` — zapis akceptuje organizator |
+| przyjęcie **stojącej** oferty zwolnionego miejsca (`is_reserve` z `true` na `false`, gdy `claim_offered_at` jest ustawione) | awans z rezerwy bez oferty — to jest reguła „oferta, nie auto-awans” niżej, egzekwowana teraz także w bazie |
+| przepuszczenie stojącej oferty (`claim_passed`) | `has_paid`, `paid_amount` — wpłatę odhacza organizator |
+| | `team`, `is_captain` — drużyny układa organizator |
+
+Dlaczego to siedzi w bazie, a nie w komponencie: Bojo nie ma własnego backendu, klucz `anon`
+jest jawny w paczce JS, więc reguła sprawdzana w przeglądarce nie jest regułą. Do migracji
+`131` polityka `Own participation update` (`053`) pozwalała zmienić DOWOLNĄ kolumnę własnego
+wiersza — sprawdzone na produkcji: jeden `UPDATE` wychodził z poczekalni, awansował ponad
+limit i odhaczał wpłatę.
+
+Wejście do składu z poczekalni „Obserwuję” idzie przez `potwierdz_udzial()`, nie przez
+`UPDATE` — pojemność musi być liczona i zapisana w jednej transakcji, inaczej dwie osoby
+klikające naraz zajmują to samo ostatnie miejsce.
+
 ### Zwolnione miejsce: oferta, nie auto-awans
 
 Gdy ktoś się wypisze, rezerwowy **nie wskakuje automatycznie**. Miejsce zostaje

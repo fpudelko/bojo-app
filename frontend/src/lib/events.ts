@@ -647,7 +647,17 @@ export async function joinEventMaybe(eventId: string, userId: string, name: stri
  *  obserwujący, który się decyduje, podejmuje dokładnie te same decyzje co
  *  ktoś wchodzący prosto ze składu. Wcześniej ta ścieżka ustawiała wyłącznie
  *  `rsvp` i `is_reserve`, więc gracz lądował w składzie bez pozycji i bez
- *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć. */
+ *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć.
+ *
+ *  OD MIGRACJI `131` LICZY TO BAZA, W JEDNEJ TRANSAKCJI (`potwierdz_udzial`).
+ *  Wcześniej ta funkcja pytała o wolne miejsce (`czy_na_rezerwe`) i dopiero
+ *  osobnym zapytaniem zapisywała `is_reserve` — czyli dokładnie ten wyścig,
+ *  który `dolacz_do_meczu()` (migracja `078`) usunął dla zwykłego „Dołącz":
+ *  „między liczeniem a wstawianiem mogło wejść dwóch graczy naraz i obaj
+ *  dostawali to samo ostatnie miejsce". Dwie osoby obserwujące mecz z jednym
+ *  wolnym miejscem, klikające „Gram" w tej samej sekundzie, lądowały obie
+ *  w składzie — ponad limit, bez niczyjej złej woli. To była ostatnia ścieżka
+ *  wejścia do składu, która tej migracji nie przeszła. */
 export async function confirmFromMaybe(
   participantId: string,
   eventId: string,
@@ -655,17 +665,17 @@ export async function confirmFromMaybe(
   payment?: JoinPaymentChoice,
   actor?: { userId: string; name: string },
 ): Promise<WynikZapisu> {
-  await runSyncReserveClaim(eventId);
-  const isReserve = await czyNaRezerwe(eventId, asGoalkeeper);
+  const { data, error } = await supabase.rpc('potwierdz_udzial', {
+    p_uczestnik: participantId,
+    p_bramkarz: asGoalkeeper,
+    p_metoda_platnosci: payment?.method ?? null,
+    p_karta_sportowa: payment?.hasSportsCard ?? false,
+    p_dostawca_karty: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
+  });
+  if (error) throw new Error(error.message);
 
-  await zaktualizujJedenWiersz('event_participants', participantId, {
-    rsvp: 'yes',
-    is_reserve: isReserve,
-    is_goalkeeper: asGoalkeeper,
-    payment_method: payment?.method ?? null,
-    has_sports_card: payment?.hasSportsCard ?? false,
-    sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
-  }, 'Nie udało się potwierdzić udziału');
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  const isReserve = !!wiersz?.is_reserve;
 
   // Potwierdzenie z „obserwuję" nie zostawiało dotąd żadnego śladu w dzienniku
   // — to UPDATE, nie INSERT, więc `joinEvent`-owy `logActivity` po prostu nie

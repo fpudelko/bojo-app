@@ -372,6 +372,125 @@ SELECT _oczekuj('organizator dostaje token swojego gościa',
                   WHERE s.t IS NOT NULL), 1);
 RESET ROLE;
 
+SELECT _sekcja('Własny wpis w składzie (migracja 131)');
+
+-- PO CO. Polityka „Own participation update" (`053`) brzmi `auth.uid() =
+-- user_id` i nie mówi, KTÓRE kolumny — a Postgres nie zawęża RLS do kolumn.
+-- Do migracji `131` znaczyło to, że uczestnik jednym UPDATE-em wychodził
+-- z poczekalni, awansował się z rezerwy ponad limit i odhaczał sobie wpłatę.
+-- Asercje niżej pilnują OBU stron: że tego się nie da, i że zwykła ścieżka
+-- (zmiana deklaracji, przyjęcie oferty z rezerwy) dalej działa. Bez tej drugiej
+-- połowy łatwo „naprawić" wyzwalacz tak, że zablokuje wszystko.
+--
+-- Osobny mecz, żeby nie ruszać liczników asercji wyżej.
+\set MECZ2 '''bbbbbbbb-0000-4000-8000-000000000002'''
+
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title, require_approval)
+VALUES (:MECZ2::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko RLS 2',
+        CURRENT_DATE + 5, '20:00', 1, 'public', 'Mecz do testów wpisu', true);
+
+-- Uczestnik czeka na akceptację; obcy stoi na rezerwie ze STOJĄCĄ ofertą.
+INSERT INTO event_participants (event_id, user_id, name, pending_approval)
+VALUES (:MECZ2::uuid, :UCZESTNIK::uuid, 'Ula Uczestniczka', true);
+INSERT INTO event_participants (event_id, user_id, name, is_reserve, claim_offered_at)
+VALUES (:MECZ2::uuid, :OBCY::uuid, 'Obcy Obcy', true, now());
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+
+SELECT _oczekuj_odmowe('uczestnik NIE wyjdzie sam z poczekalni', format(
+  'UPDATE event_participants SET pending_approval = false
+     WHERE event_id = %L AND user_id = %L', :MECZ2, :UCZESTNIK));
+
+SELECT _oczekuj_odmowe('uczestnik NIE odhaczy sobie wpłaty', format(
+  'UPDATE event_participants SET has_paid = true
+     WHERE event_id = %L AND user_id = %L', :MECZ2, :UCZESTNIK));
+
+SELECT _oczekuj_odmowe('uczestnik NIE przypisze się do drużyny', format(
+  'UPDATE event_participants SET team = ''A''
+     WHERE event_id = %L AND user_id = %L', :MECZ2, :UCZESTNIK));
+
+-- Deklaracja własna ma dalej działać — to jest zwykła ścieżka „zmieniam
+-- metodę płatności", nie obejście czegokolwiek.
+UPDATE event_participants SET rsvp = 'yes', payment_method = 'blik'
+ WHERE event_id = :MECZ2::uuid AND user_id = :UCZESTNIK::uuid;
+SELECT _oczekuj('uczestnik ZMIENI swoją deklarację płatności',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ2::uuid AND user_id = :UCZESTNIK::uuid
+                    AND payment_method = 'blik'), 1);
+
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+
+-- Rezerwowy ZE stojącą ofertą wchodzi do składu — `acceptReserveClaim()`.
+UPDATE event_participants SET is_reserve = false, claim_offered_at = NULL
+ WHERE event_id = :MECZ2::uuid AND user_id = :OBCY::uuid;
+SELECT _oczekuj('rezerwowy PRZYJMIE stojącą ofertę zwolnionego miejsca',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ2::uuid AND user_id = :OBCY::uuid
+                    AND NOT is_reserve), 1);
+
+-- …a bez oferty już nie. Cofamy go na rezerwę jako organizator i próbujemy.
+RESET ROLE;
+UPDATE event_participants SET is_reserve = true, claim_offered_at = NULL, claim_passed = false
+ WHERE event_id = :MECZ2::uuid AND user_id = :OBCY::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+
+SELECT _oczekuj_odmowe('rezerwowy BEZ oferty NIE awansuje się sam', format(
+  'UPDATE event_participants SET is_reserve = false
+     WHERE event_id = %L AND user_id = %L', :MECZ2, :OBCY));
+
+SELECT _oczekuj_odmowe('rezerwowy NIE wystawi sobie oferty miejsca', format(
+  'UPDATE event_participants SET claim_offered_at = now()
+     WHERE event_id = %L AND user_id = %L', :MECZ2, :OBCY));
+
+-- INSERT: spreparowany wiersz ma zostać ZNORMALIZOWANY, nie odbity — inaczej
+-- padłoby „Obserwuję" (`joinEventMaybe`), które też wstawia wiersz wprost.
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+INSERT INTO event_participants (event_id, user_id, name, is_reserve, pending_approval, has_paid, is_captain)
+VALUES (:MECZ2::uuid, :CZLONEK::uuid, 'Czarek Członek', false, false, true, true);
+SELECT _oczekuj('spreparowany INSERT ląduje w poczekalni, bez wpłaty i bez kapitana',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ2::uuid AND user_id = :CZLONEK::uuid
+                    AND pending_approval AND NOT has_paid AND NOT is_captain), 1);
+RESET ROLE;
+
+SELECT _sekcja('Uczestnik dopisuje gościa, gdy organizator pozwolił (migracja 131)');
+
+-- PO CO. Przełącznik `allow_guest_adds` nie działał NIGDY: polityka INSERT
+-- dopuszczała `auth.uid() = user_id`, a wiersz gościa ma `user_id IS NULL`,
+-- więc warunek wychodził NULL. Organizator włączał przełącznik, aplikacja
+-- mówiła „Uczestnicy mogą teraz dodawać gości", a uczestnik po kliknięciu
+-- „Dodaj" dostawał komunikat o polityce.
+\set MECZ3 '''bbbbbbbb-0000-4000-8000-000000000003'''
+
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title, allow_guest_adds)
+VALUES (:MECZ3::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko RLS 3',
+        CURRENT_DATE + 5, '20:00', 10, 'public', 'Mecz z gośćmi od uczestników', true);
+INSERT INTO event_participants (event_id, user_id, name)
+VALUES (:MECZ3::uuid, :UCZESTNIK::uuid, 'Ula Uczestniczka');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+INSERT INTO event_participants (event_id, user_id, name, is_guest, added_by)
+VALUES (:MECZ3::uuid, NULL, 'Kolega z pracy', true, :UCZESTNIK::uuid);
+SELECT _oczekuj('uczestnik DOPISZE gościa, gdy przełącznik jest włączony',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ3::uuid AND is_guest), 1);
+
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('gościa NIE dopisze ktoś spoza składu', format(
+  'INSERT INTO event_participants (event_id, user_id, name, is_guest, added_by)
+   VALUES (%L, NULL, ''Obcy gość'', true, %L)', :MECZ3, :OBCY));
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+
+SELECT _oczekuj_odmowe('gościa NIE dopisze się na mecz z wyłączonym przełącznikiem', format(
+  'INSERT INTO event_participants (event_id, user_id, name, is_guest, added_by)
+   VALUES (%L, NULL, ''Kolega'', true, %L)', :MECZ, :UCZESTNIK));
+RESET ROLE;
+
 SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)');
 
 -- Te asercje pilnują STANU FAKTYCZNEGO, nie stanu docelowego. Gdy ktoś domknie

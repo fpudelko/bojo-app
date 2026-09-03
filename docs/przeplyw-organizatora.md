@@ -205,6 +205,26 @@ w cyklu życia.
 
 ---
 
+## Faza 9 — trzecia runda audytu (2026-09-03)
+
+Runda przeszła ścieżkę narzędziami, nie samym czytaniem: bramki repo (`tsc`, 923 testy
+Vitest, build produkcyjny) na zielono, przejście przeglądarką na telefonie, odczyt bazy
+PRODUKCYJNEJ i test reguł dostępu wykonany na niej w transakcji zakończonej `ROLLBACK`.
+Ustalenia mają numery `E-n`, żeby nie kolidowały z `O-n` z rund wcześniejszych.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **E-1** | **Uczestnik mógł wejść do składu sam.** Polityka `Own participation update` (`053`) brzmi `auth.uid() = user_id` i nie mówi, KTÓRE kolumny — a Postgres nie zawęża RLS do kolumn. Sprawdzone na produkcji (transakcja + `ROLLBACK`): jeden `UPDATE` ustawiał `pending_approval = false, is_reserve = false, has_paid = true`. Łamało to trzy obietnice składane organizatorowi naraz: akceptację zapisów, twardy limit miejsc i rozliczenie. Bojo nie ma backendu, a klucz `anon` jest jawny w paczce JS, więc wystarczała konsola przeglądarki. **Druga połowa tej samej dziury nie wymagała niczyjej złej woli:** `confirmFromMaybe()` („Obserwuję” → „Gram”) pytała bazę o wolne miejsce i dopiero OSOBNYM zapytaniem zapisywała `is_reserve` — czyli wyścig, który `dolacz_do_meczu()` (`078`) usunął dla zwykłego „Dołącz”. Dwie osoby obserwujące mecz z jednym wolnym miejscem, klikające w tej samej sekundzie, lądowały obie w składzie | zrobione (migracja `131`) |
+| **E-8** | **Przełącznik „Uczestnicy mogą dodawać gości” nie działał NIGDY.** Znalezione przy okazji `E-1`, potwierdzone tym samym sposobem. Polityka INSERT dopuszcza `auth.uid() = user_id`, a wiersz gościa ma `user_id IS NULL`, więc warunek wychodzi NULL; pozostałe gałęzie to organizator, delegat i admin. Uczestnik widział pole „Dopisz osobę bez konta”, wpisywał imię i dostawał komunikat o polityce — a organizator, który przed chwilą włączył przełącznik, dostał od aplikacji potwierdzenie „Uczestnicy mogą teraz dodawać gości”. To była nieprawda | zrobione (migracja `131`) |
+
+Dlaczego `E-1` nie znalazł się w rundach wcześniejszych: obie poprzednie czytały kod, a kod
+aplikacji jest tu POPRAWNY — `dolacz_do_meczu()` liczy wszystko jak trzeba, interfejs nigdy
+takiego żądania nie wysyła. Dziura jest wyłącznie w tym, czego polityka NIE mówi, i widać ją
+dopiero wtedy, gdy pominie się interfejs. To jest dokładnie ten rodzaj ustalenia, dla którego
+powstał `supabase/test/rls.sql` — i dlatego obie poprawki wchodzą razem z asercjami.
+
+---
+
 ## Co zostaje bez zmian — i dlaczego
 
 Ta lista chroni przed „poprawkami", które przepływ by pogorszyły.
