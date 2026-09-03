@@ -8,11 +8,15 @@ name: Wdróż funkcje brzegowe
 # a to zakłada zainstalowane CLI, Dockera i zalogowaną sesję. Właściciel pracuje
 # z telefonu i przeglądarki, więc jedyne realne wejście to GitHub Actions.
 #
-# `--no-verify-jwt` dla `send-push` JEST OBOWIĄZKOWE: tę funkcję woła baza
-# danych (wyzwalacz z migracji `102`), a nie zalogowany człowiek. Bez tej flagi
-# Supabase odrzuca wywołanie, zanim funkcja zdąży sprawdzić własny sekret
-# (nagłówek `x-bojo-sekret`). Dlatego lista funkcji „bez JWT" siedzi tutaj
-# w kodzie, a nie w pamięci osoby klikającej.
+# `--no-verify-jwt` dla `send-push` i `powiadom-goscia` JEST OBOWIĄZKOWE: obie
+# woła baza danych (wyzwalacze z migracji `102` i `133`), a nie zalogowany
+# człowiek. Bez tej flagi Supabase odrzuca wywołanie, zanim funkcja zdąży
+# sprawdzić własny sekret (nagłówek `x-bojo-sekret`). Dlatego lista funkcji
+# „bez JWT” siedzi tutaj w kodzie, a nie w pamięci osoby klikającej.
+#
+# Awaria przy braku tej flagi jest CICHA z perspektywy aplikacji: `net.http_post`
+# jest asynchroniczne, więc baza nie zobaczy odmowy — mail po prostu nie
+# przyjdzie, a nikt nie dostanie o tym błędu.
 #
 # Wymagany sekret repozytorium:
 #   SUPABASE_ACCESS_TOKEN  — Supabase → Account → Access Tokens
@@ -38,7 +42,7 @@ env:
   PROJECT_REF: qjmizwjwjaprurfesimx
   # Funkcje wołane przez bazę, nie przez zalogowanego użytkownika — patrz
   # komentarz w nagłówku.
-  BEZ_JWT: 'send-push'
+  BEZ_JWT: 'send-push powiadom-goscia'
 
 jobs:
   wdroz:
@@ -97,3 +101,10 @@ jobs:
           echo "2. wpis w tabeli \`konfiguracja_push\` (adres funkcji + ten sam sekret)." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Pełna instrukcja: \`supabase/functions/send-push/README.md\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Jeśli to była \`powiadom-goscia\`, tak samo — dwa kroki spoza GitHuba:" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. sekrety funkcji (RESEND_API_KEY, BOJO_POCZTA_SEKRET, BOJO_NADAWCA)," >> "$GITHUB_STEP_SUMMARY"
+          echo "2. wpis w tabeli \`konfiguracja_poczty\` (adres funkcji + ten sam sekret)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Do czasu obu kroków kanał MILCZY i nic się przez to nie psuje." >> "$GITHUB_STEP_SUMMARY"
+          echo "Pełna instrukcja: \`supabase/functions/powiadom-goscia/README.md\`." >> "$GITHUB_STEP_SUMMARY"
