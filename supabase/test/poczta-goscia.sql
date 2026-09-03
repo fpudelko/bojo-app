@@ -7,12 +7,24 @@
 -- raz. Tego nie widzi ani `tsc`, ani Vitest (nie mają bazy), ani Playwright
 -- (nie ma dla tego interfejsu — wołają to wyzwalacze i `pg_cron`).
 --
--- ŚWIADOMIE BEZ KONFIGURACJI POCZTY. `konfiguracja_poczty` zostaje pusta, więc
--- `wyslij_mail_do_goscia()` wychodzi cicho, ZANIM dojdzie do `net.http_post`.
--- To jest dokładnie ten warunek, który ma obowiązywać na produkcji do czasu
--- weryfikacji domeny w Resend: kanał milczy i nic się przez to nie psuje.
--- Sprawdzamy więc SELEKCJĘ (kto by dostał) i IDEMPOTENCJĘ (ile razy), czyli
--- to, co decyduje o tym, czy ludzie dostaną spam.
+-- KONFIGURACJA JEST ATRAPĄ, WYSYŁKA TEŻ. Bez wpisów w `konfiguracja_poczty`
+-- `wyslij_mail_do_goscia()` wychodzi cicho ZANIM cokolwiek zapisze — i to jest
+-- poprawne zachowanie produkcyjne (kanał niewłączony = nie dzieje się nic),
+-- ale nie da się na nim niczego sprawdzić. Pierwsza wersja tego pliku właśnie
+-- tak wyglądała i wszystkie asercje wychodziły zerami. Dlatego wpisujemy
+-- atrapę adresu i podstawiamy `net.http_post`, żeby przebieg doszedł do końca
+-- BEZ wychodzenia w świat.
+--
+-- Podstawienie `net.http_post` jest bezpieczne WYŁĄCZNIE tutaj: ten plik
+-- uruchamia `scripts/baza-testowa.sh` na gołym Postgresie w kontenerze, gdzie
+-- `pg_net` w ogóle nie istnieje (migracje `102` i `133` zakładają go w bloku
+-- `EXCEPTION` właśnie z tego powodu). Na Supabase tego pliku się nie uruchamia.
+--
+-- Dzięki atrapie sprawdzamy trzy rzeczy naraz: SELEKCJĘ (kto dostaje maila,
+-- a kto nie), IDEMPOTENCJĘ (czy drugie uruchomienie zadania nie wyśle drugi
+-- raz) i TREŚĆ ŻĄDANIA (czy do funkcji brzegowej jedzie właściwy powód
+-- i adres) — czyli wszystko, co decyduje o tym, czy ludzie dostaną spam
+-- albo ciszę.
 
 \set ON_ERROR_STOP on
 \o /dev/null
@@ -26,7 +38,25 @@ BEGIN
   RAISE NOTICE '  ✓ %', opis;
 END $$;
 
-DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta do gościa (migracja 132)'; END $$;
+-- Atrapa `pg_net`: zamiast wysyłać, zapisuje żądanie. Nazwy argumentów muszą
+-- zgadzać się z wywołaniem w `wyslij_mail_do_goscia()` (wołane po nazwach).
+CREATE SCHEMA IF NOT EXISTS net;
+CREATE TABLE IF NOT EXISTS net._wyslane (id BIGSERIAL PRIMARY KEY, url TEXT, body JSONB);
+CREATE OR REPLACE FUNCTION net.http_post(url TEXT, body JSONB DEFAULT '{}'::jsonb,
+                                         params JSONB DEFAULT '{}'::jsonb,
+                                         headers JSONB DEFAULT '{}'::jsonb,
+                                         timeout_milliseconds INT DEFAULT 5000)
+RETURNS BIGINT LANGUAGE plpgsql AS $net$
+BEGIN
+  INSERT INTO net._wyslane (url, body) VALUES (url, body);
+  RETURN 1;
+END $net$;
+
+INSERT INTO konfiguracja_poczty (klucz, wartosc)
+VALUES ('url', 'http://atrapa.test/powiadom-goscia'), ('sekret', 'atrapa')
+ON CONFLICT (klucz) DO NOTHING;
+
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta do gościa (migracja 133)'; END $$;
 
 \set M_ORG   '''eeeeeeee-0000-4000-8000-000000000001'''
 \set M_JUTRO '''ffffffff-0000-4000-8000-000000000001'''
@@ -113,5 +143,19 @@ SELECT _m_oczekuj('zmiana terminu pisze do gości tego meczu',
 UPDATE events SET description = 'cokolwiek' WHERE id = :M_WCZOR::uuid;
 SELECT _m_oczekuj('zmiana opisu NIE wysyła niczego',
   (SELECT count(*) FROM maile_goscia WHERE powod = 'zmiana'), 2);
+
+-- TREŚĆ ŻĄDANIA. Selekcja może być poprawna, a do funkcji brzegowej i tak
+-- pojedzie nie ten adres albo nie ten powód — wtedy mail trafia do kogoś
+-- innego, a asercje liczące wiersze niczego nie zauważą.
+SELECT _m_oczekuj('do funkcji brzegowej jedzie tyle żądań, ile wpisów w dzienniku',
+  (SELECT count(*) FROM net._wyslane), (SELECT count(*) FROM maile_goscia));
+
+SELECT _m_oczekuj('żądanie o odwołaniu niesie adres TEGO gościa i ten powód',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'odwolanie'
+      AND body->>'email' = 'gosc-sklad@example.com'), 1);
+
+SELECT _m_oczekuj('każde żądanie niesie token wpisu — bez niego mail nie ma linku',
+  (SELECT count(*) FROM net._wyslane WHERE body->>'token' IS NULL), 0);
 
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA GOŚCIA: wszystkie asercje przeszły.'; END $$;
