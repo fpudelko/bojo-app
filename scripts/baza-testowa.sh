@@ -115,7 +115,7 @@ if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/przypomnienia
 fi
 sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
 
-echo "→ Testy poczty do gościa (migracja 132)…"
+echo "→ Testy poczty do gościa (migracja 133)…"
 if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/poczta-goscia.sql" 2>"$DANE/blad"; then
   echo "✗ TESTY POCZTY GOŚCIA PADŁY" >&2
   sed 's/^/    /' "$DANE/blad" >&2

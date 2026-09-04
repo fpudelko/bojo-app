@@ -372,7 +372,7 @@ SELECT _oczekuj('organizator dostaje token swojego gościa',
                   WHERE s.t IS NOT NULL), 1);
 RESET ROLE;
 
-SELECT _sekcja('Własny wpis w składzie (migracja 131)');
+SELECT _sekcja('Własny wpis w składzie (migracja 132)');
 
 -- PO CO. Polityka „Own participation update" (`053`) brzmi `auth.uid() =
 -- user_id` i nie mówi, KTÓRE kolumny — a Postgres nie zawęża RLS do kolumn.
@@ -456,7 +456,7 @@ SELECT _oczekuj('spreparowany INSERT ląduje w poczekalni, bez wpłaty i bez kap
                     AND pending_approval AND NOT has_paid AND NOT is_captain), 1);
 RESET ROLE;
 
-SELECT _sekcja('Uczestnik dopisuje gościa, gdy organizator pozwolił (migracja 131)');
+SELECT _sekcja('Uczestnik dopisuje gościa, gdy organizator pozwolił (migracja 132)');
 
 -- PO CO. Przełącznik `allow_guest_adds` nie działał NIGDY: polityka INSERT
 -- dopuszczała `auth.uid() = user_id`, a wiersz gościa ma `user_id IS NULL`,

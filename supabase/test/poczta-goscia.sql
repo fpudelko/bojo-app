@@ -58,12 +58,16 @@ ON CONFLICT (klucz) DO NOTHING;
 
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta do gościa (migracja 133)'; END $$;
 
-\set M_ORG   '''eeeeeeee-0000-4000-8000-000000000001'''
-\set M_JUTRO '''ffffffff-0000-4000-8000-000000000001'''
-\set M_WCZOR '''ffffffff-0000-4000-8000-000000000002'''
+-- UUID-y celowo w SWOJEJ przestrzeni: `przypomnienia.sql` leci wcześniej
+-- w tym samym przebiegu i zajmuje `eeeeeeee-…0001..0003` oraz
+-- `ffffffff-…0001..0003`. Kolizja kluczy padała tu jako „duplicate key",
+-- czyli błąd wyglądający na problem z migracją, a nie z fixture'em.
+\set M_ORG   '''eeeeeeee-0000-4000-8000-0000000000a1'''
+\set M_JUTRO '''ffffffff-0000-4000-8000-0000000000a1'''
+\set M_WCZOR '''ffffffff-0000-4000-8000-0000000000a2'''
 
 INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data) VALUES
-  (:M_ORG::uuid, 'poczta-org@example.com', now(), '{"display_name":"Ola Organizatorka"}'::jsonb)
+  (:M_ORG::uuid, 'poczta-org-a1@example.com', now(), '{"display_name":"Ola Organizatorka"}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 -- Mecz JUTRO i mecz WCZORAJ — daty liczone `dzis_pl()`, tak jak liczy je
@@ -91,7 +95,7 @@ INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email, 
 -- który konto już ma (nie ma go po co zachęcać).
 INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email) VALUES
   (:M_WCZOR::uuid, NULL, 'Gość Bez Konta', true, 'nowy-gosc@example.com'),
-  (:M_WCZOR::uuid, NULL, 'Gość Który Ma Konto', true, 'poczta-org@example.com');
+  (:M_WCZOR::uuid, NULL, 'Gość Który Ma Konto', true, 'poczta-org-a1@example.com');
 
 -- Zapis gościa odpala wyzwalacz `trg_powiadom_goscia_o_zapisie` — cztery wpisy
 -- gości wyżej powinny mieć zapisany ślad powodu „zapis".
