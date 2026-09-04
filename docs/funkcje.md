@@ -2756,6 +2756,30 @@ i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM) — nadawcą jest histo
 `bojo.app`, a maile z domeny innej niż strona lądują w spamie. Do tego czasu funkcja
 kończy 200 i nie wysyła nic; nic się przez to nie psuje.
 
+### Mail powitalny (migracja `134`)
+
+Tym samym kanałem idzie **powitanie po założeniu konta** — pierwsza wiadomość, jaką Bojo
+w ogóle wysyła nowemu użytkownikowi. Przy rejestracji hasłem GoTrue wysyłał
+„potwierdź adres” i na tym kontakt się kończył; przy Google nie było nawet tego.
+
+**Wychodzi po POTWIERDZENIU adresu, nie przy rejestracji.** Powitanie wysłane od razu
+przychodziłoby równolegle z prośbą o potwierdzenie — dwie wiadomości naraz, z których jedna
+prosi o działanie, a druga udaje, że wszystko gotowe — a do tego witałoby kogoś, kto konta
+może nigdy nie potwierdzić. Przy Google adres jest potwierdzony już przy zakładaniu konta,
+więc tam mail idzie natychmiast; wyzwalacz łapie oba przypadki jednym warunkiem.
+
+Treść (`supabase/functions/powiadom-goscia/index.ts`, przypadek `powitanie`) prowadzi
+**najpierw do stworzenia meczu** — to jedyna droga, która działa w dniu zero, bez żadnego
+innego użytkownika po drugiej stronie. Grupa jest druga (wciąga więcej ludzi naraz, ale
+trzeba już mieć ekipę), szukanie gry trzecie i uczciwie opisane jako to, na co przy tej
+liczbie otwartych meczów nie ma co liczyć. Trzy rzeczy, których tam świadomie NIE ma:
+zachwalania, obietnicy pełnej półki otwartych gier i prośby o odpowiedź na maila —
+nadawcą jest `noreply@`, więc zamiast tego jest link do `/zglos-blad`.
+
+Idempotencja powitania nie ma daty w kluczu: ma pójść **raz w życiu konta**, nie raz
+dziennie. Dziennik jest wspólny dla całej poczty (`maile_wyslane`, dwa możliwe klucze —
+wpis w składzie albo konto).
+
 Testy: `supabase/test/poczta-goscia.sql` — kto dostaje, kto NIE, idempotencja przy drugim
 uruchomieniu i to, że zmiana samego opisu meczu nie generuje poczty.
 

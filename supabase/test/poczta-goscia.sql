@@ -1,4 +1,4 @@
--- Testy poczty do gościa bez konta (migracja `133`) — uruchamiane przez
+-- Testy poczty Bojo — gość bez konta (`133`) i powitanie (`134`) — uruchamiane przez
 -- `scripts/baza-testowa.sh`, a więc też w CI.
 --
 -- PO CO OSOBNY PLIK. `rls.sql` pilnuje granic dostępu, `przypomnienia.sql`
@@ -56,7 +56,7 @@ INSERT INTO konfiguracja_poczty (klucz, wartosc)
 VALUES ('url', 'http://atrapa.test/powiadom-goscia'), ('sekret', 'atrapa')
 ON CONFLICT (klucz) DO NOTHING;
 
-DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta do gościa (migracja 133)'; END $$;
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta Bojo (migracje 133 i 134)'; END $$;
 
 -- UUID-y celowo w SWOJEJ przestrzeni: `przypomnienia.sql` leci wcześniej
 -- w tym samym przebiegu i zajmuje `eeeeeeee-…0001..0003` oraz
@@ -103,63 +103,116 @@ INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email) 
 -- Gość Bez Konta, Gość Który Ma Konto}. Gość bez adresu i uczestnik z kontem
 -- nie mają czym dostać maila — i to jest sedno tej asercji.
 SELECT _m_oczekuj('potwierdzenie zapisu tylko dla gości Z ADRESEM',
-  (SELECT count(*) FROM maile_goscia WHERE powod = 'zapis'), 4);
+  (SELECT count(*) FROM maile_wyslane WHERE powod = 'zapis'), 4);
 
 SELECT wyslij_maile_do_gosci() \gset wynik_
 
 SELECT _m_oczekuj('„jutro grasz" idzie do gościa ze SKŁADU',
-  (SELECT count(*) FROM maile_goscia m JOIN event_participants p ON p.id = m.uczestnik_id
+  (SELECT count(*) FROM maile_wyslane m JOIN event_participants p ON p.id = m.uczestnik_id
     WHERE m.powod = 'jutro_grasz' AND p.name = 'Gość Ze Składu'), 1);
 
 SELECT _m_oczekuj('„jutro grasz" NIE idzie do gościa z REZERWY',
-  (SELECT count(*) FROM maile_goscia m JOIN event_participants p ON p.id = m.uczestnik_id
+  (SELECT count(*) FROM maile_wyslane m JOIN event_participants p ON p.id = m.uczestnik_id
     WHERE m.powod = 'jutro_grasz' AND p.name = 'Gość Z Rezerwy'), 0);
 
 SELECT _m_oczekuj('„jutro grasz" NIE idzie do nikogo bez adresu ani do kont',
-  (SELECT count(*) FROM maile_goscia WHERE powod = 'jutro_grasz'), 1);
+  (SELECT count(*) FROM maile_wyslane WHERE powod = 'jutro_grasz'), 1);
 
 SELECT _m_oczekuj('zachęta do konta idzie do adresu BEZ konta w Bojo',
-  (SELECT count(*) FROM maile_goscia m JOIN event_participants p ON p.id = m.uczestnik_id
+  (SELECT count(*) FROM maile_wyslane m JOIN event_participants p ON p.id = m.uczestnik_id
     WHERE m.powod = 'zaloz_konto' AND p.name = 'Gość Bez Konta'), 1);
 
 SELECT _m_oczekuj('zachęta NIE idzie do adresu, który konto już ma',
-  (SELECT count(*) FROM maile_goscia m JOIN event_participants p ON p.id = m.uczestnik_id
+  (SELECT count(*) FROM maile_wyslane m JOIN event_participants p ON p.id = m.uczestnik_id
     WHERE m.powod = 'zaloz_konto' AND p.name = 'Gość Który Ma Konto'), 0);
 
 -- IDEMPOTENCJA. Zadanie `pg_cron` potrafi wystartować dwa razy; dwa identyczne
 -- maile to nie „zmiana w meczu", tylko spam — a spam kosztuje cały kanał.
 SELECT wyslij_maile_do_gosci() \gset wynik2_
 SELECT _m_oczekuj('drugie uruchomienie nie dubluje ani jednego maila',
-  (SELECT count(*) FROM maile_goscia WHERE powod IN ('jutro_grasz', 'zaloz_konto')), 2);
+  (SELECT count(*) FROM maile_wyslane WHERE powod IN ('jutro_grasz', 'zaloz_konto')), 2);
 
 -- ODWOŁANIE MECZU — najważniejszy powód ze wszystkich: bez niego gość
 -- przyjeżdża na boisko.
 UPDATE events SET status = 'cancelled' WHERE id = :M_JUTRO::uuid;
 SELECT _m_oczekuj('odwołanie meczu pisze do KAŻDEGO gościa z adresem, także z rezerwy',
-  (SELECT count(*) FROM maile_goscia WHERE powod = 'odwolanie'), 2);
+  (SELECT count(*) FROM maile_wyslane WHERE powod = 'odwolanie'), 2);
 
 -- Zmiana terminu na meczu, który NIE jest odwołany.
 UPDATE events SET event_time = '21:00' WHERE id = :M_WCZOR::uuid;
 SELECT _m_oczekuj('zmiana terminu pisze do gości tego meczu',
-  (SELECT count(*) FROM maile_goscia WHERE powod = 'zmiana'), 2);
+  (SELECT count(*) FROM maile_wyslane WHERE powod = 'zmiana'), 2);
 
 -- Zmiana, która nikogo nie obchodzi, nie może generować poczty.
 UPDATE events SET description = 'cokolwiek' WHERE id = :M_WCZOR::uuid;
 SELECT _m_oczekuj('zmiana opisu NIE wysyła niczego',
-  (SELECT count(*) FROM maile_goscia WHERE powod = 'zmiana'), 2);
+  (SELECT count(*) FROM maile_wyslane WHERE powod = 'zmiana'), 2);
 
 -- TREŚĆ ŻĄDANIA. Selekcja może być poprawna, a do funkcji brzegowej i tak
 -- pojedzie nie ten adres albo nie ten powód — wtedy mail trafia do kogoś
 -- innego, a asercje liczące wiersze niczego nie zauważą.
 SELECT _m_oczekuj('do funkcji brzegowej jedzie tyle żądań, ile wpisów w dzienniku',
-  (SELECT count(*) FROM net._wyslane), (SELECT count(*) FROM maile_goscia));
+  (SELECT count(*) FROM net._wyslane), (SELECT count(*) FROM maile_wyslane));
 
 SELECT _m_oczekuj('żądanie o odwołaniu niesie adres TEGO gościa i ten powód',
   (SELECT count(*) FROM net._wyslane
     WHERE body->>'powod' = 'odwolanie'
       AND body->>'email' = 'gosc-sklad@example.com'), 1);
 
-SELECT _m_oczekuj('każde żądanie niesie token wpisu — bez niego mail nie ma linku',
-  (SELECT count(*) FROM net._wyslane WHERE body->>'token' IS NULL), 0);
+-- Tylko maile MECZOWE — powitanie nie dotyczy żadnego wpisu w składzie, więc
+-- tokenu nie ma i mieć nie powinno. (Ta asercja padła, gdy doszło powitanie:
+-- fixture zakłada konto organizatora z potwierdzonym adresem, więc wyzwalacz
+-- z `134` odpala się już na górze pliku.)
+SELECT _m_oczekuj('każdy mail MECZOWY niesie token wpisu — bez niego nie ma linku',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' <> 'powitanie' AND body->>'token' IS NULL), 0);
 
-DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA GOŚCIA: wszystkie asercje przeszły.'; END $$;
+-- ---------------------------------------------------------------------------
+-- Mail powitalny (migracja 134)
+-- ---------------------------------------------------------------------------
+-- Kluczowe jest KIEDY: przy rejestracji hasłem powitanie ma czekać na
+-- potwierdzenie adresu, żeby nie przyszło równolegle z „potwierdź adres" od
+-- GoTrue. Przy Google adres jest potwierdzony od razu i mail idzie natychmiast.
+\set M_GOOGLE '''eeeeeeee-0000-4000-8000-0000000000b1'''
+\set M_HASLO  '''eeeeeeee-0000-4000-8000-0000000000b2'''
+
+-- Konto „z Google": adres potwierdzony już przy wstawieniu.
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:M_GOOGLE::uuid, 'powitanie-google@example.com', now(), '{"full_name":"Grzegorz Google"}'::jsonb);
+SELECT _m_oczekuj('konto z potwierdzonym adresem dostaje powitanie od razu',
+  (SELECT count(*) FROM maile_wyslane WHERE user_id = :M_GOOGLE::uuid AND powod = 'powitanie'), 1);
+
+-- Konto „z hasłem": adres NIEpotwierdzony, więc na razie cisza.
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:M_HASLO::uuid, 'powitanie-haslo@example.com', NULL, '{"display_name":"Halina Hasło"}'::jsonb);
+SELECT _m_oczekuj('konto BEZ potwierdzonego adresu NIE dostaje powitania',
+  (SELECT count(*) FROM maile_wyslane WHERE user_id = :M_HASLO::uuid), 0);
+
+-- Kliknięcie w link potwierdzający.
+UPDATE auth.users SET email_confirmed_at = now() WHERE id = :M_HASLO::uuid;
+SELECT _m_oczekuj('powitanie wychodzi dopiero po potwierdzeniu adresu',
+  (SELECT count(*) FROM maile_wyslane WHERE user_id = :M_HASLO::uuid AND powod = 'powitanie'), 1);
+
+-- Powitanie ma pójść RAZ W ŻYCIU konta, nie raz dziennie — dlatego jego indeks
+-- idempotencji nie ma w kluczu daty. Kolejne zmiany na koncie nie mogą go
+-- wysłać drugi raz.
+UPDATE auth.users SET email_confirmed_at = now() + interval '1 hour' WHERE id = :M_HASLO::uuid;
+SELECT _m_oczekuj('powtórne potwierdzenie nie wysyła powitania drugi raz',
+  (SELECT count(*) FROM maile_wyslane WHERE user_id = :M_HASLO::uuid AND powod = 'powitanie'), 1);
+
+SELECT _m_oczekuj('żądanie powitalne niesie adres i NIE niesie meczu',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'powitanie'
+      AND body->>'email' = 'powitanie-google@example.com'
+      AND body->>'event_id' IS NULL), 1);
+
+-- Konto bez nazwy własnej: mail ma wyjść, tylko bez imienia.
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES ('eeeeeeee-0000-4000-8000-0000000000b3'::uuid, 'powitanie-bezimienia@example.com', now(), '{}'::jsonb);
+SELECT _m_oczekuj('konto BEZ nazwy własnej też dostaje powitanie',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'powitanie'
+      AND body->>'email' = 'powitanie-bezimienia@example.com'
+      AND body->>'imie' IS NULL), 1);
+
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA: wszystkie asercje przeszły.'; END $$;

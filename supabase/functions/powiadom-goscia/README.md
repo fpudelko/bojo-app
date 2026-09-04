@@ -71,7 +71,7 @@ przyjść mail „Jesteś zapisany". Jeśli nie przyszedł:
 
 ```sql
 -- Czy baza w ogóle próbowała wysłać?
-SELECT * FROM maile_goscia ORDER BY created_at DESC LIMIT 10;
+SELECT * FROM maile_wyslane ORDER BY created_at DESC LIMIT 10;
 ```
 
 - **Pusto** → baza nie doszła do wysyłki. Sprawdź, czy wpis ma `guest_email`
@@ -88,8 +88,14 @@ SELECT * FROM maile_goscia ORDER BY created_at DESC LIMIT 10;
 | `odwolanie` / `zmiana` | odwołanie meczu, zmiana terminu, miejsca albo kosztu | każdy gość z adresem, także z rezerwy |
 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` (16:10 UTC) | tylko gość w SKŁADZIE — rezerwa jeszcze nie wie, czy gra |
 | `zaloz_konto` | dzień po meczu | tylko gość, którego adres nadal nie ma konta w Bojo |
+| `powitanie` | po POTWIERDZENIU adresu przy zakładaniu konta | każdy nowy użytkownik, raz w życiu konta |
 
-Najwyżej jeden mail na wpis, na powód, na dobę (`maile_goscia`) — zadanie cron
-potrafi wystartować dwa razy, a dwa identyczne maile to już spam.
+Najwyżej jeden mail na wpis, na powód, na dobę (`maile_wyslane`) — zadanie cron
+potrafi wystartować dwa razy, a dwa identyczne maile to już spam. Powitanie jest
+wyjątkiem: jego klucz idempotencji nie ma daty, bo ma pójść **raz w życiu konta**.
+
+Powitanie czeka na potwierdzenie adresu celowo — inaczej przy rejestracji hasłem
+przyszłoby równolegle z „potwierdź adres" od Supabase. Przy Google adres jest
+potwierdzony od razu, więc mail idzie natychmiast.
 
 Pełny opis decyzji: `docs/funkcje.md`, sekcja „Poczta do gościa bez konta".

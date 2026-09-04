@@ -33,12 +33,13 @@ const SEKRET = Deno.env.get('BOJO_POCZTA_SEKRET') ?? '';
 const NADAWCA = Deno.env.get('BOJO_NADAWCA') ?? 'Bojo <noreply@bojo.pl>';
 const STRONA = Deno.env.get('BOJO_URL') ?? 'https://bojo.pl';
 
-type Powod = 'zapis' | 'odwolanie' | 'zmiana' | 'jutro_grasz' | 'zaloz_konto';
+type Powod = 'zapis' | 'odwolanie' | 'zmiana' | 'jutro_grasz' | 'zaloz_konto' | 'powitanie';
 
 interface Dane {
   powod: Powod;
   email: string;
-  imie: string;
+  /** Puste dla konta bez podanej nazwy — patrz `powitanie` niżej. */
+  imie: string | null;
   event_id: string;
   tytul: string;
   data: string;
@@ -47,6 +48,12 @@ interface Dane {
   koszt_grosz: number | null;
   na_rezerwie: boolean;
   token: string | null;
+}
+
+/** „Cześć Marek!" albo samo „Cześć!" — konto z Google bez nazwy własnej nie ma
+ *  imienia, a „Cześć null!" jest gorsze niż brak imienia. */
+function powitanie(imie: string | null): string {
+  return imie ? `Cześć ${imie}!` : 'Cześć!';
 }
 
 function zl(grosze: number | null): string | null {
@@ -77,7 +84,7 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       return {
         temat: `Jesteś zapisany: ${d.tytul}`,
         tekst:
-          `Cześć ${d.imie}!\n\n` +
+          `${powitanie(d.imie)}\n\n` +
           (d.na_rezerwie
             ? `Jesteś na liście rezerwowej meczu:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
               `Damy znać, gdy zwolni się miejsce.`
@@ -88,7 +95,7 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       return {
         temat: `Mecz odwołany: ${d.tytul}`,
         tekst:
-          `Cześć ${d.imie}!\n\n` +
+          `${powitanie(d.imie)}\n\n` +
           `Organizator odwołał ten mecz:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
           `Nie przyjeżdżaj na boisko.` + stopka,
       };
@@ -96,7 +103,7 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       return {
         temat: `Zmiana w meczu: ${d.tytul}`,
         tekst:
-          `Cześć ${d.imie}!\n\n` +
+          `${powitanie(d.imie)}\n\n` +
           `Coś się zmieniło w meczu, na który jesteś zapisany. Aktualne dane:\n` +
           `${d.tytul}\n${podsumowanie(d)}` + stopka,
       };
@@ -104,7 +111,7 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       return {
         temat: `Jutro grasz: ${d.tytul}`,
         tekst:
-          `Cześć ${d.imie}!\n\n` +
+          `${powitanie(d.imie)}\n\n` +
           `Jutro masz mecz:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
           `Jeśli nie dasz rady — daj znać jak najszybciej, żeby ktoś zdążył wejść na Twoje miejsce.` +
           stopka,
@@ -117,7 +124,7 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       return {
         temat: 'Zagrałeś wczoraj — zapisz sobie to miejsce',
         tekst:
-          `Cześć ${d.imie}!\n\n` +
+          `${powitanie(d.imie)}\n\n` +
           `Wczoraj grałeś w meczu: ${d.tytul} (${podsumowanie(d)}).\n\n` +
           `Zapisałeś się bez konta, więc za każdym razem podajesz imię i mail od nowa, ` +
           `a organizator nie ma jak Cię dopisać na kolejny termin jednym kliknięciem.\n\n` +
@@ -126,6 +133,43 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
           `— widzisz wszystkie swoje mecze w jednym miejscu,\n` +
           `— dostajesz powiadomienie, gdy coś się zmieni albo zwolni się miejsce.\n\n` +
           `Zakładasz je tutaj, a Twój wczorajszy zapis przypisze się do niego:\n${link}\n`,
+      };
+    case 'powitanie':
+      // JEDYNY mail, który NIE dotyczy konkretnego meczu — stąd brak `podsumowanie()`
+      // i brak `stopka` z linkiem do wpisu.
+      //
+      // Trzy rzeczy, których tu świadomie NIE ma:
+      // 1. Zachwalania. To ma czytać się jak instrukcja od kogoś, kto wie, po co
+      //    przyszedłeś — nie jak reklama (ta sama zasada co przy `eventShareText`).
+      // 2. Obietnicy pełnej półki otwartych gier. Bojo jest na wczesnym etapie
+      //    i landing mówi to wprost plakietką „Wczesny etap"; mail nie może
+      //    obiecywać więcej niż strona, bo pierwsze rozczarowanie jest ostatnie.
+      // 3. Prośby o odpowiedź na maila — nadawcą jest `noreply@`, więc odpowiedź
+      //    nigdzie by nie dotarła. Zamiast tego link do `/zglos-blad`.
+      //
+      // Kolejność jest wyborem: NAJPIERW stworzenie meczu, bo to jedyna droga,
+      // która działa w dniu zero, bez żadnego innego użytkownika po drugiej
+      // stronie. Grupa jest druga, bo wciąga więcej ludzi naraz, ale wymaga
+      // ekipy, którą trzeba już mieć. Szukanie gry jest trzecie i jest
+      // uczciwie oznaczone jako to, na co dziś nie ma co liczyć.
+      return {
+        temat: 'Konto w Bojo gotowe — pierwszy mecz zajmie dwie minuty',
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Konto założone. Bojo służy do jednego: organizujesz mecz i wysyłasz ekipie ` +
+          `jeden link. Kto go dostanie, zapisuje się sam — nawet bez zakładania konta.\n\n` +
+          `Co Bojo robi za Ciebie:\n` +
+          `— liczy skład i pilnuje limitu miejsc,\n` +
+          `— prowadzi listę rezerwową z widoczną kolejnością,\n` +
+          `— dzieli koszt wynajmu na graczy i pokazuje, kto jeszcze nie oddał,\n` +
+          `— przypomina wszystkim o meczu dzień wcześniej.\n\n` +
+          `Zacznij tutaj:\n${STRONA}/wydarzenia/nowe\n\n` +
+          `Grasz stałą ekipą? Załóż grupę — wchodzi się do niej jednym linkiem, ` +
+          `a każdy nowy mecz widzą wszyscy:\n${STRONA}/grupy/nowe\n\n` +
+          `Szukasz gry, a nie ekipy? Otwarte mecze są tutaj:\n${STRONA}/wydarzenia\n` +
+          `Bojo dopiero się rozkręca, więc bywa ich mało — najszybciej zagrasz, ` +
+          `tworząc mecz i wysyłając link znajomym.\n\n` +
+          `Coś nie działa albo czegoś brakuje? Napisz:\n${STRONA}/zglos-blad\n`,
       };
     default:
       return null;

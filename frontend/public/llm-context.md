@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-03 · migracja `133` · 55 tabel
+**Stan na:** 2026-09-04 · migracja `134` · 56 tabel
 
 ---
 
@@ -355,6 +355,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-04 — Bojo wita nowego użytkownika i mówi mu, od czego zacząć
+
+PROBLEM: Bojo nie odzywało się do nowego użytkownika ani razu. Przy rejestracji adresem
+e-mail przychodziła wyłącznie prośba o potwierdzenie adresu, a przy rejestracji przez
+Google — nic. Człowiek zakładał konto, widział pustą listę swoich meczów i nie miał skąd
+wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego meczu i wysłanie
+jednego linku znajomym, a nie przez czekanie, aż ktoś w okolicy otworzy grę.
+
+ROZWIĄZANIE BOJO: po założeniu konta przychodzi jedna wiadomość powitalna. Mówi, co Bojo
+robi za organizatora (liczy skład, pilnuje limitu miejsc, prowadzi listę rezerwową, dzieli
+koszt wynajmu, przypomina wszystkim dzień przed meczem) i prowadzi do trzech dróg
+w kolejności od najpewniejszej: stwórz mecz, załóż grupę dla stałej ekipy, przejrzyj
+otwarte gry. Trzecia droga jest przy tym uczciwie opisana jako ta, na której przy obecnej
+liczbie otwartych meczów nie ma co polegać. Wiadomość wychodzi dopiero po POTWIERDZENIU
+adresu, żeby nie przyszła równolegle z prośbą o potwierdzenie i żeby nie witać kogoś, kto
+konta nigdy nie potwierdził; przy rejestracji przez Google adres jest potwierdzony od razu,
+więc mail idzie natychmiast. Każde konto dostaje ją raz w życiu.
+
+MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (reaguje na
+przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
+uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
+powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
+`powiadom-goscia`, przypadek `powitanie`. Testy w `supabase/test/poczta-goscia.sql`.
+
 ### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
 
 PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
@@ -577,92 +601,3 @@ MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
 pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
 wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
 Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
-
-
-### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
-
-PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
-pokazywały nazwę obiektu pogrubioną, a zaraz pod nią — szarym — pełny adres, który
-Nominatim/OSM zaczyna od TEJ SAMEJ nazwy („Park Nad Wartą" pogrubione, niżej „Park Nad
-Wartą, Rataje, Poznań…"). Ten sam fakt dwa razy, bez nowej informacji. Zgłoszone wprost.
-(2) czas trwania meczu („· 90 min") na tej samej karcie łamał się w połowie słowa na dwa
-wiersze, gdy linia nie mieściła się w jednym — brzydko. (3) plakietka „+N miejsc" przy
-meczu w sekcji „Nadchodzące mecze" na stronie obiektu bywała nieaktualna: strona ma
-`revalidate = 86400` (patrz `app/boisko/[id]/page.tsx`), więc liczba miejsc mogła być
-do doby stara, a odwołany mecz i tak się tam pokazywał (zapytanie nie filtrowało
-`status = 'cancelled'`).
-
-ROZWIĄZANIE BOJO: (1) `eventLocation()` ucina z adresu dosłowny, powtórzony prefiks
-nazwy obiektu — zostaje wyłącznie to, czego pogrubiona nazwa jeszcze nie powiedziała
-(„Rataje, Poznań, województwo wielkopolskie, Polska"). Naprawia to zarówno kartę „Kiedy
-i gdzie", jak i tekst zaproszenia (`lib/eventShare.ts`, ten sam fallback). (2) „· 90 min"
-dostało `whitespace-nowrap` — cały fragment przenosi się na kolejny wiersz razem, zamiast
-łamać się między liczbą a jednostką. (3) sekcja „Nadchodzące mecze" dociąga świeże dane
-klient-side po zamontowaniu (ten sam kształt zapytania co server-side, plus filtr
-`status != 'cancelled'`) — strona sama zostaje statyczna (SEO/koszt buildu bez zmian),
-ożywa tylko ten jeden panel. „Brak nadchodzących meczy" → „meczów" (literówka przy okazji).
-
-MECHANIKA: `lib/utils.ts` (`eventLocation()`), `app/wydarzenia/[id]/EventDetailClient.tsx`
-(dwie gałęzie karty „Kiedy i gdzie" — organizator/widz), `app/boisko/[id]/page.tsx`
-(`getUpcomingEvents()` — filtr `cancelled`), `app/boisko/[id]/VenueDetailClient.tsx`
-(`liveUpcoming`, odświeżenie po mount). Bez migracji. Pilnuje tego
-`src/__tests__/utils.test.ts` (`eventLocation`).
-
-### 2026-08-31 — Audyt UX: wyjście z okna powitalnego, przedwczesne „nie znaleziono", powód wyszarzonego zapisu
-
-PROBLEM: (1) Okno powitalne z pytaniem o rolę („Zanim zaczniesz — kim jesteś?") potrafiło
-wypaść nad stroną meczu, do której ktoś właśnie szedł. Wyjście z niego BYŁO (X w rogu,
-dotknięcie tła), ale Escape nie działał, a szary X nie czytał się jako oferta pominięcia —
-audyt UX opisał to jako „uwięziony w onboardingu, którego nie rozumie". (2) W kreatorze
-meczu, w polu szukania miejsca, komunikat „Nie znaleziono takiego miejsca" wyskakiwał już
-po DRUGIM wciśniętym klawiszu, zanim ktokolwiek skończył wpisywać nazwę — czytało się to
-jak werdykt o bazie („tego boiska tu nie ma"), a było stanem przejściowym. (3) W oknie
-„Dołącz bez konta" przycisk „Zapisz się" był wyszarzony do czasu wypełnienia wszystkich
-pól, bez słowa o tym, czego brakuje — wygląda jak zawieszona aplikacja. (4) Adres
-`/rejestracja` zwracał 404: zakładanie konta mieszka pod `/logowanie?mode=rejestracja`,
-ale to jest nazwa, którą człowiek wpisuje z głowy. (5) Literówka w pustym stanie historii
-meczów.
-
-ROZWIĄZANIE BOJO: (1) Escape zamyka okno powitalne, a pod ofertami ról stanął jawny
-przycisk „Pomiń — zdecyduję później"; kto nic nie wybierze, zostaje tam, gdzie był.
-(2) werdykt o braku wyników czeka, aż pisanie ustanie (nic w locie) i zapytanie ma co
-najmniej 3 znaki — same wyniki pojawiają się jak dotąd od 2 znaków, bo to pomaga; milknie
-wyłącznie komunikat o ICH BRAKU. (3) nad przyciskiem „Zapisz się" pojawia się zdanie
-„Uzupełnij imię, e-mail i sposób płatności, żeby się zapisać" — wymienia dokładnie to,
-czego brakuje, i znika, gdy wszystko jest wypełnione. (4) `/rejestracja` przekierowuje na
-formularz zakładania konta zamiast na 404. (5) „Brak historii meczów".
-
-MECHANIKA: `components/onboarding/PostSignupRoleModal.tsx` (obsługa `Escape`, przycisk
-„Pomiń"), `components/map/UnifiedLocationPickerImpl.tsx` (`szukanieWToku`, `brakWynikow` —
-bramka na komunikat, nie na samo szukanie), `app/wydarzenia/[id]/EventDetailClient.tsx`
-(lista braków nad przyciskiem zapisu gościa), `next.config.mjs` (przekierowanie
-`/rejestracja` → `/logowanie?mode=rejestracja`, `permanent: false`), `app/moje-gry/page.tsx`.
-Bez migracji.
-
-### 2026-08-31 — Zdublowany termin/miejsce na stronie meczu i martwy przycisk „Otwórz w Safari"
-
-PROBLEM: (1) po dodaniu karty „Kiedy i gdzie" (partia z 2026-08-30) pasek nagłówka strony
-meczu dalej pokazywał osobną linijkę z datą, czasem trwania i adresem — ten sam fakt
-w dwóch miejscach jednego ekranu, czytany jak literówka, nie jak dwa źródła prawdy.
-Zgłoszone wprost przez właściciela. (2) przycisk „Otwórz w Safari"/„Otwórz w Chrome" —
-pokazywany, gdy logowanie Google jest zablokowane w przeglądarce wbudowanej w inną
-aplikację — nic nie robił w przeglądarce Instagrama/Facebooka. Próbował wymusić skok
-przez `window.location.href = 'x-safari-https://…'` (iOS) albo intent URI (Android), ale
-te aplikacje celowo blokują nawigację do niestandardowych schematów URL z własnej
-wbudowanej przeglądarki — nie ma niezawodnego sposobu w JS, żeby to obejść.
-
-ROZWIĄZANIE BOJO: (1) zdublowana linijka zniknęła z nagłówka; termin i miejsce mieszkają
-wyłącznie w karcie „Kiedy i gdzie". Edycja terminu przez organizatora (dawniej: dotknięcie
-daty w nagłówku) przeniosła się razem z resztą — cała karta jest dziś przyciskiem dla
-organizatora/delegata przed startem meczu. (2) przycisk obiecujący coś, czego nie da się
-dotrzymać, zniknął. Zamiast niego — instrukcja wprost: dotknij „⋯" (więcej opcji) w danej
-aplikacji i wybierz jej WŁASNĄ opcję „Otwórz w przeglądarce" (Instagram/Facebook/TikTok/
-Twitter mają ją wbudowaną — to jedyna droga, która faktycznie działa), albo skopiuj link
-i wklej go ręcznie. „Skopiuj link" zostaje jedynym przyciskiem w tej karcie — to jedyna
-akcja, która realnie działa wszędzie.
-
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (usunięty blok „KIEDY I GDZIE —
-jedna linia" z nagłówka, `openEditWhen()` przeniesione na kartę „Kiedy i gdzie"),
-`components/auth/AuthForm.tsx` (`GoogleBlockedSection` — usunięty `openInBrowser()`
-i rozróżnianie iOS/Android po `Platform`, zostaje tylko wykrycie `isInAppBrowser()`
-i `copyLink()`). Bez migracji.
