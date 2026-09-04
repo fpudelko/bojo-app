@@ -1,18 +1,30 @@
 -- 134 — mail powitalny po założeniu konta
 --
--- DLACZEGO. Bojo nie odzywało się do nowego użytkownika ani razu. Przy
--- rejestracji e-mailem GoTrue wysyła „potwierdź adres" i na tym kontakt się
--- kończy; przy Google nie ma nawet tego. Człowiek zakłada konto, widzi pustą
--- listę meczów i nie wie, że najkrótsza droga do gry to stworzyć mecz i wysłać
--- jeden link — czyli dokładnie to, co Bojo robi najlepiej.
+-- DLACZEGO. Bojo nie odzywało się do nowego użytkownika ANI RAZU — i nie jest to
+-- przenośnia. W ustawieniach Supabase „Confirm email” jest WYŁĄCZONE, więc
+-- nie wychodzi nawet prośba o potwierdzenie adresu; przy Google nie ma jej
+-- z definicji. Człowiek zakłada konto, widzi pustą listę swoich meczów i nie ma
+-- skąd wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego
+-- meczu i wysłanie jednego linku, a nie przez czekanie, aż ktoś w okolicy
+-- otworzy grę.
 --
--- KIEDY, i to jest tu decyzja, nie szczegół: po POTWIERDZENIU adresu, nie przy
--- wstawieniu wiersza. Przy rejestracji e-mailem powitanie wysłane od razu
--- przychodzi RÓWNOLEGLE z „potwierdź adres" od GoTrue — dwie wiadomości naraz,
--- z których jedna prosi o działanie, a druga udaje, że wszystko już gotowe.
--- Do tego witalibyśmy kogoś, kto konta może nigdy nie potwierdzić. Przy Google
--- `email_confirmed_at` jest ustawione już przy wstawieniu, więc tam mail idzie
--- natychmiast — wyzwalacz łapie oba przypadki jednym warunkiem.
+-- KIEDY. Wyzwalacz reaguje na POTWIERDZONY adres: na `INSERT` z wypełnionym
+-- `email_confirmed_at` albo na przejście tej kolumny z NULL na wartość.
+--
+-- Przy DZISIEJSZYCH ustawieniach („Confirm email” wyłączone) adres jest
+-- potwierdzony już przy zakładaniu konta — i dla hasła, i dla Google — więc mail
+-- idzie natychmiast, obiema drogami. Warunek nie jest przez to zbędny: gdyby
+-- „Confirm email” kiedykolwiek zostało włączone, powitanie samo z siebie
+-- przesunie się za potwierdzenie, zamiast przychodzić RÓWNOLEGLE z prośbą
+-- o nie — dwie wiadomości naraz, z których jedna prosi o działanie, a druga
+-- udaje, że wszystko gotowe. Witalibyśmy też kogoś, kto konta może nigdy nie
+-- potwierdzić. Jeden warunek obsługuje więc obie konfiguracje i żadna zmiana
+-- w panelu Supabase nie wymaga tknięcia tego kodu.
+--
+-- UBOCZNY SKUTEK WYŁĄCZONEGO POTWIERDZANIA, o którym trzeba wiedzieć: skoro
+-- adresu nikt nie weryfikuje, da się założyć konto na CUDZY adres — i powitanie
+-- pójdzie do kogoś, kto o nie nie prosił. To jest własność tego ustawienia,
+-- nie tego maila; wraz z włączeniem „Confirm email” znika samo.
 --
 -- LEDGER UOGÓLNIONY. `maile_goscia` (migracja `133`) trzymała ślad wysyłek do
 -- gości, kluczem po wpisie w składzie. Powitanie nie ma wpisu w składzie —

@@ -64,6 +64,30 @@ ON CONFLICT (klucz) DO UPDATE SET wartosc = EXCLUDED.wartosc;
 
 Od tej chwili kanał jest włączony.
 
+## Osobno, ale w tej samej sprawie: SMTP dla Supabase
+
+Panel Supabase (Authentication → Emails) pokazuje ostrzeżenie: **„You're using the
+built-in email service. This service has rate limits and is not meant to be used for
+production apps.”** Tym kanałem idą dziś **reset hasła** i **magic link** — czyli dwie
+drogi logowania w Bojo.
+
+To nie jest ten sam kanał co poczta z tego katalogu (nasza idzie przez Resend, prosto
+z bazy), ale dotyczy tego samego problemu: gracz, który nie dostanie linku do logowania,
+nie wejdzie do składu. Skoro `bojo.pl` i tak jest weryfikowane w Resend, warto przy okazji
+wpisać ten sam klucz jako **custom SMTP** w Supabase:
+
+Authentication → Emails → SMTP Settings:
+
+```
+Host: smtp.resend.com
+Port: 465
+User: resend
+Pass: <ten sam klucz API co RESEND_API_KEY>
+Sender: noreply@bojo.pl
+```
+
+To osobne zadanie od czterech kroków wyżej — nie blokuje poczty do gości ani powitania.
+
 ## Jak sprawdzić, że działa
 
 Zapisz się na dowolny mecz jako gość bez konta, podając swój adres — powinien

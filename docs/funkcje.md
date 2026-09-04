@@ -2762,11 +2762,18 @@ Tym samym kanałem idzie **powitanie po założeniu konta** — pierwsza wiadomo
 w ogóle wysyła nowemu użytkownikowi. Przy rejestracji hasłem GoTrue wysyłał
 „potwierdź adres” i na tym kontakt się kończył; przy Google nie było nawet tego.
 
-**Wychodzi po POTWIERDZENIU adresu, nie przy rejestracji.** Powitanie wysłane od razu
-przychodziłoby równolegle z prośbą o potwierdzenie — dwie wiadomości naraz, z których jedna
-prosi o działanie, a druga udaje, że wszystko gotowe — a do tego witałoby kogoś, kto konta
-może nigdy nie potwierdzić. Przy Google adres jest potwierdzony już przy zakładaniu konta,
-więc tam mail idzie natychmiast; wyzwalacz łapie oba przypadki jednym warunkiem.
+**Wyzwalacz reaguje na POTWIERDZONY adres** — na `INSERT` z wypełnionym
+`email_confirmed_at` albo na przejście tej kolumny z pustej na wypełnioną.
+
+Przy dzisiejszych ustawieniach Supabase (**„Confirm email” jest WYŁĄCZONE**) adres jest
+potwierdzony już przy zakładaniu konta — i dla hasła, i dla Google — więc mail idzie
+natychmiast obiema drogami. Warunek nie jest przez to zbędny: gdyby „Confirm email”
+kiedykolwiek włączono, powitanie samo przesunie się za potwierdzenie, zamiast przychodzić
+równolegle z prośbą o nie. Jeden warunek obsługuje obie konfiguracje.
+
+⚠️ Skoro adresu dziś nikt nie weryfikuje, **da się założyć konto na cudzy adres** i powitanie
+pójdzie do kogoś, kto o nie nie prosił. To własność ustawienia, nie tego maila — znika wraz
+z włączeniem „Confirm email”.
 
 Treść (`supabase/functions/powiadom-goscia/index.ts`, przypadek `powitanie`) prowadzi
 **najpierw do stworzenia meczu** — to jedyna droga, która działa w dniu zero, bez żadnego
