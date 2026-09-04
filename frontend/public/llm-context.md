@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-02 · migracja `131` · 53 tabele
+**Stan na:** 2026-09-04 · migracja `134` · 56 tabel
 
 ---
 
@@ -355,6 +355,132 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-04 — Bojo wita nowego użytkownika i mówi mu, od czego zacząć
+
+PROBLEM: Bojo nie odzywało się do nowego użytkownika ani razu. Przy rejestracji adresem
+e-mail przychodziła wyłącznie prośba o potwierdzenie adresu, a przy rejestracji przez
+Google — nic. Człowiek zakładał konto, widział pustą listę swoich meczów i nie miał skąd
+wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego meczu i wysłanie
+jednego linku znajomym, a nie przez czekanie, aż ktoś w okolicy otworzy grę.
+
+ROZWIĄZANIE BOJO: po założeniu konta przychodzi jedna wiadomość powitalna. Mówi, co Bojo
+robi za organizatora (liczy skład, pilnuje limitu miejsc, prowadzi listę rezerwową, dzieli
+koszt wynajmu, przypomina wszystkim dzień przed meczem) i prowadzi do trzech dróg
+w kolejności od najpewniejszej: stwórz mecz, załóż grupę dla stałej ekipy, przejrzyj
+otwarte gry. Trzecia droga jest przy tym uczciwie opisana jako ta, na której przy obecnej
+liczbie otwartych meczów nie ma co polegać. Wiadomość wychodzi dopiero po POTWIERDZENIU
+adresu, żeby nie przyszła równolegle z prośbą o potwierdzenie i żeby nie witać kogoś, kto
+konta nigdy nie potwierdził; przy rejestracji przez Google adres jest potwierdzony od razu,
+więc mail idzie natychmiast. Każde konto dostaje ją raz w życiu.
+
+MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (reaguje na
+przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
+uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
+powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
+`powiadom-goscia`, przypadek `powitanie`. Testy w `supabase/test/poczta-goscia.sql`.
+
+### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
+
+PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
+dostawał od Bojo NICZEGO. Nie dostawał przypomnienia dzień przed meczem, nie dowiadywał się
+o zmianie terminu i, co najgorsze, nie dowiadywał się o ODWOŁANIU meczu: przyjeżdżał na
+puste boisko. Adres e-mail podawał przy zapisie i nie szło na niego ani jedno powiadomienie.
+Jedynym śladem jego zapisu była pamięć jednej przeglądarki — wyczyszczona znaczyła wpis nie
+do odzyskania. Konsekwencje ponosił organizator, bo skład kłamał dokładnie w tej części,
+którą sam przyprowadził. (2) Gość dopisany ręcznie przez organizatora albo kolegę z drużyny
+nie miał gdzie podać adresu, więc był odcięty nawet po zbudowaniu kanału. (3) Bojo nie
+mierzyło niczego między „organizator wysłał link” a „ktoś dołączył” — nie
+wiadomo było, na którym kroku kreatora ludzie odpadają, ilu otwiera wysłany link ani ilu
+gości zamienia zapis na konto.
+
+ROZWIĄZANIE BOJO: gracz zapisany bez konta dostaje dziś maile — potwierdzenie zapisu
+z linkiem do własnego wpisu, przypomnienie dzień przed meczem, wiadomość o odwołaniu meczu
+i o zmianie terminu, miejsca albo kosztu, a dzień po meczu zachętę do założenia konta,
+jeśli nadal go nie ma. Zachęta jest CZWARTA w kolejności celowo: pierwsza wiadomość od
+nieznanego nadawcy, która czegoś chce, czyta się jak spam. Dopisując gościa ręcznie, można
+teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego gość NIE dostanie,
+jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
+z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
+
+MECHANIKA: migracja `133` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
+uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
+`trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
+`bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
+`addGuest()` z opcjonalnym adresem w `lib/events.ts`, pole i podpis
+w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
+(kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
+wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
+`supabase/test/poczta-goscia.sql`. Kanał milczy do czasu weryfikacji domeny `bojo.pl`
+w Resend.
+
+### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
+
+PROBLEM: (1) Strona meczu na każdy błąd — brak zasięgu, awarię serwera, odmowę reguł
+dostępu — pokazywała „Nie znaleziono wydarzenia”. Strona meczu to jedyny adres,
+który organizator rozsyła kilkunastu osobom, więc gracz z chwilowo słabym zasięgiem czytał
+komunikat znaczący „dostałeś link do czegoś, czego nie ma” — i wypadało to na
+organizatora, nie na Bojo. Do tego pierwszą czynnością przy wczytywaniu było porządkowanie
+kolejki rezerwowej, czyli zadanie POMOCNICZE, którego awaria gasiła całą stronę. (2) Rozmyty
+podgląd kreatora na ekranie zachęcającym do założenia konta pokazywał układ pól sprzed
+przebudowy kroków — brama obiecywała inny formularz, niż organizator dostawał po
+zalogowaniu. (3) Sześć decyzji organizatora nadal potwierdzało systemowe okno przeglądarki:
+otwarcie meczu dla okolicy oraz pięć w ekranach ekip, w tym USUNIĘCIE EKIPY — rzecz
+nieodwracalna, opisana jednym zdaniem w okienku, które na telefonie czyta się jak błąd strony.
+
+ROZWIĄZANIE BOJO: (1) Bojo odróżnia dziś „takiego meczu nie ma” od „nie udało się
+go wczytać”. Przy awarii pokazuje ekran z przyciskiem „Spróbuj ponownie” i zdaniem
+„link jest w porządku”; porządkowanie kolejki rezerwowej i wynik meczu zeszły poza
+ścieżkę krytyczną, więc ich awaria nie gasi już strony. (2) Podgląd na bramie pokazuje ten
+sam krok pierwszy, który organizator zobaczy po zalogowaniu — sport, termin, liczbę miejsc
+i listę rezerwową — a nazwy trzech kroków biorą się z tego samego miejsca w kodzie co
+w kreatorze, więc nie mogą się rozjechać. (3) Wszystkie decyzje organizatora, także
+w ekipach, potwierdza własne okno Bojo z listą konsekwencji. Usunięcie ekipy mówi teraz
+osobno, co znika (rozmowa, tablica, skład, statystyki), co zostaje (mecze, tylko bez
+przypisania do ekipy) i że cofnąć się nie da; otwarcie meczu dla okolicy mówi wprost, że
+decyzja JEST odwracalna.
+
+MECHANIKA: `lib/events.ts` (`BladWczytania` z kodem PostgREST-a, `toBrakWiersza()` dla
+`PGRST116`), `app/wydarzenia/[id]/EventDetailClient.tsx` (stan `bladWczytania`, ekran
+ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta bramy),
+`components/events/CzyGramyPanel.tsx`, `app/grupy/[id]/GroupDetailClient.tsx`,
+`app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
+Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
+`__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.
+
+### 2026-09-03 — Skład meczu jest prawdą: koniec z samodzielnym awansem i naprawiony przełącznik gości
+
+PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą bezpośrednio, więc
+reguły dostępu w bazie są jedyną granicą. Reguła pozwalająca uczestnikowi zmieniać własny
+wpis w składzie nie mówiła, KTÓRE pola wolno mu ruszyć, a baza danych nie umie zawęzić
+takiej reguły do wybranych kolumn. W efekcie zapisany mógł jednym żądaniem wyjść
+z poczekalni na meczu z akceptacją zapisów, awansować się z listy rezerwowej ponad limit
+miejsc i oznaczyć własną wpłatę jako wniesioną — czyli obejść trzy rzeczy, na których
+opiera się zaufanie organizatora do składu. Druga połowa tego samego problemu nie wymagała
+niczyjej złej woli: przejście „Obserwuję” → „Gram” pytało bazę o wolne
+miejsce i dopiero osobnym żądaniem zapisywało wynik, więc dwie osoby klikające w tej samej
+sekundzie lądowały obie w składzie, ponad limit. Osobno: przełącznik
+„Uczestnicy mogą dodawać gości” nie działał NIGDY — organizator go włączał,
+aplikacja potwierdzała, że działa, a uczestnik po wpisaniu imienia znajomego dostawał
+komunikat o braku uprawnień.
+
+ROZWIĄZANIE BOJO: skład meczu zmienia dziś tylko ten, kto ma do tego prawo. Organizator,
+delegat i administrator mają dokładnie te same możliwości co wcześniej. Uczestnik zmienia
+wyłącznie własną deklarację — czy gra, na jakiej pozycji, jak zapłaci — oraz może przyjąć
+ofertę zwolnionego miejsca, gdy taka do niego wyszła; miejsca w składzie sam sobie nie
+przydzieli, z poczekalni się nie wypisze i wpłaty sobie nie odhaczy. Potwierdzenie udziału
+przez osobę obserwującą mecz liczy się teraz w całości po stronie bazy, w jednej operacji,
+więc dwa jednoczesne kliknięcia nie zmieszczą się już w jednym wolnym miejscu.
+Przełącznik „Uczestnicy mogą dodawać gości” robi to, co obiecuje: gdy organizator
+go włączy, osoba z listy składu dopisze znajomego bez konta — i tylko wtedy.
+
+MECHANIKA: migracja `132` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
+(`BEFORE INSERT OR UPDATE`; spreparowany zapis jest normalizowany, nie odbijany, żeby nie
+psuć „Obserwuję”), funkcje `czy_zarzadza_wpisem()`, `czy_moze_dopisac_goscia()`
+i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję” →
+„Gram”), przebudowana polityka zapisu do składu. Po stronie aplikacji
+`confirmFromMaybe()` w `lib/events.ts` woła dziś funkcję bazy zamiast liczyć pojemność
+w przeglądarce. Asercje w `supabase/test/rls.sql`.
+
 ### 2026-09-02 — Przypomnienia o meczu: pierwsze powiadomienia w Bojo, które wychodzą same
 
 PROBLEM: w całym Bojo nie było ani jednego powiadomienia opartego o czas — wszystkie były
@@ -475,215 +601,3 @@ MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
 pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
 wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
 Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
-
-
-### 2026-08-31 — Powtórzona nazwa obiektu w adresie, stara plakietka miejsc na stronie obiektu
-
-PROBLEM: (1) karta „Kiedy i gdzie" na stronie meczu (i tekst zaproszenia do udostępnienia)
-pokazywały nazwę obiektu pogrubioną, a zaraz pod nią — szarym — pełny adres, który
-Nominatim/OSM zaczyna od TEJ SAMEJ nazwy („Park Nad Wartą" pogrubione, niżej „Park Nad
-Wartą, Rataje, Poznań…"). Ten sam fakt dwa razy, bez nowej informacji. Zgłoszone wprost.
-(2) czas trwania meczu („· 90 min") na tej samej karcie łamał się w połowie słowa na dwa
-wiersze, gdy linia nie mieściła się w jednym — brzydko. (3) plakietka „+N miejsc" przy
-meczu w sekcji „Nadchodzące mecze" na stronie obiektu bywała nieaktualna: strona ma
-`revalidate = 86400` (patrz `app/boisko/[id]/page.tsx`), więc liczba miejsc mogła być
-do doby stara, a odwołany mecz i tak się tam pokazywał (zapytanie nie filtrowało
-`status = 'cancelled'`).
-
-ROZWIĄZANIE BOJO: (1) `eventLocation()` ucina z adresu dosłowny, powtórzony prefiks
-nazwy obiektu — zostaje wyłącznie to, czego pogrubiona nazwa jeszcze nie powiedziała
-(„Rataje, Poznań, województwo wielkopolskie, Polska"). Naprawia to zarówno kartę „Kiedy
-i gdzie", jak i tekst zaproszenia (`lib/eventShare.ts`, ten sam fallback). (2) „· 90 min"
-dostało `whitespace-nowrap` — cały fragment przenosi się na kolejny wiersz razem, zamiast
-łamać się między liczbą a jednostką. (3) sekcja „Nadchodzące mecze" dociąga świeże dane
-klient-side po zamontowaniu (ten sam kształt zapytania co server-side, plus filtr
-`status != 'cancelled'`) — strona sama zostaje statyczna (SEO/koszt buildu bez zmian),
-ożywa tylko ten jeden panel. „Brak nadchodzących meczy" → „meczów" (literówka przy okazji).
-
-MECHANIKA: `lib/utils.ts` (`eventLocation()`), `app/wydarzenia/[id]/EventDetailClient.tsx`
-(dwie gałęzie karty „Kiedy i gdzie" — organizator/widz), `app/boisko/[id]/page.tsx`
-(`getUpcomingEvents()` — filtr `cancelled`), `app/boisko/[id]/VenueDetailClient.tsx`
-(`liveUpcoming`, odświeżenie po mount). Bez migracji. Pilnuje tego
-`src/__tests__/utils.test.ts` (`eventLocation`).
-
-### 2026-08-31 — Audyt UX: wyjście z okna powitalnego, przedwczesne „nie znaleziono", powód wyszarzonego zapisu
-
-PROBLEM: (1) Okno powitalne z pytaniem o rolę („Zanim zaczniesz — kim jesteś?") potrafiło
-wypaść nad stroną meczu, do której ktoś właśnie szedł. Wyjście z niego BYŁO (X w rogu,
-dotknięcie tła), ale Escape nie działał, a szary X nie czytał się jako oferta pominięcia —
-audyt UX opisał to jako „uwięziony w onboardingu, którego nie rozumie". (2) W kreatorze
-meczu, w polu szukania miejsca, komunikat „Nie znaleziono takiego miejsca" wyskakiwał już
-po DRUGIM wciśniętym klawiszu, zanim ktokolwiek skończył wpisywać nazwę — czytało się to
-jak werdykt o bazie („tego boiska tu nie ma"), a było stanem przejściowym. (3) W oknie
-„Dołącz bez konta" przycisk „Zapisz się" był wyszarzony do czasu wypełnienia wszystkich
-pól, bez słowa o tym, czego brakuje — wygląda jak zawieszona aplikacja. (4) Adres
-`/rejestracja` zwracał 404: zakładanie konta mieszka pod `/logowanie?mode=rejestracja`,
-ale to jest nazwa, którą człowiek wpisuje z głowy. (5) Literówka w pustym stanie historii
-meczów.
-
-ROZWIĄZANIE BOJO: (1) Escape zamyka okno powitalne, a pod ofertami ról stanął jawny
-przycisk „Pomiń — zdecyduję później"; kto nic nie wybierze, zostaje tam, gdzie był.
-(2) werdykt o braku wyników czeka, aż pisanie ustanie (nic w locie) i zapytanie ma co
-najmniej 3 znaki — same wyniki pojawiają się jak dotąd od 2 znaków, bo to pomaga; milknie
-wyłącznie komunikat o ICH BRAKU. (3) nad przyciskiem „Zapisz się" pojawia się zdanie
-„Uzupełnij imię, e-mail i sposób płatności, żeby się zapisać" — wymienia dokładnie to,
-czego brakuje, i znika, gdy wszystko jest wypełnione. (4) `/rejestracja` przekierowuje na
-formularz zakładania konta zamiast na 404. (5) „Brak historii meczów".
-
-MECHANIKA: `components/onboarding/PostSignupRoleModal.tsx` (obsługa `Escape`, przycisk
-„Pomiń"), `components/map/UnifiedLocationPickerImpl.tsx` (`szukanieWToku`, `brakWynikow` —
-bramka na komunikat, nie na samo szukanie), `app/wydarzenia/[id]/EventDetailClient.tsx`
-(lista braków nad przyciskiem zapisu gościa), `next.config.mjs` (przekierowanie
-`/rejestracja` → `/logowanie?mode=rejestracja`, `permanent: false`), `app/moje-gry/page.tsx`.
-Bez migracji.
-
-### 2026-08-31 — Zdublowany termin/miejsce na stronie meczu i martwy przycisk „Otwórz w Safari"
-
-PROBLEM: (1) po dodaniu karty „Kiedy i gdzie" (partia z 2026-08-30) pasek nagłówka strony
-meczu dalej pokazywał osobną linijkę z datą, czasem trwania i adresem — ten sam fakt
-w dwóch miejscach jednego ekranu, czytany jak literówka, nie jak dwa źródła prawdy.
-Zgłoszone wprost przez właściciela. (2) przycisk „Otwórz w Safari"/„Otwórz w Chrome" —
-pokazywany, gdy logowanie Google jest zablokowane w przeglądarce wbudowanej w inną
-aplikację — nic nie robił w przeglądarce Instagrama/Facebooka. Próbował wymusić skok
-przez `window.location.href = 'x-safari-https://…'` (iOS) albo intent URI (Android), ale
-te aplikacje celowo blokują nawigację do niestandardowych schematów URL z własnej
-wbudowanej przeglądarki — nie ma niezawodnego sposobu w JS, żeby to obejść.
-
-ROZWIĄZANIE BOJO: (1) zdublowana linijka zniknęła z nagłówka; termin i miejsce mieszkają
-wyłącznie w karcie „Kiedy i gdzie". Edycja terminu przez organizatora (dawniej: dotknięcie
-daty w nagłówku) przeniosła się razem z resztą — cała karta jest dziś przyciskiem dla
-organizatora/delegata przed startem meczu. (2) przycisk obiecujący coś, czego nie da się
-dotrzymać, zniknął. Zamiast niego — instrukcja wprost: dotknij „⋯" (więcej opcji) w danej
-aplikacji i wybierz jej WŁASNĄ opcję „Otwórz w przeglądarce" (Instagram/Facebook/TikTok/
-Twitter mają ją wbudowaną — to jedyna droga, która faktycznie działa), albo skopiuj link
-i wklej go ręcznie. „Skopiuj link" zostaje jedynym przyciskiem w tej karcie — to jedyna
-akcja, która realnie działa wszędzie.
-
-MECHANIKA: `app/wydarzenia/[id]/EventDetailClient.tsx` (usunięty blok „KIEDY I GDZIE —
-jedna linia" z nagłówka, `openEditWhen()` przeniesione na kartę „Kiedy i gdzie"),
-`components/auth/AuthForm.tsx` (`GoogleBlockedSection` — usunięty `openInBrowser()`
-i rozróżnianie iOS/Android po `Platform`, zostaje tylko wykrycie `isInAppBrowser()`
-i `copyLink()`). Bez migracji.
-
-### 2026-08-30 — Piąta partia z sesji QA: znikające pinezki przy dużym przybliżeniu, hierarchia strony meczu, podwójne powiadomienie przy gościu
-
-PROBLEM: (1) Na mapie, przy przybliżeniu z16 i większym, pinezki potrafiły zniknąć
-całkowicie mimo że obiekt był widoczny na satelitarnej podkładce w tym samym kadrze —
-`fields.lat/lng` to środek obiektu z importu OSM, a ciasny kadr bywał węższy niż
-realna niepewność jego położenia. (2) Strona meczu pokazywała MNIEJ informacji niż
-karty na liście: bez odliczenia do startu, przycisk „Wypisz się" wyglądał jak
-równorzędna akcja obok „Dołącz", a pasek zapełnienia i tekst „Zostało N miejsc" przy
-komplecie świeciły bursztynem zamiast ustalonego niebieskiego. Lista obiektów obcinała
-adres w połowie ulicy (`truncate` zamiast łamania do dwóch linii). (3) Dymki z opisem
-w dolnej nawigacji, dla pozycji sąsiadujących ze środkowym przyciskiem (FAB), nachodziły
-na niego. (4) Odwołany mecz na liście dalej pokazywał bursztynowe odliczenie do startu,
-a plakietka „Anulowany" była szara — nie czytała się jak błąd/problem, czyli
-niespójnie z resztą aplikacji. (5) Dwa przyciski logowania bez hasła nazywały się
-identycznie („Zaloguj się linkiem"), więc drugi wyglądał jak duplikat pierwszego.
-Nagłówek nad ekranem logowania zostawał w pełni klikalny mimo przyciemnienia tła —
-dało się nim wyjść z pełnoekranowego formularza jednym dotknięciem w „Dołącz".
-(6) Zakładki „Obserwuję" i „Historia" na `/moje-gry` pokazywały pusty stan gołym
-zdaniem, bez wyjaśnienia. (7) Po dopisaniu gościa do składu wyskakiwały naraz toast
-i modal zachęty do zaproszenia — ten sam komunikat dwa razy, jeden z nich (toast)
-niosący jedyną informację o tym, że gość poszedł na rezerwę.
-
-ROZWIĄZANIE BOJO: (1) zapytanie o obiekty na mapie pyta o kadr powiększony 1,6× wokół
-środka widoku (`poszerzKadr()`) — markercluster i tak nie renderuje nic poza własnymi,
-wyliczonymi granicami widoczności, więc szersze zapytanie tylko łapie więcej
-kandydatów, nie wystawia pinezek poza ekran. (2) strona meczu dostała plakietkę
-odliczenia przy dacie (ten sam `timeUntil()` co karty listy), „Wypisz się" zmieniło się
-w zwykły tekstowy link zamiast przycisku z obwódką, pasek i tekst kompletu przeszły na
-`PASEK_KOMPLET`/niebieski z `lib/komplet.ts`, adres na liście łamie się do dwóch linii
-(`line-clamp-2`) zamiast urywać w połowie słowa. (3) wyrównanie dymka zależy dziś od
-pozycji w grupie — skrajne pozycje trzymają się swojej krawędzi, tylko środkowe
-zostają wyśrodkowane, więc żaden dymek nie nachodzi na FAB. (4) odliczenie i tekst
-„wkrótce" znikają dla odwołanego meczu, a plakietka „Anulowany" jest dziś czerwona.
-(5) drugi przycisk zmienił etykietę na „Wyślij link logowania — bez hasła" (ta sama
-fraza, którą i tak pokazuje przycisk wysyłki po przełączeniu trybu). Nagłówek nad
-ekranem logowania jest dziś w pełni bierny (`inert`) — ten sam wzorzec, którym
-`LoginBackdrop.tsx` unieruchamia tło z listą meczów. (6) oba puste stany dostały
-ikonę, tytuł i wyjaśniające zdanie zamiast gołego tekstu. (7) toast przy dodaniu
-gościa pokazuje się TYLKO wtedy, gdy modal zachęty nie wyskakuje (już widziana dla
-tego meczu) — modal przejął informację o rezerwie („Komplet — na rezerwę" pod
-nagłówkiem) i dostał przycisk „Dodaj kolejnego" do szybkiego powrotu przy dopisywaniu
-kilku osób pod rząd.
-
-MECHANIKA: `lib/api.ts` (`poszerzKadr()`, obok istniejącego `kadrWokol()`), wołane
-z `components/map/VenueExplorer.tsx`. `app/wydarzenia/[id]/EventDetailClient.tsx`
-(odliczenie przy dacie, styl „Wypisz się", `PASEK_KOMPLET`, `handleAddGuest()` —
-toast tylko w gałęzi bez modala), `components/EventBrowseCard.tsx` (`line-clamp-2`,
-odliczenie i plakietka gated na `!cancelled`), `components/layout/BottomNav.tsx`
-(`dymekAlign` per pozycja), `components/auth/AuthForm.tsx` (etykieta przycisku),
-`app/logowanie/page.tsx` (`HeaderBierny`), `app/moje-gry/page.tsx` (puste stany),
-`components/events/GuestInviteNudge.tsx` (`naRezerwie`, przycisk „Dodaj kolejnego").
-Bez migracji. Pilnuje tego `src/__tests__/poszerzKadr.test.ts`.
-
-### 2026-08-30 — Czwarta partia z sesji QA: pusty kadr mapy, podpisane liczniki, karta „Kiedy i gdzie"
-
-PROBLEM: (1) Przy dużym przybliżeniu mapy (z≥17) Bojo milkło całkowicie — znikały
-pinezki, znikał pasek z licznikiem i nie pojawiał się żaden komunikat, bo pusty kadr po
-stronie serwera nie miał w kodzie ani jednej gałęzi (jedyny istniejący komunikat
-dotyczył sytuacji „serwer coś dał, filtry to wycięły"). Biała mapa bez słowa wyjaśnienia
-i bez wyjścia. (2) Na `/mapa` widać naraz trzy liczby boisk — nad listą, nad mapą
-i na kółku skupiska — wszystkie poprawne, ale liczące co innego i podpisane tak samo,
-więc czytało się je jak trzy sprzeczne liczniki. (3) Etykiety dat pokazywały „Niedz. 30
-Sie" i „Niedziela, 30 Sierpnia": tailwindowe `capitalize` podnosi pierwszą literę
-KAŻDEGO słowa, a polska data ma wielką tylko pierwszą. (4) Strona meczu nie miała karty
-„Kiedy i gdzie": termin i miejsce mieściły się w linijce chipów, gdzie adres urywał się
-w połowie ulicy, a linku do nawigacji nie było wcale dla meczu na boisku z katalogu.
-(5) Plakietka nieprzeczytanych w dolnej nawigacji mówiła „9+", podczas gdy ekran
-`/rozmowy` zaraz po jej dotknięciu pokazywał „32 nieprzeczytane wiadomości".
-
-ROZWIĄZANIE BOJO: (1) pusty kadr mówi wprost, że jest pusty, i daje przycisk „Oddal
-mapę" wracający do widoku, z którego zawsze coś widać; trzy powody pustki (filtry /
-szukanie / kadr) to dziś trzy różne rady zamiast jednego milczenia. (2) licznik nad
-listą dostał dopisek, na jakie pytanie odpowiada — „w tym kadrze mapy", „w Twojej
-okolicy", „w promieniu N km od: <miejscowość>", „dla «fraza»"; same liczby bez zmian.
-(3) wielka litera tylko pierwsza, w sześciu miejscach naraz. (4) nowa karta „Kiedy
-i gdzie" na górze zakładki Skład: pełna data, godzina z czasem trwania, nazwa obiektu
-i CAŁY adres bez ucinania, a pod tym „Nawiguj" (Mapy Google) i „O boisku".
-(5) limit plakietki podniesiony z 9 do 99 — „32" zajmuje tyle samo pikseli co dawne
-„9+", więc rozjazd znika bez kosztu w układzie; pasek przelicza się też po powrocie na
-kartę, tak jak `/rozmowy`.
-
-MECHANIKA: `components/map/VenueExplorer.tsx` (`powodPustki`, `ladujeKadr`,
-`zakresListy`, `oddalDoSkupisk`), `lib/utils.ts` (`zWielkiejLitery()`, `linkDojazdu()`),
-`app/wydarzenia/[id]/EventDetailClient.tsx` (karta „Kiedy i gdzie"),
-`components/layout/BottomNav.tsx` (`LIMIT_LICZNIKA`, odświeżanie na `visibilitychange`),
-plus pięć innych miejsc z etykietą daty. Czerwona plakietka dzwonka liczy CO INNEGO
-(rzeczy wymagające działania, `WYMAGA_AKCJI` w `lib/notifications.ts`) i to zostaje bez
-zmian — to nie jest ten sam licznik. Bez migracji. Pilnują tego
-`e2e/mapa-pusty-kadr.klikalnosc.spec.ts` i `src/__tests__/etykietyDat.test.ts` —
-sprawdzone, że bez poprawki testy padają.
-
-### 2026-08-30 — Trzecia partia błędów z sesji QA: przybliżenie mapy, Enter w polu miejscowości, odmiana dni tygodnia
-
-PROBLEM: kolejna partia usterek z tej samej manualnej sesji QA na produkcji, tym razem
-skupiona na `/mapa`. (1) Na `/mapa` nie było ŻADNEGO sposobu przybliżenia poza kółkiem
-myszy/gestem szczypania — kontrolka Leaflet była wyłączona (kolidowała z nakładką
-szukania na mobile), a nic jej nie zastępowało. (2) Jeden ruch kółka/trackpada potrafił
-przeskoczyć 3-4 poziomy przybliżenia naraz. (3) Enter w polu „miejscowość" filtra „ile km"
-nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem. (4) Nominatim potrafił zwrócić
-tę samą miejscowość dwa razy, więc podpowiedzi pokazywały duplikaty. (5) Dzień tygodnia
-w zapowiedziach terminu („w niedziela" zamiast „w niedzielę") i liczba graczy na karcie
-rozegranego meczu („1 graczy" zamiast „1 gracz") łamały polską odmianę.
-
-ROZWIĄZANIE BOJO: (1) własne przyciski +/- (`ZoomButtons.tsx`), tym samym wzorem co
-istniejący `LocateMeButton` — stoją w rogu, którego nic innego nie zajmuje na stałe.
-(2) `wheelPxPerZoomLevel={240}` zamiast domyślnych 60 — trzeba więcej przewinąć na jeden
-poziom. (3) pole „miejscowość" wybiera dziś pierwszą podpowiedź na Enter, tak jak
-wyszukiwarka zwykle wybiera pierwszy wynik. (4) serwerowe proxy `/api/geocode` odsiewa
-podpowiedzi o tej samej nazwie i kontekście przed odesłaniem do przeglądarki. (5) trzy dni
-tygodnia (niedziela/środa/sobota) mają dziś osobną formę biernika zamiast mianownika
-z `format()`; liczba graczy idzie przez ten sam helper odmiany, którego reszta karty już
-używała.
-
-MECHANIKA: `components/map/ZoomButtons.tsx` (nowy plik, użyty w `VenueExplorer.tsx`
-i `GamesMapCanvas.tsx`), `components/map/WyborMiejscowosci.tsx` (`onKeyDown`),
-`lib/miejscowosci.ts` (`odsiejDuplikatyMiejscowosci()`, wołane z `app/api/geocode/route.ts`
-— handler trasy Next.js nie może eksportować nic poza uznanymi nazwami HTTP, stąd funkcja
-w osobnym module), `lib/eventDates.ts` (`dzienTygodniaWBierniku()`),
-`components/groups/NajblizszyMeczGrupy.tsx`, `components/EventBrowseCard.tsx`
-(`withCount()` zamiast literału „graczy"). Bez migracji. Pilnuje tego
-`e2e/mapa-miejscowosc-enter.klikalnosc.spec.ts` — sprawdzone, że bez poprawki test pada.
-

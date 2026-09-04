@@ -44,7 +44,7 @@ vi.mock('@/lib/supabase', () => ({
 
 import { supabase } from '@/lib/supabase';
 import {
-  createEvent, joinEvent, joinEventAsGuest, removeParticipant, getMyParticipationMap,
+  createEvent, joinEvent, joinEventAsGuest, confirmFromMaybe, removeParticipant, getMyParticipationMap,
   wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst,
 } from '@/lib/events';
 import type { EventItem } from '@/types';
@@ -307,6 +307,82 @@ describe('joinEvent — kontrakt z bazą', () => {
     mockRpc.mockResolvedValue({ data: false, error: null });
     await expect(joinEvent('event-1', 'user-1', 'Test User')).rejects.toThrow(/Zbyt wiele/);
     expect(mockRpc).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// confirmFromMaybe — „Obserwuję" → „Gram". Ostatnia ścieżka wejścia do składu,
+// która do migracji `132` liczyła pojemność w przeglądarce: najpierw pytanie
+// `czy_na_rezerwe`, potem OSOBNY UPDATE. Dwie osoby obserwujące mecz z jednym
+// wolnym miejscem, klikające w tej samej sekundzie, lądowały obie w składzie.
+// Ten sam wyścig `dolacz_do_meczu()` usunął dla zwykłego „Dołącz" — testy niżej
+// pilnują, żeby tu nie wrócił.
+// ---------------------------------------------------------------------------
+describe('confirmFromMaybe — kontrakt z bazą', () => {
+  beforeEach(() => {
+    mockRpc.mockReset();
+    vi.mocked(supabase.from).mockReset();
+  });
+
+  function bazaOddaje(wynik: { is_reserve: boolean }) {
+    mockRpc.mockImplementation((nazwa: string) => {
+      if (nazwa === 'potwierdz_udzial') return Promise.resolve({ data: [wynik], error: null });
+      return Promise.resolve({ data: null, error: null });
+    });
+  }
+
+  it('oddaje to, co zdecydowała baza — skład', async () => {
+    bazaOddaje({ is_reserve: false });
+    await expect(confirmFromMaybe('wpis-1', 'event-1'))
+      .resolves.toEqual({ isReserve: false, pending: false });
+  });
+
+  it('oddaje to, co zdecydowała baza — rezerwa', async () => {
+    bazaOddaje({ is_reserve: true });
+    await expect(confirmFromMaybe('wpis-1', 'event-1'))
+      .resolves.toEqual({ isReserve: true, pending: false });
+  });
+
+  // Właściwy strażnik: potwierdzenie udziału to JEDNO wywołanie funkcji
+  // bazodanowej, a nie „zapytaj o wolne miejsce → zapisz".
+  it('nie pyta osobno o wolne miejsce i nie aktualizuje wiersza z przeglądarki', async () => {
+    bazaOddaje({ is_reserve: false });
+    await confirmFromMaybe('wpis-1', 'event-1');
+
+    expect(mockRpc).not.toHaveBeenCalledWith('czy_na_rezerwe', expect.anything());
+    expect(supabase.from).not.toHaveBeenCalledWith('event_participants');
+    expect(mockRpc).toHaveBeenCalledWith('potwierdz_udzial', expect.objectContaining({
+      p_uczestnik: 'wpis-1',
+      p_bramkarz: false,
+    }));
+  });
+
+  it('przekazuje rolę i deklarację płatności', async () => {
+    bazaOddaje({ is_reserve: false });
+    await confirmFromMaybe('wpis-1', 'event-1', true, {
+      method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport',
+    });
+    expect(mockRpc).toHaveBeenCalledWith('potwierdz_udzial', expect.objectContaining({
+      p_bramkarz: true,
+      p_metoda_platnosci: 'blik',
+      p_karta_sportowa: true,
+      p_dostawca_karty: 'multisport',
+    }));
+  });
+
+  it('nie wysyła dostawcy karty, gdy karty nie ma', async () => {
+    bazaOddaje({ is_reserve: false });
+    await confirmFromMaybe('wpis-1', 'event-1', false, {
+      method: 'gotowka', hasSportsCard: false, sportsCardProvider: 'multisport',
+    });
+    expect(mockRpc).toHaveBeenCalledWith('potwierdz_udzial', expect.objectContaining({
+      p_dostawca_karty: null,
+    }));
+  });
+
+  it('przenosi błąd z bazy bez podmiany treści', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'Mecz został odwołany' } });
+    await expect(confirmFromMaybe('wpis-1', 'event-1')).rejects.toThrow('Mecz został odwołany');
   });
 });
 

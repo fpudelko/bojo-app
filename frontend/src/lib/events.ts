@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { zapiszNumerBlik, numerBlikZWiersza } from './blik';
-import { validateName, sanitizeDescription, sanitizeAddress } from './validation';
+import { validateName, validateEmail, sanitizeDescription, sanitizeAddress } from './validation';
 import { logActivity } from './activityLog';
 import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
@@ -326,6 +326,26 @@ export async function updateEvent(
   }
 }
 
+/** Błąd wczytywania z zachowanym kodem PostgREST-a.
+ *
+ *  Istnieje po to, żeby strona meczu mogła odróżnić „mecz nie istnieje" od
+ *  „nie udało się go wczytać". `PGRST116` to jedyny kod, który naprawdę znaczy
+ *  „zero wierszy"; wszystko inne (brak sieci, 500, odmowa polityki) to awaria
+ *  po drodze, a nie odpowiedź na pytanie o istnienie meczu. */
+export class BladWczytania extends Error {
+  readonly kod?: string;
+  constructor(message: string, kod?: string) {
+    super(message);
+    this.name = 'BladWczytania';
+    this.kod = kod;
+  }
+}
+
+/** Czy ten błąd znaczy „takiego wiersza nie ma" (a nie „nie udało się sprawdzić"). */
+export function toBrakWiersza(e: unknown): boolean {
+  return e instanceof BladWczytania && e.kod === 'PGRST116';
+}
+
 export async function getEvent(
   id: string,
 ): Promise<{ event: EventItem; participants: EventParticipant[] }> {
@@ -334,7 +354,12 @@ export async function getEvent(
     .select('*, fields(address), event_blik(blik_phone)')
     .eq('id', id)
     .single();
-  if (error) throw new Error(error.message);
+  // KOD BŁĘDU JEDZIE DALEJ, nie tylko treść. Strona meczu musi odróżnić
+  // „nie ma takiego meczu" (PostgREST `PGRST116` — `.single()` przy zerze
+  // wierszy) od „nie udało się wczytać" (brak sieci, 500, błąd polityki).
+  // Bez tego rozróżnienia każda awaria renderowała „Nie znaleziono
+  // wydarzenia" — czyli link wysłany przez organizatora wyglądał jak martwy.
+  if (error) throw new BladWczytania(error.message, error.code);
 
   // Flatten the joined field address onto the row for toEvent()
   if (eventRow?.fields) {
@@ -357,7 +382,7 @@ export async function getEvent(
     .eq('event_id', id)
     .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });
-  if (pErr) throw new Error(pErr.message);
+  if (pErr) throw new BladWczytania(pErr.message, pErr.code);
 
   // Batch-fetch avatar URLs for logged-in participants
   const userIds = (partRows ?? []).filter((p) => p.user_id).map((p) => p.user_id as string);
@@ -647,7 +672,17 @@ export async function joinEventMaybe(eventId: string, userId: string, name: stri
  *  obserwujący, który się decyduje, podejmuje dokładnie te same decyzje co
  *  ktoś wchodzący prosto ze składu. Wcześniej ta ścieżka ustawiała wyłącznie
  *  `rsvp` i `is_reserve`, więc gracz lądował w składzie bez pozycji i bez
- *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć. */
+ *  zadeklarowanej płatności — a organizator nie miał czego rozliczyć.
+ *
+ *  OD MIGRACJI `132` LICZY TO BAZA, W JEDNEJ TRANSAKCJI (`potwierdz_udzial`).
+ *  Wcześniej ta funkcja pytała o wolne miejsce (`czy_na_rezerwe`) i dopiero
+ *  osobnym zapytaniem zapisywała `is_reserve` — czyli dokładnie ten wyścig,
+ *  który `dolacz_do_meczu()` (migracja `078`) usunął dla zwykłego „Dołącz":
+ *  „między liczeniem a wstawianiem mogło wejść dwóch graczy naraz i obaj
+ *  dostawali to samo ostatnie miejsce". Dwie osoby obserwujące mecz z jednym
+ *  wolnym miejscem, klikające „Gram" w tej samej sekundzie, lądowały obie
+ *  w składzie — ponad limit, bez niczyjej złej woli. To była ostatnia ścieżka
+ *  wejścia do składu, która tej migracji nie przeszła. */
 export async function confirmFromMaybe(
   participantId: string,
   eventId: string,
@@ -655,17 +690,17 @@ export async function confirmFromMaybe(
   payment?: JoinPaymentChoice,
   actor?: { userId: string; name: string },
 ): Promise<WynikZapisu> {
-  await runSyncReserveClaim(eventId);
-  const isReserve = await czyNaRezerwe(eventId, asGoalkeeper);
+  const { data, error } = await supabase.rpc('potwierdz_udzial', {
+    p_uczestnik: participantId,
+    p_bramkarz: asGoalkeeper,
+    p_metoda_platnosci: payment?.method ?? null,
+    p_karta_sportowa: payment?.hasSportsCard ?? false,
+    p_dostawca_karty: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
+  });
+  if (error) throw new Error(error.message);
 
-  await zaktualizujJedenWiersz('event_participants', participantId, {
-    rsvp: 'yes',
-    is_reserve: isReserve,
-    is_goalkeeper: asGoalkeeper,
-    payment_method: payment?.method ?? null,
-    has_sports_card: payment?.hasSportsCard ?? false,
-    sports_card_provider: payment?.hasSportsCard ? (payment?.sportsCardProvider ?? null) : null,
-  }, 'Nie udało się potwierdzić udziału');
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  const isReserve = !!wiersz?.is_reserve;
 
   // Potwierdzenie z „obserwuję" nie zostawiało dotąd żadnego śladu w dzienniku
   // — to UPDATE, nie INSERT, więc `joinEvent`-owy `logActivity` po prostu nie
@@ -691,8 +726,17 @@ export async function addGuest(
   isReserve = false,
   addedByUserId?: string,
   asGoalkeeper = false,
+  /** OPCJONALNY adres gościa dopisanego ręcznie (migracja `133`).
+   *
+   *  Gość, który zapisuje się SAM, podaje adres przy zapisie i od migracji
+   *  `133` dostaje na niego potwierdzenie, przypomnienie i wiadomość
+   *  o odwołaniu meczu. Gość DOPISANY ręcznie miał dotąd tylko imię — czyli
+   *  był całkowicie odcięty od informacji, mimo że siedzi w tym samym składzie.
+   *  Pole jest opcjonalne, bo organizator często adresu nie zna. */
+  guestEmail?: string,
 ): Promise<{ id: string; claimToken: string | null; isReserve: boolean }> {
   const safeName = validateName(name, 'Imię gościa', 80);
+  const safeEmail = guestEmail?.trim() ? validateEmail(guestEmail) : null;
 
   // If not explicitly added to reserve, check capacity and overflow to reserve
   // when the event is full (mirrors joinEvent so the roster never exceeds limit).
@@ -711,6 +755,7 @@ export async function addGuest(
       is_reserve: reserve,
       is_goalkeeper: asGoalkeeper,
       added_by: addedByUserId ?? null,
+      guest_email: safeEmail,
     })
     .select('id')
     .single();
@@ -781,6 +826,12 @@ export async function joinEventAsGuest(
     isReserve = wpis?.na_rezerwie ?? false;
     pendingApproval = wpis?.czeka_na_akceptacje ?? false;
   }
+
+  // Tylko ŚWIEŻY zapis, nie powtórne wejście tą samą drogą — inaczej licznik
+  // zapisów bez konta rósłby od odświeżania strony. Ćwierć wszystkich wpisów
+  // w składach powstaje tą drogą, a ile z nich zamienia się na konta, nie
+  // wiedzieliśmy w ogóle (patrz `guest_claimed`).
+  if (!row.already_joined) track('guest_joined', { eventId, isReserve, pendingApproval });
 
   return {
     claimToken,

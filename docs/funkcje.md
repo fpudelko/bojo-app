@@ -53,7 +53,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Płatności | `track_payments`, `show_payment_status` | Podział kosztów (organizator), karta „Twoja płatność" (uczestnik) |
 | Bramkarze | `goalkeepers_enabled`, `max_goalkeepers` | Osobny limit; nadmiarowi na rezerwę |
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
-| Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora. **Ustawiane wyłącznie w edycji meczu** (`/wydarzenia/[id]/edytuj`, przełącznik w `EventDetailClient.tsx`) — kreator (`/wydarzenia/nowe`) nie ma tej kontrolki i `createEvent()` jej nie wysyła, więc każdy nowy mecz startuje z domyślnym `false` |
+| Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora. **Ustawiane wyłącznie w edycji meczu** (`/wydarzenia/[id]/edytuj`, przełącznik w `EventDetailClient.tsx`) — kreator (`/wydarzenia/nowe`) nie ma tej kontrolki i `createEvent()` jej nie wysyła, więc każdy nowy mecz startuje z domyślnym `false`. **Do migracji `132` ten przełącznik nie działał** — polityka zapisu do składu dopuszczała `auth.uid() = user_id`, a wiersz gościa ma `user_id IS NULL`, więc warunek wychodził NULL i uczestnik po kliknięciu „Dodaj” dostawał komunikat o braku uprawnień. Dziś przepuszcza go osobna, wąska gałąź (`czy_moze_dopisac_goscia()`): wiersz musi być gościem bez konta z `added_by = auth.uid()`, mecz musi mieć włączony przełącznik, a dopisujący musi sam być w składzie i nie czekać na akceptację |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
 | Przejęcie wpisu gościa | `claim_token` (wydawany funkcją `token_wpisu_goscia()`, nie czytany z wiersza — migracja `127`) | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali. Toast „Gość dodany"/„Komplet — gość dodany na rezerwę" pokazuje się tylko wtedy, gdy modal NIE wyskakuje (już widziany dla tego meczu) — inaczej dwa komunikaty niosące tę samą informację pokazywały się naraz. Gdy modal wyskakuje, informację o rezerwie przejmuje jego podtytuł (`naRezerwie`), a przycisk „Dodaj kolejnego" wraca do formularza bez dodatkowego resetowania (pole jest już czyszczone po udanym dodaniu) |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
@@ -2709,6 +2709,89 @@ przy zmianie STANU, nie przy każdym zapisie z osobna.
 
 ---
 
+## Poczta do gościa bez konta (migracja `133`)
+
+Do 2026-09-03 Bojo nie odzywało się do nikogo bez konta. Wszystkie powiadomienia idą przez
+`notifications`, a ta tabela wymaga `user_id` — więc gość bez konta nie dostawał ani
+„jutro grasz” (`129` ma `p.user_id IS NOT NULL`), ani wiadomości o ODWOŁANIU meczu
+(`070`, `116`), ani o zmianie terminu i warunków (`065`, `114`). Jego jedyną kotwicą był
+`localStorage` na jednym telefonie.
+
+To nie jest przypadek brzegowy: **goście bez konta to ćwierć wszystkich wpisów w składach**
+na produkcji, a po odfiltrowaniu meczów testowych zespołu — 28 %. Do tego `guest_email` był
+zbierany przy zapisie i **nigdy do niczego nie wysyłany**: sprawdzone we wszystkich czterech
+funkcjach brzegowych. Skutki brał na siebie organizator, bo skład kłamał w tej części,
+którą sam przyprowadził.
+
+**Cztery powody wysyłki — i kolejność jest tu istotą, nie porządkiem:**
+
+| # | Powód | Kiedy | Po co |
+|---|---|---|---|
+| 1 | `zapis` | zaraz po zapisie | potwierdzenie + link do własnego wpisu. To jest ta rzecz, która UZASADNIA pobieranie adresu |
+| 2 | `odwolanie` / `zmiana` | przy zmianie stanu meczu | żeby nie przyjechał na boisko |
+| 3 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` | tylko SKŁAD — rezerwa jeszcze nie wie, czy gra |
+| 4 | `zaloz_konto` | dzień po meczu, tylko gdy adres nadal nie ma konta | zachęta do konta |
+
+Mail „załóż konto” jest CZWARTY świadomie. Wysłany jako pierwszy kontakt od nadawcy,
+którego skrzynka nie zna, czyta się jak spam niezależnie od treści; po trzech, które były
+oczekiwane i przydatne, trafia w zupełnie inny kontekst. Odwołuje się też do tego, co się
+właśnie wydarzyło („wczoraj grałeś w meczu…”), zamiast zachwalać aplikację.
+
+**Kogo to NIE obejmuje:** gościa bez zapisanego adresu. Kto zapisuje się sam, podaje adres
+przy zapisie; kogo dopisuje organizator albo kolega z drużyny — ten ma adres tylko wtedy,
+gdy dopisujący wypełnił nowe, opcjonalne pole obok imienia. Dlatego okno odwołania meczu
+mówi „dostanie e-mail, jeśli podała adres”, a nie „dostanie”, a baner nad
+składem dopowiada, czym grozi brak jednego i drugiego. Obietnica bez pokrycia byłaby tu
+gorsza niż jej brak.
+
+**Wzorzec techniczny jeden do jednego jak push (`102`):** `konfiguracja_poczty` bez polityk,
+`pg_net` → funkcja brzegowa `powiadom-goscia` → Resend, **ciche wyjście przy braku
+konfiguracji** i cały korpus w `EXCEPTION WHEN OTHERS`. Kanał dodatkowy nie może wywrócić
+operacji podstawowej — a operacją podstawową jest tu między innymi odwołanie meczu.
+Idempotencja: `maile_goscia (uczestnik_id, powod, dzien)`.
+
+⚠️ **Kanał milczy, dopóki nie ma konfiguracji.** Wymaga wpisu w `konfiguracja_poczty`,
+sekretów funkcji brzegowej (`RESEND_API_KEY`, `BOJO_POCZTA_SEKRET`, `BOJO_NADAWCA`)
+i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM) — nadawcą jest historycznie
+`bojo.app`, a maile z domeny innej niż strona lądują w spamie. Do tego czasu funkcja
+kończy 200 i nie wysyła nic; nic się przez to nie psuje.
+
+### Mail powitalny (migracja `134`)
+
+Tym samym kanałem idzie **powitanie po założeniu konta** — pierwsza wiadomość, jaką Bojo
+w ogóle wysyła nowemu użytkownikowi. Przy rejestracji hasłem GoTrue wysyłał
+„potwierdź adres” i na tym kontakt się kończył; przy Google nie było nawet tego.
+
+**Wyzwalacz reaguje na POTWIERDZONY adres** — na `INSERT` z wypełnionym
+`email_confirmed_at` albo na przejście tej kolumny z pustej na wypełnioną.
+
+Przy dzisiejszych ustawieniach Supabase (**„Confirm email” jest WYŁĄCZONE**) adres jest
+potwierdzony już przy zakładaniu konta — i dla hasła, i dla Google — więc mail idzie
+natychmiast obiema drogami. Warunek nie jest przez to zbędny: gdyby „Confirm email”
+kiedykolwiek włączono, powitanie samo przesunie się za potwierdzenie, zamiast przychodzić
+równolegle z prośbą o nie. Jeden warunek obsługuje obie konfiguracje.
+
+⚠️ Skoro adresu dziś nikt nie weryfikuje, **da się założyć konto na cudzy adres** i powitanie
+pójdzie do kogoś, kto o nie nie prosił. To własność ustawienia, nie tego maila — znika wraz
+z włączeniem „Confirm email”.
+
+Treść (`supabase/functions/powiadom-goscia/index.ts`, przypadek `powitanie`) prowadzi
+**najpierw do stworzenia meczu** — to jedyna droga, która działa w dniu zero, bez żadnego
+innego użytkownika po drugiej stronie. Grupa jest druga (wciąga więcej ludzi naraz, ale
+trzeba już mieć ekipę), szukanie gry trzecie i uczciwie opisane jako to, na co przy tej
+liczbie otwartych meczów nie ma co liczyć. Trzy rzeczy, których tam świadomie NIE ma:
+zachwalania, obietnicy pełnej półki otwartych gier i prośby o odpowiedź na maila —
+nadawcą jest `noreply@`, więc zamiast tego jest link do `/zglos-blad`.
+
+Idempotencja powitania nie ma daty w kluczu: ma pójść **raz w życiu konta**, nie raz
+dziennie. Dziennik jest wspólny dla całej poczty (`maile_wyslane`, dwa możliwe klucze —
+wpis w składzie albo konto).
+
+Testy: `supabase/test/poczta-goscia.sql` — kto dostaje, kto NIE, idempotencja przy drugim
+uruchomieniu i to, że zmiana samego opisu meczu nie generuje poczty.
+
+---
+
 ## Przypomnienia — jedyne powiadomienia, które powstają same (migracja `129`)
 
 Do 2026-09-02 w całym Bojo nie było ANI JEDNEGO powiadomienia opartego o czas: wszystkie
@@ -2757,6 +2840,34 @@ do panelu „Mecz gotowy — wyślij link".
 w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
 w jedno zostaje jako osobne zadanie.
 
+## Awaria wczytania meczu to nie jest brak meczu
+
+Strona meczu (`app/wydarzenia/[id]/EventDetailClient.tsx`) miała do 2026-09-03 jeden `try`
+wokół całego wczytywania, którego `catch` ustawiał `notFound` — czyli KAŻDY błąd renderował
+„Nie znaleziono wydarzenia”. Do tego pierwszą instrukcją w tym bloku było
+`await syncReserveClaim(id)`: **porządkowanie kolejki rezerwowej**, czynność pomocnicza,
+której awaria gasiła całą stronę.
+
+Dlaczego to ważniejsze, niż wygląda: strona meczu to jedyny artefakt, który organizator
+wysyła 10–14 osobom. Gracz na słabym zasięgu czytał komunikat znaczący „twój kolega
+wysłał ci link do czegoś, czego nie ma” — i odbijało się to na organizatorze, nie na Bojo.
+
+Dziś:
+
+- `syncReserveClaim()` leci PO `getEvent()`, bez `await` w łańcuchu danych i z `.catch(() => {})`
+  — tym samym wzorcem co `getWypisania()` obok. To samo dotyczy wyniku meczu (`loadMatchData`).
+- `getEvent()` rzuca `BladWczytania` z **kodem PostgREST-a** (`lib/events.ts`). Jedyny kod,
+  który znaczy „nie ma takiego wiersza”, to `PGRST116` (`.single()` przy zerze wierszy)
+  — rozpoznaje go `toBrakWiersza()`.
+- `PGRST116` → „Nie znaleziono wydarzenia” (bez zmian). Cokolwiek innego → nowy ekran
+  „Nie udało się wczytać meczu” z przyciskiem „Spróbuj ponownie” (woła `load()`)
+  i zdaniem **„link jest w porządku”** — to zdanie jest tu właściwą treścią, bo chroni
+  organizatora przed zarzutem, że wysłał zły adres.
+
+Pilnuje tego `e2e/mecz-blad-wczytania.klikalnosc.spec.ts`: 500 daje ekran ponowienia,
+`PGRST116` daje „nie znaleziono”, a przycisk da się realnie kliknąć. Sprawdzone, że bez
+poprawki dwa z trzech testów padają.
+
 ## Okna potwierdzeń zamiast `confirm()` przeglądarki
 
 Najcięższe decyzje organizatora potwierdzało do 2026-09-02 systemowe okno przeglądarki.
@@ -2782,8 +2893,27 @@ go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkus
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
 
-Poza stroną meczu (`/grupy`, `/rezerwacje`, panel admina) zostaje na razie `confirm()` —
-świadomie, żeby ten PR dało się przejrzeć; zamiana jest mechaniczna.
+**Domknięte 2026-09-03.** Zostały wtedy jeszcze SZEŚĆ wywołań `confirm()`, wszystkie na
+ścieżce organizatora — poprzednia runda zatrzymała się na samej stronie meczu:
+
+| Gdzie | Co |
+|---|---|
+| `components/events/CzyGramyPanel.tsx` | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo panel jest komponentem POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
+| `app/grupy/[id]/GroupDetailClient.tsx` | opuszczenie ekipy, usunięcie gracza z ekipy |
+| `app/grupy/[id]/edytuj/page.tsx` | nowy link zaproszenia, opuszczenie ekipy, **usunięcie ekipy** |
+
+Usunięcie ekipy jest z nich najcięższe i było najgorzej opisane: jedno zdanie w oknie, które
+wygląda jak komunikat przeglądarki. Dziś ma cztery konsekwencje jedna pod drugą — co znika
+(rozmowa, tablica, skład, statystyki), co ZOSTAJE (mecze, tylko bez przypisania do ekipy),
+co tracą członkowie i że nie da się tego cofnąć.
+
+Przy „Otwórz dla okolicy” najważniejsza jest trzecia linijka: **że decyzję da się
+cofnąć**. `confirm()` nie miał gdzie tego zmieścić, więc czytała się jak nieodwracalna.
+
+Pilnuje tego `__tests__/oknaZamiastConfirm.test.ts` — skanuje `app/wydarzenia`, `app/grupy`,
+`app/moje-gry`, `components/events` i `components/groups` i pada, gdy `confirm()` tam wróci.
+Panel administratora i `/rezerwacje` (za wyłączoną flagą) są świadomie poza zakresem: tam
+pyta się kogoś innego i w innym kontekście.
 
 ## Plakietka „Wczesny etap" na landingu
 

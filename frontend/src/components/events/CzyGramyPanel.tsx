@@ -43,10 +43,13 @@ export default function CzyGramyPanel({ event, participants, canManage, busy, on
   if (!canManage) return null;
   if (werdykt.stan === 'brak-progu' && !pokazOtworzDlaOkolicy) return null;
 
-  const handleOtworz = () => {
-    if (!confirm('Mecz pojawi się na publicznej liście meczów. Każdy, kto ma link, i tak mógł dołączyć — to tylko dodaje go do listy dla ludzi z okolicy.')) return;
-    onOtworzDlaOkolicy();
-  };
+  // Potwierdzenie NIE stoi tutaj, tylko w `EventDetailClient` — razem z dziesięcioma
+  // pozostałymi oknami tej strony (`usePotwierdzenie`). Do 2026-09-03 było tu
+  // `confirm()` przeglądarki: ostatnie takie na stronie meczu po `O-38`, przeoczone,
+  // bo siedzi w komponencie potomnym. Systemowe okno na telefonie czyta się jak błąd
+  // strony, mieści jedno zdanie i nie miało jak powiedzieć rzeczy, która tu najbardziej
+  // uspokaja — że decyzja jest odwracalna.
+  const handleOtworz = () => onOtworzDlaOkolicy();
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">

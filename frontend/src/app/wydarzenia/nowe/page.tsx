@@ -12,6 +12,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { isPelneImie } from '@/lib/profileName';
 import { zbudujPodsumowanie } from '@/lib/eventSummary';
 import PodsumowanieMeczu from './PodsumowanieMeczu';
+import { track } from '@/lib/analytics';
 import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
@@ -490,7 +491,18 @@ function NewEventForm() {
           {/* Preview kreatora — prawdziwe etykiety i emoji sportów zamiast
               generycznych szarych belek, żeby faktycznie było widać, co jest
               pod blurem. */}
-          <div className="relative mt-8 rounded-2xl border border-slate-200 bg-white overflow-hidden select-none pointer-events-none" aria-hidden="true">
+          {/* Nazwy kroków biorą się z tej samej stałej, z której bierze je kreator
+              (`STEP_TITLES`) — pilnuje tego `bramaKreatora.test.tsx`, żeby brama
+              nie zaczęła znowu obiecywać czegoś innego niż formularz. */}
+          <p className="mt-8 text-center text-xs font-medium text-slate-500">
+            Trzy kroki: {STEP_TITLES.map((t, i) => (
+              <span key={t}>
+                {i > 0 && <span className="text-slate-300"> · </span>}
+                <span className="font-semibold text-slate-600">{t}</span>
+              </span>
+            ))}
+          </p>
+          <div className="relative mt-3 rounded-2xl border border-slate-200 bg-white overflow-hidden select-none pointer-events-none" aria-hidden="true">
             <div className="p-5 space-y-4 blur-[1.5px] opacity-90">
               <div>
                 <p className="mb-2 text-sm font-medium text-slate-700">Sport</p>
@@ -512,20 +524,33 @@ function NewEventForm() {
                 </div>
               </div>
 
+              {/* Podgląd musi pokazywać KROK PIERWSZY, a nie dowolny zlepek pól.
+                  Do 2026-09-03 stała tu Lokalizacja z mapką — czyli krok DRUGI —
+                  i nie było ani liczby miejsc, ani przełączników. Brama obiecywała
+                  inny kreator, niż organizator dostawał zaraz po zalogowaniu. */}
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">Lokalizacja</p>
-                <div className="relative h-28 overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 via-slate-50 to-primary-50">
-                  <div
-                    className="absolute inset-0 text-slate-400 opacity-40"
-                    style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '14px 14px' }}
-                  />
-                  <MapPin className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-primary-700" />
+                <p className="mb-2 text-sm font-medium text-slate-700">Termin</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">Data meczu</div>
+                  <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">18:00</div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">Data meczu</div>
-                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">18:00</div>
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">Ilu nas gra</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400">−</div>
+                  <div className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700">14</div>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400">+</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-900">Lista rezerwowa</p>
+                  <p className="text-xs text-slate-500">Przy komplecie kolejni czekają w kolejce.</p>
+                </div>
+                <div className="h-5 w-9 shrink-0 rounded-full bg-primary-600" />
               </div>
 
               <div className="flex h-11 items-center justify-center rounded-xl bg-primary-700 text-sm font-semibold text-white">
@@ -739,6 +764,7 @@ function NewEventForm() {
     if (target < step) {
       setFieldErrors({});
       setStep(target);
+      track('wizard_step', { krok: target, kierunek: 'wstecz' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -756,6 +782,13 @@ function NewEventForm() {
     }
     setFieldErrors({});
     setStep(target);
+    // POMIAR LEJKA, nie telemetria dla samej telemetrii: bez tego nie wiadomo,
+    // na którym kroku kończy się obiecane „dwie minuty”, a kolejność
+    // kolejnych poprawek zostaje sądem zamiast pomiarem (patrz
+    // docs/przeplyw-organizatora.md, „Czego ten audyt nie sprawdził”).
+    // `track()` jest fire-and-forget i łyka własne błędy — nie może zatrzymać
+    // przejścia na kolejny krok.
+    track('wizard_step', { krok: target, kierunek: 'dalej' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1364,7 +1397,7 @@ function NewEventForm() {
                   type="button"
                   size="lg"
                   className="flex-1"
-                  onClick={() => setPodgladOtwarty(true)}
+                  onClick={() => { setPodgladOtwarty(true); track('wizard_summary_open'); }}
                 >
                   Sprawdź i opublikuj →
                 </Button>

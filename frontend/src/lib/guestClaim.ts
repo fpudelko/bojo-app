@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { supabase } from './supabase';
+import { track } from './analytics';
 import { eventDisplayTitle } from './eventTitle';
 import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import type { DaneDoUdostepnienia } from './eventShare';
@@ -106,6 +107,11 @@ export async function przejmijWpisGoscia(token: string, nazwa: string): Promise<
     p_nazwa: nazwa,
   });
   if (error) throw new Error(error.message);
+  // JEDYNY POMIAR REALNEJ KONWERSJI gość → konto. Wcześniej dawało się ją
+  // policzyć wyłącznie zapytaniem do bazy po `claimed_at` — czyli nikt jej nie
+  // liczył. To jest liczba, wokół której kręci się cały argument
+  // „organizator przyprowadza graczy”.
+  track('guest_claimed', { eventId: data as string });
   return data as string;
 }
 

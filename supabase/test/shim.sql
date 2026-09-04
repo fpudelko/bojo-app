@@ -131,3 +131,24 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+-- SCHEMAT `auth` MUSI BYĆ DOSTĘPNY DLA ROL API — na Supabase jest, bo
+-- `auth.uid()` woła praktycznie każda polityka RLS. Atrapa tego nie nadawała
+-- i przez długi czas nikomu to nie przeszkadzało: `auth.uid()` w wyrażeniu
+-- POLITYKI i w funkcji `SECURITY DEFINER` (właściciel `postgres`) działa bez
+-- tego grantu.
+--
+-- Wywróciło się dopiero na pierwszej funkcji, która woła `auth.uid()` jako
+-- ZWYKŁA funkcja, z uprawnieniami wołającego: wyzwalacz `pilnuj_wlasnego_wpisu()`
+-- z migracji `132` jest celowo BEZ `SECURITY DEFINER`, bo tylko wtedy
+-- `current_user` mówi prawdę o tym, kto pisze. Bez tego grantu padał na
+-- „permission denied for schema auth”.
+--
+-- To jest dokładnie ta pułapka, którą opisuje komentarz wyżej, tylko z drugiej
+-- strony: atrapa BARDZIEJ restrykcyjna niż produkcja. Gorsze niż samo padanie
+-- było to, że trzy asercje „operacja ma zostać odbita” przechodziły —
+-- ale z powodu braku grantu, a nie dlatego, że wyzwalacz je odbił. Test
+-- zielony z niewłaściwego powodu jest gorszy niż czerwony.
+GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION auth.role() TO anon, authenticated, service_role;
