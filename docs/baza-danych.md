@@ -301,6 +301,16 @@ więc bramki przechodzą na zielono.
 GRANT SELECT (nowa_kolumna) ON event_participants TO anon, authenticated;
 ```
 
+**Drugie miejsce, o którym łatwo zapomnieć: `scripts/stos-lokalny.sh`.** Lokalny stos
+dostaje `GRANT ALL ON ALL TABLES`, więc skrypt musi ODTWORZYĆ ograniczenia z `127` —
+i do 2026-09-08 robił to z zaszytej listy kolumn WIDOCZNYCH. Każda nowa kolumna była
+przez to po cichu odbierana rolom API: migracje `137` i `138` nadały granty, a skrypt
+je cofał. Kosztowało to 44 padające scenariusze i komunikat „Nie udało się wczytać
+meczu" na każdym meczu — przy zielonej bramce „Migracje od zera", bo `baza-testowa.sh`
+tego skryptu nie uruchamia. Dziś lista jest **odwrócona** (wymienia pięć kolumn
+ukrytych, resztę wylicza z katalogu) i skrypt ma własną bramkę sprawdzającą, że rola
+API przeczyta wszystko, czego potrzebuje `getEvent()`.
+
 Pomijasz to celowo tylko wtedy, gdy kolumna ma być NIECZYTELNA przez API — tak jak
 `guest_email`, `guest_phone`, `phone`, `claim_token` i `confirmation_token`.
 Kosztowało to migrację `138`; asercja w `supabase/test/rls.sql` pilnuje, żeby się nie

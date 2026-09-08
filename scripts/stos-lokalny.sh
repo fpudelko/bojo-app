@@ -60,15 +60,60 @@ SQL
 # otwarty niż produkcja, a scenariusze przechodziłyby na uprawnieniach, których
 # na żywo nie ma — czyli fałszywy spokój, ta sama klasa pułapki co przy atrapie
 # `shim.sql` w `baza-testowa.sh` (tam odwrotnie: baza bardziej restrykcyjna).
+#
+# LISTA JEST ODWRÓCONA — wymieniamy kolumny UKRYTE, resztę wyliczamy z katalogu.
+#
+# Dotąd stała tu wyliczanka 22 kolumn WIDOCZNYCH i to była pułapka: skrypt
+# najpierw cofa `SELECT` na całej tabeli, więc każda kolumna spoza tej listy
+# stawała się nieczytelna przez API — także taka, na którą migracja jawnie
+# nadała GRANT. Kosztowało to 44 padające scenariusze i komunikat „Nie udało
+# się wczytać meczu" na KAŻDYM meczu: migracje `137` i `138` dołożyły
+# `ma_guest_email` i `oferta_wygasla_at`, a ten skrypt po cichu je odbierał.
+# Objaw był przy tym mylący — bramka „Migracje od zera" świeciła na zielono,
+# bo `baza-testowa.sh` tego skryptu nie uruchamia.
+#
+# Przy tej wersji dodanie kolumny do tabeli NIE wymaga już tknięcia tego pliku.
+# Zmiany wymaga wyłącznie decyzja odwrotna: że coś ma być NIEczytelne.
 echo "→ Przywracam kolumnowe ograniczenia z migracji 127…"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 <<'SQL'
-REVOKE SELECT ON event_participants FROM anon, authenticated;
-GRANT SELECT (
-  id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team,
-  paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp,
-  payment_method, has_sports_card, sports_card_provider, claim_offered_at,
-  claim_passed, claimed_at, zapisano_at
-) ON event_participants TO anon, authenticated;
+DO $$
+DECLARE v_kolumny text;
+BEGIN
+  SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position)
+    INTO v_kolumny
+    FROM information_schema.columns
+   WHERE table_schema = 'public'
+     AND table_name = 'event_participants'
+     -- Dokładnie to, co ukrywa migracja `127`: dane osobowe osoby, która podała
+     -- je wyłącznie po to, żeby wejść do składu, oraz sekrety na okaziciela.
+     AND column_name NOT IN
+       ('guest_email', 'guest_phone', 'phone', 'claim_token', 'confirmation_token');
+
+  EXECUTE 'REVOKE SELECT ON event_participants FROM anon, authenticated';
+  EXECUTE format('GRANT SELECT (%s) ON event_participants TO anon, authenticated', v_kolumny);
+END $$;
+
+-- Bramka, nie wydruk: gdyby kiedykolwiek zabrakło kolumny, którą czyta
+-- `getEvent()`, scenariusze padłyby dopiero cztery minuty później, komunikatem
+-- o niewczytanym meczu — czyli w miejscu, które o przyczynie nie mówi nic.
+DO $$
+DECLARE v_brak text;
+BEGIN
+  SELECT string_agg(k, ', ') INTO v_brak
+    FROM unnest(ARRAY['id','event_id','user_id','name','is_guest','created_at',
+      'has_paid','is_reserve','team','paid_amount','is_captain','added_by',
+      'is_goalkeeper','pending_approval','rsvp','payment_method','has_sports_card',
+      'sports_card_provider','claim_offered_at','claim_passed','oferta_wygasla_at',
+      'ma_guest_email','claimed_at','zapisano_at']) AS k
+   WHERE NOT EXISTS (
+     SELECT 1 FROM information_schema.column_privileges p
+      WHERE p.table_name = 'event_participants' AND p.column_name = k
+        AND p.grantee = 'authenticated' AND p.privilege_type = 'SELECT');
+
+  IF v_brak IS NOT NULL THEN
+    RAISE EXCEPTION 'Rola API nie przeczyta kolumn wymaganych przez getEvent(): %', v_brak;
+  END IF;
+END $$;
 SQL
 
 echo "→ Konta testowe…"
