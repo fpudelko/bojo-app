@@ -122,6 +122,7 @@ function toParticipant(row: any): EventParticipant {
     claimOfferedAt: row.claim_offered_at ?? undefined,
     claimPassed: row.claim_passed ?? false,
     ofertaWygaslaAt: row.oferta_wygasla_at ?? undefined,
+    maGuestEmail: row.ma_guest_email ?? undefined,
     paymentMethod: row.payment_method ?? undefined,
     hasSportsCard: row.has_sports_card ?? false,
     sportsCardProvider: row.sports_card_provider ?? undefined,
@@ -379,7 +380,7 @@ export async function getEvent(
     // Jedna linia, bez sklejania stringów: supabase-js wnioskuje kształt wiersza
     // z LITERAŁU przekazanego do `.select()`, a złożenie przez `+` gubi ten typ
     // i cały wynik staje się `GenericStringError`.
-    .select('id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp, payment_method, has_sports_card, sports_card_provider, claim_offered_at, claim_passed, oferta_wygasla_at, claimed_at, zapisano_at')
+    .select('id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp, payment_method, has_sports_card, sports_card_provider, claim_offered_at, claim_passed, oferta_wygasla_at, ma_guest_email, claimed_at, zapisano_at')
     .eq('event_id', id)
     .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });

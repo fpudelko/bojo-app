@@ -29,7 +29,11 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const resendKey   = Deno.env.get('RESEND_API_KEY');
-  const siteUrl     = Deno.env.get('SITE_URL') ?? 'https://bojo.app';
+  // Domeną kanoniczną jest `bojo.pl` — ta sama, co w `layout.tsx`, `robots.ts`
+  // i `sitemap.ts`. `bojo.app` było historycznym fallbackiem i wysyłało ludzi
+  // na inny adres niż ten, który widzą w przeglądarce.
+  const siteUrl     = Deno.env.get('SITE_URL') ?? 'https://bojo.pl';
+  const nadawca     = Deno.env.get('BOJO_NADAWCA') ?? 'Bojo <noreply@bojo.pl>';
 
   const admin = createClient(supabaseUrl, serviceKey);
 
@@ -101,14 +105,14 @@ serve(async (req) => {
   Zobacz mecz →
 </a>
 <p style="font-family:sans-serif;color:#94a3b8;font-size:12px;margin-top:24px">
-  Zarządzaj alertami na <a href="${siteUrl}" style="color:#94a3b8">bojo.app</a>
+  Zarządzaj alertami na <a href="${siteUrl}" style="color:#94a3b8">bojo.pl</a>
 </p>`;
 
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from:    'Bojo <noreply@bojo.app>',
+            from:    nadawca,
             to:      user.email,
             subject: `Alert: ${label} — ${event.event_date}`,
             html,

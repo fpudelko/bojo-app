@@ -39,7 +39,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/lib/eventShare';
-import { pozycjaWKolejce, pozycjaPoZapisie } from '@/lib/kolejkaRezerwy';
+import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
@@ -3469,6 +3469,18 @@ export default function EventDetailClient() {
                               </span>
                             );
                           })()}
+                          {/* KOGO KOLEJKA POMINIE. Oferta zwolnionego miejsca
+                              idzie powiadomieniem (konto) albo mailem (gość
+                              z adresem, od migracji `137`). Gość BEZ adresu
+                              stoi w kolejce i nie zostanie zaproszony nigdy —
+                              organizator musi to widzieć, bo inaczej patrzy na
+                              listę rezerwową, której część jest martwa, i nie
+                              ma skąd o tym wiedzieć. */}
+                          {(isOrganizer || canManageSquad) && pominietyWKolejce(p) && (
+                            <span className="ml-9 mt-0.5 text-[11px] font-medium text-amber-700">
+                              Bez adresu e-mail — nie dostanie oferty miejsca. Awansuj ręcznie albo daj znać poza Bojo.
+                            </span>
+                          )}
                           {mozeZaprosic(p) && doPrzejecia(p) && (
                             <button
                               type="button"

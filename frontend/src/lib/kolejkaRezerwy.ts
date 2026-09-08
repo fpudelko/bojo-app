@@ -105,11 +105,25 @@ export function pozycjaPoZapisie(
 /**
  * Czy ten wpis w ogóle dostanie ofertę zwolnionego miejsca.
  *
- * Gość bez konta jej NIE dostanie: `sync_reserve_claim()` ma warunek
- * `user_id IS NOT NULL`, bo oferta idzie przez `notifications`, a ta wymaga
- * konta. Wpis stoi w kolejce i jest omijany — po cichu. Organizator musi to
- * widzieć, bo to jego skład kłamie.
+ * Od migracji `137` gość Z ADRESEM dostaje ją mailem, na równi z kontem —
+ * wcześniej `sync_reserve_claim()` filtrowało `user_id IS NOT NULL` i pomijało
+ * go PO CICHU, choć mail „jesteś na rezerwie" obiecywał mu ofertę wprost.
+ *
+ * Gość BEZ adresu jest dalej pomijany, bo nie ma jak go zawiadomić — i to musi
+ * być widoczne dla organizatora, patrz `pominietyWKolejce()`.
  */
 export function czekaNaOferte(p: EventParticipant): boolean {
-  return wKolejce(p) && !!p.userId;
+  return wKolejce(p) && (!!p.userId || !!p.maGuestEmail);
+}
+
+/**
+ * Odwrotność `czekaNaOferte()` dla wpisów, które STOJĄ w kolejce, ale nigdy nie
+ * zostaną zaproszone: gość bez adresu e-mail.
+ *
+ * Osobna funkcja, a nie negacja w komponencie, bo to jest ostrzeżenie DLA
+ * ORGANIZATORA, nie stan gracza — i ma się pokazać wyłącznie tam, gdzie da się
+ * z nim coś zrobić (dopisać adres albo awansować ręcznie).
+ */
+export function pominietyWKolejce(p: EventParticipant): boolean {
+  return wKolejce(p) && !p.userId && !p.maGuestEmail;
 }

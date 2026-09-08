@@ -13,6 +13,11 @@ import Countdown from '@/components/tournament/Countdown';
 import { useAuth } from '@/lib/auth';
 import { getActiveTournament, getTeams, getVenues } from '@/lib/tournaments';
 import { STATUS_LABELS } from '@/lib/tournamentLabels';
+// Jeden adres kontaktowy na całą aplikację. Do 2026-09-08 były trzy:
+// `bojopolska@gmail.com` w regulaminie, `kontakt@bojo.app` tutaj i
+// `hello@bojo.pl` w nagłówku do Nominatim — dwa z nich w domenie, która nie
+// jest domeną strony.
+import { LEGAL } from '@/lib/legal';
 import type { Tournament, TournamentTeam, TournamentVenue } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -361,7 +366,7 @@ export default function TournamentLandingPage() {
               w Poznaniu przez kilka tygodni turnieju.
             </p>
             <a
-              href="mailto:kontakt@bojo.app?subject=Partnerstwo%20BOJO%20Community%20Cup"
+              href={`mailto:${LEGAL.contactEmail}?subject=Partnerstwo%20BOJO%20Community%20Cup`}
               className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-ink hover:bg-slate-50"
             >
               Napisz do nas <ArrowRight className="h-4 w-4" />

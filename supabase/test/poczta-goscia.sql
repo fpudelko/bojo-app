@@ -215,4 +215,98 @@ SELECT _m_oczekuj('konto BEZ nazwy własnej też dostaje powitanie',
       AND body->>'email' = 'powitanie-bezimienia@example.com'
       AND body->>'imie' IS NULL), 1);
 
+
+-- ── Migracja 137: poczta mówi prawdę i dociera tam, gdzie obiecała ──────────
+
+\set M_AKCEPT '''ffffffff-0000-4000-8000-0000000000a3'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title, require_approval)
+VALUES (:M_AKCEPT::uuid, :M_ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko Poczta',
+        dzis_pl() + 3, '20:00', 10, 'public', 'Mecz z akceptacją', true);
+
+INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email, pending_approval)
+VALUES (:M_AKCEPT::uuid, NULL, 'Gość W Poczekalni', true, 'poczekalnia@example.com', true);
+
+-- 1. Gość w poczekalni NIE MOŻE dostać „masz miejsce w składzie".
+SELECT _m_oczekuj('mail o zapisie niesie stan „czeka na akceptację"',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'zapis'
+      AND body->>'email' = 'poczekalnia@example.com'
+      AND body->>'czeka_na_akceptacje' = 'true'), 1);
+
+-- 2. Rozpatrzenie prośby dociera do gościa — dotąd nie dowiadywał się NICZEGO.
+UPDATE event_participants SET pending_approval = false
+ WHERE event_id = :M_AKCEPT::uuid AND guest_email = 'poczekalnia@example.com';
+SELECT _m_oczekuj('akceptacja prośby idzie do gościa mailem',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'zaakceptowano'
+      AND body->>'email' = 'poczekalnia@example.com'), 1);
+
+INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email, pending_approval)
+VALUES (:M_AKCEPT::uuid, NULL, 'Gość Do Odrzucenia', true, 'odrzucony@example.com', true);
+DELETE FROM event_participants
+ WHERE event_id = :M_AKCEPT::uuid AND guest_email = 'odrzucony@example.com';
+SELECT _m_oczekuj('odrzucenie prośby też idzie do gościa mailem',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'odrzucono'
+      AND body->>'email' = 'odrzucony@example.com'), 1);
+
+-- 3. Gość na rezerwie DOSTAJE ofertę zwolnionego miejsca. Do `137` kolejka
+--    pomijała go po cichu (`user_id IS NOT NULL`), a mail „jesteś na rezerwie"
+--    obiecywał mu ją wprost.
+\set M_OFERTA '''ffffffff-0000-4000-8000-0000000000a4'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title, reserve_claim_minutes)
+VALUES (:M_OFERTA::uuid, :M_ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko Poczta',
+        dzis_pl() + 4, '20:00', 2, 'public', 'Mecz z ofertą', 180);
+
+INSERT INTO event_participants (event_id, user_id, name, is_guest, guest_email, is_reserve) VALUES
+  (:M_OFERTA::uuid, :M_ORG::uuid, 'Ola Organizatorka', false, NULL, false),
+  (:M_OFERTA::uuid, NULL, 'Ktoś Kto Wyjdzie', true, 'wyjdzie@example.com', false),
+  (:M_OFERTA::uuid, NULL, 'Gość Na Rezerwie', true, 'rezerwa-gosc@example.com', true),
+  (:M_OFERTA::uuid, NULL, 'Gość Bez Adresu Na Rezerwie', true, NULL, true);
+
+DELETE FROM event_participants
+ WHERE event_id = :M_OFERTA::uuid AND guest_email = 'wyjdzie@example.com';
+SELECT sync_reserve_claim(:M_OFERTA::uuid);
+
+SELECT _m_oczekuj('oferta zwolnionego miejsca idzie do gościa Z ADRESEM',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'oferta'
+      AND body->>'email' = 'rezerwa-gosc@example.com'), 1);
+SELECT _m_oczekuj('oferta niesie termin — bez niego gość nie wie, ile ma czasu',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body->>'powod' = 'oferta'
+      AND body->>'oferta_do' IS NOT NULL), 1);
+SELECT _m_oczekuj('to gość Z ADRESEM ma stojącą ofertę, nie ten bez',
+  (SELECT count(*) FROM event_participants
+    WHERE event_id = :M_OFERTA::uuid AND claim_offered_at IS NOT NULL
+      AND guest_email = 'rezerwa-gosc@example.com'), 1);
+
+-- 4. Gość bez adresu nie blokuje kolejki i jest widoczny jako pominięty.
+SELECT _m_oczekuj('gość BEZ adresu nie dostaje oferty — nie ma jak go zawiadomić',
+  (SELECT count(*) FROM event_participants
+    WHERE event_id = :M_OFERTA::uuid AND guest_email IS NULL
+      AND claim_offered_at IS NOT NULL), 0);
+SELECT _m_oczekuj('kolumna pochodna mówi interfejsowi, do kogo da się napisać',
+  (SELECT count(*) FROM event_participants
+    WHERE event_id = :M_OFERTA::uuid AND is_guest AND ma_guest_email), 1);
+
+-- 5. Gość przyjmuje ofertę SWOIM tokenem — bez tego mail byłby obietnicą
+--    bez pokrycia, bo strona „Twój zapis" nie miała takiej akcji.
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_OFERTA::uuid AND guest_email = 'rezerwa-gosc@example.com' \gset token_oferty_
+SELECT _m_oczekuj('podgląd wpisu pokazuje, że oferta stoi i do kiedy',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'token_oferty_claim_token'::uuid)
+    WHERE oferta_do IS NOT NULL), 1);
+SELECT przyjmij_oferte_goscia(:'token_oferty_claim_token'::uuid);
+SELECT _m_oczekuj('po przyjęciu gość jest w SKŁADZIE, nie na rezerwie',
+  (SELECT count(*) FROM event_participants
+    WHERE event_id = :M_OFERTA::uuid AND guest_email = 'rezerwa-gosc@example.com'
+      AND NOT is_reserve AND claim_offered_at IS NULL), 1);
+SELECT _m_oczekuj('drugie przyjęcie tej samej oferty już nie przechodzi',
+  (SELECT count(*) FROM (
+     SELECT 1 FROM podejrzyj_wpis_goscia(:'token_oferty_claim_token'::uuid)
+      WHERE oferta_do IS NOT NULL) s), 0);
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA: wszystkie asercje przeszły.'; END $$;

@@ -38,6 +38,11 @@ export interface PodgladWpisuGoscia {
   /** Czy z tym wpisem da się jeszcze cokolwiek zrobić: nieprzejęty i przed
    *  pierwszym gwizdkiem. Liczone w bazie, w strefie 'Europe/Warsaw'. */
   moznaZmieniac: boolean;
+  /** Do kiedy stoi oferta zwolnionego miejsca (migracja `137`). `null` = nie ma
+   *  stojącej oferty. Do `137` gość na rezerwie oferty nie dostawał NIGDY —
+   *  `sync_reserve_claim()` filtrowało `user_id IS NOT NULL`, bo oferta szła
+   *  wyłącznie przez `notifications`. */
+  ofertaDo: string | null;
 }
 
 /** Co pokazać klikającemu, zanim się zaloguje. Zwraca null dla nieznanego tokenu. */
@@ -64,7 +69,30 @@ export async function podejrzyjWpisGoscia(token: string): Promise<PodgladWpisuGo
     // wtedy, gdy wpis nie jest jeszcze przejęty. To jest stan przejściowy
     // między deployem a ręcznym puszczeniem migracji, nie docelowy.
     moznaZmieniac: row.mozna_zmieniac ?? !row.juz_przejety,
+    ofertaDo: row.oferta_do ?? null,
   };
+}
+
+/**
+ * Gość przyjmuje zaproponowane miejsce w składzie (migracja `137`).
+ *
+ * Lustro `acceptReserveClaim()` dla wpisu bez konta. Uprawnieniem jest token,
+ * ale sam token NIE WYSTARCZA: baza sprawdza, że oferta faktycznie stoi i nie
+ * wygasła. Inaczej link byłby przepustką do składu z pominięciem kolejki —
+ * a kolejka jest tym, co organizator obiecał pozostałym rezerwowym.
+ */
+export async function przyjmijOferteGoscia(token: string): Promise<string> {
+  const { data, error } = await supabase.rpc('przyjmij_oferte_goscia', { p_token: token });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Gość odpuszcza zaproponowane miejsce. Odmowa jest OSTATECZNA — tak samo jak
+ *  dla konta (migracja `135`): wypada z kolejki, a miejsce idzie dalej. */
+export async function odpuscOferteGoscia(token: string): Promise<string> {
+  const { data, error } = await supabase.rpc('odpusc_oferte_goscia', { p_token: token });
+  if (error) throw new Error(error.message);
+  return data as string;
 }
 
 /**

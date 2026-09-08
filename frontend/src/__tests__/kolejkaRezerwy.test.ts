@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  kolejkaRezerwy, pozycjaWKolejce, pozycjaPoZapisie, czekaNaOferte,
+  kolejkaRezerwy, pozycjaWKolejce, pozycjaPoZapisie, czekaNaOferte, pominietyWKolejce,
 } from '@/lib/kolejkaRezerwy';
 import type { EventParticipant } from '@/types';
 
@@ -150,22 +150,36 @@ describe('pozycjaPoZapisie — co zobaczy ktoś, kto zapisze się teraz', () => 
   });
 });
 
-describe('czekaNaOferte — kto realnie dostanie powiadomienie', () => {
-  it('gość bez konta stoi w kolejce, ale oferty nie dostanie', () => {
-    // `sync_reserve_claim()` ma `user_id IS NOT NULL`, bo oferta idzie przez
-    // `notifications`, a ta wymaga konta. Do migracji `136` gość był omijany
-    // po cichu, a mail powitalny obiecywał mu „damy znać, gdy zwolni się
-    // miejsce".
-    const gosc = wpis({ id: 'g', isGuest: true, userId: undefined });
-    expect(kolejkaRezerwy([gosc], false, false)).toHaveLength(1);
-    expect(czekaNaOferte(gosc)).toBe(false);
-  });
-
+describe('czekaNaOferte — kto realnie dostanie ofertę', () => {
   it('rezerwowy z kontem ofertę dostanie', () => {
     expect(czekaNaOferte(wpis({ id: 'a' }))).toBe(true);
   });
 
+  it('gość Z ADRESEM też — od migracji 137 oferta idzie mailem', () => {
+    // Wcześniej `sync_reserve_claim()` filtrowało `user_id IS NOT NULL`, więc
+    // gość był w kolejce POMIJANY po cichu — a mail „jesteś na rezerwie"
+    // obiecywał mu wprost „damy znać, gdy zwolni się miejsce".
+    const gosc = wpis({ id: 'g', isGuest: true, userId: undefined, maGuestEmail: true });
+    expect(czekaNaOferte(gosc)).toBe(true);
+    expect(pominietyWKolejce(gosc)).toBe(false);
+  });
+
+  it('gość BEZ adresu stoi w kolejce, ale zaproszony nie będzie', () => {
+    // Nie ma jak go zawiadomić — i to musi zobaczyć ORGANIZATOR, bo inaczej
+    // patrzy na listę rezerwową, której część jest martwa.
+    const gosc = wpis({ id: 'g', isGuest: true, userId: undefined, maGuestEmail: false });
+    expect(kolejkaRezerwy([gosc], false, false)).toHaveLength(1);
+    expect(czekaNaOferte(gosc)).toBe(false);
+    expect(pominietyWKolejce(gosc)).toBe(true);
+  });
+
   it('kto odpuścił, oferty nie dostanie mimo konta', () => {
     expect(czekaNaOferte(wpis({ id: 'a', claimPassed: true }))).toBe(false);
+  });
+
+  it('ostrzeżenie NIE dotyczy kogoś, kto w kolejce nie stoi', () => {
+    // Odpuścił albo czeka na akceptację — organizator nie ma tu nic do zrobienia.
+    expect(pominietyWKolejce(wpis({ id: 'g', isGuest: true, userId: undefined, claimPassed: true }))).toBe(false);
+    expect(pominietyWKolejce(wpis({ id: 'g', isGuest: true, userId: undefined, pendingApproval: true }))).toBe(false);
   });
 });

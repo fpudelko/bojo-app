@@ -256,6 +256,11 @@ export interface EventParticipant {
    *  koniec kolejki, ale w niej zostawia — inaczej niż `claimPassed`
    *  (migracja `135`). */
   ofertaWygaslaAt?: string;
+  /** Czy do tego gościa da się w ogóle napisać (migracja `137`). Sam adres
+   *  pozostaje nieczytelny przez API (`127`) — to jest wyłącznie FAKT, nie
+   *  treść. Bez niego nie dało się pokazać organizatorowi, kogo kolejka
+   *  rezerwowa pominie. */
+  maGuestEmail?: boolean;
   /** Jednorazowy token, którym osoba dopisana ręcznie zwiąże ten wpis ze swoim
    *  kontem (migracja `066`).
    *
