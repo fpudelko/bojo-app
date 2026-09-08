@@ -4,6 +4,31 @@
 
 export type FieldErrors = Record<string, string>;
 
+/** Który krok kreatora odpowiada za którą grupę pól — JEDNO źródło prawdy.
+ *
+ *  Układ: 1 = „Kiedy" (termin, skład, koszt, bramkarze), 2 = „Gdzie"
+ *  (lokalizacja), 3 = „Dla kogo" (widoczność, tytuł, opis, grupa). Nazwy kroków
+ *  stoją w `STEP_TITLES` w `app/wydarzenia/nowe/page.tsx`, bo pilnuje ich
+ *  `bramaKreatora.test.ts` czytający źródło tamtej strony.
+ *
+ *  DLACZEGO STAŁA, A NIE TRZY LITERAŁY. Ten sam układ był dotąd zapisany
+ *  niezależnie w trzech miejscach: `validateStep()` niżej, `STEP_OF_FIELD`
+ *  w kreatorze i pola `krok` w `lib/eventSummary.ts`. Zamiana kroków
+ *  (2026-08-22: „najpierw KIEDY, potem GDZIE") i przeniesienie kosztu na krok 1
+ *  (2026-08-23) zaktualizowały dwa pierwsze i przeoczyły trzecie — przez co
+ *  „Zmień" przy dacie w oknie podsumowania przenosiło na mapę, a „Zmień" przy
+ *  miejscu na wybór terminu. Rozjazd był niewidoczny, bo każde miejsce z osobna
+ *  wyglądało poprawnie. Teraz zmiana układu to zmiana TEJ stałej. */
+export const KROK_KREATORA = {
+  termin: 1,
+  sklad: 1,
+  koszt: 1,
+  bramkarze: 1,
+  lokalizacja: 2,
+  tytul: 3,
+  widocznosc: 3,
+} as const;
+
 /** True when the given date (YYYY-MM-DD) + time (HH:MM) is at or before now. */
 export function isPast(date: string, time: string): boolean {
   try {
@@ -43,6 +68,25 @@ export function validateStep2(date: string, time: string): FieldErrors {
  * i normalizuje przy wczytaniu. Walidator był jedynym miejscem, dla którego
  * stan „jeszcze nie zdecydowano" musiał w ogóle istnieć.
  */
+
+/** Czy publikowany mecz jest PŁATNY.
+ *
+ *  Reguła siedzi w `lib/`, a nie inline w kreatorze, bo rozstrzyga o czterech
+ *  polach naraz (`costGrosze`, `acceptedPaymentMethods`, `trackPayments`,
+ *  `showPaymentStatus`) i raz już się rozjechała.
+ *
+ *  DLACZEGO `platny` JEST WARUNKIEM KONIECZNYM. Kreator liczył to jako samo
+ *  `costPln > 0`, a cena od osoby jest POCHODNĄ kosztu obiektu: wyłączenie
+ *  przełącznika czyściło cenę, ale nie koszt obiektu, więc najbliższa zmiana
+ *  liczby miejsc — kontrolki stojącej tuż obok — odtwarzała kwotę. Mecz
+ *  publikował się wtedy jako płatny, z PUSTĄ listą metod płatności, przy
+ *  przełączniku pokazującym WYŁĄCZONY: gracz widział cenę i nie miał jak jej
+ *  uregulować. To ten sam objaw, który audyt zamknął jako `O-12`.
+ *
+ *  Przełącznik jest deklaracją intencji — cena bez niej jest resztką stanu. */
+export function czyMeczPlatny(platny: boolean, costPln: string): boolean {
+  return platny && parseFloat(costPln || '0') > 0;
+}
 
 /** Step 3 (Opcje) has no required fields. */
 export function validateStep3(): FieldErrors {

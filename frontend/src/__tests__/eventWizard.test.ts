@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPast, validateStep1, validateStep2, validateStep, validatePayments
+import { isPast, validateStep1, validateStep2, validateStep, validatePayments, czyMeczPlatny
 } from '@/lib/eventWizard';
 
 describe('isPast', () => {
@@ -163,5 +163,28 @@ describe('bramkarze NIE blokują kroku 1', () => {
       date: '2099-01-01', time: '18:00',
     };
     expect(validateStep(1, base)).toEqual({});
+  });
+});
+
+
+describe('czyMeczPlatny — przełącznik decyduje, nie resztka w polu', () => {
+  it('płatny przy włączonym przełączniku i dodatniej kwocie', () => {
+    expect(czyMeczPlatny(true, '20.00')).toBe(true);
+  });
+
+  it('darmowy, gdy przełącznik jest wyłączony — nawet z kwotą w polu', () => {
+    // To jest TA sekwencja: włącz „Mecz płatny", wpisz 280 zł za cały obiekt
+    // (tryb domyślny), wyłącz przełącznik, zmień liczbę miejsc. Efekt
+    // przeliczający cenę od osoby odtwarzał `costPln` z `kosztObiektuPln`,
+    // którego wyłączenie nie czyściło. Mecz szedł do bazy jako płatny, bez ani
+    // jednej metody płatności, przy przełączniku ustawionym na NIE.
+    expect(czyMeczPlatny(false, '17.50')).toBe(false);
+  });
+
+  it('darmowy przy włączonym przełączniku i pustej kwocie', () => {
+    // Sam przełącznik nie tworzy ceny — od blokowania publikacji w tym stanie
+    // jest `validatePayments`, nie ta funkcja.
+    expect(czyMeczPlatny(true, '')).toBe(false);
+    expect(czyMeczPlatny(true, '0')).toBe(false);
   });
 });

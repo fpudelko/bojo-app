@@ -17,7 +17,7 @@ import { createEvent } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
-import { validateStep1, validateStep2, validateStep, validatePayments, isPast } from '@/lib/eventWizard';
+import { validateStep1, validateStep2, validateStep, validatePayments, isPast, KROK_KREATORA, czyMeczPlatny } from '@/lib/eventWizard';
 import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { WARSTWA } from '@/lib/warstwy';
@@ -62,10 +62,19 @@ const STEP_TITLES = ['Kiedy', 'Gdzie', 'Dla kogo'] as const;
 //
 // Mapa NIE nadążyła za zamianą kroków (termin przed lokalizacją) — wskazywała
 // krok 1 dla lokalizacji i krok 2 dla daty, czyli dokładnie odwrotnie, więc
-// stepper skakał na ekran BEZ podświetlonego pola. Dziś: termin, koszt
-// i bramkarze to krok 1, lokalizacja krok 2.
+// stepper skakał na ekran BEZ podświetlonego pola.
+//
+// Numery biorą się z `KROK_KREATORA` (`lib/eventWizard.ts`), nie z literałów:
+// ten sam rozjazd wyszedł po raz drugi w `lib/eventSummary.ts`, bo układ kroków
+// był zapisany niezależnie w trzech miejscach. Tu mapujemy wyłącznie NAZWĘ POLA
+// na grupę pól — sam układ mieszka w jednej stałej.
 const STEP_OF_FIELD: Record<string, number> = {
-  date: 1, blikPhone: 1, cardDiscount: 1, goalkeepers: 1, location: 2,
+  date: KROK_KREATORA.termin,
+  blikPhone: KROK_KREATORA.koszt,
+  costPln: KROK_KREATORA.koszt,
+  cardDiscount: KROK_KREATORA.koszt,
+  goalkeepers: KROK_KREATORA.bramkarze,
+  location: KROK_KREATORA.lokalizacja,
 };
 function stepForErrors(errs: Record<string, string>): number {
   return Math.min(3, ...Object.keys(errs).map((k) => STEP_OF_FIELD[k] ?? 3));
@@ -407,8 +416,18 @@ function NewEventForm() {
     setMaxPlayers(14);
     setMaxPlayersTouched(false);
     setMinPlayers(null);
-    setGoalkeepersEnabled(null);
+    // `false`, nie `null` — tyle wynosi stan startowy kreatora. `null` znaczy
+    // „jeszcze nie zdecydowano" i był resztką po usuniętym `validateGoalkeepers()`;
+    // po „Zacznij od nowa" formularz musi wyglądać dokładnie jak świeżo otwarty.
+    setGoalkeepersEnabled(false);
     setSlotyZarezerwowane(true);
+    // Dwa przełączniki, które „Zacznij od nowa" dotąd POMIJAŁO — a oba widać na
+    // kroku 1. `platny` zostawał włączony z wyczyszczoną kwotą, więc „Dalej"
+    // natychmiast blokowało się błędem „Podaj koszt od osoby" o cenie, której
+    // organizator nigdy nie wpisał. `reserveEnabled` zostawał po poprzednim
+    // meczu, więc „od nowa" nie znaczyło „od domyślnych".
+    setPlatny(false);
+    setReserveEnabled(true);
     setReserveClaimMinutes(180);
     setRecurringEnabled(false);
     setRecurringNotifyDaysBefore(3);
@@ -616,7 +635,9 @@ function NewEventForm() {
       : (nazwaWlasnaMiejsca.trim()
         || nazwaZAdresu(location.address)
         || 'Nieznana lokalizacja');
-    const hasCost = parseFloat(costPln || '0') > 0;
+    // Reguła w `lib/eventWizard.ts` — patrz `czyMeczPlatny()` po uzasadnienie,
+    // dlaczego sam dodatni `costPln` tu nie wystarcza.
+    const hasCost = czyMeczPlatny(platny, costPln);
 
     setSubmitting(true);
     setError(null);
@@ -651,7 +672,11 @@ function NewEventForm() {
           showPaymentStatus: hasCost,
           trackResults: true,
           confirmationDeadlineH: 24,
-          costGrosze: Math.round(parseFloat(costPln || '0') * 100),
+          // Przez `hasCost`, nie wprost z `costPln`: inaczej mecz z wyłączonym
+          // przełącznikiem „Mecz płatny" jechał do bazy z ceną, a bez metod
+          // płatności (te już były za `hasCost`). Gracz widział kwotę i nie miał
+          // jak jej uregulować — ten sam objaw co `O-12`, innymi drzwiami.
+          costGrosze: hasCost ? Math.round(parseFloat(costPln || '0') * 100) : 0,
           acceptedPaymentMethods: hasCost ? acceptedPaymentMethods : [],
           blikPhone: hasCost && acceptedPaymentMethods.includes('blik') ? blikPhone : undefined,
           acceptedSportsCards: hasCost && cardDiscountEnabled ? acceptedSportsCards : [],
@@ -1028,7 +1053,15 @@ function NewEventForm() {
                     // pojechałaby do bazy razem z meczem oznaczonym jako
                     // darmowy — a to jest dokładnie ten błąd, który wychodzi
                     // dopiero przy rozliczeniu.
-                    if (!v) { setCostPln(''); setAcceptedPaymentMethods([]); }
+                    //
+                    // `kosztObiektuPln` MUSI zniknąć razem z `costPln`, bo cena
+                    // od osoby jest jego pochodną: efekt przeliczający
+                    // (`[kosztZaObiekt, kosztObiektuPln, maxPlayers]`) odtwarzał
+                    // wyczyszczoną kwotę przy najbliższej zmianie liczby miejsc
+                    // — kontrolki stojącej tuż obok, na tym samym kroku. Mecz
+                    // publikował się wtedy jako PŁATNY, z pustą listą metod
+                    // płatności, przy przełączniku pokazującym WYŁĄCZONY.
+                    if (!v) { setCostPln(''); setKosztObiektuPln(''); setAcceptedPaymentMethods([]); }
                   }}
                 >
                   <div className="space-y-4">
@@ -1452,7 +1485,11 @@ function NewEventForm() {
                       goalkeepersEnabled: GK_SPORTS.includes(sport) && !!goalkeepersEnabled,
                       maxGoalkeepers: 2,
                       organizerParticipates,
-                      costPln,
+                      // Ta sama reguła co przy publikacji (`hasCost`): wyłączony
+                      // przełącznik znaczy „za darmo", niezależnie od tego, co
+                      // zostało w polu. Podsumowanie ma pokazywać mecz, który
+                      // zaraz powstanie, a nie stan formularza.
+                      costPln: platny ? costPln : '',
                       acceptedPaymentMethods,
                       cardDiscountEnabled,
                       cardDiscountPln,
