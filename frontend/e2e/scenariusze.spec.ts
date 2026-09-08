@@ -519,7 +519,12 @@ test.describe('udostępnianie meczu', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    const panel = tresc(page).getByText('Zaproś znajomych')
+    // `exact: true` — bez tego lokator łapie DWA elementy. Podpowiedź przy
+    // „Dopisz osobę bez konta" wskazuje organizatorowi tę sekcję po nazwie
+    // („wyślij mu link przyciskiem «Udostępnij» w sekcji «Zaproś znajomych»…"),
+    // więc sama fraza występuje na stronie także w środku dłuższego zdania.
+    // Tytuł panelu to dokładnie te dwa słowa i tylko on ma nas tu interesować.
+    const panel = tresc(page).getByText('Zaproś znajomych', { exact: true })
       .locator('xpath=ancestor::div[1]');
     await pokazSie(page, panel, 'panel „Zaproś znajomych"');
     await panel.getByRole('button', { name: 'Kopiuj', exact: true }).click();
