@@ -45,8 +45,29 @@ describe('lista rezerwowa jako wybór organizatora', () => {
   it('strona meczu nie obiecuje rezerwy, której baza nie przyjmie', () => {
     // Gdyby ten warunek zniknął, przy komplecie stałby przycisk „Komplet —
     // na rezerwę", a kliknięcie kończyłoby się błędem z wyzwalacza.
-    expect(stronaMeczu).toMatch(/user && isFull && !event\.reserveEnabled/);
+    //
+    // Warunek brzmiał do 2026-09-08 `user && isFull && !event.reserveEnabled`,
+    // czyli dotyczył WYŁĄCZNIE zalogowanych — i ten test to utrwalał.
+    // Niezalogowany widział wtedy „Dołącz bez konta →" na meczu, który zapisów
+    // nie przyjmuje, wypełniał trzy pola i dostawał surowy komunikat bazy.
+    // A to jest ścieżka gracza zaproszonego linkiem od organizatora.
+    // Dziś bramka stoi PRZED rozgałęzieniem na `user`, więc bez `user &&`.
+    expect(stronaMeczu).toMatch(/!authLoading && isFull && !event\.reserveEnabled/);
     expect(stronaMeczu).toContain('Komplet — zapisy zamknięte');
+  });
+
+  it('bramka kompletu NIE jest zawężona do zalogowanych', () => {
+    // Osobna asercja, bo to była cała istota błędu: sama obecność napisu
+    // „Komplet — zapisy zamknięte" niczego nie gwarantowała, dopóki gałąź
+    // z nim była nieosiągalna dla połowy ruchu.
+    expect(stronaMeczu).not.toMatch(/user && isFull && !event\.reserveEnabled/);
+  });
+
+  it('okno zapisu nie zapowiada kolejki, gdy rezerwy nie ma', () => {
+    // Przy bramkarzach `isFull` liczy sam skład, więc PEŁNA JEDNA ROLA przy
+    // wolnym polu przechodziła przez pasek na dole i dopiero baza odbijała
+    // zapis. Oba okna (zalogowany i gość) mówią teraz wprost, co się stało.
+    expect(stronaMeczu).toContain('Ten mecz nie prowadzi listy rezerwowej, więc w tej roli zapisy są zamknięte.');
   });
 
   it('kreator chowa czas na decyzję razem z rezerwą', () => {

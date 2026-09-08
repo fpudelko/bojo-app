@@ -14,7 +14,12 @@
 export const ZAKAZANE_NA_LANDINGU = [
   'turniej', // SHOW_CUP = false
   'sms', // SHOW_SMS_FEATURES = false
-  'przypomnien', // no scheduler exists
+  // Przypomnienia ISTNIEJĄ od migracji `129` (zadanie `bojo-przypomnienia`),
+  // więc komentarz „no scheduler exists" był nieaktualny. Fraza zostaje zakazana
+  // NA LANDINGU mimo to — z tego samego powodu co 'powiadom' niżej: landing jest
+  // czysto sprzedażowy i nie wymienia kanałów w ogóle. Mówią o nich `/faq`
+  // i `/jak-dziala-bojo`, gdzie jest miejsce na kontekst.
+  'przypomnien',
   // Komentarz historyczny mówił "no event triggers notifications today" — to
   // dziś NIEPRAWDA (migracje 062/065/067/070/079 realnie wstawiają powiadomienia
   // w aplikacji). Fraza zostaje zakazana na landingu mimo to: landing jest czysto
@@ -35,7 +40,11 @@ export const ZAKAZANE_NA_LANDINGU = [
 /** Strony treści MOGĄ pisać o tych rzeczach, ale wyłącznie w zdaniu, które je
  *  jawnie zaprzecza — patrz testy pozytywne w `tresciStron.test.ts`. */
 export const ZAKAZANE_WSZEDZIE = [
-  'push', // no push notifications
+  // ZDJĘTE 2026-09-08: 'push'. Komentarz brzmiał „no push notifications" i był
+  // NIEPRAWDZIWY od migracji `102` — funkcja `send-push` jest wdrożona,
+  // `konfiguracja_push` wypełniona, subskrypcje istnieją. Zakaz sprawiał, że
+  // strony treści musiały pisać o pushu wyłącznie przecząco, czyli zaniżać
+  // możliwości produktu w miejscu, które ma je tłumaczyć.
   'ranking', // does not exist
   'poziom(u|ie)? zaawansowania', // does not exist
   'automatyczn[iy].*(awans|wskocz)', // no reserve auto-promotion, by design

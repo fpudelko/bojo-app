@@ -266,9 +266,25 @@ Mechanika (migracja `058`):
 |---|---|
 | Okno na decyzję | `events.reserve_claim_minutes` (15 min – 72 h, domyślnie 180 min = 3 h) |
 | Aktywna oferta | `event_participants.claim_offered_at` |
-| Przepuścił (odrzucił lub nie zdążył) | `event_participants.claim_passed` |
+| **Odpuścił świadomie** (kliknął „Odpuszczam") | `event_participants.claim_passed` — **wypada z kolejki na stałe** |
+| **Nie zdążył odpowiedzieć** | `event_participants.oferta_wygasla_at` (migracja `135`) — **wraca na koniec kolejki** |
 | Utrzymanie kolejki | funkcja `sync_reserve_claim(event_id)`, `SECURITY DEFINER` |
-| Kolejność w kolejce | `event_participants.zapisano_at` (migracja `110`) |
+| Kolejność w kolejce | `(oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at` (migracje `110` i `135`) |
+| Kto dostaje ofertę | konto → `notifications` (+ push); gość z adresem → mail (migracja `137`); gość bez adresu → **pomijany**, oznaczony w składzie |
+
+**Odpuszczenie i wygaśnięcie to dwie różne rzeczy — migracja `135`.** Do niej obie
+ustawiały `claim_passed`, więc kto nie odpowiedział w oknie (bo spał albo nie miał
+zasięgu) wypadał z kolejki na zawsze, bez jednego słowa — a okno „Odpuszczasz to
+miejsce?" obiecywało mu wprost „kolejna oferta przyjdzie, gdy zwolni się następne
+miejsce". Decyzja właściciela: **świadoma odmowa jest ostateczna, brak odpowiedzi
+nie jest odmową.** Wygaśnięcie wysyła też powiadomienie `oferta_wygasla` — dotąd
+znikało się z kolejki w całkowitej ciszy.
+
+Liczbę „N. w kolejce" pokazywaną graczowi liczy `lib/kolejkaRezerwy.ts` — **lustro
+tej samej reguły**. Wcześniej liczyły ją dwa miejsca w `EventDetailClient.tsx` na dwa
+sposoby i dawały różne wyniki: baner rezerwowego ignorował rolę, choć baza prowadzi
+osobne kolejki dla pola i bramkarzy, więc bramkarz jedyny w swojej kolejce czytał
+„Rezerwa · 4.", choć wchodził następny.
 
 Kolumna nazywała się `reserve_claim_hours` (pełne godziny) do migracji `118` —
 przenumerowana na minuty, bo wybór był „mocno ograniczony": godzina jako

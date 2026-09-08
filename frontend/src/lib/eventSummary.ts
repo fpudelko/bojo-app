@@ -12,13 +12,21 @@ import { pl } from 'date-fns/locale';
 import { defaultEventTitle } from './eventTitle';
 import { withCount } from './plural';
 import { PAYMENT_METHOD_LABELS, SPORTS_CARD_LABELS } from './payments';
+import { KROK_KREATORA } from './eventWizard';
 import type { PaymentMethod, SportsCardProvider, Visibility } from '@/types';
 
 export interface WierszPodsumowania {
   klucz: 'co' | 'kiedy' | 'gdzie' | 'sklad' | 'koszt' | 'widocznosc';
   etykieta: string;
   wartosc: string;
-  /** Krok kreatora, na który skacze „Zmień" przy tym wierszu. */
+  /** Krok kreatora, na który skacze „Zmień" przy tym wierszu. Numery biorą się
+   *  z `KROK_KREATORA` (`lib/eventWizard.ts`) — NIE wpisuj ich tu z ręki.
+   *
+   *  Do 2026-09-08 były tu literały i były ODWROTNE dla terminu i miejsca:
+   *  przeżyły zamianę kroków z 2026-08-22. „Zmień" przy dacie przenosiło na
+   *  mapę, a „Zmień" przy miejscu na wybór terminu — w OSTATNIEJ siatce
+   *  bezpieczeństwa przed publikacją, zrobionej właśnie dlatego, że zła data to
+   *  najczęstsza pomyłka organizatora. */
   krok: 1 | 2 | 3;
   /** Bursztynowa linia pod wartością. NIE blokuje publikacji — krok 3 celowo
    *  nie ma pól wymaganych (`validateStep3` zwraca `{}`), a to ma ostrzegać,
@@ -82,7 +90,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'co',
     etykieta: 'Co',
     wartosc: v.title.trim() || defaultEventTitle(v.sport, v.maxPlayers),
-    krok: 3,
+    krok: KROK_KREATORA.tytul,
   });
 
   // ── Kiedy ─────────────────────────────────────────────────────────────────
@@ -97,7 +105,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'kiedy',
     etykieta: 'Kiedy',
     wartosc: `${dzien} · ${koniec ? `${v.time}–${koniec}` : v.time}`,
-    krok: 2,
+    krok: KROK_KREATORA.termin,
     ostrzezenie: czyDzisiaj(v.date)
       ? 'Mecz jest dziś — zostaje mało czasu na zebranie składu.'
       : undefined,
@@ -113,7 +121,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'gdzie',
     etykieta: 'Gdzie',
     wartosc: gdzie,
-    krok: 1,
+    krok: KROK_KREATORA.lokalizacja,
     ostrzezenie: !nazwa && adres && wygladaJakWspolrzedne(adres)
       ? 'Miejsce nie ma nazwy — gracze zobaczą same współrzędne.'
       : undefined,
@@ -132,7 +140,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'sklad',
     etykieta: 'Skład',
     wartosc: czesciSkladu.join(' · '),
-    krok: 2,
+    krok: KROK_KREATORA.sklad,
   });
 
   // ── Koszt ─────────────────────────────────────────────────────────────────
@@ -166,7 +174,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'koszt',
     etykieta: 'Koszt',
     wartosc: wartoscKosztu,
-    krok: 2,
+    krok: KROK_KREATORA.koszt,
     ostrzezenie: ostrzezenieKosztu,
   });
 
@@ -178,7 +186,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     klucz: 'widocznosc',
     etykieta: 'Kto widzi',
     wartosc: v.requireApproval ? `${widocznosc} · zatwierdzasz każdy zapis` : widocznosc,
-    krok: 3,
+    krok: KROK_KREATORA.widocznosc,
   });
 
   return wiersze;

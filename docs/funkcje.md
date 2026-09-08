@@ -2727,10 +2727,22 @@ którą sam przyprowadził.
 
 | # | Powód | Kiedy | Po co |
 |---|---|---|---|
-| 1 | `zapis` | zaraz po zapisie | potwierdzenie + link do własnego wpisu. To jest ta rzecz, która UZASADNIA pobieranie adresu |
-| 2 | `odwolanie` / `zmiana` | przy zmianie stanu meczu | żeby nie przyjechał na boisko |
-| 3 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` | tylko SKŁAD — rezerwa jeszcze nie wie, czy gra |
-| 4 | `zaloz_konto` | dzień po meczu, tylko gdy adres nadal nie ma konta | zachęta do konta |
+| 1 | `zapis` | zaraz po zapisie | potwierdzenie + link do własnego wpisu. To jest ta rzecz, która UZASADNIA pobieranie adresu. **Trzy warianty** (skład / rezerwa / poczekalnia) — do migracji `137` były dwa, więc gość czekający na akceptację czytał „Masz miejsce w składzie" |
+| 2 | `zaakceptowano` / `odrzucono` | organizator rozpatrzył prośbę (`137`) | do `137` gość nie dowiadywał się o tym W OGÓLE — wyzwalacze `076` wymagają konta |
+| 3 | `oferta` | zwolniło się miejsce, a w kolejce stoi gość z adresem (`137`) | do `137` `sync_reserve_claim()` filtrowało `user_id IS NOT NULL` i omijało gościa PO CICHU — a mail `zapis` obiecywał mu „damy znać, gdy zwolni się miejsce" |
+| 4 | `odwolanie` / `zmiana` | przy zmianie stanu meczu | żeby nie przyjechał na boisko |
+| 5 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` | tylko SKŁAD — rezerwa jeszcze nie wie, czy gra |
+| 6 | `zaloz_konto` | dzień po meczu, tylko gdy adres nadal nie ma konta | zachęta do konta |
+
+**Oferta miejsca dla gościa musi mieć gdzie zostać przyjęta.** Mail bez tego byłby kolejną
+obietnicą bez pokrycia, więc `137` dokłada `przyjmij_oferte_goscia()` /
+`odpusc_oferte_goscia()` i panel oferty na stronie „Twój zapis". Uprawnieniem jest token,
+ale sam token NIE wystarcza: baza sprawdza, że oferta faktycznie stoi i nie wygasła —
+inaczej link byłby przepustką do składu z pominięciem kolejki.
+
+**Gość BEZ adresu jest dalej pomijany** (nie ma jak go zawiadomić) i to jest WIDOCZNE:
+kolumna pochodna `ma_guest_email` niesie sam fakt, nie adres (ten pozostaje nieczytelny
+przez API od `127`), a lista rezerwowa mówi organizatorowi, kogo kolejka nie zaprosi.
 
 Mail „załóż konto” jest CZWARTY świadomie. Wysłany jako pierwszy kontakt od nadawcy,
 którego skrzynka nie zna, czyta się jak spam niezależnie od treści; po trzech, które były
@@ -2752,9 +2764,17 @@ Idempotencja: `maile_goscia (uczestnik_id, powod, dzien)`.
 
 ⚠️ **Kanał milczy, dopóki nie ma konfiguracji.** Wymaga wpisu w `konfiguracja_poczty`,
 sekretów funkcji brzegowej (`RESEND_API_KEY`, `BOJO_POCZTA_SEKRET`, `BOJO_NADAWCA`)
-i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM) — nadawcą jest historycznie
-`bojo.app`, a maile z domeny innej niż strona lądują w spamie. Do tego czasu funkcja
-kończy 200 i nie wysyła nic; nic się przez to nie psuje.
+i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM). Do tego czasu funkcja kończy 200
+i nie wysyła nic; nic się przez to nie psuje. **Sam `RESEND_API_KEY` nie wystarcza** —
+sprawdzone na produkcji 2026-09-08: klucz był ustawiony, a `konfiguracja_poczty` pusta
+i funkcja `powiadom-goscia` w ogóle niewdrożona, więc kanał milczał.
+
+Od 2026-09-08 wszystkie funkcje wysyłają z **domeny kanonicznej** przez `BOJO_NADAWCA`
+(domyślnie `Bojo <noreply@bojo.pl>`); `send-invites` i `notify-game-alert` używały wcześniej
+`noreply@bojo.app`, czyli domeny innej niż strona — co samo w sobie kieruje maile do spamu
+i psuje reputację nadawcy dla pozostałych kanałów. Maile niosą też `reply_to`
+(`LEGAL.contactEmail`), więc odpowiedź realnie dociera: nadawcą jest `noreply@`, a w fazie
+zbierania pierwszych organizatorów odpowiedź na maila jest najtańszym kanałem opinii.
 
 ### Mail powitalny (migracja `134`)
 

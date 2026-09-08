@@ -32,8 +32,18 @@ const RESEND = Deno.env.get('RESEND_API_KEY') ?? '';
 const SEKRET = Deno.env.get('BOJO_POCZTA_SEKRET') ?? '';
 const NADAWCA = Deno.env.get('BOJO_NADAWCA') ?? 'Bojo <noreply@bojo.pl>';
 const STRONA = Deno.env.get('BOJO_URL') ?? 'https://bojo.pl';
+/** Adres, na który trafi ODPOWIEDŹ na maila. Ta sama wartość co
+ *  `LEGAL.contactEmail` w aplikacji (regulamin, polityka prywatności).
+ *
+ *  PO CO. Nadawcą jest `noreply@`, więc dotąd każdy mail kończył się odesłaniem
+ *  na `/zglos-blad` — formularz, do którego trzeba przejść, zalogować się
+ *  i napisać od nowa. W fazie, w której zbieramy pierwszych organizatorów,
+ *  odpowiedź na maila jest najtańszym kanałem opinii, jaki mamy, a każde
+ *  dodatkowe kliknięcie po drodze zabiera większość odpowiedzi. */
+const ODPOWIEDZ_NA = Deno.env.get('BOJO_ODPOWIEDZ_NA') ?? 'bojopolska@gmail.com';
 
-type Powod = 'zapis' | 'odwolanie' | 'zmiana' | 'jutro_grasz' | 'zaloz_konto' | 'powitanie';
+type Powod = 'zapis' | 'zaakceptowano' | 'odrzucono' | 'odwolanie' | 'zmiana'
+  | 'jutro_grasz' | 'zaloz_konto' | 'powitanie' | 'oferta';
 
 interface Dane {
   powod: Powod;
@@ -47,6 +57,13 @@ interface Dane {
   miejsce: string | null;
   koszt_grosz: number | null;
   na_rezerwie: boolean;
+  /** Zapis czeka na akceptację organizatora (migracja `115`). Do 2026-09-08
+   *  pole NIE BYŁO przekazywane, choć baza je odczytywała — więc gość
+   *  w poczekalni dostawał „Masz miejsce w składzie". Nieprawda. */
+  czeka_na_akceptacje?: boolean;
+  /** Do kiedy stoi oferta zwolnionego miejsca — gotowy tekst z bazy
+   *  („07.09, godz. 21:30"), bo tylko ona zna okno i strefę meczu. */
+  oferta_do?: string | null;
   token: string | null;
 }
 
@@ -81,15 +98,64 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
 
   switch (d.powod) {
     case 'zapis':
+      // TRZY STANY, NIE DWA. Do 2026-09-08 były dwa (skład / rezerwa), więc
+      // gość, którego zapis czeka na akceptację organizatora (`115`), czytał
+      // „Masz miejsce w składzie" — a miejsca nie miał i mógł go nie dostać.
       return {
-        temat: `Jesteś zapisany: ${d.tytul}`,
+        temat: d.czeka_na_akceptacje
+          ? `Prośba wysłana: ${d.tytul}`
+          : `Jesteś zapisany: ${d.tytul}`,
         tekst:
           `${powitanie(d.imie)}\n\n` +
-          (d.na_rezerwie
-            ? `Jesteś na liście rezerwowej meczu:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
-              `Damy znać, gdy zwolni się miejsce.`
-            : `Masz miejsce w składzie:\n${d.tytul}\n${podsumowanie(d)}`) +
-          `\n\nDzień przed meczem przypomnimy Ci o nim mailem.` + stopka,
+          (d.czeka_na_akceptacje
+            ? `Twoja prośba o dołączenie czeka na akceptację organizatora:\n` +
+              `${d.tytul}\n${podsumowanie(d)}\n\n` +
+              `Damy znać mailem, gdy organizator ją rozpatrzy. Do tego czasu ` +
+              `nie masz jeszcze miejsca w składzie.`
+            : d.na_rezerwie
+              ? `Jesteś na liście rezerwowej meczu:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
+                `Damy znać, gdy zwolni się miejsce.`
+              : `Masz miejsce w składzie:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
+                `Dzień przed meczem przypomnimy Ci o nim mailem.`) + stopka,
+      };
+    case 'zaakceptowano':
+      // Gość NIE dostawał o tym nic: `powiadom_o_akceptacji` (`076`) wymaga
+      // konta, a poczta z `133` takiego powodu nie miała. Jedynym wyjściem było
+      // wracanie na stronę wpisu i sprawdzanie.
+      return {
+        temat: `Jesteś w składzie: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Organizator przyjął Twoją prośbę — masz miejsce w składzie:\n` +
+          `${d.tytul}\n${podsumowanie(d)}\n\n` +
+          `Dzień przed meczem przypomnimy Ci o nim mailem.` + stopka,
+      };
+    case 'odrzucono':
+      return {
+        temat: `Nie tym razem: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Organizator nie przyjął Twojej prośby o dołączenie do meczu:\n` +
+          `${d.tytul}\n${podsumowanie(d)}\n\n` +
+          `Nie przyjeżdżaj na boisko. Otwarte mecze w okolicy znajdziesz tutaj:\n` +
+          `${STRONA}/wydarzenia\n`,
+      };
+    case 'oferta':
+      // Gość na rezerwie do migracji `137` był w kolejce POMIJANY — oferta szła
+      // wyłącznie przez `notifications`, a te wymagają konta. Mail `zapis`
+      // obiecywał mu przy tym „damy znać, gdy zwolni się miejsce".
+      return {
+        temat: `Zwolniło się miejsce: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Ktoś się wypisał i miejsce jest Twoje, jeśli je potwierdzisz:\n` +
+          `${d.tytul}\n${podsumowanie(d)}\n\n` +
+          (d.oferta_do
+            ? `Masz czas do ${d.oferta_do}. Później miejsce przejdzie do kolejnej ` +
+              `osoby, a Ty wrócisz na koniec kolejki.\n`
+            : `Potwierdź jak najszybciej — miejsce czeka tylko przez chwilę.\n`) +
+          `\nPotwierdzasz tym linkiem:\n` +
+          `${d.token ? `${STRONA}/gracz/przejmij/${d.token}` : `${STRONA}/wydarzenia/${d.event_id}`}\n`,
       };
     case 'odwolanie':
       return {
@@ -144,8 +210,15 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
       // 2. Obietnicy pełnej półki otwartych gier. Bojo jest na wczesnym etapie
       //    i landing mówi to wprost plakietką „Wczesny etap"; mail nie może
       //    obiecywać więcej niż strona, bo pierwsze rozczarowanie jest ostatnie.
-      // 3. Prośby o odpowiedź na maila — nadawcą jest `noreply@`, więc odpowiedź
-      //    nigdzie by nie dotarła. Zamiast tego link do `/zglos-blad`.
+      // 3. Listy słów kluczowych i „dołącz do tysięcy graczy" — Bojo ma dziś
+      //    kilkunastu organizatorów i mail nie może udawać, że jest inaczej.
+      //
+      // ZMIANA 2026-09-08: mail KOŃCZY SIĘ PROŚBĄ O ODPOWIEDŹ. Wcześniej było
+      // tu odesłanie na `/zglos-blad`, bo nadawcą jest `noreply@` — ale od tej
+      // zmiany wychodzi nagłówek `reply_to` z adresem kontaktowym z regulaminu,
+      // więc odpowiedź realnie dociera. W fazie zbierania pierwszych
+      // organizatorów ich opinia jest warta więcej niż każda poprawka treści,
+      // a formularz za logowaniem zabiera większość odpowiedzi.
       //
       // Kolejność jest wyborem: NAJPIERW stworzenie meczu, bo to jedyna droga,
       // która działa w dniu zero, bez żadnego innego użytkownika po drugiej
@@ -157,19 +230,21 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
         tekst:
           `${powitanie(d.imie)}\n\n` +
           `Konto założone. Bojo służy do jednego: organizujesz mecz i wysyłasz ekipie ` +
-          `jeden link. Kto go dostanie, zapisuje się sam — nawet bez zakładania konta.\n\n` +
-          `Co Bojo robi za Ciebie:\n` +
-          `— liczy skład i pilnuje limitu miejsc,\n` +
-          `— prowadzi listę rezerwową z widoczną kolejnością,\n` +
-          `— dzieli koszt wynajmu na graczy i pokazuje, kto jeszcze nie oddał,\n` +
-          `— przypomina wszystkim o meczu dzień wcześniej.\n\n` +
+          `jeden link. Kto go dostanie, zapisuje się sam — bez zakładania konta.\n\n` +
+          `Co Bojo liczy za Ciebie:\n` +
+          `— skład i limit miejsc,\n` +
+          `— listę rezerwową z widoczną kolejnością,\n` +
+          `— koszt wynajmu podzielony na graczy i to, kto jeszcze nie oddał,\n` +
+          `— przypomnienie o meczu dzień wcześniej.\n\n` +
           `Zacznij tutaj:\n${STRONA}/wydarzenia/nowe\n\n` +
           `Grasz stałą ekipą? Załóż grupę — wchodzi się do niej jednym linkiem, ` +
           `a każdy nowy mecz widzą wszyscy:\n${STRONA}/grupy/nowe\n\n` +
           `Szukasz gry, a nie ekipy? Otwarte mecze są tutaj:\n${STRONA}/wydarzenia\n` +
           `Bojo dopiero się rozkręca, więc bywa ich mało — najszybciej zagrasz, ` +
           `tworząc mecz i wysyłając link znajomym.\n\n` +
-          `Coś nie działa albo czegoś brakuje? Napisz:\n${STRONA}/zglos-blad\n`,
+          `Coś nie działa albo czegoś brakuje? Odpisz na tego maila — czytamy ` +
+          `każdą odpowiedź.\n\n` +
+          `— zespół Bojo\n${STRONA}\n`,
       };
     default:
       return null;
@@ -204,6 +279,7 @@ serve(async (req) => {
       headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: NADAWCA,
+        reply_to: ODPOWIEDZ_NA,
         to: [dane.email],
         subject: t.temat,
         text: t.tekst,

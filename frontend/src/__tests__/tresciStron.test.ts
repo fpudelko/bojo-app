@@ -154,11 +154,16 @@ describe('strony treści — brak obietnic bez pokrycia w kodzie', () => {
     });
   }
 
-  it('każda jednostka wspominająca powiadomienia mówi wprost "w aplikacji" albo "pod dzwonkiem"', () => {
+  it('każda jednostka wspominająca powiadomienia nazywa KANAŁ', () => {
+    // Reguła brzmiała „w aplikacji albo pod dzwonkiem" i wynikała ze stanu,
+    // w którym innych kanałów nie było. Dziś są trzy i wszystkie działają:
+    // dzwonek (`025` i dalsze), push na telefon (`102`) oraz poczta do osoby
+    // bez konta (`133`). Zdanie nadal MUSI nazwać kanał — zakazem pozostaje
+    // mówienie o powiadomieniach bez powiedzenia, gdzie przyjdą.
     for (const { etykieta, tekst } of jednostki) {
       if (/powiadom/i.test(tekst)) {
         expect(tekst, `${etykieta}: powiadomienia bez kanału — "${tekst}"`)
-          .toMatch(/w aplikacji|pod dzwonkiem/i);
+          .toMatch(/w aplikacji|pod dzwonkiem|na telefon|mailem/i);
       }
     }
   });

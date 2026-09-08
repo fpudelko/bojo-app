@@ -36,6 +36,16 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // Para do powyższego (migracja `135`). Wygaśnięcie oferty było dotąd
+    // CAŁKOWICIE CICHE: gracz nie dowiadywał się, że miejsce przepadło, ani że
+    // wraca do kolejki. Stoi zaraz pod ofertą, bo to ta sama sprawa widziana
+    // z drugiej strony.
+    typ: 'oferta_wygasla',
+    nazwa: 'Czas na przyjęcie miejsca minął',
+    opis: 'Nie zdążyłeś odpowiedzieć — miejsce poszło dalej, a Ty wracasz na koniec kolejki',
+    wazne: true,
+  },
+  {
     typ: 'mecz_odwolany',
     nazwa: 'Mecz odwołany',
     opis: 'Organizator odwołał mecz, w którym grasz',

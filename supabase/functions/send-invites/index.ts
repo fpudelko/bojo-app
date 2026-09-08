@@ -96,7 +96,12 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'noreply@bojo.app',
+          // NADAWCA Z DOMENY KANONICZNEJ. Do 2026-09-08 stało tu `bojo.app`,
+          // czyli domena INNA niż strona — a maile z takiej domeny lądują
+          // w spamie i psują reputację nadawcy dla wszystkich pozostałych
+          // kanałów. Zmienna jak w `powiadom-goscia`, żeby zmiana nadawcy była
+          // jedną wartością w panelu, a nie edycją trzech funkcji.
+          from: Deno.env.get('BOJO_NADAWCA') ?? 'Bojo <noreply@bojo.pl>',
           to: invite.email,
           subject: `Zapisy na ${label} — ${eventDate}`,
           html,

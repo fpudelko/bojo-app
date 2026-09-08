@@ -8,7 +8,12 @@
 //
 // Każda pozycja musi mieć pokrycie w kodzie: `src/__tests__/tresciStron.test.ts`
 // pilnuje zakazanych fraz (patrz `zakazaneFrazy.ts`) i tego, że wzmianka
-// o powiadomieniach zawsze mówi "w aplikacji", nigdy o kanale, którego nie ma.
+// o powiadomieniach mówi WYŁĄCZNIE o kanałach, które realnie działają. Do
+// 2026-09-08 był to tylko dzwonek w aplikacji i tak brzmiały te treści —
+// tymczasem push działa od migracji `102`, przypomnienia od `129`, a poczta do
+// gościa bez konta od `133`. Strony zaniżały więc możliwości produktu, a po
+// włączeniu poczty zaczęłyby wprost kłamać. SMS-ów nadal NIE MA
+// (`SHOW_SMS_FEATURES = false`) i to zdanie musi zostać.
 
 export type KategoriaFaq = 'podstawy' | 'konto' | 'organizator' | 'pieniadze' | 'ekipa' | 'boiska';
 
@@ -178,10 +183,12 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'organizator',
     q: 'Czy Bojo wysyła SMS-y albo maile o meczu?',
-    a: 'Nie wysyła. Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana ' +
-      'terminu, zaproszenie, odwołanie meczu, zmiana kompletu składu) są wyłącznie ' +
-      'w aplikacji, pod dzwonkiem. Kanałem, który realnie dociera, jest link wysłany ' +
-      'tam, gdzie ekipa już rozmawia.',
+    a: 'SMS-ów nie wysyła. Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, ' +
+      'zmiana terminu, odwołanie meczu, zmiana kompletu składu, przypomnienie dzień przed) ' +
+      'trafiają w aplikacji, pod dzwonkiem, a jeśli włączysz powiadomienia — także na ' +
+      'telefon. Osoba zapisana bez konta dostaje je mailem na adres podany przy zapisie, ' +
+      'bo dzwonka nie ma. Do zbierania składu i tak najlepiej działa link wysłany tam, ' +
+      'gdzie ekipa już rozmawia.',
   },
   {
     kategoria: 'organizator',

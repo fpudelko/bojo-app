@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { zbudujPodsumowanie, type DanePodsumowania } from '@/lib/eventSummary';
+import { KROK_KREATORA } from '@/lib/eventWizard';
 
 const bazowe: DanePodsumowania = {
   sport: 'piłka nożna',
@@ -35,9 +36,36 @@ describe('zbudujPodsumowanie — kształt', () => {
       .toEqual(['co', 'kiedy', 'gdzie', 'sklad', 'koszt', 'widocznosc']);
   });
 
+  // UKŁAD KROKÓW: 1 = „Kiedy" (termin, skład, koszt), 2 = „Gdzie" (lokalizacja),
+  // 3 = „Dla kogo" (tytuł, widoczność).
+  //
+  // Ten test do 2026-09-08 UTRWALAŁ BŁĄD: oczekiwał `kiedy: 2, gdzie: 1`, czyli
+  // układu sprzed zamiany kroków z 2026-08-22. W praktyce znaczyło to, że
+  // „Zmień" przy dacie przenosiło organizatora na mapę, a „Zmień" przy miejscu
+  // na wybór terminu — w oknie, które jest ostatnią siatką bezpieczeństwa przed
+  // publikacją. Oczekiwanie liczy się teraz z `KROK_KREATORA`, więc zmiana
+  // układu kroków nie może już rozjechać się z podsumowaniem po cichu.
   it('każdy wiersz wskazuje krok, na który cofa „Zmień"', () => {
     const kroki = Object.fromEntries(zbudujPodsumowanie(bazowe).map((x) => [x.klucz, x.krok]));
-    expect(kroki).toEqual({ co: 3, kiedy: 2, gdzie: 1, sklad: 2, koszt: 2, widocznosc: 3 });
+    expect(kroki).toEqual({
+      co: KROK_KREATORA.tytul,
+      kiedy: KROK_KREATORA.termin,
+      gdzie: KROK_KREATORA.lokalizacja,
+      sklad: KROK_KREATORA.sklad,
+      koszt: KROK_KREATORA.koszt,
+      widocznosc: KROK_KREATORA.widocznosc,
+    });
+  });
+
+  it('termin, skład i koszt są na kroku 1, lokalizacja na 2 — tak jak w kreatorze', () => {
+    // Asercja na WARTOŚCIACH, nie tylko na spójności z tą samą stałą: gdyby ktoś
+    // zmienił `KROK_KREATORA`, test wyżej przeszedłby dalej, a ten powie wprost,
+    // że układ kroków się zmienił i trzeba to potwierdzić świadomie.
+    expect(KROK_KREATORA.termin).toBe(1);
+    expect(KROK_KREATORA.sklad).toBe(1);
+    expect(KROK_KREATORA.koszt).toBe(1);
+    expect(KROK_KREATORA.lokalizacja).toBe(2);
+    expect(KROK_KREATORA.widocznosc).toBe(3);
   });
 });
 

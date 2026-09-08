@@ -39,6 +39,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/lib/eventShare';
+import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
@@ -1044,11 +1045,21 @@ export default function EventDetailClient() {
   // Rezerwowy nie ma miejsca w składzie, więc „wypisz się z meczu" myli —
   // sugeruje, że coś zwalnia. Wypisuje się z kolejki, nie ze składu.
   const amIReserve = !!myConfirmed?.isReserve;
-  // My place in the reserve queue (1-based). The queue is ordered by signup
-  // time, same as sync_reserve_claim walks it — so this number is what
-  // actually decides who gets the next freed spot.
-  const myReservePosition = amIReserve
-    ? reserves.filter((p) => !p.claimPassed).findIndex((p) => p.id === myConfirmed!.id) + 1 || null
+  // Goalkeeper distinction is an explicit per-event setting now. Stoi TUTAJ,
+  // a nie niżej przy `gkCount`, bo baza prowadzi osobne kolejki rezerwowe dla
+  // pola i dla bramkarzy — pozycja w kolejce liczona linijkę niżej musi o tym
+  // wiedzieć.
+  const gkEnabled = event.goalkeepersEnabled;
+  // Moje miejsce w kolejce rezerwowej (1 = następny). Liczone przez
+  // `lib/kolejkaRezerwy.ts`, czyli tą samą regułą, którą baza rozdaje oferty.
+  //
+  // Wcześniej stało tu `reserves.filter((p) => !p.claimPassed).findIndex(...)`,
+  // które IGNOROWAŁO ROLĘ — a baza prowadzi osobne kolejki dla pola i dla
+  // bramkarzy. Bramkarz jedyny w swojej kolejce czytał „Rezerwa · 4." i „przed
+  // Tobą 3 osoby", choć wchodził następny. Okno zapisu tuż obok liczyło to
+  // z rolą, więc jedna aplikacja podawała dwie różne liczby.
+  const myReservePosition = amIReserve && myConfirmed
+    ? pozycjaWKolejce(myConfirmed, reserves, gkEnabled)
     : null;
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
@@ -1069,8 +1080,6 @@ export default function EventDetailClient() {
   const venueBadgeLabel = eventLoc.primary || eventLoc.secondary;
 
   const showTeams = event.teamMode !== 'brak';
-  // Goalkeeper distinction is an explicit per-event setting now.
-  const gkEnabled = event.goalkeepersEnabled;
   const gkCount = regulars.filter((p) => p.isGoalkeeper).length;
   const gkFull = gkCount >= (event.maxGoalkeepers ?? 2);
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
@@ -1156,7 +1165,15 @@ export default function EventDetailClient() {
       tytul: 'Odpuszczasz to miejsce?',
       konsekwencje: [
         'Miejsce dostanie kolejna osoba z listy rezerwowej.',
-        'Zostajesz na rezerwie, ale za nią — kolejna oferta przyjdzie dopiero, gdy zwolni się następne miejsce.',
+        // Do 2026-09-08 stało tu, że „kolejna oferta przyjdzie, gdy zwolni się
+        // następne miejsce" — a `claim_passed = true` wykluczało gracza
+        // z kolejki na stałe (migracja `135` opisuje całość). Tekst obiecywał
+        // dokładnie odwrotność tego, co robiła baza, i to w chwili podejmowania
+        // decyzji. Odpuszczenie ZOSTAJE ostateczne — zmieniamy obietnicę, nie
+        // zachowanie; nieodebrana w czasie oferta to osobna sprawa i tam gracz
+        // wraca na koniec kolejki.
+        'Wypadasz z kolejki rezerwowej — kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
+        'Jeśli po prostu nie zdążysz odpowiedzieć, zostajesz w kolejce, na jej końcu.',
       ],
       potwierdzLabel: 'Odpuszczam',
     }) !== 'tak') return;
@@ -1483,12 +1500,19 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleReject = async (participantId: string) => {
+  /** Usuwa oczekującą prośbę o dołączenie. Ten sam DELETE obsługuje DWIE różne
+   *  sytuacje: organizator odrzuca cudzą prośbę i gracz wycofuje własną
+   *  (przycisk „Anuluj" w banerze „Oczekujesz na akceptację"). Komunikat musi
+   *  je rozróżniać — „Odrzucono prośbę" powiedziane graczowi o jego własnej
+   *  decyzji brzmi jak odmowa organizatora. Po stronie bazy tę samą pomyłkę
+   *  naprawia migracja `135`: wyzwalacz przestał wysyłać „Organizator nie
+   *  przyjął Twojej prośby" temu, kto sam ją wycofał. */
+  const handleReject = async (participantId: string, wlasna = false) => {
     setBusy(true);
     try {
       await rejectParticipant(participantId);
       await load();
-      toast('Odrzucono prośbę');
+      toast(wlasna ? 'Prośba anulowana' : 'Odrzucono prośbę');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1582,6 +1606,12 @@ export default function EventDetailClient() {
       const owed = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
       await updateParticipantPayment(p.id, !p.hasPaid, !p.hasPaid ? owed : 0);
       await load();
+      // Jedyną informacją zwrotną było dotąd przeładowanie listy. Przy wolnym
+      // połączeniu przełącznik wracał do poprzedniego stanu bez słowa, a `busy`
+      // blokuje w tym czasie WSZYSTKIE pozostałe przełączniki — więc odhaczanie
+      // składu po meczu wyglądało jak zawieszona aplikacja. Akcja zbiorcza
+      // („Wszyscy oddali") toasta miała od początku; ta była niespójnie cicha.
+      toast(p.hasPaid ? `${p.name} — cofnięto wpłatę` : `${p.name} — wpłata odhaczona`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -2180,15 +2210,13 @@ export default function EventDetailClient() {
   const brakWyboruPlatnosci = event.costGrosze > 0
     && event.acceptedPaymentMethods.length > 0
     && !joinPaymentMethod;
-  const pozycjaWKolejce = reserves.filter((p) => !p.claimPassed
-    && (!gkEnabled || !!p.isGoalkeeper === (joinRole === 'goalkeeper'))).length + 1;
+  const pozycjaPoZapisieWKolejce = pozycjaPoZapisie(reserves, gkEnabled, joinRole === 'goalkeeper');
   // To samo dla dialogu gościa bez konta — osobna rola (`guestRole`), bo dialog
   // gościa nie ma przełącznika „zapisz mnie od razu na rezerwę".
   const guestRolaPelna = gkEnabled
     ? (guestRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
     : wolne.razem === 0;
-  const guestPozycjaWKolejce = reserves.filter((p) => !p.claimPassed
-    && (!gkEnabled || !!p.isGoalkeeper === (guestRole === 'goalkeeper'))).length + 1;
+  const guestPozycjaWKolejce = pozycjaPoZapisie(reserves, gkEnabled, guestRole === 'goalkeeper');
 
   // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
   // organizator/gracz faktycznie tego szukają. Treść sekcji bez zmian,
@@ -3441,6 +3469,18 @@ export default function EventDetailClient() {
                               </span>
                             );
                           })()}
+                          {/* KOGO KOLEJKA POMINIE. Oferta zwolnionego miejsca
+                              idzie powiadomieniem (konto) albo mailem (gość
+                              z adresem, od migracji `137`). Gość BEZ adresu
+                              stoi w kolejce i nie zostanie zaproszony nigdy —
+                              organizator musi to widzieć, bo inaczej patrzy na
+                              listę rezerwową, której część jest martwa, i nie
+                              ma skąd o tym wiedzieć. */}
+                          {(isOrganizer || canManageSquad) && pominietyWKolejce(p) && (
+                            <span className="ml-9 mt-0.5 text-[11px] font-medium text-amber-700">
+                              Bez adresu e-mail — nie dostanie oferty miejsca. Awansuj ręcznie albo daj znać poza Bojo.
+                            </span>
+                          )}
                           {mozeZaprosic(p) && doPrzejecia(p) && (
                             <button
                               type="button"
@@ -3521,7 +3561,7 @@ export default function EventDetailClient() {
                   )}
                   <p className="mt-2 text-[11px] text-slate-400">
                     Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                    przyciskiem „Udostępnij" na górze strony.
+                    przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
                   </p>
                 </div>
               )}
@@ -3588,7 +3628,7 @@ export default function EventDetailClient() {
                 )}
                 <p className="mt-2 text-[11px] text-slate-400">
                   Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                  przyciskiem „Udostępnij" na górze strony.
+                  przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
                 </p>
               </div>
             )}
@@ -3630,7 +3670,7 @@ export default function EventDetailClient() {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleReject(myPendingRequest.id)}
+                  onClick={() => handleReject(myPendingRequest.id, true)}
                   disabled={busy}
                   className="shrink-0 rounded-xl border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
                 >
@@ -3660,26 +3700,32 @@ export default function EventDetailClient() {
                   <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                     <li>
                       <span className="font-semibold">Nie masz miejsca w składzie.</span>{' '}
-                      Wejdziesz, gdy ktoś zapisany się wypisze.
+                      {myConfirmed?.claimPassed
+                        ? 'Odpuściłeś(-aś) zaproponowane miejsce, więc kolejnej oferty nie będzie — poproś organizatora, jeśli jednak chcesz zagrać.'
+                        : 'Wejdziesz, gdy ktoś zapisany się wypisze.'}
                     </li>
+                    {myReservePosition && (
+                      <li>
+                        Wtedy Bojo{' '}
+                        <span className="font-semibold">
+                          zaproponuje miejsce pierwszej osobie z kolejki
+                        </span>
+                        {myReservePosition > 1
+                          ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
+                          : ' — czyli Tobie.'}
+                      </li>
+                    )}
+                    {myReservePosition && (
+                      <li>
+                        Na przyjęcie miejsca masz{' '}
+                        <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
+                        czasie przechodzi do kolejnej osoby, a Ty{' '}
+                        <span className="font-semibold">wracasz na koniec kolejki</span> — nie wypadasz z niej.
+                      </li>
+                    )}
                     <li>
-                      Wtedy Bojo{' '}
-                      <span className="font-semibold">
-                        zaproponuje miejsce pierwszej osobie z kolejki
-                      </span>
-                      {myReservePosition && myReservePosition > 1
-                        ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
-                        : ' — czyli Tobie.'}
-                    </li>
-                    <li>
-                      Na przyjęcie miejsca masz{' '}
-                      <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
-                      czasie przechodzi do kolejnej osoby.
-                    </li>
-                    <li>
-                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem.{' '}
-                      <span className="font-semibold">Nie wysyłamy jeszcze e-maili ani SMS-ów</span> —
-                      warto zajrzeć przed meczem.
+                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem — a jeśli włączysz powiadomienia,
+                      także na telefonie.
                     </li>
                   </ul>
                 </div>
@@ -3695,7 +3741,7 @@ export default function EventDetailClient() {
               <p className="text-sm font-bold text-green-900">Zwolniło się miejsce — jesteś następny!</p>
               <p className="mt-0.5 text-xs text-green-800">
                 {claimDeadline
-                  ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby.</>
+                  ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.</>
                   : <>Potwierdź, żeby wejść do składu.</>}
               </p>
               <div className="mt-3 flex gap-2">
@@ -3815,13 +3861,62 @@ export default function EventDetailClient() {
             style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
           >
             <div className="mx-auto max-w-2xl">
-              {!authLoading && !user ? (
+              {/* KOMPLET BEZ REZERWY ROZSTRZYGA SIĘ PRZED PYTANIEM O KONTO.
+                  Ta gałąź stała dotąd niżej i miała warunek `user &&`, więc
+                  dotyczyła WYŁĄCZNIE zalogowanych. Niezalogowany widział
+                  „Dołącz bez konta →" na meczu, który zapisów nie przyjmuje:
+                  otwierał okno, wpisywał imię, e-mail i metodę płatności,
+                  klikał „Zapisz się" i dostawał czerwony toast z surowym
+                  komunikatem wyzwalacza `pilnuj_wylaczonej_rezerwy()`.
+                  A to jest dokładnie ta ścieżka, którą idzie gracz zaproszony
+                  linkiem od organizatora — czyli ta, na której Bojo musi być
+                  najbardziej przewidywalne.
+
+                  „Obserwuj" wymaga konta, więc niezalogowanemu proponujemy
+                  logowanie zamiast niego. */}
+              {!authLoading && isFull && !event.reserveEnabled ? (
+                <div className="flex gap-2">
+                  <div className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 px-4 text-center text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+                    Komplet — zapisy zamknięte
+                  </div>
+                  {!user ? (
+                    <button
+                      onClick={() => {
+                        const powrot = `${window.location.pathname}`;
+                        window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
+                      }}
+                      className="flex h-12 items-center justify-center rounded-2xl bg-slate-700 px-4 text-[15px] font-bold text-white transition active:scale-[0.99]"
+                    >
+                      Zaloguj się
+                    </button>
+                  ) : myMaybe ? (
+                    <button
+                      onClick={() => setLeaveConfirmOpen(true)}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-5 text-[14px] font-semibold text-amber-800 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      <Eye className="h-4 w-4" strokeWidth={2.25} /> Obserwujesz
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleMaybe}
+                      disabled={busy}
+                      className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
+                    >
+                      Obserwuj
+                    </button>
+                  )}
+                </div>
+              ) : !authLoading && !user ? (
                 <div className="flex gap-2">
                   <button
                     onClick={() => setJoinAsGuestDialogOpen(true)}
                     className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
-                    Dołącz bez konta →
+                    {/* Przy komplecie mówimy to WPROST na przycisku, a nie
+                        dopiero w oknie: „Dołącz bez konta" na pełnym meczu
+                        obiecuje miejsce w składzie, którego nie ma. */}
+                    {isFull ? 'Komplet — na rezerwę' : 'Dołącz bez konta →'}
                   </button>
                   <button
                     onClick={() => {
@@ -3842,35 +3937,6 @@ export default function EventDetailClient() {
                   >
                     Dołącz →
                   </button>
-                  {myMaybe ? (
-                    <button
-                      onClick={() => setLeaveConfirmOpen(true)}
-                      disabled={busy}
-                      className="flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-5 text-[14px] font-semibold text-amber-800 transition active:scale-[0.99] disabled:opacity-50"
-                    >
-                      <Eye className="h-4 w-4" strokeWidth={2.25} /> Obserwujesz
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleMaybe}
-                      disabled={busy}
-                      className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 text-[14px] font-semibold text-slate-600 dark:text-slate-300 transition active:scale-[0.99] disabled:opacity-50"
-                    >
-                      Obserwuj
-                    </button>
-                  )}
-                </div>
-              ) : user && isFull && !event.reserveEnabled ? (
-                /* KOMPLET BEZ REZERWY (migracja `124`). Przycisk „Komplet —
-                   na rezerwę" byłby tu obietnicą, której baza nie dotrzyma:
-                   wyzwalacz `pilnuj_wylaczonej_rezerwy()` odbije taki zapis.
-                   Zamiast wyłączonego guzika, który każe zgadywać dlaczego —
-                   zdanie mówiące, co się stało, i „Obserwuj" jako jedyne
-                   sensowne wyjście: mecz może się jeszcze zwolnić. */
-                <div className="flex gap-2">
-                  <div className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 px-4 text-center text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                    Komplet — zapisy zamknięte
-                  </div>
                   {myMaybe ? (
                     <button
                       onClick={() => setLeaveConfirmOpen(true)}
@@ -4548,8 +4614,20 @@ export default function EventDetailClient() {
                 {joinRole === 'goalkeeper'
                   ? 'Bramkarze mają już komplet.'
                   : gkEnabled ? 'W polu jest już komplet.' : 'Mecz ma już komplet.'}
-                {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
-                <span className="font-bold">{pozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                {/* Bez rezerwy nie ma czego zapowiadać — a obietnica „zapiszesz
+                    się na listę rezerwową" kończyła się odmową z wyzwalacza
+                    `pilnuj_wylaczonej_rezerwy()` dopiero po kliknięciu. Przy
+                    bramkarzach `isFull` liczy sam skład, więc pełna JEDNA rola
+                    przy wolnym polu przechodziła przez pasek na dole. */}
+                {event.reserveEnabled ? (
+                  <>
+                    {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
+                    <span className="font-bold">{pozycjaPoZapisieWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                  </>
+                ) : (
+                  <> Ten mecz nie prowadzi listy rezerwowej, więc w tej roli zapisy są zamknięte.
+                    {gkEnabled && joinRole === 'goalkeeper' ? ' Sprawdź, czy jest miejsce w polu.' : ''}</>
+                )}
               </p>
             )}
 
@@ -4776,8 +4854,15 @@ export default function EventDetailClient() {
                 {guestRole === 'goalkeeper'
                   ? 'Bramkarze mają już komplet.'
                   : gkEnabled ? 'W polu jest już komplet.' : 'Mecz ma już komplet.'}
-                {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
-                <span className="font-bold">{guestPozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                {event.reserveEnabled ? (
+                  <>
+                    {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
+                    <span className="font-bold">{guestPozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                  </>
+                ) : (
+                  <> Ten mecz nie prowadzi listy rezerwowej, więc w tej roli zapisy są zamknięte.
+                    {gkEnabled && guestRole === 'goalkeeper' ? ' Sprawdź, czy jest miejsce w polu.' : ''}</>
+                )}
               </p>
             )}
 
@@ -4856,6 +4941,10 @@ export default function EventDetailClient() {
                 przy komplecie pól znika, żeby nie strofować kogoś, kto właśnie
                 wszystko wypełnił. */}
             {(() => {
+              // Zapisy zamknięte to NIE brak w formularzu — uzupełnianie pól
+              // niczego tu nie odblokuje, więc „Uzupełnij…" byłoby myleniem.
+              // Powód stoi już w zdaniu o komplecie wyżej.
+              if (guestRolaPelna && !event.reserveEnabled) return null;
               const braki: string[] = [];
               if (!guestName.trim()) braki.push('imię');
               if (!guestEmail.trim()) braki.push('e-mail');
@@ -4882,7 +4971,8 @@ export default function EventDetailClient() {
               <Button
                 onClick={handleJoinAsGuest}
                 isLoading={guestBusy}
-                disabled={!guestName.trim() || !guestEmail.trim() || (event.costGrosze > 0 && !guestPaymentMethod)}
+                disabled={!guestName.trim() || !guestEmail.trim() || (event.costGrosze > 0 && !guestPaymentMethod)
+                  || (guestRolaPelna && !event.reserveEnabled)}
                 className="flex-1 bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
               >
                 Zapisz się

@@ -491,6 +491,148 @@ SELECT _oczekuj_odmowe('gościa NIE dopisze się na mecz z wyłączonym przełą
    VALUES (%L, NULL, ''Kolega'', true, %L)', :MECZ, :UCZESTNIK));
 RESET ROLE;
 
+SELECT _sekcja('Kolumny, które CZYTA aplikacja, są czytelne (migracje 127 i dalsze)');
+
+-- TA SEKCJA POWSTAŁA Z BŁĘDU. Migracja `127` zamieniła tabelowy GRANT SELECT na
+-- uprawnienia KOLUMNOWE, żeby ukryć `guest_email`, telefony i `claim_token`.
+-- Skutek uboczny, o którym łatwo zapomnieć: każda NOWA kolumna dziedziczy
+-- tabelowe INSERT i UPDATE, ale NIE dostaje SELECT-a — bo tego już na poziomie
+-- tabeli nie ma. Migracja `135` dodała `oferta_wygasla_at` i grantu nie nadała,
+-- więc `getEvent()` dostawałoby 403 i STRONA MECZU PRZESTAŁABY SIĘ WCZYTYWAĆ.
+-- Objaw byłby przy tym mylący: kolumna istnieje, `psql` ją czyta, a wywraca się
+-- wyłącznie ruch przez PostgREST-a.
+--
+-- Lista niżej to dokładnie to, co wymienia `select()` w `getEvent()`
+-- (`lib/events.ts`). Dokładasz kolumnę do tamtego zapytania → dokładasz ją tutaj
+-- i nadajesz GRANT w migracji.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('aplikacja czyta wszystkie kolumny składu, których potrzebuje',
+  (SELECT count(*) FROM (
+     SELECT id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve,
+            team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval,
+            rsvp, payment_method, has_sports_card, sports_card_provider,
+            claim_offered_at, claim_passed, oferta_wygasla_at, ma_guest_email,
+            claimed_at, zapisano_at
+       FROM event_participants WHERE event_id = :MECZ::uuid) s), 2);
+RESET ROLE;
+
+-- Druga strona tej samej reguły: to, co `127` ukryło, MA zostać ukryte.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_odmowe('nowa kolumna nie otwiera drogi do e-maila gościa',
+  format('SELECT guest_email, oferta_wygasla_at FROM event_participants WHERE event_id = %L', :MECZ));
+RESET ROLE;
+
+SELECT _sekcja('Kolejka rezerwowa i anulowanie prośby (migracja 135)');
+
+-- ODPUSZCZENIE vs WYGAŚNIĘCIE to dwie różne rzeczy i mają dawać różny skutek:
+-- kto odmówił świadomie, wypada z kolejki; kto nie zdążył odpowiedzieć, wraca
+-- na jej koniec. Do `135` obie ścieżki ustawiały `claim_passed` i wykluczały
+-- z kolejki na zawsze — a okno „Odpuszczasz to miejsce?" obiecywało coś wprost
+-- przeciwnego.
+--
+-- Mecz z jednym wolnym miejscem: dwie osoby w składzie, dwie na rezerwie.
+\set MECZ4 '''bbbbbbbb-0000-4000-8000-000000000004'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date,
+                    event_time, max_players, visibility, reserve_claim_minutes)
+-- 3 miejsca, 2 osoby w składzie: JEDNO wolne, czyli dokładnie stan po czyimś
+-- wypisaniu się. Bez wolnego miejsca `sync_reserve_claim()` nie ma czego
+-- oferować i cała sekcja sprawdzałaby ciszę.
+VALUES (:MECZ4::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko RLS 4',
+        CURRENT_DATE + 5, '20:00', 3, 'public', 180);
+
+INSERT INTO event_participants (event_id, user_id, name, is_reserve, zapisano_at) VALUES
+  (:MECZ4::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', false, now() - interval '5 hours'),
+  (:MECZ4::uuid, :CZLONEK::uuid,     'Czesiek Członek',   false, now() - interval '4 hours'),
+  (:MECZ4::uuid, :UCZESTNIK::uuid,   'Ula Uczestniczka',  true,  now() - interval '3 hours'),
+  (:MECZ4::uuid, :OBCY::uuid,        'Obcy Rezerwowy',    true,  now() - interval '2 hours');
+
+-- Wygasła oferta: Ula dostała ofertę cztery godziny temu, okno to 180 minut.
+UPDATE event_participants SET claim_offered_at = now() - interval '4 hours'
+ WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid;
+SELECT sync_reserve_claim(:MECZ4::uuid);
+
+SELECT _oczekuj('wygaśnięcie NIE ustawia claim_passed — to nie była odmowa',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid
+                    AND claim_passed = false), 1);
+SELECT _oczekuj('wygaśnięcie ZNACZY wpis czasem, czyli spycha na koniec kolejki',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid
+                    AND oferta_wygasla_at IS NOT NULL), 1);
+SELECT _oczekuj('gracz dowiaduje się, że czas minął — dotąd znikał z kolejki w ciszy',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :UCZESTNIK::uuid AND type = 'oferta_wygasla'), 1);
+SELECT _oczekuj('miejsce poszło do NASTĘPNEJ osoby z kolejki',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ4::uuid AND user_id = :OBCY::uuid
+                    AND claim_offered_at IS NOT NULL), 1);
+
+-- Obcy też nie odpowiada. Teraz kolejka ma wybrać Ulę PONOWNIE — bo została
+-- w niej, tylko na końcu. To jest cała różnica wprowadzona przez `135`.
+UPDATE event_participants SET claim_offered_at = now() - interval '4 hours'
+ WHERE event_id = :MECZ4::uuid AND user_id = :OBCY::uuid;
+SELECT sync_reserve_claim(:MECZ4::uuid);
+SELECT _oczekuj('kto nie zdążył, dostaje KOLEJNĄ ofertę — nie wypadł z kolejki',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid
+                    AND claim_offered_at IS NOT NULL), 1);
+
+-- Świadome „Odpuszczam" (frontend: `declineReserveClaim`) — wypada NA STAŁE.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+UPDATE event_participants SET claim_offered_at = NULL, claim_passed = true
+ WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid;
+RESET ROLE;
+SELECT sync_reserve_claim(:MECZ4::uuid);
+SELECT _oczekuj('kto ODPUŚCIŁ, nie dostaje kolejnej oferty',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ4::uuid AND user_id = :UCZESTNIK::uuid
+                    AND claim_offered_at IS NOT NULL), 0);
+
+-- `oferta_wygasla_at` ustawia Bojo, nie przeglądarka: bez tej bramki gracz
+-- wracałby na początek kolejki jednym UPDATE-em z konsoli.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('gracz NIE wyzeruje sobie miejsca w kolejce', format(
+  'UPDATE event_participants SET oferta_wygasla_at = NULL
+    WHERE event_id = %L AND user_id = %L', :MECZ4, :OBCY));
+RESET ROLE;
+
+-- ANULOWANIE WŁASNEJ PROŚBY to nie odrzucenie przez organizatora (migracja 135).
+\set MECZ5 '''bbbbbbbb-0000-4000-8000-000000000005'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date,
+                    event_time, max_players, visibility, require_approval)
+VALUES (:MECZ5::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko RLS 5',
+        CURRENT_DATE + 5, '20:00', 10, 'public', true);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+INSERT INTO event_participants (event_id, user_id, name, pending_approval)
+VALUES (:MECZ5::uuid, :CZLONEK::uuid, 'Czesiek Członek', true);
+DELETE FROM event_participants WHERE event_id = :MECZ5::uuid AND user_id = :CZLONEK::uuid;
+RESET ROLE;
+
+SELECT _oczekuj('kto sam wycofał prośbę, NIE dostaje „organizator nie przyjął"',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :CZLONEK::uuid AND type = 'prosba_odrzucona'
+                    AND event_id = :MECZ5::uuid), 0);
+
+-- Kontrola w drugą stronę: odrzucenie PRZEZ ORGANIZATORA nadal powiadamia.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+INSERT INTO event_participants (event_id, user_id, name, pending_approval)
+VALUES (:MECZ5::uuid, :CZLONEK::uuid, 'Czesiek Członek', true);
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+DELETE FROM event_participants WHERE event_id = :MECZ5::uuid AND user_id = :CZLONEK::uuid;
+RESET ROLE;
+
+SELECT _oczekuj('odrzucenie przez organizatora nadal powiadamia gracza',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :CZLONEK::uuid AND type = 'prosba_odrzucona'
+                    AND event_id = :MECZ5::uuid), 1);
+
 SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)');
 
 -- Te asercje pilnują STANU FAKTYCZNEGO, nie stanu docelowego. Gdy ktoś domknie

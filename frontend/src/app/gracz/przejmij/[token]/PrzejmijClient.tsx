@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Calendar, Check, MapPin, UserCheck, Loader2, Ban, Users, Wallet } from 'lucide-react';
+import { Calendar, Check, MapPin, UserCheck, Loader2, Ban, Users, Wallet, TicketCheck } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
-import { podejrzyjWpisGoscia, przejmijWpisGoscia, wypiszWpisGoscia, type PodgladWpisuGoscia } from '@/lib/guestClaim';
+import {
+  podejrzyjWpisGoscia, przejmijWpisGoscia, wypiszWpisGoscia,
+  przyjmijOferteGoscia, odpuscOferteGoscia, type PodgladWpisuGoscia,
+} from '@/lib/guestClaim';
 import { zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { zWielkiejLitery } from '@/lib/utils';
@@ -54,6 +57,47 @@ export default function PrzejmijClient({ token }: { token: string }) {
       .finally(() => { if (!anulowane) setLadowanie(false); });
     return () => { anulowane = true; };
   }, [token]);
+
+  /** Przyjęcie zaproponowanego miejsca (migracja `137`).
+   *
+   *  Do `137` gość na rezerwie nie dostawał oferty NIGDY — kolejka pomijała go
+   *  po cichu, bo oferta szła wyłącznie przez `notifications`, a te wymagają
+   *  konta. Skoro oferta idzie teraz mailem, musi być gdzie ją przyjąć: bez
+   *  tego przycisku mail byłby kolejną obietnicą bez pokrycia. */
+  const przyjmijOferte = useCallback(async () => {
+    setZajete(true);
+    setBlad(null);
+    try {
+      const eventId = await przyjmijOferteGoscia(token);
+      router.push(`/wydarzenia/${eventId}`);
+    } catch (e) {
+      setBlad(e instanceof Error ? e.message : 'Nie udało się przyjąć miejsca');
+      setZajete(false);
+    }
+  }, [token, router]);
+
+  const odpuscOferte = useCallback(async () => {
+    if (await potwierdz({
+      tytul: 'Odpuszczasz to miejsce?',
+      konsekwencje: [
+        'Miejsce dostanie kolejna osoba z listy rezerwowej.',
+        // Ta sama reguła i ten sam tekst co dla konta (migracja `135`):
+        // świadoma odmowa jest ostateczna, samo niezdążenie — nie.
+        'Wypadasz z kolejki rezerwowej — kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
+      ],
+      potwierdzLabel: 'Odpuszczam',
+      wariant: 'destrukcyjny',
+    }) !== 'tak') return;
+    setZajete(true);
+    setBlad(null);
+    try {
+      await odpuscOferteGoscia(token);
+      const swiezy = await podejrzyjWpisGoscia(token);
+      setPodglad(swiezy);
+    } catch (e) {
+      setBlad(e instanceof Error ? e.message : 'Nie udało się odpuścić miejsca');
+    } finally { setZajete(false); }
+  }, [token, potwierdz]);
 
   const przejmij = useCallback(async () => {
     if (!user) return;
@@ -188,6 +232,32 @@ export default function PrzejmijClient({ token }: { token: string }) {
           <div>
             <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
             <p className="text-xs text-red-600">Organizator odwołał ten mecz — nie odbędzie się.</p>
+          </div>
+        </div>
+      )}
+
+      {/* OFERTA ZWOLNIONEGO MIEJSCA — najważniejsza rzecz na tej stronie, gdy
+          stoi, bo ma termin. Nad nagłówkiem, tak jak baner odwołania. */}
+      {podglad.ofertaDo && podglad.moznaZmieniac && podglad.statusMeczu !== 'cancelled' && (
+        <div className="mb-4 rounded-2xl border-2 border-green-300 bg-green-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-green-900">
+            <TicketCheck className="h-4 w-4 shrink-0" />
+            Zwolniło się miejsce — jest Twoje
+          </p>
+          <p className="mt-1 text-xs text-green-800">
+            Masz czas do{' '}
+            <span className="font-semibold">
+              {format(new Date(podglad.ofertaDo), 'EEEE, d MMMM, HH:mm', { locale: pl })}
+            </span>
+            . Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button onClick={przyjmijOferte} isLoading={zajete} className="flex-1">
+              Wchodzę
+            </Button>
+            <Button onClick={odpuscOferte} variant="outline" disabled={zajete} className="flex-1">
+              Odpuszczam
+            </Button>
           </div>
         </div>
       )}
