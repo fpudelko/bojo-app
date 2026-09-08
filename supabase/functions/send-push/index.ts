@@ -33,6 +33,13 @@ const SEKRET        = Deno.env.get('BOJO_PUSH_SEKRET') ?? '';
  *  domyślną zakładkę meczu/grupy (zgłoszone wprost). */
 function adresPowiadomienia(dane: Record<string, unknown>): string {
   const typ = dane.typ;
+  // Przejęcie wpisu gościa idzie na SWOJĄ stronę, nie na mecz — na stronie meczu
+  // nie ma czego potwierdzić. Do migracji `136` `claim_token` w ogóle nie
+  // docierał do tej funkcji, więc push „Potwierdź, że to Ty" lądował o jedno
+  // miejsce za daleko, mimo że dzwonek prowadził poprawnie.
+  if (typ === 'niepotwierdzony_wpis_goscia' && dane.claim_token) {
+    return `/gracz/przejmij/${dane.claim_token}`;
+  }
   if (dane.event_id) {
     return typ === 'wiadomosc_w_meczu' ? `/wydarzenia/${dane.event_id}?tab=rozmowa` : `/wydarzenia/${dane.event_id}`;
   }
