@@ -1360,7 +1360,7 @@ miesiące nie odróżnimy poprawy od wrażenia poprawy.
 
 | Miernik | Czym | Jak często | Wartość bazowa |
 |---|---|---|---|
-| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **zmierzone 2026-08-29** — 2 zaindeksowane, 0 zeskanowano-bez-indeksu, 0 wykryto-bez-indeksu; sitemapa nigdy wcześniej niezgłoszona, zgłoszona w tej rundzie — patrz 7a.2 |
+| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **rośnie: 2 (29.08) → 59 (4.09.2026)** zaindeksowanych; 32 400 wykrytych przez sitemapę; sygnał R1 jeszcze nieuruchomiony — kolejne odczyty 2026-09-15 i 2026-09-29 rozstrzygną — patrz 7a.2 |
 | Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | **zmierzone 2026-08-29** — 0 kliknięć / 56 wyświetleń / CTR 0% / śr. pozycja 9,4 (3 mies.), wyłącznie zapytania markowe — patrz 7a.2 |
 | Obecność w odpowiedziach modeli | 40 promptów z Załącznika A | co 6 tygodni | **niezmierzona** |
 | Wzmianki marki poza domeną | wyszukiwanie nazwy z kwalifikatorem | co 6 tygodni | **zero znanych** |
@@ -1537,6 +1537,30 @@ rozstrzyga spór z rozdziału 8.
 
 **Termin:** 2026-09-15 i 2026-09-29, raport *Indeksowanie → Strony*, obie liczby zapisać
 tutaj. Wcześniejsze sprawdzanie nic nie doda.
+
+**ODCZYT POŚREDNI (2026-09-04/06, zgłoszony przez właściciela) — przed pierwszym
+zaplanowanym terminem, ale kierunek już widoczny.** `Mapy witryn`: `sitemap-index.xml`
+nadal „Sukces", ostatni odczyt 6.09.2026, **32 400 wykrytych stron** (bez zmian co do
+liczby — Google ma już cały katalog na widoku). `Indeksowanie → Strony`, stan
+4.09.2026:
+
+| Kategoria | Liczba |
+|---|---|
+| Zaindeksowane | **59** (z 2 na 2026-08-29) |
+| Nie zindeksowano — razem | 5, w tym: |
+| — Strona zeskanowana, ale jeszcze nie zindeksowana (Systemy Google) | 3 |
+| — Duplikat, użytkownik nie oznaczył strony kanonicznej (Strona internetowa) | 1 |
+| — Strona zawiera przekierowanie (Strona internetowa) | 1 |
+| Wykryto — obecnie bez indeksu | 0 (nie ma tego wiersza w tabeli przyczyn) |
+
+Zaindeksowane rosną (2 → 59) przy zerowym „Wykryto — obecnie bez indeksu" i tylko
+3 w „Zeskanowano — obecnie bez indeksu" — **żaden sygnał R1 z rozdziału 9 jeszcze się
+nie zapalił**, ale to nie jest jeszcze rozstrzygnięcie: właściwe terminy to nadal
+2026-09-15 i 2026-09-29, bo dopiero tam widać, czy te dwie liczby rosną razem
+z zaindeksowanymi, czy zamiast nich. „Strona zawiera przekierowanie" (1) najpewniej to
+`/gracze` — udokumentowany, zamierzony `redirect('/wydarzenia')` (AGENTS.md), nie błąd.
+„Duplikat bez kanonicznej" (1) jest zbyt mały, żeby coś znaczył sam w sobie — nie
+identyfikowany bez adresu URL, do sprawdzenia przy okazji, nie pilnie.
 
 **NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą ze zrzutów ekranu
 właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do Search Console.
