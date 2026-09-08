@@ -1,6 +1,6 @@
 # Baza danych
 
-132 migracje (`001`–`137`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+133 migracje (`001`–`138`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -231,6 +231,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `135_wygasla_oferta_na_koniec_kolejki` | **Odpuszczenie i wygaśnięcie oferty to DWIE RÓŻNE RZECZY.** Do `135` obie ustawiały `claim_passed`, więc kto nie odpowiedział na ofertę w oknie (domyślnie 3 h) — bo spał albo nie miał zasięgu — wypadał z kolejki NA ZAWSZE, bez jednego słowa. Okno „Odpuszczasz to miejsce?" obiecywało przy tym wprost: „kolejna oferta przyjdzie, gdy zwolni się następne miejsce". Decyzja właściciela: świadoma odmowa wypada, brak odpowiedzi wraca na KONIEC kolejki. Nowa kolumna `oferta_wygasla_at`; kolejność kolejki `ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`. Nowy typ powiadomienia `oferta_wygasla` — wygaśnięcie przestało być ciche. Dokłada `oferta_wygasla_at` do pól, których przeglądarka nie zmienia (`pilnuj_wlasnego_wpisu` z `132`). **Przy okazji:** `powiadom_o_odrzuceniu_prosby()` (`076`) nie sprawdzało, KTO usuwa wiersz, a „Anuluj" w banerze gracza woła ten sam DELETE co odrzucenie — gracz, który sam wycofał prośbę, dostawał „Organizator nie przyjął Twojej prośby". Asercje w `supabase/test/rls.sql` |
 | `136_push_prowadzi_tam_co_dzwonek` | Powiadomienie `niepotwierdzony_wpis_goscia` (`084`) mówi „Potwierdź, że to Ty" i ma prowadzić na `/gracz/przejmij/{token}`. Dzwonek tak robił, push NIE MÓGŁ: wyzwalacz z `119` nie wkładał `claim_token` do ładunku, więc funkcja brzegowa widziała tylko `event_id` i odsyłała na stronę meczu, gdzie nie ma czego potwierdzić — mimo że jej własny komentarz deklaruje parytet z dzwonkiem. Ciało skopiowane z `119`, dołożone jedno pole |
 | `137_poczta_dociera_do_goscia` | **Trzy obietnice bez pokrycia w kanale z `133`.** (1) Gość w poczekalni dostawał „Masz miejsce w składzie" — `wyslij_mail_do_goscia()` odczytywało `pending_approval` i NIE przekazywało go dalej; ładunek niesie teraz `czeka_na_akceptacje`. (2) O rozpatrzeniu prośby gość nie dowiadywał się w ogóle (wyzwalacze `076` wymagają konta) — nowe powody `zaakceptowano` i `odrzucono`. (3) Gość na rezerwie NIE DOSTAWAŁ OFERTY NIGDY: `sync_reserve_claim()` filtrowało `user_id IS NOT NULL`, bo oferta szła wyłącznie przez `notifications` — wpis stał w kolejce i był omijany bez śladu, a mail „jesteś na rezerwie" obiecywał „damy znać, gdy zwolni się miejsce". Filtr zamieniony na `(user_id IS NOT NULL OR guest_email IS NOT NULL)`, oferta idzie mailem (powód `oferta`, z terminem). Żeby nie była kolejną obietnicą bez pokrycia: `przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()` (uprawnieniem token, ale baza sprawdza, że oferta STOI i nie wygasła) oraz `oferta_do` w `podejrzyj_wpis_goscia()`. Gość BEZ adresu jest dalej pomijany — nowa kolumna pochodna `ma_guest_email` niesie sam FAKT (adres pozostaje nieczytelny przez API od `127`), żeby organizator widział, kogo kolejka nie zaprosi. Testy: `supabase/test/poczta-goscia.sql` |
+| `138_oferta_wygasla_at_do_odczytu` | **Poprawka błędu w `135`:** dodała kolumnę `oferta_wygasla_at` i nie nadała na nią `GRANT SELECT`. Migracja `127` zamieniła tabelowy `SELECT` na uprawnienia KOLUMNOWE, więc od tamtej pory **każda nowa kolumna dziedziczy `INSERT`/`UPDATE`, ale nie `SELECT`**. `getEvent()` wymienia tę kolumnę w swoim `select()`, więc PostgREST odrzucałby zapytanie i strona meczu przestałaby się wczytywać — a objaw byłby mylący, bo `psql` czyta kolumnę bez problemu i wywraca się wyłącznie ruch przez API. Klasę błędu pilnuje odtąd sekcja „Kolumny, które CZYTA aplikacja, są czytelne" w `supabase/test/rls.sql`: lista jeden do jednego z zapytaniem `getEvent()`, wykonana jako `authenticated` (migracje i testy idą jako superuser, dla którego granty nie mają znaczenia — dlatego wcześniej przechodziło na zielono) |
 | `126_szukanie_bez_ogonkow` | `fields.szukaj_norm` — kolumna GENEROWANA (nazwa + adres, małymi literami, bez polskich ogonków) plus indeks GIN po trigramach (`pg_trgm`). Szukanie boisk robiło `ilike '%<fraza>%'` na `name`/`address`, a Postgres porównuje znak po znaku: „poznan" NIE jest zgodne z „Poznań". Nikt nie pisze ogonków w szukajce na telefonie, więc wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów w katalogu. `translate()`, nie `unaccent()`: `unaccent()` nie jest IMMUTABLE, więc nie wolno go użyć w kolumnie generowanej ani zaindeksować bez własnej funkcji-owijki; `translate()` jest immutable i nie wymaga rozszerzenia. Mapowanie MUSI być identyczne z `foldText()` w `frontend/src/lib/searchText.ts` — filtr lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer, więc rozjazd którejkolwiek strony wycina wyniki. Wielkie litery są w mapowaniu mimo `lower()` przed nim, bo `lower()` zależy od locale bazy. `searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie ma (migracje puszcza się ręcznie) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
@@ -287,6 +288,23 @@ tworzyć ręcznie z `/cykliczne/[id]`, albo uruchomić
 `SELECT utworz_nalezne_terminy_serii();` z SQL Editora.
 
 ---
+
+## ⚠️ Nowa kolumna w `event_participants` wymaga jawnego GRANT-u
+
+Od migracji `127` `SELECT` na tej tabeli jest **kolumnowy**, nie tabelowy. Nowa kolumna
+dostanie więc `INSERT` i `UPDATE` z poziomu tabeli, ale **nie dostanie `SELECT`-a** —
+i zobaczysz to dopiero wtedy, gdy aplikacja spróbuje ją przeczytać przez PostgREST-a.
+`psql`, migracje i testy SQL idą jako superuser, dla którego granty nie mają znaczenia,
+więc bramki przechodzą na zielono.
+
+```sql
+GRANT SELECT (nowa_kolumna) ON event_participants TO anon, authenticated;
+```
+
+Pomijasz to celowo tylko wtedy, gdy kolumna ma być NIECZYTELNA przez API — tak jak
+`guest_email`, `guest_phone`, `phone`, `claim_token` i `confirmation_token`.
+Kosztowało to migrację `138`; asercja w `supabase/test/rls.sql` pilnuje, żeby się nie
+powtórzyło.
 
 ## Konwencja nowych migracji
 

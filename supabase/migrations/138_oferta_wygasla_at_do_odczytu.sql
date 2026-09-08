@@ -1,0 +1,36 @@
+-- 138 — brakujący GRANT SELECT na `oferta_wygasla_at`
+--
+-- BŁĄD W MIGRACJI `135`. Dodała kolumnę `oferta_wygasla_at` i nie nadała na nią
+-- uprawnienia do odczytu. Wyszło to na produkcji, po jej uruchomieniu, przy
+-- sprawdzaniu uprawnień kolumnowych — zanim kod trafił na produkcję.
+--
+-- DLACZEGO TO NIE JEST OCZYWISTE. Migracja `127` zamieniła tabelowy
+-- `GRANT SELECT` na uprawnienia KOLUMNOWE, żeby ukryć `guest_email`, telefony
+-- i `claim_token` przed każdym, kto otworzy stronę meczu. Skutek uboczny:
+-- od tamtej pory każda NOWA kolumna dziedziczy tabelowe `INSERT` i `UPDATE`
+-- (te są nadal tabelowe), ale **nie dostaje `SELECT`-a** — bo tego na poziomie
+-- tabeli już nie ma. Potwierdzone na produkcji: `oferta_wygasla_at` miała
+-- `INSERT`, `UPDATE` i `REFERENCES`, a `SELECT` nie.
+--
+-- CO BY SIĘ STAŁO. `getEvent()` (`lib/events.ts`) wymienia tę kolumnę w swoim
+-- `select()`, więc PostgREST odrzuciłby zapytanie i **strona meczu przestałaby
+-- się wczytywać dla wszystkich** — zalogowanych i nie. Objaw byłby przy tym
+-- mylący: kolumna istnieje, `psql` ją czyta bez problemu, a wywraca się
+-- wyłącznie ruch przez API.
+--
+-- `UPDATE` zostaje nadane i to jest zamierzone: organizator, awansując kogoś
+-- z rezerwy albo odsyłając go z powrotem (`awansujZRezerwy`, `cofnijNaRezerwe`
+-- w `lib/events.ts`), zeruje ten znacznik z przeglądarki. Przed samowolką broni
+-- wyzwalacz `pilnuj_wlasnego_wpisu()` (`135`), nie brak grantu — sprawdza, KTO
+-- pisze, a nie tylko czy może.
+--
+-- Klasę tego błędu pilnuje odtąd `supabase/test/rls.sql`, sekcja „Kolumny,
+-- które CZYTA aplikacja, są czytelne": lista kolumn jeden do jednego z zapytaniem
+-- `getEvent()`, wykonana jako `authenticated`. Bez tej sekcji przebieg
+-- `./scripts/baza-testowa.sh` przechodził na zielono, bo SQL uruchamiany
+-- w migracjach i testach idzie jako superuser, dla którego granty nie mają
+-- znaczenia.
+--
+-- Migracja jest IDEMPOTENTNA — samo `GRANT`.
+
+GRANT SELECT (oferta_wygasla_at) ON event_participants TO anon, authenticated;

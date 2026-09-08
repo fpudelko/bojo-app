@@ -491,6 +491,39 @@ SELECT _oczekuj_odmowe('gościa NIE dopisze się na mecz z wyłączonym przełą
    VALUES (%L, NULL, ''Kolega'', true, %L)', :MECZ, :UCZESTNIK));
 RESET ROLE;
 
+SELECT _sekcja('Kolumny, które CZYTA aplikacja, są czytelne (migracje 127 i dalsze)');
+
+-- TA SEKCJA POWSTAŁA Z BŁĘDU. Migracja `127` zamieniła tabelowy GRANT SELECT na
+-- uprawnienia KOLUMNOWE, żeby ukryć `guest_email`, telefony i `claim_token`.
+-- Skutek uboczny, o którym łatwo zapomnieć: każda NOWA kolumna dziedziczy
+-- tabelowe INSERT i UPDATE, ale NIE dostaje SELECT-a — bo tego już na poziomie
+-- tabeli nie ma. Migracja `135` dodała `oferta_wygasla_at` i grantu nie nadała,
+-- więc `getEvent()` dostawałoby 403 i STRONA MECZU PRZESTAŁABY SIĘ WCZYTYWAĆ.
+-- Objaw byłby przy tym mylący: kolumna istnieje, `psql` ją czyta, a wywraca się
+-- wyłącznie ruch przez PostgREST-a.
+--
+-- Lista niżej to dokładnie to, co wymienia `select()` w `getEvent()`
+-- (`lib/events.ts`). Dokładasz kolumnę do tamtego zapytania → dokładasz ją tutaj
+-- i nadajesz GRANT w migracji.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('aplikacja czyta wszystkie kolumny składu, których potrzebuje',
+  (SELECT count(*) FROM (
+     SELECT id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve,
+            team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval,
+            rsvp, payment_method, has_sports_card, sports_card_provider,
+            claim_offered_at, claim_passed, oferta_wygasla_at, ma_guest_email,
+            claimed_at, zapisano_at
+       FROM event_participants WHERE event_id = :MECZ::uuid) s), 2);
+RESET ROLE;
+
+-- Druga strona tej samej reguły: to, co `127` ukryło, MA zostać ukryte.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_odmowe('nowa kolumna nie otwiera drogi do e-maila gościa',
+  format('SELECT guest_email, oferta_wygasla_at FROM event_participants WHERE event_id = %L', :MECZ));
+RESET ROLE;
+
 SELECT _sekcja('Kolejka rezerwowa i anulowanie prośby (migracja 135)');
 
 -- ODPUSZCZENIE vs WYGAŚNIĘCIE to dwie różne rzeczy i mają dawać różny skutek:
