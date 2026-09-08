@@ -39,6 +39,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/lib/eventShare';
+import { pozycjaWKolejce, pozycjaPoZapisie } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
@@ -1044,11 +1045,21 @@ export default function EventDetailClient() {
   // Rezerwowy nie ma miejsca w składzie, więc „wypisz się z meczu" myli —
   // sugeruje, że coś zwalnia. Wypisuje się z kolejki, nie ze składu.
   const amIReserve = !!myConfirmed?.isReserve;
-  // My place in the reserve queue (1-based). The queue is ordered by signup
-  // time, same as sync_reserve_claim walks it — so this number is what
-  // actually decides who gets the next freed spot.
-  const myReservePosition = amIReserve
-    ? reserves.filter((p) => !p.claimPassed).findIndex((p) => p.id === myConfirmed!.id) + 1 || null
+  // Goalkeeper distinction is an explicit per-event setting now. Stoi TUTAJ,
+  // a nie niżej przy `gkCount`, bo baza prowadzi osobne kolejki rezerwowe dla
+  // pola i dla bramkarzy — pozycja w kolejce liczona linijkę niżej musi o tym
+  // wiedzieć.
+  const gkEnabled = event.goalkeepersEnabled;
+  // Moje miejsce w kolejce rezerwowej (1 = następny). Liczone przez
+  // `lib/kolejkaRezerwy.ts`, czyli tą samą regułą, którą baza rozdaje oferty.
+  //
+  // Wcześniej stało tu `reserves.filter((p) => !p.claimPassed).findIndex(...)`,
+  // które IGNOROWAŁO ROLĘ — a baza prowadzi osobne kolejki dla pola i dla
+  // bramkarzy. Bramkarz jedyny w swojej kolejce czytał „Rezerwa · 4." i „przed
+  // Tobą 3 osoby", choć wchodził następny. Okno zapisu tuż obok liczyło to
+  // z rolą, więc jedna aplikacja podawała dwie różne liczby.
+  const myReservePosition = amIReserve && myConfirmed
+    ? pozycjaWKolejce(myConfirmed, reserves, gkEnabled)
     : null;
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
@@ -1069,8 +1080,6 @@ export default function EventDetailClient() {
   const venueBadgeLabel = eventLoc.primary || eventLoc.secondary;
 
   const showTeams = event.teamMode !== 'brak';
-  // Goalkeeper distinction is an explicit per-event setting now.
-  const gkEnabled = event.goalkeepersEnabled;
   const gkCount = regulars.filter((p) => p.isGoalkeeper).length;
   const gkFull = gkCount >= (event.maxGoalkeepers ?? 2);
   const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
@@ -1156,7 +1165,15 @@ export default function EventDetailClient() {
       tytul: 'Odpuszczasz to miejsce?',
       konsekwencje: [
         'Miejsce dostanie kolejna osoba z listy rezerwowej.',
-        'Zostajesz na rezerwie, ale za nią — kolejna oferta przyjdzie dopiero, gdy zwolni się następne miejsce.',
+        // Do 2026-09-08 stało tu, że „kolejna oferta przyjdzie, gdy zwolni się
+        // następne miejsce" — a `claim_passed = true` wykluczało gracza
+        // z kolejki na stałe (migracja `135` opisuje całość). Tekst obiecywał
+        // dokładnie odwrotność tego, co robiła baza, i to w chwili podejmowania
+        // decyzji. Odpuszczenie ZOSTAJE ostateczne — zmieniamy obietnicę, nie
+        // zachowanie; nieodebrana w czasie oferta to osobna sprawa i tam gracz
+        // wraca na koniec kolejki.
+        'Wypadasz z kolejki rezerwowej — kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
+        'Jeśli po prostu nie zdążysz odpowiedzieć, zostajesz w kolejce, na jej końcu.',
       ],
       potwierdzLabel: 'Odpuszczam',
     }) !== 'tak') return;
@@ -1483,12 +1500,19 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleReject = async (participantId: string) => {
+  /** Usuwa oczekującą prośbę o dołączenie. Ten sam DELETE obsługuje DWIE różne
+   *  sytuacje: organizator odrzuca cudzą prośbę i gracz wycofuje własną
+   *  (przycisk „Anuluj" w banerze „Oczekujesz na akceptację"). Komunikat musi
+   *  je rozróżniać — „Odrzucono prośbę" powiedziane graczowi o jego własnej
+   *  decyzji brzmi jak odmowa organizatora. Po stronie bazy tę samą pomyłkę
+   *  naprawia migracja `135`: wyzwalacz przestał wysyłać „Organizator nie
+   *  przyjął Twojej prośby" temu, kto sam ją wycofał. */
+  const handleReject = async (participantId: string, wlasna = false) => {
     setBusy(true);
     try {
       await rejectParticipant(participantId);
       await load();
-      toast('Odrzucono prośbę');
+      toast(wlasna ? 'Prośba anulowana' : 'Odrzucono prośbę');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -2180,15 +2204,13 @@ export default function EventDetailClient() {
   const brakWyboruPlatnosci = event.costGrosze > 0
     && event.acceptedPaymentMethods.length > 0
     && !joinPaymentMethod;
-  const pozycjaWKolejce = reserves.filter((p) => !p.claimPassed
-    && (!gkEnabled || !!p.isGoalkeeper === (joinRole === 'goalkeeper'))).length + 1;
+  const pozycjaPoZapisieWKolejce = pozycjaPoZapisie(reserves, gkEnabled, joinRole === 'goalkeeper');
   // To samo dla dialogu gościa bez konta — osobna rola (`guestRole`), bo dialog
   // gościa nie ma przełącznika „zapisz mnie od razu na rezerwę".
   const guestRolaPelna = gkEnabled
     ? (guestRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
     : wolne.razem === 0;
-  const guestPozycjaWKolejce = reserves.filter((p) => !p.claimPassed
-    && (!gkEnabled || !!p.isGoalkeeper === (guestRole === 'goalkeeper'))).length + 1;
+  const guestPozycjaWKolejce = pozycjaPoZapisie(reserves, gkEnabled, guestRole === 'goalkeeper');
 
   // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
   // organizator/gracz faktycznie tego szukają. Treść sekcji bez zmian,
@@ -3630,7 +3652,7 @@ export default function EventDetailClient() {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleReject(myPendingRequest.id)}
+                  onClick={() => handleReject(myPendingRequest.id, true)}
                   disabled={busy}
                   className="shrink-0 rounded-xl border border-blue-300 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
                 >
@@ -3660,26 +3682,32 @@ export default function EventDetailClient() {
                   <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                     <li>
                       <span className="font-semibold">Nie masz miejsca w składzie.</span>{' '}
-                      Wejdziesz, gdy ktoś zapisany się wypisze.
+                      {myConfirmed?.claimPassed
+                        ? 'Odpuściłeś(-aś) zaproponowane miejsce, więc kolejnej oferty nie będzie — poproś organizatora, jeśli jednak chcesz zagrać.'
+                        : 'Wejdziesz, gdy ktoś zapisany się wypisze.'}
                     </li>
+                    {myReservePosition && (
+                      <li>
+                        Wtedy Bojo{' '}
+                        <span className="font-semibold">
+                          zaproponuje miejsce pierwszej osobie z kolejki
+                        </span>
+                        {myReservePosition > 1
+                          ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
+                          : ' — czyli Tobie.'}
+                      </li>
+                    )}
+                    {myReservePosition && (
+                      <li>
+                        Na przyjęcie miejsca masz{' '}
+                        <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
+                        czasie przechodzi do kolejnej osoby, a Ty{' '}
+                        <span className="font-semibold">wracasz na koniec kolejki</span> — nie wypadasz z niej.
+                      </li>
+                    )}
                     <li>
-                      Wtedy Bojo{' '}
-                      <span className="font-semibold">
-                        zaproponuje miejsce pierwszej osobie z kolejki
-                      </span>
-                      {myReservePosition && myReservePosition > 1
-                        ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
-                        : ' — czyli Tobie.'}
-                    </li>
-                    <li>
-                      Na przyjęcie miejsca masz{' '}
-                      <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
-                      czasie przechodzi do kolejnej osoby.
-                    </li>
-                    <li>
-                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem.{' '}
-                      <span className="font-semibold">Nie wysyłamy jeszcze e-maili ani SMS-ów</span> —
-                      warto zajrzeć przed meczem.
+                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem — a jeśli włączysz powiadomienia,
+                      także na telefonie.
                     </li>
                   </ul>
                 </div>
@@ -3695,7 +3723,7 @@ export default function EventDetailClient() {
               <p className="text-sm font-bold text-green-900">Zwolniło się miejsce — jesteś następny!</p>
               <p className="mt-0.5 text-xs text-green-800">
                 {claimDeadline
-                  ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby.</>
+                  ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.</>
                   : <>Potwierdź, żeby wejść do składu.</>}
               </p>
               <div className="mt-3 flex gap-2">
@@ -4549,7 +4577,7 @@ export default function EventDetailClient() {
                   ? 'Bramkarze mają już komplet.'
                   : gkEnabled ? 'W polu jest już komplet.' : 'Mecz ma już komplet.'}
                 {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
-                <span className="font-bold">{pozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                <span className="font-bold">{pozycjaPoZapisieWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
               </p>
             )}
 

@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  Bell, CalendarPlus, CalendarX, Check, ChevronRight, MessageCircle, Settings,
-  TicketCheck, UserPlus, type LucideIcon,
+  Bell, CalendarPlus, CalendarX, Check, ChevronRight, Clock, MessageCircle, Settings,
+  TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -59,6 +59,18 @@ const IKONY: Record<string, { Ikona: LucideIcon; klasa: string; rodzaj: string }
   niepotwierdzony_wpis_goscia: { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Potwierdź' },
   wiadomosc_w_meczu:           { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
   wiadomosc_w_grupie:          { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
+  // Sześć typów, które realnie przychodzą (migracje `076`, `079`, `113`, `129`,
+  // `135`), a mapy nie miały — wszystkie lądowały pod szarym dzwonkiem
+  // z podpisem „Powiadomienie", czyli dokładnie tam, gdzie ikona przestaje
+  // cokolwiek nieść. Kolory wg konwencji z AGENTS.md: niebieski wyłącznie tam,
+  // gdzie trzeba podjąć decyzję; stan składu i przypomnienie są neutralne.
+  zapis_zaakceptowany:         { Ikona: Check,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Zapis przyjęty' },
+  prosba_odrzucona:            { Ikona: X,             klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Prośba odrzucona' },
+  usuniety_ze_skladu:          { Ikona: UserMinus,     klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Poza składem' },
+  komplet_skladu:              { Ikona: Users,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Komplet' },
+  zwolnilo_sie_miejsce:        { Ikona: Users,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Wolne miejsce' },
+  przypomnienie_o_meczu:       { Ikona: Clock,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Przypomnienie' },
+  oferta_wygasla:              { Ikona: Clock,         klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Czas minął' },
 };
 
 const IKONA_DOMYSLNA = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };

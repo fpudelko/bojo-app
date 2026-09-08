@@ -248,9 +248,14 @@ export interface EventParticipant {
   /** Set when a freed spot has been offered to this reserve. Null = no pending
    *  offer. The window length is `event.reserveClaimMinutes`. */
   claimOfferedAt?: string;
-  /** True once they declined the offer or let the window lapse. Stays on the
-   *  reserve list (organizer can still promote by hand) but skipped by the queue. */
+  /** True once they DECLINED the offer („Odpuszczam"). Stays on the reserve list
+   *  (organizer can still promote by hand) but the queue skips them for good.
+   *  Do 2026-09-08 oznaczało też wygaśnięcie oferty — patrz `ofertaWygaslaAt`. */
   claimPassed: boolean;
+  /** Kiedy ostatnio WYGASŁA oferta miejsca (brak odpowiedzi w czasie). Odsuwa na
+   *  koniec kolejki, ale w niej zostawia — inaczej niż `claimPassed`
+   *  (migracja `135`). */
+  ofertaWygaslaAt?: string;
   /** Jednorazowy token, którym osoba dopisana ręcznie zwiąże ten wpis ze swoim
    *  kontem (migracja `066`).
    *

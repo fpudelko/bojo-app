@@ -121,6 +121,7 @@ function toParticipant(row: any): EventParticipant {
     rsvp: row.rsvp ?? 'yes',
     claimOfferedAt: row.claim_offered_at ?? undefined,
     claimPassed: row.claim_passed ?? false,
+    ofertaWygaslaAt: row.oferta_wygasla_at ?? undefined,
     paymentMethod: row.payment_method ?? undefined,
     hasSportsCard: row.has_sports_card ?? false,
     sportsCardProvider: row.sports_card_provider ?? undefined,
@@ -378,7 +379,7 @@ export async function getEvent(
     // Jedna linia, bez sklejania stringów: supabase-js wnioskuje kształt wiersza
     // z LITERAŁU przekazanego do `.select()`, a złożenie przez `+` gubi ten typ
     // i cały wynik staje się `GenericStringError`.
-    .select('id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp, payment_method, has_sports_card, sports_card_provider, claim_offered_at, claim_passed, claimed_at, zapisano_at')
+    .select('id, event_id, user_id, name, is_guest, created_at, has_paid, is_reserve, team, paid_amount, is_captain, added_by, is_goalkeeper, pending_approval, rsvp, payment_method, has_sports_card, sports_card_provider, claim_offered_at, claim_passed, oferta_wygasla_at, claimed_at, zapisano_at')
     .eq('event_id', id)
     .order('is_reserve', { ascending: true })
     .order('created_at', { ascending: true });
@@ -938,14 +939,15 @@ export async function declineReserveClaim(participantId: string, eventId: string
  * participants"), więc nie trzeba tu nic dokładać — brakowało wyłącznie
  * wywołania.
  *
- * Czyścimy przy okazji ślady po ofercie (`claim_offered_at`, `claim_passed`):
- * osoba w składzie nie może mieć wiszącej oferty miejsca, a `claim_passed`
- * blokowałby ją, gdyby kiedyś wróciła na rezerwę.
+ * Czyścimy przy okazji ślady po ofercie (`claim_offered_at`, `claim_passed`,
+ * `oferta_wygasla_at`): osoba w składzie nie może mieć wiszącej oferty miejsca,
+ * a dwa pozostałe pola spychałyby ją w kolejce, gdyby kiedyś wróciła na rezerwę.
+ * Ręczna decyzja organizatora jest czystym startem.
  */
 export async function awansujZRezerwy(participantId: string, eventId: string): Promise<void> {
   await zaktualizujJedenWiersz(
     'event_participants', participantId,
-    { is_reserve: false, claim_offered_at: null, claim_passed: false },
+    { is_reserve: false, claim_offered_at: null, claim_passed: false, oferta_wygasla_at: null },
     'Nie udało się przenieść gracza do składu',
   );
   // Kolejka mogła właśnie stracić osobę, której trzymała ofertę — niech
@@ -960,7 +962,7 @@ export async function awansujZRezerwy(participantId: string, eventId: string): P
 export async function cofnijNaRezerwe(participantId: string, eventId: string): Promise<void> {
   await zaktualizujJedenWiersz(
     'event_participants', participantId,
-    { is_reserve: true, claim_offered_at: null, claim_passed: false },
+    { is_reserve: true, claim_offered_at: null, claim_passed: false, oferta_wygasla_at: null },
     'Nie udało się przenieść gracza na rezerwę',
   );
   await runSyncReserveClaim(eventId);
