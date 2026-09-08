@@ -132,6 +132,14 @@ CREATE TRIGGER trg_powiadom_goscia_o_akceptacji
 --
 -- Wpis do `maile_wyslane` ma `ON DELETE CASCADE`, więc zniknie razem z wierszem;
 -- idempotencja nic tu nie traci, bo wiersza i tak już nie będzie.
+--
+-- USUNIĘCIE CAŁEGO MECZU nie wyśle stąd „prośba odrzucona" — i to nie jest
+-- przypadek, tylko sprawdzona własność. `event_participants.event_id` ma
+-- `ON DELETE CASCADE` (potwierdzone na produkcji: `confdeltype = 'c'`), a kaskada
+-- wykonuje się PO usunięciu wiersza rodzica. `wyslij_mail_do_goscia()` robi
+-- `JOIN events`, więc nie znajduje meczu i wychodzi cicho. Gdyby kiedyś ten JOIN
+-- zniknął, trzeba tu dołożyć jawny warunek — inaczej skasowanie meczu wyśle
+-- wszystkim oczekującym gościom nieprawdę o decyzji organizatora.
 CREATE OR REPLACE FUNCTION powiadom_goscia_o_odrzuceniu()
 RETURNS TRIGGER
 LANGUAGE plpgsql
