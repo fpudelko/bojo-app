@@ -46,8 +46,17 @@ BOJO_POCZTA_SEKRET = <dowolny długi losowy ciąg — wymyśl własny>
 BOJO_NADAWCA       = Bojo <noreply@bojo.pl>
 ```
 
+⚠️ **Sam `RESEND_API_KEY` NIE WYSTARCZA.** Sprawdzone na produkcji 2026-09-08: klucz
+był ustawiony, a mimo to nie wychodził ani jeden mail — bo `konfiguracja_poczty` była
+pusta (krok 4), a funkcja `powiadom-goscia` w ogóle niewdrożona (krok 3). To są cztery
+niezależne kroki i pominięcie któregokolwiek daje ten sam objaw: cisza.
+
+`BOJO_NADAWCA` czytają teraz także `send-invites` i `notify-game-alert` — do 2026-09-08
+miały nadawcę `noreply@bojo.app` wpisanego na sztywno, czyli domenę INNĄ niż strona.
+
 `BOJO_URL` jest opcjonalny (domyślnie `https://bojo.pl`) — przyda się tylko,
-gdyby linki miały prowadzić gdzie indziej.
+gdyby linki miały prowadzić gdzie indziej. `BOJO_ODPOWIEDZ_NA` też (domyślnie
+`bojopolska@gmail.com`) — to adres, na który trafi ODPOWIEDŹ na maila.
 
 ## 4. Wpis w bazie
 
@@ -108,7 +117,9 @@ SELECT * FROM maile_wyslane ORDER BY created_at DESC LIMIT 10;
 
 | Powód | Kiedy | Do kogo |
 |---|---|---|
-| `zapis` | zaraz po zapisie | każdy gość z adresem |
+| `zapis` | zaraz po zapisie | każdy gość z adresem (trzy warianty: skład / rezerwa / poczekalnia) |
+| `zaakceptowano` / `odrzucono` | organizator rozpatrzył prośbę o dołączenie | gość, który czekał na akceptację |
+| `oferta` | zwolniło się miejsce, a gość jest pierwszy w kolejce | gość z rezerwy, z adresem |
 | `odwolanie` / `zmiana` | odwołanie meczu, zmiana terminu, miejsca albo kosztu | każdy gość z adresem, także z rezerwy |
 | `jutro_grasz` | dzień przed, zadanie `bojo-maile-gosci` (16:10 UTC) | tylko gość w SKŁADZIE — rezerwa jeszcze nie wie, czy gra |
 | `zaloz_konto` | dzień po meczu | tylko gość, którego adres nadal nie ma konta w Bojo |

@@ -89,8 +89,9 @@ do rezerwacji boisk — te strony służą zebraniu składu na obiekt już zarez
   poza aplikacją.
 - Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu, miejsca
   lub kosztu, zaproszenie, odwołanie lub usunięcie meczu, usunięcie ze składu, zmiana
-  kompletu składu) są wyłącznie **w aplikacji**. Bojo nie wysyła SMS-ów, maili o meczu
-  ani powiadomień push.
+  kompletu składu, przypomnienie dzień przed) trafiają **w aplikacji**, pod dzwonkiem,
+  a po włączeniu — także **na telefon**. Osoba zapisana bez konta dostaje je **mailem**
+  na adres podany przy zapisie. Bojo nie wysyła SMS-ów.
 
 ## Optional
 

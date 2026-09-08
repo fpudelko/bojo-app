@@ -107,10 +107,10 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
     id: 'czego-nie-zastapi',
     tytul: 'Czego Bojo nie zastąpi',
     akapity: [
-      'Bojo nie jest komunikatorem. Nie wyśle SMS-a ani maila o meczu — jedyny kanał to ' +
-      'powiadomienia w aplikacji, pod dzwonkiem. Czat ekipy zostaje tam, gdzie jest; Bojo ' +
-      'daje jeden link, który się w tym czacie wkleja i który liczy to, czego czat ' +
-      'policzyć nie umie.',
+      'Bojo nie jest komunikatorem. Nie wyśle SMS-a i nie zastąpi rozmowy ekipy — ' +
+      'powiadomienia dostajesz w aplikacji, pod dzwonkiem, a jeśli je włączysz, także na ' +
+      'telefon. Czat ekipy zostaje tam, gdzie jest; Bojo daje jeden link, który się ' +
+      'w tym czacie wkleja i który liczy to, czego czat policzyć nie umie.',
     ],
   },
 ];

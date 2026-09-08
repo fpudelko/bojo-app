@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-04 · migracja `134` · 56 tabel
+**Stan na:** 2026-09-08 · migracja `137` · 56 tabel
 
 ---
 
@@ -355,6 +355,67 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-08 — Lista rezerwowa dotrzymuje tego, co obiecuje
+
+PROBLEM: Bojo mówiło rezerwowemu, że po odpuszczeniu miejsca dostanie kolejną ofertę, gdy
+zwolni się następne — i tego nie robiło. To samo dotyczyło osoby, która po prostu nie
+zdążyła odpowiedzieć w wyznaczonym czasie: znikała z kolejki na zawsze, bez żadnej
+wiadomości. Organizator tracił przez to rezerwowego po jednym nieodebranym powiadomieniu
+i nie miał jak się o tym dowiedzieć. Gość bez konta stojący na rezerwie nie dostawał oferty
+NIGDY, choć wiadomość po zapisie obiecywała mu ją wprost. Gracz, który sam wycofał prośbę
+o dołączenie, dostawał komunikat „Organizator nie przyjął Twojej prośby".
+
+ROZWIĄZANIE BOJO: odpuszczenie i brak odpowiedzi to teraz dwie różne rzeczy. Kto klika
+„Odpuszczam", wypada z kolejki i wie o tym z góry. Kto nie zdążył, wraca na koniec kolejki
+i dostaje o tym wiadomość — czyli zostaje w grze. Gość bez konta, który podał adres,
+dostaje ofertę mailem i może ją przyjąć albo odpuścić na stronie swojego zapisu. Gość bez
+adresu jest oznaczony w składzie, żeby organizator wiedział, kogo kolejka pominie. Liczba
+„N. w kolejce" liczy się jedną regułą, tą samą co w bazie, i uwzględnia osobne kolejki dla
+bramkarzy i dla gry w polu.
+
+MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
+`ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`, powiadomienie
+`oferta_wygasla`, warunek `auth.uid()` w `powiadom_o_odrzuceniu_prosby()`), migracja `137`
+(`sync_reserve_claim()` przyjmuje gościa z adresem, powód poczty `oferta`,
+`przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
+`lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
+i `supabase/test/poczta-goscia.sql`.
+
+### 2026-09-08 — Kreator nie odsyła już do złego kroku, a wyłączona płatność zostaje wyłączona
+
+PROBLEM: w oknie „Tak zobaczą to gracze" — ostatnim sprawdzeniu przed opublikowaniem meczu
+— przycisk „Zmień" przy dacie przenosił organizatora na wybór miejsca, a „Zmień" przy
+miejscu na wybór terminu. Osobno: po wyłączeniu przełącznika „Mecz płatny" cena wracała
+przy najbliższej zmianie liczby miejsc, więc mecz publikował się jako płatny, bez żadnego
+sposobu zapłaty, przy przełączniku pokazującym „wyłączony". Gracz widział kwotę i nie miał
+jak jej uregulować.
+
+ROZWIĄZANIE BOJO: układ kroków kreatora ma jedno źródło prawdy, więc podsumowanie nie może
+się już z nim rozjechać. Wyłączenie płatności czyści też koszt wynajmu obiektu, z którego
+liczona jest cena od osoby, a o tym, czy mecz jest płatny, decyduje przełącznik, nie
+resztka w polu. „Zacznij od nowa" wraca do wszystkich ustawień domyślnych.
+
+MECHANIKA: stała `KROK_KREATORA` i funkcja `czyMeczPlatny()` w `lib/eventWizard.ts`,
+czytane przez `lib/eventSummary.ts` i `app/wydarzenia/nowe/page.tsx`. Testy
+w `eventSummary.test.ts` i `eventWizard.test.ts`.
+
+### 2026-09-08 — Zapisy zamknięte widać przed wypełnieniem formularza, nie po
+
+PROBLEM: osoba bez konta, która weszła z linku od organizatora na mecz z kompletem i bez
+listy rezerwowej, widziała zwykły przycisk „Dołącz bez konta". Wypełniała imię, adres
+e-mail i sposób płatności, klikała „Zapisz się" i dopiero wtedy dostawała komunikat
+o błędzie. Ten sam mecz pokazywał zalogowanym poprawne „Komplet — zapisy zamknięte".
+
+ROZWIĄZANIE BOJO: stan kompletu rozstrzyga się przed pytaniem o konto, więc obowiązuje
+wszystkich tak samo. Przy komplecie z listą rezerwową przycisk mówi wprost, że zapis idzie
+na rezerwę. Domknięty też przypadek meczu z bramkarzami, w którym pełna jest tylko jedna
+rola. Osobno: powiadomienie „Potwierdź, że to Ty" otwierane z telefonu prowadzi teraz na
+stronę potwierdzenia, a nie na stronę meczu, gdzie nie ma czego potwierdzić.
+
+MECHANIKA: kolejność gałęzi paska zapisu w `EventDetailClient.tsx`, migracja `136`
+(`claim_token` w ładunku powiadomienia push) i `adresPowiadomienia()` w funkcji brzegowej
+`send-push`. Asercje w `listaRezerwowa.test.ts`.
+
 ### 2026-09-04 — Bojo wita nowego użytkownika i mówi mu, od czego zacząć
 
 PROBLEM: Bojo nie odzywało się do nowego użytkownika ani razu. Przy rejestracji adresem
@@ -574,30 +635,3 @@ realnego promienia (rogi prostokąta), sortuje po `distanceKm()` z `lib/geo.ts` 
 do sześciu. Dane pobiera serwer w `app/boisko/[id]/page.tsx` i podaje propsem do
 `VenueDetailClient.tsx`, gdzie renderuje je `OpisIPowiazane` — w obu gałęziach, także
 tej bez JavaScriptu. Test: `src/__tests__/pobliskieObiekty.test.ts`. Bez migracji.
-
-### 2026-09-01 — Tytuł i opis Bojo w wynikach wyszukiwania mówią, czym Bojo jest
-
-PROBLEM: Pierwszy pomiar w Google Search Console (2026-08-29) pokazał, że przez trzy
-miesiące Bojo miało 56 wyświetleń i ZERO kliknięć przy średniej pozycji 9,4, a wszystkie
-zapytania były markowe: „co to bojo", „bojo", „bojo co to". Przyczyna: „bojo" to
-w polszczyźnie potocznej słowo oznaczające boisko, więc wynik Bojo stoi w wyszukiwarce
-obok definicji słownikowej — a jego tytuł („Bojo — zbierz ekipę, zagraj dziś | Boiska
-i mecze w Polsce") nie zawierał ani jednego słowa, które by tę definicję podważało.
-Słowa „boiska", „zagraj", „zbierz ekipę" wszystkie ją potwierdzały. Człowiek pytający
-„co to jest bojo" nie dostawał odpowiedzi na swoje pytanie, więc nie miał po co kliknąć.
-
-ROZWIĄZANIE BOJO: Tytuł strony głównej Bojo brzmi dziś „Bojo (bojo.pl) — aplikacja do
-organizowania amatorskich meczów", a opis zaczyna się od zdania mówiącego wprost, czym
-Bojo jest i co robi organizator. Rzeczownik kategorii („aplikacja") stoi tuż przy nazwie,
-bo jest jedyną rzeczą odróżniającą Bojo jako produkt od słowa pospolitego. Ta sama zmiana
-objęła stronę „Dlaczego Bojo" — drugą i jedyną poza stroną główną, którą Google miał
-wtedy w indeksie. Podgląd linku w czacie i nazwa pod ikoną aplikacji na telefonie
-ZOSTAŁY przy dotychczasowym haśle: tam odbiorca już wie, czym Bojo jest, bo dostał link
-od organizatora albo sam zainstalował aplikację.
-
-MECHANIKA: Ciągi wyniesione do `frontend/src/content/metaWyszukiwarki.ts`
-(`TYTUL_DOMYSLNY`, `OPIS_DOMYSLNY`, `TYTUL_DLACZEGO`, `HASLO_PODGLADU`), używane przez
-`app/layout.tsx` i `app/dlaczego-bojo/page.tsx`. Test `src/__tests__/tytulMarkowy.test.ts`
-pilnuje rzeczownika kategorii, obecności domeny, długości mieszczącej się w wyniku
-wyszukiwania, braku fraz zakazanych oraz tego, że hasło podglądu NIE zlewa się z tytułem.
-Bez migracji. Pomiar źródłowy: `docs/seo-geo-strategia.md`, sekcja 7a.2.
