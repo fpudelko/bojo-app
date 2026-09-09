@@ -297,6 +297,34 @@ Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean)
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
 
+**Zapisany gracz ma własny pasek stanu — od 2026-09-09.** Do tej pory pasek na dole
+strony meczu obsługiwał wyłącznie NIEzapisanego (`joinBarVisible`): gasł w chwili
+dołączenia, więc status („gram" / „rezerwa, 2. w kolejce" / „czekam na akceptację")
+zostawał wyłącznie w treści, a jedyne wyjście — „Wypisz się z meczu" — leżało na końcu
+sekcji składu, poniżej zgięcia ekranu. Gość bez konta miał taki pasek od dawna
+(`mojTokenGoscia`, „Jesteś zapisany(a) / Mój zapis →"), więc była to **niespójność, nie
+decyzja** — zgłoszone wprost z sesji QA na telefonie.
+
+`statusBarVisible` jest dokładnym dopełnieniem `joinBarVisible` i renderuje pasek ze
+statusem plus ściszonym „Wypisz się". Trzy rzeczy, które go odróżniają od tamtych dwóch:
+
+- **Siada NAD dolną nawigacją** (`marginBottom: var(--dol-bezpieczny)`, ten sam wzorzec
+  co `CookieBanner`), zamiast wołać `<HideBottomNav/>`. Pasek „Dołącz" i pasek gościa
+  dotyczą krótkiej chwili przed zapisem; mecz, w którym się gra, otwiera się wielokrotnie
+  i przez wiele dni — zabranie na nim nawigacji byłoby gorsze niż problem, który to
+  naprawia.
+- **Nie powtarza wyjaśnień z treści** (czym jest rezerwa, na co czeka prośba). Odpowiada
+  na dwa pytania, które wcześniej wymagały przewijania: jaki mam status i jak z tego wyjść.
+- **Napis brzmi „Wypisz się", nie „Wypisz się z meczu"** — ten drugi niesie przycisk
+  w treści i pod niego napisany jest selektor w `e2e/scenariusze.spec.ts`. Dwa elementy
+  o tej samej nazwie dostępnej wywracają strict mode Playwrighta.
+
+Obserwujący („Obserwuję") **nie** dostaje tego paska i to jest zamierzone: `myParticipation`
+to `myConfirmed`, czyli wiersz z miejscem w składzie albo w kolejce, a `rsvp = 'maybe'`
+do niego nie należy — obserwujący dalej widzi „Dołącz", którego naprawdę potrzebuje.
+Pilnuje tego asercja w scenariuszu dołączenia (`e2e/scenariusze.spec.ts`, podpis
+„Masz miejsce w składzie").
+
 **„Ukryty" chowa przez CSS, nie odmontowuje — od 2026-08-30.** `BottomNavGate.tsx`
 renderuje `<BottomNav hidden={hidden}/>` zawsze (poza „nie zalogowany"/„widget"), a
 `BottomNav.tsx` dokłada klasę `hidden` zamiast `return null`. Wcześniej `BottomNavGate`
@@ -1351,11 +1379,20 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
    stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
    prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
 
-**„Nie gram"** (`NieGramButton.tsx`) — osobny, mały przycisk dla członka ekipy, który
-jeszcze nie dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
+**„Nie zagram"** (`NieGramButton.tsx`) — odpowiedź dla członka ekipy, który jeszcze nie
+dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
 `event_declines` (migracja `097`) — **nie** w `player_reports`, które karmi
 „Niezawodność" wyłącznie ze zgłoszeń nieobecności na mecz, na który ktoś się zapisał;
-wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Nie gram — cofnij").
+wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Cofnij odpowiedź").
+
+**Pytanie stoi NAD przyciskiem i mieszka w komponencie — od 2026-09-09.** Sam przycisk
+„Nie gram" stał bez kontekstu tuż nad przyklejonym paskiem „Dołącz →", więc czytał się
+jak **plakietka ze stanem** („nie gram" = nie ma mnie w składzie) albo druga połowa
+przełącznika obok „Dołącz" — zgłoszone wprost z sesji QA na telefonie. Dziś komponent
+renderuje kartę z pytaniem („Twoja ekipa tu gra. Nie dasz rady?") i odpowiedzią
+(„Nie zagram"), a po kliknięciu podmienia oba na „Ekipa wie, że tym razem nie zagrasz."
++ „Cofnij odpowiedź". Pytanie musi mieszkać w komponencie, nie na stronie: tylko on zna
+`odmowilem`, więc tylko on może przestać pytać o coś, na co odpowiedź już padła.
 
 **Panel miał wcześniej trzeci blok, „Nie odpowiedziało: N"** (kto z ekipy jeszcze nie
 zareagował na mecz, z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa") — usunięty na
