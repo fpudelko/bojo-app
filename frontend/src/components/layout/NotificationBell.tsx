@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  Bell, CalendarPlus, CalendarX, Check, ChevronRight, Clock, MessageCircle, Settings,
-  TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
+  Bell, CalendarCheck, CalendarPlus, CalendarX, Check, ChevronRight, Clock, MessageCircle,
+  Settings, TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -51,6 +51,12 @@ const IKONY: Record<string, { Ikona: LucideIcon; klasa: string; rodzaj: string }
   nowy_mecz_w_grupie:          { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Nowy mecz' },
   event_cancelled:             { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
   mecz_odwolany:               { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
+  // Para do powyższego (migracja `139`). ZIELONO, nie czerwono: czerwień
+  // w tej aplikacji znaczy „coś poszło źle", a sprostowanie odwołania jest
+  // dokładnie odwrotną wiadomością — i przychodzi zaraz pod czerwonym
+  // wierszem, który prostuje. Dwa czerwone wiersze obok siebie czytałyby się
+  // jak dwie awarie.
+  mecz_przywrocony:            { Ikona: CalendarCheck, klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Jednak gramy' },
   prosba_o_dolaczenie:         { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
   pytanie_o_udzial:            { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Grasz?' },
   zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },

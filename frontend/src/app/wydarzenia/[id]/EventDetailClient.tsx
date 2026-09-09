@@ -38,7 +38,7 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie } from '@/lib/eventShare';
+import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
@@ -1985,12 +1985,48 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
+  /**
+   * Przywrócenie odwołanego meczu — druga połowa decyzji, którą okno
+   * odwołania wprost reklamuje („Możesz go przywrócić tym samym panelem”).
+   *
+   * DO MIGRACJI `139` TA POŁOWA BYŁA CICHA. `070` milczało przy przejściu
+   * `cancelled` → `active` z uzasadnieniem „to nie jest zła wiadomość” — ale
+   * skład dostał wcześniej „Mecz odwołany” i porobił inne plany, więc cisza
+   * znaczyła dla niego dokładnie tyle, co brak meczu. Dziś powiadomienie
+   * wychodzi do tych, którzy dostali odwołanie, i okno mówi o tym wprost:
+   * bez tego organizator nie ma jak wiedzieć, czy musi jeszcze pisać sam.
+   *
+   * Gość bez konta dostaje mail tylko z zapisanym adresem (`133` + `139`) —
+   * stąd druga droga „Przywróć i wyślij wiadomość”, dokładnie jak przy
+   * odwołaniu. Dla gościa bez adresu czat jest jedynym kanałem.
+   */
   const handleRestore = async () => {
+    const bezKonta = [...regulars, ...reserves].filter((p) => !p.userId).length;
+    const wybor = await potwierdz({
+      tytul: 'Przywrócić mecz?',
+      konsekwencje: [
+        'Kto dostał powiadomienie o odwołaniu, dostanie teraz informację, że mecz jednak jest.',
+        bezKonta > 0
+          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
+          : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
+        'Skład zostaje taki, jaki był przed odwołaniem — nikt nie wypadł.',
+      ],
+      potwierdzLabel: 'Przywróć mecz',
+      akcjaDodatkowaLabel: 'Przywróć i wyślij wiadomość',
+    });
+    if (wybor === 'nie') return;
+
     setBusy(true);
     try {
       await restoreEvent(event.id, user?.id, displayName(user ?? null));
       await load();
       toast('Mecz przywrócony');
+      // Wiadomość PO udanym przywróceniu, nie przed — ta sama zasada co przy
+      // odwołaniu: nie ogłaszamy stanu, którego jeszcze nie ma.
+      if (wybor === 'dodatkowa') {
+        const wynik = await udostepnijPrzywrocenie(event, eventUrl(event.id, window.location.origin));
+        if (wynik === 'copied') toast('Wiadomość skopiowana — wklej ją na czat ekipy');
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }

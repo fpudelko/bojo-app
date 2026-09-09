@@ -150,6 +150,77 @@ export async function udostepnijOdwolanie(e: DaneDoUdostepnienia): Promise<Wynik
   }
 }
 
+/**
+ * Cztery linie o meczu, który jednak się odbędzie.
+ *
+ * PO CO. Migracja `139` powiadamia o przywróceniu DOKŁADNIE te osoby, które
+ * dostały wcześniej `mecz_odwolany` — ale gość bez konta i tak dostaje mail
+ * tylko wtedy, gdy ma zapisany adres, a kto go nie podał, nie dowie się
+ * niczym poza czatem. Ten sam powód, dla którego istnieje `tekstOdwolania`.
+ *
+ * Świadomie ta sama czterolinijkowa forma co `eventShareText`
+ * i `tekstOdwolania`: ekipa rozpoznaje kształt bez czytania, a różnicę niesie
+ * pierwsza linia.
+ */
+export function tekstPrzywrocenia(e: DaneDoUdostepnienia): string {
+  const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
+
+  let kiedy: string;
+  try {
+    kiedy = format(parseISO(e.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {
+    kiedy = e.date;
+  }
+
+  const gdzie = eventLocation({
+    fieldName: e.fieldName,
+    fieldAddress: e.fieldAddress,
+    customLocationName: e.customLocationName,
+    customAddress: e.customAddress,
+    district: e.district,
+  });
+
+  const start = hhmm(e.time);
+  const koniec = hhmm(e.endTime);
+
+  return [
+    `✅ Wraca: ${tytul}`,
+    `${kiedy} · ${koniec ? `${start}–${koniec}` : start}`,
+    gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary,
+    'Mecz jednak się odbędzie.',
+  ].join('\n');
+}
+
+/**
+ * Otwiera arkusz udostępniania z informacją o przywróceniu meczu.
+ *
+ * W ODRÓŻNIENIU OD ODWOŁANIA — z adresem meczu. Przy odwołaniu link nie ma po
+ * co istnieć, bo nie ma w co klikać; tutaj jest odwrotnie: to jest zaproszenie
+ * z powrotem do składu, więc adres jest w nim najważniejszy.
+ */
+export async function udostepnijPrzywrocenie(
+  e: DaneDoUdostepnienia,
+  url: string,
+): Promise<WynikUdostepnienia> {
+  const text = tekstPrzywrocenia(e);
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'Mecz jednak się odbędzie', text, url });
+      return 'shared';
+    } catch {
+      return 'failed';
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}
+
 /** Tekst + adres w jednej linijce niżej — to samo, co dziś robi fallback
  *  schowka w `shareEvent()`. Wydzielone, żeby przyciski „Kopiuj link" (pasek
  *  meczu, panel „Zaproś znajomych") nie kopiowały gołego adresu — to ten sam

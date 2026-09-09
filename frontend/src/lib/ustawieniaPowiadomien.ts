@@ -52,6 +52,17 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // Para do powyższego (migracja `139`). Stoi bezpośrednio pod odwołaniem,
+    // bo to ta sama sprawa widziana z drugiej strony — i bo wyłączenie
+    // samego sprostowania, przy włączonym odwołaniu, jest ustawieniem
+    // „powiedz mi tylko złe wiadomości". Nikt tego świadomie nie chce, ale
+    // rozdzielone o dziesięć pozycji dałoby się w to wpaść przypadkiem.
+    typ: 'mecz_przywrocony',
+    nazwa: 'Mecz jednak się odbędzie',
+    opis: 'Organizator cofnął odwołanie meczu, o którego odwołaniu już wiesz',
+    wazne: true,
+  },
+  {
     typ: 'pytanie_o_udzial',
     nazwa: 'Pytanie, czy grasz',
     opis: 'Organizator pyta ekipę, kto wchodzi',

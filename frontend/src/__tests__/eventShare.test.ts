@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eventUrl, eventShareText, type DaneDoUdostepnienia, tekstOdwolania } from '@/lib/eventShare';
+import { eventUrl, eventShareText, type DaneDoUdostepnienia, tekstOdwolania, tekstPrzywrocenia } from '@/lib/eventShare';
 
 const bazowy: DaneDoUdostepnienia = {
   sport: 'piłka nożna',
@@ -128,5 +128,36 @@ describe('tekstOdwolania', () => {
   // odwołania, bo organizator zostaje wtedy bez możliwości powiadomienia ekipy.
   it('nie wywraca się na niepoprawnej dacie', () => {
     expect(() => tekstOdwolania({ ...bazowy, date: 'bez-sensu' })).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tekstPrzywrocenia — druga połowa `tekstOdwolania`.
+//
+// PO CO ISTNIEJE: migracja `139` powiadamia o cofnięciu odwołania te osoby,
+// które dostały wcześniej `mecz_odwolany` — ale gość bez konta i BEZ adresu
+// nie ma jak się o tym dowiedzieć. Ten sam powód, dla którego istnieje
+// `tekstOdwolania`, tylko z odwrotnym znakiem.
+// ---------------------------------------------------------------------------
+describe('tekstPrzywrocenia', () => {
+  it('pierwsza linia mówi wprost, że mecz wraca', () => {
+    expect(tekstPrzywrocenia(bazowy).split('\n')[0]).toBe('✅ Wraca: Piłka nożna 7v7');
+  });
+
+  it('niesie termin z godzinami — bez niego nie ma po co wracać do kalendarza', () => {
+    expect(tekstPrzywrocenia(bazowy).split('\n')[1]).toBe('środa, 12 sierpnia · 18:00–19:30');
+  });
+
+  it('niesie miejsce z adresem', () => {
+    expect(tekstPrzywrocenia(bazowy).split('\n')[2]).toBe('Orlik Sołacz, ul. Niestachowska 8');
+  });
+
+  it('kończy się zdaniem, które rozstrzyga', () => {
+    expect(tekstPrzywrocenia(bazowy).split('\n')[3]).toBe('Mecz jednak się odbędzie.');
+  });
+
+  it('ma ten sam kształt co zaproszenie i odwołanie — cztery linie', () => {
+    expect(tekstPrzywrocenia(bazowy).split('\n')).toHaveLength(4);
+    expect(tekstOdwolania(bazowy).split('\n')).toHaveLength(4);
   });
 });
