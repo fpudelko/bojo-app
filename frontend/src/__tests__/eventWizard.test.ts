@@ -106,6 +106,29 @@ describe('validatePayments', () => {
     const errs = validatePayments({ ...base, costPln: '20', platny: true });
     expect(errs.costPln).toBeUndefined();
   });
+
+  // Pole ceny miało wyłącznie `min={0}`, więc absurdalna kwota jechała do bazy
+  // i wracała surowym błędem Postgresa („integer out of range" na `cost_grosz`)
+  // zamiast zdaniem po polsku.
+  it('odrzuca absurdalną kwotę zamiast puszczać ją do bazy', () => {
+    const errs = validatePayments({ ...base, costPln: '99999999' });
+    expect(errs.costPln).toBeDefined();
+  });
+
+  it('realna cena gierki przechodzi bez zmian', () => {
+    expect(validatePayments({ ...base, costPln: '25' }).costPln).toBeUndefined();
+    expect(validatePayments({ ...base, costPln: '500' }).costPln).toBeUndefined();
+  });
+
+  // Przy absurdalnej kwocie zniżka jest liczona od tej samej pomyłki —
+  // dwa komunikaty o jednym błędzie kazałyby poprawiać dwie rzeczy zamiast jednej.
+  it('przy zbyt wysokiej cenie nie dokłada drugiego błędu o zniżce', () => {
+    const errs = validatePayments({
+      ...base, costPln: '99999999', cardDiscountEnabled: true, cardDiscountPln: '30',
+    });
+    expect(errs.costPln).toBeDefined();
+    expect(errs.cardDiscount).toBeUndefined();
+  });
 });
 
 describe('validateStep (dispatcher used by attemptGoToStep)', () => {

@@ -3578,6 +3578,11 @@ export default function EventDetailClient() {
                       type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
                       placeholder="Imię znajomego"
+                      // 80 znaków = limit, który i tak wymusza `validateName()`
+                      // przy zapisie (`lib/events.ts`). Bez tego pole przyjmowało
+                      // dowolnie długi tekst, a odmowa przychodziła dopiero
+                      // z serwera, po kliknięciu „Dodaj".
+                      maxLength={80}
                       className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
@@ -3645,6 +3650,7 @@ export default function EventDetailClient() {
                     type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
                     placeholder="Imię znajomego"
+                    maxLength={80}
                     className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
@@ -4873,6 +4879,7 @@ export default function EventDetailClient() {
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="np. Jan Kowalski"
+                  maxLength={80}
                   className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
                   disabled={guestBusy}
                 />
