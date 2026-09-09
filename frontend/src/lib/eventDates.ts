@@ -84,3 +84,51 @@ export function matchWhenLabel(date: string, time?: string): string {
     return time ? time.slice(0, 5) : '';
   }
 }
+
+/**
+ * „sobota, 30 sierpnia · za 3 dni" — pełny opis wybranej daty, do postawienia
+ * POD polem `<input type="date">` w kreatorze i w edycji meczu.
+ *
+ * PO CO. Natywne pole daty pokazuje samą datę, w formacie zależnym od
+ * ustawień telefonu — i nigdy nie mówi, jaki to dzień tygodnia. Organizator
+ * rezerwuje boisko na czwartek, wybiera z kalendarza środę i dowiaduje się
+ * o tym najwcześniej na kroku 3, z podsumowania przed publikacją. W EDYCJI nie
+ * dowiaduje się w ogóle, bo tam podsumowania nie ma. Zła data jest przy tym
+ * najczęstszą pomyłką organizatora — i jedyną, którą widać natychmiast, jeśli
+ * tylko nazwać dzień po imieniu.
+ *
+ * DLACZEGO NIE `matchWhenLabel`. Tamta jest etykietą karty i celowo skraca
+ * („w piątek · 18:00"). Tutaj potrzebna jest odwrotność: pełna data ROZWINIĘTA,
+ * żeby dało się ją porównać z tym, co organizator ma zapisane w telefonie.
+ *
+ * Zwraca pusty ciąg dla daty, której nie da się sparsować — wywołujący ma
+ * wtedy nie renderować nic, zamiast pokazywać „Invalid Date".
+ */
+export function opisDaty(date: string): string {
+  if (!date) return '';
+  try {
+    const [y, m, d] = date.split('-').map(Number);
+    if (!y || !m || !d) return '';
+    const dzien = new Date(y, m - 1, d);
+    if (Number.isNaN(dzien.getTime())) return '';
+
+    const dzisiaj = new Date(); dzisiaj.setHours(0, 0, 0, 0);
+    const roznica = Math.round((dzien.getTime() - dzisiaj.getTime()) / 86_400_000);
+
+    const pelna = format(dzien, 'EEEE, d MMMM', { locale: pl });
+
+    let odleglosc: string;
+    if (roznica < 0) odleglosc = 'termin minął';
+    else if (roznica === 0) odleglosc = 'dzisiaj';
+    else if (roznica === 1) odleglosc = 'jutro';
+    else if (roznica < 7) odleglosc = `za ${roznica} dni`;
+    else if (roznica < 14) odleglosc = 'za tydzień';
+    // Tygodnie liczymy podłogą, nie zaokrągleniem: „za 3 tygodnie" przy 25
+    // dniach obiecuje termin bliższy, niż jest naprawdę.
+    else odleglosc = `za ${Math.floor(roznica / 7)} tyg.`;
+
+    return `${pelna} · ${odleglosc}`;
+  } catch {
+    return '';
+  }
+}

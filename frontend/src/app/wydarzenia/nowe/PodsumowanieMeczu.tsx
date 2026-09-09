@@ -148,6 +148,19 @@ export default function PodsumowanieMeczu({
           )}
         </div>
       </dl>
+
+      {/* CO BOJO ZROBI SAMO — jedno zdanie, na końcu podsumowania.
+          Przypomnienia działają od migracji `129`, powiadomienia o zmianach od
+          `065`/`114`, a organizator nie miał tego skąd wiedzieć: mówi o tym FAQ
+          i `docs/llm-context.md`, czyli miejsca, których się nie czyta przy
+          zakładaniu meczu. To jest jednocześnie jedyna rzecz z całej listy,
+          której post na grupie nie umie w ogóle — i dopóki organizator o niej
+          nie wie, przypomina ręcznie na WhatsAppie, a razem z przypomnieniem
+          zostaje tam cała reszta rozmowy o meczu. */}
+      <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+        Po publikacji Bojo przypomni składowi dzień przed meczem i powiadomi wszystkich,
+        jeśli zmienisz termin, miejsce albo odwołasz grę.
+      </p>
     </section>
   );
 }

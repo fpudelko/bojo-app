@@ -1,6 +1,7 @@
 'use client';
 
 import TimeSelect from '@/components/ui/TimeSelect';
+import { opisDaty } from '@/lib/eventDates';
 
 const CZASY_GRY = [30, 45, 60, 75, 90, 105, 120, 150, 180];
 
@@ -56,11 +57,19 @@ export default function EventDateTimeField({
           onChange={(e) => setDate(e.target.value)}
           className={[inputCls, dateError ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
         />
-        {dateError && (
+        {/* DZIEŃ TYGODNIA POD DATĄ. Natywne pole pokazuje samą datę i nigdy
+            nie mówi, jaki to dzień — a organizator rezerwuje boisko „na
+            czwartek", nie „na 13.08". Podsumowanie przed publikacją łapało tę
+            pomyłkę dopiero dwa kroki dalej, a w edycji nie łapie jej nic.
+            Ustępuje miejsca komunikatowi błędu: dwie linijki pod jednym polem
+            to już szum. */}
+        {dateError ? (
           <p data-field-error className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">
             <span aria-hidden>⚠</span> {dateError}
           </p>
-        )}
+        ) : opisDaty(date) ? (
+          <p className="mt-1 text-xs text-slate-500">{opisDaty(date)}</p>
+        ) : null}
       </div>
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">Rozpoczęcie</label>

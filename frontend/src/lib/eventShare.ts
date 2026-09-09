@@ -192,6 +192,78 @@ export function tekstPrzywrocenia(e: DaneDoUdostepnienia): string {
 }
 
 /**
+ * Wiadomość o zmianie w meczu — z wypunktowaniem „było → jest".
+ *
+ * PO CO. `065` i `114` powiadamiają uczestników Z KONTEM, `133` — gości
+ * z zapisanym adresem. Zostaje gość bez adresu, czyli zwykle ta część składu,
+ * którą organizator sam przyprowadził. Dla niego czat jest jedynym kanałem —
+ * dokładnie ten sam powód, dla którego istnieje `tekstOdwolania`.
+ *
+ * `zmiany` przychodzą gotowe z `lib/zmianyMeczu.ts`, żeby nie było dwóch
+ * niezależnych opisów tej samej zmiany: to, co widzi organizator w oknie
+ * potwierdzenia, i to, co wysyła na czat, musi być tym samym zdaniem.
+ */
+export function tekstZmiany(
+  e: DaneDoUdostepnienia,
+  zmiany: { etykieta: string; przed: string; po: string }[],
+): string {
+  const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
+
+  let kiedy: string;
+  try {
+    kiedy = format(parseISO(e.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {
+    kiedy = e.date;
+  }
+
+  const gdzie = eventLocation({
+    fieldName: e.fieldName,
+    fieldAddress: e.fieldAddress,
+    customLocationName: e.customLocationName,
+    customAddress: e.customAddress,
+    district: e.district,
+  });
+
+  const start = hhmm(e.time);
+  const koniec = hhmm(e.endTime);
+
+  return [
+    `🔄 Zmiana: ${tytul}`,
+    ...zmiany.map((z) => `${z.etykieta}: ${z.przed} → ${z.po}`),
+    '',
+    `${kiedy} · ${koniec ? `${start}–${koniec}` : start}`,
+    gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary,
+  ].join('\n');
+}
+
+/** Otwiera arkusz udostępniania z opisem zmiany. Z adresem meczu — inaczej niż
+ *  przy odwołaniu, bo tutaj jest po co kliknąć: aktualny stan składu i miejsca
+ *  jest właśnie tym, co ekipa ma sprawdzić. */
+export async function udostepnijZmiane(
+  e: DaneDoUdostepnienia,
+  zmiany: { etykieta: string; przed: string; po: string }[],
+  url: string,
+): Promise<WynikUdostepnienia> {
+  const text = tekstZmiany(e, zmiany);
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'Zmiana w meczu', text, url });
+      return 'shared';
+    } catch {
+      return 'failed';
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}
+
+/**
  * Otwiera arkusz udostępniania z informacją o przywróceniu meczu.
  *
  * W ODRÓŻNIENIU OD ODWOŁANIA — z adresem meczu. Przy odwołaniu link nie ma po

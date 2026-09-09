@@ -2775,6 +2775,15 @@ export default function EventDetailClient() {
                 : 'Mecz jest prywatny: wejdą tylko osoby z tym linkiem.'}
             </p>
 
+            {/* Druga połowa zdania z podsumowania kreatora, tu w drugiej
+                osobie: tam brzmi jak zapowiedź, tu jak podział pracy. To jest
+                moment, w którym organizator odruchowo zaczyna planować
+                „przypomnę im w środę" — czyli ostatnia chwila, żeby mu
+                powiedzieć, że nie musi (migracja `129`). */}
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              Przypomnienie dzień przed meczem wyjdzie samo. Ty wyślij tylko link.
+            </p>
+
             {cyklicznyId && (
               <Link
                 href={`/cykliczne/${cyklicznyId}`}
