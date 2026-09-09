@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Loader2, Mail } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -28,18 +28,26 @@ export default function UstawieniaMaili() {
   const { toast } = useToast();
   const [rozwiniete, setRozwiniete] = useState(false);
   const [wylaczone, setWylaczone] = useState<string[] | null>(null);
+  // Czy próba pobrania już poszła. BEZ TEGO NIEUDANE POBRANIE ROBI PĘTLĘ:
+  // `wylaczone` zostaje `null`, `toast` wywołuje re-render, efekt startuje
+  // znowu — i tak w kółko, seria żądań do bazy przy zerowej reakcji ekranu.
+  // Ref, nie stan, bo jego zmiana nie ma nic renderować.
+  const proba = useRef(false);
 
   const rodzaje = rodzajeMailowe();
 
   useEffect(() => {
-    if (!user || !rozwiniete || wylaczone !== null) return;
+    if (!user || !rozwiniete || proba.current) return;
+    proba.current = true;
     pobierzMailWylaczone(user.id)
       .then(setWylaczone)
-      // Cicha porażka jest tu w porządku: brak listy znaczy „nie wiem, co jest
-      // wyłączone", a pokazanie wtedy wszystkiego jako włączonego byłoby
-      // kłamstwem. Zostaje kręciołek i ponowienie przy następnym rozwinięciu.
-      .catch(() => toast('Nie udało się wczytać ustawień poczty', 'error'));
-  }, [user, rozwiniete, wylaczone, toast]);
+      // Porażka zostawia kręciołek i komunikat. Ponowienie następuje przy
+      // kolejnym rozwinięciu panelu, nie samo z siebie.
+      .catch(() => {
+        proba.current = false;
+        toast('Nie udało się wczytać ustawień poczty', 'error');
+      });
+  }, [user, rozwiniete, toast]);
 
   const przelaczRodzaj = useCallback(async (typ: string, wlaczyc: boolean) => {
     if (!user || wylaczone === null) return;
