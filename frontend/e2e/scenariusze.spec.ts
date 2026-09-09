@@ -290,6 +290,12 @@ test.describe('dołączanie do meczu', () => {
     // Sedno: komunikat mówi o SKŁADZIE, nie o rezerwie.
     await expect(chmurka(page).getByText(/dołączyłeś do meczu/i)).toBeVisible();
     await expect(tresc(page).getByText('3 / 10')).toBeVisible();
+    // Przyklejony pasek stanu ZOSTAJE po dołączeniu. Wcześniej gasł razem
+    // z paskiem „Dołącz", więc status i „Wypisz się" zjeżdżały do treści,
+    // poniżej zgięcia ekranu — zgłoszone wprost z sesji QA na telefonie.
+    // Asercja idzie po podpisie paska, bo sam napis „Jesteś w składzie"
+    // pada też w chmurce i w oknie po zapisie.
+    await expect(tresc(page).getByText('Masz miejsce w składzie')).toBeVisible();
     await uspokoj(page);
     const po = tresc(page).getByText('3 / 10')
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');

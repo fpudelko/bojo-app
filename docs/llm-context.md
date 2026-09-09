@@ -156,9 +156,16 @@ nie blokuje miejsca (migracja `048`). Bramkarze mają osobny limit `max_goalkeep
 nie wskakuje na jego miejsce — organizator powiadamia go ręcznie. To świadoma decyzja
 produktowa, nie brakująca funkcja.
 
-**„Nie gram".** Członek ekipy, który jeszcze nie dołączył do meczu przypiętego do jego
-grupy, może kliknąć **„Nie gram"** — jawna odmowa, osobna od zgłoszenia nieobecności po
-meczu i osobna od statystyki „Niezawodność".
+**„Nie zagram".** Członek ekipy, który jeszcze nie dołączył do meczu przypiętego do jego
+grupy, dostaje pytanie „Twoja ekipa tu gra. Nie dasz rady?" i może odpowiedzieć
+**„Nie zagram"** — jawna odmowa, osobna od zgłoszenia nieobecności po meczu i osobna od
+statystyki „Niezawodność". Odpowiedź da się cofnąć.
+
+**Zapisany widzi swój status na dole ekranu.** Kto ma miejsce w składzie, stoi w kolejce
+rezerwowej albo czeka na akceptację, widzi na stronie meczu przyklejony pasek ze swoim
+stanem („Jesteś w składzie" / „Rezerwa — 2. w kolejce" / „Czekasz na akceptację")
+i wyjściem „Wypisz się". Wypisanie się jest odwracalne — można dołączyć ponownie, o ile
+mecz nie ma jeszcze kompletu.
 
 **„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator jednym
 kliknięciem zamienia go w publiczny, żeby dołączyli ludzie z sąsiedztwa — to jedyna
@@ -172,7 +179,8 @@ Próg minimum graczy (organizator ustawia `min_players`, strona meczu pokazuje w
 Czy rezerwowy wskakuje automatycznie, gdy ktoś zrezygnuje? Czy „Obserwuję" zajmuje
 miejsce w składzie? Jak działa akceptacja zapisów przez organizatora? Ilu bramkarzy
 mieści się na mecz? Co się dzieje, gdy ekipie brakuje ludzi do kompletu? Czy da się
-jawnie odmówić udziału w meczu, zamiast milczeć?
+jawnie odmówić udziału w meczu, zamiast milczeć? Jak wypisać się z meczu w Bojo?
+Gdzie sprawdzę, czy jestem w składzie, czy na rezerwie?
 
 ---
 
