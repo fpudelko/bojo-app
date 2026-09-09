@@ -229,6 +229,57 @@ powstał `supabase/test/rls.sql` — i dlatego obie poprawki wchodzą razem z as
 
 ---
 
+## Faza 10 — czwarta runda audytu (2026-09-09)
+
+Runda przeszła ścieżkę narzędziami: bramki repo na zielono przed startem
+(`tsc`, 958 testów Vitest, build produkcyjny, 72 testy klikalności na telefonie
+i komputerze), migracje od zera z testami RLS, poczty i przypomnień. Czego ta
+runda NIE zrobiła: scenariuszy za logowaniem (`scenariusze.spec.ts`) — środowisko
+nie miało Dockera, więc wszystkie 42 padły na braku stosu Supabase, nie na
+regresji. Zrzuty wizualne w tym samym kontenerze są niemiarodajne (inne fonty,
+brak kafelków mapy).
+
+Ustalenia mają numery `P-n`, żeby nie kolidowały z `O-n` i `E-n`.
+
+Wniosek ogólny ten sam co po rundzie 3: kod nie jest zepsuty. To, co zostało, to
+trzy rozjazdy w zapisie i w wyzwalaczach oraz dziury w tym, CO ORGANIZATOR WIE
+o skutkach własnego kliknięcia.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **P-1** | **`updateEvent()` nie zapisywała `custom_location_name` ani `custom_address`.** `createEvent()` zapisuje obie, formularz edycji obie zbiera, UPDATE je gubił. Skutki widać wyłącznie przy miejscu spoza katalogu — czyli tam, gdzie te kolumny są JEDYNYM źródłem adresu: mecz przeniesiony z jednej pinezki na drugą zostawał ze STARYM adresem pod nową nazwą, a przeniesiony z katalogu na pinezkę tracił adres całkowicie. To nie jest tylko strona meczu — `custom_address` zasila `streetAddress` w JSON-LD (`lib/structuredData.ts`) i metadane Open Graph (`app/wydarzenia/[id]/eventMeta.ts`), więc nieaktualny adres szedł do Google i do podglądu linku na czacie | zrobione |
+| **P-2** | **`updateEvent()` pomijała całą walidację i sanityzację, którą stosuje `createEvent()`.** Tytuł dłuższy niż 80 znaków odpadał przy zakładaniu meczu i przechodził przy jego edycji. Wspólny `przygotujPolaMeczu()` zdejmuje rozjazd u źródła — jedno miejsce dla obu dróg do tej samej tabeli | zrobione |
+| **P-3** | **`065` nie miało strażników, które `114` ma od początku** (`status <> 'cancelled'`, `event_date >= dzis_pl()`). Poprawienie daty w meczu ODWOŁANYM wysyłało całemu składowi „Nowy termin: …" — komunikat, który czyta się jak „mecz wraca" | zrobione (migracja `139`) |
+| **P-4** | **Przywrócenie odwołanego meczu było CICHE.** `070` milczy świadomie („to nie jest zła wiadomość"), ale ten argument nie broni się z miejsca, w którym stoi skład: te osoby dostały wcześniej „Mecz odwołany" i porobiły inne plany. Aplikacja tę drogę wprost ZACHĘCA — okno odwołania mówi „Możesz go przywrócić tym samym panelem" — więc zachęcaliśmy do drogi, której druga połowa nie działała | zrobione (migracja `139`, decyzja właściciela 2026-09-09). Osobny wyzwalacz, `070` nietknięte; odbiorcami są dokładnie ci, którzy dostali `mecz_odwolany`, plus dedup na dobę. W aplikacji: okno potwierdzenia w kształcie okna odwołania, z drugą drogą „Przywróć i wyślij wiadomość" |
+| **P-5** | **Edycja meczu nie mówiła NIC o skutkach — największa dziura tej rundy.** Odwołanie ma wzorcowe okno konsekwencji od `O-38`. Edycja — czynność wykonywana CZĘŚCIEJ i wysyłająca dwa rodzaje powiadomień (`065`, `114`) plus maile do gości (`133`) — kończyła się przyciskiem i przekierowaniem. Skutek jest podwójny i oba warianty są złe: raz organizator pisze to samo drugi raz na czacie, kiedy indziej nie pisze wcale, bo zakłada, że Bojo zrobiło coś, czego nie zrobiło | zrobione. `lib/zmianyMeczu.ts` liczy diff i tłumaczy go na zdania; flaga „ta zmiana powiadamia" jest LUSTREM wyzwalaczy, pod testem sprawdzającym dokładny zbiór kluczy. Przy okazji: brak zmian = brak zapisu (dotąd pusty zapis szedł UPDATE-em i dopisywał „Edytowano mecz" do dziennika) |
+| **P-6** | **Nigdzie w ścieżce organizatora nie było widać, że Bojo przypomina za niego.** `129` działa, ale mówią o tym FAQ i `docs/llm-context.md` — miejsca, których organizator nie czyta przy zakładaniu meczu. Dopóki nie wie, że Bojo przypomni, przypomina ręcznie na WhatsAppie, a razem z przypomnieniem zostaje tam cała reszta rozmowy o meczu | zrobione. Zdanie w podsumowaniu przed publikacją i w panelu „Mecz gotowy". **NA LANDINGU ŚWIADOMIE NIE:** `content/zakazaneFrazy.ts` zakazuje tam wymieniania kanałów w ogóle i ten zakaz zostaje nietknięty — karta o przypomnieniach została z tego powodu wycofana |
+| **P-7** | **Pole daty nigdy nie pokazywało dnia tygodnia.** Podsumowanie kreatora łapało złą datę dopiero dwa kroki dalej, a edycja nie łapała jej wcale — mimo że ten audyt sam nazywa złą datę najczęstszą pomyłką organizatora | zrobione. `opisDaty()` w `lib/eventDates.ts`, wpięte w `EventDateTimeField`, czyli w kreatorze i w edycji naraz |
+| **P-8** | **Zmniejszenie liczby miejsc poniżej obsadzonego składu było ciche.** Strona edycji nie znała składu, mimo że `getEvent()` zwraca go tym samym zapytaniem | zrobione. Ostrzeżenie, nie blokada — ta sama zasada co w podsumowaniu kreatora |
+| **P-9** | **Uczestnik Z KONTEM bywał gorzej poinformowany niż gość BEZ konta.** Gość z adresem dostaje maile (`133`), posiadacz konta — dzwonek i push, ten drugi wyłącznie po włączeniu w przeglądarce. Kto nie włączył i nie wszedł do aplikacji, o odwołaniu meczu nie dowiadywał się wcale. Aplikacja mówi to zresztą sama w oknie odwołania: „(i na telefon, jeśli je włączyli)" | zrobione (migracja `140`), **ale nic nie doręczy, dopóki kanał nie jest włączony**: `konfiguracja_poczty` jest na produkcji pusta, bo wymaga weryfikacji domeny `bojo.pl` w Resend (SPF/DKIM — poza repo, `strategia.md §3`) |
+
+### Znalezione przy okazji, poza numeracją
+
+- **`/jak-dziala-bojo` twierdziła, że „Bojo nie wysyła SMS-ów ani maili o meczu
+  i nie ma powiadomień push".** Nieprawda od `102`, `129` i `133`. FAQ poprawiono
+  commitem `ac97fa1`, tę sekcję pominięto — więc strona tłumacząca produkt
+  zaniżała go dokładnie tam, gdzie organizator sprawdza, czego się spodziewać.
+- **`zmiana_terminu` i `zmiana_warunkow_meczu` nie były na liście ustawień
+  powiadomień ani w mapie ikon dzwonka**, choć realnie przychodzą od `065`
+  i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały
+  jako szare „Powiadomienie".
+
+### Rozważone i odłożone
+
+- **`P-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który
+  mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada
+  kolumnę i stan, więc czeka na osobną decyzję.
+- **`P-11` — przypomnienia jako pozycja na landingu.** Mają pokrycie od `129`
+  i są jedyną rzeczą z listy, której post na grupie nie umie w ogóle — ale
+  landing z zasady nie wymienia kanałów. Do rozstrzygnięcia razem z regułą
+  z `zakazaneFrazy.ts`, nie obok niej.
+
+---
+
 ## Co zostaje bez zmian — i dlaczego
 
 Ta lista chroni przed „poprawkami", które przepływ by pogorszyły.

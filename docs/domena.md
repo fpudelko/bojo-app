@@ -52,10 +52,16 @@ funkcje decydują, co zobaczy obcy człowiek na stronie meczu; `auth.tsx` je re-
 więc importy `from '@/lib/auth'` działają bez zmian);
 `lib/eventShare.ts` (`eventUrl` + `eventShareText` + `shareEvent` — jeden adres i jeden
 tekst udostępnienia dla całej aplikacji, patrz
-[funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link));
+[funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link); do tego trzy warianty
+tej samej czterolinijkowej formy: `tekstOdwolania`, `tekstZmiany` i `tekstPrzywrocenia` —
+ekipa rozpoznaje kształt bez czytania, a różnicę niesie pierwsza linia);
 `lib/eventSummary.ts` (`zbudujPodsumowanie` — wiersze karty „Tak zobaczą to gracze"
 na ostatnim kroku kreatora, patrz
 [funkcje.md](./funkcje.md#podsumowanie-przed-publikacją));
+`lib/zmianyMeczu.ts` (`policzZmiany` + `komuDojdzie` + `konsekwencjeZapisu` — różnica
+formularza edycji wobec wczytanego meczu, przetłumaczona na zdania okna „Zapisać
+zmiany?". **Flaga `powiadamia` jest lustrem wyzwalaczy `065` i `114`, nie osobnym
+sądem** — patrz [funkcje.md](./funkcje.md#edycja-meczu--okno-zapisać-zmiany));
 `lib/inviteStatus.ts` (`inviteStatus`/`compareByInviteStatus` — status imiennego
 zaproszenia na mecz: uczestnictwo bije wcześniejszą odmowę, czyli `dismissed_at`
 sprawdza się dopiero, gdy zaproszonego nie ma w `event_participants`; wydzielone

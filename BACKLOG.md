@@ -8,7 +8,7 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-08-22_
+_Ostatnia aktualizacja: 2026-09-09_
 
 ---
 
@@ -60,6 +60,13 @@ konkretnego gościa dopisał, nie tylko organizator. Zostaje:
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
+| **P-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **nie doręczy niczego, dopóki `bojo.pl` nie zostanie zweryfikowane w Resend** (SPF + DKIM) i nie zostanie wypełniona `konfiguracja_poczty`. Poza repo — wymaga dostępu do DNS i panelu Resend, patrz [strategia.md §3](./docs/strategia.md) | Supabase → SQL Editor + Resend |
+| **P-10** | **„Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada kolumnę i stan, więc czeka na osobną decyzję produktową | — |
+| **P-11** | **Przypomnienia jako pozycja na landingu.** Mają pokrycie od `129` i są jedyną rzeczą, której post na grupie nie umie w ogóle — ale landing z zasady nie wymienia kanałów (`content/zakazaneFrazy.ts`). Do rozstrzygnięcia RAZEM z tą regułą, nie obok niej | `components/home/landing/content.ts` |
+
+Czwarta runda audytu (2026-09-09) zamknęła `P-1`…`P-8` oraz połowę `P-9`
+— pełna lista z uzasadnieniami w
+[docs/przeplyw-organizatora.md § Faza 10](./docs/przeplyw-organizatora.md).
 
 Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1),
 odmrażanie flag (§2), doręczanie powiadomień poza aplikacją (e-mail/push — wymaga
