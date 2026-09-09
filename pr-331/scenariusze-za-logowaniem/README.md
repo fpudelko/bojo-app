@@ -1,9 +1,9 @@
-# Zrzuty — PR #317 · scenariusze-za-logowaniem
+# Zrzuty — PR #331 · scenariusze-za-logowaniem
 
-Przebieg [`33553704444`](https://github.com/fpudelko/bojo-app/actions/runs/33553704444)
- · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/317)
+Przebieg [`34400430176`](https://github.com/fpudelko/bojo-app/actions/runs/34400430176)
+ · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/331)
 
-Zmienione widoki: **7** · nowe widoki: **0**
+Zmienione widoki: **8** · nowe widoki: **0**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -75,6 +75,28 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__kolejka-organizator__diff.png" width="100%">
+
+</details>
+
+### kreator-krok-1
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__kreator-krok-1__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__kreator-krok-1__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__kreator-krok-1__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__kreator-krok-1__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__kreator-krok-1__diff.png" width="100%">
 
 </details>
 
