@@ -60,19 +60,34 @@ konkretnego gościa dopisał, nie tylko organizator. Zostaje:
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
-| **P-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **nie doręczy niczego, dopóki `bojo.pl` nie zostanie zweryfikowane w Resend** (SPF + DKIM) i nie zostanie wypełniona `konfiguracja_poczty`. Poza repo — wymaga dostępu do DNS i panelu Resend, patrz [strategia.md §3](./docs/strategia.md) | Supabase → SQL Editor + Resend |
-| **P-10** | **„Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada kolumnę i stan, więc czeka na osobną decyzję produktową | — |
-| **P-11** | **Przypomnienia jako pozycja na landingu.** Mają pokrycie od `129` i są jedyną rzeczą, której post na grupie nie umie w ogóle — ale landing z zasady nie wymienia kanałów (`content/zakazaneFrazy.ts`). Do rozstrzygnięcia RAZEM z tą regułą, nie obok niej | `components/home/landing/content.ts` |
+| **R-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **nie doręczy niczego, dopóki `bojo.pl` nie zostanie zweryfikowane w Resend** (SPF + DKIM) i nie zostanie wypełniona `konfiguracja_poczty`. Poza repo — wymaga dostępu do DNS i panelu Resend, patrz [strategia.md §3](./docs/strategia.md) | Supabase → SQL Editor + Resend |
+| **R-10** | **„Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada kolumnę i stan, więc czeka na osobną decyzję produktową | — |
+| **R-11** | **Przypomnienia jako pozycja na landingu.** Mają pokrycie od `129` i są jedyną rzeczą, której post na grupie nie umie w ogóle — ale landing z zasady nie wymienia kanałów (`content/zakazaneFrazy.ts`). Do rozstrzygnięcia RAZEM z tą regułą, nie obok niej | `components/home/landing/content.ts` |
 
-Czwarta runda audytu (2026-09-09) zamknęła `P-1`…`P-8` oraz połowę `P-9`
-— pełna lista z uzasadnieniami w
-[docs/przeplyw-organizatora.md § Faza 10](./docs/przeplyw-organizatora.md).
+Piąta runda audytu (2026-09-09) zamknęła `R-1`…`R-8` oraz połowę `R-9` — pełna
+lista z uzasadnieniami w
+[docs/przeplyw-organizatora.md § Faza 11](./docs/przeplyw-organizatora.md).
+Numeracja `R-n`, bo `P-n` zajęła runda z 2026-09-08 (Faza 10), która szła równolegle.
 
-Świadomie poza zakresem audytu i tej rundy: trzeci poziom widoczności (§1.1),
-odmrażanie flag (§2), doręczanie powiadomień poza aplikacją (e-mail/push — wymaga
-weryfikacji domeny `bojo.pl` w Resend, poza repo), cron dla wygasania oferty
-zwolnionego miejsca (nie da się z repo sprawdzić, czy `pg_cron` jest włączony na
-produkcji), domknięcie RLS na `events` (patrz §5 niżej).
+Świadomie poza zakresem audytu i tych rund: trzeci poziom widoczności (§1.1),
+odmrażanie flag (§2), cron dla wygasania oferty zwolnionego miejsca, domknięcie RLS
+na `events` (patrz §5 niżej).
+
+**Zdjęte z tej listy po czwartej rundzie (2026-09-08, `P-1`…`P-11`
+w [audycie](./docs/przeplyw-organizatora.md#faza-10--czwarta-runda-audytu-2026-09-08)):**
+
+- **Doręczanie powiadomień poza aplikacją.** Kod jest kompletny — push działa od `102`,
+  przypomnienia od `129`, poczta do gościa od `133`/`137`, powitanie od `134`. Zostaje
+  wyłącznie **wdrożenie**, i to jest dziś jedyna blokada, nie brak funkcji: domena
+  `bojo.pl` do zweryfikowania w Resend, funkcja `powiadom-goscia` do wdrożenia
+  (Actions → „Wdróż funkcje brzegowe"), dwa sekrety w panelu Supabase i wpis
+  w `konfiguracja_poczty`. Sprawdzone na produkcji 2026-09-08: **sam `RESEND_API_KEY`
+  nie wystarcza** — był ustawiony, a kanał milczał, bo brakowało trzech pozostałych
+  kroków. Instrukcja: `supabase/functions/powiadom-goscia/README.md`.
+- **`pg_cron` na produkcji.** Sprawdzone zapytaniem: rozszerzenie jest włączone,
+  a zadania `bojo-przypomnienia` (16:00 UTC) i `bojo-maile-gosci` (16:10 UTC) są
+  aktywne. Wpis „nie da się z repo sprawdzić" był prawdziwy tylko dopóki nie było
+  dostępu do bazy.
 
 ---
 
@@ -183,8 +198,16 @@ Wcześniejsze wersje tego pliku i `PRZEWODNIK.md` twierdziły, że powiadomień 
 | Zaproszenia cykliczne | Edge function `send-invites` |
 | Web-push | Migracja `102` — tabela `push_subscriptions`, trigger na `notifications` → edge function `send-push` |
 
-Web-push wysyłki są zbudowane (migracja `102`) — status wdrożenia na produkcji poza
-zakresem tego wpisu.
+| Poczta do gościa bez konta | Migracja `133`/`137` — `konfiguracja_poczty`, `pg_net` → edge function `powiadom-goscia` → Resend |
+| Powitanie po założeniu konta | Migracja `134` — wyzwalacz na `auth.users` |
+| Przypomnienia oparte o czas | Migracja `129` — zadanie `pg_cron` `bojo-przypomnienia` |
+
+**Stan wdrożenia na produkcji (sprawdzony 2026-09-08):** web-push DZIAŁA (funkcja
+wdrożona z `--no-verify-jwt`, `konfiguracja_push` wypełniona, istnieją subskrypcje),
+przypomnienia DZIAŁAJĄ (`pg_cron` włączony, zadanie aktywne). **Poczta MILCZY** —
+`konfiguracja_poczty` jest pusta, a funkcja `powiadom-goscia` niewdrożona; to nie jest
+awaria, tylko stan wdrożenia, i tak zaprojektowany (bez konfiguracji baza nawet nie woła
+funkcji). Cztery kroki do włączenia: `supabase/functions/powiadom-goscia/README.md`.
 
 ---
 
