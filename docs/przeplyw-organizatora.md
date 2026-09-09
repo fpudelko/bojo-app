@@ -229,6 +229,51 @@ powstał `supabase/test/rls.sql` — i dlatego obie poprawki wchodzą razem z as
 
 ---
 
+## Faza 10 — czwarta runda audytu (2026-09-08)
+
+Runda przeszła przepływ NARZĘDZIAMI I DANYMI: bramki repo, odczyt bazy PRODUKCYJNEJ
+(uprawnienia, liczby, treść funkcji) oraz pełny stos ze scenariuszami za logowaniem.
+Ustalenia mają numery `P-n`.
+
+**Wspólny mianownik całej rundy: Bojo mówiło coś, czego nie robiło.** To nie są usterki
+wyglądu — to obietnice składane w chwili decyzji, których baza nie dotrzymywała.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **P-1** | **Okno „Odpuszczasz to miejsce?" obiecywało kolejną ofertę, a jej nie było.** Tekst mówił wprost „Zostajesz na rezerwie… kolejna oferta przyjdzie, gdy zwolni się następne miejsce", a `declineReserveClaim()` ustawiało `claim_passed = true`, które `sync_reserve_claim()` wyklucza z kolejki na stałe. **Gorsza połowa nie wymagała żadnej decyzji gracza:** WYGAŚNIĘCIE oferty ustawiało to samo pole, więc kto nie odpowiedział w oknie (domyślnie 3 h) — bo spał albo nie miał zasięgu — wypadał z kolejki na zawsze, w całkowitej ciszy. Organizator tracił rezerwowego po jednym nieodebranym powiadomieniu i nie miał jak się o tym dowiedzieć | zrobione (migracja `135`). Decyzja właściciela: **odmowa jest ostateczna, brak odpowiedzi nie jest odmową**. Kolumna `oferta_wygasla_at`, kolejność `(oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`, nowy typ powiadomienia `oferta_wygasla` |
+| **P-2** | **Anulowanie WŁASNEJ prośby wysyłało graczowi „Organizator nie przyjął Twojej prośby".** `powiadom_o_odrzuceniu_prosby()` (`076`) sprawdzało `OLD.pending_approval` i `OLD.user_id`, ale NIE to, kto usuwa wiersz — a przycisk „Anuluj" w banerze gracza woła ten sam DELETE co odrzucenie przez organizatora. Bojo obciążało organizatora decyzją, której nie podjął; toast mówił to samo („Odrzucono prośbę") | zrobione (migracja `135`) |
+| **P-3** | **Gość na rezerwie nie dostawał oferty NIGDY.** `sync_reserve_claim()` filtruje `user_id IS NOT NULL`, bo oferta szła wyłącznie przez `notifications`. Wpis gościa stał w kolejce i był omijany bez śladu — a gdy w kolejce byli sami goście, kolejka nie robiła nic. Jednocześnie mail `zapis` obiecywał mu wprost „Damy znać, gdy zwolni się miejsce". Lista rezerwowa organizatora nie działała dokładnie w tej części, którą sam przyprowadził | zrobione (migracja `137`). Kanał pocztowy z `133` usunął powód istnienia filtra. Żeby oferta nie była kolejną obietnicą bez pokrycia, gość dostał JAK ją przyjąć: `przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()` — sam token nie wystarcza, baza sprawdza, że oferta stoi i nie wygasła. Gość BEZ adresu jest dalej pomijany, ale **widocznie**: kolumna pochodna `ma_guest_email` niesie sam fakt, nie adres |
+| **P-4** | **Gość w poczekalni dostawał mailem „Masz miejsce w składzie".** `wyslij_mail_do_goscia()` odczytywało `pending_approval` do rekordu i nie przekazywało go dalej. O rozpatrzeniu prośby gość nie dowiadywał się przy tym W OGÓLE — wyzwalacze `076` wymagają konta, a poczta `133` takiego powodu nie miała: organizator klikał „Akceptuj" i po drugiej stronie nie działo się nic | zrobione (migracja `137`): trzy warianty maila `zapis` zamiast dwóch, nowe powody `zaakceptowano` i `odrzucono` |
+| **P-5** | **„Zmień" w oknie przed publikacją prowadziło na ODWROTNY krok.** `lib/eventSummary.ts` trzymało numery sprzed zamiany kroków z 2026-08-22, więc „Zmień" przy dacie przenosiło na mapę, a przy miejscu — na wybór terminu. I to w oknie, które powstało dokładnie dlatego, że **zła data to najczęstsza pomyłka organizatora**. Bliźniacza mapa `STEP_OF_FIELD` została wtedy poprawiona, ta nie, bo utrwalał ją własny test | zrobione. Przyczyną był układ kroków zapisany niezależnie w TRZECH miejscach — dziś jedna stała `KROK_KREATORA` w `lib/eventWizard.ts` |
+| **P-6** | **Wyłączony „Mecz płatny" wracał jako koszt.** Cena od osoby jest pochodną kosztu obiektu (tryb domyślny), a wyłączenie przełącznika czyściło tylko cenę. Najbliższa zmiana liczby miejsc — kontrolki stojącej tuż obok — odtwarzała kwotę, więc mecz publikował się jako PŁATNY z pustą listą metod płatności, przy przełączniku pokazującym WYŁĄCZONY. Gracz widział cenę i nie miał jak jej uregulować — ten sam objaw co `O-12`, innymi drzwiami | zrobione. Reguła wyjechała do `czyMeczPlatny()` w `lib/`. Przy okazji: „Zacznij od nowa" pomijało `platny` i `reserveEnabled` |
+| **P-7** | **Niezalogowany dostawał „Dołącz bez konta" na meczu z zamkniętymi zapisami.** Gałąź `!user` stała PIERWSZA w pasku, a starannie zrobione warianty „Komplet — zapisy zamknięte" miały warunek `user &&`. Niezalogowany wypełniał imię, adres i metodę płatności, klikał „Zapisz się" i dostawał surowy komunikat wyzwalacza. **To jest ścieżka gracza zaproszonego linkiem od organizatora** | zrobione. Bramka kompletu stoi teraz przed pytaniem o konto. Domknięty też wariant z bramkarzami, gdzie pełna jest tylko jedna rola |
+| **P-8** | **Strony treści obiecywały, że Bojo NIE wysyła maili ani pusha.** FAQ odpowiadał „Nie wysyła", `zakazaneFrazy.ts` trzymało `push` z komentarzem „no push notifications", a `przypomnien` z „no scheduler exists". Wszystkie cztery zdania były nieprawdziwe: push działa od `102`, przypomnienia od `129`, poczta od `133`. Strony **zaniżały możliwości produktu** w miejscu, które ma je tłumaczyć — a po włączeniu poczty zaczęłyby wprost kłamać | zrobione. SMS-ów nadal nie ma i to zdanie zostaje |
+| **P-9** | **Pozycja w kolejce ignorowała rolę bramkarza.** Baza prowadzi dwie osobne kolejki, a baner rezerwowego filtrował tylko `claimPassed`: bramkarz jedyny w swojej kolejce czytał „Rezerwa · 4." i „przed Tobą 3 osoby", choć wchodził następny. Okno zapisu tuż obok liczyło to z rolą — jedna aplikacja podawała dwie różne liczby | zrobione: `lib/kolejkaRezerwy.ts` jako lustro reguły z bazy, jedno źródło dla obu miejsc |
+| **P-10** | **Push „Potwierdź, że to Ty" prowadził na stronę meczu**, gdzie nie ma czego potwierdzać — wyzwalacz `119` nie wkładał `claim_token` do ładunku, mimo że komentarz funkcji brzegowej deklaruje parytet z dzwonkiem. Dotyczyło osoby, którą próbujemy zamienić z gościa w użytkownika | zrobione (migracja `136`) |
+| **P-11** | Drobne, zweryfikowane po drodze: podpowiedź odsyłała do przycisku „Udostępnij" NA GÓRZE strony, którego tam nie ma od czasu, gdy świadomie go stamtąd zdjęto (dwa wystąpienia); odhaczenie wpłaty pojedynczej osoby nie dawało żadnej informacji zwrotnej, a `busy` blokuje w tym czasie wszystkie przełączniki; sześć realnie przychodzących typów powiadomień nie miało ikony; nadawca `noreply@bojo.app` w dwóch funkcjach brzegowych, czyli domena inna niż strona; trzy różne adresy kontaktowe; pięć `console.debug` w produkcji | zrobione |
+
+### Czego ta runda nauczyła o samych bramkach
+
+Dwie regresje wyszły **dopiero na scenariuszach za logowaniem** i żadnej nie widziały ani
+testy jednostkowe, ani „Migracje od zera":
+
+1. **Migracja `135` dodała kolumnę i nie nadała na nią `GRANT SELECT`.** Od `127`
+   uprawnienie jest KOLUMNOWE, więc nowa kolumna dziedziczy `INSERT`/`UPDATE`, ale nie
+   `SELECT`. `getEvent()` ją czyta, więc strona meczu przestałaby się wczytywać
+   wszystkim. Naprawione migracją `138`; asercję dołożono do `rls.sql`.
+2. **`scripts/stos-lokalny.sh` odbierał to, co migracje właśnie nadały.** Skrypt
+   odtwarzał ograniczenia z `127` z zaszytej listy kolumn WIDOCZNYCH, więc każda nowa
+   kolumna była po cichu wycinana — 44 padające scenariusze i „Nie udało się wczytać
+   meczu" na każdym meczu, przy zielonej bramce migracji. Lista jest dziś **odwrócona**
+   (wymienia pięć kolumn ukrytych, resztę wylicza z katalogu) i skrypt ma własną bramkę
+   sprawdzającą, że rola API przeczyta wszystko, czego potrzebuje `getEvent()`.
+
+Wniosek na przyszłość: **przy zmianie schematu `event_participants` bramką jest stos
+z PostgREST-em, nie sam Postgres.** Migracje i testy SQL idą jako superuser, dla którego
+granty nie mają znaczenia.
+
+---
+
 ## Co zostaje bez zmian — i dlaczego
 
 Ta lista chroni przed „poprawkami", które przepływ by pogorszyły.

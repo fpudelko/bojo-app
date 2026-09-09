@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 92 migracji: 041_join_code.sql → 134_mail_powitalny.sql
+-- Zawiera 96 migracji: 041_join_code.sql → 138_oferta_wygasla_at_do_odczytu.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -10051,19 +10051,31 @@ $cron$;
 -- ─────────────────────────────────────────────────────────────────────────
 -- 134 — mail powitalny po założeniu konta
 --
--- DLACZEGO. Bojo nie odzywało się do nowego użytkownika ani razu. Przy
--- rejestracji e-mailem GoTrue wysyła „potwierdź adres" i na tym kontakt się
--- kończy; przy Google nie ma nawet tego. Człowiek zakłada konto, widzi pustą
--- listę meczów i nie wie, że najkrótsza droga do gry to stworzyć mecz i wysłać
--- jeden link — czyli dokładnie to, co Bojo robi najlepiej.
+-- DLACZEGO. Bojo nie odzywało się do nowego użytkownika ANI RAZU — i nie jest to
+-- przenośnia. W ustawieniach Supabase „Confirm email” jest WYŁĄCZONE, więc
+-- nie wychodzi nawet prośba o potwierdzenie adresu; przy Google nie ma jej
+-- z definicji. Człowiek zakłada konto, widzi pustą listę swoich meczów i nie ma
+-- skąd wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego
+-- meczu i wysłanie jednego linku, a nie przez czekanie, aż ktoś w okolicy
+-- otworzy grę.
 --
--- KIEDY, i to jest tu decyzja, nie szczegół: po POTWIERDZENIU adresu, nie przy
--- wstawieniu wiersza. Przy rejestracji e-mailem powitanie wysłane od razu
--- przychodzi RÓWNOLEGLE z „potwierdź adres" od GoTrue — dwie wiadomości naraz,
--- z których jedna prosi o działanie, a druga udaje, że wszystko już gotowe.
--- Do tego witalibyśmy kogoś, kto konta może nigdy nie potwierdzić. Przy Google
--- `email_confirmed_at` jest ustawione już przy wstawieniu, więc tam mail idzie
--- natychmiast — wyzwalacz łapie oba przypadki jednym warunkiem.
+-- KIEDY. Wyzwalacz reaguje na POTWIERDZONY adres: na `INSERT` z wypełnionym
+-- `email_confirmed_at` albo na przejście tej kolumny z NULL na wartość.
+--
+-- Przy DZISIEJSZYCH ustawieniach („Confirm email” wyłączone) adres jest
+-- potwierdzony już przy zakładaniu konta — i dla hasła, i dla Google — więc mail
+-- idzie natychmiast, obiema drogami. Warunek nie jest przez to zbędny: gdyby
+-- „Confirm email” kiedykolwiek zostało włączone, powitanie samo z siebie
+-- przesunie się za potwierdzenie, zamiast przychodzić RÓWNOLEGLE z prośbą
+-- o nie — dwie wiadomości naraz, z których jedna prosi o działanie, a druga
+-- udaje, że wszystko gotowe. Witalibyśmy też kogoś, kto konta może nigdy nie
+-- potwierdzić. Jeden warunek obsługuje więc obie konfiguracje i żadna zmiana
+-- w panelu Supabase nie wymaga tknięcia tego kodu.
+--
+-- UBOCZNY SKUTEK WYŁĄCZONEGO POTWIERDZANIA, o którym trzeba wiedzieć: skoro
+-- adresu nikt nie weryfikuje, da się założyć konto na CUDZY adres — i powitanie
+-- pójdzie do kogoś, kto o nie nie prosił. To jest własność tego ustawienia,
+-- nie tego maila; wraz z włączeniem „Confirm email” znika samo.
 --
 -- LEDGER UOGÓLNIONY. `maile_goscia` (migracja `133`) trzymała ślad wysyłek do
 -- gości, kluczem po wpisie w składzie. Powitanie nie ma wpisu w składzie —
@@ -10237,3 +10249,892 @@ DROP TRIGGER IF EXISTS trg_powitaj_nowe_konto ON auth.users;
 CREATE TRIGGER trg_powitaj_nowe_konto
   AFTER INSERT OR UPDATE OF email_confirmed_at ON auth.users
   FOR EACH ROW EXECUTE FUNCTION powitaj_nowe_konto();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 135_wygasla_oferta_na_koniec_kolejki.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 135 — wygasła oferta wraca na koniec kolejki; odpuszczenie nadal wypada
+--
+-- DLACZEGO. Bojo obiecywało rezerwowemu coś, czego baza nie dotrzymywała.
+-- Okno „Odpuszczasz to miejsce?" mówiło wprost:
+--
+--     „Zostajesz na rezerwie, ale za nią — kolejna oferta przyjdzie dopiero,
+--      gdy zwolni się następne miejsce."
+--
+-- a `declineReserveClaim()` ustawiało `claim_passed = true`, natomiast
+-- `sync_reserve_claim()` szuka kandydata z `claim_passed = false`. Kolejnej
+-- oferty NIE BYŁO NIGDY — flagę zerowała wyłącznie ręczna akcja organizatora.
+--
+-- Gorsza połowa tego samego błędu NIE WYMAGAŁA ŻADNEJ DECYZJI GRACZA:
+-- wygaśnięcie oferty (migracja `118`) ustawiało DOKŁADNIE TO SAMO pole. Kto nie
+-- zdążył odpowiedzieć w oknie (domyślnie 3 h) — bo spał, pracował albo nie miał
+-- zasięgu — wypadał z kolejki na zawsze, bez jednego słowa. Organizator tracił
+-- rezerwowego po jednym nieodebranym powiadomieniu i nie miał jak się o tym
+-- dowiedzieć.
+--
+-- DECYZJA WŁAŚCICIELA (2026-09-08): to są DWIE RÓŻNE RZECZY i mają dawać różny
+-- skutek.
+--   * „Odpuszczam" — świadoma odmowa. Wypada z kolejki. `claim_passed` zostaje
+--     dokładnie tym, czym był, i dotyczy odtąd WYŁĄCZNIE tego przypadku.
+--   * Wygaśnięcie — brak odpowiedzi, nie odmowa. Ląduje na KOŃCU kolejki, ale
+--     zostaje w grze.
+--
+-- JAK. Nowa kolumna `oferta_wygasla_at` zamiast dociążania `claim_passed`
+-- drugim znaczeniem. Kolejność kolejki:
+--
+--     ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at
+--
+-- czyli: najpierw nigdy nieominięci w kolejności zapisu, za nimi ominięci —
+-- a wśród nich ten, którego ominięto NAJDAWNIEJ (czeka najdłużej). Ponowne
+-- wygaśnięcie odsuwa dalej, więc kolejka nie zapętla się na jednej osobie.
+--
+-- CISZA PRZY WYGAŚNIĘCIU TEŻ BYŁA BŁĘDEM. Gracz nie dostawał niczego. Nowy typ
+-- powiadomienia `oferta_wygasla` mówi, co się stało i że kolejka trwa.
+--
+-- PRZY OKAZJI, DRUGA NIEPRAWDA (`076`): `powiadom_o_odrzuceniu_prosby()`
+-- sprawdzało tylko `OLD.pending_approval` i `OLD.user_id`, a NIE sprawdzało,
+-- KTO usuwa wiersz. Przycisk „Anuluj" w banerze „Oczekujesz na akceptację"
+-- woła ten sam DELETE co odrzucenie przez organizatora, więc gracz, który sam
+-- wycofał prośbę, dostawał do dzwonka i na telefon: „Organizator nie przyjął
+-- Twojej prośby". Bojo obciążało organizatora decyzją, której nie podjął.
+--
+-- MIGRACJA JEST IDEMPOTENTNA (wzorzec `118`). Backfill zbędny: na produkcji jest
+-- dziś jeden wiersz z `claim_passed` i zero stojących ofert.
+
+-- ---------------------------------------------------------------------------
+-- 1. Kolumna
+-- ---------------------------------------------------------------------------
+ALTER TABLE event_participants
+  ADD COLUMN IF NOT EXISTS oferta_wygasla_at TIMESTAMPTZ;
+
+COMMENT ON COLUMN event_participants.oferta_wygasla_at IS
+  'Kiedy ostatnio WYGASŁA oferta zwolnionego miejsca (brak odpowiedzi w czasie z reserve_claim_minutes). Odsuwa na koniec kolejki rezerwowej, ale w niej zostawia. NIE mylić z claim_passed, które znaczy świadome „Odpuszczam" i wypada z kolejki na stałe.';
+
+-- Kolejka czyta te kolumny przy każdym wejściu na stronę meczu.
+CREATE INDEX IF NOT EXISTS idx_uczestnicy_kolejka_rezerwy
+  ON event_participants (event_id, is_reserve, claim_passed, oferta_wygasla_at, zapisano_at)
+  WHERE is_reserve = true;
+
+-- ---------------------------------------------------------------------------
+-- 2. sync_reserve_claim — ciało z `130`, zmienione w trzech miejscach:
+--    wygaśnięcie, kolejność kolejki, powiadomienie o wygaśnięciu
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sync_reserve_claim(p_event_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_minutes smallint; v_started boolean; v_title text; v_sport text;
+  v_gk_enabled boolean;
+  v_czas text;
+  v_next_id uuid; v_next_user uuid;
+BEGIN
+  SELECT reserve_claim_minutes, goalkeepers_enabled,
+         (event_date + event_time)::timestamp <= teraz_pl() OR status = 'cancelled',
+         coalesce(title, sport), sport
+    INTO v_minutes, v_gk_enabled, v_started, v_title, v_sport
+    FROM events WHERE id = p_event_id;
+
+  IF v_minutes IS NULL OR v_started THEN RETURN; END IF;
+
+  v_czas := CASE
+    WHEN v_minutes < 60 THEN v_minutes || ' min.'
+    WHEN v_minutes % 60 = 0 THEN (v_minutes / 60) || ' godz.'
+    ELSE (v_minutes / 60) || ' godz. ' || (v_minutes % 60) || ' min.'
+  END;
+
+  -- WYGAŚNIĘCIE. Było: `claim_passed = true`, czyli to samo co świadome
+  -- „Odpuszczam" — i wypadnięcie z kolejki na zawsze za nieodebrany telefon.
+  -- Jest: znacznik czasu, który odsuwa na koniec kolejki. I powiadomienie,
+  -- bo dotąd znikało się stąd w całkowitej ciszy.
+  WITH wygasle AS (
+    UPDATE event_participants
+       SET oferta_wygasla_at = now(), claim_offered_at = NULL
+     WHERE event_id = p_event_id AND claim_offered_at IS NOT NULL
+       AND claim_offered_at + (v_minutes || ' minutes')::interval <= now()
+    RETURNING user_id
+  )
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT user_id, 'oferta_wygasla', v_title,
+         'Czas na przyjęcie miejsca minął, więc poszło do kolejnej osoby. '
+         || 'Zostajesz na liście rezerwowej, na jej końcu — przy następnym '
+         || 'zwolnionym miejscu dostaniesz kolejną ofertę.',
+         p_event_id
+    FROM wygasle WHERE user_id IS NOT NULL;
+
+  IF NOT czy_na_rezerwe(p_event_id, false) THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = false
+     -- Nigdy nieominięci najpierw, w kolejności zapisu. Za nimi ominięci —
+     -- najdawniej ominięty pierwszy, bo czeka najdłużej.
+     ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at
+     LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', v_title,
+              'Zwolniło się miejsce. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+    END IF;
+  END IF;
+
+  IF czy_na_rezerwe(p_event_id, true) IS FALSE THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND user_id IS NOT NULL AND is_goalkeeper = true
+     ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at
+     LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      INSERT INTO notifications (user_id, type, title, body, event_id)
+      VALUES (v_next_user, 'reserve_claim_offered', v_title,
+              'Zwolniło się miejsce dla bramkarza. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+    END IF;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3. `oferta_wygasla_at` ustawia Bojo, nie przeglądarka
+-- ---------------------------------------------------------------------------
+-- Dopisek do wyzwalacza z migracji `132`. Bez tego gracz mógłby wyzerować sobie
+-- znacznik jednym UPDATE-em z konsoli i wrócić na początek kolejki — klucz
+-- `anon` siedzi jawnie w paczce JS (AGENTS.md), więc to nie jest teoria.
+-- Reszta ciała bez zmian względem `132`.
+CREATE OR REPLACE FUNCTION public.pilnuj_wlasnego_wpisu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_wymaga boolean;
+  v_org    uuid;
+BEGIN
+  IF current_user NOT IN ('authenticated', 'anon') THEN
+    RETURN NEW;
+  END IF;
+
+  IF czy_zarzadza_wpisem(NEW.event_id) THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    SELECT require_approval, organizer_id
+      INTO v_wymaga, v_org
+      FROM events WHERE id = NEW.event_id;
+
+    NEW.pending_approval := COALESCE(v_wymaga, false) AND auth.uid() IS DISTINCT FROM v_org;
+    NEW.is_reserve := CASE
+      WHEN NEW.rsvp = 'maybe'   THEN true
+      WHEN NEW.pending_approval THEN false
+      ELSE czy_na_rezerwe(NEW.event_id, COALESCE(NEW.is_goalkeeper, false))
+    END;
+    NEW.has_paid        := false;
+    NEW.paid_amount     := 0;
+    NEW.is_captain      := false;
+    NEW.team            := NULL;
+    NEW.claim_offered_at := NULL;
+    NEW.claim_passed    := false;
+    NEW.oferta_wygasla_at := NULL;
+    RETURN NEW;
+  END IF;
+
+  IF auth.uid() IS DISTINCT FROM OLD.user_id THEN
+    RAISE EXCEPTION 'Nie możesz zmieniać cudzego wpisu'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.has_paid IS DISTINCT FROM OLD.has_paid
+     OR NEW.paid_amount IS DISTINCT FROM OLD.paid_amount THEN
+    RAISE EXCEPTION 'Wpłatę odhacza organizator'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.pending_approval IS DISTINCT FROM OLD.pending_approval THEN
+    RAISE EXCEPTION 'Zapis akceptuje organizator'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.team IS DISTINCT FROM OLD.team
+     OR NEW.is_captain IS DISTINCT FROM OLD.is_captain THEN
+    RAISE EXCEPTION 'Drużyny i kapitanów ustawia organizator'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.user_id IS DISTINCT FROM OLD.user_id
+     OR NEW.event_id IS DISTINCT FROM OLD.event_id
+     OR NEW.is_guest IS DISTINCT FROM OLD.is_guest
+     OR NEW.added_by IS DISTINCT FROM OLD.added_by THEN
+    RAISE EXCEPTION 'Tego pola nie zmienia się z aplikacji'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  -- NOWE: miejsce w kolejce po wygasłej ofercie. Ustawia je wyłącznie
+  -- `sync_reserve_claim()` (`SECURITY DEFINER`, czyli `postgres`), więc każda
+  -- zmiana przychodząca wprost z przeglądarki jest próbą przeskoczenia kolejki.
+  IF NEW.oferta_wygasla_at IS DISTINCT FROM OLD.oferta_wygasla_at THEN
+    RAISE EXCEPTION 'Miejsce w kolejce rezerwowej ustala Bojo'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.is_reserve IS DISTINCT FROM OLD.is_reserve THEN
+    IF NOT (OLD.is_reserve
+            AND NOT NEW.is_reserve
+            AND OLD.claim_offered_at IS NOT NULL
+            AND OLD.claim_passed IS NOT TRUE) THEN
+      RAISE EXCEPTION 'Miejsce w składzie przydziela organizator albo oferta z rezerwy'
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END IF;
+
+  IF NEW.claim_offered_at IS DISTINCT FROM OLD.claim_offered_at
+     AND NEW.claim_offered_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Ofertę miejsca wystawia Bojo'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  IF NEW.claim_passed IS DISTINCT FROM OLD.claim_passed
+     AND NOT (OLD.claim_offered_at IS NOT NULL AND NEW.claim_passed) THEN
+    RAISE EXCEPTION 'Nie ma oferty do przepuszczenia'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_pilnuj_wlasnego_wpisu ON event_participants;
+CREATE TRIGGER trg_pilnuj_wlasnego_wpisu
+  BEFORE INSERT OR UPDATE ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION pilnuj_wlasnego_wpisu();
+
+-- ---------------------------------------------------------------------------
+-- 4. Anulowanie WŁASNEJ prośby to nie odrzucenie przez organizatora
+-- ---------------------------------------------------------------------------
+-- Ciało z `076`, dołożony jeden warunek. `auth.uid()` jest tu wiarygodne:
+-- wyzwalacz jest `SECURITY DEFINER`, ale `auth.uid()` czyta ustawienie sesji
+-- PostgREST-a, czyli tożsamość TEGO, kto wysłał żądanie.
+CREATE OR REPLACE FUNCTION powiadom_o_odrzuceniu_prosby()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_tytul TEXT; v_data DATE; v_godz TIME;
+BEGIN
+  IF OLD.pending_approval IS NOT TRUE OR OLD.user_id IS NULL THEN RETURN OLD; END IF;
+
+  -- Gracz wycofał prośbę sam (przycisk „Anuluj" w banerze „Oczekujesz na
+  -- akceptację" woła ten sam DELETE co odrzucenie przez organizatora).
+  -- Powiadomienie „Organizator nie przyjął Twojej prośby" byłoby wtedy
+  -- nieprawdą — i to nieprawdą obciążającą organizatora.
+  IF auth.uid() IS NOT DISTINCT FROM OLD.user_id THEN RETURN OLD; END IF;
+
+  SELECT coalesce(title, sport), event_date, event_time INTO v_tytul, v_data, v_godz
+    FROM events WHERE id = OLD.event_id;
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  VALUES (OLD.user_id, 'prosba_odrzucona', 'Prośba o dołączenie odrzucona',
+    'Organizator nie przyjął Twojej prośby o dołączenie do meczu: ' || coalesce(v_tytul,'mecz')
+      || ' — ' || to_char(v_data,'DD.MM') || ', godz. ' || to_char(v_godz,'HH24:MI') || '.',
+    OLD.event_id);
+  RETURN OLD;
+END; $$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_o_odrzuceniu_prosby ON event_participants;
+CREATE TRIGGER trg_powiadom_o_odrzuceniu_prosby
+  BEFORE DELETE ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_odrzuceniu_prosby();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 136_push_prowadzi_tam_co_dzwonek.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 136 — push do przejęcia wpisu gościa prowadził w inne miejsce niż dzwonek
+--
+-- DLACZEGO. Powiadomienie `niepotwierdzony_wpis_goscia` (migracja `084`) mówi
+-- „Potwierdź, że to Ty" i ma prowadzić na `/gracz/przejmij/{token}` — jedyną
+-- stronę, na której da się to zrobić. Dzwonek tak właśnie robi
+-- (`celPowiadomienia()` w `lib/notifications.ts` czyta `notifications.claim_token`).
+--
+-- PUSH NIE MÓGŁ. Wyzwalacz z migracji `119` wkłada do ładunku siedem pól i NIE
+-- MA WŚRÓD NICH `claim_token`, więc `adresPowiadomienia()` w funkcji brzegowej
+-- widziała tylko `event_id` i odsyłała na stronę meczu — gdzie żadnego przycisku
+-- potwierdzenia nie ma. Komentarz w `send-push/index.ts` deklaruje przy tym
+-- wprost: „powiadomienie na telefonie ma otwierać dokładnie to samo miejsce co
+-- powiadomienie w aplikacji". Tu tego nie robiło.
+--
+-- Kogo to dotyczy: osoby, którą organizator dopisał ręcznie i która ma już konto
+-- w Bojo na tym adresie. Czyli dokładnie tej, którą próbujemy zamienić z gościa
+-- w użytkownika — a więc ruchu, na którym stoi cała faza 1.
+--
+-- Ładunek rośnie o jedno pole; funkcja brzegowa ignoruje nieznane pola, więc
+-- kolejność wdrożenia (migracja przed funkcją czy odwrotnie) nie ma znaczenia.
+--
+-- Migracja jest IDEMPOTENTNA — `CREATE OR REPLACE` na jednej funkcji.
+
+-- Ciało skopiowane z `119` (ostatnia definicja) — zmieniona WYŁĄCZNIE jedna
+-- linia `jsonb_build_object`, dokładająca `'claim_token', NEW.claim_token`.
+-- Ten sam wzorzec, którym `119` dokładało `'id'`: przepisywanie funkcji od nowa
+-- to okazja, żeby coś zgubić.
+CREATE OR REPLACE FUNCTION wyslij_push_po_powiadomieniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+BEGIN
+  -- Ustawienia sprawdzamy PIERWSZE: to najtańszy sposób na niewysłanie.
+  IF EXISTS (
+    SELECT 1 FROM profiles p
+     WHERE p.id = NEW.user_id AND NEW.type = ANY(p.push_wylaczone)
+  ) THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT wartosc INTO v_url    FROM konfiguracja_push WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_push WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-bojo-sekret', v_sekret
+    ),
+    body    := jsonb_build_object(
+      'id',       NEW.id,
+      'user_id',  NEW.user_id,
+      'tytul',    NEW.title,
+      'tresc',    NEW.body,
+      'typ',      NEW.type,
+      'event_id', NEW.event_id,
+      'group_id', NEW.group_id,
+      -- NOWE. Bez tego pola push „Potwierdź, że to Ty" lądował na stronie
+      -- meczu, na której nie ma czego potwierdzić.
+      'claim_token', NEW.claim_token
+    )
+  );
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Kanał dodatkowy nie może wywrócić zapisu powiadomienia w aplikacji.
+  RETURN NEW;
+END;
+$$;
+
+-- Wyzwalacza NIE ruszamy: `CREATE OR REPLACE FUNCTION` podmienia ciało pod
+-- istniejącym wyzwalaczem, a `DROP TRIGGER` + `CREATE` byłoby tu jedynie
+-- dodatkową okazją do rozjazdu nazwy.
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 137_poczta_dociera_do_goscia.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 137 — poczta do gościa mówi prawdę i dociera tam, gdzie obiecała
+--
+-- Trzy dziury w kanale z migracji `133`, wszystkie o tym samym: Bojo pisało do
+-- gościa bez konta rzeczy, których nie dotrzymywało, albo nie pisało wcale.
+--
+-- 1. „MASZ MIEJSCE W SKŁADZIE" DO KOGOŚ, KTO GO NIE MA.
+--    `dolacz_do_meczu_jako_goscie()` (`115`) ustawia przy meczu z akceptacją
+--    `pending_approval = true, is_reserve = false`. `wyslij_mail_do_goscia()`
+--    ODCZYTYWAŁO `pending_approval` do rekordu i NIE PRZEKAZYWAŁO go dalej —
+--    funkcja brzegowa widziała tylko `na_rezerwie = false` i pisała „Masz
+--    miejsce w składzie". Gość w poczekalni dostawał potwierdzenie miejsca,
+--    którego mógł nigdy nie dostać.
+--
+-- 2. O ROZPATRZENIU PROŚBY GOŚĆ NIE DOWIADYWAŁ SIĘ W OGÓLE.
+--    `powiadom_o_akceptacji` (`076`) wymaga `NEW.user_id IS NOT NULL`,
+--    `powiadom_o_odrzuceniu_prosby` tak samo — a poczta z `133` nie miała
+--    takiego powodu. Jedyną drogą było wracanie na `/gracz/przejmij/{token}`
+--    i sprawdzanie. Organizator klikał „Akceptuj" i nic się nie działo.
+--
+-- 3. GOŚĆ NA REZERWIE NIE DOSTAWAŁ OFERTY NIGDY — a mail obiecywał, że dostanie.
+--    `sync_reserve_claim()` filtruje `user_id IS NOT NULL`, bo oferta szła
+--    wyłącznie przez `notifications`, a ta wymaga konta. Wpis gościa stał
+--    w kolejce i był OMIJANY BEZ ŚLADU: kolejka przeskakiwała go i szła do
+--    następnej osoby z kontem, a gdy w kolejce byli sami goście — nie robiła
+--    nic. Jednocześnie mail `zapis` mówił mu wprost: „Damy znać, gdy zwolni się
+--    miejsce".
+--
+--    Skutki brał na siebie organizator: jego lista rezerwowa nie działała
+--    dokładnie w tej części, którą sam przyprowadził, a on nie miał jak się
+--    o tym dowiedzieć.
+--
+--    Kanał pocztowy z `133` usuwa powód istnienia tego filtra — oferta może
+--    pójść mailem. Gość BEZ ADRESU jest dalej pomijany (nie ma jak go
+--    zawiadomić), ale przestaje blokować kolejkę i jest widoczny dla
+--    organizatora w składzie.
+--
+-- Migracja jest IDEMPOTENTNA.
+
+-- ---------------------------------------------------------------------------
+-- 1. Ładunek niesie stan zapisu
+-- ---------------------------------------------------------------------------
+-- Ciało z `134` (ostatnia definicja) — dołożone jedno pole w `jsonb_build_object`.
+CREATE OR REPLACE FUNCTION wyslij_mail_do_goscia(p_uczestnik UUID, p_powod TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+  v_w      RECORD;
+BEGIN
+  SELECT wartosc INTO v_url    FROM konfiguracja_poczty WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_poczty WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN RETURN; END IF;
+
+  SELECT p.id, p.name, p.guest_email, p.claim_token, p.is_reserve, p.pending_approval,
+         e.id AS event_id, e.title, e.sport, e.event_date, e.event_time,
+         coalesce(e.field_name, e.custom_location_name) AS miejsce, e.cost_grosz,
+         -- Do której godziny stoi oferta zwolnionego miejsca. Formatowane tutaj,
+         -- bo tylko baza zna `reserve_claim_minutes` i strefę meczu.
+         CASE WHEN p.claim_offered_at IS NULL THEN NULL
+              ELSE to_char(
+                (p.claim_offered_at
+                 + (coalesce(e.reserve_claim_minutes, 180) || ' minutes')::interval)
+                AT TIME ZONE 'Europe/Warsaw', 'DD.MM, godz. HH24:MI')
+         END AS oferta_do
+    INTO v_w
+    FROM event_participants p
+    JOIN events e ON e.id = p.event_id
+   WHERE p.id = p_uczestnik AND p.is_guest
+     AND p.guest_email IS NOT NULL AND p.claimed_at IS NULL;
+  IF v_w.id IS NULL THEN RETURN; END IF;
+
+  BEGIN
+    INSERT INTO maile_wyslane (uczestnik_id, powod) VALUES (p_uczestnik, p_powod);
+  EXCEPTION WHEN unique_violation THEN
+    RETURN;
+  END;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-bojo-sekret', v_sekret),
+    body    := jsonb_build_object(
+      'powod', p_powod, 'email', v_w.guest_email, 'imie', v_w.name,
+      'event_id', v_w.event_id, 'tytul', coalesce(v_w.title, v_w.sport),
+      'data', to_char(v_w.event_date, 'DD.MM.YYYY'),
+      'godzina', to_char(v_w.event_time, 'HH24:MI'),
+      'miejsce', v_w.miejsce, 'koszt_grosz', v_w.cost_grosz,
+      'na_rezerwie', v_w.is_reserve,
+      -- NOWE. Bez tego pola gość w poczekalni czytał „Masz miejsce w składzie".
+      'czeka_na_akceptacje', v_w.pending_approval,
+      'oferta_do', v_w.oferta_do,
+      'token', v_w.claim_token
+    )
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION wyslij_mail_do_goscia(UUID, TEXT) FROM anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2. Akceptacja i odrzucenie prośby gościa
+-- ---------------------------------------------------------------------------
+-- OSOBNE wyzwalacze obok `076`, które zostaje nietknięte — ta sama zasada co
+-- w `133`: nie przepisujemy działających funkcji powiadomień.
+CREATE OR REPLACE FUNCTION powiadom_goscia_o_akceptacji()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF OLD.pending_approval IS TRUE AND NEW.pending_approval IS FALSE
+     AND NEW.is_guest AND NEW.guest_email IS NOT NULL AND NEW.claimed_at IS NULL THEN
+    PERFORM wyslij_mail_do_goscia(NEW.id, 'zaakceptowano');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_goscia_o_akceptacji ON event_participants;
+CREATE TRIGGER trg_powiadom_goscia_o_akceptacji
+  AFTER UPDATE OF pending_approval ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION powiadom_goscia_o_akceptacji();
+
+-- Odrzucenie to DELETE, więc mail musi wyjść PRZED usunięciem wiersza —
+-- `wyslij_mail_do_goscia()` czyta dane z `event_participants`. Stąd `BEFORE`.
+--
+-- Wpis do `maile_wyslane` ma `ON DELETE CASCADE`, więc zniknie razem z wierszem;
+-- idempotencja nic tu nie traci, bo wiersza i tak już nie będzie.
+--
+-- USUNIĘCIE CAŁEGO MECZU nie wyśle stąd „prośba odrzucona" — i to nie jest
+-- przypadek, tylko sprawdzona własność. `event_participants.event_id` ma
+-- `ON DELETE CASCADE` (potwierdzone na produkcji: `confdeltype = 'c'`), a kaskada
+-- wykonuje się PO usunięciu wiersza rodzica. `wyslij_mail_do_goscia()` robi
+-- `JOIN events`, więc nie znajduje meczu i wychodzi cicho. Gdyby kiedyś ten JOIN
+-- zniknął, trzeba tu dołożyć jawny warunek — inaczej skasowanie meczu wyśle
+-- wszystkim oczekującym gościom nieprawdę o decyzji organizatora.
+CREATE OR REPLACE FUNCTION powiadom_goscia_o_odrzuceniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF OLD.pending_approval IS TRUE
+     AND OLD.is_guest AND OLD.guest_email IS NOT NULL AND OLD.claimed_at IS NULL THEN
+    PERFORM wyslij_mail_do_goscia(OLD.id, 'odrzucono');
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_powiadom_goscia_o_odrzuceniu ON event_participants;
+CREATE TRIGGER trg_powiadom_goscia_o_odrzuceniu
+  BEFORE DELETE ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION powiadom_goscia_o_odrzuceniu();
+
+-- ---------------------------------------------------------------------------
+-- 3. Gość z adresem wchodzi do kolejki rezerwowej na równi z kontem
+-- ---------------------------------------------------------------------------
+-- Ciało z `135`, zmienione w dwóch gałęziach wyboru kandydata:
+--   * `user_id IS NOT NULL`  →  `(user_id IS NOT NULL OR guest_email IS NOT NULL)`
+--   * oferta trafia do `notifications` (konto) ALBO na maila (gość).
+--
+-- Wpis gościa BEZ adresu zostaje pominięty — nie ma jak go zawiadomić, a oferta,
+-- o której nikt się nie dowie, zablokowałaby kolejkę na cały czas okna.
+CREATE OR REPLACE FUNCTION sync_reserve_claim(p_event_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_minutes smallint; v_started boolean; v_title text; v_sport text;
+  v_gk_enabled boolean;
+  v_czas text;
+  v_next_id uuid; v_next_user uuid;
+BEGIN
+  SELECT reserve_claim_minutes, goalkeepers_enabled,
+         (event_date + event_time)::timestamp <= teraz_pl() OR status = 'cancelled',
+         coalesce(title, sport), sport
+    INTO v_minutes, v_gk_enabled, v_started, v_title, v_sport
+    FROM events WHERE id = p_event_id;
+
+  IF v_minutes IS NULL OR v_started THEN RETURN; END IF;
+
+  v_czas := CASE
+    WHEN v_minutes < 60 THEN v_minutes || ' min.'
+    WHEN v_minutes % 60 = 0 THEN (v_minutes / 60) || ' godz.'
+    ELSE (v_minutes / 60) || ' godz. ' || (v_minutes % 60) || ' min.'
+  END;
+
+  WITH wygasle AS (
+    UPDATE event_participants
+       SET oferta_wygasla_at = now(), claim_offered_at = NULL
+     WHERE event_id = p_event_id AND claim_offered_at IS NOT NULL
+       AND claim_offered_at + (v_minutes || ' minutes')::interval <= now()
+    RETURNING user_id
+  )
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT user_id, 'oferta_wygasla', v_title,
+         'Czas na przyjęcie miejsca minął, więc poszło do kolejnej osoby. '
+         || 'Zostajesz na liście rezerwowej, na jej końcu — przy następnym '
+         || 'zwolnionym miejscu dostaniesz kolejną ofertę.',
+         p_event_id
+    FROM wygasle WHERE user_id IS NOT NULL;
+
+  IF NOT czy_na_rezerwe(p_event_id, false) THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND (user_id IS NOT NULL OR guest_email IS NOT NULL)
+       AND is_goalkeeper = false
+     ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at
+     LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      IF v_next_user IS NOT NULL THEN
+        INSERT INTO notifications (user_id, type, title, body, event_id)
+        VALUES (v_next_user, 'reserve_claim_offered', v_title,
+                'Zwolniło się miejsce. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+      ELSE
+        PERFORM wyslij_mail_do_goscia(v_next_id, 'oferta');
+      END IF;
+    END IF;
+  END IF;
+
+  IF czy_na_rezerwe(p_event_id, true) IS FALSE THEN
+    SELECT id, user_id INTO v_next_id, v_next_user
+      FROM event_participants
+     WHERE event_id = p_event_id AND is_reserve = true AND claim_passed = false
+       AND claim_offered_at IS NULL AND pending_approval = false AND rsvp <> 'maybe'
+       AND (user_id IS NOT NULL OR guest_email IS NOT NULL)
+       AND is_goalkeeper = true
+     ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at
+     LIMIT 1;
+    IF v_next_id IS NOT NULL THEN
+      UPDATE event_participants SET claim_offered_at = now() WHERE id = v_next_id;
+      IF v_next_user IS NOT NULL THEN
+        INSERT INTO notifications (user_id, type, title, body, event_id)
+        VALUES (v_next_user, 'reserve_claim_offered', v_title,
+                'Zwolniło się miejsce dla bramkarza. Masz ' || v_czas || ' na przyjęcie.', p_event_id);
+      ELSE
+        PERFORM wyslij_mail_do_goscia(v_next_id, 'oferta');
+      END IF;
+    END IF;
+  END IF;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION sync_reserve_claim(UUID) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 4. Idempotencja oferty: raz na wpis na DOBĘ to za mało
+-- ---------------------------------------------------------------------------
+-- `maile_wyslane` ma klucz `(uczestnik_id, powod, dzien)`, więc druga oferta
+-- tego samego dnia dla tej samej osoby nie wyszłaby mailem — a to realny
+-- przebieg: ktoś wchodzi i wychodzi ze składu kilka razy w dniu meczu.
+-- Powód `oferta` dostaje więc własny klucz ze znacznikiem czasu oferty.
+--
+-- Rozwiązane bez zmiany schematu: kasujemy poprzedni wpis `oferta` dla tego
+-- uczestnika, zanim funkcja spróbuje wstawić nowy. Ślad w dzienniku i tak
+-- służy wyłącznie deduplikacji w obrębie jednego przebiegu.
+CREATE OR REPLACE FUNCTION odswiez_slad_oferty()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.claim_offered_at IS NOT NULL
+     AND OLD.claim_offered_at IS DISTINCT FROM NEW.claim_offered_at THEN
+    DELETE FROM maile_wyslane
+     WHERE uczestnik_id = NEW.id AND powod = 'oferta';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_odswiez_slad_oferty ON event_participants;
+CREATE TRIGGER trg_odswiez_slad_oferty
+  BEFORE UPDATE OF claim_offered_at ON event_participants
+  FOR EACH ROW EXECUTE FUNCTION odswiez_slad_oferty();
+
+-- ---------------------------------------------------------------------------
+-- 5. Gość musi mieć JAK przyjąć ofertę
+-- ---------------------------------------------------------------------------
+-- Bez tego punktu cała sekcja 3 byłaby kolejną obietnicą bez pokrycia: mail
+-- mówiłby „zwolniło się miejsce, potwierdź", a strona `/gracz/przejmij/{token}`
+-- miała dotąd tylko dwie akcje — „To ja, potwierdzam" (przejęcie wpisu na
+-- konto) i „Nie mogę grać, wypisz mnie". Przyjęcia oferty nie było, bo do tej
+-- pory gość ofert nie dostawał.
+--
+-- Uprawnieniem jest token, jak w całym `128`. Reguły odbijania są te same co
+-- w `pilnuj_wlasnego_wpisu()` dla konta: wejść do składu można WYŁĄCZNIE
+-- z przyjęcia stojącej oferty, nigdy z własnej woli.
+
+-- Podgląd musi powiedzieć, że oferta stoi i do kiedy — inaczej strona po
+-- kliknięciu w link z maila wygląda dokładnie tak samo jak przed nim.
+DROP FUNCTION IF EXISTS podejrzyj_wpis_goscia(uuid);
+CREATE FUNCTION podejrzyj_wpis_goscia(p_token uuid)
+RETURNS TABLE (
+  imie                text,
+  event_id            uuid,
+  tytul               text,
+  data_meczu          date,
+  godzina             time,
+  miejsce             text,
+  juz_przejety        boolean,
+  status_meczu        text,
+  na_rezerwie         boolean,
+  czeka_na_akceptacje boolean,
+  koszt_grosze        integer,
+  w_skladzie          integer,
+  max_graczy          integer,
+  mozna_zmieniac      boolean,
+  -- Nowe od `137`.
+  oferta_do           timestamptz
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT p.name,
+         e.id,
+         coalesce(e.title, e.sport),
+         e.event_date,
+         e.event_time,
+         coalesce(e.field_name, e.custom_location_name, e.custom_address, 'Boisko'),
+         (p.claimed_at IS NOT NULL OR p.user_id IS NOT NULL),
+         e.status,
+         coalesce(p.is_reserve, false),
+         coalesce(p.pending_approval, false),
+         coalesce(e.cost_grosz, 0),
+         (SELECT count(*)::int FROM event_participants x
+           WHERE x.event_id = e.id AND x.pending_approval IS NOT TRUE
+             AND x.rsvp <> 'maybe' AND x.is_reserve IS NOT TRUE),
+         e.max_players,
+         (p.claimed_at IS NULL AND p.user_id IS NULL AND p.is_guest
+          AND (e.event_date + e.event_time) > (now() AT TIME ZONE 'Europe/Warsaw')),
+         CASE WHEN p.claim_offered_at IS NULL THEN NULL
+              ELSE p.claim_offered_at
+                   + (coalesce(e.reserve_claim_minutes, 180) || ' minutes')::interval
+         END
+    FROM event_participants p
+    JOIN events e ON e.id = p.event_id
+   WHERE p.claim_token = p_token;
+$$;
+
+REVOKE ALL ON FUNCTION podejrzyj_wpis_goscia(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION podejrzyj_wpis_goscia(uuid) TO anon, authenticated;
+
+/** Gość przyjmuje zaproponowane miejsce. Lustro `acceptReserveClaim()` dla
+ *  wpisu bez konta. */
+CREATE OR REPLACE FUNCTION przyjmij_oferte_goscia(p_token uuid)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id    uuid;
+  v_event uuid;
+BEGIN
+  SELECT p.id, p.event_id
+    INTO v_id, v_event
+    FROM event_participants p
+    JOIN events e ON e.id = p.event_id
+   WHERE p.claim_token = p_token
+     AND p.is_guest AND p.claimed_at IS NULL AND p.user_id IS NULL
+     AND p.is_reserve
+     -- Oferta MUSI stać. Bez tego warunku token byłby przepustką do składu
+     -- z pominięciem kolejki — a kolejka jest tym, co organizator obiecał
+     -- pozostałym rezerwowym.
+     AND p.claim_offered_at IS NOT NULL
+     AND p.claim_passed IS NOT TRUE
+     AND p.claim_offered_at + (coalesce(e.reserve_claim_minutes, 180) || ' minutes')::interval > now()
+     AND (e.event_date + e.event_time) > (now() AT TIME ZONE 'Europe/Warsaw')
+     AND e.status <> 'cancelled';
+
+  IF v_id IS NULL THEN
+    RAISE EXCEPTION 'Ta oferta miejsca już nie jest aktualna.';
+  END IF;
+
+  UPDATE event_participants
+     SET is_reserve = false, claim_offered_at = NULL, oferta_wygasla_at = NULL
+   WHERE id = v_id;
+
+  RETURN v_event;
+END;
+$$;
+
+/** Gość odpuszcza miejsce. Tak jak przy koncie: odmowa jest OSTATECZNA. */
+CREATE OR REPLACE FUNCTION odpusc_oferte_goscia(p_token uuid)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id    uuid;
+  v_event uuid;
+BEGIN
+  SELECT p.id, p.event_id
+    INTO v_id, v_event
+    FROM event_participants p
+   WHERE p.claim_token = p_token
+     AND p.is_guest AND p.claimed_at IS NULL AND p.user_id IS NULL
+     AND p.claim_offered_at IS NOT NULL;
+
+  IF v_id IS NULL THEN
+    RAISE EXCEPTION 'Nie ma oferty do odpuszczenia.';
+  END IF;
+
+  UPDATE event_participants
+     SET claim_offered_at = NULL, claim_passed = true
+   WHERE id = v_id;
+
+  -- Miejsce idzie do następnej osoby od razu, a nie dopiero gdy ktoś otworzy
+  -- stronę meczu.
+  PERFORM sync_reserve_claim(v_event);
+  RETURN v_event;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION przyjmij_oferte_goscia(uuid) FROM public;
+REVOKE ALL ON FUNCTION odpusc_oferte_goscia(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION przyjmij_oferte_goscia(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION odpusc_oferte_goscia(uuid) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 6. Organizator musi widzieć, kogo kolejka pominie
+-- ---------------------------------------------------------------------------
+-- Gość BEZ adresu dalej nie dostanie oferty — nie ma jak go zawiadomić. To jest
+-- w porządku, ale musi być WIDOCZNE: inaczej organizator patrzy na listę
+-- rezerwową, w której część osób nigdy nie zostanie zaproszona, i nie ma skąd
+-- o tym wiedzieć. Cicha reguła po stronie bazy to dokładnie ten rodzaj
+-- „wątpliwości", którego w fazie 1 nie chcemy.
+--
+-- Sam `guest_email` jest od migracji `127` NIECZYTELNY przez API i tak zostaje
+-- — to dane osobowe kogoś, kto podał adres wyłącznie po to, żeby wejść do
+-- składu. Wystawiamy więc wyłącznie FAKT, nie treść: kolumna pochodna, którą
+-- baza liczy sama i której nie da się podrobić z przeglądarki.
+ALTER TABLE event_participants
+  ADD COLUMN IF NOT EXISTS ma_guest_email BOOLEAN
+  GENERATED ALWAYS AS (guest_email IS NOT NULL) STORED;
+
+COMMENT ON COLUMN event_participants.ma_guest_email IS
+  'Czy do tego gościa da się w ogóle napisać. Kolumna pochodna — sam adres pozostaje nieczytelny przez API (migracja 127). Bez niej interfejs nie mógł pokazać organizatorowi, kogo kolejka rezerwowa pominie.';
+
+GRANT SELECT (ma_guest_email) ON event_participants TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 138_oferta_wygasla_at_do_odczytu.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 138 — brakujący GRANT SELECT na `oferta_wygasla_at`
+--
+-- BŁĄD W MIGRACJI `135`. Dodała kolumnę `oferta_wygasla_at` i nie nadała na nią
+-- uprawnienia do odczytu. Wyszło to na produkcji, po jej uruchomieniu, przy
+-- sprawdzaniu uprawnień kolumnowych — zanim kod trafił na produkcję.
+--
+-- DLACZEGO TO NIE JEST OCZYWISTE. Migracja `127` zamieniła tabelowy
+-- `GRANT SELECT` na uprawnienia KOLUMNOWE, żeby ukryć `guest_email`, telefony
+-- i `claim_token` przed każdym, kto otworzy stronę meczu. Skutek uboczny:
+-- od tamtej pory każda NOWA kolumna dziedziczy tabelowe `INSERT` i `UPDATE`
+-- (te są nadal tabelowe), ale **nie dostaje `SELECT`-a** — bo tego na poziomie
+-- tabeli już nie ma. Potwierdzone na produkcji: `oferta_wygasla_at` miała
+-- `INSERT`, `UPDATE` i `REFERENCES`, a `SELECT` nie.
+--
+-- CO BY SIĘ STAŁO. `getEvent()` (`lib/events.ts`) wymienia tę kolumnę w swoim
+-- `select()`, więc PostgREST odrzuciłby zapytanie i **strona meczu przestałaby
+-- się wczytywać dla wszystkich** — zalogowanych i nie. Objaw byłby przy tym
+-- mylący: kolumna istnieje, `psql` ją czyta bez problemu, a wywraca się
+-- wyłącznie ruch przez API.
+--
+-- `UPDATE` zostaje nadane i to jest zamierzone: organizator, awansując kogoś
+-- z rezerwy albo odsyłając go z powrotem (`awansujZRezerwy`, `cofnijNaRezerwe`
+-- w `lib/events.ts`), zeruje ten znacznik z przeglądarki. Przed samowolką broni
+-- wyzwalacz `pilnuj_wlasnego_wpisu()` (`135`), nie brak grantu — sprawdza, KTO
+-- pisze, a nie tylko czy może.
+--
+-- Klasę tego błędu pilnuje odtąd `supabase/test/rls.sql`, sekcja „Kolumny,
+-- które CZYTA aplikacja, są czytelne": lista kolumn jeden do jednego z zapytaniem
+-- `getEvent()`, wykonana jako `authenticated`. Bez tej sekcji przebieg
+-- `./scripts/baza-testowa.sh` przechodził na zielono, bo SQL uruchamiany
+-- w migracjach i testach idzie jako superuser, dla którego granty nie mają
+-- znaczenia.
+--
+-- Migracja jest IDEMPOTENTNA — samo `GRANT`.
+
+GRANT SELECT (oferta_wygasla_at) ON event_participants TO anon, authenticated;
