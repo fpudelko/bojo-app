@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Lock, ArrowLeft, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
 import Link from 'next/link';
@@ -61,6 +61,25 @@ export default function EditEventPage() {
   // potrzebuje nazwy, sportu i godzin, nie tylko porównywanych pól.
   const [mecz, setMecz] = useState<EventItem | null>(null);
   const [uczestnicy, setUczestnicy] = useState<EventParticipant[]>([]);
+
+  /**
+   * PAYLOAD SPRZED EDYCJI, w całości — do odpowiedzi na jedno pytanie:
+   * „czy cokolwiek się zmieniło".
+   *
+   * DLACZEGO NIE WYSTARCZA `policzZmiany()`. Ta liczy różnicę na CZTERNASTU
+   * polach, które da się pokazać człowiekowi („Termin: … → …"), a payload ma
+   * ich koło trzydziestu: czas gry, próg minimum, tryb miejsc dla bramkarzy,
+   * czas na decyzję z rezerwy, numer BLIK, zniżki kartowe, tryb drużyn…
+   * Gdyby to ona decydowała o pominięciu zapisu, zmiana samego czasu gry
+   * z 90 na 120 minut kończyłaby się cichym „nic się nie zmieniło" i NIE
+   * ZAPISAŁABY SIĘ — czyli poprawka byłaby gorsza od problemu, który naprawia.
+   *
+   * Migawkę bierzemy dopiero po `pageLoading === false`, bo lokalizacja
+   * dociąga się osobnym `await getField()` na końcu wczytywania — wcześniej
+   * payload miałby jeszcze pustą nazwę miejsca i każdy zapis wyglądałby na
+   * zmianę.
+   */
+  const payloadWyjsciowy = useRef<string | null>(null);
 
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
@@ -312,6 +331,12 @@ export default function EditEventPage() {
     (p) => !p.isReserve && !p.pendingApproval && p.rsvp !== 'maybe',
   ).length;
 
+  useEffect(() => {
+    if (pageLoading || !mecz || payloadWyjsciowy.current !== null) return;
+    payloadWyjsciowy.current = JSON.stringify(zbudujPayload());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageLoading, mecz]);
+
   const zapisz = async (zakres: ZakresEdycji, wyslijWiadomosc = false) => {
     const payload = zbudujPayload();
     setZakresOtwarty(false);
@@ -416,7 +441,10 @@ export default function EditEventPage() {
     // BRAK ZMIAN = BRAK ZAPISU. Dotąd pusty zapis i tak szedł UPDATE-em do
     // bazy i dopisywał wiersz do dziennika aktywności — czyli „Edytowano
     // mecz" w historii meczu, w którym nikt niczego nie zmienił.
-    if (mecz && zmiany.length === 0) {
+    //
+    // Decyduje CAŁY payload, nie lista `zmiany` — patrz `payloadWyjsciowy`.
+    if (payloadWyjsciowy.current !== null
+        && payloadWyjsciowy.current === JSON.stringify(payload)) {
       router.push(`/wydarzenia/${id}`);
       return;
     }
@@ -424,7 +452,13 @@ export default function EditEventPage() {
     const komu = komuDojdzie(uczestnicy, mecz?.organizerId ?? '');
     const wybor = await potwierdz({
       tytul: 'Zapisać zmiany?',
-      opis: zmiany.map((z) => `${z.etykieta}: ${z.przed} → ${z.po}`).join('\n'),
+      // Pusta lista przy zmienionym payloadzie znaczy, że ruszone zostało
+      // jedno z ustawień, których nie wypisujemy wierszem „było → jest"
+      // (czas gry, próg minimum, tryb bramkarzy, czas na decyzję z rezerwy…).
+      // Milczenie w tym miejscu czytałoby się jak „nic nie zmieniłem".
+      opis: zmiany.length > 0
+        ? zmiany.map((z) => `${z.etykieta}: ${z.przed} → ${z.po}`).join('\n')
+        : 'Zmieniasz ustawienia meczu — data, miejsce i koszt zostają bez zmian.',
       konsekwencje: konsekwencjeZapisu(zmiany, komu, {
         zapisanych: wSkladzie,
         miejsc: payload.maxPlayers,

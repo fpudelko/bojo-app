@@ -20,8 +20,21 @@ import { pl } from 'date-fns/locale';
 import { withCount } from './plural';
 import type { EventParticipant, PaymentMethod, SportsCardProvider, Visibility } from '@/types';
 
-/** Pola meczu, które porównujemy. Węższe niż `EventItem` i niż `EventCreate` —
- *  bierzemy dokładnie to, co organizator widzi w formularzu edycji. */
+/**
+ * Pola meczu, które porównujemy. Węższe niż `EventItem` i niż `EventCreate` —
+ * bierzemy dokładnie to, co da się pokazać człowiekowi wierszem „było → jest".
+ *
+ * ⚠️ **TO NIE JEST LISTA KOMPLETNA I NIE WOLNO JEJ UŻYWAĆ JAKO STRAŻNIKA
+ * ZAPISU.** Payload edycji ma około trzydziestu pól; tutaj jest ich czternaście.
+ * Poza porównaniem zostają m.in. czas gry, próg minimum, tryb miejsc dla
+ * bramkarzy, czas na decyzję z rezerwy, numer BLIK, zniżki kartowe, tryb drużyn
+ * i widoczność statusu płatności. Gdyby `policzZmiany()` decydowało o tym, czy
+ * w ogóle zapisywać, zmiana samego czasu gry z 90 na 120 minut kończyłaby się
+ * cichym „nic się nie zmieniło" i NIE ZAPISAŁABY SIĘ.
+ *
+ * O pominięciu zapisu decyduje porównanie CAŁEGO payloadu — patrz
+ * `payloadWyjsciowy` w `app/wydarzenia/[id]/edytuj/page.tsx`.
+ */
 export interface DaneDoPorownania {
   date: string;
   time: string;
