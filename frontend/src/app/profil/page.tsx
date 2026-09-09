@@ -15,6 +15,7 @@ import { hasManagedVenue } from '@/lib/api';
 import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { validatePhone, normalizePhone } from '@/lib/validation';
 import PowiadomieniaPush from '@/components/PowiadomieniaPush';
+import UstawieniaMaili from '@/components/UstawieniaMaili';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -385,8 +386,12 @@ export default function ProfilePage() {
             wejście w ustawienia ma od razu pokazać tę kartę, a nie górę profilu,
             z której trzeba jej dopiero szukać. `scroll-mt` odsuwa ją spod
             przyklejonego nagłówka — bez tego kotwica ląduje pod paskiem. */}
-        <div id="powiadomienia" className="scroll-mt-20">
+        <div id="powiadomienia" className="scroll-mt-20 space-y-4">
           <PowiadomieniaPush />
+          {/* Poczta OSOBNO i BEZ warunku na zgodę przeglądarki — patrz
+              `UstawieniaMaili`. Pod tą samą kotwicą `#powiadomienia`, bo to
+              jedno miejsce, którego człowiek szuka, gdy chce coś wyciszyć. */}
+          <UstawieniaMaili />
         </div>
 
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło

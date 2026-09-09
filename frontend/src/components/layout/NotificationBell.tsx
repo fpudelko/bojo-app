@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
 import {
-  Bell, CalendarCheck, CalendarPlus, CalendarX, Check, ChevronRight, Clock, MessageCircle,
-  Settings, TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
+  Bell, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, ChevronRight, Clock,
+  MapPin, MessageCircle, Settings, TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -57,6 +57,11 @@ const IKONY: Record<string, { Ikona: LucideIcon; klasa: string; rodzaj: string }
   // wierszem, który prostuje. Dwa czerwone wiersze obok siebie czytałyby się
   // jak dwie awarie.
   mecz_przywrocony:            { Ikona: CalendarCheck, klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Jednak gramy' },
+  // Dwa typy z `065` i `114`, które realnie przychodzą, a mapa ich nie miała —
+  // lądowały pod szarym dzwonkiem z podpisem „Powiadomienie". Neutralnie,
+  // nie na czerwono: zmiana terminu to nie awaria, tylko nowa informacja.
+  zmiana_terminu:              { Ikona: CalendarClock, klasa: 'bg-slate-100 text-slate-600',      rodzaj: 'Nowy termin' },
+  zmiana_warunkow_meczu:       { Ikona: MapPin,        klasa: 'bg-slate-100 text-slate-600',      rodzaj: 'Zmiana' },
   prosba_o_dolaczenie:         { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
   pytanie_o_udzial:            { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Grasz?' },
   zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },

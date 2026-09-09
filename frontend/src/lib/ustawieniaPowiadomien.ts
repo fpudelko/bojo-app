@@ -63,6 +63,22 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // DWA TYPY, KTÓRYCH TU NIE BYŁO, choć realnie przychodzą od migracji `065`
+    // i `114` — czyli nie dało się ich wyłączyć nawet dla pusha, a od `140`
+    // chodzą także pocztą. Stoją przy odwołaniu, bo to ta sama rodzina:
+    // „coś, co unieważnia Twoje plany na ten wieczór".
+    typ: 'zmiana_terminu',
+    nazwa: 'Zmiana terminu meczu',
+    opis: 'Organizator przesunął mecz na inny dzień albo godzinę',
+    wazne: true,
+  },
+  {
+    typ: 'zmiana_warunkow_meczu',
+    nazwa: 'Zmiana miejsca lub kosztu',
+    opis: 'Mecz przeniesiony na inne boisko albo zmieniona cena od osoby',
+    wazne: true,
+  },
+  {
     typ: 'pytanie_o_udzial',
     nazwa: 'Pytanie, czy grasz',
     opis: 'Organizator pyta ekipę, kto wchodzi',
@@ -122,6 +138,26 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   },
 ];
 
+/**
+ * Rodzaje, które chodzą TAKŻE POCZTĄ (migracja `140`) — wąska lista, ta sama
+ * co w wyzwalaczu `wyslij_mail_po_powiadomieniu()`.
+ *
+ * DLACZEGO TYLKO TYLE. Poczta jest kanałem, który przerywa dzień; wysyłana
+ * przy byle czym przestaje być czytana, a wtedy przestaje działać także przy
+ * rzeczach ważnych. Zostają więc te cztery, przy których niedoręczenie kończy
+ * się CZYIMŚ WYJAZDEM NA BOISKO — i tylko one.
+ *
+ * Ta lista MUSI zgadzać się z warunkiem w migracji `140`; pilnuje tego test
+ * `ustawieniaPowiadomien.test.ts`. Rozjazd oznaczałby ekran, który obiecuje
+ * wyłączenie maila, jaki i tak przyjdzie — albo odwrotnie.
+ */
+export const RODZAJE_MAILOWE = [
+  'mecz_odwolany',
+  'zmiana_terminu',
+  'zmiana_warunkow_meczu',
+  'mecz_przywrocony',
+] as const;
+
 export async function pobierzWylaczone(userId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('profiles')
@@ -152,4 +188,36 @@ export async function zapiszWylaczone(userId: string, wylaczone: string[]): Prom
 export function przelacz(wylaczone: string[], typ: string, wlaczyc: boolean): string[] {
   if (wlaczyc) return wylaczone.filter((x) => x !== typ);
   return wylaczone.includes(typ) ? wylaczone : [...wylaczone, typ];
+}
+
+// ---------------------------------------------------------------------------
+// Kanał pocztowy (migracja `140`)
+// ---------------------------------------------------------------------------
+// OSOBNA KOLUMNA, nie wspólna z `push_wylaczone`. To są dwa różne kanały
+// o różnej cenie pomyłki: wyłączenie pusha znaczy „nie zawracaj mi telefonu",
+// wyłączenie poczty — „nie pisz do mnie". Wspólna lista kazałaby wybierać oba
+// naraz, a to nie jest ta sama decyzja.
+
+export async function pobierzMailWylaczone(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('mail_wylaczone')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.mail_wylaczone as string[] | null) ?? [];
+}
+
+export async function zapiszMailWylaczone(userId: string, wylaczone: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ mail_wylaczone: wylaczone })
+    .eq('id', userId);
+  if (error) throw new Error(error.message);
+}
+
+/** Rodzaje mailowe w kolejności i z opisami z `RODZAJE_POWIADOMIEN` — żeby ten
+ *  sam typ nazywał się na obu listach tak samo. */
+export function rodzajeMailowe(): RodzajPowiadomienia[] {
+  return RODZAJE_POWIADOMIEN.filter((r) => (RODZAJE_MAILOWE as readonly string[]).includes(r.typ));
 }
