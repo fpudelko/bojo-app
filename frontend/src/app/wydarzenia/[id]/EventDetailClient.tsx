@@ -2193,6 +2193,24 @@ export default function EventDetailClient() {
   const joinBarVisible = !(user && (myParticipation || myPendingRequest))
     && !mojTokenGoscia
     && !eventStarted && !isCancelled;
+
+  // PASEK STANU DLA ZAPISANEGO — druga połowa tego, co `joinBarVisible` robi
+  // dla niezapisanego, i dokładne dopełnienie warunku wyżej.
+  //
+  // Do 2026-09-09 zalogowany uczestnik nie miał na dole NICZEGO: pasek gasł
+  // w chwili dołączenia, status („gram" / „rezerwa 2." / „czekam na
+  // akceptację") zostawał wyłącznie w treści, a jedyne wyjście — „Wypisz się
+  // z meczu" — leżało na końcu sekcji składu, poniżej zgięcia ekranu.
+  // Zgłoszone wprost z sesji QA na telefonie. Gość bez konta miał taki pasek
+  // od dawna (niżej, `mojTokenGoscia`), więc to była NIESPÓJNOŚĆ, nie decyzja.
+  //
+  // Obserwujący nie wchodzi tutaj i to jest zamierzone: `myParticipation` to
+  // `myConfirmed`, czyli wiersz z miejscem w składzie albo w kolejce —
+  // „Obserwuję" (`rsvp = 'maybe'`) do niego nie należy, więc obserwujący
+  // dalej dostaje pasek „Dołącz", którego naprawdę potrzebuje.
+  const statusBarVisible = !!user && !!(myParticipation || myPendingRequest)
+    && !mojTokenGoscia
+    && !eventStarted && !isCancelled;
   // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
   // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
   // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
@@ -2617,7 +2635,7 @@ export default function EventDetailClient() {
           ma sięgać do samego dołu ekranu, nie zostawiać pod sobą odstęp. */}
       <main
         className={`flex-1 w-full max-w-2xl mx-auto space-y-4 ${
-          rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : joinBarVisible ? 'pb-32' : 'pb-8'
+          rozmowaPelnoekranowa ? 'flex min-h-0 flex-col overflow-hidden' : (joinBarVisible || statusBarVisible) ? 'pb-32' : 'pb-8'
         }`}
         {...gestSwipe}
       >
@@ -3898,6 +3916,57 @@ export default function EventDetailClient() {
               >
                 Mój zapis →
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ── PASEK STANU (zapisany) ── Siada NAD dolną nawigacją
+            (`--dol-bezpieczny`, ten sam wzorzec co `CookieBanner`), a nie
+            ZAMIAST niej. Pasek „Dołącz" i pasek gościa wołają `HideBottomNav`,
+            bo dotyczą krótkiej chwili przed zapisem; mecz, w którym się gra,
+            otwiera się wielokrotnie i przez wiele dni — zabranie na nim
+            nawigacji byłoby gorsze niż problem, który to naprawia.
+
+            Pasek NIE powtarza wyjaśnień z treści (co znaczy rezerwa, na co
+            czeka prośba — bloki niżej). Odpowiada na dwa pytania, które
+            wcześniej wymagały przewijania: „jaki mam status" i „jak z tego
+            wyjść". */}
+        {tab !== 'rozmowa' && statusBarVisible && (
+          <div
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 py-3 backdrop-blur-md dark:border-slate-700"
+            style={{ marginBottom: 'var(--dol-bezpieczny)' }}
+          >
+            <div className="mx-auto flex max-w-2xl items-center gap-3">
+              <p className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold text-ink">
+                  {myPendingRequest
+                    ? 'Czekasz na akceptację'
+                    : amIReserve
+                      ? `Rezerwa${myReservePosition ? ` — ${myReservePosition}. w kolejce` : ''}`
+                      : 'Jesteś w składzie'}
+                  {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
+                </span>
+                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                  {myPendingRequest
+                    ? 'Organizator jeszcze nie potwierdził'
+                    : amIReserve
+                      ? 'Wejdziesz, gdy ktoś się wypisze'
+                      : 'Masz miejsce w składzie'}
+                </span>
+              </p>
+              {myParticipation && (
+                <button
+                  onClick={() => setLeaveConfirmOpen(true)}
+                  disabled={busy}
+                  // „Wypisz się", a NIE „Wypisz się z meczu": ten drugi napis
+                  // niesie przycisk w treści i pod niego jest napisany selektor
+                  // w `e2e/scenariusze.spec.ts`. Dwa elementy o tej samej
+                  // nazwie dostępnej wywracają strict mode Playwrighta.
+                  className="h-11 shrink-0 px-2 text-sm font-semibold text-red-600 transition-colors hover:text-red-700 disabled:opacity-50"
+                >
+                  Wypisz się
+                </button>
+              )}
             </div>
           </div>
         )}
