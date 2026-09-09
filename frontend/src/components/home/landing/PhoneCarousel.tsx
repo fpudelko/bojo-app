@@ -9,6 +9,7 @@ import PhoneFrame from './PhoneFrame';
  *  kadr 945×1877 (patrz `frontend/public/landing/`), więc karuzela ma
  *  jednolitą wysokość mimo że każdy slajd to inny widok. */
 const SCREENS = [
+  { id: 'dolacz',   label: 'Dołącz bez konta',        src: '/landing/dolacz-bez-konta.jpg' },
   { id: 'kreator',  label: 'Tworzenie meczu',        src: '/landing/kreator.jpg' },
   { id: 'przed',    label: 'Wydarzenie przed meczem', src: '/landing/wydarzenie-przed.jpg' },
   { id: 'lista',    label: 'Lista otwartych gier',    src: '/landing/wydarzenia.jpg' },
@@ -20,7 +21,7 @@ const SCREENS = [
 const AUTO_ADVANCE_MS = 4000;
 
 /**
- * Podgląd aplikacji w hero landingu: pięć prawdziwych zrzutów ekranu do
+ * Podgląd aplikacji w hero landingu: siedem prawdziwych zrzutów ekranu do
  * przewinięcia palcem.
  *
  * Proporcje trzyma intrinsic width/height każdego `PhoneFrame` (identyczne
