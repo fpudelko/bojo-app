@@ -192,12 +192,19 @@ Cenę liczy wyłącznie funkcja `priceForParticipant()`, zwracająca `priceGrosz
 istotne semantycznie: `sports_card_discount_grosz = null` znaczy **„zniżka jest, ale
 zapytaj organizatora"**, a nie „brak zniżki".
 
+Koszt organizator podaje **od osoby albo za cały obiekt** — w drugim trybie Bojo dzieli
+kwotę przez liczbę miejsc, bo w bazie zawsze siedzi cena od osoby. Górna granica to
+**500 zł od osoby**: to łapacz literówek (kolumna `cost_grosz` jest `integer`, a kwota
+w rodzaju 99999999 przekraczała jej zakres i wracała surowym błędem bazy), nie reguła
+biznesowa.
+
 **Bojo nie przelewa pieniędzy.** Aplikacja rejestruje, kto zapłacił — nie integruje się
 z BLIK-iem ani Stripe'em. Realny przepływ gotówki odbywa się poza aplikacją.
 
 **Pytania, na które odpowiada ta sekcja:** Czy przez Bojo można zapłacić za mecz?
 Czy Bojo obsługuje BLIK? Jak Bojo dzieli koszt wynajmu boiska? Czy Bojo akceptuje kartę
-Multisport? Co znaczy nieokreślona kwota zniżki?
+Multisport? Co znaczy nieokreślona kwota zniżki? Ile maksymalnie może kosztować mecz
+w Bojo? Czy koszt wpisuje się od osoby, czy za wynajem?
 
 ---
 

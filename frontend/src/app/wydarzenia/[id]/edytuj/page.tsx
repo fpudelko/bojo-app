@@ -402,6 +402,9 @@ export default function EditEventPage() {
     const payErrs = validatePayments({ costPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln });
     if (Object.keys(payErrs).length > 0) {
       setFieldErrors(payErrs);
+      // Ten sam ratunek co w kreatorze: pole z błędem stoi wyżej niż „Zapisz",
+      // więc bez przewinięcia odmowa zapisu jest niewidoczna.
+      setTimeout(() => document.querySelector('[data-field-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
     setFieldErrors({});
@@ -657,14 +660,23 @@ export default function EditEventPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Koszt od osoby (zł)
             </label>
+            {/* Bez tego bloku odmowa zapisu przy absurdalnej kwocie
+                (`validatePayments` → `fieldErrors.costPln`) nie miałaby gdzie
+                się pokazać: `handleSubmit` po prostu wychodzi, więc „Zapisz"
+                wyglądałby jak przycisk, który nic nie robi. */}
+            {fieldErrors.costPln && (
+              <p data-field-error className="mb-1 flex items-center gap-1 text-xs font-medium text-red-600">
+                <span aria-hidden>⚠</span> {fieldErrors.costPln}
+              </p>
+            )}
             <input
               type="number"
               min={0}
               step={0.5}
               value={costPln}
-              onChange={(e) => setCostPln(e.target.value)}
+              onChange={(e) => { setCostPln(e.target.value); setFieldErrors((f) => ({ ...f, costPln: '' })); }}
               placeholder="0 = za darmo"
-              className={inputCls}
+              className={[inputCls, fieldErrors.costPln ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
             />
             {parseFloat(costPln || '0') > 0 && (
               <p className="mt-1 text-xs text-slate-500">

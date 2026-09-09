@@ -781,6 +781,31 @@ przełącznika. Funkcja przyjmuje dziś dodatkowy parametr `platny`; komunikat
 zwiniętej sekcji (ten sam wzorzec `blad` co przy bramkarzach wyżej). Pilnuje tego
 `e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts`.
 
+**Górna granica kosztu: 500 zł od osoby — od 2026-09-09.** Pole ceny miało wyłącznie
+`min={0}`, więc kwota w rodzaju „99999999" jechała prosto do bazy, a `cost_grosz`
+jest `integer`: 9 999 999 900 groszy przekracza jego zakres i organizator dostawał
+surowy błąd Postgresa zamiast zdania po polsku. `validatePayments()` zwraca dziś
+`fieldErrors.costPln` z wyliczoną kwotą OD OSOBY — bo przy trybie „za cały obiekt"
+w polu stoi koszt wynajmu, a `costPln` jest już wynikiem dzielenia, więc komunikat
+o „wpisanej" liczbie wskazywałby liczbę, której nikt nie wpisał. Przy tym błędzie
+funkcja **nie dokłada** uwagi o zniżce liczonej od tej samej pomyłki. 500 zł to
+łapacz literówek, nie reguła biznesowa (wynajem 200–400 zł na 10–20 osób to
+kilkanaście–kilkadziesiąt złotych od gracza) — jedna stała `MAX_KOSZT_OD_OSOBY_PLN`.
+Strona edycji dostała przy okazji **wyświetlanie** `fieldErrors.costPln` i przewijanie
+do `[data-field-error]`: bez tego `handleSubmit` po prostu wychodził, więc „Zapisz"
+wyglądał jak przycisk, który nic nie robi.
+
+**Limity znaków są widoczne, nie tylko wymuszane — od 2026-09-09.**
+`EventTitleDescriptionField` trzyma je w dwóch stałych równych temu, co przy zapisie
+wymusza `sanityzujPolaMeczu()` (`lib/events.ts`): tytuł 80, opis 1000. Opis nie miał
+dotąd `maxLength` w ogóle — `sanitizeDescription()` obcinał go po cichu, więc dłuższy
+akapit ginął bez słowa. Licznik „63/80" pojawia się dopiero po 70% limitu (wcześniej
+odpowiada na pytanie, którego nikt nie zadaje) i stoi w tym samym wierszu co
+podpowiedź pod polem, żeby jego pojawienie się nie przesuwało układu. Pola „Imię
+znajomego"/„Imię i nazwisko" przy dopisywaniu gościa dostały `maxLength={80}` zgodne
+z `validateName(…, 80)` — wcześniej przyjmowały dowolnie długi tekst, a odmowa
+przychodziła dopiero z serwera, po kliknięciu.
+
 **Nazwa etykiety pola ceny ujednolicona między kreatorem a edycją.** Kreator mówił
 „Koszt od osoby (zł)", strona edycji „Koszt uczestnictwa (PLN)" — ta sama liczba,
 dwie różne nazwy w dwóch miejscach tego samego przepływu. Edycja przyjęła etykietę

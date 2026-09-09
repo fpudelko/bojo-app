@@ -93,6 +93,17 @@ export function validateStep3(): FieldErrors {
   return {};
 }
 
+/** Górna granica kosztu OD OSOBY — łapacz literówek, nie reguła biznesowa.
+ *
+ *  Pole ceny miało dotąd wyłącznie `min={0}`, więc „99999999" jechało prosto do
+ *  bazy: `cost_grosz` jest `integer`, a 9 999 999 900 groszy przekracza jego
+ *  zakres, przez co organizator dostawał surowy błąd Postgresa zamiast zdania
+ *  po polsku. Amatorska gierka kosztuje od osoby kilkanaście–kilkadziesiąt
+ *  złotych (wynajem 200–400 zł dzielony na 10–20 osób), więc 500 zł od osoby
+ *  jest o rząd wielkości powyżej wszystkiego realnego i nadal daleko od
+ *  przepełnienia kolumny. Gdyby kiedyś było za mało — to jedna stała. */
+const MAX_KOSZT_OD_OSOBY_PLN = 500;
+
 /** Payment rules for step 2 (Kiedy i ile) — separate from validateStep2 (date/time)
  *  so the existing tests for that function stay untouched. A free match has no
  *  rules to check. */
@@ -115,6 +126,17 @@ export function validatePayments(v: {
   const cost = parseFloat(v.costPln || '0');
   if (cost <= 0) {
     if (v.platny) errs.costPln = 'Podaj koszt od osoby (albo wyłącz „Mecz płatny").';
+    return errs;
+  }
+  if (cost > MAX_KOSZT_OD_OSOBY_PLN) {
+    // Komunikat mówi WYLICZONĄ kwotę od osoby, nie to, co stoi w polu — przy
+    // trybie „za cały obiekt" w polu jest koszt wynajmu, a `costPln` to już
+    // wynik dzielenia. „Wpisałeś za dużo" wskazywałoby wtedy liczbę, której
+    // organizator nie wpisał.
+    errs.costPln = `Koszt od osoby wychodzi ${cost.toFixed(2)} zł — to wygląda na pomyłkę. `
+      + `Maksimum to ${MAX_KOSZT_OD_OSOBY_PLN} zł od osoby.`;
+    // Bez `return` doszłaby jeszcze uwaga o zniżce liczonej od tej samej,
+    // absurdalnej kwoty — dwa błędy o jednej pomyłce.
     return errs;
   }
 
