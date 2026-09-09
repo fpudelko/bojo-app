@@ -64,7 +64,7 @@ const TRYBY = [
  */
 export function MiejscaWSkladzie({
   maxPlayers, onMaxPlayersChange, minPlayers = null, onMinPlayersChange,
-  reserveEnabled = false,
+  reserveEnabled = false, zapisanych,
 }: {
   maxPlayers: number;
   onMaxPlayersChange: (v: number) => void;
@@ -72,6 +72,12 @@ export function MiejscaWSkladzie({
   onMinPlayersChange?: (v: number | null) => void;
   /** Zmienia wyłącznie ZDANIE pod stepperem — nie samą kontrolkę. */
   reserveEnabled?: boolean;
+  /** Ilu ludzi JEST już w składzie. Podaje wyłącznie edycja — w kreatorze nie
+   *  ma jeszcze nikogo, więc props zostaje nieokreślony i ostrzeżenie się nie
+   *  renderuje. Bez tego zejście z 14 na 10 przy 12 zapisanych było CICHE:
+   *  baza nikogo nie usuwa, licznik pokazuje 12/10, a organizator nie wie,
+   *  kto jest „poza". */
+  zapisanych?: number;
 }) {
   return (
     <>
@@ -117,6 +123,17 @@ export function MiejscaWSkladzie({
                 ? 'Kolejni chętni trafią na listę rezerwową.'
                 : 'Przy komplecie zapisy będą zamknięte.'}
             </p>
+            {/* OSTRZEGA, NIE BLOKUJE — ta sama zasada, co w podsumowaniu
+                kreatora. Zmniejszenie składu bywa świadome (gramy w mniejszym
+                gronie), więc decyzja zostaje przy organizatorze; brakowało
+                wyłącznie tego, żeby wiedział, co robi. */}
+            {zapisanych != null && zapisanych > maxPlayers && (
+              <p className="mt-1.5 text-xs font-medium text-amber-600">
+                Zapisanych jest {zapisanych} — {zapisanych - maxPlayers}{' '}
+                {zapisanych - maxPlayers === 1 ? 'osoba będzie' : 'osoby/osób będzie'} nad limitem.
+                Nikt nie zostanie usunięty ze składu.
+              </p>
+            )}
           </div>
           <p className="min-w-0 text-xs text-slate-500 sm:flex-1 sm:text-right">
             Masz już graczy? Dopiszesz ich zaraz po utworzeniu — na stronie meczu, też bez konta.
@@ -349,7 +366,7 @@ export default function EventCapacityFields({
   reserveClaimMinutes, setReserveClaimMinutes,
   reserveEnabled = true, setReserveEnabled,
   slotyZarezerwowane = true, setSlotyZarezerwowane,
-  blad,
+  blad, zapisanych,
 }: {
   sport: string;
   maxPlayers: number;
@@ -365,6 +382,8 @@ export default function EventCapacityFields({
   slotyZarezerwowane?: boolean;
   setSlotyZarezerwowane?: (v: boolean) => void;
   blad?: string;
+  /** Patrz `MiejscaWSkladzie` — podaje wyłącznie edycja. */
+  zapisanych?: number;
 }) {
   return (
     <>
@@ -374,6 +393,7 @@ export default function EventCapacityFields({
         minPlayers={minPlayers}
         onMinPlayersChange={onMinPlayersChange}
         reserveEnabled={reserveEnabled}
+        zapisanych={zapisanych}
       />
 
       {setReserveEnabled && (

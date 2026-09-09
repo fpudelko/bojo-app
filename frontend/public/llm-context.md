@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-08 · migracja `138` · 56 tabel
+**Stan na:** 2026-09-09 · migracja `140` · 56 tabel
 
 ---
 
@@ -355,6 +355,46 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
+
+PROBLEM: Odwołanie meczu miało w Bojo okno, które mówi wprost, kto dostanie powiadomienie
+i kto go NIE dostanie. Edycja meczu — czynność wykonywana znacznie częściej i wysyłająca
+dwa rodzaje powiadomień oraz maile do gości — kończyła się przyciskiem „Zapisz zmiany"
+i przekierowaniem. Organizator nie wiedział ani co realnie zmienił, ani że ekipa właśnie
+dostała wiadomość, więc raz pisał to samo drugi raz na czacie, a kiedy indziej nie pisał
+wcale. Do tego formularz edycji gubił przy zapisie nazwę i adres miejsca spoza katalogu:
+mecz przeniesiony z jednej pinezki na drugą zostawał ze starym adresem pod nową nazwą,
+a przeniesiony z katalogu na pinezkę tracił adres całkowicie — również w danych
+strukturalnych i w podglądzie linku na czacie. Osobno: uczestnik Z KONTEM bywał gorzej
+poinformowany niż gość BEZ konta, bo gość z adresem dostaje maile, a posiadacz konta
+tylko dzwonek i push — ten drugi wyłącznie wtedy, gdy sam go włączył. Kto nie włączył
+i nie wszedł do aplikacji, o odwołaniu meczu nie dowiadywał się wcale.
+
+ROZWIĄZANIE BOJO: Przed zapisem zmian Bojo pokazuje listę „było → jest" i mówi, ile osób
+z kontem dostanie powiadomienie, ilu gości dostanie e-mail, a ilu trzeba powiadomić
+samemu; przy zmianie, która nikogo nie powiadamia, mówi to wprost. Druga droga — „Zapisz
+i wyślij wiadomość" — otwiera arkusz udostępniania z gotowym tekstem zmiany. Zapis bez
+żadnej zmiany nie idzie już do bazy. Pole daty pokazuje dzień tygodnia i odległość
+w czasie („sobota, 30 sierpnia · za 3 dni") w kreatorze i w edycji, a zejście z liczbą
+miejsc poniżej obsadzonego składu ostrzega, nie blokując. Cztery powiadomienia, przy
+których niedoręczenie kosztuje wyjazd na boisko — odwołanie meczu, zmiana terminu, zmiana
+miejsca lub kosztu oraz cofnięcie odwołania — idą teraz także e-mailem do osób z kontem,
+z możliwością wyłączenia w ustawieniach. Cofnięcie odwołania w ogóle przestało być ciche:
+kto dostał wiadomość o odwołaniu, dostaje też sprostowanie.
+
+MECHANIKA: migracje `139` (strażniki `status`/`data` w `powiadom_o_zmianie_terminu()`,
+nowy wyzwalacz `powiadom_o_przywroceniu()`, przywrócenie jako powód poczty do gości)
+i `140` (`profiles.mail_wylaczone`, `wyslij_mail_do_konta()`, wyzwalacz
+`wyslij_mail_po_powiadomieniu()` obok pushowego, indeksy idempotencji z `event_id`);
+`lib/zmianyMeczu.ts` (`policzZmiany()`, `komuDojdzie()`, `konsekwencjeZapisu()`),
+`lib/events.ts` (`przygotujPolaMeczu()` — wspólna sanityzacja dla tworzenia i edycji,
+`custom_location_name`/`custom_address` w `updateEvent()`), `lib/eventDates.ts`
+(`opisDaty()`), `lib/eventShare.ts` (`tekstZmiany()`, `tekstPrzywrocenia()`),
+`lib/ustawieniaPowiadomien.ts` (`RODZAJE_MAILOWE`), `components/UstawieniaMaili.tsx`,
+`app/wydarzenia/[id]/edytuj/page.tsx`, `supabase/functions/powiadom-goscia`.
+Testy: `supabase/test/powiadomienia-o-zmianie.sql`, `supabase/test/poczta-do-kont.sql`,
+`src/__tests__/zmianyMeczu.test.ts`.
+
 ### 2026-09-08 — Lista rezerwowa dotrzymuje tego, co obiecuje
 
 PROBLEM: Bojo mówiło rezerwowemu, że po odpuszczeniu miejsca dostanie kolejną ofertę, gdy
@@ -608,30 +648,3 @@ MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
 `app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
 Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
 i „Gość zarządza swoim zapisem").
-
-### 2026-09-01 — Strona boiska pokazuje inne boiska w okolicy
-
-PROBLEM: Katalog Bojo ma ponad 30 000 obiektów, ale na obiekcie, na którym nikt jeszcze
-nie zorganizował meczu — a to niemal cały katalog — strona nie mówiła nic, czego nie ma
-w OpenStreetMap: nazwa, adres, sport, nawierzchnia. Jedyne zdanie własne Bojo („Szukasz
-graczy? Stwórz otwarty mecz…") było identyczne na wszystkich stronach obiektów. Człowiek,
-który trafił na boisko bez zaplanowanych meczów, nie dostawał żadnego następnego kroku
-poza powrotem na mapę; ze strony obiektu wychodziły trzy linki i wszystkie prowadziły do
-list zbiorczych, żaden do innego konkretnego boiska.
-
-ROZWIĄZANIE BOJO: Strona boiska pokazuje teraz listę innych boisk tego samego sportu
-w okolicy — do sześciu, najbliższe pierwsze, każde z odległością w linii prostej
-(np. „440 m", „2,3 km"). Lista pojawia się niezależnie od tego, czy na obiekcie
-kiedykolwiek rozegrano mecz, bo liczy się wyłącznie z położenia obiektów w katalogu.
-Gdy w okolicy nie ma nic, sekcji nie ma wcale — Bojo nie pokazuje pustego nagłówka.
-Nagłówek mówi „w okolicy", nie „w promieniu 8 km", bo dobór idzie po prostokątnym
-wycinku mapy, a nie po okręgu.
-
-MECHANIKA: `frontend/src/lib/pobliskieObiekty.ts` — `pobliskieObiekty()` pyta tabelę
-`fields` o obiekty tego samego sportu w wycinku z `kadrWokol()` (`lib/api.ts`), z filtrem
-`map_visibility='public'` i `seo_tier IN (1,2)`, po czym czysta funkcja
-`wybierzPobliskie()` odrzuca obiekt bieżący, wiersze bez współrzędnych i te spoza
-realnego promienia (rogi prostokąta), sortuje po `distanceKm()` z `lib/geo.ts` i przycina
-do sześciu. Dane pobiera serwer w `app/boisko/[id]/page.tsx` i podaje propsem do
-`VenueDetailClient.tsx`, gdzie renderuje je `OpisIPowiazane` — w obu gałęziach, także
-tej bez JavaScriptu. Test: `src/__tests__/pobliskieObiekty.test.ts`. Bez migracji.

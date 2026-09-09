@@ -886,6 +886,14 @@ Trzy ostrzeżenia, które **nie blokują** publikacji (krok 3 celowo nie ma pól
 `validateStep3` zwraca `{}`): mecz jest dzisiaj, miejsce zostało bez nazwy (same
 współrzędne po nieudanym reverse geocodingu), cena bez wybranej metody płatności.
 
+Pod tabelą stoi jedno zdanie o tym, **co Bojo zrobi samo** — przypomni składowi dzień
+przed meczem (migracja `129`) i powiadomi wszystkich przy zmianie terminu, miejsca albo
+odwołaniu (`065`, `114`, `070`). Powód: przypominanie to jest ta czynność, którą
+organizator wykonuje co tydzień ręcznie na czacie, a mówiły o niej wyłącznie FAQ
+i `docs/llm-context.md`, czyli miejsca, których nie czyta się przy zakładaniu meczu.
+Druga połowa tego zdania stoi w panelu „Mecz gotowy", w drugiej osobie. Na LANDINGU
+świadomie nie — `content/zakazaneFrazy.ts` zakazuje tam wymieniania kanałów w ogóle.
+
 ---
 
 ## Po publikacji: „Mecz gotowy — wyślij link"
@@ -915,6 +923,47 @@ do arkusza systemowego razem z adresem — osobno od tekstu, żeby podgląd link
 
 Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
 konkurencyjny przycisk „Udostępnij" na tej samej stronie.
+
+---
+
+## Edycja meczu — okno „Zapisać zmiany?"
+
+`/wydarzenia/[id]/edytuj` nie zapisuje od razu. Po walidacji (i po pytaniu o zakres, gdy
+mecz należy do serii) pokazuje okno z listą **„było → jest"** i z konsekwencjami:
+
+- ile osób **z kontem** dostanie powiadomienie i o czym,
+- ilu **gości z adresem** dostanie e-mail,
+- ilu gości **bez adresu** trzeba powiadomić samemu,
+- ostrzeżenie, gdy nowy limit miejsc jest niższy niż obsadzony skład (nikt nie zostaje
+  usunięty — licznik po prostu pokazuje np. 12/10).
+
+Przy zmianie, która **nikogo nie powiadamia**, okno mówi to wprost. To jest połowa
+wartości tego okna: bez tego zdania organizator zakłada, że skoro coś zmienił, ekipa
+o tym wie.
+
+Druga droga — **„Zapisz i wyślij wiadomość"** — pojawia się wyłącznie przy zmianie
+powiadamiającej i po udanym zapisie otwiera arkusz udostępniania z gotowym tekstem
+(`tekstZmiany()` w `lib/eventShare.ts`, ten sam czterolinijkowy kształt co zaproszenie
+i odwołanie).
+
+**Brak zmian = brak zapisu.** Pusty zapis szedł dotąd UPDATE-em do bazy i dopisywał
+„Edytowano mecz" do dziennika aktywności meczu, w którym nikt niczego nie zmienił.
+
+Logika siedzi w `lib/zmianyMeczu.ts` (`policzZmiany()`, `komuDojdzie()`,
+`konsekwencjeZapisu()`), nie w komponencie — strona edycji jest regresyjnie wrażliwa
+i dostaje jedno wywołanie zamiast dziesięciu nowych warunków.
+
+⚠️ **Flaga `powiadamia` jest LUSTREM wyzwalaczy, nie osobnym sądem.** Powiadomienia
+wysyła baza: `065` przy zmianie daty lub godziny, `114` przy zmianie miejsca albo kosztu.
+Nic innego nie wysyła nic. Test `zmianyMeczu.test.ts` sprawdza dokładny zbiór kluczy
+`{termin, miejsce, koszt}` i padnie, gdy dojdzie trzeci wyzwalacz — bo okno mówiące
+„12 osób dostanie powiadomienie" tam, gdzie nikt go nie dostaje, jest gorsze niż brak
+okna: raz nauczony organizator przestaje pisać na czacie.
+
+Pole daty (wspólne z kreatorem — `EventDateTimeField`) pokazuje pod spodem **dzień
+tygodnia i odległość w czasie** („sobota, 30 sierpnia · za 3 dni", `opisDaty()`
+w `lib/eventDates.ts`). Natywne `<input type="date">` nie mówi, jaki to dzień, a
+organizator rezerwuje boisko „na czwartek", nie „na 13.08".
 
 ---
 

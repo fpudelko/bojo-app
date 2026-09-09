@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
 import { supabase } from '@/lib/supabase';
 import {
   createEvent, joinEvent, joinEventAsGuest, confirmFromMaybe, removeParticipant, getMyParticipationMap,
-  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst,
+  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst, updateEvent,
 } from '@/lib/events';
 import type { EventItem } from '@/types';
 
@@ -747,5 +747,74 @@ describe('czasRezerwyTekst', () => {
   it('niepełna godzina łączy oba człony', () => {
     expect(czasRezerwyTekst(90)).toBe('1 godz. 30 min.');
     expect(czasRezerwyTekst(150)).toBe('2 godz. 30 min.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateEvent (139/P-1, P-2) — dwie kolumny, które UPDATE gubił, i sanityzacja,
+// którą robił wyłącznie `createEvent`.
+//
+// PO CO TE TESTY. Obie luki są CICHE: nic się nie wywraca, nic nie trafia do
+// logu, a skutek widać dopiero na stronie meczu przeniesionego na inne
+// miejsce — albo, co gorsza, w metadanych Open Graph i w JSON-LD, czyli tam,
+// gdzie nikt nie patrzy przy okazji zwykłej pracy nad kodem.
+// ---------------------------------------------------------------------------
+describe('updateEvent', () => {
+  // Wcześniejsze bloki podmieniają `supabase.from` przez `mockImplementation`,
+  // a to przeżywa `clearAllMocks()` — stąd jawne przywrócenie łańcucha.
+  // `update` musi tu ZWRACAĆ łańcuch, bo `updateEvent` dokłada `.eq('id', …)`.
+  beforeEach(() => {
+    vi.mocked(supabase.from).mockReturnValue(mockChain as never);
+    mockUpdate.mockReturnValue(mockChain);
+    // `updateEvent` kończy się `zapiszNumerBlik()` (numer BLIK mieszka od
+    // migracji `120` w osobnej tabeli) — łańcuch musi znać jego metody,
+    // inaczej test wywraca się na czynności pobocznej.
+    mockChain.in = vi.fn().mockReturnValue(mockChain);
+    mockChain.upsert = vi.fn().mockReturnValue(mockChain);
+    mockDelete.mockReturnValue(mockChain);
+  });
+
+  const bazowy = {
+    sport: 'piłka nożna',
+    fieldName: 'Boisko przy szkole',
+    date: '2099-07-01',
+    time: '18:00',
+    maxPlayers: 10,
+    visibility: 'private' as const,
+  };
+
+  it('zapisuje custom_location_name i custom_address (gubione do 139)', async () => {
+    await updateEvent('event-1', {
+      ...bazowy,
+      customLocationName: 'Boisko przy szkole',
+      customAddress: 'ul. Piaskowa 3, Poznań',
+    });
+
+    const zapis = mockUpdate.mock.calls.at(-1)?.[0];
+    expect(zapis).toMatchObject({
+      custom_location_name: 'Boisko przy szkole',
+      custom_address: 'ul. Piaskowa 3, Poznań',
+    });
+  });
+
+  it('czyści obie kolumny, gdy mecz wraca do boiska z katalogu', async () => {
+    // Bez tego mecz przeniesiony z pinezki na obiekt z katalogu zostawał ze
+    // starym adresem w kolumnie, która zasila JSON-LD.
+    await updateEvent('event-1', { ...bazowy, fieldId: 'field-9' });
+
+    const zapis = mockUpdate.mock.calls.at(-1)?.[0];
+    expect(zapis).toMatchObject({ custom_location_name: null, custom_address: null });
+  });
+
+  it('przycina tytuł do 80 znaków — tak samo jak createEvent', async () => {
+    await updateEvent('event-1', { ...bazowy, title: 'x'.repeat(200) });
+
+    const zapis = mockUpdate.mock.calls.at(-1)?.[0];
+    expect(zapis.title).toHaveLength(80);
+  });
+
+  it('pusta nazwa miejsca nie przechodzi do bazy', async () => {
+    await expect(updateEvent('event-1', { ...bazowy, fieldName: '   ' }))
+      .rejects.toThrow(/Nazwa miejsca/);
   });
 });

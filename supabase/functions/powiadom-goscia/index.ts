@@ -43,7 +43,12 @@ const STRONA = Deno.env.get('BOJO_URL') ?? 'https://bojo.pl';
 const ODPOWIEDZ_NA = Deno.env.get('BOJO_ODPOWIEDZ_NA') ?? 'bojopolska@gmail.com';
 
 type Powod = 'zapis' | 'zaakceptowano' | 'odrzucono' | 'odwolanie' | 'zmiana'
-  | 'jutro_grasz' | 'zaloz_konto' | 'powitanie' | 'oferta';
+  | 'jutro_grasz' | 'zaloz_konto' | 'powitanie' | 'oferta'
+  // Powody dla odbiorcy Z KONTEM (migracja `140`). Nazwy są DOKŁADNIE typami
+  // powiadomień z tabeli `notifications` — dzięki temu baza nie tłumaczy
+  // niczego po drodze, a ledger `maile_wyslane` trzyma ten sam klucz, który
+  // widać pod dzwonkiem.
+  | 'mecz_odwolany' | 'zmiana_terminu' | 'zmiana_warunkow_meczu' | 'mecz_przywrocony';
 
 interface Dane {
   powod: Powod;
@@ -64,6 +69,10 @@ interface Dane {
   /** Do kiedy stoi oferta zwolnionego miejsca — gotowy tekst z bazy
    *  („07.09, godz. 21:30"), bo tylko ona zna okno i strefę meczu. */
   oferta_do?: string | null;
+  /** Odbiorca MA KONTO w Bojo (migracja `140`). Zmienia stopkę: zamiast linku
+   *  do wpisu gościa idzie link do meczu i informacja, jak te maile wyłączyć.
+   *  Gość bez konta nie ma czego wyłączać — nie ma ustawień. */
+  ma_konto?: boolean;
   token: string | null;
 }
 
@@ -93,8 +102,15 @@ function podsumowanie(d: Dane): string {
  *  nie jak reklama aplikacji (ta sama zasada co przy `eventShareText`). */
 function tresc(d: Dane): { temat: string; tekst: string } | null {
   const link = d.token ? `${STRONA}/gracz/przejmij/${d.token}` : `${STRONA}/wydarzenia/${d.event_id}`;
-  const stopka =
-    `\n\nTym linkiem sprawdzisz skład i wypiszesz się, gdyby coś wypadło:\n${link}\n`;
+  const stopka = d.ma_konto
+    // ODBIORCA Z KONTEM. Dostaje link do meczu (wpisu gościa nie ma) oraz —
+    // wymóg elementarnej uczciwości przy kanale, którego nikt nie zamawiał —
+    // jednozdaniową drogę wyjścia. Bez niej pierwszą reakcją na niechciany
+    // mail jest „Zgłoś spam", a to psuje doręczalność WSZYSTKICH maili z domeny,
+    // łącznie z tymi o odwołanym meczu.
+    ? `\n\nSzczegóły meczu:\n${STRONA}/wydarzenia/${d.event_id}\n\n`
+      + `Nie chcesz takich maili? Wyłączysz je w ustawieniach powiadomień:\n${STRONA}/profil\n`
+    : `\n\nTym linkiem sprawdzisz skład i wypiszesz się, gdyby coś wypadło:\n${link}\n`;
 
   switch (d.powod) {
     case 'zapis':
@@ -200,6 +216,50 @@ function tresc(d: Dane): { temat: string; tekst: string } | null {
           `— dostajesz powiadomienie, gdy coś się zmieni albo zwolni się miejsce.\n\n` +
           `Zakładasz je tutaj, a Twój wczorajszy zapis przypisze się do niego:\n${link}\n`,
       };
+    // ── Powody dla odbiorcy Z KONTEM (migracja `140`) ──────────────────────
+    //
+    // Osobne szablony, nie aliasy `odwolanie`/`zmiana`, z dwóch powodów.
+    // Pierwszy: temat maila jest tym, co człowiek czyta na liście w telefonie,
+    // a „Zmiana w meczu" i „Nowy termin" to dla planującego tydzień DWIE różne
+    // wiadomości. Drugi: `mecz_przywrocony` nie ma odpowiednika wśród powodów
+    // gościa — prostuje wcześniejszą złą wiadomość, więc musi się do niej
+    // wprost odnieść, inaczej czyta się jak zaproszenie na nowy mecz.
+    case 'mecz_odwolany':
+      return {
+        temat: `Mecz odwołany: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Organizator odwołał ten mecz:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
+          `Nie przyjeżdżaj na boisko.` + stopka,
+      };
+    case 'zmiana_terminu':
+      return {
+        temat: `Nowy termin: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Organizator zmienił termin meczu, na który jesteś zapisany.\n` +
+          `Nowy termin:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
+          `Jeśli nowy termin Ci nie pasuje — wypisz się, żeby ktoś zdążył wejść na Twoje miejsce.` +
+          stopka,
+      };
+    case 'zmiana_warunkow_meczu':
+      return {
+        temat: `Zmiana w meczu: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Zmieniło się miejsce albo koszt meczu, na który jesteś zapisany. Aktualne dane:\n` +
+          `${d.tytul}\n${podsumowanie(d)}` + stopka,
+      };
+    case 'mecz_przywrocony':
+      return {
+        temat: `Jednak gramy: ${d.tytul}`,
+        tekst:
+          `${powitanie(d.imie)}\n\n` +
+          `Dostałeś wcześniej wiadomość, że ten mecz jest odwołany. Organizator cofnął ` +
+          `odwołanie — mecz się odbędzie:\n${d.tytul}\n${podsumowanie(d)}\n\n` +
+          `Twoje miejsce w składzie zostało nietknięte. Jeśli zdążyłeś zaplanować coś ` +
+          `innego — wypisz się, żeby ktoś mógł wejść na Twoje miejsce.` + stopka,
+      };
     case 'powitanie':
       // JEDYNY mail, który NIE dotyczy konkretnego meczu — stąd brak `podsumowanie()`
       // i brak `stopka` z linkiem do wpisu.
@@ -283,6 +343,14 @@ serve(async (req) => {
         to: [dane.email],
         subject: t.temat,
         text: t.tekst,
+        // Nagłówek dla klienta pocztowego — Gmail rysuje z niego przycisk
+        // „Wypisz się" obok nadawcy. Bez niego jedyną dostępną reakcją na
+        // niechciany mail jest „Zgłoś spam", co obniża doręczalność całej
+        // domeny. Tylko dla odbiorcy z kontem: gość nie ma ustawień, do
+        // których ten link miałby prowadzić.
+        ...(dane.ma_konto
+          ? { headers: { 'List-Unsubscribe': `<${STRONA}/profil>` } }
+          : {}),
       }),
     });
     if (!res.ok) console.error('[powiadom-goscia] Resend', res.status, await res.text());

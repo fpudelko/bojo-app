@@ -96,7 +96,12 @@ export default function OknoPotwierdzenia({
         </button>
 
         <h3 className="pr-8 font-semibold text-ink">{tytul}</h3>
-        {opis && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{opis}</p>}
+        {/* `whitespace-pre-line`, żeby `opis` mógł być listą złamaną
+            znakiem nowej linii. Pierwszym takim użyciem jest okno „Zapisać
+            zmiany?" na stronie edycji meczu, gdzie każda zmiana ma stać
+            w osobnym wierszu („Termin: … → …"). Dotychczasowe wywołania
+            podają jedno zdanie, więc dla nich nic się nie zmienia. */}
+        {opis && <p className="mt-1 whitespace-pre-line text-sm text-slate-500 dark:text-slate-400">{opis}</p>}
 
         {konsekwencje && konsekwencje.length > 0 && (
           <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">

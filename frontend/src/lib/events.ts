@@ -141,6 +141,31 @@ export function momentZapisu(p: { zapisanoAt?: string; createdAt?: string }): st
 // Events — CRUD
 // ---------------------------------------------------------------------------
 
+/**
+ * Sanityzacja i walidacja pól meczu — JEDNO miejsce dla tworzenia i edycji.
+ *
+ * PO CO POWSTAŁO: `updateEvent()` nie robiła ANI JEDNEGO z tych kroków, a
+ * `createEvent()` robiła wszystkie. Ten sam tytuł odpadał więc przy zakładaniu
+ * meczu i przechodził przy jego edycji — dwie drogi do tej samej tabeli miały
+ * różne bramki. Objaw jest cichy: nikt nie zgłasza „za długi tytuł przeszedł",
+ * bo z niczym się nie wywraca, tylko rozjeżdża się układ karty.
+ *
+ * `validateName` RZUCA przy pustej nazwie i to jest zamierzone: pusta nazwa
+ * miejsca zapisana do bazy daje mecz „", którego nie da się rozpoznać ani na
+ * liście, ani w wiadomości wysłanej na czat. Oba formularze podają dziś
+ * niepustą wartość (fallback w `zbudujPayload()`), więc realnie nic nowego nie
+ * zaczyna rzucać — wyjątek trafia do istniejącej obsługi błędów obu stron.
+ */
+function przygotujPolaMeczu(data: EventCreate) {
+  return {
+    fieldName: validateName(data.fieldName, 'Nazwa miejsca', 100),
+    title: data.title ? sanitizeDescription(data.title).slice(0, 80) : undefined,
+    description: data.description ? sanitizeDescription(data.description) : undefined,
+    customLocationName: data.customLocationName ? sanitizeAddress(data.customLocationName) : undefined,
+    customAddress: data.customAddress ? sanitizeAddress(data.customAddress) : undefined,
+  };
+}
+
 export async function createEvent(
   data: EventCreate,
   organizerId: string,
@@ -169,11 +194,12 @@ export async function createEvent(
 
   // Validate & sanitize inputs
   const safeOrganizerName = validateName(organizerName, 'Nazwa organizatora', 80);
-  const safeFieldName = validateName(data.fieldName, 'Nazwa miejsca', 100);
-  const safeTitle = data.title ? sanitizeDescription(data.title).slice(0, 80) : undefined;
-  const safeDesc = data.description ? sanitizeDescription(data.description) : undefined;
-  const safeCustomName = data.customLocationName ? sanitizeAddress(data.customLocationName) : undefined;
-  const safeCustomAddress = data.customAddress ? sanitizeAddress(data.customAddress) : undefined;
+  const pola = przygotujPolaMeczu(data);
+  const safeFieldName = pola.fieldName;
+  const safeTitle = pola.title;
+  const safeDesc = pola.description;
+  const safeCustomName = pola.customLocationName;
+  const safeCustomAddress = pola.customAddress;
 
   const { data: row, error } = await supabase
     .from('events')
@@ -281,16 +307,33 @@ export async function updateEvent(
   actorId?: string,
   actorName?: string,
 ): Promise<void> {
+  // Ta sama sanityzacja, co przy tworzeniu — patrz `przygotujPolaMeczu`.
+  const pola = przygotujPolaMeczu(data);
+
   const { error } = await supabase
     .from('events')
     .update({
       sport: data.sport,
       field_id: data.fieldId ?? null,
-      field_name: data.fieldName,
+      field_name: pola.fieldName,
       lat: data.lat ?? null,
       lng: data.lng ?? null,
-      title: data.title ?? null,
-      description: data.description ?? null,
+      title: pola.title ?? null,
+      description: pola.description ?? null,
+      // DWIE KOLUMNY, KTÓRYCH TU NIE BYŁO. `createEvent()` zapisuje obie,
+      // formularz edycji obie zbiera — a UPDATE je gubił. Skutki widać
+      // wyłącznie przy miejscu spoza katalogu, czyli tam, gdzie te kolumny
+      // są jedynym źródłem adresu: mecz przeniesiony z jednej pinezki na
+      // drugą zostawał ze STARYM adresem pod nową nazwą, a mecz przeniesiony
+      // z katalogu na pinezkę tracił adres całkowicie (`fieldAddress` znika
+      // razem z `field_id`, a `custom_address` zostawało NULL-em).
+      //
+      // To nie jest tylko strona meczu: `custom_address` zasila `streetAddress`
+      // w JSON-LD (`lib/structuredData.ts`) i metadane Open Graph
+      // (`app/wydarzenia/[id]/eventMeta.ts`), więc nieaktualny adres szedł
+      // do Google i do podglądu linku na czacie.
+      custom_location_name: pola.customLocationName ?? null,
+      custom_address: pola.customAddress ?? null,
       event_date: data.date,
       event_time: data.time,
       end_time: data.endTime ?? null,

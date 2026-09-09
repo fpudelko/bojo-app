@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Lock, ArrowLeft, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +19,12 @@ import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { useAuth, displayName } from '@/lib/auth';
 import { useAdmin } from '@/lib/admin';
 import { getEvent, updateEvent } from '@/lib/events';
+import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
+import {
+  policzZmiany, komuDojdzie, konsekwencjeZapisu, czyPowiadamia,
+  type DaneDoPorownania,
+} from '@/lib/zmianyMeczu';
+import { eventUrl, udostepnijZmiane } from '@/lib/eventShare';
 import { getMyDelegatePermissions } from '@/lib/eventDelegates';
 import {
   getSeriesEvents, updateSeriesEvents, updateSeriesTemplate,
@@ -31,7 +37,7 @@ import { defaultEventTitle } from '@/lib/eventTitle';
 import { validatePayments } from '@/lib/eventWizard';
 import { nazwaZAdresu } from '@/lib/utils';
 import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
-import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate } from '@/types';
+import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate, EventItem, EventParticipant } from '@/types';
 
 const SPORTS = FOCUS_SPORTS;
 const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, address: '' };
@@ -44,6 +50,36 @@ export default function EditEventPage() {
 
   const [pageLoading, setPageLoading] = useState(true);
   const [notAllowed, setNotAllowed] = useState(false);
+
+  // Okna potwierdzeń zamiast systemowego `confirm()` — ten sam hak, co na
+  // stronie meczu. Renderuje się na samym końcu komponentu.
+  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+
+  // STAN WYJŚCIOWY, do policzenia różnicy przy zapisie. Oba pola pochodzą
+  // z TEGO SAMEGO `getEvent(id)`, które strona i tak woła — zero dodatkowych
+  // zapytań. `mecz` trzymamy w całości, bo wiadomość na czat („Zmiana: …")
+  // potrzebuje nazwy, sportu i godzin, nie tylko porównywanych pól.
+  const [mecz, setMecz] = useState<EventItem | null>(null);
+  const [uczestnicy, setUczestnicy] = useState<EventParticipant[]>([]);
+
+  /**
+   * PAYLOAD SPRZED EDYCJI, w całości — do odpowiedzi na jedno pytanie:
+   * „czy cokolwiek się zmieniło".
+   *
+   * DLACZEGO NIE WYSTARCZA `policzZmiany()`. Ta liczy różnicę na CZTERNASTU
+   * polach, które da się pokazać człowiekowi („Termin: … → …"), a payload ma
+   * ich koło trzydziestu: czas gry, próg minimum, tryb miejsc dla bramkarzy,
+   * czas na decyzję z rezerwy, numer BLIK, zniżki kartowe, tryb drużyn…
+   * Gdyby to ona decydowała o pominięciu zapisu, zmiana samego czasu gry
+   * z 90 na 120 minut kończyłaby się cichym „nic się nie zmieniło" i NIE
+   * ZAPISAŁABY SIĘ — czyli poprawka byłaby gorsza od problemu, który naprawia.
+   *
+   * Migawkę bierzemy dopiero po `pageLoading === false`, bo lokalizacja
+   * dociąga się osobnym `await getField()` na końcu wczytywania — wcześniej
+   * payload miałby jeszcze pustą nazwę miejsca i każdy zapis wyglądałby na
+   * zmianę.
+   */
+  const payloadWyjsciowy = useRef<string | null>(null);
 
   const [sport, setSport] = useState('piłka nożna');
   const [location, setLocation] = useState<LocationResult>(EMPTY_LOCATION);
@@ -100,7 +136,7 @@ export default function EditEventPage() {
     if (!user) { setNotAllowed(true); setPageLoading(false); return; }
 
     getEvent(id)
-      .then(async ({ event: ev }) => {
+      .then(async ({ event: ev, participants }) => {
         if (ev.organizerId !== user.id && !isAdmin) {
           // Delegat z can_edit (migracja 089/090) ma te same prawa edycji co
           // organizator — RLS na `events` UPDATE już to przepuszcza, tej
@@ -108,6 +144,9 @@ export default function EditEventPage() {
           const delegat = await getMyDelegatePermissions(id, user.id).catch(() => null);
           if (!delegat?.canEdit) { setNotAllowed(true); return; }
         }
+
+        setMecz(ev);
+        setUczestnicy(participants);
 
         setSport(ev.sport);
         setDate(ev.date);
@@ -247,7 +286,58 @@ export default function EditEventPage() {
     };
   };
 
-  const zapisz = async (zakres: ZakresEdycji) => {
+  /** Stan wyjściowy meczu w kształcie do porównania — patrz `lib/zmianyMeczu.ts`. */
+  const daneZMeczu = (ev: EventItem): DaneDoPorownania => ({
+    date: ev.date,
+    time: ev.time ?? '',
+    miejsceNazwa: ev.fieldName ?? '',
+    fieldId: ev.fieldId,
+    costGrosze: ev.costGrosze ?? 0,
+    maxPlayers: ev.maxPlayers,
+    visibility: ev.visibility,
+    requireApproval: ev.requireApproval,
+    reserveEnabled: ev.reserveEnabled ?? true,
+    goalkeepersEnabled: ev.goalkeepersEnabled ?? false,
+    title: ev.title ?? '',
+    description: ev.description ?? '',
+    acceptedPaymentMethods: ev.acceptedPaymentMethods ?? [],
+    acceptedSportsCards: ev.acceptedSportsCards ?? [],
+  });
+
+  /** To samo z formularza — liczone z GOTOWEGO payloadu, nie ze stanu pól,
+   *  żeby porównanie widziało dokładnie to, co poleci do bazy (payload
+   *  zeruje np. metody płatności przy meczu za darmo). */
+  const daneZPayloadu = (p: EventCreate): DaneDoPorownania => ({
+    date: p.date,
+    time: p.time,
+    miejsceNazwa: p.fieldName,
+    fieldId: p.fieldId,
+    costGrosze: p.costGrosze ?? 0,
+    maxPlayers: p.maxPlayers,
+    visibility: p.visibility,
+    requireApproval: p.requireApproval ?? false,
+    reserveEnabled: p.reserveEnabled ?? true,
+    goalkeepersEnabled: p.goalkeepersEnabled ?? false,
+    title: p.title ?? '',
+    description: p.description ?? '',
+    acceptedPaymentMethods: p.acceptedPaymentMethods ?? [],
+    acceptedSportsCards: p.acceptedSportsCards ?? [],
+  });
+
+  /** Ilu ludzi zajmuje dziś miejsce w składzie — do ostrzeżenia przy
+   *  zmniejszaniu liczby miejsc. Rezerwowi i obserwujący nie liczą się do
+   *  limitu, więc nie liczą się i tutaj. */
+  const wSkladzie = uczestnicy.filter(
+    (p) => !p.isReserve && !p.pendingApproval && p.rsvp !== 'maybe',
+  ).length;
+
+  useEffect(() => {
+    if (pageLoading || !mecz || payloadWyjsciowy.current !== null) return;
+    payloadWyjsciowy.current = JSON.stringify(zbudujPayload());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageLoading, mecz]);
+
+  const zapisz = async (zakres: ZakresEdycji, wyslijWiadomosc = false) => {
     const payload = zbudujPayload();
     setZakresOtwarty(false);
     setSubmitting(true);
@@ -268,6 +358,34 @@ export default function EditEventPage() {
         await updateSeriesEvents(objete.map((t) => t.id), patchDlaPozostalych(payload) as EventCreate);
         // Szablon też, inaczej KOLEJNE terminy wracałyby do starych ustawień.
         await updateSeriesTemplate(recurringEventId, payload);
+      }
+
+      // Wiadomość na czat PO udanym zapisie, nie przed — ta sama zasada co
+      // przy odwołaniu meczu: nie ogłaszamy stanu, którego jeszcze nie ma.
+      if (wyslijWiadomosc && mecz) {
+        const zmiany = policzZmiany(daneZMeczu(mecz), daneZPayloadu(payload));
+        // Pola SKŁADANE JAWNIE, nie przez `{ ...mecz, ...payload }`. Payload nie
+        // niesie `fieldAddress` (adres obiektu z katalogu mieszka w `fields`),
+        // więc rozlanie zostawiłoby adres SPRZED zmiany pod nową nazwą — czyli
+        // dokładnie ten błąd, który ten PR naprawia w bazie. Adres bierzemy
+        // z aktualnie wybranej lokalizacji.
+        await udostepnijZmiane(
+          {
+            sport: payload.sport,
+            title: payload.title,
+            maxPlayers: payload.maxPlayers,
+            date: payload.date,
+            time: payload.time,
+            endTime: payload.endTime,
+            costGrosze: payload.costGrosze ?? 0,
+            fieldName: payload.fieldName,
+            fieldAddress: location.venue?.address,
+            customLocationName: payload.customLocationName,
+            customAddress: payload.customAddress,
+          },
+          zmiany,
+          eventUrl(id, window.location.origin),
+        );
       }
 
       router.push(`/wydarzenia/${id}`);
@@ -291,11 +409,69 @@ export default function EditEventPage() {
     // Przy serii dłuższej niż jeden termin pytamy o zakres. Przy jednym terminie
     // wszystkie trzy odpowiedzi znaczą to samo — pytanie byłoby kliknięciem
     // bez treści.
+    //
+    // KOLEJNOŚĆ PYTAŃ JEST TREŚCIĄ: najpierw „ilu terminów to dotyczy", potem
+    // „komu to pójdzie". Odwrotnie okno konsekwencji mówiłoby o jednym meczu,
+    // a zapis obejmowałby dziesięć. (`SHOW_RECURRING` jest dziś wyłączona,
+    // więc ta gałąź realnie nie chodzi — ale nie psujemy jej.)
     if (recurringEventId && seriaTerminy.length > 1) {
       setZakresOtwarty(true);
       return;
     }
-    await zapisz('ten');
+    await zapiszZPytaniem('ten');
+  };
+
+  /**
+   * Zapis z oknem konsekwencji.
+   *
+   * PO CO. Do tej pory „Zapisz zmiany" nie mówiło NIC: ani co się właściwie
+   * zmieniło, ani że wyzwalacze `065`/`114` wysyłają właśnie powiadomienie
+   * całemu składowi, ani że gość bez adresu nie dostanie niczego. Odwołanie
+   * meczu ma takie okno od `O-38` i jest to jedyne miejsce w aplikacji, gdzie
+   * organizator wie, co robi. Edycja — czyli czynność WYKONYWANA CZĘŚCIEJ —
+   * nie miała go wcale.
+   */
+  const zapiszZPytaniem = async (zakres: ZakresEdycji) => {
+    // Okno zakresu serii musi zejść, zanim wejdzie okno konsekwencji —
+    // dwa okna jedno na drugim to na telefonie ekran bez wyjścia.
+    setZakresOtwarty(false);
+    const payload = zbudujPayload();
+    const zmiany = mecz ? policzZmiany(daneZMeczu(mecz), daneZPayloadu(payload)) : [];
+
+    // BRAK ZMIAN = BRAK ZAPISU. Dotąd pusty zapis i tak szedł UPDATE-em do
+    // bazy i dopisywał wiersz do dziennika aktywności — czyli „Edytowano
+    // mecz" w historii meczu, w którym nikt niczego nie zmienił.
+    //
+    // Decyduje CAŁY payload, nie lista `zmiany` — patrz `payloadWyjsciowy`.
+    if (payloadWyjsciowy.current !== null
+        && payloadWyjsciowy.current === JSON.stringify(payload)) {
+      router.push(`/wydarzenia/${id}`);
+      return;
+    }
+
+    const komu = komuDojdzie(uczestnicy, mecz?.organizerId ?? '');
+    const wybor = await potwierdz({
+      tytul: 'Zapisać zmiany?',
+      // Pusta lista przy zmienionym payloadzie znaczy, że ruszone zostało
+      // jedno z ustawień, których nie wypisujemy wierszem „było → jest"
+      // (czas gry, próg minimum, tryb bramkarzy, czas na decyzję z rezerwy…).
+      // Milczenie w tym miejscu czytałoby się jak „nic nie zmieniłem".
+      opis: zmiany.length > 0
+        ? zmiany.map((z) => `${z.etykieta}: ${z.przed} → ${z.po}`).join('\n')
+        : 'Zmieniasz ustawienia meczu — data, miejsce i koszt zostają bez zmian.',
+      konsekwencje: konsekwencjeZapisu(zmiany, komu, {
+        zapisanych: wSkladzie,
+        miejsc: payload.maxPlayers,
+      }),
+      potwierdzLabel: 'Zapisz zmiany',
+      // Druga droga tylko wtedy, gdy jest o czym pisać. Przy zmianie samego
+      // tytułu przycisk „wyślij wiadomość" proponowałby zawracanie ekipie
+      // głowy czymś, czego nawet nie zauważy.
+      akcjaDodatkowaLabel: czyPowiadamia(zmiany) ? 'Zapisz i wyślij wiadomość' : undefined,
+    });
+    if (wybor === 'nie') return;
+
+    await zapisz(zakres, wybor === 'dodatkowa');
   };
 
   const inputCls =
@@ -463,6 +639,7 @@ export default function EditEventPage() {
             setReserveEnabled={setReserveEnabled}
             reserveClaimMinutes={reserveClaimMinutes}
             setReserveClaimMinutes={setReserveClaimMinutes}
+            zapisanych={wSkladzie}
           />
 
           {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — etykieta mówi to
@@ -608,6 +785,8 @@ export default function EditEventPage() {
       </main>
 
       {/* Poza <form>: klik w przycisk wewnątrz formularza wywołałby submit. */}
+      {oknoPotwierdzenia}
+
       {zakresOtwarty && (
         <ZakresEdycjiSerii
           liczbaTerminow={seriaTerminy.length}
@@ -615,7 +794,7 @@ export default function EditEventPage() {
             terminyWZakresie(seriaTerminy, id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
           }
           busy={submitting}
-          onWybierz={zapisz}
+          onWybierz={zapiszZPytaniem}
           onClose={() => setZakresOtwarty(false)}
         />
       )}

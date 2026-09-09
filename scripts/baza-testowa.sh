@@ -123,6 +123,22 @@ if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/poczta-goscia
 fi
 sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
 
+echo "→ Testy powiadomień o zmianie meczu (migracja 139)…"
+if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/powiadomienia-o-zmianie.sql" 2>"$DANE/blad"; then
+  echo "✗ TESTY POWIADOMIEŃ O ZMIANIE PADŁY" >&2
+  sed 's/^/    /' "$DANE/blad" >&2
+  exit 1
+fi
+sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
+
+echo "→ Testy poczty do kont (migracja 140)…"
+if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/poczta-do-kont.sql" 2>"$DANE/blad"; then
+  echo "✗ TESTY POCZTY DO KONT PADŁY" >&2
+  sed 's/^/    /' "$DANE/blad" >&2
+  exit 1
+fi
+sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
+
 echo "→ Sanity: liczby wierszy"
 psql -q -d bojo -c "SELECT
   (SELECT count(*) FROM auth.users)          AS konta,

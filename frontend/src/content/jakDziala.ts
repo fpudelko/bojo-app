@@ -182,10 +182,18 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
       'imienne zaproszenie na mecz, odwołanie lub usunięcie meczu, usunięcie ze składu ' +
       'oraz zmiana stanu kompletu składu (organizator dowiaduje się, gdy skład przestaje ' +
       'albo zaczyna być pełny).',
-      'Bojo nie wysyła SMS-ów ani maili o meczu i nie ma powiadomień push — jedyny kanał ' +
-      'to powiadomienia w aplikacji, opisane wyżej. Kanałem, który realnie dociera do ' +
-      'ludzi, jest link wysłany tam, gdzie ekipa już rozmawia — dlatego to na nim opiera ' +
-      'się cały produkt, nie same powiadomienia w aplikacji.',
+      'Dzień przed meczem Bojo przypomina o nim samo: skład dostaje godzinę i miejsce, ' +
+      'a organizator dodatkowo liczbę brakujących osób — czyli dokładnie tę informację, ' +
+      'przy której jeszcze da się kogoś dociągnąć. Po meczu organizator dostaje ' +
+      'przypomnienie o wpisaniu wyniku i o nierozliczonych wpłatach, ale tylko wtedy, ' +
+      'gdy naprawdę jest co domknąć.',
+      'Poza dzwonkiem w aplikacji te same zdarzenia trafiają na telefon, jeśli włączysz ' +
+      'powiadomienia w przeglądarce. Osoba zapisana bez konta nie ma dzwonka, więc ' +
+      'dostaje je mailem — na adres podany przy zapisie; bez adresu nie dostaje nic ' +
+      'i musi ją powiadomić organizator. Bojo nie wysyła SMS-ów.',
+      'Kanałem, który i tak dociera najpewniej, jest link wysłany tam, gdzie ekipa już ' +
+      'rozmawia — dlatego to na nim opiera się cały produkt, a powiadomienia w aplikacji, ' +
+      'na telefonie i mailem są wsparciem, nie podstawą.',
     ],
   },
   {

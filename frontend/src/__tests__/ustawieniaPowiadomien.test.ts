@@ -1,8 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from: vi.fn() } }));
 
-import { RODZAJE_POWIADOMIEN, przelacz } from '@/lib/ustawieniaPowiadomien';
+import {
+  RODZAJE_POWIADOMIEN, RODZAJE_MAILOWE, rodzajeMailowe, przelacz,
+} from '@/lib/ustawieniaPowiadomien';
 
 describe('przelacz', () => {
   it('wyłączenie dopisuje typ do listy wyłączonych', () => {
@@ -50,5 +54,53 @@ describe('katalog rodzajów', () => {
     for (const r of RODZAJE_POWIADOMIEN) {
       expect(r.opis.length, r.typ).toBeGreaterThan(10);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Kanał pocztowy (migracja `140`) — lista w aplikacji MUSI zgadzać się z listą
+// w wyzwalaczu.
+//
+// Rozjazd jest tu szczególnie kosztowny w obie strony: ekran obiecujący
+// wyłączenie maila, który i tak przyjdzie, uczy człowieka, że ustawienia
+// w Bojo nie działają — a ekran BEZ przełącznika dla rodzaju, który realnie
+// wychodzi, zostawia jedyną dostępną reakcję w postaci „Zgłoś spam", co psuje
+// doręczalność wszystkich maili z domeny, łącznie z tymi o odwołanym meczu.
+// ---------------------------------------------------------------------------
+describe('rodzaje mailowe zgodne z migracją 140', () => {
+  const migracja = readFileSync(
+    join(process.cwd(), '..', 'supabase/migrations/140_poczta_do_kont.sql'),
+    'utf8',
+  );
+
+  it('warunek w wyzwalaczu wymienia dokładnie te same typy', () => {
+    const linia = migracja.match(/IF NEW\.type IN \(([^)]+)\)/);
+    expect(linia, 'nie znalazłem warunku IF NEW.type IN (...) w migracji 140').toBeTruthy();
+
+    // `match` zamiast `matchAll`: cel kompilacji nie ma iteratora regexpów.
+    const zMigracji = (linia![1].match(/'[a-z_]+'/g) ?? []).map((t) => t.slice(1, -1)).sort();
+    expect(zMigracji).toEqual([...RODZAJE_MAILOWE].sort());
+  });
+
+  it('każdy rodzaj mailowy ma nazwę i opis na liście ustawień', () => {
+    // Bez tego `rodzajeMailowe()` po cichu gubi pozycję: typ jest w migracji,
+    // wychodzi pocztą, a na ekranie ustawień go nie ma.
+    expect(rodzajeMailowe().map((r) => r.typ).sort()).toEqual([...RODZAJE_MAILOWE].sort());
+  });
+
+  it('wszystkie rodzaje mailowe są oznaczone jako ważne', () => {
+    // Poczta idzie wyłącznie tam, gdzie niedoręczenie kosztuje wyjazd na
+    // boisko — czyli z definicji są to rzeczy, których wyłączenie ma być
+    // świadome.
+    expect(rodzajeMailowe().every((r) => r.wazne)).toBe(true);
+  });
+
+  it('typy z wyzwalaczy 065 i 114 są w ogóle na liście ustawień', () => {
+    // Do 2026-09-09 nie było ich tam wcale — czyli nie dało się ich wyłączyć
+    // nawet dla pusha, mimo że realnie przychodzą od migracji `065` i `114`.
+    const typy = RODZAJE_POWIADOMIEN.map((r) => r.typ);
+    expect(typy).toContain('zmiana_terminu');
+    expect(typy).toContain('zmiana_warunkow_meczu');
+    expect(typy).toContain('mecz_przywrocony');
   });
 });
