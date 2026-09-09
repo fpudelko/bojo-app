@@ -649,9 +649,25 @@ test.describe('kreator meczu', () => {
     await page.goto('/wydarzenia/nowe');
     await expect(page.getByRole('button', { name: /dalej/i }).first()).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    // Krok 1 nie ma w sobie żadnej daty ani liczby z bazy, więc cała strona
-    // nadaje się na wzorzec.
-    await expect(page).toHaveScreenshot('kreator-krok-1.png', { fullPage: true });
+    // CAŁA STRONA, ale Z ZASŁONIĘTĄ DATĄ.
+    //
+    // Komentarz stał tu w brzmieniu „krok 1 nie ma w sobie żadnej daty ani
+    // liczby z bazy, więc cała strona nadaje się na wzorzec" — i było to
+    // prawdą do 2026-08-22, gdy krok pierwszy pytał o sport i miejsce.
+    // Po zamianie kroków (termin przed lokalizacją) na tym ekranie stoi pole
+    // daty z wartością domyślną JUTRO, a od 2026-09-09 także zdanie
+    // „czwartek, 10 września · jutro". Obie wartości zmieniają się z dnia na
+    // dzień, więc wzorzec przyjęty dowolnego dnia pada nazajutrz — i padał,
+    // wyglądając za każdym razem na świeżą zmianę wyglądu.
+    //
+    // `mask` zamiast rezygnacji z `fullPage`: reszta kroku (przełączniki,
+    // stepper, układ) dalej jest pod ochroną, a jedyne ruchome miejsce
+    // zostaje zamalowane. To jest ta sama zasada, którą nagłówek tego pliku
+    // formułuje jako „zrzuty obejmują FRAGMENTY bez daty".
+    await expect(page).toHaveScreenshot('kreator-krok-1.png', {
+      fullPage: true,
+      mask: [page.locator('[data-pole-daty]')],
+    });
   });
 });
 

@@ -314,6 +314,28 @@ o skutkach własnego kliknięcia.
   i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały
   jako szare „Powiadomienie".
 
+### Dopisane po merge'u (2026-09-09)
+
+**Wzorzec `kreator-krok-1.png` nie mógł być zielony od 2026-08-22.** Zrzut robi
+`fullPage` z komentarzem „krok 1 nie ma w sobie żadnej daty ani liczby z bazy" —
+prawdziwym do dnia, w którym kroki zamieniono miejscami i data przeszła na krok
+PIERWSZY. Kreator ustawia domyślnie JUTRO, więc wzorzec przyjęty dowolnego dnia
+padał nazajutrz; nagłówek `scenariusze.spec.ts` formułuje zresztą tę zasadę
+wprost („zrzuty obejmują FRAGMENTY bez daty"), tylko ten jeden zrzut jej nie
+dotrzymywał. Każdy przebieg pokazywał to jako świeżą „zmianę wyglądu", więc
+przyczyny nikt nie szukał — a `R-7` (dzień tygodnia pod datą) dołożyło drugą
+ruchomą wartość i uczyniło to widocznym.
+
+Poprawka: `mask` na `[data-pole-daty]` zamiast rezygnacji z `fullPage` — reszta
+kroku zostaje pod ochroną. Atrybut pilnuje `poleDaty.test.tsx`, bo Playwright
+NIE zgłasza błędu, gdy maska nie trafia w nic: usunięcie atrybutu przywróciłoby
+dokładnie ten sam cichy rozjazd.
+
+Wniosek ogólniejszy: **komentarz uzasadniający zrzut całej strony jest
+zobowiązaniem, nie opisem.** Gdy ekran przestaje spełniać warunek, na który
+powołuje się komentarz, wzorzec zaczyna kłamać — i wygląda przy tym na zwykłą
+zmianę wyglądu, czyli na coś, co się przyjmuje bez zastanowienia.
+
 ### Rozważone i odłożone
 
 - **`R-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który
