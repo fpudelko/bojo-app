@@ -176,6 +176,39 @@ describe('strony treści — brak obietnic bez pokrycia w kodzie', () => {
       }
     }
   });
+
+  // ODWROTNOŚĆ dwóch testów wyżej. Tamte pilnują, żeby strony nie OBIECAŁY
+  // funkcji, której nie ma. Ten pilnuje, żeby nie ZAPRZECZYŁY funkcji, która
+  // jest — a to jest błąd tej samej klasy, tylko trudniejszy do zauważenia,
+  // bo zdanie „Bojo tego nie robi" nikomu nie wygląda na obietnicę bez pokrycia.
+  //
+  // Realny przypadek, DWA RAZY: runda `P-8` (2026-09-08) poprawiła `/faq`,
+  // `/dlaczego-bojo` i `llms.txt`, a `/jak-dziala-bojo` — jedyną stronę, której
+  // cała sekcja nazywa się „Co Bojo powiadamia i gdzie" — przeoczyła; zdanie
+  // przeżyło do piątej rundy (2026-09-09). Bo przechodziło WSZYSTKIE istniejące
+  // testy: fraza `push` nie jest już zakazana, a wymagany kanał („w aplikacji")
+  // był nazwany, więc test wyżej też świecił na zielono.
+  //
+  // Lista trzyma się kanałów, nie pojedynczych zdań: dopisując kanał, dopisz
+  // wzorzec jego zaprzeczenia. SMS-a tu NIE MA i mieć nie powinno — jego Bojo
+  // faktycznie nie wysyła, a `SHOW_SMS_FEATURES` jest wyłączone.
+  const NIEPRAWDZIWE_ZAPRZECZENIA: { kanal: string; odkad: string; re: RegExp }[] = [
+    // `\S+` zamiast `\w+` NIE jest kosmetyką: w JS `\w` to ASCII, więc wzorzec
+    // z `\w` przepuszczał dokładnie to zdanie, które ten test ma łapać —
+    // „nie wysyła SMS-ów ani maili" (`SMS-ów` ma i myślnik, i `ó`).
+    { kanal: 'push na telefon', odkad: 'migracja 102', re: /nie ma powiadomień push|bez powiadomień push|nie wysyła (?:\S+ ){0,3}powiadomień push/i },
+    { kanal: 'poczta', odkad: 'migracje 133, 137 i 140', re: /nie wysyła (?:\S+ ){0,3}maili|nie wyśle (?:\S+ ){0,3}maila/i },
+    { kanal: 'przypomnienie dzień przed', odkad: 'migracja 129', re: /nie przypomina|bez przypomnień|nie wysyła (?:\S+ ){0,3}przypomnie/i },
+  ];
+
+  for (const { kanal, odkad, re } of NIEPRAWDZIWE_ZAPRZECZENIA) {
+    it(`żadna jednostka nie zaprzecza kanałowi „${kanal}" (działa od: ${odkad})`, () => {
+      for (const { etykieta, tekst } of jednostki) {
+        expect(re.test(tekst), `${etykieta}: zaprzecza działającemu kanałowi „${kanal}" — "${tekst}"`)
+          .toBe(false);
+      }
+    });
+  }
 });
 
 describe('FAQ — spójność danych', () => {
