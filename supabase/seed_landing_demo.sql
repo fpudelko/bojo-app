@@ -20,7 +20,7 @@
 -- `field_id`/`field_name` nie są ustawione. Skoro tu zawsze ustawiamy realny
 -- `field_id`, `custom_location_name` nigdzie się nie renderuje — bezpieczny,
 -- niewidoczny znacznik. Sprzątanie:
---   DELETE FROM events WHERE custom_location_name = '__landing-demo__';
+--   DELETE FROM events WHERE custom_location_name IN ('__landing-demo__', '__landing-demo-join__');
 --   DELETE FROM groups WHERE name = 'Ekipa z Grunwaldu' AND created_by = (SELECT id FROM auth.users WHERE email = 'edooqoo@gmail.com');
 --
 -- Bezpieczne do wielokrotnego uruchomienia: najpierw czyści po znaczniku.
@@ -191,7 +191,64 @@ BEGIN
   RAISE NOTICE 'Gotowe.';
 END $$;
 
+-- WYDARZENIE — widok „dołącz bez konta" (odsłona wygaszona, publiczna,
+-- oglądana bez zalogowania: pasek „Dołącz bez konta / Zaloguj się" na dole).
+-- Znacznik osobny (`__landing-demo-join__`), żeby dało się to jedno wydarzenie
+-- odświeżyć bez ruszania reszty. Skład wypełniony (9/14), nie 0/14 — pusty
+-- skład na zrzucie ekranu wygląda na mecz, który nikogo nie interesuje.
+DO $$
+DECLARE
+  org      UUID := (SELECT id FROM auth.users WHERE email = 'edooqoo@gmail.com');
+  org_name TEXT;
+  t1 UUID := (SELECT id FROM auth.users WHERE email = 'test1@example.com');
+  t2 UUID := (SELECT id FROM auth.users WHERE email = 'test2@example.com');
+  t3 UUID := (SELECT id FROM auth.users WHERE email = 'test3@example.com');
+  t4 UUID := (SELECT id FROM auth.users WHERE email = 'test4@example.com');
+  n1 TEXT; n2 TEXT; n3 TEXT; n4 TEXT;
+  gid UUID := (SELECT id FROM groups WHERE name = 'Ekipa z Grunwaldu' AND created_by = (SELECT id FROM auth.users WHERE email = 'edooqoo@gmail.com'));
+  eid UUID;
+BEGIN
+  IF org IS NULL THEN
+    RAISE EXCEPTION 'Brak konta edooqoo@gmail.com';
+  END IF;
+  org_name := COALESCE((SELECT display_name FROM profiles WHERE id = org), 'Edo');
+  n1 := COALESCE((SELECT display_name FROM profiles WHERE id = t1), 'Jakub Kowalski');
+  n2 := COALESCE((SELECT display_name FROM profiles WHERE id = t2), 'Mateusz Nowak');
+  n3 := COALESCE((SELECT display_name FROM profiles WHERE id = t3), 'Piotr Wiśniewski');
+  n4 := COALESCE((SELECT display_name FROM profiles WHERE id = t4), 'Kacper Wójcik');
+
+  DELETE FROM events WHERE custom_location_name = '__landing-demo-join__';
+
+  INSERT INTO events (
+    organizer_id, organizer_name, sport, field_id, field_name, lat, lng,
+    title, description, event_date, event_time, end_time,
+    max_players, visibility, cost_grosz, group_id, custom_location_name
+  ) VALUES (
+    org, org_name, 'piłka nożna', 'c0000000-0000-0000-0000-000000000002', 'Boisko Orlik Jeżyce', 52.41487, 16.90520,
+    'Piłka nożna 7v7',
+    'Luźna gra po pracy, poziom rekreacyjny. Rotacja składów, gramy do dwóch straconych.',
+    CURRENT_DATE + 3, '18:00', '19:30',
+    14, 'public', 0, gid, '__landing-demo-join__'
+  ) RETURNING id INTO eid;
+
+  INSERT INTO event_participants (event_id, user_id, name) VALUES
+    (eid, org, org_name),
+    (eid, t1, n1),
+    (eid, t2, n2),
+    (eid, t3, n3),
+    (eid, t4, n4);
+  INSERT INTO event_participants (event_id, user_id, name, is_guest) VALUES
+    (eid, NULL, 'Tomasz Lis', true),
+    (eid, NULL, 'Adrian Mazur', true),
+    (eid, NULL, 'Bartosz Kaczmarek', true),
+    (eid, NULL, 'Sebastian Pawlak', true);
+
+  RAISE NOTICE 'Wydarzenie „dołącz bez konta": %', eid;
+END $$;
+
 SELECT 'grupa' AS typ, id, name AS tytul FROM groups WHERE name = 'Ekipa z Grunwaldu'
 UNION ALL
 SELECT 'wydarzenie', id, title FROM events WHERE custom_location_name = '__landing-demo__'
+UNION ALL
+SELECT 'wydarzenie (dołącz bez konta)', id, title FROM events WHERE custom_location_name = '__landing-demo-join__'
 ORDER BY typ, tytul;
