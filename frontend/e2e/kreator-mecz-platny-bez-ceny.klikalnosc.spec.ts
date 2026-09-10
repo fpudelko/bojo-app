@@ -30,18 +30,25 @@ const SESJA = {
   },
 };
 
-/** Szkic w kształcie zapisywanym przez `lib/eventDraft.ts`, gotowy na kroku 1 —
- *  wszystko poza płatnościami wypełnione tak, żeby walidacja bramkarzy/rezerwy
- *  nie przeszkadzała w dotarciu do testowanego pola. */
-function szkicNaKroku1() {
+/** Szkic w kształcie zapisywanym przez `lib/eventDraft.ts`, gotowy na kroku 3 —
+ *  bo tam od 2026-09-10 (szybka ścieżka) siedzi „Mecz płatny", w zwiniętych
+ *  „Ustawieniach zaawansowanych". Szkic jest jedyną drogą, żeby wejść wprost na
+ *  krok 3: przejście przez krok 2 wymaga wskazania miejsca na mapie.
+ *
+ *  Lokalizacja jest WYPEŁNIONA i to nie jest ozdobnik: `handleSubmit` skleja
+ *  błędy ze wszystkich kroków, a `stepForErrors()` bierze `Math.min`, czyli
+ *  cofa na NAJWCZEŚNIEJSZY błędny krok. Przy pustym miejscu odmowa publikacji
+ *  przenosiłaby na krok 2 („Gdzie") i testowany komunikat o koszcie nigdy nie
+ *  wszedłby na ekran — mimo że reguła zadziałała. */
+function szkicNaKroku3() {
   const jutro = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   return {
     v: 1,
     ts: Date.now(),
-    step: 1,
+    step: 3,
     values: {
       sport: 'piłka nożna',
-      location: { venue: null, lat: null, lng: null, address: '' },
+      location: { venue: null, lat: 52.4064, lng: 16.9252, address: 'Testowa 1, Poznań' },
       nazwaWlasnaMiejsca: '',
       date: jutro,
       time: '18:00',
@@ -110,26 +117,65 @@ async function wznowSzkicJesliPyta(page: Page) {
   if (await wznow.isVisible().catch(() => false)) await wznow.click();
 }
 
-test('„Mecz płatny" bez ceny blokuje „Dalej" i pokazuje błąd', async ({ page }) => {
-  await zalogowanyZeSzkicem(page, szkicNaKroku1());
+/** Otwiera zwinięty blok „Ustawienia zaawansowane" na kroku 3. */
+async function otworzZaawansowane(page: Page) {
+  const przycisk = page.getByRole('button', { name: /Ustawienia zaawansowane/i });
+  await expect(przycisk).toBeVisible({ timeout: 15_000 });
+  if ((await przycisk.getAttribute('aria-expanded')) !== 'true') await przycisk.click();
+  await expect(przycisk).toHaveAttribute('aria-expanded', 'true');
+}
+
+/** Próba publikacji: pasek otwiera podgląd, dopiero przycisk w podglądzie
+ *  woła `handleSubmit` — czyli jedyne miejsce, gdzie działa walidacja. */
+async function sprobujOpublikowac(page: Page) {
+  await page.getByRole('button', { name: /Sprawdź i opublikuj/i }).click();
+  await page.getByRole('button', { name: /Opublikuj mecz/i }).click();
+}
+
+test('„Mecz płatny" bez ceny blokuje publikację i pokazuje błąd', async ({ page }) => {
+  await zalogowanyZeSzkicem(page, szkicNaKroku3());
   await page.goto('/wydarzenia/nowe');
   await wznowSzkicJesliPyta(page);
+
+  await otworzZaawansowane(page);
 
   const przelacznik = page.getByRole('switch', { name: 'Mecz płatny' });
   await expect(przelacznik).toBeVisible({ timeout: 15_000 });
   await przelacznik.click();
   await expect(przelacznik).toHaveAttribute('aria-checked', 'true');
 
-  const dalej = page.getByRole('button', { name: /Dalej/i }).first();
-  await dalej.click();
+  await sprobujOpublikowac(page);
 
-  // Krok 1 NIE puszcza dalej — „Lokalizacja" (krok 2) się nie pojawia,
-  // a błąd przy cenie jest widoczny.
+  // Publikacja odmawia, a komunikat jest WIDOCZNY — mimo że pole siedzi
+  // w sekcji, którą da się zwinąć.
   await expect(page.getByText('Podaj koszt od osoby')).toBeVisible();
-  await expect(page.getByText('Lokalizacja')).not.toBeVisible();
 
-  // Wpisanie ceny odblokowuje przejście dalej.
+  // Wpisanie ceny zdejmuje blokadę: ta sama próba publikacji nie wraca już
+  // z komunikatem o koszcie.
   await page.getByPlaceholder('0 = za darmo').fill('10');
-  await dalej.click();
-  await expect(page.getByText('Lokalizacja')).toBeVisible();
+  await sprobujOpublikowac(page);
+  await expect(page.getByText('Podaj koszt od osoby')).toHaveCount(0);
+});
+
+// SEDNO SZYBKIEJ ŚCIEŻKI: koszt zjechał do sekcji, którą da się ZWINĄĆ. Gdyby
+// odmowa publikacji zostawiała ją zamkniętą, „Opublikuj mecz" wyglądałoby na
+// przycisk, który nic nie robi — komunikat istniałby, ale w schowanym bloku.
+test('zwinięte „Ustawienia zaawansowane" otwierają się same, gdy niosą błąd', async ({ page }) => {
+  await zalogowanyZeSzkicem(page, szkicNaKroku3());
+  await page.goto('/wydarzenia/nowe');
+  await wznowSzkicJesliPyta(page);
+
+  await otworzZaawansowane(page);
+  await page.getByRole('switch', { name: 'Mecz płatny' }).click();
+
+  // Zwijamy sekcję Z WŁĄCZONYM przełącznikiem i pustą ceną.
+  const przycisk = page.getByRole('button', { name: /Ustawienia zaawansowane/i });
+  await przycisk.click();
+  await expect(przycisk).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('switch', { name: 'Mecz płatny' })).toHaveCount(0);
+
+  await sprobujOpublikowac(page);
+
+  await expect(przycisk).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('Podaj koszt od osoby')).toBeVisible();
 });

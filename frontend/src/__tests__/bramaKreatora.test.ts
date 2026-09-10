@@ -47,12 +47,21 @@ describe('brama kreatora — makieta zgadza się z kreatorem', () => {
     expect(linia).toContain("'Dla kogo'");
   });
 
-  it('makieta pokazuje KROK PIERWSZY: sport, termin, liczbę miejsc i rezerwę', () => {
+  // SZYBKA ŚCIEŻKA (2026-09-10): krok pierwszy schudł do sportu i terminu.
+  // Liczba miejsc zeszła na krok trzeci, a rezerwa, koszt i bramkarze pod
+  // zwinięte „Ustawienia zaawansowane" — więc makieta, która nadal rysowałaby
+  // stepper i przełącznik, znowu obiecywałaby inny formularz niż ten, który
+  // organizator dostaje po zalogowaniu.
+  it('makieta pokazuje KROK PIERWSZY: sport i termin', () => {
     const m = makieta();
     expect(m, 'brak sekcji sportu').toContain('Sport');
     expect(m, 'brak terminu').toContain('Termin');
-    expect(m, 'brak liczby miejsc').toContain('Ilu nas gra');
-    expect(m, 'brak przełącznika rezerwy').toContain('Lista rezerwowa');
+  });
+
+  it('makieta NIE pokazuje już liczby miejsc ani przełączników — to krok trzeci', () => {
+    const m = makieta();
+    expect(m, 'liczba miejsc wróciła na makietę kroku pierwszego').not.toContain('Ilu nas gra');
+    expect(m, 'przełącznik rezerwy wrócił na makietę kroku pierwszego').not.toContain('Lista rezerwowa');
   });
 
   it('makieta NIE pokazuje lokalizacji — to jest krok drugi', () => {

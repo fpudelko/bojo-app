@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * DWIE DECYZJE PRODUKTOWE NA KROKU 1 KREATORA.
+ * DWIE DECYZJE PRODUKTOWE O SKŁADZIE — dziś na KROKU 3 kreatora, w zwiniętych
+ * „Ustawieniach zaawansowanych" (szybka ścieżka, 2026-09-10).
  *
  * 1. LISTA REZERWOWA STARTUJE WŁĄCZONA. Kreator był jedynym miejscem w Bojo,
  *    które startowało z `false` — kolumna ma `DEFAULT true` (migracja 124),
@@ -37,15 +38,68 @@ const SESJA = {
   },
 };
 
+/** Szkic, który stawia kreator na kroku 3 — tam od 2026-09-10 (szybka ścieżka)
+ *  siedzą oba przełączniki, w zwiniętych „Ustawieniach zaawansowanych". Wejście
+ *  tam klikaniem wymagałoby wskazania miejsca na mapie, czego ten test nie bada.
+ *
+ *  KLUCZOWE: `values` NIE zawiera `reserveEnabled` ani `goalkeepersEnabled`.
+ *  Odtworzenie szkicu czyta je przez `?? true` / `?? false`, czyli przez te same
+ *  wartości domyślne, co świeżo otwarty kreator — więc test dalej sprawdza
+ *  DOMYŚLNY stan, a nie to, co ktoś wpisał do szkicu. */
+function szkicNaKroku3() {
+  const jutro = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  return {
+    v: 1,
+    ts: Date.now(),
+    step: 3,
+    values: {
+      sport: 'piłka nożna',
+      location: { venue: null, lat: null, lng: null, address: '' },
+      nazwaWlasnaMiejsca: '',
+      date: jutro,
+      time: '18:00',
+      durationMin: 90,
+      czasWlasny: false,
+      maxPlayers: 14,
+      maxPlayersTouched: false,
+      minPlayers: null,
+      reserveClaimMinutes: 180,
+      title: '',
+      description: '',
+      descriptionEnabled: false,
+      visibility: 'public',
+      requireApproval: false,
+      organizerParticipates: true,
+      organizerRole: 'field',
+      costPln: '',
+      kosztZaObiekt: false,
+      kosztObiektuPln: '',
+      acceptedPaymentMethods: [],
+      blikPhone: '',
+      cardDiscountEnabled: false,
+      cardDiscountPln: '',
+      acceptedSportsCards: [],
+      sportsCardOtherName: '',
+    },
+  };
+}
+
+/** Otwiera zwinięty blok „Ustawienia zaawansowane" na kroku 3. */
+async function otworzZaawansowane(page: Page) {
+  const przycisk = page.getByRole('button', { name: /Ustawienia zaawansowane/i });
+  await expect(przycisk).toBeVisible({ timeout: 15_000 });
+  if ((await przycisk.getAttribute('aria-expanded')) !== 'true') await przycisk.click();
+  await expect(przycisk).toHaveAttribute('aria-expanded', 'true');
+}
+
 async function zalogowany(page: Page) {
-  await page.addInitScript((sesja) => {
+  await page.addInitScript(({ sesja, draft }) => {
     try {
       localStorage.setItem('bojo_cookie_consent_v1', '1');
       localStorage.setItem('sb-placeholder-auth-token', JSON.stringify(sesja));
-      // Żadnego szkicu — sprawdzamy stan STARTOWY kreatora.
-      localStorage.removeItem('bojo_event_draft_v1');
+      localStorage.setItem('bojo_event_draft_v1', JSON.stringify(draft));
     } catch { /* tryb prywatny */ }
-  }, SESJA);
+  }, { sesja: SESJA, draft: szkicNaKroku3() });
 
   await page.route('**/auth/v1/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESJA) }));
@@ -63,23 +117,25 @@ async function zalogowany(page: Page) {
   });
 }
 
-test('lista rezerwowa jest włączona od razu po otwarciu kreatora', async ({ page }) => {
+test('lista rezerwowa jest włączona domyślnie', async ({ page }) => {
   await zalogowany(page);
   await page.goto('/wydarzenia/nowe');
 
   // Podpis pod licznikiem miejsc mówi, co się NAPRAWDĘ stanie przy komplecie.
   // Przy wyłączonej rezerwie stoi tam „Przy komplecie zapisy będą zamknięte."
+  // Stoi na WIERZCHU kroku 3, przy liczbie miejsc — nie trzeba nic otwierać.
   await expect(page.getByText('Kolejni chętni trafią na listę rezerwową.').first())
     .toBeVisible({ timeout: 15_000 });
 
-  // Skoro rezerwa jest włączona, pytanie o czas na decyzję ma treść i jest
-  // widoczne bez klikania czegokolwiek.
+  // Sam przełącznik z czasem na decyzję siedzi w zaawansowanych.
+  await otworzZaawansowane(page);
   await expect(page.getByText(/Czas na decyzję z rezerwy|Ile czasu/i).first()).toBeVisible();
 });
 
 test('włączony przełącznik bramkarzy nie oferuje już „Bez podziału na role"', async ({ page }) => {
   await zalogowany(page);
   await page.goto('/wydarzenia/nowe');
+  await otworzZaawansowane(page);
 
   const naglowekBramkarzy = page.getByText('Bramkarze osobno').first();
   await expect(naglowekBramkarzy).toBeVisible({ timeout: 15_000 });
