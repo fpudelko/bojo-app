@@ -309,6 +309,21 @@ o skutkach własnego kliknięcia.
   ale sekcja „Co Bojo powiadamia i gdzie" na `/jak-dziala-bojo` została z dawnym
   zdaniem. Strona tłumacząca produkt zaniżała go dokładnie tam, gdzie organizator
   sprawdza, czego się spodziewać.
+
+  **Ta sama klasa wróciła dwa razy, więc dostała bramkę** (2026-09-09).
+  `tresciStron.test.ts` pilnował dotąd wyłącznie kierunku „nie obiecuj funkcji,
+  której nie ma" — a oba te ustalenia są kierunkiem ODWROTNYM: „nie zaprzeczaj
+  funkcji, która jest". Zdanie z `/jak-dziala-bojo` przechodziło przy tym
+  WSZYSTKIE testy: frazy `push` nie ma już na liście zakazanych (`P-8` ją zdjęło),
+  a wymagany kanał był nazwany („w aplikacji"). Dziś osobny test odrzuca
+  zaprzeczenie każdego z trzech działających kanałów — push (`102`), poczta
+  (`133`/`137`/`140`), przypomnienia (`129`). Lista trzyma się kanałów, nie zdań:
+  **dopisując kanał, dopisz wzorzec jego zaprzeczenia.** SMS-a na liście nie ma
+  i być nie powinno — jego Bojo faktycznie nie wysyła.
+
+- **Sześć `console.debug` w `PostSignupRoleModal.tsx`**, w tym jeden wypisujący
+  nazwę zalogowanego do konsoli przeglądarki. Ta sama klasa, którą `P-11` zdjęło
+  z `lib/powrotPoLogowaniu.ts`, w pliku, którego tamta runda nie ruszała.
 - **`zmiana_terminu` i `zmiana_warunkow_meczu` nie były na liście ustawień
   powiadomień ani w mapie ikon dzwonka**, choć realnie przychodzą od `065`
   i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały

@@ -35,35 +35,23 @@ export default function PostSignupRoleModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Sześć warunków, sześć powodów NIEPOKAZANIA modala — każdy czytelny
+    // z samego warunku, więc nie logujemy ich. Do 2026-09-09 stało tu sześć
+    // `console.debug`, w tym jeden wypisujący nazwę zalogowanego do konsoli
+    // przeglądarki: ta sama klasa, którą runda `P-11` zdjęła
+    // z `lib/powrotPoLogowaniu.ts`.
     if (jestWidget) return;
-    if (!user) {
-      console.debug('[PostSignupRoleModal] No user');
-      return;
-    }
-    if (typeof localStorage === 'undefined') {
-      console.debug('[PostSignupRoleModal] localStorage unavailable');
-      return;
-    }
-    const seenKey = kluczWidziano(user.id);
-    if (localStorage.getItem(seenKey)) {
-      console.debug('[PostSignupRoleModal] Already seen by user', user.id);
-      return;
-    }
+    if (!user) return;
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(kluczWidziano(user.id))) return;
 
     const wiekMs = Date.now() - new Date(user.created_at).getTime();
-    if (wiekMs >= SWIEZOSC_MS) {
-      console.debug('[PostSignupRoleModal] Account too old:', Math.round(wiekMs / 1000), 'seconds (limit: 10min)');
-      return;
-    }
+    if (wiekMs >= SWIEZOSC_MS) return;
 
     const cel = ostatniZamierzonyCel();
     const neutralny = cel === null || CELE_NEUTRALNE.has(cel);
-    if (!neutralny) {
-      console.debug('[PostSignupRoleModal] Goal not neutral:', cel);
-      return;
-    }
+    if (!neutralny) return;
 
-    console.debug('[PostSignupRoleModal] Showing modal for', displayName(user));
     setOpen(true);
   }, [user, jestWidget]);
 
