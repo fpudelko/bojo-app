@@ -11,6 +11,7 @@ import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getEvent, getMyActiveEventIds } from '@/lib/events';
+import { kluczRozmowyWidziano } from '@/lib/comments';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { matchWhenLabel } from '@/lib/eventDates';
 import { sportEmoji } from '@/lib/sports';
@@ -54,6 +55,28 @@ export default function RozmowaMeczuClient() {
     })();
     return () => { aktualne = false; };
   }, [id, user, authLoading]);
+
+  // PRZECZYTANE ZNACZY PRZECZYTANE. Licznik nieprzeczytanych liczy się ze
+  // znacznika „widziano" w `localStorage` (`lib/comments.ts`), a znacznik
+  // zapisywała WYŁĄCZNIE zakładka Rozmowa na stronie meczu
+  // (`EventDetailClient`). Ta trasa — czyli ta, którą wchodzi się z listy
+  // rozmów, a więc po powiadomieniu — nie zapisywała go wcale, więc „2
+  // nieprzeczytane wiadomości" wisiały po przeczytaniu i po odpisaniu.
+  // Zgłoszone wprost. `RozmowyClient` odświeża listę przy powrocie na kartę
+  // i już wtedy zakładał, że ten znacznik istnieje.
+  //
+  // Znacznik idzie przy WEJŚCIU i przy WYJŚCIU: wiadomość, która przyszła
+  // w trakcie czytania, jest przeczytana tak samo jak te sprzed wejścia.
+  useEffect(() => {
+    if (stan !== 'ok' || typeof window === 'undefined') return;
+    const oznaczPrzeczytane = () => {
+      try {
+        window.localStorage.setItem(kluczRozmowyWidziano(id), new Date().toISOString());
+      } catch { /* tryb prywatny */ }
+    };
+    oznaczPrzeczytane();
+    return oznaczPrzeczytane;
+  }, [stan, id]);
 
   const pelnyEkran = stan === 'ok';
 

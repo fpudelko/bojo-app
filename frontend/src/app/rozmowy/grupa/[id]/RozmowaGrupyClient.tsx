@@ -11,6 +11,7 @@ import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getGroup, getMyGroupPermissions } from '@/lib/groups';
+import { kluczTablicaWidziano } from '@/lib/groupPosts';
 import { sportEmoji } from '@/lib/sports';
 import type { Group, GroupPermissions } from '@/types';
 
@@ -57,6 +58,24 @@ export default function RozmowaGrupyClient() {
     })();
     return () => { aktualne = false; };
   }, [id, user, authLoading]);
+
+  // PRZECZYTANE ZNACZY PRZECZYTANE — bliźniak tego, co robi
+  // `/rozmowy/mecz/[id]`. Znacznik „widziano" dla tablicy zapisywała wyłącznie
+  // zakładka Tablica na stronie ekipy (`GroupDetailClient`), więc tablica
+  // otwarta z LISTY ROZMÓW zostawała nieprzeczytana na zawsze.
+  //
+  // Znacznik idzie przy WEJŚCIU i przy WYJŚCIU: wpis, który pojawił się
+  // w trakcie czytania, jest przeczytany tak samo jak te sprzed wejścia.
+  useEffect(() => {
+    if (stan !== 'ok' || typeof window === 'undefined') return;
+    const oznaczPrzeczytane = () => {
+      try {
+        window.localStorage.setItem(kluczTablicaWidziano(id), new Date().toISOString());
+      } catch { /* tryb prywatny */ }
+    };
+    oznaczPrzeczytane();
+    return oznaczPrzeczytane;
+  }, [stan, id]);
 
   const pelnyEkran = stan === 'ok';
 

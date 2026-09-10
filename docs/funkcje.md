@@ -506,6 +506,22 @@ starą wartością `kluczGrupyWidziano()`, zmienna `grupaWidzianaWczesniej` w
 „Nieprzeczytane" liczy się z `localStorage` („ostatnio widziano" per mecz/ekipa,
 `kluczRozmowyWidziano()`/`kluczTablicaWidziano()`), nie z tabeli w bazie — własne
 wiadomości nigdy się nie liczą, bo nadawca widział je w momencie wysyłania.
+
+**Znacznik zapisuje KAŻDA droga do rozmowy — od 2026-09-10.** Do tej pory robiły to
+wyłącznie zakładki na stronie meczu (`EventDetailClient`) i na stronie ekipy
+(`GroupDetailClient`). Trasy `/rozmowy/mecz/[id]` i `/rozmowy/grupa/[id]` — czyli te,
+którymi wchodzi się z listy rozmów, a więc po powiadomieniu — nie zapisywały go **wcale**,
+więc rozmowa przeczytana tą drogą zostawała nieprzeczytana na zawsze. Zgłoszone wprost:
+„ciągle dostaję info, że mam 2 niewyświetlone wiadomości, mimo że je wyświetliłem, a nawet
+na nie odpisałem". Objaw był tym bardziej mylący, że `RozmowyClient` od początku odświeżał
+listę przy powrocie na kartę — machineria działała, tylko nie miała czego odczytać.
+
+Oba kliencki zapisują znacznik przy WEJŚCIU i przy WYJŚCIU (sprzątanie efektu), żeby
+wiadomość, która przyszła w trakcie czytania, była przeczytana tak samo jak te sprzed
+wejścia. Sprzątanie łapie nawigację WEWNĄTRZ aplikacji; twarde zamknięcie karty jej nie
+uruchamia i to jest w porządku — wejście i tak już zapisało znacznik. Rozmowa prywatna
+(`/rozmowy/[id]`) rozwiązuje to samo inaczej i działała od początku: przepisuje znacznik
+przy każdej zmianie liczby wiadomości. Pilnuje tego `e2e/rozmowy-oznacz-przeczytane.klikalnosc.spec.ts`.
 `getMyActiveEventIds()` (gram/rezerwa/organizuję) **nie filtruje po dacie** — mecz
 z historii z nową wiadomością też zapala różową kropkę na „Moje"; `/moje-gry` (zakładka
 Historia) i mecze ekipy (`/grupy/[id]`, sekcja Historia) przekazują `unreadMessages` do
