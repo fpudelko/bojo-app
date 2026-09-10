@@ -6,10 +6,18 @@ export type FieldErrors = Record<string, string>;
 
 /** Który krok kreatora odpowiada za którą grupę pól — JEDNO źródło prawdy.
  *
- *  Układ: 1 = „Kiedy" (termin, skład, koszt, bramkarze), 2 = „Gdzie"
- *  (lokalizacja), 3 = „Dla kogo" (widoczność, tytuł, opis, grupa). Nazwy kroków
+ *  Układ: 1 = „Kiedy" (sam termin), 2 = „Gdzie" (lokalizacja), 3 = „Dla kogo"
+ *  (liczba miejsc, widoczność, grupa + zwinięte „Ustawienia zaawansowane":
+ *  rezerwa, koszt, bramkarze, udział organizatora, tytuł i opis). Nazwy kroków
  *  stoją w `STEP_TITLES` w `app/wydarzenia/nowe/page.tsx`, bo pilnuje ich
  *  `bramaKreatora.test.ts` czytający źródło tamtej strony.
+ *
+ *  SZYBKA ŚCIEŻKA (2026-09-10). Krok 1 nazywał się „Kiedy", a pytał o SIEDEM
+ *  rzeczy naraz: sport, termin, czas gry, liczbę miejsc, rezerwę, płatność
+ *  z całą sekcją metod i zniżek oraz bramkarzy. Nazwa obiecywała jedno pytanie,
+ *  ekran zadawał siedem — zgłoszone wprost po testach na telefonie. Dziś każdy
+ *  krok pyta o jedno, a wszystko, co ma sensowną wartość domyślną, siedzi pod
+ *  jednym zwiniętym blokiem na kroku 3.
  *
  *  DLACZEGO STAŁA, A NIE TRZY LITERAŁY. Ten sam układ był dotąd zapisany
  *  niezależnie w trzech miejscach: `validateStep()` niżej, `STEP_OF_FIELD`
@@ -21,9 +29,9 @@ export type FieldErrors = Record<string, string>;
  *  wyglądało poprawnie. Teraz zmiana układu to zmiana TEJ stałej. */
 export const KROK_KREATORA = {
   termin: 1,
-  sklad: 1,
-  koszt: 1,
-  bramkarze: 1,
+  sklad: 3,
+  koszt: 3,
+  bramkarze: 3,
   lokalizacja: 2,
   tytul: 3,
   widocznosc: 3,
@@ -88,7 +96,10 @@ export function czyMeczPlatny(platny: boolean, costPln: string): boolean {
   return platny && parseFloat(costPln || '0') > 0;
 }
 
-/** Step 3 (Opcje) has no required fields. */
+/** Krok 3 nie ma WŁASNYCH pól wymaganych — liczba miejsc ma zawsze wartość
+ *  (stepper startuje od domyślnej dla sportu), a widoczność i grupa to wybory
+ *  bez stanu pustego. Reguły płatności dokłada `validateStep()` niżej: koszt
+ *  siedzi dziś na tym kroku, w zwiniętych „Ustawieniach zaawansowanych". */
 export function validateStep3(): FieldErrors {
   return {};
 }
@@ -181,23 +192,21 @@ export function validateStep(
   // `validateStep1`/`validateStep2` NIE zamieniają się nazwami: mówią, co
   // sprawdzają (lokalizacja / termin), a nie na którym ekranie stoją. Nazwa
   // wiążąca funkcję z numerem ekranu psuje się przy każdej zmianie układu.
-  if (n === 1) {
-    // KOSZT I BRAMKARZE PRZENIOSŁY SIĘ NA KROK 1 (2026-08-23) — razem z liczbą
-    // miejsc, pod przełączniki „Mecz płatny" i „Bramkarze osobno". Walidacja
-    // idzie za polem, nie za numerem ekranu: błąd numeru BLIKA zgłoszony przy
-    // wyjściu z kroku 2 wskazywałby pole, którego nie ma już na ekranie.
-    return {
-      ...validateStep2(v.date, v.time),
-      ...validatePayments({
-        costPln: v.costPln ?? '',
-        acceptedPaymentMethods: v.acceptedPaymentMethods ?? [],
-        blikPhone: v.blikPhone ?? '',
-        cardDiscountEnabled: v.cardDiscountEnabled ?? false,
-        cardDiscountPln: v.cardDiscountPln ?? '',
-        platny: v.platny ?? false,
-      }),
-    };
-  }
+  // Walidacja idzie ZA POLEM, nie za numerem ekranu: błąd numeru BLIKA
+  // zgłoszony przy wyjściu z kroku 1 wskazywałby pole, którego na tamtym
+  // ekranie nie ma. Koszt i bramkarze zjechały na krok 3 razem z szybką
+  // ścieżką (2026-09-10), więc ich reguły zjechały tam razem z nimi.
+  if (n === 1) return validateStep2(v.date, v.time);
   if (n === 2) return validateStep1(v.location);
-  return validateStep3();
+  return {
+    ...validateStep3(),
+    ...validatePayments({
+      costPln: v.costPln ?? '',
+      acceptedPaymentMethods: v.acceptedPaymentMethods ?? [],
+      blikPhone: v.blikPhone ?? '',
+      cardDiscountEnabled: v.cardDiscountEnabled ?? false,
+      cardDiscountPln: v.cardDiscountPln ?? '',
+      platny: v.platny ?? false,
+    }),
+  };
 }

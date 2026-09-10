@@ -57,14 +57,17 @@ describe('zbudujPodsumowanie — kształt', () => {
     });
   });
 
-  it('termin, skład i koszt są na kroku 1, lokalizacja na 2 — tak jak w kreatorze', () => {
+  it('termin jest na kroku 1, lokalizacja na 2, skład i koszt na 3 — tak jak w kreatorze', () => {
     // Asercja na WARTOŚCIACH, nie tylko na spójności z tą samą stałą: gdyby ktoś
     // zmienił `KROK_KREATORA`, test wyżej przeszedłby dalej, a ten powie wprost,
     // że układ kroków się zmienił i trzeba to potwierdzić świadomie.
+    //
+    // I zadziałał: skład z kosztem zjechały z kroku 1 na 3 przy szybkiej ścieżce
+    // (2026-09-10), bo krok „Kiedy" pytał o siedem rzeczy naraz.
     expect(KROK_KREATORA.termin).toBe(1);
-    expect(KROK_KREATORA.sklad).toBe(1);
-    expect(KROK_KREATORA.koszt).toBe(1);
     expect(KROK_KREATORA.lokalizacja).toBe(2);
+    expect(KROK_KREATORA.sklad).toBe(3);
+    expect(KROK_KREATORA.koszt).toBe(3);
     expect(KROK_KREATORA.widocznosc).toBe(3);
   });
 });

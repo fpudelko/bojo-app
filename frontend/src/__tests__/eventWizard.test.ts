@@ -154,22 +154,29 @@ describe('validateStep (dispatcher used by attemptGoToStep)', () => {
     expect(validateStep(3, base)).toEqual({});
   });
 
-  // Koszt przeniósł się na krok 1 (pod przełącznik „Mecz płatny"), więc jego
-  // walidacja musiała pójść za polem. Zgłoszona krok później wskazywałaby pole,
-  // którego na ekranie już nie ma.
-  it('krok 1 pokazuje błędy płatności, gdy podano pola płatności', () => {
-    const errs = validateStep(1, {
+  // Walidacja idzie ZA POLEM, nie za numerem ekranu — zgłoszona na innym kroku
+  // wskazywałaby pole, którego tam nie ma. Koszt zjechał na krok 3 razem
+  // z szybką ścieżką (2026-09-10), do zwiniętych „Ustawień zaawansowanych".
+  it('krok 3 pokazuje błędy płatności, gdy podano pola płatności', () => {
+    const errs = validateStep(3, {
       ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '',
     });
     expect(errs.blikPhone).toBeDefined();
   });
 
-  it('krok 1 bez pól płatności traktuje mecz jak darmowy', () => {
-    expect(validateStep(1, base)).toEqual({});
+  it('krok 1 NIE zgłasza już błędów płatności — koszt jest krok dalej', () => {
+    const errs = validateStep(1, {
+      ...base, costPln: '20', acceptedPaymentMethods: ['blik'], blikPhone: '',
+    });
+    expect(errs.blikPhone).toBeUndefined();
   });
 
-  it('krok 1 blokuje „Dalej", gdy „Mecz płatny" jest włączony bez ceny', () => {
-    const errs = validateStep(1, { ...base, platny: true });
+  it('krok 3 bez pól płatności traktuje mecz jak darmowy', () => {
+    expect(validateStep(3, base)).toEqual({});
+  });
+
+  it('krok 3 blokuje publikację, gdy „Mecz płatny" jest włączony bez ceny', () => {
+    const errs = validateStep(3, { ...base, platny: true });
     expect(errs.costPln).toBeDefined();
   });
 });

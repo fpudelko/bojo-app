@@ -740,15 +740,47 @@ w `app/wydarzenia/nowe/page.tsx` (brama logowania i właściwy kreator) dostają
 `showMobileWordmark` — ten sam prop co `/moje-gry`, `/grupy`, `/wydarzenia/[id]`.
 Wysokość paska bez zmian (`h-12`, sticky stepper na `top-12`).
 
-**Krok 1 „Kiedy" — termin, liczba miejsc, trzy przełączniki.** Ekran niesie datę,
-godzinę, czas trwania i liczbę miejsc, a pod nimi trzy przełączniki
-(`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny",
-„Bramkarze osobno" (ostatni tylko dla sportów z `GK_SPORTS`). Szczegóły każdego —
-czas na decyzję z rezerwy, kwota i metody płatności, tryb miejsc dla bramkarzy —
-**montują się dopiero po włączeniu**, nie są chowane CSS-em: ukryte pole nadal
-wysyła wartość i nadal się waliduje. Wyłączenie „Mecz płatny" CZYŚCI kwotę i metody.
-Na dole kroku stoi „Biorę udział" (z wyborem bramkarz/z pola, gdy podział jest
-włączony) — pod przełącznikiem, który tę kontrolkę włącza, nie nad nim.
+**SZYBKA ŚCIEŻKA: kiedy → gdzie → ile osób — od 2026-09-10.** Krok 1 nazywał się
+„Kiedy", a pytał o SIEDEM rzeczy naraz: sport, termin, czas gry, liczbę miejsc, listę
+rezerwową, mecz płatny (z kwotą, metodami, BLIK-iem i zniżkami kartowymi) oraz
+bramkarzy. Nazwa obiecywała jedno pytanie, ekran zadawał siedem — zgłoszone wprost po
+testach na telefonie (390 px). Dziś każdy krok pyta o jedno, a wszystko, co ma sensowną
+wartość domyślną, siedzi pod jednym zwiniętym blokiem na kroku 3.
+
+**Nazwy kroków zostały bez zmian** („Kiedy" / „Gdzie" / „Dla kogo") i to nie jest
+oszczędność: po przeniesieniu pól obie stały się prawdziwe — „Kiedy" pyta wyłącznie
+o termin, „Dla kogo" o skład i widoczność.
+
+| Krok | Co widać |
+|---|---|
+| 1 „Kiedy" | sport, data, godzina, czas gry |
+| 2 „Gdzie" | lokalizacja |
+| 3 „Dla kogo" | **liczba miejsc**, widoczność + akceptacja, mecz w ramach grupy, zwinięte „Ustawienia zaawansowane" |
+
+**Czas gry został na kroku 1** — jest częścią „kiedy", to jeden select, a siedzi wewnątrz
+`EventDateTimeField` współdzielonego ze stroną edycji; wyciąganie go wymagałoby propa na
+wspólnym komponencie i ruszania edycji, a przeładowania kroku 1 nie powodował.
+
+**„Ustawienia zaawansowane" (krok 3, zwinięte).** Trzy przełączniki
+(`components/events/OpcjaMeczu.tsx`): „Lista rezerwowa", „Mecz płatny", „Bramkarze
+osobno" (ostatni tylko dla sportów z `GK_SPORTS`), a do tego „Biorę udział" (z wyborem
+bramkarz/z pola, gdy podział jest włączony) oraz tytuł i opis. Szczegóły każdego
+przełącznika — czas na decyzję z rezerwy, kwota i metody płatności, tryb miejsc dla
+bramkarzy — **montują się dopiero po włączeniu**, nie są chowane CSS-em: ukryte pole
+nadal wysyła wartość i nadal się waliduje. Wyłączenie „Mecz płatny" CZYŚCI kwotę i metody.
+
+**Blok OTWIERA SIĘ SAM, gdy niesie błąd** (`zaawansowanePokazane` = stan przycisku LUB
+którykolwiek z `costPln`/`blikPhone`/`cardDiscount`). Wszystkie trzy pola płatności
+siedzą w środku, więc zamknięta sekcja chowałaby odmowę publikacji razem z komunikatem,
+a „Opublikuj mecz" wyglądałoby na przycisk, który nic nie robi — ta sama cisza, przed
+którą AGENTS.md ostrzega przy RLS. Dopiero wtedy istniejący scroll do
+`[data-field-error]` ma do czego dojechać. Pilnuje tego osobny scenariusz
+w `e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts`.
+
+**Pole kosztu czyści swój błąd przy pisaniu**, tak jak sąsiednie pola w
+`EventPaymentFields` (BLIK, zniżka). Bez tego „Podaj koszt od osoby" wisiało po
+poprawieniu kwoty aż do następnej odmowy publikacji — ekran pokazywał błąd, którego
+już nie było. Wyszło przy pisaniu testu do szybkiej ścieżki.
 
 **„Lista rezerwowa" startuje WŁĄCZONA — od 2026-08-27, decyzja właściciela.** Pozostałe
 dwa przełączniki dokładają zachowanie, którego domyślnie nie ma (mecz płatny, podział na
@@ -772,8 +804,10 @@ Pilnuje tego `e2e/kreator-bramkarze-i-rezerwa.klikalnosc.spec.ts` — sprawdzone
 strony: bez którejkolwiek z tych dwóch zmian testy padają.
 
 `STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx` mapuje pole → krok dla skoku steppera
-przy błędzie: termin, BLIK, zniżka i bramkarze to krok 1, lokalizacja krok 2. To samo
-rozbicie ma `validateStep()` w `lib/eventWizard.ts`.
+przy błędzie: termin to krok 1, lokalizacja krok 2, a koszt, BLIK, zniżka i bramkarze
+krok 3. Oba liczą się z `KROK_KREATORA`, więc `validateStep()` w `lib/eventWizard.ts`
+nadąża sam. `stepForErrors()` bierze `Math.min` — przy kilku błędach naraz kreator cofa
+na NAJWCZEŚNIEJSZY z nich, żeby poprawiać po kolei, a nie skakać w tył.
 
 **Błąd blokujący nie ma prawa być niewidoczny.** Zgłoszone wprost: „jak nie włączę
 toggle z bramkarzami, to wewnątrz jest ukryty błąd" — „Dalej" na kroku 1 przestawało
@@ -880,8 +914,14 @@ jednorazowy link do panelu serii (`/cykliczne/{id}`) przez `?cykliczne=<id>`, a 
 „Stała gierka" (organizator, w pasku u góry strony meczu) prowadzi tam samo z powrotem.
 Patrz „Serie wydarzeń cyklicznych" niżej.
 
-**Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
-wymaganych (`validateStep3` zwraca `{}`).
+**Krok 3 „Dla kogo" — liczba miejsc, widoczność, akceptacja, ekipa + zaawansowane.**
+Liczba miejsc stoi NA WIERZCHU, nad widocznością: to trzecie i ostatnie pytanie szybkiej
+ścieżki. Tytuł i opis zjechały do „Ustawień zaawansowanych" (patrz wyżej).
+
+`validateStep3()` dalej zwraca `{}` — krok nie ma WŁASNYCH pól wymaganych, bo liczba
+miejsc zawsze ma wartość, a widoczność i grupa nie mają stanu pustego. Reguły płatności
+dokłada do niego `validateStep()`, odkąd koszt siedzi na tym kroku: krok 3 przestał więc
+być krokiem, z którego zawsze da się opublikować.
 
 **Krok 3 — mecz w ramach grupy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
@@ -908,8 +948,9 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 „Sprawdź i opublikuj →" na kroku 3 **nie publikuje** — otwiera okno
 **„Tak zobaczą to gracze"** (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika
 w `lib/eventSummary.ts`) z dwoma przyciskami: „Popraw" i „Opublikuj mecz" — dopiero ten
-drugi naprawdę publikuje. Powód: data, miejsce, skład i cena są ustawiane na krokach 1–2
-i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po utworzeniu
+drugi naprawdę publikuje. Powód: data i miejsce są ustawiane na krokach 1–2, a cena
+w zwiniętym bloku na kroku 3 — w chwili publikacji żadne z nich nie jest widoczne,
+a mecz jest widoczny natychmiast po utworzeniu
 i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej, niż da się
 ją poprawić. Nazwa przycisku na kroku 3 zmieniła się 2026-08-29: „Opublikuj mecz →" mylił,
 bo klik nie publikował — otwierał to okno.
@@ -935,9 +976,11 @@ inline przez `updateDisplayName`; gdy konto nie ma **pełnej** nazwy własnej (i
 i nazwisko — `lib/profileName.ts#isPelneImie`, nie tylko dowolnie niepuste pole), pole
 startuje rozwinięte.
 
-Trzy ostrzeżenia, które **nie blokują** publikacji (krok 3 celowo nie ma pól wymaganych —
-`validateStep3` zwraca `{}`): mecz jest dzisiaj, miejsce zostało bez nazwy (same
+Trzy ostrzeżenia, które **nie blokują** publikacji (`validateStep3` nie ma własnych pól
+wymaganych — zwraca `{}`): mecz jest dzisiaj, miejsce zostało bez nazwy (same
 współrzędne po nieudanym reverse geocodingu), cena bez wybranej metody płatności.
+Blokuje natomiast reguła płatności, którą `validateStep()` dokłada do kroku 3, odkąd
+koszt tam siedzi: „Mecz płatny" bez kwoty odmawia publikacji i rozwija zwinięty blok.
 
 Pod tabelą stoi jedno zdanie o tym, **co Bojo zrobi samo** — przypomni składowi dzień
 przed meczem (migracja `129`) i powiadomi wszystkich przy zmianie terminu, miejsca albo

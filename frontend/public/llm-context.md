@@ -370,6 +370,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-10 — Mecz powstaje z trzech odpowiedzi: kiedy, gdzie, ile osób
+
+PROBLEM: pierwszy krok kreatora Bojo nazywał się „Kiedy", a pytał o siedem rzeczy naraz —
+sport, termin, czas gry, liczbę miejsc, listę rezerwową, mecz płatny (z kwotą, metodami
+płatności, numerem BLIK i zniżkami kartowymi) oraz podział na bramkarzy. Organizator,
+który chciał po prostu zebrać dziesięć osób na piątek, dostawał ścianę wyborów, z których
+typowa gierka nie potrzebuje ani jednego. Nazwa kroku obiecywała jedno pytanie, ekran
+zadawał siedem.
+
+ROZWIĄZANIE BOJO: kreator ma trzy kroki i każdy pyta o jedno — **kiedy** (sport i termin),
+**gdzie** (miejsce), **ile osób** (liczba miejsc). Na ostatnim kroku widać jeszcze tylko,
+kto zobaczy mecz (publiczny/prywatny) i czy należy on do ekipy — po czym mecz da się
+opublikować. Wszystko, co ma sensowną wartość domyślną — lista rezerwowa, koszt, bramkarze,
+udział organizatora w grze, tytuł i opis — siedzi pod jednym zwiniętym blokiem „Ustawienia
+zaawansowane". Mecz zostawiony na wartościach domyślnych powstaje z włączoną listą
+rezerwową, bez podziału na bramkarzy, publiczny, bezpłatny, z organizatorem w składzie
+i z nazwą wygenerowaną z sportu i liczby miejsc. Blok zaawansowany rozwija się sam, gdy
+niesie błąd — inaczej odmowa publikacji byłaby niewidoczna.
+
+MECHANIKA: układ kroków to stała `KROK_KREATORA` w `lib/eventWizard.ts` (skład, koszt
+i bramkarze przeniesione z kroku 1 na 3), czytana przez `validateStep()`,
+`lib/eventSummary.ts` i `STEP_OF_FIELD` w `app/wydarzenia/nowe/page.tsx`. Zwinięty blok
+i jego samootwieranie przy błędzie: `zaawansowanePokazane` w tej samej stronie. Testy:
+`eventWizard.test.ts`, `eventSummary.test.ts`, `bramaKreatora.test.ts` oraz scenariusze
+`e2e/kreator-mecz-platny-bez-ceny.klikalnosc.spec.ts`
+i `e2e/kreator-bramkarze-i-rezerwa.klikalnosc.spec.ts`.
+
 ### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
 
 PROBLEM: Odwołanie meczu miało w Bojo okno, które mówi wprost, kto dostanie powiadomienie
@@ -626,40 +653,3 @@ przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_cl
 i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
 `components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
 `supabase/test/przypomnienia.sql`.
-
-### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
-
-PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
-w Bojo, którego zapisany nie mógł cofnąć — usunąć go mógł wyłącznie organizator. Gość nie
-dostawał też żadnego powiadomienia: wyzwalacze odwołania meczu, zmiany warunków i usunięcia
-meczu pomijają wiersze bez konta, więc o odwołanym meczu nie dowiadywał się w ogóle
-i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do swojego wpisu
-bezpowrotnie. Skutki brał na siebie organizator: skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Skład meczu czyta w Bojo każdy (polityka `USING (true)`),
-a zapytanie o uczestników prosiło o wszystkie kolumny — więc adresy e-mail gości, telefony
-i tokeny przejęcia wpisu wychodziły publicznym API dla dowolnego meczu, także prywatnego.
-(3) Najcięższe decyzje organizatora (odwołanie meczu, usunięcie ze składu) potwierdzało
-systemowe okno przeglądarki, które mieści jedno zdanie — nie mówiło ani kto dostanie
-powiadomienie, ani że goście bez konta go nie dostaną, ani że odwołanie da się cofnąć.
-
-ROZWIĄZANIE BOJO: (1) link, który gość dostaje przy zapisie, jest teraz linkiem do JEGO
-zapisu: widzi stan meczu (z odwołaniem na samej górze), swoją pozycję w składzie, koszt
-i ma przycisk „Nie mogę grać — wypisz mnie", który zwalnia miejsce i przekazuje je pierwszej
-osobie z rezerwy. Link zostaje zapamiętany na urządzeniu, więc wracając na stronę meczu gość
-widzi „jesteś zapisany(a)" zamiast zaproszenia do zapisania się drugi raz, i może go sobie
-wysłać („Zapisz sobie link do swojego zapisu"). (2) publiczne API oddaje ze składu wyłącznie
-to, co widać na ekranie — imię, rola, rezerwa, płatność; e-maile, telefony i tokeny wychodzą
-z zasięgu ról API, a token przejęcia wpisu wydaje funkcja bazy wyłącznie organizatorowi
-i osobie, która gościa dopisała. (3) potwierdzenia decyzji to okna aplikacji z listą
-konsekwencji; przy odwołaniu meczu Bojo mówi wprost, ilu uczestników nie ma konta i nie
-dostanie powiadomienia, i daje drugą drogę: „Odwołaj i wyślij wiadomość" z gotowym tekstem
-na czat.
-
-MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
-`token_wpisu_goscia()`) i `128` (`wypisz_wpis_goscia()`, rozszerzone
-`podejrzyj_wpis_goscia()`); `lib/mojWpisGoscia.ts` (pamięć linku na urządzeniu),
-`lib/guestClaim.ts`, `lib/eventShare.ts` (`tekstOdwolania()`),
-`components/ui/OknoPotwierdzenia.tsx` + `lib/usePotwierdzenie.tsx`,
-`app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
-Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
-i „Gość zarządza swoim zapisem").

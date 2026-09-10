@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, ChevronDown, X, Users, Check, Repeat, Pencil } from 'lucide-react';
+import { MapPin, Lock, ChevronDown, ChevronUp, X, Users, Check, Repeat, Pencil } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -201,6 +201,12 @@ function NewEventForm() {
   // Opis jest za przełącznikiem (domyślnie wyłączony) — pole tekstowe samo
   // w sobie sugerowało, że trzeba je wypełnić.
   const [descriptionEnabled, setDescriptionEnabled] = useState(false);
+
+  // ZWINIĘTE „Ustawienia zaawansowane" na kroku 3 — rezerwa, koszt, bramkarze,
+  // udział organizatora, tytuł i opis. Stan NIE jedzie do szkicu: to stan
+  // widoku, nie dana meczu, a szkic ma odtwarzać mecz, nie sposób patrzenia
+  // na formularz.
+  const [zaawansowaneOtwarte, setZaawansowaneOtwarte] = useState(false);
 
   // Cena od osoby jest pochodną kosztu obiektu i liczby miejsc. Licząc to
   // tylko w onChange inputu (jak poprzednio) cena zostawała nieaktualna, gdy
@@ -544,9 +550,12 @@ function NewEventForm() {
               </div>
 
               {/* Podgląd musi pokazywać KROK PIERWSZY, a nie dowolny zlepek pól.
-                  Do 2026-09-03 stała tu Lokalizacja z mapką — czyli krok DRUGI —
-                  i nie było ani liczby miejsc, ani przełączników. Brama obiecywała
-                  inny kreator, niż organizator dostawał zaraz po zalogowaniu. */}
+                  Do 2026-09-03 stała tu Lokalizacja z mapką — czyli krok DRUGI.
+                  Od 2026-09-10 krok pierwszy to SAM TERMIN: liczba miejsc zeszła
+                  na krok trzeci, a przełączniki pod „Ustawienia zaawansowane",
+                  więc makieta chudnie razem z nim. Obietnica z bramy ma się
+                  zgadzać z pierwszym ekranem po zalogowaniu — pilnuje tego
+                  `bramaKreatora.test.ts`, czytając to źródło. */}
               <div>
                 <p className="mb-2 text-sm font-medium text-slate-700">Termin</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -556,20 +565,8 @@ function NewEventForm() {
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">Ilu nas gra</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400">−</div>
-                  <div className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-center text-sm font-semibold text-slate-700">14</div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400">+</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-900">Lista rezerwowa</p>
-                  <p className="text-xs text-slate-500">Przy komplecie kolejni czekają w kolejce.</p>
-                </div>
-                <div className="h-5 w-9 shrink-0 rounded-full bg-primary-600" />
+                <p className="mb-2 text-sm font-medium text-slate-700">Czas gry</p>
+                <div className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500">90 minut</div>
               </div>
 
               <div className="flex h-11 items-center justify-center rounded-xl bg-primary-700 text-sm font-semibold text-white">
@@ -775,6 +772,16 @@ function NewEventForm() {
 
   const inputCls =
     'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+
+  /** Czy blok „Ustawienia zaawansowane" jest rozwinięty. Nie jest to sam
+   *  `zaawansowaneOtwarte`: sekcja MUSI otworzyć się także wtedy, gdy niesie
+   *  błąd, bo wszystkie trzy pola płatności siedzą w środku. Zamknięta chowała
+   *  odmowę publikacji razem z komunikatem i „Sprawdź i opublikuj" wyglądałoby
+   *  na przycisk, który nic nie robi — ta sama cisza, przed którą AGENTS.md
+   *  ostrzega przy RLS. Scroll do `[data-field-error]` (w `handleSubmit`) ma
+   *  wtedy do czego dojechać. */
+  const zaawansowanePokazane = zaawansowaneOtwarte
+    || !!(fieldErrors.costPln || fieldErrors.blikPhone || fieldErrors.cardDiscount);
 
   /**
    * Handles both "Dalej" and clicking a step number directly. Going back is
@@ -993,197 +1000,6 @@ function NewEventForm() {
                 ) : undefined}
               />
 
-              {/* LICZBA MIEJSC — przy terminie, nie przy ustawieniach.
-                  „Ilu nas gra" to trzecia rzecz, którą organizator ma w głowie
-                  otwierając kreator, zaraz po tym co i kiedy. Trzymanie jej
-                  krok dalej, wśród reguł rezerwy i metod płatności, kazało
-                  przewinąć przez pytania, których większość meczów nie ma. */}
-              <MiejscaWSkladzie
-                maxPlayers={maxPlayers}
-                onMaxPlayersChange={(v) => { setMaxPlayersTouched(true); setMaxPlayers(v); }}
-                minPlayers={minPlayers}
-                onMinPlayersChange={setMinPlayers}
-                reserveEnabled={reserveEnabled}
-              />
-
-              {/* PRZEŁĄCZNIKI ZAMIAST ŚCIANY USTAWIEŃ.
-                  Krok pierwszy niósł wcześniej kilkanaście kontrolek naraz —
-                  czas na decyzję z rezerwy, koszt, metody płatności, tryby
-                  miejsc dla bramkarzy — z których typowy mecz nie potrzebuje
-                  ani jednej. Teraz każda grupa ustawień pojawia się DOPIERO po
-                  włączeniu tego, czego dotyczy, a podpis mówi, co się stanie,
-                  zanim ktokolwiek włączy.
-
-                  WYJĄTEK: „Lista rezerwowa" startuje WŁĄCZONA. Pozostałe dwa
-                  przełączniki dokładają zachowanie, którego domyślnie nie ma
-                  (mecz płatny, podział na bramkarzy); rezerwa jest odwrotnie —
-                  to zachowanie domyślne w całej reszcie systemu (`DEFAULT true`
-                  w migracji `124`), a przełącznik służy do jej WYŁĄCZENIA. */}
-              <div className="space-y-3">
-                <OpcjaMeczu
-                  tytul="Lista rezerwowa"
-                  podpis="Przy komplecie kolejni chętni czekają w kolejce i wchodzą, gdy ktoś się wypisze."
-                  wlaczona={reserveEnabled}
-                  naZmiane={setReserveEnabled}
-                >
-                  <UstawieniaRezerwy
-                    reserveClaimMinutes={reserveClaimMinutes}
-                    setReserveClaimMinutes={setReserveClaimMinutes}
-                  />
-                </OpcjaMeczu>
-
-                <OpcjaMeczu
-                  tytul="Mecz płatny"
-                  podpis="Podasz koszt i sposób zapłaty — Bojo policzy, ile wychodzi od osoby."
-                  wlaczona={platny}
-                  // `platny` jest NIEZALEŻNYM przełącznikiem (`useState`),
-                  // nie pochodną `costPln > 0` — da się go włączyć i zostawić
-                  // pole ceny puste. Do 2026-08-28 `validatePayments()` o tym
-                  // nie wiedziała: sprawdzała tylko `cost > 0`, więc pusta
-                  // cena przy włączonym przełączniku wyglądała jak darmowy
-                  // mecz i „Dalej" przechodziło bez ostrzeżenia — zgłoszone
-                  // wprost. `fieldErrors.costPln` pokrywa dokładnie ten
-                  // przypadek; `blikPhone`/`cardDiscount` zostają na wypadek,
-                  // gdyby sekcja była zwinięta akurat wtedy, gdy któryś z nich
-                  // zawiedzie (ten sam wzorzec co przy bramkarzach).
-                  blad={fieldErrors.costPln ?? fieldErrors.blikPhone ?? fieldErrors.cardDiscount}
-                  naZmiane={(v) => {
-                    setPlatny(v);
-                    // Wyłączenie CZYŚCI kwotę, nie tylko ją chowa. Ukryta cena
-                    // pojechałaby do bazy razem z meczem oznaczonym jako
-                    // darmowy — a to jest dokładnie ten błąd, który wychodzi
-                    // dopiero przy rozliczeniu.
-                    //
-                    // `kosztObiektuPln` MUSI zniknąć razem z `costPln`, bo cena
-                    // od osoby jest jego pochodną: efekt przeliczający
-                    // (`[kosztZaObiekt, kosztObiektuPln, maxPlayers]`) odtwarzał
-                    // wyczyszczoną kwotę przy najbliższej zmianie liczby miejsc
-                    // — kontrolki stojącej tuż obok, na tym samym kroku. Mecz
-                    // publikował się wtedy jako PŁATNY, z pustą listą metod
-                    // płatności, przy przełączniku pokazującym WYŁĄCZONY.
-                    if (!v) { setCostPln(''); setKosztObiektuPln(''); setAcceptedPaymentMethods([]); }
-                  }}
-                >
-                  <div className="space-y-4">
-                    {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — tak liczy
-                        `priceForParticipant()` i tak wygląda rozliczenie na meczu.
-                        Ale organizator zna zwykle drugą liczbę: ile kosztuje wynajem
-                        obiektu. Przeliczamy więc przy wpisywaniu, zamiast kazać mu
-                        dzielić w głowie i zaokrąglać. */}
-                    <div>
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <label className="text-sm font-medium text-slate-700">
-                          {kosztZaObiekt ? 'Koszt wynajmu obiektu (zł)' : 'Koszt od osoby (zł)'}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setKosztZaObiekt((v) => !v)}
-                          className="shrink-0 text-xs font-medium text-primary-700 underline hover:text-primary-800"
-                        >
-                          {kosztZaObiekt ? 'wpisz od osoby' : 'wpisz za cały obiekt'}
-                        </button>
-                      </div>
-                      {fieldErrors.costPln && (
-                        <p data-field-error className="mb-1 text-xs font-medium text-red-600 flex items-center gap-1">
-                          <span aria-hidden>⚠</span> {fieldErrors.costPln}
-                        </p>
-                      )}
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={kosztZaObiekt ? kosztObiektuPln : costPln}
-                        onChange={(e) => (kosztZaObiekt ? setKosztObiektuPln(e.target.value) : setCostPln(e.target.value))}
-                        placeholder="0 = za darmo"
-                        className={inputCls}
-                      />
-                      {parseFloat(costPln || '0') > 0 && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {kosztZaObiekt
-                            ? <>Przy {maxPlayers} miejscach wychodzi <span className="font-semibold">{costPln} zł od osoby</span>.</>
-                            : <>Przy komplecie ({maxPlayers} os.) to <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span> za cały obiekt.</>}
-                        </p>
-                      )}
-                    </div>
-                    <EventPaymentFields
-                      costPln={costPln}
-                      acceptedPaymentMethods={acceptedPaymentMethods}
-                      setAcceptedPaymentMethods={setAcceptedPaymentMethods}
-                      blikPhone={blikPhone}
-                      setBlikPhone={setBlikPhone}
-                      fieldErrors={fieldErrors}
-                      setFieldErrors={setFieldErrors}
-                      cardDiscountEnabled={cardDiscountEnabled}
-                      setCardDiscountEnabled={setCardDiscountEnabled}
-                      cardDiscountPln={cardDiscountPln}
-                      setCardDiscountPln={setCardDiscountPln}
-                      acceptedSportsCards={acceptedSportsCards}
-                      setAcceptedSportsCards={setAcceptedSportsCards}
-                      sportsCardOtherName={sportsCardOtherName}
-                      setSportsCardOtherName={setSportsCardOtherName}
-                      inputCls={inputCls}
-                    />
-                  </div>
-                </OpcjaMeczu>
-
-                {GK_SPORTS.includes(sport) && (
-                  <OpcjaMeczu
-                    tytul="Bramkarze osobno"
-                    podpis="Skład rozbije się na bramkarzy i zawodników z pola."
-                    wlaczona={goalkeepersEnabled === true}
-                    naZmiane={(v) => setGoalkeepersEnabled(v)}
-                  >
-                    <UstawieniaBramkarzy
-                      sport={sport}
-                      maxPlayers={maxPlayers}
-                      goalkeepersEnabled={goalkeepersEnabled}
-                      setGoalkeepersEnabled={setGoalkeepersEnabled}
-                      slotyZarezerwowane={slotyZarezerwowane}
-                      setSlotyZarezerwowane={setSlotyZarezerwowane}
-                      wPrzelaczniku
-                    />
-                  </OpcjaMeczu>
-                )}
-              </div>
-
-              {/* Organizer participates */}
-              <div className="py-2 border-b border-slate-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Biorę udział</p>
-                    <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika tej gry</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOrganizerParticipates((v) => !v)}
-                    className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
-                    role="switch"
-                    aria-checked={organizerParticipates}
-                  >
-                    <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
-                  </button>
-                </div>
-                {organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && (
-                  <div className="mt-2 flex gap-2">
-                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([role, label]) => (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => setOrganizerRole(role)}
-                        className={[
-                          'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                          organizerRole === role
-                            ? 'border-primary-600 bg-primary-50 text-primary-700'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                        ].join(' ')}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
             </>
           )}
 
@@ -1307,6 +1123,19 @@ function NewEventForm() {
           {/* ── STEP 3 ── */}
           {step === 3 && (
             <>
+              {/* LICZBA MIEJSC — trzecie i ostatnie pytanie szybkiej ścieżki
+                  („kiedy / gdzie / ile osób"), więc stoi NA WIERZCHU kroku 3,
+                  nad widocznością i nad zwiniętymi ustawieniami. Siedziała
+                  wcześniej na kroku 1, wśród reguł rezerwy i metod płatności —
+                  razem z nimi robiła z „Kiedy" ekran o siedmiu pytaniach. */}
+              <MiejscaWSkladzie
+                maxPlayers={maxPlayers}
+                onMaxPlayersChange={(v) => { setMaxPlayersTouched(true); setMaxPlayers(v); }}
+                minPlayers={minPlayers}
+                onMinPlayersChange={setMinPlayers}
+                reserveEnabled={reserveEnabled}
+              />
+
               {/* Visibility — public / private */}
               <EventVisibilityFields
                 visibility={visibility}
@@ -1363,17 +1192,229 @@ function NewEventForm() {
                 </p>
               </div>
 
-              {/* Title + description */}
-              <EventTitleDescriptionField
-                title={title}
-                setTitle={setTitle}
-                placeholderTitle={defaultEventTitle(sport, maxPlayers)}
-                description={description}
-                setDescription={setDescription}
-                descriptionEnabled={descriptionEnabled}
-                setDescriptionEnabled={setDescriptionEnabled}
-                inputCls={inputCls}
-              />
+              {/* USTAWIENIA ZAAWANSOWANE — wszystko, co ma sensowną wartość
+                  domyślną, czyli wszystko poza „kiedy / gdzie / ile osób"
+                  i widocznością. Krok 1 nazywał się „Kiedy", a pytał o siedem
+                  rzeczy naraz; zwinięcie ich tutaj jest całą treścią szybkiej
+                  ścieżki (2026-09-10, zgłoszone po testach na telefonie).
+
+                  Blok OTWIERA SIĘ SAM, gdy niesie błąd — patrz
+                  `zaawansowanePokazane`. Bez tego „Sprawdź i opublikuj" przy
+                  włączonym „Mecz płatny" bez kwoty odmawiałoby publikacji,
+                  a komunikat siedziałby w zamkniętej sekcji: przycisk, który
+                  nic nie robi. */}
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setZaawansowaneOtwarte((v) => !v)}
+                  aria-expanded={zaawansowanePokazane}
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  Ustawienia zaawansowane
+                  {zaawansowanePokazane
+                    ? <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+                    : <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />}
+                </button>
+                {zaawansowanePokazane && (
+                  <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-3">
+                    {/* PRZEŁĄCZNIKI ZAMIAST ŚCIANY USTAWIEŃ.
+                        Każda grupa ustawień pojawia się DOPIERO po włączeniu tego,
+                        czego dotyczy, a podpis mówi, co się stanie, zanim ktokolwiek
+                        włączy. Same przełączniki stały do 2026-09-10 na kroku 1,
+                        rozwinięte — trzy z nich naraz, obok terminu i liczby miejsc.
+
+                        WYJĄTEK: „Lista rezerwowa" startuje WŁĄCZONA. Pozostałe dwa
+                        przełączniki dokładają zachowanie, którego domyślnie nie ma
+                        (mecz płatny, podział na bramkarzy); rezerwa jest odwrotnie —
+                        to zachowanie domyślne w całej reszcie systemu (`DEFAULT true`
+                        w migracji `124`), a przełącznik służy do jej WYŁĄCZENIA. */}
+                    <div className="space-y-3">
+                      <OpcjaMeczu
+                        tytul="Lista rezerwowa"
+                        podpis="Przy komplecie kolejni chętni czekają w kolejce i wchodzą, gdy ktoś się wypisze."
+                        wlaczona={reserveEnabled}
+                        naZmiane={setReserveEnabled}
+                      >
+                        <UstawieniaRezerwy
+                          reserveClaimMinutes={reserveClaimMinutes}
+                          setReserveClaimMinutes={setReserveClaimMinutes}
+                        />
+                      </OpcjaMeczu>
+
+                      <OpcjaMeczu
+                        tytul="Mecz płatny"
+                        podpis="Podasz koszt i sposób zapłaty — Bojo policzy, ile wychodzi od osoby."
+                        wlaczona={platny}
+                        // `platny` jest NIEZALEŻNYM przełącznikiem (`useState`),
+                        // nie pochodną `costPln > 0` — da się go włączyć i zostawić
+                        // pole ceny puste. Do 2026-08-28 `validatePayments()` o tym
+                        // nie wiedziała: sprawdzała tylko `cost > 0`, więc pusta
+                        // cena przy włączonym przełączniku wyglądała jak darmowy
+                        // mecz i „Dalej" przechodziło bez ostrzeżenia — zgłoszone
+                        // wprost. `fieldErrors.costPln` pokrywa dokładnie ten
+                        // przypadek; `blikPhone`/`cardDiscount` zostają na wypadek,
+                        // gdyby sekcja była zwinięta akurat wtedy, gdy któryś z nich
+                        // zawiedzie (ten sam wzorzec co przy bramkarzach).
+                        blad={fieldErrors.costPln ?? fieldErrors.blikPhone ?? fieldErrors.cardDiscount}
+                        naZmiane={(v) => {
+                          setPlatny(v);
+                          // Wyłączenie CZYŚCI kwotę, nie tylko ją chowa. Ukryta cena
+                          // pojechałaby do bazy razem z meczem oznaczonym jako
+                          // darmowy — a to jest dokładnie ten błąd, który wychodzi
+                          // dopiero przy rozliczeniu.
+                          //
+                          // `kosztObiektuPln` MUSI zniknąć razem z `costPln`, bo cena
+                          // od osoby jest jego pochodną: efekt przeliczający
+                          // (`[kosztZaObiekt, kosztObiektuPln, maxPlayers]`) odtwarzał
+                          // wyczyszczoną kwotę przy najbliższej zmianie liczby miejsc
+                          // — kontrolki stojącej tuż obok, na tym samym kroku. Mecz
+                          // publikował się wtedy jako PŁATNY, z pustą listą metod
+                          // płatności, przy przełączniku pokazującym WYŁĄCZONY.
+                          if (!v) { setCostPln(''); setKosztObiektuPln(''); setAcceptedPaymentMethods([]); }
+                        }}
+                      >
+                        <div className="space-y-4">
+                          {/* Koszt. W bazie trzymamy ZAWSZE kwotę od osoby — tak liczy
+                              `priceForParticipant()` i tak wygląda rozliczenie na meczu.
+                              Ale organizator zna zwykle drugą liczbę: ile kosztuje wynajem
+                              obiektu. Przeliczamy więc przy wpisywaniu, zamiast kazać mu
+                              dzielić w głowie i zaokrąglać. */}
+                          <div>
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <label className="text-sm font-medium text-slate-700">
+                                {kosztZaObiekt ? 'Koszt wynajmu obiektu (zł)' : 'Koszt od osoby (zł)'}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setKosztZaObiekt((v) => !v)}
+                                className="shrink-0 text-xs font-medium text-primary-700 underline hover:text-primary-800"
+                              >
+                                {kosztZaObiekt ? 'wpisz od osoby' : 'wpisz za cały obiekt'}
+                              </button>
+                            </div>
+                            {fieldErrors.costPln && (
+                              <p data-field-error className="mb-1 text-xs font-medium text-red-600 flex items-center gap-1">
+                                <span aria-hidden>⚠</span> {fieldErrors.costPln}
+                              </p>
+                            )}
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.5}
+                              value={kosztZaObiekt ? kosztObiektuPln : costPln}
+                              // Pisanie CZYŚCI błąd — tak samo jak w polach obok
+                              // (`EventPaymentFields` robi to dla BLIK-a i zniżki).
+                              // Bez tego „Podaj koszt od osoby" wisiało po
+                              // poprawieniu kwoty aż do następnej odmowy publikacji:
+                              // ekran pokazywał błąd, którego już nie było.
+                              onChange={(e) => {
+                                if (kosztZaObiekt) setKosztObiektuPln(e.target.value);
+                                else setCostPln(e.target.value);
+                                setFieldErrors((f) => ({ ...f, costPln: '' }));
+                              }}
+                              placeholder="0 = za darmo"
+                              className={inputCls}
+                            />
+                            {parseFloat(costPln || '0') > 0 && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                {kosztZaObiekt
+                                  ? <>Przy {maxPlayers} miejscach wychodzi <span className="font-semibold">{costPln} zł od osoby</span>.</>
+                                  : <>Przy komplecie ({maxPlayers} os.) to <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span> za cały obiekt.</>}
+                              </p>
+                            )}
+                          </div>
+                          <EventPaymentFields
+                            costPln={costPln}
+                            acceptedPaymentMethods={acceptedPaymentMethods}
+                            setAcceptedPaymentMethods={setAcceptedPaymentMethods}
+                            blikPhone={blikPhone}
+                            setBlikPhone={setBlikPhone}
+                            fieldErrors={fieldErrors}
+                            setFieldErrors={setFieldErrors}
+                            cardDiscountEnabled={cardDiscountEnabled}
+                            setCardDiscountEnabled={setCardDiscountEnabled}
+                            cardDiscountPln={cardDiscountPln}
+                            setCardDiscountPln={setCardDiscountPln}
+                            acceptedSportsCards={acceptedSportsCards}
+                            setAcceptedSportsCards={setAcceptedSportsCards}
+                            sportsCardOtherName={sportsCardOtherName}
+                            setSportsCardOtherName={setSportsCardOtherName}
+                            inputCls={inputCls}
+                          />
+                        </div>
+                      </OpcjaMeczu>
+
+                      {GK_SPORTS.includes(sport) && (
+                        <OpcjaMeczu
+                          tytul="Bramkarze osobno"
+                          podpis="Skład rozbije się na bramkarzy i zawodników z pola."
+                          wlaczona={goalkeepersEnabled === true}
+                          naZmiane={(v) => setGoalkeepersEnabled(v)}
+                        >
+                          <UstawieniaBramkarzy
+                            sport={sport}
+                            maxPlayers={maxPlayers}
+                            goalkeepersEnabled={goalkeepersEnabled}
+                            setGoalkeepersEnabled={setGoalkeepersEnabled}
+                            slotyZarezerwowane={slotyZarezerwowane}
+                            setSlotyZarezerwowane={setSlotyZarezerwowane}
+                            wPrzelaczniku
+                          />
+                        </OpcjaMeczu>
+                      )}
+                    </div>
+
+                    {/* Organizer participates */}
+                    <div className="py-2 border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Biorę udział</p>
+                          <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika tej gry</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOrganizerParticipates((v) => !v)}
+                          className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', organizerParticipates ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                          role="switch"
+                          aria-checked={organizerParticipates}
+                        >
+                          <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', organizerParticipates ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                        </button>
+                      </div>
+                      {organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && (
+                        <div className="mt-2 flex gap-2">
+                          {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([role, label]) => (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => setOrganizerRole(role)}
+                              className={[
+                                'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                                organizerRole === role
+                                  ? 'border-primary-600 bg-primary-50 text-primary-700'
+                                  : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                              ].join(' ')}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Title + description */}
+                    <EventTitleDescriptionField
+                      title={title}
+                      setTitle={setTitle}
+                      placeholderTitle={defaultEventTitle(sport, maxPlayers)}
+                      description={description}
+                      setDescription={setDescription}
+                      descriptionEnabled={descriptionEnabled}
+                      setDescriptionEnabled={setDescriptionEnabled}
+                      inputCls={inputCls}
+                    />
+                  </div>
+                )}
+              </div>
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">

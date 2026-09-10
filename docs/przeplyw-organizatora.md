@@ -69,6 +69,14 @@ korzyści, karta „Zaloguj się, żeby opublikować mecz" i rozmyty podgląd kr
 > w chwili powstania tego audytu. Nagłówki faz niżej zostawiamy w brzmieniu z 2026-08-08,
 > żeby numery ustaleń `O-n` dalej wskazywały to samo miejsce w historii; mapowanie:
 > „Co i gdzie" → dzisiejsze „Gdzie", „Kiedy i ile" → „Kiedy", „Opcje" → „Dla kogo".
+>
+> **Aktualizacja (2026-09-10) — szybka ścieżka.** Ustalenie `O-10` („krok jest
+> przeładowany") zostało domknięte: krok „Kiedy" pyta dziś WYŁĄCZNIE o sport i termin.
+> Liczba miejsc zeszła na krok „Dla kogo", a lista rezerwowa, koszt, bramkarze, udział
+> organizatora oraz tytuł z opisem — pod zwinięty blok **„Ustawienia zaawansowane"** na
+> tym samym kroku. Szybka ścieżka to więc trzy pytania (kiedy / gdzie / ile osób) plus
+> widoczność, i publikacja. Szczegóły w
+> [funkcje.md](./funkcje.md#kreator-meczu--co-widać-na-którym-kroku).
 
 ## Faza 2 — krok 1 „Co i gdzie"
 
