@@ -329,6 +329,56 @@ o skutkach własnego kliknięcia.
   i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały
   jako szare „Powiadomienie".
 
+### Dopisane po merge'u (2026-09-09)
+
+**Wzorzec `kreator-krok-1.png` nie mógł być zielony od 2026-08-22.** Zrzut robi
+`fullPage` z komentarzem „krok 1 nie ma w sobie żadnej daty ani liczby z bazy" —
+prawdziwym do dnia, w którym kroki zamieniono miejscami i data przeszła na krok
+PIERWSZY. Kreator ustawia domyślnie JUTRO, więc wzorzec przyjęty dowolnego dnia
+padał nazajutrz; nagłówek `scenariusze.spec.ts` formułuje zresztą tę zasadę
+wprost („zrzuty obejmują FRAGMENTY bez daty"), tylko ten jeden zrzut jej nie
+dotrzymywał. Każdy przebieg pokazywał to jako świeżą „zmianę wyglądu", więc
+przyczyny nikt nie szukał — a `R-7` (dzień tygodnia pod datą) dołożyło drugą
+ruchomą wartość i uczyniło to widocznym.
+
+Poprawka: `mask` na `[data-pole-daty]` zamiast rezygnacji z `fullPage` — reszta
+kroku zostaje pod ochroną. Atrybut pilnuje `poleDaty.test.tsx`, bo Playwright
+NIE zgłasza błędu, gdy maska nie trafia w nic: usunięcie atrybutu przywróciłoby
+dokładnie ten sam cichy rozjazd.
+
+Wniosek ogólniejszy: **komentarz uzasadniający zrzut całej strony jest
+zobowiązaniem, nie opisem.** Gdy ekran przestaje spełniać warunek, na który
+powołuje się komentarz, wzorzec zaczyna kłamać — i wygląda przy tym na zwykłą
+zmianę wyglądu, czyli na coś, co się przyjmuje bez zastanowienia.
+
+**Druga maska, która nie maskowała nic — znaleziona przy sprawdzaniu pierwszej.**
+Przemiał po trasach w `wizualne.spec.ts` podaje `mask: [page.locator('[data-zrzut-maskuj]')]`
+z uzasadnieniem „liczniki z katalogu boisk rosną z każdym importem". Atrybutu
+`data-zrzut-maskuj` **nigdy nie było w `frontend/src`** — wszedł do scenariusza
+razem z komentarzem i od tego dnia malował zero pikseli. Licznik
+„Znalezionych obiektów: N" jechał na wzorzec bez osłony, a plik wyglądał na
+zabezpieczony. Dziś atrybut siedzi na samej liczbie (`boiska/[sport]`,
+`boiska/[sport]/[miasto]`, `boiska/woj/[wojewodztwo]`) — zdanie wokół niej
+zostaje widoczne, bo to ono jest treścią wartą pilnowania.
+
+Stąd `maskiZrzutow.test.ts`, który **zastępuje pilnowanie atrybutów z nazwy**:
+wyciąga selektory `data-*` ze wszystkich `mask:` w scenariuszach i sprawdza, że
+każdy występuje w kodzie aplikacji. Nowa maska jest objęta ochroną od razu,
+bez dopisywania czegokolwiek. Zasada, którą to zapisuje: **maska Playwrighta
+jest obietnicą, którą da się złożyć i nigdy nie dotrzymać** — brak trafienia nie
+jest błędem, tylko ciszą, a komentarz obok brzmi identycznie w obu przypadkach.
+
+**Trzeci przypadek tej samej rodziny: chmurka na zrzucie.** `oczekuje-na-akceptacje.png`,
+`karta-rezerwy.png` i `licznik-po-dolaczeniu.png` robią zrzut kafelka zaraz po
+kliknięciu, które wywołuje chmurkę — a ta żyje 4,5 sekundy (`lib/toast.tsx`)
+i pływa NAD treścią. Zrzut łapał ją w przypadkowej klatce: raz dwa słowa, raz
+cztery, raz krzyżyk zamknięcia. `uspokoj()` tego nie ratuje, bo wyłącza
+animacje, a nie cofa czasu, który minął od kliknięcia. Wzorzec zmieniał się
+więc z przebiegu na przebieg — ten sam mechanizm co przy dacie, tylko napędzany
+zegarem sekundowym zamiast kalendarza. Poprawką jest `bezChmurki(page)` przed
+zrzutem; asercja NA treść chmurki zostaje tam, gdzie była, bo to ona jest
+sednem tych testów.
+
 ### Rozważone i odłożone
 
 - **`R-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który

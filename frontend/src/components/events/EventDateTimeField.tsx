@@ -48,7 +48,14 @@ export default function EventDateTimeField({
           360-pikselowego ekranu łamał swój opis na pięć linijek i rozpychał
           wiersz w pionie — tekst reklamował funkcję szerszą niż miejsce, które
           mu daliśmy. */}
-      <div className="col-span-2 sm:col-span-1">
+      {/* `data-pole-daty` istnieje WYŁĄCZNIE dla regresji wizualnej —
+          `scenariusze.spec.ts` zasłania tym selektorem datę na zrzucie kroku
+          pierwszego. Powód: kreator ustawia domyślnie JUTRO, więc ta wartość
+          zmienia się z dnia na dzień, a wzorzec zapisany dziś jutro już nie
+          pasuje. Zasada „zrzuty obejmują fragmenty bez daty" stoi w nagłówku
+          tamtego pliku; ten atrybut pozwala jej dotrzymać bez rezygnowania
+          z pełnego zrzutu kroku. */}
+      <div data-pole-daty className="col-span-2 sm:col-span-1">
         <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
         <input
           type="date"

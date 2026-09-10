@@ -162,8 +162,10 @@ export default async function SportMiastoPage(
           </p>
         )}
 
+        {/* Liczba pod maską zrzutu — patrz `boiska/[sport]/page.tsx`. */}
         <p className="text-slate-500 text-sm mb-8">
-          Znalezionych obiektów: {wszystkich}{stron > 1 ? ` · strona ${strona} z ${stron}` : ''}
+          Znalezionych obiektów: <span data-zrzut-maskuj>{wszystkich}</span>
+          {stron > 1 ? ` · strona ${strona} z ${stron}` : ''}
         </p>
 
         {fields.length > 0 && (

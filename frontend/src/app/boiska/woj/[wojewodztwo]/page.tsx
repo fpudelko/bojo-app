@@ -120,10 +120,16 @@ export default async function WojewodztwoPage(
           </p>
         )}
 
+        {/* Liczba pod maską zrzutu — patrz `boiska/[sport]/page.tsx`. */}
         <p className="text-slate-500 text-sm mb-8">
-          {wszystkich > 0
-            ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
-            : 'Brak obiektów w bazie dla tego województwa.'}
+          {wszystkich > 0 ? (
+            <>
+              Znalezionych obiektów: <span data-zrzut-maskuj>{wszystkich}</span>
+              {stron > 1 ? ` · strona ${strona} z ${stron}` : ''}
+            </>
+          ) : (
+            'Brak obiektów w bazie dla tego województwa.'
+          )}
         </p>
 
         {fields.length > 0 && (

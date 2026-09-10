@@ -76,6 +76,27 @@ function chmurka(page: Page) {
 }
 
 /**
+ * Czeka, aż chmurka zejdzie z ekranu — do wołania PRZED zrzutem kafelka,
+ * na który mogła nachodzić.
+ *
+ * PO CO. Chmurka żyje 4,5 sekundy (`lib/toast.tsx`) i pływa NAD treścią.
+ * Zrzut zrobiony w tym czasie łapie ją w przypadkowej klatce: raz widać dwa
+ * słowa, raz cztery, raz krzyżyk zamknięcia. `uspokoj()` tego nie ratuje —
+ * wyłącza animacje, ale nie cofa czasu, który minął od kliknięcia.
+ *
+ * Skutek bez tego czekania: wzorzec zmienia się z przebiegu na przebieg,
+ * raport melduje „zmieniony wygląd" i wzorzec przyjmuje się bez zastanowienia —
+ * czyli dokładnie ten sam mechanizm, przez który `kreator-krok-1.png` gnił
+ * przez trzy tygodnie, tylko napędzany zegarem sekundowym zamiast kalendarza.
+ *
+ * Asercja NA chmurkę zostaje tam, gdzie była: jej treść jest sednem tych
+ * testów. Czekamy dopiero na jej zniknięcie, tuż przed zrzutem.
+ */
+async function bezChmurki(page: Page) {
+  await expect(chmurka(page).first()).toBeHidden({ timeout: 15_000 });
+}
+
+/**
  * Sprząta po teście, który się zapisał na mecz.
  *
  * DLACZEGO TO MUSI BYĆ: baza jest JEDNA na cały przebieg, a te same testy
@@ -296,6 +317,7 @@ test.describe('dołączanie do meczu', () => {
     // Asercja idzie po podpisie paska, bo sam napis „Jesteś w składzie"
     // pada też w chmurce i w oknie po zapisie.
     await expect(tresc(page).getByText('Masz miejsce w składzie')).toBeVisible();
+    await bezChmurki(page);
     await uspokoj(page);
     const po = tresc(page).getByText('3 / 10')
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
@@ -327,6 +349,7 @@ test.describe('dołączanie do meczu', () => {
         .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
       await expect(karta).toBeVisible();
       await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
+      await bezChmurki(page);
       await uspokoj(page);
       await expect(karta).toHaveScreenshot('karta-rezerwy.png');
     }, () => wypiszSie(page));
@@ -649,9 +672,25 @@ test.describe('kreator meczu', () => {
     await page.goto('/wydarzenia/nowe');
     await expect(page.getByRole('button', { name: /dalej/i }).first()).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    // Krok 1 nie ma w sobie żadnej daty ani liczby z bazy, więc cała strona
-    // nadaje się na wzorzec.
-    await expect(page).toHaveScreenshot('kreator-krok-1.png', { fullPage: true });
+    // CAŁA STRONA, ale Z ZASŁONIĘTĄ DATĄ.
+    //
+    // Komentarz stał tu w brzmieniu „krok 1 nie ma w sobie żadnej daty ani
+    // liczby z bazy, więc cała strona nadaje się na wzorzec" — i było to
+    // prawdą do 2026-08-22, gdy krok pierwszy pytał o sport i miejsce.
+    // Po zamianie kroków (termin przed lokalizacją) na tym ekranie stoi pole
+    // daty z wartością domyślną JUTRO, a od 2026-09-09 także zdanie
+    // „czwartek, 10 września · jutro". Obie wartości zmieniają się z dnia na
+    // dzień, więc wzorzec przyjęty dowolnego dnia pada nazajutrz — i padał,
+    // wyglądając za każdym razem na świeżą zmianę wyglądu.
+    //
+    // `mask` zamiast rezygnacji z `fullPage`: reszta kroku (przełączniki,
+    // stepper, układ) dalej jest pod ochroną, a jedyne ruchome miejsce
+    // zostaje zamalowane. To jest ta sama zasada, którą nagłówek tego pliku
+    // formułuje jako „zrzuty obejmują FRAGMENTY bez daty".
+    await expect(page).toHaveScreenshot('kreator-krok-1.png', {
+      fullPage: true,
+      mask: [page.locator('[data-pole-daty]')],
+    });
   });
 });
 
@@ -696,6 +735,7 @@ test.describe('prośba o dołączenie', () => {
       // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
       // i ma zostać na ekranie.
       await expect(kafel.getByText(/dostaniesz\s+powiadomienie w Bojo/i)).toBeVisible();
+      await bezChmurki(page);
       await uspokoj(page);
       await expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png');
     }, async () => {
