@@ -353,6 +353,17 @@ bez dopisywania czegokolwiek. Zasada, którą to zapisuje: **maska Playwrighta
 jest obietnicą, którą da się złożyć i nigdy nie dotrzymać** — brak trafienia nie
 jest błędem, tylko ciszą, a komentarz obok brzmi identycznie w obu przypadkach.
 
+**Trzeci przypadek tej samej rodziny: chmurka na zrzucie.** `oczekuje-na-akceptacje.png`,
+`karta-rezerwy.png` i `licznik-po-dolaczeniu.png` robią zrzut kafelka zaraz po
+kliknięciu, które wywołuje chmurkę — a ta żyje 4,5 sekundy (`lib/toast.tsx`)
+i pływa NAD treścią. Zrzut łapał ją w przypadkowej klatce: raz dwa słowa, raz
+cztery, raz krzyżyk zamknięcia. `uspokoj()` tego nie ratuje, bo wyłącza
+animacje, a nie cofa czasu, który minął od kliknięcia. Wzorzec zmieniał się
+więc z przebiegu na przebieg — ten sam mechanizm co przy dacie, tylko napędzany
+zegarem sekundowym zamiast kalendarza. Poprawką jest `bezChmurki(page)` przed
+zrzutem; asercja NA treść chmurki zostaje tam, gdzie była, bo to ona jest
+sednem tych testów.
+
 ### Rozważone i odłożone
 
 - **`R-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który
