@@ -149,10 +149,19 @@ export default async function SportCategoryPage(
           </p>
         )}
 
+        {/* `data-zrzut-maskuj` zasłania SAMĄ LICZBĘ na zrzucie regresji
+            wizualnej (`e2e/wizualne.spec.ts`, przemiał po trasach). Liczba
+            rośnie z każdym importem katalogu, a zdanie wokół niej ma zostać
+            widoczne — to ono jest tu treścią wartą pilnowania. */}
         <p className="text-slate-500 text-sm mb-8">
-          {wszystkich > 0
-            ? `Znalezionych obiektów: ${wszystkich}${stron > 1 ? ` · strona ${strona} z ${stron}` : ''}`
-            : 'Brak obiektów w bazie.'}
+          {wszystkich > 0 ? (
+            <>
+              Znalezionych obiektów: <span data-zrzut-maskuj>{wszystkich}</span>
+              {stron > 1 ? ` · strona ${strona} z ${stron}` : ''}
+            </>
+          ) : (
+            'Brak obiektów w bazie.'
+          )}
         </p>
 
         {fields.length > 0 && (

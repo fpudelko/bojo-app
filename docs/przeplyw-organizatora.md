@@ -336,6 +336,23 @@ zobowiązaniem, nie opisem.** Gdy ekran przestaje spełniać warunek, na który
 powołuje się komentarz, wzorzec zaczyna kłamać — i wygląda przy tym na zwykłą
 zmianę wyglądu, czyli na coś, co się przyjmuje bez zastanowienia.
 
+**Druga maska, która nie maskowała nic — znaleziona przy sprawdzaniu pierwszej.**
+Przemiał po trasach w `wizualne.spec.ts` podaje `mask: [page.locator('[data-zrzut-maskuj]')]`
+z uzasadnieniem „liczniki z katalogu boisk rosną z każdym importem". Atrybutu
+`data-zrzut-maskuj` **nigdy nie było w `frontend/src`** — wszedł do scenariusza
+razem z komentarzem i od tego dnia malował zero pikseli. Licznik
+„Znalezionych obiektów: N" jechał na wzorzec bez osłony, a plik wyglądał na
+zabezpieczony. Dziś atrybut siedzi na samej liczbie (`boiska/[sport]`,
+`boiska/[sport]/[miasto]`, `boiska/woj/[wojewodztwo]`) — zdanie wokół niej
+zostaje widoczne, bo to ono jest treścią wartą pilnowania.
+
+Stąd `maskiZrzutow.test.ts`, który **zastępuje pilnowanie atrybutów z nazwy**:
+wyciąga selektory `data-*` ze wszystkich `mask:` w scenariuszach i sprawdza, że
+każdy występuje w kodzie aplikacji. Nowa maska jest objęta ochroną od razu,
+bez dopisywania czegokolwiek. Zasada, którą to zapisuje: **maska Playwrighta
+jest obietnicą, którą da się złożyć i nigdy nie dotrzymać** — brak trafienia nie
+jest błędem, tylko ciszą, a komentarz obok brzmi identycznie w obu przypadkach.
+
 ### Rozważone i odłożone
 
 - **`R-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który
