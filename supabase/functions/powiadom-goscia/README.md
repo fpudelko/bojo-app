@@ -1,5 +1,18 @@
 # Poczta do gościa bez konta — co trzeba zrobić RĘCZNIE
 
+> **STATUS: KANAŁ WŁĄCZONY OD 2026-09-10.** Wszystkie cztery kroki niżej są wykonane —
+> domena zweryfikowana, funkcja wdrożona, sekrety ustawione, `konfiguracja_poczty`
+> wypełniona. Sześć szablonów sprawdzone realną wysyłką, Resend przyjął komplet.
+> Instrukcja zostaje jako opis tego, co i po co jest ustawione — i na wypadek
+> odtwarzania konfiguracji od zera (np. drugie środowisko).
+>
+> ⚠️ Gdyby przyszło to robić ponownie: **`konfiguracja_poczty` MUSI być ostatnia.**
+> `wyslij_mail_do_goscia()` zapisuje ślad w dzienniku PRZED wysyłką, a `net.http_post`
+> jest asynchroniczne — więc przy złym sekrecie funkcja odpowie `401`, baza tego nie
+> zobaczy, a mail zostanie oznaczony jako wysłany i **nigdy nieponowiony**. Sekret
+> sprawdza się wywołaniem BEZPOŚREDNIM (nie dotyka dziennika), a konfigurację wpisuje
+> dopiero po `200`.
+
 Kod jest w repo i migracja `133` jest już w bazie, ale **żaden mail nie wyjdzie**,
 dopóki nie przejdziesz tych czterech kroków. I to jest zamierzone: bez
 konfiguracji baza nawet nie woła funkcji, a funkcja bez klucza kończy się

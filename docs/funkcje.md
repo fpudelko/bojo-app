@@ -2887,14 +2887,28 @@ gorsza niż jej brak.
 `pg_net` → funkcja brzegowa `powiadom-goscia` → Resend, **ciche wyjście przy braku
 konfiguracji** i cały korpus w `EXCEPTION WHEN OTHERS`. Kanał dodatkowy nie może wywrócić
 operacji podstawowej — a operacją podstawową jest tu między innymi odwołanie meczu.
-Idempotencja: `maile_goscia (uczestnik_id, powod, dzien)`.
+Idempotencja: `maile_wyslane (uczestnik_id, powod, dzien)` — tabela nazywała się
+`maile_goscia` do migracji `134`, która uogólniła ją na maile do KONT (powitanie).
 
-⚠️ **Kanał milczy, dopóki nie ma konfiguracji.** Wymaga wpisu w `konfiguracja_poczty`,
-sekretów funkcji brzegowej (`RESEND_API_KEY`, `BOJO_POCZTA_SEKRET`, `BOJO_NADAWCA`)
-i **weryfikacji domeny `bojo.pl` w Resend** (SPF + DKIM). Do tego czasu funkcja kończy 200
-i nie wysyła nic; nic się przez to nie psuje. **Sam `RESEND_API_KEY` nie wystarcza** —
+✅ **Kanał jest WŁĄCZONY od 2026-09-10.** Domena `bojo.pl` zweryfikowana w Resend
+(SPF + DKIM, `Domain verified` 2026-09-09), funkcja `powiadom-goscia` wdrożona
+z `--no-verify-jwt`, sekrety ustawione, `konfiguracja_poczty` wypełniona. Wszystkie sześć
+szablonów sprawdzone realną wysyłką na jeden adres — Resend przyjął komplet
+(`200 {"wyslane":true}`), a wyzwalacze (zapis gościa, odwołanie meczu, nowe konto)
+sprawdzone osobno na produkcji w transakcji zakończonej `ROLLBACK`.
+
+Do włączenia potrzeba było CZTERECH rzeczy naraz i **sam `RESEND_API_KEY` nie wystarcza** —
 sprawdzone na produkcji 2026-09-08: klucz był ustawiony, a `konfiguracja_poczty` pusta
-i funkcja `powiadom-goscia` w ogóle niewdrożona, więc kanał milczał.
+i funkcja w ogóle niewdrożona, więc kanał milczał. Komplet to: zweryfikowana domena,
+wdrożona funkcja, sekrety (`RESEND_API_KEY`, `BOJO_POCZTA_SEKRET`, `BOJO_NADAWCA`)
+i wpis w `konfiguracja_poczty`.
+
+⚠️ **`konfiguracja_poczty` musi być OSTATNIA.** `wyslij_mail_do_goscia()` zapisuje ślad
+w dzienniku PRZED wysyłką, a `net.http_post` jest asynchroniczne — więc gdyby sekret się
+nie zgadzał, funkcja brzegowa odpowiedziałaby `401`, baza by tego nie zobaczyła, a mail
+zostałby oznaczony jako wysłany i **nigdy nieponowiony**. Dlatego sekret sprawdza się
+wywołaniem BEZPOŚREDNIM (nie dotyka dziennika), a wpis do konfiguracji robi się dopiero
+po `200`.
 
 Od 2026-09-08 wszystkie funkcje wysyłają z **domeny kanonicznej** przez `BOJO_NADAWCA`
 (domyślnie `Bojo <noreply@bojo.pl>`); `send-invites` i `notify-game-alert` używały wcześniej
