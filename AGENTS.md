@@ -189,9 +189,26 @@ cd frontend && npm run build && npm run scenariusze
 
 Przechodzą przejścia realnego gracza na realnej bazie: dołączenie, rezerwa,
 dwa tryby miejsc dla bramkarzy, prośby o akceptację, płatności, obserwowanie,
-okno na telefonie. Dane z `supabase/seed_wizualne.sql` mają **daty na sztywno**,
-a zegar przeglądarki jest zamrożony (`page.clock`) — inaczej etykiety „Dzisiaj"
-i „za 2 dni" zmieniałyby zrzuty każdego dnia.
+okno na telefonie.
+
+**Zegar NIE jest zamrożony, a daty w seedzie NIE są na sztywno** — stało tu
+odwrotnie i było to nieprawdą w obie strony. `seed_wizualne.sql` liczy
+`CURRENT_DATE + 3`, `+ 4` …, czyli stałe ODSTĘPY od dnia uruchomienia, a
+`page.clock` zostało wycofane: GoTrue wystawia token ważny godzinę od
+PRAWDZIWEGO „teraz", więc przeglądarka z zegarem w 2030 uznawała go za wygasły
+i wylogowywała użytkownika — padły wszystkie scenariusze naraz.
+
+Skutek jest taki, że **daty w interfejsie zmieniają się z dnia na dzień**.
+Dlatego zrzut obejmuje FRAGMENT bez daty (licznik, okno zapisu, kolejka) albo
+zasłania ruchome miejsce maską — a nie całą stronę. Ochrona przed regresją
+siedzi w asercjach zachowania; zrzut dokłada do tego układ i kolory. Trzy
+wzorce zgniły już na tym po cichu (patrz
+[docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md), „Dopisane po
+merge'u"), bo każdy przebieg meldował je jako świeżą „zmianę wyglądu".
+
+**Maska Playwrighta nie zgłasza błędu, gdy nie trafi w nic** — po prostu maluje
+zero pikseli. Selektor `data-*` użyty w `mask:` musi więc istnieć w `frontend/src`;
+pilnuje tego `maskiZrzutow.test.ts` (Vitest, bez przeglądarki).
 
 **Testy klikalności (Playwright):**
 
