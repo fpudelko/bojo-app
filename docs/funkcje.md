@@ -2917,6 +2917,28 @@ i psuje reputację nadawcy dla pozostałych kanałów. Maile niosą też `reply_
 (`LEGAL.contactEmail`), więc odpowiedź realnie dociera: nadawcą jest `noreply@`, a w fazie
 zbierania pierwszych organizatorów odpowiedź na maila jest najtańszym kanałem opinii.
 
+**Maile logowania (reset hasła, magic link) też idą przez Resend — od 2026-09-11.**
+To DRUGI, niezależny kanał: nasza poczta wychodzi z bazy przez `pg_net`, a te wysyła
+GoTrue. Szły wbudowaną usługą Supabase, przy której panel sam ostrzega, że ma ostre limity
+i nie jest przeznaczona do produkcji — a link do logowania, który nie doszedł, kosztuje
+dokładnie tyle co brak konta. Dziś Authentication → Emails → SMTP Settings wskazuje
+`smtp.resend.com:465` (użytkownik `resend`, nadawca `noreply@bojo.pl`), więc obie drogi
+wychodzą z tej samej zweryfikowanej domeny i budują jedną reputację nadawcy.
+
+Konfiguracja jest w panelu, nie w repo — i ma jedną pułapkę wartą zapisania: pole hasła
+przyjmuje **wartość** klucza Resend, a nie nazwę sekretu `RESEND_API_KEY`. Sekrety funkcji
+brzegowych nie podstawiają się w ustawieniach Auth. Po zapisaniu hasła nie da się odczytać,
+więc pomyłki nie widać po wyglądzie pola.
+
+Sprawdzać trzeba wysyłką, ale **`200` z `/auth/v1/recover` niczego nie dowodzi** — usługa
+wbudowana odpowiada identycznie, a GoTrue przy złym haśle nie robi odwrotu do niej, tylko
+oddaje `500`. Rozstrzyga `auth_logs`, przez BRAK wpisu `{"event":"mail.send",
+"mail_from":"noreply@mail.app.supabase.io"}`: ten wiersz emituje wyłącznie mailer
+wbudowany, więc jego nieobecność przy udanym `/recover` znaczy „poszło relayem
+zewnętrznym". Drugi ślad to przeładowanie konfiguracji — `GOTRUE_RATE_LIMIT_EMAIL_SENT`
+skacze z `2/1h` na `30` dokładnie w chwili zapisania własnego SMTP-a, więc limitu nie
+trzeba podnosić ręcznie. Sprawdzone tą drogą 2026-09-11.
+
 ### Mail powitalny (migracja `134`)
 
 Tym samym kanałem idzie **powitanie po założeniu konta** — pierwsza wiadomość, jaką Bojo
