@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { clsx } from 'clsx';
-import { Zap, ListChecks, UsersRound, Wallet, MapPin, ArrowRight, type LucideIcon } from 'lucide-react';
+import { Zap, ListChecks, UsersRound, Wallet, MapPin, CalendarCheck, ArrowRight, type LucideIcon } from 'lucide-react';
 import { LANDING_CTA, LANDING_VALUES } from './content';
 import WczesnyEtapBadge from './WczesnyEtapBadge';
 
-const ICONS: Record<string, LucideIcon> = { Zap, ListChecks, UsersRound, Wallet, MapPin };
+const ICONS: Record<string, LucideIcon> = { Zap, ListChecks, UsersRound, Wallet, MapPin, CalendarCheck };
 
 export default function LandingValues() {
   return (

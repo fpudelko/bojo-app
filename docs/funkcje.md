@@ -1088,6 +1088,57 @@ Cztery zakładki w URL (`?tab=`): **Nadchodzące** (`nadchodzace`) / **Historia*
 z ukrytym scrollbarem, `shrink-0` na każdym przycisku) — cztery zakładki + dwie plakietki
 liczników nie mieściły się zawsze na 360px.
 
+### Zamknięcie zapisów — trzecia możliwość obok zmniejszania miejsc i odwołania
+
+**Organizator z 10 osobami na 14 miejsc mówi „gramy w tym składzie" jednym
+kliknięciem** (`Zamknij zapisy` w panelu „Zarządzaj wydarzeniem", migracja `141`).
+Od tej chwili nikt nowy nie wejdzie — ani do składu, ani na rezerwę — a mecz odbywa
+się normalnie.
+
+Dotąd były dwie drogi i obie kłamały. **Zmniejszenie liczby miejsc** zapisuje
+w meczu nieprawdę o boisku, nie da się go cofnąć bez pamiętania poprzedniej
+wartości, a przy osobnej puli dla bramkarzy rozjeżdża pułapy ról.
+**Odwołanie meczu** wysyła całemu składowi „mecz odwołany" (`139`, `140`) —
+komunikat dokładnie odwrotny do prawdy.
+
+**Co blokuje, a czego nie** — każde „nie" jest decyzją, nie przeoczeniem:
+
+| | |
+|---|---|
+| Zapis konta i gościa, do składu **i na rezerwę** | blokuje |
+| Organizator dopisujący gościa ręcznie | **nie** blokuje — to nie zapis, tylko działanie osoby, która zapisy zamknęła |
+| Oferta zwolnionego miejsca dla osoby z kolejki | **nie** blokuje — ona już jest w meczu, to dokończenie starego zapisu, nie nowy |
+| Wypisanie się | **nie** blokuje — zamknięte zapisy nie trzymają nikogo siłą |
+| Gość wracający po swój `claim_token` | **nie** blokuje — zapisał się przed zamknięciem, to jego wpis |
+
+Rezerwa jest blokowana celowo: człowiek stojący w kolejce do meczu
+rozstrzygniętego czeka na coś, co nie nadejdzie.
+
+**Granica siedzi w bazie, nie w interfejsie.** Warunek jest wewnątrz
+`dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — obie są `SECURITY DEFINER`
+i stanowią jedyne wejście do `event_participants` dla zapisującego się. Klucz
+`anon` jest jawny, więc schowany przycisk niczego nie broni. Dokładając trzecią
+drogę zapisu, warunek dopisz TAM.
+
+**Stan rozłączny z odwołaniem meczu.** `status = 'cancelled'` znaczy „nie gramy"
+i wysyła powiadomienia; `zapisy_zamkniete` znaczy „gramy w tym składzie" i nie
+wysyła nic — dla osoby, która JEST w składzie, nic się nie zmienia, więc mail
+byłby przerwaniem dnia bez treści. Wspólna kolumna ze stanem („otwarty /
+zamknięty / odwołany") wyglądałaby schludniej i kazałaby przepisać każdy warunek
+na odwołanie w bazie i w kodzie.
+
+**Pasek na stronie meczu jest SZARY** — nie czerwony (czerwień w tej aplikacji
+znaczy „coś poszło źle", a tu nic się nie zepsuło) i nie niebieski (zajęty przez
+„wymaga akceptacji" i „komplet", patrz `lib/komplet.ts`). Zamknięte zapisy to ani
+jedno, ani drugie: mecz nie musi być pełny, żeby organizator powiedział „gramy
+w tym składzie". Przycisk „Dołącz" wtedy znika — przycisk prowadzący do odmowy
+z bazy czyta się jak zepsuta aplikacja, nie jak decyzja organizatora.
+
+**Czego to jeszcze nie ma:** plakietki na kartach list (`/wydarzenia`, `/moje-gry`,
+`/grupy/[id]`). Cztery karty malują dziś stany własnym kodem — dokładnie ten
+bałagan, dla którego powstało `lib/komplet.ts` — więc piąty stan na wszystkich
+naraz to osobna zmiana. Kto wejdzie na mecz z listy, zobaczy pasek i przyczynę.
+
 **Swipe w bok przełącza zakładki** — tu i na `/grupy/[id]` oraz `/wydarzenia/[id]`
 (patrz te sekcje niżej), ten sam hak `useSwipeZakladek()` (`lib/useSwipeZakladek.ts`).
 Tylko dotyk, mysz na desktopie bez zmian (kolidowałaby z zaznaczaniem tekstu i z
@@ -2058,7 +2109,8 @@ czatu**, żadnych innych elementów), **Wynik** (drużyny i formularz wyniku —
 `platnosciSection`) i **Ustawienia** (panel „Zarządzaj wydarzeniem", **domyślnie
 rozwinięty** — dawniej zwinięty, bo był jedną z wielu kart na długiej stronie; teraz to
 cała treść osobnej zakładki, więc zwijanie na wejściu nie miało już sensu: widoczność,
-goście, edycja, powtórka, uprawnienia, odwołanie/przywrócenie, usunięcie). Stan zakładki
+goście, edycja, powtórka, uprawnienia, **zamknięcie/otwarcie zapisów**,
+odwołanie/przywrócenie, usunięcie). Stan zakładki
 w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **nie** przez
 `useSearchParams()` — ta trasa jest prerenderowana i ten hak wywala produkcyjny build
 (`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam

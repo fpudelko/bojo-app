@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-09 · migracja `140` · 56 tabel
+**Stan na:** 2026-09-11 · migracja `141` · 56 tabel
 
 ---
 
@@ -399,6 +399,32 @@ samą wysyłką (Resend, `html` + `text`). `frontend/src/app/opengraph-image.tsx
 z `NEXT_PUBLIC_SITE_URL` z tym samym fallbackiem co `layout.tsx`, `robots.ts` i `sitemap.ts`.
 Osobno, poza repo: maile logowania (reset hasła, magic link) idą od 2026-09-11 przez Resend
 jako custom SMTP w Supabase.
+### 2026-09-11 — Organizator zamyka zapisy, nie odwołując meczu
+
+PROBLEM: Organizator, który na kilka godzin przed meczem ma 10 osób na 14 miejsc i mówi
+„gramy w tym składzie", nie miał w Bojo czym tego powiedzieć. Zostawały dwie drogi i obie
+kłamały: zmniejszyć liczbę miejsc — czyli zapisać w meczu nieprawdę o boisku, nie do
+cofnięcia bez pamiętania, ile miejsc było, a przy osobnej puli dla bramkarzy rozjeżdżające
+pułapy ról; albo odwołać mecz — co wysyła całemu składowi wiadomość „mecz odwołany",
+dokładnie odwrotną do prawdy. Bez trzeciej możliwości ludzie dopisywali się do składu,
+który organizator uważał już za zamknięty, a on dowiadywał się o tym na boisku.
+
+ROZWIĄZANIE BOJO: Na stronie meczu organizator ma „Zamknij zapisy (gramy w tym składzie)".
+Od tej chwili nikt nowy nie wejdzie — ani do składu, ani na listę rezerwową — a mecz odbywa
+się normalnie: skład zostaje nietknięty, nikt nie dostaje żadnej wiadomości, strona meczu
+pokazuje szary pasek „Zapisy zamknięte" zamiast przycisku „Dołącz". Decyzja jest odwracalna
+jednym kliknięciem („Otwórz zapisy"). Zamknięcie NIE przeszkadza organizatorowi dopisać
+kogoś ręcznie i NIE odbiera miejsca osobom z kolejki rezerwowej: gdy ktoś ze składu się
+wypisze, zwolnione miejsce dalej idzie do pierwszej osoby z rezerwy, bo ona jest już
+w meczu. Gość zapisany przed zamknięciem dalej odzyskuje link do swojego wpisu.
+Zamknięcie zapisów jest stanem rozłącznym z odwołaniem meczu — odwołanie nadal znaczy
+„nie gramy" i nadal wysyła powiadomienia.
+
+MECHANIKA: migracja `141` (kolumna `events.zapisy_zamkniete`, strażniki w funkcjach
+`dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — granica jest w bazie, nie
+w interfejsie); `setZapisyZamkniete()` w `lib/events.ts` przez `zaktualizujJedenWiersz()`;
+przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; asercje
+w `supabase/test/zapisy-zamkniete.sql` i `src/__tests__/zapisyZamkniete.test.ts`.
 
 ### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
 
@@ -629,33 +655,3 @@ i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję�
 „Gram”), przebudowana polityka zapisu do składu. Po stronie aplikacji
 `confirmFromMaybe()` w `lib/events.ts` woła dziś funkcję bazy zamiast liczyć pojemność
 w przeglądarce. Asercje w `supabase/test/rls.sql`.
-
-### 2026-09-02 — Przypomnienia o meczu: pierwsze powiadomienia w Bojo, które wychodzą same
-
-PROBLEM: w całym Bojo nie było ani jednego powiadomienia opartego o czas — wszystkie były
-reakcją na czyjeś kliknięcie. Nikt nie dostawał „jutro grasz o 20:00", organizator nie
-dostawał „jutro mecz, brakuje 2 osób" (czyli tracił ostatni moment, w którym da się jeszcze
-kogoś dociągnąć albo odwołać), a po meczu nic nie prosiło o wynik ani o rozliczenie: na 122
-rozegrane mecze przypadało 6 zapisanych wyników i 45 nierozliczonych płatnych meczów. Bojo
-umie jedno i drugie — tylko nic o to nie prosiło we właściwej chwili. Przypominanie to jest
-ta czynność, którą organizator wykonuje ręcznie co tydzień na WhatsAppie, więc dopóki Bojo
-tego nie robiło, grupa na WhatsAppie zostawała. Osobno: „Powtórz mecz" żyło tylko na stronie
-meczu, więc cotygodniowy organizator miał do niego cztery kroki; a baza liczyła czas w UTC,
-choć mecze są zapisane czasem lokalnym, przez co mecz o 20:00 uchodził za rozpoczęty
-dopiero o 22:00.
-
-ROZWIĄZANIE BOJO: dzień przed meczem każdy, kto ma miejsce w składzie, dostaje
-przypomnienie z godziną i miejscem; organizator dostaje to samo plus liczbę brakujących
-osób. Dzień po meczu organizator dostaje prośbę o domknięcie — ale WYŁĄCZNIE wtedy, gdy
-faktycznie zostało coś do zrobienia (brak wyniku albo ktoś nie oddał pieniędzy).
-Powiadomienia idą tym samym kanałem co wszystkie inne, więc jadą też na telefon, i da się
-je wyłączyć osobno w ustawieniach. Do tego „Powtórz ten mecz" pojawia się wprost pod
-rozegranym meczem na liście „Moje gry → Historia", z datą wypełnioną z góry na najbliższy
-ten sam dzień tygodnia.
-
-MECHANIKA: migracje `129` (`wyslij_przypomnienia()`, typy `przypomnienie_o_meczu`
-i `po_meczu_do_domkniecia`, zadanie `pg_cron` `bojo-przypomnienia` o 16:00 UTC, idempotencja
-przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_claim`
-i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
-`components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
-`supabase/test/przypomnienia.sql`.

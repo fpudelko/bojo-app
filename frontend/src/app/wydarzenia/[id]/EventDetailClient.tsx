@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
+  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -45,6 +45,7 @@ import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
 import {
   getEvent, toBrakWiersza, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
+  setZapisyZamkniete,
   approveParticipant, rejectParticipant,
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
@@ -875,6 +876,14 @@ export default function EventDetailClient() {
     if (!chceDolaczyc || authLoading || loading || !user || !event) return;
     setChceDolaczyc(false);
     if (event.status === 'cancelled') return;
+    // Zamknięte zapisy zatrzymują to okno z tego samego powodu co odwołanie
+    // linijkę wyżej — i ten warunek jest tu potrzebny OSOBNO, mimo że pasek
+    // „Dołącz" ma już swój. Ta ścieżka pomija pasek całkowicie: `?dolacz=1`
+    // niesie intencję przez logowanie i otwiera okno samo. Bez tego warunku
+    // człowiek, który kliknął „Zaloguj się, aby dołączyć" chwilę przed
+    // zamknięciem zapisów, wraca po zalogowaniu do otwartego okna zapisu
+    // i dostaje odmowę z bazy dopiero po kliknięciu „Zapisz mnie".
+    if (event.zapisyZamkniete) return;
     let started = true;
     try {
       const [y, m, d] = event.date.split('-').map(Number);
@@ -1735,6 +1744,31 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
+  /**
+   * „Zamknij zapisy" — trzecia możliwość obok zmniejszania liczby miejsc
+   * i odwoływania meczu (migracja `141`).
+   *
+   * BEZ OKNA POTWIERDZENIA, w odróżnieniu od odwołania. Okno z listą
+   * konsekwencji (`usePotwierdzenie`) jest w tej aplikacji dla decyzji, które
+   * coś WYSYŁAJĄ albo których nie da się cofnąć jednym kliknięciem. Ta nie
+   * robi ani jednego, ani drugiego: nikomu nic nie przychodzi, nikt nie
+   * wypada ze składu, a przycisk obok otwiera zapisy z powrotem. Pytanie
+   * „czy na pewno" byłoby tu tarciem bez treści — a zamknięcie zapisów to
+   * decyzja podejmowana w biegu, na godzinę przed meczem.
+   */
+  const handleToggleZapisy = async () => {
+    setBusy(true);
+    try {
+      await setZapisyZamkniete(event.id, !event.zapisyZamkniete);
+      await load();
+      toast(event.zapisyZamkniete
+        ? 'Zapisy otwarte — znowu można dołączyć'
+        : 'Zapisy zamknięte. Skład zostaje, mecz się odbywa');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Błąd', 'error');
+    } finally { setBusy(false); }
+  };
+
   const handleToggleAllowGuestAdds = async () => {
     setBusy(true);
     try {
@@ -2190,9 +2224,15 @@ export default function EventDetailClient() {
   // „Dołącz bez konta" — jest już w składzie. Rozpoznajemy go po tokenie
   // zapamiętanym na urządzeniu (`mojWpisGoscia`); zamiast paska dostaje pasek
   // „to Ty" z wejściem do zarządzania swoim zapisem.
+  //
+  // `!event.zapisyZamkniete` dokładnie z tego samego powodu co `!isCancelled`
+  // linijkę wyżej: przycisk „Dołącz", który po kliknięciu daje odmowę z bazy
+  // („Zapisy na ten mecz są zamknięte"), jest gorszy niż brak przycisku —
+  // wygląda na zepsutą aplikację, a nie na decyzję organizatora. Odpowiedź na
+  // pytanie „dlaczego nie mogę dołączyć" stoi wtedy w banerze wyżej.
   const joinBarVisible = !(user && (myParticipation || myPendingRequest))
     && !mojTokenGoscia
-    && !eventStarted && !isCancelled;
+    && !eventStarted && !isCancelled && !event.zapisyZamkniete;
 
   // PASEK STANU DLA ZAPISANEGO — druga połowa tego, co `joinBarVisible` robi
   // dla niezapisanego, i dokładne dopełnienie warunku wyżej.
@@ -2720,6 +2760,37 @@ export default function EventDetailClient() {
               <Button variant="outline" size="sm" onClick={handleRestore} disabled={busy}
                 className="shrink-0 border-red-200 text-red-600 hover:bg-red-50">
                 <RotateCcw className="w-3.5 h-3.5" /> Przywróć
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* ── ZAPISY ZAMKNIĘTE ──
+            SZARY, nie niebieski i nie czerwony, i to nie jest obojętność przy
+            wyborze koloru. Czerwień znaczy w tej aplikacji „coś poszło źle" —
+            a tu nic się nie zepsuło. Niebieski jest zajęty przez „wymaga
+            akceptacji" i „komplet" (`lib/komplet.ts`, AGENTS.md), a zamknięte
+            zapisy to ani jedno, ani drugie: mecz nie musi być pełny, żeby
+            organizator powiedział „gramy w tym składzie". Szarość nie niesie
+            w tej aplikacji żadnego zarezerwowanego znaczenia i dlatego jest
+            tutaj właściwa.
+
+            Baner widzą WSZYSCY, nie tylko niezapisani. Uczestnik też musi to
+            wiedzieć — inaczej wyśle koledze link do meczu, do którego kolega
+            nie wejdzie. */}
+        {tab !== 'rozmowa' && !isCancelled && event.zapisyZamkniete && (
+          <div className="mx-3 flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-xl px-4 py-3">
+            <Lock className="w-5 h-5 text-slate-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-700">Zapisy zamknięte</p>
+              <p className="text-xs text-slate-500">
+                Organizator gra w tym składzie. Mecz się odbywa — nikt nowy już nie dołączy.
+              </p>
+            </div>
+            {canManageEvent && (
+              <Button variant="outline" size="sm" onClick={handleToggleZapisy} disabled={busy}
+                className="shrink-0">
+                <Unlock className="w-3.5 h-3.5" /> Otwórz
               </Button>
             )}
           </div>
@@ -3833,8 +3904,14 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── OBSERVING BANNER — RSVP "maybe": watching, not signed up ── */}
-        {user && myMaybe && !eventStarted && (
+        {/* ── OBSERVING BANNER — RSVP "maybe": watching, not signed up ──
+            `!isCancelled && !event.zapisyZamkniete` — obserwujący to jedyna
+            osoba, która widzi „Dołącz" POZA dolnym paskiem, więc warunek
+            z `joinBarVisible` go nie obejmuje. Bez tego przycisk zostaje na
+            meczu, do którego nie da się wejść, i kończy się odmową z bazy.
+            Odwołanie dołożone przy okazji: ta sama martwa ścieżka istniała tu
+            już wcześniej, tylko z drugiego powodu. */}
+        {user && myMaybe && !eventStarted && !isCancelled && !event.zapisyZamkniete && (
           <div className="px-4">
             {/* Stacked, not side-by-side: on a phone the two buttons next to
                 a two-line paragraph wrapped into a mess. */}
@@ -4295,6 +4372,24 @@ export default function EventDetailClient() {
                     className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
                   >
                     <ShieldCheck className="w-4 h-4" /> Uprawnienia
+                  </button>
+                )}
+                {/* „Zamknij zapisy" stoi NAD „Odwołaj mecz" świadomie: to jest
+                    ta łagodniejsza z dwóch decyzji i to po nią organizator
+                    najczęściej sięga („gramy w tym składzie"). Odwołanie
+                    zostawało dotąd jedynym widocznym sposobem powiedzenia
+                    „koniec zapisów" — i bywało używane właśnie tak, wysyłając
+                    całemu składowi komunikat odwrotny do prawdy. */}
+                {!eventStarted && !isCancelled && (
+                  <button
+                    onClick={handleToggleZapisy} disabled={busy}
+                    className="w-full flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-3 py-2"
+                  >
+                    {event.zapisyZamkniete ? (
+                      <><Unlock className="w-4 h-4" /> Otwórz zapisy</>
+                    ) : (
+                      <><Lock className="w-4 h-4" /> Zamknij zapisy (gramy w tym składzie)</>
+                    )}
                   </button>
                 )}
                 {!eventStarted && (!isCancelled ? (
