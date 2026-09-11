@@ -61,13 +61,18 @@ konkretnego gościa dopisał, nie tylko organizator. Zostaje:
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
 | **R-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **nie doręczy niczego, dopóki `bojo.pl` nie zostanie zweryfikowane w Resend** (SPF + DKIM) i nie zostanie wypełniona `konfiguracja_poczty`. Poza repo — wymaga dostępu do DNS i panelu Resend, patrz [strategia.md §3](./docs/strategia.md) | Supabase → SQL Editor + Resend |
-| **R-10** | **„Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada kolumnę i stan, więc czeka na osobną decyzję produktową | — |
-| **R-11** | **Przypomnienia jako pozycja na landingu.** Mają pokrycie od `129` i są jedyną rzeczą, której post na grupie nie umie w ogóle — ale landing z zasady nie wymienia kanałów (`content/zakazaneFrazy.ts`). Do rozstrzygnięcia RAZEM z tą regułą, nie obok niej | `components/home/landing/content.ts` |
 
 Piąta runda audytu (2026-09-09) zamknęła `R-1`…`R-8` oraz połowę `R-9` — pełna
 lista z uzasadnieniami w
 [docs/przeplyw-organizatora.md § Faza 11](./docs/przeplyw-organizatora.md).
 Numeracja `R-n`, bo `P-n` zajęła runda z 2026-09-08 (Faza 10), która szła równolegle.
+
+**`R-10` i `R-11` zamknięte 2026-09-11.** `R-10` — zamykanie zapisów bez odwoływania
+meczu (migracja `141`, strażniki w `dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()`,
+przełącznik na stronie meczu). `R-11` — landing dostał kafelek „Skład wie, że gra",
+**bez zmiany w `content/zakazaneFrazy.ts`**: reguła zakazuje nazywania KANAŁU, a wyróżnikiem
+wobec postu na grupie jest SKUTEK, nie kanał. Uzasadnienie zapisane przy samej regule,
+żeby nie wracało.
 
 Świadomie poza zakresem audytu i tych rund: trzeci poziom widoczności (§1.1),
 odmrażanie flag (§2), cron dla wygasania oferty zwolnionego miejsca, domknięcie RLS

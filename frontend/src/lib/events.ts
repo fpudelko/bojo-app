@@ -84,6 +84,9 @@ export function toEvent(row: any): EventItem {
     sportsCardDiscountGrosze: row.sports_card_discount_grosz ?? null,
     sportsCardOtherName: row.sports_card_other_name ?? undefined,
     status: (row.status ?? 'active') as EventStatus,
+    // `?? false` z tego samego powodu co przy `reserve_enabled`: kolumna doszła
+    // w `141` i mecze sprzed migracji mają zachowywać się dokładnie jak dotąd.
+    zapisyZamkniete: row.zapisy_zamkniete ?? false,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
     fieldAddress: row.field_address ?? undefined,
@@ -1118,6 +1121,29 @@ export function maNoweWydarzeniaWPobolizu(
 export async function setRequireApproval(eventId: string, value: boolean): Promise<void> {
   const { error } = await supabase.from('events').update({ require_approval: value }).eq('id', eventId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Zamyka albo otwiera zapisy na mecz (migracja `141`).
+ *
+ * TO NIE JEST ODWOŁANIE MECZU i nie wolno tych dwóch rzeczy zlewać: odwołanie
+ * ustawia `status` i wysyła całemu składowi powiadomienie „mecz odwołany"
+ * (`139`, `140`), zamknięcie zapisów nie wysyła nic i nikogo nie wypisuje.
+ *
+ * Ta funkcja jest WYGODĄ, NIE GRANICĄ. Prawdziwy strażnik siedzi w bazie,
+ * w `dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — klucz `anon` jest
+ * jawny, więc schowany przycisk niczego nie broni. Gdyby ktoś kiedyś dokładał
+ * trzecią drogę zapisu, warunek ma trafić TAM, a nie tutaj.
+ *
+ * `zaktualizujJedenWiersz`, nie gołe `update()`: niepasująca polityka RLS
+ * aktualizuje 0 wierszy i zwraca sukces, czyli przycisk „nic nie robi" bez
+ * śladu w konsoli.
+ */
+export async function setZapisyZamkniete(eventId: string, value: boolean): Promise<void> {
+  await zaktualizujJedenWiersz(
+    'events', eventId, { zapisy_zamkniete: value },
+    value ? 'Nie udało się zamknąć zapisów' : 'Nie udało się otworzyć zapisów',
+  );
 }
 
 /** Approve a pending join request. Decides reserve vs. regular based on the

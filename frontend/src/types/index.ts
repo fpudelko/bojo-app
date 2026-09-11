@@ -170,6 +170,13 @@ export interface EventItem {
   visibility: Visibility;
   createdAt: string;
   status: EventStatus;
+  /** Organizator zamknął zapisy (migracja `141`): nikt nowy nie wejdzie — ani
+   *  do składu, ani na rezerwę — ale mecz się odbywa i skład zostaje.
+   *
+   *  ROZŁĄCZNE ZE `status`. „Odwołany" znaczy „nie gramy" i wysyła
+   *  powiadomienia; „zapisy zamknięte" znaczy „gramy w tym składzie" i nie
+   *  wysyła nic. Warunek na jedno nigdy nie zastępuje warunku na drugie. */
+  zapisyZamkniete: boolean;
   customLocationName?: string;
   customAddress?: string;
   fieldAddress?: string; // address fetched from fields table (when field_id is set)

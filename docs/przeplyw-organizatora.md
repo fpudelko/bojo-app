@@ -379,16 +379,66 @@ zegarem sekundowym zamiast kalendarza. Poprawką jest `bezChmurki(page)` przed
 zrzutem; asercja NA treść chmurki zostaje tam, gdzie była, bo to ona jest
 sednem tych testów.
 
-### Rozważone i odłożone
+### Odłożone i domknięte (2026-09-11)
 
-- **`R-10` — „Zamknij zapisy" bez odwoływania meczu.** Organizator z 10/14, który
-  mówi „gramy w tym składzie", może dziś tylko zmniejszyć liczbę miejsc. Dokłada
-  kolumnę i stan, więc czeka na osobną decyzję.
-- **`R-11` — przypomnienia jako pozycja na landingu.** Mają pokrycie od `129`
-  i są jedyną rzeczą z listy, której post na grupie nie umie w ogóle — ale
-  landing z zasady nie wymienia kanałów. Do rozstrzygnięcia razem z regułą
-  z `zakazaneFrazy.ts`, nie obok niej.
+Obie pozycje czekały na decyzję produktową. Obie zapadły.
 
+**`R-10` — „Zamknij zapisy" bez odwoływania meczu. ZROBIONE (migracja `141`).**
+Organizator z 10/14 miał dotąd dwie drogi i obie kłamały: zmniejszyć liczbę
+miejsc (nieprawda o boisku, nie do cofnięcia bez pamiętania poprzedniej wartości,
+rozjazd pułapów przy osobnej puli bramkarzy) albo odwołać mecz (komunikat
+odwrotny do prawdy, wysyłany całemu składowi). Trzecia możliwość to jedno
+kliknięcie, odwracalne, milczące.
+
+Rozstrzygnięcia, które trzeba było podjąć po drodze, wszystkie w tę samą stronę —
+**zamknięcie zapisów blokuje wejście NOWEJ osoby i nic poza tym**: rezerwa jest
+blokowana (kolejka do meczu rozstrzygniętego to czekanie na coś, co nie nadejdzie),
+ale ręczne dopisanie gościa przez organizatora, oferta zwolnionego miejsca dla
+kogoś JUŻ stojącego w kolejce, wypisanie się i odzyskanie wpisu przez gościa —
+nie. Pełna tabela w [funkcje.md](./funkcje.md).
+
+Dwie rzeczy warte zapamiętania z wykonania, obie o tym, gdzie stoi warunek:
+
+- **Granica jest w bazie, nie w interfejsie.** Warunek siedzi wewnątrz
+  `dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — jedynych wejść do
+  `event_participants` dla zapisującego się. Nie w polityce RLS (obie funkcje są
+  `SECURITY DEFINER`, więc polityka i tak by ich nie dotyczyła) i tym bardziej
+  nie w schowanym przycisku.
+- **W funkcji gościa strażnik stoi PO gałęziach „masz już wpis".** Postawiony
+  trzy linijki wyżej zamieniłby „zamknięcie zapisów" w „odebranie ludziom dostępu
+  do własnego wpisu" — a ścieżka odzyskiwania `claim_token` nie ma w interfejsie
+  własnego ekranu błędu, więc nikt by tego nie zgłosił.
+
+Asercje w `supabase/test/zapisy-zamkniete.sql` puszczono też **przy zdjętym
+strażniku**, osobno dla konta i dla gościa. Pierwsze podejście ujawniło przy tym
+błąd nie w migracji, tylko w samym teście: pomocnik `_z_oczekuj_blad` wołał
+sprawdzany kod i podnosił własny wyjątek „a zapis PRZESZEDŁ" **wewnątrz** bloku
+`EXCEPTION WHEN OTHERS`. Ten wyjątek niósł w treści szukany fragment, więc łapał
+się we własną gałąź i przechodził jako sukces — a przy okazji wycofywał
+podtransakcję, przez co druga asercja („żaden nowy wiersz nie powstał") też nie
+miała czego zobaczyć. Cała suita była zielona przy całkowicie zdjętym strażniku.
+To jest ta sama rodzina co maski z poprzedniej rundy: **ochrona, która wygląda
+jak ochrona i nie broni niczego** — tyle że tym razem po stronie testu.
+
+**`R-11` — przypomnienia na landingu. ZROBIONE, bez zmiany reguły.**
+Zarzut wobec reguły z `content/zakazaneFrazy.ts` był mocny: przypomnienia są
+jedyną rzeczą, której post na grupie i ankieta na WhatsAppie nie umieją w ogóle,
+a landing sprzedaje organizatorowi dokładnie „to samo co post, tylko z tym, czego
+tam brakuje" ([strategia.md §0](./strategia.md)). Milczenie o jedynym prawdziwym
+wyróżniku jest dziwną strategią.
+
+Reguła mimo to została nietknięta, bo **zarzut i reguła mówią o dwóch różnych
+rzeczach**. Reguła zakazuje nazywania KANAŁU („push", „mail", samo słowo
+o powiadomieniach) i robi to z dobrego powodu: landing jest czysto sprzedażowy
+i nie ma w nim miejsca na kontekst „gdzie to przychodzi". Wyróżnikiem nie jest
+kanał, tylko SKUTEK — skład, który wie, że gra. Landing dostał więc kafelek
+„Skład wie, że gra" i ikonę kalendarza, nie dzwonka: dzwonek nazwałby kanał
+obrazkiem, skoro nie wolno go nazwać słowem.
+
+Wniosek ogólniejszy: **gdy reguła copy zderza się z funkcją, najpierw sprawdź,
+czy naprawdę zakazuje TEJ rzeczy.** Tutaj nie zakazywała — zakazywała gorszego
+sposobu opowiedzenia o niej. Uzasadnienie zapisane przy samej regule, nie tylko
+tutaj, bo tam trafi następna osoba, która będzie chciała ją złamać.
 
 ---
 
