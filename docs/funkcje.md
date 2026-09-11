@@ -2969,6 +2969,15 @@ i psuje reputację nadawcy dla pozostałych kanałów. Maile niosą też `reply_
 (`LEGAL.contactEmail`), więc odpowiedź realnie dociera: nadawcą jest `noreply@`, a w fazie
 zbierania pierwszych organizatorów odpowiedź na maila jest najtańszym kanałem opinii.
 
+⚠️ **`reply_to` ma tylko NASZA poczta — GoTrue nie wysyła tego nagłówka i nie ma
+w panelu pola, żeby go dodać.** Dlatego zdanie „Odpisz na tę wiadomość" wolno postawić
+wyłącznie w mailach z `powiadom-goscia`. W szablonach Auth (reset hasła, magic link,
+potwierdzenie i zmiana adresu) ta sama stopka była obietnicą bez pokrycia: odpowiedź szła
+na `noreply@bojo.pl`, czyli donikąd, i nikt by się o tym nie dowiedział — ani piszący, ani
+my. Szablony Auth podają więc adres kontaktowy wprost i mówią otwarcie, że odpowiedź na
+samą wiadomość nie dotrze. Zgłoszone przez właściciela, który kliknął „Odpowiedz"
+i zobaczył `noreply@` w polu odbiorcy.
+
 **Maile logowania (reset hasła, magic link) też idą przez Resend — od 2026-09-11.**
 To DRUGI, niezależny kanał: nasza poczta wychodzi z bazy przez `pg_net`, a te wysyła
 GoTrue. Szły wbudowaną usługą Supabase, przy której panel sam ostrzega, że ma ostre limity
