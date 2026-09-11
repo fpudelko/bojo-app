@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-09 · migracja `140` · 56 tabel
+**Stan na:** 2026-09-11 · migracja `141` · 56 tabel
 
 ---
 
@@ -370,6 +370,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-11 — Organizator zamyka zapisy, nie odwołując meczu
+
+PROBLEM: Organizator, który na kilka godzin przed meczem ma 10 osób na 14 miejsc i mówi
+„gramy w tym składzie", nie miał w Bojo czym tego powiedzieć. Zostawały dwie drogi i obie
+kłamały: zmniejszyć liczbę miejsc — czyli zapisać w meczu nieprawdę o boisku, nie do
+cofnięcia bez pamiętania, ile miejsc było, a przy osobnej puli dla bramkarzy rozjeżdżające
+pułapy ról; albo odwołać mecz — co wysyła całemu składowi wiadomość „mecz odwołany",
+dokładnie odwrotną do prawdy. Bez trzeciej możliwości ludzie dopisywali się do składu,
+który organizator uważał już za zamknięty, a on dowiadywał się o tym na boisku.
+
+ROZWIĄZANIE BOJO: Na stronie meczu organizator ma „Zamknij zapisy (gramy w tym składzie)".
+Od tej chwili nikt nowy nie wejdzie — ani do składu, ani na listę rezerwową — a mecz odbywa
+się normalnie: skład zostaje nietknięty, nikt nie dostaje żadnej wiadomości, strona meczu
+pokazuje szary pasek „Zapisy zamknięte" zamiast przycisku „Dołącz". Decyzja jest odwracalna
+jednym kliknięciem („Otwórz zapisy"). Zamknięcie NIE przeszkadza organizatorowi dopisać
+kogoś ręcznie i NIE odbiera miejsca osobom z kolejki rezerwowej: gdy ktoś ze składu się
+wypisze, zwolnione miejsce dalej idzie do pierwszej osoby z rezerwy, bo ona jest już
+w meczu. Gość zapisany przed zamknięciem dalej odzyskuje link do swojego wpisu.
+Zamknięcie zapisów jest stanem rozłącznym z odwołaniem meczu — odwołanie nadal znaczy
+„nie gramy" i nadal wysyła powiadomienia.
+
+MECHANIKA: migracja `141` (kolumna `events.zapisy_zamkniete`, strażniki w funkcjach
+`dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — granica jest w bazie, nie
+w interfejsie); `setZapisyZamkniete()` w `lib/events.ts` przez `zaktualizujJedenWiersz()`;
+przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; asercje
+w `supabase/test/zapisy-zamkniete.sql` i `src/__tests__/zapisyZamkniete.test.ts`.
+
 ### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
 
 PROBLEM: Odwołanie meczu miało w Bojo okno, które mówi wprost, kto dostanie powiadomienie
@@ -629,40 +656,3 @@ przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_cl
 i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
 `components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
 `supabase/test/przypomnienia.sql`.
-
-### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
-
-PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
-w Bojo, którego zapisany nie mógł cofnąć — usunąć go mógł wyłącznie organizator. Gość nie
-dostawał też żadnego powiadomienia: wyzwalacze odwołania meczu, zmiany warunków i usunięcia
-meczu pomijają wiersze bez konta, więc o odwołanym meczu nie dowiadywał się w ogóle
-i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do swojego wpisu
-bezpowrotnie. Skutki brał na siebie organizator: skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Skład meczu czyta w Bojo każdy (polityka `USING (true)`),
-a zapytanie o uczestników prosiło o wszystkie kolumny — więc adresy e-mail gości, telefony
-i tokeny przejęcia wpisu wychodziły publicznym API dla dowolnego meczu, także prywatnego.
-(3) Najcięższe decyzje organizatora (odwołanie meczu, usunięcie ze składu) potwierdzało
-systemowe okno przeglądarki, które mieści jedno zdanie — nie mówiło ani kto dostanie
-powiadomienie, ani że goście bez konta go nie dostaną, ani że odwołanie da się cofnąć.
-
-ROZWIĄZANIE BOJO: (1) link, który gość dostaje przy zapisie, jest teraz linkiem do JEGO
-zapisu: widzi stan meczu (z odwołaniem na samej górze), swoją pozycję w składzie, koszt
-i ma przycisk „Nie mogę grać — wypisz mnie", który zwalnia miejsce i przekazuje je pierwszej
-osobie z rezerwy. Link zostaje zapamiętany na urządzeniu, więc wracając na stronę meczu gość
-widzi „jesteś zapisany(a)" zamiast zaproszenia do zapisania się drugi raz, i może go sobie
-wysłać („Zapisz sobie link do swojego zapisu"). (2) publiczne API oddaje ze składu wyłącznie
-to, co widać na ekranie — imię, rola, rezerwa, płatność; e-maile, telefony i tokeny wychodzą
-z zasięgu ról API, a token przejęcia wpisu wydaje funkcja bazy wyłącznie organizatorowi
-i osobie, która gościa dopisała. (3) potwierdzenia decyzji to okna aplikacji z listą
-konsekwencji; przy odwołaniu meczu Bojo mówi wprost, ilu uczestników nie ma konta i nie
-dostanie powiadomienia, i daje drugą drogę: „Odwołaj i wyślij wiadomość" z gotowym tekstem
-na czat.
-
-MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
-`token_wpisu_goscia()`) i `128` (`wypisz_wpis_goscia()`, rozszerzone
-`podejrzyj_wpis_goscia()`); `lib/mojWpisGoscia.ts` (pamięć linku na urządzeniu),
-`lib/guestClaim.ts`, `lib/eventShare.ts` (`tekstOdwolania()`),
-`components/ui/OknoPotwierdzenia.tsx` + `lib/usePotwierdzenie.tsx`,
-`app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
-Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
-i „Gość zarządza swoim zapisem").

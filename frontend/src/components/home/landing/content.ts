@@ -107,6 +107,27 @@ export const LANDING_VALUES = [
       'pieniędzy nie przelewa.',
   },
   {
+    icon: 'CalendarCheck',
+    // `R-11`. To jest JEDYNA rzecz z tej listy, której post na grupie i ankieta
+    // na WhatsAppie nie umieją w ogóle — reszta jest tam możliwa, tylko
+    // niewygodna. Pokrycie w kodzie: przypomnienie dzień przed (migracja `129`)
+    // oraz wiadomości o zmianie terminu, warunków i odwołaniu (`139`, `140`).
+    //
+    // UWAGA NA BRZMIENIE — to nie jest ostrożność stylistyczna, tylko reguła
+    // z `content/zakazaneFrazy.ts`: landing NIE WYMIENIA KANAŁÓW (ani „push",
+    // ani „mail", ani samego słowa o powiadomieniach), bo jest czysto
+    // sprzedażowy i nie ma w nim miejsca na kontekst „gdzie to przychodzi".
+    // Tłumaczą to `/faq` i `/jak-dziala-bojo`, i tam wolno nazwać rzecz po
+    // imieniu. Dlatego ten kafelek mówi o SKUTKU („skład wie, że gra"),
+    // a nie o mechanizmie — i dlatego ma ikonę kalendarza, nie dzwonka.
+    // Dzwonek nazwałby kanał obrazkiem, skoro nie wolno go nazwać słowem.
+    title: 'Skład wie, że gra',
+    body:
+      'Dzień przed meczem odzywamy się do każdego zapisanego — nie musisz nikogo ' +
+      'obdzwaniać. Gdy zmienisz termin albo odwołasz mecz, cały skład dowiaduje się ' +
+      'w tej samej chwili.',
+  },
+  {
     icon: 'MapPin',
     // Katalog ma lokalizacje kompletne, ale szczegóły nie: nawierzchnia jest
     // wypełniona w ok. 37% wierszy, typ obiektu w niecałych 2%. Obiecywanie

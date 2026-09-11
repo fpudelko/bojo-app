@@ -105,7 +105,7 @@ describe('repeatEvent', () => {
     id: 'src-event', organizerId: 'organizer-uid', organizerName: 'Jan Kowalski',
     sport: 'piłka nożna', fieldName: 'Orlik Rataje', date: '2099-07-01', time: '18:00',
     endTime: '19:30', maxPlayers: 10, visibility: 'private', createdAt: '2099-01-01T00:00:00Z',
-    status: 'active', requireSmsConfirmation: false, teamMode: 'brak', trackPayments: false,
+    status: 'active', zapisyZamkniete: false, requireSmsConfirmation: false, teamMode: 'brak', trackPayments: false,
     showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
     teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
     maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,

@@ -19,6 +19,26 @@ export const ZAKAZANE_NA_LANDINGU = [
   // NA LANDINGU mimo to — z tego samego powodu co 'powiadom' niżej: landing jest
   // czysto sprzedażowy i nie wymienia kanałów w ogóle. Mówią o nich `/faq`
   // i `/jak-dziala-bojo`, gdzie jest miejsce na kontekst.
+  //
+  // ROZSTRZYGNIĘTE 2026-09-11 (`R-11`) — i to jest właśnie ta rozmowa, którą
+  // BACKLOG kazał odbyć RAZEM z tą regułą, a nie obok niej.
+  //
+  // Zarzut wobec reguły był mocny: przypomnienia są JEDYNĄ rzeczą, której post
+  // na grupie i ankieta na WhatsAppie nie umieją w ogóle, a landing sprzedaje
+  // organizatorowi dokładnie „to samo co post, tylko z tym, czego tam brakuje"
+  // (docs/strategia.md §0). Milczeć o jedynym prawdziwym wyróżniku to dziwna
+  // strategia.
+  //
+  // Reguła mimo to ZOSTAJE BEZ ZMIAN, bo zarzut i reguła mówią o dwóch różnych
+  // rzeczach. Reguła zakazuje nazywania KANAŁU; wyróżnikiem nie jest kanał,
+  // tylko SKUTEK — skład, który wie, że gra. Landing dostał więc kafelek
+  // „Skład wie, że gra" (`components/home/landing/content.ts`), mówiący o tym,
+  // co się dzieje, a nie czym to przychodzi. Ani jedna fraza z tej listy nie
+  // musiała ustąpić.
+  //
+  // Wniosek do zapamiętania: gdy reguła copy zderza się z funkcją, najpierw
+  // sprawdź, czy naprawdę zakazuje TEJ rzeczy. Tutaj nie zakazywała — zakazywała
+  // gorszego sposobu opowiedzenia o niej.
   'przypomnien',
   // Komentarz historyczny mówił "no event triggers notifications today" — to
   // dziś NIEPRAWDA (migracje 062/065/067/070/079 realnie wstawiają powiadomienia
