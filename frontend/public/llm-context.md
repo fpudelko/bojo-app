@@ -370,6 +370,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-11 — Maile Bojo wyglądają jak narzędzie, a nie jak notatka
+
+PROBLEM: Bojo wysyłało maile wyłącznie jako goły tekst. Odbiorca dostawał ścianę zdań
+z wklejonymi adresami URL, bez nagłówka i bez wyróżnionej akcji, a Gmail podkreślał
+na niebiesko przypadkowe fragmenty — w tym nazwę ulicy z pola „miejsce" — bo sam zgadywał,
+co jest odnośnikiem. Te maile są pierwszym kontaktem z Bojo dla gościa bez konta
+i pierwszą wiadomością po założeniu konta, więc działały przeciwko organizatorowi, który
+przyprowadził ludzi. Osobno: obrazek podglądu linku (Open Graph) podpisywał się
+technicznym adresem Vercela zamiast domeną `bojo.pl` — a to jest dokładnie to, co widzi
+kilkanaście osób, gdy organizator wkleja link do meczu na czacie.
+
+ROZWIĄZANIE BOJO: każdy mail wychodzi w dwóch wersjach naraz — graficznej i tekstowej.
+Wersja graficzna ma nagłówek z marką, kartę meczu (tytuł, data, miejsce, koszt) wyróżnioną
+zieloną krawędzią, jeden przycisk akcji na pełną szerokość ekranu telefonu oraz stopkę
+z domeną `bojo.pl` i zaproszeniem do odpowiedzi. Wersja tekstowa niesie tę samą treść dla
+czytników ekranu, klientów z wyłączonymi obrazkami i filtrów antyspamowych. Podpis
+na obrazku podglądu linku pokazuje domenę kanoniczną.
+
+MECHANIKA: `supabase/functions/powiadom-goscia/tresc.ts` — jedno źródło treści jako lista
+bloków (`akapit`, `mecz`, `lista`, `przycisk`, `link`, `drobne`), z którego `doTekstu()`
+i `doHtml()` składają obie wersje; dwa równoległe szablony rozjechałyby się przy pierwszej
+poprawce. Plik jest czysty (bez `Deno`), więc testuje go Vitest —
+`frontend/src/__tests__/mailePowiadomien.test.ts` sprawdza, że każdy z trzynastu powodów
+ma obie wersje, że HTML niesie każde zdanie z tekstu, że tytuł meczu od użytkownika wychodzi
+zescapowany i że w stopce nie ma adresu `vercel.app`. `powiadom-goscia/index.ts` zostaje
+samą wysyłką (Resend, `html` + `text`). `frontend/src/app/opengraph-image.tsx` liczy domenę
+z `NEXT_PUBLIC_SITE_URL` z tym samym fallbackiem co `layout.tsx`, `robots.ts` i `sitemap.ts`.
+Osobno, poza repo: maile logowania (reset hasła, magic link) idą od 2026-09-11 przez Resend
+jako custom SMTP w Supabase.
+
 ### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
 
 PROBLEM: Odwołanie meczu miało w Bojo okno, które mówi wprost, kto dostanie powiadomienie
@@ -629,40 +659,3 @@ przez `NOT EXISTS`) i `130` (`teraz_pl()`/`dzis_pl()`, poprawka `sync_reserve_cl
 i wyzwalaczy `079`/`097`); `lib/ustawieniaPowiadomien.ts`,
 `components/events/PowtorzZHistorii.tsx`, `app/moje-gry/page.tsx`. Testy:
 `supabase/test/przypomnienia.sql`.
-
-### 2026-09-02 — Gość bez konta zarządza swoim zapisem; koniec z e-mailem gościa w publicznym API
-
-PROBLEM: (1) Zapis „bez konta" (imię + e-mail, bez rejestracji) był JEDYNYM zapisem
-w Bojo, którego zapisany nie mógł cofnąć — usunąć go mógł wyłącznie organizator. Gość nie
-dostawał też żadnego powiadomienia: wyzwalacze odwołania meczu, zmiany warunków i usunięcia
-meczu pomijają wiersze bez konta, więc o odwołanym meczu nie dowiadywał się w ogóle
-i przyjeżdżał na boisko. Po zamknięciu okna „Utwórz profil" tracił link do swojego wpisu
-bezpowrotnie. Skutki brał na siebie organizator: skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Skład meczu czyta w Bojo każdy (polityka `USING (true)`),
-a zapytanie o uczestników prosiło o wszystkie kolumny — więc adresy e-mail gości, telefony
-i tokeny przejęcia wpisu wychodziły publicznym API dla dowolnego meczu, także prywatnego.
-(3) Najcięższe decyzje organizatora (odwołanie meczu, usunięcie ze składu) potwierdzało
-systemowe okno przeglądarki, które mieści jedno zdanie — nie mówiło ani kto dostanie
-powiadomienie, ani że goście bez konta go nie dostaną, ani że odwołanie da się cofnąć.
-
-ROZWIĄZANIE BOJO: (1) link, który gość dostaje przy zapisie, jest teraz linkiem do JEGO
-zapisu: widzi stan meczu (z odwołaniem na samej górze), swoją pozycję w składzie, koszt
-i ma przycisk „Nie mogę grać — wypisz mnie", który zwalnia miejsce i przekazuje je pierwszej
-osobie z rezerwy. Link zostaje zapamiętany na urządzeniu, więc wracając na stronę meczu gość
-widzi „jesteś zapisany(a)" zamiast zaproszenia do zapisania się drugi raz, i może go sobie
-wysłać („Zapisz sobie link do swojego zapisu"). (2) publiczne API oddaje ze składu wyłącznie
-to, co widać na ekranie — imię, rola, rezerwa, płatność; e-maile, telefony i tokeny wychodzą
-z zasięgu ról API, a token przejęcia wpisu wydaje funkcja bazy wyłącznie organizatorowi
-i osobie, która gościa dopisała. (3) potwierdzenia decyzji to okna aplikacji z listą
-konsekwencji; przy odwołaniu meczu Bojo mówi wprost, ilu uczestników nie ma konta i nie
-dostanie powiadomienia, i daje drugą drogę: „Odwołaj i wyślij wiadomość" z gotowym tekstem
-na czat.
-
-MECHANIKA: migracje `127` (uprawnienia kolumnowe na `event_participants`,
-`token_wpisu_goscia()`) i `128` (`wypisz_wpis_goscia()`, rozszerzone
-`podejrzyj_wpis_goscia()`); `lib/mojWpisGoscia.ts` (pamięć linku na urządzeniu),
-`lib/guestClaim.ts`, `lib/eventShare.ts` (`tekstOdwolania()`),
-`components/ui/OknoPotwierdzenia.tsx` + `lib/usePotwierdzenie.tsx`,
-`app/gracz/przejmij/[token]/PrzejmijClient.tsx`, `app/wydarzenia/[id]/EventDetailClient.tsx`.
-Granicy pilnują asercje w `supabase/test/rls.sql` (sekcje „Prywatne kolumny składu"
-i „Gość zarządza swoim zapisem").
