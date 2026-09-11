@@ -2153,7 +2153,7 @@ widziałaby przycisku dołączenia do meczu. **Karta „Po meczu" (`PoMeczuCard`
 uniwersalna** — żyje wyłącznie w zakładce Skład, żeby nie duplikować się z jej własną
 treścią (roster, zarządzanie graczami) na każdej innej zakładce.
 
-**Karta „Kiedy i gdzie" — pierwsza rzecz w zakładce Skład, od 2026-08-30.** Termin
+**Karta „Kiedy i gdzie" — na górze zakładki Skład, od 2026-08-30.** Termin
 i miejsce były wprawdzie w pasku nagłówka, ale w jednej linijce chipów, gdzie adres
 jest `truncate` (urywa się w połowie ulicy), a **dojazdu nie było wcale**: link
 „Nawiguj" siedział wyłącznie w okienku otwieranym po dotknięciu miejsca SPOZA
@@ -2170,6 +2170,16 @@ Odnośnik składa `linkDojazdu()` (`lib/utils.ts`): współrzędne mają pierwsz
 adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatima bywa
 przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
 linku prowadzącego donikąd.
+
+**Nad kartą stoi jednak „Prośby o dołączenie" — od 2026-09-11.** Karta z prośbami
+(organizator/delegat, mecz z `requireApproval`) była wcześniej POD „Kiedy i gdzie",
+więc na telefonie trzeba było przewinąć całą kartę z datą, adresem i przyciskami
+„Nawiguj"/„O boisku", żeby w ogóle zobaczyć, że ktoś czeka na akceptację. Zgłoszone
+wprost. Kolejność wynika z tego, co te dwie karty robią: prośba czeka na DECYZJĘ
+organizatora, a termin i adres są informacją, którą on zna na pamięć (potrzebuje jej
+gracz przed wyjściem z domu, i wciąż ma ją nad składem). To ta sama zasada, co przy
+plakietce z liczbą meczów na ikonie „Mecze" w dolnej nawigacji — akcja do wykonania
+nie może zniknąć pod informacją.
 
 **Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
 blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
