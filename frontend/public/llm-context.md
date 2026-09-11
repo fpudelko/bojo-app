@@ -526,8 +526,11 @@ uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wy
 w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
 (kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
 wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
-`supabase/test/poczta-goscia.sql`. Kanał milczy do czasu weryfikacji domeny `bojo.pl`
-w Resend.
+`supabase/test/poczta-goscia.sql`. Kanał działa od 2026-09-10: domena `bojo.pl`
+zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypełniona.
+Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
+powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
+(reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.
 
 ### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
 

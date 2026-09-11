@@ -86,29 +86,54 @@ ON CONFLICT (klucz) DO UPDATE SET wartosc = EXCLUDED.wartosc;
 
 Od tej chwili kanał jest włączony.
 
-## Osobno, ale w tej samej sprawie: SMTP dla Supabase
+## Osobno, ale w tej samej sprawie: SMTP dla Supabase — ✅ ZROBIONE 2026-09-11
 
-Panel Supabase (Authentication → Emails) pokazuje ostrzeżenie: **„You're using the
+Panel Supabase (Authentication → Emails) pokazywał ostrzeżenie: **„You're using the
 built-in email service. This service has rate limits and is not meant to be used for
-production apps.”** Tym kanałem idą dziś **reset hasła** i **magic link** — czyli dwie
+production apps.”** Tym kanałem szły **reset hasła** i **magic link** — czyli dwie
 drogi logowania w Bojo.
 
-To nie jest ten sam kanał co poczta z tego katalogu (nasza idzie przez Resend, prosto
-z bazy), ale dotyczy tego samego problemu: gracz, który nie dostanie linku do logowania,
-nie wejdzie do składu. Skoro `bojo.pl` i tak jest weryfikowane w Resend, warto przy okazji
-wpisać ten sam klucz jako **custom SMTP** w Supabase:
+To NIE jest ten sam kanał co poczta z tego katalogu (nasza idzie przez `pg_net` prosto
+z bazy, z pominięciem GoTrue), ale dotyczy tego samego problemu: gracz, który nie dostanie
+linku do logowania, nie wejdzie do składu. Dziś oba kanały wychodzą przez Resend
+i przez zweryfikowane `bojo.pl`:
 
-Authentication → Emails → SMTP Settings:
+Authentication → Emails → SMTP Settings — `Enable custom SMTP` włączone:
 
 ```
-Host: smtp.resend.com
-Port: 465
-User: resend
-Pass: <ten sam klucz API co RESEND_API_KEY>
-Sender: noreply@bojo.pl
+Host:   smtp.resend.com
+Port:   465
+User:   resend
+Pass:   <ten sam klucz API co RESEND_API_KEY>
+Sender: noreply@bojo.pl   (nazwa nadawcy: BOJO.PL)
 ```
 
-To osobne zadanie od czterech kroków wyżej — nie blokuje poczty do gości ani powitania.
+**Pole `Pass` przyjmuje WARTOŚĆ klucza, nie jego nazwę.** Sekrety funkcji brzegowych
+(`RESEND_API_KEY`) nie podstawiają się w ustawieniach Auth — to inny system. Wpisana tam
+nazwa zamiast wartości daje `535` przy każdej wysyłce, a użytkownik widzi wyłącznie
+„nie udało się wysłać", więc pomyłka jest praktycznie niewidoczna.
+
+Sprawdzenie, które to rozstrzyga — wywołanie GoTrue i odczyt dziennika, bez zgadywania
+po wyglądzie pola (hasła nie da się odczytać po zapisaniu):
+
+```sql
+SELECT net.http_post(
+  url     := 'https://<projekt>.supabase.co/auth/v1/recover',
+  headers := jsonb_build_object('Content-Type','application/json','apikey','<anon>'),
+  body    := jsonb_build_object('email','<adres z kontem>')
+);
+-- po chwili:
+SELECT status_code, content FROM net._http_response ORDER BY id DESC LIMIT 1;
+```
+
+`200 {}` znaczy, że serwer SMTP przyjął wiadomość — GoTrue przy odmowie SMTP-a oddaje
+`500`, więc to jest rozstrzygające. W `auth_logs` widać wtedy `user_recovery_requested`
+ze statusem `200`. Sprawdzone 2026-09-11: `200`, czas odpowiedzi ~1 s (realny handshake
+z `smtp.resend.com`).
+
+Limit wysyłek Auth zostaje osobnym ustawieniem (Authentication → Rate Limits) i po
+wpięciu własnego SMTP-a można go podnieść — wbudowany limit był dobrany pod wbudowaną
+usługę, nie pod Resend.
 
 ## Jak sprawdzić, że działa
 
