@@ -153,6 +153,29 @@ Supabase podnosi limit wysyłek z **2/h** (tyle daje usługa wbudowana) na **30/
 w chwili włączenia własnego SMTP-a — więc ten wpis datuje moment, w którym zmiana
 weszła w życie. Limitu nie trzeba podnosić ręcznie w Authentication → Rate Limits.
 
+## Z czego składa się ta funkcja
+
+| Plik | Co w nim jest |
+|---|---|
+| `tresc.ts` | CAŁA treść maili i oba renderery. Czysty TypeScript, bez `Deno` i bez sieci — dzięki temu testuje go Vitest razem z resztą repo (`frontend/src/__tests__/mailePowiadomien.test.ts`) |
+| `index.ts` | Wyłącznie wysyłka: sekret, Resend, nagłówki. Nic, czego nie da się sprawdzić bez sieci |
+
+**Maile wychodzą w DWÓCH wersjach naraz — graficznej i tekstowej — składanych
+z JEDNEGO opisu treści.** `tresc()` zwraca listę bloków (`akapit`, `mecz`, `lista`,
+`przycisk`, `link`, `drobne`), a `doTekstu()` i `doHtml()` decydują, jak je pokazać.
+Dwa szablony obok siebie rozjechałyby się przy pierwszej poprawce: ktoś zmienia zdanie
+w HTML-u i zapomina o tekście. Wersja tekstowa nie jest zapasem na wszelki wypadek —
+mail bez `text:` filtry antyspamowe traktują gorzej, a przy wyłączonych obrazkach
+i w czytniku ekranu bywa jedyną czytelną.
+
+Dopisując nowy powód: dorzuć `case` w `tresc()` i **nic więcej** — obie wersje powstaną
+same, a test przypilnuje, że żadna nie zniknęła.
+
+⚠️ **Zmiana w tym katalogu NIE wchodzi na produkcję przez merge.** Funkcję trzeba wdrożyć
+osobno: Actions → „Wdróż funkcje brzegowe" → *Run workflow*, albo push na gałąź
+`claude/funkcje/**` (ten drugi wyzwalacz istnieje dlatego, że token agenta nie ma prawa
+odpalać `workflow_dispatch` przez API).
+
 ## Jak sprawdzić, że działa
 
 Zapisz się na dowolny mecz jako gość bez konta, podając swój adres — powinien
