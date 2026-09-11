@@ -6,6 +6,7 @@ import L from 'leaflet';
 import { etykietaSkladu, type EventRow } from '@/lib/eventFilters';
 import { distanceKm } from '@/lib/geo';
 import { KOLOR_PASKA_KOMPLET } from '@/lib/komplet';
+import { KOLOR_PASKA_ZAPISY_ZAMKNIETE } from '@/lib/stanZapisow';
 import { sportColor, sportEmoji } from '@/lib/sports';
 import { matchWhenLabel } from '@/lib/eventDates';
 import { clusterDivIcon } from './mapIcons';
@@ -38,9 +39,9 @@ function eventIcon(row: EventRow, selected: boolean): L.DivIcon {
   const sklad = etykietaSkladu(event);
   const pigulkaSkladu = sklad
     ? `<span style="margin-top:2px;padding:1px 6px;border-radius:8px;background:${
-        sklad.komplet ? KOLOR_PASKA_KOMPLET : 'white'
+        sklad.zamkniete ? KOLOR_PASKA_ZAPISY_ZAMKNIETE : sklad.komplet ? KOLOR_PASKA_KOMPLET : 'white'
       };font-size:10px;font-weight:700;color:${
-        sklad.komplet ? 'white' : '#334155'
+        sklad.zamkniete || sklad.komplet ? 'white' : '#334155'
       };white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.22)">${sklad.tekst}</span>`
     : '';
   return L.divIcon({

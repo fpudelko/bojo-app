@@ -389,13 +389,19 @@ kogoś ręcznie i NIE odbiera miejsca osobom z kolejki rezerwowej: gdy ktoś ze 
 wypisze, zwolnione miejsce dalej idzie do pierwszej osoby z rezerwy, bo ona jest już
 w meczu. Gość zapisany przed zamknięciem dalej odzyskuje link do swojego wpisu.
 Zamknięcie zapisów jest stanem rozłącznym z odwołaniem meczu — odwołanie nadal znaczy
-„nie gramy" i nadal wysyła powiadomienia.
+„nie gramy" i nadal wysyła powiadomienia. Stan widać też BEZ wchodzenia w mecz: karty na
+listach i w wynikach wyszukiwania mają szarą plakietkę „Zapisy zamknięte" zamiast licznika
+wolnych miejsc, przycisk „Dołącz" na karcie jest wtedy nieaktywny, a pinezka na mapie niesie
+ten sam stan kolorem pigułki składu. Gdy mecz jest jednocześnie pełny i zamknięty, karta
+pokazuje „Zapisy zamknięte" — przy zamkniętych zapisach komplet nie wnosi już nic.
 
 MECHANIKA: migracja `141` (kolumna `events.zapisy_zamkniete`, strażniki w funkcjach
 `dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — granica jest w bazie, nie
 w interfejsie); `setZapisyZamkniete()` w `lib/events.ts` przez `zaktualizujJedenWiersz()`;
-przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; asercje
-w `supabase/test/zapisy-zamkniete.sql` i `src/__tests__/zapisyZamkniete.test.ts`.
+przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; wygląd stanu na
+kartach i pinezce w `lib/stanZapisow.ts` (jedno miejsce dla trzech kart i mapy, wzorem
+`lib/komplet.ts`); asercje w `supabase/test/zapisy-zamkniete.sql`,
+`src/__tests__/zapisyZamkniete.test.ts` i `src/__tests__/stanZapisow.test.ts`.
 
 ### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
 

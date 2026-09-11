@@ -8,7 +8,7 @@ import type { EventItem } from '@/types';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { eventDisplayTitle } from '@/lib/eventTitle';
-import { KOLOR_PASKA_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
+import { plakietkaStanuZapisow, kolorPaskaStanuZapisow, NAPIS_ZAPISY_ZAMKNIETE } from '@/lib/stanZapisow';
 import { timeUntil } from './EventListCard';
 
 /** Rich, conversion-focused game card for the public feed.
@@ -22,7 +22,10 @@ export function GameFeedCard({ event }: { event: EventItem }) {
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
   const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const barColor = full ? KOLOR_PASKA_KOMPLET : pct >= 80 ? '#f59e0b' : color;
+  // Zamknięte zapisy wygrywają z kompletem — uzasadnienie w `lib/stanZapisow.ts`.
+  const zamkniete = event.zapisyZamkniete;
+  const stanZapisow = plakietkaStanuZapisow(zamkniete, full);
+  const barColor = kolorPaskaStanuZapisow(zamkniete, full, pct >= 80 ? '#f59e0b' : color);
 
   // Date / time label
   let dayLabel = '';
@@ -97,8 +100,10 @@ export function GameFeedCard({ event }: { event: EventItem }) {
               <span className="text-2xl font-extrabold tabular-nums text-ink">{taken}/{max}</span>
               <span className="text-sm font-medium text-slate-500">graczy</span>
             </div>
-            {full ? (
-              <span className={`rounded-full px-3 py-1 text-sm font-bold ${PLAKIETKA_KOMPLET}`}>Komplet</span>
+            {stanZapisow ? (
+              <span className={`rounded-full px-3 py-1 text-sm font-bold ${stanZapisow.klasy}`}>
+                {stanZapisow.napis}
+              </span>
             ) : (
               <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
                 brak {left}
@@ -122,13 +127,15 @@ export function GameFeedCard({ event }: { event: EventItem }) {
 
       <div
         className={`mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-base font-bold transition-colors ${
-          full
+          full || zamkniete
             ? 'cursor-not-allowed bg-slate-100 text-slate-400'
             : 'bg-primary-700 text-white hover:bg-primary-800'
         }`}
       >
-        {full ? 'Komplet' : 'Dołącz'}
-        {!full && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+        {/* Kolejność ma znaczenie: zamknięcie mówi więcej niż komplet i jest
+            prawdziwe także wtedy, gdy miejsca zostały. */}
+        {zamkniete ? NAPIS_ZAPISY_ZAMKNIETE : full ? 'Komplet' : 'Dołącz'}
+        {!full && !zamkniete && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
       </div>
     </Link>
   );

@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock, MapPin, Navigation, Users } from 'lucide-react';
 import type { EventItem } from '@/types';
-import { PASEK_KOMPLET, PLAKIETKA_KOMPLET } from '@/lib/komplet';
+import { plakietkaStanuZapisow, pasekStanuZapisow } from '@/lib/stanZapisow';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { squadSuffix } from '@/lib/eventTitle';
@@ -58,7 +58,11 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
   const max = event.maxPlayers ?? 0;
   const isFull = max > 0 && taken >= max;
   const fillPct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
-  const fillColor = isFull ? PASEK_KOMPLET : fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600';
+  // Zamknięte zapisy wygrywają z kompletem — uzasadnienie w `lib/stanZapisow.ts`.
+  const stanZapisow = plakietkaStanuZapisow(event.zapisyZamkniete, isFull);
+  const fillColor = pasekStanuZapisow(
+    event.zapisyZamkniete, isFull, fillPct >= 80 ? 'bg-amber-400' : 'bg-primary-600',
+  );
   const until = timeUntil(event.date, event.time ?? undefined);
 
   const location = eventLocation(event).primary;
@@ -122,8 +126,10 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${fillColor} transition-all`} style={{ width: `${fillPct}%` }} />
               </div>
-              {isFull ? (
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${PLAKIETKA_KOMPLET}`}>Komplet</span>
+              {stanZapisow ? (
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${stanZapisow.klasy}`}>
+                  {stanZapisow.napis}
+                </span>
               ) : (
                 <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-slate-600">
                   <Users className="w-3.5 h-3.5 text-slate-400" />

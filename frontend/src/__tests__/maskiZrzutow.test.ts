@@ -50,18 +50,22 @@ function zrodlaAplikacji(): string {
 }
 
 /**
- * Selektory atrybutowe z `mask: [...]` — tylko `data-*`, bo tylko takie
- * dopisujemy do JSX wyłącznie na potrzeby zrzutów. Selektory klasowe
- * (`.leaflet-tile-pane`) pochodzą z bibliotek i nie ma ich czego szukać w `src`.
+ * Wszystkie selektory `data-*` użyte w scenariuszu — nie tylko te w `mask:`.
+ *
+ * ZAKRES ROZSZERZONY 2026-09-11. Pierwsza wersja czytała wyłącznie `mask: [...]`,
+ * bo taki był wtedy jedyny sposób użycia atrybutu „na potrzeby zrzutu". Potem
+ * doszedł drugi — `ukryjPaskiDolne()` chowa `[data-pasek-dolny]` przez
+ * `addStyleTag` — i ten sam cichy rozjazd wróciłby w nowym miejscu: reguła CSS
+ * dla selektora, którego nikt nie pasuje, też nie jest błędem. Czytamy więc
+ * KAŻDE `[data-…]` w pliku scenariusza, niezależnie od tego, czym jest podane.
+ *
+ * Tylko `data-*`: selektory klasowe (`.leaflet-tile-pane`) pochodzą z bibliotek
+ * i nie ma ich czego szukać w `src`.
  */
 function maskowaneAtrybuty(kod: string): string[] {
   const znalezione = new Set<string>();
-  // `mask:` bierze tablicę, która może stać w jednej linii albo w kilku.
-  const bloki = kod.match(/mask:\s*\[[^\]]*\]/g) ?? [];
-  for (const blok of bloki) {
-    for (const trafienie of blok.match(/\[data-[a-z0-9-]+\]/g) ?? []) {
-      znalezione.add(trafienie.slice(1, -1));
-    }
+  for (const trafienie of kod.match(/\[data-[a-z0-9-]+\]/g) ?? []) {
+    znalezione.add(trafienie.slice(1, -1));
   }
   return Array.from(znalezione);
 }
@@ -79,22 +83,24 @@ describe('maski zrzutów', () => {
     const atrybuty = maskowaneAtrybuty(readFileSync(plik, 'utf8'));
     if (atrybuty.length === 0) continue;
 
-    it(`${nazwa}: każdy maskowany atrybut istnieje w kodzie aplikacji`, () => {
+    it(`${nazwa}: każdy selektor data-* istnieje w kodzie aplikacji`, () => {
       for (const atrybut of atrybuty) {
         expect(
           src.includes(atrybut),
-          `\`${nazwa}\` maskuje [${atrybut}], ale tego atrybutu nie ma w frontend/src — ` +
-            'maska maluje zero pikseli i niczego nie zasłania.',
+          `\`${nazwa}\` używa [${atrybut}], ale tego atrybutu nie ma w frontend/src — ` +
+            'selektor, który nie trafia w nic, nie jest w Playwrighcie błędem: maska maluje ' +
+            'zero pikseli, a reguła CSS nie dotyczy niczego.',
         ).toBe(true);
       }
     });
   }
 
-  it('pilnuje obu masek, które dziś istnieją', () => {
+  it('pilnuje wszystkich selektorów, które dziś istnieją', () => {
     // Asercja na samą LISTĘ, nie na jej zawartość: gdyby ktoś usunął maskę
     // razem z atrybutem, pętla wyżej przeszłaby na pusto i nikt by nie
     // zauważył, że ochrona zniknęła.
     const wszystkie = new Set(pliki.flatMap((p) => maskowaneAtrybuty(readFileSync(p, 'utf8'))));
-    expect(Array.from(wszystkie).sort()).toEqual(['data-pole-daty', 'data-zrzut-maskuj']);
+    expect(Array.from(wszystkie).sort())
+      .toEqual(['data-pasek-dolny', 'data-pole-daty', 'data-zrzut-maskuj']);
   });
 });

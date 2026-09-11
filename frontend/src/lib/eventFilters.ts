@@ -97,12 +97,17 @@ export function freeSpots(e: Pick<EventItem, 'maxPlayers' | 'participantsCount'>
  * decyzja właściciela w nagłówku tamtego pliku).
  */
 export function etykietaSkladu(
-  e: Pick<EventItem, 'maxPlayers' | 'participantsCount'>,
-): { tekst: string; komplet: boolean } | null {
+  e: Pick<EventItem, 'maxPlayers' | 'participantsCount'> & { zapisyZamkniete?: boolean },
+): { tekst: string; komplet: boolean; zamkniete: boolean } | null {
   if (e.participantsCount == null || e.maxPlayers == null) return null;
   return {
     tekst: `${e.participantsCount}/${e.maxPlayers}`,
     komplet: e.participantsCount >= e.maxPlayers,
+    // Pinezka jest jedynym miejscem, gdzie mecz widać BEZ karty, więc i tu
+    // musi być widać, że zapisy są zamknięte (migracja `141`). Napisu nie
+    // dokładamy — pinezka ma na niego jakieś 90 pikseli; niesie to kolor
+    // pigułki, tak samo jak przy komplecie.
+    zamkniete: e.zapisyZamkniete === true,
   };
 }
 

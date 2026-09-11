@@ -562,6 +562,17 @@ ponownie i zacommituj wynik.
   o dołączenie" schodzi wtedy do dolnego rogu ikony: akcja do wykonania nie może
   zniknąć pod informacją.
 
+  **Szary (`slate-*`) — „ta droga jest zamknięta, nic się nie zepsuło".** Dziś
+  jedno zastosowanie: plakietka i pasek „Zapisy zamknięte" (`lib/stanZapisow.ts`,
+  migracja `141`). Wpisane tu, bo wybór był ŚWIADOMY i łatwo go cofnąć przez
+  nieuwagę: czerwień odpada, bo znaczy „coś poszło źle" (a tu wszystko działa),
+  błękit odpada, bo jest już zajęty przez „wymaga akceptacji" ORAZ komplet —
+  a zamknięte zapisy nie są ani jednym, ani drugim. Mecz **nie musi być pełny**,
+  żeby organizator powiedział „gramy w tym składzie", więc to jest dokładnie ta
+  kolizja, przed którą ostrzega akapit o komplecie wyżej. Gdy oba stany
+  zachodzą naraz, **zamknięcie wygrywa** — czytający kartę pyta „czy mogę
+  wejść", a wtedy komplet nie wnosi już nic.
+
   Nowy wskaźnik/plakietka w UI ma sprawdzić, czy mieści się w jednym z tych trzech
   znaczeń, zanim sięgnie po `pink-*`/`blue-*`/`orange-*` — i **nie** używać ich do
   niczego innego (inny kolor niż zwykle też jest sygnałem). Przy dodawaniu nowego

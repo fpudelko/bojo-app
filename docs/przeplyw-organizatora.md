@@ -379,6 +379,35 @@ zegarem sekundowym zamiast kalendarza. Poprawką jest `bezChmurki(page)` przed
 zrzutem; asercja NA treść chmurki zostaje tam, gdzie była, bo to ona jest
 sednem tych testów.
 
+**Czwarty przypadek: pasek przyklejony do dołu ekranu (2026-09-11).** Poprawka
+z chmurką była NIEPEŁNA i wyszło to przy pierwszym uczciwym przebiegu bez
+etykiety — `oczekuje-na-akceptacje.png` znowu się ruszyło. Treść kafelka
+identyczna; różniła się wyłącznie **wysokość zasłonięcia** przez przyklejony
+pasek stanu („Czekasz na akceptację"): raz urywał kafelek na „Gdy to zrobi,",
+raz linijkę niżej.
+
+Mechanizm jest ogólniejszy, niż wyglądał przy chmurce. **Zrzut ELEMENTU to
+w Playwrighcie wycinek strony w prostokącie tego elementu, więc łapie wszystko,
+co jest NA NIM narysowane** — dolną nawigację, pasek stanu, pasek „Dołącz".
+Ile z kafelka przykryją, zależy od pozycji przewinięcia, czyli od rzeczy,
+której żaden z tych testów nie ustala. Chmurka była pierwszą taką nakładką,
+ale nie jedyną; po jej usunięciu druga wyszła spod spodu.
+
+Poprawką jest `ukryjPaskiDolne(page)` przed zrzutem kafelka: chowa wszystko
+z atrybutem `data-pasek-dolny`. **Chowa, a nie maskuje** — maska zamalowałaby
+prostokąt paska, czyli także ten kawałek kafelka, który pasek zasłania.
+`display: none` na elemencie `fixed` nie przesuwa treści, więc kafelek nie
+drgnie; zmienia się wyłącznie to, co jest na nim narysowane.
+
+Funkcja **pada, gdy nie znajdzie ani jednego paska** — bo cichy brak trafienia
+to dokładnie ta pułapka, przez którą maska `[data-zrzut-maskuj]` „działała"
+tygodniami, nie istniejąc w kodzie.
+
+Wniosek do zapamiętania: **każdy zrzut elementu leżącego w treści strony jest
+zrzutem tego elementu RAZEM z tym, co na nim pływa.** Pierwsza znaleziona
+nakładka rzadko jest ostatnią.
+
+
 ### Odłożone i domknięte (2026-09-11)
 
 Obie pozycje czekały na decyzję produktową. Obie zapadły.
