@@ -2928,9 +2928,16 @@ wychodzą z tej samej zweryfikowanej domeny i budują jedną reputację nadawcy.
 Konfiguracja jest w panelu, nie w repo — i ma jedną pułapkę wartą zapisania: pole hasła
 przyjmuje **wartość** klucza Resend, a nie nazwę sekretu `RESEND_API_KEY`. Sekrety funkcji
 brzegowych nie podstawiają się w ustawieniach Auth. Po zapisaniu hasła nie da się odczytać,
-więc pomyłki nie widać po wyglądzie pola — rozstrzyga dopiero wywołanie
-`/auth/v1/recover` i status w `net._http_response` (`200` = SMTP przyjął, `500` = odmówił)
-oraz `user_recovery_requested` w `auth_logs`. Sprawdzone tą drogą 2026-09-11.
+więc pomyłki nie widać po wyglądzie pola.
+
+Sprawdzać trzeba wysyłką, ale **`200` z `/auth/v1/recover` niczego nie dowodzi** — usługa
+wbudowana odpowiada identycznie, a GoTrue przy złym haśle nie robi odwrotu do niej, tylko
+oddaje `500`. Rozstrzyga `auth_logs`, przez BRAK wpisu `{"event":"mail.send",
+"mail_from":"noreply@mail.app.supabase.io"}`: ten wiersz emituje wyłącznie mailer
+wbudowany, więc jego nieobecność przy udanym `/recover` znaczy „poszło relayem
+zewnętrznym". Drugi ślad to przeładowanie konfiguracji — `GOTRUE_RATE_LIMIT_EMAIL_SENT`
+skacze z `2/1h` na `30` dokładnie w chwili zapisania własnego SMTP-a, więc limitu nie
+trzeba podnosić ręcznie. Sprawdzone tą drogą 2026-09-11.
 
 ### Mail powitalny (migracja `134`)
 

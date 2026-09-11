@@ -126,14 +126,32 @@ SELECT net.http_post(
 SELECT status_code, content FROM net._http_response ORDER BY id DESC LIMIT 1;
 ```
 
-`200 {}` znaczy, że serwer SMTP przyjął wiadomość — GoTrue przy odmowie SMTP-a oddaje
-`500`, więc to jest rozstrzygające. W `auth_logs` widać wtedy `user_recovery_requested`
-ze statusem `200`. Sprawdzone 2026-09-11: `200`, czas odpowiedzi ~1 s (realny handshake
-z `smtp.resend.com`).
+⚠️ **`200` NIE wystarcza i łatwo się na tym przejechać.** Znaczy tylko tyle, że
+JAKIŚ mailer przyjął wiadomość — usługa wbudowana odpowiada dokładnie tak samo.
+Sprawdzone na własnej skórze 2026-09-11: `200` przyszło, gdy ustawienia były wpisane,
+ale NIEZAPISANE, i maila wysłał Supabase. GoTrue nie robi odwrotu do usługi wbudowanej
+przy złym haśle — wtedy jest `500` — więc `200` odróżnia wyłącznie „wysłane" od
+„nie wysłane", nigdy „przez kogo".
 
-Limit wysyłek Auth zostaje osobnym ustawieniem (Authentication → Rate Limits) i po
-wpięciu własnego SMTP-a można go podnieść — wbudowany limit był dobrany pod wbudowaną
-usługę, nie pod Resend.
+Rozstrzyga dopiero `auth_logs`, i to przez BRAK wpisu:
+
+```
+{"event":"mail.send","mail_from":"noreply@mail.app.supabase.io","mail_type":"recovery"}
+```
+
+Ten wiersz emituje wyłącznie mailer wbudowany. **Jest — idzie usługą wbudowaną. Nie ma,
+a `/recover` skończyło się `200` — poszło relayem zewnętrznym.** To samo widać na
+odebranym mailu: nadawca `noreply@bojo.pl` (BOJO.PL) zamiast `noreply@mail.app.supabase.io`.
+
+Drugi, niezależny ślad zapisania ustawień — przeładowanie konfiguracji w `auth_logs`:
+
+```
+env GOTRUE_RATE_LIMIT_EMAIL_SENT changed, updating Email limiter from 2/1h to 30
+```
+
+Supabase podnosi limit wysyłek z **2/h** (tyle daje usługa wbudowana) na **30/h**
+w chwili włączenia własnego SMTP-a — więc ten wpis datuje moment, w którym zmiana
+weszła w życie. Limitu nie trzeba podnosić ręcznie w Authentication → Rate Limits.
 
 ## Jak sprawdzić, że działa
 
