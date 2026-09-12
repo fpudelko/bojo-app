@@ -210,6 +210,13 @@ merge'u"), bo każdy przebieg meldował je jako świeżą „zmianę wyglądu".
 zero pikseli. Selektor `data-*` użyty w `mask:` musi więc istnieć w `frontend/src`;
 pilnuje tego `maskiZrzutow.test.ts` (Vitest, bez przeglądarki).
 
+**Dopisując typ powiadomienia w migracji, dopisz go w `lib/ikonyPowiadomien.ts`
+i `lib/ustawieniaPowiadomien.ts`** — inaczej ląduje pod szarym dzwonkiem
+z podpisem „Powiadomienie" i nie da się go wyłączyć na telefonie. Trzy listy
+(typy wstawiane przez bazę, ikony, ustawienia push) rozjechały się już
+kilkukrotnie; pilnuje tego `typyPowiadomien.test.ts` (Vitest, czyta
+`supabase/migrations/*.sql`).
+
 **Testy klikalności (Playwright):**
 
 ```bash
