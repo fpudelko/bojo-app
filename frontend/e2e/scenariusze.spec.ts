@@ -97,6 +97,70 @@ async function bezChmurki(page: Page) {
 }
 
 /**
+ * Chowa wszystko, co przykleja się do DOŁU ekranu — TYLKO na czas wykonania
+ * `zrzut`, a zaraz potem PRZYWRACA. Do owijania jednego zrzutu kafelka
+ * leżącego w treści strony: `await zaslonPaskamiDolnymi(page, () => expect(X)
+ * .toHaveScreenshot('Y.png'))`.
+ *
+ * PO CO, SKORO JEST JUŻ `bezChmurki`. Chmurka była pierwszą pływającą nakładką
+ * wchodzącą w zrzuty; po jej usunięciu wyszła druga, schowana dotąd za nią.
+ * Zrzut ELEMENTU to w Playwrighcie wycinek strony w prostokącie tego elementu —
+ * więc łapie też wszystko, co jest NA NIM narysowane. Pasek przyklejony do dołu
+ * (dolna nawigacja, pasek stanu „Czekasz na akceptację", pasek „Dołącz") nachodzi
+ * na kafelek tym bardziej, im niżej kafelek wypadł — a to zależy od pozycji
+ * przewinięcia, czyli od rzeczy, której żaden test tutaj nie ustala.
+ *
+ * Objaw: `oczekuje-na-akceptacje.png` raz urywał się na „Gdy to zrobi,", raz
+ * linijkę niżej. Treść kafelka IDENTYCZNA, różna tylko wysokość zasłonięcia —
+ * a raport melduje to jako „zmienioną stronę" i wzorzec przyjmuje się bez
+ * zastanowienia. Ten sam mechanizm co przy chmurce i przy dacie w kreatorze.
+ *
+ * DLACZEGO CHOWAMY, A NIE MASKUJEMY. Maska zamalowałaby prostokąt paska —
+ * czyli także ten kawałek KAFELKA, który pasek zasłania. Schowanie paska
+ * odsłania kafelek w całości, a pasek ma własne pokrycie tam, gdzie jest
+ * tematem zrzutu.
+ *
+ * DLACZEGO SCHOWANIE JEST TYMCZASOWE, NIE NA RESZTĘ TESTU. Pierwsza wersja
+ * (`ukryjPaskiDolne`) chowała pasek NA STAŁE i to był realny błąd, złapany
+ * przez bramkę scenariuszy, nie teoria: pasek „Dołącz" (`joinBarVisible`) MA
+ * `data-pasek-dolny`, bo tak samo pływa nad kafelkami — ale jest jednocześnie
+ * przyciskiem, który test klika ZARAZ PO zrzucie licznika stojącego nad nim.
+ * Trwałe schowanie zdejmowało ten przycisk z ekranu na resztę testu, więc
+ * `page.getByRole('button', { name: /^Dołącz/ })` czekało 30 sekund na coś,
+ * co samo sobie ukryło chwilę wcześniej — cztery scenariusze naraz, licząc
+ * telefon i komputer osobno osiem, a bramka słusznie zapaliła się na czerwono
+ * jako regresja ZACHOWANIA. Owinięcie zrzutu w to wywołanie przywraca pasek,
+ * zanim test zdąży go potrzebować.
+ *
+ * `display: none` na elemencie `fixed` nie przesuwa treści strony, więc
+ * kafelek nie drgnie — zmienia się wyłącznie to, co jest na nim narysowane.
+ *
+ * CZY ATRYBUT W OGÓLE JESZCZE ISTNIEJE — pilnuje `maskiZrzutow.test.ts`
+ * (Vitest, bez przeglądarki): czyta każde `[data-…]` użyte w tym pliku
+ * i sprawdza, że występuje w `frontend/src`. Reguła CSS dla selektora, którego
+ * nikt nie pasuje, nie jest błędem — dokładnie tak przez wiele tygodni
+ * „działała" maska `[data-zrzut-maskuj]`, której atrybutu nigdy nie było
+ * w kodzie.
+ *
+ * Ta funkcja świadomie NIE wymaga, żeby pasek był na ekranie. Dolna nawigacja
+ * znika z DOM-u u wylogowanego i w widgecie (`BottomNavGate`), a pasek stanu
+ * bywa nieobecny z natury ekranu — twarde „musi być co najmniej jeden" robiłoby
+ * z tego CZERWONĄ bramkę za brak czegoś, czego na tym ekranie po prostu nie ma.
+ * Ochrona przed cichym rozjazdem siedzi piętro wyżej, w teście statycznym.
+ */
+async function zaslonPaskamiDolnymi<T>(page: Page, zrzut: () => Promise<T>): Promise<T> {
+  const styl = await page.addStyleTag({ content: '[data-pasek-dolny] { display: none !important; }' });
+  await expect(page.locator('[data-pasek-dolny]:visible')).toHaveCount(0);
+  try {
+    return await zrzut();
+  } finally {
+    // Zdejmujemy WYŁĄCZNIE ten jeden <style> — nie odświeżamy strony ani nie
+    // ruszamy niczego innego, co zresetowałoby stan testu (np. otwarte okno).
+    await styl.evaluate((el) => (el as Element).remove());
+  }
+}
+
+/**
  * Sprząta po teście, który się zapisał na mecz.
  *
  * DLACZEGO TO MUSI BYĆ: baza jest JEDNA na cały przebieg, a te same testy
@@ -303,7 +367,7 @@ test.describe('dołączanie do meczu', () => {
 
     const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(licznik).toBeVisible();
-    await expect(licznik).toHaveScreenshot('licznik-przed-dolaczeniem.png');
+    await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('licznik-przed-dolaczeniem.png'));
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await page.getByRole('button', { name: /zapisz mnie/i }).click();
@@ -321,7 +385,7 @@ test.describe('dołączanie do meczu', () => {
     await uspokoj(page);
     const po = tresc(page).getByText('3 / 10')
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-    await expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png');
+    await zaslonPaskamiDolnymi(page, () => expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png'));
 
     await wypiszSie(page);
     await expect(tresc(page).getByText('2 / 10')).toBeVisible();
@@ -351,7 +415,7 @@ test.describe('dołączanie do meczu', () => {
       await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
       await bezChmurki(page);
       await uspokoj(page);
-      await expect(karta).toHaveScreenshot('karta-rezerwy.png');
+      await zaslonPaskamiDolnymi(page, () => expect(karta).toHaveScreenshot('karta-rezerwy.png'));
     }, () => wypiszSie(page));
   });
 });
@@ -367,14 +431,14 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     const licznik = page.getByText(/pole: komplet/i)
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(licznik).toBeVisible();
-    await expect(licznik).toHaveScreenshot('bramkarze-rezerwacja-licznik.png');
+    await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-rezerwacja-licznik.png'));
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await expect(page.getByText(/w polu jest już komplet/i)).toBeVisible();
     await expect(page.getByText(/listę rezerwową/i)).toBeVisible();
     await uspokoj(page);
-    await expect(page.getByRole('dialog').or(page.locator('.fixed.inset-0').last()))
-      .toHaveScreenshot('bramkarze-rezerwacja-okno.png');
+    await zaslonPaskamiDolnymi(page, () => expect(page.getByRole('dialog').or(page.locator('.fixed.inset-0').last()))
+      .toHaveScreenshot('bramkarze-rezerwacja-okno.png'));
     // Zamykamy okno bez zapisu — ten test celowo NIC nie zmienia w bazie,
     // sprawdza wyłącznie ostrzeżenie przed zapisem.
     await page.keyboard.press('Escape');
@@ -388,7 +452,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     const licznik = page.getByText(/dla wszystkich ról/i)
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(licznik).toBeVisible();
-    await expect(licznik).toHaveScreenshot('bramkarze-wspolna-licznik.png');
+    await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-wspolna-licznik.png'));
 
     await page.getByRole('button', { name: /^Dołącz/ }).first().click();
     await expect(page.getByText(/w polu jest już komplet/i)).toHaveCount(0);
@@ -412,7 +476,7 @@ test.describe('organizator', () => {
     // Sekcja próśb — bez dat, więc nadaje się na wzorzec.
     const prosby = page.getByText(/czeka na akceptację|prośby o dołączenie/i).first()
       .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
-    await expect(prosby).toHaveScreenshot('prosby-organizator.png');
+    await zaslonPaskamiDolnymi(page, () => expect(prosby).toHaveScreenshot('prosby-organizator.png'));
   });
 
   test('kolejka rezerwowa z przyciskiem „Do składu"', async ({ page }) => {
@@ -424,7 +488,7 @@ test.describe('organizator', () => {
     await expect(page.getByRole('button', { name: /do składu/i }).first()).toBeVisible();
     const kolejka = page.getByText(/rezerwa — kolejka/i)
       .locator('xpath=ancestor::div[1]');
-    await expect(kolejka).toHaveScreenshot('kolejka-organizator.png');
+    await zaslonPaskamiDolnymi(page, () => expect(kolejka).toHaveScreenshot('kolejka-organizator.png'));
   });
 });
 
@@ -507,7 +571,7 @@ test.describe('mecz w stanie szczególnym', () => {
     await expect(baner).toBeVisible();
     await expect(tresc(page).getByText(/został odwołany przez organizatora/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Dołącz/ })).toHaveCount(0);
-    await expect(baner).toHaveScreenshot('mecz-odwolany-baner.png');
+    await zaslonPaskamiDolnymi(page, () => expect(baner).toHaveScreenshot('mecz-odwolany-baner.png'));
   });
 
   test('prywatny — plakietka mówi, że mecz nie jest na liście', async ({ page }) => {
@@ -578,7 +642,7 @@ test.describe('moje gry', () => {
     // z dnia na dzień.
     const zakladki = page.getByRole('button', { name: 'Najbliższe' })
       .locator('xpath=ancestor::div[1]');
-    await expect(zakladki).toHaveScreenshot('moje-gry-zakladki.png');
+    await zaslonPaskamiDolnymi(page, () => expect(zakladki).toHaveScreenshot('moje-gry-zakladki.png'));
   });
 
   test('historia — stan pusty ma własny komunikat', async ({ page }) => {
@@ -591,8 +655,8 @@ test.describe('moje gry', () => {
     await page.goto('/moje-gry?tab=historia');
     await expect(page.getByText('Brak historii meczów')).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    await expect(page.getByText('Brak historii meczów')
-      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-historia-pusto.png');
+    await zaslonPaskamiDolnymi(page, () => expect(page.getByText('Brak historii meczów')
+      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-historia-pusto.png'));
   });
 
   test('zaproszenia — stan pusty tłumaczy, kiedy się zapełni', async ({ page }) => {
@@ -601,8 +665,8 @@ test.describe('moje gry', () => {
     await expect(page.getByText('Brak zaproszeń')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/gdy ktoś zaprosi cię na mecz/i)).toBeVisible();
     await uspokoj(page);
-    await expect(page.getByText('Brak zaproszeń')
-      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-zaproszenia-pusto.png');
+    await zaslonPaskamiDolnymi(page, () => expect(page.getByText('Brak zaproszeń')
+      .locator('xpath=ancestor::div[1]')).toHaveScreenshot('moje-gry-zaproszenia-pusto.png'));
   });
 
   test('obserwowane — zakładka się otwiera', async ({ page }) => {
@@ -622,7 +686,7 @@ test.describe('grupy', () => {
     const pusto = page.getByText('Nie masz jeszcze ekipy');
     await expect(pusto).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
-    await expect(pusto.locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png');
+    await zaslonPaskamiDolnymi(page, () => expect(pusto.locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png'));
   });
 
   test('zły kod grupy — komunikat, nie cisza', async ({ page }) => {
@@ -660,7 +724,7 @@ test.describe('powiadomienia', () => {
     await uspokoj(page);
     const panel = page.getByText('Powiadomienia', { exact: true })
       .locator('xpath=ancestor::div[2]');
-    await expect(panel).toHaveScreenshot('panel-powiadomien.png');
+    await zaslonPaskamiDolnymi(page, () => expect(panel).toHaveScreenshot('panel-powiadomien.png'));
   });
 });
 
@@ -737,7 +801,7 @@ test.describe('prośba o dołączenie', () => {
       await expect(kafel.getByText(/dostaniesz\s+powiadomienie w Bojo/i)).toBeVisible();
       await bezChmurki(page);
       await uspokoj(page);
-      await expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png');
+      await zaslonPaskamiDolnymi(page, () => expect(kafel).toHaveScreenshot('oczekuje-na-akceptacje.png'));
     }, async () => {
       await page.getByRole('button', { name: /^Anuluj$/ }).click();
       await expect(tresc(page).getByText('Oczekujesz na akceptację', { exact: true }))
@@ -774,7 +838,7 @@ test.describe('skład', () => {
       .locator('xpath=ancestor::div[contains(@class,"py-2")][1]');
     await pokazSie(page, wiersz, 'wiersz składu z „Zawodnik 1"');
     await expect(wiersz.getByText(/POLE/)).toBeVisible();
-    await expect(wiersz).toHaveScreenshot('sklad-oznaczenie-pola.png');
+    await zaslonPaskamiDolnymi(page, () => expect(wiersz).toHaveScreenshot('sklad-oznaczenie-pola.png'));
   });
 });
 

@@ -4017,6 +4017,7 @@ export default function EventDetailClient() {
             wyjść". */}
         {tab !== 'rozmowa' && statusBarVisible && (
           <div
+            data-pasek-dolny
             className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 bg-canvas/90 px-4 py-3 backdrop-blur-md dark:border-slate-700"
             style={{ marginBottom: 'var(--dol-bezpieczny)' }}
           >
@@ -4058,6 +4059,7 @@ export default function EventDetailClient() {
         {tab !== 'rozmowa' && joinBarVisible && <HideBottomNav />}
         {tab !== 'rozmowa' && joinBarVisible && (
           <div
+            data-pasek-dolny
             className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-100 dark:border-slate-700 bg-canvas/90 px-4 pb-6 pt-3 backdrop-blur-md"
             // Ten pasek chowa dolną nawigację (`HideBottomNav` wyżej), więc
             // `--bottom-nav-h` jest wtedy zerem — samo `pb-6` w apce kończyło

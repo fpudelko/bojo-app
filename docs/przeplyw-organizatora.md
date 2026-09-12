@@ -379,6 +379,61 @@ zegarem sekundowym zamiast kalendarza. Poprawką jest `bezChmurki(page)` przed
 zrzutem; asercja NA treść chmurki zostaje tam, gdzie była, bo to ona jest
 sednem tych testów.
 
+**Czwarty przypadek: pasek przyklejony do dołu ekranu (2026-09-11).** Poprawka
+z chmurką była NIEPEŁNA i wyszło to przy pierwszym uczciwym przebiegu bez
+etykiety — `oczekuje-na-akceptacje.png` znowu się ruszyło. Treść kafelka
+identyczna; różniła się wyłącznie **wysokość zasłonięcia** przez przyklejony
+pasek stanu („Czekasz na akceptację"): raz urywał kafelek na „Gdy to zrobi,",
+raz linijkę niżej.
+
+Mechanizm jest ogólniejszy, niż wyglądał przy chmurce. **Zrzut ELEMENTU to
+w Playwrighcie wycinek strony w prostokącie tego elementu, więc łapie wszystko,
+co jest NA NIM narysowane** — dolną nawigację, pasek stanu, pasek „Dołącz".
+Ile z kafelka przykryją, zależy od pozycji przewinięcia, czyli od rzeczy,
+której żaden z tych testów nie ustala. Chmurka była pierwszą taką nakładką,
+ale nie jedyną; po jej usunięciu druga wyszła spod spodu.
+
+**Chowa, a nie maskuje** — maska zamalowałaby prostokąt paska, czyli także ten
+kawałek kafelka, który pasek zasłania. `display: none` na elemencie `fixed` nie
+przesuwa treści, więc kafelek nie drgnie; zmienia się wyłącznie to, co jest na
+nim narysowane.
+
+Wniosek do zapamiętania: **każdy zrzut elementu leżącego w treści strony jest
+zrzutem tego elementu RAZEM z tym, co na nim pływa.** Pierwsza znaleziona
+nakładka rzadko jest ostatnia.
+
+**Piąty przypadek: schowanie NA STAŁE zdjęło przycisk, który test klika zaraz
+potem (2026-09-12).** Pierwsza wersja poprawki wyżej (`ukryjPaskiDolne`) chowała
+pasek jednym `page.addStyleTag()` bez odwołania — i to wystarczyło, żeby
+bramka scenariuszy zapaliła się na czerwono jako **regresja ZACHOWANIA**, nie
+jako zmiana wyglądu: cztery scenariusze (osiem, licząc telefon i komputer
+osobno) padały na `page.getByRole('button', { name: /^Dołącz/ }).first().click()`
+z 30-sekundowym timeoutem.
+
+Przyczyna: pasek „Dołącz" (`joinBarVisible` w `EventDetailClient.tsx`) MA
+`data-pasek-dolny`, bo tak samo pływa nad kafelkami jak dolna nawigacja i pasek
+stanu — ale jest jednocześnie przyciskiem, który test klika ZARAZ PO zrzucie
+licznika stojącego nad nim (`licznik-przed-dolaczeniem.png`,
+`bramkarze-rezerwacja-licznik.png`, `bramkarze-wspolna-licznik.png`). Trwałe
+schowanie zdejmowało ten przycisk z ekranu na resztę testu, więc kliknięcie
+czekało na coś, co samo sobie ukryło chwilę wcześniej.
+
+To jest ten sam mechanizm co przy dacie i przy chmurce — osłona, która robi
+więcej, niż powinna, i psuje rzecz, której miała bronić — tylko przesunięty
+o jeden krok: tam osłona NIE DZIAŁAŁA (malowała zero pikseli), tutaj DZIAŁAŁA
+ZA DŁUGO (chowała element, który miał wrócić).
+
+Poprawką jest `zaslonPaskamiDolnymi(page, () => expect(X).toHaveScreenshot(...))` —
+chowanie SCOPED do jednego zrzutu: `page.addStyleTag()` zwraca uchwyt do
+wstrzykniętego `<style>`, więc `finally` go usuwa zaraz po zdjęciu zrzutu,
+niezależnie od tego, czy zrzut się udał. Kolejny krok testu widzi pasek
+z powrotem taki, jaki był.
+
+Wniosek do zapamiętania, obok poprzedniego: **schowanie elementu na potrzeby
+zrzutu musi być tak samo tymczasowe jak sam zrzut** — jeśli przeżywa go
+o linijkę, przenosi swój efekt na kod, który nic nie wie o zrzutach.
+
+
 ### Odłożone i domknięte (2026-09-11)
 
 Obie pozycje czekały na decyzję produktową. Obie zapadły.

@@ -290,12 +290,12 @@ describe('toggleInArray', () => {
 describe('etykietaSkladu — skład na pinezce mapy', () => {
   it('składa liczby w „8/14"', () => {
     expect(etykietaSkladu({ maxPlayers: 14, participantsCount: 8 }))
-      .toEqual({ tekst: '8/14', komplet: false });
+      .toEqual({ tekst: '8/14', komplet: false, zamkniete: false });
   });
 
   it('komplet oznacza się osobno, bo dostaje własny kolor', () => {
     expect(etykietaSkladu({ maxPlayers: 10, participantsCount: 10 }))
-      .toEqual({ tekst: '10/10', komplet: true });
+      .toEqual({ tekst: '10/10', komplet: true, zamkniete: false });
   });
 
   it('przekroczony limit też jest kompletem — organizator może dodać ponad', () => {
@@ -303,7 +303,23 @@ describe('etykietaSkladu — skład na pinezce mapy', () => {
     // w seed_regresja), więc 12/10 musi się narysować, a nie wyglądać
     // na wolne miejsca.
     expect(etykietaSkladu({ maxPlayers: 10, participantsCount: 12 }))
-      .toEqual({ tekst: '12/10', komplet: true });
+      .toEqual({ tekst: '12/10', komplet: true, zamkniete: false });
+  });
+
+  it('zamknięte zapisy niesie osobne pole, bo pigułka dostaje własny kolor', () => {
+    // Migracja `141`. Pinezka to jedyne miejsce, gdzie mecz widać BEZ karty,
+    // więc gdyby tego pola nie było, mapa pokazywałaby zamknięty mecz tak
+    // samo jak otwarty.
+    expect(etykietaSkladu({ maxPlayers: 14, participantsCount: 8, zapisyZamkniete: true }))
+      .toEqual({ tekst: '8/14', komplet: false, zamkniete: true });
+  });
+
+  it('zamknięcie i komplet są NIEZALEŻNE — mecz może być zamknięty z wolnymi miejscami', () => {
+    // To jest sedno `R-10`: organizator mówi „gramy w tym składzie" przy
+    // 8 z 14, więc `komplet` musi zostać fałszem, a `zamkniete` prawdą.
+    const s = etykietaSkladu({ maxPlayers: 14, participantsCount: 8, zapisyZamkniete: true })!;
+    expect(s.komplet).toBe(false);
+    expect(s.zamkniete).toBe(true);
   });
 
   it('bez liczby zapisanych NIE zgadujemy — pinezka zostaje bez pigułki', () => {

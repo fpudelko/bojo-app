@@ -1134,10 +1134,25 @@ jedno, ani drugie: mecz nie musi być pełny, żeby organizator powiedział „g
 w tym składzie". Przycisk „Dołącz" wtedy znika — przycisk prowadzący do odmowy
 z bazy czyta się jak zepsuta aplikacja, nie jak decyzja organizatora.
 
-**Czego to jeszcze nie ma:** plakietki na kartach list (`/wydarzenia`, `/moje-gry`,
-`/grupy/[id]`). Cztery karty malują dziś stany własnym kodem — dokładnie ten
-bałagan, dla którego powstało `lib/komplet.ts` — więc piąty stan na wszystkich
-naraz to osobna zmiana. Kto wejdzie na mecz z listy, zobaczy pasek i przyczynę.
+**Stan widać też na listach i na mapie** (dopisane 2026-09-11). Plakietka
+„Zapisy zamknięte" wchodzi na wszystkie trzy karty meczu (`EventListCard`,
+`EventBrowseCard`, `GameFeedCard`), a na `GameFeedCard` przycisk „Dołącz"
+zmienia się w nieaktywne „Zapisy zamknięte" — przycisk prowadzący do odmowy
+czyta się jak zepsuta aplikacja. Pinezka na mapie niesie to samym kolorem
+pigułki składu, bez napisu: ma na niego jakieś 90 pikseli.
+
+Wygląd tego stanu siedzi w JEDNYM miejscu — `lib/stanZapisow.ts` — i to nie
+jest ozdobnik architektoniczny. Ten sam błąd popełniono już raz przy komplecie:
+cztery karty malowały go same, wyszły dwa odcienie czerwieni, szarość
+i trzy różne paski, i dopiero wtedy powstało `lib/komplet.ts`. Piąty stan
+wchodzi więc od razu przez jeden punkt.
+
+**Zamknięcie wygrywa z kompletem**, gdy oba są prawdziwe. Czytający kartę
+zadaje jedno pytanie — „czy mogę wejść" — a przy zamkniętych zapisach
+odpowiedź brzmi „nie" niezależnie od liczby wolnych miejsc. Dwie plakietki
+obok siebie mówiłyby to samo dwa razy, w dwóch kolorach. Regułę pilnuje
+`stanZapisow.test.ts`; AGENTS.md ostrzega osobno, żeby nie dokładać trzeciego
+znaczenia do błękitu — i właśnie dlatego ta plakietka jest szara.
 
 **Swipe w bok przełącza zakładki** — tu i na `/grupy/[id]` oraz `/wydarzenia/[id]`
 (patrz te sekcje niżej), ten sam hak `useSwipeZakladek()` (`lib/useSwipeZakladek.ts`).
