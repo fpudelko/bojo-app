@@ -53,7 +53,12 @@ export default function NajblizszyMeczGrupy({
         true, false, ostatni.endTime?.slice(0, 5),
       );
       toast('Nowy termin utworzony — cała ekipa dostanie powiadomienie w aplikacji.');
-      router.push(`/wydarzenia/${newId}`);
+      // `?utworzono=1` — panel „Mecz gotowy — wyślij link", tak samo jak po
+      // kreatorze (audyt 2026-09-12, ustalenie `S-6`). Ekipa dostaje
+      // powiadomienie w aplikacji, ale goście bez konta i osoby spoza grupy
+      // nadal potrzebują linku, a to jest moment, w którym organizator ma go
+      // wysłać.
+      router.push(`/wydarzenia/${newId}?utworzono=1`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
       setBusy(false);
