@@ -131,3 +131,37 @@ describe('maile — droga wyjścia zależy od tego, czy odbiorca ma konto', () =
     expect(t).not.toContain('/gracz/przejmij/');
   });
 });
+
+// Notatka organizatora (migracja 142) — dopisek istnieje WYŁĄCZNIE przy
+// odwołaniu i wyłącznie wtedy, gdy organizator faktycznie coś wpisał. Reszta
+// powodów (`zapis`, `zmiana`, `jutro_grasz`…) nie ma z tym polem nic wspólnego
+// — `Dane.notatka` nie jest tam nawet ustawiane w bazie (patrz `142`).
+describe('maile — notatka organizatora przy odwołaniu', () => {
+  it('pojawia się w obu wersjach, gdy organizator ją wpisał', () => {
+    const mail = tresc(dane('mecz_odwolany', { notatka: 'Boisko zalane, szukamy zastępczego terminu.' }), cfg)!;
+    expect(doTekstu(mail)).toContain('Boisko zalane, szukamy zastępczego terminu.');
+    expect(doHtml(mail, cfg)).toContain('Boisko zalane, szukamy zastępczego terminu.');
+  });
+
+  it('działa też dla gościa bez konta (powód "odwolanie")', () => {
+    const t = doTekstu(tresc(dane('odwolanie', { notatka: 'Gramy w innym terminie, damy znać.' }), cfg)!);
+    expect(t).toContain('Gramy w innym terminie, damy znać.');
+  });
+
+  it('bez notatki mail nie dostaje pustego akapitu', () => {
+    const bezPola = doTekstu(tresc(dane('mecz_odwolany'), cfg)!);
+    const zPustym = doTekstu(tresc(dane('mecz_odwolany', { notatka: '' }), cfg)!);
+    const zSamaSpacja = doTekstu(tresc(dane('mecz_odwolany', { notatka: '   ' }), cfg)!);
+    expect(bezPola).not.toContain('Wiadomość od organizatora');
+    expect(zPustym).not.toContain('Wiadomość od organizatora');
+    expect(zSamaSpacja).not.toContain('Wiadomość od organizatora');
+  });
+
+  it('nie zaśmieca maili o innych powodach', () => {
+    // `notatka` w danych innego powodu nie powinno się zdarzyć w praniu, ale
+    // gdyby się zdarzyło (np. przez pomyłkę w payloadzie), treść dla `zapis`
+    // i `jutro_grasz` w ogóle nie czyta tego pola.
+    const t = doTekstu(tresc(dane('zapis', { notatka: 'coś tam' } as Partial<Dane>), cfg)!);
+    expect(t).not.toContain('Wiadomość od organizatora');
+  });
+});

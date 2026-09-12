@@ -87,6 +87,7 @@ export function toEvent(row: any): EventItem {
     // `?? false` z tego samego powodu co przy `reserve_enabled`: kolumna doszła
     // w `141` i mecze sprzed migracji mają zachowywać się dokładnie jak dotąd.
     zapisyZamkniete: row.zapisy_zamkniete ?? false,
+    notatkaOdwolania: row.notatka_odwolania ?? undefined,
     customLocationName: row.custom_location_name ?? undefined,
     customAddress: row.custom_address ?? undefined,
     fieldAddress: row.field_address ?? undefined,
@@ -1291,8 +1292,16 @@ export async function cancelEvent(
   eventId: string,
   actorId?: string,
   actorName?: string,
+  // Notatka organizatora, dołączana do powiadomień o odwołaniu (migracja
+  // `142`) — dzwonek i push czytają `notifications.body`, oba maile czytają
+  // wprost tę kolumnę. ZAWSZE nadpisujemy kolumnę, także na `null` przy pustym
+  // polu: inaczej drugie odwołanie tego samego meczu, bez nowej notatki,
+  // wysłałoby ludziom treść sprzed tygodnia jako aktualną.
+  notatka?: string,
 ): Promise<void> {
-  const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId);
+  const { error } = await supabase.from('events')
+    .update({ status: 'cancelled', notatka_odwolania: notatka?.trim() || null })
+    .eq('id', eventId);
   if (error) throw new Error(error.message);
   if (actorId) {
     logActivity(eventId, actorId, actorName ?? null, 'event_cancelled').catch(
@@ -1306,7 +1315,13 @@ export async function restoreEvent(
   actorId?: string,
   actorName?: string,
 ): Promise<void> {
-  const { error } = await supabase.from('events').update({ status: 'active' }).eq('id', eventId);
+  // `notatka_odwolania: null` obok statusu — ten sam powód co przy zapisie:
+  // przywrócony mecz nie ma dźwigać treści z poprzedniego, odwołanego życia.
+  // Wyzwalacz `wyczysc_notatke_po_przywroceniu` (`142`) robi to samo w bazie;
+  // tu zerujemy jawnie, żeby nie polegać wyłącznie na sieci bezpieczeństwa.
+  const { error } = await supabase.from('events')
+    .update({ status: 'active', notatka_odwolania: null })
+    .eq('id', eventId);
   if (error) throw new Error(error.message);
   if (actorId) {
     logActivity(eventId, actorId, actorName ?? null, 'event_restored').catch(
