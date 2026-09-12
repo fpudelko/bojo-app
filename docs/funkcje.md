@@ -315,6 +315,15 @@ Znacznik `data-klawiatura` stawia `useZnacznikKlawiatury()` w `BottomNavGate` �
 tam, gdzie i tak zapada decyzja o istnieniu paska. **Globalnie, nie tylko na ekranach
 czatu**: szukajka na liście rozmów też otwiera klawiaturę i też podnosiła pasek.
 
+**Otwartą klawiaturę poznajemy po SKUPIENIU W POLU TEKSTOWYM** (`wPoluTekstowym()`),
+nie po ubytku wysokości okna. Stało tu porównanie `window.innerHeight -
+visualViewport.height > 160` i **na iOS nigdy nie wychodziło prawdą** — tam przy
+otwartej klawiaturze kurczą się OBIE wartości, więc różnica zostaje bliska zeru. Skutek
+był widać na zrzucie: pasek się nie chował i nie zwalniał swojego miejsca, więc composer
+siadał o jego wysokość za wysoko, a w powstałej luce pływał pasek adresu Safari. Pytanie
+„czy człowiek pisze" jest zresztą tym, o co naprawdę chodzi — nie zależy od tego, czy
+przeglądarka kurczy layout, widoczne okno, czy jedno i drugie.
+
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
@@ -2346,7 +2355,15 @@ iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu 
 więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
 Od wyniku odejmuje się `var(--bottom-nav-h)` — pasek nawigacji zostaje na ekranie czatu,
 więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `undefined`
-i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
+i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`. Kontenery
+rozmów nie mają pod composerem ŻADNEGO własnego odstępu (`pb-0` na `<main>`): pod nim
+jest już tylko pasek nawigacji albo klawiatura, więc każdy odstęp byłby pustym pasem.
+
+**Pomiar powtarza się z opóźnieniem** (`MS_NA_USTABILIZOWANIE`, 400 ms) po każdym
+zdarzeniu widocznego okna, a nasłuch obejmuje też `focusin`/`focusout`. Powód: iOS
+potrafi zmienić wysokość widocznego okna JUŻ PO ostatnim zdarzeniu, które o tym
+zawiadamia — pływający pasek adresu Safari zwija się chwilę po wjeździe klawiatury.
+Bez powtórki pomiar zostawał za mały na stałe.
 
 **`viewport.interactiveWidget` w `app/layout.tsx` MA BYĆ `resizes-visual`** — pilnuje tego
 `klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, czyli odwrotność, i kosztowało
