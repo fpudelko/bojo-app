@@ -41,7 +41,7 @@ import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import {
   getEvent, toBrakWiersza, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
@@ -2261,10 +2261,10 @@ export default function EventDetailClient() {
   const statusBarVisible = !!user && !!(myParticipation || myPendingRequest)
     && !mojTokenGoscia
     && !eventStarted && !isCancelled;
-  // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
-  // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
-  // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
-  // zostawiać pod sobą pustą przestrzeń. Ta sama sztuczka co w GroupDetailClient.
+  // Zakładka Rozmowa ma zachowywać się jak ekran czatu — stała wysokość
+  // widocznego okna minus pasek nawigacji (który ZOSTAJE; klawiatura go
+  // zakrywa, patrz `lib/oknoCzatu.ts`), żeby kontener rozmowy sięgnął
+  // dokładnie nad pasek. Ta sama sztuczka co w GroupDetailClient.
   const mozeWidziecRozmowe = !!myParticipation || isOwner || czlonekGrupyMeczu;
   const rozmowaPelnoekranowa = tab === 'rozmowa' && mozeWidziecRozmowe;
   // resultsAvailable: event started + 30 min buffer before result form is shown
@@ -2675,7 +2675,7 @@ export default function EventDetailClient() {
 
   return (
     <div
-      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
       style={rozmowaPelnoekranowa ? styleOknaCzatu(oknoCzatu) : undefined}
     >
       <Header showMobileWordmark />
@@ -4561,14 +4561,13 @@ export default function EventDetailClient() {
 
         {tab === 'rozmowa' && (mozeWidziecRozmowe ? (
           <>
-            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
-                dokumencie — bez tego zasłaniałby composer na dole rozmowy. */}
-            <HideBottomNav />
-            {/* Odstęp na pasek gestów — bez niego composer siedzi pod samą
-                kreską na dole ekranu. Przy otwartej klawiaturze pasek gestów
-                jest schowany za nią, więc ten sam odstęp zrobiłby wtedy
-                dokładnie to, czego tu unikamy: pustkę pod composerem. */}
-            <div className={`min-h-0 flex-1 px-4 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.5rem,env(safe-area-inset-bottom))]'}`}>
+            {/* Dolna nawigacja ZOSTAJE — jest `fixed bottom-0`, a wysokość
+                ekranu czatu odejmuje `--bottom-nav-h`, więc composer siada nad
+                paskiem, nie pod nim. Przy otwartej klawiaturze zmienna schodzi
+                do zera (`lib/oknoCzatu.ts`): pasek jest wtedy schowany za
+                klawiaturą, więc jego miejsce byłoby pustym pasem. Stąd też
+                brak własnego wcięcia na kreskę gestów — niesie je pasek. */}
+            <div className="min-h-0 flex-1 px-4">
               <RozmowaWydarzenia eventId={event.id} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>

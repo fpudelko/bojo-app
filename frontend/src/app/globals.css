@@ -142,6 +142,13 @@ body {
 html[data-bottom-nav='1'] { --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom)); }
 html[data-bottom-nav='1'] body { padding-bottom: var(--bottom-nav-h); }
 
+/* Otwarta klawiatura ekranowa (znacznik ustawia `useOknoCzatu`). Pasek jest
+   `fixed bottom-0`, a `interactiveWidget: 'resizes-visual'` nie rusza layoutu
+   — więc klawiatura po prostu go ZAKRYWA. Skoro paska nie widać, jego miejsce
+   w dokumencie byłoby pustym pasem między composerem a klawiaturą: zerujemy
+   zmienną na czas pisania i wszystkie odejmowania niżej wychodzą same. */
+html[data-klawiatura='1'] { --bottom-nav-h: 0px; }
+
 /* Ile MUSI zostać wolne na dole ekranu — dla wszystkiego, co jest `fixed
    bottom-0` i nie jest samą nawigacją (baner cookies, zachęta do instalacji).
 
