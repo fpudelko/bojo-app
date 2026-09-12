@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
-import { eventUrl, shareEvent, textDoKopiowania } from '@/lib/eventShare';
+import { eventUrl, shareEvent, textDoKopiowania, type StanUdostepnienia } from '@/lib/eventShare';
 import type { EventItem } from '@/types';
 
 /**
@@ -23,8 +23,15 @@ import type { EventItem } from '@/types';
  * miejscach: w widoku meczu i przy najbliższym meczu ekipy. Tam stał wcześniej
  * pojedynczy przycisk „Udostępnij mecz" — ta sama sprawa załatwiona o połowę
  * gorzej, bez kopiowania linku.
+ *
+ * `stan` (opcjonalny) dokłada do wiadomości liczbę wolnych miejsc i — gdy da
+ * się to uczciwie powiedzieć — zdanie o zapisie bez konta (`lib/eventShare.ts`,
+ * ustalenie `S-5`). Bez niego panel zachowuje się dokładnie jak dotąd; wołający
+ * bez dostępu do składu (np. lista) po prostu go nie podaje.
  */
-export default function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
+export default function ZaprosZnajomychPanel(
+  { event, stan }: { event: EventItem; stan?: StanUdostepnienia },
+) {
   const [copied, setCopied] = useState(false);
 
   const link = () => eventUrl(
@@ -39,13 +46,13 @@ export default function ZaprosZnajomychPanel({ event }: { event: EventItem }) {
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(textDoKopiowania(event, link()));
+      await navigator.clipboard.writeText(textDoKopiowania(event, link(), stan));
       potwierdz();
     } catch { /* ignore */ }
   };
 
   const share = async () => {
-    const wynik = await shareEvent(event, link());
+    const wynik = await shareEvent(event, link(), stan);
     if (wynik === 'copied') potwierdz();
   };
 

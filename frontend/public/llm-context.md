@@ -370,6 +370,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Powtórka meczu nie gubi ustawień; odwołanie i link znają skład
+
+PROBLEM: (1) „Powtórz mecz" — jedyny zamiennik gier cyklicznych, świadomie wyłączonych —
+przepisywało ustawienia źródłowego meczu do nowego terminu, ale trzy z nich po cichu
+gubiło: wymaganą akceptację zapisów, wyłączoną listę rezerwową i tryb puli dla bramkarzy.
+Mecz, do którego organizator wpuszczał ludzi ręcznie, wracał po powtórce OTWARTY dla
+każdego. (2) Okno „Odwołać mecz?" liczyło odbiorców po swojemu — węziej niż faktycznie
+powiadamia baza — i mówiło „dostanie e-mail, JEŚLI podał adres" zamiast dokładnej
+odpowiedzi, którą Bojo już zna. (3) Wiadomość, którą organizator wkleja na czat, żeby
+znaleźć brakujące osoby, mówiła zawsze „14 miejsc" — także wtedy, gdy realnie brakowało
+dwóch — i nigdy nie wspominała, że dołączenie nie wymaga konta, choć to jest główny
+argument na przebicie oporu graczy przed zakładaniem konta.
+
+ROZWIĄZANIE BOJO: powtórka meczu (na stronie meczu, w karcie „Po meczu", przy najbliższym
+meczu ekipy i w Historii na `/moje-gry`) przenosi dziś KAŻDE ustawienie źródłowego meczu —
+pominięcie nowego pola przy przyszłej zmianie przestaje się kompilować, zamiast po cichu
+zostawiać wartość domyślną. Wszystkie cztery drogi lądują też w panelu „Mecz gotowy —
+wyślij link", nie tylko powtórka z Historii jak dotąd. Okno odwołania liczy odbiorców tą
+samą funkcją co okno edycji meczu — trzy zdania: ilu z kontem dostanie powiadomienie
+w Bojo, ilu gości dostanie e-mail, ilu trzeba powiadomić samemu. Wiadomość na czat mówi
+dziś „Zostały 2 miejsca" albo „Komplet — wejdź na rezerwę" zamiast stałej liczby miejsc,
+a gdy da się to uczciwie powiedzieć, dokłada zdanie „Zapisujesz się bez zakładania konta."
+
+MECHANIKA: `lib/events.ts` — typ `ZrodloPowtorki` (mapowany z `EventCreate`) wymusza
+wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
+`konsekwencjeOdwolania()`, wołana z `handleCancel()` w `EventDetailClient.tsx` przez
+`komuDojdzie()`. `lib/eventShare.ts` — `eventShareText()` przyjmuje opcjonalny drugi
+argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
+zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
+`__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
+
 ### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
 
 PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
@@ -624,25 +655,3 @@ MECHANIKA: kolejność gałęzi paska zapisu w `EventDetailClient.tsx`, migracja
 (`claim_token` w ładunku powiadomienia push) i `adresPowiadomienia()` w funkcji brzegowej
 `send-push`. Asercje w `listaRezerwowa.test.ts`.
 
-### 2026-09-04 — Bojo wita nowego użytkownika i mówi mu, od czego zacząć
-
-PROBLEM: Bojo nie odzywało się do nowego użytkownika ani razu. Przy rejestracji adresem
-e-mail przychodziła wyłącznie prośba o potwierdzenie adresu, a przy rejestracji przez
-Google — nic. Człowiek zakładał konto, widział pustą listę swoich meczów i nie miał skąd
-wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego meczu i wysłanie
-jednego linku znajomym, a nie przez czekanie, aż ktoś w okolicy otworzy grę.
-
-ROZWIĄZANIE BOJO: po założeniu konta przychodzi jedna wiadomość powitalna. Mówi, co Bojo
-robi za organizatora (liczy skład, pilnuje limitu miejsc, prowadzi listę rezerwową, dzieli
-koszt wynajmu, przypomina wszystkim dzień przed meczem) i prowadzi do trzech dróg
-w kolejności od najpewniejszej: stwórz mecz, załóż grupę dla stałej ekipy, przejrzyj
-otwarte gry. Trzecia droga jest przy tym uczciwie opisana jako ta, na której przy obecnej
-liczbie otwartych meczów nie ma co polegać. Wiadomość wychodzi dopiero po POTWIERDZENIU
-adresu, żeby nie przyszła równolegle z prośbą o potwierdzenie i żeby nie witać kogoś, kto
-konta nigdy nie potwierdził; przy rejestracji przez Google adres jest potwierdzony od razu,
-więc mail idzie natychmiast. Każde konto dostaje ją raz w życiu.
-
-MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (reaguje na
-przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
-uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
-powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
