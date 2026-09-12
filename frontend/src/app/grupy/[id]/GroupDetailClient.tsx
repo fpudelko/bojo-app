@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
-import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
@@ -628,8 +628,9 @@ export default function GroupDetailClient() {
                 treści, co wyłączyłoby jego własny scroll. */}
             {/* Dolna nawigacja ZOSTAJE i klawiatura ją zakrywa — patrz ten sam
                 zabieg w EventDetailClient i powód w `lib/oknoCzatu.ts`. Bez
-                własnego wcięcia na kreskę gestów: niesie je pasek. */}
-            <div className="min-h-0 flex-1">
+                własnego wcięcia na kreskę gestów: niesie je pasek. Zostaje
+                `odstepNadPaskiem` na wystający guzik „Nowy". */}
+            <div className={`min-h-0 flex-1 ${odstepNadPaskiem(oknoCzatu)}`}>
               <RozmowaGrupy groupId={group.id} permissions={perms} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>

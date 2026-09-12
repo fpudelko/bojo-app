@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { zmierzOkno, styleOknaCzatu, wPoluTekstowym, OKNO_NIEZMIERZONE } from '@/lib/oknoCzatu';
+import {
+  zmierzOkno, styleOknaCzatu, wPoluTekstowym, odstepNadPaskiem, OKNO_NIEZMIERZONE,
+} from '@/lib/oknoCzatu';
 
 // Liczby z iPhone'a 15 Pro (852 pt wysokości), na którym zgłoszono problem:
 // bez klawiatury widoczne okno to całe 852, z klawiaturą ~450.
@@ -54,6 +56,19 @@ describe('wPoluTekstowym', () => {
   it('brak skupienia i zwykły element to nie pisanie', () => {
     expect(wPoluTekstowym(null)).toBe(false);
     expect(wPoluTekstowym(el('<div></div>'))).toBe(false);
+  });
+});
+
+// Guzik „Nowy" wystaje ponad pasek nawigacji (`-mt-4` + `ring-4`), a
+// `--bottom-nav-h` opisuje sam pasek. Bez tego odstępu pole do pisania
+// wchodziło pod guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem).
+describe('odstepNadPaskiem', () => {
+  it('przy schowanej klawiaturze omija wystający guzik', () => {
+    expect(odstepNadPaskiem({ wysokosc: 852, klawiatura: false })).toBe('pb-5');
+  });
+
+  it('przy otwartej klawiaturze nie zostawia nic — paska wtedy nie ma', () => {
+    expect(odstepNadPaskiem({ wysokosc: 450, klawiatura: true })).toBe('');
   });
 });
 

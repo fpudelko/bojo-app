@@ -42,7 +42,7 @@ import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnij
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import {
   getEvent, toBrakWiersza, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
@@ -4583,8 +4583,10 @@ export default function EventDetailClient() {
                 paskiem, nie pod nim. Przy otwartej klawiaturze zmienna schodzi
                 do zera (`lib/oknoCzatu.ts`): pasek jest wtedy schowany za
                 klawiaturą, więc jego miejsce byłoby pustym pasem. Stąd też
-                brak własnego wcięcia na kreskę gestów — niesie je pasek. */}
-            <div className="min-h-0 flex-1 px-4">
+                brak własnego wcięcia na kreskę gestów — niesie je pasek.
+                Zostaje tylko `odstepNadPaskiem`: tyle, ile guzik „Nowy"
+                wystaje ponad pasek, i zero przy otwartej klawiaturze. */}
+            <div className={`min-h-0 flex-1 px-4 ${odstepNadPaskiem(oknoCzatu)}`}>
               <RozmowaWydarzenia eventId={event.id} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>
