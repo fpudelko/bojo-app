@@ -5,6 +5,15 @@ export const alt = 'Bojo — zbierz ekipę, zagraj dziś';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
+/** Domena kanoniczna — ta sama wartość i ten sam fallback co w `layout.tsx`,
+ *  `robots.ts` i `sitemap.ts` (konwencja z AGENTS.md). Do 2026-09-11 stał tu
+ *  wpisany na sztywno techniczny adres Vercela. To NIE jest drobiazg
+ *  kosmetyczny: ten obrazek jest tym, co widzi kilkanaście osób, gdy
+ *  organizator wkleja link do meczu na WhatsAppa — czyli pierwszym kontaktem
+ *  z Bojo w całej fazie 1. Podpis mówił wtedy inną nazwę niż strona, na którą
+ *  prowadzi sam link. */
+const DOMENA = (process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl').replace(/^https?:\/\//, '');
+
 export default function Image() {
   return new ImageResponse(
     (
@@ -135,7 +144,7 @@ export default function Image() {
               fontWeight: '500',
             }}
           >
-            bojo-app.vercel.app
+            {DOMENA}
           </span>
         </div>
       </div>

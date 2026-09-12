@@ -3112,6 +3112,71 @@ export default function EventDetailClient() {
 
         {tab === 'sklad' && (<>
 
+        {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
+        {/* NAD kartą „Kiedy i gdzie": to jedyne miejsce na tej stronie,
+            które czeka na DECYZJĘ organizatora, a termin i adres są
+            informacją, którą zna on na pamięć. Prośba schowana pod kartą
+            z dojazdem wymagała przewinięcia, żeby w ogóle zobaczyć, że
+            ktoś czeka na akceptację — zgłoszone wprost. Zasada ta sama,
+            co przy plakietce na ikonie „Mecze": akcja do wykonania nie
+            może zniknąć pod informacją. */}
+        {/* Shown whenever the organizer requires approval — even with zero
+            pending requests — so it's clear the feature is there and working,
+            rather than the whole card vanishing (which read as "broken/missing"). */}
+        {(isOwner || canManageSquad) && event.requireApproval && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-semibold text-blue-800">
+                  Prośby o dołączenie
+                  {pendingRequests.length > 0 && (
+                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
+                  )}
+                </p>
+              </div>
+              {pendingRequests.length === 0 && (
+                <p className="text-sm text-blue-700/80">Na razie nikt nie czeka na akceptację.</p>
+              )}
+              <ul className="space-y-2">
+                {pendingRequests.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
+                    {p.avatarUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                        <UserPlus className="w-4 h-4" />
+                      </span>
+                    )}
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
+                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
+                    </span>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleApprove(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-800 active:scale-95 transition disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Akceptuj
+                      </button>
+                      <button
+                        onClick={() => handleReject(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition disabled:opacity-50"
+                        title="Odrzuć"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* ── KIEDY I GDZIE ──────────────────────────────────────────────
             Termin i miejsce mieszczą się wprawdzie w jednej linijce paska
             nagłówka, ale tam adres jest `truncate` (urywa się w połowie ulicy),
@@ -3202,64 +3267,6 @@ export default function EventDetailClient() {
             )}
           </div>
         </div>
-
-        {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
-        {/* Shown whenever the organizer requires approval — even with zero
-            pending requests — so it's clear the feature is there and working,
-            rather than the whole card vanishing (which read as "broken/missing"). */}
-        {(isOwner || canManageSquad) && event.requireApproval && (
-          <div className="px-4">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <UserPlus className="w-4 h-4 text-blue-600" />
-                <p className="text-sm font-semibold text-blue-800">
-                  Prośby o dołączenie
-                  {pendingRequests.length > 0 && (
-                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
-                  )}
-                </p>
-              </div>
-              {pendingRequests.length === 0 && (
-                <p className="text-sm text-blue-700/80">Na razie nikt nie czeka na akceptację.</p>
-              )}
-              <ul className="space-y-2">
-                {pendingRequests.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
-                    {p.avatarUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                        <UserPlus className="w-4 h-4" />
-                      </span>
-                    )}
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
-                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
-                    </span>
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleApprove(p.id)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-800 active:scale-95 transition disabled:opacity-50"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Akceptuj
-                      </button>
-                      <button
-                        onClick={() => handleReject(p.id)}
-                        disabled={busy}
-                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition disabled:opacity-50"
-                        title="Odrzuć"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
 
         {/* ── CZY GRAMY? ── odpowiada na to, co ekipy dziś liczą ręcznie na
             czacie: próg minimum, otwarcie dla okolicy gdy brakuje ludzi.

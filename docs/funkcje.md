@@ -2168,7 +2168,7 @@ widziałaby przycisku dołączenia do meczu. **Karta „Po meczu" (`PoMeczuCard`
 uniwersalna** — żyje wyłącznie w zakładce Skład, żeby nie duplikować się z jej własną
 treścią (roster, zarządzanie graczami) na każdej innej zakładce.
 
-**Karta „Kiedy i gdzie" — pierwsza rzecz w zakładce Skład, od 2026-08-30.** Termin
+**Karta „Kiedy i gdzie" — na górze zakładki Skład, od 2026-08-30.** Termin
 i miejsce były wprawdzie w pasku nagłówka, ale w jednej linijce chipów, gdzie adres
 jest `truncate` (urywa się w połowie ulicy), a **dojazdu nie było wcale**: link
 „Nawiguj" siedział wyłącznie w okienku otwieranym po dotknięciu miejsca SPOZA
@@ -2185,6 +2185,16 @@ Odnośnik składa `linkDojazdu()` (`lib/utils.ts`): współrzędne mają pierwsz
 adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatima bywa
 przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
 linku prowadzącego donikąd.
+
+**Nad kartą stoi jednak „Prośby o dołączenie" — od 2026-09-11.** Karta z prośbami
+(organizator/delegat, mecz z `requireApproval`) była wcześniej POD „Kiedy i gdzie",
+więc na telefonie trzeba było przewinąć całą kartę z datą, adresem i przyciskami
+„Nawiguj"/„O boisku", żeby w ogóle zobaczyć, że ktoś czeka na akceptację. Zgłoszone
+wprost. Kolejność wynika z tego, co te dwie karty robią: prośba czeka na DECYZJĘ
+organizatora, a termin i adres są informacją, którą on zna na pamięć (potrzebuje jej
+gracz przed wyjściem z domu, i wciąż ma ją nad składem). To ta sama zasada, co przy
+plakietce z liczbą meczów na ikonie „Mecze" w dolnej nawigacji — akcja do wykonania
+nie może zniknąć pod informacją.
 
 **Zakładka Rozmowa nie pokazuje nic poza oknem czatu** — baner odwołania, „Mecz gotowy",
 blok „Udostępnij"/chipy i sticky pasek dołączenia mają jawny warunek `tab !== 'rozmowa'`.
@@ -2984,6 +2994,15 @@ i psuje reputację nadawcy dla pozostałych kanałów. Maile niosą też `reply_
 (`LEGAL.contactEmail`), więc odpowiedź realnie dociera: nadawcą jest `noreply@`, a w fazie
 zbierania pierwszych organizatorów odpowiedź na maila jest najtańszym kanałem opinii.
 
+⚠️ **`reply_to` ma tylko NASZA poczta — GoTrue nie wysyła tego nagłówka i nie ma
+w panelu pola, żeby go dodać.** Dlatego zdanie „Odpisz na tę wiadomość" wolno postawić
+wyłącznie w mailach z `powiadom-goscia`. W szablonach Auth (reset hasła, magic link,
+potwierdzenie i zmiana adresu) ta sama stopka była obietnicą bez pokrycia: odpowiedź szła
+na `noreply@bojo.pl`, czyli donikąd, i nikt by się o tym nie dowiedział — ani piszący, ani
+my. Szablony Auth podają więc adres kontaktowy wprost i mówią otwarcie, że odpowiedź na
+samą wiadomość nie dotrze. Zgłoszone przez właściciela, który kliknął „Odpowiedz"
+i zobaczył `noreply@` w polu odbiorcy.
+
 **Maile logowania (reset hasła, magic link) też idą przez Resend — od 2026-09-11.**
 To DRUGI, niezależny kanał: nasza poczta wychodzi z bazy przez `pg_net`, a te wysyła
 GoTrue. Szły wbudowaną usługą Supabase, przy której panel sam ostrzega, że ma ostre limity
@@ -3025,13 +3044,49 @@ równolegle z prośbą o nie. Jeden warunek obsługuje obie konfiguracje.
 pójdzie do kogoś, kto o nie nie prosił. To własność ustawienia, nie tego maila — znika wraz
 z włączeniem „Confirm email”.
 
-Treść (`supabase/functions/powiadom-goscia/index.ts`, przypadek `powitanie`) prowadzi
+Treść (`supabase/functions/powiadom-goscia/tresc.ts`, przypadek `powitanie`) prowadzi
 **najpierw do stworzenia meczu** — to jedyna droga, która działa w dniu zero, bez żadnego
 innego użytkownika po drugiej stronie. Grupa jest druga (wciąga więcej ludzi naraz, ale
 trzeba już mieć ekipę), szukanie gry trzecie i uczciwie opisane jako to, na co przy tej
-liczbie otwartych meczów nie ma co liczyć. Trzy rzeczy, których tam świadomie NIE ma:
-zachwalania, obietnicy pełnej półki otwartych gier i prośby o odpowiedź na maila —
-nadawcą jest `noreply@`, więc zamiast tego jest link do `/zglos-blad`.
+liczbie otwartych meczów nie ma co liczyć. Dwie rzeczy, których tam świadomie NIE ma:
+zachwalania i obietnicy pełnej półki otwartych gier. Prośba o odpowiedź na maila JEST —
+od 2026-09-08 wychodzi nagłówek `reply_to` z adresem z regulaminu, więc odpowiedź realnie
+dociera; niesie ją stopka każdego maila.
+
+### Maile mają wersję graficzną — od 2026-09-11
+
+Do tej daty funkcja wysyłała wyłącznie `text:`. Wyglądało to jak notatka z notatnika:
+gołe adresy URL, brak nagłówka, a Gmail podkreślał na niebiesko przypadkowe fragmenty
+(nazwę ulicy z pola „miejsce"!), bo sam zgadywał, co jest odnośnikiem. Pierwsza
+wiadomość, jaką Bojo wysyła człowiekowi, jest jednocześnie pierwszym dowodem, że to
+działające narzędzie, a nie skrypt — a w fazie zbierania organizatorów ten dowód idzie
+do kilkunastu osób z każdego meczu.
+
+**Obie wersje powstają z JEDNEGO opisu treści** (`powiadom-goscia/tresc.ts`): `tresc()`
+mówi, CO jest w mailu — jako lista bloków (`akapit`, `mecz`, `lista`, `przycisk`, `link`,
+`drobne`) — a `doTekstu()` i `doHtml()` decydują JAK to pokazać. Dwa szablony obok siebie
+rozjechałyby się przy pierwszej poprawce: ktoś zmieniłby zdanie w HTML-u i zapomniał
+o tekście. Tutaj rozjazd jest niemożliwy, bo źródło jest jedno.
+
+**Wersja tekstowa zostaje i nie jest zapasem na wszelki wypadek** — mail bez `text:`
+filtry antyspamowe traktują gorzej, a dla czytnika ekranu i klienta z wyłączonymi
+obrazkami bywa jedyną czytelną wersją.
+
+Trzy rzeczy, które wymusza sam format:
+
+- **Style wyłącznie w atrybucie `style`.** Klienty pocztowe wycinają `<style>` i arkusze
+  zewnętrzne, więc nie ma tu Tailwinda ani zmiennych CSS — kolory marki są wpisane
+  liczbowo i muszą zgadzać się z `tailwind.config.ts` oraz `globals.css`.
+- **Escapowanie treści od użytkownika.** Tytuł meczu i nazwę miejsca pisze człowiek,
+  więc do HTML-a nigdy nie trafiają surowe — inaczej cudzy tytuł rozbiłby układ maila,
+  a w skrajnym przypadku wstrzyknął do niego cudzy odnośnik.
+- **Przycisk na pełną szerokość.** Mail czyta się prawie wyłącznie na telefonie,
+  a przycisk węższy niż kciuk jest przyciskiem tylko z nazwy.
+
+Stopka niesie **domenę kanoniczną i bieżący rok** — oba liczone, nie wpisane na sztywno.
+Pilnuje tego `frontend/src/__tests__/mailePowiadomien.test.ts`: sprawdza, że każdy powód
+ma obie wersje, że HTML niesie każde zdanie z tekstu, że tytuł z `<script>` wychodzi
+zescapowany i że w mailu nie ma adresu `vercel.app`.
 
 Idempotencja powitania nie ma daty w kluczu: ma pójść **raz w życiu konta**, nie raz
 dziennie. Dziennik jest wspólny dla całej poczty (`maile_wyslane`, dwa możliwe klucze —
