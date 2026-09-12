@@ -158,7 +158,9 @@ export default function DmRozmowaClient() {
           rozmowie", nie „jesteś na stronie z czatem wstawionym pod paskiem
           serwisu". Desktop bez zmian (Header tam nikt nie prosił chować). */}
       <Header hideMobileBarForUser />
-      <main className={`mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4 ${pelnyEkran ? 'min-h-0 overflow-hidden' : ''}`}>
+      {/* `pb-0` na pełnym ekranie: composer jest ostatnim wierszem, więc każdy
+          odstęp pod nim to pas między nim a klawiaturą. */}
+      <main className={`mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 ${pelnyEkran ? 'min-h-0 overflow-hidden pb-0' : 'pb-4'}`}>
         <div className="flex shrink-0 items-center gap-1">
           {/* Wstecz = poprzedni ekran, nie zawsze `/rozmowy`. Do rozmowy
               prywatnej wchodzi się TAKŻE z profilu gracza („Napisz
