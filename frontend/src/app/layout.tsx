@@ -53,23 +53,26 @@ export const viewport: Viewport = {
   // i nikt tego miejsca nie pilnuje: pasek „Znajdź grę / Mapa / Nowy…" wjeżdżał
   // pod kreskę gestów iOS, a podpis „Nowy" był przez nią przecięty.
   viewportFit: 'cover',
-  // `interactiveWidget` CELOWO NIE JEST USTAWIANY — zostaje domyślne
-  // `resizes-visual` (Chrome 108+). Wcześniej stało tu `resizes-content`,
-  // żeby klawiatura na Androidzie skurczyła layout i `h-[100dvh]` w rozmowie
-  // przeliczyło się razem z nią. Kosztowało to możliwość PISANIA: na
-  // Androidzie klawiatura w Rozmowach mrugała i zamykała się natychmiast po
-  // dotknięciu pola (zgłoszone wprost — „nie wyświetla klawiatury ani przy
-  // pisaniu, ani przy wyszukiwaniu"). `resizes-content` kurczy LAYOUT, więc
-  // otwarcie klawiatury przelicza `svh`/`dvh` i przestawia całą stronę pod
-  // palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku,
-  // przeglądarka chowa klawiaturę, layout wraca do pełnej wysokości i cykl
-  // startuje od nowa.
+  // KLAWIATURA MA ZAKRYWAĆ STRONĘ, NIE PRZESTAWIAĆ JEJ. `resizes-visual`
+  // kurczy wyłącznie WIDOCZNE okno; layout zostaje taki, jaki był, więc
+  // `position: fixed` (dolna nawigacja) siedzi dalej przy dole ekranu, czyli
+  // POD klawiaturą — i klawiatura go zasłania, zamiast wypychać do góry.
   //
-  // Wysokość ekranu czatu nie potrzebuje już tego ustawienia: `useOknoCzatu`
-  // (`lib/oknoCzatu.ts`) mierzy `visualViewport.height` i przycina korzeń
-  // strony do widocznego okna. To ta sama droga, którą od początku chodzi iOS
-  // — a przy `resizes-visual` Android zachowuje się tak samo, więc oba systemy
-  // idą jednym, sprawdzonym torem zamiast dwóch osobnych.
+  // Stało tu `resizes-content`, czyli odwrotność: kurczyło LAYOUT. Po pierwsze
+  // wypychało pasek nawigacji nad klawiaturę (zgłoszone ze zrzutem). Po drugie
+  // zabierało możliwość PISANIA w całej aplikacji: przeliczenie `svh`/`dvh`
+  // przestawia stronę pod palcem, pole ze skupieniem wyjeżdża z widoku,
+  // przeglądarka chowa klawiaturę, layout wraca do pełnej wysokości i cykl
+  // startuje od nowa („nie wyświetla klawiatury ani przy pisaniu, ani przy
+  // wyszukiwaniu").
+  //
+  // WARTOŚĆ JEST PODANA JAWNIE, mimo że tak brzmi kierunek standardu: Chrome
+  // na Androidzie nadal domyślnie kurczy layout, co widać było na zrzucie po
+  // samym usunięciu tego klucza. iOS zachowuje się jak `resizes-visual` bez
+  // względu na ten klucz, więc jawna wartość ustawia oba systemy na jedną,
+  // sprawdzoną ścieżkę: wysokość ekranu czatu mierzy `useOknoCzatu`
+  // (`lib/oknoCzatu.ts`) z `visualViewport`.
+  interactiveWidget: 'resizes-visual',
 };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';

@@ -13,7 +13,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
 | `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
-| `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
+| `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
@@ -293,6 +293,16 @@ zasłaniałby ważniejsze CTA:
   użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby). Po dołączeniu panel
   wraca — to zachęta do kolejnej akcji.
 
+**Ekrany rozmów panelu NIE chowają — od 2026-09-12.** Wcześniej chowały (cztery miejsca:
+`/rozmowy/mecz/[id]`, `/rozmowy/grupa/[id]`, zakładka Rozmowa na meczu, Tablica na
+ekipie), bo `fixed bottom-0` nie rezerwuje miejsca w dokumencie i pasek zasłaniał
+composer. Dziś miejsce rezerwuje wysokość ekranu czatu (`calc(<widoczne okno> -
+var(--bottom-nav-h))`), więc composer siada NAD paskiem, a pasek zostaje tam, gdzie
+człowiek go szuka. **Chowa go wyłącznie klawiatura** — dosłownie zasłania, bo
+`interactiveWidget: 'resizes-visual'` nie rusza layoutu (szczegóły w sekcji o wysokości
+ekranu czatu). Decyzja właściciela: „nie chowaj tego paska, ale klawiatura niech go
+zakryje, a nie podnosi".
+
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
@@ -569,9 +579,9 @@ statystykami i zarządzaniem. Człowiek dotykał wiadomości, a dostawał panel 
 wyjść tam, skąd się weszło (zgłoszone wprost).
 
 Obie trasy to pełny ekran o układzie 1:1 z rozmową prywatną `/rozmowy/[id]`: własny
-nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), `HideBottomNav`,
-wysokość liczona z widocznego okna (`useOknoCzatu` — inaczej composer ucieka nad
-klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
+nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), dolna nawigacja
+zostaje na miejscu (chowa ją wyłącznie klawiatura), wysokość liczona z widocznego okna
+(`useOknoCzatu` — inaczej composer ucieka nad klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
 (`RozmowaGrupy`, `RozmowaWydarzenia`) i te same tabele — nic się nie duplikuje.
 
 **Kontekst jest ODNOŚNIKIEM, nie paskiem zakładek.** `components/rozmowy/NaglowekRozmowy.tsx`
@@ -1615,8 +1625,7 @@ Sekcja **nie** opiera się na `fields.city`: ta kolumna jest pusta we wszystkich
 dopóki nie przejdzie `scraper/backfill_lokalizacja.py`.
 
 **Dane na żywo, nie zaszyte.** Strona woła `getNearbyEvents()` (`lib/events.ts`, RPC
-`get_nearby_events` z `025_game_alerts.sql`, wcześniej nieużywane w kodzie poza wyłączoną
-flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od centrum danego miasta, filtruje wynik po sporcie
+`get_nearby_events` z `025_game_alerts.sql`) z promieniem 15 km od centrum danego miasta, filtruje wynik po sporcie
 i pokazuje do 5 najbliższych meczów jako listę z linkami do `/wydarzenia/[id]`. Licznik
 u góry pokazuje pełną liczbę dopasowań, nie tylko wyświetloną piątkę. Gdy lista jest pusta,
 strona pokazuje uczciwe zastrzeżenie (`content/graj.ts#GRAJ_BRAK_MECZY`) zamiast chować
@@ -1756,7 +1765,7 @@ jednej linii (`overflow-x-auto` z ukrytym scrollbarem):
 |---|---|
 | **„Sortuj"** *(dropdown)* | `PillDropdown` (`components/ui/FilterPill.tsx`), single-select, aplikuje się **natychmiast** po kliknięciu opcji (nie przez szkic modala): Najbliższy termin *(domyślnie)* / **Najbliżej mnie** (pyta o lokalizację od razu, pokazuje „Szukam Cię…" w trakcie) / Najwięcej wolnych miejsc |
 | **„Filtry"** *(przycisk → modal)* | otwiera `FilterSheet` z czterema suwakami: Kiedy / Odległość / Cena / Wolne miejsca |
-| **Sport** *(dropdown)* | `PillDropdown`, multi-select, źródło `FOCUS_SPORTS` (4 opcje); „piłka nożna" łapie też `futsal` |
+| **Sport** | mieszka w arkuszu filtrów (nie w pasku), multi-select, źródło `FOCUS_SPORTS` (4 opcje) + „Wszystkie"; „piłka nożna" łapie też `futsal`. Od 2026-09-12 pigułką jest `components/ui/SportChip.tsx`: **ikona zawsze, podpis dopiero przy wybranym sporcie** — cztery pełne nazwy zajmowały na telefonie dwa wiersze, a nazwa jest potrzebna dokładnie wtedy, gdy trzeba przeczytać, co się wybrało (zostaje w `aria-label`/`title`). Ten sam komponent stoi w oknie alertu, patrz niżej |
 | „Wolne miejsca" *(toggle)* | odsiewa komplety (`participantsCount < maxPlayers`) — **inny** filtr niż suwak „Wolne miejsca" w modalu, patrz niżej |
 | „Za darmo" *(toggle)* | `costGrosze === 0` |
 
@@ -1811,6 +1820,43 @@ wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i
 (`VenueExplorer.tsx`) — jedna powłoka (portal do `<body>`, bottom sheet na mobile,
 wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
+
+### Alert o nowym meczu w okolicy — od 2026-09-12
+
+Pusta lista meczów (`sorted.length === 0`) pokazuje duży przycisk **„Powiadom mnie, gdy
+się pojawi"**. To jedyne dzisiaj wejście do alertów (`SHOW_GAME_ALERTS`, przedtem
+wyłączona) i **świadomie jedyne**: filtry są w tym momencie gotową odpowiedzią na pytanie
+„czego szukasz", a człowiek właśnie usłyszał „nie ma" — nigdzie indziej w apce te dwie
+rzeczy nie stoją obok siebie. Wejście na stronie głównej (`components/home/NearbyGames.tsx`,
+martwy kod) zostaje do osobnej decyzji.
+
+| Stan | Co widać |
+|---|---|
+| zalogowany, bez alertu | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
+| zalogowany, z aktywnym alertem | „Damy znać, gdy pojawi się pasujący mecz" + „Zmień ustawienia powiadomienia" |
+| wylogowany | ten sam przycisk, prowadzi na `/logowanie?next=/wydarzenia` |
+
+**Okno alertu otwiera się wypełnione filtrami** — `domyslneZFiltrow()` w `lib/alerts.ts`:
+jeden wybrany sport przechodzi wprost, dwa i więcej dają „dowolny" (alert trzyma dokładnie
+jeden sport, więc wybór za kogoś byłby zmyśleniem), promień z filtrów jest przycinany do
+skali suwaka alertu (`PROMIEN_MIN` 3 – `PROMIEN_MAX` 30; filtry chodzą od 1 km, więc same
+z siebie podają wartości spoza skali), a pozycja gracza przechodzi, gdy lista już ją zna.
+
+**Lokalizacja podstawia się sama, ale nigdy nie prosi o zgodę.** Okno woła
+`pozycjaBezPytania()` (`lib/geo.ts`) — pozycję dostaje wyłącznie przy zgodzie JUŻ
+udzielonej. O zgodę prosi dopiero przycisk „Użyj mojej lokalizacji GPS", czyli coś, co
+człowiek nacisnął sam. Istniejący alert wygrywa z wartościami z filtrów: to jego edycja,
+nie zakładanie nowego.
+
+**Odległość jest w oknie alertu w JEDNYM miejscu** — wspólny `RangeSlider` bezpośrednio
+pod wybranym miejscem, bo promień jest dopowiedzeniem do niego („ile kilometrów OD
+CZEGO"). Drugie pytanie o kilometry gdzie indziej w tym samym oknie czytałoby się jak dwie
+różne odległości.
+
+Stan alertu (`getMyAlert()`) pobiera się **dopiero gdy pusty stan realnie widać** — na
+niepustej liście byłoby to zapytanie przy każdym wejściu po nic. Wysyłka jest niezmieniona:
+funkcja brzegowa `notify-game-alert` (Resend), wołana z `lib/events.ts` przy tworzeniu
+meczu. Bez migracji — tabela `game_alerts` stoi w `025` od początku.
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
 
@@ -2247,8 +2293,8 @@ całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z
 `isGroupMember()` doładowanego razem z `groupInfo`) — dawne komentarze widzieli wyłącznie
 zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
 o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
-`BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
-żeby czat sięgał do dołu ekranu.
+dostaje stałą wysokość widocznego okna minus pasek nawigacji i `overflow-hidden`, żeby
+czat sięgał dokładnie nad pasek. **`BottomNav` NIE znika** — patrz niżej.
 
 **Wysokość ekranu czatu bierze się z `visualViewport`, nie z `100dvh`**
 (`lib/oknoCzatu.ts`, hak `useOknoCzatu()` w `EventDetailClient` i `GroupDetailClient`).
@@ -2257,31 +2303,42 @@ Na iOS-ie `dvh` zostaje takie samo, a przeglądarka tylko przesuwa widoczne okno
 kilkadziesiąt pikseli NAD klawiaturą, a pod nim świeciło tło strony (zgłoszone na
 iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu systemach,
 więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
-Bez pomiaru (SSR, brak API) styl jest `undefined` i zostaje `h-[100dvh]` z klasy.
+Od wyniku odejmuje się `var(--bottom-nav-h)` — pasek nawigacji zostaje na ekranie czatu,
+więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `undefined`
+i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
 
-**`viewport.interactiveWidget` w `app/layout.tsx` MA ZOSTAĆ NIEUSTAWIONY** —
-pilnuje tego `klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, żeby klawiatura
-Androida kurczyła layout; kosztowało to możliwość PISANIA W CAŁEJ APLIKACJI: klawiatura
-mrugała i zamykała się natychmiast po dotknięciu pola (zgłoszone wprost — „nie wyświetla
-klawiatury ani przy pisaniu, ani przy wyszukiwaniu w wiadomościach"). `resizes-content`
-kurczy layout, więc otwarcie klawiatury przelicza `svh`/`dvh` i przestawia stronę pod
-palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku, przeglądarka chowa
-klawiaturę, layout wraca do pełnej wysokości i cykl startuje od nowa. Przy domyślnym
-`resizes-visual` Android zachowuje się jak iOS, czyli wchodzi na tę samą, sprawdzoną
-ścieżkę pomiaru wyżej. Z tego samego powodu `useOknoCzatu` **nie przewija korzenia
-strony z kodu, gdy skupienie siedzi w polu tekstowym** — programowe przewinięcie w chwili
-otwierania klawiatury każe Chrome ją schować.
+**`viewport.interactiveWidget` w `app/layout.tsx` MA BYĆ `resizes-visual`** — pilnuje tego
+`klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, czyli odwrotność, i kosztowało
+dwie rzeczy naraz:
+
+- **możliwość PISANIA W CAŁEJ APLIKACJI**: klawiatura mrugała i zamykała się natychmiast
+  po dotknięciu pola (zgłoszone wprost — „nie wyświetla klawiatury ani przy pisaniu, ani
+  przy wyszukiwaniu w wiadomościach"). `resizes-content` kurczy layout, więc otwarcie
+  klawiatury przelicza `svh`/`dvh` i przestawia stronę pod palcem: pole ze skupieniem
+  wyjeżdża z widoku, przeglądarka chowa klawiaturę, layout wraca i cykl startuje od nowa;
+- **dolna nawigacja jechała NAD klawiaturę** zamiast schować się za nią (zgłoszone ze
+  zrzutem) — `fixed bottom-0` trzyma się dołu layoutu, a ten właśnie się skurczył.
+
+Wartość jest podana JAWNIE, bo samo usunięcie klucza nie wystarczyło: Chrome na Androidzie
+nadal domyślnie kurczy layout. iOS zachowuje się jak `resizes-visual` bez względu na ten
+klucz, więc jawna wartość stawia oba systemy na jednej ścieżce. Z tego samego powodu
+`useOknoCzatu` **nie przewija korzenia strony z kodu, gdy skupienie siedzi w polu
+tekstowym** — programowe przewinięcie w chwili otwierania klawiatury też każe Chrome ją
+schować.
 
 Zepsutej klawiatury nie widać poza telefonem: ani `tsc`, ani Vitest, ani Playwright nie
-mają klawiatury ekranowej. Objaw, który ta zmiana „naprawiała" (pusty pas pod
+mają klawiatury ekranowej. Objaw, który `resizes-content` „naprawiało" (pusty pas pod
 composerem), widać natychmiast — dlatego decyzja siedzi w teście, nie w komentarzu.
 
-Ten sam hak mówi, czy klawiatura jest otwarta, a to rozstrzyga **odstęp na pasek gestów
-pod composerem**: przy schowanej klawiaturze kontener rozmowy dostaje
-`pb-[…env(safe-area-inset-bottom)]`, bo bez tego composer siedzi pod samą kreską na dole
-ekranu; przy otwartej odstęp znika, bo pasek gestów jest wtedy schowany za klawiaturą
-i ten sam margines zrobiłby dokładnie tę pustkę, której unikamy. Otwarcie klawiatury
-dociąga też listę na dół (`RozmowaWydarzenia`/`RozmowaGrupy`, prop `klawiatura`) — lista
+**Klawiatura zeruje `--bottom-nav-h`.** `useOknoCzatu` stawia `data-klawiatura="1"` na
+`<html>`, a `globals.css` zbija na ten czas zmienną do zera. Powód: pasek jest wtedy
+zasłonięty klawiaturą, więc rezerwowanie mu miejsca zrobiłoby pusty pas między composerem
+a klawiaturą — dokładnie to, czego ta cała mechanika unika. Jedno wyrażenie
+(`calc(<widoczne okno> - var(--bottom-nav-h))`) obsługuje przez to oba stany, a kontenery
+rozmów nie mają już własnych wcięć na pasek gestów: niesie je pasek nawigacji.
+
+Otwarcie klawiatury dociąga też listę na dół
+(`RozmowaWydarzenia`/`RozmowaGrupy`/`DmRozmowaClient`, prop `klawiatura`) — lista
 kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość uciekała pod
 krawędź dokładnie w chwili, gdy ktoś zaczynał na nią odpowiadać. Kto czytał starsze
 wiadomości (`atBottom === false`), zostaje przy nich.
@@ -2913,10 +2970,11 @@ otwartej aplikacji.
 
 **Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
 `072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
-wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
-`game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) — wciąż za
-flagą `SHOW_GAME_ALERTS`, [luka 2 wobec wizji](./wizja.md#3-luki), i to jest inna
-funkcja niż powiadomienie o meczu w grupie.
+wszystkim członkom grupy poza organizatorem. Osobno od tego stoi `game_alerts` (promień
++ sport, oparte o lokalizację, nie o członkostwo) — [luka 2 wobec wizji](./wizja.md#3-luki),
+domknięta 2026-09-12 włączeniem `SHOW_GAME_ALERTS`: alert zakłada się w pustym stanie listy
+meczów (patrz „Alert o nowym meczu w okolicy" niżej), a wysyła go funkcja brzegowa
+`notify-game-alert` wołana przy tworzeniu meczu.
 
 **Trzy nowe typy z migracji `097`** (patrz „Czy gramy?" wyżej): `pytanie_o_udzial` —
 RPC `zapytaj_milczacych()`, wołana ręcznie przez organizatora, nie wyzwalacz; jedyny typ

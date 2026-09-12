@@ -84,3 +84,33 @@ export async function geocodeCity(query: string): Promise<{ lat: number; lng: nu
     return null;
   }
 }
+
+// Zakres promienia alertu. Suwak w oknie alertu chodzi po tych wartościach,
+// a `domyslneZFiltrow` przycina do nich promień przyniesiony z filtrów listy
+// (te chodzą od 1 km, więc same z siebie potrafią podać wartość spoza skali).
+export const PROMIEN_MIN = 3;
+export const PROMIEN_MAX = 30;
+export const PROMIEN_DOMYSLNY = 15;
+
+/**
+ * Ustawienia, z jakimi otwiera się okno alertu wywołane z pustej listy meczów.
+ *
+ * Człowiek właśnie powiedział filtrami, czego szuka — pytanie go o to drugi raz
+ * w oknie alertu byłoby przepisywaniem tego samego. Jeden sport przenosi się
+ * wprost; przy dwóch i więcej alert nie ma czego przenieść (trzyma dokładnie
+ * jeden sport albo dowolny), więc uczciwiej zostawić „dowolny" niż wybrać za
+ * kogoś jeden z dwóch.
+ */
+export function domyslneZFiltrow(filtry: {
+  sports: string[];
+  radiusKm: number | null;
+  pozycja: { lat: number; lng: number } | null;
+}): { sport?: string; radiusKm: number; lat?: number; lng?: number } {
+  const promien = filtry.radiusKm ?? PROMIEN_DOMYSLNY;
+  return {
+    sport:    filtry.sports.length === 1 ? filtry.sports[0] : undefined,
+    radiusKm: Math.min(PROMIEN_MAX, Math.max(PROMIEN_MIN, promien)),
+    lat:      filtry.pozycja?.lat,
+    lng:      filtry.pozycja?.lng,
+  };
+}

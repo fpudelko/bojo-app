@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NotificationBell from '@/components/layout/NotificationBell';
-import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
@@ -401,14 +400,14 @@ export default function GroupDetailClient() {
 
   const memberCount = members.length;
   // Zakładka Rozmowa jest jedynym miejscem, gdzie strona ma zachowywać się
-  // jak ekran czatu: BottomNav znika (patrz HideBottomNav niżej), więc bez
-  // stałej wysokości viewportu pod kontenerem rozmowy zostawałaby pusta
-  // przestrzeń, którą kiedyś zajmował pasek nawigacji.
+  // jak ekran czatu: stała wysokość widocznego okna minus pasek nawigacji,
+  // żeby kontener rozmowy sięgnął dokładnie nad pasek zamiast zostawiać pod
+  // sobą pustą przestrzeń.
   const rozmowaPelnoekranowa = tab === 'tablica' && member;
 
   return (
     <div
-      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
       style={rozmowaPelnoekranowa ? styleOknaCzatu(oknoCzatu) : undefined}
     >
       {/* Na mobile Header oddaje swój pasek grupie — dokładnie jak na /mapa
@@ -621,22 +620,16 @@ export default function GroupDetailClient() {
 
         {tab === 'tablica' && (member ? (
           <>
-            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
-                dokumencie — bez tego zasłaniał composer na dole kontenera
-                rozmowy, zgłoszone wprost jako "zasłonięte". */}
-            <HideBottomNav />
             {/* flex-1 min-h-0 rozciąga kontener rozmowy do dołu ekranu —
-                <main> i ten div są teraz `h-[100dvh] overflow-hidden`
+                <main> i ten div mają stałą wysokość widocznego okna
                 (rozmowaPelnoekranowa), więc to jest jedyny element, który
                 może jeszcze rosnąć. Bez min-h-0 flex nie pozwoliłby
                 kontenerowi rozmowy skurczyć się poniżej wysokości jego
                 treści, co wyłączyłoby jego własny scroll. */}
-            {/* Odstęp na pasek gestów — patrz ten sam zabieg w
-                EventDetailClient. Tutaj <main> ma już własne `py-5`, więc
-                dokładamy wyłącznie brakującą resztę wcięcia; przy otwartej
-                klawiaturze odstęp jest zbędny, bo pasek gestów chowa się
-                wtedy za nią. */}
-            <div className={`min-h-0 flex-1 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.25rem,calc(env(safe-area-inset-bottom)_-_1.25rem))]'}`}>
+            {/* Dolna nawigacja ZOSTAJE i klawiatura ją zakrywa — patrz ten sam
+                zabieg w EventDetailClient i powód w `lib/oknoCzatu.ts`. Bez
+                własnego wcięcia na kreskę gestów: niesie je pasek. */}
+            <div className="min-h-0 flex-1">
               <RozmowaGrupy groupId={group.id} permissions={perms} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>

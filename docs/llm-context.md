@@ -94,8 +94,8 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -327,8 +327,8 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
-alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg
-minimum graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
+potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się
+odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
 stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
@@ -397,6 +397,40 @@ jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja 
 i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
 `odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
 `supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
+
+### 2026-09-12 — Pusta lista meczów przestaje być ślepym zaułkiem: „Powiadom mnie, gdy się pojawi"
+
+PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
+szuka — sport, okolica, termin — i dostawał „Brak meczów". W tym miejscu Bojo nie oferowało
+nic poza wyczyszczeniem filtrów albo wystawieniem własnego meczu; obie odpowiedzi każą
+zrobić coś innego, niż się przyszło zrobić. Człowiek wychodził i nie wracał, mimo że mecz
+w jego okolicy mógł pojawić się nazajutrz. Alert o nowej grze był w Bojo ZBUDOWANY od
+migracji `025` — tabela `game_alerts`, dopasowywanie po sporcie i promieniu, wysyłka mailem
+przy każdym nowym meczu — ale schowany za flagą `SHOW_GAME_ALERTS`, wyłączoną w czasach,
+gdy Bojo nie miało czym dostarczyć powiadomienia. Kanał (poczta, web-push) działa od
+2026-09-08, flaga została wyłączona siłą rozpędu.
+
+ROZWIĄZANIE BOJO: pusta lista meczów pokazuje teraz przycisk „Powiadom mnie, gdy się
+pojawi". Alert otwiera się WYPEŁNIONY tym, co gracz przed chwilą ustawił filtrami — sport
+i promień — a lokalizację podstawia sam, jeśli przeglądarka ma już zgodę na nią (samo
+otwarcie okna nigdy nie prosi o zgodę). Gracz zatwierdza jednym przyciskiem, zamiast
+opisywać po raz drugi to samo. Gdy alert już istnieje, pusta lista mówi „Damy znać, gdy
+pojawi się pasujący mecz" i pozwala zmienić ustawienia. Osoba niezalogowana trafia stąd na
+logowanie. Wybór sportu — w filtrach i w oknie alertu — pokazuje same ikony dyscyplin,
+a podpis dopiero przy wybranej; cztery pełne nazwy zajmowały na telefonie dwa wiersze.
+Odległość w oknie alertu jest w jednym miejscu, bezpośrednio pod wybranym miejscem, bo to
+dopowiedzenie do niego („ile kilometrów OD CZEGO"), a nie osobne pytanie.
+
+MECHANIKA: flaga `SHOW_GAME_ALERTS` (`frontend/src/lib/features.ts`) włączona. Wejście
+w `app/wydarzenia/EventsListView.tsx` (pusty stan listy; stan alertu pobierany dopiero,
+gdy ten stan realnie widać). `lib/alerts.ts` — `domyslneZFiltrow()` przenosi filtry do
+okna alertu (jeden sport przechodzi wprost, dwa i więcej dają „dowolny", promień jest
+przycinany do skali suwaka) plus stałe `PROMIEN_MIN/MAX/DOMYSLNY`. `components/home/
+AlertSetupDialog.tsx` — lokalizacja z `pozycjaBezPytania()` (`lib/geo.ts`), promień na
+wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej listy.
+Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
+zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
+przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
 
 ### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
 
@@ -612,41 +646,3 @@ MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (
 przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
 uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
 powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
-`powiadom-goscia`, przypadek `powitanie`. Testy w `supabase/test/poczta-goscia.sql`.
-
-### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
-
-PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
-dostawał od Bojo NICZEGO. Nie dostawał przypomnienia dzień przed meczem, nie dowiadywał się
-o zmianie terminu i, co najgorsze, nie dowiadywał się o ODWOŁANIU meczu: przyjeżdżał na
-puste boisko. Adres e-mail podawał przy zapisie i nie szło na niego ani jedno powiadomienie.
-Jedynym śladem jego zapisu była pamięć jednej przeglądarki — wyczyszczona znaczyła wpis nie
-do odzyskania. Konsekwencje ponosił organizator, bo skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Gość dopisany ręcznie przez organizatora albo kolegę z drużyny
-nie miał gdzie podać adresu, więc był odcięty nawet po zbudowaniu kanału. (3) Bojo nie
-mierzyło niczego między „organizator wysłał link” a „ktoś dołączył” — nie
-wiadomo było, na którym kroku kreatora ludzie odpadają, ilu otwiera wysłany link ani ilu
-gości zamienia zapis na konto.
-
-ROZWIĄZANIE BOJO: gracz zapisany bez konta dostaje dziś maile — potwierdzenie zapisu
-z linkiem do własnego wpisu, przypomnienie dzień przed meczem, wiadomość o odwołaniu meczu
-i o zmianie terminu, miejsca albo kosztu, a dzień po meczu zachętę do założenia konta,
-jeśli nadal go nie ma. Zachęta jest CZWARTA w kolejności celowo: pierwsza wiadomość od
-nieznanego nadawcy, która czegoś chce, czyta się jak spam. Dopisując gościa ręcznie, można
-teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego gość NIE dostanie,
-jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
-z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
-
-MECHANIKA: migracja `133` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
-uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
-`trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
-`bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
-`addGuest()` z opcjonalnym adresem w `lib/events.ts`, pole i podpis
-w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
-(kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
-wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
-`supabase/test/poczta-goscia.sql`. Kanał działa od 2026-09-10: domena `bojo.pl`
-zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypełniona.
-Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
-powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
-(reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.
