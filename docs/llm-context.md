@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-11 · migracja `141` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `141` · 56 tabel
 
 ---
 
@@ -94,8 +94,8 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -327,8 +327,8 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
-alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg
-minimum graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
+potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się
+odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
 stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
@@ -369,6 +369,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-12 — Pusta lista meczów przestaje być ślepym zaułkiem: „Powiadom mnie, gdy się pojawi"
+
+PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
+szuka — sport, okolica, termin — i dostawał „Brak meczów". W tym miejscu Bojo nie oferowało
+nic poza wyczyszczeniem filtrów albo wystawieniem własnego meczu; obie odpowiedzi każą
+zrobić coś innego, niż się przyszło zrobić. Człowiek wychodził i nie wracał, mimo że mecz
+w jego okolicy mógł pojawić się nazajutrz. Alert o nowej grze był w Bojo ZBUDOWANY od
+migracji `025` — tabela `game_alerts`, dopasowywanie po sporcie i promieniu, wysyłka mailem
+przy każdym nowym meczu — ale schowany za flagą `SHOW_GAME_ALERTS`, wyłączoną w czasach,
+gdy Bojo nie miało czym dostarczyć powiadomienia. Kanał (poczta, web-push) działa od
+2026-09-08, flaga została wyłączona siłą rozpędu.
+
+ROZWIĄZANIE BOJO: pusta lista meczów pokazuje teraz przycisk „Powiadom mnie, gdy się
+pojawi". Alert otwiera się WYPEŁNIONY tym, co gracz przed chwilą ustawił filtrami — sport
+i promień — a lokalizację podstawia sam, jeśli przeglądarka ma już zgodę na nią (samo
+otwarcie okna nigdy nie prosi o zgodę). Gracz zatwierdza jednym przyciskiem, zamiast
+opisywać po raz drugi to samo. Gdy alert już istnieje, pusta lista mówi „Damy znać, gdy
+pojawi się pasujący mecz" i pozwala zmienić ustawienia. Osoba niezalogowana trafia stąd na
+logowanie. Wybór sportu — w filtrach i w oknie alertu — pokazuje same ikony dyscyplin,
+a podpis dopiero przy wybranej; cztery pełne nazwy zajmowały na telefonie dwa wiersze.
+Odległość w oknie alertu jest w jednym miejscu, bezpośrednio pod wybranym miejscem, bo to
+dopowiedzenie do niego („ile kilometrów OD CZEGO"), a nie osobne pytanie.
+
+MECHANIKA: flaga `SHOW_GAME_ALERTS` (`frontend/src/lib/features.ts`) włączona. Wejście
+w `app/wydarzenia/EventsListView.tsx` (pusty stan listy; stan alertu pobierany dopiero,
+gdy ten stan realnie widać). `lib/alerts.ts` — `domyslneZFiltrow()` przenosi filtry do
+okna alertu (jeden sport przechodzi wprost, dwa i więcej dają „dowolny", promień jest
+przycinany do skali suwaka) plus stałe `PROMIEN_MIN/MAX/DOMYSLNY`. `components/home/
+AlertSetupDialog.tsx` — lokalizacja z `pozycjaBezPytania()` (`lib/geo.ts`), promień na
+wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej listy.
+Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
+zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
+przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
 
 ### 2026-09-11 — Maile Bojo wyglądają jak narzędzie, a nie jak notatka
 
@@ -627,37 +661,3 @@ ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta b
 `app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
 Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
 `__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.
-
-### 2026-09-03 — Skład meczu jest prawdą: koniec z samodzielnym awansem i naprawiony przełącznik gości
-
-PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą bezpośrednio, więc
-reguły dostępu w bazie są jedyną granicą. Reguła pozwalająca uczestnikowi zmieniać własny
-wpis w składzie nie mówiła, KTÓRE pola wolno mu ruszyć, a baza danych nie umie zawęzić
-takiej reguły do wybranych kolumn. W efekcie zapisany mógł jednym żądaniem wyjść
-z poczekalni na meczu z akceptacją zapisów, awansować się z listy rezerwowej ponad limit
-miejsc i oznaczyć własną wpłatę jako wniesioną — czyli obejść trzy rzeczy, na których
-opiera się zaufanie organizatora do składu. Druga połowa tego samego problemu nie wymagała
-niczyjej złej woli: przejście „Obserwuję” → „Gram” pytało bazę o wolne
-miejsce i dopiero osobnym żądaniem zapisywało wynik, więc dwie osoby klikające w tej samej
-sekundzie lądowały obie w składzie, ponad limit. Osobno: przełącznik
-„Uczestnicy mogą dodawać gości” nie działał NIGDY — organizator go włączał,
-aplikacja potwierdzała, że działa, a uczestnik po wpisaniu imienia znajomego dostawał
-komunikat o braku uprawnień.
-
-ROZWIĄZANIE BOJO: skład meczu zmienia dziś tylko ten, kto ma do tego prawo. Organizator,
-delegat i administrator mają dokładnie te same możliwości co wcześniej. Uczestnik zmienia
-wyłącznie własną deklarację — czy gra, na jakiej pozycji, jak zapłaci — oraz może przyjąć
-ofertę zwolnionego miejsca, gdy taka do niego wyszła; miejsca w składzie sam sobie nie
-przydzieli, z poczekalni się nie wypisze i wpłaty sobie nie odhaczy. Potwierdzenie udziału
-przez osobę obserwującą mecz liczy się teraz w całości po stronie bazy, w jednej operacji,
-więc dwa jednoczesne kliknięcia nie zmieszczą się już w jednym wolnym miejscu.
-Przełącznik „Uczestnicy mogą dodawać gości” robi to, co obiecuje: gdy organizator
-go włączy, osoba z listy składu dopisze znajomego bez konta — i tylko wtedy.
-
-MECHANIKA: migracja `132` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
-(`BEFORE INSERT OR UPDATE`; spreparowany zapis jest normalizowany, nie odbijany, żeby nie
-psuć „Obserwuję”), funkcje `czy_zarzadza_wpisem()`, `czy_moze_dopisac_goscia()`
-i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję” →
-„Gram”), przebudowana polityka zapisu do składu. Po stronie aplikacji
-`confirmFromMaybe()` w `lib/events.ts` woła dziś funkcję bazy zamiast liczyć pojemność
-w przeglądarce. Asercje w `supabase/test/rls.sql`.
