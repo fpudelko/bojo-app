@@ -2967,6 +2967,39 @@ nie ma takiego sportu), filtr się czyści zamiast po cichu zerować wyniki.
 
 ---
 
+## Powiadomienia — trzy listy typów, jedna prawda (od 2026-09-12)
+
+**Typy wstawiane przez bazę, ikony na dzwonku i ustawienia „co nie ma iść na
+telefon" to trzy osobne listy w kodzie, i rozjeżdżały się już trzykrotnie**
+(audyt, ustalenie `S-7`) — piąta runda dopisała sześć brakujących ikon naraz,
+szósta znalazła kolejnych siedem bez ikony i jedenaście bez wiersza
+w ustawieniach: `komplet_skladu`, `zwolnilo_sie_miejsce`, `zapis_zaakceptowany`,
+`prosba_odrzucona`, `usuniety_ze_skladu`, `mecz_usuniety`,
+`niepotwierdzony_wpis_goscia`, `uzupelnij_profil`, `nowy_termin_serii`,
+`gra_potwierdzona`, `gra_zagrozona`. Bez wiersza w ustawieniach nie da się
+wyłączyć pusha dla tego typu; bez ikony powiadomienie ląduje pod szarym
+dzwonkiem z podpisem „Powiadomienie", czyli dokładnie tam, gdzie ikona
+przestaje cokolwiek nieść.
+
+Mapa ikon wyjechała z `NotificationBell.tsx` do osobnego pliku
+`lib/ikonyPowiadomien.ts` (eksportuje `IKONY`/`IKONA_DOMYSLNA`) — dzięki temu
+`__tests__/typyPowiadomien.test.ts` sprawdza ją bez renderowania komponentu
+klienckiego. Test czyta `supabase/migrations/*.sql`, wyciąga wartość `type`
+z każdego `INSERT INTO notifications (user_id, type, …)` (kolejność tych
+dwóch kolumn jest niezmienna w całym repo) i porównuje trzy zbiory: typy
+z bazy, klucze `IKONY`, typy `RODZAJE_POWIADOMIEN` — w obie strony, więc
+łapie też **martwy klucz** (`event_cancelled` był typem dziennika aktywności,
+nigdy powiadomieniem — usunięty). **Dopisując typ powiadomienia w migracji,
+dopisz go w obu plikach `lib/`** — inaczej ten test wskaże dokładnie ten
+brak, tak jak `maskiZrzutow.test.ts` dla masek zrzutów.
+
+Dwa nowe typy dostały przy okazji kolor: `gra_zagrozona` (próg „gra się
+odbędzie", `SHOW_MIN_PLAYERS_THRESHOLD` — flaga wyłączona, ale mecze założone
+wcześniej wciąż mogą mieć próg ustawiony) jest bursztynowa — ostrzeżenie,
+o które jeszcze można zadbać, nie awaria — tym samym odcieniem co baner
+„Obserwujesz" na stronie meczu; `gra_potwierdzona` jest zielona, jak reszta
+dobrych wiadomości o stanie składu.
+
 ## Powiadomienia — co realnie istnieje
 
 Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:

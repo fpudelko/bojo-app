@@ -370,6 +370,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
+
+PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
+jaką ikonę pokazuje dzwonek, i co da się wyciszyć w ustawieniach pusha — i te trzy listy
+rozjeżdżały się już trzykrotnie. Jedenaście typów (m.in. „komplet składu", „zwolniło się
+miejsce", „zapis przyjęty", „usunięto Cię ze składu", „mecz usunięty") nie miało wiersza
+w ustawieniach, więc nie dało się ich wyłączyć na telefonie. Siedem innych nie miało ikony
+i lądowało pod szarym dzwonkiem z podpisem „Powiadomienie" — dokładnie tam, gdzie ikona
+przestaje cokolwiek nieść, mimo że realnie przychodzą.
+
+ROZWIĄZANIE BOJO: wszystkie 27 typów powiadomień, jakie baza faktycznie wysyła, mają dziś
+własną ikonę na dzwonku i własny wiersz w ustawieniach „czego nie chcę na telefon".
+Znaleziony przy okazji martwy klucz (typ, którego baza nigdy nie wysyła jako powiadomienie)
+został usunięty z mapy ikon. Nowy test porównuje trzy listy automatycznie przy każdej
+zmianie, więc rozjazd nie wróci po raz czwarty bez zauważenia.
+
+MECHANIKA: mapa ikon przeniesiona z `NotificationBell.tsx` do `lib/ikonyPowiadomien.ts`.
+`__tests__/typyPowiadomien.test.ts` czyta `supabase/migrations/*.sql`, wyciąga wartość
+`type` z każdego `INSERT INTO notifications` i porównuje ją z `lib/ikonyPowiadomien.ts`
+oraz `lib/ustawieniaPowiadomien.ts` w obie strony.
+
 ### 2026-09-12 — Powtórka meczu nie gubi ustawień; odwołanie i link znają skład
 
 PROBLEM: (1) „Powtórz mecz" — jedyny zamiennik gier cyklicznych, świadomie wyłączonych —
@@ -653,22 +674,3 @@ resztka w polu. „Zacznij od nowa" wraca do wszystkich ustawień domyślnych.
 
 MECHANIKA: stała `KROK_KREATORA` i funkcja `czyMeczPlatny()` w `lib/eventWizard.ts`,
 czytane przez `lib/eventSummary.ts` i `app/wydarzenia/nowe/page.tsx`. Testy
-w `eventSummary.test.ts` i `eventWizard.test.ts`.
-
-### 2026-09-08 — Zapisy zamknięte widać przed wypełnieniem formularza, nie po
-
-PROBLEM: osoba bez konta, która weszła z linku od organizatora na mecz z kompletem i bez
-listy rezerwowej, widziała zwykły przycisk „Dołącz bez konta". Wypełniała imię, adres
-e-mail i sposób płatności, klikała „Zapisz się" i dopiero wtedy dostawała komunikat
-o błędzie. Ten sam mecz pokazywał zalogowanym poprawne „Komplet — zapisy zamknięte".
-
-ROZWIĄZANIE BOJO: stan kompletu rozstrzyga się przed pytaniem o konto, więc obowiązuje
-wszystkich tak samo. Przy komplecie z listą rezerwową przycisk mówi wprost, że zapis idzie
-na rezerwę. Domknięty też przypadek meczu z bramkarzami, w którym pełna jest tylko jedna
-rola. Osobno: powiadomienie „Potwierdź, że to Ty" otwierane z telefonu prowadzi teraz na
-stronę potwierdzenia, a nie na stronę meczu, gdzie nie ma czego potwierdzić.
-
-MECHANIKA: kolejność gałęzi paska zapisu w `EventDetailClient.tsx`, migracja `136`
-(`claim_token` w ładunku powiadomienia push) i `adresPowiadomienia()` w funkcji brzegowej
-`send-push`. Asercje w `listaRezerwowa.test.ts`.
-

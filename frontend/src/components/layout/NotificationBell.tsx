@@ -2,16 +2,14 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import Link from 'next/link';
-import {
-  Bell, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, ChevronRight, Clock,
-  MapPin, MessageCircle, Settings, TicketCheck, UserMinus, UserPlus, Users, X, type LucideIcon,
-} from 'lucide-react';
+import { Bell, ChevronRight, Settings, type LucideIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
   getMyNotifications, markRead, toNotif, otwarteSprawy, WYMAGA_AKCJI, TYPY_WIADOMOSCI, celPowiadomienia,
 } from '@/lib/notifications';
 import { useAuth } from '@/lib/auth';
 import { ustawPlakietke } from '@/lib/plakietkaAplikacji';
+import { IKONY, IKONA_DOMYSLNA } from '@/lib/ikonyPowiadomien';
 import OdpowiedzJednymKlikiem from '@/components/events/OdpowiedzJednymKlikiem';
 import type { AppNotification } from '@/types';
 
@@ -37,54 +35,9 @@ const ODPOWIEM_STAD = new Set(['pytanie_o_udzial', 'zaproszenie_na_mecz']);
  */
 const ILE_POWIADOMIEN = 50;
 
-/**
- * Ikona i podpis rodzaju — jedno spojrzenie zamiast czytania.
- *
- * Panel wyglądał jak lista identycznych szarych akapitów: cztery pozycje
- * „Nowy mecz w grupie" pod rząd różniły się wyłącznie treścią drobnym drukiem
- * (zgłoszone wprost — „te powiadomienia jakoś mi się nie podobają"). Ikona
- * niesie rodzaj, więc oko odróżnia „odwołany" od „nowy" bez czytania, a kolor
- * trzyma się konwencji z AGENTS.md: niebieski = wymaga decyzji, różowy =
- * wiadomość, reszta neutralnie.
- */
-const IKONY: Record<string, { Ikona: LucideIcon; klasa: string; rodzaj: string }> = {
-  nowy_mecz_w_grupie:          { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Nowy mecz' },
-  event_cancelled:             { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
-  mecz_odwolany:               { Ikona: CalendarX,     klasa: 'bg-red-50 text-red-600',         rodzaj: 'Odwołany' },
-  // Para do powyższego (migracja `139`). ZIELONO, nie czerwono: czerwień
-  // w tej aplikacji znaczy „coś poszło źle", a sprostowanie odwołania jest
-  // dokładnie odwrotną wiadomością — i przychodzi zaraz pod czerwonym
-  // wierszem, który prostuje. Dwa czerwone wiersze obok siebie czytałyby się
-  // jak dwie awarie.
-  mecz_przywrocony:            { Ikona: CalendarCheck, klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Jednak gramy' },
-  // Dwa typy z `065` i `114`, które realnie przychodzą, a mapa ich nie miała —
-  // lądowały pod szarym dzwonkiem z podpisem „Powiadomienie". Neutralnie,
-  // nie na czerwono: zmiana terminu to nie awaria, tylko nowa informacja.
-  zmiana_terminu:              { Ikona: CalendarClock, klasa: 'bg-slate-100 text-slate-600',      rodzaj: 'Nowy termin' },
-  zmiana_warunkow_meczu:       { Ikona: MapPin,        klasa: 'bg-slate-100 text-slate-600',      rodzaj: 'Zmiana' },
-  prosba_o_dolaczenie:         { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
-  pytanie_o_udzial:            { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Grasz?' },
-  zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },
-  reserve_claim_offered:       { Ikona: TicketCheck,   klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Wolne miejsce' },
-  ogloszenie_w_grupie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
-  niepotwierdzony_wpis_goscia: { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Potwierdź' },
-  wiadomosc_w_meczu:           { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
-  wiadomosc_w_grupie:          { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
-  // Sześć typów, które realnie przychodzą (migracje `076`, `079`, `113`, `129`,
-  // `135`), a mapy nie miały — wszystkie lądowały pod szarym dzwonkiem
-  // z podpisem „Powiadomienie", czyli dokładnie tam, gdzie ikona przestaje
-  // cokolwiek nieść. Kolory wg konwencji z AGENTS.md: niebieski wyłącznie tam,
-  // gdzie trzeba podjąć decyzję; stan składu i przypomnienie są neutralne.
-  zapis_zaakceptowany:         { Ikona: Check,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Zapis przyjęty' },
-  prosba_odrzucona:            { Ikona: X,             klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Prośba odrzucona' },
-  usuniety_ze_skladu:          { Ikona: UserMinus,     klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Poza składem' },
-  komplet_skladu:              { Ikona: Users,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Komplet' },
-  zwolnilo_sie_miejsce:        { Ikona: Users,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Wolne miejsce' },
-  przypomnienie_o_meczu:       { Ikona: Clock,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Przypomnienie' },
-  oferta_wygasla:              { Ikona: Clock,         klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Czas minął' },
-};
-
-const IKONA_DOMYSLNA = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };
+// Ikona i podpis rodzaju — `lib/ikonyPowiadomien.ts` (IKONY/IKONA_DOMYSLNA
+// zaimportowane wyżej). Wydzielone z tego pliku, żeby dało się je sprawdzić
+// testem bez renderowania komponentu klienckiego.
 
 /**
  * Nagłówek grupy: „Dziś", „Wczoraj", „Wcześniej".
