@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-12 · migracja `142` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `144` · 56 tabel
 
 ---
 
@@ -370,6 +370,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
+
+PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
+rezerwowej — ale odświeżenie tej oferty zależało WYŁĄCZNIE od tego, czy ktokolwiek
+akurat otworzył stronę meczu. Jeśli oferta wygasła (domyślnie po 3 h) i nikt nie wszedł
+na stronę, wygasła oferta stała dalej w nieskończoność: następna osoba z kolejki nie
+dostawała niczego, a organizator grał w niepełnym składzie mając chętnego na ławce. Po
+starcie meczu taka oferta nie wygasała już nigdy. (2) Przypomnienie dzień przed meczem
+nie wiedziało nic o zamkniętych zapisach: organizator, który wieczorem zamknął zapisy
+przy 10 z 14 osób mówiąc „gramy w tym składzie", dostawał następnego dnia „brakuje 4" —
+aplikacja kłóciła się z jego własną decyzją. Dwie osoby czekające na liście rezerwowej
+były przy tym całkowicie niewidoczne w treści przypomnienia.
+
+ROZWIĄZANIE BOJO: Kolejka rezerwowa ma teraz własny zegar — co 15 minut Bojo sprawdza
+samo, czy jakaś oferta wygasła, i jeśli tak, przekazuje miejsce dalej i powiadamia obie
+strony, bez czyjegokolwiek kliknięcia. Przypomnienie dzień przed meczem rozróżnia dziś
+trzy stany organizatora: zapisy zamknięte (bez wzmianki o brakujących), brakuje ludzi
+i ktoś czeka na rezerwie (z liczbą czekających), albo brakuje ludzi i rezerwa jest pusta
+(bez zmian względem wcześniejszego zachowania).
+
+MECHANIKA: migracja `143` — funkcja `porzadkuj_kolejki_rezerwy()` (woła istniejącą
+`sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą, nie powtarza
+jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja `144` —
+`wyslij_przypomnienia()` (`129`/`131`) dostaje kolumnę `events.zapisy_zamkniete` (`141`)
+i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
+`odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
+`supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
+
 ### 2026-09-12 — Pusta lista meczów przestaje być ślepym zaułkiem: „Powiadom mnie, gdy się pojawi"
 
 PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
@@ -403,6 +431,7 @@ wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej
 Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
 zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
 przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
+
 ### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
 
 PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
@@ -617,41 +646,3 @@ MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (
 przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
 uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
 powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
-`powiadom-goscia`, przypadek `powitanie`. Testy w `supabase/test/poczta-goscia.sql`.
-
-### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
-
-PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
-dostawał od Bojo NICZEGO. Nie dostawał przypomnienia dzień przed meczem, nie dowiadywał się
-o zmianie terminu i, co najgorsze, nie dowiadywał się o ODWOŁANIU meczu: przyjeżdżał na
-puste boisko. Adres e-mail podawał przy zapisie i nie szło na niego ani jedno powiadomienie.
-Jedynym śladem jego zapisu była pamięć jednej przeglądarki — wyczyszczona znaczyła wpis nie
-do odzyskania. Konsekwencje ponosił organizator, bo skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Gość dopisany ręcznie przez organizatora albo kolegę z drużyny
-nie miał gdzie podać adresu, więc był odcięty nawet po zbudowaniu kanału. (3) Bojo nie
-mierzyło niczego między „organizator wysłał link” a „ktoś dołączył” — nie
-wiadomo było, na którym kroku kreatora ludzie odpadają, ilu otwiera wysłany link ani ilu
-gości zamienia zapis na konto.
-
-ROZWIĄZANIE BOJO: gracz zapisany bez konta dostaje dziś maile — potwierdzenie zapisu
-z linkiem do własnego wpisu, przypomnienie dzień przed meczem, wiadomość o odwołaniu meczu
-i o zmianie terminu, miejsca albo kosztu, a dzień po meczu zachętę do założenia konta,
-jeśli nadal go nie ma. Zachęta jest CZWARTA w kolejności celowo: pierwsza wiadomość od
-nieznanego nadawcy, która czegoś chce, czyta się jak spam. Dopisując gościa ręcznie, można
-teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego gość NIE dostanie,
-jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
-z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
-
-MECHANIKA: migracja `133` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
-uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
-`trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
-`bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
-`addGuest()` z opcjonalnym adresem w `lib/events.ts`, pole i podpis
-w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
-(kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
-wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
-`supabase/test/poczta-goscia.sql`. Kanał działa od 2026-09-10: domena `bojo.pl`
-zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypełniona.
-Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
-powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
-(reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.

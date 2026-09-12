@@ -75,8 +75,14 @@ wobec postu na grupie jest SKUTEK, nie kanał. Uzasadnienie zapisane przy samej 
 żeby nie wracało.
 
 Świadomie poza zakresem audytu i tych rund: trzeci poziom widoczności (§1.1),
-odmrażanie flag (§2), cron dla wygasania oferty zwolnionego miejsca, domknięcie RLS
-na `events` (patrz §5 niżej).
+odmrażanie flag (§2), domknięcie RLS na `events` (patrz §5 niżej).
+
+**Cron dla wygasania oferty zwolnionego miejsca — ZAMKNIĘTE (2026-09-12,
+migracja `143`).** Szósta runda audytu (ustalenie `S-1` w
+[docs/przeplyw-organizatora.md § Faza 12](./docs/przeplyw-organizatora.md)) —
+`sync_reserve_claim()` czekało na czyjeś kliknięcie, więc wygasła oferta
+potrafiła stać w nieskończoność, gdy nikt nie otworzył strony meczu. Zadanie
+`bojo-kolejka-rezerwy` co 15 minut woła istniejącą funkcję za nikogo.
 
 **Zdjęte z tej listy po czwartej rundzie (2026-09-08, `P-1`…`P-11`
 w [audycie](./docs/przeplyw-organizatora.md#faza-10--czwarta-runda-audytu-2026-09-08)):**
