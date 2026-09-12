@@ -78,6 +78,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Self-heals a stale hint too: if the cookie says "signed in" but there
       // is in fact no session, this clears it on the very next load.
       syncSessionHint(!!data.session);
+      // TAKŻE PRZY WZNOWIONEJ SESJI, nie tylko przy `SIGNED_IN` niżej.
+      // Telefon prawie nigdy nie loguje się od nowa: aplikacja odtwarza sesję
+      // z pamięci, więc na urządzeniu, na którym push włączyło INNE konto
+      // Bojo, wiersz w `push_subscriptions` zostawał przypięty do tamtego
+      // konta bezterminowo — i powiadomienie o wiadomości właśnie napisanej
+      // na tym telefonie wracało na ten sam telefon, jako powiadomienie
+      // tamtego konta (zgłoszone wprost: „powiadomienie o wysłaniu wiadomości
+      // idzie do autora"). Wyzwalacze w bazie autora wykluczają poprawnie
+      // (migracja `122`); rozjazd siedział w tym, do kogo przypięty jest
+      // telefon. Idempotentny UPSERT, bez interakcji i bez pytania o zgodę.
+      if (data.session?.user) dopnijSubskrypcjePush().catch(() => {});
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
