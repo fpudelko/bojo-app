@@ -2774,6 +2774,21 @@ Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
 | Logika | `lib/notifications.ts` |
 | UI (dzwonek) | `components/layout/NotificationBell.tsx`, renderowany w `Header.tsx` |
 | E-mail | Edge function `notify-game-alert` → Resend |
+
+**Treść alertu poprawiona 2026-09-12 — zgłoszone wprost przez właściciela.** Mail
+niósł wyłącznie datę i godzinę: `label` liczył się jako `${sport} — ${field_name}`,
+a `field_name` bywa ogólną nazwą typu boiska („Boisko piłkarskie”), nie adresem
+konkretnego obiektu. Nie było ceny ani liczby miejsc — dokładnie tego, co człowiek
+sprawdza, zanim zdecyduje, czy kliknąć. Treść dociągnięta do wzorca `eventShareText()`
+(`lib/eventShare.ts`): nazwa + adres, liczba miejsc, cena, sformatowana data. Wygląd
+HTML-a dociągnięty do stylu z `powiadom-goscia/tresc.ts` (nagłówek, karta meczu,
+przycisk na pełną szerokość) — te dwie funkcje wysyłają z tej samej domeny i miały do
+tej pory różny styl, mimo że obie są „mailem od Bojo”. Dołożony `reply_to` — funkcja
+nie miała go od początku, mimo że `powiadom-goscia` ma go od `2026-09-08` z tego samego
+powodu (patrz niżej, „`reply_to` ma tylko NASZA poczta").
+
+Treść i renderery są w `notify-game-alert/tresc.ts` (czysty TS, bez `Deno`), testowane
+w `frontend/src/__tests__/alertGry.test.ts` — tym samym wzorcem co `powiadom-goscia`.
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
 | Zaproszenia cykliczne | Edge function `send-invites` |
 
