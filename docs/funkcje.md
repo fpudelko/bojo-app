@@ -298,10 +298,22 @@ zasłaniałby ważniejsze CTA:
 ekipie), bo `fixed bottom-0` nie rezerwuje miejsca w dokumencie i pasek zasłaniał
 composer. Dziś miejsce rezerwuje wysokość ekranu czatu (`calc(<widoczne okno> -
 var(--bottom-nav-h))`), więc composer siada NAD paskiem, a pasek zostaje tam, gdzie
-człowiek go szuka. **Chowa go wyłącznie klawiatura** — dosłownie zasłania, bo
-`interactiveWidget: 'resizes-visual'` nie rusza layoutu (szczegóły w sekcji o wysokości
-ekranu czatu). Decyzja właściciela: „nie chowaj tego paska, ale klawiatura niech go
-zakryje, a nie podnosi".
+człowiek go szuka. **Znika go wyłącznie na czas otwartej klawiatury.** Decyzja
+właściciela: „nie chowaj tego paska, ale klawiatura niech go zakryje, a nie podnosi".
+
+**Ten sam efekt, dwie różne drogi — bo systemy zachowują się inaczej.** Na Androidzie
+pasek zakrywa sama klawiatura: `interactiveWidget: 'resizes-visual'` nie rusza layoutu,
+więc `fixed bottom-0` zostaje przy dole ekranu, czyli pod klawiaturą. **iOS tak nie
+umie** — Safari PODNOSI elementy `fixed` nad klawiaturę, więc pasek wjeżdżał na środek
+ekranu i przykrywał sobą pole do pisania (zgłoszone ze zrzutem z iPhone'a). Żadne
+ustawienie viewportu tego nie zmienia, bo to zachowanie systemu, nie strony. Dlatego
+`globals.css` chowa pasek (`html[data-klawiatura='1'] [data-pasek-dolny]`) na czas
+pisania: na Androidzie to no-op, bo i tak go nie widać, na iOS załatwia sprawę.
+Pilnuje tego `klawiaturaAndroid.test.ts`.
+
+Znacznik `data-klawiatura` stawia `useZnacznikKlawiatury()` w `BottomNavGate` — czyli
+tam, gdzie i tak zapada decyzja o istnieniu paska. **Globalnie, nie tylko na ekranach
+czatu**: szukajka na liście rozmów też otwiera klawiaturę i też podnosiła pasek.
 
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
@@ -2350,19 +2362,26 @@ dwie rzeczy naraz:
 
 Wartość jest podana JAWNIE, bo samo usunięcie klucza nie wystarczyło: Chrome na Androidzie
 nadal domyślnie kurczy layout. iOS zachowuje się jak `resizes-visual` bez względu na ten
-klucz, więc jawna wartość stawia oba systemy na jednej ścieżce. Z tego samego powodu
-`useOknoCzatu` **nie przewija korzenia strony z kodu, gdy skupienie siedzi w polu
-tekstowym** — programowe przewinięcie w chwili otwierania klawiatury też każe Chrome ją
-schować.
+klucz, więc jawna wartość stawia oba systemy na jednej ścieżce.
+
+**`useOknoCzatu` cofa przewinięcie strony (`scrollTo(0, 0)`) TAKŻE w trakcie pisania.**
+Przez jedną wersję ten reset był pomijany, gdy skupienie siedziało w polu — hipoteza, że
+to programowe przewinięcie każe Androidowi chować klawiaturę. Winne było
+`resizes-content`, a pominięcie kosztowało iOS: przeglądarka przewija stronę, żeby
+odsłonić pole, i bez cofnięcia tego nad klawiaturą świecił pusty kawał tła, a nagłówek
+rozmowy i composer wyjeżdżały za ekran (zgłoszone ze zrzutem). Strona ma dokładnie
+wysokość widocznego okna, więc nie ma tam czego przewijać — reset jest przywróceniem
+stanu, nie ruchem.
 
 Zepsutej klawiatury nie widać poza telefonem: ani `tsc`, ani Vitest, ani Playwright nie
 mają klawiatury ekranowej. Objaw, który `resizes-content` „naprawiało" (pusty pas pod
 composerem), widać natychmiast — dlatego decyzja siedzi w teście, nie w komentarzu.
 
-**Klawiatura zeruje `--bottom-nav-h`.** `useOknoCzatu` stawia `data-klawiatura="1"` na
-`<html>`, a `globals.css` zbija na ten czas zmienną do zera. Powód: pasek jest wtedy
-zasłonięty klawiaturą, więc rezerwowanie mu miejsca zrobiłoby pusty pas między composerem
-a klawiaturą — dokładnie to, czego ta cała mechanika unika. Jedno wyrażenie
+**Klawiatura zeruje `--bottom-nav-h`.** `useZnacznikKlawiatury()` (w `BottomNavGate`)
+stawia `data-klawiatura="1"` na `<html>`, a `globals.css` zbija na ten czas zmienną do
+zera i chowa sam pasek. Powód: paska wtedy nie widać, więc rezerwowanie mu miejsca
+zrobiłoby pusty pas między composerem a klawiaturą — dokładnie to, czego ta cała
+mechanika unika. Jedno wyrażenie
 (`calc(<widoczne okno> - var(--bottom-nav-h))`) obsługuje przez to oba stany, a kontenery
 rozmów nie mają już własnych wcięć na pasek gestów: niesie je pasek nawigacji.
 

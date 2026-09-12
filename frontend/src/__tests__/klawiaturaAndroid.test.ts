@@ -32,6 +32,30 @@ function kodBezKomentarzy(sciezka: string): string {
     .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
+// Druga połowa tej samej decyzji: pasek ma zniknąć na czas pisania. Android
+// zakrywa go klawiaturą sam, iOS NIE — Safari podnosi elementy `fixed` nad
+// klawiaturę, więc pasek lądował na środku ekranu, na polu do pisania
+// (zgłoszone ze zrzutem z iPhone'a). Regułę widać wyłącznie na telefonie
+// z otwartą klawiaturą, czyli nigdzie w CI — stąd ten test.
+const GLOBALS = path.join(process.cwd(), 'src', 'app', 'globals.css');
+
+describe('otwarta klawiatura ekranowa', () => {
+  it('chowa dolny pasek nawigacji', () => {
+    expect(readFileSync(GLOBALS, 'utf8'))
+      .toMatch(/html\[data-klawiatura='1'\]\s*\[data-pasek-dolny\]\s*\{\s*display:\s*none/);
+  });
+
+  it('zeruje miejsce rezerwowane pod pasek', () => {
+    expect(readFileSync(GLOBALS, 'utf8'))
+      .toMatch(/html\[data-klawiatura='1'\]\s*\{\s*--bottom-nav-h:\s*0px/);
+  });
+
+  it('selektor paska istnieje w komponencie nawigacji', () => {
+    const nav = readFileSync(path.join(process.cwd(), 'src', 'components', 'layout', 'BottomNav.tsx'), 'utf8');
+    expect(nav).toMatch(/data-pasek-dolny/);
+  });
+});
+
 describe('viewport aplikacji', () => {
   it('ustawia interactiveWidget na resizes-visual', () => {
     expect(kodBezKomentarzy(LAYOUT)).toMatch(/interactiveWidget:\s*'resizes-visual'/);
