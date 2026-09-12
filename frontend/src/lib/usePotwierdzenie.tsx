@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import OknoPotwierdzenia from '@/components/ui/OknoPotwierdzenia';
+import OknoPotwierdzenia, { type OpcjeNotatki } from '@/components/ui/OknoPotwierdzenia';
 
 /**
  * `confirm()` z aplikacji zamiast `confirm()` z przeglądarki.
@@ -38,6 +38,12 @@ export interface OpcjePotwierdzenia {
   wariant?: 'zwykly' | 'destrukcyjny';
   /** Etykieta drugiej drogi; kliknięcie kończy się wynikiem `'dodatkowa'`. */
   akcjaDodatkowaLabel?: string;
+  /** Dokłada pole tekstowe pod konsekwencjami — np. notatka organizatora przy
+   *  odwołaniu meczu (migracja `142`). Wartość odczytujesz po rozstrzygnięciu
+   *  przez `pobierzNotatke()`, nie przez wynik `potwierdz()` — inaczej zmiana
+   *  typu wyniku dotknęłaby wszystkie dotychczasowe wywołania w siedmiu
+   *  plikach, które porównują go z gołym stringiem (`wybor === 'nie'`). */
+  notatka?: OpcjeNotatki;
 }
 
 export function usePotwierdzenie() {
@@ -45,6 +51,11 @@ export function usePotwierdzenie() {
   // Obietnica żyje między renderami, więc w `ref`, nie w stanie: zapis do stanu
   // wywołałby kolejny render i zgubił tożsamość funkcji rozwiązującej.
   const rozwiaz = useRef<((w: WynikPotwierdzenia) => void) | null>(null);
+  // Też `ref`, nie stan: pole notatki jest niekontrolowane (`OknoPotwierdzenia`
+  // czyta wartość z DOM-u przy `onChange`), więc odczyt po `await potwierdz()`
+  // nie może polegać na zamknięciu ze starego renderu — miałby wartość sprzed
+  // wpisywania tekstu.
+  const notatkaRef = useRef('');
 
   const zakoncz = useCallback((wynik: WynikPotwierdzenia) => {
     setOpcje(null);
@@ -56,9 +67,15 @@ export function usePotwierdzenie() {
     // Drugie otwarcie, zanim pierwsze się zamknie, nie powinno zostawić
     // wiszącej obietnicy — poprzednia kończy się jako „nie".
     rozwiaz.current?.('nie');
+    notatkaRef.current = '';
     setOpcje(o);
     return new Promise<WynikPotwierdzenia>((res) => { rozwiaz.current = res; });
   }, []);
+
+  /** Tekst wpisany w polu notatki, przycięty. Woła się PO `await potwierdz()`
+   *  — czyta to, co zostało wpisane bez względu na to, którym przyciskiem
+   *  okno się zamknęło (główny czy „dodatkowa"). */
+  const pobierzNotatke = useCallback(() => notatkaRef.current.trim(), []);
 
   const oknoPotwierdzenia = (
     <OknoPotwierdzenia
@@ -69,6 +86,8 @@ export function usePotwierdzenie() {
       potwierdzLabel={opcje?.potwierdzLabel ?? 'Potwierdź'}
       anulujLabel={opcje?.anulujLabel}
       wariant={opcje?.wariant}
+      notatka={opcje?.notatka}
+      onNotatkaChange={(tekst) => { notatkaRef.current = tekst; }}
       akcjaDodatkowa={
         opcje?.akcjaDodatkowaLabel
           ? { label: opcje.akcjaDodatkowaLabel, onClick: () => zakoncz('dodatkowa') }
@@ -79,5 +98,5 @@ export function usePotwierdzenie() {
     />
   );
 
-  return { potwierdz, oknoPotwierdzenia };
+  return { potwierdz, oknoPotwierdzenia, pobierzNotatke };
 }

@@ -129,6 +129,21 @@ describe('tekstOdwolania', () => {
   it('nie wywraca się na niepoprawnej dacie', () => {
     expect(() => tekstOdwolania({ ...bazowy, date: 'bez-sensu' })).not.toThrow();
   });
+
+  // Notatka organizatora (migracja 142) — ten sam tekst, który trafia do
+  // dzwonka/push/maila, ma iść też na czat, jeśli organizator wybrał drugą
+  // drogę „Odwołaj i wyślij wiadomość".
+  it('dokłada notatkę organizatora na końcu, gdy jest podana', () => {
+    const linie = tekstOdwolania(bazowy, 'Boisko zalane, szukamy zastępczego terminu.').split('\n');
+    expect(linie).toHaveLength(5);
+    expect(linie[3]).toBe('Mecz się nie odbędzie.');
+    expect(linie[4]).toBe('Boisko zalane, szukamy zastępczego terminu.');
+  });
+
+  it('bez notatki wiadomość zostaje w czterech liniach', () => {
+    expect(tekstOdwolania(bazowy, undefined).split('\n')).toHaveLength(4);
+    expect(tekstOdwolania(bazowy, '   ').split('\n')).toHaveLength(4);
+  });
 });
 
 // ---------------------------------------------------------------------------
