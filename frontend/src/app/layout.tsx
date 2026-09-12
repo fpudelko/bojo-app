@@ -53,15 +53,23 @@ export const viewport: Viewport = {
   // i nikt tego miejsca nie pilnuje: pasek „Znajdź grę / Mapa / Nowy…" wjeżdżał
   // pod kreskę gestów iOS, a podpis „Nowy" był przez nią przecięty.
   viewportFit: 'cover',
-  // Bez tego klawiatura ekranowa na Androidzie nie zmniejsza layoutu — okno
-  // widoczne (visual viewport) się kurczy, ale strona licząca wysokość
-  // z `100dvh` tego nie widzi, więc composer w Rozmowie zostawał tam, gdzie
-  // był PRZED otwarciem klawiatury, a pod nim robiła się pusta przestrzeń
-  // (to, co kiedyś było resztą ekranu, teraz zasłonięte klawiaturą, ale
-  // strona o tym nie wie). `resizes-content` każe przeglądarce faktycznie
-  // skurczyć layout, więc `h-[100dvh]` w RozmowaGrupy/RozmowaWydarzenia
-  // przelicza się razem z klawiaturą.
-  interactiveWidget: 'resizes-content',
+  // `interactiveWidget` CELOWO NIE JEST USTAWIANY — zostaje domyślne
+  // `resizes-visual` (Chrome 108+). Wcześniej stało tu `resizes-content`,
+  // żeby klawiatura na Androidzie skurczyła layout i `h-[100dvh]` w rozmowie
+  // przeliczyło się razem z nią. Kosztowało to możliwość PISANIA: na
+  // Androidzie klawiatura w Rozmowach mrugała i zamykała się natychmiast po
+  // dotknięciu pola (zgłoszone wprost — „nie wyświetla klawiatury ani przy
+  // pisaniu, ani przy wyszukiwaniu"). `resizes-content` kurczy LAYOUT, więc
+  // otwarcie klawiatury przelicza `svh`/`dvh` i przestawia całą stronę pod
+  // palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku,
+  // przeglądarka chowa klawiaturę, layout wraca do pełnej wysokości i cykl
+  // startuje od nowa.
+  //
+  // Wysokość ekranu czatu nie potrzebuje już tego ustawienia: `useOknoCzatu`
+  // (`lib/oknoCzatu.ts`) mierzy `visualViewport.height` i przycina korzeń
+  // strony do widocznego okna. To ta sama droga, którą od początku chodzi iOS
+  // — a przy `resizes-visual` Android zachowuje się tak samo, więc oba systemy
+  // idą jednym, sprawdzonym torem zamiast dwóch osobnych.
 };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://bojo.pl';

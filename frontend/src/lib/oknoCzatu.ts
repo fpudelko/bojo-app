@@ -12,9 +12,13 @@ import type { CSSProperties } from 'react';
  * NIE kurczy layoutu: `dvh` zostaje takie samo, a przeglądarka po prostu
  * przesuwa widoczne okno w górę, żeby odsłonić pole tekstowe. Przesuwa je
  * z zapasem, więc dół strony (czyli composer) zatrzymywał się kilkadziesiąt
- * pikseli NAD klawiaturą, a pod nim świeciło tło strony. `interactiveWidget:
- * 'resizes-content'` w `layout.tsx` naprawia to na Androidzie i nic nie robi
- * na iOS-ie — tam trzeba zmierzyć okno samemu.
+ * pikseli NAD klawiaturą, a pod nim świeciło tło strony.
+ *
+ * TEN POMIAR OBSŁUGUJE OBA SYSTEMY. Android chodził dawniej osobną drogą —
+ * `interactiveWidget: 'resizes-content'` w `layout.tsx` kazał przeglądarce
+ * skurczyć layout — i to właśnie ona zabierała możliwość pisania: klawiatura
+ * mrugała i zamykała się natychmiast (powód w `layout.tsx`). Bez tego
+ * ustawienia Android zachowuje się jak iOS, więc wystarczy jedna ścieżka.
  *
  * `visualViewport.height` to dokładnie ten widoczny kawałek: kurczy się razem
  * z klawiaturą na obu systemach. Ekran przyciętym do tej wysokości mieści się
@@ -51,6 +55,15 @@ export function styleOknaCzatu(okno: OknoCzatu): CSSProperties | undefined {
   return okno.wysokosc === null ? undefined : { height: `${okno.wysokosc}px` };
 }
 
+/** Czy skupienie siedzi w polu, do którego należy klawiatura ekranowa. */
+function wPoluTekstowym(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  return el instanceof HTMLTextAreaElement
+    || el instanceof HTMLInputElement
+    || (el instanceof HTMLElement && el.isContentEditable);
+}
+
 export function useOknoCzatu(aktywne: boolean): OknoCzatu {
   const [okno, setOkno] = useState<OknoCzatu>(OKNO_NIEZMIERZONE);
   const ostatnie = useRef<OknoCzatu>(OKNO_NIEZMIERZONE);
@@ -74,7 +87,13 @@ export function useOknoCzatu(aktywne: boolean): OknoCzatu {
       // Strona ma teraz dokładnie wysokość widocznego okna, więc nie ma czego
       // przewijać — a przeglądarka zdążyła już przewinąć ją przy otwieraniu
       // klawiatury. Bez tego zostaje przesunięta i nagłówek wyjeżdża za ekran.
-      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      //
+      // NIE W TRAKCIE PISANIA. Przewinięcie korzenia z kodu w chwili, gdy
+      // Android otwiera klawiaturę, każe Chrome ją schować — pole traci
+      // klawiaturę dokładnie w sekundzie, w której ktoś chce jej użyć. Gdy
+      // skupienie siedzi w polu tekstowym, strona i tak jest przycięta do
+      // widocznego okna, więc nie ma czego odkręcać.
+      if (window.scrollY !== 0 && !wPoluTekstowym()) window.scrollTo(0, 0);
     };
     przelicz();
     widoczne.addEventListener('resize', przelicz);
