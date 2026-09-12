@@ -1874,11 +1874,32 @@ wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki fi
 ### Alert o nowym meczu w okolicy — od 2026-09-12
 
 Pusta lista meczów (`sorted.length === 0`) pokazuje duży przycisk **„Powiadom mnie, gdy
-się pojawi"**. To jedyne dzisiaj wejście do alertów (`SHOW_GAME_ALERTS`, przedtem
-wyłączona) i **świadomie jedyne**: filtry są w tym momencie gotową odpowiedzią na pytanie
-„czego szukasz", a człowiek właśnie usłyszał „nie ma" — nigdzie indziej w apce te dwie
-rzeczy nie stoją obok siebie. Wejście na stronie głównej (`components/home/NearbyGames.tsx`,
-martwy kod) zostaje do osobnej decyzji.
+się pojawi"**. Filtry są w tym momencie gotową odpowiedzią na pytanie „czego szukasz",
+a człowiek właśnie usłyszał „nie ma".
+
+**Od 2026-09-12 to NIE jest już jedyne wejście** (decyzja właściciela). Poprzednia wersja
+tej sekcji uzasadniała, że jedyne wejście w pustym stanie jest „świadomie jedyne" —
+argument się nie obronił: chęć dowiedzenia się o nowych meczach nie przychodzi do głowy
+wyłącznie po zobaczeniu pustki. Wejścia są dziś trzy:
+
+| Gdzie | Jak wygląda |
+|---|---|
+| **Dzwonek w pasku** nad listą, obok ikon mapy i filtrów | wypełniony `primary-700` = alert włączony, obrys = wyłączony. Ta sama geometria co plakietka aktywnych filtrów obok, więc kształt mówi „stan", nie „nowe zdarzenie" |
+| **Dół arkusza filtrów** | przy niezerowym podglądzie cichy wiersz „Powiadom mnie o nowych takich meczach"; **przy `Pokaż 0 meczy` pełny przycisk** z nagłówkiem „Nic nie pasuje do tych filtrów" |
+| **Pusty stan listy** | duży przycisk, jak dotąd |
+
+Wariant zerowy w arkuszu istnieje, bo **podgląd „Pokaż 0 meczy" JEST momentem, w którym
+filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczyć pusty stan, żeby
+się o tym dowiedzieć. Blok stoi tuż nad stopką arkusza, czyli tam, gdzie i tak wędruje
+wzrok sięgający po przycisk zatwierdzenia.
+
+Skutek uboczny trzech wejść: **stan alertu (`getMyAlert()`) pobiera się teraz przy każdym
+wejściu zalogowanego na listę**, nie dopiero przy pustym stanie — dzwonek musi wiedzieć, czy
+jest włączony. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
+(`otworzAlert()` — jedno miejsce dla wszystkich trzech wejść). Okno alertu renderuje się
+na poziomie całego widoku, nie w pustym stanie: `listContent` bywa w gałęzi ukrytej przez
+CSS, a modal w takiej gałęzi nie miałby jak się pokazać. Wejście na stronie głównej
+(`components/home/NearbyGames.tsx`, martwy kod) zostaje do osobnej decyzji.
 
 | Stan | Co widać |
 |---|---|
@@ -1907,6 +1928,31 @@ Stan alertu (`getMyAlert()`) pobiera się **dopiero gdy pusty stan realnie wida�
 niepustej liście byłoby to zapytanie przy każdym wejściu po nic. Wysyłka jest niezmieniona:
 funkcja brzegowa `notify-game-alert` (Resend), wołana z `lib/events.ts` przy tworzeniu
 meczu. Bez migracji — tabela `game_alerts` stoi w `025` od początku.
+
+### „Ustaw pinezkę na mojej lokalizacji" — od 2026-09-12
+
+`components/ui/PrzyciskMojaLokalizacja.tsx`, jeden komponent w obu arkuszach filtrów.
+
+Powstał, bo zgoda na lokalizację była wyciągana **ubocznie**: na `/wydarzenia` systemowe
+okno przeglądarki wyskakiwało dopiero przy zatwierdzaniu filtrów z ustawionym promieniem
+(`applyDraft`, `needsGeo`), czyli w chwili, w której człowiek myślał, że już wybiera wyniki.
+Prośba o zgodę ma wychodzić z przycisku naciśniętego właśnie po to.
+
+| Gdzie | Co ustawia |
+|---|---|
+| `/wydarzenia` → arkusz filtrów, pod suwakiem „Odległość" | `userPos`. Gdy pozycja jest już znana, zamiast przycisku stoi „Liczę od Twojej lokalizacji" |
+| `/mapa` → arkusz filtrów, nad polem miejscowości (`WyborMiejscowosci.tsx`, oba tryby: obiekty i gry) | `Miejscowosc` o nazwie „Moja lokalizacja" — dalej działa dokładnie jak wpisana miejscowość, bo filtr i tak liczy po ODLEGŁOŚCI od punktu |
+
+Ustawienie pozycji w arkuszu `/wydarzenia` zmienia też podgląd „Pokaż N meczy" od razu —
+wcześniej liczył się bez promienia, dopóki pozycja nie była znana.
+
+**Błąd geolokalizacji renderuje się w samym przycisku**, pod nim, a nie u wywołującego:
+odmowa zgody to normalny stan tej kontrolki, nie awaria ekranu. Pilnuje tego
+`__tests__/przyciskLokalizacji.test.tsx` — tej połowy nie da się zobaczyć w przeglądarce
+bez uprzedniej odmowy zgody i odgrzebywania jej potem w ustawieniach.
+
+Osobno i bez zmian zostaje `pozycjaBezPytania()` (`lib/geo.ts`): pozycja BEZ pytania, przy
+zgodzie już udzielonej — używa jej okno alertu i kropka „nowe w pobliżu" na dolnej nawigacji.
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
 
