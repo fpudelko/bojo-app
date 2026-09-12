@@ -1,5 +1,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { type DaneAlertu, doHtml, doTekstu, tresc } from './tresc.ts';
+
+/**
+ * Alert o nowej grze w okolicy (`game_alerts`) — za flagą `SHOW_GAME_ALERTS`
+ * (dziś wyłączoną), ale istniejące alerty sprzed wyłączenia flagi dalej
+ * dostają maile: flaga chowa WEJŚCIE w nawigacji, nie trasę ani ten kanał.
+ *
+ * TREŚĆ SIEDZI W `tresc.ts` — jedno źródło dla wersji tekstowej i graficznej,
+ * czyste TS bez `Deno`, więc testowane Vitestem razem z resztą repo, tym
+ * samym wzorcem co `powiadom-goscia`. Tutaj zostaje wyłącznie zapytanie do
+ * bazy i wysyłka.
+ */
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +46,10 @@ serve(async (req) => {
   // na inny adres niż ten, który widzą w przeglądarce.
   const siteUrl     = Deno.env.get('SITE_URL') ?? 'https://bojo.pl';
   const nadawca     = Deno.env.get('BOJO_NADAWCA') ?? 'Bojo <noreply@bojo.pl>';
+  // Bez tego odpowiedź na maila szła donikąd — `reply_to` brakowało tu od
+  // początku, mimo że `powiadom-goscia` ma go od 2026-09-08 z tego samego
+  // powodu: adres z regulaminu, na który realnie ktoś czyta.
+  const odpowiedzNa = Deno.env.get('BOJO_ODPOWIEDZ_NA') ?? 'bojopolska@gmail.com';
 
   const admin = createClient(supabaseUrl, serviceKey);
 
@@ -44,12 +60,18 @@ serve(async (req) => {
     });
   }
 
-  const { data: event } = await admin.from('events').select('*').eq('id', eventId).single();
+  const { data: event } = await admin
+    .from('events')
+    .select('*, fields(address)')
+    .eq('id', eventId)
+    .single();
   if (!event || event.visibility !== 'public' || event.status !== 'active' || !event.lat || !event.lng) {
     return new Response(JSON.stringify({ notified: 0 }), {
       status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
     });
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fieldAddress: string | null = (event.fields as any)?.address ?? null;
 
   // ISO day-of-week (1=Mon … 7=Sun)
   const d = new Date(event.event_date);
@@ -70,16 +92,25 @@ serve(async (req) => {
     });
   }
 
-  const label    = event.title || `${event.sport} — ${event.field_name}`;
-  const eventUrl = `${siteUrl}/wydarzenie/${eventId}`;
+  const dane: DaneAlertu = {
+    sport: event.sport, title: event.title, maxPlayers: event.max_players,
+    costGrosz: event.cost_grosz, fieldName: event.field_name, fieldAddress,
+    customLocationName: event.custom_location_name, customAddress: event.custom_address,
+    eventDate: event.event_date, eventTime: event.event_time,
+  };
+  // Data w temacie — ten sam zapis co w treści, liczony raz.
+  const [rok, miesiac, dzien] = String(event.event_date).split('-');
+  const mail = tresc(dane, `${dzien}.${miesiac}.${rok}`);
+  const eventUrl = `${siteUrl}/wydarzenia/${eventId}`;
+  const kontakt = { strona: siteUrl, eventUrl, odpowiedzNa };
 
   // Insert in-app notifications in one batch
   await admin.from('notifications').insert(
     matching.map((a: any) => ({
       user_id:  a.user_id,
       type:     'game_alert',
-      title:    `Nowa gra: ${label}`,
-      body:     `${event.event_date} o ${event.event_time} · ${event.field_name}`,
+      title:    `Nowa gra: ${mail.label}`,
+      body:     mail.szczegoly,
       event_id: eventId,
       alert_id: a.id,
     })),
@@ -88,34 +119,23 @@ serve(async (req) => {
   // Send emails via Resend
   let emailsSent = 0;
   if (resendKey) {
+    const html = doHtml(mail, kontakt);
+    const text = doTekstu(mail, kontakt);
     for (const alert of matching) {
       try {
         const { data: { user } } = await admin.auth.admin.getUserById(alert.user_id);
         if (!user?.email) continue;
 
-        const html = `
-<p style="font-family:sans-serif;color:#1a1d21">Cześć!</p>
-<p style="font-family:sans-serif;color:#1a1d21">Pojawiła się nowa gra pasująca do Twojego alertu:</p>
-<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:16px 0;font-family:sans-serif">
-  <p style="font-weight:700;font-size:16px;margin:0 0 8px">${label}</p>
-  <p style="color:#64748b;margin:0">📅 ${event.event_date} o ${event.event_time}</p>
-  <p style="color:#64748b;margin:4px 0 0">📍 ${event.field_name}</p>
-</div>
-<a href="${eventUrl}" style="display:inline-block;background:#15803d;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-family:sans-serif;font-weight:600">
-  Zobacz mecz →
-</a>
-<p style="font-family:sans-serif;color:#94a3b8;font-size:12px;margin-top:24px">
-  Zarządzaj alertami na <a href="${siteUrl}" style="color:#94a3b8">bojo.pl</a>
-</p>`;
-
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from:    nadawca,
-            to:      user.email,
-            subject: `Alert: ${label} — ${event.event_date}`,
+            from: nadawca,
+            reply_to: odpowiedzNa,
+            to: user.email,
+            subject: mail.temat,
             html,
+            text,
           }),
         });
         if (res.ok) emailsSent++;
