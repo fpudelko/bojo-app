@@ -467,7 +467,7 @@ export default function EventDetailClient() {
   const wstecz = useWstecz('/moje-gry');
   // Okna potwierdzeń zamiast systemowego `confirm()` — patrz `usePotwierdzenie`.
   // Jedno okno na całą stronę; renderuje się na samym końcu komponentu.
-  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+  const { potwierdz, oknoPotwierdzenia, pobierzNotatke } = usePotwierdzenie();
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { toast } = useToast();
 
@@ -2000,18 +2000,28 @@ export default function EventDetailClient() {
       potwierdzLabel: 'Odwołaj mecz',
       wariant: 'destrukcyjny',
       akcjaDodatkowaLabel: 'Odwołaj i wyślij wiadomość',
+      // Trafia do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu
+      // (dzwonek, push, mail do konta i do gościa — migracja `142`), a przy
+      // drugiej drodze też na czat (`tekstOdwolania` niżej). Bez tego pola
+      // jedynym sposobem powiedzenia „dlaczego" i „co dalej" był właśnie czat
+      // — czyli kanał, którego NIE dostaje ktoś, kto ma wyłącznie dzwonek.
+      notatka: {
+        etykieta: 'Notatka dla uczestników (opcjonalnie)',
+        placeholder: 'Np. powód odwołania albo nowy termin — trafi do wszystkich powiadomień',
+      },
     });
     if (wybor === 'nie') return;
+    const notatka = pobierzNotatke();
 
     setBusy(true);
     try {
-      await cancelEvent(event.id, user?.id, displayName(user ?? null));
+      await cancelEvent(event.id, user?.id, displayName(user ?? null), notatka);
       await load();
       toast('Mecz odwołany');
       // Wiadomość PO udanym odwołaniu, nie przed: inaczej ekipa dostałaby
       // informację o odwołaniu meczu, który dalej stoi w kalendarzu.
       if (wybor === 'dodatkowa') {
-        const wynik = await udostepnijOdwolanie(event);
+        const wynik = await udostepnijOdwolanie(event, notatka);
         if (wynik === 'copied') toast('Wiadomość skopiowana — wklej ją na czat ekipy');
       }
     } catch (e) {
@@ -2755,6 +2765,12 @@ export default function EventDetailClient() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
               <p className="text-xs text-red-500">Ten mecz został odwołany przez organizatora.</p>
+              {/* Ta sama notatka, co w powiadomieniach (`142`) — kto trafił na
+                  stronę bez dzwonka/maila (np. z linku wysłanego wcześniej),
+                  ma ją zobaczyć tu, a nie dopiero po zapytaniu organizatora. */}
+              {event.notatkaOdwolania && (
+                <p className="mt-1 text-xs text-red-600 whitespace-pre-line">{event.notatkaOdwolania}</p>
+              )}
             </div>
             {canManageEvent && (
               <Button variant="outline" size="sm" onClick={handleRestore} disabled={busy}

@@ -102,7 +102,7 @@ export function eventShareText(e: DaneDoUdostepnienia): string {
  * Świadomie ta sama forma co `eventShareText`: kto dostał zaproszenie, dostaje
  * odwołanie w tym samym kształcie i rozpoznaje je bez czytania.
  */
-export function tekstOdwolania(e: DaneDoUdostepnienia): string {
+export function tekstOdwolania(e: DaneDoUdostepnienia, notatka?: string): string {
   const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
 
   let kiedy: string;
@@ -120,18 +120,24 @@ export function tekstOdwolania(e: DaneDoUdostepnienia): string {
     district: e.district,
   });
 
-  return [
+  const linie = [
     `❌ Odwołane: ${tytul}`,
     `${kiedy} · ${hhmm(e.time)}`,
     gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary,
     'Mecz się nie odbędzie.',
-  ].join('\n');
+  ];
+  // Ta sama notatka, którą organizator wpisał w oknie odwołania (migracja
+  // `142`) — na czacie ma ją zobaczyć w tej samej wiadomości, nie osobnym
+  // wpisem zaraz pod nią. Dopisana na końcu: „Mecz się nie odbędzie" ma
+  // zostać pierwszym, jednoznacznym zdaniem niezależnie od długości notatki.
+  if (notatka && notatka.trim()) linie.push(notatka.trim());
+  return linie.join('\n');
 }
 
 /** Otwiera arkusz udostępniania z informacją o odwołaniu; bez `url`, bo nie ma
  *  po co klikać w mecz, który się nie odbędzie — liczy się sama wiadomość. */
-export async function udostepnijOdwolanie(e: DaneDoUdostepnienia): Promise<WynikUdostepnienia> {
-  const text = tekstOdwolania(e);
+export async function udostepnijOdwolanie(e: DaneDoUdostepnienia, notatka?: string): Promise<WynikUdostepnienia> {
+  const text = tekstOdwolania(e, notatka);
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {

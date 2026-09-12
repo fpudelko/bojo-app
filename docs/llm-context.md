@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-12 · migracja `141` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `142` · 56 tabel
 
 ---
 
@@ -403,6 +403,34 @@ wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej
 Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
 zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
 przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
+### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
+
+PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
+organizatorowi miejsca, żeby powiedzieć DLACZEGO albo co dalej — „boisko zalane, szukam
+zastępczego terminu", „gramy w przyszłą sobotę o tej samej porze". Jedyną drogą było
+„Odwołaj i wyślij wiadomość" — osobna wiadomość na czacie meczu, którą widzi tylko ten,
+kto tam zajrzy. Kto dostał wyłącznie dzwonek, push albo maila, widział gołe „Organizator
+odwołał ten mecz" bez powodu.
+
+ROZWIĄZANIE BOJO: okno odwołania ma dziś pole „Notatka dla uczestników (opcjonalnie)".
+Wpisany tekst trafia do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu —
+dzwonek w aplikacji, push (ten sam ładunek co dzwonek), mail do uczestnika z kontem, mail
+do gościa bez konta — a przy wyborze „Odwołaj i wyślij wiadomość" także na czat. Notatka
+pokazuje się też w czerwonym banerze „Mecz odwołany" na stronie meczu, więc widzi ją
+każdy, kto trafi tam z linku, nie tylko ten, kto dostał powiadomienie. Notatka jest
+nadpisywana przy każdym odwołaniu i czyszczona przy przywróceniu meczu — nie jest to
+trwały opis meczu, tylko treść jednego konkretnego zdarzenia.
+
+MECHANIKA: migracja `142` — kolumna `events.notatka_odwolania`; `powiadom_o_odwolaniu()`
+(`070`) dopisuje ją do treści dzwonka; `wyslij_mail_do_konta()` (`140`) i
+`wyslij_mail_do_goscia()` (`133`/`137`) dokładają pole `notatka` w ładunku do funkcji
+brzegowej `powiadom-goscia`, wyłącznie dla powodu odwołania. `cancelEvent()`
+i `restoreEvent()` w `lib/events.ts` zarządzają kolumną z aplikacji, wyzwalacz
+`wyczysc_notatke_po_przywroceniu()` jest siecią bezpieczeństwa w bazie. Pole notatki
+w oknie potwierdzenia — `OpcjeNotatki` w `components/ui/OknoPotwierdzenia.tsx`,
+`pobierzNotatke()` w `lib/usePotwierdzenie.tsx`. Ta sama notatka jedzie na czat przez
+`tekstOdwolania()` w `lib/eventShare.ts`. Asercje w `supabase/test/notatka-odwolania.sql`
+i `frontend/src/__tests__/mailePowiadomien.test.ts`.
 
 ### 2026-09-11 — Maile Bojo wyglądają jak narzędzie, a nie jak notatka
 
@@ -627,37 +655,3 @@ zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypeł
 Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
 powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
 (reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.
-
-### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
-
-PROBLEM: (1) Strona meczu na każdy błąd — brak zasięgu, awarię serwera, odmowę reguł
-dostępu — pokazywała „Nie znaleziono wydarzenia”. Strona meczu to jedyny adres,
-który organizator rozsyła kilkunastu osobom, więc gracz z chwilowo słabym zasięgiem czytał
-komunikat znaczący „dostałeś link do czegoś, czego nie ma” — i wypadało to na
-organizatora, nie na Bojo. Do tego pierwszą czynnością przy wczytywaniu było porządkowanie
-kolejki rezerwowej, czyli zadanie POMOCNICZE, którego awaria gasiła całą stronę. (2) Rozmyty
-podgląd kreatora na ekranie zachęcającym do założenia konta pokazywał układ pól sprzed
-przebudowy kroków — brama obiecywała inny formularz, niż organizator dostawał po
-zalogowaniu. (3) Sześć decyzji organizatora nadal potwierdzało systemowe okno przeglądarki:
-otwarcie meczu dla okolicy oraz pięć w ekranach ekip, w tym USUNIĘCIE EKIPY — rzecz
-nieodwracalna, opisana jednym zdaniem w okienku, które na telefonie czyta się jak błąd strony.
-
-ROZWIĄZANIE BOJO: (1) Bojo odróżnia dziś „takiego meczu nie ma” od „nie udało się
-go wczytać”. Przy awarii pokazuje ekran z przyciskiem „Spróbuj ponownie” i zdaniem
-„link jest w porządku”; porządkowanie kolejki rezerwowej i wynik meczu zeszły poza
-ścieżkę krytyczną, więc ich awaria nie gasi już strony. (2) Podgląd na bramie pokazuje ten
-sam krok pierwszy, który organizator zobaczy po zalogowaniu — sport, termin, liczbę miejsc
-i listę rezerwową — a nazwy trzech kroków biorą się z tego samego miejsca w kodzie co
-w kreatorze, więc nie mogą się rozjechać. (3) Wszystkie decyzje organizatora, także
-w ekipach, potwierdza własne okno Bojo z listą konsekwencji. Usunięcie ekipy mówi teraz
-osobno, co znika (rozmowa, tablica, skład, statystyki), co zostaje (mecze, tylko bez
-przypisania do ekipy) i że cofnąć się nie da; otwarcie meczu dla okolicy mówi wprost, że
-decyzja JEST odwracalna.
-
-MECHANIKA: `lib/events.ts` (`BladWczytania` z kodem PostgREST-a, `toBrakWiersza()` dla
-`PGRST116`), `app/wydarzenia/[id]/EventDetailClient.tsx` (stan `bladWczytania`, ekran
-ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta bramy),
-`components/events/CzyGramyPanel.tsx`, `app/grupy/[id]/GroupDetailClient.tsx`,
-`app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
-Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
-`__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.

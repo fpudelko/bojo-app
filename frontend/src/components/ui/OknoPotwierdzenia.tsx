@@ -35,6 +35,12 @@ export interface AkcjaDodatkowa {
   onClick: () => void;
 }
 
+export interface OpcjeNotatki {
+  /** Etykieta nad polem, np. „Notatka dla uczestników (opcjonalnie)". */
+  etykieta: string;
+  placeholder?: string;
+}
+
 export default function OknoPotwierdzenia({
   open,
   tytul,
@@ -44,6 +50,8 @@ export default function OknoPotwierdzenia({
   anulujLabel = 'Anuluj',
   wariant = 'zwykly',
   busy = false,
+  notatka,
+  onNotatkaChange,
   akcjaDodatkowa,
   onPotwierdz,
   onAnuluj,
@@ -60,6 +68,13 @@ export default function OknoPotwierdzenia({
    *  które coś kasują albo odwołują — inaczej czerwień przestaje znaczyć. */
   wariant?: 'zwykly' | 'destrukcyjny';
   busy?: boolean;
+  /** Pole tekstowe pod konsekwencjami, nad przyciskami. NIEKONTROLOWANE
+   *  celowo: przy każdym naciśnięciu klawisza kontrolowany `<textarea>`
+   *  wywoływałby render całego drzewa `EventDetailClient` (i podobnych
+   *  wywołujących) — dla notatki, którą czyta się dopiero po zamknięciu
+   *  okna, to niepotrzebny koszt. Wartość czyta `onNotatkaChange`. */
+  notatka?: OpcjeNotatki;
+  onNotatkaChange?: (tekst: string) => void;
   /** Druga droga wyjścia, np. „Odwołaj i wyślij wiadomość". Renderuje się pod
    *  główną akcją, nad „Anuluj". */
   akcjaDodatkowa?: AkcjaDodatkowa;
@@ -112,6 +127,22 @@ export default function OknoPotwierdzenia({
               </li>
             ))}
           </ul>
+        )}
+
+        {notatka && (
+          <div className="mt-4">
+            <label htmlFor="okno-potwierdzenia-notatka" className="mb-1 block text-sm font-medium text-ink">
+              {notatka.etykieta}
+            </label>
+            <textarea
+              id="okno-potwierdzenia-notatka"
+              rows={3}
+              placeholder={notatka.placeholder}
+              disabled={busy}
+              onChange={(e) => onNotatkaChange?.(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+            />
+          </div>
         )}
 
         <div className="mt-5 space-y-2">

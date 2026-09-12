@@ -2288,14 +2288,29 @@ o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Ro
 
 **Wysokość ekranu czatu bierze się z `visualViewport`, nie z `100dvh`**
 (`lib/oknoCzatu.ts`, hak `useOknoCzatu()` w `EventDetailClient` i `GroupDetailClient`).
-`viewport.interactiveWidget: 'resizes-content'` w `app/layout.tsx` załatwia sprawę na
-Androidzie, ale na iOS-ie nie robi nic: `dvh` zostaje takie samo, a przeglądarka tylko
-przesuwa widoczne okno w górę, żeby odsłonić pole tekstowe — i przesuwa je z zapasem,
-przez co composer zatrzymywał się kilkadziesiąt pikseli NAD klawiaturą, a pod nim
-świeciło tło strony (zgłoszone na iPhonie 15 Pro). `visualViewport.height` kurczy się
-razem z klawiaturą na obu systemach, więc korzeń strony dostaje tę wysokość w pikselach
-i nie ma już czego przewijać. Bez pomiaru (SSR, brak API) styl jest `undefined`
-i zostaje `h-[100dvh]` z klasy.
+Na iOS-ie `dvh` zostaje takie samo, a przeglądarka tylko przesuwa widoczne okno w górę,
+żeby odsłonić pole tekstowe — i przesuwa je z zapasem, przez co composer zatrzymywał się
+kilkadziesiąt pikseli NAD klawiaturą, a pod nim świeciło tło strony (zgłoszone na
+iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu systemach,
+więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
+Bez pomiaru (SSR, brak API) styl jest `undefined` i zostaje `h-[100dvh]` z klasy.
+
+**`viewport.interactiveWidget` w `app/layout.tsx` MA ZOSTAĆ NIEUSTAWIONY** —
+pilnuje tego `klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, żeby klawiatura
+Androida kurczyła layout; kosztowało to możliwość PISANIA W CAŁEJ APLIKACJI: klawiatura
+mrugała i zamykała się natychmiast po dotknięciu pola (zgłoszone wprost — „nie wyświetla
+klawiatury ani przy pisaniu, ani przy wyszukiwaniu w wiadomościach"). `resizes-content`
+kurczy layout, więc otwarcie klawiatury przelicza `svh`/`dvh` i przestawia stronę pod
+palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku, przeglądarka chowa
+klawiaturę, layout wraca do pełnej wysokości i cykl startuje od nowa. Przy domyślnym
+`resizes-visual` Android zachowuje się jak iOS, czyli wchodzi na tę samą, sprawdzoną
+ścieżkę pomiaru wyżej. Z tego samego powodu `useOknoCzatu` **nie przewija korzenia
+strony z kodu, gdy skupienie siedzi w polu tekstowym** — programowe przewinięcie w chwili
+otwierania klawiatury każe Chrome ją schować.
+
+Zepsutej klawiatury nie widać poza telefonem: ani `tsc`, ani Vitest, ani Playwright nie
+mają klawiatury ekranowej. Objaw, który ta zmiana „naprawiała" (pusty pas pod
+composerem), widać natychmiast — dlatego decyzja siedzi w teście, nie w komentarzu.
 
 Ten sam hak mówi, czy klawiatura jest otwarta, a to rozstrzyga **odstęp na pasek gestów
 pod composerem**: przy schowanej klawiaturze kontener rozmowy dostaje
@@ -3249,6 +3264,18 @@ powiadomienie: przy odwołaniu meczu Bojo liczy uczestników bez konta i mówi w
 go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
+
+**Notatka organizatora przy odwołaniu, od 2026-09-12.** Okno mówiło dotąd wyłącznie KTO
+dostanie powiadomienie, nie dawało miejsca na DLACZEGO ani co dalej — jedyną drogą było
+„Odwołaj i wyślij wiadomość", czyli osobna wiadomość na czacie, którą widzi tylko ten, kto
+tam zajrzy. Opcja `notatka` w `OpcjePotwierdzenia` (etykieta + placeholder) dokłada pole
+tekstowe pod konsekwencjami; wartość czyta się PO rozstrzygnięciu przez `pobierzNotatke()`,
+nie przez wynik `potwierdz()` — zmiana typu wyniku dotknęłaby wszystkie siedem plików, które
+porównują go z gołym stringiem (`wybor === 'nie'`). Pole jest niekontrolowane (`ref`, nie
+`useState`), żeby każde naciśnięcie klawisza nie renderowało całego drzewa wołającego. Dziś
+jedyne użycie to okno odwołania meczu: notatka trafia do dzwonka, push, maila (do konta
+i do gościa — migracja `142`) oraz do tekstu na czacie i do czerwonego banera „Mecz
+odwołany" na stronie meczu, czyli do wszystkich miejsc, które i tak już mówią o odwołaniu.
 
 **Domknięte 2026-09-03.** Zostały wtedy jeszcze SZEŚĆ wywołań `confirm()`, wszystkie na
 ścieżce organizatora — poprzednia runda zatrzymała się na samej stronie meczu:
