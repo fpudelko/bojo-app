@@ -213,3 +213,16 @@ przyszłoby równolegle z „potwierdź adres" od Supabase. Przy Google adres je
 potwierdzony od razu, więc mail idzie natychmiast.
 
 Pełny opis decyzji: `docs/funkcje.md`, sekcja „Poczta do gościa bez konta".
+
+## Notatka organizatora przy odwołaniu (migracja `142`)
+
+`odwolanie` i `mecz_odwolany` mogą nieść dodatkowe pole `notatka` — tekst, który
+organizator wpisał w oknie „Odwołać mecz?". `tresc()` dokłada go jako osobny
+akapit, wyłącznie gdy pole jest niepuste.
+
+Ten commit siedzi na gałęzi `claude/funkcje/**` właśnie po to, żeby uruchomić
+wdrożenie: kod w `tresc.ts` wszedł do mastera w PR #347, ale zmiana w tym
+katalogu nie trafia na produkcję przez sam merge — funkcję trzeba wdrożyć
+osobno, jak w kroku 3 wyżej („Wdróż funkcję i ustaw sekrety"). Bez tego
+wdrożenia dzwonek i push niosą notatkę (piszą wprost do bazy), a mail — nie,
+bo renderuje go WŁAŚNIE ta funkcja, w wersji sprzed zmiany.
