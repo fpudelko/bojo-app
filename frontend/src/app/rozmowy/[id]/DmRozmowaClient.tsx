@@ -10,6 +10,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getPublicPlayer } from '@/lib/players';
 import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
+import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useWstecz } from '@/lib/historia';
 import {
   pobierzDm, wyslijDm, usunDm, zablokuj, odblokuj, czyZablokowalem, zglos,
@@ -32,6 +33,7 @@ export default function DmRozmowaClient() {
   const { user, loading: authLoading } = useAuth();
   const wstecz = useWstecz('/rozmowy');
   const { toast } = useToast();
+  const okno = useOknoCzatu(true);
 
   const [drugaNazwa, setDrugaNazwa] = useState<string | null>(null);
   const [wiadomosci, setWiadomosci] = useState<DmWiadomosc[]>([]);
@@ -79,6 +81,15 @@ export default function DmRozmowaClient() {
     if (ladowanie || wiadomosci.length === 0) return;
     requestAnimationFrame(() => dolRef.current?.scrollIntoView({ block: 'end' }));
   }, [ladowanie, wiadomosci.length]);
+
+  // Klawiatura zabiera pół ekranu: lista kurczy się od dołu przy niezmienionym
+  // `scrollTop`, więc najnowsza wiadomość uciekała pod krawędź dokładnie
+  // w chwili, gdy ktoś zaczyna na nią odpowiadać (ta sama reguła co
+  // w `RozmowaWydarzenia`).
+  useEffect(() => {
+    if (!okno.klawiatura) return;
+    requestAnimationFrame(() => dolRef.current?.scrollIntoView({ block: 'end' }));
+  }, [okno.klawiatura]);
 
   useEffect(() => {
     const el = polemRef.current;
@@ -132,16 +143,23 @@ export default function DmRozmowaClient() {
     }
   };
 
+  // Pełny ekran komunikatora wyłącznie dla zalogowanego — reszta stanów
+  // (ładowanie, zaproszenie do logowania) to zwykła, przewijalna strona.
+  const pelnyEkran = !authLoading && !!user;
+
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
+    <div
+      className={`flex flex-col bg-canvas ${pelnyEkran ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
+      style={pelnyEkran ? styleOknaCzatu(okno) : undefined}
+    >
       {/* Na mobile dla zalogowanego znika CAŁY pasek Header — wiersz niżej
           (strzałka wstecz + imię + menu) jest wtedy jedynym nagłówkiem tego
           ekranu, dokładnie jak w prawdziwym komunikatorze: „jesteś w
           rozmowie", nie „jesteś na stronie z czatem wstawionym pod paskiem
           serwisu". Desktop bez zmian (Header tam nikt nie prosił chować). */}
       <Header hideMobileBarForUser />
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
-        <div className="flex items-center gap-1">
+      <main className={`mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4 ${pelnyEkran ? 'min-h-0 overflow-hidden' : ''}`}>
+        <div className="flex shrink-0 items-center gap-1">
           {/* Wstecz = poprzedni ekran, nie zawsze `/rozmowy`. Do rozmowy
               prywatnej wchodzi się TAKŻE z profilu gracza („Napisz
               wiadomość"), a stała strzałka na listę rozmów wyrzucała wtedy na
@@ -197,7 +215,12 @@ export default function DmRozmowaClient() {
           )}
         </div>
 
-        <div className="mt-2 flex-1 pb-4">
+        {/* Własny scroll listy, nie scroll strony: nagłówek rozmowy i pole
+            pisania mają zostać na ekranie, gdy wjeżdża klawiatura. Bez tego
+            przeglądarka przewijała CAŁĄ stronę, żeby odsłonić pole — nagłówek
+            wyjeżdżał za ekran, a nad composerem zostawał pusty pas (zgłoszone
+            ze zrzutem). */}
+        <div className={`mt-2 pb-4 ${pelnyEkran ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-1'}`}>
           {authLoading || ladowanie ? (
             <div className="flex justify-center py-16 text-slate-300 dark:text-slate-600">
               <Loader2 className="h-6 w-6 animate-spin" />
@@ -278,7 +301,7 @@ export default function DmRozmowaClient() {
         {user && (zablokowany ? (
           /* Zablokowanemu NIE chowamy pola po cichu — cisza wyglądałaby jak
              awaria. Zdanie mówi, co się stało, i daje drogę powrotną. */
-          <div className="sticky bottom-16 -mx-4 border-t border-slate-200/70 bg-canvas/95 px-4 py-3 text-center backdrop-blur-sm md:bottom-0 dark:border-slate-700">
+          <div className="-mx-4 shrink-0 border-t border-slate-200/70 bg-canvas/95 px-4 py-3 text-center backdrop-blur-sm dark:border-slate-700">
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Ta osoba jest zablokowana.{' '}
               <button type="button" onClick={przelaczBlokade} className="font-semibold text-primary-700 hover:underline">
@@ -287,9 +310,12 @@ export default function DmRozmowaClient() {
             </p>
           </div>
         ) : (
-          /* Kompozytor przyklejony NAD dolnym paskiem nawigacji — inaczej pole
-             pisania ucieka pod koniec długiej rozmowy. */
-          <div className="sticky bottom-16 -mx-4 border-t border-slate-200/70 bg-canvas/95 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm md:bottom-0 dark:border-slate-700">
+          /* Kompozytor to ostatni, nieściśliwy wiersz ekranu o stałej
+             wysokości — nie `sticky`. Sticky trzymał się dołu DOKUMENTU, więc
+             przy otwartej klawiaturze siadał tam, gdzie akurat przewinęła
+             stronę przeglądarka; dziś ekran ma dokładnie wysokość widocznego
+             okna minus pasek nawigacji, więc „na dole" znaczy jedno. */
+          <div className="-mx-4 shrink-0 border-t border-slate-200/70 bg-canvas/95 px-4 pb-2 pt-2 backdrop-blur-sm dark:border-slate-700">
             <div className="flex items-end gap-2">
               <textarea
                 ref={polemRef}

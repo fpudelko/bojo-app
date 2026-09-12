@@ -293,6 +293,16 @@ zasłaniałby ważniejsze CTA:
   użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby). Po dołączeniu panel
   wraca — to zachęta do kolejnej akcji.
 
+**Ekrany rozmów panelu NIE chowają — od 2026-09-12.** Wcześniej chowały (cztery miejsca:
+`/rozmowy/mecz/[id]`, `/rozmowy/grupa/[id]`, zakładka Rozmowa na meczu, Tablica na
+ekipie), bo `fixed bottom-0` nie rezerwuje miejsca w dokumencie i pasek zasłaniał
+composer. Dziś miejsce rezerwuje wysokość ekranu czatu (`calc(<widoczne okno> -
+var(--bottom-nav-h))`), więc composer siada NAD paskiem, a pasek zostaje tam, gdzie
+człowiek go szuka. **Chowa go wyłącznie klawiatura** — dosłownie zasłania, bo
+`interactiveWidget: 'resizes-visual'` nie rusza layoutu (szczegóły w sekcji o wysokości
+ekranu czatu). Decyzja właściciela: „nie chowaj tego paska, ale klawiatura niech go
+zakryje, a nie podnosi".
+
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
@@ -569,9 +579,9 @@ statystykami i zarządzaniem. Człowiek dotykał wiadomości, a dostawał panel 
 wyjść tam, skąd się weszło (zgłoszone wprost).
 
 Obie trasy to pełny ekran o układzie 1:1 z rozmową prywatną `/rozmowy/[id]`: własny
-nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), `HideBottomNav`,
-wysokość liczona z widocznego okna (`useOknoCzatu` — inaczej composer ucieka nad
-klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
+nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), dolna nawigacja
+zostaje na miejscu (chowa ją wyłącznie klawiatura), wysokość liczona z widocznego okna
+(`useOknoCzatu` — inaczej composer ucieka nad klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
 (`RozmowaGrupy`, `RozmowaWydarzenia`) i te same tabele — nic się nie duplikuje.
 
 **Kontekst jest ODNOŚNIKIEM, nie paskiem zakładek.** `components/rozmowy/NaglowekRozmowy.tsx`
@@ -2247,8 +2257,8 @@ całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z
 `isGroupMember()` doładowanego razem z `groupInfo`) — dawne komentarze widzieli wyłącznie
 zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
 o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
-`BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
-żeby czat sięgał do dołu ekranu.
+dostaje stałą wysokość widocznego okna minus pasek nawigacji i `overflow-hidden`, żeby
+czat sięgał dokładnie nad pasek. **`BottomNav` NIE znika** — patrz niżej.
 
 **Wysokość ekranu czatu bierze się z `visualViewport`, nie z `100dvh`**
 (`lib/oknoCzatu.ts`, hak `useOknoCzatu()` w `EventDetailClient` i `GroupDetailClient`).
@@ -2257,31 +2267,42 @@ Na iOS-ie `dvh` zostaje takie samo, a przeglądarka tylko przesuwa widoczne okno
 kilkadziesiąt pikseli NAD klawiaturą, a pod nim świeciło tło strony (zgłoszone na
 iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu systemach,
 więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
-Bez pomiaru (SSR, brak API) styl jest `undefined` i zostaje `h-[100dvh]` z klasy.
+Od wyniku odejmuje się `var(--bottom-nav-h)` — pasek nawigacji zostaje na ekranie czatu,
+więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `undefined`
+i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
 
-**`viewport.interactiveWidget` w `app/layout.tsx` MA ZOSTAĆ NIEUSTAWIONY** —
-pilnuje tego `klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, żeby klawiatura
-Androida kurczyła layout; kosztowało to możliwość PISANIA W CAŁEJ APLIKACJI: klawiatura
-mrugała i zamykała się natychmiast po dotknięciu pola (zgłoszone wprost — „nie wyświetla
-klawiatury ani przy pisaniu, ani przy wyszukiwaniu w wiadomościach"). `resizes-content`
-kurczy layout, więc otwarcie klawiatury przelicza `svh`/`dvh` i przestawia stronę pod
-palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku, przeglądarka chowa
-klawiaturę, layout wraca do pełnej wysokości i cykl startuje od nowa. Przy domyślnym
-`resizes-visual` Android zachowuje się jak iOS, czyli wchodzi na tę samą, sprawdzoną
-ścieżkę pomiaru wyżej. Z tego samego powodu `useOknoCzatu` **nie przewija korzenia
-strony z kodu, gdy skupienie siedzi w polu tekstowym** — programowe przewinięcie w chwili
-otwierania klawiatury każe Chrome ją schować.
+**`viewport.interactiveWidget` w `app/layout.tsx` MA BYĆ `resizes-visual`** — pilnuje tego
+`klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, czyli odwrotność, i kosztowało
+dwie rzeczy naraz:
+
+- **możliwość PISANIA W CAŁEJ APLIKACJI**: klawiatura mrugała i zamykała się natychmiast
+  po dotknięciu pola (zgłoszone wprost — „nie wyświetla klawiatury ani przy pisaniu, ani
+  przy wyszukiwaniu w wiadomościach"). `resizes-content` kurczy layout, więc otwarcie
+  klawiatury przelicza `svh`/`dvh` i przestawia stronę pod palcem: pole ze skupieniem
+  wyjeżdża z widoku, przeglądarka chowa klawiaturę, layout wraca i cykl startuje od nowa;
+- **dolna nawigacja jechała NAD klawiaturę** zamiast schować się za nią (zgłoszone ze
+  zrzutem) — `fixed bottom-0` trzyma się dołu layoutu, a ten właśnie się skurczył.
+
+Wartość jest podana JAWNIE, bo samo usunięcie klucza nie wystarczyło: Chrome na Androidzie
+nadal domyślnie kurczy layout. iOS zachowuje się jak `resizes-visual` bez względu na ten
+klucz, więc jawna wartość stawia oba systemy na jednej ścieżce. Z tego samego powodu
+`useOknoCzatu` **nie przewija korzenia strony z kodu, gdy skupienie siedzi w polu
+tekstowym** — programowe przewinięcie w chwili otwierania klawiatury też każe Chrome ją
+schować.
 
 Zepsutej klawiatury nie widać poza telefonem: ani `tsc`, ani Vitest, ani Playwright nie
-mają klawiatury ekranowej. Objaw, który ta zmiana „naprawiała" (pusty pas pod
+mają klawiatury ekranowej. Objaw, który `resizes-content` „naprawiało" (pusty pas pod
 composerem), widać natychmiast — dlatego decyzja siedzi w teście, nie w komentarzu.
 
-Ten sam hak mówi, czy klawiatura jest otwarta, a to rozstrzyga **odstęp na pasek gestów
-pod composerem**: przy schowanej klawiaturze kontener rozmowy dostaje
-`pb-[…env(safe-area-inset-bottom)]`, bo bez tego composer siedzi pod samą kreską na dole
-ekranu; przy otwartej odstęp znika, bo pasek gestów jest wtedy schowany za klawiaturą
-i ten sam margines zrobiłby dokładnie tę pustkę, której unikamy. Otwarcie klawiatury
-dociąga też listę na dół (`RozmowaWydarzenia`/`RozmowaGrupy`, prop `klawiatura`) — lista
+**Klawiatura zeruje `--bottom-nav-h`.** `useOknoCzatu` stawia `data-klawiatura="1"` na
+`<html>`, a `globals.css` zbija na ten czas zmienną do zera. Powód: pasek jest wtedy
+zasłonięty klawiaturą, więc rezerwowanie mu miejsca zrobiłoby pusty pas między composerem
+a klawiaturą — dokładnie to, czego ta cała mechanika unika. Jedno wyrażenie
+(`calc(<widoczne okno> - var(--bottom-nav-h))`) obsługuje przez to oba stany, a kontenery
+rozmów nie mają już własnych wcięć na pasek gestów: niesie je pasek nawigacji.
+
+Otwarcie klawiatury dociąga też listę na dół
+(`RozmowaWydarzenia`/`RozmowaGrupy`/`DmRozmowaClient`, prop `klawiatura`) — lista
 kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość uciekała pod
 krawędź dokładnie w chwili, gdy ktoś zaczynał na nią odpowiadać. Kto czytał starsze
 wiadomości (`atBottom === false`), zostaje przy nich.

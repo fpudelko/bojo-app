@@ -32,11 +32,16 @@ describe('zmierzOkno', () => {
 });
 
 describe('styleOknaCzatu', () => {
-  it('niezmierzone okno nie nadpisuje h-[100dvh]', () => {
+  it('niezmierzone okno nie nadpisuje wysokości z klasy', () => {
     expect(styleOknaCzatu(OKNO_NIEZMIERZONE)).toBeUndefined();
   });
 
-  it('zmierzone okno ustawia wysokość w pikselach', () => {
-    expect(styleOknaCzatu({ wysokosc: 450, klawiatura: true })).toEqual({ height: '450px' });
+  // Pasek nawigacji ZOSTAJE na ekranie czatu i chowa się wyłącznie za
+  // klawiaturą, więc czat kończy się nad nim, a nie pod nim. `--bottom-nav-h`
+  // schodzi do zera przy otwartej klawiaturze (globals.css, `data-klawiatura`),
+  // więc jedno wyrażenie obsługuje oba stany.
+  it('zmierzone okno odejmuje pasek nawigacji od wysokości', () => {
+    expect(styleOknaCzatu({ wysokosc: 450, klawiatura: true }))
+      .toEqual({ height: 'calc(450px - var(--bottom-nav-h))' });
   });
 });

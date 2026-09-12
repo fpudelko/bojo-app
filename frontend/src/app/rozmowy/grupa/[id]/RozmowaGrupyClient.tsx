@@ -7,8 +7,7 @@ import { Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NaglowekRozmowy from '@/components/rozmowy/NaglowekRozmowy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
-import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getGroup, getMyGroupPermissions } from '@/lib/groups';
 import { kluczTablicaWidziano } from '@/lib/groupPosts';
@@ -25,8 +24,9 @@ import type { Group, GroupPermissions } from '@/types';
  * nikt nie zadał.
  *
  * Układ 1:1 jak `/rozmowy/[id]` (DM): własny nagłówek zamiast paska serwisu
- * na mobile, `HideBottomNav`, wysokość liczona z widocznego okna
- * (`useOknoCzatu` — inaczej composer ucieka nad klawiaturę na iOS).
+ * na mobile, dolna nawigacja ZOSTAJE (klawiatura ją zakrywa — patrz
+ * `lib/oknoCzatu.ts`), wysokość liczona z widocznego okna (`useOknoCzatu` —
+ * inaczej composer ucieka nad klawiaturę na iOS).
  */
 export default function RozmowaGrupyClient() {
   const { id } = useParams<{ id: string }>();
@@ -81,7 +81,7 @@ export default function RozmowaGrupyClient() {
 
   return (
     <div
-      className={`flex flex-col bg-canvas ${pelnyEkran ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      className={`flex flex-col bg-canvas ${pelnyEkran ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
       style={pelnyEkran ? styleOknaCzatu(okno) : undefined}
     >
       <Header hideMobileBarForUser />
@@ -112,7 +112,6 @@ export default function RozmowaGrupyClient() {
           </div>
         ) : group && perms ? (
           <>
-            <HideBottomNav />
             <NaglowekRozmowy
               tytul={group.name}
               podtytul="Otwórz ekipę"
@@ -126,9 +125,10 @@ export default function RozmowaGrupyClient() {
             />
             {/* Ten sam zabieg co na stronie ekipy: `min-h-0 flex-1` jest
                 jedynym elementem, który może jeszcze rosnąć w stałej
-                wysokości ekranu, a wcięcie na pasek gestów znika razem
-                z otwarciem klawiatury, bo pasek chowa się wtedy za nią. */}
-            <div className={`mt-2 min-h-0 flex-1 ${okno.klawiatura ? '' : 'pb-[max(0.25rem,calc(env(safe-area-inset-bottom)_-_1rem))]'}`}>
+                wysokości ekranu. Bez własnego odstępu na dole — pod czatem
+                stoi pasek nawigacji (odjęty przez `--bottom-nav-h`), a przy
+                otwartej klawiaturze zmienna schodzi do zera. */}
+            <div className="mt-2 min-h-0 flex-1">
               <RozmowaGrupy groupId={group.id} permissions={perms} klawiatura={okno.klawiatura} />
             </div>
           </>
