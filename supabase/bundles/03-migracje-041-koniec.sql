@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 98 migracji: 041_join_code.sql → 140_poczta_do_kont.sql
+-- Zawiera 102 migracji: 041_join_code.sql → 144_przypomnienie_zna_zamkniete_zapisy.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -11579,3 +11579,913 @@ CREATE TRIGGER trg_wyslij_mail_po_powiadomieniu
 
 COMMENT ON FUNCTION wyslij_mail_do_konta(UUID, TEXT, UUID) IS
   'Poczta do uczestnika Z KONTEM — wyłącznie cztery powody, przy których niedoręczenie kończy się czyimś wyjazdem na boisko (migracja 140). Respektuje profiles.mail_wylaczone. Cicho wychodzi bez konfiguracji poczty.';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 141_zapisy_zamkniete.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 141 — „Zapisy zamknięte": mecz gra się w tym składzie, ale NIE jest odwołany
+--
+-- DLACZEGO. Organizator z 10 osobami na 14 miejsc, który o 20:00 mówi „gramy
+-- w tym składzie", ma dziś do wyboru dwie rzeczy i obie są złe:
+--
+--   • ZMNIEJSZYĆ LICZBĘ MIEJSC do 10 — co kłamie o meczu (na boisku jest
+--     miejsce dla 14) i nie da się cofnąć bez ponownego liczenia, a przy
+--     bramkarzach w trybie osobnej puli rozjeżdża pułapy ról;
+--   • ODWOŁAĆ MECZ — co wysyła całemu składowi „mecz odwołany" (`139`, `140`),
+--     czyli komunikat dokładnie odwrotny do prawdy.
+--
+-- Trzeciej możliwości nie było, choć jest to najczęstsza decyzja organizatora
+-- w ostatnich godzinach przed meczem.
+--
+-- ---------------------------------------------------------------------------
+-- CO TO ZNACZY, A CZEGO NIE ZNACZY
+-- ---------------------------------------------------------------------------
+-- Zamknięcie zapisów blokuje WYŁĄCZNIE wejście NOWEJ osoby. Kto jest w środku,
+-- zostaje w środku — i to jest cała różnica wobec odwołania.
+--
+-- BLOKUJE:
+--   • `dolacz_do_meczu()` — zapis konta, tak samo do składu jak na rezerwę.
+--     Rezerwa też jest zapisem: człowiek, który staje w kolejce do meczu
+--     rozstrzygniętego, czeka na coś, co nie nadejdzie;
+--   • `dolacz_do_meczu_jako_goscie()` — zapis bez konta, w tym samym miejscu
+--     i z tego samego powodu.
+--
+-- NIE BLOKUJE — i każde z tych „nie" jest decyzją, nie przeoczeniem:
+--   • ORGANIZATORA DOPISUJĄCEGO GOŚCIA (`addGuest`). To nie jest zapis, tylko
+--     świadome działanie osoby, która zapisy właśnie zamknęła. Zabranianie jej
+--     tego znaczyłoby, że zamknięcie trzeba cofnąć, żeby dopisać kolegę, który
+--     napisał na WhatsAppie — czyli że funkcja przeszkadza w rzeczy, dla której
+--     powstała;
+--   • OFERTY ZWOLNIONEGO MIEJSCA (`sync_reserve_claim`). Człowiek z kolejki
+--     JEST już w meczu; dostanie miejsce, gdy ktoś się wypisze, to nie jest
+--     nowy zapis, tylko dokończenie starego;
+--   • WYPISANIA SIĘ. Zamknięte zapisy nie mogą nikogo trzymać siłą;
+--   • PONOWNEGO WEJŚCIA GOŚCIA PO SWÓJ TOKEN. `dolacz_do_meczu_jako_goscie`
+--     oddaje istniejący `claim_token`, gdy ten sam adres ma już wpis. Strażnik
+--     stoi PO tych gałęziach, więc gość, który zapisał się przed zamknięciem
+--     i wrócił po swój link, dalej go dostaje. Strażnik przed nimi zamieniłby
+--     zamknięcie zapisów w odebranie ludziom dostępu do własnego wpisu.
+--
+-- ODWOŁANIE MECZU ZOSTAJE OSOBNYM STANEM. `status = 'cancelled'` znaczy „nie
+-- gramy" i wysyła powiadomienia; `zapisy_zamkniete` znaczy „gramy, skład
+-- zamknięty" i nie wysyła nic. Wspólna kolumna ze stanem („otwarty/zamknięty/
+-- odwołany") wyglądałaby schludniej i byłaby błędem: te dwie rzeczy są
+-- niezależne (mecz odwołany może mieć zapisy otwarte i to bez znaczenia),
+-- a każdy warunek `status = 'cancelled'` w bazie i w kodzie trzeba by
+-- przepisać — za każdą przepisaną linią stoi szansa, że coś zgubimy.
+--
+-- BEZ POWIADOMIEŃ, ŚWIADOMIE. Zamknięcie zapisów nie zmienia nic dla osoby,
+-- która JEST w składzie — a tylko takie osoby mają dziś do kogo dostać
+-- wiadomość. Mail o tym byłby przerwaniem dnia bez treści (patrz wąska lista
+-- powodów w `140`).
+--
+-- STRAŻNIK JEST W BAZIE, NIE W INTERFEJSIE. Klucz `anon` siedzi jawnie
+-- w paczce JS, więc schowany przycisk nie jest granicą. Obie funkcje zapisu są
+-- `SECURITY DEFINER` i stanowią jedyne wejście do `event_participants` dla
+-- zapisującego się — dlatego warunek wchodzi DO NICH, a nie do polityki RLS.
+--
+-- MIGRACJA JEST IDEMPOTENTNA.
+
+-- ---------------------------------------------------------------------------
+-- 1. Kolumna
+-- ---------------------------------------------------------------------------
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS zapisy_zamkniete BOOLEAN NOT NULL DEFAULT false;
+
+COMMENT ON COLUMN events.zapisy_zamkniete IS
+  'Organizator zamknął zapisy: nikt nowy nie wejdzie (ani do składu, ani na rezerwę), ale mecz się odbywa i skład zostaje. Rozłączne ze status = ''cancelled'' (migracja 141).';
+
+-- `events` ma uprawnienia na poziomie TABELI, nie kolumn — `120` przeniosło
+-- `blik_phone` do osobnej tabeli właśnie po to, żeby nie trzeba było odbierać
+-- uprawnień kolumnowych i wywracać wszystkich `select('*')`. Nowa kolumna jest
+-- więc czytelna od razu i nie wymaga własnego GRANT-a. Gdyby to się kiedyś
+-- zmieniło, brak SELECT-a na tej kolumnie objawi się jako przełącznik, który
+-- po odświeżeniu strony wraca do „otwarte".
+
+-- ---------------------------------------------------------------------------
+-- 2. Zapis konta — strażnik obok warunku o odwołaniu
+-- ---------------------------------------------------------------------------
+-- Ciało przepisane z `078` z jedną zmianą: `v_zamkniete` w SELECT-cie i warunek
+-- niżej. Reszta zostaje znak w znak, łącznie z kolejnością `sync_reserve_claim`
+-- przed liczeniem pojemności.
+CREATE OR REPLACE FUNCTION dolacz_do_meczu(
+  p_event_id UUID,
+  p_nazwa TEXT,
+  p_bramkarz BOOLEAN DEFAULT false,
+  p_metoda_platnosci TEXT DEFAULT NULL,
+  p_karta_sportowa BOOLEAN DEFAULT false,
+  p_dostawca_karty TEXT DEFAULT NULL
+)
+RETURNS TABLE (is_reserve BOOLEAN, pending BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_organizator uuid;
+  v_wymaga_akceptacji boolean;
+  v_odwolany boolean;
+  v_zamkniete boolean;
+  v_rezerwa boolean;
+  v_pending boolean;
+  v_nazwa text := btrim(p_nazwa);
+BEGIN
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'Musisz być zalogowany, żeby dołączyć';
+  END IF;
+  IF v_nazwa = '' OR length(v_nazwa) > 80 THEN
+    RAISE EXCEPTION 'Nieprawidłowe imię';
+  END IF;
+
+  SELECT organizer_id, require_approval, status = 'cancelled',
+         coalesce(zapisy_zamkniete, false)
+    INTO v_organizator, v_wymaga_akceptacji, v_odwolany, v_zamkniete
+    FROM events WHERE id = p_event_id;
+
+  IF v_organizator IS NULL THEN
+    RAISE EXCEPTION 'Nie ma takiego meczu';
+  END IF;
+  IF v_odwolany THEN
+    RAISE EXCEPTION 'Mecz został odwołany';
+  END IF;
+  IF EXISTS (SELECT 1 FROM event_participants
+              WHERE event_id = p_event_id AND user_id = v_user) THEN
+    RAISE EXCEPTION 'Jesteś już zapisany na ten mecz';
+  END IF;
+  -- Strażnik PO teście „jesteś już zapisany": kto jest w środku, ma dostać
+  -- swój komunikat, nie ten o zamkniętych zapisach.
+  --
+  -- Organizator jest wyjątkiem i to nie jest furtka dla wygody: to ta sama
+  -- osoba, która zapisy zamknęła, a `addGuest` i tak pozwala jej dopisać kogo
+  -- chce. Blokowanie jej własnego wpisu znaczyłoby, że musi odemknąć mecz,
+  -- żeby dopisać samą siebie.
+  IF v_zamkniete AND v_user <> v_organizator THEN
+    RAISE EXCEPTION 'Zapisy na ten mecz są zamknięte';
+  END IF;
+
+  -- Wygasłe oferty muszą przepaść ZANIM policzymy pojemność, inaczej martwa
+  -- oferta blokowałaby miejsce nowemu chętnemu.
+  PERFORM sync_reserve_claim(p_event_id);
+
+  -- Organizator nie akceptuje sam siebie.
+  v_pending := v_wymaga_akceptacji AND v_user <> v_organizator;
+  v_rezerwa := CASE WHEN v_pending THEN false
+                    ELSE czy_na_rezerwe(p_event_id, p_bramkarz) END;
+
+  INSERT INTO event_participants (
+    event_id, user_id, name, is_guest, is_reserve, is_goalkeeper,
+    pending_approval, payment_method, has_sports_card, sports_card_provider
+  ) VALUES (
+    p_event_id, v_user, v_nazwa, false, v_rezerwa, p_bramkarz,
+    v_pending, p_metoda_platnosci, p_karta_sportowa,
+    CASE WHEN p_karta_sportowa THEN p_dostawca_karty ELSE NULL END
+  );
+
+  RETURN QUERY SELECT v_rezerwa, v_pending;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Zapis gościa — strażnik PO gałęziach „już masz wpis"
+-- ---------------------------------------------------------------------------
+-- Ciało przepisane z `115`. Jedyna zmiana to blok oznaczony `141` — stoi tuż
+-- przed `sync_reserve_claim`, czyli za wszystkimi wcześniejszymi `RETURN`-ami
+-- oddającymi istniejący token. Gość zapisany przed zamknięciem dalej odzyskuje
+-- swój wpis; blokujemy wyłącznie wstawienie NOWEGO wiersza.
+CREATE OR REPLACE FUNCTION dolacz_do_meczu_jako_goscie(
+  p_event_id UUID,
+  p_imie TEXT,
+  p_email TEXT,
+  p_bramkarz BOOLEAN DEFAULT false,
+  p_metoda_platnosci TEXT DEFAULT NULL,
+  p_karta_sportowa BOOLEAN DEFAULT false
+)
+RETURNS TABLE (claim_token UUID, event_id UUID, already_joined BOOLEAN, has_account BOOLEAN)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_rezerwa boolean;
+  v_pending boolean;
+  v_wymaga_akceptacji boolean;
+  v_imie_clean text := TRIM(BOTH ' ' FROM p_imie);
+  v_email_clean text := TRIM(BOTH ' ' FROM p_email);
+  v_istniejacy_token uuid;
+  v_ma_wpis boolean;
+  v_ma_konto boolean;
+BEGIN
+  IF v_imie_clean = '' OR LENGTH(v_imie_clean) > 80 THEN
+    RAISE EXCEPTION 'Nieprawidłowe imię';
+  END IF;
+
+  IF v_email_clean IS NULL OR v_email_clean = '' THEN
+    RAISE EXCEPTION 'Podaj adres e-mail';
+  END IF;
+  IF NOT (v_email_clean LIKE '%@%.%') THEN
+    RAISE EXCEPTION 'Nieprawidłowy adres e-mail';
+  END IF;
+  IF LENGTH(v_email_clean) > 100 THEN
+    RAISE EXCEPTION 'Adres e-mail jest za długi';
+  END IF;
+
+  SELECT require_approval INTO v_wymaga_akceptacji FROM events WHERE id = p_event_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie ma takiego meczu';
+  END IF;
+  IF EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND status = 'cancelled') THEN
+    RAISE EXCEPTION 'Mecz został odwołany';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM auth.users u WHERE lower(u.email) = lower(v_email_clean)
+  ) INTO v_ma_konto;
+
+  SELECT ep.claim_token, true
+    INTO v_istniejacy_token, v_ma_wpis
+    FROM event_participants ep
+   WHERE ep.event_id = p_event_id
+     AND ep.guest_email IS NOT NULL
+     AND lower(ep.guest_email) = lower(v_email_clean)
+   ORDER BY (ep.claim_token IS NULL) DESC, ep.created_at
+   LIMIT 1;
+
+  IF v_ma_wpis THEN
+    IF v_istniejacy_token IS NULL THEN
+      RETURN QUERY SELECT NULL::uuid, p_event_id, true, v_ma_konto;
+      RETURN;
+    END IF;
+    RETURN QUERY SELECT v_istniejacy_token, p_event_id, true, v_ma_konto;
+    RETURN;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+      FROM auth.users u
+      JOIN event_participants ep ON ep.user_id = u.id AND ep.event_id = p_event_id
+     WHERE lower(u.email) = lower(v_email_clean)
+  ) THEN
+    RETURN QUERY SELECT NULL::uuid, p_event_id, true, true;
+    RETURN;
+  END IF;
+
+  -- `141` — dopiero tutaj wiadomo, że to NOWY wpis.
+  IF EXISTS (SELECT 1 FROM events
+              WHERE id = p_event_id AND coalesce(zapisy_zamkniete, false)) THEN
+    RAISE EXCEPTION 'Zapisy na ten mecz są zamknięte';
+  END IF;
+
+  PERFORM sync_reserve_claim(p_event_id);
+
+  v_pending := coalesce(v_wymaga_akceptacji, false);
+  v_rezerwa := CASE WHEN v_pending THEN false
+                    ELSE czy_na_rezerwe(p_event_id, p_bramkarz) END;
+
+  RETURN QUERY INSERT INTO event_participants (
+    event_id,
+    user_id,
+    name,
+    is_guest,
+    guest_email,
+    is_reserve,
+    is_goalkeeper,
+    payment_method,
+    has_sports_card,
+    pending_approval
+  ) VALUES (
+    p_event_id,
+    NULL,
+    v_imie_clean,
+    true,
+    v_email_clean,
+    v_rezerwa,
+    p_bramkarz,
+    p_metoda_platnosci,
+    p_karta_sportowa,
+    v_pending
+  )
+  RETURNING event_participants.claim_token, p_event_id, false, v_ma_konto;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION dolacz_do_meczu(UUID, TEXT, BOOLEAN, TEXT, BOOLEAN, TEXT)
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION dolacz_do_meczu_jako_goscie(UUID, TEXT, TEXT, BOOLEAN, TEXT, BOOLEAN)
+  TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 142_notatka_odwolania.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 142 — notatka organizatora przy odwołaniu meczu
+--
+-- DLACZEGO. Okno „Odwołać mecz?" mówi dziś DOKŁADNIE co się stanie („Uczestnicy
+-- z kontem dostaną powiadomienie…"), ale nie daje organizatorowi miejsca, żeby
+-- powiedzieć DLACZEGO albo co dalej — „boisko zalane, szukam zastępczego
+-- terminu", „gramy w przyszłą sobotę o tej samej porze". Jedyną drogą, żeby to
+-- przekazać, było „Odwołaj i wyślij wiadomość" — czyli osobna wiadomość na
+-- czacie meczu, którą widzi tylko ten, kto tam zajrzy. Kto dostał wyłącznie
+-- dzwonek, push albo maila, widział gołe „Organizator odwołał ten mecz" bez
+-- powodu.
+--
+-- CO TO ZNACZY. Organizator może przy odwołaniu dopisać notatkę — trafia do
+-- WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu: dzwonek
+-- w aplikacji (`070`), push (czyta `notifications.body`, `102`) i mail — do
+-- konta (`140`) i do gościa bez konta (`133`). Nie jest to nowy kanał, tylko
+-- dopisek do czterech istniejących.
+--
+-- CZEGO TO NIE JEST. To nie jest pole w formularzu edycji ani osobny powód
+-- powiadomień — notatka żyje wyłącznie w kontekście KONKRETNEGO odwołania.
+-- Kolumna jest nadpisywana przy każdym odwołaniu (włącznie z pustą wartością,
+-- gdy organizator nic nie wpisał) i czyszczona przy przywróceniu meczu — żeby
+-- następne odwołanie nie odziedziczyło notatki sprzed tygodnia.
+--
+-- MIGRACJA JEST IDEMPOTENTNA.
+
+-- ---------------------------------------------------------------------------
+-- 1. Kolumna
+-- ---------------------------------------------------------------------------
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS notatka_odwolania TEXT;
+
+COMMENT ON COLUMN events.notatka_odwolania IS
+  'Notatka organizatora dołączona do POWIADOMIEŃ o odwołaniu meczu (dzwonek, push, mail — 070/133/140). Nadpisywana przy każdym odwołaniu, czyszczona przy przywróceniu (migracja 142).';
+
+-- ---------------------------------------------------------------------------
+-- 2. Dzwonek — dopisek do treści, którą i tak czyta push (`102`)
+-- ---------------------------------------------------------------------------
+-- Ciało przepisane z `070` z jedną zmianą: notatka na końcu treści, gdy jest.
+CREATE OR REPLACE FUNCTION powiadom_o_odwolaniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_tytul TEXT;
+BEGIN
+  IF NEW.status <> 'cancelled' OR OLD.status IS NOT DISTINCT FROM 'cancelled' THEN
+    RETURN NEW;
+  END IF;
+
+  v_tytul := coalesce(NEW.title, NEW.sport);
+
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT DISTINCT p.user_id,
+         'mecz_odwolany',
+         'Mecz odwołany',
+         coalesce(v_tytul, 'Mecz') || ' — ' || to_char(NEW.event_date, 'DD.MM')
+           || ', godz. ' || to_char(NEW.event_time, 'HH24:MI')
+           || '. Organizator odwołał ten mecz.'
+           || CASE WHEN btrim(coalesce(NEW.notatka_odwolania, '')) <> ''
+                THEN E'\n\nWiadomość od organizatora: ' || btrim(NEW.notatka_odwolania)
+                ELSE '' END,
+         NEW.id
+    FROM event_participants p
+   WHERE p.event_id = NEW.id
+     AND p.user_id IS NOT NULL
+     AND p.user_id <> NEW.organizer_id;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Mail do konta — dopisek do payloadu wysyłanego do funkcji brzegowej
+-- ---------------------------------------------------------------------------
+-- Ciało przepisane z `140` z jedną zmianą: `v_w` niesie teraz notatkę i wiersz
+-- JSON dostaje pole `notatka`, WYŁĄCZNIE dla powodu `mecz_odwolany` — pozostałe
+-- trzy powody (`zmiana_terminu`, `zmiana_warunkow_meczu`, `mecz_przywrocony`)
+-- nie mają z odwołaniem nic wspólnego, choćby kolumna akurat coś niosła.
+CREATE OR REPLACE FUNCTION wyslij_mail_do_konta(p_user UUID, p_powod TEXT, p_event UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, auth, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+  v_email  TEXT;
+  v_imie   TEXT;
+  v_w      RECORD;
+BEGIN
+  SELECT wartosc INTO v_url    FROM konfiguracja_poczty WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_poczty WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN RETURN; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM profiles p WHERE p.id = p_user AND p_powod = ANY(p.mail_wylaczone)
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT u.email,
+         nullif(btrim(coalesce(
+           u.raw_user_meta_data ->> 'display_name',
+           u.raw_user_meta_data ->> 'full_name',
+           u.raw_user_meta_data ->> 'name', '')), '')
+    INTO v_email, v_imie
+    FROM auth.users u WHERE u.id = p_user;
+
+  IF v_email IS NULL THEN RETURN; END IF;
+
+  SELECT e.id, e.title, e.sport, e.event_date, e.event_time,
+         coalesce(e.field_name, e.custom_location_name) AS miejsce, e.cost_grosz,
+         e.notatka_odwolania
+    INTO v_w
+    FROM events e WHERE e.id = p_event;
+  IF v_w.id IS NULL THEN RETURN; END IF;
+
+  BEGIN
+    INSERT INTO maile_wyslane (user_id, powod, event_id) VALUES (p_user, p_powod, p_event);
+  EXCEPTION WHEN unique_violation THEN
+    RETURN;
+  END;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-bojo-sekret', v_sekret),
+    body    := jsonb_build_object(
+      'powod',    p_powod,
+      'email',    v_email,
+      'imie',     v_imie,
+      'event_id', v_w.id,
+      'tytul',    coalesce(v_w.title, v_w.sport),
+      'data',     to_char(v_w.event_date, 'DD.MM.YYYY'),
+      'godzina',  to_char(v_w.event_time, 'HH24:MI'),
+      'miejsce',  v_w.miejsce,
+      'koszt_grosz', v_w.cost_grosz,
+      'ma_konto', true,
+      'notatka',  CASE WHEN p_powod = 'mecz_odwolany'
+                    AND btrim(coalesce(v_w.notatka_odwolania, '')) <> ''
+                  THEN v_w.notatka_odwolania ELSE NULL END
+    )
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4. Mail do gościa bez konta — dopisek do ciała z `137` (OSTATNIA definicja
+--    przed tą migracją), nie z `133`. `133` samo w sobie jest już nieaktualne:
+--    `134` przeniosło zapis do `maile_wyslane` (rename z `maile_goscia`),
+--    a `137` dołożyło `czeka_na_akceptacje` i `oferta_do`. Kopiowanie ciała
+--    z `133` przywróciłoby oba te regresy naraz — INSERT do tabeli, która od
+--    `134` nazywa się inaczej, i mail „Masz miejsce w składzie" do gościa
+--    w poczekalni.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION wyslij_mail_do_goscia(p_uczestnik UUID, p_powod TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+  v_w      RECORD;
+BEGIN
+  SELECT wartosc INTO v_url    FROM konfiguracja_poczty WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_poczty WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN RETURN; END IF;
+
+  SELECT p.id, p.name, p.guest_email, p.claim_token, p.is_reserve, p.pending_approval,
+         e.id AS event_id, e.title, e.sport, e.event_date, e.event_time,
+         coalesce(e.field_name, e.custom_location_name) AS miejsce, e.cost_grosz,
+         e.notatka_odwolania,
+         CASE WHEN p.claim_offered_at IS NULL THEN NULL
+              ELSE to_char(
+                (p.claim_offered_at
+                 + (coalesce(e.reserve_claim_minutes, 180) || ' minutes')::interval)
+                AT TIME ZONE 'Europe/Warsaw', 'DD.MM, godz. HH24:MI')
+         END AS oferta_do
+    INTO v_w
+    FROM event_participants p
+    JOIN events e ON e.id = p.event_id
+   WHERE p.id = p_uczestnik AND p.is_guest
+     AND p.guest_email IS NOT NULL AND p.claimed_at IS NULL;
+  IF v_w.id IS NULL THEN RETURN; END IF;
+
+  BEGIN
+    INSERT INTO maile_wyslane (uczestnik_id, powod) VALUES (p_uczestnik, p_powod);
+  EXCEPTION WHEN unique_violation THEN
+    RETURN;
+  END;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-bojo-sekret', v_sekret),
+    body    := jsonb_build_object(
+      'powod', p_powod, 'email', v_w.guest_email, 'imie', v_w.name,
+      'event_id', v_w.event_id, 'tytul', coalesce(v_w.title, v_w.sport),
+      'data', to_char(v_w.event_date, 'DD.MM.YYYY'),
+      'godzina', to_char(v_w.event_time, 'HH24:MI'),
+      'miejsce', v_w.miejsce, 'koszt_grosz', v_w.cost_grosz,
+      'na_rezerwie', v_w.is_reserve,
+      'czeka_na_akceptacje', v_w.pending_approval,
+      'oferta_do', v_w.oferta_do,
+      'token', v_w.claim_token,
+      'notatka', CASE WHEN p_powod = 'odwolanie'
+                   AND btrim(coalesce(v_w.notatka_odwolania, '')) <> ''
+                 THEN v_w.notatka_odwolania ELSE NULL END
+    )
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 5. Przywrócenie meczu czyści notatkę
+-- ---------------------------------------------------------------------------
+-- Bez tego drugie odwołanie tego samego meczu, bez nowej notatki, wysłałoby
+-- ludziom wiadomość sprzed tygodnia jako aktualną. `restoreEvent()`
+-- (`lib/events.ts`) i tak zeruje kolumnę przy każdym przywróceniu — ten
+-- wyzwalacz jest siecią bezpieczeństwa dla ścieżek, które zmieniają `status`
+-- z pominięciem aplikacji (panel Supabase, skrypt).
+CREATE OR REPLACE FUNCTION wyczysc_notatke_po_przywroceniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.status <> 'cancelled' AND OLD.status IS NOT DISTINCT FROM 'cancelled'
+     AND NEW.notatka_odwolania IS NOT NULL THEN
+    NEW.notatka_odwolania := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_wyczysc_notatke_po_przywroceniu ON events;
+CREATE TRIGGER trg_wyczysc_notatke_po_przywroceniu
+  BEFORE UPDATE ON events
+  FOR EACH ROW
+  EXECUTE FUNCTION wyczysc_notatke_po_przywroceniu();
+
+COMMENT ON FUNCTION wyslij_mail_do_konta(UUID, TEXT, UUID) IS
+  'Poczta do uczestnika Z KONTEM — wyłącznie cztery powody, przy których niedoręczenie kończy się czyimś wyjazdem na boisko (migracja 140). Niesie notatkę organizatora przy odwołaniu (migracja 142). Respektuje profiles.mail_wylaczone. Cicho wychodzi bez konfiguracji poczty.';
+
+COMMENT ON FUNCTION wyslij_mail_do_goscia(UUID, TEXT) IS
+  'Poczta do gościa bez konta — cztery powody (migracja 133). Niesie notatkę organizatora przy odwołaniu (migracja 142). Cicho wychodzi bez konfiguracji poczty.';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 143_zegar_kolejki_rezerwy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 143 — kolejka rezerwowa dostaje zegar
+--
+-- DLACZEGO. `sync_reserve_claim()` (migracje `118`/`130`/`135`) jest wołane
+-- WYŁĄCZNIE czyimś kliknięciem: wejściem na stronę meczu, wypisaniem się kogoś,
+-- odpuszczeniem oferty. Gdy oferta zwolnionego miejsca wygasa i NIKT nie
+-- otworzy strony meczu, kolejka STAJE: wygasła oferta dalej wisi, następna
+-- osoba nie dostaje niczego, a organizator gra w niepełnym składzie mając
+-- chętnego na ławce. Sprawdzone zapytaniami na bazie (audyt 2026-09-12,
+-- `docs/przeplyw-organizatora.md`, ustalenie `S-1`): 6 h po wygaśnięciu okna
+-- (domyślnie 180 min) oferta stała dalej, druga osoba w kolejce miała zero
+-- powiadomień, skład 1 z 2.
+--
+-- GORSZA POŁOWA: po starcie meczu `sync_reserve_claim()` wychodzi natychmiast
+-- (`IF v_minutes IS NULL OR v_started THEN RETURN`), więc oferta, która wygasła
+-- tuż przed startem i nikt nie wszedł na stronę, nie wygaśnie już NIGDY —
+-- zostaje przypisana do gracza, który jej nie przyjął.
+--
+-- Migracja `079` mówi przy tym organizatorowi WPROST: „Miejsce trafia do
+-- pierwszej osoby z rezerwy" — obietnica, której druga połowa działała tylko
+-- wtedy, gdy ktoś przypadkiem odświeżył stronę.
+--
+-- JAK. Zadanie w bazie przegląda aktywne, PRZYSZŁE mecze z niepustą rezerwą
+-- i woła ISTNIEJĄCĄ, przetestowaną `sync_reserve_claim()`. Świadomie NIE
+-- powtarzamy tu reguły „czy jest wolne miejsce" — rozstrzyga ją `czy_na_rezerwe()`
+-- wewnątrz `sync_reserve_claim()`, a druga kopia tej samej reguły rozjechałaby
+-- się przy pierwszej zmianie (ta sama lekcja co `KROK_KREATORA` w kreatorze —
+-- jedno źródło prawdy, nie trzy niezależne kopie).
+--
+-- CO 15 MINUT, NIE RZADZIEJ. Okno oferty ma dolny limit 15 minut
+-- (`events_reserve_claim_minutes_check`). Zadanie rzadsze niż najkrótsze
+-- dopuszczalne okno znaczyłoby, że organizator, który ustawił 15 min, i tak
+-- czeka dłużej — czyli kontrolka w kreatorze by kłamała.
+--
+-- IDEMPOTENTNA i tania: zbiór to aktywne przyszłe mecze z kimkolwiek na
+-- rezerwie, czyli w praktyce kilkadziesiąt wierszy. Drugi przebieg pod rząd
+-- nie wysyła nic nowego — sprawdzone.
+
+CREATE OR REPLACE FUNCTION porzadkuj_kolejki_rezerwy()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id  uuid;
+  v_ile integer := 0;
+BEGIN
+  FOR v_id IN
+    SELECT DISTINCT e.id
+      FROM events e
+      JOIN event_participants p ON p.event_id = e.id
+     WHERE e.status = 'active'
+       AND (e.event_date + e.event_time)::timestamp > teraz_pl()
+       AND p.is_reserve
+       AND p.pending_approval IS NOT TRUE
+       AND p.rsvp <> 'maybe'
+  LOOP
+    PERFORM sync_reserve_claim(v_id);
+    v_ile := v_ile + 1;
+  END LOOP;
+
+  RETURN v_ile;
+END;
+$$;
+
+COMMENT ON FUNCTION porzadkuj_kolejki_rezerwy() IS
+  'Wołane WYŁĄCZNIE przez zadanie pg_cron (bojo-kolejka-rezerwy). Przegląda aktywne przyszłe mecze z niepustą rezerwą i odświeża każdy przez sync_reserve_claim() — bez tego wygasła oferta stoi, dopóki ktoś przypadkiem nie wejdzie na stronę meczu.';
+
+-- Wołana wyłącznie przez zadanie w bazie — z przeglądarki nie ma po co jej
+-- ruszać, a dostępna dla `anon` byłaby zaproszeniem do przymuszania kolejki
+-- rezerwowej cudzych meczów.
+REVOKE ALL ON FUNCTION porzadkuj_kolejki_rezerwy() FROM public;
+REVOKE ALL ON FUNCTION porzadkuj_kolejki_rezerwy() FROM anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Harmonogram — co 15 minut
+-- ---------------------------------------------------------------------------
+-- Owinięte w DO wzorem `073`/`129`: samo `cron.schedule` na bazie bez
+-- `pg_cron` wywraca całą migrację. Na produkcji rozszerzenie JEST włączone
+-- (sprawdzone przy `129`/`133`), ale `baza-testowa.sh` stawia goły Postgres
+-- bez niego.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- `unschedule` przed `schedule`: bez tego drugie uruchomienie migracji
+    -- wywala się na duplikacie nazwy zadania.
+    PERFORM cron.unschedule('bojo-kolejka-rezerwy')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'bojo-kolejka-rezerwy');
+    PERFORM cron.schedule(
+      'bojo-kolejka-rezerwy',
+      '*/15 * * * *',
+      'SELECT porzadkuj_kolejki_rezerwy()'
+    );
+    RAISE NOTICE 'Zadanie bojo-kolejka-rezerwy ustawione co 15 minut.';
+  ELSE
+    RAISE NOTICE 'pg_cron niewłączony — kolejka rezerwowa NIE będzie się porządkować sama, dopóki ktoś nie wejdzie na stronę meczu. Włącz: Database → Extensions → pg_cron, potem uruchom ten blok ponownie.';
+  END IF;
+END
+$$;
+
+-- SPRAWDZENIE PO URUCHOMIENIU (wkleić w SQL Editorze):
+--   SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bojo-kolejka-rezerwy';
+--   SELECT porzadkuj_kolejki_rezerwy();   -- ręczne wywołanie: zwraca liczbę przejrzanych meczów
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 144_przypomnienie_zna_zamkniete_zapisy.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 144 — przypomnienie dla organizatora zna zamknięte zapisy i widzi rezerwę
+--
+-- DLACZEGO. `wyslij_przypomnienia()` (`129`) powstała PRZED zamykaniem zapisów
+-- (`141`) i nigdy do niej nie wróciła — `zapisy_zamkniete` nie pada w niej ani
+-- razu. Sprawdzone zapytaniem na bazie (audyt 2026-09-12, ustalenie `S-3`):
+-- mecz jutro, 14 miejsc, organizator ZAMKNĄŁ zapisy przy 3 osobach, a na
+-- rezerwie stoją 2 chętne osoby. Przypomnienie mówiło:
+--
+--     Jutro 20:00 · Orlik Testowy · brakuje 11 (3/14)
+--
+-- Dwie osobne nieprawdy w jednym zdaniu:
+--
+--   1. „brakuje 11" na meczu, który organizator SAM zamknął słowami „gramy
+--      w tym składzie" — aplikacja kłóci się z jego własną decyzją, i to
+--      w chwili, w której jeszcze zdąży zgłupieć (18:00 dnia poprzedniego).
+--   2. Rezerwa jest niewidzialna. „Brakuje 11" przy dwóch osobach czekających
+--      na ławce to nie jest informacja, tylko zgadywanka — organizator szuka
+--      na WhatsAppie ludzi, których ma w aplikacji.
+--
+-- JAK. Trzy warianty zamiast dwóch, dla obu bloków (organizator gra / nie gra):
+--
+--   * zapisy zamknięte      → „… · zapisy zamknięte (3/14)", bez „brakuje";
+--   * brakuje, ktoś czeka   → „… · brakuje 11 (3/14) · 2 osoby czekają na rezerwie";
+--   * brakuje, pusta rezerwa → „… · brakuje 11 (3/14)" (bez zmian);
+--   * komplet                → „… " bez dopisku (bez zmian).
+--
+-- Rezerwa liczona TYM SAMYM filtrem co „kto realnie czeka w kolejce" w `079`
+-- (`komplet_skladu`/`zwolnilo_sie_miejsce`): bez obserwujących, bez czekających
+-- na akceptację, bez tych, którzy raz już oferty odpuścili.
+--
+-- Blok C („po meczu") zostaje NIETKNIĘTY.
+
+-- ---------------------------------------------------------------------------
+-- 1. Pomocnik odmiany — wzorem `odmien_nie_oddalo()` z migracji `131`
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION odmien_czeka_na_rezerwie(n integer)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT n || CASE
+    WHEN n = 1 THEN ' osoba czeka na rezerwie'
+    WHEN n % 10 BETWEEN 2 AND 4 AND n % 100 NOT BETWEEN 12 AND 14
+      THEN ' osoby czekają na rezerwie'
+    ELSE ' osób czeka na rezerwie'
+  END;
+$$;
+
+COMMENT ON FUNCTION odmien_czeka_na_rezerwie(integer) IS
+  'Odmieniony człon „N osób czeka na rezerwie" do treści przypomnienia dzień przed meczem. Odpowiednik odmien_nie_oddalo() z migracji 131 — ta sama reguła (wyjątek 12-14), inny czasownik.';
+
+-- ---------------------------------------------------------------------------
+-- 2. wyslij_przypomnienia — ciało z `131`, zmienione w blokach A i B
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION wyslij_przypomnienia()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_dzis  date := (now() AT TIME ZONE 'Europe/Warsaw')::date;
+  v_ile   integer := 0;
+  v_teraz integer;
+BEGIN
+  -- =========================================================================
+  -- A. JUTRO GRASZ — do wszystkich, którzy mają miejsce w składzie
+  -- =========================================================================
+  -- Rezerwowi i oczekujący na akceptację celowo POZA: „jutro grasz" jest dla
+  -- nich nieprawdą, a przypomnienie o meczu, w którym się nie gra, to hałas.
+  -- Obserwujący (`rsvp = 'maybe'`) odpadają tą samą regułą.
+  --
+  -- Organizator dostaje TĘ SAMĄ jedną wiadomość, tylko z dopiskiem o brakach —
+  -- osobny wiersz dla niego znaczyłby dwa powiadomienia o tym samym meczu dla
+  -- kogoś, kto w nim gra.
+  WITH sklad AS (
+    SELECT e.id AS event_id,
+           e.organizer_id,
+           coalesce(e.title, e.sport)                                     AS tytul,
+           to_char(e.event_time, 'HH24:MI')                               AS godzina,
+           coalesce(e.field_name, e.custom_location_name, 'boisko')       AS miejsce,
+           e.max_players,
+           e.zapisy_zamkniete,
+           count(*) FILTER (
+             WHERE p.pending_approval IS NOT TRUE
+               AND p.rsvp <> 'maybe'
+               AND p.is_reserve IS NOT TRUE)                              AS w_skladzie,
+           -- Kto realnie czeka w kolejce — ten sam filtr co `079`
+           -- (`komplet_skladu`/`zwolnilo_sie_miejsce`): bez obserwujących,
+           -- bez czekających na akceptację, bez tych, którzy oferty odpuścili.
+           count(*) FILTER (
+             WHERE p.is_reserve
+               AND p.pending_approval IS NOT TRUE
+               AND p.rsvp <> 'maybe'
+               AND p.claim_passed IS NOT TRUE)                            AS na_rezerwie
+      FROM events e
+      JOIN event_participants p ON p.event_id = e.id
+     WHERE e.event_date = v_dzis + 1
+       AND e.status = 'active'
+     GROUP BY e.id
+  )
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT p.user_id,
+         'przypomnienie_o_meczu',
+         s.tytul,
+         -- Organizatorowi dokładamy to, co jest dla niego decyzją: zamknięte
+         -- zapisy, ilu brakuje i ilu czeka na rezerwie. Reszcie sama
+         -- informacja o terminie — braki nie są ich sprawą i zamieniłyby
+         -- przypomnienie w prośbę o pomoc wysłaną do wszystkich.
+         CASE
+           WHEN p.user_id = s.organizer_id AND s.zapisy_zamkniete
+             THEN 'Jutro ' || s.godzina || ' · ' || s.miejsce
+                  || ' · zapisy zamknięte (' || s.w_skladzie || '/' || s.max_players || ')'
+           WHEN p.user_id = s.organizer_id AND s.w_skladzie < s.max_players
+             THEN 'Jutro ' || s.godzina || ' · ' || s.miejsce
+                  || ' · brakuje ' || (s.max_players - s.w_skladzie)
+                  || ' (' || s.w_skladzie || '/' || s.max_players || ')'
+                  || CASE WHEN s.na_rezerwie > 0
+                          THEN ' · ' || odmien_czeka_na_rezerwie(s.na_rezerwie::int)
+                          ELSE '' END
+           ELSE 'Jutro ' || s.godzina || ' · ' || s.miejsce
+         END,
+         s.event_id
+    FROM sklad s
+    JOIN event_participants p ON p.event_id = s.event_id
+   WHERE p.user_id IS NOT NULL
+     AND p.pending_approval IS NOT TRUE
+     AND p.rsvp <> 'maybe'
+     AND p.is_reserve IS NOT TRUE
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = p.user_id
+              AND n.event_id = s.event_id
+              AND n.type = 'przypomnienie_o_meczu');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  -- =========================================================================
+  -- B. ORGANIZATOR, KTÓRY JUTRO GRA, ALE NIE MA SIEBIE W SKŁADZIE
+  -- =========================================================================
+  -- Organizator nie musi grać w meczu, który organizuje — i wtedy wypada
+  -- z zapytania wyżej, mimo że to on odpowiada za skład i za wynajem. Dla
+  -- niego „jutro" jest informacją co najmniej tak samo ważną, więc dostaje
+  -- TE SAME TRZY WARIANTY co w bloku A.
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT e.organizer_id,
+         'przypomnienie_o_meczu',
+         coalesce(e.title, e.sport),
+         CASE
+           WHEN e.zapisy_zamkniete
+             THEN 'Jutro ' || to_char(e.event_time, 'HH24:MI') || ' · '
+                  || coalesce(e.field_name, e.custom_location_name, 'boisko')
+                  || ' · zapisy zamknięte (' || w.w_skladzie || '/' || e.max_players || ')'
+           WHEN w.w_skladzie < e.max_players
+             THEN 'Jutro ' || to_char(e.event_time, 'HH24:MI') || ' · '
+                  || coalesce(e.field_name, e.custom_location_name, 'boisko')
+                  || ' · brakuje ' || (e.max_players - w.w_skladzie)
+                  || ' (' || w.w_skladzie || '/' || e.max_players || ')'
+                  || CASE WHEN w.na_rezerwie > 0
+                          THEN ' · ' || odmien_czeka_na_rezerwie(w.na_rezerwie::int)
+                          ELSE '' END
+           ELSE 'Jutro ' || to_char(e.event_time, 'HH24:MI') || ' · '
+                || coalesce(e.field_name, e.custom_location_name, 'boisko')
+         END,
+         e.id
+    FROM events e
+    CROSS JOIN LATERAL (
+      SELECT
+        count(*) FILTER (
+          WHERE x.pending_approval IS NOT TRUE
+            AND x.rsvp <> 'maybe'
+            AND x.is_reserve IS NOT TRUE)                                AS w_skladzie,
+        count(*) FILTER (
+          WHERE x.is_reserve
+            AND x.pending_approval IS NOT TRUE
+            AND x.rsvp <> 'maybe'
+            AND x.claim_passed IS NOT TRUE)                              AS na_rezerwie
+        FROM event_participants x WHERE x.event_id = e.id
+    ) w
+   WHERE e.event_date = v_dzis + 1
+     AND e.status = 'active'
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = e.organizer_id
+              AND n.event_id = e.id
+              AND n.type = 'przypomnienie_o_meczu');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  -- =========================================================================
+  -- C. PO MECZU — tylko organizator i tylko wtedy, gdy JEST co domknąć
+  -- =========================================================================
+  -- NIETKNIĘTE względem `131` — ta runda dotyczy wyłącznie przypomnienia
+  -- PRZED meczem.
+  INSERT INTO notifications (user_id, type, title, body, event_id)
+  SELECT e.organizer_id,
+         'po_meczu_do_domkniecia',
+         coalesce(e.title, e.sport),
+         'Mecz rozegrany. ' || array_to_string(
+           array_remove(ARRAY[
+             CASE WHEN e.track_results
+                   AND NOT EXISTS (SELECT 1 FROM match_results r WHERE r.event_id = e.id)
+                  THEN 'Wpisz wynik' END,
+             CASE WHEN e.cost_grosz > 0 AND (
+                    SELECT count(*) FROM event_participants x
+                     WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                       AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                       AND x.is_reserve IS NOT TRUE) > 0
+                  THEN 'odhacz wpłaty — ' || odmien_nie_oddalo((
+                    SELECT count(*)::int FROM event_participants x
+                     WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                       AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                       AND x.is_reserve IS NOT TRUE)) END
+           ], NULL), ', ') || '.',
+         e.id
+    FROM events e
+   WHERE e.event_date = v_dzis - 1
+     AND e.status = 'active'
+     AND (
+       (e.track_results AND NOT EXISTS (SELECT 1 FROM match_results r WHERE r.event_id = e.id))
+       OR (e.cost_grosz > 0 AND EXISTS (
+             SELECT 1 FROM event_participants x
+              WHERE x.event_id = e.id AND x.has_paid IS NOT TRUE
+                AND x.pending_approval IS NOT TRUE AND x.rsvp <> 'maybe'
+                AND x.is_reserve IS NOT TRUE))
+     )
+     AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+            WHERE n.user_id = e.organizer_id
+              AND n.event_id = e.id
+              AND n.type = 'po_meczu_do_domkniecia');
+
+  GET DIAGNOSTICS v_teraz = ROW_COUNT;
+  v_ile := v_ile + v_teraz;
+
+  RETURN v_ile;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM public;
+REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM anon, authenticated;

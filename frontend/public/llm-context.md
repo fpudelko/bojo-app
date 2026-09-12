@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-12 · migracja `142` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `144` · 56 tabel
 
 ---
 
@@ -370,6 +370,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
+
+PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
+rezerwowej — ale odświeżenie tej oferty zależało WYŁĄCZNIE od tego, czy ktokolwiek
+akurat otworzył stronę meczu. Jeśli oferta wygasła (domyślnie po 3 h) i nikt nie wszedł
+na stronę, wygasła oferta stała dalej w nieskończoność: następna osoba z kolejki nie
+dostawała niczego, a organizator grał w niepełnym składzie mając chętnego na ławce. Po
+starcie meczu taka oferta nie wygasała już nigdy. (2) Przypomnienie dzień przed meczem
+nie wiedziało nic o zamkniętych zapisach: organizator, który wieczorem zamknął zapisy
+przy 10 z 14 osób mówiąc „gramy w tym składzie", dostawał następnego dnia „brakuje 4" —
+aplikacja kłóciła się z jego własną decyzją. Dwie osoby czekające na liście rezerwowej
+były przy tym całkowicie niewidoczne w treści przypomnienia.
+
+ROZWIĄZANIE BOJO: Kolejka rezerwowa ma teraz własny zegar — co 15 minut Bojo sprawdza
+samo, czy jakaś oferta wygasła, i jeśli tak, przekazuje miejsce dalej i powiadamia obie
+strony, bez czyjegokolwiek kliknięcia. Przypomnienie dzień przed meczem rozróżnia dziś
+trzy stany organizatora: zapisy zamknięte (bez wzmianki o brakujących), brakuje ludzi
+i ktoś czeka na rezerwie (z liczbą czekających), albo brakuje ludzi i rezerwa jest pusta
+(bez zmian względem wcześniejszego zachowania).
+
+MECHANIKA: migracja `143` — funkcja `porzadkuj_kolejki_rezerwy()` (woła istniejącą
+`sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą, nie powtarza
+jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja `144` —
+`wyslij_przypomnienia()` (`129`/`131`) dostaje kolumnę `events.zapisy_zamkniete` (`141`)
+i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
+`odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
+`supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
+
 ### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
 
 PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
@@ -622,37 +650,3 @@ zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypeł
 Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
 powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
 (reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.
-
-### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
-
-PROBLEM: (1) Strona meczu na każdy błąd — brak zasięgu, awarię serwera, odmowę reguł
-dostępu — pokazywała „Nie znaleziono wydarzenia”. Strona meczu to jedyny adres,
-który organizator rozsyła kilkunastu osobom, więc gracz z chwilowo słabym zasięgiem czytał
-komunikat znaczący „dostałeś link do czegoś, czego nie ma” — i wypadało to na
-organizatora, nie na Bojo. Do tego pierwszą czynnością przy wczytywaniu było porządkowanie
-kolejki rezerwowej, czyli zadanie POMOCNICZE, którego awaria gasiła całą stronę. (2) Rozmyty
-podgląd kreatora na ekranie zachęcającym do założenia konta pokazywał układ pól sprzed
-przebudowy kroków — brama obiecywała inny formularz, niż organizator dostawał po
-zalogowaniu. (3) Sześć decyzji organizatora nadal potwierdzało systemowe okno przeglądarki:
-otwarcie meczu dla okolicy oraz pięć w ekranach ekip, w tym USUNIĘCIE EKIPY — rzecz
-nieodwracalna, opisana jednym zdaniem w okienku, które na telefonie czyta się jak błąd strony.
-
-ROZWIĄZANIE BOJO: (1) Bojo odróżnia dziś „takiego meczu nie ma” od „nie udało się
-go wczytać”. Przy awarii pokazuje ekran z przyciskiem „Spróbuj ponownie” i zdaniem
-„link jest w porządku”; porządkowanie kolejki rezerwowej i wynik meczu zeszły poza
-ścieżkę krytyczną, więc ich awaria nie gasi już strony. (2) Podgląd na bramie pokazuje ten
-sam krok pierwszy, który organizator zobaczy po zalogowaniu — sport, termin, liczbę miejsc
-i listę rezerwową — a nazwy trzech kroków biorą się z tego samego miejsca w kodzie co
-w kreatorze, więc nie mogą się rozjechać. (3) Wszystkie decyzje organizatora, także
-w ekipach, potwierdza własne okno Bojo z listą konsekwencji. Usunięcie ekipy mówi teraz
-osobno, co znika (rozmowa, tablica, skład, statystyki), co zostaje (mecze, tylko bez
-przypisania do ekipy) i że cofnąć się nie da; otwarcie meczu dla okolicy mówi wprost, że
-decyzja JEST odwracalna.
-
-MECHANIKA: `lib/events.ts` (`BladWczytania` z kodem PostgREST-a, `toBrakWiersza()` dla
-`PGRST116`), `app/wydarzenia/[id]/EventDetailClient.tsx` (stan `bladWczytania`, ekran
-ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta bramy),
-`components/events/CzyGramyPanel.tsx`, `app/grupy/[id]/GroupDetailClient.tsx`,
-`app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
-Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
-`__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.
