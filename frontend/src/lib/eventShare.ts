@@ -11,7 +11,7 @@ import { pl } from 'date-fns/locale';
 import { sportEmoji } from './sports';
 import { eventDisplayTitle } from './eventTitle';
 import { eventLocation } from './utils';
-import { withCount } from './plural';
+import { plural, withCount } from './plural';
 import type { EventItem } from '@/types';
 
 /**
@@ -42,18 +42,39 @@ function hhmm(t?: string | null): string {
 }
 
 /**
- * Cztery linie do wklejenia na czat:
+ * Stan zapisów w chwili wysyłania — opcjonalny, bo `eventShareText()` woła się
+ * też z listy, gdzie składu nie ma pod ręką. Bez tego wiadomość mówiła zawsze
+ * „14 miejsc", niezależnie od tego, czy brakuje dwóch osób, czy mecz dopiero
+ * powstał — a to jest dokładnie pytanie, z którym organizator wraca na grupę
+ * (audyt 2026-09-12, ustalenie `S-5`): „ile jeszcze brakuje" i „czy trzeba
+ * konto". Pola nazwane po polach `EventItem`, żeby wywołujący przekazywał je
+ * wprost bez tłumaczenia.
+ */
+export interface StanUdostepnienia {
+  /** Wolne miejsca w składzie — `wolneMiejscaWgRol(regulars, event).razem`. */
+  wolneMiejsca: number;
+  reserveEnabled: boolean;
+  /** Migracja `141` — organizator zamknął zapisy; wygrywa nad kompletem. */
+  zapisyZamkniete: boolean;
+}
+
+/**
+ * Cztery (albo pięć) linii do wklejenia na czat:
  *
  *   ⚽ Piłka nożna 7v7
  *   środa, 12 sierpnia · 18:00–19:30
  *   Orlik Sołacz, ul. Niestachowska 8
- *   14 miejsc · 20 zł od osoby
+ *   Zostały 2 miejsca · 20 zł od osoby
+ *   Zapisujesz się bez zakładania konta.
  *
  * Bez języka marketingowego i bez wołania o kliknięcie — to ma wyglądać jak
  * dobrze napisany post organizatora, nie jak reklama aplikacji. Adres meczu
  * dokładany jest osobno (patrz `shareEvent`), żeby podgląd linku nadal działał.
+ *
+ * Bez `stan` (wywołania z listy, gdzie składu nie ma) linia miejsc zostaje
+ * dokładnie taka jak dotąd — to jest bezpiecznik wsteczny, nie ozdoba.
  */
-export function eventShareText(e: DaneDoUdostepnienia): string {
+export function eventShareText(e: DaneDoUdostepnienia, stan?: StanUdostepnienia): string {
   const linie: string[] = [];
 
   linie.push(`${sportEmoji(e.sport)} ${eventDisplayTitle({
@@ -82,11 +103,31 @@ export function eventShareText(e: DaneDoUdostepnienia): string {
 
   // `withCount` zamiast reguły `n < 5`: ta myli się na 12–14, a 14 to domyślny
   // skład piłkarski w kreatorze — czyli najczęstsza liczba w całej aplikacji.
-  const miejsca = withCount(e.maxPlayers, 'miejsce', 'miejsca', 'miejsc');
+  const opisMiejsc = (() => {
+    if (!stan) return withCount(e.maxPlayers, 'miejsce', 'miejsca', 'miejsc');
+    if (stan.zapisyZamkniete) return 'Zapisy zamknięte';
+    if (stan.wolneMiejsca > 0) {
+      // Czasownik odmienia się TAK SAMO jak rzeczownik: „Zostało 1 miejsce",
+      // „Zostały 3 miejsca", „Zostało 8 miejsc" — ten sam wyjątek 12-14, który
+      // `plural()` już liczy, więc druga, osobna reguła by się z nim rozjechała.
+      const czasownik = plural(stan.wolneMiejsca, 'Zostało', 'Zostały', 'Zostało');
+      return `${czasownik} ${withCount(stan.wolneMiejsca, 'miejsce', 'miejsca', 'miejsc')}`;
+    }
+    return stan.reserveEnabled ? 'Komplet — wejdź na rezerwę' : 'Komplet';
+  })();
   const cena = e.costGrosze > 0
     ? `${(e.costGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby`
     : 'za darmo';
-  linie.push(`${miejsca} · ${cena}`);
+  linie.push(`${opisMiejsc} · ${cena}`);
+
+  // Argument, którym organizator przebija opór graczy przed zakładaniem
+  // konta — pada TYLKO wtedy, gdy da się go uczciwie złożyć: ta sama bramka,
+  // która na stronie meczu decyduje, czy pokazać „Dołącz bez konta" zamiast
+  // „Komplet — zapisy zamknięte" (`EventDetailClient.tsx`, ustalenie `P-7`).
+  // Obietnica bez pokrycia byłaby tu gorsza niż jej brak.
+  if (stan && !stan.zapisyZamkniete && (stan.wolneMiejsca > 0 || stan.reserveEnabled)) {
+    linie.push('Zapisujesz się bez zakładania konta.');
+  }
 
   return linie.join('\n');
 }
@@ -303,8 +344,8 @@ export async function udostepnijPrzywrocenie(
  *  schowka w `shareEvent()`. Wydzielone, żeby przyciski „Kopiuj link" (pasek
  *  meczu, panel „Zaproś znajomych") nie kopiowały gołego adresu — to ten sam
  *  błąd, który `shareEvent()` naprawiał dla `navigator.share`. */
-export function textDoKopiowania(e: DaneDoUdostepnienia, url: string): string {
-  return `${eventShareText(e)}\n${url}`;
+export function textDoKopiowania(e: DaneDoUdostepnienia, url: string, stan?: StanUdostepnienia): string {
+  return `${eventShareText(e, stan)}\n${url}`;
 }
 
 export type WynikUdostepnienia = 'shared' | 'copied' | 'failed';
@@ -320,8 +361,9 @@ export type WynikUdostepnienia = 'shared' | 'copied' | 'failed';
 export async function shareEvent(
   e: DaneDoUdostepnienia,
   url: string,
+  stan?: StanUdostepnienia,
 ): Promise<WynikUdostepnienia> {
-  const text = eventShareText(e);
+  const text = eventShareText(e, stan);
   const title = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
@@ -334,7 +376,7 @@ export async function shareEvent(
   }
 
   try {
-    await navigator.clipboard.writeText(textDoKopiowania(e, url));
+    await navigator.clipboard.writeText(textDoKopiowania(e, url, stan));
     return 'copied';
   } catch {
     return 'failed';

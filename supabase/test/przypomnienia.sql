@@ -33,14 +33,19 @@ END $$;
 \set ORG    '''eeeeeeee-0000-4000-8000-000000000001'''
 \set GRACZ  '''eeeeeeee-0000-4000-8000-000000000002'''
 \set REZ    '''eeeeeeee-0000-4000-8000-000000000003'''
-\set JUTRO  '''ffffffff-0000-4000-8000-000000000001'''
-\set WCZORA '''ffffffff-0000-4000-8000-000000000002'''
-\set CZYSTY '''ffffffff-0000-4000-8000-000000000003'''
+\set REZ2   '''eeeeeeee-0000-4000-8000-000000000004'''
+\set JUTRO     '''ffffffff-0000-4000-8000-000000000001'''
+\set WCZORA    '''ffffffff-0000-4000-8000-000000000002'''
+\set CZYSTY    '''ffffffff-0000-4000-8000-000000000003'''
+\set ZAMKNIETY '''ffffffff-0000-4000-8000-000000000004'''
+\set BRAKREZ2  '''ffffffff-0000-4000-8000-000000000005'''
+\set BEZORG    '''ffffffff-0000-4000-8000-000000000006'''
 
 INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data) VALUES
   (:ORG::uuid,   'org.przypomnienia@test.local',   now(), '{"display_name":"Ola Organizatorka"}'::jsonb),
   (:GRACZ::uuid, 'gracz.przypomnienia@test.local', now(), '{"display_name":"Grzegorz Gracz"}'::jsonb),
-  (:REZ::uuid,   'rez.przypomnienia@test.local',   now(), '{"display_name":"Rafał Rezerwowy"}'::jsonb)
+  (:REZ::uuid,   'rez.przypomnienia@test.local',   now(), '{"display_name":"Rafał Rezerwowy"}'::jsonb),
+  (:REZ2::uuid,  'rez2.przypomnienia@test.local',  now(), '{"display_name":"Renata Rezerwowa"}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 -- Mecz JUTRO: 2 w składzie na 4 miejsca (organizator gra), 1 na rezerwie,
@@ -77,7 +82,41 @@ VALUES (:CZYSTY::uuid, :ORG::uuid, 'Ola Organizatorka', 'siatkówka', 'Hala Test
 INSERT INTO event_participants (event_id, user_id, name, has_paid)
 VALUES (:CZYSTY::uuid, :GRACZ::uuid, 'Grzegorz Gracz', true);
 
-SELECT _p_sekcja('Przypomnienia o meczu (migracja 129)');
+-- Mecz JUTRO, ZAMKNIĘTE ZAPISY (migracja 141): organizator sam zdecydował
+-- „gramy w tym składzie" przy 2/5. Przypomnienie NIE może mówić „brakuje" —
+-- kłóciłoby się z decyzją, którą organizator podjął godzinę wcześniej.
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title,
+                    zapisy_zamkniete)
+VALUES (:ZAMKNIETY::uuid, :ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Orlik Testowy',
+        (now() AT TIME ZONE 'Europe/Warsaw')::date + 1, '19:00', 5, 'public', 'Zamknięta gierka', true);
+INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
+  (:ZAMKNIETY::uuid, :ORG::uuid,   'Ola Organizatorka', false),
+  (:ZAMKNIETY::uuid, :GRACZ::uuid, 'Grzegorz Gracz',    false);
+
+-- Mecz JUTRO, brakuje ludzi i DWIE osoby czekają na rezerwie — sprawdza
+-- odmianę liczby mnogiej („2 osoby czekają"), nie tylko pojedynczą z :JUTRO.
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title)
+VALUES (:BRAKREZ2::uuid, :ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Orlik Testowy',
+        (now() AT TIME ZONE 'Europe/Warsaw')::date + 1, '21:00', 6, 'public', 'Gierka z kolejką');
+INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
+  (:BRAKREZ2::uuid, :ORG::uuid,  'Ola Organizatorka',   false),
+  (:BRAKREZ2::uuid, :REZ::uuid,  'Rafał Rezerwowy',     true),
+  (:BRAKREZ2::uuid, :REZ2::uuid, 'Renata Rezerwowa',    true);
+
+-- Mecz JUTRO, organizator NIE GRA (blok B) — brakuje ludzi, jedna osoba
+-- czeka na rezerwie. Sprawdza, że blok B dostaje te same trzy warianty
+-- co blok A, nie własne, osobne zdanie „N/M w składzie".
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title)
+VALUES (:BEZORG::uuid, :ORG::uuid, 'Ola Organizatorka', 'siatkówka', 'Hala Testowa',
+        (now() AT TIME ZONE 'Europe/Warsaw')::date + 1, '17:00', 12, 'public', 'Gierka bez organizatora w składzie');
+INSERT INTO event_participants (event_id, user_id, name, is_reserve) VALUES
+  (:BEZORG::uuid, :GRACZ::uuid, 'Grzegorz Gracz',    false),
+  (:BEZORG::uuid, :REZ::uuid,   'Rafał Rezerwowy',   true);
+
+SELECT _p_sekcja('Przypomnienia o meczu (migracje 129/131/144)');
 
 SELECT wyslij_przypomnienia();
 
@@ -121,6 +160,47 @@ SELECT _p_oczekuj('treść niesie godzinę i miejsce, tytuł niesie nazwę meczu
     WHERE event_id = :JUTRO::uuid AND type = 'przypomnienie_o_meczu'
       AND body LIKE 'Jutro 20:00 · Orlik Testowy%'
       AND title = 'Jutrzejsza gierka'), 2);
+
+-- --- Zamknięte zapisy i kolejka rezerwowa (migracja 144) --------------------
+-- Audyt 2026-09-12 (`docs/przeplyw-organizatora.md`, ustalenie S-3): organizator
+-- zamknął zapisy, a przypomnienie dalej mówiło „brakuje N" — kłócąc się
+-- z jego własną decyzją — i nie wspominało wcale o rezerwie.
+SELECT _p_oczekuj('organizator na zamkniętym meczu widzi „zapisy zamknięte", nie „brakuje"',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :ZAMKNIETY::uuid AND user_id = :ORG::uuid
+      AND type = 'przypomnienie_o_meczu'
+      AND body LIKE '%zapisy zamknięte (2/5)%'
+      AND body NOT LIKE '%brakuje%'), 1);
+
+SELECT _p_oczekuj('rezerwowy pojedynczy: „1 osoba czeka na rezerwie" (JUTRO)',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :JUTRO::uuid AND user_id = :ORG::uuid
+      AND type = 'przypomnienie_o_meczu'
+      AND body LIKE '%1 osoba czeka na rezerwie%'), 1);
+
+SELECT _p_oczekuj('dwóch rezerwowych: „2 osoby czekają na rezerwie" (liczba mnoga)',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :BRAKREZ2::uuid AND user_id = :ORG::uuid
+      AND type = 'przypomnienie_o_meczu'
+      AND body LIKE '%brakuje 5 (1/6) · 2 osoby czekają na rezerwie%'), 1);
+
+SELECT _p_oczekuj('treść JUTRO w całości: brakuje + jeden rezerwowy, bez zbędnego „0 osób"',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :JUTRO::uuid AND user_id = :ORG::uuid
+      AND type = 'przypomnienie_o_meczu'
+      AND body = 'Jutro 20:00 · Orlik Testowy · brakuje 1 (3/4) · 1 osoba czeka na rezerwie'), 1);
+
+-- --- Blok B: organizator, który jutro gra, ale nie ma siebie w składzie -----
+SELECT _p_oczekuj('organizator spoza składu dostaje TE SAME trzy warianty co blok A',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :BEZORG::uuid AND user_id = :ORG::uuid
+      AND type = 'przypomnienie_o_meczu'
+      AND body = 'Jutro 17:00 · Hala Testowa · brakuje 11 (1/12) · 1 osoba czeka na rezerwie'), 1);
+
+SELECT _p_oczekuj('gracz na meczu bez organizatora w składzie NIE dostaje dopisku o brakach',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :BEZORG::uuid AND user_id = :GRACZ::uuid
+      AND type = 'przypomnienie_o_meczu' AND body LIKE '%brakuje%'), 0);
 
 -- --- Po meczu ---------------------------------------------------------------
 -- ODMIANA, nie samo „czy zawiera". Pierwsza wersja tej asercji sprawdzała

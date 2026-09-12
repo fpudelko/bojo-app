@@ -97,6 +97,61 @@ describe('eventShareText', () => {
 });
 
 // ---------------------------------------------------------------------------
+// eventShareText ze `stan` — audyt 2026-09-12, ustalenie S-5.
+//
+// PO CO. Wiadomość na czat mówiła zawsze „14 miejsc", niezależnie od tego,
+// czy meczowi brakuje dwóch osób, czy dopiero powstał — a „ile brakuje" jest
+// dokładnie tym, po co organizator wkleja link na grupę. Argument „bez
+// zakładania konta" (wyzwanie 1-2 ze strategii) nie padał wcale, choć da się
+// go złożyć uczciwie zawsze tam, gdzie pasek dolny na stronie meczu i tak
+// pokazuje „Dołącz bez konta".
+// ---------------------------------------------------------------------------
+describe('eventShareText — z podanym stanem zapisów (S-5)', () => {
+  it('bez `stan` zachowuje się DOKŁADNIE jak dotąd — bezpiecznik wsteczny', () => {
+    expect(eventShareText(bazowy)).toBe(eventShareText(bazowy, undefined));
+    expect(eventShareText(bazowy).split('\n')[3]).toBe('14 miejsc · 20,00 zł od osoby');
+    expect(eventShareText(bazowy).split('\n')).toHaveLength(4);
+  });
+
+  it('wolne miejsca: mówi ile zostało i dokłada zdanie o zapisie bez konta', () => {
+    const t = eventShareText(bazowy, { wolneMiejsca: 2, reserveEnabled: true, zapisyZamkniete: false });
+    const linie = t.split('\n');
+    expect(linie[3]).toBe('Zostały 2 miejsca · 20,00 zł od osoby');
+    expect(linie[4]).toBe('Zapisujesz się bez zakładania konta.');
+  });
+
+  it('komplet z włączoną rezerwą: „wejdź na rezerwę" i nadal bez konta', () => {
+    const t = eventShareText(bazowy, { wolneMiejsca: 0, reserveEnabled: true, zapisyZamkniete: false });
+    const linie = t.split('\n');
+    expect(linie[3]).toBe('Komplet — wejdź na rezerwę · 20,00 zł od osoby');
+    expect(linie[4]).toBe('Zapisujesz się bez zakładania konta.');
+  });
+
+  it('komplet z wyłączoną rezerwą: samo „Komplet", BEZ obietnicy zapisu bez konta', () => {
+    const t = eventShareText(bazowy, { wolneMiejsca: 0, reserveEnabled: false, zapisyZamkniete: false });
+    const linie = t.split('\n');
+    expect(linie[3]).toBe('Komplet · 20,00 zł od osoby');
+    expect(linie).toHaveLength(4);
+  });
+
+  it('zapisy zamknięte wygrywają nad kompletem/wolnymi miejscami i nie obiecują zapisu bez konta', () => {
+    const t = eventShareText(bazowy, { wolneMiejsca: 5, reserveEnabled: true, zapisyZamkniete: true });
+    const linie = t.split('\n');
+    expect(linie[3]).toBe('Zapisy zamknięte · 20,00 zł od osoby');
+    expect(linie).toHaveLength(4);
+  });
+
+  it('odmienia liczbę wolnych miejsc (1 / 2-4 / 5+)', () => {
+    expect(eventShareText(bazowy, { wolneMiejsca: 1, reserveEnabled: true, zapisyZamkniete: false }))
+      .toContain('Zostało 1 miejsce ·');
+    expect(eventShareText(bazowy, { wolneMiejsca: 3, reserveEnabled: true, zapisyZamkniete: false }))
+      .toContain('Zostały 3 miejsca ·');
+    expect(eventShareText(bazowy, { wolneMiejsca: 8, reserveEnabled: true, zapisyZamkniete: false }))
+      .toContain('Zostało 8 miejsc ·');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // tekstOdwolania — wiadomość na czat, gdy mecz się nie odbędzie.
 //
 // PO CO ISTNIEJE: `cancelEvent()` powiadamia uczestników Z KONTEM (migracja

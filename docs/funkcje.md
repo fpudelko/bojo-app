@@ -1012,6 +1012,20 @@ na czat bez podglądu. `eventShareText()` składa cztery linie (sport i tytuł /
 zakres godzin / miejsce z adresem / liczba miejsc i cena), a `shareEvent()` przekazuje je
 do arkusza systemowego razem z adresem — osobno od tekstu, żeby podgląd linku działał.
 
+**Czwarta linia zna stan zapisów, od 2026-09-12 (audyt, ustalenie `S-5`).** Wcześniej
+mówiła zawsze „14 miejsc" — tyle samo dla meczu świeżo utworzonego, co dla takiego, w
+którym brakuje dwóch osób, choć „ile brakuje" jest dokładnie tym, po co organizator
+wkleja link na grupę. Opcjonalny drugi argument `eventShareText(e, stan)` (typ
+`StanUdostepnienia`: `wolneMiejsca`, `reserveEnabled`, `zapisyZamkniete`) zamienia linię
+na „Zostały 2 miejsca" / „Komplet — wejdź na rezerwę" / „Komplet" / „Zapisy zamknięte" —
+w tej kolejności pierwszeństwa, zapisy zamknięte wygrywają nad kompletem tak samo jak w
+`lib/stanZapisow.ts`. Piąta linia, „Zapisujesz się bez zakładania konta.", pada tylko
+wtedy, gdy da się to uczciwie powiedzieć — ta sama bramka co „Dołącz bez konta" na pasku
+dolnym strony meczu (`P-7`): to jest dosłownie argument, którym organizator przebija opór
+graczy przed zakładaniem konta. Bez `stan` (wywołania z listy, gdzie składu nie ma pod
+ręką) zachowanie jest identyczne jak dotąd — bezpiecznik wsteczny. Wołający: panel
+„Mecz gotowy", `ZaprosZnajomychPanel` (dostaje `stan` jako opcjonalny prop).
+
 Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
 konkurencyjny przycisk „Udostępnij" na tej samej stronie.
 
@@ -1426,6 +1440,21 @@ Modal ma teraz też pole „Koniec" obok „Godziny" — wcześniej zmiana samej
 kopię „trwającą" 690 minut. Zmiana startu przesuwa koniec o tę samą deltę (zachowuje
 długość), zmiana końca nigdy nie rusza startu — dokładnie ten sam wzorzec co w modalu
 „Zmień termin" (`toMinutes`/`fromMinutes`, wydzielone do `lib/time.ts`).
+
+**Trzy wejścia do `repeatEvent()`, jedna gwarancja na poziomie typów.** Poza tym oknem
+i skróconą wersją w karcie „Po meczu", trzecie wejście żyje na `NajblizszyMeczGrupy.tsx`
+(„Powtórz na {dzień} {data}") i czwarte na `/moje-gry → Historia`
+(`PowtorzZHistorii.tsx`, opisane w sekcji „Układ `/moje-gry`"). Wszystkie cztery wołają
+tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`, `reserveEnabled`
+i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał po powtórce jako
+OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły `groupId`,
+`minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
+`ZrodloPowtorki` w `lib/events.ts` wymusza dziś wymienienie KAŻDEGO pola `EventCreate`
+w ciele `repeatEvent()` — pominięcie nowo dodanej kolumny przestaje się kompilować,
+zamiast po cichu zostawiać domyślną wartość. Wszystkie cztery wejścia trafiają też do
+`?utworzono=1` (panel „Mecz gotowy — wyślij link"), nie tylko `PowtorzZHistorii` jak
+dotąd (ustalenie `S-6`) — nowy mecz bez wysłanego linku jest nowym meczem bez składu,
+niezależnie skąd organizator go powtórzył.
 
 ---
 
@@ -3300,10 +3329,20 @@ od `sm:` wyśrodkowany; główna akcja pierwsza i pełnej szerokości.
 Gdzie działa (strona meczu): odwołanie meczu, usunięcie ze składu, przeniesienie do rezerwy,
 dopisanie ponad limit, zatwierdzenie i usunięcie propozycji składów, masowe oznaczenie
 wpłat — oraz „Nie mogę grać" na stronie wpisu gościa. Treści mówią, KTO dostanie
-powiadomienie: przy odwołaniu meczu Bojo liczy uczestników bez konta i mówi wprost, że oni
-go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
+powiadomienie, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
+
+**Konsekwencje odwołania liczy `konsekwencjeOdwolania()`, nie okno samo (od 2026-09-12,
+ustalenie `S-4`).** Wcześniej `handleCancel()` liczyło odbiorców po swojemu —
+`[...regulars, ...reserves]`, czyli węziej niż faktycznie powiadamia wyzwalacz `070`
+(ten obejmuje też obserwujących i czekających na akceptację) — i mówiło „dostanie
+e-mail, JEŚLI podała adres", choć kolumna pochodna `ma_guest_email` (migracja `137`)
+niesie dokładną odpowiedź. Dziś `komuDojdzie(participants, event.organizerId)` +
+`konsekwencjeOdwolania()` z `lib/zmianyMeczu.ts` — ta sama para funkcji, którą okno
+edycji już używa przez `konsekwencjeZapisu()` — liczy WSZYSTKICH związanych z meczem
+i dzieli ich dokładnie na trzy zdania: ilu z kontem dostanie powiadomienie w Bojo, ilu
+gości dostanie e-mail, ilu gości bez adresu trzeba powiadomić samemu.
 
 **Notatka organizatora przy odwołaniu, od 2026-09-12.** Okno mówiło dotąd wyłącznie KTO
 dostanie powiadomienie, nie dawało miejsca na DLACZEGO ani co dalej — jedyną drogą było

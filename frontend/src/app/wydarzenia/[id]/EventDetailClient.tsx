@@ -39,6 +39,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
@@ -1858,7 +1859,10 @@ export default function EventDetailClient() {
     // Androidzie ten sam wynik (`shareEvent` zwraca wtedy 'failed'). Mierzymy
     // INTENCJĘ organizatora — czy w ogóle sięga po wysłanie linku.
     track('event_shared', { eventId: event.id, skad: swiezoUtworzony ? 'po-publikacji' : 'strona-meczu' });
-    const wynik = await shareEvent(event, eventUrl(event.id, window.location.origin));
+    const wynik = await shareEvent(
+      event, eventUrl(event.id, window.location.origin),
+      { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
+    );
     if (wynik === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -1952,7 +1956,10 @@ export default function EventDetailClient() {
    *  `shareEvent()` — goły URL na desktopie powtarzał błąd O-18. */
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(textDoKopiowania(event, eventUrl(event.id, window.location.origin)));
+      await navigator.clipboard.writeText(textDoKopiowania(
+        event, eventUrl(event.id, window.location.origin),
+        { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
+      ));
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     } catch {
@@ -1978,23 +1985,25 @@ export default function EventDetailClient() {
    *
    * OD MIGRACJI `133` gość bez konta dostaje e-mail — ale tylko wtedy, gdy ma
    * zapisany adres: podaje go, zapisując się sam, albo dostaje go od tego, kto
-   * go dopisał (pole obok imienia). Dlatego zdanie mówi „jeśli podała
-   * adres”, a nie „dostanie” — obietnica bez pokrycia byłaby tu
-   * gorsza niż jej brak.
+   * go dopisał (pole obok imienia). Kolumna pochodna `ma_guest_email` (`137`)
+   * niesie dokładną odpowiedź, więc zdania budujemy tą samą funkcją
+   * `konsekwencjeOdwolania()` co okno edycji (`konsekwencjeZapisu()`) —
+   * nie liczymy odbiorców po swojemu drugi raz. Odbiorcy to WSZYSCY związani
+   * z meczem (`komuDojdzie()`), nie tylko `regulars`/`reserves`: wyzwalacz
+   * `070` powiadamia też obserwujących i czekających na akceptację, więc
+   * węższe liczenie pokazywało mniej ludzi, niż faktycznie dostanie
+   * wiadomość (audyt 2026-09-12, ustalenie `S-4`).
    *
    * Stąd druga droga: „Odwołaj i wyślij wiadomość" odwołuje i od razu otwiera
    * arkusz udostępniania z gotowym tekstem. Dla gości bez konta czat jest
    * jedynym kanałem, jaki mają.
    */
   const handleCancel = async () => {
-    const bezKonta = [...regulars, ...reserves].filter((p) => !p.userId).length;
+    const komu = komuDojdzie(participants, event.organizerId);
     const wybor = await potwierdz({
       tytul: 'Odwołać mecz?',
       konsekwencje: [
-        'Uczestnicy z kontem dostaną powiadomienie w Bojo (i na telefon, jeśli je włączyli).',
-        bezKonta > 0
-          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
-          : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
+        ...konsekwencjeOdwolania(komu),
         'Mecz zostanie na liście jako odwołany. Możesz go przywrócić tym samym panelem.',
       ],
       potwierdzLabel: 'Odwołaj mecz',
@@ -2109,7 +2118,12 @@ export default function EventDetailClient() {
       );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
-      router.push(`/wydarzenia/${newId}`);
+      // `?utworzono=1` — ten sam panel „Mecz gotowy — wyślij link" co po
+      // kreatorze i po „Powtórz" z `/moje-gry → Historia`. Brakowało go tu
+      // (audyt 2026-09-12, ustalenie `S-6`): organizator powtarzający mecz
+      // z jego własnej strony ląduje w dokładnie tym samym momencie —
+      // nowy mecz bez wysłanego linku — co po utworzeniu od zera.
+      router.push(`/wydarzenia/${newId}?utworzono=1`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setRepeatBusy(false); }
@@ -4459,7 +4473,10 @@ export default function EventDetailClient() {
             udostępnianie linku. */}
         {!isCancelled && (myParticipation || isOwner || !!myDelegate) && (
           <div className="px-4">
-            <ZaprosZnajomychPanel event={event} />
+            <ZaprosZnajomychPanel
+              event={event}
+              stan={{ wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete }}
+            />
           </div>
         )}
 

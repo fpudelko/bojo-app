@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-12 · migracja `142` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `144` · 56 tabel
 
 ---
 
@@ -370,6 +370,65 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Powtórka meczu nie gubi ustawień; odwołanie i link znają skład
+
+PROBLEM: (1) „Powtórz mecz" — jedyny zamiennik gier cyklicznych, świadomie wyłączonych —
+przepisywało ustawienia źródłowego meczu do nowego terminu, ale trzy z nich po cichu
+gubiło: wymaganą akceptację zapisów, wyłączoną listę rezerwową i tryb puli dla bramkarzy.
+Mecz, do którego organizator wpuszczał ludzi ręcznie, wracał po powtórce OTWARTY dla
+każdego. (2) Okno „Odwołać mecz?" liczyło odbiorców po swojemu — węziej niż faktycznie
+powiadamia baza — i mówiło „dostanie e-mail, JEŚLI podał adres" zamiast dokładnej
+odpowiedzi, którą Bojo już zna. (3) Wiadomość, którą organizator wkleja na czat, żeby
+znaleźć brakujące osoby, mówiła zawsze „14 miejsc" — także wtedy, gdy realnie brakowało
+dwóch — i nigdy nie wspominała, że dołączenie nie wymaga konta, choć to jest główny
+argument na przebicie oporu graczy przed zakładaniem konta.
+
+ROZWIĄZANIE BOJO: powtórka meczu (na stronie meczu, w karcie „Po meczu", przy najbliższym
+meczu ekipy i w Historii na `/moje-gry`) przenosi dziś KAŻDE ustawienie źródłowego meczu —
+pominięcie nowego pola przy przyszłej zmianie przestaje się kompilować, zamiast po cichu
+zostawiać wartość domyślną. Wszystkie cztery drogi lądują też w panelu „Mecz gotowy —
+wyślij link", nie tylko powtórka z Historii jak dotąd. Okno odwołania liczy odbiorców tą
+samą funkcją co okno edycji meczu — trzy zdania: ilu z kontem dostanie powiadomienie
+w Bojo, ilu gości dostanie e-mail, ilu trzeba powiadomić samemu. Wiadomość na czat mówi
+dziś „Zostały 2 miejsca" albo „Komplet — wejdź na rezerwę" zamiast stałej liczby miejsc,
+a gdy da się to uczciwie powiedzieć, dokłada zdanie „Zapisujesz się bez zakładania konta."
+
+MECHANIKA: `lib/events.ts` — typ `ZrodloPowtorki` (mapowany z `EventCreate`) wymusza
+wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
+`konsekwencjeOdwolania()`, wołana z `handleCancel()` w `EventDetailClient.tsx` przez
+`komuDojdzie()`. `lib/eventShare.ts` — `eventShareText()` przyjmuje opcjonalny drugi
+argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
+zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
+`__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
+
+### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
+
+PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
+rezerwowej — ale odświeżenie tej oferty zależało WYŁĄCZNIE od tego, czy ktokolwiek
+akurat otworzył stronę meczu. Jeśli oferta wygasła (domyślnie po 3 h) i nikt nie wszedł
+na stronę, wygasła oferta stała dalej w nieskończoność: następna osoba z kolejki nie
+dostawała niczego, a organizator grał w niepełnym składzie mając chętnego na ławce. Po
+starcie meczu taka oferta nie wygasała już nigdy. (2) Przypomnienie dzień przed meczem
+nie wiedziało nic o zamkniętych zapisach: organizator, który wieczorem zamknął zapisy
+przy 10 z 14 osób mówiąc „gramy w tym składzie", dostawał następnego dnia „brakuje 4" —
+aplikacja kłóciła się z jego własną decyzją. Dwie osoby czekające na liście rezerwowej
+były przy tym całkowicie niewidoczne w treści przypomnienia.
+
+ROZWIĄZANIE BOJO: Kolejka rezerwowa ma teraz własny zegar — co 15 minut Bojo sprawdza
+samo, czy jakaś oferta wygasła, i jeśli tak, przekazuje miejsce dalej i powiadamia obie
+strony, bez czyjegokolwiek kliknięcia. Przypomnienie dzień przed meczem rozróżnia dziś
+trzy stany organizatora: zapisy zamknięte (bez wzmianki o brakujących), brakuje ludzi
+i ktoś czeka na rezerwie (z liczbą czekających), albo brakuje ludzi i rezerwa jest pusta
+(bez zmian względem wcześniejszego zachowania).
+
+MECHANIKA: migracja `143` — funkcja `porzadkuj_kolejki_rezerwy()` (woła istniejącą
+`sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą, nie powtarza
+jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja `144` —
+`wyslij_przypomnienia()` (`129`/`131`) dostaje kolumnę `events.zapisy_zamkniete` (`141`)
+i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
+`odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
+`supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
+
 ### 2026-09-12 — Pusta lista meczów przestaje być ślepym zaułkiem: „Powiadom mnie, gdy się pojawi"
 
 PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
@@ -403,6 +462,7 @@ wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej
 Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
 zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
 przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
+
 ### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
 
 PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
@@ -595,63 +655,3 @@ MECHANIKA: kolejność gałęzi paska zapisu w `EventDetailClient.tsx`, migracja
 (`claim_token` w ładunku powiadomienia push) i `adresPowiadomienia()` w funkcji brzegowej
 `send-push`. Asercje w `listaRezerwowa.test.ts`.
 
-### 2026-09-04 — Bojo wita nowego użytkownika i mówi mu, od czego zacząć
-
-PROBLEM: Bojo nie odzywało się do nowego użytkownika ani razu. Przy rejestracji adresem
-e-mail przychodziła wyłącznie prośba o potwierdzenie adresu, a przy rejestracji przez
-Google — nic. Człowiek zakładał konto, widział pustą listę swoich meczów i nie miał skąd
-wiedzieć, że najkrótsza droga do gry prowadzi przez stworzenie własnego meczu i wysłanie
-jednego linku znajomym, a nie przez czekanie, aż ktoś w okolicy otworzy grę.
-
-ROZWIĄZANIE BOJO: po założeniu konta przychodzi jedna wiadomość powitalna. Mówi, co Bojo
-robi za organizatora (liczy skład, pilnuje limitu miejsc, prowadzi listę rezerwową, dzieli
-koszt wynajmu, przypomina wszystkim dzień przed meczem) i prowadzi do trzech dróg
-w kolejności od najpewniejszej: stwórz mecz, załóż grupę dla stałej ekipy, przejrzyj
-otwarte gry. Trzecia droga jest przy tym uczciwie opisana jako ta, na której przy obecnej
-liczbie otwartych meczów nie ma co polegać. Wiadomość wychodzi dopiero po POTWIERDZENIU
-adresu, żeby nie przyszła równolegle z prośbą o potwierdzenie i żeby nie witać kogoś, kto
-konta nigdy nie potwierdził; przy rejestracji przez Google adres jest potwierdzony od razu,
-więc mail idzie natychmiast. Każde konto dostaje ją raz w życiu.
-
-MECHANIKA: migracja `134` — wyzwalacz `powitaj_nowe_konto()` na `auth.users` (reaguje na
-przejście `email_confirmed_at` z pustego na wypełnione), `wyslij_mail_powitalny()`,
-uogólniony dziennik `maile_wyslane` (dwa możliwe klucze: wpis w składzie albo konto;
-powitanie ma idempotencję bez daty, bo idzie raz na konto). Treść w funkcji brzegowej
-`powiadom-goscia`, przypadek `powitanie`. Testy w `supabase/test/poczta-goscia.sql`.
-
-### 2026-09-03 — Bojo odzywa się do graczy bez konta; widać, gdzie odpada organizator
-
-PROBLEM: (1) Gracz zapisany bez konta — a to ćwierć wszystkich wpisów w składach — nie
-dostawał od Bojo NICZEGO. Nie dostawał przypomnienia dzień przed meczem, nie dowiadywał się
-o zmianie terminu i, co najgorsze, nie dowiadywał się o ODWOŁANIU meczu: przyjeżdżał na
-puste boisko. Adres e-mail podawał przy zapisie i nie szło na niego ani jedno powiadomienie.
-Jedynym śladem jego zapisu była pamięć jednej przeglądarki — wyczyszczona znaczyła wpis nie
-do odzyskania. Konsekwencje ponosił organizator, bo skład kłamał dokładnie w tej części,
-którą sam przyprowadził. (2) Gość dopisany ręcznie przez organizatora albo kolegę z drużyny
-nie miał gdzie podać adresu, więc był odcięty nawet po zbudowaniu kanału. (3) Bojo nie
-mierzyło niczego między „organizator wysłał link” a „ktoś dołączył” — nie
-wiadomo było, na którym kroku kreatora ludzie odpadają, ilu otwiera wysłany link ani ilu
-gości zamienia zapis na konto.
-
-ROZWIĄZANIE BOJO: gracz zapisany bez konta dostaje dziś maile — potwierdzenie zapisu
-z linkiem do własnego wpisu, przypomnienie dzień przed meczem, wiadomość o odwołaniu meczu
-i o zmianie terminu, miejsca albo kosztu, a dzień po meczu zachętę do założenia konta,
-jeśli nadal go nie ma. Zachęta jest CZWARTA w kolejności celowo: pierwsza wiadomość od
-nieznanego nadawcy, która czegoś chce, czyta się jak spam. Dopisując gościa ręcznie, można
-teraz podać jego adres — pole jest opcjonalne, a podpis mówi wprost, czego gość NIE dostanie,
-jeśli zostanie puste. Okno odwołania meczu i baner nad składem mówią organizatorowi, kto
-z jego składu dowie się o zmianie, a kogo musi powiadomić sam.
-
-MECHANIKA: migracja `133` (`konfiguracja_poczty`, `maile_goscia` z idempotencją na
-uczestnik+powód+dobę, `wyslij_mail_do_goscia()`, `wyslij_maile_do_gosci()`, wyzwalacze
-`trg_powiadom_goscia_o_zapisie` i `trg_powiadom_gosci_o_zmianie_meczu`, zadanie
-`bojo-maile-gosci`), funkcja brzegowa `supabase/functions/powiadom-goscia` → Resend,
-`addGuest()` z opcjonalnym adresem w `lib/events.ts`, pole i podpis
-w `app/wydarzenia/[id]/EventDetailClient.tsx`. Siedem nowych zdarzeń w `lib/analytics.ts`
-(kroki kreatora, podsumowanie, wysłanie i otwarcie linku, zapis gościa, przejęcie wpisu,
-wysłanie rozliczenia) — otwarcie linku liczy się także dla niezalogowanych. Testy:
-`supabase/test/poczta-goscia.sql`. Kanał działa od 2026-09-10: domena `bojo.pl`
-zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypełniona.
-Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
-powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
-(reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.

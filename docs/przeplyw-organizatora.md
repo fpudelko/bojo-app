@@ -497,6 +497,37 @@ tutaj, bo tam trafi następna osoba, która będzie chciała ją złamać.
 
 ---
 
+## Faza 12 — szósta runda audytu (2026-09-12)
+
+Runda przeszła bramki repo na zielono (`tsc`, 1077 testów Vitest, build
+produkcyjny, 76 testów klikalności na telefonie i komputerze, migracje od zera
+z RLS/przypomnieniami/pocztą/zapisami zamkniętymi/notatką odwołania) i
+dodatkowo sprawdziła zachowanie zapytaniami na postawionej lokalnie bazie
+(`./scripts/baza-testowa.sh --zostaw`), w transakcjach kończonych `ROLLBACK` —
+tym samym sposobem co runda trzecia na produkcji. Scenariuszy za logowaniem
+nie dało się uruchomić: środowisko nie miało Dockera, więc stos Supabase nie
+wstał; próba uruchomienia bez filtra dała mylące „196 passed" tylko dlatego,
+że wynik obcięło `tail`, a osobne uruchomienie pojedynczego scenariusza
+pokazało `waitForURL` padające na logowaniu.
+
+Ustalenia mają numery `S-n`.
+
+| # | Ustalenie | Stan |
+|---|---|---|
+| **S-1** | **Kolejka rezerwowa nie miała zegara.** `sync_reserve_claim()` jest wołane WYŁĄCZNIE czyimś kliknięciem — wejściem na stronę meczu, wypisaniem się kogoś, odpuszczeniem oferty. Sprawdzone zapytaniami: 6 h po wygaśnięciu okna oferty (domyślnie 180 min), gdy nikt nie otworzył strony, oferta dalej wisiała, druga osoba w kolejce miała zero powiadomień, skład 1 z 2. Gorsza połowa: po starcie meczu funkcja wychodzi natychmiast, więc taka oferta nie wygasała już NIGDY. Migracja `079` mówi przy tym organizatorowi wprost „Miejsce trafia do pierwszej osoby z rezerwy" — obietnica, której druga połowa działała tylko przypadkiem | zrobione (migracja `143`). Zadanie `bojo-kolejka-rezerwy` co 15 minut (dolny limit okna oferty to 15 min) woła ISTNIEJĄCĄ `sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą — reguła „czy jest wolne miejsce" nie jest powtórzona drugi raz. Testy: `supabase/test/kolejka-zegar.sql` |
+| **S-3** | **Przypomnienie dzień przed meczem nie znało zamkniętych zapisów ani rezerwy.** `wyslij_przypomnienia()` (`129`) powstała przed `141` i mówiła organizatorowi „brakuje 11 (3/14)" na meczu, który sam zamknął słowami „gramy w tym składzie" — aplikacja kłóciła się z jego własną decyzją. Rezerwa była przy tym niewidzialna: „brakuje 11" przy dwóch osobach czekających na ławce to zgadywanka, nie informacja | zrobione (migracja `144`). Trzy warianty zamiast dwóch, dla obu bloków (organizator gra / nie gra): „zapisy zamknięte (N/M)" bez „brakuje"; „brakuje N (W/M) · K osób czeka na rezerwie"; „brakuje N (W/M)" bez zmian, gdy rezerwa pusta. Nowy pomocnik odmiany `odmien_czeka_na_rezerwie()`, wzorem `odmien_nie_oddalo()` z `131` |
+| **S-2** | **„Powtórz mecz" po cichu gubi trzy ustawienia organizatora.** `repeatEvent()` przepisuje 32 z 35 pól `EventCreate` — pomija `requireApproval`, `reserveEnabled`, `goalkeeperSlotsReserved`, więc mecz z akceptacją zapisów wraca po powtórce OTWARTY. Piąty, szósty i siódmy przypadek tej samej rodziny (po `groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno, po fakcie) | zrobione. Typ `ZrodloPowtorki` w `lib/events.ts` wymusza wymienienie każdego pola `EventCreate` w `repeatEvent()` — pominięcie przestaje się kompilować. Testy: `__tests__/events.test.ts` |
+| **S-4** | **Okno odwołania meczu wie mniej niż okno edycji.** `handleCancel()` liczy odbiorców po swojemu zamiast przez `komuDojdzie()` — mówi „jeśli podała adres" zamiast dokładnego podziału z kolumny `ma_guest_email`, i liczy węższy zbiór (`regulars`+`reserves`) niż faktycznie powiadamia wyzwalacz `070` (wszyscy z kontem, w tym obserwujący i czekający na akceptację) | zrobione. Nowa `konsekwencjeOdwolania()` w `lib/zmianyMeczu.ts`, wołana przez `komuDojdzie()` — ta sama para co w oknie edycji. Testy: `__tests__/zmianyMeczu.test.ts` |
+| **S-5** | **Wiadomość na czat nie mówi ani ilu brakuje, ani że można bez konta.** `eventShareText()` zawsze pokazuje „14 miejsc", nigdy „zostały 2 miejsca" — mimo że to dokładnie to, po co organizator wkleja link na grupę. Argument „zapisujesz się bez konta" (wyzwanie 1-2 ze strategii) nie pada wcale, choć jest uczciwy do złożenia zawsze tam, gdzie pasek dolny i tak pokazuje „Dołącz bez konta" | zrobione. `eventShareText()` przyjmuje opcjonalny `StanUdostepnienia`; bez niego zachowanie bez zmian. Testy: `__tests__/eventShare.test.ts` |
+| **S-6** | **Dwa z trzech wejść „Powtórz" omijają panel „Mecz gotowy — wyślij link".** Tylko `PowtorzZHistorii.tsx` dodaje `?utworzono=1`; okno na stronie meczu i przycisk przy najbliższym meczu ekipy lądują na gołym adresie | zrobione — wszystkie cztery wejścia dodają `?utworzono=1` |
+| **S-7** | **Trzy listy typów powiadomień rozjeżdżają się.** 11 typów wstawianych do bazy nie mają wiersza w ustawieniach push (nie da się ich wyciszyć), 7 nie mają ikony na dzwonku (szare „Powiadomienie"), `event_cancelled` jest martwym kluczem w mapie ikon — to typ dziennika aktywności, nie powiadomienia. Wróciło trzeci raz (po `R-9`/naprawie sześciu ikon w piątej rundzie) | do zrobienia (PR 3, z bramką `typyPowiadomien.test.ts`) |
+
+Pełny opis i uzasadnienie każdego ustalenia, plan wdrożenia i szkic opisu PR-a
+— w historii sesji; skrót nad tabelą trzyma się tego, co odróżnia to repo od
+innych: dowód wykonany zapytaniami na bazie, nie tylko czytanie kodu.
+
+---
+
 ## Co zostaje bez zmian — i dlaczego
 
 Ta lista chroni przed „poprawkami", które przepływ by pogorszyły.

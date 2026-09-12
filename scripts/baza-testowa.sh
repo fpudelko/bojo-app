@@ -107,7 +107,7 @@ if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/rls.sql" 2>"$
 fi
 sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
 
-echo "→ Testy przypomnień (migracja 129)…"
+echo "→ Testy przypomnień (migracje 129/131/144)…"
 if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/przypomnienia.sql" 2>"$DANE/blad"; then
   echo "✗ TESTY PRZYPOMNIEŃ PADŁY" >&2
   sed 's/^/    /' "$DANE/blad" >&2
@@ -150,6 +150,14 @@ sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
 echo "→ Testy notatki organizatora przy odwołaniu (migracja 142)…"
 if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/notatka-odwolania.sql" 2>"$DANE/blad"; then
   echo "✗ TESTY NOTATKI ODWOŁANIA PADŁY" >&2
+  sed 's/^/    /' "$DANE/blad" >&2
+  exit 1
+fi
+sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
+
+echo "→ Testy zegara kolejki rezerwowej (migracja 143)…"
+if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/kolejka-zegar.sql" 2>"$DANE/blad"; then
+  echo "✗ TESTY ZEGARA KOLEJKI PADŁY" >&2
   sed 's/^/    /' "$DANE/blad" >&2
   exit 1
 fi

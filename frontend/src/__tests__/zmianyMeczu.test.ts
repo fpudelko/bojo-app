@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  policzZmiany, czyPowiadamia, komuDojdzie, konsekwencjeZapisu,
+  policzZmiany, czyPowiadamia, komuDojdzie, konsekwencjeZapisu, konsekwencjeOdwolania,
   type DaneDoPorownania,
 } from '@/lib/zmianyMeczu';
 import type { EventParticipant } from '@/types';
@@ -178,5 +178,48 @@ describe('konsekwencjeZapisu', () => {
       { zKontem: 0, gosciezAdresem: 0, gosciebezAdresu: 2 },
     );
     expect(zdania[0]).toContain('Nikt w składzie nie ma konta');
+  });
+});
+
+// Regresja `S-4` (audyt 2026-09-12): okno odwołania liczyło odbiorców po
+// swojemu (`[...regulars, ...reserves]`, pomijając obserwujących i czekających
+// na akceptację) i mówiło „jeśli podała adres" zamiast dokładnej odpowiedzi
+// z `ma_guest_email`. `konsekwencjeOdwolania()` to ten sam podział na kanały
+// co `konsekwencjeZapisu()`, zawsze powiadamiający — odwołanie nie ma stanu
+// „cisza".
+describe('konsekwencjeOdwolania', () => {
+  it('mówi o trzech kanałach naraz, gdy są odbiorcy w każdym', () => {
+    const zdania = konsekwencjeOdwolania({ zKontem: 8, gosciezAdresem: 2, gosciebezAdresu: 1 });
+    expect(zdania[0]).toContain('8 osób z kontem');
+    expect(zdania[0]).toContain('powiadomienie w Bojo');
+    expect(zdania[1]).toContain('2 gości');
+    expect(zdania[1]).toContain('e-mail');
+    expect(zdania[2]).toContain('1 osoba');
+    expect(zdania[2]).toContain('nie podała adresu');
+  });
+
+  it('mecz bez nikogo z kontem nie obiecuje powiadomienia w Bojo', () => {
+    const zdania = konsekwencjeOdwolania({ zKontem: 0, gosciezAdresem: 1, gosciebezAdresu: 0 });
+    expect(zdania[0]).toContain('Nikt w składzie nie ma konta');
+  });
+
+  it('sami z kontem — bez zdań o gościach', () => {
+    const zdania = konsekwencjeOdwolania({ zKontem: 5, gosciezAdresem: 0, gosciebezAdresu: 0 });
+    expect(zdania).toHaveLength(1);
+  });
+
+  // Obserwujący i czekający na akceptację WCHODZĄ do `zKontem` — to
+  // `komuDojdzie()` decyduje, kto się liczy (patrz jego własne testy wyżej),
+  // ta funkcja tylko tłumaczy podział na zdania. Sprawdzone przez
+  // `komuDojdzie()` bezpośrednio: obserwujący i pending_approval liczą się
+  // do `zKontem`, dopóki mają `userId`.
+  it('liczba z kontem pochodzi wprost z komuDojdzie (obserwujący i czekający wliczeni)', () => {
+    const komu = komuDojdzie([
+      uczestnik({ userId: 'gracz' }),
+      uczestnik({ userId: 'obserwator', rsvp: 'maybe' }),
+      uczestnik({ userId: 'oczekujacy', pendingApproval: true }),
+    ], 'org');
+    const zdania = konsekwencjeOdwolania(komu);
+    expect(zdania[0]).toContain('3 osoby z kontem');
   });
 });
