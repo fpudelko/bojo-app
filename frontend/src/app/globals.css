@@ -144,10 +144,22 @@ html[data-bottom-nav='1'] body { padding-bottom: var(--bottom-nav-h); }
 
 /* Otwarta klawiatura ekranowa (znacznik ustawia `useOknoCzatu`). Pasek jest
    `fixed bottom-0`, a `interactiveWidget: 'resizes-visual'` nie rusza layoutu
-   — więc klawiatura po prostu go ZAKRYWA. Skoro paska nie widać, jego miejsce
-   w dokumencie byłoby pustym pasem między composerem a klawiaturą: zerujemy
-   zmienną na czas pisania i wszystkie odejmowania niżej wychodzą same. */
+   — więc na Androidzie klawiatura po prostu go ZAKRYWA. Skoro paska nie widać,
+   jego miejsce w dokumencie byłoby pustym pasem między composerem
+   a klawiaturą: zerujemy zmienną na czas pisania i wszystkie odejmowania niżej
+   wychodzą same. */
 html[data-klawiatura='1'] { --bottom-nav-h: 0px; }
+
+/* iOS NIE ZAKRYWA elementów `fixed` — Safari podnosi je nad klawiaturę, więc
+   pasek wjeżdżał na środek ekranu i przykrywał sobą pole do pisania (zgłoszone
+   ze zrzutem z iPhone'a). Żadne ustawienie viewportu tego nie zmienia: to
+   zachowanie systemu, nie strony.
+
+   Chowamy więc pasek na czas otwartej klawiatury. Efekt jest DOKŁADNIE ten
+   sam, o który chodziło („klawiatura ma go zakryć, nie podnosić"), tylko
+   osiągnięty inaczej na każdym systemie: na Androidzie zakrywa go klawiatura,
+   na iOS my. Po schowaniu klawiatury pasek wraca — na obu. */
+html[data-klawiatura='1'] [data-pasek-dolny] { display: none; }
 
 /* Ile MUSI zostać wolne na dole ekranu — dla wszystkiego, co jest `fixed
    bottom-0` i nie jest samą nawigacją (baner cookies, zachęta do instalacji).

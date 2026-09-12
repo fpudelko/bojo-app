@@ -70,15 +70,6 @@ export function styleOknaCzatu(okno: OknoCzatu): CSSProperties | undefined {
  *  drogi nie rozjechały się o wysokość paska. */
 export const WYSOKOSC_CZATU_BEZ_POMIARU = 'h-[calc(100dvh_-_var(--bottom-nav-h))]';
 
-/** Czy skupienie siedzi w polu, do którego należy klawiatura ekranowa. */
-function wPoluTekstowym(): boolean {
-  const el = document.activeElement;
-  if (!el) return false;
-  return el instanceof HTMLTextAreaElement
-    || el instanceof HTMLInputElement
-    || (el instanceof HTMLElement && el.isContentEditable);
-}
-
 export function useOknoCzatu(aktywne: boolean): OknoCzatu {
   const [okno, setOkno] = useState<OknoCzatu>(OKNO_NIEZMIERZONE);
   const ostatnie = useRef<OknoCzatu>(OKNO_NIEZMIERZONE);
@@ -103,12 +94,13 @@ export function useOknoCzatu(aktywne: boolean): OknoCzatu {
       // przewijać — a przeglądarka zdążyła już przewinąć ją przy otwieraniu
       // klawiatury. Bez tego zostaje przesunięta i nagłówek wyjeżdża za ekran.
       //
-      // NIE W TRAKCIE PISANIA. Przewinięcie korzenia z kodu w chwili, gdy
-      // Android otwiera klawiaturę, każe Chrome ją schować — pole traci
-      // klawiaturę dokładnie w sekundzie, w której ktoś chce jej użyć. Gdy
-      // skupienie siedzi w polu tekstowym, strona i tak jest przycięta do
-      // widocznego okna, więc nie ma czego odkręcać.
-      if (window.scrollY !== 0 && !wPoluTekstowym()) window.scrollTo(0, 0);
+      // RESET LECI TAKŻE W TRAKCIE PISANIA. Przez jedną wersję był tu pominięty,
+      // gdy skupienie siedziało w polu — hipoteza, że to programowe przewinięcie
+      // każe Androidowi schować klawiaturę. Winne było `resizes-content`
+      // w `layout.tsx`, a pominięcie kosztowało iOS: strona zostawała
+      // przesunięta, więc nad klawiaturą świecił pusty kawał tła, a nagłówek
+      // rozmowy i composer wyjeżdżały za ekran (zgłoszone ze zrzutem).
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
     };
     przelicz();
     widoczne.addEventListener('resize', przelicz);
@@ -116,18 +108,39 @@ export function useOknoCzatu(aktywne: boolean): OknoCzatu {
     return () => {
       widoczne.removeEventListener('resize', przelicz);
       widoczne.removeEventListener('scroll', przelicz);
-      delete document.documentElement.dataset.klawiatura;
     };
   }, [aktywne]);
 
-  // Znacznik na `<html>`, z którego `globals.css` zeruje `--bottom-nav-h`:
-  // pasek nawigacji jest przy otwartej klawiaturze schowany za nią, więc jego
-  // miejsce w dokumencie byłoby pustym pasem między composerem a klawiaturą.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (okno.klawiatura) document.documentElement.dataset.klawiatura = '1';
-    else delete document.documentElement.dataset.klawiatura;
-  }, [okno.klawiatura]);
-
   return okno;
+}
+
+/**
+ * Znacznik `data-klawiatura` na `<html>` — jedno miejsce w aplikacji, z którego
+ * CSS wie, że klawiatura ekranowa jest otwarta (`globals.css`: zeruje
+ * `--bottom-nav-h` i chowa dolny pasek).
+ *
+ * GLOBALNY, nie tylko na ekranach czatu. Pisze się nie tylko w rozmowie:
+ * szukajka na liście rozmów też otwiera klawiaturę, a wtedy iOS podnosi pasek
+ * `fixed` nad nią dokładnie tak samo. Montuje go `BottomNavGate`, czyli to
+ * samo miejsce, które decyduje o istnieniu paska — bez paska znacznik nie ma
+ * czego opisywać.
+ */
+export function useZnacznikKlawiatury(aktywny: boolean): void {
+  useEffect(() => {
+    if (!aktywny || typeof window === 'undefined' || !window.visualViewport) return;
+    const widoczne = window.visualViewport;
+    const znacznik = document.documentElement.dataset;
+    const przelicz = () => {
+      if (zmierzOkno(widoczne.height, window.innerHeight).klawiatura) znacznik.klawiatura = '1';
+      else delete znacznik.klawiatura;
+    };
+    przelicz();
+    widoczne.addEventListener('resize', przelicz);
+    widoczne.addEventListener('scroll', przelicz);
+    return () => {
+      widoczne.removeEventListener('resize', przelicz);
+      widoczne.removeEventListener('scroll', przelicz);
+      delete znacznik.klawiatura;
+    };
+  }, [aktywny]);
 }
