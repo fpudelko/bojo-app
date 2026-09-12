@@ -94,8 +94,8 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), alerty o grach w okolicy, potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -327,8 +327,8 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
-alerty o grach w okolicy, potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg
-minimum graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
+potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się
+odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
 stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
@@ -370,6 +370,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Pusta lista meczów przestaje być ślepym zaułkiem: „Powiadom mnie, gdy się pojawi"
+
+PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
+szuka — sport, okolica, termin — i dostawał „Brak meczów". W tym miejscu Bojo nie oferowało
+nic poza wyczyszczeniem filtrów albo wystawieniem własnego meczu; obie odpowiedzi każą
+zrobić coś innego, niż się przyszło zrobić. Człowiek wychodził i nie wracał, mimo że mecz
+w jego okolicy mógł pojawić się nazajutrz. Alert o nowej grze był w Bojo ZBUDOWANY od
+migracji `025` — tabela `game_alerts`, dopasowywanie po sporcie i promieniu, wysyłka mailem
+przy każdym nowym meczu — ale schowany za flagą `SHOW_GAME_ALERTS`, wyłączoną w czasach,
+gdy Bojo nie miało czym dostarczyć powiadomienia. Kanał (poczta, web-push) działa od
+2026-09-08, flaga została wyłączona siłą rozpędu.
+
+ROZWIĄZANIE BOJO: pusta lista meczów pokazuje teraz przycisk „Powiadom mnie, gdy się
+pojawi". Alert otwiera się WYPEŁNIONY tym, co gracz przed chwilą ustawił filtrami — sport
+i promień — a lokalizację podstawia sam, jeśli przeglądarka ma już zgodę na nią (samo
+otwarcie okna nigdy nie prosi o zgodę). Gracz zatwierdza jednym przyciskiem, zamiast
+opisywać po raz drugi to samo. Gdy alert już istnieje, pusta lista mówi „Damy znać, gdy
+pojawi się pasujący mecz" i pozwala zmienić ustawienia. Osoba niezalogowana trafia stąd na
+logowanie. Wybór sportu — w filtrach i w oknie alertu — pokazuje same ikony dyscyplin,
+a podpis dopiero przy wybranej; cztery pełne nazwy zajmowały na telefonie dwa wiersze.
+Odległość w oknie alertu jest w jednym miejscu, bezpośrednio pod wybranym miejscem, bo to
+dopowiedzenie do niego („ile kilometrów OD CZEGO"), a nie osobne pytanie.
+
+MECHANIKA: flaga `SHOW_GAME_ALERTS` (`frontend/src/lib/features.ts`) włączona. Wejście
+w `app/wydarzenia/EventsListView.tsx` (pusty stan listy; stan alertu pobierany dopiero,
+gdy ten stan realnie widać). `lib/alerts.ts` — `domyslneZFiltrow()` przenosi filtry do
+okna alertu (jeden sport przechodzi wprost, dwa i więcej dają „dowolny", promień jest
+przycinany do skali suwaka) plus stałe `PROMIEN_MIN/MAX/DOMYSLNY`. `components/home/
+AlertSetupDialog.tsx` — lokalizacja z `pozycjaBezPytania()` (`lib/geo.ts`), promień na
+wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej listy.
+Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
+zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
+przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`.
 ### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
 
 PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
@@ -622,37 +655,3 @@ zweryfikowana w Resend, funkcja brzegowa wdrożona, `konfiguracja_poczty` wypeł
 Tabela `maile_goscia` nosi od migracji `134` nazwę `maile_wyslane` — obsługuje też
 powitanie po założeniu konta. Od 2026-09-11 przez Resend idą również maile logowania
 (reset hasła, magic link) — custom SMTP w Supabase, kanał niezależny od powyższego.
-
-### 2026-09-03 — Awaria sieci przestaje wyglądać jak nieistniejący mecz; komplet okien potwierdzeń
-
-PROBLEM: (1) Strona meczu na każdy błąd — brak zasięgu, awarię serwera, odmowę reguł
-dostępu — pokazywała „Nie znaleziono wydarzenia”. Strona meczu to jedyny adres,
-który organizator rozsyła kilkunastu osobom, więc gracz z chwilowo słabym zasięgiem czytał
-komunikat znaczący „dostałeś link do czegoś, czego nie ma” — i wypadało to na
-organizatora, nie na Bojo. Do tego pierwszą czynnością przy wczytywaniu było porządkowanie
-kolejki rezerwowej, czyli zadanie POMOCNICZE, którego awaria gasiła całą stronę. (2) Rozmyty
-podgląd kreatora na ekranie zachęcającym do założenia konta pokazywał układ pól sprzed
-przebudowy kroków — brama obiecywała inny formularz, niż organizator dostawał po
-zalogowaniu. (3) Sześć decyzji organizatora nadal potwierdzało systemowe okno przeglądarki:
-otwarcie meczu dla okolicy oraz pięć w ekranach ekip, w tym USUNIĘCIE EKIPY — rzecz
-nieodwracalna, opisana jednym zdaniem w okienku, które na telefonie czyta się jak błąd strony.
-
-ROZWIĄZANIE BOJO: (1) Bojo odróżnia dziś „takiego meczu nie ma” od „nie udało się
-go wczytać”. Przy awarii pokazuje ekran z przyciskiem „Spróbuj ponownie” i zdaniem
-„link jest w porządku”; porządkowanie kolejki rezerwowej i wynik meczu zeszły poza
-ścieżkę krytyczną, więc ich awaria nie gasi już strony. (2) Podgląd na bramie pokazuje ten
-sam krok pierwszy, który organizator zobaczy po zalogowaniu — sport, termin, liczbę miejsc
-i listę rezerwową — a nazwy trzech kroków biorą się z tego samego miejsca w kodzie co
-w kreatorze, więc nie mogą się rozjechać. (3) Wszystkie decyzje organizatora, także
-w ekipach, potwierdza własne okno Bojo z listą konsekwencji. Usunięcie ekipy mówi teraz
-osobno, co znika (rozmowa, tablica, skład, statystyki), co zostaje (mecze, tylko bez
-przypisania do ekipy) i że cofnąć się nie da; otwarcie meczu dla okolicy mówi wprost, że
-decyzja JEST odwracalna.
-
-MECHANIKA: `lib/events.ts` (`BladWczytania` z kodem PostgREST-a, `toBrakWiersza()` dla
-`PGRST116`), `app/wydarzenia/[id]/EventDetailClient.tsx` (stan `bladWczytania`, ekran
-ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta bramy),
-`components/events/CzyGramyPanel.tsx`, `app/grupy/[id]/GroupDetailClient.tsx`,
-`app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
-Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
-`__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.

@@ -1,7 +1,10 @@
 'use client';
 
 // DEAD CODE — complete but rendered nowhere. Do not copy patterns from this file.
-// Kept until game alerts ship (flag SHOW_GAME_ALERTS); see BACKLOG §4.
+// `SHOW_GAME_ALERTS` jest już włączona (2026-09-12), ale wejście do alertu
+// zrobiliśmy w pustym stanie listy na `/wydarzenia`, nie tutaj — ten komponent
+// dalej nikt nie renderuje. Do decyzji: wpiąć na stronę główną albo usunąć
+// (BACKLOG §4).
 
 import { useState, useEffect } from 'react';
 import { Navigation, Loader2, Bell, BellRing } from 'lucide-react';

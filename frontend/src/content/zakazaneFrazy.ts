@@ -46,7 +46,12 @@ export const ZAKAZANE_NA_LANDINGU = [
   // sprzedażowy i nie wspomina kanałów w ogóle — o powiadomieniach mówią
   // `/jak-dziala-bojo` i `/faq`, gdzie kontekst "w aplikacji" jest jawny.
   'powiadom',
-  'alert', // SHOW_GAME_ALERTS = false
+  // `SHOW_GAME_ALERTS` jest WŁĄCZONA od 2026-09-12, więc dawny powód („funkcji
+  // nie ma") już nie obowiązuje. Fraza zostaje zakazana NA LANDINGU z tego
+  // samego powodu co 'powiadom' wyżej: landing nie wymienia kanałów w ogóle.
+  // O alercie mówi samo miejsce, w którym da się go włączyć — pusta lista
+  // meczów na `/wydarzenia`.
+  'alert',
   'rezerwacj[aeę] boisk', // FEATURE_RESERVATIONS = false
   'blik', // no payment integration
   'zapłać przez', // no payment integration

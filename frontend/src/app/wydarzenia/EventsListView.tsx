@@ -6,14 +6,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
-  List, MailOpen, Map as MapIcon, Navigation, Plus, Search, SlidersHorizontal,
-  Ticket, Users, Wallet, X,
+  Bell, BellRing, List, MailOpen, Map as MapIcon, Navigation, Plus, Search,
+  SlidersHorizontal, Ticket, Users, Wallet, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
-import type { EventItem } from '@/types';
+import type { EventItem, GameAlert } from '@/types';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { domyslneZFiltrow, getMyAlert } from '@/lib/alerts';
+import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { TogglePill } from '@/components/ui/FilterPill';
+import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
@@ -38,6 +41,10 @@ const GamesMapCanvas = dynamic(() => import('@/components/map/GamesMapCanvas'), 
   ssr: false,
   loading: () => <div className="mx-4 mt-3 flex h-[65vh] min-h-[420px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Ładowanie mapy…</div>,
 });
+
+// Okno alertu otwiera się z jednego przycisku w pustym stanie — do paczki
+// listy nie ma po co wchodzić, tym samym wzorcem co mapa wyżej.
+const AlertSetupDialog = dynamic(() => import('@/components/home/AlertSetupDialog'), { ssr: false });
 
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: 'termin',    label: 'Najbliższy termin' },
@@ -318,6 +325,27 @@ export default function EventsListView({ widzianoWczesniej }: {
 
   const hasFilters = sports.length > 0 || dateFilter !== 'wszystkie' || radiusKm !== null
     || maxPriceGrosze !== null || minFreeSpots > 0 || !!query || onlyFreeSpots || onlyNoCost;
+
+  // ALERT O NOWYM MECZU. Pusta lista to jedyne miejsce w apce, gdzie człowiek
+  // powiedział dokładnie, czego szuka, i dostał „nie ma" — więc jedyne, gdzie
+  // „powiadomimy Cię, gdy się pojawi" odpowiada na zadane pytanie, zamiast być
+  // kolejną prośbą o zgodę. Stan alertu pobieramy DOPIERO gdy ten stan realnie
+  // widać: na niepustej liście to byłoby zapytanie za każdym wejściem po nic.
+  const [mojAlert, setMojAlert] = useState<GameAlert | null>(null);
+  const [oknoAlertu, setOknoAlertu] = useState(false);
+  // Filtry SĄ już odpowiedzią na „czego szukasz" — okno alertu otwiera się
+  // z nimi, zamiast pytać o to samo drugi raz.
+  const domyslneAlertu = useMemo(
+    () => domyslneZFiltrow({ sports, radiusKm, pozycja: userPos }),
+    [sports, radiusKm, userPos],
+  );
+  const pustaLista = !loading && !loadError && sorted.length === 0;
+  useEffect(() => {
+    if (!SHOW_GAME_ALERTS || !user || !pustaLista) return;
+    let zywe = true;
+    getMyAlert().then((a) => { if (zywe) setMojAlert(a); }).catch(() => {});
+    return () => { zywe = false; };
+  }, [user, pustaLista]);
   const clearFilters = () => {
     setSports([]);
     setDateFilter('wszystkie');
@@ -471,7 +499,7 @@ export default function EventsListView({ widzianoWczesniej }: {
       )}
 
       {/* Pusto */}
-      {!loading && !loadError && sorted.length === 0 && (
+      {pustaLista && (
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
           <span className="mb-4 text-5xl">⚽</span>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
@@ -492,6 +520,45 @@ export default function EventsListView({ widzianoWczesniej }: {
                 ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów — mecze ekipy zobaczysz w „Grupy".'
                 : 'Wrzuć własny — zobaczą go gracze z okolicy.'}
           </p>
+          {/* Najpierw odpowiedź na to, po co ktoś tu przyszedł: skoro meczu
+              nie ma DZIŚ, jedyne sensowne „dalej" to dowiedzieć się, gdy
+              będzie. Dopiero pod spodem czyszczenie filtrów i własny mecz —
+              obie te drogi każą coś zrobić, ta jedna działa sama. */}
+          {SHOW_GAME_ALERTS && (
+            mojAlert ? (
+              <div className="mt-5 w-full max-w-sm rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950">
+                <p className="flex items-center justify-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-200">
+                  <BellRing className="h-4 w-4 shrink-0" />
+                  Damy znać, gdy pojawi się pasujący mecz
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOknoAlertu(true)}
+                  className="mt-1 text-xs font-semibold text-primary-700 underline dark:text-primary-300"
+                >
+                  Zmień ustawienia powiadomienia
+                </button>
+              </div>
+            ) : user ? (
+              <button
+                type="button"
+                onClick={() => setOknoAlertu(true)}
+                className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
+              >
+                <Bell className="h-5 w-5 shrink-0" />
+                Powiadom mnie, gdy się pojawi
+              </button>
+            ) : (
+              <Link
+                href="/logowanie?next=%2Fwydarzenia"
+                className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
+              >
+                <Bell className="h-5 w-5 shrink-0" />
+                Powiadom mnie, gdy się pojawi
+              </Link>
+            )
+          )}
+
           {hasFilters && (
             <button
               type="button"
@@ -520,6 +587,18 @@ export default function EventsListView({ widzianoWczesniej }: {
             >
               <Plus className="h-4 w-4" /> Stwórz mecz
             </Link>
+          )}
+
+          {oknoAlertu && (
+            <AlertSetupDialog
+              defaultSport={domyslneAlertu.sport}
+              defaultRadiusKm={domyslneAlertu.radiusKm}
+              defaultLat={domyslneAlertu.lat}
+              defaultLng={domyslneAlertu.lng}
+              defaultLabel={domyslneAlertu.lat != null ? 'Moja lokalizacja' : undefined}
+              onClose={() => setOknoAlertu(false)}
+              onSaved={setMojAlert}
+            />
           )}
         </div>
       )}
@@ -722,34 +801,22 @@ export default function EventsListView({ widzianoWczesniej }: {
           <div>
             <p className="mb-2 text-sm font-semibold text-ink">Sport</p>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
+              <SportChip
+                emoji="🏟️"
+                label="Wszystkie"
+                selected={sports.length === 0}
                 onClick={() => setSports([])}
-                className={clsx(
-                  'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                  sports.length === 0
-                    ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
-                )}
-              >
-                🏟️ Wszystkie
-              </button>
+              />
               {FOCUS_SPORTS.map((sport) => (
-                <button
+                <SportChip
                   key={sport}
-                  type="button"
+                  emoji={sportEmoji(sport)}
+                  label={sportLabel(sport)}
+                  selected={sports.includes(sport)}
                   onClick={() => setSports((cur) => (
                     cur.includes(sport) ? cur.filter((s) => s !== sport) : [...cur, sport]
                   ))}
-                  className={clsx(
-                    'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                    sports.includes(sport)
-                      ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
-                  )}
-                >
-                  {sportEmoji(sport)} {sportLabel(sport)}
-                </button>
+                />
               ))}
             </div>
           </div>
