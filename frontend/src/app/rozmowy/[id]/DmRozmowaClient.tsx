@@ -10,7 +10,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getPublicPlayer } from '@/lib/players';
 import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
-import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useWstecz } from '@/lib/historia';
 import {
   pobierzDm, wyslijDm, usunDm, zablokuj, odblokuj, czyZablokowalem, zglos,
@@ -158,9 +158,10 @@ export default function DmRozmowaClient() {
           rozmowie", nie „jesteś na stronie z czatem wstawionym pod paskiem
           serwisu". Desktop bez zmian (Header tam nikt nie prosił chować). */}
       <Header hideMobileBarForUser />
-      {/* `pb-0` na pełnym ekranie: composer jest ostatnim wierszem, więc każdy
-          odstęp pod nim to pas między nim a klawiaturą. */}
-      <main className={`mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 ${pelnyEkran ? 'min-h-0 overflow-hidden pb-0' : 'pb-4'}`}>
+      {/* Na pełnym ekranie odstęp pod composerem liczy `odstepNadPaskiem`:
+          tyle, ile guzik „Nowy" wystaje ponad pasek — i zero przy otwartej
+          klawiaturze, kiedy paska nie ma. */}
+      <main className={`mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 ${pelnyEkran ? `min-h-0 overflow-hidden ${odstepNadPaskiem(okno)}` : 'pb-4'}`}>
         <div className="flex shrink-0 items-center gap-1">
           {/* Wstecz = poprzedni ekran, nie zawsze `/rozmowy`. Do rozmowy
               prywatnej wchodzi się TAKŻE z profilu gracza („Napisz

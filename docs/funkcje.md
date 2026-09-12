@@ -2355,9 +2355,14 @@ iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu 
 więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
 Od wyniku odejmuje się `var(--bottom-nav-h)` — pasek nawigacji zostaje na ekranie czatu,
 więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `undefined`
-i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`. Kontenery
-rozmów nie mają pod composerem ŻADNEGO własnego odstępu (`pb-0` na `<main>`): pod nim
-jest już tylko pasek nawigacji albo klawiatura, więc każdy odstęp byłby pustym pasem.
+i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
+
+**Jedyny odstęp pod composerem to `odstepNadPaskiem()`** — dokładnie tyle, ile guzik
+„Nowy" WYSTAJE ponad pasek nawigacji (`-mt-4` plus `ring-4` w `BottomNav.tsx`, ~20 px).
+`--bottom-nav-h` opisuje sam pasek, więc bez tej poprawki pole do pisania wchodziło pod
+guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem). Przy otwartej klawiaturze
+odstęp znika: paska wtedy nie widać, a pusty pas nad klawiaturą to błąd z rundy
+wcześniej. Wcięcia na kreskę gestów kontenery rozmów nie mają wcale — niesie je pasek.
 
 **Pomiar powtarza się z opóźnieniem** (`MS_NA_USTABILIZOWANIE`, 400 ms) po każdym
 zdarzeniu widocznego okna, a nasłuch obejmuje też `focusin`/`focusout`. Powód: iOS

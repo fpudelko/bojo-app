@@ -86,6 +86,22 @@ export function styleOknaCzatu(okno: OknoCzatu): CSSProperties | undefined {
 export const WYSOKOSC_CZATU_BEZ_POMIARU = 'h-[calc(100dvh_-_var(--bottom-nav-h))]';
 
 /**
+ * Odstęp pod composerem: tyle, ile guzik „Nowy" WYSTAJE ponad pasek nawigacji.
+ *
+ * `--bottom-nav-h` opisuje sam pasek (`h-14` + wcięcie na kreskę gestów), ale
+ * FAB pośrodku wychodzi ponad jego górną krawędź o `-mt-4` plus `ring-4`
+ * (`BottomNav.tsx`), czyli ~20 px. Bez tego odstępu pole do pisania wchodziło
+ * pod guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem).
+ *
+ * Przy otwartej klawiaturze odstępu nie ma: paska wtedy nie widać, więc nie ma
+ * czego omijać, a pusty pas nad klawiaturą to dokładnie ten błąd, który ta
+ * mechanika naprawiała rundę wcześniej.
+ */
+export function odstepNadPaskiem(okno: OknoCzatu): string {
+  return okno.klawiatura ? '' : 'pb-5';
+}
+
+/**
  * Podpina `przelicz` pod każdą zmianę widocznego okna i oddaje sprzątanie.
  *
  * DLACZEGO NIE SAM `resize`. iOS potrafi zmienić wysokość widocznego okna JUŻ

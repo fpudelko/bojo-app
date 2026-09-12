@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NaglowekRozmowy from '@/components/rozmowy/NaglowekRozmowy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
-import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getGroup, getMyGroupPermissions } from '@/lib/groups';
 import { kluczTablicaWidziano } from '@/lib/groupPosts';
@@ -85,8 +85,8 @@ export default function RozmowaGrupyClient() {
       style={pelnyEkran ? styleOknaCzatu(okno) : undefined}
     >
       <Header hideMobileBarForUser />
-      {/* `pb-0` na pełnym ekranie — powód w `RozmowaMeczuClient`. */}
-      <main className={`mx-auto w-full max-w-lg flex-1 px-4 pt-4 ${pelnyEkran ? 'flex min-h-0 flex-col overflow-hidden pb-0' : 'pb-4'}`}>
+      {/* Odstęp pod czatem — powód w `RozmowaMeczuClient`. */}
+      <main className={`mx-auto w-full max-w-lg flex-1 px-4 pt-4 ${pelnyEkran ? `flex min-h-0 flex-col overflow-hidden ${odstepNadPaskiem(okno)}` : 'pb-4'}`}>
         {stan === 'ladowanie' ? (
           <div className="flex flex-1 items-center justify-center py-16">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />

@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NaglowekRozmowy from '@/components/rozmowy/NaglowekRozmowy';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
-import { useOknoCzatu, styleOknaCzatu, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getEvent, getMyActiveEventIds } from '@/lib/events';
 import { kluczRozmowyWidziano } from '@/lib/comments';
@@ -85,9 +85,9 @@ export default function RozmowaMeczuClient() {
       style={pelnyEkran ? styleOknaCzatu(okno) : undefined}
     >
       <Header hideMobileBarForUser />
-      {/* `pb-0` na pełnym ekranie: pod czatem nie ma już nic poza paskiem
-          nawigacji (albo klawiaturą), więc odstęp byłby pustym pasem. */}
-      <main className={`mx-auto w-full max-w-lg flex-1 px-4 pt-4 ${pelnyEkran ? 'flex min-h-0 flex-col overflow-hidden pb-0' : 'pb-4'}`}>
+      {/* Odstęp pod czatem = tyle, ile guzik „Nowy" wystaje ponad pasek
+          (`odstepNadPaskiem`), i zero przy otwartej klawiaturze. */}
+      <main className={`mx-auto w-full max-w-lg flex-1 px-4 pt-4 ${pelnyEkran ? `flex min-h-0 flex-col overflow-hidden ${odstepNadPaskiem(okno)}` : 'pb-4'}`}>
         {stan === 'ladowanie' ? (
           <div className="flex flex-1 items-center justify-center py-16">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
