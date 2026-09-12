@@ -199,11 +199,85 @@ else
   } > "$KOPIA/$KATALOG/README.md"
 
   ADRES_RAPORTU="https://github.com/${GITHUB_REPOSITORY}/tree/${GALAZ_PODGLADU}/${KATALOG}"
+  # Adres surowego pliku — GitHub renderuje `<img>` z `raw.githubusercontent`
+  # wprost w komentarzu, więc zmienione miejsce widać BEZ wchodzenia w raport.
+  #
+  # `?v=` nie jest ozdobnikiem: obrazki w komentarzach idą przez pośrednik
+  # (camo), który buforuje po ADRESIE. Ścieżka pliku jest stała między
+  # przebiegami (`pr-355/widoki-publiczne/wycinek__X__actual.png`), więc bez
+  # tego kolejny przebieg pokazywałby obrazek z poprzedniego — czyli komentarz
+  # kłamałby dokładnie tam, gdzie ma mówić prawdę.
+  ADRES_SUROWY="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GALAZ_PODGLADU}/${KATALOG}"
+  WERSJA="${GITHUB_RUN_ID:-0}"
+
+  # Ile widoków pokazać w samym komentarzu. Reszta zostaje za odnośnikiem:
+  # przy przebiegu z czterdziestoma zmianami komentarz z osiemdziesięcioma
+  # obrazkami jest nie do przewinięcia i nikt go nie czyta.
+  LIMIT_W_KOMENTARZU=3
+
   {
     echo ""
     echo "**[📖 Otwórz raport](${ADRES_RAPORTU})** — zmienione: ${LICZBA_ROZNIC}, nowe: ${LICZBA_NOWYCH}."
     echo ""
-    echo "Jedna strona z obrazkami, otwiera się na telefonie."
+
+    POKAZANE=0
+
+    # Listy do plików, a pętle czytają je PRZEKIEROWANIEM, nie z potoku.
+    # `cmd | while` uruchamia pętlę w podpowłoce, więc licznik pokazanych
+    # widoków nie przeżyłby ani jednej iteracji poza nią — limit działałby
+    # osobno w każdej pętli zamiast wspólnie.
+    ls "$ZBIOR" | { grep '^roznica__' || true; } | sed 's/^roznica__//; s/__[a-z]*\.png$//' | sort -u > "$TMP/klucze.txt"
+    ls "$ZBIOR" | { grep '^nowy__' || true; } | sort > "$TMP/nowe.txt"
+
+    # Zmienione widoki — sam wycinek zmienionego miejsca, „było" obok „jest".
+    # Całe strony i nakładka diff zostają w raporcie: na telefonie dwie pełne
+    # strony obok siebie to dwa paski po kilka milimetrów.
+    while IFS= read -r KLUCZ; do
+        [[ -z "$KLUCZ" ]] && continue
+        POKAZANE=$((POKAZANE + 1))
+        [[ "$POKAZANE" -gt "$LIMIT_W_KOMENTARZU" ]] && continue
+
+        if [[ -f "$ZBIOR/wycinek__${KLUCZ}__expected.png" ]]; then
+          PRZED="wycinek__${KLUCZ}__expected.png"
+          PO="wycinek__${KLUCZ}__actual.png"
+        else
+          # Bez wycinka (nie dało się policzyć prostokąta zmiany) zostają całe
+          # strony — gorzej czytelne, ale lepsze niż sam odnośnik.
+          PRZED="roznica__${KLUCZ}__expected.png"
+          PO="roznica__${KLUCZ}__actual.png"
+        fi
+
+        echo "**${KLUCZ}**"
+        echo ""
+        echo "<table><tr>"
+        echo "<td width=\"50%\" align=\"center\"><b>było</b><br>"
+        echo "<img src=\"${ADRES_SUROWY}/${PRZED}?v=${WERSJA}\" width=\"100%\"></td>"
+        echo "<td width=\"50%\" align=\"center\"><b>jest</b><br>"
+        echo "<img src=\"${ADRES_SUROWY}/${PO}?v=${WERSJA}\" width=\"100%\"></td>"
+        echo "</tr></table>"
+        echo ""
+      done < "$TMP/klucze.txt"
+
+    # Nowe widoki nie mają „przed" — pokazujemy sam obrazek.
+    while IFS= read -r PLIK; do
+      [[ -z "$PLIK" ]] && continue
+      POKAZANE=$((POKAZANE + 1))
+      [[ "$POKAZANE" -gt "$LIMIT_W_KOMENTARZU" ]] && continue
+      PODPIS="$(echo "${PLIK#nowy__}" | sed 's/\.png$//; s/__/ · /g')"
+      echo "**${PODPIS}** — nowy widok"
+      echo ""
+      echo "<img src=\"${ADRES_SUROWY}/${PLIK}?v=${WERSJA}\" width=\"48%\">"
+      echo ""
+    done < "$TMP/nowe.txt"
+
+    RAZEM=$((LICZBA_ROZNIC + LICZBA_NOWYCH))
+    if [[ "$RAZEM" -gt "$LIMIT_W_KOMENTARZU" ]]; then
+      echo "…i jeszcze $((RAZEM - LIMIT_W_KOMENTARZU)) — [w raporcie](${ADRES_RAPORTU})."
+      echo ""
+    fi
+
+    echo "W raporcie dodatkowo całe strony bok w bok i nakładka z podświetlonymi"
+    echo "pikselami. Otwiera się na telefonie."
   } > "$WYNIK"
 fi
 
