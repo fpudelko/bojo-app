@@ -179,6 +179,9 @@ export interface Dane {
   czeka_na_akceptacje?: boolean;
   oferta_do?: string | null;
   ma_konto?: boolean;
+  /** Notatka organizatora dołączona wyłącznie do odwołania (migracja 142).
+   *  `null`/nieobecna = organizator nic nie wpisał, blok w mailu się nie pojawia. */
+  notatka?: string | null;
   token: string | null;
 }
 
@@ -288,6 +291,13 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
       return { temat: `Mecz odwołany: ${d.tytul}`, naglowek, bloki: [
         { typ: 'akapit', tekst: 'Organizator odwołał ten mecz:' },
         kartaMeczu(d),
+        // Notatka organizatora — WYŁĄCZNIE gdy coś wpisał. Osobny akapit,
+        // nie dopisek do „Nie przyjeżdżaj na boisko": to zdanie ma zostać
+        // ostatnią, jednoznaczną rzeczą w mailu niezależnie od tego, jak
+        // długa jest notatka.
+        ...(d.notatka && d.notatka.trim()
+          ? [{ typ: 'akapit', tekst: `Wiadomość od organizatora: ${d.notatka.trim()}` } as Blok]
+          : []),
         { typ: 'akapit', tekst: 'Nie przyjeżdżaj na boisko.' },
         ...zamkniecie(d, cfg),
       ] };

@@ -3213,6 +3213,18 @@ go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkus
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
 
+**Notatka organizatora przy odwołaniu, od 2026-09-12.** Okno mówiło dotąd wyłącznie KTO
+dostanie powiadomienie, nie dawało miejsca na DLACZEGO ani co dalej — jedyną drogą było
+„Odwołaj i wyślij wiadomość", czyli osobna wiadomość na czacie, którą widzi tylko ten, kto
+tam zajrzy. Opcja `notatka` w `OpcjePotwierdzenia` (etykieta + placeholder) dokłada pole
+tekstowe pod konsekwencjami; wartość czyta się PO rozstrzygnięciu przez `pobierzNotatke()`,
+nie przez wynik `potwierdz()` — zmiana typu wyniku dotknęłaby wszystkie siedem plików, które
+porównują go z gołym stringiem (`wybor === 'nie'`). Pole jest niekontrolowane (`ref`, nie
+`useState`), żeby każde naciśnięcie klawisza nie renderowało całego drzewa wołającego. Dziś
+jedyne użycie to okno odwołania meczu: notatka trafia do dzwonka, push, maila (do konta
+i do gościa — migracja `142`) oraz do tekstu na czacie i do czerwonego banera „Mecz
+odwołany" na stronie meczu, czyli do wszystkich miejsc, które i tak już mówią o odwołaniu.
+
 **Domknięte 2026-09-03.** Zostały wtedy jeszcze SZEŚĆ wywołań `confirm()`, wszystkie na
 ścieżce organizatora — poprzednia runda zatrzymała się na samej stronie meczu:
 

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-11 · migracja `141` · 56 tabel
+**Stan na:** 2026-09-12 · migracja `142` · 56 tabel
 
 ---
 
@@ -370,6 +370,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
+
+PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
+organizatorowi miejsca, żeby powiedzieć DLACZEGO albo co dalej — „boisko zalane, szukam
+zastępczego terminu", „gramy w przyszłą sobotę o tej samej porze". Jedyną drogą było
+„Odwołaj i wyślij wiadomość" — osobna wiadomość na czacie meczu, którą widzi tylko ten,
+kto tam zajrzy. Kto dostał wyłącznie dzwonek, push albo maila, widział gołe „Organizator
+odwołał ten mecz" bez powodu.
+
+ROZWIĄZANIE BOJO: okno odwołania ma dziś pole „Notatka dla uczestników (opcjonalnie)".
+Wpisany tekst trafia do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu —
+dzwonek w aplikacji, push (ten sam ładunek co dzwonek), mail do uczestnika z kontem, mail
+do gościa bez konta — a przy wyborze „Odwołaj i wyślij wiadomość" także na czat. Notatka
+pokazuje się też w czerwonym banerze „Mecz odwołany" na stronie meczu, więc widzi ją
+każdy, kto trafi tam z linku, nie tylko ten, kto dostał powiadomienie. Notatka jest
+nadpisywana przy każdym odwołaniu i czyszczona przy przywróceniu meczu — nie jest to
+trwały opis meczu, tylko treść jednego konkretnego zdarzenia.
+
+MECHANIKA: migracja `142` — kolumna `events.notatka_odwolania`; `powiadom_o_odwolaniu()`
+(`070`) dopisuje ją do treści dzwonka; `wyslij_mail_do_konta()` (`140`) i
+`wyslij_mail_do_goscia()` (`133`/`137`) dokładają pole `notatka` w ładunku do funkcji
+brzegowej `powiadom-goscia`, wyłącznie dla powodu odwołania. `cancelEvent()`
+i `restoreEvent()` w `lib/events.ts` zarządzają kolumną z aplikacji, wyzwalacz
+`wyczysc_notatke_po_przywroceniu()` jest siecią bezpieczeństwa w bazie. Pole notatki
+w oknie potwierdzenia — `OpcjeNotatki` w `components/ui/OknoPotwierdzenia.tsx`,
+`pobierzNotatke()` w `lib/usePotwierdzenie.tsx`. Ta sama notatka jedzie na czat przez
+`tekstOdwolania()` w `lib/eventShare.ts`. Asercje w `supabase/test/notatka-odwolania.sql`
+i `frontend/src/__tests__/mailePowiadomien.test.ts`.
+
 ### 2026-09-11 — Maile Bojo wyglądają jak narzędzie, a nie jak notatka
 
 PROBLEM: Bojo wysyłało maile wyłącznie jako goły tekst. Odbiorca dostawał ścianę zdań
@@ -627,37 +656,3 @@ ponowienia, `handleOtworzDlaOkolicy`), `app/wydarzenia/nowe/page.tsx` (makieta b
 `app/grupy/[id]/edytuj/page.tsx` (wszystkie na `lib/usePotwierdzenie.tsx`). Bez migracji.
 Testy: `e2e/mecz-blad-wczytania.klikalnosc.spec.ts` (sprawdzone, że bez poprawki pada),
 `__tests__/bramaKreatora.test.ts`, `__tests__/oknaZamiastConfirm.test.ts`.
-
-### 2026-09-03 — Skład meczu jest prawdą: koniec z samodzielnym awansem i naprawiony przełącznik gości
-
-PROBLEM: Bojo nie ma własnego backendu — przeglądarka rozmawia z bazą bezpośrednio, więc
-reguły dostępu w bazie są jedyną granicą. Reguła pozwalająca uczestnikowi zmieniać własny
-wpis w składzie nie mówiła, KTÓRE pola wolno mu ruszyć, a baza danych nie umie zawęzić
-takiej reguły do wybranych kolumn. W efekcie zapisany mógł jednym żądaniem wyjść
-z poczekalni na meczu z akceptacją zapisów, awansować się z listy rezerwowej ponad limit
-miejsc i oznaczyć własną wpłatę jako wniesioną — czyli obejść trzy rzeczy, na których
-opiera się zaufanie organizatora do składu. Druga połowa tego samego problemu nie wymagała
-niczyjej złej woli: przejście „Obserwuję” → „Gram” pytało bazę o wolne
-miejsce i dopiero osobnym żądaniem zapisywało wynik, więc dwie osoby klikające w tej samej
-sekundzie lądowały obie w składzie, ponad limit. Osobno: przełącznik
-„Uczestnicy mogą dodawać gości” nie działał NIGDY — organizator go włączał,
-aplikacja potwierdzała, że działa, a uczestnik po wpisaniu imienia znajomego dostawał
-komunikat o braku uprawnień.
-
-ROZWIĄZANIE BOJO: skład meczu zmienia dziś tylko ten, kto ma do tego prawo. Organizator,
-delegat i administrator mają dokładnie te same możliwości co wcześniej. Uczestnik zmienia
-wyłącznie własną deklarację — czy gra, na jakiej pozycji, jak zapłaci — oraz może przyjąć
-ofertę zwolnionego miejsca, gdy taka do niego wyszła; miejsca w składzie sam sobie nie
-przydzieli, z poczekalni się nie wypisze i wpłaty sobie nie odhaczy. Potwierdzenie udziału
-przez osobę obserwującą mecz liczy się teraz w całości po stronie bazy, w jednej operacji,
-więc dwa jednoczesne kliknięcia nie zmieszczą się już w jednym wolnym miejscu.
-Przełącznik „Uczestnicy mogą dodawać gości” robi to, co obiecuje: gdy organizator
-go włączy, osoba z listy składu dopisze znajomego bez konta — i tylko wtedy.
-
-MECHANIKA: migracja `132` — wyzwalacz `pilnuj_wlasnego_wpisu()` na `event_participants`
-(`BEFORE INSERT OR UPDATE`; spreparowany zapis jest normalizowany, nie odbijany, żeby nie
-psuć „Obserwuję”), funkcje `czy_zarzadza_wpisem()`, `czy_moze_dopisac_goscia()`
-i `potwierdz_udzial()` (lustro `dolacz_do_meczu()` dla ścieżki „Obserwuję” →
-„Gram”), przebudowana polityka zapisu do składu. Po stronie aplikacji
-`confirmFromMaybe()` w `lib/events.ts` woła dziś funkcję bazy zamiast liczyć pojemność
-w przeglądarce. Asercje w `supabase/test/rls.sql`.

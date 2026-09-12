@@ -177,6 +177,11 @@ export interface EventItem {
    *  powiadomienia; „zapisy zamknięte" znaczy „gramy w tym składzie" i nie
    *  wysyła nic. Warunek na jedno nigdy nie zastępuje warunku na drugie. */
   zapisyZamkniete: boolean;
+  /** Notatka organizatora dołączona do powiadomień o ODWOŁANIU (migracja `142`)
+   *  — dzwonek, push i mail (do konta i do gościa). `undefined` = nic nie
+   *  wpisał. Nadpisywana przy każdym odwołaniu, czyszczona przy przywróceniu —
+   *  nie jest to trwały opis meczu, tylko treść jednego konkretnego zdarzenia. */
+  notatkaOdwolania?: string;
   customLocationName?: string;
   customAddress?: string;
   fieldAddress?: string; // address fetched from fields table (when field_id is set)
