@@ -2407,13 +2407,38 @@ ta sama naprawa).
 Członkostwo pochodzi z **osobnego** zapytania `isGroupMember()`, nie z listy członków:
 gdy dogrywka danych padnie, członek grupy nie zobaczy przycisku „Dołącz do grupy".
 
+## Zarządzanie graczami mieszka w liście składu, nie w osobnej karcie
+
+**Karta „Zarządzanie graczami" zniknęła — 2026-09-13, zgłoszone wprost.** Wypisywała
+skład DRUGI RAZ, na dole zakładki Skład, tylko po to, żeby doczepić do nazwisk „Usuń"
+i „Na rezerwę". Organizator widział więc każdego gracza dwukrotnie na jednym ekranie
+i musiał przewinąć z listy składu do jej kopii, żeby cokolwiek zrobić — a wracając nie
+wiedział, czy patrzy na skład, czy na jego duplikat.
+
+Oba przyciski stoją teraz przy graczu **w liście składu**, w gałęzi renderowanej dla
+organizatora (`isOwner || canManageSquad`, przed startem meczu). Wiersz ma
+`flex-wrap` + `sm:flex-nowrap`, więc na wąskim telefonie przyciski schodzą do drugiej
+linii zamiast rozpychać kartę i ucinać imię.
+
+Organizatora nie ma na tej liście akcji (`p.userId !== event.organizerId`) — ten sam
+warunek miała karta. Sam siebie wypisuje przyciskiem w dolnym pasku, a „Usuń" na
+własnym wpisie zostawiłoby mecz bez gospodarza.
+
+Dawne uzasadnienie osobnej karty brzmiało „żeby nic nie zniknęło przez przypadkowe
+kliknięcie w gęstej liście". Nie broni się: przed przypadkiem chroni okno
+potwierdzenia przy usuwaniu (`handleRemovePlayer`), a nie odległość od listy.
+**„Na rezerwę" (`handleCofnijNaRezerwe`) potwierdzenia nie ma i mieć nie musi** — gracz
+zostaje w meczu, tylko bez miejsca w składzie, więc cofnięcie kosztuje jedno
+dotknięcie. Usunięcie jest końcem: gracz musiałby zapisać się od nowa, wylądować na
+końcu kolejki i stracić deklarację płatności.
+
 ## Zakładki na `/wydarzenia/[id]`
 
 `EventDetailClient.tsx` ma od tej zmiany pięć zakładek nad treścią, analogicznie do
 `/grupy/[id]`, ale dostosowane do pojedynczego meczu: **Skład** (domyślna — dawne „Info":
 prośby o dołączenie, panel „Czy gramy?", licznik miejsc, awatary i lista uczestników,
 podział na drużyny jako zwinięty panel — patrz niżej, „Wypisz się"/„Nie gram" i inne
-banery statusu uczestnictwa, zarządzanie graczami, karta „Po meczu", panel „Zaproś
+banery statusu uczestnictwa, karta „Po meczu", panel „Zaproś
 znajomych", status zaproszeń), **Rozmowa** (`RozmowaWydarzenia.tsx`, zastępuje dawny
 komponent `EventComments` — usunięty, nic innego go nie importowało; **wyłącznie okno
 czatu**, żadnych innych elementów), **Wynik** (drużyny i formularz wyniku — dawna
@@ -2472,8 +2497,8 @@ jest `truncate` (urywa się w połowie ulicy), a **dojazdu nie było wcale**: li
 katalogu, więc dla meczu na boisku z katalogu nie istniał w ogóle. Zgłoszone wprost
 z sesji QA („brak karty «Kiedy i gdzie» z dojazdem i ucięty adres"). Karta niesie
 pełną datę (`'EEEE, d MMMM'` — „Niedziela, 30 sierpnia", nie skrót „Niedz. 30 sie"
-z paska), godzinę z czasem trwania, nazwę obiektu i **cały adres bez ucinania**, a pod
-tym „Nawiguj" (Mapy Google) oraz „O boisku" dla obiektu z katalogu.
+z paska), godzinę z czasem trwania, nazwę obiektu i **cały adres bez ucinania**, a do
+tego dwie akcje: dojazd (Mapy Google) i dodanie terminu do kalendarza.
 
 Powtórzenie terminu i miejsca względem paska nagłówka jest świadome: pasek jest
 identyfikacją meczu widoczną na KAŻDEJ zakładce, a karta odpowiada na pytanie zadawane
@@ -2483,21 +2508,30 @@ adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatim
 przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
 linku prowadzącego donikąd.
 
-**„Nawiguj" jest zielony tylko wtedy, gdy nie ma „Dołącz do meczu" — od 2026-09-13.**
-Przycisk dojazdu był `bg-primary-700` zawsze, więc ktoś, kto jeszcze nie zdecydował,
-czy zagra, widział na jednym ekranie DWA wypełnione zielone przyciski o tej samej
-wadze — a jeden z nich prowadził w Mapy Google. Warunkiem jest `joinBarVisible`,
-czyli dokładnie ta sama zmienna, która rządzi dolnym paskiem: oba przyciski nie mogą
-być prymarne naraz z definicji, a nie przez zbieg dwóch osobnych warunków. Po starcie
-meczu, przy odwołanym i przy zamkniętych zapisach pasek gaśnie, dojazd staje się
-główną rzeczą do zrobienia na tej stronie — i wtedy wygląda na główną.
+**Akcja stoi przy swoim wierszu, jako ikona — od 2026-09-13.** Pod kartą stał przez
+pół dnia rząd trzech przycisków z podpisami: „Nawiguj", „O boisku" i „Do kalendarza".
+Na telefonie nie mieściły się w jednej linii, więc łamały się na dwa rzędy, a układ
+2+1 sugerował hierarchię, której nie ma. Do tego wszystkie trzy stały POD SPODEM obu
+wierszy, choć każdy dotyczy tylko jednego z nich. Zgłoszone wprost („te trzy przyciski
+źle wyglądają").
 
-**„Do kalendarza" — trzeci przycisk w tej karcie, od 2026-09-13.** Pobiera termin jako
-plik `.ics` (`lib/kalendarz.ts`, składany w przeglądarce, bez backendu i bez paczek);
-iOS i Android otwierają `text/calendar` natywnym kalendarzem. Stoi przy DACIE, nie przy
-zapisie, bo tu pada pytanie „czy mi to pasuje". Widoczny dla każdego, także
-niezapisanego — kalendarz bywa tym, co rozstrzyga, czy da się dołączyć; znika po
-starcie meczu i przy odwołanym.
+Dziś przy DACIE stoi ikona kalendarza, przy MIEJSCU ikona nawigacji, a **„O boisku"
+zniknęło jako osobny przycisk — jego rolę przejęła sama nazwa obiektu**: podkreślona,
+w kolorze odnośnika, ze strzałką, i prowadzi na `/boisko/[id]`. Rzecz, w którą i tak
+chce się kliknąć, ma być klikalna; osobny przycisk obok niej był obejściem tego, że
+nie była. Miejsce SPOZA katalogu nie ma strony, więc nie udaje odnośnika — zostaje
+zwykłym tekstem, a ikona dojazdu i tak przy nim stoi.
+
+Ikony bez podpisów niosą `aria-label` i `title`, a ich pole dotyku to pełne 44 px
+(WCAG 2.5.5) mimo 20-pikselowej ikony. Znikł przy okazji problem, który poprzednia
+wersja rozwiązywała warunkiem na `joinBarVisible`: wypełniony na zielono „Nawiguj"
+konkurował wagą z „Dołącz do meczu" w dolnym pasku. Ikona nie konkuruje z niczym,
+więc warunek przestał być potrzebny.
+
+**Kalendarz pobiera termin jako plik `.ics`** (`lib/kalendarz.ts`, składany
+w przeglądarce, bez backendu i bez paczek); iOS i Android otwierają `text/calendar`
+natywnym kalendarzem. Widoczny dla każdego, także niezapisanego — kalendarz bywa tym,
+co rozstrzyga, czy da się dołączyć; znika po starcie meczu i przy odwołanym.
 
 Cztery rzeczy w tym pliku są nieoczywiste i mają testy (`__tests__/kalendarz.test.ts`):
 `UID` bierze się z `events.id`, więc pobranie po zmianie terminu AKTUALIZUJE wpis

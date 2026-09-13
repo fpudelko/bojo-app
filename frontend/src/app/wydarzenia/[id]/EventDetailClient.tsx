@@ -3045,117 +3045,128 @@ export default function EventDetailClient() {
             {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
                 kalendarza i adres z pinezką mówią same, co to za karta, więc
                 etykieta powtarzała treść pod sobą własnymi słowami. */}
-            {(isOrganizer || canEditDelegate) && !eventStarted ? (
-              <button
-                type="button"
-                onClick={openEditWhen}
-                className="mt-2 flex w-full items-start gap-2 text-left text-sm text-ink"
-              >
-                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
-                    z dnia na dzień — data, godzina, „za 3 h". Zrzuty
-                    scenariuszy zasłaniają to maską, bo seed liczy datę jako
-                    ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
-                    niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
-                <span className="min-w-0 flex-1" data-termin-meczu>
-                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                  {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                  {zaCzas && (
-                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                      {zaCzas}
-                    </span>
-                  )}
-                </span>
-                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-              </button>
-            ) : (
-              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
-                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span data-termin-meczu>
-                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                  {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                  {zaCzas && (
-                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                      {zaCzas}
-                    </span>
-                  )}
-                </span>
-              </p>
-            )}
+            {/* AKCJA STOI PRZY SWOIM WIERSZU, JAKO IKONA — od 2026-09-13,
+                zgłoszone wprost („te trzy przyciski źle wyglądają").
 
+                Do teraz pod kartą stał rząd trzech przycisków z podpisami:
+                „Nawiguj", „O boisku" i „Do kalendarza". Na telefonie nie
+                mieściły się w jednej linii, więc łamały się na dwa rzędy —
+                a rozmieszczenie 2+1 sugerowało hierarchię, której nie ma.
+                Do tego wszystkie trzy stały pod SPODEM obu wierszy, choć
+                każdy dotyczy tylko jednego z nich.
+
+                Dziś: kalendarz przy DACIE, nawigacja przy MIEJSCU, a „O boisku"
+                znika jako osobny przycisk, bo jego rolę przejmuje sama nazwa
+                obiektu — podkreślona i w kolorze odnośnika, ze strzałką. Rzecz,
+                w którą i tak chce się kliknąć, ma być klikalna; osobny przycisk
+                obok niej był obejściem tego, że nie była.
+
+                Ikony bez podpisów niosą `aria-label` i `title`, a ich pole
+                dotyku to pełne 44 px (WCAG 2.5.5) mimo 20-pikselowej ikony. */}
+
+            {/* ── KIEDY ── */}
+            <div className="mt-2 flex items-start gap-1">
+              {(isOrganizer || canEditDelegate) && !eventStarted ? (
+                <button
+                  type="button"
+                  onClick={openEditWhen}
+                  className="flex min-w-0 flex-1 items-start gap-2 py-2 text-left text-sm text-ink"
+                >
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
+                      z dnia na dzień — data, godzina, „za 3 h". Zrzuty
+                      scenariuszy zasłaniają to maską, bo seed liczy datę jako
+                      ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
+                      niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
+                  <span className="min-w-0 flex-1" data-termin-meczu>
+                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                    {timeStr && <> · {timeStr}</>}
+                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
+                    {zaCzas && (
+                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                        {zaCzas}
+                      </span>
+                    )}
+                  </span>
+                  <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                </button>
+              ) : (
+                <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  <span data-termin-meczu>
+                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                    {timeStr && <> · {timeStr}</>}
+                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
+                    {zaCzas && (
+                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                        {zaCzas}
+                      </span>
+                    )}
+                  </span>
+                </p>
+              )}
+              {/* Kalendarz widoczny dla KAŻDEGO, także niezapisanego: bywa tym,
+                  co rozstrzyga, czy w ogóle da się dołączyć. Znika po starcie
+                  meczu i przy odwołanym — wtedy wpis już niczego nie planuje. */}
+              {!eventStarted && !isCancelled && (
+                <button
+                  type="button"
+                  onClick={handleDoKalendarza}
+                  aria-label="Dodaj mecz do kalendarza"
+                  title="Dodaj do kalendarza"
+                  className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700"
+                >
+                  <CalendarPlus className="h-5 w-5" strokeWidth={2} />
+                </button>
+              )}
+            </div>
+
+            {/* ── GDZIE ── */}
             {venueBadgeLabel && (
-              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                {/* Bez `truncate` — to jest miejsce, w którym adres ma się
-                    zmieścić w całości, choćby w dwóch linijkach. */}
-                <span className="min-w-0">
-                  <span className="font-semibold">{eventLoc.primary}</span>
-                  {eventLoc.secondary && (
-                    <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
-                  )}
-                </span>
-              </p>
-            )}
-
-            {(dojazdHref || event.fieldId) && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-1 flex items-start gap-1">
+                {event.fieldId ? (
+                  <Link
+                    href={`/boisko/${event.fieldId}`}
+                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
+                    className="group flex min-w-0 flex-1 items-start gap-2 py-2 text-sm"
+                  >
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    {/* Bez `truncate` — to jest miejsce, w którym adres ma się
+                        zmieścić w całości, choćby w dwóch linijkach. */}
+                    <span className="min-w-0 flex-1">
+                      <span className="font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
+                        {eventLoc.primary}
+                      </span>
+                      {eventLoc.secondary && (
+                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                      )}
+                    </span>
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" strokeWidth={2.25} />
+                  </Link>
+                ) : (
+                  // Miejsce spoza katalogu nie ma strony, więc nie udaje
+                  // odnośnika — zostaje zwykłym tekstem.
+                  <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <span className="min-w-0">
+                      <span className="font-semibold">{eventLoc.primary}</span>
+                      {eventLoc.secondary && (
+                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                      )}
+                    </span>
+                  </p>
+                )}
                 {dojazdHref && (
-                  // JEDEN PRIMARY NA EKRANIE — „Nawiguj" jest zielony
-                  // i wypełniony dokładnie wtedy, gdy dolny pasek NIE pokazuje
-                  // „Dołącz do meczu". Do 2026-09-13 był `bg-primary-700`
-                  // zawsze, więc niezapisany widział dwa wypełnione zielone
-                  // przyciski o tej samej wadze, z których jeden prowadził
-                  // w Mapy Google, zanim w ogóle zdecydował, że zagra.
-                  //
-                  // Warunek to `joinBarVisible`, a nie `myParticipation`,
-                  // bo to dokładnie ta sama zmienna, która rządzi tamtym
-                  // przyciskiem — oba nie mogą być prymarne naraz z definicji,
-                  // a nie przez zbieg dwóch osobnych warunków, które ktoś
-                  // kiedyś rozjedzie. Po starcie meczu, przy odwołanym
-                  // i przy zamkniętych zapisach pasek gaśnie, a dojazd staje
-                  // się główną rzeczą do zrobienia na tej stronie — i wtedy
-                  // wygląda na główną.
                   <a
                     href={dojazdHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm transition active:scale-95 ${
-                      joinBarVisible
-                        ? 'border border-primary-200 bg-primary-50 font-semibold text-primary-700 hover:bg-primary-100 dark:border-primary-800'
-                        : 'bg-primary-700 font-bold text-white'
-                    }`}
+                    aria-label="Nawiguj do miejsca gry"
+                    title="Nawiguj"
+                    className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700"
                   >
-                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
+                    <Navigation className="h-5 w-5" strokeWidth={2} />
                   </a>
-                )}
-                {event.fieldId && (
-                  <Link
-                    href={`/boisko/${event.fieldId}`}
-                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <MapPin className="h-4 w-4" strokeWidth={2.25} /> O boisku
-                  </Link>
-                )}
-                {/* DO KALENDARZA — przy terminie, nie przy przycisku zapisu.
-                    Tu stoi data, więc tu pada pytanie „czy mi to pasuje";
-                    odpowiedź „sprawdzę w kalendarzu" ma być jednym dotknięciem
-                    dalej, a nie przewijaniem na dół strony.
-
-                    Widoczne dla KAŻDEGO, także niezapisanego: kalendarz bywa
-                    tym, co rozstrzyga, czy w ogóle da się dołączyć. Znika po
-                    starcie meczu i przy odwołanym — wtedy wpis kalendarza już
-                    niczego nie planuje. */}
-                {!eventStarted && !isCancelled && (
-                  <button
-                    type="button"
-                    onClick={handleDoKalendarza}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Do kalendarza
-                  </button>
                 )}
               </div>
             )}
@@ -3543,7 +3554,10 @@ export default function EventDetailClient() {
                   <>
               <ul className="divide-y divide-slate-100">
                 {regulars.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2 py-2.5">
+                  // `flex-wrap` + `sm:flex-nowrap`: na wąskim telefonie przyciski
+                  // zarządzania schodzą do drugiego wiersza, zamiast rozpychać
+                  // kartę i ucinać imię.
+                  <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 sm:flex-nowrap">
                     {/* Avatar */}
                     {p.avatarUrl
                       ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
@@ -3616,6 +3630,42 @@ export default function EventDetailClient() {
                         </button>
                       )}
                     </div>
+
+                    {/* ── USUŃ / NA REZERWĘ — przy graczu, nie w osobnej karcie ──
+                        Do 2026-09-13 te dwa przyciski stały niżej, w karcie
+                        „Zarządzanie graczami", która wypisywała TĘ SAMĄ listę
+                        drugi raz. Organizator widział więc każde nazwisko
+                        dwukrotnie i musiał przewinąć do drugiej listy, żeby
+                        cokolwiek z nim zrobić — a wracając nie wiedział, czy
+                        patrzy na skład, czy na jego kopię. Zgłoszone wprost.
+
+                        Organizatora nie ma na tej liście akcji (`p.userId !==
+                        event.organizerId`): sam siebie wypisuje przyciskiem
+                        w dolnym pasku, a „Usuń" na własnym wpisie zostawiłoby
+                        mecz bez gospodarza. Ten sam warunek miała karta. */}
+                    {p.userId !== event.organizerId && (
+                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => handleRemovePlayer(p)}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Usuń
+                        </button>
+                        {/* „Na rezerwę" zamiast usuwania: gracz zostaje w meczu,
+                            tylko bez miejsca w składzie. Usunięcie to koniec —
+                            musiałby zapisać się od nowa i wylądować na końcu
+                            kolejki, tracąc deklarację płatności. */}
+                        <button
+                          onClick={() => handleCofnijNaRezerwe(p)}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                          title="Przenieś na listę rezerwową"
+                        >
+                          <Clock className="h-3.5 w-3.5" /> Na rezerwę
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
                 {regulars.length === 0 && (
@@ -4267,55 +4317,18 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── ZARZĄDZANIE GRACZAMI (organizer only) — usuwanie, celowo osobno
-            od reszty i zawsze z potwierdzeniem, zeby nic nie znikneło przez
-            przypadkowe klikniecie w gestej liscie. ── */}
-        {(isOwner || canManageSquad) && !eventStarted && regulars.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
-              <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
-            </h2>
-            {/* Bez podpisu pod nagłówkiem — zgłoszone wprost. Przyciski przy
-                każdym graczu nazywają się tak, jak działają, a o potwierdzeniu
-                przy usuwaniu mówi samo okno, które wyskakuje. */}
-            <ul className="mt-3 divide-y divide-slate-100">
-              {regulars.filter((p) => p.userId !== event.organizerId).map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center gap-2 py-3 sm:flex-nowrap sm:gap-3">
-                  {p.avatarUrl
-                    ? <img src={p.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                    : <span className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
-                  }
-                  {/* `basis-0 grow` z `min-w-0`: imię ma oddać szerokość
-                      przyciskom, a na wąskim ekranie zepchnąć je do drugiego
-                      wiersza zamiast rozpychać kartę. */}
-                  <span className="min-w-0 flex-1 basis-0 truncate text-sm text-ink">{p.name}</span>
-                  <button
-                    onClick={() => handleRemovePlayer(p)}
-                    disabled={busy}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Usuń
-                  </button>
-                  {/* „Na rezerwę" zamiast usuwania: gracz zostaje w meczu,
-                      tylko bez miejsca w składzie. Usunięcie to koniec —
-                      musiałby zapisać się od nowa i wylądować na końcu
-                      kolejki, tracąc deklarację płatności. */}
-                  <button
-                    onClick={() => handleCofnijNaRezerwe(p)}
-                    disabled={busy}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
-                    title="Przenieś na listę rezerwową"
-                  >
-                    <Clock className="w-3.5 h-3.5" /> Na rezerwę
-                  </button>
-                </li>
-              ))}
-              {regulars.filter((p) => p.userId !== event.organizerId).length === 0 && (
-                <li className="py-4 text-sm text-slate-400 text-center">Nikt poza Tobą jeszcze nie dołączył</li>
-              )}
-            </ul>
-          </div>
-        )}
+        {/* KARTA „ZARZĄDZANIE GRACZAMI" ZNIKNĘŁA — 2026-09-13, zgłoszone wprost.
+            Wypisywała skład DRUGI RAZ, tylko po to, żeby doczepić do nazwisk
+            „Usuń" i „Na rezerwę". Organizator widział więc każdego gracza
+            dwukrotnie na jednym ekranie i musiał przewinąć z listy składu do
+            jej kopii, żeby cokolwiek zrobić. Oba przyciski stoją teraz przy
+            graczu w SKŁADZIE (patrz `regulars.map` wyżej, gałąź dla
+            organizatora) — tam, gdzie się na niego patrzy.
+
+            Dawne uzasadnienie osobnej karty brzmiało „żeby nic nie zniknęło
+            przez przypadkowe kliknięcie w gęstej liście". Nie broni się:
+            przed przypadkiem chroni okno potwierdzenia przy usuwaniu
+            (`handleRemovePlayer`), a nie odległość od listy. */}
 
         </>)}
 
