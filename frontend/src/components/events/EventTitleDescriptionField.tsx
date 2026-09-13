@@ -53,13 +53,10 @@ export default function EventTitleDescriptionField({
           type="text" value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder={placeholderTitle} className={inputCls} maxLength={LIMIT_TYTULU}
         />
-        {/* Licznik W TYM SAMYM WIERSZU co podpowiedź — osobna linijka
-            podskakiwałaby układem w chwili, w której licznik się pojawia. */}
-        <div className="mt-1 flex items-start justify-between gap-2">
-          <p className="text-xs text-slate-500">
-            Zostaw puste, a mecz nazwie się{' '}
-            <span className="font-semibold text-slate-700">{placeholderTitle}</span>.
-          </p>
+        {/* Licznik pojawia się dopiero blisko limitu (`LicznikZnakow`) — do
+            tego czasu wiersz stoi pusty, zamiast powtarzać placeholder zdaniem
+            obok niego. */}
+        <div className="mt-1 flex items-start justify-end gap-2">
           <LicznikZnakow ile={title.length} limit={LIMIT_TYTULU} />
         </div>
       </div>
@@ -68,8 +65,8 @@ export default function EventTitleDescriptionField({
           like something to fill in, when most matches don't need it. */}
       <div className="rounded-lg border border-slate-200 px-4">
         <ToggleRow
-          label="Dodaj opis"
-          desc="Poziom, zasady, co zabrać — pokaże się na stronie meczu"
+          label="Dodaj informacje dla graczy"
+          desc="Pokaże się na stronie meczu"
           checked={descriptionEnabled}
           onChange={setDescriptionEnabled}
         />
@@ -77,7 +74,7 @@ export default function EventTitleDescriptionField({
           <div className="pb-3">
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="Poziom, zasady, co zabrać…" rows={3} className={inputCls}
+              placeholder="Np. poziom, zasady, co zabrać…" rows={3} className={inputCls}
               maxLength={LIMIT_OPISU}
             />
             <div className="mt-1 flex justify-end">
