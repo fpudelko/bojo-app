@@ -20,6 +20,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
+| Skąd wzięło się obecne logo? Jakie warianty odrzuciliśmy i dlaczego? | [logo-warianty.md](./logo-warianty.md) |
 
 ## Hierarchia
 

@@ -36,26 +36,43 @@ const KATALOG = path.join(process.cwd(), 'public', 'ikony');
 // Jedna linia mimo długości: test `ikonyPwa.test.ts` porównuje ją znak po
 // znaku z `LOGO_SVG_STRING`, a złamanie na sklejane literały rozbiłoby to
 // porównanie i pilnowanie przestałoby działać.
-// eslint-disable-next-line max-len
-const LITERA = 'M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z M51 42 L59 42 Q63 42 63 46.5 Q63 51 59 51 L51 51 Z M51 59 L60 59 Q65 59 65 64 Q65 68 60 68 L51 68 Z';
+// Litera jest dziś geometryczna (obie komory to koła) — dziury dorysowują się
+// osobnymi kółkami w kolorze tła, nie przez `fill-rule="evenodd"` w samej ścieżce.
+const LITERA =
+  'M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z';
+const DZIURA_GORA = { cx: 57, cy: 46.5 };
+const DZIURA_DOL = { cx: 58, cy: 63.5 };
+const R_DZIURA = 4.5;
 const ZIELEN = '#15663E';
+const LINIA_BOISKA = '#1E7A4B';
 
-/** Logo w oryginale: zaokrąglony kafelek wypełniający kadr. */
+/** Litera + jej dwie dziury — wspólne dla obu wariantów ikony. */
+function svgLitera(fillDziur) {
+  return `<path d="${LITERA}" fill="#ffffff"/>
+    <circle cx="${DZIURA_GORA.cx}" cy="${DZIURA_GORA.cy}" r="${R_DZIURA}" fill="${fillDziur}"/>
+    <circle cx="${DZIURA_DOL.cx}" cy="${DZIURA_DOL.cy}" r="${R_DZIURA}" fill="${fillDziur}"/>`;
+}
+
+/** Logo w oryginale: zaokrąglony kafelek wypełniający kadr, linia i koło boiska za literą. */
 function svgZwykle() {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 110">
     <rect width="110" height="110" rx="26" fill="${ZIELEN}"/>
-    <path d="${LITERA}" fill="#ffffff" fill-rule="evenodd"/>
+    <g stroke="${LINIA_BOISKA}" stroke-width="3" fill="none">
+      <line x1="0" y1="55" x2="110" y2="55"/>
+      <circle cx="57" cy="55" r="31"/>
+    </g>
+    ${svgLitera(ZIELEN)}
   </svg>`;
 }
 
-/** Wariant maskowalny: pełne tło + litera w strefie bezpiecznej (~60% kadru). */
+/** Wariant maskowalny: pełne tło + litera w strefie bezpiecznej (~60% kadru), bez linii boiska. */
 function svgMaskowalne() {
   const skala = 0.62;
   const przesun = (110 - 110 * skala) / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 110">
     <rect width="110" height="110" fill="${ZIELEN}"/>
     <g transform="translate(${przesun} ${przesun}) scale(${skala})">
-      <path d="${LITERA}" fill="#ffffff" fill-rule="evenodd"/>
+      ${svgLitera(ZIELEN)}
     </g>
   </svg>`;
 }
