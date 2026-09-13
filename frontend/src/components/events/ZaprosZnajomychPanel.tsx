@@ -77,7 +77,16 @@ export default function ZaprosZnajomychPanel(
   };
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    // `data-zapros-znajomych` — zaczep dla scenariusza „Kopiuj potwierdza
+    // skopiowanie linku". Test szukał wcześniej karty przez
+    // `ancestor::div[1]` od tytułu, co działało tylko dopóki tytuł był
+    // BEZPOŚREDNIM dzieckiem karty. Gdy przyciski przestały się mieścić
+    // w jednej linii i tytuł dostał własny wiersz, ten lokator zaczął
+    // trafiać w nagłówek — bez przycisków. Atrybut trzyma się układu.
+    <div
+      data-zapros-znajomych
+      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+    >
       <div className="flex items-center gap-2">
         <Share2 className="h-4 w-4 shrink-0 text-slate-400" />
         <p className="flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">Zaproś znajomych</p>
