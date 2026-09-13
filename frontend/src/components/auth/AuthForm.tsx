@@ -105,7 +105,7 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
 
   useEffect(() => { setInApp(isInAppBrowser()); }, []);
 
-  const dest = next || '/';
+  const dest = next || '/moje-gry';
 
   const switchMode = (m: Mode) => { setMode(m); setError(null); setInfo(null); setPassword(''); };
 
