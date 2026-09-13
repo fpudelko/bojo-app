@@ -3230,7 +3230,12 @@ export default function EventDetailClient() {
                 className="mt-2 flex w-full items-start gap-2 text-left text-sm text-ink"
               >
                 <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span className="min-w-0 flex-1">
+                {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
+                    z dnia na dzień — data, godzina, „za 3 h". Zrzuty
+                    scenariuszy zasłaniają to maską, bo seed liczy datę jako
+                    ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
+                    niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
+                <span className="min-w-0 flex-1" data-termin-meczu>
                   <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
                   {timeStr && <> · {timeStr}</>}
                   {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
@@ -3245,7 +3250,7 @@ export default function EventDetailClient() {
             ) : (
               <p className="mt-2 flex items-start gap-2 text-sm text-ink">
                 <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span>
+                <span data-termin-meczu>
                   <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
                   {timeStr && <> · {timeStr}</>}
                   {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
