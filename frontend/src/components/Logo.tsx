@@ -1,10 +1,11 @@
 import React from 'react';
 
-// Robocze logo Bojo — zielony zaokrąglony kwadrat z białym "B".
+// Robocze logo Bojo — zielony zaokrąglony kwadrat, litera "B" geometryczna
+// (obie komory to koła) rysowana na linii środkowej boiska z kołem środkowym.
 // TODO: podmienić na finalną wersję od grafika.
 // SVG jest wbudowane (nie external file) żeby działało jako favicon i inline w headerze bez dodatkowych requestów.
 
-export const LOGO_SVG_STRING = `<svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg"><rect width="110" height="110" rx="26" fill="#15663E"/><path d="M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z M51 42 L59 42 Q63 42 63 46.5 Q63 51 59 51 L51 51 Z M51 59 L60 59 Q65 59 65 64 Q65 68 60 68 L51 68 Z" fill="#ffffff" fill-rule="evenodd"/></svg>`;
+export const LOGO_SVG_STRING = `<svg viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg"><rect width="110" height="110" rx="26" fill="#15663E"/><g stroke="#1E7A4B" stroke-width="3" fill="none"><line x1="0" y1="55" x2="110" y2="55"/><circle cx="57" cy="55" r="31"/></g><path d="M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z" fill="#ffffff"/><circle cx="57" cy="46.5" r="4.5" fill="#15663E"/><circle cx="58" cy="63.5" r="4.5" fill="#15663E"/></svg>`;
 
 interface LogoIconProps {
   size?: number;
@@ -23,11 +24,16 @@ export function LogoIcon({ size = 32, className }: LogoIconProps) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <rect width="110" height="110" rx="26" fill="#15663E" />
+      <g stroke="#1E7A4B" strokeWidth={3} fill="none">
+        <line x1="0" y1="55" x2="110" y2="55" />
+        <circle cx="57" cy="55" r="31" />
+      </g>
       <path
-        d="M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z M51 42 L59 42 Q63 42 63 46.5 Q63 51 59 51 L51 51 Z M51 59 L60 59 Q65 59 65 64 Q65 68 60 68 L51 68 Z"
+        d="M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z"
         fill="#ffffff"
-        fillRule="evenodd"
       />
+      <circle cx="57" cy="46.5" r="4.5" fill="#15663E" />
+      <circle cx="58" cy="63.5" r="4.5" fill="#15663E" />
     </svg>
   );
 }
