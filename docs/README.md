@@ -22,6 +22,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
+| Skąd wzięło się obecne logo? Jakie warianty odrzuciliśmy i dlaczego? | [logo-warianty.md](./logo-warianty.md) |
 
 ## Hierarchia
 

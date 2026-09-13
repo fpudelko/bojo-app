@@ -2,7 +2,7 @@
 //
 // Skąd to się wzięło. Strona meczu miała DWA różne linki pod przyciskami o tej
 // samej nazwie „Udostępnij": pasek górny wysyłał `window.location.href`
-// (/wydarzenia/<uuid>), a panel „Zaproś znajomych" — /d/<kod>. Do tego
+// (/wydarzenia/<uuid>), a panel „Zaproś" — /d/<kod>. Do tego
 // `navigator.share` dostawał sam adres, bez daty, miejsca i ceny, więc na
 // czacie lądował goły odnośnik. Post na grupie WhatsApp niósł więcej informacji
 // niż udostępnienie z Bojo — czyli dokładnie odwrotnie, niż obiecuje produkt.
@@ -342,7 +342,7 @@ export async function udostepnijPrzywrocenie(
 
 /** Tekst + adres w jednej linijce niżej — to samo, co dziś robi fallback
  *  schowka w `shareEvent()`. Wydzielone, żeby przyciski „Kopiuj link" (pasek
- *  meczu, panel „Zaproś znajomych") nie kopiowały gołego adresu — to ten sam
+ *  meczu, panel „Zaproś") nie kopiowały gołego adresu — to ten sam
  *  błąd, który `shareEvent()` naprawiał dla `navigator.share`. */
 export function textDoKopiowania(e: DaneDoUdostepnienia, url: string, stan?: StanUdostepnienia): string {
   return `${eventShareText(e, stan)}\n${url}`;

@@ -34,6 +34,12 @@ export type AnalyticsEvent =
   | 'guest_claimed'
   /** Organizator wysłał rozliczenie ekipie — czy domknięcie po meczu wychodzi poza jego ekran. */
   | 'settlement_shared'
+  /** Ktoś pobrał termin meczu jako `.ics` (`{ eventId }`). Mierzy, czy kalendarz
+   *  telefonu jest realną drogą powrotu na mecz, czy tylko naszym założeniem —
+   *  bez tego licznika „Do kalendarza" zostaje przyciskiem, o którym nie da się
+   *  powiedzieć, czy ktokolwiek go dotyka. Kolumna `event_type` to zwykły TEXT
+   *  bez ograniczenia (migracja `047`), więc nowa wartość nie wymaga migracji. */
+  | 'event_do_kalendarza'
   // ── MODUŁ TURNIEJOWY (145, Etap 0) ───────────────────────────────────────
   /** Turniej utworzony — od kreatora do publikacji. */
   | 'turniej_utworzony'
