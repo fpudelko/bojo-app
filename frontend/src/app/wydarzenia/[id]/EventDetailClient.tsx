@@ -56,7 +56,7 @@ import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, getPlayerGoals,
-  publishTeams, unpublishTeams, saveEventAdvancedSettings, opisWidocznosciWGrupie,
+  publishTeams, unpublishTeams, saveEventAdvancedSettings,
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
@@ -2881,12 +2881,14 @@ export default function EventDetailClient() {
                 <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
               </span>
             )}
-            {myConfirmed && !myConfirmed.isReserve && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold text-green-800">
-                <Check className="h-3.5 w-3.5" strokeWidth={2.25} />
-                Grasz{myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
-              </span>
-            )}
+            {/* Pigułki „Grasz" tu NIE MA — zdjęta 2026-09-13, zgłoszone wprost.
+                Dolny pasek stanu mówi to samo i mówi więcej: „Jesteś w składzie",
+                podtytuł „Masz miejsce w składzie", rola („· bramkarz") i wyjście
+                („Wypisz się") — a stoi na ekranie przez cały czas, bo jest
+                `fixed`. Pigułka powtarzała status dwa razy na jednym widoku.
+                Pozostałe pigułki w tym rzędzie zostają: niosą cechy MECZU
+                (za darmo, publiczny, ekipa), których nigdzie indziej nie widać,
+                a nie mój stan względem niego. */}
             {myConfirmed?.isReserve && (
               // Szary, nie bursztyn: bursztyn znaczy w tej apce „uwaga, coś się
               // dzieje" (obserwowanie, ostrzeżenia), a niebieski — „wymaga
@@ -3030,61 +3032,23 @@ export default function EventDetailClient() {
               Zgłoszone wprost. Edycja terminu przez organizatora (dawny
               `openEditWhen()` przy dacie) przeniosła się do karty „Kiedy
               i gdzie" razem z resztą. */}
-          {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
-              mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
-              to wprost, zamiast zostawiać organizatora w niepewności.
+          {/* NAD LICZNIKIEM NIE MA JUŻ DWÓCH SZARYCH AKAPITÓW — zdjęte
+              2026-09-13, zgłoszone wprost („za dużo tekstów i opisów").
 
-              TYLKO dla tego, kto widoczność USTAWIA (`canManageEvent`).
-              Grającemu pigułki „Prywatne" i nazwa ekipy mówią wszystko, czego
-              potrzebuje; zdanie pod spodem powtarzało mu je własnymi słowami
-              i było jednym z dwóch szarych akapitów nad licznikiem miejsc
-              (zgłoszone wprost: „za dużo tekstów i opisów"). Dla organizatora
-              zostaje, bo to on ponosi skutek wyboru. */}
-          {groupInfo && canManageEvent && (
-            <p className="mt-2 text-xs text-slate-500">
-              {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount, true)}
-            </p>
-          )}
-          {/* Payment info — how to pay + sports-card discount, at a glance. Shown
-              generally on the event page, not just at join time. */}
-          {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
-            <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
-              {/* Bez prefiksu „Płatność:" — pigułka z ceną („7 zł / os.") stoi
-                  w rzędzie wyżej i już ustawia kontekst, więc słowo powtarzało
-                  to, co widać. Lista kart ZOSTAJE w całości: ktoś z Medicoverem
-                  musi zobaczyć swoją kartę, a nie „i 2 inne". */}
-              {event.acceptedPaymentMethods.length > 0 && (
-                <span>
-                  {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
-                  {/* Warunek NIE pyta o `event.blikPhone`: od migracji `120`
-                      numeru po prostu nie ma w danych osoby spoza składu (RLS
-                      na `event_blik`), a to właśnie ona ma zobaczyć zdanie
-                      „zobaczysz, jeśli dołączysz". Pytanie o numer chowałoby
-                      wyjaśnienie dokładnie przed tym, komu jest potrzebne. */}
-                  {event.acceptedPaymentMethods.includes('blik') && (
-                    event.blikPhone && canSeeBlikPhone({
-                      isOrganizer: isOwner || canManagePayments,
-                      isInSquad: !!myParticipation,
-                      minutesToStart: minutesUntilStart(event.date, event.time),
-                    }) ? (
-                      <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
-                    ) : myParticipation ? (
-                      <> — numer do BLIKA zobaczysz na godzinę przed meczem</>
-                    ) : (
-                      <> — numer do BLIKA zobaczysz, jeśli dołączysz do składu</>
-                    )
-                  )}
-                </span>
-              )}
-              {event.acceptedSportsCards.length > 0 && (
-                <span>
-                  {event.acceptedPaymentMethods.length > 0 && '· '}
-                  Karty sportowe: {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
-                  {event.sportsCardDiscountGrosze != null && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
-                </span>
-              )}
-            </p>
-          )}
+              1. Zdanie „Prywatny — na liście ekipy X. Zobaczą go N członków…"
+              powtarzało własnymi słowami to, co niosą pigułki tuż nad nim
+              („Prywatne" + nazwa ekipy). `opisWidocznosciWGrupie()` zostaje
+              w `lib/eventFeatures.ts` dla KREATORA — tam stoi pod kartą
+              widoczności w chwili, gdy decyzja dopiero zapada i nie ma jeszcze
+              żadnej pigułki, która by ją pokazała.
+
+              2. Wiersz „Gotówka · Karty sportowe: …" zszedł stąd, bo powtarzał
+              się dokładnie tam, gdzie jest potrzebny: okno dołączania wymienia
+              akceptowane karty („Akceptowane: …") i każe wybrać sposób zapłaty,
+              a zakładka Rozliczenia pokazuje metodę i numer BLIK-a. Reguła
+              dostępu do numeru (`canSeeBlikPhone`) siedzi tam nietknięta —
+              tutaj znika sam NAPIS, nie żadne uprawnienie. Cenę i tak niesie
+              pigułka „7 zł / os." w rzędzie wyżej. */}
         </div>
         )}
 
@@ -3697,6 +3661,19 @@ export default function EventDetailClient() {
                 />
               </div>
             )}
+            {/* TYLKO gdy nie ma dolnego paska stanu — zgłoszone wprost: przy
+                widocznym pasku to samo wyjście stało dwa razy na jednym ekranie,
+                raz w treści i raz nad nim.
+
+                Warunek jest `!statusBarVisible`, a nie zwykłe usunięcie, bo pasek
+                NIE pokazuje się zawsze, gdy widać ten przycisk: znika przy meczu
+                ODWOŁANYM i gościowi wchodzącemu z tokenem (`mojTokenGoscia`),
+                a oba te stany nadal pozwalają się wypisać. Samo skasowanie
+                przycisku zostawiłoby te osoby w meczu bez żadnej drogi wyjścia.
+                Dzięki temu warunkowi oba wyjścia są też ROZŁĄCZNE — nigdy nie
+                stoją na ekranie naraz — na czym opierają się helpery
+                `wypiszSie()` i `niezapisany()` w `e2e/scenariusze.spec.ts`. */}
+            {!statusBarVisible && (
             <button
               onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
               // Czerwony od razu, nie dopiero pod kursorem. Wcześniej przycisk
@@ -3716,6 +3693,7 @@ export default function EventDetailClient() {
             >
               {amIReserve ? 'Wypisz się z rezerwy' : 'Wypisz się z meczu'}
             </button>
+            )}
           </div>
         )}
 
@@ -3961,10 +3939,13 @@ export default function EventDetailClient() {
                 <button
                   onClick={() => setLeaveConfirmOpen(true)}
                   disabled={busy}
-                  // „Wypisz się", a NIE „Wypisz się z meczu": ten drugi napis
-                  // niesie przycisk w treści i pod niego jest napisany selektor
-                  // w `e2e/scenariusze.spec.ts`. Dwa elementy o tej samej
-                  // nazwie dostępnej wywracają strict mode Playwrighta.
+                  // „Wypisz się", a NIE „Wypisz się z meczu": krócej, bo pasek
+                  // ma na to wąską kolumnę obok statusu. Przycisk w treści niesie
+                  // pełny napis, ale oba są dziś ROZŁĄCZNE (tamten renderuje się
+                  // wyłącznie przy `!statusBarVisible`), więc nie ma już dwóch
+                  // elementów o tej samej roli i podobnej nazwie na jednym
+                  // ekranie. Helpery `wypiszSie()`/`niezapisany()`
+                  // w `e2e/scenariusze.spec.ts` łapią oba napisy jednym wzorcem.
                   className="h-11 shrink-0 px-2 text-sm font-semibold text-red-600 transition-colors hover:text-red-700 disabled:opacity-50"
                 >
                   Wypisz się
@@ -4145,11 +4126,10 @@ export default function EventDetailClient() {
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
               <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
             </h2>
-            <p className="text-xs text-slate-500 mb-3">
-              „Na rezerwę" zostawia gracza w meczu, bez miejsca w składzie. Usuwanie zawsze
-              wymaga potwierdzenia.
-            </p>
-            <ul className="divide-y divide-slate-100">
+            {/* Bez podpisu pod nagłówkiem — zgłoszone wprost. Przyciski przy
+                każdym graczu nazywają się tak, jak działają, a o potwierdzeniu
+                przy usuwaniu mówi samo okno, które wyskakuje. */}
+            <ul className="mt-3 divide-y divide-slate-100">
               {regulars.filter((p) => p.userId !== event.organizerId).map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 py-3 sm:flex-nowrap sm:gap-3">
                   {p.avatarUrl

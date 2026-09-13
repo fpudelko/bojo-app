@@ -382,6 +382,10 @@ miejsc" — jeden stan opisany dwa razy, odwrotnie. Nagłówek „KIEDY I GDZIE"
 z ikoną kalendarza i adresem z pinezką. Rozegrany mecz nadal proponował dołączenie do
 rezerwy, utworzenie składu, zapraszanie ludzi i przełączniki sterujące zapisami.
 Formularz „Dopisz osobę bez konta" z dwoma akapitami opisu był stale rozwinięty w składzie.
+Grającemu status „jesteś w składzie" wyświetlał się dwa razy naraz — jako zielona pigułka
+„Grasz" u góry i jako dolny pasek — a wyjście ze składu stało raz w treści („Wypisz się
+z meczu") i raz w tym pasku („Wypisz się"). Nad licznikiem miejsc wisiały dwa szare
+akapity: kto zobaczy prywatny mecz ekipy i lista akceptowanych kart sportowych.
 
 ROZWIĄZANIE BOJO: każda akcja ma na stronie meczu jedno miejsce, a opis zostaje tylko tam,
 gdzie niesie coś, czego nie widać. Wszystkie cztery sposoby zapełnienia składu —
@@ -390,8 +394,13 @@ okolicy — stoją w jednej sekcji „Zaproś znajomych" pod licznikiem miejsc, 
 miejsc pada raz, w liczniku. Mecz, który się już odbył, nie proponuje zapisów, zaproszeń
 ani tworzenia składu i nie pokazuje przełączników sterujących zapisami; powtórka,
 uprawnienia i rozliczenie zostają. Dopisanie osoby bez konta otwiera się jako okno.
-Zdanie o tym, kto zobaczy prywatny mecz ekipy, widzi organizator, który o tym decyduje,
-a nie każdy gracz. W statystykach ekipy nazwisko gracza prowadzi do jego profilu.
+W statystykach ekipy nazwisko gracza prowadzi do jego profilu. Status gracza i wyjście ze
+składu mówi wyłącznie dolny pasek — niesie też rolę („· bramkarz") i stoi na ekranie cały
+czas; przycisk w treści zostaje tylko tam, gdzie paska nie ma (mecz odwołany, gość
+z linku), żeby nikt nie został bez drogi wyjścia. Zdanie o tym, kto zobaczy prywatny mecz
+ekipy, mówi już tylko kreator — w chwili, gdy decyzja zapada i nie ma jeszcze pigułki,
+która by ją pokazała. Akceptowane karty sportowe i sposoby zapłaty widać tam, gdzie są
+potrzebne: w oknie dołączania i w rozliczeniach.
 
 MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
 jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
@@ -399,9 +408,14 @@ sobie werdykt progu za `SHOW_MIN_PLAYERS_THRESHOLD`. Nowy `DopiszGoscia.tsx` zas
 rozwinięte kopie formularza gościa w `EventDetailClient.tsx`. Gałęzie `!eventStarted`
 w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i przełączniki
 „Widoczne publicznie"/„Uczestnicy mogą dodawać gości". `opisWidocznosciWGrupie()`
-(`lib/eventFeatures.ts`) dostał wariant `krotko`. `PowtorzZHistorii.tsx` usunięty.
-Linki do profilu w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`,
-`statystykiGrupy.test.tsx`, `eventFeatures.test.ts`.
+(`lib/eventFeatures.ts`) woła już tylko `EventVisibilityFields` (kreator) i odmienia
+orzeczenie z liczbą członków. Przycisk wyjścia w treści `EventDetailClient.tsx` stoi pod
+`!statusBarVisible`, więc oba wyjścia są rozłączne — na tym opierają się helpery
+`wypiszSie()`/`niezapisany()` w `e2e/scenariusze.spec.ts`, łapiące oba napisy jednym
+wzorcem. Karta „Zaproś znajomych" ma zaczep `data-zapros-znajomych` zamiast lokatora po
+kształcie drzewa. `PowtorzZHistorii.tsx` usunięty. Linki do profilu
+w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`, `statystykiGrupy.test.tsx`,
+`eventFeatures.test.ts`, `zaprosZnajomychPanel.test.tsx`.
 
 ### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
 
