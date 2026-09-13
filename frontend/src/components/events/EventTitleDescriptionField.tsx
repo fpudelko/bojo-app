@@ -1,7 +1,5 @@
 'use client';
 
-import ToggleRow from '@/components/ui/ToggleRow';
-
 /** Limity ZNAKÓW, nie ozdoby — dokładnie te, które przy zapisie wymusza
  *  `sanityzujPolaMeczu()` w `lib/events.ts` (`sanitizeDescription()` obcina opis
  *  do 1000, tytuł dodatkowo `.slice(0, 80)`). Rozjazd którejkolwiek z tych
@@ -30,14 +28,19 @@ function LicznikZnakow({ ile, limit }: { ile: number; limit: number }) {
 }
 
 /**
- * Tytuł + opis za przełącznikiem „Dodaj opis” (pusta textarea sama w sobie
- * sugerowała, że trzeba ją wypełnić). Wspólne dla kreatora (`wydarzenia/nowe`)
- * i edycji wydarzenia — edycja miała dotąd zawsze widoczną textarea opisu.
+ * Tytuł + opis. Wspólne dla kreatora (`wydarzenia/nowe`) i edycji wydarzenia.
+ *
+ * OPIS NIE MA JUŻ PRZEŁĄCZNIKA (2026-09-13, zgłoszone wprost). Przełącznik
+ * powstał przeciwko pustej textarei, która czytała się jak pole do
+ * wypełnienia — ale odpowiedzią na „to nie jest wymagane" jest dopisek
+ * „(opcjonalnie)" w etykiecie, a nie przełącznik NAD polem tekstowym.
+ * Rozstrzyga o tym pole tuż wyżej: „Tytuł" jest tak samo opcjonalny i stoi
+ * gołe, z takim samym dopiskiem. Dwa opcjonalne pola obok siebie, jedno za
+ * przełącznikiem, drugie nie, to nie była zasada — to był przypadek.
  */
 export default function EventTitleDescriptionField({
   title, setTitle, placeholderTitle,
   description, setDescription,
-  descriptionEnabled, setDescriptionEnabled,
   inputCls,
 }: {
   title: string;
@@ -45,8 +48,6 @@ export default function EventTitleDescriptionField({
   placeholderTitle: string;
   description: string;
   setDescription: (v: string) => void;
-  descriptionEnabled: boolean;
-  setDescriptionEnabled: (v: boolean) => void;
   inputCls: string;
 }) {
   return (
@@ -64,25 +65,16 @@ export default function EventTitleDescriptionField({
         <LicznikZnakow ile={title.length} limit={LIMIT_TYTULU} />
       </div>
 
-      {/* Description — behind a toggle: the empty textarea itself read
-          like something to fill in, when most matches don't need it. */}
-      <div className="rounded-lg border border-slate-200 px-4">
-        <ToggleRow
-          label="Dodaj opis"
-          desc="Poziom, zasady, co zabrać"
-          checked={descriptionEnabled}
-          onChange={setDescriptionEnabled}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Opis <span className="text-slate-400 font-normal">(opcjonalnie)</span>
+        </label>
+        <textarea
+          value={description} onChange={(e) => setDescription(e.target.value)}
+          placeholder="Np. gramy do 10 bramek, weź jasną koszulkę" rows={3} className={inputCls}
+          maxLength={LIMIT_OPISU}
         />
-        {descriptionEnabled && (
-          <div className="pb-3">
-            <textarea
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="Np. gramy do 10 bramek, weź jasną koszulkę" rows={3} className={inputCls}
-              maxLength={LIMIT_OPISU}
-            />
-            <LicznikZnakow ile={description.length} limit={LIMIT_OPISU} />
-          </div>
-        )}
+        <LicznikZnakow ile={description.length} limit={LIMIT_OPISU} />
       </div>
     </>
   );

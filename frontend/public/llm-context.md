@@ -370,6 +370,51 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Strona meczu i kreator przestają powtarzać oraz pytać w próżnię
+
+PROBLEM: dolny pasek gracza w składzie mówił „Jesteś w składzie", a zaraz pod spodem
+„Masz miejsce w składzie" — ten sam komunikat dwa razy, przy czym słowo „miejsce" znaczy
+w Bojo także boisko („Miejsce: Szkoła Podstawowa nr 61"). Pigułki z cechami meczu
+(„7 zł / os.", „Prywatne", nazwa ekipy) wchodziły na ekran PRZED datą i adresem, czyli
+przed odpowiedzią na dwa pierwsze pytania, jakie zadaje się przy meczu. Karta „Twoja ekipa
+tu gra. Nie dasz rady? / Nie zagram" prosiła członka ekipy o deklarację, której NIE
+OGLĄDAŁ NIKT: odmowa szła do tabeli, nad którą nie było już żadnego widoku organizatora.
+Strona ekipy miała trzy wejścia do zapraszania na jednym ekranie. W kreatorze opis siedział
+za przełącznikiem „Dodaj opis", choć tytuł tuż nad nim jest tak samo opcjonalny i stoi
+gołe pole; sposoby zapłaty pojawiały się dopiero po wpisaniu kwoty, więc blok wskakiwał
+w trakcie pisania i przesuwał układ pod kciukiem. „Gram" w panelu powiadomień zapisywało
+na mecz natychmiast, choć panel pokazuje jedno zdanie — bez ceny, godziny i tego, czy
+wchodzi się do składu, czy na rezerwę.
+
+ROZWIĄZANIE BOJO: podpis w dolnym pasku został tylko tam, gdzie dokłada fakt — przy
+rezerwie („Wejdziesz, gdy ktoś się wypisze") i przy prośbie („Organizator jeszcze nie
+potwierdził"). Kolejność na stronie meczu to opis, karta „Kiedy i gdzie", pigułki, licznik
+miejsc, skład; cena zostaje nad licznikiem. Karta „Nie zagram" zniknęła, a razem z nią
+pytanie o odpowiedź, której nikt nie czytał. Panel zapraszania na stronie meczu nazywa się
+„Zaproś" (nie „Zaproś znajomych"), a ze strony ekipy zniknęła trzecia kopia zapraszania —
+link do meczu bierze się z samego meczu. W kreatorze opis to zwykłe pole „Opis
+(opcjonalnie)", sposoby zapłaty pokazują się razem z przełącznikiem „Mecz płatny",
+„Biorę udział" dostało tę samą ramkę co reszta opcji, a karty widoczności mówią krócej:
+„Widoczne dla wszystkich — dołączy każdy chętny" i „Nie pojawia się na liście — wejdzie
+tylko ktoś z zaproszeniem lub linkiem" (wzmianka o LINKU jest konieczna: prywatny mecz
+nie jest szczelny, link wpuszcza każdego). Nowy mecz zakłada się z oknem 60 minut na
+odebranie miejsca z rezerwy zamiast 180. „Gram" przy powiadomieniu otwiera stronę meczu
+z gotowym oknem zapisu, zamiast zapisywać od razu; „nie gram" zostaje natychmiastowe.
+
+MECHANIKA: `EventDetailClient.tsx` — rząd pigułek przeniesiony pod kartę „Kiedy i gdzie",
+podpis paska pod warunkiem `myPendingRequest || amIReserve`, `NieGramButton.tsx` usunięty
+(tabela `event_declines`, RLS i `lib/eventDeclines.ts` zostają nietknięte).
+`OdpowiedzJednymKlikiem.tsx` dostał `gramOtwieraMecz` i `naPrzejscie` — w `NotificationBell.tsx`
+kieruje na `/wydarzenia/<id>?dolacz=1` (ta sama ścieżka co powrót z logowania, sama nie
+zapisuje), w `InviteList.tsx` bez zmian. `EventTitleDescriptionField.tsx` bez `ToggleRow`,
+stan `descriptionEnabled` usunięty z kreatora, edycji i `lib/eventDraft.ts` (starsze szkice
+wczytują się bez zmian). `EventPaymentFields.tsx` przyjmuje `zawszeWidoczne` — kreator
+podaje, edycja nie (tam „0" znaczy mecz darmowy). `DOMYSLNE_MINUTY_REZERWY = 60`
+w `lib/events.ts` steruje zapisem w `createEvent`/`updateEvent` i `lib/series.ts`; odczyt
+starych wierszy i `DEFAULT` kolumny w bazie zostają na 180. `ZaprosZnajomychPanel`
+wypięty z `NajblizszyMeczGrupy.tsx`. Asercja paska w `e2e/scenariusze.spec.ts` łapie go
+po `data-pasek-dolny`.
+
 ### 2026-09-13 — Strona meczu przestaje tłumaczyć to, co widać
 
 PROBLEM: strona meczu i lista meczów opisywały słowami rzeczy, które były już widoczne
@@ -670,43 +715,3 @@ przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; wygl�
 kartach i pinezce w `lib/stanZapisow.ts` (jedno miejsce dla trzech kart i mapy, wzorem
 `lib/komplet.ts`); asercje w `supabase/test/zapisy-zamkniete.sql`,
 `src/__tests__/zapisyZamkniete.test.ts` i `src/__tests__/stanZapisow.test.ts`.
-
-### 2026-09-09 — Edycja meczu mówi, co się stanie; poczta dociera też do uczestników z kontem
-
-PROBLEM: Odwołanie meczu miało w Bojo okno, które mówi wprost, kto dostanie powiadomienie
-i kto go NIE dostanie. Edycja meczu — czynność wykonywana znacznie częściej i wysyłająca
-dwa rodzaje powiadomień oraz maile do gości — kończyła się przyciskiem „Zapisz zmiany"
-i przekierowaniem. Organizator nie wiedział ani co realnie zmienił, ani że ekipa właśnie
-dostała wiadomość, więc raz pisał to samo drugi raz na czacie, a kiedy indziej nie pisał
-wcale. Do tego formularz edycji gubił przy zapisie nazwę i adres miejsca spoza katalogu:
-mecz przeniesiony z jednej pinezki na drugą zostawał ze starym adresem pod nową nazwą,
-a przeniesiony z katalogu na pinezkę tracił adres całkowicie — również w danych
-strukturalnych i w podglądzie linku na czacie. Osobno: uczestnik Z KONTEM bywał gorzej
-poinformowany niż gość BEZ konta, bo gość z adresem dostaje maile, a posiadacz konta
-tylko dzwonek i push — ten drugi wyłącznie wtedy, gdy sam go włączył. Kto nie włączył
-i nie wszedł do aplikacji, o odwołaniu meczu nie dowiadywał się wcale.
-
-ROZWIĄZANIE BOJO: Przed zapisem zmian Bojo pokazuje listę „było → jest" i mówi, ile osób
-z kontem dostanie powiadomienie, ilu gości dostanie e-mail, a ilu trzeba powiadomić
-samemu; przy zmianie, która nikogo nie powiadamia, mówi to wprost. Druga droga — „Zapisz
-i wyślij wiadomość" — otwiera arkusz udostępniania z gotowym tekstem zmiany. Zapis bez
-żadnej zmiany nie idzie już do bazy. Pole daty pokazuje dzień tygodnia i odległość
-w czasie („sobota, 30 sierpnia · za 3 dni") w kreatorze i w edycji, a zejście z liczbą
-miejsc poniżej obsadzonego składu ostrzega, nie blokując. Cztery powiadomienia, przy
-których niedoręczenie kosztuje wyjazd na boisko — odwołanie meczu, zmiana terminu, zmiana
-miejsca lub kosztu oraz cofnięcie odwołania — idą teraz także e-mailem do osób z kontem,
-z możliwością wyłączenia w ustawieniach. Cofnięcie odwołania w ogóle przestało być ciche:
-kto dostał wiadomość o odwołaniu, dostaje też sprostowanie.
-
-MECHANIKA: migracje `139` (strażniki `status`/`data` w `powiadom_o_zmianie_terminu()`,
-nowy wyzwalacz `powiadom_o_przywroceniu()`, przywrócenie jako powód poczty do gości)
-i `140` (`profiles.mail_wylaczone`, `wyslij_mail_do_konta()`, wyzwalacz
-`wyslij_mail_po_powiadomieniu()` obok pushowego, indeksy idempotencji z `event_id`);
-`lib/zmianyMeczu.ts` (`policzZmiany()`, `komuDojdzie()`, `konsekwencjeZapisu()`),
-`lib/events.ts` (`przygotujPolaMeczu()` — wspólna sanityzacja dla tworzenia i edycji,
-`custom_location_name`/`custom_address` w `updateEvent()`), `lib/eventDates.ts`
-(`opisDaty()`), `lib/eventShare.ts` (`tekstZmiany()`, `tekstPrzywrocenia()`),
-`lib/ustawieniaPowiadomien.ts` (`RODZAJE_MAILOWE`), `components/UstawieniaMaili.tsx`,
-`app/wydarzenia/[id]/edytuj/page.tsx`, `supabase/functions/powiadom-goscia`.
-Testy: `supabase/test/powiadomienia-o-zmianie.sql`, `supabase/test/poczta-do-kont.sql`,
-`src/__tests__/zmianyMeczu.test.ts`.
