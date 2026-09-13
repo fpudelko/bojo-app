@@ -370,6 +370,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
+
+PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
+arkusze filtrów, sortowanie „Najbliżej mnie") na każdą odmowę odpowiadał jednym zdaniem:
+„Zezwól w ustawieniach przeglądarki (ikona kłódki przy adresie)". Tymczasem przeglądarka
+zgłasza ten sam kod błędu w trzech różnych sytuacjach, a tylko w jednej z nich ta rada
+prowadzi do celu. Gdy lokalizację blokuje telefon (uprawnienie aplikacji przeglądarki),
+ustawienia strony pokazują „zezwól" i człowiek, który CHCIAŁ udostępnić lokalizację, krąży
+między ekranami, na których wszystko jest już włączone. Gdy pytanie zostało zamknięte bez
+odpowiedzi, blokady nie ma wcale i wystarczyłoby nacisnąć drugi raz — ale komunikat kazał
+szukać ustawień.
+
+ROZWIĄZANIE BOJO: Bojo rozpoznaje, KTO odmówił, i podaje instrukcję pasującą do tej
+przyczyny. Blokada zapamiętana przez przeglądarkę odsyła do ustawień strony. Blokada na
+poziomie telefonu odsyła do ustawień systemu i wprost mówi, że przeglądarka nie jest tu
+winna (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia →
+Prywatność → Usługi lokalizacji). Zamknięte pytanie namawia na ponowne naciśnięcie
+przycisku. Gdy przeglądarka nie pozwala tego ustalić, komunikat wymienia oba miejsca
+zamiast zgadywać jedno. Każdy wariant nadal przypomina o drodze ręcznej: wpisaniu miasta.
+
+MECHANIKA: `rodzajOdmowy()` w `frontend/src/lib/geo.ts` pyta Permissions API PO błędzie
+`PERMISSION_DENIED` i zestawia stan uprawnienia dla strony z faktem nieotrzymania pozycji:
+`denied` → `denied`, `granted` → `denied-system` (blokuje system), `prompt` →
+`denied-dismissed`, brak API lub wyjątek → `denied-nieznane`. Rozpoznanie siedzi
+w helperze, więc obejmuje wszystkie wywołania `getCurrentLocation()` naraz.
+`__tests__/odmowaLokalizacji.test.ts` pilnuje rozpoznania i treści komunikatów.
+
 ### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
 
 PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
@@ -663,19 +690,3 @@ MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
 `lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
 i `supabase/test/poczta-goscia.sql`.
 
-### 2026-09-08 — Kreator nie odsyła już do złego kroku, a wyłączona płatność zostaje wyłączona
-
-PROBLEM: w oknie „Tak zobaczą to gracze" — ostatnim sprawdzeniu przed opublikowaniem meczu
-— przycisk „Zmień" przy dacie przenosił organizatora na wybór miejsca, a „Zmień" przy
-miejscu na wybór terminu. Osobno: po wyłączeniu przełącznika „Mecz płatny" cena wracała
-przy najbliższej zmianie liczby miejsc, więc mecz publikował się jako płatny, bez żadnego
-sposobu zapłaty, przy przełączniku pokazującym „wyłączony". Gracz widział kwotę i nie miał
-jak jej uregulować.
-
-ROZWIĄZANIE BOJO: układ kroków kreatora ma jedno źródło prawdy, więc podsumowanie nie może
-się już z nim rozjechać. Wyłączenie płatności czyści też koszt wynajmu obiektu, z którego
-liczona jest cena od osoby, a o tym, czy mecz jest płatny, decyduje przełącznik, nie
-resztka w polu. „Zacznij od nowa" wraca do wszystkich ustawień domyślnych.
-
-MECHANIKA: stała `KROK_KREATORA` i funkcja `czyMeczPlatny()` w `lib/eventWizard.ts`,
-czytane przez `lib/eventSummary.ts` i `app/wydarzenia/nowe/page.tsx`. Testy
