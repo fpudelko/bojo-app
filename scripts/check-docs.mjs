@@ -29,7 +29,7 @@ const section = (name) => console.log(`\n${name}`);
 // FEATURE_RESERVATIONS is env-driven and treated as OFF for public surfaces.
 const FLAG_ROUTES = {
   SHOW_RECURRING: ['/cykliczne'],
-  SHOW_CUP: ['/turniej'],
+  SHOW_TURNIEJE: ['/turnieje'],
   FEATURE_RESERVATIONS: ['/rezerwacje', '/obiekt'],
 };
 

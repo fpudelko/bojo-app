@@ -28,7 +28,7 @@ działa, ale flaga ukryła wejścia w nawigacji — pełna tabela flag w
 | **Moje gry** (`/moje-gry`) | Mecze, które organizujesz lub na które się zapisałeś + historia | tak |
 | **Profil** (`/profil`) | Imię, awatar, telefon (za zgodą), usunięcie konta | tak |
 | **Cykliczne** (`/cykliczne`) | Szablony powtarzalnych meczów (np. „każdy wtorek 18:00") z zapisami | **nie** — `SHOW_RECURRING` |
-| **Turniej** (`/turniej`) | Rejestracja drużyn, składy, drabinka i terminarz meczów | **nie** — `SHOW_CUP` |
+| **Turniej** (`/turnieje`) | Zapisy drużyn, terminarz, wyniki na żywo, tabela i statystyki — w budowie etapami | **nie** — `SHOW_TURNIEJE` |
 | **Rezerwacje** (`/rezerwacje`) | Twoje rezerwacje terminów | **nie** — `FEATURE_RESERVATIONS` |
 
 ⚠️ **`/gracze` nie jest listą graczy** — to przekierowanie na `/wydarzenia`. Listy graczy

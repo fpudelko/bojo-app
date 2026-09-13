@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
+| `SHOW_TURNIEJE` | `false` | Moduł turniejowy (`/turnieje/*`) — w budowie, etapami. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | jeszcze nigdzie — wejścia (`/profil`, `/moje-gry`) dochodzą w Etapie 4 |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
@@ -26,10 +26,11 @@ Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
 Czyli rezerwacje można włączyć pojedynczemu boisku bez odmrażania całej funkcji.
 
-**Flagi ukrywają wejścia, nie trasy.** Trasa `/turniej` odpowiada normalnie, jeśli ktoś
-wpisze adres ręcznie — flaga (`SHOW_CUP`) usuwa tylko linki w nawigacji. Dlatego trasy za
-flagami nie trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce
-obiecuje coś, czego użytkownik nie znajdzie w interfejsie.
+**Flagi ukrywają wejścia, nie trasy.** Trasa `/turnieje` odpowiada normalnie, jeśli ktoś
+wpisze adres ręcznie — flaga (`SHOW_TURNIEJE`) usuwa tylko linki w nawigacji, a dodatkowo
+`robots.ts` blokuje jej skanowanie, dopóki flaga jest wyłączona. Dlatego trasy za flagami nie
+trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś, czego
+użytkownik nie znajdzie w interfejsie.
 
 ---
 
