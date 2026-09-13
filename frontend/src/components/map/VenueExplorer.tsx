@@ -1449,7 +1449,8 @@ export default function VenueExplorer({
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
           <p className="mb-2 text-xs text-slate-500">
-            Wpisz miejscowość albo kod pocztowy — pokażemy to, co jest w promieniu.
+            Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod
+            pocztowy — pokażemy to, co jest w promieniu.
           </p>
           <WyborMiejscowosci
             wybrana={draftMiejscowosc}
@@ -1556,7 +1557,8 @@ export default function VenueExplorer({
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
           <p className="mb-2 text-xs text-slate-500">
-            Wpisz miejscowość albo kod pocztowy — pokażemy to, co jest w promieniu.
+            Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod
+            pocztowy — pokażemy to, co jest w promieniu.
           </p>
           <WyborMiejscowosci
             wybrana={draftMiejscowosc}

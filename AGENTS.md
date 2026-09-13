@@ -138,12 +138,27 @@ sprzątanie zawsze, a oryginalna przyczyna i tak wygrywa.
 
 **Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
-`.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi
+**Zmienione miejsca widać wprost w komentarzu do PR-a** — od 2026-09-12.
+Wcześniej komentarz niósł wyłącznie odnośnik, więc obejrzenie zmiany wymagało
+kliknięcia i wyjścia z wątku. Dziś komentarz pokazuje WYCINEK zmienionego
+miejsca („było" obok „jest") dla maksymalnie trzech widoków; reszta zostaje za
+odnośnikiem, bo przebieg z czterdziestoma zmianami dałby komentarz nie do
+przewinięcia. Obrazki idą przez `raw.githubusercontent.com` — działa, bo repo
+jest publiczne.
+
+**Adres obrazka w komentarzu ma `?v=<numer przebiegu>`.** Obrazki
+w komentarzach GitHub podaje przez pośrednik (camo), który buforuje po ADRESIE,
+a ścieżka pliku jest między przebiegami identyczna
+(`pr-355/widoki-publiczne/wycinek__X__actual.png`). Bez tego dopisku kolejny
+przebieg pokazywałby obrazek z poprzedniego — komentarz kłamałby dokładnie
+tam, gdzie ma mówić prawdę.
+
+`.github/podglad-zrzutow.sh` wystawia pełny raport na technicznej gałęzi
 `podglad-zrzutow`, pod adresem `…/tree/podglad-zrzutow/pr-<numer>/<zestaw>`.
 GitHub renderuje `README.md` katalogu jako stronę, więc wchodzisz w odnośnik
-z komentarza i przewijasz obrazki. Nic nie trzeba pobierać ani odpisywać.
-Raporty **kasują się same po 7 dniach** — gałąź nie ma rosnąć w nieskończoność.
-Artefakt z raportem HTML zostaje jako droga zapasowa.
+z komentarza i przewijasz obrazki. W raporcie są dodatkowo całe strony bok
+w bok i nakładka diff. Raporty **kasują się same po 7 dniach** — gałąź nie ma
+rosnąć w nieskończoność. Artefakt z raportem HTML zostaje jako droga zapasowa.
 
 Zmieniony widok pokazuje się **jako wycinek samego zmienionego miejsca**
 (`frontend/e2e/wytnij-zmiane.js` liczy prostokąt obejmujący podświetlone piksele
@@ -209,6 +224,13 @@ merge'u"), bo każdy przebieg meldował je jako świeżą „zmianę wyglądu".
 **Maska Playwrighta nie zgłasza błędu, gdy nie trafi w nic** — po prostu maluje
 zero pikseli. Selektor `data-*` użyty w `mask:` musi więc istnieć w `frontend/src`;
 pilnuje tego `maskiZrzutow.test.ts` (Vitest, bez przeglądarki).
+
+**Dopisując typ powiadomienia w migracji, dopisz go w `lib/ikonyPowiadomien.ts`
+i `lib/ustawieniaPowiadomien.ts`** — inaczej ląduje pod szarym dzwonkiem
+z podpisem „Powiadomienie" i nie da się go wyłączyć na telefonie. Trzy listy
+(typy wstawiane przez bazę, ikony, ustawienia push) rozjechały się już
+kilkukrotnie; pilnuje tego `typyPowiadomien.test.ts` (Vitest, czyta
+`supabase/migrations/*.sql`).
 
 **Testy klikalności (Playwright):**
 

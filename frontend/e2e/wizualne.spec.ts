@@ -147,7 +147,13 @@ test.describe('widoki publiczne', () => {
     // `md:hidden` (telefon, z przełącznikiem lista/mapa). Bez filtru zwykłe
     // `.first()` trafia na kopię ukrytą przez CSS i test czeka na coś, co
     // w tym rozmiarze okna nigdy się nie pokaże.
-    await expect(page.getByText('Brak meczów').filter({ visible: true }).first())
+    // „Brak meczów" to nagłówek pustego stanu Z FILTRAMI, a ten test żadnego nie
+    // ustawia — bez filtrów `/wydarzenia` mówi „Nie ma teraz otwartych gier
+    // w okolicy". Rozjazd wszedł po cichu razem z rozdzieleniem tych dwóch
+    // komunikatów i od tego czasu test padał na asercji ZACHOWANIA, więc bramka
+    // klasyfikowała cały zestaw jako „nie doszło do porównania" — czyli widoki
+    // publiczne przestały być porównywane, a raport nie miał czego pokazać.
+    await expect(page.getByText('Nie ma teraz otwartych gier w okolicy').filter({ visible: true }).first())
       .toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
     await expect(page).toHaveScreenshot('lista-gier-pusto.png', { fullPage: true });

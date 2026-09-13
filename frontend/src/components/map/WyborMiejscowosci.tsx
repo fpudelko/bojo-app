@@ -6,6 +6,7 @@ import {
   szukajMiejscowosci, toKodPocztowy, PROMIENIE_KM,
   type Miejscowosc,
 } from '@/lib/miejscowosci';
+import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 
 /**
  * „Szukaj wokół: <miejscowość>, w promieniu N km".
@@ -94,6 +95,17 @@ export default function WyborMiejscowosci({
 
   return (
     <div>
+      {/* Pinezka NAD polem: kto jest w swojej okolicy, nie ma czego wpisywać,
+          a nazwa własnej dzielnicy bywa gorszym punktem niż realna pozycja. */}
+      <PrzyciskMojaLokalizacja
+        className="mb-2"
+        onPozycja={(lat, lng) => {
+          setFraza('');
+          setPodpowiedzi([]);
+          naZmiane({ nazwa: 'Moja lokalizacja', kontekst: '', lat, lng }, promienKm);
+        }}
+      />
+
       <input
         type="text"
         value={fraza}

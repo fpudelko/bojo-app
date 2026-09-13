@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
-  Bell, BellRing, List, MailOpen, Map as MapIcon, Navigation, Plus, Search,
-  SlidersHorizontal, Ticket, Users, Wallet, X,
+  Bell, BellRing, List, LocateFixed, MailOpen, Map as MapIcon, Navigation, Plus,
+  Search, SlidersHorizontal, Ticket, Users, Wallet, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem, GameAlert } from '@/types';
@@ -19,6 +19,7 @@ import { TogglePill } from '@/components/ui/FilterPill';
 import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
+import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import UzupelnijProfilBanner from '@/components/home/dashboard/UzupelnijProfilBanner';
@@ -327,10 +328,12 @@ export default function EventsListView({ widzianoWczesniej }: {
     || maxPriceGrosze !== null || minFreeSpots > 0 || !!query || onlyFreeSpots || onlyNoCost;
 
   // ALERT O NOWYM MECZU. Pusta lista to jedyne miejsce w apce, gdzie człowiek
-  // powiedział dokładnie, czego szuka, i dostał „nie ma" — więc jedyne, gdzie
-  // „powiadomimy Cię, gdy się pojawi" odpowiada na zadane pytanie, zamiast być
-  // kolejną prośbą o zgodę. Stan alertu pobieramy DOPIERO gdy ten stan realnie
-  // widać: na niepustej liście to byłoby zapytanie za każdym wejściem po nic.
+  // powiedział dokładnie, czego szuka, i dostał „nie ma". Od 2026-09-12 to już
+  // NIE jest jedyne wejście: alert da się włączyć także dzwonkiem w pasku i
+  // z arkusza filtrów, bo „chcę wiedzieć o nowych meczach" nie jest pytaniem,
+  // które przychodzi do głowy wyłącznie po zobaczeniu pustki. Skutek uboczny:
+  // stan alertu trzeba znać od razu (dzwonek pokazuje, czy jest włączony), więc
+  // nie da się już odkładać tego zapytania do pustego stanu.
   const [mojAlert, setMojAlert] = useState<GameAlert | null>(null);
   const [oknoAlertu, setOknoAlertu] = useState(false);
   // Filtry SĄ już odpowiedzią na „czego szukasz" — okno alertu otwiera się
@@ -341,11 +344,19 @@ export default function EventsListView({ widzianoWczesniej }: {
   );
   const pustaLista = !loading && !loadError && sorted.length === 0;
   useEffect(() => {
-    if (!SHOW_GAME_ALERTS || !user || !pustaLista) return;
+    if (!SHOW_GAME_ALERTS || !user) return;
     let zywe = true;
     getMyAlert().then((a) => { if (zywe) setMojAlert(a); }).catch(() => {});
     return () => { zywe = false; };
-  }, [user, pustaLista]);
+  }, [user]);
+
+  /** Jedno wejście do okna alertu dla trzech miejsc (dzwonek w pasku, arkusz
+   *  filtrów, pusty stan). Wylogowanego odsyła na logowanie — alert jest
+   *  przypisany do konta, więc bez niego nie ma czego zapisać. */
+  const otworzAlert = () => {
+    if (!user) { router.push('/logowanie?next=%2Fwydarzenia'); return; }
+    setOknoAlertu(true);
+  };
   const clearFilters = () => {
     setSports([]);
     setDateFilter('wszystkie');
@@ -533,29 +544,21 @@ export default function EventsListView({ widzianoWczesniej }: {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setOknoAlertu(true)}
+                  onClick={otworzAlert}
                   className="mt-1 text-xs font-semibold text-primary-700 underline dark:text-primary-300"
                 >
                   Zmień ustawienia powiadomienia
                 </button>
               </div>
-            ) : user ? (
+            ) : (
               <button
                 type="button"
-                onClick={() => setOknoAlertu(true)}
+                onClick={otworzAlert}
                 className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
               >
                 <Bell className="h-5 w-5 shrink-0" />
                 Powiadom mnie, gdy się pojawi
               </button>
-            ) : (
-              <Link
-                href="/logowanie?next=%2Fwydarzenia"
-                className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
-              >
-                <Bell className="h-5 w-5 shrink-0" />
-                Powiadom mnie, gdy się pojawi
-              </Link>
             )
           )}
 
@@ -589,17 +592,6 @@ export default function EventsListView({ widzianoWczesniej }: {
             </Link>
           )}
 
-          {oknoAlertu && (
-            <AlertSetupDialog
-              defaultSport={domyslneAlertu.sport}
-              defaultRadiusKm={domyslneAlertu.radiusKm}
-              defaultLat={domyslneAlertu.lat}
-              defaultLng={domyslneAlertu.lng}
-              defaultLabel={domyslneAlertu.lat != null ? 'Moja lokalizacja' : undefined}
-              onClose={() => setOknoAlertu(false)}
-              onSaved={setMojAlert}
-            />
-          )}
         </div>
       )}
     </>
@@ -705,6 +697,26 @@ export default function EventsListView({ widzianoWczesniej }: {
           >
             {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
           </button>
+          {/* Dzwonek alertu stoi w tym samym rzędzie co mapa i filtry, bo
+              odpowiada na to samo pytanie („jak chcę oglądać tę listę"), tylko
+              rozciągnięte w czasie. Wypełniony = alert włączony; ten sam
+              zabieg co przy aktywnych filtrach obok, więc kształt mówi „stan",
+              a nie „nowe zdarzenie". */}
+          {SHOW_GAME_ALERTS && (
+            <button
+              type="button"
+              onClick={otworzAlert}
+              aria-label={mojAlert ? 'Alert o nowych meczach — włączony' : 'Powiadom mnie o nowych meczach'}
+              className={clsx(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
+                mojAlert
+                  ? 'border-primary-700 bg-primary-700 text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+              )}
+            >
+              {mojAlert ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={openSheet}
@@ -847,17 +859,35 @@ export default function EventsListView({ widzianoWczesniej }: {
             minLabel="Dzisiaj"
             maxLabel="Wszystko"
           />
-          <RangeSlider
-            label="Odległość"
-            min={RADIUS_MIN}
-            max={RADIUS_MAX}
-            step={1}
-            value={draftRadius ?? RADIUS_MAX}
-            onChange={(km) => setDraftRadius(km >= RADIUS_MAX ? null : km)}
-            formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
-            minLabel={`${RADIUS_MIN} km`}
-            maxLabel="Bez limitu"
-          />
+          <div>
+            <RangeSlider
+              label="Odległość"
+              min={RADIUS_MIN}
+              max={RADIUS_MAX}
+              step={1}
+              value={draftRadius ?? RADIUS_MAX}
+              onChange={(km) => setDraftRadius(km >= RADIUS_MAX ? null : km)}
+              formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
+              minLabel={`${RADIUS_MIN} km`}
+              maxLabel="Bez limitu"
+            />
+            {/* Promień jest liczony OD CZEGOŚ, a tym czymś jest pozycja gracza
+                — do 2026-09-12 zgoda na nią wyciągała się sama, dopiero przy
+                „Pokaż N meczy". Pinezka stawia ją wprost i od razu, więc
+                podgląd wyników pod spodem liczy się na prawdziwym punkcie,
+                zamiast czekać na zatwierdzenie. */}
+            {userPos ? (
+              <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary-700 dark:text-primary-300">
+                <LocateFixed className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Liczę od Twojej lokalizacji
+              </p>
+            ) : (
+              <PrzyciskMojaLokalizacja
+                className="mt-2"
+                onPozycja={(lat, lng) => setUserPos({ lat, lng })}
+              />
+            )}
+          </div>
           <RangeSlider
             label="Cena"
             min={PRICE_MIN}
@@ -880,6 +910,50 @@ export default function EventsListView({ widzianoWczesniej }: {
             minLabel="Dowolna liczba"
             maxLabel="14+"
           />
+
+          {/* Alert na dole arkusza, bo dopiero tu wiadomo, czego ktoś szuka.
+              Gdy podgląd mówi „0 meczy", to JEST moment, w którym filtry nic
+              nie wyszukały — i dotąd trzeba było zamknąć arkusz, żeby się o tym
+              dowiedzieć z pustego stanu. Wtedy wejście robi się pełnym
+              przyciskiem; przy niezerowym wyniku zostaje cichym wierszem, żeby
+              nie konkurować z „Pokaż N meczy" na dole. */}
+          {SHOW_GAME_ALERTS && (
+            mojAlert ? (
+              <button
+                type="button"
+                onClick={() => { setSheetOpen(false); otworzAlert(); }}
+                className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-left text-sm font-medium text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200"
+              >
+                <BellRing className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="flex-1">Damy znać, gdy pojawi się pasujący mecz</span>
+                <span className="shrink-0 text-xs underline">Zmień</span>
+              </button>
+            ) : previewRows.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-sm font-semibold text-ink">Nic nie pasuje do tych filtrów</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Możemy dać znać, gdy pojawi się pierwszy taki mecz.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setSheetOpen(false); otworzAlert(); }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
+                >
+                  <Bell className="h-4 w-4 shrink-0" aria-hidden />
+                  Powiadom mnie, gdy się pojawi
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setSheetOpen(false); otworzAlert(); }}
+                className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors hover:border-primary-300 hover:text-primary-700 dark:border-slate-700 dark:text-slate-300"
+              >
+                <Bell className="h-4 w-4 shrink-0" aria-hidden />
+                Powiadom mnie o nowych takich meczach
+              </button>
+            )
+          )}
         </div>
       </FilterSheet>
 
@@ -929,6 +1003,22 @@ export default function EventsListView({ widzianoWczesniej }: {
           </div>
         )}
       </div>
+
+      {/* Okno alertu stoi NA WIERZCHU całego widoku, nie w pustym stanie —
+          otwierają je dziś trzy różne miejsca (dzwonek w pasku, arkusz
+          filtrów, pusty stan), a `listContent` bywa renderowany w gałęzi
+          ukrytej przez CSS. */}
+      {oknoAlertu && (
+        <AlertSetupDialog
+          defaultSport={domyslneAlertu.sport}
+          defaultRadiusKm={domyslneAlertu.radiusKm}
+          defaultLat={domyslneAlertu.lat}
+          defaultLng={domyslneAlertu.lng}
+          defaultLabel={domyslneAlertu.lat != null ? 'Moja lokalizacja' : undefined}
+          onClose={() => setOknoAlertu(false)}
+          onSaved={setMojAlert}
+        />
+      )}
     </div>
   );
 }
