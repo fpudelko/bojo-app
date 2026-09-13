@@ -146,6 +146,16 @@ odnośnikiem, bo przebieg z czterdziestoma zmianami dałby komentarz nie do
 przewinięcia. Obrazki idą przez `raw.githubusercontent.com` — działa, bo repo
 jest publiczne.
 
+**Gdy raportu nie da się wystawić, komentarz NIE pokazuje obrazków.** Gałąź
+`podglad-zrzutow` jest jedna, a pisze do niej każde zadanie każdego otwartego
+PR-a — przy pięciu PR-ach naraz push potrafił przegrać komplet prób i raport
+nie powstawał, a komentarz i tak obiecywał obrazki (czyli zepsute miniatury).
+Dziś prób jest sześć, z losowym odczekaniem między nimi (bez losowości wszyscy
+przegrani wracają w tej samej chwili), a po nieudanym komplecie komentarz mówi
+wprost, że raport został w artefakcie. Treści dla komentarza NIE wolno wtedy
+czyścić do zera — pusta znaczy w `komentarz-zrzutow.js` coś innego: „testy nie
+doszły do porównania, nie chodzi o wygląd".
+
 **Adres obrazka w komentarzu ma `?v=<numer przebiegu>`.** Obrazki
 w komentarzach GitHub podaje przez pośrednik (camo), który buforuje po ADRESIE,
 a ścieżka pliku jest między przebiegami identyczna
