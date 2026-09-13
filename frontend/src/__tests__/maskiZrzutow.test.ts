@@ -101,6 +101,6 @@ describe('maski zrzutów', () => {
     // zauważył, że ochrona zniknęła.
     const wszystkie = new Set(pliki.flatMap((p) => maskowaneAtrybuty(readFileSync(p, 'utf8'))));
     expect(Array.from(wszystkie).sort())
-      .toEqual(['data-pasek-dolny', 'data-pole-daty', 'data-zrzut-maskuj']);
+      .toEqual(['data-pasek-dolny', 'data-pole-daty', 'data-termin-meczu', 'data-zrzut-maskuj']);
   });
 });

@@ -293,15 +293,37 @@ fi
 
 git -C "$KOPIA" commit -q -m "podgląd zrzutów: PR #${PR} (${ZESTAW})"
 
-# Wyścig z drugim zadaniem tego samego przebiegu — ta sama historia, dwa pushe.
-for PROBA in 1 2 3; do
+# Wyścig o jedną gałąź — i to nie jest wyścig dwóch zadań, tylko wszystkich
+# otwartych PR-ów naraz. Każdy przebieg wizualny ma DWA zadania (widoki
+# publiczne i scenariusze), a przebiegów jest tyle, ile świeżych PR-ów.
+# Przy pięciu otwartych PR-ach trzy próby bez odczekania przegrywały komplet:
+# `Push podglądu odrzucony (próba 1/2/3)` i raport nie powstawał.
+#
+# Stąd więcej prób i losowe odczekanie między nimi — bez losowości wszyscy
+# przegrani wracają w tej samej chwili i zderzają się ponownie.
+for PROBA in 1 2 3 4 5 6; do
   if git -C "$KOPIA" push -q origin "HEAD:$GALAZ_PODGLADU" 2>/dev/null; then
     echo "✓ Raport wystawiony."
     exit 0
   fi
   echo "Push podglądu odrzucony (próba $PROBA) — pobieram i próbuję ponownie."
+  sleep "$(( (RANDOM % 5) + PROBA ))"
   git -C "$KOPIA" pull -q --rebase origin "$GALAZ_PODGLADU" || true
 done
 
+# NIE WYSZŁO — podmieniamy treść dla komentarza. Zostawiona obiecywałaby
+# raport i obrazki, których pod tymi adresami NIE MA: odnośnik prowadziłby
+# w pustkę, a `<img>` pokazałby zepsute miniatury.
+#
+# Ale czyścić jej do zera też nie wolno: pusta treść przy nieudanym przebiegu
+# znaczy w `komentarz-zrzutow.js` coś zupełnie innego — „testy nie doszły do
+# porównania, nie chodzi o wygląd". Tu wygląd zmienił się jak najbardziej,
+# tylko raportu nie udało się wystawić. Mówimy więc dokładnie to.
+{
+  echo ""
+  echo "Raportu nie udało się wystawić — gałąź podglądu była zajęta przez inne"
+  echo "przebiegi i push przegrał komplet prób. Obrazki są w artefakcie"
+  echo "z raportem, załączonym do tego przebiegu."
+} > "$WYNIK"
 echo "Nie udało się wypchnąć podglądu — raport został w artefakcie." >&2
 exit 0

@@ -329,6 +329,22 @@ o skutkach własnego kliknięcia.
   i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały
   jako szare „Powiadomienie".
 
+### Czwarty zgniły wzorzec: `bramkarze-rezerwacja-okno` (2026-09-13)
+
+Ten sam mechanizm co trzy niżej, znaleziony przy zupełnie innej zmianie. Zrzut
+okna „w polu jest już komplet" łapie też kartę **„Kiedy i gdzie"** pod spodem,
+a `seed_wizualne.sql` liczy datę jako ODSTĘP od dnia uruchomienia — więc
+wzorzec niósł konkretny dzień („Czwartek, 17 września") i nazajutrz meldował
+„zmianę wyglądu", choć nic się nie zmieniło. Przyjęcie takiego wzorca niczego
+nie naprawia: zamraża kolejną datę, która zgnije następnego dnia.
+
+Poprawka jak przy `kreator-krok-1.png`: `mask` na nowym `[data-termin-meczu]`
+(data, godzina i „za 3 h" w karcie „Kiedy i gdzie" — wszystko, co rusza się
+z dnia na dzień), a nie rezygnacja ze zrzutu. Atrybut jest na obu gałęziach
+karty: tej z edycją dla organizatora i tej bez. Pilnuje go `maskiZrzutow.test.ts`,
+który trzyma JAWNĄ listę selektorów — dopisanie maski wymaga świadomej zmiany
+tej listy, więc nie da się jej dodać po cichu ani po cichu usunąć.
+
 ### Dopisane po merge'u (2026-09-09)
 
 **Wzorzec `kreator-krok-1.png` nie mógł być zielony od 2026-08-22.** Zrzut robi

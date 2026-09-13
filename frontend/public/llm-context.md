@@ -473,6 +473,11 @@ podstawia sam, jeśli przeglądarka ma już zgodę (samo otwarcie okna nigdy o n
 Gdy alert już istnieje, wszystkie trzy miejsca mówią „Damy znać, gdy pojawi się pasujący
 mecz". Osoba niezalogowana trafia stąd na logowanie.
 
+Od 2026-09-13 alert włącza się także z arkusza filtrów na mapie Bojo (tryb gier) — mapa
+zadaje to samo pytanie „gdzie i w co chcę zagrać". Wybór sportu w tym arkuszu pokazuje same
+ikony dyscyplin, a podgląd „Pokaż N meczy" reaguje na klikane zawężenia od razu: wcześniej
+liczył po filtrach już zastosowanych, więc klikanie sportu nie ruszało liczby.
+
 Osobno: oba arkusze filtrów w Bojo — na liście meczów i na mapie — mają przycisk **„Ustaw
 pinezkę na mojej lokalizacji"**. Dotąd zgoda na lokalizację wyciągała się ubocznie, dopiero
 przy zatwierdzaniu filtrów z ustawionym promieniem; teraz prośba wychodzi z przycisku
