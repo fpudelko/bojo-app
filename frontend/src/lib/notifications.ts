@@ -40,6 +40,14 @@ export function celPowiadomienia(n: AppNotification): string | null {
     const naTablice = n.type === 'wiadomosc_w_grupie' || n.type === 'ogloszenie_w_grupie';
     return naTablice ? `/grupy/${n.groupId}?tab=tablica` : `/grupy/${n.groupId}`;
   }
+  // Turniej (145). Dwa typy proszą ORGANIZATORA o decyzję — prowadzą wprost
+  // do panelu, nie na publiczną stronę turnieju, którą i tak zna na pamięć.
+  // Reszta (dziś: decyzja o zgłoszeniu widziana przez kapitana) prowadzi
+  // na zakładkę Drużyny — tam kapitan widzi status i uzupełnia skład.
+  if (n.turniejId) {
+    const doPanelu = n.type === 'turniej_zgloszenie_druzyny' || n.type === 'turniej_kapitan_przejal';
+    return doPanelu ? `/turnieje/${n.turniejId}/panel` : `/turnieje/${n.turniejId}?tab=druzyny`;
+  }
   return TYP_NA_TRASE[n.type] ?? null;
 }
 
@@ -54,6 +62,7 @@ export function toNotif(row: any): AppNotification {
     alertId:   row.alert_id ?? undefined,
     claimToken: row.claim_token ?? undefined,
     groupId:   row.group_id ?? undefined,
+    turniejId: row.turniej_id ?? undefined,
     readAt:    row.read_at ?? undefined,
     createdAt: row.created_at,
   };
@@ -70,7 +79,7 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
 }
 
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
-export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz']);
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz', 'turniej_zgloszenie_druzyny']);
 
 /**
  * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
@@ -90,6 +99,11 @@ export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offer
  *     mam ani wpisu w `event_participants`, ani jawnej odmowy w
  *     `event_declines`. Odmowa jest tu kluczowym przypadkiem: zamyka sprawę
  *     dokładnie tak samo jak dołączenie — „nie gram" to odpowiedź, nie cisza.
+ *   - `turniej_zgloszenie_druzyny` (145) — czy w tym turnieju wisi jeszcze
+ *     jakaś drużyna o statusie `zgloszona` (RLS pokazuje je zarządzającemu).
+ *     Ziarnistość jest per turniej, nie per zgłoszenie — tak samo jak
+ *     `prosba_o_dolaczenie` pyta „czy w tym MECZU jest coś do zrobienia",
+ *     nie „czy dokładnie TA prośba wciąż czeka".
  *
  * Zwraca zbiór identyfikatorów powiadomień, które są nadal otwarte. Błąd
  * zapytania oznacza `null` — wywołujący ma wtedy zostawić dotychczasowy
@@ -99,8 +113,12 @@ export async function otwarteSprawy(
   userId: string,
   powiadomienia: AppNotification[],
 ): Promise<Set<string> | null> {
-  const doSprawdzenia = powiadomienia.filter((n) => WYMAGA_AKCJI.has(n.type) && n.eventId);
+  const doSprawdzenia = powiadomienia.filter((n) => WYMAGA_AKCJI.has(n.type) && (n.eventId || n.turniejId));
   if (doSprawdzenia.length === 0) return new Set();
+
+  const turnieje = Array.from(new Set(
+    doSprawdzenia.filter((n) => n.type === 'turniej_zgloszenie_druzyny').map((n) => n.turniejId!),
+  ));
 
   const meczeProsb = Array.from(new Set(
     doSprawdzenia.filter((n) => n.type === 'prosba_o_dolaczenie').map((n) => n.eventId!),
@@ -119,7 +137,7 @@ export async function otwarteSprawy(
   ));
 
   try {
-    const [prosby, oferty, udzial, odmowy] = await Promise.all([
+    const [prosby, oferty, udzial, odmowy, zgloszeniaTurniejowe] = await Promise.all([
       meczeProsb.length
         ? supabase.from('event_participants').select('event_id')
             .eq('pending_approval', true).in('event_id', meczeProsb)
@@ -136,8 +154,12 @@ export async function otwarteSprawy(
         ? supabase.from('event_declines').select('event_id')
             .eq('user_id', userId).in('event_id', meczePytan)
         : Promise.resolve({ data: [], error: null }),
+      turnieje.length
+        ? supabase.from('turniej_druzyny').select('turniej_id')
+            .eq('status', 'zgloszona').in('turniej_id', turnieje)
+        : Promise.resolve({ data: [], error: null }),
     ]);
-    if (prosby.error || oferty.error || udzial.error || odmowy.error) return null;
+    if (prosby.error || oferty.error || udzial.error || odmowy.error || zgloszeniaTurniejowe.error) return null;
 
     const zProsbami = new Set((prosby.data ?? []).map((r: any) => r.event_id as string));
     const zOfertami = new Set((oferty.data ?? []).map((r: any) => r.event_id as string));
@@ -145,12 +167,16 @@ export async function otwarteSprawy(
       ...(udzial.data ?? []).map((r: any) => r.event_id as string),
       ...(odmowy.data ?? []).map((r: any) => r.event_id as string),
     ]);
+    const zNieprzyjetymiDruzynami = new Set(
+      (zgloszeniaTurniejowe.data ?? []).map((r: any) => r.turniej_id as string),
+    );
 
     return new Set(
       doSprawdzenia
         .filter((n) => {
           if (n.type === 'prosba_o_dolaczenie') return zProsbami.has(n.eventId!);
           if (n.type === 'reserve_claim_offered') return zOfertami.has(n.eventId!);
+          if (n.type === 'turniej_zgloszenie_druzyny') return zNieprzyjetymiDruzynami.has(n.turniejId!);
           return !zOdpowiedzia.has(n.eventId!);
         })
         .map((n) => n.id),

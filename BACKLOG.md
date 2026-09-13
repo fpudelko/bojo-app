@@ -438,8 +438,8 @@ wpisana seedem, a drużyny umawiały mecze same przez tygodnie. **Skasowany** �
 Etapie 0 przebudowy, tabele osobną migracją (`149`), gdy nowy moduł go zastąpi w całości.
 
 **Nowy moduł** — pełny plan produktowy i techniczny w
-[docs/turnieje-plan-duze-klocki.md](../docs/turnieje-plan-duze-klocki.md) i
-[docs/turnieje-plan-srednie-klocki.md](../docs/turnieje-plan-srednie-klocki.md). W skrócie:
+[docs/turnieje-plan-duze-klocki.md](./docs/turnieje-plan-duze-klocki.md) i
+[docs/turnieje-plan-srednie-klocki.md](./docs/turnieje-plan-srednie-klocki.md). W skrócie:
 turniej zakłada każdy organizator (dowolnie wiele naraz), na jeden dzień/weekend, z
 terminarzem generowanym z góry i wynikiem wpisywanym na żywo przez prowadzącego (gole,
 strzelcy, asysty, kartki, MVP). Ściana logowania na składach i statystykach (RLS, nie UI)

@@ -810,3 +810,52 @@ zawyżeniem licznika przy powtórnym kliknięciu.
 frekwencję z tabeli `player_stats`, per seria cykliczna (`getGroupPlayerStats`), nie
 per profil publiczny. Nie mylić obu — patrzą na różne tabele i różne konteksty
 (mecz pojedynczy vs seria).
+
+---
+
+## Turniej: ściana logowania i uprawnienia
+
+Moduł turniejowy (migracja `145`+, za flagą `SHOW_TURNIEJE`) zastępuje dawny „BOJO Cup"
+(`029`/`030`) — pełny plan → [funkcje.md](./funkcje.md#moduł-turniejowy-turnieje--w-budowie-etapami)
+i [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
+
+**Ściana logowania jest głównym mechanizmem zakładania kont w tym module**, nie efektem
+ubocznym. Skład drużyny (`turniej_zawodnicy`) czyta wyłącznie zalogowany — polityka RLS
+`auth.uid() IS NOT NULL`, egzekwowana w bazie, nie w interfejsie (klucz `anon` jest jawny
+w paczce JS, więc bramka w komponencie nie chroniłaby przed nikim). Publiczne: nazwa
+turnieju, lista drużyn (same nazwy), terminarz, wynik, tabela. Za ścianą: imiona i numery
+w składzie, kto strzelił, kartki, MVP.
+
+**Kontakt kapitana ma uprawnienia kolumnowe, nie tabelowe** — ta sama pułapka i to samo
+rozwiązanie co `event_participants` od migracji `127`: `REVOKE SELECT (kolumna)` nic nie
+robi, dopóki rola ma `SELECT` na całej tabeli. `145` najpierw zdejmuje `SELECT` z całej
+`turniej_druzyny`, potem oddaje jawną listę kolumn — `kontakt_telefon`/`kontakt_email`
+zostają poza nią. **Nowa kolumna w tej tabeli wymaga jawnego `GRANT SELECT`**, inaczej
+milknie po cichu tak samo jak przy `event_participants`.
+
+**Role — pięć, nie jedna etykieta.** Organizator (`turnieje.organizator_id`, zawsze pełne
+uprawnienia, nawet bez wiersza w `turniej_osoby`), współorganizator (`moze_edytowac`),
+prowadzący (`moze_prowadzic` — ogólny, LUB `turniej_mecze.prowadzacy_id` — punktowy na
+jeden mecz, od Etapu 2), kapitan (`turniej_druzyny.kapitan_id`, zarządza WŁASNYM składem),
+zawodnik. `mozeEdytowac` jest nadzbiorem pozostałych dwóch przełączników — dokładnie jak
+przy delegatach meczu (`089`) i uprawnieniach w grupie (`092`); ten sam powód: uprawnieniami
+zarządza wyłącznie organizator, nie inny współorganizator, inaczej powstaje niekontrolowany
+łańcuch przekazywania.
+
+**Kapitan zmienia własną DEKLARACJĘ, nie swoje MIEJSCE w turnieju** — ta sama zasada co
+przy `event_participants` od migracji `132`. Polityka RLS „Druzyne edytuje kapitan"
+pozwala mu zmienić dowolną kolumnę własnej drużyny (bo to jego wiersz), więc bez dodatkowej
+ochrony mógłby sam wpisać sobie `status = 'przyjeta'`. Trigger `pilnuj_wlasnej_druzyny`
+(`145`) po cichu przywraca `status`/`grupa_id`/`rozstawienie`/`pozycja_recznie`/
+`wpisowe_oplacone_at` do poprzednich wartości, gdy zapisuje ktoś bez uprawnień
+zarządzającego — zapis przechodzi (żadnego wyjątku), ale te pola zostają nietknięte.
+
+**Jedna droga wejścia do drużyny — RPC `dolacz_do_druzyny_kodem()`.** Kapitanat drużyny
+bez kapitana, przypisanie do wolnego wpisu składu („to ja" na `/t/[kod]`) i dopisanie
+nowego zawodnika idą przez JEDNĄ funkcję `SECURITY DEFINER`, nie trzy osobne ścieżki po
+stronie klienta — inaczej reguły (stan turnieju, limit składu, jedna osoba w jednej
+drużynie na turniej) rozjechałyby się między nimi, tak jak omal nie rozjechała się reguła
+pojemności zdublowana w trzech funkcjach `lib/events.ts`. Podwójne przypisanie tej samej
+osoby do dwóch wolnych wpisów w tym samym turnieju zamyka dodatkowo indeks unikalny
+`(turniej_id, user_id)` — działa niezależnie od tego, którą z dwóch dróg (RPC albo surowy
+`UPDATE` na tabeli) ktoś spróbuje wejść.

@@ -474,6 +474,7 @@ export interface AppNotification {
   alertId?: string;
   claimToken?: string;
   groupId?: string; // 093 — powiadomienia bez meczu (np. ogłoszenie na tablicy)
+  turniejId?: string; // 145 — powiadomienia turniejowe (zgłoszenie drużyny, wynik…)
   readAt?: string;
   createdAt: string;
 }
@@ -619,176 +620,264 @@ export interface PlayerHistoryItem {
 }
 
 // ---------------------------------------------------------------------------
-// BOJO Community Cup — turniej drużynowy
+// Turnieje (migracja 145+) — zastępuje dawny „BOJO Community Cup"
+// (`029`/`030`, tabele `tournament_*`, skasowane migracją `149`). Plan →
+// docs/turnieje-plan-duze-klocki.md, docs/turnieje-plan-srednie-klocki.md.
 // ---------------------------------------------------------------------------
 
-export type TournamentStatus =
-  | 'draft'
-  | 'registration'
-  | 'group_stage'
-  | 'knockout'
-  | 'finals'
-  | 'completed';
-
-export type TeamStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'rejected'
-  | 'eliminated'
-  | 'withdrawn';
-
-export type PlayerPosition =
-  | 'bramkarz'
-  | 'obrońca'
-  | 'pomocnik'
-  | 'napastnik'
-  | 'uniwersalny';
-
-export type MatchStage =
-  | 'group'
-  | 'round_of_32'
-  | 'round_of_16'
-  | 'quarter'
-  | 'semi'
-  | 'third_place'
+export type TurniejFormat = 'grupy_puchar' | 'puchar' | 'liga';
+export type TurniejStatus =
+  | 'szkic'
+  | 'zapisy'
+  | 'zamkniete_zapisy'
+  | 'trwa'
+  | 'zakonczony'
+  | 'odwolany';
+export type TurniejWidocznosc = 'publiczny' | 'na_link';
+export type DruzynaStatus =
+  | 'zgloszona'
+  | 'przyjeta'
+  | 'rezerwa'
+  | 'odrzucona'
+  | 'wycofana';
+export type MeczFaza =
+  | 'grupa'
+  | 'liga'
+  | '1/16'
+  | '1/8'
+  | 'cwierc'
+  | 'polfinal'
+  | 'o_3_miejsce'
   | 'final';
+export type MeczStatus =
+  | 'zaplanowany'
+  | 'trwa'
+  | 'zakonczony'
+  | 'walkower'
+  | 'odwolany';
+export type ZdarzenieTyp = 'gol' | 'samobojczy' | 'zolta' | 'czerwona' | 'punkty';
 
-export type TournamentMatchStatus =
-  | 'pending'
-  | 'proposed'
-  | 'scheduled'
-  | 'played'
-  | 'walkover'
-  | 'disputed';
-
-export type SlotStatus = 'free' | 'reserved' | 'taken';
-
-export interface Tournament {
+export interface Turniej {
   id: string;
-  slug: string;
-  name: string;
+  organizatorId: string;
+  nazwa: string;
   sport: string;
-  city: string;
-  status: TournamentStatus;
-  format: string;
-  maxTeams: number;
-  groupSize: number;
-  advancePerGroup: number;
-  minSquad: number;
-  maxSquad: number;
-  registrationDeadline?: string;
-  startDate?: string;
-  finalsDate?: string;
-  finalsVenue?: string;
-  tagline?: string;
-  prizePool?: string;
-  rules?: string;
-  entryFeeGrosze: number;
-  createdAt: string;
-}
-
-export interface TournamentGroup {
-  id: string;
-  tournamentId: string;
-  name: string;
-  createdAt: string;
-}
-
-export interface TournamentTeam {
-  id: string;
-  tournamentId: string;
-  name: string;
-  district?: string;
-  captainId: string;
-  captainName: string;
-  captainPhone?: string;
-  captainEmail?: string;
-  status: TeamStatus;
-  paidAt?: string;
-  groupId?: string;
-  seed?: number;
-  availabilityDays: number[]; // 1=Mon…7=Sun (ISO)
-  availabilityFrom?: string;
-  availabilityTo?: string;
-  finalsConfirmed: boolean;
-  createdAt: string;
-  members?: TournamentTeamMember[];
-}
-
-export interface TournamentTeamMember {
-  id: string;
-  teamId: string;
-  userId?: string;
-  name: string;
-  position: PlayerPosition;
-  shirtNumber?: number;
-  isCaptain: boolean;
-  isReserve: boolean;
-  createdAt: string;
-}
-
-export interface TournamentVenue {
-  id: string;
-  tournamentId: string;
+  format: TurniejFormat;
+  status: TurniejStatus;
+  widocznosc: TurniejWidocznosc;
   fieldId?: string;
-  name: string;
-  address?: string;
-  district?: string;
-  isPartner: boolean;
+  miejsceNazwa?: string;
+  miejsceAdres?: string;
+  lat?: number;
+  lng?: number;
+  miasto?: string;
+  dataStartu: string; // 'YYYY-MM-DD'
+  dataKonca?: string;
+  godzinaStartu: string; // 'HH:MM'
+  zapisyDo?: string; // ISO
+  maxDruzyn: number;
+  minZawodnikow: number;
+  maxZawodnikow: number;
+  graczyWPolu?: number;
+  liczbaGrup?: number;
+  awansujeZGrupy: number;
+  meczO3Miejsce: boolean;
+  czasMeczuMin: number;
+  przerwaMin: number;
+  punktyZaWygrana: number;
+  punktyZaRemis: number;
+  karnePrzyRemisie: boolean;
+  wpisoweGrosze: number; // kolumna: wpisowe_grosz (bez „e") — jak cost_grosz
+  regulamin?: string;
+  opis?: string;
+  okladkaUrl?: string;
+  wymagaAkceptacji: boolean;
+  mvpZawodnikId?: string;
   createdAt: string;
-  slots?: TournamentVenueSlot[];
+  /** Liczone przy pobieraniu listy, nie kolumna. */
+  liczbaDruzyn?: number;
 }
 
-export interface TournamentVenueSlot {
+/** Pola ustawiane przez kreator (`/turnieje/nowe`) i panel „Ustawienia" —
+ *  te same pola, bo edycja jest tym samym formularzem wypełnionym danymi. */
+export interface TurniejCreate {
+  nazwa: string;
+  sport: string;
+  format?: TurniejFormat;
+  widocznosc?: TurniejWidocznosc;
+  fieldId?: string;
+  miejsceNazwa?: string;
+  miejsceAdres?: string;
+  lat?: number;
+  lng?: number;
+  miasto?: string;
+  dataStartu: string;
+  dataKonca?: string;
+  godzinaStartu?: string;
+  zapisyDo?: string;
+  maxDruzyn?: number;
+  minZawodnikow?: number;
+  maxZawodnikow?: number;
+  graczyWPolu?: number;
+  liczbaGrup?: number;
+  awansujeZGrupy?: number;
+  meczO3Miejsce?: boolean;
+  czasMeczuMin?: number;
+  przerwaMin?: number;
+  punktyZaWygrana?: number;
+  punktyZaRemis?: number;
+  karnePrzyRemisie?: boolean;
+  wpisoweGrosze?: number;
+  regulamin?: string;
+  opis?: string;
+  wymagaAkceptacji?: boolean;
+}
+
+export interface TurniejOsoba {
+  turniejId: string;
+  userId: string;
+  mozeEdytowac: boolean;
+  mozeProwadzic: boolean;
+  mozeZarzadzacDruzynami: boolean;
+  /** Z `profiles`, dołączane przy pobraniu listy. */
+  imie?: string;
+  avatarUrl?: string;
+}
+
+/** Uprawnienia wyliczone jak `uprawnieniaCzlonka()` dla grup — czysta funkcja,
+ *  lustro tego, co liczy RLS w bazie. */
+export interface TurniejUprawnienia {
+  jestOrganizatorem: boolean;
+  mozeEdytowac: boolean;
+  mozeProwadzic: boolean;
+  mozeZarzadzacDruzynami: boolean;
+}
+
+export interface TurniejDruzyna {
   id: string;
-  venueId: string;
-  startsAt: string;
-  durationMin: number;
-  status: SlotStatus;
-  matchId?: string;
+  turniejId: string;
+  nazwa: string;
+  kapitanId?: string;
+  kodDolaczenia: string;
+  status: DruzynaStatus;
+  dodanaRecznie: boolean;
+  grupaId?: string;
+  rozstawienie?: number;
+  pozycjaRecznie?: number;
+  kontaktImie?: string;
+  wpisoweOplaconeAt?: string;
+  regulaminZaakceptowanyAt?: string;
   createdAt: string;
+  zawodnicy?: TurniejZawodnik[];
+  liczbaZawodnikow?: number;
 }
 
-export interface TournamentMatch {
+export interface TurniejZawodnik {
   id: string;
-  tournamentId: string;
-  stage: MatchStage;
-  groupId?: string;
-  round?: number;
-  bracketPosition?: number;
-  teamAId?: string;
-  teamBId?: string;
-  feedsAMatchId?: string;
-  feedsBMatchId?: string;
-  proposedByTeamId?: string;
-  proposedSlot?: string;
-  venueSlotId?: string;
-  venueText?: string;
-  scheduledAt?: string;
-  status: TournamentMatchStatus;
-  scoreA?: number;
-  scoreB?: number;
-  winnerTeamId?: string;
-  reportedByTeamId?: string;
-  confirmedByTeamId?: string;
-  disputeNote?: string;
-  proofUrl?: string;
-  deadline?: string;
-  playedAt?: string;
+  druzynaId: string;
+  turniejId: string;
+  userId?: string;
+  imie: string;
+  numer?: number;
+  kapitan: boolean;
   createdAt: string;
 }
 
-export interface TournamentStanding {
-  teamId: string;
-  tournamentId: string;
-  groupId: string;
-  teamName: string;
-  played: number;
-  won: number;
-  drawn: number;
-  lost: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDiff: number;
-  points: number;
+export interface TurniejGrupa {
+  id: string;
+  turniejId: string;
+  nazwa: string;
+}
+
+export interface TurniejArena {
+  id: string;
+  turniejId: string;
+  nazwa: string;
+  fieldId?: string;
+  kolejnosc: number;
+}
+
+export interface TurniejMecz {
+  id: string;
+  turniejId: string;
+  numer: number;
+  faza: MeczFaza;
+  grupaId?: string;
+  kolejka?: number;
+  pozycjaWDrabince?: number;
+  druzynaAId?: string;
+  druzynaBId?: string;
+  zrodloAMeczId?: string;
+  zrodloBMeczId?: string;
+  zrodloATyp?: 'zwyciezca' | 'przegrany';
+  zrodloBTyp?: 'zwyciezca' | 'przegrany';
+  arenaId?: string;
+  zaplanowanyAt?: string;
+  prowadzacyId?: string;
+  status: MeczStatus;
+  rozpoczetyAt?: string;
+  zakonczonyAt?: string;
+  wynikA: number;
+  wynikB: number;
+  sety?: { a: number; b: number }[];
+  karneA?: number;
+  karneB?: number;
+  wynikRecznie: boolean;
+  walkowerDla?: string;
+  zwyciezcaId?: string;
+  mvpZawodnikId?: string;
+  notatka?: string;
+}
+
+export interface TurniejZdarzenie {
+  id: string;
+  meczId: string;
+  turniejId: string;
+  druzynaId: string;
+  zawodnikId?: string;
+  asystaZawodnikId?: string;
+  typ: ZdarzenieTyp;
+  wartosc: number;
+  minuta?: number;
+  createdAt: string;
+}
+
+export interface TurniejOgloszenie {
+  id: string;
+  turniejId: string;
+  autorId: string;
+  tresc: string;
+  createdAt: string;
+}
+
+/** Wiersz tabeli — liczony w przeglądarce (`lib/turniejTabela.ts`), nie ma
+ *  odpowiednika w bazie: zero widoków SQL w tym module, żeby nie omijać RLS. */
+export interface WierszTabeli {
+  druzynaId: string;
+  nazwa: string;
+  grupaId?: string;
+  mecze: number;
+  wygrane: number;
+  remisy: number;
+  przegrane: number;
+  bramkiZdobyte: number;
+  bramkiStracone: number;
+  roznica: number;
+  punkty: number;
+  /** true, gdy o pozycji zdecydowało `pozycjaRecznie`, a nie liczone kryteria. */
+  rozstrzygnietyRecznie: boolean;
+}
+
+export interface WpisKlasyfikacji {
+  zawodnikId: string;
+  imie: string;
+  numer?: number;
+  druzynaId: string;
+  druzynaNazwa: string;
+  gole: number;
+  asysty: number;
+  zolte: number;
+  czerwone: number;
+  mvp: number;
+  mecze: number;
 }

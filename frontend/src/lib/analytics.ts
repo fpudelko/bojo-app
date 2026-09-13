@@ -33,7 +33,18 @@ export type AnalyticsEvent =
   /** Gość zamienił wpis na konto — realna konwersja, dziś nieznana. */
   | 'guest_claimed'
   /** Organizator wysłał rozliczenie ekipie — czy domknięcie po meczu wychodzi poza jego ekran. */
-  | 'settlement_shared';
+  | 'settlement_shared'
+  // ── MODUŁ TURNIEJOWY (145, Etap 0) ───────────────────────────────────────
+  /** Turniej utworzony — od kreatora do publikacji. */
+  | 'turniej_utworzony'
+  /** Drużyna zgłoszona (samodzielnie albo dodana ręcznie). */
+  | 'turniej_druzyna_zgloszona'
+  /** Ktoś dołączył do drużyny linkiem `/t/[kod]` — kapitanat, „to ja" albo nowy wpis. */
+  | 'turniej_dolaczyl_do_druzyny'
+  /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
+  | 'turniej_mecz_poprowadzony'
+  /** Organizator wysłał link do turnieju/drużyny dalej. */
+  | 'turniej_udostepniony';
 
 export async function track(
   eventType: AnalyticsEvent,

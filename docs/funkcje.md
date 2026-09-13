@@ -3575,6 +3575,32 @@ i szybszą drogą jest własny mecz plus link do znajomych.
 
 ---
 
+## Moduł turniejowy (`/turnieje/*`) — w budowie etapami
+
+Za flagą `SHOW_TURNIEJE` (dziś `false`). Pełny plan produktowy i techniczny →
+[docs/turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) i
+[docs/turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md); stan wdrożenia
+etapów → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
+
+**Etap 0 (migracja `145`) — zbudowane:** turniej z parametrami (`lib/turnieje.ts`),
+zgłoszenia i skład drużyn (`lib/turniejDruzyny.ts`), etykiety i odmiana
+(`lib/turniejEtykiety.ts`). Trasy: `/turnieje` (lista), `/turnieje/nowe` (kreator —
+jeden ekran, nie wielokrokowy wizard jak `/wydarzenia/nowe`), `/turnieje/[id]`
+(zakładki Info/Drużyny), `/turnieje/[id]/zglos`, `/turnieje/[id]/panel` (zakładki
+Drużyny/Ludzie/Ustawienia), `/t/[kod]` (lądowanie z linku drużyny — kapitanat,
+„to ja" do wolnego wpisu składu, albo nowy zawodnik; ten sam wzorzec co `/d/[code]`
+i `/g/[code]`).
+
+**Ściana logowania jest głównym mechanizmem zakładania kont w tym module** — skład
+drużyny (`turniej_zawodnicy`) czyta wyłącznie zalogowany, egzekwowane w RLS, nie w UI
+(patrz [domena.md](./domena.md#turniej-ściana-logowania-i-uprawnienia)).
+
+Kolejne etapy (terminarz generowany automatycznie, konsola prowadzącego z wynikiem
+na żywo, tabela i statystyki, ogłoszenia, „zamień drużynę w ekipę") dochodzą
+w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
+
+---
+
 ## Czego NIE ma
 
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w kodzie — jeśli piszesz dokumentację

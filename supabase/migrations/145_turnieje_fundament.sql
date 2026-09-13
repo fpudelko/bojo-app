@@ -514,6 +514,12 @@ ALTER TABLE notifications
 
 -- Zgłoszenie drużyny → organizator. Przy `wymaga_akceptacji = false` drużyna
 -- wchodzi od razu jako przyjęta, więc treść jest inna: nie ma czego decydować.
+--
+-- CELOWO DWA PEŁNE INSERT-y, NIE JEDEN Z `CASE` NA KOLUMNIE `type`. Test
+-- `typyPowiadomien.test.ts` wyciąga typ statyczną analizą — pierwszy literał
+-- snake_case po nagłówku INSERT-u. `CASE WHEN … THEN 'literal'` ma SWÓJ
+-- literał (wartość porównania) przed właściwym typem, więc wygrałby wyścig
+-- i test złapałby fałszywy typ. Literał musi stać wprost po `user_id`.
 CREATE OR REPLACE FUNCTION powiadom_o_zgloszeniu_druzyny()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_t turnieje%ROWTYPE;
@@ -523,16 +529,15 @@ BEGIN
     RETURN NEW;               -- organizator sam ją dopisał, nie budzimy go
   END IF;
 
-  INSERT INTO notifications (user_id, type, title, body, turniej_id)
-  VALUES (
-    v_t.organizator_id,
-    CASE WHEN NEW.status = 'zgloszona'
-         THEN 'turniej_zgloszenie_druzyny' ELSE 'turniej_druzyna_przyjeta' END,
-    CASE WHEN NEW.status = 'zgloszona'
-         THEN 'Nowe zgłoszenie do turnieju' ELSE 'Nowa drużyna w turnieju' END,
-    NEW.nazwa || ' — ' || v_t.nazwa,
-    v_t.id
-  );
+  IF NEW.status = 'zgloszona' THEN
+    INSERT INTO notifications (user_id, type, title, body, turniej_id)
+    VALUES (v_t.organizator_id, 'turniej_zgloszenie_druzyny',
+            'Nowe zgłoszenie do turnieju', NEW.nazwa || ' — ' || v_t.nazwa, v_t.id);
+  ELSE
+    INSERT INTO notifications (user_id, type, title, body, turniej_id)
+    VALUES (v_t.organizator_id, 'turniej_druzyna_przyjeta',
+            'Nowa drużyna w turnieju', NEW.nazwa || ' — ' || v_t.nazwa, v_t.id);
+  END IF;
   RETURN NEW;
 END $$;
 
@@ -568,3 +573,61 @@ END $$;
 DROP TRIGGER IF EXISTS trg_decyzja_druzyny ON turniej_druzyny;
 CREATE TRIGGER trg_decyzja_druzyny AFTER UPDATE OF status ON turniej_druzyny
   FOR EACH ROW EXECUTE FUNCTION powiadom_o_decyzji_druzyny();
+
+
+-- ── 10. Push niesie turniej_id — ten sam wzorzec co migracja `136` ──────────
+-- `wyslij_push_po_powiadomieniu()` (wyzwalacz z `102`, ostatnio przepisana
+-- w `136`) buduje ładunek `net.http_post` z zamkniętej listy pól i NIE MA
+-- wśród nich `turniej_id` — bez tego pola `adresPowiadomienia()` w funkcji
+-- brzegowej `send-push` widzi tylko `event_id`/`group_id` (oba `NULL` dla
+-- powiadomienia turniejowego) i push ląduje na `/`, mimo że dzwonek w apce
+-- prowadzi poprawnie (`celPowiadomienia()` w `lib/notifications.ts`).
+-- Ten sam błąd, który `136` naprawiało dla `claim_token`, tą samą metodą:
+-- ciało skopiowane z ostatniej definicji, dołożona jedna linia.
+CREATE OR REPLACE FUNCTION wyslij_push_po_powiadomieniu()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+  v_url    TEXT;
+  v_sekret TEXT;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM profiles p
+     WHERE p.id = NEW.user_id AND NEW.type = ANY(p.push_wylaczone)
+  ) THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT wartosc INTO v_url    FROM konfiguracja_push WHERE klucz = 'url';
+  SELECT wartosc INTO v_sekret FROM konfiguracja_push WHERE klucz = 'sekret';
+  IF v_url IS NULL OR v_sekret IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := v_url,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-bojo-sekret', v_sekret
+    ),
+    body    := jsonb_build_object(
+      'id',       NEW.id,
+      'user_id',  NEW.user_id,
+      'tytul',    NEW.title,
+      'tresc',    NEW.body,
+      'typ',      NEW.type,
+      'event_id', NEW.event_id,
+      'group_id', NEW.group_id,
+      'claim_token', NEW.claim_token,
+      -- NOWE (145).
+      'turniej_id', NEW.turniej_id
+    )
+  );
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;

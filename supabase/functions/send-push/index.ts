@@ -47,6 +47,11 @@ function adresPowiadomienia(dane: Record<string, unknown>): string {
     const naTablice = typ === 'wiadomosc_w_grupie' || typ === 'ogloszenie_w_grupie';
     return naTablice ? `/grupy/${dane.group_id}?tab=tablica` : `/grupy/${dane.group_id}`;
   }
+  // Turniej (145) — lustro gałęzi `celPowiadomienia()` w `lib/notifications.ts`.
+  if (dane.turniej_id) {
+    const doPanelu = typ === 'turniej_zgloszenie_druzyny' || typ === 'turniej_kapitan_przejal';
+    return doPanelu ? `/turnieje/${dane.turniej_id}/panel` : `/turnieje/${dane.turniej_id}?tab=druzyny`;
+  }
   return '/';
 }
 
@@ -112,7 +117,8 @@ serve(async (req) => {
     adres: adresPowiadomienia(dane),
     // `tag` po meczu: kolejne powiadomienie o tym samym meczu PODMIENIA
     // poprzednie zamiast układać stos pięciu (patrz `public/sw.js`).
-    tag: dane.event_id ? `mecz-${dane.event_id}` : dane.group_id ? `ekipa-${dane.group_id}` : 'bojo',
+    tag: dane.event_id ? `mecz-${dane.event_id}` : dane.group_id ? `ekipa-${dane.group_id}`
+      : dane.turniej_id ? `turniej-${dane.turniej_id}` : 'bojo',
     // Identyfikator wiersza `notifications` (migracja 119) — `public/sw.js`
     // dokleja go do adresu po kliknięciu, żeby `NotificationBell.tsx` mógł
     // oznaczyć TĘ pozycję jako przeczytaną w dzwonku.

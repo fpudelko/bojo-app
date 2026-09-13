@@ -3,13 +3,13 @@ import robots from '@/app/robots';
 
 // Kontrakt na to, co wolno skanować. Bez tego pliku dodanie trasy za flagą albo
 // kolejnego kreatora cicho wpuszcza go do wyszukiwarek — dokładnie tak wjechały
-// tam /auth/, /turniej, /cykliczne, /obiekt i profile graczy.
+// tam /auth/, /turnieje, /cykliczne, /obiekt i profile graczy.
 
 const WYKLUCZONE = [
-  '/admin', '/api', '/profil', '/moje-gry', '/d/', '/g/',
+  '/admin', '/api', '/profil', '/moje-gry', '/d/', '/g/', '/t/',
   '/auth/', '/logowanie', '/zglos-blad',
   '/wydarzenia/nowe', '/wydarzenia/*/edytuj', '/grupy/nowe', '/grupy/*/edytuj',
-  '/turniej', '/cykliczne', '/obiekt', '/rezerwacje', '/gracz/',
+  '/turnieje', '/cykliczne', '/obiekt', '/rezerwacje', '/gracz/',
 ];
 
 /** Trasy publiczne, które MUSZĄ zostać skanowalne — regresja w drugą stronę. */

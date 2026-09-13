@@ -220,6 +220,30 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     nazwa: 'Uzupełnij profil',
     opis: 'Konto bez imienia i nazwiska — gracze widzą Cię pod adresem e-mail',
   },
+  // Turniej (migracja 145). Cztery typy Etapu 0 — kolejne dochodzą wraz
+  // z kolejnymi etapami modułu, patrz docs/turnieje-plan-*.md.
+  {
+    typ: 'turniej_zgloszenie_druzyny',
+    nazwa: 'Zgłoszenie drużyny do turnieju',
+    opis: 'Drużyna chce zagrać w Twoim turnieju — czeka na Twoją decyzję',
+    wazne: true,
+  },
+  {
+    typ: 'turniej_druzyna_przyjeta',
+    nazwa: 'Wasza drużyna przyjęta',
+    opis: 'Organizator potwierdził zgłoszenie Waszej drużyny',
+    wazne: true,
+  },
+  {
+    typ: 'turniej_druzyna_odrzucona',
+    nazwa: 'Decyzja o zgłoszeniu drużyny',
+    opis: 'Zgłoszenie trafiło na rezerwę albo nie zostało przyjęte',
+  },
+  {
+    typ: 'turniej_kapitan_przejal',
+    nazwa: 'Ktoś przejął drużynę',
+    opis: 'Drużyna, którą dopisałeś ręcznie, ma teraz swojego kapitana',
+  },
 ];
 
 /**
