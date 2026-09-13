@@ -553,7 +553,7 @@ test.describe('okna na telefonie', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    await klik(page, /wypisz się z meczu/i);
+    await klik(page, WYJSCIE_ZE_SKLADU);
     // Gdyby okno siedziało pod paskiem, Playwright zgłosi „intercepts pointer
     // events" właśnie tutaj — to jest test na tę konkretną regresję.
     // `exact`, bo w oknie stoi teraz także „Wypisz mnie, ale obserwuj" —
@@ -953,11 +953,18 @@ test.describe('kreator meczu — kolejne kroki', () => {
 // osoba spoza składu dostaje zdanie wyjaśniające zamiast pustki. Drugie jest
 // łatwe do zepsucia: warunek renderowania nie może pytać o sam numer, bo
 // wtedy wyjaśnienie znika dokładnie przed tym, komu jest potrzebne.
+//
+// OD 2026-09-13 OBA PATRZĄ W ZAKŁADKĘ ROZLICZENIA, nie w nagłówek meczu —
+// tam zeszła karta „Jak zapłacić" razem z resztą informacji o płatności
+// (nagłówek powtarzał to, co i tak widać niżej). Asercje są te same, zmieniło
+// się wyłącznie miejsce; ta zmiana wyszła właśnie z tej bramki, bo usunięcie
+// akapitu z nagłówka zabrało wyjaśnienie osobie spoza składu.
 
 test.describe('numer BLIK', () => {
   test('uczestnik widzi numer', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await otworzMecz(page, MECZ.platnyZagrany);
+    await klik(page, 'Rozliczenia', { exact: true });
     await uspokoj(page);
 
     // Mecz jest z wczoraj, więc reguła „dopiero na godzinę przed" (canSeeBlikPhone)
@@ -968,6 +975,7 @@ test.describe('numer BLIK', () => {
   test('ktoś spoza składu dostaje wyjaśnienie, nie pustkę', async ({ page }) => {
     await zaloguj(page, KONTA.drugiGracz);
     await otworzMecz(page, MECZ.platnyZagrany);
+    await klik(page, 'Rozliczenia', { exact: true });
     await uspokoj(page);
 
     await expect(tresc(page).getByText('555111222')).toHaveCount(0);

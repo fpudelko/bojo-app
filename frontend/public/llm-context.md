@@ -436,8 +436,10 @@ składu mówi wyłącznie dolny pasek — niesie też rolę („· bramkarz") i 
 czas; przycisk w treści zostaje tylko tam, gdzie paska nie ma (mecz odwołany, gość
 z linku), żeby nikt nie został bez drogi wyjścia. Zdanie o tym, kto zobaczy prywatny mecz
 ekipy, mówi już tylko kreator — w chwili, gdy decyzja zapada i nie ma jeszcze pigułki,
-która by ją pokazała. Akceptowane karty sportowe i sposoby zapłaty widać tam, gdzie są
-potrzebne: w oknie dołączania i w rozliczeniach.
+która by ją pokazała. Akceptowane karty sportowe i sposoby zapłaty zeszły z nagłówka do
+zakładki Rozliczenia, do karty „Twoja płatność" — obok kwoty i sposobu wybranego przez
+gracza, czyli tam, gdzie to pytanie naprawdę pada; przed dołączeniem wymienia je okno
+zapisu.
 
 MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
 jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
