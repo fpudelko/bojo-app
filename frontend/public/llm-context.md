@@ -370,6 +370,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Dolny pasek: „Grupy" zamiast „Ekipy", środek dla turnieju, mecz z kapsułki
+
+PROBLEM: środek dolnego paska nawigacji Bojo zajmował wystający zielony przycisk „+"
+(„Nowy") — jedyny element interfejsu, który wychodził ponad pasek, więc przyciągał wzrok
+mocniej niż cokolwiek innego na ekranie. Dostawał najcenniejsze miejsce w aplikacji za
+czynność organizatora, którą robi się raz na tydzień, podczas gdy gracz otwiera Bojo, żeby
+zobaczyć swoje mecze i rozmowy. Druga rzecz: zakładka prowadząca do `/grupy` była podpisana
+„Ekipy", czyli innym słowem niż adres strony i niż nazwa encji, którą opisuje.
+
+ROZWIĄZANIE BOJO: pasek ma pięć równych, płaskich pozycji — Mecze · Szukaj · Turniej ·
+Rozmowy · Grupy. Środek prowadzi do strony turnieju (`/turniej`). Zakładka `/grupy` nazywa
+się „Grupy"; słowo „ekipa" zostaje w zdaniach interfejsu („zbierz ekipę"), etykieta
+nawigacji nazywa miejsce. Tworzenie meczu przeniosło się na ekran „Mecze" jako kapsułka
+„Dodaj nowy mecz" nad zakładkami — widoczna także z Historii, czyli w momencie, w którym
+organizator ogląda poprzedni termin. Pozostałe wejścia do kreatora (nagłówek na desktopie,
+strona grupy, mapa, strona boiska, puste stany list) nie zmieniły się.
+
+MECHANIKA: `components/layout/BottomNav.tsx` (`CENTER_ITEM`, `RIGHT_ITEMS`), kapsułka
+w `app/moje-gry/page.tsx` z `aria-label="Stwórz nowy mecz"`. Środkowa pozycja NIE jest
+schowana za flagą `SHOW_CUP` (`lib/features.ts`, dziś `false`) — to świadomy podgląd do
+oceny układu przed decyzją o turniejach. Mecz z kontekstem grupy zakłada się linkiem
+„+ Nowy termin" na stronie grupy (dawniej robił to FAB na trasie `/grupy/<id>`).
+
 ### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
 
 PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
@@ -663,30 +686,4 @@ i `140` (`profiles.mail_wylaczone`, `wyslij_mail_do_konta()`, wyzwalacz
 `app/wydarzenia/[id]/edytuj/page.tsx`, `supabase/functions/powiadom-goscia`.
 Testy: `supabase/test/powiadomienia-o-zmianie.sql`, `supabase/test/poczta-do-kont.sql`,
 `src/__tests__/zmianyMeczu.test.ts`.
-
-### 2026-09-08 — Lista rezerwowa dotrzymuje tego, co obiecuje
-
-PROBLEM: Bojo mówiło rezerwowemu, że po odpuszczeniu miejsca dostanie kolejną ofertę, gdy
-zwolni się następne — i tego nie robiło. To samo dotyczyło osoby, która po prostu nie
-zdążyła odpowiedzieć w wyznaczonym czasie: znikała z kolejki na zawsze, bez żadnej
-wiadomości. Organizator tracił przez to rezerwowego po jednym nieodebranym powiadomieniu
-i nie miał jak się o tym dowiedzieć. Gość bez konta stojący na rezerwie nie dostawał oferty
-NIGDY, choć wiadomość po zapisie obiecywała mu ją wprost. Gracz, który sam wycofał prośbę
-o dołączenie, dostawał komunikat „Organizator nie przyjął Twojej prośby".
-
-ROZWIĄZANIE BOJO: odpuszczenie i brak odpowiedzi to teraz dwie różne rzeczy. Kto klika
-„Odpuszczam", wypada z kolejki i wie o tym z góry. Kto nie zdążył, wraca na koniec kolejki
-i dostaje o tym wiadomość — czyli zostaje w grze. Gość bez konta, który podał adres,
-dostaje ofertę mailem i może ją przyjąć albo odpuścić na stronie swojego zapisu. Gość bez
-adresu jest oznaczony w składzie, żeby organizator wiedział, kogo kolejka pominie. Liczba
-„N. w kolejce" liczy się jedną regułą, tą samą co w bazie, i uwzględnia osobne kolejki dla
-bramkarzy i dla gry w polu.
-
-MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
-`ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`, powiadomienie
-`oferta_wygasla`, warunek `auth.uid()` w `powiadom_o_odrzuceniu_prosby()`), migracja `137`
-(`sync_reserve_claim()` przyjmuje gościa z adresem, powód poczty `oferta`,
-`przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
-`lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
-i `supabase/test/poczta-goscia.sql`.
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { MessageCircle, Plus, CalendarDays, Users as UsersIcon } from 'lucide-react';
+import { MessageCircle, Trophy, CalendarDays, Users as UsersIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { hasPendingApprovalRequests, getNearbyEvents, maNoweWydarzeniaWPobolizu, policzNadchodzaceMoje, KLUCZ_WYDARZENIA_WIDZIANO } from '@/lib/events';
@@ -66,14 +66,14 @@ function BallIcon({ className }: { className?: string }) {
 // nie odkryje sam. Wskaźnik nieprzeczytanych wisiał nad ikonami, które
 // o wiadomościach nie mówiły nic; dziś siedzi na ikonie podpisanej „Rozmowy",
 // jako różowa plakietka z LICZBĄ.
-// KOLEJNOŚĆ: Mecze · Szukaj · ＋ · Rozmowy · Ekipy.
+// KOLEJNOŚĆ: Mecze · Szukaj · Turniej · Rozmowy · Grupy.
 //
 // „Moje mecze" na PIERWSZEJ pozycji, bo to jest dom zalogowanego. Człowiek
 // wraca do Bojo, żeby zobaczyć SWOJĄ grę — czy się odbędzie, kto doszedł, o
 // której się zbieramy — a nie żeby szukać nowej. Szukanie to czynność
 // jednorazowa na ekipę; oglądanie swojego meczu powtarza się co drugi dzień.
 //
-// „Rozmowy" tuż przy środkowym „＋", bo to drugi najczęstszy powód otwarcia
+// „Rozmowy" tuż przy środkowej pozycji, bo to drugi najczęstszy powód otwarcia
 // aplikacji („ktoś wypadł?", „o której jutro?").
 //
 // Zastrzeżenie, świadomie przyjęte: świeże konto zobaczy na pierwszej pozycji
@@ -96,23 +96,37 @@ const LEFT_ITEMS = [
 
 const RIGHT_ITEMS = [
   { href: '/rozmowy', label: 'Rozmowy', Icon: MessageCircle },
-  { href: '/grupy',   label: 'Ekipy',   Icon: UsersIcon },
+  // „Grupy", nie „Ekipy". Wcześniej stało tu dokładnie odwrotnie (komentarz
+  // wyżej: „«Grupy» kłóciło się z «ekipą», której produkt używa wszędzie
+  // indziej") — i to jest ta decyzja cofnięta świadomie. Powód: adres trasy
+  // to `/grupy`, encja w bazie to `groups`, a „ekipa" zostaje słowem, którym
+  // MÓWIMY o składzie w zdaniach („zbierz ekipę"). Etykieta nawigacji ma
+  // nazywać MIEJSCE, a miejsce nazywa się Grupy.
+  { href: '/grupy',   label: 'Grupy',   Icon: UsersIcon },
 ] as const;
 
-/** `/grupy/<uuid>` (nie `/grupy/nowe`, nie `/grupy/<uuid>/edytuj`) — wyłącznie
- *  strona konkretnej ekipy niesie kontekst grupy do kreatora meczu. */
-function groupIdFromPathname(pathname: string): string | null {
-  const m = pathname.match(/^\/grupy\/([^/]+)$/);
-  if (!m || m[1] === 'nowe') return null;
-  return m[1];
-}
+// ŚRODKOWA POZYCJA: TURNIEJ, NIE WYSTAJĄCY „＋".
+//
+// Do 2026-09-13 środek paska zajmował okrągły FAB „Nowy" — jedyny element
+// nawigacji, który wystawał ponad pasek i przyciągał wzrok mocniej niż
+// wszystko inne na ekranie. Tworzenie meczu jest czynnością ORGANIZATORA
+// i zdarza się raz na tydzień; środek paska to najcenniejsze miejsce w całej
+// aplikacji i dostaje je dziś treść, po którą wraca się częściej.
+//
+// „Dodaj nowy" przeniosło się do kapsułki na górze zakładki „Mecze"
+// (`app/moje-gry/page.tsx`) — czyli tam, gdzie organizator już jest, kiedy
+// myśli o kolejnym terminie.
+//
+// UWAGA, DECYZJA JESZCZE NIE ZAPADŁA: pozycja celowo NIE jest dziś schowana
+// za `SHOW_CUP` (flaga stoi na `false`), żeby dało się zobaczyć układ paska.
+// Gdy rozstrzygniemy, czy i jak robimy turnieje, to jest miejsce na
+// `SHOW_CUP &&` albo na przestawienie flagi — patrz `lib/features.ts`.
+const CENTER_ITEM = { href: '/turniej', label: 'Turniej', Icon: Trophy } as const;
 
 export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const groupId = groupIdFromPathname(pathname);
-  const nowyHref = groupId ? `/wydarzenia/nowe?group=${groupId}` : '/wydarzenia/nowe';
 
   // Leniwie przy każdej zmianie trasy — ten sam wzorzec "leniwego" odpalania
   // co reszta powiadomień w repo, bez kanału realtime dla zwykłej kropki.
@@ -411,7 +425,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
         ikony przypinają dymek do swojej wewnętrznej krawędzi zamiast go
         centrować nad ikoną. */
     dymekAlign?: 'left' | 'center' | 'right';
-    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś tylko na „Ekipy"
+    /** Handlery przytrzymania (`useDlugieWcisniecie`) — dziś tylko na „Grupy"
         (skok do najbliższej ekipy, patrz `gestGrupy`), stąd opcjonalne.
         Rozłożone wprost na `<Link>`. */
     gest?: Record<string, unknown>;
@@ -553,19 +567,11 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
         })}
 
 
-        {/* Centre FAB — always accessible, can't be deselected. Na stronie
-            konkretnej ekipy prowadzi do kreatora z już wybraną grupą — to jest
-            "przycisk nowy tworzy mecz od razu przypisany do tej grupy". */}
-        <Link
-          href={nowyHref}
-          aria-label="Stwórz nowy mecz"
-          className="flex h-full flex-col items-center justify-center gap-0.5 pb-2 group"
-        >
-          <span className="flex h-12 w-12 -mt-4 items-center justify-center rounded-full bg-primary-700 text-white shadow-lg ring-4 ring-white group-active:scale-95 transition-transform">
-            <Plus className="w-6 h-6" />
-          </span>
-          <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
-        </Link>
+        {/* Środek paska — zwykła pozycja, bez wystającego koła. Wcześniej
+            stał tu FAB „Nowy"; jego rolę przejęła kapsułka „Dodaj nowy mecz"
+            w zakładce „Mecze". Powód i zastrzeżenie o fladze — przy
+            `CENTER_ITEM` wyżej. */}
+        <NavLink {...CENTER_ITEM} />
 
         {RIGHT_ITEMS.map((item, i) => {
           const dots: { color: string; label: string; position: 'top-right' | 'top-left' | 'bottom-right' }[] = [];
@@ -579,7 +585,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
           // sam FAB. Zgłoszone wprost z sesji QA: „dymek «Nowa wiadomość
           // w grupie …» przykleja się nad tab barem i zasłania FAB «Nowy»,
           // widoczny praktycznie wszędzie". `left` każe mu rosnąć w stronę
-          // „Ekipy", nie w stronę FAB-u.
+          // „Grupy", nie w stronę środkowej pozycji.
           const dymekAlign = i === 0 ? 'left' : i === RIGHT_ITEMS.length - 1 ? 'right' : 'center';
           // ROZMOWY: LICZBA, NIE CHMURKA. Chmurka mówiła „ktoś napisał" i na
           // tym kończyła — nad ikoną podpisaną „Rozmowy" powtarzała słowo,

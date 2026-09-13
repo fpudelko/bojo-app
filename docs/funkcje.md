@@ -382,9 +382,31 @@ wydłużał dokument o 64 px — po dojechaniu do dołu każda strona dla zalogo
 kończyła się pustym pasem tła. Wartość `--bottom-nav-h` (`3.5rem` + `env(safe-area-inset-bottom)`)
 musi się zgadzać z rzeczywistą wysokością paska (`h-14` w `BottomNav.tsx`).
 
-**Kropki na „Mecze", „Ekipy" i „Szukaj".** Niebieska na „Mecze" (dolny róg, pod
+**Pięć pozycji: Mecze · Szukaj · Turniej · Rozmowy · Grupy — od 2026-09-13.**
+Zmieniły się dwie rzeczy i obie są PODGLĄDEM DO OCENY, nie decyzją zamkniętą:
+
+- **Środek paska przestał być wystającym FAB-em „Nowy"** i jest zwykłą, płaską pozycją
+  „Turniej" (`/turniej`, ikona `Trophy`). Powód: środek paska to najcenniejsze miejsce
+  w aplikacji, a tworzenie meczu jest czynnością organizatora raz na tydzień. Pozycja
+  **celowo nie jest schowana za `SHOW_CUP`** (flaga stoi na `false`, patrz
+  [Flagi funkcji](#flagi-funkcji)) — żeby dało się zobaczyć układ. Gdy rozstrzygniemy,
+  czy i jak robimy turnieje, to jest miejsce albo na `SHOW_CUP &&`, albo na przestawienie
+  flagi.
+- **Etykieta `/grupy` to „Grupy", nie „Ekipy".** Wcześniejsza decyzja brzmiała odwrotnie
+  („Grupy kłóciło się z ekipą, której produkt używa wszędzie indziej") i została cofnięta
+  świadomie: adres trasy to `/grupy`, encja w bazie to `groups`, a „ekipa" zostaje słowem,
+  którym MÓWIMY o składzie w zdaniach. Etykieta nawigacji nazywa MIEJSCE. Razem z nią
+  zmieniły się trzy napisy na samym `/grupy`, które też nazywają rzecz, a nie ludzi:
+  „Twoje grupy", „Nie masz jeszcze grupy", „Załóż grupę". Zdania o SKŁADZIE zostają
+  z „ekipą" („Zbierz ekipę w jednym miejscu"), tak samo jak reszta interfejsu,
+  powiadomienia i maile — ujednolicenie całego słownictwa to osobna, większa zmiana.
+
+Tworzenie meczu przeniosło się do kapsułki „Dodaj nowy mecz" na `/moje-gry` (opis niżej,
+przy tej stronie).
+
+**Kropki na „Mecze", „Grupy" i „Szukaj".** Niebieska na „Mecze" (dolny róg, pod
 zieloną plakietką) — oczekujące prośby o dołączenie (`hasPendingApprovalRequests()`,
-`lib/events.ts`). Pomarańczowa na „Ekipy" (prawy górny róg) — nowy mecz w którejkolwiek
+`lib/events.ts`). Pomarańczowa na „Grupy" (prawy górny róg) — nowy mecz w którejkolwiek
 mojej ekipie od ostatniej wizyty na jej stronie (`hasNewGroupEvents()` w `lib/groups.ts`,
 ten sam znacznik `kluczGrupyWidziano()` co kropka na karcie ekipy niżej). Pomarańczowa na
 „Szukaj" (prawy górny róg) — nowe wydarzenie w promieniu 5 km od ostatniej wizyty
@@ -475,7 +497,7 @@ etykieta z krótkim wyjaśnieniem: „Nowa prośba o dołączenie" (niebieska, �
 wiadomość w meczu {tytuł}" i „Nowa wiadomość w grupie {nazwa}" (obie kierowane na
 „Rozmowy" — tytuł i nazwa z `najswiezszaNieprzeczytana()` w `lib/rozmowy.ts`, czyli
 z tej samej listy, która karmi plakietkę; osobne typy/liczniki, żeby dymek jednoznacznie
-wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Ekipy"
+wiedział, przy której ikonie stanąć), „Nowa gra w grupie {nazwa}" (pomarańczowa na „Grupy"
 — `getNewGroupEventGroup()` w `lib/groups.ts`, ekipa z najświeższym nowym meczem, gdy
 nowych jest kilka naraz), „Nowa gra w promieniu 5 km" (pomarańczowa na „Szukaj").
 Licznik pokazań w `localStorage` (`bojo:dymek-pokazania:<typ>`) jest per typ — po 5
@@ -628,7 +650,7 @@ do pisania, które i tak odbije baza. Obie trasy są `noindex`.
 `lib/historia.tsx` — od 2026-08-23. Ekrany szczegółowe miały wstecz zapisane na sztywno
 do JEDNEGO rodzica, mimo że wchodzi się na nie z wielu miejsc. Do `/grupy/[id]` prowadzi
 siedem dróg (kafelek na stronie głównej, `/moje-gry`, lista rozmów, strona meczu,
-przytrzymanie „Ekipy", kod zaproszenia, przełącznik ekip), a wstecz zawsze szło na
+przytrzymanie „Grupy", kod zaproszenia, przełącznik ekip), a wstecz zawsze szło na
 `/grupy`; do `/rozmowy/[id]` wchodzi się też z profilu gracza, a wstecz zawsze szło na
 `/rozmowy`. Opisane przez użytkownika jako „wstecz prowadzi w losowe miejsca" — nie było
 losowe, było stałe i przez to prawie zawsze złe.
@@ -1333,8 +1355,12 @@ Pusty stan „Nadchodzące" to `PustyStanMeczow` („Nie masz zaplanowanych gier
 „Stwórz mecz" / „Znajdź grę"), renderowany, gdy `playing` jest puste. Odpowiada na inne
 pytanie niż lista — „nie mam nic, co teraz?" — i daje dwie drogi wyjścia zamiast pustki.
 
-Nagłówek „Twoje mecze" i przycisk „+ Nowy mecz" zniknęły ze strony — mecz tworzy się
-z FAB-a (`+`) w dolnej nawigacji, dostępnego z każdego ekranu na mobile.
+Nagłówek „Twoje mecze" zniknął ze strony, a tworzenie meczu wróciło na nią **kapsułką
+„Dodaj nowy mecz"** nad zakładkami (`rounded-full`, zielona, `aria-label="Stwórz nowy
+mecz"`). Między 2026-08 a 2026-09-13 mecz tworzyło się wystającym FAB-em ze środka dolnej
+nawigacji — środek paska dostał „Turniej", a tworzenie meczu wróciło tam, gdzie
+organizator i tak jest, kiedy myśli o kolejnym terminie. Kapsułka stoi NAD zakładkami,
+więc widać ją także z Historii („powtórz to, w co graliśmy").
 
 **Zakładka „Historia" ma na górze sekcję „Do rozliczenia"** (`DoRozliczeniaSection`,
 `components/home/dashboard/DashboardSections.tsx`) — rozegrane, płatne mecze organizatora,
@@ -2201,10 +2227,11 @@ statusem uczestnictwa) plus osobny przycisk „Udostępnij mecz" pod spodem; gdy
 ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym kliknięciem
 (`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co poprzednio —
 całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja `072`/`093`);
-gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora. Środkowy FAB dolnej
-nawigacji na trasie `/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>`
-(`BottomNav.tsx`) — to samo działanie na desktopie robi tekstowy „+ Nowy termin"
-w zakładce Mecze.
+gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora. **Do 2026-09-13
+środkowy FAB dolnej nawigacji na trasie `/grupy/<id>` sam prowadził do
+`/wydarzenia/nowe?group=<id>`** — FAB-a nie ma, więc mecz z kontekstem grupy zakłada się
+dziś linkiem „+ Nowy termin" w zakładce Mecze grupy (ten sam adres, na mobile i na
+desktopie). Kapsułka „Dodaj nowy mecz" na `/moje-gry` kontekstu grupy nie niesie.
 
 Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
 nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
@@ -2458,7 +2485,10 @@ więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `unde
 i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
 
 **Jedyny odstęp pod composerem to `odstepNadPaskiem()`** — dokładnie tyle, ile guzik
-„Nowy" WYSTAJE ponad pasek nawigacji (`-mt-4` plus `ring-4` w `BottomNav.tsx`, ~20 px).
+„Nowy" WYSTAWAŁ ponad pasek nawigacji (`-mt-4` plus `ring-4` w `BottomNav.tsx`, ~20 px).
+Od 2026-09-13 guzika nie ma (środek paska to płaska pozycja „Turniej"), więc odstęp
+został zwykłym luzem pod composerem — do skasowania świadomie, bo ruszy wzorce zrzutów
+czterech widoków czatu.
 `--bottom-nav-h` opisuje sam pasek, więc bez tej poprawki pole do pisania wchodziło pod
 guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem). Przy otwartej klawiaturze
 odstęp znika: paska wtedy nie widać, a pusty pas nad klawiaturą to błąd z rundy
