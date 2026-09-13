@@ -49,7 +49,7 @@ export default function NieGramButton({ eventId, userId }: { eventId: string; us
       <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">
         {odmowilem
           ? 'Ekipa wie, że tym razem nie zagrasz.'
-          : 'Twoja ekipa tu gra. Nie dasz rady?'}
+          : 'Grasz w tym meczu?'}
       </p>
       <button
         onClick={handleClick}
