@@ -33,7 +33,13 @@ export type AnalyticsEvent =
   /** Gość zamienił wpis na konto — realna konwersja, dziś nieznana. */
   | 'guest_claimed'
   /** Organizator wysłał rozliczenie ekipie — czy domknięcie po meczu wychodzi poza jego ekran. */
-  | 'settlement_shared';
+  | 'settlement_shared'
+  /** Ktoś pobrał termin meczu jako `.ics` (`{ eventId }`). Mierzy, czy kalendarz
+   *  telefonu jest realną drogą powrotu na mecz, czy tylko naszym założeniem —
+   *  bez tego licznika „Do kalendarza" zostaje przyciskiem, o którym nie da się
+   *  powiedzieć, czy ktokolwiek go dotyka. Kolumna `event_type` to zwykły TEXT
+   *  bez ograniczenia (migracja `047`), więc nowa wartość nie wymaga migracji. */
+  | 'event_do_kalendarza';
 
 export async function track(
   eventType: AnalyticsEvent,

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
+  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -40,6 +40,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { pobierzIcs } from '@/lib/kalendarz';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
@@ -1824,6 +1825,32 @@ export default function EventDetailClient() {
   /** Jedna ścieżka udostępniania dla całej strony — patrz `lib/eventShare.ts`.
    *  Adres bierzemy z `eventUrl`, a nie z `window.location.href`, bo ten drugi
    *  potrafi nieść parametry widoku (np. `?utworzono=1` tuż po publikacji). */
+  /** „Do kalendarza" — plik `.ics` składany w przeglądarce (`lib/kalendarz.ts`).
+   *  Miejsce składamy z obu części `eventLocation()`: `primary` bywa samą nazwą
+   *  obiektu („Orlik Rataje"), `secondary` samym adresem — do kalendarza chcemy
+   *  jedno i drugie, bo za tydzień sama nazwa nie wystarczy, żeby tam trafić. */
+  const handleDoKalendarza = () => {
+    const miejsce = [eventLoc.primary, eventLoc.secondary].filter(Boolean).join(', ');
+    const ok = pobierzIcs({
+      id: event.id,
+      tytul: eventDisplayTitle(event),
+      data: event.date,
+      godzina: event.time,
+      godzinaKonca: event.endTime,
+      miejsce: miejsce || null,
+      opis: event.description,
+      url: eventUrl(event.id, window.location.origin),
+    });
+    if (ok) {
+      // Potwierdzenie jest potrzebne, bo pobranie pliku na telefonie bywa
+      // niewidoczne: Android chowa je w pasku powiadomień, a iOS pokazuje
+      // arkusz dopiero po chwili. Bez tego dotknięcie wygląda na nieudane
+      // i człowiek klika drugi raz.
+      toast('Plik z terminem pobrany — otwórz go, żeby dodać mecz do kalendarza');
+      track('event_do_kalendarza', { eventId: event.id });
+    }
+  };
+
   const handleShare = async () => {
     // Zdarzenie leci PRZED arkuszem systemowym, bo „anulowałem arkusz”
     // i „nie umiem odróżnić anulowania od udanego wysłania” to na
@@ -2642,6 +2669,69 @@ export default function EventDetailClient() {
             </div>
           );
         })()}
+
+      {/* ── JAK ZAPŁACIĆ ── co organizator PRZYJMUJE.
+          Zeszło tu 2026-09-13 z nagłówka meczu, gdzie stało szarym akapitem nad
+          licznikiem miejsc („Gotówka · Karty sportowe: …") i było jednym z dwóch
+          powtórzeń, które kazano stamtąd zdjąć.
+
+          RENDERUJE SIĘ KAŻDEMU, kto widzi tę zakładkę — nie tylko składowi.
+          To nie jest kosmetyka: karta „Twoja płatność" wyżej wymaga
+          `myConfirmed`, a okno zapisu wymienia akceptowane karty tylko PRZED
+          dołączeniem. Bez tej karty zdanie „numer do BLIKA zobaczysz, jeśli
+          dołączysz do składu" nie istniałoby nigdzie — a to jest dokładnie ta
+          rzecz, której pilnuje scenariusz „ktoś spoza składu dostaje
+          wyjaśnienie, nie pustkę" (migracje `120`/`121` wyjęły numer do osobnej
+          tabeli z własnym RLS; warunek NIE pyta o sam numer, bo osoba spoza
+          składu go w danych nie ma i wyjaśnienie zniknęłoby przed tym, komu
+          jest potrzebne).
+
+          Zapisany gracz, który wybrał BLIK, widzi numer i tutaj, i w „Twojej
+          płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
+      {event.costGrosze > 0
+        && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+            <Banknote className="w-4 h-4" /> Jak zapłacić
+          </h2>
+          {event.acceptedPaymentMethods.length > 0 && (
+            <div className="flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Przyjmowane</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+              </span>
+            </div>
+          )}
+          {event.acceptedPaymentMethods.includes('blik') && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Numer BLIK</span>
+              <span className="min-w-0 text-right">
+                {event.blikPhone && canSeeBlikPhone({
+                  isOrganizer: isOwner || canManagePayments,
+                  isInSquad: !!myParticipation,
+                  minutesToStart: minutesUntilStart(event.date, event.time),
+                }) ? (
+                  <span className="font-semibold text-ink">{event.blikPhone}</span>
+                ) : myParticipation ? (
+                  <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
+                ) : (
+                  <span className="text-slate-400">numer do BLIKA zobaczysz, jeśli dołączysz do składu</span>
+                )}
+              </span>
+            </div>
+          )}
+          {event.acceptedSportsCards.length > 0 && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Karty sportowe</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
+                {event.sportsCardDiscountGrosze != null
+                  && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 
@@ -2867,11 +2957,22 @@ export default function EventDetailClient() {
             swoją treść. */}
         {tab === 'sklad' && (
         <div className="px-4">
-          {event.description && (
-            <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
-              {event.description}
-            </p>
-          )}
+          {/* OPIS MECZU ZSZEDŁ STĄD POD LICZNIK SKŁADU — 2026-09-13.
+              Stał tu jako pierwsza rzecz w zakładce, nad pigułkami, kartą
+              „Kiedy i gdzie" i licznikiem miejsc, a ma do tysiąca znaków
+              (`LIMIT_OPISU` w `EventTitleDescriptionField.tsx`). Organizator,
+              który opisał zasady akapitem, spychał termin, adres i „ile
+              zostało miejsc" pod zgięcie ekranu — czyli dokładnie te trzy
+              fakty, po które wchodzi się na tę stronę. Ten sam argument zdjął
+              stąd wcześniej „Udostępnij"/„Kopiuj" (komentarz niżej: „pół
+              ekranu nad najważniejszą informacją, czyli licznikiem miejsc") —
+              opis kosztował więcej i został.
+
+              Nowe miejsce: pod składem i pod blokami stanu (wypisanie się,
+              rezerwa, oferta miejsca). Dla niezapisanego te bloki nie
+              renderują nic, więc opis wypada tuż pod licznikiem; zapisany
+              dostaje najpierw swoje wyjścia, a opis czyta się raz, przed
+              dołączeniem. */}
           <div className="mt-3 flex flex-wrap gap-2">
             {/* My relation to this match — the two axes (ownership × participation)
                 shown up front, so nobody has to expand the roster to learn
@@ -3042,13 +3143,15 @@ export default function EventDetailClient() {
               widoczności w chwili, gdy decyzja dopiero zapada i nie ma jeszcze
               żadnej pigułki, która by ją pokazała.
 
-              2. Wiersz „Gotówka · Karty sportowe: …" zszedł stąd, bo powtarzał
-              się dokładnie tam, gdzie jest potrzebny: okno dołączania wymienia
-              akceptowane karty („Akceptowane: …") i każe wybrać sposób zapłaty,
-              a zakładka Rozliczenia pokazuje metodę i numer BLIK-a. Reguła
-              dostępu do numeru (`canSeeBlikPhone`) siedzi tam nietknięta —
-              tutaj znika sam NAPIS, nie żadne uprawnienie. Cenę i tak niesie
-              pigułka „7 zł / os." w rzędzie wyżej. */}
+              2. Wiersz „Gotówka · Karty sportowe: …" PRZENIÓSŁ SIĘ do zakładki
+              Rozliczenia, do karty „Twoja płatność" (wiersze „Przyjmowane"
+              i „Karty sportowe") — tam stoi obok kwoty do zapłaty i sposobu,
+              który gracz sam wybrał. Nie dało się go po prostu skasować: okno
+              zapisu wymienia akceptowane karty tylko PRZED dołączeniem, więc
+              zapisany gracz nie miałby już gdzie sprawdzić, czy przejdzie jego
+              Multisport. Reguła dostępu do numeru BLIK (`canSeeBlikPhone`)
+              siedzi nietknięta tam, gdzie była. Cenę i tak niesie pigułka
+              „7 zł / os." w rzędzie wyżej. */}
         </div>
         )}
 
@@ -3193,11 +3296,30 @@ export default function EventDetailClient() {
             {(dojazdHref || event.fieldId) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {dojazdHref && (
+                  // JEDEN PRIMARY NA EKRANIE — „Nawiguj" jest zielony
+                  // i wypełniony dokładnie wtedy, gdy dolny pasek NIE pokazuje
+                  // „Dołącz do meczu". Do 2026-09-13 był `bg-primary-700`
+                  // zawsze, więc niezapisany widział dwa wypełnione zielone
+                  // przyciski o tej samej wadze, z których jeden prowadził
+                  // w Mapy Google, zanim w ogóle zdecydował, że zagra.
+                  //
+                  // Warunek to `joinBarVisible`, a nie `myParticipation`,
+                  // bo to dokładnie ta sama zmienna, która rządzi tamtym
+                  // przyciskiem — oba nie mogą być prymarne naraz z definicji,
+                  // a nie przez zbieg dwóch osobnych warunków, które ktoś
+                  // kiedyś rozjedzie. Po starcie meczu, przy odwołanym
+                  // i przy zamkniętych zapisach pasek gaśnie, a dojazd staje
+                  // się główną rzeczą do zrobienia na tej stronie — i wtedy
+                  // wygląda na główną.
                   <a
                     href={dojazdHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition active:scale-95"
+                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm transition active:scale-95 ${
+                      joinBarVisible
+                        ? 'border border-primary-200 bg-primary-50 font-semibold text-primary-700 hover:bg-primary-100 dark:border-primary-800'
+                        : 'bg-primary-700 font-bold text-white'
+                    }`}
                   >
                     <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
                   </a>
@@ -3210,6 +3332,24 @@ export default function EventDetailClient() {
                   >
                     <MapPin className="h-4 w-4" strokeWidth={2.25} /> O boisku
                   </Link>
+                )}
+                {/* DO KALENDARZA — przy terminie, nie przy przycisku zapisu.
+                    Tu stoi data, więc tu pada pytanie „czy mi to pasuje";
+                    odpowiedź „sprawdzę w kalendarzu" ma być jednym dotknięciem
+                    dalej, a nie przewijaniem na dół strony.
+
+                    Widoczne dla KAŻDEGO, także niezapisanego: kalendarz bywa
+                    tym, co rozstrzyga, czy w ogóle da się dołączyć. Znika po
+                    starcie meczu i przy odwołanym — wtedy wpis kalendarza już
+                    niczego nie planuje. */}
+                {!eventStarted && !isCancelled && (
+                  <button
+                    type="button"
+                    onClick={handleDoKalendarza}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Do kalendarza
+                  </button>
                 )}
               </div>
             )}
@@ -3854,6 +3994,23 @@ export default function EventDetailClient() {
         {user && event.groupId && !amIInvolved && !eventStarted && (
           <div className="px-4">
             <NieGramButton eventId={event.id} userId={user.id} />
+          </div>
+        )}
+
+        {/* ── O MECZU ── opis od organizatora. Przyjechał tu z samej góry
+            zakładki (patrz komentarz przy rzędzie pigułek): to jedyny blok
+            na tej stronie o nieograniczonej z góry wysokości, a odpowiada na
+            pytanie zadawane PO tym, jak się już wie kiedy, gdzie i czy jest
+            miejsce. Nagłówek jest nowy — bez niego akapit wyrwany z góry
+            strony wyglądałby tu jak komentarz bez autora. */}
+        {event.description && (
+          <div className="px-4">
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <h2 className="text-sm font-semibold text-ink">O meczu</h2>
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
+                {event.description}
+              </p>
+            </div>
           </div>
         )}
 
