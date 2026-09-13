@@ -18,6 +18,8 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Na jakie zapytania Bojo ma odpowiadać? Co jest zepsute w SEO i co robimy dalej? | [seo-geo-strategia.md](./seo-geo-strategia.md) |
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
+| Co planujemy w module turniejowym i dlaczego? | [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
+| Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
 
