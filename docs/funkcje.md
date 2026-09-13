@@ -1955,6 +1955,35 @@ bez uprzedniej odmowy zgody i odgrzebywania jej potem w ustawieniach.
 Osobno i bez zmian zostaje `pozycjaBezPytania()` (`lib/geo.ts`): pozycja BEZ pytania, przy
 zgodzie już udzielonej — używa jej okno alertu i kropka „nowe w pobliżu" na dolnej nawigacji.
 
+### Odmowa lokalizacji ma trzy przyczyny i trzy różne wyjścia — od 2026-09-13
+
+`PERMISSION_DENIED` z `getCurrentPosition()` jest jednym kodem błędu na trzy zupełnie różne
+sytuacje. Do 2026-09-13 wszystkie trzy dostawały ten sam komunikat: „Zezwól w ustawieniach
+przeglądarki (ikona kłódki przy adresie)". Zgłoszone z telefonu: człowiek **chce**
+udostępnić lokalizację, naciska „Użyj mojej lokalizacji GPS" i dostaje instrukcję
+prowadzącą w miejsce, w którym albo nic takiego nie ma, albo wszystko jest już ustawione
+na „tak" — czyli pętlę bez wyjścia.
+
+`rodzajOdmowy()` w `lib/geo.ts` pyta Permissions API **po** odmowie i zestawia stan
+uprawnienia dla strony z faktem, że pozycja nie przyszła:
+
+| Stan uprawnienia po odmowie | `GeoErrorKind` | Co mówi komunikat |
+|---|---|---|
+| `denied` | `denied` | blokada zapamiętana przez przeglądarkę → ustawienia strony |
+| `granted` | `denied-system` | strona MA zgodę, więc blokuje telefon → uprawnienie aplikacji przeglądarki w ustawieniach systemu |
+| `prompt` | `denied-dismissed` | pytanie zamknięto bez odpowiedzi, blokady nie ma → **wystarczy nacisnąć drugi raz** |
+| brak API / wyjątek | `denied-nieznane` | wymienia oba miejsca, zamiast zgadywać jedno |
+
+Przypadek `denied-system` jest tym z oryginalnego zgłoszenia i jedynym, którego stara rada
+nie mogła naprawić: w ustawieniach strony wszystko jest na „zezwól", a blokada siedzi
+piętro niżej (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone:
+Ustawienia → Prywatność → Usługi lokalizacji).
+
+Pilnuje tego `__tests__/odmowaLokalizacji.test.ts`: każdy rodzaj ma własny komunikat, każdy
+zostawia drogę ręczną („wpisz miasto"), a komunikat systemowy **nie** odsyła do kłódki.
+Rozpoznanie dotyczy wszystkich wywołań `getCurrentLocation()` naraz — okna alertu, obu
+arkuszy filtrów i sortowania „Najbliżej mnie" — bo siedzi w helperze, nie w komponencie.
+
 ### Sport na `/mapa`: ikony w trybie gier, lista przy obiektach — od 2026-09-13
 
 Arkusz filtrów w **trybie gier** używa tego samego `SportChip` co `/wydarzenia`: ikona
