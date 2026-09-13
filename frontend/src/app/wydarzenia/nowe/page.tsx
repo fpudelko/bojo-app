@@ -1129,7 +1129,10 @@ function NewEventForm() {
                 {GK_SPORTS.includes(sport) && (
                   <OpcjaMeczu
                     tytul="Bramkarze osobno"
-                    podpis="Ustal osobny limit bramkarzy."
+                    // Podpis nie może obiecywać „osobnego limitu": w środku są
+                    // DWA tryby (wspólna pula i rezerwacja miejsc), a osobny
+                    // limit ma tylko drugi z nich.
+                    podpis="Gracze wybierają rolę: bramkarz albo w polu."
                     wlaczona={goalkeepersEnabled === true}
                     naZmiane={(v) => setGoalkeepersEnabled(v)}
                   >
@@ -1358,11 +1361,9 @@ function NewEventForm() {
                     <span className="shrink-0 text-slate-400" aria-hidden="true">›</span>
                   </button>
                 )}
-                {grupaId && (
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Członkowie grupy zobaczą ten mecz.
-                  </p>
-                )}
+                {/* Bez zdania „kto to zobaczy" — mówi je już `EventVisibilityFields`
+                    kilkadziesiąt pikseli wyżej, dokładniej (z nazwą ekipy
+                    i liczbą członków) i dla obu ustawień widoczności. */}
               </div>
 
               {/* Title + description */}

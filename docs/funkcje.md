@@ -953,13 +953,16 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 ## Podsumowanie przed publikacją
 
 „Sprawdź i opublikuj →" na kroku 3 **nie publikuje** — otwiera okno
-**„Tak zobaczą to gracze"** (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika
-w `lib/eventSummary.ts`) z dwoma przyciskami: „Popraw" i „Opublikuj mecz" — dopiero ten
+**„Sprawdź mecz przed publikacją"** z kartą podsumowania „Tak zobaczą to gracze"
+w środku (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`)
+i dwoma przyciskami: „Wróć do edycji" i „Opublikuj mecz" — dopiero ten
 drugi naprawdę publikuje. Powód: data, miejsce, skład i cena są ustawiane na krokach 1–2
 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po utworzeniu
 i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej, niż da się
 ją poprawić. Nazwa przycisku na kroku 3 zmieniła się 2026-08-29: „Opublikuj mecz →" mylił,
-bo klik nie publikował — otwierał to okno.
+bo klik nie publikował — otwierał to okno. Nagłówek samego okna i lewy przycisk zmieniły
+się 2026-09-13: nagłówek powtarzał co do znaku tytuł karty stojącej pod nim, a „Popraw"
+nie mówiło, dokąd wraca.
 
 Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
 zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
@@ -969,7 +972,7 @@ zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek na „
 zostaje widoczny na czas zapisu.
 
 Karta ze stopką przycisków to od 2026-08-29 kolumna flex (`overflow-hidden` na całości,
-`overflow-y-auto` tylko na treści podsumowania) — stopka z „Popraw"/„Opublikuj mecz" stoi
+`overflow-y-auto` tylko na treści podsumowania) — stopka z „Wróć do edycji"/„Opublikuj mecz" stoi
 poza scrollowanym blokiem, więc jest widoczna od razu. Wcześniej cała karta (nagłówek,
 podsumowanie, przyciski) była jednym scrollującym blokiem: przy dłuższym podsumowaniu
 przycisk publikacji chował się pod dołem ekranu, dopóki ktoś nie przewinął w dół —

@@ -13,13 +13,19 @@ const LIMIT_OPISU = 1000;
 /** Licznik „63/80”. Pojawia się dopiero blisko limitu, bo wcześniej odpowiada
  *  na pytanie, którego nikt nie zadaje, a zabiera linijkę pod polem. Sam
  *  `maxLength` wystarcza, żeby limitu nie przekroczyć — nie wystarcza, żeby
- *  zatrzymanie się pola nie wyglądało na zepsutą klawiaturę. */
+ *  zatrzymanie się pola nie wyglądało na zepsutą klawiaturę.
+ *
+ *  WIERSZ JEST CZĘŚCIĄ LICZNIKA, nie wywołującego: pusty `<div>` z `mt-1`
+ *  czekający na licznik zostawia pod polem odstęp, który w chwili pojawienia
+ *  się liczby urośnie i podbije układ. Skoro licznika nie ma — nie ma i wiersza. */
 function LicznikZnakow({ ile, limit }: { ile: number; limit: number }) {
   if (ile < limit * 0.7) return null;
   return (
-    <span className={`shrink-0 text-xs tabular-nums ${ile >= limit ? 'font-semibold text-amber-600' : 'text-slate-400'}`}>
-      {ile}/{limit}
-    </span>
+    <div className="mt-1 flex justify-end">
+      <span className={`shrink-0 text-xs tabular-nums ${ile >= limit ? 'font-semibold text-amber-600' : 'text-slate-400'}`}>
+        {ile}/{limit}
+      </span>
+    </div>
   );
 }
 
@@ -53,20 +59,17 @@ export default function EventTitleDescriptionField({
           type="text" value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder={placeholderTitle} className={inputCls} maxLength={LIMIT_TYTULU}
         />
-        {/* Licznik pojawia się dopiero blisko limitu (`LicznikZnakow`) — do
-            tego czasu wiersz stoi pusty, zamiast powtarzać placeholder zdaniem
-            obok niego. */}
-        <div className="mt-1 flex items-start justify-end gap-2">
-          <LicznikZnakow ile={title.length} limit={LIMIT_TYTULU} />
-        </div>
+        {/* Podpowiedzi „zostaw puste, a mecz nazwie się…" tu nie ma: dokładnie
+            tę nazwę pokazuje placeholder pola, a „(opcjonalnie)" stoi w etykiecie. */}
+        <LicznikZnakow ile={title.length} limit={LIMIT_TYTULU} />
       </div>
 
       {/* Description — behind a toggle: the empty textarea itself read
           like something to fill in, when most matches don't need it. */}
       <div className="rounded-lg border border-slate-200 px-4">
         <ToggleRow
-          label="Dodaj informacje dla graczy"
-          desc="Pokaże się na stronie meczu"
+          label="Dodaj opis"
+          desc="Poziom, zasady, co zabrać"
           checked={descriptionEnabled}
           onChange={setDescriptionEnabled}
         />
@@ -74,12 +77,10 @@ export default function EventTitleDescriptionField({
           <div className="pb-3">
             <textarea
               value={description} onChange={(e) => setDescription(e.target.value)}
-              placeholder="Np. poziom, zasady, co zabrać…" rows={3} className={inputCls}
+              placeholder="Np. gramy do 10 bramek, weź jasną koszulkę" rows={3} className={inputCls}
               maxLength={LIMIT_OPISU}
             />
-            <div className="mt-1 flex justify-end">
-              <LicznikZnakow ile={description.length} limit={LIMIT_OPISU} />
-            </div>
+            <LicznikZnakow ile={description.length} limit={LIMIT_OPISU} />
           </div>
         )}
       </div>

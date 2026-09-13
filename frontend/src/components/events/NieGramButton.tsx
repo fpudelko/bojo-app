@@ -20,6 +20,12 @@ import { odmow, cofnijOdmowe, getDeclines } from '@/lib/eventDeclines';
  * Zgłoszone wprost z sesji QA na telefonie. Pytanie musi mieszkać tutaj, bo
  * po odpowiedzi ma zniknąć — na stronie zostałoby nieaktualne, pytając
  * o coś, na co przed chwilą padła odpowiedź.
+ *
+ * PYTANIE JEST CELOWO ZAMKNIĘTE NA „NIE". Karta ma jeden przycisk („Nie
+ * zagram") — dołączenie mieszka w przyklejonym pasku „Dołącz →" niżej. Pytanie
+ * otwarte („Grasz w tym meczu?") obiecuje więc odpowiedź, której tu nie ma,
+ * a przy okazji gubi powód, dla którego karta w ogóle się pokazuje: mecz jest
+ * przypięty do ekipy czytającego.
  */
 export default function NieGramButton({ eventId, userId }: { eventId: string; userId: string }) {
   const { toast } = useToast();
@@ -49,7 +55,7 @@ export default function NieGramButton({ eventId, userId }: { eventId: string; us
       <p className="mb-2 text-sm text-slate-600 dark:text-slate-300">
         {odmowilem
           ? 'Ekipa wie, że tym razem nie zagrasz.'
-          : 'Grasz w tym meczu?'}
+          : 'Twoja ekipa tu gra. Nie dasz rady?'}
       </p>
       <button
         onClick={handleClick}

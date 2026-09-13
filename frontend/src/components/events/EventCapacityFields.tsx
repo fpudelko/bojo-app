@@ -136,7 +136,7 @@ export function MiejscaWSkladzie({
             )}
           </div>
           <p className="min-w-0 text-xs text-slate-500 sm:flex-1 sm:text-right">
-            Dopiszesz graczy zaraz po utworzeniu, też bez konta.
+            Graczy dopiszesz po utworzeniu — na stronie meczu, też bez konta.
           </p>
         </div>
 
@@ -212,7 +212,8 @@ export function UstawieniaRezerwy({
         </label>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <p className="min-w-0 text-xs text-slate-500 sm:flex-1">
-            Tyle ma pierwsza osoba z rezerwy na kliknięcie „Wchodzę", zanim miejsce trafi do kolejnej.
+            Gdy ktoś się wypisze, tyle ma pierwsza osoba z rezerwy na „Wchodzę",
+            zanim miejsce trafi do kolejnej.
           </p>
           <div className="w-full shrink-0 sm:w-40">
             <select
