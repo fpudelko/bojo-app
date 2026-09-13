@@ -1887,6 +1887,7 @@ wyłącznie po zobaczeniu pustki. Wejścia są dziś trzy:
 | **Dzwonek w pasku** nad listą, obok ikon mapy i filtrów | wypełniony `primary-700` = alert włączony, obrys = wyłączony. Ta sama geometria co plakietka aktywnych filtrów obok, więc kształt mówi „stan", nie „nowe zdarzenie" |
 | **Dół arkusza filtrów** | przy niezerowym podglądzie cichy wiersz „Powiadom mnie o nowych takich meczach"; **przy `Pokaż 0 meczy` pełny przycisk** z nagłówkiem „Nic nie pasuje do tych filtrów" |
 | **Pusty stan listy** | duży przycisk, jak dotąd |
+| **Arkusz filtrów `/mapa` w trybie gier** | to samo co w arkuszu `/wydarzenia` (od 2026-09-13) — tryb gier zadaje dokładnie to samo pytanie „gdzie i w co chcę zagrać" |
 
 Wariant zerowy w arkuszu istnieje, bo **podgląd „Pokaż 0 meczy" JEST momentem, w którym
 filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczyć pusty stan, żeby
@@ -1953,6 +1954,30 @@ bez uprzedniej odmowy zgody i odgrzebywania jej potem w ustawieniach.
 
 Osobno i bez zmian zostaje `pozycjaBezPytania()` (`lib/geo.ts`): pozycja BEZ pytania, przy
 zgodzie już udzielonej — używa jej okno alertu i kropka „nowe w pobliżu" na dolnej nawigacji.
+
+### Sport na `/mapa`: ikony w trybie gier, lista przy obiektach — od 2026-09-13
+
+Arkusz filtrów w **trybie gier** używa tego samego `SportChip` co `/wydarzenia`: ikona
+zawsze, podpis przy wybranym. Cztery sporty w pionie zjadały pół ekranu telefonu, przez co
+suwaki pod spodem wypadały poza kadr.
+
+Arkusz **obiektów zostaje listą z podpisami** i nie jest to przeoczenie: jego źródłem jest
+`MAP_FILTER_SPORTS`, gdzie „wielofunkcyjne" ma to samo 🏟️ co pozycja „Wszystkie sporty" —
+same ikony byłyby tam nie do rozróżnienia. Tryb gier bierze `FOCUS_SPORTS`, gdzie każda
+ikona jest inna.
+
+### Podgląd „Pokaż N meczy" liczy ze SZKICU, nie z zastosowanych filtrów
+
+Błąd zgłoszony wprost z telefonu: w arkuszu na `/mapa` klikanie sportu (a także „Wolnych
+miejsc" i „Za darmo") nie ruszało licznika ani o jeden mecz. `gamesPreviewCount` liczył
+z `gamesBaseFiltered`, czyli po wartościach **zastosowanych** — podgląd obiektów miał to
+poprawione (`previewFieldsCount` bierze `draftSports`), tryb gier został z błędem, bo
+liczył z innego miejsca.
+
+Dziś oba wywołują `filtrujGryMapy()` (`lib/eventFilters.ts`) — raz dla wyniku
+(wartości zastosowane), raz dla podglądu (szkic). Funkcja jest w `lib/`, a nie
+w komponencie, bo w komponencie nie dałoby się jej przetestować bez renderowania mapy
+z Leafletem; asercje w `__tests__/filtrGryMapy.test.ts`.
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
 

@@ -5,11 +5,19 @@ import { metadataDlaMeczu, type EventMeta } from '@/app/wydarzenia/[id]/eventMet
 // JSON-LD był chroniony progiem widoczności od początku, a <title>, description
 // i og: NIE — i to przeszło niezauważone, bo nic tego nie sprawdzało.
 
+// Data liczona od DZIŚ, nie wpisana na sztywno. Poprzednio stało tu
+// `2026-09-12` — w dniu pisania testu data przyszła, nazajutrz miniona. Dwa
+// testy progu indeksowania (`robots` nieustawione dla NADCHODZĄCEGO meczu)
+// zaczęły więc padać same z siebie, bez żadnej zmiany w kodzie, i wywracały
+// CI na masterze. Ten sam mechanizm co w seedach wizualnych, gdzie daty liczą
+// się jako stałe ODSTĘPY od dnia uruchomienia (patrz AGENTS.md).
+const ZA_TRZY_DNI = new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10);
+
 function mecz(overrides: Partial<EventMeta> = {}): EventMeta {
   return {
     title: 'Gierka na Ratajach',
     sport: 'piłka nożna',
-    date: '2026-09-12',
+    date: ZA_TRZY_DNI,
     time: '18:00',
     field_name: 'Orlik Rataje',
     custom_address: 'ul. Kwiatowa 3, Poznań',
@@ -35,7 +43,7 @@ describe('metadataDlaMeczu — próg widoczności', () => {
 
       expect(tekst).not.toContain('Gierka na Ratajach');
       expect(tekst).not.toContain('Orlik Rataje');
-      expect(tekst).not.toContain('2026-09-12');
+      expect(tekst).not.toContain(ZA_TRZY_DNI);
       expect(tekst).not.toContain('18:00');
       expect(tekst).not.toContain('Kwiatowa');
     });
@@ -87,7 +95,7 @@ describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz.
   });
 
   it('nadchodzący publiczny mecz zostaje indeksowalny (robots nieustawione)', () => {
-    const meta = metadataDlaMeczu('abc', mecz({ date: '2026-09-12', time: '18:00' }));
+    const meta = metadataDlaMeczu('abc', mecz({ date: ZA_TRZY_DNI, time: '18:00' }));
     expect(meta.robots).toBeUndefined();
   });
 
