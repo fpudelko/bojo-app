@@ -5,11 +5,21 @@ import { metadataDlaMeczu, type EventMeta } from '@/app/wydarzenia/[id]/eventMet
 // JSON-LD był chroniony progiem widoczności od początku, a <title>, description
 // i og: NIE — i to przeszło niezauważone, bo nic tego nie sprawdzało.
 
+// Data „jutro", nie data na sztywno — sztywna data w przyszłości przestaje nią
+// być z upływem czasu i test zaczyna padać sam z siebie, niezależnie od zmian
+// w kodzie (zdarzyło się: `2026-09-12` jako „nadchodzący mecz" pod datą
+// `2026-09-13`). Ten sam wzorzec co `addDays`/`ymd` w `eventDates.test.ts`.
+function jutro(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function mecz(overrides: Partial<EventMeta> = {}): EventMeta {
   return {
     title: 'Gierka na Ratajach',
     sport: 'piłka nożna',
-    date: '2026-09-12',
+    date: jutro(),
     time: '18:00',
     field_name: 'Orlik Rataje',
     custom_address: 'ul. Kwiatowa 3, Poznań',
@@ -35,7 +45,7 @@ describe('metadataDlaMeczu — próg widoczności', () => {
 
       expect(tekst).not.toContain('Gierka na Ratajach');
       expect(tekst).not.toContain('Orlik Rataje');
-      expect(tekst).not.toContain('2026-09-12');
+      expect(tekst).not.toContain(jutro());
       expect(tekst).not.toContain('18:00');
       expect(tekst).not.toContain('Kwiatowa');
     });
@@ -87,7 +97,7 @@ describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz.
   });
 
   it('nadchodzący publiczny mecz zostaje indeksowalny (robots nieustawione)', () => {
-    const meta = metadataDlaMeczu('abc', mecz({ date: '2026-09-12', time: '18:00' }));
+    const meta = metadataDlaMeczu('abc', mecz({ date: jutro(), time: '18:00' }));
     expect(meta.robots).toBeUndefined();
   });
 
