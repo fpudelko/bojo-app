@@ -99,8 +99,19 @@ describe('maski zrzutów', () => {
     // Asercja na samą LISTĘ, nie na jej zawartość: gdyby ktoś usunął maskę
     // razem z atrybutem, pętla wyżej przeszłaby na pusto i nikt by nie
     // zauważył, że ochrona zniknęła.
+    // `data-zapros-znajomych` nie jest maską ani regułą CSS, tylko zaczepem
+    // lokatora w `scenariusze.spec.ts` — ale obowiązuje go ta sama umowa:
+    // selektor, który nie trafia w nic, nie jest w Playwrighcie błędem
+    // (`getByRole` w pustym zakresie po prostu nic nie znajdzie i test padnie
+    // na czymś zupełnie innym). Dlatego wchodzi do tego samego rejestru.
     const wszystkie = new Set(pliki.flatMap((p) => maskowaneAtrybuty(readFileSync(p, 'utf8'))));
     expect(Array.from(wszystkie).sort())
-      .toEqual(['data-pasek-dolny', 'data-pole-daty', 'data-termin-meczu', 'data-zrzut-maskuj']);
+      .toEqual([
+        'data-pasek-dolny',
+        'data-pole-daty',
+        'data-termin-meczu',
+        'data-zapros-znajomych',
+        'data-zrzut-maskuj',
+      ]);
   });
 });

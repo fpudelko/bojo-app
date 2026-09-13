@@ -370,6 +370,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Strona meczu przestaje tłumaczyć to, co widać
+
+PROBLEM: strona meczu i lista meczów opisywały słowami rzeczy, które były już widoczne
+obok, i powtarzały tę samą akcję w kilku miejscach. Pod każdym rozegranym meczem na liście
+wisiał osobny odnośnik „Powtórz ten mecz", choć powtórka stoi w ustawieniach meczu.
+„Wyślij link znajomym", „Kopiuj link" i „Zaproś z grupy" pojawiały się w trzech miejscach
+jednego ekranu, za każdym razem z własnym akapitem wyjaśniającym. Karta nad licznikiem
+miejsc mówiła „Brakuje 13 — otwórz dla okolicy", a licznik tuż pod nią „Zostało 13 wolnych
+miejsc" — jeden stan opisany dwa razy, odwrotnie. Nagłówek „KIEDY I GDZIE" stał nad datą
+z ikoną kalendarza i adresem z pinezką. Rozegrany mecz nadal proponował dołączenie do
+rezerwy, utworzenie składu, zapraszanie ludzi i przełączniki sterujące zapisami.
+Formularz „Dopisz osobę bez konta" z dwoma akapitami opisu był stale rozwinięty w składzie.
+
+ROZWIĄZANIE BOJO: każda akcja ma na stronie meczu jedno miejsce, a opis zostaje tylko tam,
+gdzie niesie coś, czego nie widać. Wszystkie cztery sposoby zapełnienia składu —
+udostępnienie linku, skopiowanie go, imienne zaproszenie z ekipy i otwarcie meczu dla
+okolicy — stoją w jednej sekcji „Zaproś znajomych" pod licznikiem miejsc, a liczba wolnych
+miejsc pada raz, w liczniku. Mecz, który się już odbył, nie proponuje zapisów, zaproszeń
+ani tworzenia składu i nie pokazuje przełączników sterujących zapisami; powtórka,
+uprawnienia i rozliczenie zostają. Dopisanie osoby bez konta otwiera się jako okno.
+Zdanie o tym, kto zobaczy prywatny mecz ekipy, widzi organizator, który o tym decyduje,
+a nie każdy gracz. W statystykach ekipy nazwisko gracza prowadzi do jego profilu.
+
+MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
+jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
+sobie werdykt progu za `SHOW_MIN_PLAYERS_THRESHOLD`. Nowy `DopiszGoscia.tsx` zastąpił dwie
+rozwinięte kopie formularza gościa w `EventDetailClient.tsx`. Gałęzie `!eventStarted`
+w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i przełączniki
+„Widoczne publicznie"/„Uczestnicy mogą dodawać gości". `opisWidocznosciWGrupie()`
+(`lib/eventFeatures.ts`) dostał wariant `krotko`. `PowtorzZHistorii.tsx` usunięty.
+Linki do profilu w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`,
+`statystykiGrupy.test.tsx`, `eventFeatures.test.ts`.
+
 ### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
 
 PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
@@ -663,30 +696,3 @@ i `140` (`profiles.mail_wylaczone`, `wyslij_mail_do_konta()`, wyzwalacz
 `app/wydarzenia/[id]/edytuj/page.tsx`, `supabase/functions/powiadom-goscia`.
 Testy: `supabase/test/powiadomienia-o-zmianie.sql`, `supabase/test/poczta-do-kont.sql`,
 `src/__tests__/zmianyMeczu.test.ts`.
-
-### 2026-09-08 — Lista rezerwowa dotrzymuje tego, co obiecuje
-
-PROBLEM: Bojo mówiło rezerwowemu, że po odpuszczeniu miejsca dostanie kolejną ofertę, gdy
-zwolni się następne — i tego nie robiło. To samo dotyczyło osoby, która po prostu nie
-zdążyła odpowiedzieć w wyznaczonym czasie: znikała z kolejki na zawsze, bez żadnej
-wiadomości. Organizator tracił przez to rezerwowego po jednym nieodebranym powiadomieniu
-i nie miał jak się o tym dowiedzieć. Gość bez konta stojący na rezerwie nie dostawał oferty
-NIGDY, choć wiadomość po zapisie obiecywała mu ją wprost. Gracz, który sam wycofał prośbę
-o dołączenie, dostawał komunikat „Organizator nie przyjął Twojej prośby".
-
-ROZWIĄZANIE BOJO: odpuszczenie i brak odpowiedzi to teraz dwie różne rzeczy. Kto klika
-„Odpuszczam", wypada z kolejki i wie o tym z góry. Kto nie zdążył, wraca na koniec kolejki
-i dostaje o tym wiadomość — czyli zostaje w grze. Gość bez konta, który podał adres,
-dostaje ofertę mailem i może ją przyjąć albo odpuścić na stronie swojego zapisu. Gość bez
-adresu jest oznaczony w składzie, żeby organizator wiedział, kogo kolejka pominie. Liczba
-„N. w kolejce" liczy się jedną regułą, tą samą co w bazie, i uwzględnia osobne kolejki dla
-bramkarzy i dla gry w polu.
-
-MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
-`ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`, powiadomienie
-`oferta_wygasla`, warunek `auth.uid()` w `powiadom_o_odrzuceniu_prosby()`), migracja `137`
-(`sync_reserve_claim()` przyjmuje gościa z adresem, powód poczty `oferta`,
-`przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
-`lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
-i `supabase/test/poczta-goscia.sql`.
-

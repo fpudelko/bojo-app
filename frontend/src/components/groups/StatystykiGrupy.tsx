@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { getGroupStats, getGroupLeaderboard, pokazacKolumneWygranych } from '@/lib/groupStats';
 import type { GroupStats, GroupLeaderboardEntry } from '@/types';
@@ -74,7 +75,17 @@ export default function StatystykiGrupy({ groupId }: { groupId: string }) {
             <tbody>
               {wiersze.map((w) => (
                 <tr key={w.userId} className="border-b border-slate-50 last:border-0 dark:border-slate-700">
-                  <td className="px-3 py-2 text-ink">{w.name}</td>
+                  <td className="px-3 py-2 text-ink">
+                    {/* Wiersz zawsze niesie `userId` (leaderboard liczy się
+                        wyłącznie z kont, patrz `GroupLeaderboardEntry`) —
+                        gdyby kiedyś doszedł wiersz gościa bez konta, ten
+                        link ma się wtedy nie renderować, nie prowadzić donikąd. */}
+                    {w.userId ? (
+                      <Link href={`/gracz/${w.userId}`} className="font-medium hover:text-primary-700 hover:underline">
+                        {w.name}
+                      </Link>
+                    ) : w.name}
+                  </td>
                   <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{w.matchesPlayed}</td>
                   <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{w.niezawodnoscPct}%</td>
                   <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{w.goals}</td>

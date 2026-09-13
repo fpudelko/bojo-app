@@ -618,13 +618,13 @@ test.describe('udostępnianie meczu', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    // `exact: true` — bez tego lokator łapie DWA elementy. Podpowiedź przy
-    // „Dopisz osobę bez konta" wskazuje organizatorowi tę sekcję po nazwie
-    // („wyślij mu link przyciskiem «Udostępnij» w sekcji «Zaproś znajomych»…"),
-    // więc sama fraza występuje na stronie także w środku dłuższego zdania.
-    // Tytuł panelu to dokładnie te dwa słowa i tylko on ma nas tu interesować.
-    const panel = tresc(page).getByText('Zaproś znajomych', { exact: true })
-      .locator('xpath=ancestor::div[1]');
+    // Karta po atrybucie, nie po tytule i `ancestor::div[1]`. Tamten lokator
+    // zakładał, że tytuł jest BEZPOŚREDNIM dzieckiem karty — założenie padło,
+    // gdy przyciski („Udostępnij", „Kopiuj", „Zaproś z grupy", „Otwórz dla
+    // okolicy") przestały mieścić się w jednej linii na telefonie i tytuł
+    // dostał własny wiersz. Lokator łapał wtedy sam nagłówek i szukał
+    // przycisku „Kopiuj" tam, gdzie go z definicji nie ma.
+    const panel = tresc(page).locator('[data-zapros-znajomych]');
     await pokazSie(page, panel, 'panel „Zaproś znajomych"');
     await panel.getByRole('button', { name: 'Kopiuj', exact: true }).click();
     // Potwierdzenie siedzi w SAMYM przycisku (napis zmienia się na „OK"),

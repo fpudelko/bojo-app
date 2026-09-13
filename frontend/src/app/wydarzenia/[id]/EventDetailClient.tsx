@@ -17,6 +17,7 @@ import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
+import DopiszGoscia from '@/components/events/DopiszGoscia';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
 import { zapiszPowrot } from '@/lib/powrot';
@@ -38,7 +39,7 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
@@ -431,35 +432,6 @@ function Switch({ checked, onChange, disabled, label }: {
   );
 }
 
-/** Opcjonalny adres dopisywanego gościa.
- *
- *  Mobile-first: pole pełnej szerokości pod imieniem, nie obok — na 360 px
- *  imię i e-mail w jednym rzędzie robią z obu pól nieczytelne paski.
- *
- *  Podpis mówi, CO ten adres daje, a nie „opcjonalne": gość bez adresu nie
- *  dostaje niczego — ani potwierdzenia, ani przypomnienia, ani wiadomości
- *  o odwołaniu meczu (patrz migracja `133`). To jest informacja dla
- *  organizatora o tym, czego NIE będzie, jeśli pole zostawi puste.
- */
-function PoleEmailGoscia({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="mt-2">
-      <input
-        type="email"
-        inputMode="email"
-        autoComplete="off"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="E-mail znajomego (opcjonalnie)"
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-      />
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        Z adresem dostanie potwierdzenie, przypomnienie dzień przed i wiadomość, gdyby mecz się zmienił albo odwołał. Bez adresu — musisz powiadomić go sam.
-      </p>
-    </div>
-  );
-}
-
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -650,7 +622,6 @@ export default function EventDetailClient() {
   // częścią serii. Decyduje o tym, czy „Zmień termin" pyta o zakres.
   const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
   const [zakresTerminuOtwarty, setZakresTerminuOtwarty] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
   /** Token MOJEGO wpisu gościa na tym meczu, zapamiętany na tym urządzeniu.
@@ -1951,22 +1922,6 @@ export default function EventDetailClient() {
     await zapiszTermin('ten');
   };
 
-  /** Straight to the clipboard — for people who just want to paste the link
-   *  into a chat and skip the system share sheet. Tekst + adres, tak jak
-   *  `shareEvent()` — goły URL na desktopie powtarzał błąd O-18. */
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(textDoKopiowania(
-        event, eventUrl(event.id, window.location.origin),
-        { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
-      ));
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      toast('Nie udało się skopiować linku', 'error');
-    }
-  };
-
   const handleDelete = async () => {
     setBusy(true);
     try { await deleteEvent(event.id); router.push('/wydarzenia'); }
@@ -2353,12 +2308,15 @@ export default function EventDetailClient() {
         </div>
       )}
 
-      {/* Quick enable teams for organizer */}
-      {!showTeams && (isOwner || canManageSquad) && (
+      {/* Quick enable teams for organizer — po meczu nie ma co dzielić na
+          drużyny na przyszłość; to wyłącznie CTA do UTWORZENIA składu, więc
+          gaśnie razem z resztą przedmeczowych zaproszeń (`!eventStarted`).
+          Sam odczyt już utworzonego składu (wyżej i w TeamsPanel niżej) tego
+          warunku nie ma. */}
+      {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
-            <p className="text-xs text-slate-500 mt-0.5">Niebiescy vs Czerwoni — przypisz graczy ręcznie lub losuj</p>
+            <p className="text-sm font-semibold text-slate-800">Podział na drużyny — Niebiescy vs Czerwoni</p>
           </div>
           <button
             onClick={handleEnableTeams}
@@ -2869,38 +2827,17 @@ export default function EventDetailClient() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-              Wyślij link znajomym — to wszystko, czego trzeba, żeby się zapisali.
-            </p>
-
-            <Button size="lg" className="mt-3 w-full" onClick={handleShare}>
+            <Button size="lg" className="mt-2 w-full" onClick={handleShare}>
               <Share2 className="h-4 w-4" strokeWidth={2.25} /> Wyślij link znajomym
             </Button>
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={handleCopyLink}>
-                {linkCopied
-                  ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
-                  : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj link</>}
-              </Button>
-              <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                <Users className="h-4 w-4" strokeWidth={2.25} /> Zaproś z grupy
-              </Button>
-            </div>
-
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-              {event.visibility === 'public'
-                ? 'Mecz jest publiczny: zobaczą go też gracze z okolicy na liście otwartych gier.'
-                : 'Mecz jest prywatny: wejdą tylko osoby z tym linkiem.'}
-            </p>
-
-            {/* Druga połowa zdania z podsumowania kreatora, tu w drugiej
-                osobie: tam brzmi jak zapowiedź, tu jak podział pracy. To jest
-                moment, w którym organizator odruchowo zaczyna planować
-                „przypomnę im w środę" — czyli ostatnia chwila, żeby mu
-                powiedzieć, że nie musi (migracja `129`). */}
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-              Przypomnienie dzień przed meczem wyjdzie samo. Ty wyślij tylko link.
+            {/* Jedno zdanie zamiast dawnych dwóch (widoczność + przypomnienie)
+                — zgłoszone wprost: ta karta, "Zaproś z grupy" przy liczniku
+                miejsc i sekcja "Zaproś znajomych" niżej mówiły to samo trzy
+                razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
+                dwóch stałych miejscach, nie powtarzają się tutaj. */}
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+              Przypomnienie wyśle się samo — Ty wyślij tylko link.
             </p>
 
             {cyklicznyId && (
@@ -3095,19 +3032,30 @@ export default function EventDetailClient() {
               i gdzie" razem z resztą. */}
           {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
               mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
-              to wprost, zamiast zostawiać organizatora w niepewności. */}
-          {groupInfo && (
+              to wprost, zamiast zostawiać organizatora w niepewności.
+
+              TYLKO dla tego, kto widoczność USTAWIA (`canManageEvent`).
+              Grającemu pigułki „Prywatne" i nazwa ekipy mówią wszystko, czego
+              potrzebuje; zdanie pod spodem powtarzało mu je własnymi słowami
+              i było jednym z dwóch szarych akapitów nad licznikiem miejsc
+              (zgłoszone wprost: „za dużo tekstów i opisów"). Dla organizatora
+              zostaje, bo to on ponosi skutek wyboru. */}
+          {groupInfo && canManageEvent && (
             <p className="mt-2 text-xs text-slate-500">
-              {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount)}
+              {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount, true)}
             </p>
           )}
           {/* Payment info — how to pay + sports-card discount, at a glance. Shown
               generally on the event page, not just at join time. */}
           {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
             <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
+              {/* Bez prefiksu „Płatność:" — pigułka z ceną („7 zł / os.") stoi
+                  w rzędzie wyżej i już ustawia kontekst, więc słowo powtarzało
+                  to, co widać. Lista kart ZOSTAJE w całości: ktoś z Medicoverem
+                  musi zobaczyć swoją kartę, a nie „i 2 inne". */}
               {event.acceptedPaymentMethods.length > 0 && (
                 <span>
-                  Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+                  {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
                   {/* Warunek NIE pyta o `event.blikPhone`: od migracji `120`
                       numeru po prostu nie ma w danych osoby spoza składu (RLS
                       na `event_blik`), a to właśnie ona ma zobaczyć zdanie
@@ -3221,8 +3169,9 @@ export default function EventDetailClient() {
             i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
         <div className="px-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Kiedy i gdzie</p>
-
+            {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
+                kalendarza i adres z pinezką mówią same, co to za karta, więc
+                etykieta powtarzała treść pod sobą własnymi słowami. */}
             {(isOrganizer || canEditDelegate) && !eventStarted ? (
               <button
                 type="button"
@@ -3313,8 +3262,6 @@ export default function EventDetailClient() {
               event={event}
               participants={participants}
               canManage={canManageSquad}
-              busy={busy}
-              onOtworzDlaOkolicy={handleOtworzDlaOkolicy}
             />
           </div>
         )}
@@ -3373,7 +3320,10 @@ export default function EventDetailClient() {
                 // Only pitch the reserve list to someone who could actually act on
                 // it — a player already signed up (squad, reserve, pending or
                 // observing) is told the match is full, not invited to join again.
-                ? (amIInvolved ? 'Komplet' : 'Komplet — dołącz do rezerwy')
+                // Po starcie meczu dołączenie do rezerwy jest już bez sensu
+                // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
+                // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
+                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet — dołącz do rezerwy')
                 : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
 
@@ -3399,24 +3349,12 @@ export default function EventDetailClient() {
               </p>
             )}
 
-            {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
-                człowiek orientuje się, że brakuje ludzi. Panel z linkiem jest
-                na samym dole strony — zanim ktoś tam dojedzie, zdąży wyjść
-                i wkleić link z Messengera.
-
-                To jest teraz JEDYNY stały przycisk „Zaproś z grupy" na stronie —
-                dolna sekcja „Zaproś znajomych" miała kiedyś własny, drugi
-                przycisk o tej samej nazwie, innej ikonie i innym warunku
-                widoczności (bez `!isFull`). Ikona ujednolicona na `Users`,
-                bo tej samej używa panel „Mecz gotowy" tuż po publikacji. */}
-            {user && !eventStarted && !isFull && (myParticipation || isOwner || canManageSquad) && (
-              <button
-                onClick={() => setInviteOpen(true)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
-              >
-                <Users className="h-4 w-4" /> Zaproś z grupy
-              </button>
-            )}
+            {/* „Zaproś z grupy" żył tu jako osobny, stały przycisk — usunięty
+                2026-09-13 (zgłoszone wprost: to samo zaproszenie powtarzało
+                się na tej stronie w trzech miejscach z osobnym opisem
+                każdym razem). Jedyne miejsce dziś: sekcja „Zaproś znajomych"
+                niżej (`ZaprosZnajomychPanel`, `onZaprosZGrupy`), razem
+                z „Udostępnij"/„Kopiuj". */}
 
             {/* Avatar stack — tap to expand. Hidden when roster is open.
                 Rezerwa też otwiera listę: przy pustym składzie i kimś w kolejce
@@ -3700,50 +3638,21 @@ export default function EventDetailClient() {
                 </div>
               )}
 
-              {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
+              {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia).
+                  Modal, nie stały formularz — patrz `DopiszGoscia.tsx`. */}
               {(isOrganizer || canManageSquad) && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
-                  <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                      placeholder="Imię znajomego"
-                      // 80 znaków = limit, który i tak wymusza `validateName()`
-                      // przy zapisie (`lib/events.ts`). Bez tego pole przyjmowało
-                      // dowolnie długi tekst, a odmowa przychodziła dopiero
-                      // z serwera, po kliknięciu „Dodaj".
-                      maxLength={80}
-                      className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                    <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                      <UserPlus className="w-4 h-4" /> Dodaj
-                    </Button>
-                  </div>
-                  <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
-                  {gkEnabled && (
-                    <div className="mt-2 flex gap-2">
-                      {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
-                          className={[
-                            'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                            (r === 'gk') === (guestRole === 'goalkeeper')
-                              ? 'border-primary-600 bg-primary-50 text-primary-700'
-                              : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                          ].join(' ')}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                    przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
-                  </p>
+                  <DopiszGoscia
+                    guestName={guestName}
+                    onGuestNameChange={setGuestName}
+                    email={emailDopisywanegoGoscia}
+                    onEmailChange={setEmailDopisywanegoGoscia}
+                    gkEnabled={gkEnabled}
+                    guestRole={guestRole}
+                    onGuestRoleChange={setGuestRole}
+                    onAdd={handleAddGuest}
+                    busy={busy}
+                  />
                 </div>
               )}
                   </>
@@ -3775,43 +3684,17 @@ export default function EventDetailClient() {
           <div className="px-4">
             {!isOrganizer && !canManageSquad && event.allowGuestAdds && (
               <div className="mb-3">
-                <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                    placeholder="Imię znajomego"
-                    maxLength={80}
-                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                  <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                    <UserPlus className="w-4 h-4" /> Dodaj
-                  </Button>
-                </div>
-                <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
-                {gkEnabled && (
-                  <div className="mt-2 flex gap-2">
-                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
-                        className={[
-                          'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                          (r === 'gk') === (guestRole === 'goalkeeper')
-                            ? 'border-primary-600 bg-primary-50 text-primary-700'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                        ].join(' ')}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2 text-[11px] text-slate-400">
-                  Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                  przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
-                </p>
+                <DopiszGoscia
+                  guestName={guestName}
+                  onGuestNameChange={setGuestName}
+                  email={emailDopisywanegoGoscia}
+                  onEmailChange={setEmailDopisywanegoGoscia}
+                  gkEnabled={gkEnabled}
+                  guestRole={guestRole}
+                  onGuestRoleChange={setGuestRole}
+                  onAdd={handleAddGuest}
+                  busy={busy}
+                />
               </div>
             )}
             <button
@@ -4374,25 +4257,32 @@ export default function EventDetailClient() {
 
             {editMode && (
               <div className="space-y-3 pt-1">
-                {/* Settings switches */}
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
-                  <SettingSwitch
-                    icon={<Globe className="w-4 h-4" />}
-                    title="Widoczne publicznie"
-                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
-                    checked={event.visibility === 'public'}
-                    disabled={busy}
-                    onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
-                  />
-                  <SettingSwitch
-                    icon={<UserPlus className="w-4 h-4" />}
-                    title="Uczestnicy mogą dodawać gości"
-                    desc="Każdy zapisany może dopisać osobę bez konta."
-                    checked={event.allowGuestAdds}
-                    disabled={busy}
-                    onChange={handleToggleAllowGuestAdds}
-                  />
-                </div>
+                {/* Settings switches. `!eventStarted` — oba przełączniki sterują
+                    wyłącznie ZAPISAMI: kto zobaczy mecz na liście i kto może
+                    dopisać gościa. Po gwizdku nie ma już czego zapisywać, więc
+                    na rozegranym meczu były decyzją bez skutku (zgłoszone
+                    wprost). Reszta panelu zostaje — powtórka, uprawnienia,
+                    edycja szczegółów i usunięcie mają sens także po meczu. */}
+                {!eventStarted && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                    <SettingSwitch
+                      icon={<Globe className="w-4 h-4" />}
+                      title="Widoczne publicznie"
+                      desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
+                      checked={event.visibility === 'public'}
+                      disabled={busy}
+                      onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
+                    />
+                    <SettingSwitch
+                      icon={<UserPlus className="w-4 h-4" />}
+                      title="Uczestnicy mogą dodawać gości"
+                      desc="Każdy zapisany może dopisać osobę bez konta."
+                      checked={event.allowGuestAdds}
+                      disabled={busy}
+                      onChange={handleToggleAllowGuestAdds}
+                    />
+                  </div>
+                )}
 
                 {/* Edit event details (separate form page) */}
                 <Link
@@ -4470,17 +4360,27 @@ export default function EventDetailClient() {
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
             więc panel ma sens także przy meczach sprzed migracji 041.
 
-            Sekcja miała kiedyś WŁASNY przycisk „Zaproś z grupy" nad panelem
-            linku — drugi na tej samej stronie, z inną ikoną i innym warunkiem
-            widoczności niż ten przy liczniku wolnych miejsc (`O-20` w audycie
-            ścieżki organizatora). Jedyny stały punkt imiennego zaproszenia
-            jest teraz tam, tuż pod licznikiem — tutaj zostaje wyłącznie
-            udostępnianie linku. */}
-        {!isCancelled && (myParticipation || isOwner || !!myDelegate) && (
+            JEDYNE miejsce na stronie z "Zaproś z grupy" (`onZaprosZGrupy`,
+            od 2026-09-13) — wcześniej ten sam przycisk stał osobno tuż pod
+            licznikiem wolnych miejsc (`O-20` w audycie ścieżki organizatora)
+            i osobno w karcie „Mecz gotowy"; trzy miejsca z tą samą akcją
+            i osobnym opisem każde. `!eventStarted`: po meczu nikogo się już
+            nie zaprasza. */}
+        {!isCancelled && !eventStarted && (myParticipation || isOwner || !!myDelegate) && (
           <div className="px-4">
             <ZaprosZnajomychPanel
               event={event}
               stan={{ wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete }}
+              onZaprosZGrupy={(isOwner || canManageSquad) ? () => setInviteOpen(true) : undefined}
+              // Ten sam warunek, co dawniej w `CzyGramyPanel`: otwierać dla
+              // okolicy ma po co tylko organizator prywatnego meczu, w którym
+              // zostało jeszcze miejsce.
+              onOtworzDlaOkolicy={
+                canManageSquad && event.visibility === 'private' && freeSpots > 0
+                  ? handleOtworzDlaOkolicy
+                  : undefined
+              }
+              busy={busy}
             />
           </div>
         )}
@@ -4502,9 +4402,9 @@ export default function EventDetailClient() {
 
         </>)}
 
-        {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisków na
-            różnych zakładkach (np. "Zaproś z grupy" w karcie "Mecz gotowy",
-            uniwersalnej), więc same nie mogą być zamknięte w jednej z nich. */}
+        {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisku
+            "Zaproś z grupy" w sekcji "Zaproś znajomych" wyżej, więc same nie
+            mogą być zamknięte razem z jedną konkretną zakładką. */}
         {inviteOpen && user && (
           <InviteFromGroupDialog
             eventId={event.id}

@@ -1455,18 +1455,18 @@ długość), zmiana końca nigdy nie rusza startu — dokładnie ten sam wzorzec
 
 **Trzy wejścia do `repeatEvent()`, jedna gwarancja na poziomie typów.** Poza tym oknem
 i skróconą wersją w karcie „Po meczu", trzecie wejście żyje na `NajblizszyMeczGrupy.tsx`
-(„Powtórz na {dzień} {data}") i czwarte na `/moje-gry → Historia`
-(`PowtorzZHistorii.tsx`, opisane w sekcji „Układ `/moje-gry`"). Wszystkie cztery wołają
-tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`, `reserveEnabled`
-i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał po powtórce jako
-OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły `groupId`,
-`minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
+(„Powtórz na {dzień} {data}"). Czwarte wejście istniało na `/moje-gry → Historia`
+(`PowtorzZHistorii.tsx`) — usunięte 2026-09-13 (zgłoszone wprost: link pod KAŻDĄ kartą
+w historii się powtarzał, a te same dwie akcje żyją już na stronie meczu). Pozostałe
+trzy wołają tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`,
+`reserveEnabled` i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał
+po powtórce jako OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły
+`groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
 `ZrodloPowtorki` w `lib/events.ts` wymusza dziś wymienienie KAŻDEGO pola `EventCreate`
 w ciele `repeatEvent()` — pominięcie nowo dodanej kolumny przestaje się kompilować,
-zamiast po cichu zostawiać domyślną wartość. Wszystkie cztery wejścia trafiają też do
-`?utworzono=1` (panel „Mecz gotowy — wyślij link"), nie tylko `PowtorzZHistorii` jak
-dotąd (ustalenie `S-6`) — nowy mecz bez wysłanego linku jest nowym meczem bez składu,
-niezależnie skąd organizator go powtórzył.
+zamiast po cichu zostawiać domyślną wartość. Wszystkie trzy wejścia trafiają też do
+`?utworzono=1` (panel „Mecz gotowy — wyślij link"), niezależnie skąd organizator go
+powtórzył (ustalenie `S-6`).
 
 ---
 
@@ -1505,8 +1505,10 @@ organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagra�
 jeszcze ktoś się decyduje?".
 
 **Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
-wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
-niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Panel miał
+dwa bloki; **od 2026-09-13 został mu jeden** — „Otwórz dla okolicy" przeniosło się do
+`ZaprosZnajomychPanel.tsx` (patrz niżej). Przy wyłączonej `SHOW_MIN_PLAYERS_THRESHOLD`
+panel nie renderuje dziś nic i zostaje na miejscu wyłącznie na wypadek powrotu flagi:
 
 1. **Werdykt progu** — **ukryte za `SHOW_MIN_PLAYERS_THRESHOLD`** (wyłączona 2026-08-21,
    produktowa decyzja: nie chcemy tej funkcji w aplikacji). Gdy odkryta, działa tak: gdy
@@ -1521,8 +1523,17 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
 2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
-   stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
-   prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+   stanie. Zamienia prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+
+   **Mieszka od 2026-09-13 w `ZaprosZnajomychPanel.tsx`, nie tutaj.** Jako osobna karta
+   wisiał nad licznikiem miejsc i podawał tę samą liczbę odwrotnie niż on — licznik
+   „Zostało 13 wolnych miejsc", karta obok „Brakuje 13 — otwórz dla okolicy" — więc jeden
+   stan czytał się jak dwie różne informacje (zgłoszone wprost z sesji UX). Dziś liczba
+   pada RAZ, w liczniku, a otwarcie dla okolicy stoi jako czwarty przycisk obok
+   „Udostępnij", „Kopiuj" i „Zaproś z grupy": wszystkie cztery odpowiadają na to samo
+   pytanie „jak zapełnić skład". Warunek pokazania się nie zmienił (`canManageSquad`,
+   mecz prywatny, są wolne miejsca), `handleOtworzDlaOkolicy` też nie — zmienił się
+   wyłącznie przycisk, który go woła.
 
 **„Nie zagram"** (`NieGramButton.tsx`) — odpowiedź dla członka ekipy, który jeszcze nie
 dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
@@ -3430,22 +3441,14 @@ Sprawdzenie: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bo
 Testy: `supabase/test/przypomnienia.sql` (kto dostaje, z jaką treścią, idempotencja) —
 funkcji nie widzi ani `tsc`, ani Vitest, ani Playwright, bo nie ma dla niej interfejsu.
 
-## „Powtórz ten mecz" na `/moje-gry → Historia`
+## „Powtórz ten mecz" na `/moje-gry → Historia` — usunięte
 
-Gry cykliczne są świadomie wyłączone (`SHOW_RECURRING`), więc „Powtórz mecz" jest ich jedynym
-zamiennikiem — a żyło wyłącznie na stronie meczu i przy najbliższym meczu ekipy. Organizator
-wracający w poniedziałek, żeby wrzucić czwartek, miał przed sobą cztery kroki: Moje gry →
-Historia → otwórz mecz → przewiń do panelu „Zarządzaj wydarzeniem" → Powtórz.
-
-`components/events/PowtorzZHistorii.tsx` — przycisk pod kartą meczu, wyłącznie przy meczach,
-które ta osoba organizowała (`relation.isOrganizer`). Data wypełniona z góry
-(`domyslnyTerminPowtorki()` — najbliższy przyszły ten sam dzień tygodnia), długość meczu
-zachowana. Po utworzeniu przenosi na `/wydarzenia/<nowy>?utworzono=1`, czyli od razu
-do panelu „Mecz gotowy — wyślij link".
-
-Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu: tamto siedzi
-w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
-w jedno zostaje jako osobne zadanie.
+Krótko istniał tu przycisk pod KAŻDĄ kartą w Historii (`PowtorzZHistorii.tsx`, ustalenie
+`O-40`). Usunięty 2026-09-13, zgłoszone wprost: link powtarzał się na każdej karcie
+listy, a te same dwie akcje już istnieją na stronie meczu — „Powtórz mecz (skopiuj)"
+w zakładce Ustawienia (`EventDetailClient.tsx`) i przycisk „Powtórz" w karcie „Po meczu"
+(`PoMeczuCard.tsx`). Kto chce powtórzyć mecz, otwiera go i używa jednej z tych dwóch —
+nie potrzeba trzeciego wejścia rozsianego po liście.
 
 ## Awaria wczytania meczu to nie jest brak meczu
 
@@ -3527,7 +3530,7 @@ odwołany" na stronie meczu, czyli do wszystkich miejsc, które i tak już mówi
 
 | Gdzie | Co |
 |---|---|
-| `components/events/CzyGramyPanel.tsx` | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo panel jest komponentem POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
+| `components/events/ZaprosZnajomychPanel.tsx` (do 2026-09-13 `CzyGramyPanel.tsx`) | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo przycisk jest w komponencie POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
 | `app/grupy/[id]/GroupDetailClient.tsx` | opuszczenie ekipy, usunięcie gracza z ekipy |
 | `app/grupy/[id]/edytuj/page.tsx` | nowy link zaproszenia, opuszczenie ekipy, **usunięcie ekipy** |
 
