@@ -370,6 +370,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Kolejka rezerwowa mówi resztce graczy to, co dotąd mówiła tylko jednej osobie
+
+PROBLEM: dzień wcześniej kolejka rezerwowa dostała własny zegar (patrz niżej) — ale
+widoczność stanu kolejki dla kogoś INNEGO niż osoba z akurat aktywną ofertą wciąż
+kulała. W liście „Rezerwa — kolejka do zwolnionego miejsca" (widocznej dla każdego na
+stronie meczu) badge „czeka na decyzję" nie mówił, DO KIEDY — organizator i reszta
+rezerwy nie mieli jak sprawdzić, ile czasu koledze zostało, mimo że własny baner
+rezerwowego liczy to od dawna. Gorzej: numer „N." przy każdym wierszu tej listy liczył
+się gołym indeksem, nie regułą bazy — przy włączonym rozróżnieniu bramkarzy jedyny
+bramkarz na rezerwie znów czytał „4." zamiast „1." (ten sam bug, którego pierwszą wersję
+naprawiono wcześniej tylko dla banera „mój", nie dla tej wspólnej listy). Do tego ktoś,
+komu oferta WYGASŁA (wrócił na koniec kolejki, ale wciąż gra), nie miał w tej liście
+żadnego odznaczenia — tylko treść powiadomienia, którego reszta rezerwy nie widzi.
+
+ROZWIĄZANIE BOJO: lista rezerwy pokazuje dziś dokładnie to, co widzi baza. Numer przy
+każdym wierszu liczy się tą samą regułą kolejki (rola + kolejność po wygasłych
+ofertach), więc bramkarz w swojej osobnej kolejce ma poprawny numer, a ktoś, kto
+odpuścił na stałe, dostaje kreskę zamiast zgadywanej liczby. Badge „czeka na decyzję"
+niesie teraz termin („do 18:30" / „do jutra, 18:30"), widoczny dla każdego, nie tylko
+dla zainteresowanego. Nowy badge „nie zdążył(a)" oznacza kogoś, kogo oferta właśnie
+wygasła — bez sugerowania, że wypadł z gry na stałe.
+
+MECHANIKA: `pozycjaWKolejce()` (`lib/kolejkaRezerwy.ts`) liczy numer w liście zamiast
+gołego indeksu z `.map()`; nowy `terminOferty()` w tym samym pliku liczy deadline
+z `claim_offered_at` + `events.reserve_claim_minutes`; nowy `krotkiTermin()`
+(`lib/eventDates.ts`) formatuje go kompaktowo, świadomie bez nazwy dnia tygodnia (żeby
+nie odmieniać przez przypadki jak `dzienTygodniaWBierniku()`). `EventDetailClient.tsx`
+— sekcja „Rezerwa — kolejka do zwolnionego miejsca". Testy:
+`__tests__/kolejkaRezerwy.test.ts`, `__tests__/eventDates.test.ts`.
+
 ### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
 
 PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
@@ -657,20 +687,3 @@ MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
 `przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
 `lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
 i `supabase/test/poczta-goscia.sql`.
-
-### 2026-09-08 — Kreator nie odsyła już do złego kroku, a wyłączona płatność zostaje wyłączona
-
-PROBLEM: w oknie „Tak zobaczą to gracze" — ostatnim sprawdzeniu przed opublikowaniem meczu
-— przycisk „Zmień" przy dacie przenosił organizatora na wybór miejsca, a „Zmień" przy
-miejscu na wybór terminu. Osobno: po wyłączeniu przełącznika „Mecz płatny" cena wracała
-przy najbliższej zmianie liczby miejsc, więc mecz publikował się jako płatny, bez żadnego
-sposobu zapłaty, przy przełączniku pokazującym „wyłączony". Gracz widział kwotę i nie miał
-jak jej uregulować.
-
-ROZWIĄZANIE BOJO: układ kroków kreatora ma jedno źródło prawdy, więc podsumowanie nie może
-się już z nim rozjechać. Wyłączenie płatności czyści też koszt wynajmu obiektu, z którego
-liczona jest cena od osoby, a o tym, czy mecz jest płatny, decyduje przełącznik, nie
-resztka w polu. „Zacznij od nowa" wraca do wszystkich ustawień domyślnych.
-
-MECHANIKA: stała `KROK_KREATORA` i funkcja `czyMeczPlatny()` w `lib/eventWizard.ts`,
-czytane przez `lib/eventSummary.ts` i `app/wydarzenia/nowe/page.tsx`. Testy
